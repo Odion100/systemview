@@ -1,3 +1,9 @@
+@import "../../sass/bootstrap/functions";
+@import "../../sass/bootstrap/variables";
+@import "../../sass/bootstrap/mixins/breakpoints";
+
+@import "../../sass/bootstrap/bootstrap-grid.scss";
+
 .test-button {
-  background: orange;
+  background: hotpink;
 }
