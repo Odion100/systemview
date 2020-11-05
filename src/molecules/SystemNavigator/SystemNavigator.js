@@ -17,7 +17,9 @@ const SystemNav = (services) => {
         <div className="row">
           <div className="col-12">
             {services.map(
-              ({ last_update, service_id, dependencies, system_modules, server_modules }) => {}
+              ({ last_update, service_id, dependencies, system_modules, server_modules }) => {
+                return;
+              }
             )}
           </div>
         </div>

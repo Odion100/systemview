@@ -1,6 +1,9 @@
 @import "../../sass/bootstrap/bootstrap-grid.scss";
 
-.main {
+.system-viewer {
   background: #282c34;
   height: 100vh;
+  & > .row {
+    height: 100vh;
+  }
 }

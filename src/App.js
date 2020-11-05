@@ -1,8 +1,8 @@
-import Main from "./pages/SystemView/SystemView";
+import SystemView from "./pages/SystemViewer/SystemViewer";
 import "./App.css";
 
 const App = ({ SystemView }) => {
-  return <Main />;
+  return <SystemView />;
 };
 
 export default App;
