@@ -1,7 +1,8 @@
 import React from "react";
 import "./styles.scss";
 
-const SystemViewer = () => {
+const SystemViewer = ({ SystemView }) => {
+  console.log(SystemView);
   return (
     <section className="system-viewer">
       <div className="row">
