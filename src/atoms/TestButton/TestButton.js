@@ -1,7 +1,7 @@
 import React from "react";
 import "./styles.scss";
 
-const NewsfeedIcon = () => {
+const TestButton = () => {
   return (
     <div className="test-button col-12">
       <button>Test Button</button>
@@ -9,4 +9,4 @@ const NewsfeedIcon = () => {
   );
 };
 
-export default NewsfeedIcon;
+export default TestButton;

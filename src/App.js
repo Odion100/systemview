@@ -1,15 +1,8 @@
-import logo from "./logo.svg";
-import TestButton from "./atoms/TestButton/TestButton";
+import Main from "./pages/SystemView/SystemView";
 import "./App.css";
 
-function App() {
-  return (
-    <div className="App">
-      <header className="App-header">
-        <TestButton></TestButton>
-      </header>
-    </div>
-  );
-}
+const App = ({ SystemView }) => {
+  return <Main />;
+};
 
 export default App;
