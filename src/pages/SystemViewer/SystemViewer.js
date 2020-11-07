@@ -4,16 +4,25 @@ import SystemNavigator from "../../organisms/SystemNavigator/SystemNavigator";
 
 const SystemViewer = ({ SystemViewAPI }) => {
   console.log(SystemViewAPI);
-  const [viewState, setState] = useState({
-    project_code: "",
-    document_pointer: "",
-  });
+  const [viewState, setViewState] = useState({ project_code: "", document_pointer: "" });
+  const [servicesList, setServices] = useState([]);
 
   const SearchInputSubmit = async (e) => {
     console.log(SystemViewAPI);
     const { SystemView } = SystemViewAPI;
-    const system = await SystemView.get({ project_code: e.target.value });
-    console.log(system);
+
+    try {
+      const results = await SystemView.getServices({ project_code: e.target.value });
+      if (results.length > 0)
+        setViewState({
+          project_code: results[0].project_code,
+          document_pointer: "",
+        });
+      setServices(results.services);
+    } catch (error) {
+      console.log(error);
+    }
+
     console.log(e.target.value);
   };
 
@@ -21,7 +30,7 @@ const SystemViewer = ({ SystemViewAPI }) => {
     <section className="system-viewer">
       <div className="row">
         <div className="col-3">
-          <SystemNavigator SearchInputSubmit={SearchInputSubmit} />
+          <SystemNavigator SearchInputSubmit={SearchInputSubmit} servicesList={servicesList} />
         </div>
         <div className="col-6"></div>
         <div className="col-3"></div>

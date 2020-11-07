@@ -5,7 +5,8 @@ import List from "../../atoms/List/List";
 import ExpandableList from "../../molecules/ExpandableList/ExpandableList";
 import TextWith2Links from "../../molecules/TextWith2Links/TextWith2Links";
 
-const SystemNav = ({ services, SearchInputSubmit, getDocumentation }) => {
+const SystemNav = ({ SearchInputSubmit, servicesList }) => {
+  console.log(servicesList);
   return (
     <section className="system-nav">
       <div className="container">
@@ -16,7 +17,21 @@ const SystemNav = ({ services, SearchInputSubmit, getDocumentation }) => {
         </div>
         <div className="row">
           <div className="col-12">
-            <List></List>
+            {servicesList.map(({ server_modules, system_modules, dependencies, service_id }, i) => {
+              return (
+                <ExpandableList key={i} title={service_id}>
+                  {server_modules.map(({ name, methods }, i) => {
+                    return (
+                      <ExpandableList key={i} title={name}>
+                        {methods.map(({ fn }, i) => {
+                          return <div key={i}>{fn}</div>;
+                        })}
+                      </ExpandableList>
+                    );
+                  })}
+                </ExpandableList>
+              );
+            })}
           </div>
         </div>
       </div>
