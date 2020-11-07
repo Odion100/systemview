@@ -7,7 +7,11 @@ const App = ({ SystemView }) => {
     <Router>
       <div className="App">
         <Switch>
-          <Route exact path="/" render={(props) => <SystemViewer {...props} {...SystemView} />} />
+          <Route
+            exact
+            path="/"
+            render={(props) => <SystemViewer {...props} SystemView={SystemView} />}
+          />
         </Switch>
       </div>
     </Router>
