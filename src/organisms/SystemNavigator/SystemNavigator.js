@@ -1,5 +1,9 @@
 import React from "react";
 import "./styles.scss";
+import TextBox from "../../atoms/Textbox/Textbox";
+import List from "../../atoms/List/List";
+import ExpandableList from "../../molecules/ExpandableList/ExpandableList";
+import TextWith2Links from "../../molecules/TextWith2Links/TextWith2Links";
 
 const SystemNav = (services) => {
   return (
@@ -15,13 +19,7 @@ const SystemNav = (services) => {
           </div>
         </div>
         <div className="row">
-          <div className="col-12">
-            {services.map(
-              ({ last_update, service_id, dependencies, system_modules, server_modules }) => {
-                return;
-              }
-            )}
-          </div>
+          <div className="col-12"></div>
         </div>
       </div>
     </section>
