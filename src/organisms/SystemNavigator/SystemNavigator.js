@@ -5,21 +5,19 @@ import List from "../../atoms/List/List";
 import ExpandableList from "../../molecules/ExpandableList/ExpandableList";
 import TextWith2Links from "../../molecules/TextWith2Links/TextWith2Links";
 
-const SystemNav = (services) => {
+const SystemNav = ({ services, SearchInputSubmit, getDocumentation }) => {
   return (
     <section className="system-nav">
       <div className="container">
         <div className="row">
           <div className="col-12">
-            <input
-              className="system-nav__searchbar"
-              type="text"
-              placeholder="Search project_code and hit enter."
-            />
+            <TextBox placeholderText="project_code" TextboxSubmit={SearchInputSubmit} />
           </div>
         </div>
         <div className="row">
-          <div className="col-12"></div>
+          <div className="col-12">
+            <List></List>
+          </div>
         </div>
       </div>
     </section>
