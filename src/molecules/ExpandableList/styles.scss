@@ -1,0 +1,12 @@
+.expandable-list {
+  padding: 5px;
+  text-indent: 10px;
+  &__items {
+    &--hidden {
+      display: none;
+    }
+  }
+  &__button {
+    text-align: left;
+  }
+}
