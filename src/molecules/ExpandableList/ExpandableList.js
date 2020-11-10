@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import "./styles.scss";
 import List from "../../atoms/List/List";
 import Text from "../../atoms/Text/Text";
-import ExpandButton from "../../atoms/ExpandButton/ExpandButton";
+import ExpandIcon from "../../atoms/ExpandIcon/ExpandIcon";
 
 const ExpandableList = ({ children, title }) => {
   const [isOpen, setState] = useState(false);
@@ -12,8 +12,8 @@ const ExpandableList = ({ children, title }) => {
   };
   return (
     <div className="expandable-list">
-      <div className="expandable-list__button">
-        <ExpandButton _click={expandClick} />
+      <div className="expandable-list__button" onClick={expandClick}>
+        <ExpandIcon />
         <Text text={title} />
       </div>
 

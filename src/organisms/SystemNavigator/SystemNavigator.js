@@ -26,7 +26,7 @@ const SystemNav = ({ SearchInputSubmit, servicesList }) => {
                         {methods.map(({ fn }, i) => {
                           return (
                             <i>
-                              <Text key={i} text={`.${fn}()`} />
+                              <Text key={i} text={`.${fn}(data, cb)`} />
                             </i>
                           );
                         })}
