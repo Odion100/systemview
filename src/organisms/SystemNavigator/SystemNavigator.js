@@ -2,9 +2,11 @@ import React from "react";
 import "./styles.scss";
 import TextBox from "../../atoms/Textbox/Textbox";
 import List from "../../atoms/List/List";
+import Link from "../../atoms/Link/Link";
 import ExpandableList from "../../molecules/ExpandableList/ExpandableList";
 import TextWith2Links from "../../molecules/TextWith2Links/TextWith2Links";
 import Text from "../../atoms/Text/Text";
+
 const SystemNav = ({ SearchInputSubmit, servicesList }) => {
   console.log(servicesList);
   return (
@@ -19,14 +21,14 @@ const SystemNav = ({ SearchInputSubmit, servicesList }) => {
           <div className="col-12 ">
             {servicesList.map(({ server_modules, system_modules, dependencies, service_id }, i) => {
               return (
-                <ExpandableList key={i} title={service_id}>
+                <ExpandableList key={i} title={<Link link="#" text={service_id} />}>
                   {server_modules.map(({ name, methods }, i) => {
                     return (
-                      <ExpandableList key={i} title={name}>
+                      <ExpandableList key={i} title={<Link link="#" text={name} />}>
                         {methods.map(({ fn }, i) => {
                           return (
                             <i>
-                              <Text key={i} text={`.${fn}(data, cb)`} />
+                              <Link link="#" key={i} text={`.${fn}(data, cb)`} />
                             </i>
                           );
                         })}
