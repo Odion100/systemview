@@ -14,7 +14,7 @@ const ExpandableList = ({ children, title }) => {
     <div className="expandable-list">
       <div className="expandable-list__button" onClick={expandClick}>
         <ExpandIcon />
-        <Text text={title} />
+        {title}
       </div>
 
       <div className={`expandable-list__items expandable-list__items--${!isOpen ? "hidden" : ""}`}>

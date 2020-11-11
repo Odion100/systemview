@@ -6,6 +6,8 @@ import Link from "../../atoms/Link/Link";
 import ExpandableList from "../../molecules/ExpandableList/ExpandableList";
 import TextWith2Links from "../../molecules/TextWith2Links/TextWith2Links";
 import Text from "../../atoms/Text/Text";
+import ServerModulesList from "../../organisms/ServerModulesList/ServerModulesList";
+import MissingDocIcon from "../../atoms/MissingDocIcon/MissingDocIcon";
 
 const SystemNav = ({ SearchInputSubmit, servicesList }) => {
   console.log(servicesList);
@@ -21,20 +23,18 @@ const SystemNav = ({ SearchInputSubmit, servicesList }) => {
           <div className="col-12 ">
             {servicesList.map(({ server_modules, system_modules, dependencies, service_id }, i) => {
               return (
-                <ExpandableList key={i} title={<Link link="#" text={service_id} />}>
-                  {server_modules.map(({ name, methods }, i) => {
-                    return (
-                      <ExpandableList key={i} title={<Link link="#" text={name} />}>
-                        {methods.map(({ fn }, i) => {
-                          return (
-                            <i>
-                              <Link link="#" key={i} text={`.${fn}(data, cb)`} />
-                            </i>
-                          );
-                        })}
-                      </ExpandableList>
-                    );
-                  })}
+                <ExpandableList
+                  key={i}
+                  title={
+                    <React.Fragment className="system-navobject-title">
+                      <Link link="#" text={service_id} />
+                      <div className="server-module__docs-icon">
+                        <MissingDocIcon isSaved={parseInt(Math.random() * 1000) % 2} />
+                      </div>
+                    </React.Fragment>
+                  }
+                >
+                  <ServerModulesList server_modules={server_modules} />
                 </ExpandableList>
               );
             })}

@@ -29,10 +29,10 @@ const SystemViewer = ({ SystemViewAPI }) => {
   return (
     <section className="system-viewer">
       <div className="row">
-        <div className="col-3">
+        <div className="col-4">
           <SystemNavigator SearchInputSubmit={SearchInputSubmit} servicesList={servicesList} />
         </div>
-        <div className="col-6"></div>
+        <div className="col-5"></div>
         <div className="col-3"></div>
       </div>
     </section>
