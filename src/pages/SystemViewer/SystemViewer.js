@@ -3,12 +3,10 @@ import "./styles.scss";
 import SystemNavigator from "../../organisms/SystemNavigator/SystemNavigator";
 
 const SystemViewer = ({ SystemViewAPI }) => {
-  console.log(SystemViewAPI);
   const [viewState, setViewState] = useState({ project_code: "", document_pointer: "" });
   const [servicesList, setServices] = useState([]);
 
   const SearchInputSubmit = async (e) => {
-    console.log(SystemViewAPI);
     const { SystemView } = SystemViewAPI;
 
     try {
