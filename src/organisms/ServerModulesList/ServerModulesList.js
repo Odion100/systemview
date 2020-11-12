@@ -23,7 +23,7 @@ const ServerModulesList = ({ server_modules }) => {
           >
             {methods.map(({ fn }, i) => {
               return (
-                <div className="server-module__methods">
+                <div key={i} className="server-module__methods">
                   <Link link="#" key={i} text={`.${fn}(data, cb)`} />
                   <div className="server-module__docs-icon">
                     <MissingDocIcon isSaved={parseInt(Math.random() * 1000) % 2} />
