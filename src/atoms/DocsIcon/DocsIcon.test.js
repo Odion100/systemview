@@ -21,7 +21,7 @@ describe("<DocsIcon/>", () => {
     expect(wrapper.find("img").props().src).to.equal("missing-doc.png");
   });
 
-  it("should additional classname to the container div and image from the addCall prop", () => {
+  it("should additional classname to the container div and image from the add_class prop", () => {
     const wrapper = shallow(<DocsIcon add_class="test" />);
     expect(expect(wrapper.find(".doc-icon").props().className).to.equal("doc-icon test"));
     expect(expect(wrapper.find(".doc-icon__img").props().className).to.equal("doc-icon__img test"));
