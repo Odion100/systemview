@@ -5,15 +5,13 @@ import testSavedIcion from "../../assets/test-saved.png";
 const TestsIcon = ({ add_class, isSaved }) => {
   console.log(isSaved);
   return (
-    <React.Fragment>
-      <div className={`missing-doc-icon ${add_class}`}>
-        <img
-          className={`missing-doc-icon__img ${add_class}`}
-          src={isSaved ? testMissingIcon : testSavedIcion}
-          alt="missing docs"
-        />
-      </div>
-    </React.Fragment>
+    <div className={`doc-icon ${add_class}`}>
+      <img
+        className={`doc-icon__img ${add_class}`}
+        src={isSaved ? testMissingIcon : testSavedIcion}
+        alt="missing tests"
+      />
+    </div>
   );
 };
 

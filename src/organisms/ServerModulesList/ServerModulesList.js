@@ -2,8 +2,9 @@ import React from "react";
 import "./styles.scss";
 import ExpandableList from "../../molecules/ExpandableList/ExpandableList";
 import Link from "../../atoms/Link/Link";
-import MissingDocIcon from "../../atoms/MissingDocIcon/MissingDocIcon";
+import MissingDocIcon from "../../atoms/DocsIcon/DocsIcon";
 import TestsIcon from "../../atoms/TestsIcon/TestsIcon";
+
 const ServerModulesList = ({ server_modules }) => {
   return (
     <React.Fragment>
@@ -12,7 +13,7 @@ const ServerModulesList = ({ server_modules }) => {
           <ExpandableList
             key={i}
             title={
-              <React.Fragment className="system-navobject-title">
+              <React.Fragment>
                 <Link link="#" text={name} />
                 <div className="server-module__docs-icon">
                   <MissingDocIcon isSaved={parseInt(Math.random() * 1000) % 2} />

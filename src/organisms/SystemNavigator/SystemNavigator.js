@@ -7,7 +7,7 @@ import ExpandableList from "../../molecules/ExpandableList/ExpandableList";
 import TextWith2Links from "../../molecules/TextWith2Links/TextWith2Links";
 import Text from "../../atoms/Text/Text";
 import ServerModulesList from "../../organisms/ServerModulesList/ServerModulesList";
-import MissingDocIcon from "../../atoms/MissingDocIcon/MissingDocIcon";
+import MissingDocIcon from "../../atoms/DocsIcon/DocsIcon";
 
 const SystemNav = ({ SearchInputSubmit, servicesList }) => {
   console.log(servicesList);
@@ -26,7 +26,7 @@ const SystemNav = ({ SearchInputSubmit, servicesList }) => {
                 <ExpandableList
                   key={i}
                   title={
-                    <React.Fragment className="system-navobject-title">
+                    <React.Fragment>
                       <Link link="#" text={service_id} />
                       <div className="server-module__docs-icon">
                         <MissingDocIcon isSaved={parseInt(Math.random() * 1000) % 2} />
