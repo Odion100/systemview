@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import "./styles.scss";
 import List from "../../atoms/List/List";
 import Text from "../../atoms/Text/Text";
-import ExpandIcon from "../../atoms/ExpandIcon/ExpandIcon";
+import ExpandIcon from "../../atoms/ExpandableIcon/ExpandableIcon";
 
 const ExpandableList = ({ children, title }) => {
   const [isOpen, setState] = useState(false);
