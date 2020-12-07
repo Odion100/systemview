@@ -1,0 +1,36 @@
+.documentation {
+  color: white;
+  padding: 20px;
+  &__title {
+    font-size: 2.25rem;
+  }
+}
+
+.description-box {
+  &__text {
+    text-align: left;
+    color: #e3e3e3;
+  }
+}
+
+.GeneratedTable {
+  width: 100%;
+  margin: 5px 0;
+  background-color: #ffffff;
+  border-collapse: collapse;
+  border-width: 2px;
+  border-color: #4c4837;
+  border-style: solid;
+  color: #000000;
+  & td,
+  & th {
+    border-width: 1px;
+    border-color: #bfbfbe;
+    border-style: solid;
+    padding: 3px;
+    font-weight: 300;
+  }
+  & thead {
+    background-color: #dadada;
+  }
+}
