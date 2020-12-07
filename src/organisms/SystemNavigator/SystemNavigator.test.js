@@ -3,20 +3,23 @@ import React from "react";
 import { expect } from "chai";
 import { render } from "enzyme";
 
-import ServerModulesList from "./ServerModulesList";
+import SystemNavigator from "./SystemNavigator";
 
 import Enzyme from "enzyme";
 import Adapter from "enzyme-adapter-react-16";
 
 Enzyme.configure({ adapter: new Adapter() });
 
-const mockModule = (fn, name) => {
-  return { methods: [{ fn }], name };
+const mockService = (fn, name, service_id) => {
+  return {
+    service_id,
+    system_modules: [{ methods: [{ fn }], name }],
+  };
 };
-describe("<ServerModulesList/>", () => {
+describe("<SystemNavigator/>", () => {
   it("renders a div with classname expandable-list", () => {
     const wrapper = render(
-      <ServerModulesList server_modules={[mockModule("test_fn", "test_name")]} />
+      <SystemNavigator servicesList={[mockService("test_fn", "test_name", "test_service_id")]} />
     );
 
     expect(wrapper.find("div.expandable-list__button .link").text()).to.equal("test_name");

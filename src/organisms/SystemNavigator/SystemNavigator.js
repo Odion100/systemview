@@ -1,11 +1,8 @@
 import React from "react";
 import "./styles.scss";
 import TextBox from "../../atoms/Textbox/Textbox";
-import List from "../../atoms/List/List";
 import Link from "../../atoms/Link/Link";
 import ExpandableList from "../../molecules/ExpandableList/ExpandableList";
-import TextWith2Links from "../../molecules/TextWith2Links/TextWith2Links";
-import Text from "../../atoms/Text/Text";
 import ServerModulesList from "../../organisms/ServerModulesList/ServerModulesList";
 import MissingDocIcon from "../../atoms/DocsIcon/DocsIcon";
 
