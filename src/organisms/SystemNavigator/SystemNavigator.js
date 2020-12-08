@@ -7,7 +7,6 @@ import ServerModulesList from "../../organisms/ServerModulesList/ServerModulesLi
 import MissingDocIcon from "../../atoms/DocsIcon/DocsIcon";
 
 const SystemNav = ({ SearchInputSubmit, servicesList }) => {
-  console.log(servicesList);
   return (
     <section className="system-nav">
       <div className="container">

@@ -12,6 +12,12 @@
     padding: 3px;
     font-weight: 300;
   }
+  & th {
+    font-weight: bold;
+    font-size: 15px;
+    color: #232b38;
+    padding: 6px;
+  }
   & thead {
     background-color: #dadada;
   }
