@@ -1,6 +1,7 @@
 import React from "react";
 import "./styles.scss";
 import DataTable from "../../atoms/DataTable/DataTable";
+import Text from "../../atoms/Text/Text";
 const Documentation = ({ doc_type }) => {
   return (
     <div className="documentation">
@@ -18,53 +19,22 @@ const Documentation = ({ doc_type }) => {
       </div>
       <div className="row">
         <div>
-          <span>The following table describes the properties of the optional options object.</span>
+          <Text
+            text={`The following table describes the properties of the data parameter of the above method.`}
+          />
         </div>
-        <table className="GeneratedTable">
-          <thead>
-            <tr>
-              <th>Property</th>
-              <th>Description</th>
-              <th>Events</th>
-              <th>Type</th>
-              <th>Default</th>
-              <th>Required</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Cell</td>
-              <td>Cell</td>
-              <td>Cell</td>
-              <td>Cell</td>
-              <td>Cell</td>
-              <td>Cell</td>
-            </tr>
-            <tr>
-              <td>Cell</td>
-              <td>Cell</td>
-              <td>Cell</td>
-              <td>Cell</td>
-              <td>Cell</td>
-              <td>Cell</td>
-            </tr>
-            <tr>
-              <td>Cell</td>
-              <td>Cell</td>
-              <td>Cell</td>
-              <td>Cell</td>
-              <td>Cell</td>
-              <td>Cell</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <div className="row">
         <DataTable
-          headers={[{ name: "col1" }, { name: "col2" }]}
+          headers={[
+            { name: "Property" },
+            { name: "Type" },
+            { name: "Description" },
+            { name: "Events" },
+            { name: "Defalut" },
+            { name: "required" },
+          ]}
           table={[
-            ["test1", "test2"],
-            ["test3", "test4"],
+            ["test1", "test2", "test1", "test2", "test1", "test2"],
+            ["test3", "test4", "test1", "test2", "test1", "test2"],
           ]}
         />
       </div>
