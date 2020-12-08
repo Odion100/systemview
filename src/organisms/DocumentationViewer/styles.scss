@@ -10,6 +10,8 @@
   &__text {
     text-align: left;
     color: #e3e3e3;
+    background: #282b31;
+    padding: 12px;
   }
 }
 
@@ -18,9 +20,6 @@
   margin: 5px 0;
   background-color: #ffffff;
   border-collapse: collapse;
-  border-width: 2px;
-  border-color: #4c4837;
-  border-style: solid;
   color: #000000;
   & td,
   & th {

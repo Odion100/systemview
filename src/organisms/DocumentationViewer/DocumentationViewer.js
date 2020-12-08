@@ -1,6 +1,6 @@
 import React from "react";
 import "./styles.scss";
-
+import DataTable from "../../atoms/DataTable/DataTable";
 const Documentation = ({ doc_type }) => {
   return (
     <div className="documentation">
@@ -16,11 +16,11 @@ const Documentation = ({ doc_type }) => {
           </p>
         </div>
       </div>
-      <div class="row">
+      <div className="row">
         <div>
           <span>The following table describes the properties of the optional options object.</span>
         </div>
-        <table class="GeneratedTable">
+        <table className="GeneratedTable">
           <thead>
             <tr>
               <th>Property</th>
@@ -58,6 +58,15 @@ const Documentation = ({ doc_type }) => {
             </tr>
           </tbody>
         </table>
+      </div>
+      <div className="row">
+        <DataTable
+          headers={[{ name: "col1" }, { name: "col2" }]}
+          table={[
+            ["test1", "test2"],
+            ["test3", "test4"],
+          ]}
+        />
       </div>
     </div>
   );
