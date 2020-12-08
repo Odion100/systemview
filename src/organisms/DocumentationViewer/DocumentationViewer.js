@@ -3,13 +3,18 @@ import "./styles.scss";
 import DataTable from "../../atoms/DataTable/DataTable";
 import Text from "../../atoms/Text/Text";
 import DescriptionBox from "../../atoms/DescriptionBox/DescriptionBox";
+import Title from "../../atoms/Title/Title";
 const Documentation = ({ doc_type }) => {
   return (
     <div className="documentation-view">
       <div className="row">
-        <span className="documentation-view__title">
-          Basketball.Users.add(<span className="documentation-view__parameter">data</span>, cb)
-        </span>
+        <Title
+          text={
+            <span>
+              Basketball.Users.add(<span className="documentation-view__parameter">data</span>, cb)
+            </span>
+          }
+        />
       </div>
       <div className="row">
         <DescriptionBox
