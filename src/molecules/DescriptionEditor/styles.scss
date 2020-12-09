@@ -1,0 +1,37 @@
+.description-editor {
+  width: 100%;
+
+  &__text {
+    border: 2px dashed transparent;
+    &:hover {
+      border: 2px dashed #41536f;
+      cursor: pointer;
+    }
+    &--hidden {
+      display: none;
+    }
+  }
+
+  &__form {
+    &--hidden {
+      display: none;
+    }
+  }
+
+  &__textbox {
+    min-width: 100%;
+    max-width: 100%;
+    min-height: 146px;
+    max-height: 146px;
+    background: #39424a;
+    color: white;
+    font-size: 15px;
+    font-family: inherit;
+    padding: 8px;
+  }
+  &__button {
+    margin-left: auto;
+    margin-right: 15px;
+    margin-top: 10px;
+  }
+}

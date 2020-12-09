@@ -1,18 +1,22 @@
 import React, { useState } from "react";
 import "./styles.scss";
-import DescriptionBox from "../../atoms/DescriptionBox";
-
-const DescriptionEditor = ({ text }) => {
-  const [editMode, setState] = useState(false);
+import DescriptionBox from "../../atoms/DescriptionBox/DescriptionBox";
+import Button from "../../atoms/Button/Button";
+const DescriptionEditor = ({ text, editorSubmit }) => {
+  const [editMode, setEditMode] = useState(false);
+  const editClicked = () => setEditMode(true);
+  const cancelClicked = () => setEditMode(false);
+  text = text || "Click to add a description";
 
   return (
     <div className="description-editor">
       <div
+        onClick={editClicked}
         className={`description-editor__text description-editor__text--${
           editMode ? "hidden" : "visible"
         }`}
       >
-        <DescriptionBox text={text ? text : "Add Description"} />
+        <DescriptionBox text={text} />
       </div>
       <div
         className={`description-editor__form description-editor__form--${
@@ -20,16 +24,20 @@ const DescriptionEditor = ({ text }) => {
         }`}
       >
         <div className="row">
-          <textarea
-            className="description-editor__textbox"
-            name="description-editor"
-            id="description-editor"
-            cols="30"
-            rows="10"
-          ></textarea>
+          <div className="container">
+            <textarea
+              className="description-editor__textbox"
+              name="description-editor"
+              id="description-editor"
+              defaultValue={text}
+            ></textarea>
+          </div>
         </div>
         <div className="row">
-          <button className="description-editor__btn">Save</button>
+          <div className="description-editor__button">
+            <Button buttonSubmit={editorSubmit}>Save</Button>
+            <Button buttonSubmit={cancelClicked}>Cancel</Button>
+          </div>
         </div>
       </div>
     </div>

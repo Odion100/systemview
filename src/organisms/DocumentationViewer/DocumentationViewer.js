@@ -3,6 +3,7 @@ import "./styles.scss";
 import DataTable from "../../atoms/DataTable/DataTable";
 import Text from "../../atoms/Text/Text";
 import DescriptionBox from "../../atoms/DescriptionBox/DescriptionBox";
+import DescriptionEditor from "../../molecules/DescriptionEditor/DescriptionEditor";
 import Title from "../../atoms/Title/Title";
 
 const Documentation = ({ doc_type }) => {
@@ -17,12 +18,9 @@ const Documentation = ({ doc_type }) => {
           }
         />
       </div>
+
       <div className="row">
-        <DescriptionBox
-          text={
-            " Returns middleware that only parses JSON and only looks at requests where the Content-Type header matches the type option. This parser accepts any Unicode encoding of the body and supports automatic inflation of gzip and deflate encodings."
-          }
-        />
+        <DescriptionEditor />
       </div>
       <div className="row">
         <div>
