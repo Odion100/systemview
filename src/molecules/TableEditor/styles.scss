@@ -1,4 +1,4 @@
-.description-editor {
+.table-editor {
   width: 100%;
 
   &__text {
@@ -18,17 +18,6 @@
     }
   }
 
-  &__textbox {
-    min-width: 100%;
-    max-width: 100%;
-    min-height: 146px;
-    max-height: 146px;
-    background: #39424a;
-    color: white;
-    font-size: 15px;
-    font-family: inherit;
-    padding: 8px;
-  }
   &__button {
     margin-left: auto;
     margin-right: 15px;

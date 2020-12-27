@@ -2,8 +2,9 @@ import React from "react";
 import "./styles.scss";
 import DataTable from "../../atoms/DataTable/DataTable";
 import Text from "../../atoms/Text/Text";
-import DescriptionBox from "../../atoms/DescriptionBox/DescriptionBox";
 import DescriptionEditor from "../../molecules/DescriptionEditor/DescriptionEditor";
+import TableEditor from "../../molecules/TableEditor/TableEditor";
+
 import Title from "../../atoms/Title/Title";
 
 const Documentation = ({ doc_type }) => {
@@ -34,19 +35,16 @@ const Documentation = ({ doc_type }) => {
             }
           />
         </div>
-        <DataTable
+        <TableEditor
           headers={[
             { name: "Property" },
             { name: "Type" },
             { name: "Description" },
-            { name: "Events" },
+
             { name: "Defalut" },
             { name: "required" },
           ]}
-          table={[
-            ["test1", "test2", "test1", "test2", "test1", "test2"],
-            ["test3", "test4", "test1", "test2", "test1", "test2"],
-          ]}
+          table={[["Click to add / edit proprty"]]}
         />
       </div>
     </div>
