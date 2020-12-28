@@ -1,6 +1,5 @@
 import React from "react";
 import "./styles.scss";
-import DataTable from "../../atoms/DataTable/DataTable";
 import Text from "../../atoms/Text/Text";
 import DescriptionEditor from "../../molecules/DescriptionEditor/DescriptionEditor";
 import TableEditor from "../../molecules/TableEditor/TableEditor";

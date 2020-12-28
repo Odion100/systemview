@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import "./styles.scss";
 import SystemNavigator from "../../organisms/SystemNavigator/SystemNavigator";
-import MethodDocs from "../../organisms/MethodDocs/MethodDocs";
+import MethodDocumentation from "../../organisms/MethodDocumentation/MethodDocumentation";
 
 const SystemViewer = ({ SystemViewAPI }) => {
   const [viewState, setViewState] = useState({ project_code: "", document_pointer: "" });
@@ -32,7 +32,7 @@ const SystemViewer = ({ SystemViewAPI }) => {
           <SystemNavigator SearchInputSubmit={SearchInputSubmit} servicesList={servicesList} />
         </div>
         <div className="col-6">
-          <MethodDocs />
+          <MethodDocumentation />
         </div>
         <div className="col-2"></div>
       </div>
