@@ -1,12 +1,11 @@
 import React from "react";
 import "./styles.scss";
 import Text from "../../atoms/Text/Text";
-import DescriptionEditor from "../../molecules/DescriptionEditor/DescriptionEditor";
 import DescriptionText from "../../atoms/DescriptionText/DescriptionText";
 import DescriptionBox from "../../atoms/DescriptionBox/DescriptionBox";
 import EditBox from "../../molecules/EditBox/EditBox";
-import TableEditor from "../../molecules/TableEditor/TableEditor";
-
+import DataTable from "../../atoms/DataTable/DataTable";
+import MethodDataForm from "../../molecules/MethodDataForm/MethodDataForm";
 import Title from "../../atoms/Title/Title";
 
 const Documentation = ({ doc_type }) => {
@@ -43,16 +42,21 @@ const Documentation = ({ doc_type }) => {
             }
           />
         </div>
-        <TableEditor
-          headers={[
-            { name: "Property" },
-            { name: "Type" },
-            { name: "Description" },
+        <EditBox
+          mainObject={
+            <DataTable
+              table={[["Click to add / edit proprty"]]}
+              headers={[
+                { name: "Property" },
+                { name: "Type" },
+                { name: "Description" },
 
-            { name: "Defalut" },
-            { name: "required" },
-          ]}
-          table={[["Click to add / edit proprty"]]}
+                { name: "Defalut" },
+                { name: "required" },
+              ]}
+            />
+          }
+          hiddenForm={<MethodDataForm />}
         />
       </div>
     </div>
