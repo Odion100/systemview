@@ -2,6 +2,9 @@ import React from "react";
 import "./styles.scss";
 import Text from "../../atoms/Text/Text";
 import DescriptionEditor from "../../molecules/DescriptionEditor/DescriptionEditor";
+import DescriptionText from "../../atoms/DescriptionText/DescriptionText";
+import DescriptionBox from "../../atoms/DescriptionBox/DescriptionBox";
+import EditBox from "../../molecules/EditBox/EditBox";
 import TableEditor from "../../molecules/TableEditor/TableEditor";
 
 import Title from "../../atoms/Title/Title";
@@ -20,7 +23,13 @@ const Documentation = ({ doc_type }) => {
       </div>
 
       <div className="row">
-        <DescriptionEditor />
+        <EditBox
+          mainObject={<DescriptionText text={"Click to add a description"} />}
+          hiddenForm={<DescriptionBox text={""} />}
+          formSubmit={() => {
+            console.log("description editor test");
+          }}
+        />
       </div>
       <div className="row">
         <div>
