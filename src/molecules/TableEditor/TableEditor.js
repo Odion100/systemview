@@ -1,23 +1,14 @@
-import React, { useState } from "react";
+import React from "react";
 import "./styles.scss";
 import DataTable from "../../atoms/DataTable/DataTable";
-import Button from "../../atoms/Button/Button";
+import EditBox from "../../molecules/EditBox/EditBox";
 
 const TableEditor = ({ table, headers, editorSubmit }) => {
-  const [editMode, setEditMode] = useState(false);
-  const editClicked = () => setEditMode(true);
-  const cancelClicked = () => setEditMode(false);
-
   return (
     <div className="table-editor">
-      <div
-        onClick={editClicked}
-        className={`table-editor__text table-editor__text--${editMode ? "hidden" : "visible"}`}
-      >
-        <DataTable table={table} headers={headers} />
-      </div>
-      <div className={`table-editor__form table-editor__form--${editMode ? "visible" : "hidden"}`}>
-        <div class="row">
+      <EditBox
+        mainObject={<DataTable table={table} headers={headers} />}
+        hiddenForm={
           <div class="property-form container">
             <div class="row">
               <div class="col-2">
@@ -42,14 +33,8 @@ const TableEditor = ({ table, headers, editorSubmit }) => {
               </div>
             </div>
           </div>
-        </div>
-        <div className="row">
-          <div className="description-editor__button">
-            <Button buttonSubmit={editorSubmit}>Save</Button>
-            <Button buttonSubmit={cancelClicked}>Cancel</Button>
-          </div>
-        </div>
-      </div>
+        }
+      />
     </div>
   );
 };

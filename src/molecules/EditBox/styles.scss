@@ -1,0 +1,26 @@
+.edit-box {
+  width: 100%;
+
+  &__main {
+    border: 2px dashed transparent;
+    &:hover {
+      border: 2px dashed #8ca1c1;
+      cursor: pointer;
+    }
+    &--hidden {
+      display: none;
+    }
+  }
+
+  &__form {
+    &--hidden {
+      display: none;
+    }
+  }
+
+  &__button {
+    margin-left: auto;
+    margin-right: 15px;
+    margin-top: 10px;
+  }
+}
