@@ -2,9 +2,16 @@ import React from "react";
 import "./styles.scss";
 
 const DescriptionBox = ({ text }) => {
+  text = text || "Click to add a description";
+
   return (
     <div className="description-box">
-      <p className="description-box__text">{text}</p>
+      <textarea
+        className="description-box__textbox"
+        name="description-box"
+        id="description-box"
+        defaultValue={text}
+      ></textarea>
     </div>
   );
 };

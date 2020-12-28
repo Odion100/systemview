@@ -1,9 +1,15 @@
 .description-box {
-  &__text {
-    text-align: left;
-    color: #e3e3e3;
-    background: #282b31;
-    background: #3f495d;
-    padding: 12px;
+  width: 100%;
+
+  &__textbox {
+    min-width: 100%;
+    max-width: 100%;
+    min-height: 146px;
+    max-height: 146px;
+    background: #39424a;
+    color: white;
+    font-size: 15px;
+    font-family: inherit;
+    padding: 8px;
   }
 }

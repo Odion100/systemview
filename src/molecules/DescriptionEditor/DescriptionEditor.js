@@ -1,5 +1,6 @@
 import React from "react";
 import "./styles.scss";
+import DescriptionText from "../../atoms/DescriptionText/DescriptionText";
 import DescriptionBox from "../../atoms/DescriptionBox/DescriptionBox";
 import EditBox from "../../molecules/EditBox/EditBox";
 
@@ -9,15 +10,8 @@ const DescriptionEditor = ({ text, editorSubmit }) => {
   return (
     <div className="description-editor">
       <EditBox
-        mainObject={<DescriptionBox text={text} />}
-        hiddenForm={
-          <textarea
-            className="description-editor__textbox"
-            name="description-editor"
-            id="description-editor"
-            defaultValue={text}
-          ></textarea>
-        }
+        mainObject={<DescriptionText text={text} />}
+        hiddenForm={<DescriptionBox text={text} />}
         formSubmit={editorSubmit}
       />
     </div>
