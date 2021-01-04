@@ -1,0 +1,41 @@
+.method-data-form {
+  &__description-text {
+    margin: 0px;
+    min-height: 56px;
+    max-width: 391px;
+    min-width: 391px;
+  }
+
+  &__data-type-selector {
+    padding: 0.75rem;
+  }
+
+  &__delete-button {
+    cursor: pointer;
+    border-radius: 61px;
+    padding: 0px 5px 1px 5px;
+
+    &:hover {
+      background: #ff6b6b;
+      color: white;
+    }
+
+    &:active {
+      position: relative;
+      top: 1px;
+    }
+  }
+  &__add-button {
+    cursor: pointer;
+    padding: 1px 8px;
+    line-height: 1;
+    border-radius: 21px;
+    font-weight: bold;
+    color: #0d8065;
+    font-size: 25px;
+    &:active {
+      position: relative;
+      top: 1px;
+    }
+  }
+}

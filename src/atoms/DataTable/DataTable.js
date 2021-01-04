@@ -1,9 +1,9 @@
 import React from "react";
 import "./styles.scss";
 
-const DataTable = ({ headers, table }) => {
+const DataTable = ({ headers, table, tableClassName }) => {
   return (
-    <table className="data-table">
+    <table className={`data-table ${tableClassName}`}>
       <thead>
         <tr>
           {headers.map(({ name }, i) => (
