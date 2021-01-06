@@ -45,7 +45,9 @@ const Documentation = ({ doc_type }) => {
         <EditBox
           mainObject={
             <DataTable
-              table={[["Click to add / edit proprty"]]}
+              table={[
+                ["id", "Object", "MongoDB object id of the user you are adding", "n/a", "true"],
+              ]}
               headers={[
                 { name: "Property" },
                 { name: "Type" },
@@ -56,7 +58,13 @@ const Documentation = ({ doc_type }) => {
               ]}
             />
           }
-          hiddenForm={<MethodDataForm />}
+          hiddenForm={
+            <MethodDataForm
+              table={[
+                ["id", "Object", "MongoDB object id of the user you are adding", "n/a", true],
+              ]}
+            />
+          }
         />
       </div>
     </div>

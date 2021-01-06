@@ -1,13 +1,13 @@
 import React from "react";
 import "./styles.scss";
 
-const Title = ({ round }) => {
+const Toggle = ({ round, isChecked }) => {
   return (
     <label className={`switch ${round ? "round" : ""}`}>
-      <input type="checkbox" />
+      <input type="checkbox" defaultChecked={isChecked} />
       <span className="slider"></span>
     </label>
   );
 };
 
-export default Title;
+export default Toggle;
