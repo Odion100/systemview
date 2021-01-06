@@ -5,6 +5,21 @@ import Toggle from "../../atoms/Toggle/Toggle";
 import DataTable from "../../atoms/DataTable/DataTable";
 import Selector from "../../atoms/Selector/Selector";
 
+const generateTable = (data) => {
+  const table = data.map((row) => TableRow(row));
+
+  const addRow = () => table.push(TableRow([]));
+
+  const deleteRow = () => {};
+
+  table.push([
+    <span className="method-data-form__add-button" href="#" onClick={addRow}>
+      +
+    </span>,
+  ]);
+  return table;
+};
+
 const TableRow = ([property, type, description, default_value, required]) => {
   return [
     <Textbox value={property} />,
@@ -19,20 +34,11 @@ const TableRow = ([property, type, description, default_value, required]) => {
   ];
 };
 
-const MethodDataTable = (data) => {
-  const table = data.map((row) => TableRow(row));
-  table.push([
-    <span className="method-data-form__add-button" href="#">
-      +
-    </span>,
-  ]);
-  return table;
-};
 const MethodDataForm = ({ table, headers, editorSubmit }) => {
   return (
     <DataTable
       tableClassName="method-data-form"
-      table={MethodDataTable(table)}
+      table={generateTable(table)}
       headers={[
         { name: "Property" },
         { name: "Type" },
