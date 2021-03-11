@@ -1,16 +1,21 @@
 import React from "react";
 import "./styles.scss";
 
-const DescriptionBox = ({ text }) => {
-  text = text || "Click to add a description";
-
+const DescriptionBox = ({ value, setValue }) => {
   return (
     <div className="description-box">
       <textarea
         className="description-box__textbox"
         name="description-box"
         id="description-box"
-        defaultValue={text}
+        defaultValue={value}
+        onChange={
+          setValue
+            ? (e) => {
+                setValue(e.target.value);
+              }
+            : null
+        }
       ></textarea>
     </div>
   );

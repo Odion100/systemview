@@ -1,24 +1,9 @@
-import React from "react";
+import React, { useState } from "react";
 import "./styles.scss";
 import Textbox from "../../atoms/Textbox/Textbox";
 import Toggle from "../../atoms/Toggle/Toggle";
 import DataTable from "../../atoms/DataTable/DataTable";
 import Selector from "../../atoms/Selector/Selector";
-
-const generateTable = (data) => {
-  const table = data.map((row) => TableRow(row));
-
-  const addRow = () => table.push(TableRow([]));
-
-  const deleteRow = () => {};
-
-  table.push([
-    <span className="method-data-form__add-button" href="#" onClick={addRow}>
-      +
-    </span>,
-  ]);
-  return table;
-};
 
 const TableRow = ([property, type, description, default_value, required]) => {
   return [
@@ -34,11 +19,31 @@ const TableRow = ([property, type, description, default_value, required]) => {
   ];
 };
 
-const MethodDataForm = ({ table, headers, editorSubmit }) => {
+const MethodDataForm = ({ data, headers, editorSubmit }) => {
+  const generateTable = () => {
+    const newTable = data.map((row) => TableRow(row));
+
+    const addRow = () => {
+      data.push([]);
+      const newTable = generateTable();
+      setTable(newTable);
+    };
+
+    const deleteRow = () => {};
+
+    newTable.push([
+      <span className="method-data-form__add-button" href="#" onClick={addRow}>
+        +
+      </span>,
+    ]);
+    return newTable;
+  };
+
+  const [dataTable, setTable] = useState(generateTable());
   return (
     <DataTable
       tableClassName="method-data-form"
-      table={generateTable(table)}
+      table={dataTable}
       headers={[
         { name: "Property" },
         { name: "Type" },

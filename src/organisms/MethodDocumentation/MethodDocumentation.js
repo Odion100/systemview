@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import "./styles.scss";
 import Text from "../../atoms/Text/Text";
 import DescriptionText from "../../atoms/DescriptionText/DescriptionText";
@@ -9,6 +9,8 @@ import MethodDataForm from "../../molecules/MethodDataForm/MethodDataForm";
 import Title from "../../atoms/Title/Title";
 
 const Documentation = ({ doc_type }) => {
+  const [description_text, setText] = useState("Click to add a description");
+
   return (
     <div className="documentation-view">
       <div className="row">
@@ -23,10 +25,10 @@ const Documentation = ({ doc_type }) => {
 
       <div className="row">
         <EditBox
-          mainObject={<DescriptionText text={"Click to add a description"} />}
-          hiddenForm={<DescriptionBox text={""} />}
+          mainObject={<DescriptionText text={description_text} />}
+          hiddenForm={<DescriptionBox text={description_text} setValue={setText} />}
           formSubmit={() => {
-            console.log("description editor test");
+            console.log(description_text);
           }}
         />
       </div>
@@ -60,9 +62,7 @@ const Documentation = ({ doc_type }) => {
           }
           hiddenForm={
             <MethodDataForm
-              table={[
-                ["id", "Object", "MongoDB object id of the user you are adding", "n/a", true],
-              ]}
+              data={[["id", "Object", "MongoDB object id of the user you are adding", "n/a", true]]}
             />
           }
         />

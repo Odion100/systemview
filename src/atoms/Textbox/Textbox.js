@@ -1,7 +1,7 @@
 import React from "react";
 import "./styles.scss";
 
-const Textbox = ({ placeholderText, TextboxSubmit, value }) => {
+const Textbox = ({ placeholderText, TextboxSubmit, value, setValue }) => {
   return (
     <div className="textbox">
       <input
@@ -11,6 +11,13 @@ const Textbox = ({ placeholderText, TextboxSubmit, value }) => {
         onKeyDown={(e) => {
           if (e.key === "Enter") TextboxSubmit(e);
         }}
+        onChange={
+          setValue
+            ? (e) => {
+                setValue(e.target.value);
+              }
+            : null
+        }
       />
     </div>
   );
