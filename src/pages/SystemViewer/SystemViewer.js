@@ -1,9 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
+import ServiceContext from "../../ServiceContext";
 import "./styles.scss";
 import SystemNavigator from "../../organisms/SystemNavigator/SystemNavigator";
 import MethodDocumentation from "../../organisms/MethodDocumentation/MethodDocumentation";
 
-const SystemViewer = ({ SystemViewAPI }) => {
+const SystemViewer = () => {
+  const SystemViewAPI = useContext(ServiceContext);
   const [viewState, setViewState] = useState({ project_code: "", document_pointer: "" });
   const [servicesList, setServices] = useState([]);
 

@@ -5,13 +5,15 @@ import App from "./App";
 import reportWebVitals from "./reportWebVitals";
 
 import { Client } from "tasksjs-react-client";
-
+import ServiceContext from "./ServiceContext";
 const url = "http://localhost:3300/systemview/api";
 
 Client.loadService(url).then((SystemViewAPI) => {
   ReactDOM.render(
     <React.StrictMode>
-      <App SystemViewAPI={SystemViewAPI} />
+      <ServiceContext.Provider value={SystemViewAPI}>
+        <App />
+      </ServiceContext.Provider>
     </React.StrictMode>,
     document.getElementById("root")
   );
