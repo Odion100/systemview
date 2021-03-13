@@ -1,12 +1,12 @@
 import React from "react";
 import "./styles.scss";
 
-const Textbox = ({ placeholderText, TextboxSubmit, value, setValue }) => {
+const Textbox = ({ placeholderText, TextboxSubmit, text, setValue }) => {
   return (
     <div className="textbox">
       <input
         type="text"
-        defaultValue={value}
+        defaultValue={text}
         placeholder={placeholderText}
         onKeyDown={(e) => {
           if (e.key === "Enter") TextboxSubmit(e);

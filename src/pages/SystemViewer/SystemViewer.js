@@ -3,12 +3,12 @@ import "./styles.scss";
 import SystemNavigator from "../../organisms/SystemNavigator/SystemNavigator";
 import MethodDocumentation from "../../organisms/MethodDocumentation/MethodDocumentation";
 
-const SystemViewer = () => {
+const SystemViewer = ({ project, document }) => {
   return (
     <section className="system-viewer">
       <div className="row">
         <div className="col-4">
-          <SystemNavigator />
+          <SystemNavigator project_code={project} />
         </div>
         <div className="col-6">
           <MethodDocumentation />

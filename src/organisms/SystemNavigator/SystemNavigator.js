@@ -1,4 +1,4 @@
-import React, { useState, useContext } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import ServiceContext from "../../ServiceContext";
 import "./styles.scss";
 import TextBox from "../../atoms/Textbox/Textbox";
@@ -7,26 +7,35 @@ import ExpandableList from "../../molecules/ExpandableList/ExpandableList";
 import ServerModulesList from "../../organisms/ServerModulesList/ServerModulesList";
 import MissingDocIcon from "../../atoms/DocsIcon/DocsIcon";
 
-const SystemNav = () => {
-  const SystemViewAPI = useContext(ServiceContext);
+const SystemNav = ({ project_code }) => {
+  const { SystemView } = useContext(ServiceContext);
   const [servicesList, setServices] = useState([]);
 
-  const SearchInputSubmit = async (e) => {
-    const { SystemView } = SystemViewAPI;
-
+  const fetchServiceList = async (project_code) => {
+    console.log(project_code);
     try {
-      const results = await SystemView.getServices({ project_code: e.target.value });
-      if (results.length > 0) setServices(results.services);
+      const results = await SystemView.getServices({ project_code });
+      if (results.status === 200) setServices(results.services);
     } catch (error) {
       console.log(error);
     }
   };
+  const SearchInputSubmit = (e) => fetchServiceList(e.target.value);
+
+  useEffect(() => {
+    if (project_code) fetchServiceList(project_code);
+  }, []);
+  //if (project_code) fetchServiceList(project_code);
   return (
     <section className="system-nav">
       <div className="container">
         <div className="row system-nav__section">
           <div className="col-12">
-            <TextBox placeholderText="project_code" TextboxSubmit={SearchInputSubmit} />
+            <TextBox
+              placeholderText="project_code"
+              TextboxSubmit={SearchInputSubmit}
+              text={project_code}
+            />
           </div>
         </div>
         <div className="row system-nav__section">

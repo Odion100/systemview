@@ -5,7 +5,11 @@ import { useRoutes } from "hookrouter";
 
 const App = () =>
   useRoutes({
-    "/": () => <SystemViewer />,
+    "/systemview": () => <SystemViewer />,
+    "/systemview/:project*": ({ project }) => <SystemViewer project={project} />,
+    "/systemview/:project/:document*": ({ project, document }) => (
+      <SystemViewer project={project} document={document} />
+    ),
   });
 
 export default App;
