@@ -8,10 +8,10 @@ import { Client } from "tasksjs-react-client";
 import ServiceContext from "./ServiceContext";
 const url = "http://localhost:3300/systemview/api";
 
-Client.loadService(url).then((SystemViewAPI) => {
+Client.loadService(url).then((SystemViewService) => {
   ReactDOM.render(
     <React.StrictMode>
-      <ServiceContext.Provider value={SystemViewAPI}>
+      <ServiceContext.Provider value={SystemViewService}>
         <App />
       </ServiceContext.Provider>
     </React.StrictMode>,
