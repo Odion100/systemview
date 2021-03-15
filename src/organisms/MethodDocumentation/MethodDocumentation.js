@@ -9,7 +9,7 @@ import MethodDataForm from "../../molecules/MethodDataForm/MethodDataForm";
 import Title from "../../atoms/Title/Title";
 
 const Documentation = ({ doc_type }) => {
-  const [description_text, setText] = useState("Click to add a description");
+  const [description_text, setText] = useState("What does this method do?");
 
   return (
     <div className="documentation-view">
@@ -17,7 +17,8 @@ const Documentation = ({ doc_type }) => {
         <Title
           text={
             <span>
-              Basketball.Users.add(<span className="documentation-view__parameter">data</span>, cb)
+              Basketball.Users.add(<span className="documentation-view__parameter">data</span>,
+              callback)
             </span>
           }
         />
