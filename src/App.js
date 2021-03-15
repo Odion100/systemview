@@ -1,15 +1,15 @@
-import SystemViewer from "./pages/SystemViewer/SystemViewer";
+import SystemLink from "./pages/SystemLink/SystemLink";
 import "./App.css";
 
 import { useRoutes, useRedirect } from "hookrouter";
 
 const App = () => {
-  useRedirect("/", "/systemview/");
+  useRedirect("/", "/systemlink/");
   return useRoutes({
-    "/systemview/": () => <SystemViewer />,
-    "/systemview/:project*": ({ project }) => <SystemViewer project={project} />,
-    "/systemview/:project/:document*": ({ project, document }) => (
-      <SystemViewer project={project} document={document} />
+    "/systemlink/": () => <SystemLink />,
+    "/systemlink/:project*": ({ project }) => <SystemLink project={project} />,
+    "/systemlink/:project/:document*": ({ project, document }) => (
+      <SystemLink project={project} document={document} />
     ),
   });
 };
