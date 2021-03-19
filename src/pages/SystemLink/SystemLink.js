@@ -3,7 +3,8 @@ import "./styles.scss";
 import SystemNavigator from "../../organisms/SystemNavigator/SystemNavigator";
 import MethodDocumentation from "../../organisms/MethodDocumentation/MethodDocumentation";
 
-const SystemViewer = ({ project, document }) => {
+const SystemViewer = ({ project, service, module, method }) => {
+  console.log(project, service, module, method);
   return (
     <section className="system-viewer">
       <div className="row">

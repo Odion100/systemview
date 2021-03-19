@@ -8,8 +8,7 @@ import ServerModulesList from "../../organisms/ServerModulesList/ServerModulesLi
 import MissingDocIcon from "../../atoms/DocsIcon/DocsIcon";
 
 const SystemNav = ({ project_code }) => {
-  const { SystemLinkService } = useContext(ServiceContext);
-  const { SystemLink } = SystemLinkService;
+  const { SystemLink } = useContext(ServiceContext).SystemLinkService;
   const [servicesList, setServices] = useState([]);
 
   const fetchServiceList = async (project_code) => {
@@ -18,7 +17,7 @@ const SystemNav = ({ project_code }) => {
       const results = await SystemLink.getServices({ project_code });
       if (results.status === 200) setServices(results.services);
     } catch (error) {
-      console.log(error);
+      console.error(error);
     }
   };
   const SearchInputSubmit = (e) => fetchServiceList(e.target.value);
