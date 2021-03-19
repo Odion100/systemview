@@ -15,7 +15,7 @@ const Documentation = ({ project_code, service_id, module_name, method_name }) =
   const [request_data, setRequestData] = useState({});
   const [response_data, setResonseData] = useState({});
   const [triggered_events, setTriggeredEvents] = useState({});
-
+  console.log(project_code, service_id, module_name, method_name);
   const saveDescription = async (description) => {
     try {
       const { methodDocumentation, status } = await MethodDocumentation.saveDoc({
