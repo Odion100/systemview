@@ -1,7 +1,7 @@
 import React from "react";
 import "./styles.scss";
 import SystemNavigator from "../../organisms/SystemNavigator/SystemNavigator";
-import MethodDocumentation from "../../organisms/MethodDocumentation/MethodDocumentation";
+import Documentation from "../../organisms/Documentation/Documentation";
 
 const SystemViewer = ({ project, service, module, method }) => {
   return (
@@ -11,7 +11,7 @@ const SystemViewer = ({ project, service, module, method }) => {
           <SystemNavigator project_code={project} />
         </div>
         <div className="col-6">
-          <MethodDocumentation
+          <Documentation
             project_code={project}
             service_id={service}
             module_name={module}
