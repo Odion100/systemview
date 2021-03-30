@@ -69,6 +69,7 @@ const Documentation = ({ project_code, service_id, module_name, method_name }) =
           module_name={module_name}
           method_name={method_name}
           document={doc}
+          fetchDocument={fetchDocument}
         />
       ) : module_name ? (
         <ModuleDoc
@@ -76,13 +77,19 @@ const Documentation = ({ project_code, service_id, module_name, method_name }) =
           service_id={service_id}
           module_name={module_name}
           document={doc}
+          fetchDocument={fetchDocument}
         />
       ) : service_id ? (
-        <ServiceDoc project_code={project_code} service_id={service_id} document={doc} />
+        <ServiceDoc
+          project_code={project_code}
+          service_id={service_id}
+          document={doc}
+          fetchDocument={fetchDocument}
+        />
       ) : project_code ? (
-        <ProjectDoc project_code={project_code} document={doc} />
+        <ProjectDoc project_code={project_code} document={doc} fetchDocument={fetchDocument} />
       ) : (
-        <ProjectDoc project_code={project_code} document={doc} />
+        <ProjectDoc project_code={project_code} document={doc} fetchDocument={fetchDocument} />
       )}
     </section>
   );

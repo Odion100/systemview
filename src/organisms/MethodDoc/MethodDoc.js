@@ -9,28 +9,30 @@ import MethodDataForm from "../../molecules/MethodDataForm/MethodDataForm";
 import Title from "../../atoms/Title/Title";
 import ServiceContext from "../../ServiceContext";
 
-const MethodDoc = ({ project_code, service_id, module_name, method_name, document }) => {
+const MethodDoc = ({
+  project_code,
+  service_id,
+  module_name,
+  method_name,
+  document,
+  fetchDocument,
+}) => {
   const { MethodDocumentation } = useContext(ServiceContext).SystemLinkService;
-  const [description, setDescription] = useState("What does this method do?");
-  const [request_data, setRequestData] = useState({});
-  const [response_data, setResonseData] = useState({});
-  const [triggered_events, setTriggeredEvents] = useState({});
-  console.log(project_code, service_id, module_name, method_name);
+
   const saveDescription = async (description) => {
     try {
-      const { methodDocumentation, status } = await MethodDocumentation.saveDoc({
+      const { status } = await MethodDocumentation.saveDoc({
         project_code,
         service_id,
         module_name,
         method_name,
         description,
       });
-      if (status === 200) setDescription(methodDocumentation);
+      if (status === 200) fetchDocument();
     } catch (error) {
       console.error(error);
     }
   };
-  const descriptionBoxSubmit = () => saveDescription(description);
 
   return (
     <div className="documentation-view">
@@ -47,9 +49,8 @@ const MethodDoc = ({ project_code, service_id, module_name, method_name, documen
 
       <div className="row">
         <EditBox
-          mainObject={<DescriptionText text={description} />}
-          hiddenForm={<DescriptionBox text={description} setValue={setDescription} />}
-          formSubmit={descriptionBoxSubmit}
+          mainObject={<DescriptionText text={document.description} />}
+          hiddenForm={<DescriptionBox text={document.description} />}
         />
       </div>
       <div className="row">
