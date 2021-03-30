@@ -52,7 +52,8 @@ const Documentation = ({ project_code, service_id, module_name, method_name }) =
         default:
           break;
       }
-      if (results.status === 200) setDocument(results.services);
+      if (results.status === 200) setDocument(results.documentation);
+      console.log(results);
     } catch (error) {
       console.error(error);
     }

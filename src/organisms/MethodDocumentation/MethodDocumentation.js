@@ -9,28 +9,31 @@ import MethodDataForm from "../../molecules/MethodDataForm/MethodDataForm";
 import Title from "../../atoms/Title/Title";
 import ServiceContext from "../../ServiceContext";
 
-const Documentation = ({ project_code, service_id, module_name, method_name }) => {
+const MethodDoc = ({
+  project_code,
+  service_id,
+  module_name,
+  method_name,
+  document,
+  fetchDocument,
+}) => {
   const { MethodDocumentation } = useContext(ServiceContext).SystemLinkService;
-  const [description, setDescription] = useState("What does this method do?");
-  const [request_data, setRequestData] = useState({});
-  const [response_data, setResonseData] = useState({});
-  const [triggered_events, setTriggeredEvents] = useState({});
-  console.log(project_code, service_id, module_name, method_name);
-  const saveDescription = async (description) => {
+  const [description, setDescription] = useState(document.description);
+  const saveDescription = async () => {
+    console.log(description);
     try {
-      const { methodDocumentation, status } = await MethodDocumentation.saveDoc({
+      const { status } = await MethodDocumentation.saveDoc({
         project_code,
         service_id,
         module_name,
         method_name,
         description,
       });
-      if (status === 200) setDescription(methodDocumentation);
+      if (status === 200) fetchDocument();
     } catch (error) {
       console.error(error);
     }
   };
-  const descriptionBoxSubmit = () => saveDescription(description);
 
   return (
     <div className="documentation-view">
@@ -47,9 +50,11 @@ const Documentation = ({ project_code, service_id, module_name, method_name }) =
 
       <div className="row">
         <EditBox
-          mainObject={<DescriptionText text={description} />}
-          hiddenForm={<DescriptionBox text={description} setValue={setDescription} />}
-          formSubmit={descriptionBoxSubmit}
+          mainObject={
+            <DescriptionText text={document.description || "What does this methed do?"} />
+          }
+          hiddenForm={<DescriptionBox text={document.description} setValue={setDescription} />}
+          formSubmit={saveDescription}
         />
       </div>
       <div className="row">
@@ -91,4 +96,4 @@ const Documentation = ({ project_code, service_id, module_name, method_name }) =
   );
 };
 
-export default Documentation;
+export default MethodDoc;
