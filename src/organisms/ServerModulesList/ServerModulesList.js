@@ -5,7 +5,7 @@ import Link from "../../atoms/Link/Link";
 import MissingDocIcon from "../../atoms/DocsIcon/DocsIcon";
 import TestsIcon from "../../atoms/TestsIcon/TestsIcon";
 
-const ServerModulesList = ({ server_modules }) => {
+const ServerModulesList = ({ projec_code, service_id, server_modules }) => {
   return (
     <React.Fragment>
       {server_modules.map(({ name, methods }, i) => {

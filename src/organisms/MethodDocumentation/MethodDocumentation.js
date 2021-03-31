@@ -41,8 +41,8 @@ const MethodDoc = ({
         <Title
           text={
             <span>
-              Basketball.Users.add(<span className="documentation-view__parameter">data</span>,
-              callback)
+              {`${service_id}.${module_name}.${method_name}`}(
+              <span className="documentation-view__parameter">data</span>, callback)
             </span>
           }
         />

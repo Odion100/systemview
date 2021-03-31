@@ -1,4 +1,5 @@
 import React, { useState, useContext, useEffect } from "react";
+import { navigate } from "hookrouter";
 import ServiceContext from "../../ServiceContext";
 import "./styles.scss";
 import MethodDoc from "../MethodDocumentation/MethodDocumentation";
@@ -17,10 +18,11 @@ const Documentation = ({ project_code, service_id, module_name, method_name }) =
 
   const fetchDocument = async () => {
     let results = {};
-    console.log(project_code);
+    console.log(project_code, service_id, module_name, method_name);
     try {
       switch (true) {
-        case method_name:
+        case !!method_name:
+          console.log("Just following orders");
           results = await MethodDocumentation.get({
             project_code,
             service_id,
@@ -28,21 +30,16 @@ const Documentation = ({ project_code, service_id, module_name, method_name }) =
             method_name,
           });
           break;
-        case module_name:
+        case !!module_name:
           results = await ModuleDocumentation.get({
             project_code,
             service_id,
             module_name,
           });
           break;
-        case service_id:
-          results = await ServiceDocumentation.get({
-            project_code,
-            service_id,
-            module_name,
-          });
+        case !!service_id:
           break;
-        case project_code:
+        case !!project_code:
           results = await ProjectDocumentation.get({
             project_code,
             service_id,
@@ -50,12 +47,14 @@ const Documentation = ({ project_code, service_id, module_name, method_name }) =
           });
           break;
         default:
+          console.log("breaking bad");
           break;
       }
       if (results.status === 200) setDocument(results.documentation);
       console.log(results);
     } catch (error) {
       console.error(error);
+      //navigate(`/systemlink/${project_code}`);
     }
   };
 
