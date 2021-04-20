@@ -7,7 +7,7 @@ import ExpandableList from "../../molecules/ExpandableList/ExpandableList";
 import ServerModulesList from "../../organisms/ServerModulesList/ServerModulesList";
 import MissingDocIcon from "../../atoms/DocsIcon/DocsIcon";
 
-const SystemNav = ({ project_code }) => {
+const SystemNav = ({ project_code, setRef }) => {
   const { SystemLink } = useContext(ServiceContext).SystemLinkService;
   const [servicesList, setServices] = useState([]);
 
@@ -46,14 +46,23 @@ const SystemNav = ({ project_code }) => {
                   key={i}
                   title={
                     <React.Fragment>
-                      <Link link="#" text={service_id} />
+                      <Link
+                        link="#"
+                        text={service_id}
+                        linkClick={() => setRef({ project_code, service_id })}
+                      />
                       <div className="server-module__docs-icon">
                         <MissingDocIcon isSaved={parseInt(Math.random() * 1000) % 2} />
                       </div>
                     </React.Fragment>
                   }
                 >
-                  <ServerModulesList server_modules={server_modules} />
+                  <ServerModulesList
+                    project_code={project_code}
+                    service_id={service_id}
+                    server_modules={server_modules}
+                    setRef={setRef}
+                  />
                 </ExpandableList>
               );
             })}
