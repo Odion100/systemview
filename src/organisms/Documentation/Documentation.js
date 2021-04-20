@@ -51,14 +51,15 @@ const Documentation = ({ project_code, service_id, module_name, method_name }) =
           break;
       }
       if (results.status === 200) setDocument(results.documentation);
+      else setDocument({});
       console.log(results);
     } catch (error) {
+      setDocument({});
       console.error(error);
-      //navigate(`/systemlink/${project_code}`);
     }
   };
 
-  useEffect(() => fetchDocument(), []);
+  useEffect(() => fetchDocument(), [project_code, service_id, module_name, method_name]);
 
   return (
     <section className="documentation">
