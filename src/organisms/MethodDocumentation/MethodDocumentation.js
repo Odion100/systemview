@@ -19,8 +19,9 @@ const MethodDoc = ({
 }) => {
   const { MethodDocumentation } = useContext(ServiceContext).SystemLinkService;
   const [description, setDescription] = useState(document.description);
+  console.log(description, project_code, service_id, module_name, method_name, document);
   const saveDescription = async () => {
-    console.log(description);
+    console.log(description, project_code, service_id, module_name, method_name, document);
     try {
       const { status } = await MethodDocumentation.saveDoc({
         project_code,
