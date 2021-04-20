@@ -2,10 +2,10 @@ import React from "react";
 import "./styles.scss";
 import Title from "../../atoms/Title/Title";
 
-const ModuleDocumentation = ({ project, service, module }) => {
+const ModuleDocumentation = ({ project_code, service_id, module_name }) => {
   return (
     <section className="module-documentation">
-      <Title text={`${module}`} />
+      <Title text={`${service_id}.${module_name}`} />
     </section>
   );
 };
