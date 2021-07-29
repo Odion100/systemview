@@ -3,7 +3,7 @@ import "./styles.scss";
 import SystemNavigator from "../../organisms/SystemNavigator/SystemNavigator";
 import Documentation from "../../organisms/Documentation/Documentation";
 
-const SystemViewer = ({ project_code }) => {
+const SystemLink = ({ project_code }) => {
   const [document_ref, setRef] = useState({ project_code });
   console.log(document_ref);
   return (
@@ -26,4 +26,4 @@ const SystemViewer = ({ project_code }) => {
   );
 };
 
-export default SystemViewer;
+export default SystemLink;
