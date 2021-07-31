@@ -11,14 +11,7 @@ const ModuleDocumentation = () => {
   console.log(module_name, path, url);
   return (
     <section className="module-documentation">
-      <Switch>
-        <Route exact path={path}>
-          <Title text={`Module Documetation:${module_name}`} />
-        </Route>
-        <Route path={`${path}/:module_name`}>
-          <MethodDoc />
-        </Route>
-      </Switch>
+      <Title text={`Module Documetation:${module_name}`} />
     </section>
   );
 };

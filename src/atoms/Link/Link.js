@@ -1,16 +1,17 @@
 import React from "react";
 import "./styles.scss";
+import { Link } from "react-router-dom";
 
-const Link = ({ link, add_class, text, linkClick }) => {
+const myLink = ({ link, add_class, text, linkClick }) => {
   const click = (e) => {
     e.stopPropagation();
     if (typeof linkClick === "function") linkClick();
   };
   return (
-    <a className={`link ${add_class}`} href={link} onClick={click}>
+    <Link className="link" to={link}>
       {text}
-    </a>
+    </Link>
   );
 };
 
-export default Link;
+export default myLink;

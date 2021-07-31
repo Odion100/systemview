@@ -11,14 +11,7 @@ const ProjectDocumentation = ({ project }) => {
   console.log(project_code, path, url);
   return (
     <section className="project-documentation">
-      <Switch>
-        <Route exact path={path}>
-          <Title text={`Project Documentation:${project_code}`} />
-        </Route>
-        <Route path={`${path}/:service_id`}>
-          <ServiceDoc />
-        </Route>
-      </Switch>
+      <Title text={`Project Documentation:${project_code}`} />
     </section>
   );
 };

@@ -12,14 +12,7 @@ const ServiceDocumentation = () => {
 
   return (
     <section className="service-documentation">
-      <Switch>
-        <Route exact path={path}>
-          <Title text={`Service Documentation:${service_id}`} />
-        </Route>
-        <Route path={`${path}/:module_name`}>
-          <ModuleDocumentation />
-        </Route>
-      </Switch>
+      <Title text={`Service Documentation:${service_id}`} />
     </section>
   );
 };
