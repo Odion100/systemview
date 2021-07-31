@@ -14,12 +14,12 @@ const MethodDoc = ({
   service_id,
   module_name,
   method_name,
-  document,
+  document = {},
   fetchDocument,
 }) => {
   const { MethodDocumentation } = useContext(ServiceContext).SystemLinkService;
   const [description, setDescription] = useState(document.description);
-  console.log(description, project_code, service_id, module_name, method_name, document);
+
   const saveDescription = async () => {
     console.log(description, project_code, service_id, module_name, method_name, document);
     try {

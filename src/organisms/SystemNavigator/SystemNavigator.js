@@ -9,13 +9,14 @@ import MissingDocIcon from "../../atoms/DocsIcon/DocsIcon";
 
 const SystemNav = ({ project_code, setRef }) => {
   const { SystemLink } = useContext(ServiceContext).SystemLinkService;
-  const [servicesList, setServices] = useState([]);
+  const [servicesList, setServiceList] = useState([]);
 
   const fetchServiceList = async (project_code) => {
     console.log(project_code);
     try {
       const results = await SystemLink.getServices({ project_code });
-      if (results.status === 200) setServices(results.services);
+      if (results.status === 200) setServiceList(results.services);
+      console.log(results);
     } catch (error) {
       console.error(error);
     }
@@ -25,7 +26,7 @@ const SystemNav = ({ project_code, setRef }) => {
   useEffect(() => {
     if (project_code) fetchServiceList(project_code);
   }, []);
-  //if (project_code) fetchServiceList(project_code);
+
   return (
     <section className="system-nav">
       <div className="container">

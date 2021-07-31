@@ -1,11 +1,24 @@
 import React from "react";
 import "./styles.scss";
 import Title from "../../atoms/Title/Title";
+import MethodDoc from "../MethodDocumentation/MethodDocumentation";
+import { useRouteMatch, useParams, Route, Switch } from "react-router-dom";
 
-const ModuleDocumentation = ({ project_code, service_id, module_name }) => {
+const ModuleDocumentation = () => {
+  const { module_name } = useParams();
+  const { path, url } = useRouteMatch();
+
+  console.log(module_name, path, url);
   return (
     <section className="module-documentation">
-      <Title text={`${service_id}.${module_name}`} />
+      <Switch>
+        <Route exact path={path}>
+          <Title text={`Module Documetation:${module_name}`} />
+        </Route>
+        <Route path={`${path}/:module_name`}>
+          <MethodDoc />
+        </Route>
+      </Switch>
     </section>
   );
 };
