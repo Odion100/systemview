@@ -49,7 +49,7 @@ const SystemNav = ({ project_code }) => {
         </div>
         <div className="row system-nav__section">
           <div className="col-12 ">
-            <Navigation servicesList={servicesList} project_code={project_code} />
+            <NavigationLinks servicesList={servicesList} project_code={project_code} />
           </div>
         </div>
       </div>
@@ -57,7 +57,7 @@ const SystemNav = ({ project_code }) => {
   );
 };
 
-const Navigation = ({ servicesList, project_code }) => {
+const NavigationLinks = ({ servicesList, project_code }) => {
   return servicesList.map(({ server_modules, system_modules, dependencies, service_id }, i) => {
     return (
       <ExpandableList
