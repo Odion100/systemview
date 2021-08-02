@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from "react";
-import { useHistory, useParams, useRouteMatch, Route } from "react-router-dom";
+import { useHistory } from "react-router-dom";
 import ServiceContext from "../../ServiceContext";
 import "./styles.scss";
 import TextBox from "../../atoms/Textbox/Textbox";
@@ -8,15 +8,10 @@ import ExpandableList from "../../molecules/ExpandableList/ExpandableList";
 import ServerModulesList from "../../organisms/ServerModulesList/ServerModulesList";
 import MissingDocIcon from "../../atoms/DocsIcon/DocsIcon";
 
-const SystemNav = () => {
+const SystemNav = ({ project_code }) => {
   const { SystemLink } = useContext(ServiceContext).SystemLinkService;
   const [servicesList, setServiceList] = useState([]);
   const history = useHistory();
-
-  const { project_code } = useParams();
-  const { path, url } = useRouteMatch();
-
-  console.log(project_code, path, url);
 
   const fetchProject = async (project_code) => {
     console.log(project_code);
@@ -24,7 +19,6 @@ const SystemNav = () => {
       const results = await SystemLink.getServices({ project_code });
       if (results.status === 200) {
         setServiceList(results.services);
-        navigateDocument({ project_code });
       }
       console.log(results);
     } catch (error) {
@@ -32,16 +26,10 @@ const SystemNav = () => {
     }
   };
 
-  const navigateDocument = ({ project_code, service_id, module_name, method_name }) => {
-    if (method_name && module_name && service_id && project_code)
-      history.push(`/${project_code}/${service_id}/${module_name}/${method_name}`);
-    else if (module_name && service_id && project_code)
-      history.push(`/${project_code}/${service_id}/${module_name}`);
-    else if (service_id && project_code) history.push(`/${project_code}/${service_id}`);
-    else if (project_code) history.push(`/${project_code}`);
-    else history.push("/");
+  const SearchInputSubmit = (e) => {
+    fetchProject(e.target.value);
+    history.push(`/${e.target.value}`);
   };
-  const SearchInputSubmit = (e) => fetchProject(e.target.value);
 
   useEffect(() => {
     if (project_code) fetchProject(project_code);
@@ -52,14 +40,16 @@ const SystemNav = () => {
       <div className="container">
         <div className="row system-nav__section">
           <div className="col-12">
-            <TextBox placeholderText="project_code" TextboxSubmit={SearchInputSubmit} />
+            <TextBox
+              text={project_code}
+              placeholderText="project_code"
+              TextboxSubmit={SearchInputSubmit}
+            />
           </div>
         </div>
         <div className="row system-nav__section">
           <div className="col-12 ">
-            <Route path={"/:project_code"}>
-              <SystemNavList servicesList={servicesList} />
-            </Route>
+            <Navigation servicesList={servicesList} project_code={project_code} />
           </div>
         </div>
       </div>
@@ -67,12 +57,7 @@ const SystemNav = () => {
   );
 };
 
-const SystemNavList = ({ servicesList }) => {
-  const { project_code } = useParams();
-  const { path, url } = useRouteMatch();
-
-  console.log(project_code, path, url);
-
+const Navigation = ({ servicesList, project_code }) => {
   return servicesList.map(({ server_modules, system_modules, dependencies, service_id }, i) => {
     return (
       <ExpandableList
