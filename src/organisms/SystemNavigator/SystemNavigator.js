@@ -24,7 +24,7 @@ const SystemNav = () => {
       const results = await SystemLink.getServices({ project_code });
       if (results.status === 200) {
         setServiceList(results.services);
-        setDocument({ project_code });
+        navigateDocument({ project_code });
       }
       console.log(results);
     } catch (error) {
@@ -32,7 +32,7 @@ const SystemNav = () => {
     }
   };
 
-  const setDocument = ({ project_code, service_id, module_name, method_name }) => {
+  const navigateDocument = ({ project_code, service_id, module_name, method_name }) => {
     if (method_name && module_name && service_id && project_code)
       history.push(`/${project_code}/${service_id}/${module_name}/${method_name}`);
     else if (module_name && service_id && project_code)
