@@ -10,13 +10,22 @@ const Documentation = ({ project_code, service_id, module_name, method_name }) =
   return (
     <section className="documentation">
       {method_name && module_name && service_id && project_code ? (
-        <MethodDocumentation />
+        <MethodDocumentation
+          method_name={method_name}
+          module_name={module_name}
+          service_id={service_id}
+          project_code={project_code}
+        />
       ) : module_name && service_id && project_code ? (
-        <ModuleDocumentation />
+        <ModuleDocumentation
+          module_name={module_name}
+          service_id={service_id}
+          project_code={project_code}
+        />
       ) : service_id && project_code ? (
-        <ServiceDocumentation />
+        <ServiceDocumentation service_id={service_id} project_code={project_code} />
       ) : project_code ? (
-        <ProjectDocumentation />
+        <ProjectDocumentation project_code={project_code} />
       ) : (
         <Title text={`Default Documentation`} />
       )}
