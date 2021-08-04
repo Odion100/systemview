@@ -14,7 +14,6 @@ const MethodDoc = ({ project_code, service_id, module_name, method_name }) => {
   const [doc, setDocument] = useState({});
 
   const fetchDocument = async () => {
-    console.log(project_code);
     try {
       const results = await MethodDocumentation.get({
         project_code,
@@ -24,7 +23,6 @@ const MethodDoc = ({ project_code, service_id, module_name, method_name }) => {
       });
       if (results.status === 200) setDocument(results.documentation);
       else setDocument({});
-      console.log(results);
     } catch (error) {
       setDocument({});
       console.error(error);
@@ -42,10 +40,10 @@ const MethodDoc = ({ project_code, service_id, module_name, method_name }) => {
       </div>
 
       <div className="row">
-        <RequestDescription doc={doc} />
+        <RequestDescription doc={doc} setDocument={setDocument} />
       </div>
       <div className="row">
-        <RequestDataTable doc={doc} />
+        <RequestDataTable doc={doc} setDocument={setDocument} />
       </div>
     </div>
   );
@@ -64,19 +62,22 @@ const DocTitle = ({ service_id, module_name, method_name, variable_name = "data"
   );
 };
 
-const RequestDescription = ({ doc }) => {
+const RequestDescription = ({ doc, setDocument }) => {
   const { MethodDocumentation } = useContext(ServiceContext).SystemLinkService;
+  let description = doc.description;
 
-  const saveDoc = async () => {
+  const updateText = (new_text) => (description = new_text);
+  const saveDescription = async () => {
     try {
-      const { status } = await MethodDocumentation.saveDoc({
+      const results = await MethodDocumentation.saveDoc({
         project_code: doc.project_code,
         service_id: doc.service_id,
         module_name: doc.module_name,
         method_name: doc.method_name,
-        description: doc.description,
+        description: description,
       });
-      //if (status === 200) fetchDocument();
+
+      if (results.status === 200) setDocument(results.documentation);
     } catch (error) {
       console.error(error);
     }
@@ -85,8 +86,8 @@ const RequestDescription = ({ doc }) => {
   return (
     <EditBox
       mainObject={<DescriptionText text={doc.description || "What does this methed do?"} />}
-      hiddenForm={<DescriptionBox text={doc.description} />}
-      formSubmit={saveDoc}
+      hiddenForm={<DescriptionBox text={doc.description} setValue={updateText} />}
+      formSubmit={saveDescription}
     />
   );
 };

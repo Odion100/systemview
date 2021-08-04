@@ -7,6 +7,10 @@ const DescriptionEditor = ({ formSubmit, mainObject, hiddenForm }) => {
   const editBoxClicked = () => setEditMode(true);
   const cancelClicked = () => setEditMode(false);
 
+  const submitClick = () => {
+    formSubmit();
+    setEditMode(false);
+  };
   return (
     <div className="edit-box">
       <div
@@ -21,7 +25,7 @@ const DescriptionEditor = ({ formSubmit, mainObject, hiddenForm }) => {
         </div>
         <div className="row">
           <div className="edit-box__button">
-            <Button buttonSubmit={formSubmit}>Save</Button>
+            <Button buttonSubmit={submitClick}>Save</Button>
             <Button buttonSubmit={cancelClicked}>Cancel</Button>
           </div>
         </div>

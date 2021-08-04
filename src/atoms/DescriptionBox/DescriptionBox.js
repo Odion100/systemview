@@ -1,7 +1,7 @@
 import React from "react";
 import "./styles.scss";
 
-const DescriptionBox = ({ text }) => {
+const DescriptionBox = ({ text, setValue }) => {
   return (
     <div className="description-box">
       <textarea
@@ -9,6 +9,13 @@ const DescriptionBox = ({ text }) => {
         name="description-box"
         id="description-box"
         defaultValue={text}
+        onChange={
+          setValue
+            ? (e) => {
+                setValue(e.target.value);
+              }
+            : null
+        }
       ></textarea>
     </div>
   );
