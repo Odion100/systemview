@@ -8,7 +8,8 @@ import DataTable from "../../atoms/DataTable/DataTable";
 import MethodDataForm from "../../molecules/MethodDataForm/MethodDataForm";
 import Title from "../../atoms/Title/Title";
 import ServiceContext from "../../ServiceContext";
-
+import textParserMatrix from "textparsermatrix";
+console.log(textParserMatrix);
 const MethodDoc = ({ project_code, service_id, module_name, method_name }) => {
   const { MethodDocumentation } = useContext(ServiceContext).SystemLinkService;
   const [doc, setDocument] = useState({});
@@ -65,8 +66,8 @@ const DocTitle = ({ service_id, module_name, method_name, variable_name = "data"
 const RequestDescription = ({ doc, setDocument }) => {
   const { MethodDocumentation } = useContext(ServiceContext).SystemLinkService;
   let description = doc.description;
-
   const updateText = (new_text) => (description = new_text);
+
   const saveDescription = async () => {
     try {
       const results = await MethodDocumentation.saveDoc({
@@ -92,6 +93,16 @@ const RequestDescription = ({ doc, setDocument }) => {
   );
 };
 const RequestDataTable = () => {
+  const headers = [
+    { name: "Property" },
+    { name: "Type" },
+    { name: "Description" },
+
+    { name: "Defalut" },
+    { name: "required" },
+  ];
+  const matrix = textParserMatrix(headers);
+  matrix.addText(["id", "Object", "MongoDB object id of the user you are adding", "n/a", "true"]);
   return (
     <React.Fragment>
       <Text
@@ -104,21 +115,7 @@ const RequestDataTable = () => {
         }
       />
       <EditBox
-        mainObject={
-          <DataTable
-            table={[
-              ["id", "Object", "MongoDB object id of the user you are adding", "n/a", "true"],
-            ]}
-            headers={[
-              { name: "Property" },
-              { name: "Type" },
-              { name: "Description" },
-
-              { name: "Defalut" },
-              { name: "required" },
-            ]}
-          />
-        }
+        mainObject={<DataTable table={matrix.table} headers={headers} />}
         hiddenForm={
           <MethodDataForm
             data={[["id", "Object", "MongoDB object id of the user you are adding", "n/a", true]]}

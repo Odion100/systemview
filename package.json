@@ -13,7 +13,7 @@
     "react-router-dom": "^5.2.0",
     "react-scripts": "^4.0.0",
     "tasksjs-react-client": "^1.1.5",
-    "textparsermatrix": "^1.0.1",
+    "textparsermatrix": "^1.0.2",
     "web-vitals": "^0.2.4"
   },
   "scripts": {
