@@ -45,39 +45,7 @@ const MethodDoc = ({ project_code, service_id, module_name, method_name }) => {
         <RequestDescription doc={doc} />
       </div>
       <div className="row">
-        <div>
-          <Text
-            text={
-              <span>
-                The following table describes the properties of the{" "}
-                <span className="documentation-view__parameter">data</span> parameter of the above
-                method.
-              </span>
-            }
-          />
-        </div>
-        <EditBox
-          mainObject={
-            <DataTable
-              table={[
-                ["id", "Object", "MongoDB object id of the user you are adding", "n/a", "true"],
-              ]}
-              headers={[
-                { name: "Property" },
-                { name: "Type" },
-                { name: "Description" },
-
-                { name: "Defalut" },
-                { name: "required" },
-              ]}
-            />
-          }
-          hiddenForm={
-            <MethodDataForm
-              data={[["id", "Object", "MongoDB object id of the user you are adding", "n/a", true]]}
-            />
-          }
-        />
+        <RequestDataTable doc={doc} />
       </div>
     </div>
   );
@@ -122,6 +90,42 @@ const RequestDescription = ({ doc }) => {
     />
   );
 };
-const RequestDataTable = () => {};
+const RequestDataTable = () => {
+  return (
+    <React.Fragment>
+      <Text
+        text={
+          <span>
+            The following table describes the properties of the{" "}
+            <span className="documentation-view__parameter">data</span> parameter of the above
+            method.
+          </span>
+        }
+      />
+      <EditBox
+        mainObject={
+          <DataTable
+            table={[
+              ["id", "Object", "MongoDB object id of the user you are adding", "n/a", "true"],
+            ]}
+            headers={[
+              { name: "Property" },
+              { name: "Type" },
+              { name: "Description" },
+
+              { name: "Defalut" },
+              { name: "required" },
+            ]}
+          />
+        }
+        hiddenForm={
+          <MethodDataForm
+            data={[["id", "Object", "MongoDB object id of the user you are adding", "n/a", true]]}
+          />
+        }
+      />
+    </React.Fragment>
+  );
+};
 const ResponseDataTable = () => {};
 export default MethodDoc;
