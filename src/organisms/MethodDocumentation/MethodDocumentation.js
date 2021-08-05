@@ -4,7 +4,7 @@ import Text from "../../atoms/Text/Text";
 import DescriptionText from "../../atoms/DescriptionText/DescriptionText";
 import DescriptionBox from "../../atoms/DescriptionBox/DescriptionBox";
 import EditBox from "../../molecules/EditBox/EditBox";
-import MethodDataForm from "../../molecules/MethodDataForm/MethodDataForm";
+import MethodDataForm from "../../molecules/DataTableForm/DataTableForm";
 import Title from "../../atoms/Title/Title";
 import ServiceContext from "../../ServiceContext";
 

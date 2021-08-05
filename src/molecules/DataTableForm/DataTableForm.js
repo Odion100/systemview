@@ -4,7 +4,7 @@ import Textbox from "../../atoms/Textbox/Textbox";
 import Toggle from "../../atoms/Toggle/Toggle";
 import DataTable from "../../atoms/DataTable/DataTable";
 import Selector from "../../atoms/Selector/Selector";
-import EditBox from "../../molecules/EditBox/EditBox";
+import EditBox from "../EditBox/EditBox";
 import ParserMatrix from "textparsermatrix";
 
 const MethodDataForm = ({ data, submit }) => {
