@@ -5,6 +5,36 @@ import Toggle from "../../atoms/Toggle/Toggle";
 import DataTable from "../../atoms/DataTable/DataTable";
 import Selector from "../../atoms/Selector/Selector";
 
+
+const MethodDataForm = ({ data, headers }) => {
+  
+  const addRow = () => {
+    data.push([]);
+    const newTable = generateTable();
+    setTable(newTable);
+  };
+  const deleteRow = () => {};
+  const generateTable = () => {
+    const newTable = data.map((row) => TableRow(row));
+
+    newTable.push([
+      <span className="method-data-form__add-button" href="#" onClick={addRow}>
+        +
+      </span>,
+    ]);
+    return newTable;
+  };
+
+  const [s, setTable] = useState(generateTable());
+  let dataTable = generateTable()
+  return (
+    <DataTable
+      tableClassName="method-data-form"
+      table={dataTable}
+      headers={headers}
+    />
+  );
+};
 const TableRow = ([property, type, description, default_value, required]) => {
   return [
     <Textbox value={property} />,
@@ -19,42 +49,6 @@ const TableRow = ([property, type, description, default_value, required]) => {
   ];
 };
 
-const MethodDataForm = ({ data, headers, editorSubmit }) => {
-  const generateTable = () => {
-    const newTable = data.map((row) => TableRow(row));
-
-    const addRow = () => {
-      data.push([]);
-      const newTable = generateTable();
-      setTable(newTable);
-    };
-
-    const deleteRow = () => {};
-
-    newTable.push([
-      <span className="method-data-form__add-button" href="#" onClick={addRow}>
-        +
-      </span>,
-    ]);
-    return newTable;
-  };
-
-  const [dataTable, setTable] = useState(generateTable());
-  return (
-    <DataTable
-      tableClassName="method-data-form"
-      table={dataTable}
-      headers={[
-        { name: "Property" },
-        { name: "Type" },
-        { name: "Description" },
-        { name: "Defalut" },
-        { name: "required" },
-        { name: "" },
-      ]}
-    />
-  );
-};
 
 export default MethodDataForm;
 

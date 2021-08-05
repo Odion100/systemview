@@ -9,7 +9,8 @@ import MethodDataForm from "../../molecules/MethodDataForm/MethodDataForm";
 import Title from "../../atoms/Title/Title";
 import ServiceContext from "../../ServiceContext";
 import textParserMatrix from "textparsermatrix";
-console.log(textParserMatrix);
+
+
 const MethodDoc = ({ project_code, service_id, module_name, method_name }) => {
   const { MethodDocumentation } = useContext(ServiceContext).SystemLinkService;
   const [doc, setDocument] = useState({});
@@ -66,7 +67,7 @@ const DocTitle = ({ service_id, module_name, method_name, variable_name = "data"
 const RequestDescription = ({ doc, setDocument }) => {
   const { MethodDocumentation } = useContext(ServiceContext).SystemLinkService;
   let description = doc.description;
-  const updateText = (new_text) => (description = new_text);
+  const updateDescription = (new_description) => (description = new_description);
 
   const saveDescription = async () => {
     try {
@@ -87,22 +88,49 @@ const RequestDescription = ({ doc, setDocument }) => {
   return (
     <EditBox
       mainObject={<DescriptionText text={doc.description || "What does this methed do?"} />}
-      hiddenForm={<DescriptionBox text={doc.description} setValue={updateText} />}
+      hiddenForm={<DescriptionBox text={doc.description} setValue={updateDescription} />}
       formSubmit={saveDescription}
     />
   );
+
+  
+
 };
-const RequestDataTable = () => {
+
+
+const RequestDataTable = ({doc, setDocument}) => {
   const headers = [
     { name: "Property" },
     { name: "Type" },
     { name: "Description" },
-
     { name: "Defalut" },
     { name: "required" },
+    { name: "" },
   ];
   const matrix = textParserMatrix(headers);
-  matrix.addText(["id", "Object", "MongoDB object id of the user you are adding", "n/a", "true"]);
+
+  const { MethodDocumentation } = useContext(ServiceContext).SystemLinkService;
+  let request_data = doc.request_data;
+  
+
+  const saveDescription = async () => {
+    try {
+      const results = await MethodDocumentation.saveDoc({
+        project_code: doc.project_code,
+        service_id: doc.service_id,
+        module_name: doc.module_name,
+        method_name: doc.method_name,
+        request_data: request_data,
+      });
+
+      if (results.status === 200) setDocument(results.documentation);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  matrix.table.push(["id", "Object", "MongoDB object id of the user you are adding", "n/a", "true"]);
+  console.log(matrix, doc)
   return (
     <React.Fragment>
       <Text
@@ -119,6 +147,7 @@ const RequestDataTable = () => {
         hiddenForm={
           <MethodDataForm
             data={[["id", "Object", "MongoDB object id of the user you are adding", "n/a", true]]}
+            headers={headers}
           />
         }
       />
