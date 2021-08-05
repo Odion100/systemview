@@ -4,12 +4,9 @@ import Text from "../../atoms/Text/Text";
 import DescriptionText from "../../atoms/DescriptionText/DescriptionText";
 import DescriptionBox from "../../atoms/DescriptionBox/DescriptionBox";
 import EditBox from "../../molecules/EditBox/EditBox";
-import DataTable from "../../atoms/DataTable/DataTable";
 import MethodDataForm from "../../molecules/MethodDataForm/MethodDataForm";
 import Title from "../../atoms/Title/Title";
 import ServiceContext from "../../ServiceContext";
-import textParserMatrix from "textparsermatrix";
-
 
 const MethodDoc = ({ project_code, service_id, module_name, method_name }) => {
   const { MethodDocumentation } = useContext(ServiceContext).SystemLinkService;
@@ -92,28 +89,20 @@ const RequestDescription = ({ doc, setDocument }) => {
       formSubmit={saveDescription}
     />
   );
-
-  
-
 };
 
-
-const RequestDataTable = ({doc, setDocument}) => {
-  const headers = [
-    { name: "Property" },
-    { name: "Type" },
-    { name: "Description" },
-    { name: "Defalut" },
-    { name: "required" },
-    { name: "" },
-  ];
-  const matrix = textParserMatrix(headers);
-
+const RequestDataTable = ({ doc, setDocument }) => {
   const { MethodDocumentation } = useContext(ServiceContext).SystemLinkService;
-  let request_data = doc.request_data;
-  
-
-  const saveDescription = async () => {
+  const mockData = [
+    {
+      name: "test",
+      data_type: "string",
+      description: "The best thing ever!",
+      default_value: "nothing",
+      required: false,
+    },
+  ];
+  const saveRequestData = async (request_data) => {
     try {
       const results = await MethodDocumentation.saveDoc({
         project_code: doc.project_code,
@@ -129,8 +118,6 @@ const RequestDataTable = ({doc, setDocument}) => {
     }
   };
 
-  matrix.table.push(["id", "Object", "MongoDB object id of the user you are adding", "n/a", "true"]);
-  console.log(matrix, doc)
   return (
     <React.Fragment>
       <Text
@@ -142,15 +129,7 @@ const RequestDataTable = ({doc, setDocument}) => {
           </span>
         }
       />
-      <EditBox
-        mainObject={<DataTable table={matrix.table} headers={headers} />}
-        hiddenForm={
-          <MethodDataForm
-            data={[["id", "Object", "MongoDB object id of the user you are adding", "n/a", true]]}
-            headers={headers}
-          />
-        }
-      />
+      <MethodDataForm data={mockData || doc.request_data} submit={saveRequestData} />
     </React.Fragment>
   );
 };
