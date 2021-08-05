@@ -26,11 +26,23 @@ const MethodDataForm = ({ data, headers }) => {
   };
 
   const [s, setTable] = useState(generateTable());
-  let dataTable = generateTable()
+  //let dataTable = generateTable()
   return (
     <DataTable
       tableClassName="method-data-form"
-      table={dataTable}
+      table={data.map(([property, type, description, default_value, required])=>{
+        return [
+          <Textbox value={property} />,
+          <Selector
+            options={["Object", "String", "Number", "Array", "ObjectId"]}
+            selected_option={type}
+          />,
+          <textarea defaultValue={description} className="method-data-form__description-text" />,
+          <Textbox value={required ? "n/a" : default_value} />,
+          <Toggle isChecked={required} />,
+          <span className="method-data-form__delete-button">x</span>,
+        ]
+      })}
       headers={headers}
     />
   );
