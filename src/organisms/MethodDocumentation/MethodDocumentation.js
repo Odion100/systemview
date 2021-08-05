@@ -4,7 +4,7 @@ import Text from "../../atoms/Text/Text";
 import DescriptionText from "../../atoms/DescriptionText/DescriptionText";
 import DescriptionBox from "../../atoms/DescriptionBox/DescriptionBox";
 import EditBox from "../../molecules/EditBox/EditBox";
-import MethodDataForm from "../../molecules/DataTableForm/DataTableForm";
+import DataTableForm from "../../molecules/DataTableForm/DataTableForm";
 import Title from "../../atoms/Title/Title";
 import ServiceContext from "../../ServiceContext";
 
@@ -129,7 +129,7 @@ const RequestDataTable = ({ doc, setDocument }) => {
           </span>
         }
       />
-      <MethodDataForm data={mockData || doc.request_data} submit={saveRequestData} />
+      <DataTableForm data={mockData || doc.request_data} submit={saveRequestData} />
     </React.Fragment>
   );
 };
