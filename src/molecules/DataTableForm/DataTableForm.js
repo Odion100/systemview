@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "./styles.scss";
 import Textbox from "../../atoms/Textbox/Textbox";
 import Toggle from "../../atoms/Toggle/Toggle";
@@ -15,7 +15,6 @@ const MethodDataForm = ({ data, submit }) => {
     { name: "Default" },
     { name: "required" },
   ];
-
   const matrix = ParserMatrix([
     { name: "name" },
     { name: "data_type" },
@@ -23,27 +22,32 @@ const MethodDataForm = ({ data, submit }) => {
     { name: "default_value" },
     { name: "required" },
   ]);
-
   matrix.addJson(data, { beforeInsert: (rowData) => (rowData[4] = rowData[4] + "") });
 
-  const addRow = () => {};
+  const [dataTable, setTable] = useState(matrix.table);
+  const [editMode, setEditMode] = useState(false);
+
+  const addRow = () => {
+    dataTable.push(["", "", "", "", ""]);
+
+    //not sure why this is working
+    setEditMode(!editMode);
+  };
   const deleteRow = () => {};
 
-  //const [s, setTable] = useState();
-  //let dataTable = generateTable()
-  //debugger;
   return (
     <div style={{ width: "100%" }}>
       <EditBox
-        mainObject={<DataTable table={matrix.table} headers={headers} />}
+        mainObject={<DataTable table={dataTable} headers={headers} />}
         hiddenForm={
           <div>
             <DataTable
               tableClassName="method-data-form"
               headers={headers}
-              table={matrix.table.map(([property, type, description, default_value, required]) => {
+              table={dataTable.map(([name, type, description, default_value, required]) => {
+                const _required = /true/i.test(required);
                 return [
-                  <Textbox value={property} />,
+                  <Textbox text={name} />,
                   <Selector
                     options={["Object", "String", "Number", "Array", "ObjectId"]}
                     selected_option={type}
@@ -52,8 +56,8 @@ const MethodDataForm = ({ data, submit }) => {
                     defaultValue={description}
                     className="method-data-form__description-text"
                   />,
-                  <Textbox value={required ? "n/a" : default_value} />,
-                  <Toggle isChecked={required} />,
+                  <Textbox text={_required ? "n/a" : default_value} />,
+                  <Toggle isChecked={_required} />,
                   <span className="method-data-form__delete-button">x</span>,
                 ];
               })}
