@@ -44,8 +44,8 @@ const MethodDataForm = ({ data, submit }) => {
     setTable(dataTable);
     console.log(dataTable);
   };
-  const _updateCell = (row, col, event) => {
-    dataTable[row][col] = event.target.value;
+  const updateCheckboxCell = (row, col, event) => {
+    dataTable[row][col] = event.target.checked;
     console.log(dataTable);
     setTable(dataTable);
   };
@@ -72,13 +72,13 @@ const MethodDataForm = ({ data, submit }) => {
                   <textarea
                     defaultValue={description}
                     className="method-data-form__description-text"
-                    onChange={_updateCell.bind(this, i, 2)}
+                    onChange={updateCell.bind(this, i, 2)}
                   />,
                   <Textbox
                     text={_required ? "n/a" : default_value}
                     setValue={updateCell.bind(this, i, 3)}
                   />,
-                  <Toggle isChecked={_required} setValue={updateCell.bind(this, i, 4)} />,
+                  <Toggle isChecked={_required} setValue={updateCheckboxCell.bind(this, i, 4)} />,
                   <span
                     className="method-data-form__delete-button"
                     onClick={deleteRow.bind(this, [i])}

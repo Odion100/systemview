@@ -4,17 +4,7 @@ import "./styles.scss";
 const Toggle = ({ round, isChecked, setValue }) => {
   return (
     <label className={`switch ${round ? "round" : ""}`}>
-      <input
-        type="checkbox"
-        defaultChecked={isChecked}
-        onChange={
-          setValue
-            ? (e) => {
-                setValue(e.target.checked);
-              }
-            : null
-        }
-      />
+      <input type="checkbox" defaultChecked={isChecked} onChange={setValue} />
       <span className="slider"></span>
     </label>
   );

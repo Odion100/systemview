@@ -11,14 +11,7 @@ const Textbox = ({ placeholderText, TextboxSubmit, text, setValue }) => {
         onKeyDown={(e) => {
           if (e.key === "Enter") TextboxSubmit(e);
         }}
-        onChange={
-          setValue
-            ? (e) => {
-                console.log(e.target.value);
-                setValue(e.target.value);
-              }
-            : null
-        }
+        onChange={setValue}
       />
     </div>
   );
