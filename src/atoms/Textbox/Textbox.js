@@ -14,6 +14,7 @@ const Textbox = ({ placeholderText, TextboxSubmit, text, setValue }) => {
         onChange={
           setValue
             ? (e) => {
+                console.log(e.target.value);
                 setValue(e.target.value);
               }
             : null

@@ -14,6 +14,7 @@ const MethodDataForm = ({ data, submit }) => {
     { name: "Description" },
     { name: "Default" },
     { name: "required" },
+    { name: "" },
   ];
   const matrix = ParserMatrix([
     { name: "name" },
@@ -38,6 +39,18 @@ const MethodDataForm = ({ data, submit }) => {
     setEditMode(!editMode);
   };
 
+  const updateCell = (row, col, value) => {
+    dataTable[row][col] = value;
+    setTable(dataTable);
+    console.log(dataTable);
+  };
+  const _updateCell = (row, col, event) => {
+    dataTable[row][col] = event.target.value;
+    console.log(dataTable);
+    setTable(dataTable);
+  };
+  const formCanceled = () => setTable(matrix.table);
+
   return (
     <div style={{ width: "100%" }}>
       <EditBox
@@ -50,17 +63,22 @@ const MethodDataForm = ({ data, submit }) => {
               table={dataTable.map(([name, type, description, default_value, required], i) => {
                 const _required = /true/i.test(required);
                 return [
-                  <Textbox text={name} />,
+                  <Textbox text={name} setValue={updateCell.bind(this, i, 0)} />,
                   <Selector
                     options={["Object", "String", "Number", "Array", "ObjectId"]}
                     selected_option={type}
+                    setValue={updateCell.bind(this, i, 1)}
                   />,
                   <textarea
                     defaultValue={description}
                     className="method-data-form__description-text"
+                    onChange={_updateCell.bind(this, i, 2)}
                   />,
-                  <Textbox text={_required ? "n/a" : default_value} />,
-                  <Toggle isChecked={_required} />,
+                  <Textbox
+                    text={_required ? "n/a" : default_value}
+                    setValue={updateCell.bind(this, i, 3)}
+                  />,
+                  <Toggle isChecked={_required} setValue={updateCell.bind(this, i, 4)} />,
                   <span
                     className="method-data-form__delete-button"
                     onClick={deleteRow.bind(this, [i])}
@@ -75,17 +93,10 @@ const MethodDataForm = ({ data, submit }) => {
             </span>
           </div>
         }
+        onCancel={formCanceled}
       />
     </div>
   );
 };
 
 export default MethodDataForm;
-
-/*
-- insert data into table and form
-- adding and deleting rows
-- saving and compiling the form data
-- added data types options to type selector
-- disable Default textbox display n/a in the input when required is true
-  */

@@ -1,9 +1,19 @@
 import React from "react";
 import "./styles.scss";
 
-const Selector = ({ options, selected_option }) => {
+const Selector = ({ options, selected_option, setValue }) => {
   return (
-    <select className="method-data-form__data-type-selector" defaultValue={selected_option}>
+    <select
+      className="method-data-form__data-type-selector"
+      defaultValue={selected_option}
+      onChange={
+        setValue
+          ? (e) => {
+              setValue(e.target.value);
+            }
+          : null
+      }
+    >
       {options.map((option, i) => (
         <option key={i}>{option}</option>
       ))}

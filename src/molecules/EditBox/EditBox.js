@@ -2,10 +2,13 @@ import React, { useState } from "react";
 import "./styles.scss";
 import Button from "../../atoms/Button/Button";
 
-const DescriptionEditor = ({ formSubmit, mainObject, hiddenForm }) => {
+const DescriptionEditor = ({ formSubmit, mainObject, hiddenForm, onCancel }) => {
   const [editMode, setEditMode] = useState(false);
   const editBoxClicked = () => setEditMode(true);
-  const cancelClicked = () => setEditMode(false);
+  const cancelClicked = () => {
+    if (typeof onCancel === "function") onCancel();
+    setEditMode(false);
+  };
 
   const saveClicked = () => {
     formSubmit();
