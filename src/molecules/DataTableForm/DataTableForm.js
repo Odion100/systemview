@@ -29,11 +29,14 @@ const MethodDataForm = ({ data, submit }) => {
 
   const addRow = () => {
     dataTable.push(["", "", "", "", ""]);
-
     //not sure why this is working
     setEditMode(!editMode);
   };
-  const deleteRow = () => {};
+  const deleteRow = ([i]) => {
+    console.log(i, this);
+    dataTable.splice(i, 1);
+    setEditMode(!editMode);
+  };
 
   return (
     <div style={{ width: "100%" }}>
@@ -44,7 +47,7 @@ const MethodDataForm = ({ data, submit }) => {
             <DataTable
               tableClassName="method-data-form"
               headers={headers}
-              table={dataTable.map(([name, type, description, default_value, required]) => {
+              table={dataTable.map(([name, type, description, default_value, required], i) => {
                 const _required = /true/i.test(required);
                 return [
                   <Textbox text={name} />,
@@ -58,7 +61,12 @@ const MethodDataForm = ({ data, submit }) => {
                   />,
                   <Textbox text={_required ? "n/a" : default_value} />,
                   <Toggle isChecked={_required} />,
-                  <span className="method-data-form__delete-button">x</span>,
+                  <span
+                    className="method-data-form__delete-button"
+                    onClick={deleteRow.bind(this, [i])}
+                  >
+                    x
+                  </span>,
                 ];
               })}
             />

@@ -96,7 +96,7 @@ const RequestDataTable = ({ doc, setDocument }) => {
   const mockData = [
     {
       name: "test",
-      data_type: "string",
+      data_type: "String",
       description: "The best thing ever!",
       default_value: "nothing",
       required: false,
