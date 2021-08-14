@@ -103,6 +103,7 @@ const RequestDataTable = ({ doc, setDocument }) => {
     },
   ];
   const saveRequestData = async (request_data) => {
+    return console.log(request_data);
     try {
       const results = await MethodDocumentation.saveDoc({
         project_code: doc.project_code,

@@ -29,7 +29,7 @@ const MethodDataForm = ({ data, submit }) => {
   const [editMode, setEditMode] = useState(false);
 
   const addRow = () => {
-    dataTable.push(["", "", "", "", ""]);
+    dataTable.push(["", "Object", "", "", "false"]);
     //not sure why this is working
     setEditMode(!editMode);
   };
@@ -38,18 +38,29 @@ const MethodDataForm = ({ data, submit }) => {
     dataTable.splice(i, 1);
     setEditMode(!editMode);
   };
-
-  const updateCell = (row, col, value) => {
-    dataTable[row][col] = value;
+  const updateCell = (row, col, e) => {
+    dataTable[row][col] = e.target.value;
     setTable(dataTable);
-    console.log(dataTable);
   };
   const updateCheckboxCell = (row, col, event) => {
     dataTable[row][col] = event.target.checked;
+    dataTable[row][col - 1] = event.target.checked ? "n/a" : "";
     console.log(dataTable);
     setTable(dataTable);
+    setEditMode(!editMode);
   };
   const formCanceled = () => setTable(matrix.table);
+
+  const formSubmit = () => {
+    matrix.table = dataTable;
+    // matrix.table.forEach((row, i)=>{
+    //   row[4]
+    // })
+    // console.log(matrix.table);
+    const test = matrix.toJson();
+    return console.log(test);
+    submit(matrix.toJson());
+  };
 
   return (
     <div style={{ width: "100%" }}>
@@ -62,6 +73,7 @@ const MethodDataForm = ({ data, submit }) => {
               headers={headers}
               table={dataTable.map(([name, type, description, default_value, required], i) => {
                 const _required = /true/i.test(required);
+                console.log(default_value);
                 return [
                   <Textbox text={name} setValue={updateCell.bind(this, i, 0)} />,
                   <Selector
@@ -75,8 +87,9 @@ const MethodDataForm = ({ data, submit }) => {
                     onChange={updateCell.bind(this, i, 2)}
                   />,
                   <Textbox
-                    text={_required ? "n/a" : default_value}
+                    text={default_value}
                     setValue={updateCell.bind(this, i, 3)}
+                    disabled={_required}
                   />,
                   <Toggle isChecked={_required} setValue={updateCheckboxCell.bind(this, i, 4)} />,
                   <span
@@ -93,6 +106,7 @@ const MethodDataForm = ({ data, submit }) => {
             </span>
           </div>
         }
+        formSubmit={formSubmit}
         onCancel={formCanceled}
       />
     </div>
