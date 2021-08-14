@@ -41,7 +41,7 @@ const SystemNav = ({ project_code }) => {
         <div className="row system-nav__section">
           <div className="col-12">
             <TextBox
-              text={project_code}
+              defaultText={project_code}
               placeholderText="project_code"
               TextboxSubmit={SearchInputSubmit}
             />

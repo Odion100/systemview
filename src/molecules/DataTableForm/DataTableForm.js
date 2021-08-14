@@ -14,8 +14,8 @@ const MethodDataForm = ({ data, submit }) => {
     { name: "Description" },
     { name: "Default" },
     { name: "required" },
-    { name: "" },
   ];
+  const formHeaders = [...headers, { name: "" }];
   const matrix = ParserMatrix([
     { name: "name" },
     { name: "data_type" },
@@ -26,28 +26,29 @@ const MethodDataForm = ({ data, submit }) => {
   matrix.addJson(data, { beforeInsert: (rowData) => (rowData[4] = rowData[4] + "") });
 
   const [dataTable, setTable] = useState(matrix.table);
-  const [editMode, setEditMode] = useState(false);
+  const [state, setState] = useState(false);
 
   const addRow = () => {
     dataTable.push(["", "Object", "", "", "false"]);
     //not sure why this is working
-    setEditMode(!editMode);
+    setState(!state);
   };
   const deleteRow = ([i]) => {
     console.log(i, this);
     dataTable.splice(i, 1);
-    setEditMode(!editMode);
+    setState(!state);
   };
   const updateCell = (row, col, e) => {
     dataTable[row][col] = e.target.value;
     setTable(dataTable);
+    setState(!state);
   };
   const updateCheckboxCell = (row, col, event) => {
-    dataTable[row][col] = event.target.checked;
+    dataTable[row][col] = event.target.checked + "";
     dataTable[row][col - 1] = event.target.checked ? "n/a" : "";
     console.log(dataTable);
     setTable(dataTable);
-    setEditMode(!editMode);
+    setState(!state);
   };
   const formCanceled = () => setTable(matrix.table);
 
@@ -70,7 +71,7 @@ const MethodDataForm = ({ data, submit }) => {
           <div>
             <DataTable
               tableClassName="method-data-form"
-              headers={headers}
+              headers={formHeaders}
               table={dataTable.map(([name, type, description, default_value, required], i) => {
                 const _required = /true/i.test(required);
                 console.log(default_value);
