@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import "./styles.scss";
 import Button from "../../atoms/Button/Button";
 
-const DescriptionEditor = ({ formSubmit, mainObject, hiddenForm, onCancel }) => {
+const EditBox = ({ formSubmit, mainObject, hiddenForm, onCancel }) => {
   const [editMode, setEditMode] = useState(false);
   const editBoxClicked = () => setEditMode(true);
   const cancelClicked = () => {
@@ -12,7 +12,7 @@ const DescriptionEditor = ({ formSubmit, mainObject, hiddenForm, onCancel }) => 
 
   const saveClicked = () => {
     formSubmit();
-    setEditMode(false);
+    //setEditMode(false);
   };
   return (
     <div className="edit-box">
@@ -29,7 +29,7 @@ const DescriptionEditor = ({ formSubmit, mainObject, hiddenForm, onCancel }) => 
         <div className="row">
           <div className="edit-box__button">
             <Button buttonSubmit={saveClicked}>Save</Button>
-            <Button buttonSubmit={cancelClicked}>Cancel</Button>
+            <Button buttonSubmit={cancelClicked}>Close</Button>
           </div>
         </div>
       </div>
@@ -37,4 +37,4 @@ const DescriptionEditor = ({ formSubmit, mainObject, hiddenForm, onCancel }) => 
   );
 };
 
-export default DescriptionEditor;
+export default EditBox;

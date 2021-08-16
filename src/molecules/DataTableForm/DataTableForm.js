@@ -27,7 +27,7 @@ const MethodDataForm = ({ data, submit }) => {
 
   const [dataTable, setTable] = useState(matrix.table);
   const [state, setState] = useState(false);
-
+  const [formSubmitted, setFormSubmitted] = useState(false);
   const addRow = () => {
     dataTable.push(["", "Object", "", "", "false"]);
     //not sure why this is working
@@ -50,9 +50,13 @@ const MethodDataForm = ({ data, submit }) => {
     setTable(dataTable);
     setState(!state);
   };
-  const formCanceled = () => setTable(matrix.table);
+  const formCanceled = () => {
+    setFormSubmitted(false);
+    setTable(matrix.table);
+  };
 
   const formSubmit = () => {
+    setFormSubmitted(true);
     matrix.table = dataTable;
     //validate and change data types
     matrix.table.forEach((currentRow, i) => {
@@ -62,6 +66,7 @@ const MethodDataForm = ({ data, submit }) => {
     });
     console.log(matrix.table);
     const test = matrix.toJson();
+
     return console.log(test);
     submit(matrix.toJson());
   };
@@ -79,19 +84,30 @@ const MethodDataForm = ({ data, submit }) => {
                 const _required = /true/i.test(required);
                 console.log(default_value);
                 return [
-                  <Textbox text={name} setValue={updateCell.bind(this, i, 0)} />,
+                  <Textbox
+                    inputClassName={`data-table-form__input-validation--${
+                      !/^$|\s+/.test(name) ? "complete" : formSubmitted ? "invalid" : "incomplete"
+                    }`}
+                    text={name}
+                    setValue={updateCell.bind(this, i, 0)}
+                  />,
                   <Selector
                     options={["Object", "String", "Number", "Array", "ObjectId"]}
                     selected_option={type}
                     setValue={updateCell.bind(this, i, 1)}
-                    className={"data-table-form__data-type-selector"}
+                    className={`data-table-form__data-type-selector`}
                   />,
                   <textarea
                     defaultValue={description}
-                    className="data-table-form__description-text"
+                    className={`data-table-form__description-text data-table-form__input-validation--${
+                      description ? "complete" : formSubmitted ? "invalid" : "incomplete"
+                    }`}
                     onChange={updateCell.bind(this, i, 2)}
                   />,
                   <Textbox
+                    inputClassName={`data-table-form__input-validation--${
+                      default_value ? "complete" : formSubmitted ? "invalid" : "incomplete"
+                    }`}
                     text={default_value}
                     setValue={updateCell.bind(this, i, 3)}
                     disabled={_required}

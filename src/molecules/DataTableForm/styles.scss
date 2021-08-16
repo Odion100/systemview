@@ -39,4 +39,10 @@
       top: 1px;
     }
   }
+  &__input-validation {
+    &--invalid {
+      border: 1px solid salmon;
+      border-radius: 5px;
+    }
+  }
 }

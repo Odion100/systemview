@@ -8,13 +8,14 @@ const Textbox = ({
   setValue,
   disabled = false,
   defaultText,
+  inputClassName,
 }) => {
   const enterClicked = (e) => {
     if (e.key === "Enter" && typeof TextboxSubmit === "function") TextboxSubmit(e);
   };
 
   return (
-    <div className="textbox">
+    <div className={`textbox`}>
       <input
         type="text"
         value={text}
@@ -23,6 +24,7 @@ const Textbox = ({
         onKeyDown={enterClicked}
         onChange={setValue}
         disabled={disabled}
+        className={inputClassName}
       />
     </div>
   );
