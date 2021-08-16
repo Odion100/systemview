@@ -8,14 +8,14 @@ import EditBox from "../EditBox/EditBox";
 import ParserMatrix from "textparsermatrix";
 
 const MethodDataForm = ({ data, submit }) => {
-  const headers = [
+  const displayHeaders = [
     { name: "Property" },
     { name: "Type" },
     { name: "Description" },
     { name: "Default" },
     { name: "required" },
   ];
-  const formHeaders = [...headers, { name: "" }];
+  const formHeaders = [...displayHeaders, { name: "" }];
   const matrix = ParserMatrix([
     { name: "name" },
     { name: "data_type" },
@@ -54,10 +54,13 @@ const MethodDataForm = ({ data, submit }) => {
 
   const formSubmit = () => {
     matrix.table = dataTable;
-    // matrix.table.forEach((row, i)=>{
-    //   row[4]
-    // })
-    // console.log(matrix.table);
+    //validate and change data types
+    matrix.table.forEach((currentRow, i) => {
+      if (!currentRow[0] || !currentRow[1] || !currentRow[2] || !currentRow[3] || !currentRow[4])
+        return console.log(`validation failed row ${i}`);
+      currentRow[4] = /true/i.test(currentRow[4]);
+    });
+    console.log(matrix.table);
     const test = matrix.toJson();
     return console.log(test);
     submit(matrix.toJson());
@@ -66,11 +69,11 @@ const MethodDataForm = ({ data, submit }) => {
   return (
     <div style={{ width: "100%" }}>
       <EditBox
-        mainObject={<DataTable table={dataTable} headers={headers} />}
+        mainObject={<DataTable table={dataTable} headers={displayHeaders} />}
         hiddenForm={
           <div>
             <DataTable
-              tableClassName="method-data-form"
+              tableClassName="data-table-form"
               headers={formHeaders}
               table={dataTable.map(([name, type, description, default_value, required], i) => {
                 const _required = /true/i.test(required);
@@ -81,10 +84,11 @@ const MethodDataForm = ({ data, submit }) => {
                     options={["Object", "String", "Number", "Array", "ObjectId"]}
                     selected_option={type}
                     setValue={updateCell.bind(this, i, 1)}
+                    className={"data-table-form__data-type-selector"}
                   />,
                   <textarea
                     defaultValue={description}
-                    className="method-data-form__description-text"
+                    className="data-table-form__description-text"
                     onChange={updateCell.bind(this, i, 2)}
                   />,
                   <Textbox
@@ -94,7 +98,7 @@ const MethodDataForm = ({ data, submit }) => {
                   />,
                   <Toggle isChecked={_required} setValue={updateCheckboxCell.bind(this, i, 4)} />,
                   <span
-                    className="method-data-form__delete-button"
+                    className="data-table-form__delete-button"
                     onClick={deleteRow.bind(this, [i])}
                   >
                     x
@@ -102,7 +106,7 @@ const MethodDataForm = ({ data, submit }) => {
                 ];
               })}
             />
-            <span className="method-data-form__add-button" href="#" onClick={addRow}>
+            <span className="data-table-form__add-button" href="#" onClick={addRow}>
               +Prop
             </span>
           </div>
