@@ -64,7 +64,12 @@ const MethodDataForm = ({ data, submit }) => {
     //validate and change data types
     for (let i = 0; i < matrix.table.length; i++) {
       const currentRow = matrix.table[i];
-      if (!currentRow[0] || !currentRow[1] || !currentRow[2] || !currentRow[3] || !currentRow[4])
+      if (
+        !/^(?![0-9])[a-zA-Z0-9$_]+$/.test(currentRow[0]) ||
+        !currentRow[1] ||
+        !currentRow[2] ||
+        !currentRow[3]
+      )
         return console.log(`form validation failed row ${i}`, matrix.table, dataTable);
       currentRow[4] = /true/i.test(currentRow[4]);
     }
@@ -87,7 +92,6 @@ const MethodDataForm = ({ data, submit }) => {
               headers={formHeaders}
               table={dataTable.map(([name, type, description, default_value, required], i) => {
                 const _required = /true/i.test(required);
-                console.log(default_value);
                 return [
                   <Textbox
                     inputClassName={`data-table-form__input-validation--${
@@ -101,7 +105,20 @@ const MethodDataForm = ({ data, submit }) => {
                     setValue={updateCell.bind(this, i, 0)}
                   />,
                   <Selector
-                    options={["Object", "String", "Number", "Array", "ObjectId"]}
+                    options={[
+                      "String",
+                      "Date",
+                      "Object",
+                      "ObjectId",
+                      "Number",
+                      "Boolean",
+                      "Array(ObjectIds)",
+                      "Array(Objects)",
+                      "Array(Strings)",
+                      "Array(Numbers)",
+                      "Array(Boolean)",
+                      "Array(Misc)",
+                    ]}
                     selected_option={type}
                     setValue={updateCell.bind(this, i, 1)}
                     className={`data-table-form__data-type-selector`}
