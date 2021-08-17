@@ -36,6 +36,8 @@ const MethodDataForm = ({ data, submit }) => {
   const deleteRow = ([i]) => {
     console.log(i, this);
     dataTable.splice(i, 1);
+    console.log(dataTable);
+    setTable(dataTable);
     setState(!state);
   };
   const updateCell = (row, col, e) => {
@@ -55,7 +57,7 @@ const MethodDataForm = ({ data, submit }) => {
     setTable(matrix.table);
   };
 
-  const formSubmit = () => {
+  const formSubmit = (showForm) => {
     setFormSubmitted(true);
     matrix.table = dataTable;
     //validate and change data types
@@ -66,7 +68,6 @@ const MethodDataForm = ({ data, submit }) => {
     });
     console.log(matrix.table);
     const test = matrix.toJson();
-
     return console.log(test);
     submit(matrix.toJson());
   };
@@ -98,7 +99,7 @@ const MethodDataForm = ({ data, submit }) => {
                     className={`data-table-form__data-type-selector`}
                   />,
                   <textarea
-                    defaultValue={description}
+                    value={description}
                     className={`data-table-form__description-text data-table-form__input-validation--${
                       description ? "complete" : formSubmitted ? "invalid" : "incomplete"
                     }`}

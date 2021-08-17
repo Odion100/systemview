@@ -11,7 +11,7 @@ const EditBox = ({ formSubmit, mainObject, hiddenForm, onCancel }) => {
   };
 
   const saveClicked = () => {
-    formSubmit();
+    formSubmit(setEditMode);
     //setEditMode(false);
   };
   return (
