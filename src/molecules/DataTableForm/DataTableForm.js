@@ -60,16 +60,20 @@ const MethodDataForm = ({ data, submit }) => {
   const formSubmit = (showForm) => {
     setFormSubmitted(true);
     matrix.table = dataTable;
+
     //validate and change data types
-    matrix.table.forEach((currentRow, i) => {
+    for (let i = 0; i < matrix.table.length; i++) {
+      const currentRow = matrix.table[i];
       if (!currentRow[0] || !currentRow[1] || !currentRow[2] || !currentRow[3] || !currentRow[4])
-        return console.log(`validation failed row ${i}`);
+        return console.log(`form validation failed row ${i}`, matrix.table, dataTable);
       currentRow[4] = /true/i.test(currentRow[4]);
-    });
+    }
+
     console.log(matrix.table);
     const test = matrix.toJson();
     return console.log(test);
     submit(matrix.toJson());
+    showForm(false);
   };
 
   return (
@@ -87,7 +91,11 @@ const MethodDataForm = ({ data, submit }) => {
                 return [
                   <Textbox
                     inputClassName={`data-table-form__input-validation--${
-                      !/^$|\s+/.test(name) ? "complete" : formSubmitted ? "invalid" : "incomplete"
+                      /^(?![0-9])[a-zA-Z0-9$_]+$/.test(name)
+                        ? "complete"
+                        : formSubmitted
+                        ? "invalid"
+                        : "incomplete"
                     }`}
                     text={name}
                     setValue={updateCell.bind(this, i, 0)}
