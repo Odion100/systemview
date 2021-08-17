@@ -16,6 +16,20 @@ const MethodDataForm = ({ data, submit }) => {
     { name: "required" },
   ];
   const formHeaders = [...displayHeaders, { name: "" }];
+  const type_options = [
+    "String",
+    "Date",
+    "Object",
+    "ObjectId",
+    "Number",
+    "Boolean",
+    "Array(ObjectIds)",
+    "Array(Objects)",
+    "Array(Strings)",
+    "Array(Numbers)",
+    "Array(Boolean)",
+    "Array(Misc)",
+  ];
   const matrix = ParserMatrix([
     { name: "name" },
     { name: "data_type" },
@@ -105,20 +119,7 @@ const MethodDataForm = ({ data, submit }) => {
                     setValue={updateCell.bind(this, i, 0)}
                   />,
                   <Selector
-                    options={[
-                      "String",
-                      "Date",
-                      "Object",
-                      "ObjectId",
-                      "Number",
-                      "Boolean",
-                      "Array(ObjectIds)",
-                      "Array(Objects)",
-                      "Array(Strings)",
-                      "Array(Numbers)",
-                      "Array(Boolean)",
-                      "Array(Misc)",
-                    ]}
+                    options={type_options}
                     selected_option={type}
                     setValue={updateCell.bind(this, i, 1)}
                     className={`data-table-form__data-type-selector`}
