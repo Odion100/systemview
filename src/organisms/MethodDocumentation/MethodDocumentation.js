@@ -93,24 +93,16 @@ const RequestDescription = ({ doc, setDocument }) => {
 
 const RequestDataTable = ({ doc, setDocument }) => {
   const { MethodDocumentation } = useContext(ServiceContext).SystemLinkService;
-  const mockData = [
-    {
-      name: "test",
-      data_type: "String",
-      description: "The best thing ever!",
-      default_value: "nothing",
-      required: false,
-    },
-  ];
-  const saveRequestData = async (request_data) => {
-    return console.log(request_data);
+
+  const saveRequestData = async (properties) => {
+    console.log(properties);
     try {
       const results = await MethodDocumentation.saveDoc({
         project_code: doc.project_code,
         service_id: doc.service_id,
         module_name: doc.module_name,
         method_name: doc.method_name,
-        request_data: request_data,
+        request_data: { ...doc.request_data, properties },
       });
 
       if (results.status === 200) setDocument(results.documentation);
@@ -130,7 +122,10 @@ const RequestDataTable = ({ doc, setDocument }) => {
           </span>
         }
       />
-      <DataTableForm data={mockData || doc.request_data} submit={saveRequestData} />
+      <DataTableForm
+        data={doc.request_data ? doc.request_data.properties : []}
+        submit={saveRequestData}
+      />
     </React.Fragment>
   );
 };

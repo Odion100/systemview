@@ -16,7 +16,7 @@ const MethodDataForm = ({ data, submit }) => {
     { name: "required" },
   ];
   const formHeaders = [...displayHeaders, { name: "" }];
-  const type_options = [
+  const _options = [
     "String",
     "Date",
     "Object",
@@ -37,7 +37,9 @@ const MethodDataForm = ({ data, submit }) => {
     { name: "default_value" },
     { name: "required" },
   ]);
-  matrix.addJson(data, { beforeInsert: (rowData) => (rowData[4] = rowData[4] + "") });
+  matrix.addJson(data || [], {
+    beforeInsert: (rowData) => (rowData[4] = rowData[4] + ""),
+  });
 
   const [dataTable, setTable] = useState(matrix.table);
   const [state, setState] = useState(false);
@@ -84,17 +86,14 @@ const MethodDataForm = ({ data, submit }) => {
         !currentRow[2] ||
         !currentRow[3]
       )
-        return console.log(`form validation failed row ${i}`, matrix.table, dataTable);
+        return alert("Please fix invalid or incomplete cells.");
       currentRow[4] = /true/i.test(currentRow[4]);
     }
 
-    console.log(matrix.table);
-    const test = matrix.toJson();
-    return console.log(test);
     submit(matrix.toJson());
     showForm(false);
   };
-
+  useEffect(() => setTable(matrix.table), [data]);
   return (
     <div style={{ width: "100%" }}>
       <EditBox
@@ -119,7 +118,7 @@ const MethodDataForm = ({ data, submit }) => {
                     setValue={updateCell.bind(this, i, 0)}
                   />,
                   <Selector
-                    options={type_options}
+                    options={_options}
                     selected_option={type}
                     setValue={updateCell.bind(this, i, 1)}
                     className={`data-table-form__data-type-selector`}
