@@ -4,4 +4,9 @@
   height: 100vh;
   padding: 3rem 1rem;
   overflow: auto;
+
+  &__test-data {
+    background: gainsboro;
+    padding: 12px 15px;
+  }
 }
