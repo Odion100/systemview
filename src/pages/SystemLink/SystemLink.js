@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React from "react";
 import { useParams } from "react-router-dom";
 import SystemNavigator from "../../organisms/SystemNavigator/SystemNavigator";
 import Documentation from "../../organisms/Documentation/Documentation";
+import TestCenter from "../../organisms/TestCenter/TestCenter";
 import "./styles.scss";
 
 const SystemLinkPage = () => {
@@ -20,7 +21,14 @@ const SystemLinkPage = () => {
             method_name={method_name}
           />
         </div>
-        <div className="col-4"></div>
+        <div className="col-3">
+          <TestCenter
+            project_code={project_code}
+            service_id={service_id}
+            module_name={module_name}
+            method_name={method_name}
+          />
+        </div>
       </div>
     </section>
   );
