@@ -1,10 +1,6 @@
 .expandable-list {
-  padding: 11px 5px;
   text-indent: 10px;
-  background: white;
-  margin: 6px;
-  border-radius: 3px;
-  border: 1px solid gainsboro;
+
   &__items {
     &--hidden {
       display: none;

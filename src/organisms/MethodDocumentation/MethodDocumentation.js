@@ -37,12 +37,14 @@ const MethodDoc = ({ project_code, service_id, module_name, method_name }) => {
       <div className="row">
         <DocTitle service_id={service_id} module_name={module_name} method_name={method_name} />
       </div>
-
-      <div className="row">
+      <div className="row documentation-view__data-table">
         <RequestDescription doc={doc} setDocument={setDocument} />
       </div>
-      <div className="row">
+      <div className="row documentation-view__data-table">
         <RequestDataTable doc={doc} setDocument={setDocument} />
+      </div>
+      <div className="row">
+        <ResponseDataTable doc={doc} setDocument={setDocument} />
       </div>
     </div>
   );
@@ -129,5 +131,43 @@ const RequestDataTable = ({ doc, setDocument }) => {
     </React.Fragment>
   );
 };
-const ResponseDataTable = () => {};
+const ResponseDataTable = ({ doc, setDocument }) => {
+  const { MethodDocumentation } = useContext(ServiceContext).SystemLinkService;
+
+  const saveResponseData = async (properties) => {
+    console.log(properties);
+    try {
+      const results = await MethodDocumentation.saveDoc({
+        project_code: doc.project_code,
+        service_id: doc.service_id,
+        module_name: doc.module_name,
+        method_name: doc.method_name,
+        response_data: { ...doc.response_data, properties },
+      });
+
+      if (results.status === 200) setDocument(results.documentation);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  return (
+    <React.Fragment>
+      <Text
+        text={
+          <span>
+            The following table describes the properties of the{" "}
+            <span className="documentation-view__parameter">results</span> parameter of the{" "}
+            <span className="documentation-view__parameter">callback(error, results)</span>{" "}
+            function.
+          </span>
+        }
+      />
+      <DataTableForm
+        data={doc.response_data ? doc.response_data.properties : []}
+        submit={saveResponseData}
+      />
+    </React.Fragment>
+  );
+};
 export default MethodDoc;

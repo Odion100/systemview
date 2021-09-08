@@ -1,8 +1,12 @@
 .documentation-view {
   color: white;
-  padding: 20px;
+  padding-top: 33px;
 
   &__parameter {
     color: #029002;
+  }
+
+  &__data-table {
+    margin-bottom: 30px;
   }
 }

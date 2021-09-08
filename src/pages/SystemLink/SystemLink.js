@@ -9,7 +9,7 @@ const SystemLinkPage = () => {
   return (
     <section className="system-viewer">
       <div className="row">
-        <div className="col-4">
+        <div className="col-3">
           <SystemNavigator project_code={project_code} />
         </div>
         <div className="col-6">
@@ -20,7 +20,7 @@ const SystemLinkPage = () => {
             method_name={method_name}
           />
         </div>
-        <div className="col-2"></div>
+        <div className="col-4"></div>
       </div>
     </section>
   );
