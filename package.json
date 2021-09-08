@@ -10,6 +10,7 @@
     "react": "^17.0.1",
     "react-dom": "^17.0.1",
     "react-dropdown-input": "^0.1.11",
+    "react-json-view": "^1.21.3",
     "react-router-dom": "^5.2.0",
     "react-scripts": "^4.0.0",
     "tasksjs-react-client": "^1.1.5",

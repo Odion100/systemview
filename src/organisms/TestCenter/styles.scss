@@ -1,12 +1,17 @@
 .test-center {
   background: whitesmoke;
-
+  font-family: monospace;
   height: 100vh;
   padding: 3rem 1rem;
   overflow: auto;
-
+  font-size: 14px;
   &__test-data {
     background: gainsboro;
     padding: 12px 15px;
   }
+}
+
+.react-json-view {
+  display: inline-flex;
+  font-size: 14px;
 }
