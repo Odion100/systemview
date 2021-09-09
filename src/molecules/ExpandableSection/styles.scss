@@ -1,0 +1,31 @@
+.expandable-section {
+  --title-color: black;
+  width: 100%;
+  &__items {
+    &--hidden {
+      display: none;
+    }
+  }
+  &__button {
+    cursor: pointer;
+    color: var(--title-color);
+    & > span {
+      display: inline-block;
+    }
+  }
+}
+.expandable-list {
+  text-indent: 10px;
+
+  &__items {
+    &--hidden {
+      display: none;
+    }
+  }
+  &__button {
+    text-align: left;
+    cursor: pointer;
+    display: flex;
+    padding-right: 6px;
+  }
+}

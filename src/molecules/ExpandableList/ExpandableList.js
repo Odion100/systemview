@@ -12,7 +12,7 @@ const ExpandableList = ({ children, title }) => {
   return (
     <div className="expandable-list">
       <div className="expandable-list__button" onClick={expandClick}>
-        <ExpandIcon />
+        <ExpandIcon isOpen={isOpen} />
         {title}
       </div>
 
