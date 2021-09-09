@@ -13,7 +13,7 @@ const MethodDataForm = ({ data, submit }) => {
     { name: "Type" },
     { name: "Description" },
     { name: "Default" },
-    { name: "required" },
+    { name: "Required" },
   ];
   const formHeaders = [...displayHeaders, { name: "" }];
   const _options = [

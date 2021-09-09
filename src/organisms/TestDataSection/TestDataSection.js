@@ -1,20 +1,19 @@
 import React from "react";
 import ReactJson from "react-json-view";
 import ExpandableSection from "../../molecules/ExpandableSection/ExpandableSection";
-
+import AddButton from "../../atoms/AddButton/AddButton";
 import "./styles.scss";
 
 const testfn = (data) => console.log(data);
-const TestCenterSection = ({ project_code, service_id, module_name, method_name }) => {
+const TestDataSection = ({ project_code, service_id, module_name, method_name }) => {
   return (
     <section className="test-center-section">
       <ExpandableSection
         title={
           <div className="d-flex">
             <span className="test-center-section__title">Test Data:</span>
-            <span className="test-center-section__json-btn">
-              +<span className="test-center-section__json-btn--hide-effect">json</span>
-            </span>
+
+            <AddButton hiddenCaption="json" />
           </div>
         }
         title_color="#0d8065"
@@ -38,4 +37,4 @@ const TestCenterSection = ({ project_code, service_id, module_name, method_name 
   );
 };
 
-export default TestCenterSection;
+export default TestDataSection;

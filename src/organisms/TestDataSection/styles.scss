@@ -4,32 +4,12 @@
     background: gainsboro;
     padding: 12px 15px;
     width: 100%;
+    font-weight: 700;
   }
   &__title {
     padding: 1px 8px;
     font-size: 16px;
     margin: 4px;
-  }
-  &__json-btn {
-    cursor: pointer;
-    padding: 1px 8px;
-    border-radius: 21px;
-    font-weight: bold;
-    color: #0d8065;
-    font-size: 16px;
-    background: white;
-    margin: 4px;
-    border: 1px solid;
-    &:active {
-      position: relative;
-      top: 1px;
-    }
-    &--hide-effect {
-      display: none;
-    }
-    &:hover &--hide-effect {
-      display: initial;
-    }
   }
 }
 
