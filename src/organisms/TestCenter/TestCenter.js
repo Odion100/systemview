@@ -1,6 +1,6 @@
 import React, { useState, useContext, useEffect } from "react";
 import ReactJson from "react-json-view";
-import ObjectEditor from "../../molecules/ObjectEditor/ObjectEditor";
+import ObjectEditor from "../../molecules/JsonEditor/JsonEditor";
 import "./styles.scss";
 const mockData = {
   _id: "6138caa3560d159aaf0c39b9",
@@ -29,10 +29,17 @@ const TestCenter = ({ project_code, service_id, module_name, method_name }) => {
   return (
     <section className="test-center">
       <div className="container">
-        <div className="row test-center__test-data">
-          <span>
+        <div className="row d-flex">
+          <span className="test-center__json-btn">Test Data:</span>
+          <span className="test-center__json-btn">
+            +<span className="test-center__json-btn--hide-effect">json</span>
+          </span>
+        </div>
+        <div className="row">
+          <div className="test-center__test-data">
             {`${service_id}.${module_name}.${method_name}`}(
             <ReactJson
+              src={mockData}
               name="data"
               onAdd={testfn}
               onEdit={testfn}
@@ -42,7 +49,7 @@ const TestCenter = ({ project_code, service_id, module_name, method_name }) => {
               collapsed={true}
             />
             )
-          </span>
+          </div>{" "}
         </div>
       </div>
     </section>

@@ -8,10 +8,33 @@
   &__test-data {
     background: gainsboro;
     padding: 12px 15px;
+    width: 100%;
+  }
+
+  &__json-btn {
+    cursor: pointer;
+    padding: 1px 8px;
+    line-height: 1;
+    border-radius: 21px;
+    font-weight: bold;
+    color: #0d8065;
+    font-size: 16px;
+    background: white;
+    margin: 4px;
+    border: 1px solid;
+    &:active {
+      position: relative;
+      top: 1px;
+    }
+    &--hide-effect {
+      display: none;
+    }
+    &:hover .test-center__json-btn--hide-effect {
+      display: initial;
+    }
   }
 }
 
 .react-json-view {
-  display: inline-flex;
   font-size: 14px;
 }

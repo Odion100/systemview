@@ -1,0 +1,8 @@
+.object-editor {
+  display: inline-block;
+  font-weight: bold;
+  cursor: pointer;
+  &__brackets {
+    color: #029002;
+  }
+}
