@@ -1,12 +1,17 @@
-.test-center {
+.test-panel {
   background: whitesmoke;
   font-family: monospace;
   height: 100vh;
   padding: 3rem 1rem;
   overflow: auto;
   font-size: 14px;
+
+  &__section {
+    margin-bottom: 6px;
+  }
 }
 
 .react-json-view {
   font-size: 14px;
+  margin: 8px 0px;
 }

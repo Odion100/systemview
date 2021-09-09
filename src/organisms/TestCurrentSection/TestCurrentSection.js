@@ -6,19 +6,19 @@ import TestPanelCaption from "../../atoms/TestPanelCaption/TestPanelCaption";
 import "./styles.scss";
 
 const testfn = (data) => console.log(data);
-const TestDataSection = ({ project_code, service_id, module_name, method_name }) => {
+const TestCurrentSection = ({ project_code, service_id, module_name, method_name }) => {
   return (
-    <section className="test-data-section">
+    <section className="test-current-section">
       <ExpandableSection
         title={
           <div>
-            <TestPanelCaption text="Test Data:" />
-            <AddButton hiddenCaption="json test data" />
+            <TestPanelCaption text="Current Test:" />
+            <AddButton hiddenCaption="save test" />
           </div>
         }
         title_color="#0d8065"
       >
-        <div className="test-data-section__test-data">
+        <div className="test-current-section__test-data">
           {`${service_id}.${module_name}.${method_name}`}(
           <ReactJson
             src={{}}
@@ -37,4 +37,4 @@ const TestDataSection = ({ project_code, service_id, module_name, method_name })
   );
 };
 
-export default TestDataSection;
+export default TestCurrentSection;
