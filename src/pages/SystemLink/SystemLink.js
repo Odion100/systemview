@@ -2,7 +2,7 @@ import React from "react";
 import { useParams } from "react-router-dom";
 import SystemNavigator from "../../organisms/SystemNavigator/SystemNavigator";
 import Documentation from "../../organisms/Documentation/Documentation";
-import TestCenter from "../../organisms/TestCenter/TestCenter";
+import TestPanel from "../../organisms/TestPanel/TestPanel";
 import "./styles.scss";
 
 const SystemLinkPage = () => {
@@ -22,7 +22,7 @@ const SystemLinkPage = () => {
           />
         </div>
         <div className="col-3">
-          <TestCenter
+          <TestPanel
             project_code={project_code}
             service_id={service_id}
             module_name={module_name}
