@@ -2,8 +2,8 @@ import React, { useState } from "react";
 import "./styles.scss";
 import ExpandIcon from "../../atoms/ExpandableIcon/ExpandableIcon";
 
-const ExpandableSection = ({ children, title, title_color }) => {
-  const [isOpen, setState] = useState(false);
+const ExpandableSection = ({ children, title, title_color, open }) => {
+  const [isOpen, setState] = useState(open);
 
   const expandClick = () => {
     setState(!isOpen);

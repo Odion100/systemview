@@ -5,19 +5,28 @@
     max-width: 100%;
     min-height: 100px;
   }
-  &__is-json-msg {
+
+  &__btn-container {
     position: absolute;
     right: 4px;
     top: 4px;
+  }
+  &__btn {
     padding: 2px 4px;
     border-radius: 2px;
     cursor: pointer;
-    &--true {
+    margin-left: 4px;
+    &--is-json-true {
       background: #25d0a8;
     }
-    &--false {
+    &--is-json-false {
       background: #ffbaba;
       color: #8c3c3c;
+      text-decoration: line-through;
+    }
+    &--cancel {
+      background: #ff6b6b;
+      color: white;
     }
   }
 }

@@ -19,18 +19,7 @@ const TestAfterSection = ({ project_code, service_id, module_name, method_name }
         title_color="#0d8065"
       >
         <div className="test-after-section__test-data">
-          {`${service_id}.${module_name}.${method_name}`}(
-          <ReactJson
-            src={{}}
-            name="data"
-            onAdd={testfn}
-            onEdit={testfn}
-            onDelete={testfn}
-            displayObjectSize={false}
-            displayDataTypes={false}
-            collapsed={true}
-          />
-          )
+          <span>no actions</span>
         </div>
       </ExpandableSection>
     </section>
