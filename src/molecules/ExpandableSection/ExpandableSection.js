@@ -11,11 +11,11 @@ const ExpandableSection = ({ children, title, title_color }) => {
   const style = {
     "--title-color": title_color || "black",
   };
-  console.log(style);
+
   return (
     <div className="expandable-section" style={style}>
-      <div className="expandable-section__button">
-        <span onClick={expandClick}>
+      <div className="expandable-section__title">
+        <span className="expandable-section__btn" onClick={expandClick}>
           <ExpandIcon isOpen={isOpen} />
         </span>
         <span>{title}</span>

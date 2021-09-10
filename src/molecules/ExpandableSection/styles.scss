@@ -6,12 +6,14 @@
       display: none;
     }
   }
-  &__button {
+  &__title {
     margin-bottom: 7px;
-    cursor: pointer;
     color: var(--title-color);
     & > span {
       display: inline-block;
+    }
+    &__btn {
+      cursor: pointer;
     }
   }
 }

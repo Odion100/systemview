@@ -3,12 +3,14 @@ import ReactJson from "react-json-view";
 import ExpandableSection from "../../molecules/ExpandableSection/ExpandableSection";
 import AddButton from "../../atoms/AddButton/AddButton";
 import TestPanelCaption from "../../atoms/TestPanelCaption/TestPanelCaption";
+import JsonTextBox from "../../atoms/JsonTextBox/JsonTextBox";
 import "./styles.scss";
 
 const testfn = (data) => console.log(data);
 const TestDataSection = ({ project_code, service_id, module_name, method_name }) => {
   return (
     <section className="test-data-section">
+      <JsonTextBox onSubmit={(value) => console.log(value)} />
       <ExpandableSection
         title={
           <div>

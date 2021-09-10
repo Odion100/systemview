@@ -1,0 +1,23 @@
+.json-text-box {
+  position: relative;
+  &__textbox {
+    min-width: 100%;
+    max-width: 100%;
+    min-height: 100px;
+  }
+  &__is-json-msg {
+    position: absolute;
+    right: 4px;
+    top: 4px;
+    padding: 2px 4px;
+    border-radius: 2px;
+    cursor: pointer;
+    &--true {
+      background: #25d0a8;
+    }
+    &--false {
+      background: #ffbaba;
+      color: #8c3c3c;
+    }
+  }
+}
