@@ -1,0 +1,18 @@
+.test-data-section {
+  width: 100%;
+  margin-bottom: 6px;
+  &__json-txb {
+    &--show-false {
+      display: none;
+    }
+  }
+  &__test-data {
+    background: #ccc;
+    padding: 12px 15px;
+    width: 100%;
+  }
+}
+
+.react-json-view {
+  font-size: 14px;
+}

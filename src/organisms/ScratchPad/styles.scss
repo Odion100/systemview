@@ -1,0 +1,32 @@
+.scratchpad {
+  width: 100%;
+  &__json-txb {
+    &--show-false {
+      display: none;
+    }
+  }
+  &__test-data-container {
+    background: #ccc;
+    position: relative;
+    padding: 12px 15px;
+    width: 100%;
+  }
+
+  &__add-json-btn {
+    padding: 2px 3px;
+    position: absolute;
+    right: 4px;
+    top: 4px;
+    border-radius: 2px;
+    color: #0d8065;
+    cursor: pointer;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
+.react-json-view {
+  font-size: 14px;
+}
