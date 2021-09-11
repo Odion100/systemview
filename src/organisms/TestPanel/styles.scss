@@ -9,6 +9,10 @@
   &__section {
     margin-bottom: 6px;
   }
+
+  &__section > section {
+    width: 100%;
+  }
 }
 
 .react-json-view {

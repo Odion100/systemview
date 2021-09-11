@@ -1,23 +1,24 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import ExpandableSection from "../../molecules/ExpandableSection/ExpandableSection";
 import TestPanelCaption from "../../atoms/TestPanelCaption/TestPanelCaption";
-import ScratchPad from "../../organisms/ScratchPad/ScratchPad";
+import ScratchPad from "../ScratchPad/ScratchPad";
 import "./styles.scss";
 
-const TestDataSection = ({
+const QuickTestSection = ({
   project_code,
   service_id,
   module_name,
   method_name,
   open,
   testData,
+  title,
 }) => {
   return (
-    <section className="test-data-section">
+    <section className="quick-test-section">
       <ExpandableSection
         open={open}
         title_color="#0d8065"
-        title={<TestPanelCaption text="Test:" />}
+        title={<TestPanelCaption text={title} />}
       >
         <ScratchPad
           project_code={project_code}
@@ -31,4 +32,4 @@ const TestDataSection = ({
   );
 };
 
-export default TestDataSection;
+export default QuickTestSection;

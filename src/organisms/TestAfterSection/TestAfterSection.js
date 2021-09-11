@@ -1,5 +1,4 @@
 import React from "react";
-import ReactJson from "react-json-view";
 import ExpandableSection from "../../molecules/ExpandableSection/ExpandableSection";
 import AddButton from "../../atoms/AddButton/AddButton";
 import TestPanelCaption from "../../atoms/TestPanelCaption/TestPanelCaption";
