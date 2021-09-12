@@ -14,6 +14,8 @@ const ScratchPad = ({ project_code, service_id, module_name, method_name, testDa
   const [connected_services, setConnecteServices] = useState(connections);
   const [showTxb, setShowTxb] = useState(false);
   const [jsonData, setJsonData] = useState(testData);
+  const [responseData, setResponseData] = useState({});
+  const [responseNamespace, setResponseNamespace] = useState("");
 
   const showJsonTxb = () => setShowTxb(true);
   const hideJsonTxb = () => setShowTxb(false);
@@ -27,9 +29,11 @@ const ScratchPad = ({ project_code, service_id, module_name, method_name, testDa
       const results = await connected_services[project_code][service_id][module_name][method_name](
         jsonData
       );
-      console.log(results);
+      setResponseData(results);
+      setResponseNamespace("results");
     } catch (error) {
-      console.error(error);
+      setResponseData(error);
+      setResponseNamespace("error");
     }
   };
   useEffect(() => {
@@ -74,6 +78,17 @@ const ScratchPad = ({ project_code, service_id, module_name, method_name, testDa
             collapsed={true}
           />
           )
+        </div>
+        <div
+          className={`scratchpad__response-data scratchpad__response-data--visible-${!!responseData.status}`}
+        >
+          <ReactJson
+            src={responseData}
+            name={responseNamespace}
+            displayObjectSize={false}
+            displayDataTypes={false}
+            collapsed={true}
+          />
         </div>
       </div>
     </div>

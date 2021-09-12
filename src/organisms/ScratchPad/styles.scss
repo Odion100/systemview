@@ -6,10 +6,24 @@
     }
   }
   &__test-data-container {
-    background: #ccc;
     position: relative;
-    padding: 12px 15px;
+
     width: 100%;
+  }
+  &__test-data {
+    background: #ccc;
+    padding: 18px 15px 15px 15px;
+  }
+  &__response-data {
+    padding: 12px 15px;
+    background: #25d0a8;
+
+    background: #eca0a0;
+    background: #76b1f7;
+
+    &--visible-false {
+      display: none;
+    }
   }
   &__btn-container {
     position: absolute;
@@ -26,6 +40,7 @@
     padding: 2px 3px;
     border-radius: 2px;
     color: #0d8065;
+
     cursor: pointer;
 
     &:hover {
