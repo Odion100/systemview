@@ -37,6 +37,7 @@ const TestDataSection = ({ project_code, service_id, module_name, method_name, t
         />
         )
       </div>
+      <span>Run Test</span>
     </div>
   );
 };

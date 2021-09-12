@@ -9,20 +9,21 @@ import ServerModulesList from "../../organisms/ServerModulesList/ServerModulesLi
 import MissingDocIcon from "../../atoms/DocsIcon/DocsIcon";
 
 const SystemNav = ({ project_code }) => {
-  const { SystemLink } = useContext(ServiceContext).SystemLinkService;
+  const { SystemLinkService, setServices } = useContext(ServiceContext);
+  const { SystemLink } = SystemLinkService;
   const [servicesList, setServiceList] = useState([]);
   const history = useHistory();
 
   const fetchProject = async (project_code) => {
-    console.log(project_code);
     try {
       const results = await SystemLink.getServices({ project_code });
       if (results.status === 200) {
         setServiceList(results.services);
-      }
-      console.log(results);
+        setServices(results.services);
+      } else setServices([]);
     } catch (error) {
       console.error(error);
+      setServices([]);
     }
   };
 

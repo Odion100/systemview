@@ -19,8 +19,8 @@ const TestBeforeSection = ({ project_code, service_id, module_name, method_name 
         title_color="#0d8065"
       >
         <div className="test-before-section__test-data">
-          <QuickTestSection />
-          <QuickTestSection /> <QuickTestSection />
+          <QuickTestSection title="Action1:" />
+          <QuickTestSection title="Action2:" /> <QuickTestSection title="Action3:" />
         </div>
       </ExpandableSection>
     </section>

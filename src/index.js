@@ -5,15 +5,13 @@ import App from "./App";
 import reportWebVitals from "./reportWebVitals";
 
 import { Client } from "tasksjs-react-client";
-import ServiceContext from "./ServiceContext";
+
 const url = "http://localhost:3300/systemlink/api";
 
 Client.loadService(url).then((SystemLinkService) => {
   ReactDOM.render(
     <React.StrictMode>
-      <ServiceContext.Provider value={{ SystemLinkService }}>
-        <App />
-      </ServiceContext.Provider>
+      <App SystemLinkService={SystemLinkService} />
     </React.StrictMode>,
     document.getElementById("root")
   );
