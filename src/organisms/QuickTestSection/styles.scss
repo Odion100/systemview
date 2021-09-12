@@ -1,0 +1,12 @@
+.quick-test-section {
+  &__test-btn {
+    background: #0b886b;
+    padding: 2px 6px;
+    color: white;
+    border: 1px solid;
+    float: right;
+    cursor: pointer;
+    border-radius: 20px;
+    line-height: 15px;
+  }
+}

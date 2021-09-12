@@ -11,12 +11,19 @@
     padding: 12px 15px;
     width: 100%;
   }
-
-  &__add-json-btn {
-    padding: 2px 3px;
+  &__btn-container {
     position: absolute;
     right: 4px;
     top: 4px;
+    & > span {
+      margin: 0 5px;
+    }
+  }
+  &__run-test-btn {
+    cursor: pointer;
+  }
+  &__add-json-btn {
+    padding: 2px 3px;
     border-radius: 2px;
     color: #0d8065;
     cursor: pointer;
