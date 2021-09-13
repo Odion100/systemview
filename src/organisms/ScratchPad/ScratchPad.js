@@ -7,7 +7,7 @@ import { Client } from "tasksjs-react-client";
 import "./styles.scss";
 
 const testfn = (data) => console.log(data);
-const ScratchPad = ({ project_code, service_id, module_name, method_name, testData }) => {
+const ScratchPad = ({ project_code, service_id, module_name, method_name, testData, onSubmit }) => {
   const { TestServices } = useContext(ServiceContext);
   const connections = {};
   connections[project_code] = {};
@@ -29,11 +29,14 @@ const ScratchPad = ({ project_code, service_id, module_name, method_name, testDa
       const results = await connected_services[project_code][service_id][module_name][method_name](
         jsonData
       );
+
       setResponseData(results);
       setResponseNamespace("results");
+      if (typeof onSubmit === "function") onSubmit(results, "results");
     } catch (error) {
       setResponseData(error);
       setResponseNamespace("error");
+      if (typeof onSubmit === "function") onSubmit(error, "error");
     }
   };
   useEffect(() => {

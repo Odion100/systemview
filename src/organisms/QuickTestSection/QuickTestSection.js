@@ -13,17 +13,15 @@ const QuickTestSection = ({
   open,
   testData,
   title,
+  onSubmit,
+  children,
 }) => {
   return (
     <section className="quick-test-section">
       <ExpandableSection
         open={open}
         title_color="#0d8065"
-        title={
-          <React.Fragment>
-            <TestPanelCaption text={title} />{" "}
-          </React.Fragment>
-        }
+        title={<TestPanelCaption text={title} />}
       >
         <ScratchPad
           project_code={project_code}
@@ -31,7 +29,9 @@ const QuickTestSection = ({
           module_name={module_name}
           method_name={method_name}
           testData={testData}
+          onSubmit={onSubmit}
         />
+        {children}
       </ExpandableSection>
     </section>
   );

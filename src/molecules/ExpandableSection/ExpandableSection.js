@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import "./styles.scss";
 import ExpandIcon from "../../atoms/ExpandableIcon/ExpandableIcon";
 
-const ExpandableSection = ({ children, title, title_color, open }) => {
+const ExpandableSection = ({ children, title, title_color, open, lock }) => {
   const [isOpen, setState] = useState(open);
 
   const expandClick = () => {
@@ -15,7 +15,10 @@ const ExpandableSection = ({ children, title, title_color, open }) => {
   return (
     <div className="expandable-section" style={style}>
       <div className="expandable-section__title">
-        <span className="expandable-section__btn" onClick={expandClick}>
+        <span
+          className={`expandable-section__btn expandable-section__btn--hide-${lock}`}
+          onClick={expandClick}
+        >
           <ExpandIcon isOpen={isOpen} />
         </span>
         <span>{title}</span>

@@ -1,0 +1,30 @@
+.evaluations {
+  background: #25d0a8;
+  //   background: #eca0a0;
+  padding: 12px 18px;
+
+  &__row {
+    margin: 4px;
+    padding: 8px 5px;
+  }
+  &__title {
+    margin-left: 10px;
+  }
+  &__type {
+    color: blue;
+  }
+  &__input {
+    & > input {
+      width: 100%;
+      padding: 6px 9px;
+      margin: 8px 0;
+      box-sizing: border-box;
+      border: none;
+      border-bottom: 2px solid #383838;
+      background: #a5ffda;
+    }
+    &--visible-false {
+      display: none;
+    }
+  }
+}

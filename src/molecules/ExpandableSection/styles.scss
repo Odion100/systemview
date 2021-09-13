@@ -17,19 +17,9 @@
       cursor: pointer;
     }
   }
-}
-.expandable-list {
-  text-indent: 10px;
-
-  &__items {
-    &--hidden {
-      display: none;
+  &__btn {
+    &--hide-true {
+      visibility: hidden;
     }
-  }
-  &__button {
-    text-align: left;
-    cursor: pointer;
-    display: flex;
-    padding-right: 6px;
   }
 }
