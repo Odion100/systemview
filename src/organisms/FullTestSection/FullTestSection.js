@@ -41,8 +41,15 @@ const Evaluations = ({ currentEvaluations, savedEvaluations = [] }) => {
   ];
 
   return (
-    <div className="evaluations">
-      <ExpandableSection>
+    <div className={`evaluations evaluations--visible-${savedEvaluations.length > 0}`}>
+      <ExpandableSection
+        title={
+          <div className="evaluations__title">
+            <span className="evaluations__namespace">Test Passed: </span>
+            <span className="evaluations__type">0 errors</span>
+          </div>
+        }
+      >
         {savedEvaluations.map(
           ({ namespace, type, max, min, length, max_length, min_length, like, equals }, i) => {
             return type !== "object" ? (

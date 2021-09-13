@@ -2,7 +2,9 @@
   background: #25d0a8;
   //   background: #eca0a0;
   padding: 12px 18px;
-
+  &--visible-false {
+    display: none;
+  }
   &__row {
     margin: 4px;
     padding: 8px 5px;
