@@ -10,20 +10,21 @@
     margin: 4px;
     padding: 8px 5px;
   }
+
   &__title {
     margin-left: 10px;
   }
+
   &__type {
     color: blue;
-
     appearance: none;
     cursor: pointer;
-    text-align-last: center;
     background: none;
     border: none;
     outline: none;
     font-family: monospace;
   }
+
   &__input {
     & > input {
       width: 100%;
@@ -37,5 +38,11 @@
     &--visible-false {
       display: none;
     }
+  }
+
+  &--error-true {
+    color: red;
+    color: #e44c4c;
+    font-weight: bold;
   }
 }

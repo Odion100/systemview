@@ -7,12 +7,14 @@ import Selector from "../../atoms/Selector/Selector";
 import "./styles.scss";
 
 const FullTestSection = ({ project_code, service_id, module_name, method_name }) => {
-  const [evals, setEvals] = useState({ saved: [], current: [] });
+  const [testResults, setTestResults] = useState({
+    evaluations: [],
+    missingProperties: [],
+    totalErors: 0,
+  });
 
-  const quickTestSubmit = (results, namespace) => {
-    const test = evaluateResults(results, namespace);
-    setEvals({ saved: test, current: test });
-  };
+  const quickTestSubmit = (results, namespace) =>
+    setTestResults(validateResults(results, namespace, []));
 
   return (
     <section className="current-data-section">
@@ -25,96 +27,116 @@ const FullTestSection = ({ project_code, service_id, module_name, method_name })
         open={true}
         onSubmit={quickTestSubmit}
       >
-        <Evaluations savedValidations={evals.saved} currentEvaluations={evals.current} />
+        <Evaluations
+          evaluations={testResults.evaluations}
+          missingProperties={testResults.missingProperties}
+          totalErors={testResults.totalErors}
+        />
       </QuickTestSection>
     </section>
   );
 };
-const options = ["number", "date", "string", "array", "boolean", "object", "undefined"];
-const Evaluations = ({ currentEvaluations, savedValidations = [] }) => {
-  const [errorCount, setErrorCount] = useState(0);
-  const count = 0;
+const options = ["number", "date", "string", "array", "boolean", "object", "undefined", "null"];
+const Evaluations = ({ evaluations, missingProperties, totalErors }) => {
+  console.log(evaluations);
+
   return (
-    <div className={`evaluations evaluations--visible-${savedValidations.length > 0}`}>
+    <div className={`evaluations evaluations--visible-${evaluations.length > 0}`}>
       <ExpandableSection
         title={
-          <div className="evaluations__title">
-            <span className="evaluations__namespace">Test Passed: </span>
-            <span className="evaluations__type">0 errors</span>
+          <div className={`evaluations__title evaluations--error-${totalErors > 0}`}>
+            <span className="evaluations__namespace">
+              {totalErors > 0 ? "Test Failed: " : "Test Passed: "}
+            </span>
+            <span className={`evaluations__type evaluations--error-${totalErors > 0}`}>
+              {totalErors} errors
+            </span>
           </div>
         }
       >
-        {savedValidations.map(
-          ({ namespace, type, max, min, length, max_length, min_length, like, equals }, i) => {
-            //compare the current Evaluation result to the save
-            const currentEval = currentEvaluations.find((evaluation) => {
-              return evaluation.namespace === namespace;
-            });
-
-            return type !== "object" ? (
-              <ExpandableSection
-                title={
-                  <div className="evaluations__title">
-                    <span className="evaluations__namespace">{namespace}: </span>
-                    <Selector
-                      className="evaluations__type"
-                      options={options}
-                      selected_option={type}
-                    />
-                  </div>
-                }
-              >
-                <div key={i} className="evaluations__row">
-                  <span
-                    className={`evaluations__input evaluations__input--visible-${
-                      type !== "object"
-                    }`}
-                  >
-                    <ValidationInput type={type} /> <ValidationInput type={type} />{" "}
-                    <ValidationInput type={type} />
-                  </span>
+        {evaluations.map(({ namespace, type, value, errors, validations }, i) => {
+          return type !== "object" ? (
+            <ExpandableSection
+              title={
+                <div className={`evaluations__title evaluations--error-${errors.count > 0}`}>
+                  <span className="evaluations__namespace">{namespace}: </span>
+                  <Selector
+                    className="evaluations__type"
+                    options={options}
+                    selected_option={type}
+                  />
                 </div>
-              </ExpandableSection>
-            ) : (
-              <ExpandableSection
-                title={
-                  <div className="evaluations__title">
-                    <span className="evaluations__namespace">{namespace}: </span>
-                    <span className="evaluations__type">{type}</span>
-                  </div>
-                }
-                lock={true}
-              ></ExpandableSection>
-            );
-          }
-        )}
+              }
+            >
+              <div key={i} className="evaluations__row">
+                <span
+                  className={`evaluations__input evaluations__input--visible-${type !== "object"}`}
+                >
+                  {validations.map(({ name, value }, i) => {
+                    return (
+                      <ValidationInput
+                        key={i}
+                        className={`evaluations--errors-${errors[name]}`}
+                        type={type}
+                        name={name}
+                        value={value}
+                      />
+                    );
+                  })}
+                </span>
+              </div>
+            </ExpandableSection>
+          ) : (
+            <ExpandableSection
+              title={
+                <div className="evaluations__title">
+                  <span className="evaluations__namespace">{namespace}: </span>
+                  <span className="evaluations__type">{type}</span>
+                </div>
+              }
+              lock={true}
+            ></ExpandableSection>
+          );
+        })}
       </ExpandableSection>
     </div>
   );
 };
 
-const evaluateResults = (results, namespace) => {
+const validateResults = (results, namespace, savedEvaluations = []) => {
   const evaluations = [{ namespace, type: "object" }];
-
+  let totalErors = 0;
   const recursiveEval = (obj, previousNamespace) => {
     const propNames = Object.getOwnPropertyNames(obj);
     propNames.forEach((prop_name) => {
       const currentNamesapce = previousNamespace + "." + prop_name;
       const type = getType(obj[prop_name]);
       const value = obj[prop_name];
-      evaluations.push({ namespace: currentNamesapce, type, value });
+
+      const i = savedEvaluations.findIndex((val) => (val.namespace = currentNamesapce));
+      const savedEval = i !== -1 ? savedEvaluations.splice(i, 1) : {};
+      const validations = savedEval.validations || [];
+      const errors = getErrors(type, value, validations, savedEval.type || type);
+      totalErors += errors.count;
+      evaluations.push({ namespace: currentNamesapce, type, value, errors, validations });
       if (type === "object") recursiveEval(obj[prop_name], currentNamesapce);
       if (type === "array") recursiveEval(obj[prop_name][0], currentNamesapce + "[0]");
     });
   };
   recursiveEval(results, namespace);
-  return evaluations;
+  savedEvaluations.forEach((e) => {
+    e.errors = { count: 1, missingNamespace: true };
+    evaluations.push(e);
+    totalErors++;
+  });
+
+  return { evaluations, totalErors };
 };
 
-const getType = (value, validations) => {
+const getType = (value) => {
   switch (true) {
     case typeof value === "object":
-      if (!value) return null;
+      if (!value) return "null";
       else if (Array.isArray(value)) return "array";
       else return "object";
     case typeof value === "string":
@@ -130,41 +152,126 @@ const getType = (value, validations) => {
       return "?";
   }
 };
+const getErrors = (type, value, validations, expected_type) => {
+  if (type !== expected_type) return { count: 1, typeError: true };
 
-const validateLength = (string, validations) => {
+  switch (type) {
+    case "number":
+      return validateNumber(value, validations);
+    case "date":
+      return validateDate(value, validations);
+    case "string":
+      return validateString(value, validations);
+    case "array":
+      return validateArray(value, validations);
+    case "boolean":
+      return validateBoolean(value, validations);
+    default:
+      return { count: 0 };
+  }
+};
+const validateLength = (item, validations) => {
   const errors = { count: 0 };
-  if (validations.lengthEquals || (validations.lengthEquals = 0)) {
-    if (string.length !== validations.lengthEquals) {
-      errors.count++;
-      errors.lengthEquals = true;
+  validations.forEach(({ name, value }) => {
+    if (name === "lengthEquals") {
+      errors.lengthEquals = item.length !== value;
+      if (errors.length) errors.count++;
     }
-  }
-  if (validations.maxLength || (validations.maxLength = 0)) {
-    if (string.length > validations.maxLength) {
-      errors.count++;
-      errors.maxLength = true;
+    if (name === "maxLength") {
+      errors.maxLength = item.length > value;
+      if (errors.maxLength) errors.count++;
     }
-  }
-  if (validations.minLength || (validations.minLength = 0)) {
-    if (string.length < validations.minLength) {
-      errors.count++;
-      errors.minLength = true;
+    if (name === "minLength") {
+      errors.minLength = item.length < value;
+      if (errors.minLength) errors.count++;
     }
-  }
+  });
+
   return errors;
 };
-const validateArray = (array, validations) => {
-  const errors = validateLength(array, validations);
-  if (validations.includes) {
-    const test_passed = validations.includes.every((value) => array.includes(value));
-    if (!test_passed) {
-      errors.count++;
-      errors.includes = true;
+const validateNumber = (num, validations) => {
+  const errors = { count: 0 };
+  validations.forEach(({ name, value }) => {
+    if (name === "equals") {
+      errors.equals = num !== value;
+      if (errors.length) errors.count++;
     }
-  }
+    if (name === "maxLength") {
+      errors.max = num > value;
+      if (errors.max) errors.count++;
+    }
+    if (name === "min") {
+      errors.min = num < value;
+      if (errors.min) errors.count++;
+    }
+    if (name === "isOneOf") {
+      errors.isOneOf = value.includes(num);
+      if (errors.isOneOf) errors.count++;
+    }
+  });
+
+  return errors;
 };
-const validateString = (array, validations) => {
-  const errors = validateLength(array, validations);
+const validateArray = (arr, validations) => {
+  const errors = validateLength(arr, validations);
+  validations.forEach(({ name, value }) => {
+    if (name === "includes") {
+      errors.includes = !value.includes.every((val) => arr.includes(val));
+      if (errors.includes) errors.count++;
+    }
+  });
+
+  return errors;
+};
+const validateString = (str, validations) => {
+  const errors = validateLength(str, validations);
+  validations.forEach(({ name, value }) => {
+    if (name === "equals") {
+      errors.equals = str !== value;
+      if (errors.equals) errors.count++;
+    }
+    if (name === "isLike") {
+      errors.isLike = !str.match(value);
+      if (errors.isLike) errors.count++;
+    }
+    if (name === "isOneOf") {
+      errors.isOneOf = !value.isOneOf.includes(str);
+      if (errors.isOneOf) errors.count++;
+    }
+  });
+
+  return errors;
+};
+const validateBoolean = (bool, validations) => {
+  const errors = { count: 0 };
+  validations.forEach(({ name, value }) => {
+    if ((name === "equals") === true) {
+      errors.equals = bool !== value;
+      if (errors.equals) errors.count++;
+    }
+  });
+
+  return errors;
+};
+
+const validateDate = (datetime, validations) => {
+  const errors = { count: 0 };
+  validations.forEach(({ name, value }) => {
+    if (name === "dateEquals") {
+      errors.dateEquals = !moment(datetime).isSame(value);
+      if (errors.length) errors.count++;
+    }
+    if (name === "maxDate") {
+      errors.maxDate = moment(datetime).isAfter(value);
+      if (errors.maxDate) errors.count++;
+    }
+    if (name === "minDate") {
+      errors.minDate = moment(datetime).isBefore2(value);
+      if (errors.minDate) errors.count++;
+    }
+  });
+
+  return errors;
 };
 
 export default FullTestSection;
