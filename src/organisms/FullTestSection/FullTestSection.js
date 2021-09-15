@@ -2,10 +2,13 @@ import React, { useState } from "react";
 import moment from "moment";
 import QuickTestSection from "../QuickTestSection/QuickTestSection";
 import ExpandableSection from "../../molecules/ExpandableSection/ExpandableSection";
+import ValidationInput from "../../molecules/ValidationInput/ValidationInput";
+import Selector from "../../atoms/Selector/Selector";
 import "./styles.scss";
 
 const FullTestSection = ({ project_code, service_id, module_name, method_name }) => {
   const [evals, setEvals] = useState({ saved: [], current: [] });
+
   const quickTestSubmit = (results, namespace) => {
     const test = evaluateResults(results, namespace);
     setEvals({ saved: test, current: test });
@@ -22,26 +25,17 @@ const FullTestSection = ({ project_code, service_id, module_name, method_name })
         open={true}
         onSubmit={quickTestSubmit}
       >
-        <Evaluations savedEvaluations={evals.saved} />
+        <Evaluations savedValidations={evals.saved} currentEvaluations={evals.current} />
       </QuickTestSection>
     </section>
   );
 };
-
-const Evaluations = ({ currentEvaluations, savedEvaluations = [] }) => {
-  const validations = [
-    { test: "max", against_types: ["number", "date"] },
-    { test: "min", against_types: ["number", "date"] },
-    { test: "length", against_types: ["string", "array"] },
-    { test: "max-lenght", against_types: ["string", "array"] },
-    { test: "min-lenght", against_types: ["string", "array"] },
-    { test: "includes", against_types: ["array"] },
-    { test: "like", against_types: ["string"] },
-    { test: "equals", against_types: ["any"] },
-  ];
-
+const options = ["number", "date", "string", "array", "boolean", "object", "undefined"];
+const Evaluations = ({ currentEvaluations, savedValidations = [] }) => {
+  const [errorCount, setErrorCount] = useState(0);
+  const count = 0;
   return (
-    <div className={`evaluations evaluations--visible-${savedEvaluations.length > 0}`}>
+    <div className={`evaluations evaluations--visible-${savedValidations.length > 0}`}>
       <ExpandableSection
         title={
           <div className="evaluations__title">
@@ -50,80 +44,34 @@ const Evaluations = ({ currentEvaluations, savedEvaluations = [] }) => {
           </div>
         }
       >
-        {savedEvaluations.map(
+        {savedValidations.map(
           ({ namespace, type, max, min, length, max_length, min_length, like, equals }, i) => {
+            //compare the current Evaluation result to the save
+            const currentEval = currentEvaluations.find((evaluation) => {
+              return evaluation.namespace === namespace;
+            });
+
             return type !== "object" ? (
               <ExpandableSection
                 title={
                   <div className="evaluations__title">
                     <span className="evaluations__namespace">{namespace}: </span>
-                    <span className="evaluations__type">{type}</span>
+                    <Selector
+                      className="evaluations__type"
+                      options={options}
+                      selected_option={type}
+                    />
                   </div>
                 }
               >
                 <div key={i} className="evaluations__row">
                   <span
-                    className={`evaluations__input evaluations__input--${
-                      type === "number" ? "number" : "string"
-                    } evaluations__input--visible-${type !== "array"}`}
-                  >
-                    should equal: <input type={type === "number" ? "number" : "string"} />
-                  </span>
-                  <span
-                    className={`evaluations__input evaluations__input--number evaluations__input--visible-${
-                      type === "number"
+                    className={`evaluations__input evaluations__input--visible-${
+                      type !== "object"
                     }`}
                   >
-                    should be less than: <input type="number" />
-                  </span>
-                  <span
-                    className={`evaluations__input evaluations__input--number evaluations__input--visible-${
-                      type === "number"
-                    }`}
-                  >
-                    should be greater than: <input type="number" />
-                  </span>
-                  <span
-                    className={`evaluations__input evaluations__input--dates evaluations__input--visible-${
-                      type === "date"
-                    }`}
-                  >
-                    should have length less than: <input type="string" />
-                  </span>
-                  <span
-                    className={`evaluations__input evaluations__input--dates evaluations__input--visible-${
-                      type === "date"
-                    }`}
-                  >
-                    should have length greater than: <input type="string" />
-                  </span>
-                  <span
-                    className={`evaluations__input evaluations__input--string--${
-                      type === "string"
-                    } evaluations__input--array evaluations__input--visible-${type === "array"}`}
-                  >
-                    should have length less than: <input type="number" />
-                  </span>
-                  <span
-                    className={`evaluations__input evaluations__input--string--${
-                      type === "string"
-                    } evaluations__input--array evaluations__input--visible-${type === "array"}`}
-                  >
-                    should have length greater than: <input type="number" />
-                  </span>
-                  <span
-                    className={`evaluations__input evaluations__input--array evaluations__input--visible-${
-                      type === "array"
-                    }`}
-                  >
-                    should include: <input type="string" />
-                  </span>
-                  <span
-                    className={`evaluations__input evaluations__input--string evaluations__input--visible-${
-                      type === "string"
-                    }`}
-                  >
-                    should be like': <input type="string" />
+                    <ValidationInput type={type} /> <ValidationInput type={type} />{" "}
+                    <ValidationInput type={type} />
                   </span>
                 </div>
               </ExpandableSection>
@@ -163,7 +111,7 @@ const evaluateResults = (results, namespace) => {
   return evaluations;
 };
 
-const getType = (value) => {
+const getType = (value, validations) => {
   switch (true) {
     case typeof value === "object":
       if (!value) return null;
@@ -182,4 +130,41 @@ const getType = (value) => {
       return "?";
   }
 };
+
+const validateLength = (string, validations) => {
+  const errors = { count: 0 };
+  if (validations.lengthEquals || (validations.lengthEquals = 0)) {
+    if (string.length !== validations.lengthEquals) {
+      errors.count++;
+      errors.lengthEquals = true;
+    }
+  }
+  if (validations.maxLength || (validations.maxLength = 0)) {
+    if (string.length > validations.maxLength) {
+      errors.count++;
+      errors.maxLength = true;
+    }
+  }
+  if (validations.minLength || (validations.minLength = 0)) {
+    if (string.length < validations.minLength) {
+      errors.count++;
+      errors.minLength = true;
+    }
+  }
+  return errors;
+};
+const validateArray = (array, validations) => {
+  const errors = validateLength(array, validations);
+  if (validations.includes) {
+    const test_passed = validations.includes.every((value) => array.includes(value));
+    if (!test_passed) {
+      errors.count++;
+      errors.includes = true;
+    }
+  }
+};
+const validateString = (array, validations) => {
+  const errors = validateLength(array, validations);
+};
+
 export default FullTestSection;

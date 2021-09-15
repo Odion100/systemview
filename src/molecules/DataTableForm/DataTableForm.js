@@ -120,7 +120,7 @@ const MethodDataForm = ({ data, submit }) => {
                   <Selector
                     options={_options}
                     selected_option={type}
-                    setValue={updateCell.bind(this, i, 1)}
+                    onSelect={updateCell.bind(this, i, 1)}
                     className={`data-table-form__data-type-selector`}
                   />,
                   <textarea

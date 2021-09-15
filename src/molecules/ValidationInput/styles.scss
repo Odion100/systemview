@@ -1,0 +1,32 @@
+.validation-input {
+  margin: 3px 0;
+  display: flex;
+  &__selector {
+    padding: 3px;
+    border-radius: 3px 0px 0px 3px;
+    outline: none;
+    border-right: none;
+    background: #8cdecb;
+    border-color: #0b886b;
+    appearance: none;
+    cursor: pointer;
+    text-align-last: center;
+    font-weight: bold;
+  }
+
+  &__input {
+    padding: 4px;
+    border-radius: 0 3px 3px 0;
+    border: 1px solid #767676;
+    outline: none;
+    color: blue;
+    border-left: none;
+    background: #8cdecb;
+  }
+}
+input:-webkit-autofill {
+  border: 3px solid blue;
+}
+input:autofill {
+  border: 3px solid blue;
+}

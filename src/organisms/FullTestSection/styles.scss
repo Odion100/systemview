@@ -1,6 +1,7 @@
 .evaluations {
+  background: #eca0a0;
   background: #25d0a8;
-  //   background: #eca0a0;
+
   padding: 12px 18px;
   &--visible-false {
     display: none;
@@ -14,6 +15,14 @@
   }
   &__type {
     color: blue;
+
+    appearance: none;
+    cursor: pointer;
+    text-align-last: center;
+    background: none;
+    border: none;
+    outline: none;
+    font-family: monospace;
   }
   &__input {
     & > input {
@@ -22,7 +31,7 @@
       margin: 8px 0;
       box-sizing: border-box;
       border: none;
-      border-bottom: 2px solid #383838;
+      border: 1px solid #383836;
       background: #a5ffda;
     }
     &--visible-false {
