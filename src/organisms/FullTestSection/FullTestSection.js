@@ -93,16 +93,19 @@ const EvaluationRow = ({ namespace, type, errors, validations, value, index, add
               +
             </span>
           </div>
-          <div className="evaluations__inputs--container">
+          <div className="evaluations__validation-container">
             {validations.map(({ name, value }, i) => {
               return (
-                <ValidationInput
-                  key={i}
-                  className={`evaluations--errors-${errors[name]}`}
-                  type={type}
-                  name={name}
-                  value={value}
-                />
+                <div className="evaluations__validation">
+                  <ValidationInput
+                    key={i}
+                    className={`evaluations--errors-${errors[name]} evaluations__validation__input`}
+                    type={type}
+                    name={name}
+                    value={value}
+                  />
+                  <span className="evaluations__validation__delete-btn">x</span>
+                </div>
               );
             })}
           </div>

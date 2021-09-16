@@ -51,8 +51,31 @@
     background: #5a77ca;
     background: #0b886b;
     font-weight: bold;
-    color: white;
-    border: 1px solid #a5ffda;
+    color: #a5ffda;
+    border: 1px solid;
     cursor: pointer;
+  }
+  &__validation-container {
+    display: inline-grid;
+    margin-left: 4px;
+  }
+  &__add-btn-container {
+    display: inline-grid;
+  }
+  &__validation {
+    &__delete-btn {
+      display: inline-flex;
+      font-family: sans-serif;
+      margin-left: 6px;
+      font-size: 16px;
+      cursor: pointer;
+      color: #767676;
+      &:hover {
+        color: #b55454;
+      }
+    }
+    &__input {
+      display: inline-flex;
+    }
   }
 }
