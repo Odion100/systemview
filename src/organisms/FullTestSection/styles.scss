@@ -40,7 +40,7 @@
     }
   }
 
-  &--error-true {
+  &--error-true > * {
     color: red;
     color: #c50000;
     font-weight: bold;

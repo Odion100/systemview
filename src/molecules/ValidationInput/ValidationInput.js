@@ -3,7 +3,7 @@ import Selector from "../../atoms/Selector/Selector";
 import "./styles.scss";
 
 const string = {
-  option: ["Equals:", "Min Lenght:", "Max Length:", "Lenght Equals:", "Is Like:", "Is One Of:"],
+  options: ["Equals:", "Min Lenght:", "Max Length:", "Lenght Equals:", "Is Like:", "Is One Of:"],
   values: ["equals", "minLenght", "maxLength", "lengthEquals", "isLike", "isOneOf"],
 };
 const number = {
@@ -20,7 +20,11 @@ const options = { array, number, date, boolean, string };
 
 const ValidationInput = ({ type, name, value, className = "", onSelect, onInputChanged }) => {
   const select = (e) => onSelect(e.target.value);
-  const inputChanged = (e) => onInputChanged(e.target.value);
+  const inputChanged = (e) => {
+    if (e.target.type === "number") onInputChanged(parseInt(e.target.value));
+    else onInputChanged(e.target.value);
+  };
+
   return (
     <div className={`validation-input ${className}`}>
       <Selector

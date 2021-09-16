@@ -34,18 +34,33 @@ const Evaluations = ({ evaluations, totalErors }) => {
     currentEvaluations[i].validations.push({ name: "equals", value: "" });
     setEvaluations(currentEvaluations);
     setState(!state);
+    console.log(currentEvaluations);
   };
   const deleteValidation = (x, y) => {
     console.log(currentEvaluations[x].validations, x, y);
     currentEvaluations[x].validations.splice(y, 1);
+    currentEvaluations[x].errors = getErrors(
+      currentEvaluations[x].type,
+      currentEvaluations[x].value,
+      currentEvaluations[x].validations,
+      currentEvaluations[x].expected_type
+    );
     setEvaluations(currentEvaluations);
     setState(!state);
+    console.log(currentEvaluations);
   };
   const updateValidations = (x, y, p, v) => {
     console.log(x, y, p, v);
     currentEvaluations[x].validations[y][p] = v;
+    currentEvaluations[x].errors = getErrors(
+      currentEvaluations[x].type,
+      currentEvaluations[x].value,
+      currentEvaluations[x].validations,
+      currentEvaluations[x].expected_type
+    );
     setEvaluations(currentEvaluations);
     setState(!state);
+    console.log(currentEvaluations);
   };
   useEffect(() => setEvaluations(evaluations), [evaluations]);
   return (
@@ -119,7 +134,7 @@ const EvaluationRow = ({
               return (
                 <div className="evaluations__validation" key={i}>
                   <ValidationInput
-                    className={`evaluations--errors-${errors[name]} evaluations__validation__input`}
+                    className={`evaluations--error-${errors[name]} evaluations__validation__input`}
                     type={type}
                     name={name}
                     value={value}
@@ -165,9 +180,18 @@ const validateResults = (results, namespace, savedEvaluations = []) => {
       const i = savedEvaluations.findIndex((val) => (val.namespace = currentNamesapce));
       const savedEval = i !== -1 ? savedEvaluations.splice(i, 1) : {};
       const validations = savedEval.validations || [];
-      const errors = getErrors(type, value, validations, savedEval.type || type);
+      const expected_type = savedEval.type || type;
+      const errors = getErrors(type, value, validations, expected_type);
+
       totalErors += errors.count;
-      evaluations.push({ namespace: currentNamesapce, type, value, errors, validations });
+      evaluations.push({
+        namespace: currentNamesapce,
+        type,
+        expected_type,
+        value,
+        errors,
+        validations,
+      });
       if (type === "object") recursiveEval(obj[prop_name], currentNamesapce);
       if (type === "array") recursiveEval(obj[prop_name][0], currentNamesapce + "[0]");
     });
@@ -224,7 +248,7 @@ const validateLength = (item, validations) => {
   validations.forEach(({ name, value }) => {
     if (name === "lengthEquals") {
       errors.lengthEquals = item.length !== value;
-      if (errors.length) errors.count++;
+      if (errors.lengthEquals) errors.count++;
     }
     if (name === "maxLength") {
       errors.maxLength = item.length > value;
@@ -243,9 +267,9 @@ const validateNumber = (num, validations) => {
   validations.forEach(({ name, value }) => {
     if (name === "equals") {
       errors.equals = num !== value;
-      if (errors.length) errors.count++;
+      if (errors.equals) errors.count++;
     }
-    if (name === "maxLength") {
+    if (name === "max") {
       errors.max = num > value;
       if (errors.max) errors.count++;
     }
@@ -280,7 +304,8 @@ const validateString = (str, validations) => {
       if (errors.equals) errors.count++;
     }
     if (name === "isLike") {
-      errors.isLike = !str.match(value);
+      const regex = new RegExp(value, "gi");
+      errors.isLike = !str.match(regex);
       if (errors.isLike) errors.count++;
     }
     if (name === "isOneOf") {
@@ -291,6 +316,7 @@ const validateString = (str, validations) => {
 
   return errors;
 };
+const t = /[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)?/gi;
 const validateBoolean = (bool, validations) => {
   const errors = { count: 0 };
   validations.forEach(({ name, value }) => {
