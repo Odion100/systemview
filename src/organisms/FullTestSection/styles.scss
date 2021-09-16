@@ -42,7 +42,17 @@
 
   &--error-true {
     color: red;
-    color: #e44c4c;
+    color: #c50000;
     font-weight: bold;
+  }
+  &__add-validation-btn {
+    padding: 0px 4px;
+    border-radius: 81px;
+    background: #5a77ca;
+    background: #0b886b;
+    font-weight: bold;
+    color: white;
+    border: 1px solid #a5ffda;
+    cursor: pointer;
   }
 }

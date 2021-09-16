@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import moment from "moment";
 import QuickTestSection from "../QuickTestSection/QuickTestSection";
 import ExpandableSection from "../../molecules/ExpandableSection/ExpandableSection";
@@ -7,15 +7,9 @@ import Selector from "../../atoms/Selector/Selector";
 import "./styles.scss";
 
 const FullTestSection = ({ project_code, service_id, module_name, method_name }) => {
-  const [testResults, setTestResults] = useState({
-    evaluations: [],
-    missingProperties: [],
-    totalErors: 0,
-  });
-
+  const [testResults, setTestResults] = useState({ evaluations: [], totalErors: 0 });
   const quickTestSubmit = (results, namespace) =>
     setTestResults(validateResults(results, namespace, []));
-
   return (
     <section className="current-data-section">
       <QuickTestSection
@@ -27,19 +21,24 @@ const FullTestSection = ({ project_code, service_id, module_name, method_name })
         open={true}
         onSubmit={quickTestSubmit}
       >
-        <Evaluations
-          evaluations={testResults.evaluations}
-          missingProperties={testResults.missingProperties}
-          totalErors={testResults.totalErors}
-        />
+        <Evaluations evaluations={testResults.evaluations} totalErors={testResults.totalErors} />
       </QuickTestSection>
     </section>
   );
 };
-const options = ["number", "date", "string", "array", "boolean", "object", "undefined", "null"];
-const Evaluations = ({ evaluations, missingProperties, totalErors }) => {
-  console.log(evaluations);
 
+const Evaluations = ({ evaluations, totalErors }) => {
+  const [currentEvaluations, setEvaluations] = useState(evaluations);
+  const [state, setState] = useState(true);
+  const addValidation = (i) => {
+    currentEvaluations[i].validations.push({});
+    setEvaluations(currentEvaluations);
+    setState(!state);
+    console.log(currentEvaluations);
+  };
+  useEffect(() => {
+    setEvaluations(evaluations);
+  }, [evaluations]);
   return (
     <div className={`evaluations evaluations--visible-${evaluations.length > 0}`}>
       <ExpandableSection
@@ -54,52 +53,72 @@ const Evaluations = ({ evaluations, missingProperties, totalErors }) => {
           </div>
         }
       >
-        {evaluations.map(({ namespace, type, value, errors, validations }, i) => {
-          return type !== "object" ? (
-            <ExpandableSection
-              title={
-                <div className={`evaluations__title evaluations--error-${errors.count > 0}`}>
-                  <span className="evaluations__namespace">{namespace}: </span>
-                  <Selector
-                    className="evaluations__type"
-                    options={options}
-                    selected_option={type}
-                  />
-                </div>
-              }
-            >
-              <div key={i} className="evaluations__row">
-                <span
-                  className={`evaluations__input evaluations__input--visible-${type !== "object"}`}
-                >
-                  {validations.map(({ name, value }, i) => {
-                    return (
-                      <ValidationInput
-                        key={i}
-                        className={`evaluations--errors-${errors[name]}`}
-                        type={type}
-                        name={name}
-                        value={value}
-                      />
-                    );
-                  })}
-                </span>
-              </div>
-            </ExpandableSection>
-          ) : (
-            <ExpandableSection
-              title={
-                <div className="evaluations__title">
-                  <span className="evaluations__namespace">{namespace}: </span>
-                  <span className="evaluations__type">{type}</span>
-                </div>
-              }
-              lock={true}
-            ></ExpandableSection>
+        {currentEvaluations.map(({ namespace, type, value, errors, validations }, i) => {
+          return (
+            <EvaluationRow
+              key={i}
+              namespace={namespace}
+              type={type}
+              errors={errors}
+              validations={validations}
+              value={value}
+              index={i}
+              addValidation={addValidation}
+            />
           );
         })}
       </ExpandableSection>
     </div>
+  );
+};
+
+const options = ["number", "date", "string", "array", "boolean", "object", "undefined", "null"];
+const EvaluationRow = ({ namespace, type, errors, validations, value, index, addValidation }) => {
+  return type !== "object" ? (
+    <ExpandableSection
+      title={
+        <div className={`evaluations__title evaluations--error-${errors.count > 0}`}>
+          <span className="evaluations__namespace">{namespace}: </span>
+          <Selector className="evaluations__type" options={options} selected_option={type} />
+        </div>
+      }
+    >
+      <div className="evaluations__row">
+        <span className={`evaluations__input evaluations__input--visible-${type !== "object"}`}>
+          <div className="evaluations__add-btn-container">
+            <span
+              className="evaluations__add-validation-btn"
+              onClick={addValidation.bind(this, index)}
+            >
+              +
+            </span>
+          </div>
+          <div className="evaluations__inputs--container">
+            {validations.map(({ name, value }, i) => {
+              return (
+                <ValidationInput
+                  key={i}
+                  className={`evaluations--errors-${errors[name]}`}
+                  type={type}
+                  name={name}
+                  value={value}
+                />
+              );
+            })}
+          </div>
+        </span>
+      </div>
+    </ExpandableSection>
+  ) : (
+    <ExpandableSection
+      title={
+        <div className="evaluations__title">
+          <span className="evaluations__namespace">{namespace}: </span>
+          <span className="evaluations__type">{type}</span>
+        </div>
+      }
+      lock={true}
+    ></ExpandableSection>
   );
 };
 
