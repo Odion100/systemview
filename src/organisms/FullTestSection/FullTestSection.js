@@ -31,14 +31,23 @@ const Evaluations = ({ evaluations, totalErors }) => {
   const [currentEvaluations, setEvaluations] = useState(evaluations);
   const [state, setState] = useState(true);
   const addValidation = (i) => {
-    currentEvaluations[i].validations.push({});
+    currentEvaluations[i].validations.push({ name: "equals", value: "" });
     setEvaluations(currentEvaluations);
     setState(!state);
-    console.log(currentEvaluations);
   };
-  useEffect(() => {
-    setEvaluations(evaluations);
-  }, [evaluations]);
+  const deleteValidation = (x, y) => {
+    console.log(currentEvaluations[x].validations, x, y);
+    currentEvaluations[x].validations.splice(y, 1);
+    setEvaluations(currentEvaluations);
+    setState(!state);
+  };
+  const updateValidations = (x, y, p, v) => {
+    console.log(x, y, p, v);
+    currentEvaluations[x].validations[y][p] = v;
+    setEvaluations(currentEvaluations);
+    setState(!state);
+  };
+  useEffect(() => setEvaluations(evaluations), [evaluations]);
   return (
     <div className={`evaluations evaluations--visible-${evaluations.length > 0}`}>
       <ExpandableSection
@@ -64,6 +73,8 @@ const Evaluations = ({ evaluations, totalErors }) => {
               value={value}
               index={i}
               addValidation={addValidation}
+              deleteValidation={deleteValidation}
+              updateValidations={updateValidations}
             />
           );
         })}
@@ -73,7 +84,17 @@ const Evaluations = ({ evaluations, totalErors }) => {
 };
 
 const options = ["number", "date", "string", "array", "boolean", "object", "undefined", "null"];
-const EvaluationRow = ({ namespace, type, errors, validations, value, index, addValidation }) => {
+const EvaluationRow = ({
+  namespace,
+  type,
+  errors,
+  validations,
+  value,
+  index,
+  addValidation,
+  deleteValidation,
+  updateValidations,
+}) => {
   return type !== "object" ? (
     <ExpandableSection
       title={
@@ -96,15 +117,21 @@ const EvaluationRow = ({ namespace, type, errors, validations, value, index, add
           <div className="evaluations__validation-container">
             {validations.map(({ name, value }, i) => {
               return (
-                <div className="evaluations__validation">
+                <div className="evaluations__validation" key={i}>
                   <ValidationInput
-                    key={i}
                     className={`evaluations--errors-${errors[name]} evaluations__validation__input`}
                     type={type}
                     name={name}
                     value={value}
+                    onSelect={updateValidations.bind(this, index, i, "name")}
+                    onInputChanged={updateValidations.bind(this, index, i, "value")}
                   />
-                  <span className="evaluations__validation__delete-btn">x</span>
+                  <span
+                    className="evaluations__validation__delete-btn"
+                    onClick={deleteValidation.bind(this, index, i)}
+                  >
+                    x
+                  </span>
                 </div>
               );
             })}
