@@ -1,14 +1,22 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Selector from "../../atoms/Selector/Selector";
 import Toggle from "../../atoms/Toggle/Toggle";
 import "./styles.scss";
 
 const ValidationInput = ({ type, name, value, className = "", onSelect, onInputChanged }) => {
+  const calcWidth = (text) => Math.ceil(text.length / 0.1125);
+  const [sel_width, setWidth] = useState(calcWidth("Equals"));
+  const style = { "--sel-width": sel_width + "px" };
+
+  useEffect(() => setWidth(sel_width), [sel_width]);
+
   const [inputType, setType] = useState(options[type].inputs[0]);
   const select = (e) => {
     const validation_type = e.target.value;
     const i = options[type].values.findIndex((v) => v === validation_type);
     setType(options[type].inputs[i]);
+
+    setWidth(calcWidth(options[type].options[i]));
     onSelect(e.target.value);
   };
   const inputChanged = (e) => {
@@ -18,7 +26,7 @@ const ValidationInput = ({ type, name, value, className = "", onSelect, onInputC
   };
 
   return (
-    <div className={`validation-input ${className}`}>
+    <div className={`validation-input ${className}`} style={style}>
       <Selector
         className="validation-input__selector"
         options={options[type].options}
@@ -44,7 +52,7 @@ const ValidationInput = ({ type, name, value, className = "", onSelect, onInputC
 
 const string = {
   options: ["Equals:", "Min Lenght:", "Max Length:", "Lenght Equals:", "Is Like:", "Is One Of:"],
-  values: ["equals", "minLenght", "maxLength", "lengthEquals", "isLike", "isOneOf"],
+  values: ["equals", "minLength", "maxLength", "lengthEquals", "isLike", "isOneOf"],
   inputs: ["text", "number", "number", "number", "text", "text"],
 };
 const number = {
@@ -91,7 +99,7 @@ const mixed = {
   values: [
     //string
     "equals",
-    "minLenght",
+    "minLength",
     "maxLength",
     "lengthEquals",
     "isLike",
