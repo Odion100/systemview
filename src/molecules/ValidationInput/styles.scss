@@ -1,5 +1,4 @@
 .validation-input {
-  --sel-width: auto;
   margin: 3px 0;
   display: flex;
   &__selector {
@@ -13,7 +12,6 @@
     cursor: pointer;
     text-align-last: center;
     font-weight: bold;
-    width: var(--sel-width);
   }
 
   &__input {

@@ -168,7 +168,7 @@ const EvaluationRow = ({
             evaluations__type-error-msg--${errors.typeError} 
             evaluations--error-${errors.typeError}`}
           >
-            (expected {type})
+            (got {type})
           </span>
         </div>
       }
@@ -308,16 +308,16 @@ const validateLength = (item, validations) => {
   const errors = { count: 0 };
   validations.forEach(({ name, value }) => {
     if (name === "lengthEquals") {
-      errors.lengthEquals = item.length !== value;
-      if (errors.lengthEquals) errors.count++;
+      errors[name] = item.length !== value;
+      if (errors[name]) errors.count++;
     }
     if (name === "maxLength") {
-      errors.maxLength = item.length > value;
-      if (errors.maxLength) errors.count++;
+      errors[name] = item.length > value;
+      if (errors[name]) errors.count++;
     }
     if (name === "minLength") {
-      errors.minLength = item.length < value;
-      if (errors.minLength) errors.count++;
+      errors[name] = item.length < value;
+      if (errors[name]) errors.count++;
     }
   });
 
@@ -326,26 +326,26 @@ const validateLength = (item, validations) => {
 const validateNumber = (num, validations) => {
   const errors = { count: 0 };
   validations.forEach(({ name, value }) => {
-    if (name === "equals") {
-      errors.equals = num !== value;
-      if (errors.equals) errors.count++;
+    if (name === "numEquals") {
+      errors[name] = num !== value;
+      if (errors[name]) errors.count++;
     }
     if (name === "max") {
-      errors.max = num > value;
-      if (errors.max) errors.count++;
+      errors[name] = num > value;
+      if (errors[name]) errors.count++;
     }
     if (name === "min") {
-      errors.min = num < value;
-      if (errors.min) errors.count++;
+      errors[name] = num < value;
+      if (errors[name]) errors.count++;
     }
     if (name === "isOneOf") {
       value += "";
       if (value) {
-        errors.isOneOf = !value
+        errors[name] = !value
           .split(",")
           .map((v) => parseInt(v))
           .includes(num);
-        if (errors.isOneOf) errors.count++;
+        if (errors[name]) errors.count++;
       }
     }
   });
@@ -356,8 +356,8 @@ const validateArray = (arr, validations) => {
   const errors = validateLength(arr, validations);
   validations.forEach(({ name, value }) => {
     if (name === "includes") {
-      errors.includes = arr.includes(value);
-      if (errors.includes) errors.count++;
+      errors[name] = arr.includes(value);
+      if (errors[name]) errors.count++;
     }
   });
 
@@ -366,22 +366,22 @@ const validateArray = (arr, validations) => {
 const validateString = (str, validations) => {
   const errors = validateLength(str, validations);
   validations.forEach(({ name, value }) => {
-    if (name === "equals") {
-      errors.equals = str !== value;
-      if (errors.equals) errors.count++;
+    if (name === "strEquals") {
+      errors[name] = str !== value;
+      if (errors[name]) errors.count++;
     }
     if (name === "isLike") {
       const regex = new RegExp(value, "gi");
-      errors.isLike = !str.match(regex);
-      if (errors.isLike) errors.count++;
+      errors[name] = !str.match(regex);
+      if (errors[name]) errors.count++;
     }
     if (name === "isOneOf") {
       if (value) {
-        errors.isOneOf = !value
+        errors[name] = !value
           .split(",")
           .map((v) => v.trim())
           .includes(str);
-        if (errors.isOneOf) errors.count++;
+        if (errors[name]) errors.count++;
       }
     }
   });
@@ -392,9 +392,9 @@ const validateString = (str, validations) => {
 const validateBoolean = (bool, validations) => {
   const errors = { count: 0 };
   validations.forEach(({ name, value }) => {
-    if ((name === "equals") === true) {
-      errors.equals = bool !== value;
-      if (errors.equals) errors.count++;
+    if ((name === "boolEquals") === true) {
+      errors[name] = bool !== value;
+      if (errors[name]) errors.count++;
     }
   });
 
@@ -405,16 +405,16 @@ const validateDate = (datetime, validations) => {
   const errors = { count: 0 };
   validations.forEach(({ name, value }) => {
     if (name === "dateEquals") {
-      errors.dateEquals = !moment(datetime).isSame(value);
-      if (errors.length) errors.count++;
+      errors[name] = !moment(datetime).isSame(value);
+      if (errors[name]) errors.count++;
     }
     if (name === "maxDate") {
-      errors.maxDate = moment(datetime).isAfter(value);
-      if (errors.maxDate) errors.count++;
+      errors[name] = moment(datetime).isAfter(value);
+      if (errors[name]) errors.count++;
     }
     if (name === "minDate") {
-      errors.minDate = moment(datetime).isBefore(value);
-      if (errors.minDate) errors.count++;
+      errors[name] = moment(datetime).isBefore(value);
+      if (errors[name]) errors.count++;
     }
   });
 

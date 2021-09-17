@@ -4,19 +4,12 @@ import Toggle from "../../atoms/Toggle/Toggle";
 import "./styles.scss";
 
 const ValidationInput = ({ type, name, value, className = "", onSelect, onInputChanged }) => {
-  const calcWidth = (text) => Math.ceil(text.length / 0.1125);
-  const [sel_width, setWidth] = useState(calcWidth("Equals"));
-  const style = { "--sel-width": sel_width + "px" };
-
-  useEffect(() => setWidth(sel_width), [sel_width]);
-
   const [inputType, setType] = useState(options[type].inputs[0]);
   const select = (e) => {
     const validation_type = e.target.value;
     const i = options[type].values.findIndex((v) => v === validation_type);
     setType(options[type].inputs[i]);
 
-    setWidth(calcWidth(options[type].options[i]));
     onSelect(e.target.value);
   };
   const inputChanged = (e) => {
@@ -26,7 +19,7 @@ const ValidationInput = ({ type, name, value, className = "", onSelect, onInputC
   };
 
   return (
-    <div className={`validation-input ${className}`} style={style}>
+    <div className={`validation-input ${className}`}>
       <Selector
         className="validation-input__selector"
         options={options[type].options}
@@ -52,12 +45,12 @@ const ValidationInput = ({ type, name, value, className = "", onSelect, onInputC
 
 const string = {
   options: ["Equals:", "Min Lenght:", "Max Length:", "Lenght Equals:", "Is Like:", "Is One Of:"],
-  values: ["equals", "minLength", "maxLength", "lengthEquals", "isLike", "isOneOf"],
+  values: ["strEquals", "minLength", "maxLength", "lengthEquals", "isLike", "isOneOf"],
   inputs: ["text", "number", "number", "number", "text", "text"],
 };
 const number = {
   options: ["Equals:", "Min:", "Max:", "Is One Of:"],
-  values: ["equals", "min", "max", "isOneOf"],
+  values: ["numEquals", "min", "max", "isOneOf"],
   inputs: ["number", "number", "number", "text"],
 };
 const array = {
@@ -70,7 +63,7 @@ const date = {
   values: ["dateEquals", "minDate", "maxDate"],
   inputs: ["datetime-local", "datetime-local", "datetime-local"],
 };
-const boolean = { options: ["Equals:"], values: ["equals"], inputs: ["toggle"] };
+const boolean = { options: ["Equals:"], values: ["boolEquals"], inputs: ["toggle"] };
 const object = { options: [], values: [], inputs: [] };
 const mixed = {
   options: [
@@ -85,7 +78,7 @@ const mixed = {
     "Equals (num):",
     "Min:",
     "Max:",
-    "Is One Of:",
+    "Is One Of (num):",
     //array
     "Min Lenght (arr):",
     "Max Length (arr):",
@@ -95,17 +88,19 @@ const mixed = {
     "Date Equals:",
     "Min Date:",
     "Max Date:",
+    //boolean
+    "Equals (bool)",
   ],
   values: [
     //string
-    "equals",
+    "strEquals",
     "minLength",
     "maxLength",
     "lengthEquals",
     "isLike",
     "isOneOf",
     //number
-    "equals",
+    "numEquals",
     "min",
     "max",
     "isOneOf",
@@ -118,6 +113,8 @@ const mixed = {
     "dateEquals",
     "minDate",
     "maxDate",
+    //boolean
+    "boolEquals",
   ],
   inputs: [
     //string
@@ -141,6 +138,7 @@ const mixed = {
     "datetime-local",
     "datetime-local",
     "datetime-local",
+    "toggle",
   ],
 };
 const options = { array, number, date, boolean, string, object, mixed };
