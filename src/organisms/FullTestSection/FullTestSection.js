@@ -107,7 +107,17 @@ const Evaluations = ({ evaluations, totalErrors }) => {
   );
 };
 
-const options = ["number", "date", "string", "array", "boolean", "object"];
+const options = [
+  "number",
+  "date",
+  "string",
+  "array",
+  "boolean",
+  "object",
+  "null",
+  "undefined",
+  "mixed",
+];
 const EvaluationRow = ({
   namespace,
   type,
@@ -161,7 +171,9 @@ const EvaluationRow = ({
     >
       <div className="evaluations__row">
         <span
-          className={`evaluations__input evaluations__input--visible-${expected_type !== "object"}`}
+          className={`evaluations__input evaluations__input--visible-${
+            expected_type !== "object" && expected_type !== "null" && expected_type !== "undefined"
+          }`}
         >
           <div className="evaluations__add-btn-container">
             <span
@@ -260,9 +272,9 @@ const getType = (value) => {
   }
 };
 const getErrors = (type, value, validations, expected_type) => {
-  if (type !== expected_type) return { count: 1, typeError: true };
-
-  switch (type) {
+  if (type !== expected_type && expected_type !== "mixed") return { count: 1, typeError: true };
+  const test_type = expected_type === "mixed" ? type : expected_type;
+  switch (test_type) {
     case "number":
       return validateNumber(value, validations);
     case "date":
