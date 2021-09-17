@@ -5,21 +5,34 @@ import "./styles.scss";
 const string = {
   options: ["Equals:", "Min Lenght:", "Max Length:", "Lenght Equals:", "Is Like:", "Is One Of:"],
   values: ["equals", "minLenght", "maxLength", "lengthEquals", "isLike", "isOneOf"],
+  inputs: ["text", "number", "number", "number", "text", "text"],
 };
 const number = {
   options: ["Equals:", "Min:", "Max:", "Is One Of:"],
   values: ["equals", "min", "max", "isOneOf"],
+  inputs: ["number", "number", "number", "text"],
 };
 const array = {
   options: ["Min Lenght:", "Max Length:", "Lenght Equals:", "Includes:"],
   values: ["minLength", "maxLength", "lengthEquals", "includes"],
+  inputs: ["number", "number", "number", "text"],
 };
-const date = number;
-const boolean = { options: ["Equals:"], values: ["equals"] };
+const date = {
+  options: ["Equals:", "Min:", "Max:"],
+  values: ["dateEquals", "minDate", "maxDate"],
+  inputs: ["datetime-local", "datetime-local", "datetime-local"],
+};
+const boolean = { options: ["Equals:"], values: ["equals"], inputs: ["toggle"] };
 const options = { array, number, date, boolean, string };
 
 const ValidationInput = ({ type, name, value, className = "", onSelect, onInputChanged }) => {
-  const select = (e) => onSelect(e.target.value);
+  const [inputType, setType] = useState(options[type].inputs[0]);
+  const select = (e) => {
+    const validation_type = e.target.value;
+    const i = options[type].values.findIndex((v) => v === validation_type);
+    setType(options[type].inputs[i]);
+    onSelect(e.target.value);
+  };
   const inputChanged = (e) => {
     if (e.target.type === "number") onInputChanged(parseInt(e.target.value));
     else onInputChanged(e.target.value);
@@ -36,7 +49,7 @@ const ValidationInput = ({ type, name, value, className = "", onSelect, onInputC
       />
       <input
         className="validation-input__input"
-        type="text"
+        type={inputType}
         name="validtion-input"
         autoComplete="off"
         value={value}

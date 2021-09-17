@@ -7,7 +7,7 @@ import Selector from "../../atoms/Selector/Selector";
 import "./styles.scss";
 
 const FullTestSection = ({ project_code, service_id, module_name, method_name }) => {
-  const [testResults, setTestResults] = useState({ evaluations: [], totalErors: 0 });
+  const [testResults, setTestResults] = useState({ evaluations: [], totalErrors: 0 });
   const quickTestSubmit = (results, namespace) =>
     setTestResults(validateResults(results, namespace, []));
   return (
@@ -21,17 +21,19 @@ const FullTestSection = ({ project_code, service_id, module_name, method_name })
         open={true}
         onSubmit={quickTestSubmit}
       >
-        <Evaluations evaluations={testResults.evaluations} totalErors={testResults.totalErors} />
+        <Evaluations evaluations={testResults.evaluations} totalErrors={testResults.totalErrors} />
       </QuickTestSection>
     </section>
   );
 };
 
-const Evaluations = ({ evaluations, totalErors }) => {
+const Evaluations = ({ evaluations, totalErrors }) => {
   const [currentEvaluations, setEvaluations] = useState(evaluations);
+  const [errorCount, setErrorCount] = useState(totalErrors);
   const [state, setState] = useState(true);
   const addValidation = (i) => {
     currentEvaluations[i].validations.push({ name: "equals", value: "" });
+    updateErrors(currentEvaluations[i]);
     setEvaluations(currentEvaluations);
     setState(!state);
     console.log(currentEvaluations);
@@ -39,12 +41,7 @@ const Evaluations = ({ evaluations, totalErors }) => {
   const deleteValidation = (x, y) => {
     console.log(currentEvaluations[x].validations, x, y);
     currentEvaluations[x].validations.splice(y, 1);
-    currentEvaluations[x].errors = getErrors(
-      currentEvaluations[x].type,
-      currentEvaluations[x].value,
-      currentEvaluations[x].validations,
-      currentEvaluations[x].expected_type
-    );
+    updateErrors(currentEvaluations[x]);
     setEvaluations(currentEvaluations);
     setState(!state);
     console.log(currentEvaluations);
@@ -52,47 +49,56 @@ const Evaluations = ({ evaluations, totalErors }) => {
   const updateValidations = (x, y, p, v) => {
     console.log(x, y, p, v);
     currentEvaluations[x].validations[y][p] = v;
-    currentEvaluations[x].errors = getErrors(
-      currentEvaluations[x].type,
-      currentEvaluations[x].value,
-      currentEvaluations[x].validations,
-      currentEvaluations[x].expected_type
-    );
+    updateErrors(currentEvaluations[x]);
     setEvaluations(currentEvaluations);
     setState(!state);
-    console.log(currentEvaluations);
+    console.log(currentEvaluations, totalErrors);
+  };
+  const updateErrors = (evaluation) => {
+    console.log(evaluation);
+    evaluation.errors = getErrors(
+      evaluation.type,
+      evaluation.value,
+      evaluation.validations,
+      evaluation.expected_type
+    );
+    const count = currentEvaluations.reduce((a, b) => a + b.errors.count, 0);
+    setErrorCount(count);
   };
   useEffect(() => setEvaluations(evaluations), [evaluations]);
   return (
     <div className={`evaluations evaluations--visible-${evaluations.length > 0}`}>
       <ExpandableSection
         title={
-          <div className={`evaluations__title evaluations--error-${totalErors > 0}`}>
+          <div className={`evaluations__title evaluations--error-${errorCount > 0}`}>
             <span className="evaluations__namespace">
-              {totalErors > 0 ? "Test Failed: " : "Test Passed: "}
+              {errorCount > 0 ? "Test Failed: " : "Test Passed: "}
             </span>
-            <span className={`evaluations__type evaluations--error-${totalErors > 0}`}>
-              {totalErors} errors
+            <span className={`evaluations__type evaluations--error-${errorCount > 0}`}>
+              {errorCount} errors
             </span>
           </div>
         }
       >
-        {currentEvaluations.map(({ namespace, type, value, errors, validations }, i) => {
-          return (
-            <EvaluationRow
-              key={i}
-              namespace={namespace}
-              type={type}
-              errors={errors}
-              validations={validations}
-              value={value}
-              index={i}
-              addValidation={addValidation}
-              deleteValidation={deleteValidation}
-              updateValidations={updateValidations}
-            />
-          );
-        })}
+        {currentEvaluations.map(
+          ({ namespace, type, expected_type, value, errors, validations }, i) => {
+            return (
+              <EvaluationRow
+                key={i}
+                namespace={namespace}
+                type={type}
+                expected_type={expected_type}
+                errors={errors}
+                validations={validations}
+                value={value}
+                index={i}
+                addValidation={addValidation}
+                deleteValidation={deleteValidation}
+                updateValidations={updateValidations}
+              />
+            );
+          }
+        )}
       </ExpandableSection>
     </div>
   );
@@ -102,6 +108,7 @@ const options = ["number", "date", "string", "array", "boolean", "object", "unde
 const EvaluationRow = ({
   namespace,
   type,
+  expected_type,
   errors,
   validations,
   value,
@@ -110,17 +117,23 @@ const EvaluationRow = ({
   deleteValidation,
   updateValidations,
 }) => {
-  return type !== "object" ? (
+  return expected_type !== "object" && expected_type !== "null" ? (
     <ExpandableSection
       title={
         <div className={`evaluations__title evaluations--error-${errors.count > 0}`}>
           <span className="evaluations__namespace">{namespace}: </span>
-          <Selector className="evaluations__type" options={options} selected_option={type} />
+          <Selector
+            className="evaluations__type"
+            options={options}
+            selected_option={expected_type}
+          />
         </div>
       }
     >
       <div className="evaluations__row">
-        <span className={`evaluations__input evaluations__input--visible-${type !== "object"}`}>
+        <span
+          className={`evaluations__input evaluations__input--visible-${expected_type !== "object"}`}
+        >
           <div className="evaluations__add-btn-container">
             <span
               className="evaluations__add-validation-btn"
@@ -135,7 +148,7 @@ const EvaluationRow = ({
                 <div className="evaluations__validation" key={i}>
                   <ValidationInput
                     className={`evaluations--error-${errors[name]} evaluations__validation__input`}
-                    type={type}
+                    type={expected_type}
                     name={name}
                     value={value}
                     onSelect={updateValidations.bind(this, index, i, "name")}
@@ -159,7 +172,7 @@ const EvaluationRow = ({
       title={
         <div className="evaluations__title">
           <span className="evaluations__namespace">{namespace}: </span>
-          <span className="evaluations__type">{type}</span>
+          <span className="evaluations__type">{expected_type}</span>
         </div>
       }
       lock={true}
@@ -168,8 +181,10 @@ const EvaluationRow = ({
 };
 
 const validateResults = (results, namespace, savedEvaluations = []) => {
-  const evaluations = [{ namespace, type: "object" }];
-  let totalErors = 0;
+  const evaluations = [
+    { namespace, type: "object", expected_type: "object", validations: [], errors: { count: 0 } },
+  ];
+  let totalErrors = 0;
   const recursiveEval = (obj, previousNamespace) => {
     const propNames = Object.getOwnPropertyNames(obj);
     propNames.forEach((prop_name) => {
@@ -183,7 +198,7 @@ const validateResults = (results, namespace, savedEvaluations = []) => {
       const expected_type = savedEval.type || type;
       const errors = getErrors(type, value, validations, expected_type);
 
-      totalErors += errors.count;
+      totalErrors += errors.count;
       evaluations.push({
         namespace: currentNamesapce,
         type,
@@ -200,10 +215,10 @@ const validateResults = (results, namespace, savedEvaluations = []) => {
   savedEvaluations.forEach((e) => {
     e.errors = { count: 1, missingNamespace: true };
     evaluations.push(e);
-    totalErors++;
+    totalErrors++;
   });
 
-  return { evaluations, totalErors };
+  return { evaluations, totalErrors };
 };
 
 const getType = (value) => {
@@ -278,8 +293,14 @@ const validateNumber = (num, validations) => {
       if (errors.min) errors.count++;
     }
     if (name === "isOneOf") {
-      errors.isOneOf = value.includes(num);
-      if (errors.isOneOf) errors.count++;
+      value += "";
+      if (value) {
+        errors.isOneOf = !value
+          .split(",")
+          .map((v) => parseInt(v))
+          .includes(num);
+        if (errors.isOneOf) errors.count++;
+      }
     }
   });
 
@@ -289,7 +310,7 @@ const validateArray = (arr, validations) => {
   const errors = validateLength(arr, validations);
   validations.forEach(({ name, value }) => {
     if (name === "includes") {
-      errors.includes = !value.includes.every((val) => arr.includes(val));
+      errors.includes = arr.includes(value);
       if (errors.includes) errors.count++;
     }
   });
@@ -309,14 +330,19 @@ const validateString = (str, validations) => {
       if (errors.isLike) errors.count++;
     }
     if (name === "isOneOf") {
-      errors.isOneOf = !value.isOneOf.includes(str);
-      if (errors.isOneOf) errors.count++;
+      if (value) {
+        errors.isOneOf = !value
+          .split(",")
+          .map((v) => v.trim())
+          .includes(str);
+        if (errors.isOneOf) errors.count++;
+      }
     }
   });
 
   return errors;
 };
-const t = /[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)?/gi;
+
 const validateBoolean = (bool, validations) => {
   const errors = { count: 0 };
   validations.forEach(({ name, value }) => {
@@ -341,7 +367,7 @@ const validateDate = (datetime, validations) => {
       if (errors.maxDate) errors.count++;
     }
     if (name === "minDate") {
-      errors.minDate = moment(datetime).isBefore2(value);
+      errors.minDate = moment(datetime).isBefore(value);
       if (errors.minDate) errors.count++;
     }
   });
