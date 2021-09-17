@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import Selector from "../../atoms/Selector/Selector";
+import Toggle from "../../atoms/Toggle/Toggle";
 import "./styles.scss";
 
 const string = {
@@ -35,6 +36,7 @@ const ValidationInput = ({ type, name, value, className = "", onSelect, onInputC
   };
   const inputChanged = (e) => {
     if (e.target.type === "number") onInputChanged(parseInt(e.target.value));
+    else if (e.target.type === "checkbox") onInputChanged(e.target.checked);
     else onInputChanged(e.target.value);
   };
 
@@ -47,14 +49,18 @@ const ValidationInput = ({ type, name, value, className = "", onSelect, onInputC
         controlledOption={name}
         onSelect={select}
       />
-      <input
-        className="validation-input__input"
-        type={inputType}
-        name="validtion-input"
-        autoComplete="off"
-        value={value}
-        onChange={inputChanged}
-      />
+      {type !== "boolean" ? (
+        <input
+          className="validation-input__input"
+          type={inputType}
+          name="validtion-input"
+          autoComplete="off"
+          value={value}
+          onChange={inputChanged}
+        />
+      ) : (
+        <Toggle isChecked={value} onChange={inputChanged} />
+      )}
     </div>
   );
 };

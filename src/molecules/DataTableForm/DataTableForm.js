@@ -138,7 +138,11 @@ const MethodDataForm = ({ data, submit }) => {
                     setValue={updateCell.bind(this, i, 3)}
                     disabled={_required}
                   />,
-                  <Toggle isChecked={_required} setValue={updateCheckboxCell.bind(this, i, 4)} />,
+                  <Toggle
+                    round={true}
+                    isChecked={_required}
+                    onChange={updateCheckboxCell.bind(this, i, 4)}
+                  />,
                   <span
                     className="data-table-form__delete-button"
                     onClick={deleteRow.bind(this, [i])}
