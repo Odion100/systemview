@@ -36,18 +36,21 @@ const Evaluations = ({ evaluations, totalErrors }) => {
     updateErrors(currentEvaluations[i]);
     updateEvaluations(currentEvaluations);
     setState(!state);
+    console.log(currentEvaluations);
   };
   const deleteValidation = (x, y) => {
     currentEvaluations[x].validations.splice(y, 1);
     updateErrors(currentEvaluations[x]);
     updateEvaluations(currentEvaluations);
     setState(!state);
+    console.log(currentEvaluations);
   };
   const updateValidations = (x, y, p, v) => {
     currentEvaluations[x].validations[y][p] = v;
     updateErrors(currentEvaluations[x]);
     updateEvaluations(currentEvaluations);
     setState(!state);
+    console.log(currentEvaluations);
   };
   const updateExpectedType = (x, e) => {
     currentEvaluations[x].expected_type = e.target.value;
@@ -55,6 +58,7 @@ const Evaluations = ({ evaluations, totalErrors }) => {
     updateErrors(currentEvaluations[x]);
     updateEvaluations(currentEvaluations);
     setState(!state);
+    console.log(currentEvaluations);
   };
   const updateErrors = (evaluation) => {
     evaluation.errors = getErrors(
@@ -285,6 +289,17 @@ const getErrors = (type, value, validations, expected_type) => {
       return validateArray(value, validations);
     case "boolean":
       return validateBoolean(value, validations);
+    case "null":
+    case "undefined":
+      if (expected_type === "mixed") {
+        //all validation failed
+        const errors = { count: 0 };
+        validations.forEach(({ name }) => {
+          errors[name] = true;
+          errors.count++;
+        });
+        return errors;
+      } else return { count: 0 };
     default:
       return { count: 0 };
   }
