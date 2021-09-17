@@ -28,13 +28,13 @@ const FullTestSection = ({ project_code, service_id, module_name, method_name })
 };
 
 const Evaluations = ({ evaluations, totalErrors }) => {
-  const [currentEvaluations, setEvaluations] = useState(evaluations);
+  const [currentEvaluations, updateEvaluations] = useState(evaluations);
   const [errorCount, setErrorCount] = useState(totalErrors);
   const [state, setState] = useState(true);
   const addValidation = (i) => {
     currentEvaluations[i].validations.push({ name: "equals", value: "" });
     updateErrors(currentEvaluations[i]);
-    setEvaluations(currentEvaluations);
+    updateEvaluations(currentEvaluations);
     setState(!state);
     console.log(currentEvaluations);
   };
@@ -42,7 +42,7 @@ const Evaluations = ({ evaluations, totalErrors }) => {
     console.log(currentEvaluations[x].validations, x, y);
     currentEvaluations[x].validations.splice(y, 1);
     updateErrors(currentEvaluations[x]);
-    setEvaluations(currentEvaluations);
+    updateEvaluations(currentEvaluations);
     setState(!state);
     console.log(currentEvaluations);
   };
@@ -50,7 +50,14 @@ const Evaluations = ({ evaluations, totalErrors }) => {
     console.log(x, y, p, v);
     currentEvaluations[x].validations[y][p] = v;
     updateErrors(currentEvaluations[x]);
-    setEvaluations(currentEvaluations);
+    updateEvaluations(currentEvaluations);
+    setState(!state);
+    console.log(currentEvaluations, totalErrors);
+  };
+  const updateExpectedType = (x, e) => {
+    currentEvaluations[x].expected_type = e.target.value;
+    updateErrors(currentEvaluations[x]);
+    updateEvaluations(currentEvaluations);
     setState(!state);
     console.log(currentEvaluations, totalErrors);
   };
@@ -65,7 +72,7 @@ const Evaluations = ({ evaluations, totalErrors }) => {
     const count = currentEvaluations.reduce((a, b) => a + b.errors.count, 0);
     setErrorCount(count);
   };
-  useEffect(() => setEvaluations(evaluations), [evaluations]);
+  useEffect(() => updateEvaluations(evaluations), [evaluations]);
   return (
     <div className={`evaluations evaluations--visible-${evaluations.length > 0}`}>
       <ExpandableSection
@@ -95,6 +102,7 @@ const Evaluations = ({ evaluations, totalErrors }) => {
                 addValidation={addValidation}
                 deleteValidation={deleteValidation}
                 updateValidations={updateValidations}
+                updateExpectedType={updateExpectedType}
               />
             );
           }
@@ -116,17 +124,43 @@ const EvaluationRow = ({
   addValidation,
   deleteValidation,
   updateValidations,
+  updateExpectedType,
 }) => {
-  return expected_type !== "object" && expected_type !== "null" ? (
+  const calcWidth = (text) => Math.ceil(text.length / 0.1125);
+  const [type_width, setWidth] = useState(calcWidth(0));
+  const style = { "--type-width": type_width + "px" };
+
+  const onSelect = (i, e) => {
+    updateExpectedType(i, e);
+    setWidth(calcWidth(expected_type));
+    console.log(expected_type, calcWidth(expected_type));
+  };
+
+  useEffect(() => {
+    setWidth(calcWidth(expected_type));
+    console.log(expected_type, calcWidth(expected_type), "jkhkjhkjhkjhkjh");
+  }, [expected_type, type_width]);
+  return (
     <ExpandableSection
       title={
-        <div className={`evaluations__title evaluations--error-${errors.count > 0}`}>
-          <span className="evaluations__namespace">{namespace}: </span>
+        <div className={`evaluations__title`} style={style}>
+          <span className={`evaluations__namespace evaluations--error-${errors.count > 0}`}>
+            {namespace}:{" "}
+          </span>
+
           <Selector
             className="evaluations__type"
             options={options}
             selected_option={expected_type}
+            onSelect={onSelect.bind(this, index)}
           />
+          <span
+            className={`evaluations__type-error-msg 
+            evaluations__type-error-msg--${errors.typeError} 
+            evaluations--error-${errors.typeError}`}
+          >
+            (expected {type})
+          </span>
         </div>
       }
     >
@@ -167,16 +201,6 @@ const EvaluationRow = ({
         </span>
       </div>
     </ExpandableSection>
-  ) : (
-    <ExpandableSection
-      title={
-        <div className="evaluations__title">
-          <span className="evaluations__namespace">{namespace}: </span>
-          <span className="evaluations__type">{expected_type}</span>
-        </div>
-      }
-      lock={true}
-    ></ExpandableSection>
   );
 };
 
@@ -241,6 +265,7 @@ const getType = (value) => {
   }
 };
 const getErrors = (type, value, validations, expected_type) => {
+  console.log(type, expected_type, type !== expected_type);
   if (type !== expected_type) return { count: 1, typeError: true };
 
   switch (type) {

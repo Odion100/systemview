@@ -12,7 +12,11 @@
   }
 
   &__title {
+    --type-width: auto;
     margin-left: 10px;
+    & select {
+      width: var(--type-width);
+    }
   }
 
   &__type {
@@ -38,12 +42,6 @@
     &--visible-false {
       display: none;
     }
-  }
-
-  &--error-true > * {
-    color: red;
-    color: #c50000;
-    font-weight: bold;
   }
   &__add-validation-btn {
     padding: 0px 4px;
@@ -77,5 +75,17 @@
     &__input {
       display: inline-flex;
     }
+  }
+  &__type-error-msg {
+    display: none;
+    &--true {
+      display: initial;
+    }
+  }
+  &--error-true,
+  &--error-true > * {
+    color: red;
+    color: #c50000;
+    font-weight: bold;
   }
 }

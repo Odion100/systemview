@@ -60,6 +60,7 @@ const MethodDataForm = ({ data, submit }) => {
     dataTable[row][col] = e.target.value;
     setTable(dataTable);
     setState(!state);
+    console.log(dataTable);
   };
   const updateCheckboxCell = (row, col, event) => {
     dataTable[row][col] = event.target.checked + "";
