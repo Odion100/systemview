@@ -3,6 +3,7 @@ import moment from "moment";
 import QuickTestSection from "../QuickTestSection/QuickTestSection";
 import ExpandableSection from "../../molecules/ExpandableSection/ExpandableSection";
 import ValidationInput from "../../molecules/ValidationInput/ValidationInput";
+import validation_options from "../../molecules/ValidationInput/ValidationOptions";
 import Selector from "../../atoms/Selector/Selector";
 import "./styles.scss";
 
@@ -32,7 +33,14 @@ const Evaluations = ({ evaluations, totalErrors }) => {
   const [errorCount, setErrorCount] = useState(totalErrors);
   const [state, setState] = useState(true);
   const addValidation = (i) => {
-    currentEvaluations[i].validations.push({ name: "equals", value: "" });
+    const { expected_type, type } = currentEvaluations[i];
+
+    currentEvaluations[i].validations.push({
+      name: validation_options[expected_type].values[0],
+      value:
+        expected_type === "number" || (expected_type === "mixed" && type === "number") ? 0 : "",
+    });
+
     updateErrors(currentEvaluations[i]);
     updateEvaluations(currentEvaluations);
     setState(!state);
@@ -277,7 +285,8 @@ const getType = (value) => {
 };
 const getErrors = (type, value, validations, expected_type) => {
   if (type !== expected_type && expected_type !== "mixed") return { count: 1, typeError: true };
-  const test_type = expected_type === "mixed" ? type : expected_type;
+  const test_type = expected_type !== "mixed" ? expected_type : type;
+
   switch (test_type) {
     case "number":
       return validateNumber(value, validations);
@@ -291,7 +300,7 @@ const getErrors = (type, value, validations, expected_type) => {
       return validateBoolean(value, validations);
     case "null":
     case "undefined":
-      if (expected_type === "mixed") {
+      if (expected_type !== "mixed") {
         //all validation failed
         const errors = { count: 0 };
         validations.forEach(({ name }) => {
