@@ -10,9 +10,8 @@
   &__title {
     margin-bottom: 7px;
     color: var(--title-color);
-    & > span {
-      display: inline-block;
-    }
+    display: flex;
+
     &__btn {
       cursor: pointer;
     }

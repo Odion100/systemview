@@ -36,23 +36,18 @@ const Evaluations = ({ evaluations, totalErrors }) => {
     updateErrors(currentEvaluations[i]);
     updateEvaluations(currentEvaluations);
     setState(!state);
-    console.log(currentEvaluations);
   };
   const deleteValidation = (x, y) => {
-    console.log(currentEvaluations[x].validations, x, y);
     currentEvaluations[x].validations.splice(y, 1);
     updateErrors(currentEvaluations[x]);
     updateEvaluations(currentEvaluations);
     setState(!state);
-    console.log(currentEvaluations);
   };
   const updateValidations = (x, y, p, v) => {
-    console.log(x, y, p, v);
     currentEvaluations[x].validations[y][p] = v;
     updateErrors(currentEvaluations[x]);
     updateEvaluations(currentEvaluations);
     setState(!state);
-    console.log(currentEvaluations, totalErrors);
   };
   const updateExpectedType = (x, e) => {
     currentEvaluations[x].expected_type = e.target.value;
@@ -60,10 +55,8 @@ const Evaluations = ({ evaluations, totalErrors }) => {
     updateErrors(currentEvaluations[x]);
     updateEvaluations(currentEvaluations);
     setState(!state);
-    console.log(currentEvaluations, totalErrors);
   };
   const updateErrors = (evaluation) => {
-    console.log(evaluation);
     evaluation.errors = getErrors(
       evaluation.type,
       evaluation.value,
@@ -74,7 +67,7 @@ const Evaluations = ({ evaluations, totalErrors }) => {
     setErrorCount(count);
   };
   useEffect(() => updateEvaluations(evaluations), [evaluations]);
-  console.log(currentEvaluations);
+
   return (
     <div className={`evaluations evaluations--visible-${evaluations.length > 0}`}>
       <ExpandableSection
@@ -135,13 +128,13 @@ const EvaluationRow = ({
   const onSelect = (i, e) => {
     updateExpectedType(i, e);
     setWidth(calcWidth(expected_type));
-    console.log(expected_type, calcWidth(expected_type));
   };
 
-  useEffect(() => {
-    setWidth(calcWidth(expected_type));
-    console.log(expected_type, calcWidth(expected_type), "jkhkjhkjhkjhkjh");
-  }, [expected_type, type_width]);
+  useEffect(
+    () => setWidth(calcWidth(expected_type)),
+
+    [expected_type, type_width]
+  );
   return (
     <ExpandableSection
       title={
@@ -267,7 +260,6 @@ const getType = (value) => {
   }
 };
 const getErrors = (type, value, validations, expected_type) => {
-  console.log(type, expected_type, type !== expected_type);
   if (type !== expected_type) return { count: 1, typeError: true };
 
   switch (type) {
