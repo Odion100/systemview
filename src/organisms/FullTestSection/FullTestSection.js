@@ -56,6 +56,7 @@ const Evaluations = ({ evaluations, totalErrors }) => {
   };
   const updateExpectedType = (x, e) => {
     currentEvaluations[x].expected_type = e.target.value;
+    currentEvaluations[x].validations = [];
     updateErrors(currentEvaluations[x]);
     updateEvaluations(currentEvaluations);
     setState(!state);
@@ -73,6 +74,7 @@ const Evaluations = ({ evaluations, totalErrors }) => {
     setErrorCount(count);
   };
   useEffect(() => updateEvaluations(evaluations), [evaluations]);
+  console.log(currentEvaluations);
   return (
     <div className={`evaluations evaluations--visible-${evaluations.length > 0}`}>
       <ExpandableSection
@@ -112,7 +114,7 @@ const Evaluations = ({ evaluations, totalErrors }) => {
   );
 };
 
-const options = ["number", "date", "string", "array", "boolean", "object", "undefined", "null"];
+const options = ["number", "date", "string", "array", "boolean", "object"];
 const EvaluationRow = ({
   namespace,
   type,

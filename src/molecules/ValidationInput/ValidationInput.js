@@ -24,9 +24,11 @@ const date = {
   inputs: ["datetime-local", "datetime-local", "datetime-local"],
 };
 const boolean = { options: ["Equals:"], values: ["equals"], inputs: ["toggle"] };
-const options = { array, number, date, boolean, string };
+const object = { options: [], values: [], inputs: [] };
+const options = { array, number, date, boolean, string, object };
 
 const ValidationInput = ({ type, name, value, className = "", onSelect, onInputChanged }) => {
+  console.log(type);
   const [inputType, setType] = useState(options[type].inputs[0]);
   const select = (e) => {
     const validation_type = e.target.value;
