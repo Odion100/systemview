@@ -21,6 +21,7 @@ const FullTestSection = ({ project_code, service_id, module_name, method_name })
         title="Test:"
         open={true}
         onSubmit={quickTestSubmit}
+        testData={{}}
       >
         <Evaluations evaluations={testResults.evaluations} totalErrors={testResults.totalErrors} />
       </QuickTestSection>

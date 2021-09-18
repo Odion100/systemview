@@ -47,6 +47,13 @@
       text-decoration: underline;
     }
   }
+  &__test-method-input {
+    font-family: monospace;
+    width: 318px;
+    background: none;
+    border: none;
+    font-size: 15px;
+  }
 }
 
 .react-json-view {
