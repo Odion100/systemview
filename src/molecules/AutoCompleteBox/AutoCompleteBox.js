@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-const AutoCompletBox = ({ suggestions, value = "", className }) => {
+const AutoCompletBox = ({ suggestions, value = "", className, onSubmit }) => {
   const [filteredSuggestions, setFilteredSuggestions] = useState([]);
   const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(0);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -20,10 +20,12 @@ const AutoCompletBox = ({ suggestions, value = "", className }) => {
     setShowSuggestions(true);
   };
   const onClick = (e) => {
+    const text = e.target.innerText.substr(0, e.target.innerText.length - 1);
     setFilteredSuggestions([]);
-    setInput(e.target.innerText.substr(0, e.target.innerText.length - 1));
+    setInput(text);
     setActiveSuggestionIndex(0);
     setShowSuggestions(false);
+    if (typeof onSubmit === "function") onSubmit(text);
   };
 
   const SuggestionsListComponent = () => {

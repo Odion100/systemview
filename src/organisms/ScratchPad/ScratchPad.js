@@ -25,7 +25,7 @@ const ScratchPad = ({
   const [responseData, setResponseData] = useState({});
   const [responseNamespace, setResponseNamespace] = useState("");
   const [test_suggestions, setSuggestions] = useState([]);
-  const [testConfig, setConftig] = useState({
+  const [testConfig, setConfig] = useState({
     project_code,
     service_id,
     module_name,
@@ -34,7 +34,9 @@ const ScratchPad = ({
   const runTest = async () => {
     console.log(connectedServices);
     try {
-      const results = await connectedServices[service_id][module_name][method_name](jsonData);
+      const results = await connectedServices[testConfig.service_id][testConfig.module_name][
+        testConfig.method_name
+      ](jsonData);
       console.log(results, "klsdkfjlks");
       setResponseData(results);
       setResponseNamespace("results");
@@ -60,8 +62,17 @@ const ScratchPad = ({
 
     setSuggestions(new_suggestions);
   };
-
+  const changeConnection = (connText) => {
+    const [service_id, module_name, method_name] = connText
+      .substr(0, connText.length - 1)
+      .split(".");
+    if (!connectedServices[service_id]) {
+    }
+    setConfig({ project_code, service_id, module_name, method_name });
+  };
   const getConnection = () => {
+    console.log("getting connnection .............................");
+    console.log(testConfig);
     if (TestServices.length > 0) {
       const service = TestServices.find(
         (_service) =>
@@ -72,12 +83,12 @@ const ScratchPad = ({
       if (!Client.loadedServices[service.url])
         Client.loadService(service.url)
           .then((_service) => {
-            connectedServices[service_id] = _service;
+            connectedServices[testConfig.service_id] = _service;
             setConnection(connectedServices);
           })
           .catch((error) => console.log(error));
       else {
-        connectedServices[service_id] = Client.loadedServices[service.url];
+        connectedServices[testConfig.service_id] = Client.loadedServices[service.url];
         setConnection(connectedServices);
       }
     }
@@ -90,8 +101,8 @@ const ScratchPad = ({
     hideJsonTxb();
   };
 
-  useEffect(() => createSuggestions(), [project_code]);
-  useEffect(() => getConnection(), [project_code, service_id, TestServices]);
+  useEffect(() => createSuggestions(), [project_code, TestServices]);
+  useEffect(() => getConnection(), [project_code, service_id, TestServices, testConfig]);
 
   return (
     <div className="scratchpad">
@@ -111,6 +122,7 @@ const ScratchPad = ({
           <AutoCompletBox
             className="scratchpad__test-method-input"
             suggestions={test_suggestions}
+            onSubmit={changeConnection}
             value={`${testConfig.service_id}.${testConfig.module_name}.${testConfig.method_name}(`}
           />
           <ReactJson

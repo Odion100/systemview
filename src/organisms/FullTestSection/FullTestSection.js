@@ -229,30 +229,52 @@ const validateResults = (results, namespace, savedEvaluations = []) => {
     { namespace, type: "object", expected_type: "object", validations: [], errors: { count: 0 } },
   ];
   let totalErrors = 0;
+  const getEvaluation = (value, prop_name, currentNamesapce) => {
+    const type = getType(value);
+    const i = savedEvaluations.findIndex((val) => val.namespace === currentNamesapce);
+    const savedEval = i !== -1 ? savedEvaluations.splice(i, 1) : {};
+    const validations = savedEval.validations || [];
+    const expected_type = savedEval.type || type;
+    const errors = getErrors(type, value, validations, expected_type);
+    totalErrors += errors.count;
+    return {
+      namespace: currentNamesapce,
+      type,
+      expected_type,
+      value,
+      errors,
+      validations,
+    };
+  };
   const recursiveEval = (obj, previousNamespace) => {
+    console.log(obj);
+    console.log(namespace);
+    console.log(savedEvaluations);
     const propNames = Object.getOwnPropertyNames(obj);
     propNames.forEach((prop_name) => {
       const currentNamesapce = previousNamespace + "." + prop_name;
-      const type = getType(obj[prop_name]);
-      const value = obj[prop_name];
 
-      const i = savedEvaluations.findIndex((val) => (val.namespace = currentNamesapce));
-      const savedEval = i !== -1 ? savedEvaluations.splice(i, 1) : {};
-      const validations = savedEval.validations || [];
-      const expected_type = savedEval.type || type;
-      const errors = getErrors(type, value, validations, expected_type);
+      const evaluation = getEvaluation(obj[prop_name], prop_name, currentNamesapce);
 
-      totalErrors += errors.count;
-      evaluations.push({
-        namespace: currentNamesapce,
-        type,
-        expected_type,
-        value,
-        errors,
-        validations,
-      });
-      if (type === "object") recursiveEval(obj[prop_name], currentNamesapce);
-      if (type === "array") recursiveEval(obj[prop_name][0], currentNamesapce + "[0]");
+      evaluations.push(evaluation);
+
+      if (evaluation.type === "object") recursiveEval(obj[prop_name], currentNamesapce);
+      else if (evaluation.type === "array") {
+        const listType = getType(obj[prop_name][0]);
+        if (listType === "object") {
+          evaluations.push({
+            namespace: currentNamesapce + "[0]",
+            type: listType,
+            expected_type: listType,
+            validations: [],
+            errors: { count: 0 },
+          });
+          recursiveEval(obj[prop_name][0], currentNamesapce + "[0]");
+        } else {
+          const evaluation = getEvaluation(obj[prop_name][0], 0, currentNamesapce + "[0]");
+          evaluations.push(evaluation);
+        }
+      }
     });
   };
   recursiveEval(results, namespace);
