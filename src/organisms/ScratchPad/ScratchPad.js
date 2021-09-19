@@ -15,6 +15,7 @@ const ScratchPad = ({
   method_name,
   testData,
   onSubmit,
+  dynamic = false,
   mode,
 }) => {
   const { TestServices } = useContext(ServiceContext);
@@ -62,14 +63,18 @@ const ScratchPad = ({
 
     setSuggestions(new_suggestions);
   };
+
   const changeConnection = (connText) => {
     const [service_id, module_name, method_name] = connText
       .substr(0, connText.length - 1)
       .split(".");
     if (!connectedServices[service_id]) {
+      setConfig({ project_code, service_id, module_name, method_name });
+      getConnection();
     }
     setConfig({ project_code, service_id, module_name, method_name });
   };
+
   const getConnection = () => {
     console.log("getting connnection .............................");
     console.log(testConfig);

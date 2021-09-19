@@ -1,4 +1,5 @@
 import { useState } from "react";
+import "./styles.scss";
 
 const AutoCompletBox = ({ suggestions, value = "", className, onSubmit }) => {
   const [filteredSuggestions, setFilteredSuggestions] = useState([]);
@@ -30,38 +31,41 @@ const AutoCompletBox = ({ suggestions, value = "", className, onSubmit }) => {
 
   const SuggestionsListComponent = () => {
     return filteredSuggestions.length ? (
-      <ul className="suggestions">
+      <div className="auto-complete__suggestions">
         {filteredSuggestions.map((suggestion, index) => {
           let className;
           // Flag the active suggestion with a class
-          if (index === activeSuggestionIndex) {
-            className = "suggestion-active";
-          }
+
+          className =
+            index === activeSuggestionIndex
+              ? "auto-complete__suggestion  auto-complete__suggestion--active"
+              : "auto-complete__suggestion ";
+
           return (
-            <li className={className} key={suggestion} onClick={onClick}>
+            <span className={className} key={suggestion} onClick={onClick}>
               {suggestion}
-            </li>
+            </span>
           );
         })}
-      </ul>
+      </div>
     ) : (
-      <div className="no-suggestions">
+      <div className="auto-complete__no-suggestions">
         <em>No suggestions, you're on your own!</em>
       </div>
     );
   };
   const onKeyDown = () => {};
   return (
-    <>
+    <div className="auto-complete">
       <input
-        className={className}
+        className={className + " auto-complete__input"}
         type="text"
         onChange={onChange}
         onKeyDown={onKeyDown}
         value={input}
       />
       {showSuggestions && input && <SuggestionsListComponent />}
-    </>
+    </div>
   );
 };
 

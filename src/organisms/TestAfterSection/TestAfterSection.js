@@ -9,6 +9,7 @@ const TestAfterSection = ({ project_code, service_id, module_name, method_name }
   return (
     <section className="test-after-section">
       <ExpandableSection
+        open={true}
         title={
           <div>
             <TestPanelCaption text="After Test:" />
