@@ -36,12 +36,14 @@ const TestBeforeSection = ({ project_code, service_id, module_name, method_name 
           {actions.length > 0 ? (
             actions.map(({ title, service_id, module_name, method_name }, i) => (
               <QuickTestSection
+                key={i}
                 project_code={project_code}
                 service_id={service_id}
                 module_name={module_name}
                 method_name={method_name}
                 title={`Action${i + 1}:`}
                 onSubmit={onSubmit}
+                dynamic={true}
               />
             ))
           ) : (

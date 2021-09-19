@@ -13,7 +13,7 @@ const ScratchPad = ({
   service_id,
   module_name,
   method_name,
-  testData,
+  testData = {},
   onSubmit,
   dynamic = false,
   mode,
@@ -107,7 +107,15 @@ const ScratchPad = ({
   };
 
   useEffect(() => createSuggestions(), [project_code, TestServices]);
-  useEffect(() => getConnection(), [project_code, service_id, TestServices, testConfig]);
+  useEffect(() => {
+    setConfig({
+      project_code,
+      service_id,
+      module_name,
+      method_name,
+    });
+    getConnection();
+  }, [project_code, service_id, method_name, module_name, TestServices]);
 
   return (
     <div className="scratchpad">
@@ -129,6 +137,7 @@ const ScratchPad = ({
             suggestions={test_suggestions}
             onSubmit={changeConnection}
             value={`${testConfig.service_id}.${testConfig.module_name}.${testConfig.method_name}(`}
+            disabled={!dynamic}
           />
           <ReactJson
             src={jsonData}

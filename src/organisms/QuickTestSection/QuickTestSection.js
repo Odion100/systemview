@@ -15,6 +15,7 @@ const QuickTestSection = ({
   title,
   onSubmit,
   children,
+  dynamic,
 }) => {
   return (
     <section className="quick-test-section">
@@ -30,6 +31,7 @@ const QuickTestSection = ({
           method_name={method_name}
           testData={testData}
           onSubmit={onSubmit}
+          dynamic={dynamic}
         />
         {children}
       </ExpandableSection>

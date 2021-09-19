@@ -57,6 +57,9 @@
     &:focus {
       background: white;
     }
+    &:disabled {
+      color: initial;
+    }
   }
 }
 
