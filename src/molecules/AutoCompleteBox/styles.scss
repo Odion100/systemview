@@ -15,14 +15,17 @@
     padding: 4px 7px;
     display: inline-flex;
     cursor: pointer;
-    background: whitesmoke;
+    background: white;
     width: calc(300px + 1rem);
     &--active,
-    &:hover {
+    &:hover:not(&--empty) {
       background-color: #78c5b0;
       color: #796e2c;
       cursor: pointer;
       font-weight: 700;
+    }
+    &--empty {
+      justify-content: center;
     }
   }
 }

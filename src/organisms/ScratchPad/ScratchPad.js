@@ -75,7 +75,7 @@ const ScratchPad = ({
     setConfig({ project_code, service_id, module_name, method_name });
   };
 
-  const getConnection = () => {
+  const getConnection = (cb) => {
     console.log("getting connnection .............................");
     console.log(testConfig);
     if (TestServices.length > 0) {
@@ -90,6 +90,7 @@ const ScratchPad = ({
           .then((_service) => {
             connectedServices[testConfig.service_id] = _service;
             setConnection(connectedServices);
+            if (typeof cb === "function") cb();
           })
           .catch((error) => console.log(error));
       else {
@@ -114,8 +115,10 @@ const ScratchPad = ({
       module_name,
       method_name,
     });
-    getConnection();
-  }, [project_code, service_id, method_name, module_name, TestServices]);
+    getConnection(() => {
+      if (mode === "auto-run-test") runTest();
+    });
+  }, [project_code, service_id, method_name, module_name, TestServices, mode]);
 
   return (
     <div className="scratchpad">
@@ -149,7 +152,7 @@ const ScratchPad = ({
             displayDataTypes={false}
             collapsed={true}
           />
-          )
+          <span>{")"}</span>
         </div>
         <div
           className={`scratchpad__response-data scratchpad__response-data--visible-${!!responseData.status}`}

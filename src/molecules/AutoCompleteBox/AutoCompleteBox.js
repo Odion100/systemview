@@ -49,8 +49,10 @@ const AutoCompletBox = ({ suggestions, value = "", className, onSubmit, disabled
         })}
       </div>
     ) : (
-      <div className="auto-complete__no-suggestions">
-        <em>No suggestions, you're on your own!</em>
+      <div className="auto-complete__suggestions">
+        <div className="auto-complete__suggestion auto-complete__suggestion--empty">
+          <em>no match</em>
+        </div>
       </div>
     );
   };
