@@ -1,6 +1,5 @@
 import React from "react";
 import ExpandableSection from "../../molecules/ExpandableSection/ExpandableSection";
-import TestPanelCaption from "../../atoms/TestPanelCaption/TestPanelCaption";
 import ScratchPad from "../ScratchPad/ScratchPad";
 
 import "./styles.scss";
@@ -17,12 +16,24 @@ const QuickTestSection = ({
   children,
   dynamic,
 }) => {
+  const classname = "quick-test";
   return (
-    <section className="quick-test-section">
+    <section className={classname}>
       <ExpandableSection
         open={open}
         title_color="#0d8065"
-        title={<TestPanelCaption text={title} />}
+        title={
+          <>
+            <div className={`${classname}__title-section`}>
+              <span className={`${classname}__title`}>
+                <b>{title}</b>
+              </span>
+              <span className={`${classname}__save-input`}>
+                <input type="text" />
+              </span>
+            </div>
+          </>
+        }
       >
         <ScratchPad
           project_code={project_code}

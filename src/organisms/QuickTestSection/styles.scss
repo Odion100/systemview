@@ -1,12 +1,20 @@
-.quick-test-section {
-  &__test-btn {
-    background: #0b886b;
-    padding: 2px 6px;
-    color: white;
-    border: 1px solid;
-    float: right;
-    cursor: pointer;
-    border-radius: 20px;
-    line-height: 15px;
+.quick-test {
+  &__title-section {
+    padding: 1px 8px;
+    font-size: 16px;
+    margin: 0 4px;
+    width: 100%;
+    display: flex;
+  }
+  &__save-input {
+    flex: 1;
+    & input {
+      width: 105%;
+      background: none;
+      border: none;
+      color: #5a77e5;
+      text-overflow: ellipsis;
+      font-weight: bold;
+    }
   }
 }

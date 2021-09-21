@@ -21,7 +21,7 @@ const ExpandableSection = ({ children, title, title_color, open, lock }) => {
         >
           <ExpandIcon isOpen={isOpen} />
         </span>
-        <span>{title}</span>
+        {title}
       </div>
 
       <div
