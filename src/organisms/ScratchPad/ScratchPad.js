@@ -16,6 +16,7 @@ const ScratchPad = ({
   testData = {},
   onSubmit,
   dynamic = false,
+  onReset,
   mode,
 }) => {
   const { TestServices } = useContext(ServiceContext);
@@ -100,6 +101,10 @@ const ScratchPad = ({
     }
   };
 
+  const clearResponse = () => {
+    setResponseData({});
+    if (typeof onReset === "function") onReset();
+  };
   const showJsonTxb = () => setShowTxb(true);
   const hideJsonTxb = () => setShowTxb(false);
   const JsonTxbSubmit = (json) => {
@@ -127,10 +132,10 @@ const ScratchPad = ({
       </div>
       <div className="scratchpad__test-data-container">
         <div className="scratchpad__btn-container">
-          <span className="scratchpad__add-json-btn" onClick={showJsonTxb}>
+          <span className="scratchpad__add-json-btn btn" onClick={showJsonTxb}>
             +JSON
           </span>
-          <span className="scratchpad__run-test-btn" onClick={runTest}>
+          <span className="scratchpad__run-test-btn btn" onClick={runTest}>
             <TestsIcon isSaved={true} />
           </span>
         </div>
@@ -157,6 +162,9 @@ const ScratchPad = ({
         <div
           className={`scratchpad__response-data scratchpad__response-data--visible-${!!responseData.status}`}
         >
+          <span onClick={clearResponse} className={`scratchpad__response-data__clear-btn btn`}>
+            x
+          </span>
           <ReactJson
             src={responseData}
             name={responseNamespace}

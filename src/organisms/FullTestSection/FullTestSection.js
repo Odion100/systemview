@@ -11,6 +11,7 @@ const FullTestSection = ({ project_code, service_id, module_name, method_name })
   const [testResults, setTestResults] = useState({ evaluations: [], totalErrors: 0 });
   const quickTestSubmit = (results, namespace) =>
     setTestResults(validateResults(results, namespace, []));
+  const clearTestResults = () => setTestResults({ evaluations: [], totalErrors: 0 });
   return (
     <section className="current-data-section">
       <QuickTestSection
@@ -22,6 +23,7 @@ const FullTestSection = ({ project_code, service_id, module_name, method_name })
         open={true}
         onSubmit={quickTestSubmit}
         testData={{}}
+        onReset={clearTestResults}
       >
         <Evaluations evaluations={testResults.evaluations} totalErrors={testResults.totalErrors} />
       </QuickTestSection>
@@ -79,6 +81,7 @@ const Evaluations = ({ evaluations, totalErrors }) => {
     const count = currentEvaluations.reduce((a, b) => a + b.errors.count, 0);
     setErrorCount(count);
   };
+
   useEffect(() => updateEvaluations(evaluations), [evaluations]);
 
   return (

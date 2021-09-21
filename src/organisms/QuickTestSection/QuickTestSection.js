@@ -15,6 +15,7 @@ const QuickTestSection = ({
   onSubmit,
   children,
   dynamic,
+  onReset,
 }) => {
   const classname = "quick-test";
   return (
@@ -23,16 +24,14 @@ const QuickTestSection = ({
         open={open}
         title_color="#0d8065"
         title={
-          <>
-            <div className={`${classname}__title-section`}>
-              <span className={`${classname}__title`}>
-                <b>{title}</b>
-              </span>
-              <span className={`${classname}__save-input`}>
-                <input type="text" />
-              </span>
-            </div>
-          </>
+          <div className={`${classname}__title-section`}>
+            <span className={`${classname}__title`}>
+              <b>{title}</b>
+            </span>
+            <span className={`${classname}__test-description-input`}>
+              <input type="text" />
+            </span>
+          </div>
         }
       >
         <ScratchPad
@@ -43,6 +42,7 @@ const QuickTestSection = ({
           testData={testData}
           onSubmit={onSubmit}
           dynamic={dynamic}
+          onReset={onReset}
         />
         {children}
       </ExpandableSection>

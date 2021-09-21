@@ -7,3 +7,27 @@
     height: 100vh;
   }
 }
+.btn {
+  cursor: pointer;
+  display: inline-block;
+
+  &:active {
+    transform: translate(0px, -2px);
+  }
+}
+
+@-webkit-keyframes bounce {
+  to {
+    -webkit-transform: scale(1.2);
+  }
+}
+@-moz-keyframes bounce {
+  to {
+    -moz-transform: scale(1.2);
+  }
+}
+@keyframes bounce {
+  to {
+    transform: scale(1.2);
+  }
+}
