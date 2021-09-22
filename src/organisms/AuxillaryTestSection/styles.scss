@@ -1,0 +1,23 @@
+.auxillary-test-section {
+  width: 100%;
+  &__test-data {
+    background: gainsboro;
+    padding: 12px 15px;
+    width: 100%;
+  }
+}
+
+.add-btn {
+  cursor: pointer;
+  padding: 1px 8px;
+  border-radius: 21px;
+  font-weight: bold;
+  color: #0d8065;
+  font-size: 16px;
+
+  border: 1px solid;
+}
+
+.react-json-view {
+  font-size: 14px;
+}
