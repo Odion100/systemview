@@ -1,7 +1,7 @@
 import React from "react";
 import TestBeforeSection from "../TestBeforeSection/TestBeforeSection";
 import TestAfterSection from "../TestAfterSection/TestAfterSection";
-import FullTestSection from "../FullTestSection/FullTestSection";
+import MainTestSection from "../MainTestSection/MainTestSection";
 import TestSavedSection from "../TestSavedSection/TestSavedSection";
 import Title from "../../atoms/Title/Title";
 import "./styles.scss";
@@ -22,7 +22,7 @@ const TestPanel = ({ project_code, service_id, module_name, method_name }) => {
           />
         </div>
         <div className="row test-panel__section">
-          <FullTestSection
+          <MainTestSection
             project_code={project_code}
             service_id={service_id}
             module_name={module_name}

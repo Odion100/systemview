@@ -24,7 +24,7 @@ const QuickTestSection = ({
       <ExpandableSection
         open={open}
         title_color="#0d8065"
-        title={<TestCaption caption={<b>{title}</b>} />}
+        title={<TestCaption caption={<b>{title}</b>} useInput={true} />}
       >
         <ScratchPad
           project_code={project_code}
