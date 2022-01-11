@@ -2,13 +2,12 @@ import React from "react";
 import AuxillaryTestSection from "../../organisms/AuxillaryTestSection/AuxillaryTestSection";
 import "./styles.scss";
 
-const TestAfterSection = ({ project_code, service_id, module_name, method_name }) => {
+const TestAfterSection = ({ project_code, testData, TestController }) => {
   return (
     <AuxillaryTestSection
       project_code={project_code}
-      service_id={service_id}
-      module_name={module_name}
-      method_name={method_name}
+      testData={testData}
+      TestController={TestController}
       caption="Test After"
     />
   );

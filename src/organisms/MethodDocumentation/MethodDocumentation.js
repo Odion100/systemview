@@ -54,7 +54,7 @@ const DocTitle = ({ service_id, module_name, method_name, variable_name = "data"
   return (
     <Title
       text={
-        <span>
+        <span style={{ color: "white" }}>
           {`${service_id}.${module_name}.${method_name}`}(
           <span className="documentation-view__parameter">{variable_name}</span>, callback)
         </span>

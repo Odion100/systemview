@@ -1,0 +1,67 @@
+.args {
+  display: inline-block;
+
+  &__add-btn {
+    background: #25d0a8;
+    margin: 0px 0px 0px 3px;
+    padding: 0px 5px 1px 5px;
+    border-radius: 16px;
+    font-weight: bold;
+    color: #ffffff;
+    cursor: pointer;
+  }
+  &__data {
+    background: #cecee3;
+    margin: 2px;
+    border-radius: 7px;
+    padding: 11px;
+  }
+  &__value {
+    display: inline-block;
+    margin: 1px 0px;
+    /* border: 1px solid black; */
+    background: #5a77e5;
+    font-weight: bold;
+    color: white;
+    padding: 2px 10px;
+    border-radius: 100px;
+    cursor: pointer;
+  }
+  &__name {
+    white-space: nowrap;
+
+    &__text {
+      display: inline-block;
+      margin: 1px 0px;
+      /* border: 1px solid black; */
+      background: #5a77e5;
+      font-weight: bold;
+      color: white;
+      padding: 2px 10px;
+      border-radius: 100px;
+      cursor: pointer;
+    }
+  }
+  &__from-container {
+    display: flex;
+    /* justify-content: space-evenly; */
+  }
+
+  &__form {
+    &__input {
+      width: 100%;
+    }
+  }
+
+  &__type {
+    text-align: center;
+  }
+  &__name-display {
+    margin-right: 4px;
+    display: inline-block;
+  }
+  &__expand-btn {
+    color: #0035cf61;
+    text-shadow: 1px 1px 1px #cfcfcf;
+  }
+}

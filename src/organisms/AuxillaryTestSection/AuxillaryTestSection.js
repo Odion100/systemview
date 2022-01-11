@@ -4,20 +4,8 @@ import TestCaption from "../../molecules/TestCaption/TestCaption";
 import QuickTestSection from "../QuickTestSection/QuickTestSection";
 import "./styles.scss";
 
-const AuxillaryTestSection = ({ project_code, caption }) => {
+const AuxillaryTestSection = ({ project_code, caption, TestController, testData }) => {
   const classname = "auxillary-test-section";
-  const [actions, setActions] = useState([]);
-  const [state, updateState] = useState(true);
-  const addAction = () => {
-    actions.push({
-      title: "",
-      service_id: undefined,
-      module_name: undefined,
-      method_name: undefined,
-    });
-    setActions(actions);
-    updateState(!state);
-  };
   const onSubmit = (index, results) => console.log(index, results);
 
   return (
@@ -27,20 +15,22 @@ const AuxillaryTestSection = ({ project_code, caption }) => {
         title={
           <>
             <TestCaption caption={`${caption}:`} />
-            <AddButton onClick={addAction} />
+            <AddButton onClick={TestController.addTest} />
           </>
         }
         title_color="#0d8065"
       >
         <div className={`${classname}__test-data`}>
-          {actions.length > 0 ? (
-            actions.map(({ title, service_id, module_name, method_name }, i) => (
+          {testData.length > 0 ? (
+            testData.map((test, i) => (
               <QuickTestSection
                 key={i}
-                project_code={project_code}
-                service_id={service_id}
-                module_name={module_name}
-                method_name={method_name}
+                project_code={test.project_code}
+                service_id={test.service_id}
+                module_name={test.module_name}
+                method_name={test.method_name}
+                test={test}
+                test_index={i}
                 title={`Action${i + 1}:`}
                 onSubmit={onSubmit}
                 dynamic={true}

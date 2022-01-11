@@ -1,12 +1,16 @@
 import React from "react";
 import "./styles.scss";
 
-const ExpandButton = ({ isOpen }) => {
+const ExpandIcon = ({ isOpen, classname = "", submit }) => {
   return isOpen ? (
-    <span className="expandable-icon">&#9660;</span>
+    <span onClick={submit} className={`expandable-icon ${classname}`}>
+      &#9660;
+    </span>
   ) : (
-    <span className="expandable-icon">&#x25BA;</span>
+    <span onClick={submit} className={`expandable-icon ${classname}`}>
+      &#x25BA;
+    </span>
   );
 };
 
-export default ExpandButton;
+export default ExpandIcon;

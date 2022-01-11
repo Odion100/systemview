@@ -9,7 +9,7 @@ const TestPanel = ({ project_code, service_id, module_name, method_name }) => {
     <section className="test-panel">
       <div className="container">
         <div className="row">
-          <Title text="SystemLink Test Panel" />
+          <Title text="TasksJS Test Panel" />
         </div>
         <FullTestWrapper
           project_code={project_code}

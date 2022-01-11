@@ -11,12 +11,13 @@ const QuickTestSection = ({
   module_name,
   method_name,
   open,
-  testData,
   title,
   onSubmit,
   children,
   dynamic,
   onReset,
+  TestController,
+  testData,
 }) => {
   const classname = "quick-test";
   return (
@@ -31,7 +32,9 @@ const QuickTestSection = ({
           service_id={service_id}
           module_name={module_name}
           method_name={method_name}
-          testData={testData}
+          TestController={TestController}
+          test={testData[0]}
+          test_index={0}
           onSubmit={onSubmit}
           dynamic={dynamic}
           onReset={onReset}

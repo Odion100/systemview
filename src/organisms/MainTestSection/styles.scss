@@ -19,16 +19,6 @@
     }
   }
 
-  &__type {
-    color: blue;
-    appearance: none;
-    cursor: pointer;
-    background: none;
-    border: none;
-    outline: none;
-    font-family: monospace;
-  }
-
   &__input {
     & > input {
       width: 100%;

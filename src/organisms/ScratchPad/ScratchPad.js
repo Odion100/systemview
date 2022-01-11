@@ -3,36 +3,40 @@ import ReactJson from "react-json-view";
 import JsonTextBox from "../../atoms/JsonTextBox/JsonTextBox";
 import TestsIcon from "../../atoms/TestsIcon/TestsIcon";
 import AutoCompletBox from "../../molecules/AutoCompleteBox/AutoCompleteBox";
+import Args from "../../molecules/Args/Args";
 import ServiceContext from "../../ServiceContext";
 import { Client } from "tasksjs-react-client";
 import "./styles.scss";
 
-const testfn = (data) => console.log(data);
 const ScratchPad = ({
   project_code,
   service_id,
   module_name,
   method_name,
-  testData = {},
+  TestController,
+  test,
+  test_index = 0,
   onSubmit,
   dynamic = false,
   onReset,
   mode,
 }) => {
   const { TestServices } = useContext(ServiceContext);
-  console.log(TestServices);
   const [connectedServices, setConnection] = useState({});
   const [showTxb, setShowTxb] = useState(false);
-  const [jsonData, setJsonData] = useState(testData);
+  const [jsonData, setJsonData] = useState({});
   const [responseData, setResponseData] = useState({});
   const [responseNamespace, setResponseNamespace] = useState("");
   const [test_suggestions, setSuggestions] = useState([]);
+  const [text_length, setLength] = useState(0);
+  const [conn_str, setConnStr] = useState(`${service_id}.${module_name}.${method_name}`);
   const [testConfig, setConfig] = useState({
     project_code,
     service_id,
     module_name,
     method_name,
   });
+
   const runTest = async () => {
     console.log(connectedServices);
     try {
@@ -123,18 +127,21 @@ const ScratchPad = ({
     getConnection(() => {
       if (mode === "auto-run-test") runTest();
     });
+    setConnStr(`${service_id}.${module_name}.${method_name}`);
+    setLength((conn_str || "").length + 0.3);
   }, [project_code, service_id, method_name, module_name, TestServices, mode]);
 
+  const style = { "--text-length": text_length ? text_length + "ch" : "auto" };
   return (
-    <div className="scratchpad">
+    <div className="scratchpad" style={style}>
       <div className={`scratchpad__json-txb scratchpad__json-txb--show-${showTxb}`}>
-        <JsonTextBox onSubmit={JsonTxbSubmit} onCancel={hideJsonTxb} obj={jsonData} />
+        <JsonTextBox onSubmit={JsonTxbSubmit} onCancel={hideJsonTxb} obj={{}} />
       </div>
       <div className="scratchpad__test-data-container">
         <div className="scratchpad__btn-container">
-          <span className="scratchpad__add-json-btn btn" onClick={showJsonTxb}>
+          {/* <span className="scratchpad__add-json-btn btn" onClick={showJsonTxb}>
             +JSON
-          </span>
+          </span> */}
           <span className="scratchpad__run-test-btn btn" onClick={runTest}>
             <TestsIcon isSaved={true} />
           </span>
@@ -144,10 +151,11 @@ const ScratchPad = ({
             className="scratchpad__test-method-input"
             suggestions={test_suggestions}
             onSubmit={changeConnection}
-            value={`${testConfig.service_id}.${testConfig.module_name}.${testConfig.method_name}(`}
+            value={`${conn_str}`}
             disabled={!dynamic}
           />
-          <ReactJson
+
+          {/* <ReactJson
             src={jsonData}
             name="data"
             onAdd={testfn}
@@ -156,11 +164,15 @@ const ScratchPad = ({
             displayObjectSize={false}
             displayDataTypes={false}
             collapsed={true}
-          />
-          <span>{")"}</span>
+          /> */}
+          <span className="scratchpad__test-data__parentheses">{"("}</span>
+          <Args args={test.args} addArg={TestController.addArg} test_index={test_index} />
+          <span className="scratchpad__test-data__parentheses">{")"}</span>
         </div>
         <div
-          className={`scratchpad__response-data scratchpad__response-data--visible-${!!responseData.status}`}
+          className={`scratchpad__response-data scratchpad__response-data--visible-${
+            Object.keys(responseData).length > 0
+          }`}
         >
           <span onClick={clearResponse} className={`scratchpad__response-data__clear-btn btn`}>
             x
