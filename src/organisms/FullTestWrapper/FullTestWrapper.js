@@ -17,7 +17,7 @@ const FullTestWrapper = ({ project_code, service_id, module_name, method_name })
   const createArg = (value, name, target_value) => ({
     value,
     data_type: getType(value),
-    name: name || "argument",
+    name: name || "arg" + (testMain[0].args.length + 1),
     target_value: target_value || [],
   });
   const { TestServices } = useContext(ServiceContext);
@@ -74,13 +74,8 @@ const FullTestWrapper = ({ project_code, service_id, module_name, method_name })
       setState(testData);
       updateState(!state);
     };
-    const editArg = (index, argIndex, value, data_type, name, target_value) => {
-      testData[index].args[argIndex] = {
-        value,
-        data_type,
-        name,
-        target_value,
-      };
+    const editArg = (index, argIndex, arg) => {
+      testData[index].args[argIndex] = arg;
       setState(testData);
       updateState(!state);
     };

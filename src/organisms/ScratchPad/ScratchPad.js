@@ -166,7 +166,7 @@ const ScratchPad = ({
             collapsed={true}
           /> */}
           <span className="scratchpad__test-data__parentheses">{"("}</span>
-          <Args args={test.args} addArg={TestController.addArg} test_index={test_index} />
+          <Args args={test.args} controller={TestController} test_index={test_index} />
           <span className="scratchpad__test-data__parentheses">{")"}</span>
         </div>
         <div

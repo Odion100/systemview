@@ -20,7 +20,7 @@ const date = {
 };
 const boolean = { options: ["Equals:"], values: ["boolEquals"], inputs: ["checkbox"] };
 const object = { options: [], values: [], inputs: [] };
-const mixed = {
+const target = {
   options: [
     //string
     "Equals (str):",
@@ -96,5 +96,5 @@ const mixed = {
     "checkbox",
   ],
 };
-const options = { array, number, date, boolean, string, object, mixed };
+const options = { array, number, date, boolean, string, object, target };
 export default options;

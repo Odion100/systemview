@@ -1,13 +1,14 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "./styles.scss";
 
 const JsonTextBox = ({ obj, onSubmit, onCancel }) => {
-  const prettyJson = JSON.stringify(obj, undefined, 2);
+  const [prettyJson, setPrettyJson] = useState(JSON.stringify(obj, undefined, 2));
   const [isJson, setIsJson] = useState(!!obj);
   const [json, setJson] = useState(obj);
 
   const checkJsonString = (e) => {
     const str = e.target.value;
+    setPrettyJson(str);
     try {
       JSON.parse(str);
     } catch (e) {
@@ -16,6 +17,8 @@ const JsonTextBox = ({ obj, onSubmit, onCancel }) => {
     }
     setIsJson(true);
     setJson(JSON.parse(str));
+
+    console.log(str);
     return true;
   };
   const submit = () => {
@@ -23,10 +26,15 @@ const JsonTextBox = ({ obj, onSubmit, onCancel }) => {
   };
   const cancel = () => {
     setIsJson(false);
-    setJson(undefined);
+    setJson(obj);
+    setPrettyJson(JSON.stringify(obj, undefined, 2));
     if (typeof onCancel === "function") onCancel();
   };
-
+  useEffect(() => {
+    setPrettyJson(JSON.stringify(obj, undefined, 2));
+    setIsJson(!!obj);
+    setJson(obj);
+  }, [obj]);
   return (
     <div className="json-text-box">
       <div className="json-text-box__background-overlay"></div>
@@ -34,7 +42,7 @@ const JsonTextBox = ({ obj, onSubmit, onCancel }) => {
         className={`json-text-box__textbox json-text-box__textbox--is-json-${isJson}`}
         name="json-text-box"
         id="json-text-box"
-        defaultValue={prettyJson}
+        value={prettyJson}
         onChange={checkJsonString}
       ></textarea>
       <div className="json-text-box__btn-container">

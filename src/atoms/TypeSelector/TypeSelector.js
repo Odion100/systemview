@@ -10,14 +10,14 @@ const options = [
   "object",
   "null",
   "undefined",
-  "mixed",
+  "target",
 ];
 
 const TypeSelector = ({ default_type, onSelect, xClassname = "" }) => {
   const classname = "type-selector";
   return (
     <Selector
-      className={`${classname}${" " + xClassname}`}
+      className={`${classname} ${xClassname}`}
       options={options}
       selected_option={default_type}
       onSelect={onSelect}

@@ -8,23 +8,26 @@
 
   &__btn-container {
     position: absolute;
-    right: 4px;
-    top: 4px;
+    right: 1px;
+    top: 3px;
   }
   &__btn {
-    padding: 2px 4px;
-    border-radius: 2px;
+    padding: 2px 6px;
+    border-radius: 1px;
     cursor: pointer;
     margin-left: 4px;
+    font-family: system-ui;
+    font-weight: 500;
     &:active {
       position: relative;
       top: 1px;
     }
     &--is-json-true {
       background: #25d0a8;
+      color: white;
     }
     &--is-json-false {
-      background: #ffbaba;
+      background: #cfc2c2;
       color: #8c3c3c;
       text-decoration: line-through;
     }
