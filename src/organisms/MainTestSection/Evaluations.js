@@ -4,11 +4,12 @@ import ValidationInput from "../../molecules/ValidationInput/ValidationInput";
 import validation_options from "../../molecules/ValidationInput/ValidationOptions";
 import TypeSelector from "../../atoms/TypeSelector/TypeSelector";
 
-import { getErrors } from "./validations";
+import { getErrors } from "../FullTestWrapper/validations";
 
-export default function Evaluations({ evaluations, totalErrors }) {
-  const [currentEvaluations, updateEvaluations] = useState(evaluations);
-  const [errorCount, setErrorCount] = useState(totalErrors);
+export default function Evaluations({ test }) {
+  console.log(test);
+  const [currentEvaluations, updateEvaluations] = useState([]);
+  const [errorCount, setErrorCount] = useState(0);
   const [state, setState] = useState(true);
 
   const addValidation = (i) => {
@@ -58,10 +59,19 @@ export default function Evaluations({ evaluations, totalErrors }) {
     setErrorCount(count);
   };
 
-  useEffect(() => updateEvaluations(evaluations), [evaluations]);
-  console.log(evaluations);
+  useEffect(() => {
+    console.log(test);
+    if (test.test_end !== null) {
+      updateEvaluations(test.evaluations);
+      setErrorCount(test.total_errors);
+    } else {
+      updateEvaluations([]);
+      setErrorCount(0);
+    }
+  }, [test.test_end]);
+
   return (
-    <div className={`evaluations evaluations--visible-${evaluations.length > 0}`}>
+    <div className={`evaluations evaluations--visible-${currentEvaluations.length > 0}`}>
       <ExpandableSection
         title={
           <div className={`evaluations__title evaluations--error-${errorCount > 0}`}>

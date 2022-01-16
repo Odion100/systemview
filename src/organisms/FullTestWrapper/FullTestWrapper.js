@@ -1,18 +1,26 @@
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import TestBeforeSection from "../TestBeforeSection/TestBeforeSection";
 import TestAfterSection from "../TestAfterSection/TestAfterSection";
 import MainTestSection from "../MainTestSection/MainTestSection";
 import ServiceContext from "../../ServiceContext";
-import { getType } from "../MainTestSection/validations";
+import { Client } from "tasksjs-react-client";
+import { getType } from "./validations";
+import { validateResults } from "./validations";
+import moment from "moment";
 
 const FullTestWrapper = ({ project_code, service_id, module_name, method_name }) => {
+  console.log(project_code, service_id, module_name, method_name);
   const [state, updateState] = useState(false);
-  const createTest = (namespace, args) => ({
+  const createTest = ({ namespace, args, title }) => ({
     title: "",
     args: args || [],
     results: null,
     response_type: "",
     namespace: namespace || { service_id: "", module_name: "", method_name: "" },
+    test_start: null,
+    test_end: null,
+    evaluations: [],
+    total_errors: 0,
   });
   const createArg = (value, name, target_value) => ({
     value,
@@ -26,60 +34,152 @@ const FullTestWrapper = ({ project_code, service_id, module_name, method_name })
   const [testMain, setTestMain] = useState([
     createTest({ namespace: { project_code, service_id, module_name, method_name } }),
   ]);
+  const [ConnectedServices, setConnection] = useState({});
 
-  const getArgs = (argData) =>
-    argData.map(({ value }) => {
+  const getConnection = ({ project_code, service_id }) => {
+    console.log("getting connection data ------------", TestServices);
+    if (TestServices.length > 0) {
+      const service = TestServices.find(
+        (_service) => _service.project_code === project_code && _service.service_id === service_id
+      );
+      if (!service) return console.log("service not found");
+      if (!Client.loadedServices[service.url])
+        Client.loadService(service.url)
+          .then((_service) => {
+            ConnectedServices[service_id] = _service;
+            setConnection(ConnectedServices);
+            console.log(ConnectedServices);
+          })
+          .catch((error) => console.log(error));
+      else {
+        ConnectedServices[service_id] = Client.loadedServices[service.url];
+        setConnection(ConnectedServices);
+        console.log(ConnectedServices);
+      }
+    }
+  };
+  useEffect(() => {
+    setTestBefore([]);
+    setTestMain([
+      createTest({ namespace: { project_code, service_id, module_name, method_name } }),
+    ]);
+    setTestAfter([]);
+    //get connection for the main test
+    getConnection({ project_code, service_id, module_name, method_name });
+  }, [project_code, service_id, module_name, method_name, TestServices]);
+
+  const getArgs = (args) =>
+    args.map(({ value }) => {
       return value;
     });
+
   const runFullTest = () => {
     const setStates = [setTestBefore, setTestMain, setTestAfter];
 
     [testBefore, testMain, testAfter].forEach((testData, i) =>
       testData.forEach(async (test, a) => {
+        console.log(test, ConnectedServices);
         try {
           const { service_id, module_name, method_name } = test.namespace;
           const _args = getArgs(test.args);
-          test.results = await TestServices[service_id][module_name][method_name].apply({}, _args);
-          test.response_type = "success";
+          test.test_start = moment().toJSON();
+          test.results = await ConnectedServices[service_id][module_name][method_name].apply(
+            {},
+            _args
+          );
+          test.test_end = moment().toJSON();
+          test.response_type = "results";
+          const { evaluations, totalErrors } = validateResults(
+            test.results,
+            test.response_type,
+            []
+          );
+          test.evaluations = evaluations;
+          test.total_errors = totalErrors;
+          console.log(test.results, "--------here");
           setStates[i](testData);
+          updateState(!state);
         } catch (error) {
+          test.test_end = moment().toJSON();
           test.results = error;
+          console.log(test.results);
           test.response_type = "error";
+          const { evaluations, totalErrors } = validateResults(
+            test.results,
+            test.response_type,
+            []
+          );
+          test.evaluations = evaluations;
+          test.total_errors = totalErrors;
           setStates[i](testData);
+          updateState(!state);
         }
       })
     );
   };
-  const TestController = function (setState) {
+  const TestController = function (setState, section) {
     const testData = this;
-    const addTest = () => {
+    const controller = {};
+    controller.runTest = async (testIndex) => {
+      console.log(section);
+      if (section === "main") runFullTest();
+      else {
+        try {
+          const { service_id, module_name, method_name } = testData[testIndex].namespace;
+          const _args = getArgs(testData[testIndex].args);
+          testData[testIndex].results = await ConnectedServices[service_id][module_name][
+            method_name
+          ].apply({}, _args);
+          testData[testIndex].response_type = "results";
+          testData[testIndex].response_type = "results";
+          setState(testData);
+          updateState(!state);
+        } catch (error) {
+          testData[testIndex].results = error;
+          testData[testIndex].response_type = "error";
+          setState(testData);
+          updateState(!state);
+        }
+      }
+    };
+    controller.updateNamespace = (index, namespace) => {
+      testData[index].namespace = namespace;
+      setState(testData);
+      getConnection(namespace);
+      updateState(!state);
+    };
+    controller.addTest = () => {
       testData.push(createTest());
       setState(testData);
       updateState(!state);
     };
-    const deleteTest = (index) => {
+    controller.deleteTest = (index) => {
       testData.spice(index, 1);
       setState(testData);
       updateState(!state);
     };
-
-    const addArg = (index, value, name, target_value) => {
+    controller.addArg = (index, value, name, target_value) => {
       testData[index].args.push(createArg(value, name, target_value));
       setState(testData);
       updateState(!state);
     };
-
-    const deleteArg = (index, argIndex) => {
+    controller.deleteArg = (index, argIndex) => {
       testData[index].args.splice(argIndex, 1);
       setState(testData);
       updateState(!state);
     };
-    const editArg = (index, argIndex, arg) => {
+    controller.editArg = (index, argIndex, arg) => {
       testData[index].args[argIndex] = arg;
       setState(testData);
       updateState(!state);
     };
-    return { addTest, deleteTest, addArg, deleteArg, editArg, runFullTest };
+    controller.resetResults = (index) => {
+      const { args, namespace, title } = testData[index];
+      testData[index] = createTest({ args, namespace, title });
+      setState(testData);
+      updateState(!state);
+    };
+    return controller;
   };
 
   return (
@@ -87,24 +187,20 @@ const FullTestWrapper = ({ project_code, service_id, module_name, method_name })
       <div className="row test-panel__section">
         <TestBeforeSection
           project_code={project_code}
-          TestController={TestController.apply(testBefore, [setTestBefore])}
+          TestController={TestController.apply(testBefore, [setTestBefore, "before"])}
           testData={testBefore}
         />
       </div>
       <div className="row test-panel__section">
         <MainTestSection
-          project_code={project_code}
-          service_id={service_id}
-          module_name={module_name}
-          method_name={method_name}
-          TestController={TestController.apply(testMain, [setTestMain])}
+          TestController={TestController.apply(testMain, [setTestMain, "main"])}
           testData={testMain}
         />
       </div>
       <div className="row test-panel__section">
         <TestAfterSection
           project_code={project_code}
-          TestController={TestController.apply(testAfter, [setTestAfter])}
+          TestController={TestController.apply(testAfter, [setTestAfter, "after"])}
           testData={testAfter}
         />
       </div>

@@ -2,11 +2,7 @@
   --text-length: auto;
   width: 100%;
   overflow-wrap: anywhere;
-  &__json-txb {
-    &--show-false {
-      display: none;
-    }
-  }
+
   &__test-data-container {
     position: relative;
 
@@ -48,17 +44,7 @@
   &__run-test-btn {
     cursor: pointer;
   }
-  &__add-json-btn {
-    padding: 2px 3px;
-    border-radius: 2px;
-    color: #0d8065;
 
-    cursor: pointer;
-
-    &:hover {
-      text-decoration: underline;
-    }
-  }
   &__test-method-input {
     font-family: monospace;
     background: none;

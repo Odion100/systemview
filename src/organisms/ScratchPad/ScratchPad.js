@@ -1,60 +1,22 @@
 import React, { useContext, useEffect, useState } from "react";
 import ReactJson from "react-json-view";
-import JsonTextBox from "../../atoms/JsonTextBox/JsonTextBox";
 import TestsIcon from "../../atoms/TestsIcon/TestsIcon";
 import AutoCompletBox from "../../molecules/AutoCompleteBox/AutoCompleteBox";
 import Args from "../../molecules/Args/Args";
 import ServiceContext from "../../ServiceContext";
-import { Client } from "tasksjs-react-client";
 import "./styles.scss";
 
-const ScratchPad = ({
-  project_code,
-  service_id,
-  module_name,
-  method_name,
-  TestController,
-  test,
-  test_index = 0,
-  onSubmit,
-  dynamic = false,
-  onReset,
-  mode,
-}) => {
+const ScratchPad = ({ TestController, test, test_index = 0, dynamic = false }) => {
+  console.log(test);
+  const { project_code, service_id, module_name, method_name } = test.namespace;
   const { TestServices } = useContext(ServiceContext);
-  const [connectedServices, setConnection] = useState({});
-  const [showTxb, setShowTxb] = useState(false);
-  const [jsonData, setJsonData] = useState({});
-  const [responseData, setResponseData] = useState({});
-  const [responseNamespace, setResponseNamespace] = useState("");
   const [test_suggestions, setSuggestions] = useState([]);
   const [text_length, setLength] = useState(0);
   const [conn_str, setConnStr] = useState(`${service_id}.${module_name}.${method_name}`);
-  const [testConfig, setConfig] = useState({
-    project_code,
-    service_id,
-    module_name,
-    method_name,
-  });
 
   const runTest = async () => {
-    console.log(connectedServices);
-    try {
-      const results = await connectedServices[testConfig.service_id][testConfig.module_name][
-        testConfig.method_name
-      ](jsonData);
-      console.log(results, "klsdkfjlks");
-      setResponseData(results);
-      setResponseNamespace("results");
-      if (typeof onSubmit === "function") onSubmit(results, "results");
-    } catch (error) {
-      console.log(error);
-      setResponseData(error);
-      setResponseNamespace("error");
-      if (typeof onSubmit === "function") onSubmit(error, "error");
-    }
+    TestController.runTest(test_index);
   };
-
   const createSuggestions = () => {
     const new_suggestions = [];
     TestServices.forEach((service) => {
@@ -64,84 +26,32 @@ const ScratchPad = ({
         });
       });
     });
-    console.log(new_suggestions);
-
     setSuggestions(new_suggestions);
   };
 
-  const changeConnection = (connText) => {
-    const [service_id, module_name, method_name] = connText
-      .substr(0, connText.length - 1)
+  const changeConnection = (namespaces) => {
+    const [service_id, module_name, method_name] = namespaces
+      .substr(0, namespaces.length - 1)
       .split(".");
-    if (!connectedServices[service_id]) {
-      setConfig({ project_code, service_id, module_name, method_name });
-      getConnection();
-    }
-    setConfig({ project_code, service_id, module_name, method_name });
-  };
-
-  const getConnection = (cb) => {
-    console.log("getting connnection .............................");
-    console.log(testConfig);
-    if (TestServices.length > 0) {
-      const service = TestServices.find(
-        (_service) =>
-          _service.project_code === testConfig.project_code &&
-          _service.service_id === testConfig.service_id
-      );
-      if (!service) return console.log("service not found");
-      if (!Client.loadedServices[service.url])
-        Client.loadService(service.url)
-          .then((_service) => {
-            connectedServices[testConfig.service_id] = _service;
-            setConnection(connectedServices);
-            if (typeof cb === "function") cb();
-          })
-          .catch((error) => console.log(error));
-      else {
-        connectedServices[testConfig.service_id] = Client.loadedServices[service.url];
-        setConnection(connectedServices);
-      }
-    }
+    TestController.updateNamespace(test_index, { service_id, module_name, method_name });
   };
 
   const clearResponse = () => {
-    setResponseData({});
-    if (typeof onReset === "function") onReset();
-  };
-  const showJsonTxb = () => setShowTxb(true);
-  const hideJsonTxb = () => setShowTxb(false);
-  const JsonTxbSubmit = (json) => {
-    setJsonData(json);
-    hideJsonTxb();
+    TestController.resetResults(test_index);
   };
 
   useEffect(() => createSuggestions(), [project_code, TestServices]);
   useEffect(() => {
-    setConfig({
-      project_code,
-      service_id,
-      module_name,
-      method_name,
-    });
-    getConnection(() => {
-      if (mode === "auto-run-test") runTest();
-    });
-    setConnStr(`${service_id}.${module_name}.${method_name}`);
-    setLength((conn_str || "").length + 0.3);
-  }, [project_code, service_id, method_name, module_name, TestServices, mode]);
+    const new_namespace = `${service_id}.${module_name}.${method_name}`;
+    setConnStr(new_namespace);
+    setLength((new_namespace || "").length + 0.3);
+  }, [test.namespace, TestServices]);
 
   const style = { "--text-length": text_length ? text_length + "ch" : "auto" };
   return (
     <div className="scratchpad" style={style}>
-      <div className={`scratchpad__json-txb scratchpad__json-txb--show-${showTxb}`}>
-        <JsonTextBox onSubmit={JsonTxbSubmit} onCancel={hideJsonTxb} obj={{}} />
-      </div>
       <div className="scratchpad__test-data-container">
         <div className="scratchpad__btn-container">
-          {/* <span className="scratchpad__add-json-btn btn" onClick={showJsonTxb}>
-            +JSON
-          </span> */}
           <span className="scratchpad__run-test-btn btn" onClick={runTest}>
             <TestsIcon isSaved={true} />
           </span>
@@ -154,32 +64,21 @@ const ScratchPad = ({
             value={`${conn_str}`}
             disabled={!dynamic}
           />
-
-          {/* <ReactJson
-            src={jsonData}
-            name="data"
-            onAdd={testfn}
-            onEdit={testfn}
-            onDelete={testfn}
-            displayObjectSize={false}
-            displayDataTypes={false}
-            collapsed={true}
-          /> */}
           <span className="scratchpad__test-data__parentheses">{"("}</span>
           <Args args={test.args} controller={TestController} test_index={test_index} />
           <span className="scratchpad__test-data__parentheses">{")"}</span>
         </div>
         <div
           className={`scratchpad__response-data scratchpad__response-data--visible-${
-            Object.keys(responseData).length > 0
+            test.test_end !== null
           }`}
         >
           <span onClick={clearResponse} className={`scratchpad__response-data__clear-btn btn`}>
             x
           </span>
           <ReactJson
-            src={responseData}
-            name={responseNamespace}
+            src={test.results || {}}
+            name={test.response_type}
             displayObjectSize={false}
             displayDataTypes={false}
             collapsed={true}

@@ -81,7 +81,7 @@ const ArgData = ({ classname, arg, test_index, i, controller }) => {
     controller.editArg(test_index, i, arg);
   };
 
-  const isJson = data_type === "object" || data_type === "array";
+  const is12 = data_type === "object" || data_type === "array" || data_type === "string";
   return !isOpen ? (
     <div className={`${classname}__name-display`}>
       <ArgName classname={classname} name={name} isOpen={isOpen} showData={showData} />
@@ -99,7 +99,7 @@ const ArgData = ({ classname, arg, test_index, i, controller }) => {
             <TypeSelector default_type={data_type} onSelect={changeType} />
           </div>
         </div>
-        <div className={`col${isJson ? -12 : ""}`}>
+        <div className={`col${is12 ? -12 : ""}`}>
           <ArgDataForm
             arg={arg}
             i={i}
@@ -168,7 +168,7 @@ const ArgDataForm = ({ arg, classname, test_index, i, controller }) => {
       ) : data_type === "date" ? (
         // <span className={`${classname}__form__${data_type}`}>{moment(value).format()}</span>
         <input
-          className={`${classname}__form__input`}
+          className={`${classname}__form__input ${classname}__form__input--${data_type}`}
           type={"datetime-local"}
           name="arg-input"
           autoComplete="off"

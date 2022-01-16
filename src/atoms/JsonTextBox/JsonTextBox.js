@@ -3,7 +3,7 @@ import "./styles.scss";
 
 const JsonTextBox = ({ obj, onSubmit, onCancel }) => {
   const [prettyJson, setPrettyJson] = useState(JSON.stringify(obj, undefined, 2));
-  const [isJson, setIsJson] = useState(!!obj);
+  const [isJson, setIsJson] = useState(true);
   const [json, setJson] = useState(obj);
 
   const checkJsonString = (e) => {

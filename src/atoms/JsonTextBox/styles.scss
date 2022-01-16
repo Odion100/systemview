@@ -4,12 +4,14 @@
     min-width: 100%;
     max-width: 100%;
     min-height: 100px;
+    border: 1px solid #8ea8eb;
+    margin-top: 6px;
   }
 
   &__btn-container {
     position: absolute;
     right: 1px;
-    top: 3px;
+    top: 9px;
   }
   &__btn {
     padding: 2px 6px;

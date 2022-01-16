@@ -5,20 +5,7 @@ import ScratchPad from "../ScratchPad/ScratchPad";
 
 import "./styles.scss";
 
-const QuickTestSection = ({
-  project_code,
-  service_id,
-  module_name,
-  method_name,
-  open,
-  title,
-  onSubmit,
-  children,
-  dynamic,
-  onReset,
-  TestController,
-  testData,
-}) => {
+const QuickTestSection = ({ open, title, children, dynamic, TestController, testData }) => {
   const classname = "quick-test";
   return (
     <section className={classname}>
@@ -28,16 +15,10 @@ const QuickTestSection = ({
         title={<TestCaption caption={<b>{title}</b>} useInput={true} />}
       >
         <ScratchPad
-          project_code={project_code}
-          service_id={service_id}
-          module_name={module_name}
-          method_name={method_name}
           TestController={TestController}
           test={testData[0]}
           test_index={0}
-          onSubmit={onSubmit}
           dynamic={dynamic}
-          onReset={onReset}
         />
         {children}
       </ExpandableSection>
