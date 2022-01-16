@@ -80,7 +80,9 @@ const ArgData = ({ classname, arg, test_index, i, controller }) => {
     }
     controller.editArg(test_index, i, arg);
   };
-
+  const deleteArg = () => {
+    controller.deleteArg(test_index, i);
+  };
   const is12 = data_type === "object" || data_type === "array" || data_type === "string";
   return !isOpen ? (
     <div className={`${classname}__name-display`}>
@@ -109,6 +111,10 @@ const ArgData = ({ classname, arg, test_index, i, controller }) => {
           />
         </div>
       </div>
+
+      <span className={`${classname}__data__delete-btn btn`} onClick={deleteArg}>
+        x
+      </span>
     </div>
   );
 };

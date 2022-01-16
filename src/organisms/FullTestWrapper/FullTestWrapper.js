@@ -9,7 +9,6 @@ import { validateResults } from "./validations";
 import moment from "moment";
 
 const FullTestWrapper = ({ project_code, service_id, module_name, method_name }) => {
-  console.log(project_code, service_id, module_name, method_name);
   const [state, updateState] = useState(false);
   const createTest = ({ namespace, args, title }) => ({
     title: "",
@@ -37,7 +36,6 @@ const FullTestWrapper = ({ project_code, service_id, module_name, method_name })
   const [ConnectedServices, setConnection] = useState({});
 
   const getConnection = ({ project_code, service_id }) => {
-    console.log("getting connection data ------------", TestServices);
     if (TestServices.length > 0) {
       const service = TestServices.find(
         (_service) => _service.project_code === project_code && _service.service_id === service_id
@@ -48,13 +46,11 @@ const FullTestWrapper = ({ project_code, service_id, module_name, method_name })
           .then((_service) => {
             ConnectedServices[service_id] = _service;
             setConnection(ConnectedServices);
-            console.log(ConnectedServices);
           })
           .catch((error) => console.log(error));
       else {
         ConnectedServices[service_id] = Client.loadedServices[service.url];
         setConnection(ConnectedServices);
-        console.log(ConnectedServices);
       }
     }
   };
@@ -78,7 +74,6 @@ const FullTestWrapper = ({ project_code, service_id, module_name, method_name })
 
     [testBefore, testMain, testAfter].forEach((testData, i) =>
       testData.forEach(async (test, a) => {
-        console.log(test, ConnectedServices);
         try {
           const { service_id, module_name, method_name } = test.namespace;
           const _args = getArgs(test.args);
@@ -96,13 +91,13 @@ const FullTestWrapper = ({ project_code, service_id, module_name, method_name })
           );
           test.evaluations = evaluations;
           test.total_errors = totalErrors;
-          console.log(test.results, "--------here");
+
           setStates[i](testData);
           updateState(!state);
         } catch (error) {
           test.test_end = moment().toJSON();
           test.results = error;
-          console.log(test.results);
+
           test.response_type = "error";
           const { evaluations, totalErrors } = validateResults(
             test.results,
@@ -120,28 +115,7 @@ const FullTestWrapper = ({ project_code, service_id, module_name, method_name })
   const TestController = function (setState, section) {
     const testData = this;
     const controller = {};
-    controller.runTest = async (testIndex) => {
-      console.log(section);
-      if (section === "main") runFullTest();
-      else {
-        try {
-          const { service_id, module_name, method_name } = testData[testIndex].namespace;
-          const _args = getArgs(testData[testIndex].args);
-          testData[testIndex].results = await ConnectedServices[service_id][module_name][
-            method_name
-          ].apply({}, _args);
-          testData[testIndex].response_type = "results";
-          testData[testIndex].response_type = "results";
-          setState(testData);
-          updateState(!state);
-        } catch (error) {
-          testData[testIndex].results = error;
-          testData[testIndex].response_type = "error";
-          setState(testData);
-          updateState(!state);
-        }
-      }
-    };
+
     controller.updateNamespace = (index, namespace) => {
       testData[index].namespace = namespace;
       setState(testData);
@@ -178,6 +152,28 @@ const FullTestWrapper = ({ project_code, service_id, module_name, method_name })
       testData[index] = createTest({ args, namespace, title });
       setState(testData);
       updateState(!state);
+    };
+
+    controller.runTest = async (testIndex) => {
+      if (section === "main") runFullTest();
+      else {
+        try {
+          const { service_id, module_name, method_name } = testData[testIndex].namespace;
+          const _args = getArgs(testData[testIndex].args);
+          testData[testIndex].results = await ConnectedServices[service_id][module_name][
+            method_name
+          ].apply({}, _args);
+          testData[testIndex].response_type = "results";
+          testData[testIndex].response_type = "results";
+          setState(testData);
+          updateState(!state);
+        } catch (error) {
+          testData[testIndex].results = error;
+          testData[testIndex].response_type = "error";
+          setState(testData);
+          updateState(!state);
+        }
+      }
     };
     return controller;
   };
