@@ -8,7 +8,7 @@ import ExpandableList from "../../molecules/ExpandableList/ExpandableList";
 import ServerModulesList from "../../organisms/ServerModulesList/ServerModulesList";
 import MissingDocIcon from "../../atoms/DocsIcon/DocsIcon";
 
-const SystemNav = ({ project_code }) => {
+const SystemNav = ({ project_code, service_id, module_name, method_name }) => {
   const { SystemLinkService, setTestServices } = useContext(ServiceContext);
   const { SystemLink } = SystemLinkService;
   const [servicesList, setServiceList] = useState([]);
@@ -50,7 +50,13 @@ const SystemNav = ({ project_code }) => {
         </div>
         <div className="row system-nav__section">
           <div className="col-12 ">
-            <NavigationLinks servicesList={servicesList} project_code={project_code} />
+            <NavigationLinks
+              servicesList={servicesList}
+              project_code={project_code}
+              _service_id={service_id}
+              _module_name={module_name}
+              _method_name={method_name}
+            />
           </div>
         </div>
       </div>
@@ -58,10 +64,17 @@ const SystemNav = ({ project_code }) => {
   );
 };
 
-const NavigationLinks = ({ servicesList, project_code }) => {
+const NavigationLinks = ({
+  servicesList,
+  project_code,
+  _service_id,
+  _module_name,
+  _method_name,
+}) => {
   return servicesList.map(({ server_modules, system_modules, dependencies, service_id }, i) => {
     return (
       <ExpandableList
+        open={_service_id === service_id}
         key={i}
         title={
           <React.Fragment>
@@ -73,6 +86,7 @@ const NavigationLinks = ({ servicesList, project_code }) => {
         }
       >
         <ServerModulesList
+          module_name={_module_name}
           project_code={project_code}
           service_id={service_id}
           server_modules={server_modules}

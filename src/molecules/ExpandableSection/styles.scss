@@ -1,5 +1,4 @@
 .expandable-section {
-  --title-color: black;
   width: 100%;
   margin-bottom: 6px;
   &__items {
@@ -9,9 +8,8 @@
   }
   &__title {
     margin-bottom: 7px;
-    color: var(--title-color);
     display: flex;
-
+    position: relative;
     &__btn {
       cursor: pointer;
     }

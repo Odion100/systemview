@@ -7,21 +7,21 @@
     z-index: 1;
     left: 0px;
     display: grid;
-    border: 1px solid blue;
+    border: 1px solid #bcbfd1;
     box-shadow: 1px 3px 4px #736c6c;
     max-height: 365px;
     overflow-y: auto;
   }
   &__suggestion {
-    padding: 4px 7px;
+    padding: 6px 7px;
     display: inline-flex;
     cursor: pointer;
     background: white;
     width: calc(300px + 1rem);
     &--active,
     &:hover:not(&--empty) {
-      background-color: #78c5b0;
-      color: #796e2c;
+      background-color: #cecee3;
+      color: #5960b6;
       cursor: pointer;
       font-weight: 700;
     }

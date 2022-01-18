@@ -5,12 +5,13 @@ import Link from "../../atoms/Link/Link";
 import MissingDocIcon from "../../atoms/DocsIcon/DocsIcon";
 import TestsIcon from "../../atoms/TestsIcon/TestsIcon";
 
-const ServerModulesList = ({ project_code, service_id, server_modules }) => {
+const ServerModulesList = ({ project_code, service_id, server_modules, module_name }) => {
   return (
     <React.Fragment>
       {server_modules.map(({ name, methods }, i) => {
         return (
           <ExpandableList
+            open={module_name === name}
             key={i}
             title={
               <React.Fragment>

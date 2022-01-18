@@ -112,7 +112,7 @@ const ArgData = ({ classname, arg, test_index, i, controller }) => {
         </div>
       </div>
 
-      <span className={`${classname}__data__delete-btn btn`} onClick={deleteArg}>
+      <span className={`${classname}__data__delete-btn btn delete-btn`} onClick={deleteArg}>
         x
       </span>
     </div>
@@ -143,6 +143,8 @@ const ArgDataForm = ({ arg, classname, test_index, i, controller }) => {
   const jsonTextboxSubmit = (new_object) => {
     console.log(new_object);
     arg.value = new_object;
+    if (Array.isArray(new_object)) arg.data_type = "array";
+    else arg.data_type = "object";
     controller.editArg(test_index, i, arg);
     hideJsonTxb();
   };

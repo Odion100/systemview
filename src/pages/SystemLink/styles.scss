@@ -16,6 +16,22 @@
   }
 }
 
+.delete-btn {
+  position: absolute;
+  top: 0px;
+  right: 0px;
+  font-family: system-ui;
+  color: #c50000;
+  background: white;
+  padding: 0px 5px 1px 5px;
+
+  font-weight: 300;
+  opacity: 0;
+  &:hover {
+    opacity: 1;
+  }
+}
+
 @-webkit-keyframes bounce {
   to {
     -webkit-transform: scale(1.2);

@@ -8,11 +8,13 @@ import "./styles.scss";
 
 const ScratchPad = ({ TestController, test, test_index = 0, dynamic = false }) => {
   console.log(test);
+  const placeholder = "service.module.method";
   const { project_code, service_id, module_name, method_name } = test.namespace;
-  const { TestServices } = useContext(ServiceContext);
+  const [nsp, setNsp] = useState(method_name ? `${service_id}.${module_name}.${method_name}` : "");
+  const [text_length, setLength] = useState(placeholder.length + 0.3);
   const [test_suggestions, setSuggestions] = useState([]);
-  const [text_length, setLength] = useState(0);
-  const [conn_str, setConnStr] = useState(`${service_id}.${module_name}.${method_name}`);
+  const { TestServices } = useContext(ServiceContext);
+  const [testResults, setTestResults] = useState(test.results);
 
   const runTest = async () => {
     TestController.runTest(test_index);
@@ -39,12 +41,14 @@ const ScratchPad = ({ TestController, test, test_index = 0, dynamic = false }) =
   const clearResponse = () => {
     TestController.resetResults(test_index);
   };
-
+  useEffect(() => {
+    setTestResults(test.results);
+  }, [test.results]);
   useEffect(() => createSuggestions(), [project_code, TestServices]);
   useEffect(() => {
-    const new_namespace = `${service_id}.${module_name}.${method_name}`;
-    setConnStr(new_namespace);
-    setLength((new_namespace || "").length + 0.3);
+    const new_namespace = method_name ? `${service_id}.${module_name}.${method_name}` : "";
+    setNsp(new_namespace);
+    setLength((new_namespace || placeholder).length + 0.3);
   }, [test.namespace, TestServices]);
 
   const style = { "--text-length": text_length ? text_length + "ch" : "auto" };
@@ -61,8 +65,9 @@ const ScratchPad = ({ TestController, test, test_index = 0, dynamic = false }) =
             className="scratchpad__test-method-input"
             suggestions={test_suggestions}
             onSubmit={changeConnection}
-            value={`${conn_str}`}
+            value={`${nsp}`}
             disabled={!dynamic}
+            placeholder={placeholder}
           />
           <span className="scratchpad__test-data__parentheses">{"("}</span>
           <Args args={test.args} controller={TestController} test_index={test_index} />
@@ -77,7 +82,7 @@ const ScratchPad = ({ TestController, test, test_index = 0, dynamic = false }) =
             x
           </span>
           <ReactJson
-            src={test.results || {}}
+            src={testResults}
             name={test.response_type}
             displayObjectSize={false}
             displayDataTypes={false}

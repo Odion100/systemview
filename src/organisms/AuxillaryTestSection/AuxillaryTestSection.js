@@ -4,9 +4,8 @@ import TestCaption from "../../molecules/TestCaption/TestCaption";
 import QuickTestSection from "../QuickTestSection/QuickTestSection";
 import "./styles.scss";
 
-const AuxillaryTestSection = ({ project_code, caption, TestController, testData }) => {
+const AuxillaryTestSection = ({ caption, TestController, testData }) => {
   const classname = "auxillary-test-section";
-  const onSubmit = (index, results) => console.log(index, results);
 
   return (
     <section className={classname}>
@@ -14,7 +13,7 @@ const AuxillaryTestSection = ({ project_code, caption, TestController, testData 
         open={true}
         title={
           <>
-            <TestCaption caption={`${caption}:`} />
+            <TestCaption caption={`${caption}`} />
             <AddButton onClick={TestController.addTest} />
           </>
         }
@@ -25,15 +24,13 @@ const AuxillaryTestSection = ({ project_code, caption, TestController, testData 
             testData.map((test, i) => (
               <QuickTestSection
                 key={i}
-                project_code={test.project_code}
-                service_id={test.service_id}
-                module_name={test.module_name}
-                method_name={test.method_name}
+                TestController={TestController}
                 test={test}
                 test_index={i}
                 title={`Action${i + 1}:`}
-                onSubmit={onSubmit}
+                title_color={"#4b53b3"}
                 dynamic={true}
+                open={true}
               />
             ))
           ) : (

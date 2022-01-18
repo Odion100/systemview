@@ -11,7 +11,12 @@ const SystemLinkPage = () => {
     <section className="system-viewer">
       <div className="row">
         <div className="col-3">
-          <SystemNavigator project_code={project_code} />
+          <SystemNavigator
+            project_code={project_code}
+            service_id={service_id}
+            module_name={module_name}
+            method_name={method_name}
+          />
         </div>
         <div className="col-6">
           <Documentation

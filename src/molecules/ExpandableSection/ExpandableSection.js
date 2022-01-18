@@ -9,12 +9,12 @@ const ExpandableSection = ({ children, title, title_color, open, lock }) => {
     setState(!isOpen);
   };
   const style = {
-    "--title-color": title_color || "black",
+    color: title_color || "black",
   };
 
   return (
-    <div className="expandable-section" style={style}>
-      <div className="expandable-section__title">
+    <div className="expandable-section">
+      <div className="expandable-section__title" style={style}>
         <span
           className={`expandable-section__btn expandable-section__btn--hide-${lock}`}
           onClick={expandClick}

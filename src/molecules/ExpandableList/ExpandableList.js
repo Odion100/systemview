@@ -3,8 +3,8 @@ import "./styles.scss";
 import List from "../../atoms/List/List";
 import ExpandIcon from "../../atoms/ExpandableIcon/ExpandableIcon";
 
-const ExpandableList = ({ children, title }) => {
-  const [isOpen, setState] = useState(false);
+const ExpandableList = ({ children, title, open = false }) => {
+  const [isOpen, setState] = useState(open);
 
   const expandClick = () => {
     setState(!isOpen);

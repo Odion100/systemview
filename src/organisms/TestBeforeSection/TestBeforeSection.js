@@ -2,13 +2,12 @@ import React from "react";
 import AuxillaryTestSection from "../../organisms/AuxillaryTestSection/AuxillaryTestSection";
 import "./styles.scss";
 
-const TestBeforeSection = ({ project_code, testData, TestController }) => {
+const TestBeforeSection = ({ testData, TestController }) => {
   return (
     <AuxillaryTestSection
-      project_code={project_code}
       testData={testData}
       TestController={TestController}
-      caption="Test Before"
+      caption="Before Test"
     />
   );
 };

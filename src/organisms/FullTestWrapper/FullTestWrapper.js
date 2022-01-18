@@ -10,12 +10,16 @@ import moment from "moment";
 
 const FullTestWrapper = ({ project_code, service_id, module_name, method_name }) => {
   const [state, updateState] = useState(false);
-  const createTest = ({ namespace, args, title }) => ({
+  const createTest = ({ namespace, args } = {}) => ({
     title: "",
     args: args || [],
     results: null,
     response_type: "",
-    namespace: namespace || { service_id: "", module_name: "", method_name: "" },
+    namespace: namespace || {
+      service_id: "",
+      module_name: "",
+      method_name: "",
+    },
     test_start: null,
     test_end: null,
     evaluations: [],
@@ -35,7 +39,8 @@ const FullTestWrapper = ({ project_code, service_id, module_name, method_name })
   ]);
   const [ConnectedServices, setConnection] = useState({});
 
-  const getConnection = ({ project_code, service_id }) => {
+  const getConnection = ({ service_id }) => {
+    console.log("---getting connnection", project_code, service_id);
     if (TestServices.length > 0) {
       const service = TestServices.find(
         (_service) => _service.project_code === project_code && _service.service_id === service_id
@@ -46,11 +51,13 @@ const FullTestWrapper = ({ project_code, service_id, module_name, method_name })
           .then((_service) => {
             ConnectedServices[service_id] = _service;
             setConnection(ConnectedServices);
+            console.log(ConnectedServices);
           })
           .catch((error) => console.log(error));
       else {
         ConnectedServices[service_id] = Client.loadedServices[service.url];
         setConnection(ConnectedServices);
+        console.log(console);
       }
     }
   };
@@ -69,48 +76,26 @@ const FullTestWrapper = ({ project_code, service_id, module_name, method_name })
       return value;
     });
 
+  const runTest = async (test) => {
+    try {
+      const { service_id, module_name, method_name } = test.namespace;
+      const _args = getArgs(test.args);
+      test.test_start = moment().toJSON();
+      test.results = await ConnectedServices[service_id][module_name][method_name].apply({}, _args);
+      test.test_end = moment().toJSON();
+      test.response_type = "results";
+    } catch (error) {
+      test.test_end = moment().toJSON();
+      test.results = error;
+      test.response_type = "error";
+    }
+  };
   const runFullTest = () => {
-    const setStates = [setTestBefore, setTestMain, setTestAfter];
-
-    [testBefore, testMain, testAfter].forEach((testData, i) =>
-      testData.forEach(async (test, a) => {
-        try {
-          const { service_id, module_name, method_name } = test.namespace;
-          const _args = getArgs(test.args);
-          test.test_start = moment().toJSON();
-          test.results = await ConnectedServices[service_id][module_name][method_name].apply(
-            {},
-            _args
-          );
-          test.test_end = moment().toJSON();
-          test.response_type = "results";
-          const { evaluations, totalErrors } = validateResults(
-            test.results,
-            test.response_type,
-            []
-          );
-          test.evaluations = evaluations;
-          test.total_errors = totalErrors;
-
-          setStates[i](testData);
-          updateState(!state);
-        } catch (error) {
-          test.test_end = moment().toJSON();
-          test.results = error;
-
-          test.response_type = "error";
-          const { evaluations, totalErrors } = validateResults(
-            test.results,
-            test.response_type,
-            []
-          );
-          test.evaluations = evaluations;
-          test.total_errors = totalErrors;
-          setStates[i](testData);
-          updateState(!state);
-        }
-      })
-    );
+    return Promise.all([
+      ...testBefore.map(async (test, a) => await runTest(test)),
+      ...testMain.map(async (test, a) => await runTest(test)),
+      ...testAfter.map(async (test, a) => await runTest(test)),
+    ]);
   };
   const TestController = function (setState, section) {
     const testData = this;
@@ -128,7 +113,7 @@ const FullTestWrapper = ({ project_code, service_id, module_name, method_name })
       updateState(!state);
     };
     controller.deleteTest = (index) => {
-      testData.spice(index, 1);
+      testData.splice(index, 1);
       setState(testData);
       updateState(!state);
     };
@@ -155,25 +140,22 @@ const FullTestWrapper = ({ project_code, service_id, module_name, method_name })
     };
 
     controller.runTest = async (testIndex) => {
-      if (section === "main") runFullTest();
-      else {
-        try {
-          const { service_id, module_name, method_name } = testData[testIndex].namespace;
-          const _args = getArgs(testData[testIndex].args);
-          testData[testIndex].results = await ConnectedServices[service_id][module_name][
-            method_name
-          ].apply({}, _args);
-          testData[testIndex].response_type = "results";
-          testData[testIndex].response_type = "results";
-          setState(testData);
-          updateState(!state);
-        } catch (error) {
-          testData[testIndex].results = error;
-          testData[testIndex].response_type = "error";
-          setState(testData);
-          updateState(!state);
-        }
+      console.log(section);
+      if (section === "main") {
+        await runFullTest();
+        const { evaluations, totalErrors } = validateResults(
+          testData[testIndex].results,
+          testData[testIndex].response_type,
+          []
+        );
+        testData[testIndex].evaluations = evaluations;
+        testData[testIndex].total_errors = totalErrors;
+      } else {
+        await runTest(testData[testIndex]);
+        setState(testData);
       }
+
+      updateState(!state);
     };
     return controller;
   };
@@ -182,7 +164,6 @@ const FullTestWrapper = ({ project_code, service_id, module_name, method_name })
     <>
       <div className="row test-panel__section">
         <TestBeforeSection
-          project_code={project_code}
           TestController={TestController.apply(testBefore, [setTestBefore, "before"])}
           testData={testBefore}
         />

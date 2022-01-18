@@ -12,7 +12,9 @@
       border: none;
       color: #5a77e5;
       text-overflow: ellipsis;
-      font-weight: bold;
+      font-size: 16px;
+      text-indent: 3px;
+      border-bottom: 1px solid gainsboro;
     }
     &--visible-false {
       display: none;

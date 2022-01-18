@@ -5,10 +5,9 @@ import "./styles.scss";
 const TestAfterSection = ({ project_code, testData, TestController }) => {
   return (
     <AuxillaryTestSection
-      project_code={project_code}
       testData={testData}
       TestController={TestController}
-      caption="Test After"
+      caption="After Test"
     />
   );
 };

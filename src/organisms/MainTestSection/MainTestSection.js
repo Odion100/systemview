@@ -8,9 +8,10 @@ const MainTest = ({ TestController, testData }) => {
   return (
     <section className="current-data-section">
       <QuickTestSection
-        title="Test:"
+        title="Main Test:"
         open={true}
-        testData={testData}
+        test={testData[0]}
+        test_index={0}
         TestController={TestController}
       >
         <Evaluations test={testData[0]} />

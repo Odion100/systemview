@@ -11,6 +11,7 @@
   &__test-data {
     background: #e9e9e9;
     padding: 25px 15px 25px 15px;
+    border-radius: 4px;
     &__parentheses {
       font-size: 19px;
     }
@@ -52,11 +53,14 @@
     font-size: 17px;
     width: var(--text-length);
     text-indent: 0;
+    text-overflow: clip;
+    max-width: 100%;
+    color: #223a95;
     &:focus {
       background: white;
     }
     &:disabled {
-      color: initial;
+      //color: initial;
     }
   }
 }

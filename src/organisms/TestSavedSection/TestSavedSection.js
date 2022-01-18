@@ -1,6 +1,6 @@
 import React from "react";
 import ExpandableSection from "../../molecules/ExpandableSection/ExpandableSection";
-import Text from "../../atoms/Text/Text";
+import TestCaption from "../../molecules/TestCaption/TestCaption";
 import "./styles.scss";
 
 const TestSavedSection = ({ project_code, service_id, module_name, method_name }) => {
@@ -10,7 +10,7 @@ const TestSavedSection = ({ project_code, service_id, module_name, method_name }
         open={true}
         title={
           <div>
-            <Text text="Saved Tests:" />
+            <TestCaption caption="Saved Tests" />
           </div>
         }
         title_color="#0d8065"

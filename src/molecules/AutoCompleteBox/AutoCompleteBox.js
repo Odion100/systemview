@@ -1,7 +1,14 @@
 import { useState, useEffect } from "react";
 import "./styles.scss";
 
-const AutoCompletBox = ({ suggestions, value = "", className, onSubmit, disabled = false }) => {
+const AutoCompletBox = ({
+  suggestions,
+  value = "",
+  className,
+  onSubmit,
+  disabled = false,
+  placeholder,
+}) => {
   const [filteredSuggestions, setFilteredSuggestions] = useState([]);
   const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(0);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -66,6 +73,7 @@ const AutoCompletBox = ({ suggestions, value = "", className, onSubmit, disabled
         onKeyDown={onKeyDown}
         value={input}
         disabled={disabled}
+        placeholder="service.module.method"
       />
       {showSuggestions && input && <SuggestionsListComponent />}
     </div>
