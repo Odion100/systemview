@@ -7,7 +7,7 @@
     z-index: 1;
     left: 0px;
     display: grid;
-    border: 1px solid #bcbfd1;
+    // border: 1px solid #bcbfd1;
     box-shadow: 1px 3px 4px #736c6c;
     max-height: 365px;
     overflow-y: auto;
@@ -20,10 +20,12 @@
     width: calc(300px + 1rem);
     &--active,
     &:hover:not(&--empty) {
-      background-color: #cecee3;
       color: #5960b6;
-      cursor: pointer;
-      font-weight: 700;
+      background-color: #cbcbff;
+      background-color: #dadaed;
+      color: #3f495d;
+      font-weight: 100;
+      font-weight: bold;
     }
     &--empty {
       justify-content: center;

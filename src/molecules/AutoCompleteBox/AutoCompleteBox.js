@@ -4,36 +4,48 @@ import "./styles.scss";
 const AutoCompletBox = ({
   suggestions,
   value = "",
-  className,
+  classname,
   onSubmit,
+  onChange,
   disabled = false,
   placeholder,
+  filterSuggestion = true,
+  requireSelection = true,
 }) => {
   const [filteredSuggestions, setFilteredSuggestions] = useState([]);
   const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(0);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [input, setInput] = useState(value);
   useEffect(() => setInput(value), [value]);
-  const onChange = (e) => {
+  const change = (e) => {
     const userInput = e.target.value;
 
     // Filter our suggestions that don't contain the user's input
-    const unLinked = suggestions.filter(
-      (suggestion) => suggestion.toLowerCase().indexOf(userInput.toLowerCase()) > -1
-    );
+    const unLinked = filterSuggestion
+      ? suggestions.filter(
+          (suggestion) => suggestion.toLowerCase().indexOf(userInput.toLowerCase()) > -1
+        )
+      : suggestions;
 
     setInput(e.target.value);
     setFilteredSuggestions(unLinked);
     setActiveSuggestionIndex(0);
-    setShowSuggestions(true);
+
+    if (
+      (!requireSelection && unLinked.indexOf(userInput) > -1) ||
+      (!requireSelection && unLinked.length <= 1 && userInput.length > (unLinked[0] || "").length)
+    )
+      setShowSuggestions(false);
+    else setShowSuggestions(true);
+    if (typeof onChange === "function") onChange(e.target.value);
   };
   const onClick = (e) => {
-    const text = e.target.innerText.substr(0, e.target.innerText.length - 1);
+    const text = e.target.innerText.substr(0, e.target.innerText.length);
+    if (typeof onSubmit === "function") onSubmit(text);
     setFilteredSuggestions([]);
     setInput(text);
     setActiveSuggestionIndex(0);
     setShowSuggestions(false);
-    if (typeof onSubmit === "function") onSubmit(text);
   };
 
   const SuggestionsListComponent = () => {
@@ -67,13 +79,13 @@ const AutoCompletBox = ({
   return (
     <div className="auto-complete">
       <input
-        className={className + " auto-complete__input"}
+        className={classname + " auto-complete__input"}
         type="text"
-        onChange={onChange}
+        onChange={change}
         onKeyDown={onKeyDown}
         value={input}
         disabled={disabled}
-        placeholder="service.module.method"
+        placeholder={placeholder}
       />
       {showSuggestions && input && <SuggestionsListComponent />}
     </div>

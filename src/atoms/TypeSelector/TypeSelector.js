@@ -2,15 +2,15 @@ import React from "react";
 import "./styles.scss";
 import Selector from "../Selector/Selector";
 const options = [
+  "string",
   "number",
   "date",
-  "string",
-  "array",
   "boolean",
   "object",
-  "null",
   "undefined",
+  "null",
   "target",
+  "complex",
 ];
 
 const TypeSelector = ({ default_type, onSelect, xClassname = "" }) => {

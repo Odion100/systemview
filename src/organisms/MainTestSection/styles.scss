@@ -1,6 +1,8 @@
 .evaluations {
-  background: #cecee3;
-
+  background: #eca0a0;
+  background: #25d0a8;
+  background: #76b1f7;
+  border-radius: 0px 0px 4px 4px;
   overflow-wrap: anywhere;
   padding: 12px 18px;
   &--visible-false {
@@ -34,14 +36,11 @@
     }
   }
   &__add-validation-btn {
-    padding: 0px 4px;
-    border-radius: 81px;
     background: #5a77ca;
-    background: #0b886b;
+    padding: 0px 5px 1px 5px;
+    border-radius: 16px;
     font-weight: bold;
-    color: #a5ffda;
-    border: 1px solid;
-    cursor: pointer;
+    color: #ffffff;
   }
   &__validation-container {
     display: inline-grid;
@@ -52,14 +51,13 @@
   }
   &__validation {
     &__delete-btn {
-      display: inline-flex;
-      font-family: sans-serif;
+      display: inline;
+      font-family: system-ui;
       margin-left: 6px;
-      font-size: 16px;
-      cursor: pointer;
-      color: #767676;
+      font-size: 15px;
+      color: #6565a1;
       &:hover {
-        color: #b55454;
+        color: #c30f0f;
       }
     }
     &__input {
@@ -76,6 +74,7 @@
   &--error-true > * {
     color: red;
     color: #c50000;
-    font-weight: bold;
+    font-weight: 500;
+    font-style: italic;
   }
 }

@@ -11,8 +11,8 @@ const ExpandableList = ({ children, title, open = false }) => {
   };
   return (
     <div className="expandable-list">
-      <div className="expandable-list__button" onClick={expandClick}>
-        <ExpandIcon isOpen={isOpen} />
+      <div className="expandable-list__button">
+        <ExpandIcon isOpen={isOpen} onClick={expandClick} />
         {title}
       </div>
 

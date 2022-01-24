@@ -90,6 +90,7 @@ const NavigationLinks = ({
           project_code={project_code}
           service_id={service_id}
           server_modules={server_modules}
+          method_name={_method_name}
         />
       </ExpandableList>
     );

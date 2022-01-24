@@ -23,9 +23,6 @@ export function validateResults(results, namespace, savedEvaluations = []) {
     };
   };
   const recursiveEval = (obj, previousNamespace) => {
-    console.log(obj);
-    console.log(namespace);
-    console.log(savedEvaluations);
     const propNames = Object.getOwnPropertyNames(obj);
     propNames.forEach((prop_name) => {
       const currentNamesapce = previousNamespace + "." + prop_name;

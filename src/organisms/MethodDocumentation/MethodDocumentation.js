@@ -30,7 +30,7 @@ const MethodDoc = ({ project_code, service_id, module_name, method_name }) => {
 
   useEffect(() => {
     fetchDocument();
-  }, [method_name]);
+  }, [method_name, module_name, service_id]);
 
   return (
     <div className="documentation-view">

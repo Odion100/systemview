@@ -3,7 +3,6 @@
   display: flex;
   &__selector {
     padding: 3px;
-    border-radius: 3px 0px 0px 3px;
     outline: none;
     border-right: none;
     background: #8cdecb;
@@ -14,14 +13,31 @@
     font-weight: bold;
   }
 
+  &__input,
+  &__selector {
+    background: none;
+    border: none;
+    border-bottom: 1px solid #9797d1;
+    font-family: monospace;
+    font-size: 14px;
+  }
   &__input {
     padding: 4px;
-    border-radius: 0 3px 3px 0;
-    border: 1px solid #767676;
     outline: none;
-    color: blue;
-    border-left: none;
-    background: #8cdecb;
+    color: #0d8065;
+  }
+  &__value {
+    &--boolean {
+      &--true {
+        color: #207844;
+      }
+      &--false {
+        color: #cf1515;
+      }
+      position: relative;
+      top: 7px;
+      font-weight: bold;
+    }
   }
 }
 input:-webkit-autofill {

@@ -14,7 +14,7 @@ const AuxillaryTestSection = ({ caption, TestController, testData }) => {
         title={
           <>
             <TestCaption caption={`${caption}`} />
-            <AddButton onClick={TestController.addTest} />
+            <AddButton onClick={TestController.addTest} classname={classname} />
           </>
         }
         title_color="#0d8065"
@@ -42,9 +42,9 @@ const AuxillaryTestSection = ({ caption, TestController, testData }) => {
   );
 };
 
-const AddButton = ({ onClick }) => {
+const AddButton = ({ onClick, classname }) => {
   return (
-    <span className="add-btn btn" onClick={onClick}>
+    <span className={`${classname}__add-btn btn`} onClick={onClick}>
       +
     </span>
   );

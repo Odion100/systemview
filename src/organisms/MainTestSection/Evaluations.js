@@ -3,11 +3,9 @@ import ExpandableSection from "../../molecules/ExpandableSection/ExpandableSecti
 import ValidationInput from "../../molecules/ValidationInput/ValidationInput";
 import validation_options from "../../molecules/ValidationInput/ValidationOptions";
 import TypeSelector from "../../atoms/TypeSelector/TypeSelector";
-
-import { getErrors } from "../FullTestWrapper/validations";
+import { getErrors } from "../../molecules/ValidationInput/validations";
 
 export default function Evaluations({ test }) {
-  console.log(test);
   const [currentEvaluations, updateEvaluations] = useState([]);
   const [errorCount, setErrorCount] = useState(0);
   const [state, setState] = useState(true);
@@ -60,7 +58,6 @@ export default function Evaluations({ test }) {
   };
 
   useEffect(() => {
-    console.log(test);
     if (test.test_end !== null) {
       updateEvaluations(test.evaluations);
       setErrorCount(test.total_errors);
@@ -150,7 +147,7 @@ const EvaluationRow = ({
               evaluations__type-error-msg--${errors.typeError} 
               evaluations--error-${errors.typeError}`}
           >
-            (got {type})
+            (received {type})
           </span>
         </div>
       }
@@ -163,7 +160,7 @@ const EvaluationRow = ({
         >
           <div className="evaluations__add-btn-container">
             <span
-              className="evaluations__add-validation-btn"
+              className="evaluations__add-validation-btn btn"
               onClick={addValidation.bind(this, index)}
             >
               +
@@ -182,7 +179,7 @@ const EvaluationRow = ({
                     onInputChanged={updateValidations.bind(this, index, i, "value")}
                   />
                   <span
-                    className="evaluations__validation__delete-btn"
+                    className="evaluations__validation__delete-btn btn"
                     onClick={deleteValidation.bind(this, index, i)}
                   >
                     x

@@ -2,13 +2,14 @@
   display: inline;
   width: 100%;
   &__add-btn {
-    background: #25d0a8;
-    margin: 0px 0px 0px 3px;
-    padding: 0px 5px 1px 5px;
-    border-radius: 16px;
+    padding: 0px 3px;
+    border-radius: 21px;
     font-weight: bold;
     color: #ffffff;
-    cursor: pointer;
+    font-size: 16px;
+    margin: 0 5px;
+    line-height: 16px;
+    background: #5a77e5;
   }
   &__data {
     background: #cecee3;
@@ -42,6 +43,9 @@
   }
 
   &__form {
+    &--is12 {
+      margin-top: 10px;
+    }
     &__undefined {
       color: #5a5a5a;
     }
@@ -55,8 +59,18 @@
         color: #9741ed;
         font-weight: bold;
       }
-      &--string {
+      &--string,
+      &--target {
         color: #cf5f2e;
+        min-height: 31px;
+        height: 31px;
+        min-width: 100%;
+        max-width: 100%;
+        resize: none;
+      }
+      &--target {
+        font-weight: bold;
+        color: #009572;
       }
       &--date {
         margin-top: 6px;

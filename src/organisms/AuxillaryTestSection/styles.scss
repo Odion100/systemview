@@ -8,17 +8,14 @@
   & .test-caption__description-input > input {
     border-bottom: 1px solid #c5c5c5;
   }
-}
-
-.add-btn {
-  cursor: pointer;
-  padding: 1px 8px;
-  border-radius: 21px;
-  font-weight: bold;
-  color: #0d8065;
-  font-size: 16px;
-
-  border: 1px solid;
+  &__add-btn {
+    padding: 0px 4px;
+    border-radius: 21px;
+    font-weight: bold;
+    color: #5960b6;
+    font-size: 16px;
+    background: #cecee3;
+  }
 }
 
 .react-json-view {

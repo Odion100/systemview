@@ -7,11 +7,10 @@ import ServiceContext from "../../ServiceContext";
 import "./styles.scss";
 
 const ScratchPad = ({ TestController, test, test_index = 0, dynamic = false }) => {
-  console.log(test);
   const placeholder = "service.module.method";
   const { project_code, service_id, module_name, method_name } = test.namespace;
   const [nsp, setNsp] = useState(method_name ? `${service_id}.${module_name}.${method_name}` : "");
-  const [text_length, setLength] = useState(placeholder.length + 0.3);
+  const [text_length, setLength] = useState(placeholder.length + 0.4);
   const [test_suggestions, setSuggestions] = useState([]);
   const { TestServices } = useContext(ServiceContext);
   const [testResults, setTestResults] = useState(test.results);
@@ -32,9 +31,9 @@ const ScratchPad = ({ TestController, test, test_index = 0, dynamic = false }) =
   };
 
   const changeConnection = (namespaces) => {
-    const [service_id, module_name, method_name] = namespaces
-      .substr(0, namespaces.length - 1)
-      .split(".");
+    //remove open-close parentheses
+    namespaces = namespaces.slice(0, -2);
+    const [service_id, module_name, method_name] = namespaces.split(".");
     TestController.updateNamespace(test_index, { service_id, module_name, method_name });
   };
 
@@ -48,7 +47,7 @@ const ScratchPad = ({ TestController, test, test_index = 0, dynamic = false }) =
   useEffect(() => {
     const new_namespace = method_name ? `${service_id}.${module_name}.${method_name}` : "";
     setNsp(new_namespace);
-    setLength((new_namespace || placeholder).length + 0.3);
+    setLength((new_namespace || placeholder).length + 0.4);
   }, [test.namespace, TestServices]);
 
   const style = { "--text-length": text_length ? text_length + "ch" : "auto" };
@@ -62,7 +61,7 @@ const ScratchPad = ({ TestController, test, test_index = 0, dynamic = false }) =
         </div>
         <div className="scratchpad__test-data">
           <AutoCompletBox
-            className="scratchpad__test-method-input"
+            classname="scratchpad__test-method-input"
             suggestions={test_suggestions}
             onSubmit={changeConnection}
             value={`${nsp}`}

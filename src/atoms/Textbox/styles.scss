@@ -4,9 +4,11 @@
 @import "../../sass/bootstrap/bootstrap-grid.scss";
 
 .textbox {
-  & input {
+  & input,
+  textarea {
     padding: 0.75rem;
     width: 100%;
     padding: 7px;
+    font-size: 15px;
   }
 }

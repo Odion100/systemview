@@ -18,11 +18,11 @@ const ValidationInput = ({ type, name, value, className = "", onSelect, onInputC
     else if (e.target.type === "checkbox") onInputChanged(e.target.checked);
     else onInputChanged(e.target.value);
   };
-
+  const classname = "validation-input";
   return (
     <div className={`validation-input ${className}`}>
       <Selector
-        className="validation-input__selector"
+        className={`${classname}__selector`}
         options={options[type].options}
         values={options[type].values}
         controlledOption={name}
@@ -30,7 +30,7 @@ const ValidationInput = ({ type, name, value, className = "", onSelect, onInputC
       />
       {type !== "boolean" ? (
         <input
-          className="validation-input__input"
+          className={`${classname}__input`}
           type={inputType}
           name="validtion-input"
           autoComplete="off"
@@ -38,7 +38,12 @@ const ValidationInput = ({ type, name, value, className = "", onSelect, onInputC
           onChange={inputChanged}
         />
       ) : (
-        <Toggle isChecked={value} onChange={inputChanged} />
+        <>
+          <Toggle isChecked={value} onChange={inputChanged} round={true} />{" "}
+          <span className={`${classname}__value--boolean ${classname}__value--boolean--${value}`}>
+            {(value === true) + ""}
+          </span>
+        </>
       )}
     </div>
   );
