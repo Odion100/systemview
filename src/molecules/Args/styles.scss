@@ -61,6 +61,7 @@
       }
       &--string,
       &--target {
+        text-indent: 5px;
         color: #cf5f2e;
         min-height: 31px;
         height: 31px;
@@ -74,7 +75,7 @@
       }
       &--date {
         margin-top: 6px;
-        color: red;
+        color: #9f4040;
       }
     }
     &__value {
@@ -118,6 +119,32 @@
   &__json-txb {
     &--show-false {
       display: none !important;
+    }
+  }
+  &__value {
+    padding: 14px;
+    &__number {
+      color: #9741ed;
+      font-weight: bold;
+    }
+    &__string {
+      color: #cf5f2e;
+    }
+    &__date {
+      color: #9f4040;
+    }
+    &__undefined {
+      color: #5a5a5a;
+    }
+
+    &__boolean {
+      font-weight: bold;
+      &--true {
+        color: #207844;
+      }
+      &--false {
+        color: #cf1515;
+      }
     }
   }
 }

@@ -6,6 +6,7 @@ import ExpandableIcon from "../../atoms/ExpandableIcon/ExpandableIcon";
 import TypeSelector from "../../atoms/TypeSelector/TypeSelector";
 import TargetSelector from "../TargetSelector/TargetSelector";
 import Toggle from "../../atoms/Toggle/Toggle";
+import { getType } from "../ValidationInput/validations";
 import "./styles.scss";
 
 const Args = ({ args, controller, test_index, data_type }) => {
@@ -140,7 +141,7 @@ const ArgName = ({ name, classname, isOpen, showData }) => {
 const ArgDataForm = ({ arg, classname, test_index, i, controller, is12 }) => {
   const { value, name, data_type, target_values } = arg;
   const [jsonBoxVisible, setJsonBoxVisible] = useState(false);
-
+  console.log(arg);
   const showJsonTxb = () => setJsonBoxVisible(true);
   const hideJsonTxb = () => setJsonBoxVisible(false);
   const inputChanged = (e) => {
@@ -155,7 +156,10 @@ const ArgDataForm = ({ arg, classname, test_index, i, controller, is12 }) => {
     controller.editArg(test_index, i, arg);
     hideJsonTxb();
   };
-  const jsonObjectSubmit = (e) => jsonTextboxSubmit(e.updated_src || {});
+  const jsonObjectSubmit = (e) => {
+    jsonTextboxSubmit(e.updated_src || {});
+    console.log("------------jjjjjjjsssssoooonnnn", e);
+  };
   const textboxChanged = (e) => {
     adjustSize(e);
     inputChanged(e);
@@ -230,14 +234,54 @@ const ArgDataForm = ({ arg, classname, test_index, i, controller, is12 }) => {
           </span>
         </span>
       ) : data_type === "target" ? (
-        <TargetSelector
-          controller={controller}
-          value={value}
-          target_values={target_values[0]}
-          test_index={test_index}
-          arg_index={i}
-          classname={`${classname}__form__input ${classname}__form__input--${data_type}`}
-        />
+        <div className={`${classname}__form__${data_type}`}>
+          <TargetSelector
+            controller={controller}
+            value={value}
+            target_values={target_values[0]}
+            test_index={test_index}
+            arg_index={i}
+            classname={`${classname}__form__input ${classname}__form__input--${data_type}`}
+          />
+          <ArgValue value={value} classname={`${classname}`} />
+        </div>
+      ) : (
+        <span className={`${classname}__value`}>{value + ""}</span>
+      )}
+    </div>
+  );
+};
+
+const ArgValue = ({ classname, value }) => {
+  const data_type = getType(value);
+  return (
+    <div className={`${classname}__value`}>
+      {data_type === "undefined" || data_type === "null" ? (
+        <span className={`${classname}__value__${data_type}`}>{value + ""}</span>
+      ) : data_type === "string" ? (
+        <span className={`${classname}__value__${data_type}`}>{value + ""}</span>
+      ) : data_type === "number" ? (
+        <span className={`${classname}__value__${data_type}`}>{value + ""}</span>
+      ) : data_type === "boolean" ? (
+        <span
+          className={`${classname}__value__${data_type} ${classname}__value__${data_type}--${
+            value + ""
+          }`}
+        >
+          {(value === true) + ""}
+        </span>
+      ) : data_type === "date" ? (
+        <span className={`${classname}__value__${data_type}`}>{moment(value).format() + ""}</span>
+      ) : data_type === "object" || data_type === "array" ? (
+        <span className={`${classname}__value__${data_type}`}>
+          <ReactJson
+            src={value}
+            name={false}
+            displayObjectSize={false}
+            displayDataTypes={false}
+            collapsed={true}
+          />{" "}
+        </span>
       ) : (
         <span className={`${classname}__value__${data_type}`}>{value + ""}</span>
       )}

@@ -39,7 +39,6 @@ const FullTestWrapper = ({ project_code, service_id, module_name, method_name })
   const [ConnectedProject, setConnection] = useState({});
 
   const getConnection = ({ service_id }) => {
-    console.log("---getting connnection", project_code, service_id);
     if (TestServices.length > 0) {
       const service = TestServices.find(
         (_service) => _service.project_code === project_code && _service.service_id === service_id
@@ -217,6 +216,8 @@ const FullTestWrapper = ({ project_code, service_id, module_name, method_name })
         value: targetValue,
         source_namespace: "",
       };
+      testData[testIndex].args[argIndex].value = targetValue;
+      testData[testIndex].args[argIndex].type = getType(targetValue);
       setState(testData);
       updateState(!state);
     };
