@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import "./styles.scss";
 
-const AutoCompletBox = ({
+const AutoCompleteBox = ({
   suggestions,
   value = "",
-  classname,
+  className,
   onSubmit,
   onChange,
   disabled = false,
@@ -79,7 +79,7 @@ const AutoCompletBox = ({
   return (
     <div className="auto-complete">
       <input
-        className={classname + " auto-complete__input"}
+        className={className + " auto-complete__input"}
         type="text"
         onChange={change}
         onKeyDown={onKeyDown}
@@ -92,4 +92,4 @@ const AutoCompletBox = ({
   );
 };
 
-export default AutoCompletBox;
+export default AutoCompleteBox;
