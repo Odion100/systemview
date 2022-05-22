@@ -1,6 +1,6 @@
 import React from "react";
 import TestSavedSection from "../TestSavedSection/TestSavedSection";
-import FullTestWrapper from "../FullTestWrapper/FullTestWrapper";
+import FullTest from "../FullTest/FullTest";
 import Title from "../../atoms/Title/Title";
 import "./styles.scss";
 
@@ -11,7 +11,7 @@ const TestPanel = ({ project_code, service_id, module_name, method_name }) => {
         <div className="row">
           <Title text="TasksJS Test Panel" />
         </div>
-        <FullTestWrapper
+        <FullTest
           project_code={project_code}
           service_id={service_id}
           module_name={module_name}

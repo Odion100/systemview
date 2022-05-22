@@ -8,7 +8,6 @@ import { validateResults, getType } from "../../molecules/ValidationInput/valida
 import moment from "moment";
 
 const FullTestWrapper = ({ project_code, service_id, module_name, method_name }) => {
-  const [state, updateState] = useState(false);
   const createTest = ({ namespace, args } = {}) => ({
     title: "",
     args: args || [],
