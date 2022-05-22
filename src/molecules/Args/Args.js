@@ -174,7 +174,7 @@ const ArgDataForm = ({ arg, className, test_index, i, controller, is12 }) => {
     adjustSize(e);
     inputChanged(e);
     controller.checkTargetValues(test_index, i, e.target.value, ["value"]);
-    controller.parseTargetValues(test_index, i, e.target.value, ["value"]);
+    controller.parseTargetValues(test_index, i, e.target.value, ["value"])``;
   };
 
   return (
