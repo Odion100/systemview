@@ -1,7 +1,8 @@
 .evaluations {
-  background: #eca0a0;
   background: #25d0a8;
   background: #76b1f7;
+  background: #bbcaf3;
+
   border-radius: 0px 0px 4px 4px;
   overflow-wrap: anywhere;
   padding: 12px 18px;
@@ -73,8 +74,8 @@
   &--error-true,
   &--error-true > * {
     color: red;
-    color: #c50000;
-    font-weight: 500;
+    color: #993939;
+    font-weight: bold;
     font-style: italic;
   }
 }

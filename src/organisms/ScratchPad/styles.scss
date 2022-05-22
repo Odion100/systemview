@@ -12,7 +12,7 @@
     background: #e9e9e9;
     padding: 25px 15px 25px 15px;
     border-radius: 4px 4px 0px 0px;
-    border: 1px solid #e9e9e9;
+
     &__parentheses {
       font-size: 19px;
     }
@@ -21,8 +21,8 @@
     padding: 12px 15px;
     background: #ffffff;
     position: relative;
-    border: 1px solid #cecee3;
-
+    border-left: 1px solid #e9e9e9;
+    border-right: 1px solid #e9e9e9;
     &--visible-false {
       display: none;
     }
