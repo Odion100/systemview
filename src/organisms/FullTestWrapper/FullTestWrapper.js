@@ -210,48 +210,39 @@ const FullTestWrapper = ({ project_code, service_id, module_name, method_name })
         testData[testIndex].total_errors = totalErrors;
       } else {
         await runTest(testData[testIndex]);
-        setState(testData);
+        setState({ ...testData });
       }
-
-      updateState(!state);
     };
     controller.updateNamespace = (index, namespace) => {
       testData[index].namespace = namespace;
-      setState(testData);
+      setState({ ...testData });
       getConnection(namespace);
-      updateState(!state);
     };
     controller.addTest = () => {
       testData.push(createTest());
-      setState(testData);
-      updateState(!state);
+      setState({ ...testData });
     };
     controller.deleteTest = (index) => {
       testData.splice(index, 1);
-      setState(testData);
-      updateState(!state);
+      setState({ ...testData });
     };
     controller.addArg = (index, input, name, targetValues) => {
       testData[index].args.push(createArg(input, name, targetValues));
-      setState(testData);
-      updateState(!state);
+      setState({ ...testData });
     };
     controller.deleteArg = (index, argIndex) => {
       testData[index].args.splice(argIndex, 1);
-      setState(testData);
-      updateState(!state);
+      setState({ ...testData });
     };
     controller.editArg = (index, argIndex, arg) => {
       arg.data_type = getType(arg.input);
       testData[index].args[argIndex] = arg;
-      setState(testData);
-      updateState(!state);
+      setState({ ...testData });
     };
     controller.resetResults = (index) => {
       const { args, namespace, title } = testData[index];
       testData[index] = createTest({ args, namespace, title });
-      setState(testData);
-      updateState(!state);
+      setState({ ...testData });
     };
 
     controller.deleteTargetValue = (testIndex, argIndex, target_index) => {
