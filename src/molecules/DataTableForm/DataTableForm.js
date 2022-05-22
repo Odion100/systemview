@@ -42,32 +42,22 @@ const MethodDataForm = ({ data, submit }) => {
   });
 
   const [dataTable, setTable] = useState(matrix.table);
-  const [state, setState] = useState(false);
   const [formSubmitted, setFormSubmitted] = useState(false);
-  const addRow = () => {
-    dataTable.push(["", "Object", "", "", "false"]);
-    //not sure why this is working
-    setState(!state);
-  };
+  const addRow = () => setTable([...dataTable, ["", "Object", "", "", "false"]]);
+
   const deleteRow = ([i]) => {
-    console.log(i, this);
     dataTable.splice(i, 1);
+    setTable([...dataTable]);
     console.log(dataTable);
-    setTable(dataTable);
-    setState(!state);
   };
   const updateCell = (row, col, e) => {
     dataTable[row][col] = e.target.value;
-    setTable(dataTable);
-    setState(!state);
-    console.log(dataTable);
+    setTable([...dataTable]);
   };
   const updateCheckboxCell = (row, col, event) => {
     dataTable[row][col] = event.target.checked + "";
     dataTable[row][col - 1] = event.target.checked ? "n/a" : "";
-    console.log(dataTable);
-    setTable(dataTable);
-    setState(!state);
+    setTable([...dataTable]);
   };
   const formCanceled = () => {
     setFormSubmitted(false);
@@ -106,6 +96,7 @@ const MethodDataForm = ({ data, submit }) => {
               headers={formHeaders}
               table={dataTable.map(([name, type, description, default_value, required], i) => {
                 const _required = /true/i.test(required);
+                console.log(required, _required);
                 return [
                   <Textbox
                     inputClassName={`data-table-form__input-validation--${
