@@ -1,25 +1,25 @@
-import React, { useState } from "react";
+import React from "react";
 import ExpandableSection from "../../molecules/ExpandableSection/ExpandableSection";
 import TestCaption from "../../molecules/TestCaption/TestCaption";
 import QuickTestSection from "../QuickTestSection/QuickTestSection";
 import "./styles.scss";
 
 const AuxillaryTestSection = ({ caption, TestController, testData }) => {
-  const classname = "auxillary-test-section";
+  const className = "auxillary-test-section";
 
   return (
-    <section className={classname}>
+    <section className={className}>
       <ExpandableSection
         open={true}
         title={
           <>
             <TestCaption caption={`${caption}`} />
-            <AddButton onClick={TestController.addTest} classname={classname} />
+            <AddButton onClick={TestController.addTest} className={className} />
           </>
         }
         title_color="#0d8065"
       >
-        <div className={`${classname}__test-data`}>
+        <div className={`${className}__test-data`}>
           {testData.length > 0 ? (
             testData.map((test, i) => (
               <QuickTestSection
@@ -42,9 +42,9 @@ const AuxillaryTestSection = ({ caption, TestController, testData }) => {
   );
 };
 
-const AddButton = ({ onClick, classname }) => {
+const AddButton = ({ onClick, className }) => {
   return (
-    <span className={`${classname}__add-btn btn`} onClick={onClick}>
+    <span className={`${className}__add-btn btn`} onClick={onClick}>
       +
     </span>
   );
