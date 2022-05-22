@@ -15,12 +15,12 @@ const QuickTestSection = ({
   test_index,
   title_color,
 }) => {
-  const classname = "quick-test";
+  const className = "quick-test";
   const deleteTest = () => {
     TestController.deleteTest(test_index);
   };
   return (
-    <section className={classname}>
+    <section className={className}>
       <ExpandableSection
         open={open}
         title_color={title_color || "#0d8065"}
@@ -28,7 +28,7 @@ const QuickTestSection = ({
           <>
             <TestCaption caption={<b>{title}</b>} useInput={true} />
             {dynamic ? (
-              <span className={`${classname}__delete-btn btn delete-btn`} onClick={deleteTest}>
+              <span className={`${className}__delete-btn btn delete-btn`} onClick={deleteTest}>
                 x
               </span>
             ) : (

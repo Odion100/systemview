@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useState } from "react";
 import ReactJson from "react-json-view";
 import TestsIcon from "../../atoms/TestsIcon/TestsIcon";
-import AutoCompletBox from "../../molecules/AutoCompleteBox/AutoCompleteBox";
+import AutoCompleteBox from "../../molecules/AutoCompleteBox/AutoCompleteBox";
 import Args from "../../molecules/Args/Args";
 import ServiceContext from "../../ServiceContext";
 import "./styles.scss";
@@ -60,8 +60,8 @@ const ScratchPad = ({ TestController, test, test_index = 0, dynamic = false }) =
           </span>
         </div>
         <div className="scratchpad__test-data">
-          <AutoCompletBox
-            classname="scratchpad__test-method-input"
+          <AutoCompleteBox
+            className="scratchpad__test-method-input"
             suggestions={test_suggestions}
             onSubmit={changeConnection}
             value={`${nsp}`}
