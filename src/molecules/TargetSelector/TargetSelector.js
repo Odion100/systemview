@@ -1,32 +1,29 @@
 import React from "react";
-import AutoCompletBox from "../AutoCompleteBox/AutoCompleteBox";
+import AutoCompleteBox from "../AutoCompleteBox/AutoCompleteBox";
 import "./styles.scss";
 
 const TargetSelector = ({
   controller,
-  value,
-  target_value,
+  target_namespace,
   test_index,
   arg_index,
+  className,
   target_index,
-  classname,
 }) => {
   const submit = (value) => {
     controller.setTargetValue(test_index, arg_index, target_index, value);
   };
-
   //gather suggestions
   //create a onchange fn to update target value as user types
-  //submit fn should fill text box (already automatic) and then update tartet value
-  const className = "target-selector";
+  //submit fn should fill text box (already automatic) and then update target value
   return (
-    <div className={`${className}`}>
-      <AutoCompletBox
-        classname={`${className}__auto-complete ${classname}`}
+    <div className={`target-selector`}>
+      <AutoCompleteBox
+        className={`target-selector__auto-complete ${className}`}
         suggestions={controller.getTargetSuggestions(test_index)}
         onSubmit={submit}
         onChange={submit}
-        value={target_value}
+        value={target_namespace}
         placeholder={"beforeTest.Action1.results..."}
         requireSelection={false}
       />
