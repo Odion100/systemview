@@ -7,7 +7,7 @@ import { Client } from "tasksjs-react-client";
 import { validateResults, getType } from "../../molecules/ValidationInput/validations";
 import moment from "moment";
 
-const FullTestWrapper = ({ project_code, service_id, module_name, method_name }) => {
+const FullTest = ({ project_code, service_id, module_name, method_name }) => {
   const createTest = ({ namespace, args } = {}) => ({
     title: "",
     args: args || [],
@@ -209,39 +209,39 @@ const FullTestWrapper = ({ project_code, service_id, module_name, method_name })
         testData[testIndex].total_errors = totalErrors;
       } else {
         await runTest(testData[testIndex]);
-        setState({ ...testData });
+        setState([...testData]);
       }
     };
     controller.updateNamespace = (index, namespace) => {
       testData[index].namespace = namespace;
-      setState({ ...testData });
+      setState([...testData]);
       getConnection(namespace);
     };
     controller.addTest = () => {
       testData.push(createTest());
-      setState({ ...testData });
+      setState([...testData]);
     };
     controller.deleteTest = (index) => {
       testData.splice(index, 1);
-      setState({ ...testData });
+      setState([...testData]);
     };
     controller.addArg = (index, input, name, targetValues) => {
       testData[index].args.push(createArg(input, name, targetValues));
-      setState({ ...testData });
+      setState([...testData]);
     };
     controller.deleteArg = (index, argIndex) => {
       testData[index].args.splice(argIndex, 1);
-      setState({ ...testData });
+      setState([...testData]);
     };
     controller.editArg = (index, argIndex, arg) => {
       arg.data_type = getType(arg.input);
       testData[index].args[argIndex] = arg;
-      setState({ ...testData });
+      setState([...testData]);
     };
     controller.resetResults = (index) => {
       const { args, namespace, title } = testData[index];
       testData[index] = createTest({ args, namespace, title });
-      setState({ ...testData });
+      setState([...testData]);
     };
 
     controller.deleteTargetValue = (testIndex, argIndex, target_index) => {
@@ -377,4 +377,4 @@ const FullTestWrapper = ({ project_code, service_id, module_name, method_name })
   );
 };
 
-export default FullTestWrapper;
+export default FullTest;

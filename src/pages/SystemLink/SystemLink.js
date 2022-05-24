@@ -9,6 +9,7 @@ const SystemLinkPage = () => {
   const { project_code, service_id, module_name, method_name } = useParams();
   return (
     <section className="system-viewer">
+      <div className="page-header"></div>
       <div className="row">
         <div className="col-3">
           <SystemNavigator

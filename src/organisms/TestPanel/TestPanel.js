@@ -9,7 +9,7 @@ const TestPanel = ({ project_code, service_id, module_name, method_name }) => {
     <section className="test-panel">
       <div className="container">
         <div className="row">
-          <Title text="TasksJS Test Panel" />
+          <Title text="Scratch Pad" />
         </div>
         <FullTest
           project_code={project_code}

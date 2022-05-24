@@ -54,7 +54,7 @@ const DocTitle = ({ service_id, module_name, method_name, variable_name = "data"
   return (
     <Title
       text={
-        <span style={{ color: "white" }}>
+        <span className="documentation-view__title">
           {`${service_id}.${module_name}.${method_name}`}(
           <span className="documentation-view__parameter">{variable_name}</span>, callback)
         </span>
@@ -86,7 +86,7 @@ const RequestDescription = ({ doc, setDocument }) => {
 
   return (
     <EditBox
-      mainObject={<DescriptionText text={doc.description || "What does this methed do?"} />}
+      mainObject={<DescriptionText text={doc.description || "What does this method do?"} />}
       hiddenForm={<DescriptionBox text={doc.description} setValue={updateDescription} />}
       formSubmit={saveDescription}
     />

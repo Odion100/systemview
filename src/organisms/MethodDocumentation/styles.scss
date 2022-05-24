@@ -1,13 +1,15 @@
 .documentation-view {
-  color: white;
-  padding-top: 33px;
+  color: black;
 
   &__parameter {
-    color: #25d0a8;
+    color: #3dceac;
     font-weight: bold;
   }
 
   &__data-table {
     margin-bottom: 30px;
+  }
+  &__title {
+    color: #454c69;
   }
 }

@@ -158,11 +158,13 @@ const ArgDataForm = ({ arg, className, test_index, i, controller, is12 }) => {
   };
   const jsonObjectSubmit = ({ updated_src, namespace, name, new_value }) => {
     jsonTextboxSubmit(updated_src || {});
+    console.log(namespace, new_value);
     const source_map = namespace;
     source_map.push(name);
-    source_map.upshift("value");
-    controller.parseTargetValues(test_index, i, new_value, source_map);
-    controller.checkTargetValues(test_index, i, new_value, source_map);
+    source_map.unshift("value");
+
+    // controller.parseTargetValues(test_index, i, new_value, source_map);
+    //controller.checkTargetValues(test_index, i, new_value, source_map);
   };
 
   const adjustSize = (e) => {
@@ -174,7 +176,7 @@ const ArgDataForm = ({ arg, className, test_index, i, controller, is12 }) => {
     adjustSize(e);
     inputChanged(e);
     controller.checkTargetValues(test_index, i, e.target.value, ["value"]);
-    controller.parseTargetValues(test_index, i, e.target.value, ["value"])``;
+    controller.parseTargetValues(test_index, i, e.target.value, ["value"]);
   };
 
   return (
