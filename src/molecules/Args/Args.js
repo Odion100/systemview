@@ -73,7 +73,7 @@ const ArgData = ({ className, arg, test_index, i, controller }) => {
         arg.input = null;
         break;
       case "target":
-        if (targetValues.length === 0) controller.addTargetValue(test_index, i, "");
+        if (targetValues.length === 0) controller.addTargetValue(test_index, i, "", ["input"], 0);
         arg.input = "";
 
         break;
@@ -139,7 +139,7 @@ const ArgName = ({ name, className, isOpen, showData }) => {
   );
 };
 const ArgDataForm = ({ arg, className, test_index, i, controller, is12 }) => {
-  const { input, value, input_type, targetValues } = arg;
+  const { input, input_type, data_type, targetValues } = arg;
   const [jsonBoxVisible, setJsonBoxVisible] = useState(false);
   console.log(arg);
   const showJsonTxb = () => setJsonBoxVisible(true);
@@ -154,6 +154,7 @@ const ArgDataForm = ({ arg, className, test_index, i, controller, is12 }) => {
     console.log(new_object);
     arg.input = new_object;
     controller.editArg(test_index, i, arg);
+    controller.checkTargetValues(test_index, i);
     hideJsonTxb();
   };
   const jsonObjectSubmit = ({ updated_src, namespace, name, new_value }) => {
@@ -161,10 +162,10 @@ const ArgDataForm = ({ arg, className, test_index, i, controller, is12 }) => {
     console.log(namespace, new_value);
     const source_map = namespace;
     source_map.push(name);
-    source_map.unshift("value");
-
-    // controller.parseTargetValues(test_index, i, new_value, source_map);
-    //controller.checkTargetValues(test_index, i, new_value, source_map);
+    source_map.unshift("input");
+    if (typeof new_value === "string")
+      controller.parseTargetValues(test_index, i, new_value, source_map);
+    else controller.checkTargetValues(test_index, i);
   };
 
   const adjustSize = (e) => {
@@ -175,10 +176,8 @@ const ArgDataForm = ({ arg, className, test_index, i, controller, is12 }) => {
   const textboxChanged = (e) => {
     adjustSize(e);
     inputChanged(e);
-    controller.checkTargetValues(test_index, i, e.target.value, ["value"]);
-    controller.parseTargetValues(test_index, i, e.target.value, ["value"]);
+    controller.parseTargetValues(test_index, i, e.target.value, ["input"]);
   };
-
   return (
     <div className={`${className}__form ${is12 ? className + "__form--is12" : ""}`}>
       {input_type === "undefined" || input_type === "null" ? (
@@ -191,7 +190,12 @@ const ArgDataForm = ({ arg, className, test_index, i, controller, is12 }) => {
             onChange={textboxChanged}
             onFocus={adjustSize}
           />
-          <ArgValue value={value} className={`${className}`} />
+          <ArgValue
+            value={arg.value()}
+            className={`${className}`}
+            data_type={data_type}
+            tv={targetValues}
+          />
         </div>
       ) : input_type === "number" ? (
         <div className={`textbox`}>
@@ -238,7 +242,12 @@ const ArgDataForm = ({ arg, className, test_index, i, controller, is12 }) => {
             displayDataTypes={false}
             collapsed={true}
           />
-          <ArgValue value={value} className={`${className}`} />
+          <ArgValue
+            value={arg.value()}
+            className={`${className}`}
+            data_type={data_type}
+            tv={targetValues}
+          />
           <span
             className={`${className}__add-json-btn btn ${className}__json-txb--show-${!jsonBoxVisible}`}
             onClick={showJsonTxb}
@@ -247,17 +256,24 @@ const ArgDataForm = ({ arg, className, test_index, i, controller, is12 }) => {
           </span>
         </span>
       ) : input_type === "target" ? (
-        <div className={`${className}__form__${input_type}`}>
-          <TargetSelector
-            controller={controller}
-            target_namespace={targetValues[0].target_namespace}
-            test_index={test_index}
-            arg_index={i}
-            target_index={0}
-            className={`${className}__form__input ${className}__form__input--${input_type}`}
-          />
-          <ArgValue value={value} className={`${className}`} />
-        </div>
+        ((value) => (
+          <div className={`${className}__form__${input_type}`}>
+            <TargetSelector
+              controller={controller}
+              target_namespace={targetValues[0].target_namespace}
+              test_index={test_index}
+              arg_index={i}
+              target_index={0}
+              className={`${className}__form__input ${className}__form__input--${input_type}`}
+            />
+            <ArgValue
+              value={value}
+              className={`${className}`}
+              data_type={getType(value)}
+              tv={targetValues}
+            />
+          </div>
+        ))(arg.value())
       ) : (
         <span className={`${className}__value`}>{input + ""}</span>
       )}
@@ -265,8 +281,7 @@ const ArgDataForm = ({ arg, className, test_index, i, controller, is12 }) => {
   );
 };
 
-const ArgValue = ({ className, value }) => {
-  const data_type = getType(value);
+const ArgValue = ({ className, value, data_type, tv }) => {
   return (
     <div className={`${className}__value`}>
       {data_type === "undefined" || data_type === "null" ? (
@@ -286,7 +301,11 @@ const ArgValue = ({ className, value }) => {
       ) : data_type === "date" ? (
         <span className={`${className}__value__${data_type}`}>{moment(value).format() + ""}</span>
       ) : data_type === "object" || data_type === "array" ? (
-        <span className={`${className}__value__${data_type}`}>
+        <span
+          className={`${className}__value__${data_type} ${className}__value__${data_type}${
+            !tv.length && "--hide"
+          }`}
+        >
           <ReactJson
             src={value}
             name={false}

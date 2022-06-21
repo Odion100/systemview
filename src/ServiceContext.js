@@ -1,10 +1,10 @@
 import React from "react";
-import { Client } from "tasksjs-react-client";
+import { Client } from "sht-tasks";
 
 const ServiceContext = React.createContext({
   SystemLinkService: {},
-  TestServices: [],
-  setTestServices: () => {},
+  ConnectedProject: [],
+  setConnectedProject: () => {},
 });
 
 export default ServiceContext;

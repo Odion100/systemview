@@ -137,7 +137,12 @@
     &__undefined {
       color: #5a5a5a;
     }
-
+    &__object {
+      background: white;
+      &--hide {
+        display: none;
+      }
+    }
     &__boolean {
       font-weight: bold;
       &--true {

@@ -38,9 +38,11 @@ const AutoCompleteBox = ({
       setShowSuggestions(false);
     else setShowSuggestions(true);
     if (typeof onChange === "function") onChange(e.target.value);
+    console.log(e.target.value);
   };
   const onClick = (e) => {
     const text = e.target.innerText.substr(0, e.target.innerText.length);
+    console.log(text);
     if (typeof onSubmit === "function") onSubmit(text);
     setFilteredSuggestions([]);
     setInput(text);

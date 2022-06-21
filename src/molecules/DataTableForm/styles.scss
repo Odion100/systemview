@@ -7,7 +7,7 @@
   }
 
   &__data-type-selector {
-    padding: 0.75rem;
+    padding: 0.5rem;
   }
 
   &__delete-button {
@@ -28,13 +28,14 @@
   }
   &__add-button {
     cursor: pointer;
-    padding: 1px 8px;
+    padding: 1px 9px;
     line-height: 1;
     border-radius: 21px;
     font-weight: bold;
     color: #0d8065;
     font-size: 16px;
     background: white;
+    border: 1px solid gainsboro;
     border: 1px solid #bbd8ca;
     &:active {
       position: relative;

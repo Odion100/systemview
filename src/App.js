@@ -4,10 +4,10 @@ import ServiceContext from "./ServiceContext";
 import { BrowserRouter as Router, Route } from "react-router-dom";
 
 function App({ SystemLinkService }) {
-  const [TestServices, setTestServices] = useState([]);
+  const [ConnectedProject, setConnectedProject] = useState([]);
 
   return (
-    <ServiceContext.Provider value={{ SystemLinkService, TestServices, setTestServices }}>
+    <ServiceContext.Provider value={{ SystemLinkService, ConnectedProject, setConnectedProject }}>
       <Router>
         <Route
           path={[

@@ -4,11 +4,12 @@ import "./index.css";
 import App from "./App";
 import reportWebVitals from "./reportWebVitals";
 
-import { Client } from "tasksjs-react-client";
+import { Client } from "sht-tasks";
 
 const url = "http://localhost:3300/systemlink/api";
 
 Client.loadService(url).then((SystemLinkService) => {
+  console.log(SystemLinkService);
   ReactDOM.render(
     <React.StrictMode>
       <App SystemLinkService={SystemLinkService} />

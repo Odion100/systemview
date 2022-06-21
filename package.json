@@ -14,7 +14,7 @@
     "react-json-view": "^1.21.3",
     "react-router-dom": "^5.2.0",
     "react-scripts": "^4.0.0",
-    "tasksjs-react-client": "^1.2.5",
+    "sht-tasks": "^2.10.9",
     "textparsermatrix": "^1.0.6",
     "web-vitals": "^0.2.4"
   },

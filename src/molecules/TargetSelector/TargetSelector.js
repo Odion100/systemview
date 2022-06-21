@@ -11,7 +11,7 @@ const TargetSelector = ({
   target_index,
 }) => {
   const submit = (value) => {
-    controller.setTargetValue(test_index, arg_index, target_index, value);
+    controller.setTargetValue(test_index, arg_index, target_index, value, ["input"], 0);
   };
   //gather suggestions
   //create a onchange fn to update target value as user types

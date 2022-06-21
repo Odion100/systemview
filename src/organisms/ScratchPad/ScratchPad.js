@@ -12,7 +12,7 @@ const ScratchPad = ({ TestController, test, test_index = 0, dynamic = false }) =
   const [nsp, setNsp] = useState(method_name ? `${service_id}.${module_name}.${method_name}` : "");
   const [text_length, setLength] = useState(placeholder.length + 0.4);
   const [test_suggestions, setSuggestions] = useState([]);
-  const { TestServices } = useContext(ServiceContext);
+  const { ConnectedProject } = useContext(ServiceContext);
   const [testResults, setTestResults] = useState(test.results);
 
   const runTest = async () => {
@@ -20,7 +20,7 @@ const ScratchPad = ({ TestController, test, test_index = 0, dynamic = false }) =
   };
   const createSuggestions = () => {
     const new_suggestions = [];
-    TestServices.forEach((service) => {
+    ConnectedProject.forEach((service) => {
       service.server_modules.forEach((server_module) => {
         server_module.methods.forEach((method) => {
           new_suggestions.push(`${service.service_id}.${server_module.name}.${method.fn}()`);
@@ -43,12 +43,12 @@ const ScratchPad = ({ TestController, test, test_index = 0, dynamic = false }) =
   useEffect(() => {
     setTestResults(test.results);
   }, [test.results]);
-  useEffect(() => createSuggestions(), [project_code, TestServices]);
+  useEffect(() => createSuggestions(), [project_code, ConnectedProject]);
   useEffect(() => {
     const new_namespace = method_name ? `${service_id}.${module_name}.${method_name}` : "";
     setNsp(new_namespace);
     setLength((new_namespace || placeholder).length + 0.4);
-  }, [test.namespace, TestServices]);
+  }, [test.namespace, ConnectedProject]);
 
   const style = { "--text-length": text_length ? text_length + "ch" : "auto" };
   return (
@@ -81,7 +81,7 @@ const ScratchPad = ({ TestController, test, test_index = 0, dynamic = false }) =
             x
           </span>
           <ReactJson
-            src={testResults}
+            src={testResults || {}}
             name={test.response_type}
             displayObjectSize={false}
             displayDataTypes={false}
