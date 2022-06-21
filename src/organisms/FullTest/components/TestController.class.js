@@ -1,7 +1,6 @@
 import { getType, validateResults } from "../../../molecules/ValidationInput/validations";
 import Test from "./Test.class";
 import Argument, { TargetValue } from "./Argument.class";
-import { isEqualArrays, isTargetNamespace, targetReplacerRegex } from "./test-helpers";
 
 export default function TestController(testData, setState, section, Tests, ConnectedProject) {
   this.runTest = async (test_index) => {

@@ -9,7 +9,7 @@ import Toggle from "../../atoms/Toggle/Toggle";
 import { getType } from "../ValidationInput/validations";
 import "./styles.scss";
 
-const Args = ({ args, controller, test_index, input_type }) => {
+const Args = ({ args, controller, test_index }) => {
   const className = "args";
   const add = () => controller.addArg(test_index);
 
