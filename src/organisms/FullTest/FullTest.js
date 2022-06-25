@@ -1,7 +1,7 @@
 import React, { useState, useContext, useEffect } from "react";
-import TestBeforeSection from "../TestBeforeSection/TestBeforeSection";
-import TestAfterSection from "../TestAfterSection/TestAfterSection";
-import MainTestSection from "../MainTestSection/MainTestSection";
+import BeforeTest from "../BeforeTest/BeforeTest";
+import AfterTest from "../AfterTest/AfterTest";
+import MainTest from "../MainTest/MainTest";
 import ServiceContext from "../../ServiceContext";
 import Test from "./components/Test.class";
 import TestController from "./components/TestController.class";
@@ -23,19 +23,19 @@ const FullTest = (nsp) => {
   return (
     <div>
       <div className="row test-panel__section">
-        <TestBeforeSection
+        <BeforeTest
           TestController={new TestController(testBefore, setTestBefore, 0, Tests, ConnectedProject)}
           testData={testBefore}
         />
       </div>
       <div className="row test-panel__section">
-        <MainTestSection
+        <MainTest
           TestController={new TestController(testMain, setTestMain, 1, Tests, ConnectedProject)}
           testData={testMain}
         />
       </div>
       <div className="row test-panel__section">
-        <TestAfterSection
+        <AfterTest
           TestController={new TestController(testAfter, setTestAfter, 2, Tests, ConnectedProject)}
           testData={testAfter}
         />

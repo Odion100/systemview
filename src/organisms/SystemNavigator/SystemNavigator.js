@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useContext } from "react";
 import { useHistory } from "react-router-dom";
 import ServiceContext from "../../ServiceContext";
-import "./styles.scss";
 import TextBox from "../../atoms/Textbox/Textbox";
 import Link from "../../atoms/Link/Link";
 import ExpandableList from "../../molecules/ExpandableList/ExpandableList";
-import ServerModulesList from "../../organisms/ServerModulesList/ServerModulesList";
+import ServerModulesList from "../../molecules/ServerModulesList/ServerModulesList";
 import MissingDocIcon from "../../atoms/DocsIcon/DocsIcon";
+import "./styles.scss";
 
 const SystemNav = ({ project_code, service_id, module_name, method_name }) => {
   const { SystemLinkService, setConnectedProject } = useContext(ServiceContext);

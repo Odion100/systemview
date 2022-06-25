@@ -1,6 +1,6 @@
 import React from "react";
 import "./styles.scss";
-import ExpandableList from "../../molecules/ExpandableList/ExpandableList";
+import ExpandableList from "../ExpandableList/ExpandableList";
 import Link from "../../atoms/Link/Link";
 import MissingDocIcon from "../../atoms/DocsIcon/DocsIcon";
 import TestsIcon from "../../atoms/TestsIcon/TestsIcon";

@@ -1,10 +1,10 @@
 import React from "react";
 import ExpandableSection from "../../molecules/ExpandableSection/ExpandableSection";
 import TestCaption from "../../molecules/TestCaption/TestCaption";
-import QuickTestSection from "../QuickTestSection/QuickTestSection";
+import TestContainer from "../TestContainer/TestContainer";
 import "./styles.scss";
 
-const AuxillaryTestSection = ({ caption, TestController, testData }) => {
+const MultiTestSection = ({ caption, TestController, testData }) => {
   const className = "auxillary-test-section";
 
   return (
@@ -22,7 +22,7 @@ const AuxillaryTestSection = ({ caption, TestController, testData }) => {
         <div className={`${className}__test-data`}>
           {testData.length > 0 ? (
             testData.map((test, i) => (
-              <QuickTestSection
+              <TestContainer
                 key={i}
                 TestController={TestController}
                 test={test}
@@ -49,4 +49,4 @@ const AddButton = ({ onClick, className }) => {
     </span>
   );
 };
-export default AuxillaryTestSection;
+export default MultiTestSection;

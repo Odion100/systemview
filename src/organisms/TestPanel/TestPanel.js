@@ -1,5 +1,5 @@
 import React from "react";
-import TestSavedSection from "../TestSavedSection/TestSavedSection";
+import SavedTests from "../SavedTests/SavedTests";
 import FullTest from "../FullTest/FullTest";
 import Title from "../../atoms/Title/Title";
 import "./styles.scss";
@@ -19,7 +19,7 @@ const TestPanel = ({ project_code, service_id, module_name, method_name }) => {
         />
 
         <div className="row test-panel__section">
-          <TestSavedSection
+          <SavedTests
             project_code={project_code}
             service_id={service_id}
             module_name={module_name}
