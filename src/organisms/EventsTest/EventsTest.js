@@ -1,23 +1,11 @@
 import React from "react";
-import Evaluations from "./Evaluations";
-import TestContainer from "../TestContainer/TestContainer";
-
+import MultiTestSection from "../MultiTestSection/MultiTestSection";
 import "./styles.scss";
 
-const EventsTestSection = ({ TestController, testData, test_index }) => {
+const EventsTest = ({ testData, TestController }) => {
   return (
-    <section className="current-data-section">
-      <TestContainer
-        title="Events Test:"
-        open={true}
-        test={testData[0]}
-        test_index={test_index}
-        TestController={TestController}
-      >
-        <Evaluations test={testData[0]} />
-      </TestContainer>
-    </section>
+    <MultiTestSection testData={testData} TestController={TestController} caption="Events Test" />
   );
 };
 
-export default EventsTestSection;
+export default EventsTest;

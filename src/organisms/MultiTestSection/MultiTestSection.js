@@ -5,7 +5,7 @@ import TestContainer from "../TestContainer/TestContainer";
 import "./styles.scss";
 
 const MultiTestSection = ({ caption, TestController, testData }) => {
-  const className = "auxillary-test-section";
+  const className = "multi-test-section";
 
   return (
     <section className={className}>

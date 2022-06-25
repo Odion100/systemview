@@ -74,7 +74,7 @@ export default function Argument(name, Tests) {
   const getTargetValue = (input) => {
     const [test, action] = input.split(".");
     const nsp = input
-      .replace(test, { beforeTest: 0, mainTest: 1, afterTest: 2 }[test])
+      .replace(test, { beforeTest: 0, mainTest: 1, eventTest: 2, afterTest: 3 }[test])
       .replace(action, parseInt(action.replace("Action", "")) - 1)
       .replace("error", "results");
     return obj(Tests).valueAtNsp(nsp);
