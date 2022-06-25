@@ -1,11 +1,8 @@
 import {
-  isObjectLike,
   isTargetReplacer,
   isTargetNamespace,
-  isValidName,
-  isNameAndArray,
   targetReplacerRegex,
-  parseObject,
+  obj,
   isEqualArrays,
 } from "./test-helpers";
 
@@ -22,19 +19,21 @@ export default function Argument(name, Tests) {
   this.targetValues = [];
 
   this.value = () => {
-    return this.targetValues.reduce((data, { source_map, target_namespace }) => {
-      const [value, placeholder, nsp] = parseObject(data, source_map);
+    return this.targetValues.reduce((arg, { source_map, target_namespace }) => {
+      const [value, placeholder, key] = obj(arg).parse(source_map);
+      const nsp = target_namespace;
 
-      if (isTargetReplacer(target_namespace) && typeof value === "string") {
-        placeholder[nsp] = value
+      if (isTargetReplacer(nsp)) {
+        placeholder[key] = value
           .trim()
-          .replace(`${target_namespace}`, getTargetValue(target_namespace, Tests));
-      } else if (isTargetNamespace(target_namespace)) {
-        placeholder[nsp] = getTargetValue(target_namespace, Tests);
+          .replace(nsp, getTargetValue(nsp.substring(3, nsp.length - 1)));
+      } else if (isTargetNamespace(nsp)) {
+        placeholder[key] = getTargetValue(nsp);
       }
-      return data;
-      //using JSON to create a deep copy in order to lose refs to original
-    }, JSON.parse(JSON.stringify(this))).input;
+
+      return arg;
+      //creating a deep copy in order to lose refs to original
+    }, obj(this).clone()).input;
   };
 
   this.parseTargetValues = (input, source_map) => {
@@ -47,13 +46,15 @@ export default function Argument(name, Tests) {
   };
 
   this.checkTargetNamespaces = () => {
-    // check if target namespaces against current input for deletion
+    // check target namespaces against current input for deletion
+    //keep if the target value string still exist on this.input...
     this.targetValues = this.targetValues.filter(
       ({ target_namespace, source_map, source_index }) => {
-        const [value] = parseObject(this, source_map);
-        //if the target value still exist at namespace on this.input
-
-        return value ? value.indexOf(target_namespace, source_index) === source_index : false;
+        const value = obj(this).valueAt(source_map);
+        return (
+          typeof value === "string" &&
+          value.indexOf(target_namespace, source_index) === source_index
+        );
       }
     );
     return this;
@@ -61,51 +62,21 @@ export default function Argument(name, Tests) {
 
   this.addTargetValue = (target_namespace, source_map, source_index) => {
     //check to see if target value already exists first
-    const i = this.targetValues.findIndex(
+    this.targetValues.findIndex(
       (tv) =>
         tv.target_namespace === target_namespace &&
         isEqualArrays(tv.source_map, source_map || []) &&
         tv.source_index === source_index
-    );
-    if (i === -1)
-      this.targetValues.push(new TargetValue(target_namespace, source_map, source_index));
-
+    ) === -1 && this.targetValues.push(new TargetValue(target_namespace, source_map, source_index));
     return this;
   };
+
+  const getTargetValue = (input) => {
+    const [test, action] = input.split(".");
+    const nsp = input
+      .replace(test, { beforeTest: 0, mainTest: 1, afterTest: 2 }[test])
+      .replace(action, parseInt(action.replace("Action", "")) - 1)
+      .replace("error", "results");
+    return obj(Tests).valueAtNsp(nsp);
+  };
 }
-
-const getTargetValue = (input, tests) => {
-  if (isTargetReplacer(input)) {
-    input = input.substring(3, input.length - 1);
-  }
-  if (!isTargetNamespace(input)) return undefined;
-
-  const map = input.split(".");
-  const i = ["beforeTest", "mainTest", "afterTest"].indexOf(map[0]);
-  const targetTest = tests[i];
-  const t_index = i === 1 ? 0 : parseInt(map[1].replace("Action", "")) - 1;
-  if (!targetTest[t_index]) return undefined;
-  if (map[i === 1 ? 1 : 2] !== targetTest[t_index].response_type) return undefined;
-
-  let current_value = targetTest[t_index].results;
-
-  for (let a = i === 1 ? 2 : 3; a < map.length; a++) {
-    if (isValidName(map[a])) {
-      //parse value as object
-      if (!isObjectLike(current_value)) return undefined;
-      current_value = current_value[map[a]];
-    } else if (isNameAndArray(map[a])) {
-      //separate prop name from indices (ie. 'results[0][0]'...)
-      const sub_map = map[a].split("[");
-      //parse first sub-map as prop name of object
-      if (!isObjectLike(current_value)) return undefined;
-      current_value = current_value[sub_map[0]];
-      for (let x = 1; x < sub_map.length; x++) {
-        //parse remaining sub-map as indices
-        if (!isObjectLike(current_value)) return undefined;
-        current_value = current_value[parseInt(sub_map[x].replace("]", ""))];
-      }
-    } else return undefined;
-  }
-  return current_value;
-};

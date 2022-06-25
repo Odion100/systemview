@@ -16,15 +16,27 @@ export const isTargetReplacer = (str) =>
 
 export const hasTargetReplacer = (str) => targetReplacerRegex.test(str);
 
-export const isEqualArrays = (a, b) => {
-  console.log(a, b, a.join(".") === b.join("."));
-  return a.join(".") === b.join(".");
-}; //specifically for string arrays
+export const isEqualArrays = (a, b) => a.join(".") === b.join("."); //specifically for arrays of strings
 
-export const parseObject = (object, map) =>
-  map.reduce(
-    ([placeholder], namespace, i) => {
-      return [(placeholder || {})[namespace], placeholder, namespace];
-    },
-    [object]
-  );
+export const obj = function ObjectParser(obj) {
+  const parser = this || {};
+  parser.parse = (map) =>
+    map.reduce(([placeholder], key) => [placeholder?.[key], placeholder, key], [obj]);
+
+  parser.valueAt = (map) => parser.parse(map)[0];
+
+  parser.valueAtNsp = (nsp) => parser.valueAt(nspToMap(nsp));
+
+  parser.parseNsp = (nsp) => parser.parse(nspToMap(nsp));
+  //using JSON to create a deep copy in order to lose refs to original
+  parser.clone = () => JSON.parse(JSON.stringify(obj));
+
+  //separate prop names from other prop names and indices (ie. 'test.results[0][0]'...)j;
+  const nspToMap = (nsp) =>
+    nsp
+      .replace(/(?:\.|\[|\])/g, " ")
+      .split(" ")
+      .reduce((sum, str) => sum.concat(str.trim() || []), []);
+  return parser;
+};
+window.obj = obj;

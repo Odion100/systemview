@@ -6,7 +6,7 @@ import ExpandableIcon from "../../atoms/ExpandableIcon/ExpandableIcon";
 import TypeSelector from "../../atoms/TypeSelector/TypeSelector";
 import TargetSelector from "../TargetSelector/TargetSelector";
 import Toggle from "../../atoms/Toggle/Toggle";
-import { getType } from "../ValidationInput/validations";
+import { getType, defaultValue } from "../ValidationInput/validations";
 import "./styles.scss";
 
 const Args = ({ args, controller, test_index }) => {
@@ -44,50 +44,18 @@ const ArgData = ({ className, arg, test_index, i, controller }) => {
     console.log(arg);
     setOpen(!isOpen);
   };
-  const changeType = (e) => {
-    console.log(test_index, e.target.value);
+  const inputTypeChanged = (e) => {
     arg.input_type = e.target.value;
-    switch (arg.input_type) {
-      case "string":
-        arg.input = "";
-        break;
-      case "number":
-        arg.input = 0;
-        break;
-      case "date":
-        arg.input = moment().toJSON();
-        break;
-      case "boolean":
-        arg.input = false;
-        break;
-      case "array":
-        arg.input = [];
-        break;
-      case "object":
-        arg.input = {};
-        break;
-      case "undefined":
-        arg.input = undefined;
-        break;
-      case "null":
-        arg.input = null;
-        break;
-      case "target":
-        if (targetValues.length === 0) controller.addTargetValue(test_index, i, "", ["input"], 0);
-        arg.input = "";
-
-        break;
-
-      default:
-        break;
-    }
-    if (targetValues.length > 0 && e.target.value !== "target")
-      controller.deleteTargetValue(test_index, i, 0);
+    arg.input = defaultValue(arg.input_type);
+    controller.checkTargetValues(test_index, i, 0);
+    if (arg.input_type === "target") controller.addTargetValue(test_index, i, "", ["input"], 0);
     controller.editArg(test_index, i, arg);
   };
+
   const deleteArg = () => {
     controller.deleteArg(test_index, i);
   };
+
   const is12 =
     input_type === "object" ||
     input_type === "array" ||
@@ -108,7 +76,7 @@ const ArgData = ({ className, arg, test_index, i, controller }) => {
         </div>
         <div className={`col`}>
           <div className={`${className}__type`}>
-            <TypeSelector default_type={input_type} onSelect={changeType} />
+            <TypeSelector default_type={input_type} onSelect={inputTypeChanged} />
           </div>
         </div>
         <div className={`col${!is12 ? -0 : ""}`}></div>

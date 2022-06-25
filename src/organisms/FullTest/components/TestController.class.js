@@ -6,7 +6,7 @@ export default function TestController(testData, setState, section, Tests, Conne
   this.runTest = async (test_index) => {
     const [testBefore, testMain, testAfter] = Tests;
     if (section === 1) {
-      //run all tests
+      //run full tests plus evaluations
       await Promise.all([
         ...testBefore.map(async (test) => test.runTest()),
         ...testMain.map(async (test) => test.runTest()),
@@ -20,6 +20,7 @@ export default function TestController(testData, setState, section, Tests, Conne
       testData[test_index].evaluations = evaluations;
       testData[test_index].total_errors = totalErrors;
     } else {
+      //run only one test
       await testData[test_index].runTest(testData[test_index]);
     }
     setState([...testData]);
@@ -52,11 +53,6 @@ export default function TestController(testData, setState, section, Tests, Conne
   };
   this.resetResults = (index) => {
     testData[index].clearResults();
-    setState([...testData]);
-  };
-
-  this.deleteTargetValue = (test_index, arg_index, target_index) => {
-    testData[test_index].args[arg_index].targetValues.splice(target_index, 1);
     setState([...testData]);
   };
 

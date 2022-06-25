@@ -230,3 +230,34 @@ const validateDate = (datetime, validations) => {
 
   return errors;
 };
+
+export const defaultValue = (data_type) => {
+  switch (data_type) {
+    case "string":
+      return "";
+
+    case "number":
+      return 0;
+
+    case "date":
+      return moment().toJSON();
+
+    case "boolean":
+      return false;
+
+    case "array":
+      return [];
+
+    case "object":
+      return {};
+
+    case "null":
+      return null;
+
+    case "target":
+      return "";
+    case "undefined":
+    default:
+      return undefined;
+  }
+};

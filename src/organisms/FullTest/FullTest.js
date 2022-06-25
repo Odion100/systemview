@@ -6,19 +6,19 @@ import ServiceContext from "../../ServiceContext";
 import Test from "./components/Test.class";
 import TestController from "./components/TestController.class";
 
-const FullTest = (namespace) => {
+const FullTest = (nsp) => {
   const { ConnectedProject } = useContext(ServiceContext);
   const [testBefore, setTestBefore] = useState([]);
   const [testAfter, setTestAfter] = useState([]);
-  const [testMain, setTestMain] = useState([new Test(namespace)]);
+  const [testMain, setTestMain] = useState([new Test(nsp)]);
   const Tests = [testBefore, testMain, testAfter];
   window.Tests = Tests;
   useEffect(() => {
     setTestBefore([]);
     setTestAfter([]);
     //get connection for the main test and set state
-    new Test(namespace).getConnection(ConnectedProject).then((test) => setTestMain([test]));
-  }, [namespace, ConnectedProject]);
+    new Test(nsp).getConnection(ConnectedProject).then((test) => setTestMain([test]));
+  }, [nsp.service_id, nsp.module_name, nsp.method_name]);
 
   return (
     <div>
