@@ -137,8 +137,9 @@ const ArgDataForm = ({ arg, className, test_index, i, controller, is12 }) => {
   };
 
   const adjustSize = (e) => {
-    e.target.style.height = "inherit";
-    e.target.style.height = `${e.target.scrollHeight}px`;
+    const new_lines = Array.from(e.target.value.matchAll(/\n/g)).length;
+    const new_height = 33 + new_lines * 18;
+    e.target.style.height = `${new_height}px`;
   };
 
   const textboxChanged = (e) => {
@@ -251,7 +252,7 @@ const ArgDataForm = ({ arg, className, test_index, i, controller, is12 }) => {
 
 const ArgValue = ({ className, value, data_type, tv }) => {
   return (
-    <div className={`${className}__value`}>
+    <div className={`${className}__value ${!tv.length && className + "__value--hide"}`}>
       {data_type === "undefined" || data_type === "null" ? (
         <span className={`${className}__value__${data_type}`}>{value + ""}</span>
       ) : data_type === "string" ? (
@@ -269,11 +270,7 @@ const ArgValue = ({ className, value, data_type, tv }) => {
       ) : data_type === "date" ? (
         <span className={`${className}__value__${data_type}`}>{moment(value).format() + ""}</span>
       ) : data_type === "object" || data_type === "array" ? (
-        <span
-          className={`${className}__value__${data_type} ${className}__value__${data_type}${
-            !tv.length && "--hide"
-          }`}
-        >
+        <span className={`${className}__value__${data_type}`}>
           <ReactJson
             src={value}
             name={false}
