@@ -39,7 +39,7 @@ export default function Test(namespace, args, title) {
 
   this.getConnection = async (ConnectedProject) => {
     const { service_id } = this.namespace;
-
+    console.log(ConnectedProject);
     if (ConnectedProject.length > 0) {
       const connData = ConnectedProject.find((connData) => connData.service_id === service_id);
       if (!connData) return console.log("connection data not found");

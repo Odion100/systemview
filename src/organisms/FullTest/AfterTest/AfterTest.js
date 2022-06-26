@@ -1,5 +1,5 @@
 import React from "react";
-import MultiTestSection from "../MultiTestSection/MultiTestSection";
+import MultiTestSection from "../../MultiTestSection/MultiTestSection";
 import "./styles.scss";
 
 const AfterTest = ({ testData, TestController }) => {

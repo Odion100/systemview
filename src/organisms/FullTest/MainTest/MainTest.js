@@ -1,6 +1,6 @@
 import React from "react";
 import Evaluations from "./Evaluations";
-import TestContainer from "../TestContainer/TestContainer";
+import TestContainer from "../../TestContainer/TestContainer";
 
 import "./styles.scss";
 

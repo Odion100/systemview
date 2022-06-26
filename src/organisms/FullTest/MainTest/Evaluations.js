@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
-import ExpandableSection from "../../molecules/ExpandableSection/ExpandableSection";
-import ValidationInput from "../../molecules/ValidationInput/ValidationInput";
-import validation_options from "../../molecules/ValidationInput/ValidationOptions";
-import TypeSelector from "../../atoms/TypeSelector/TypeSelector";
-import { getErrors } from "../../molecules/ValidationInput/validations";
+import ExpandableSection from "../../../molecules/ExpandableSection/ExpandableSection";
+import ValidationInput from "../../../molecules/ValidationInput/ValidationInput";
+import validation_options from "../../../molecules/ValidationInput/ValidationOptions";
+import TypeSelector from "../../../atoms/TypeSelector/TypeSelector";
+import { getErrors } from "../../../molecules/ValidationInput/validations";
 
 export default function Evaluations({ test }) {
   const [currentEvaluations, updateEvaluations] = useState([]);

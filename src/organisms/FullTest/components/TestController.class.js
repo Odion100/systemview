@@ -4,7 +4,7 @@ import Argument, { TargetValue } from "./Argument.class";
 
 export default function TestController(testData, setState, section, Tests, ConnectedProject) {
   this.runTest = async (test_index) => {
-    const [testBefore, testMain, testAfter] = Tests;
+    const [testBefore, testMain, eventsTest, testAfter] = Tests;
     if (section === 1) {
       //run full tests plus evaluations
       await Promise.all([

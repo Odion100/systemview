@@ -1,8 +1,8 @@
 import React, { useState, useContext, useEffect } from "react";
-import BeforeTest from "../BeforeTest/BeforeTest";
-import AfterTest from "../AfterTest/AfterTest";
-import MainTest from "../MainTest/MainTest";
-import EventsTest from "../EventsTest/EventsTest";
+import BeforeTest from "./BeforeTest/BeforeTest";
+import AfterTest from "./AfterTest/AfterTest";
+import MainTest from "./MainTest/MainTest";
+import EventsTest from "./EventsTest/EventsTest";
 import ServiceContext from "../../ServiceContext";
 import Test from "./components/Test.class";
 import TestController from "./components/TestController.class";
@@ -19,8 +19,9 @@ const FullTest = (nsp) => {
     setTestBefore([]);
     setTestAfter([]);
     //get connection for the main test and set state
+
     new Test(nsp).getConnection(ConnectedProject).then((test) => setTestMain([test]));
-  }, [nsp.service_id, nsp.module_name, nsp.method_name]);
+  }, [nsp.service_id, nsp.module_name, nsp.method_name, ConnectedProject]);
 
   return (
     <div>
