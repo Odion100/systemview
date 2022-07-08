@@ -18,9 +18,10 @@ const FullTest = (nsp) => {
   useEffect(() => {
     setTestBefore([]);
     setTestAfter([]);
+    setEventTest([]);
     //get connection for the main test and set state
-
     new Test(nsp).getConnection(ConnectedProject).then((test) => setTestMain([test]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nsp.service_id, nsp.module_name, nsp.method_name, ConnectedProject]);
 
   return (
