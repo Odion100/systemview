@@ -31,6 +31,8 @@ export const obj = function ObjectParser(obj) {
   //using JSON to create a deep copy in order to lose refs to original
   parser.clone = () => JSON.parse(JSON.stringify(obj));
 
+  parser.isEmpty = () => Object.getOwnPropertyNames(obj).length === 0;
+
   //separate prop names from other prop names and indices (ie. 'test.results[0][0]'...)j;
   const nspToMap = (nsp) =>
     nsp

@@ -16,8 +16,8 @@ describe("<Textbox/>", () => {
     expect(wrapper.find("div.textbox > input")).to.have.a.lengthOf(1);
   });
 
-  it("should user the placeholderText prop to apply input placeholder attribute", () => {
-    const wrapper = shallow(<Textbox placeholderText="textbox test" />);
-    expect(wrapper.find("div.textbox > input").props().placeholder).to.equal("textbox test");
-  });
+  // it("should user the placeholderText prop to apply input placeholder attribute", () => {
+  //   const wrapper = shallow(<Textbox placeholderText="textbox test" />);
+  //   expect(wrapper.find("div.textbox > input").props().placeholder).to.equal("textbox test");
+  // });
 });
