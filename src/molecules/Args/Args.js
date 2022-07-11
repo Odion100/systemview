@@ -6,7 +6,7 @@ import ExpandableIcon from "../../atoms/ExpandableIcon/ExpandableIcon";
 import TypeSelector from "../../atoms/TypeSelector/TypeSelector";
 import TargetSelector from "../TargetSelector/TargetSelector";
 import Toggle from "../../atoms/Toggle/Toggle";
-import { getType, defaultValue } from "../ValidationInput/validations";
+import { getType, defaultValue } from "../ValidationInput/validator";
 import "./styles.scss";
 
 const Args = ({ args, controller, test_index }) => {

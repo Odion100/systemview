@@ -1,27 +1,25 @@
-import { getType, validateResults } from "../../../molecules/ValidationInput/validations";
+import { getType, validateResults } from "../../../molecules/ValidationInput/validator";
 import Test from "./Test.class";
 import Argument, { TargetValue } from "./Argument.class";
 
 export default function TestController(testData, setState, section, Tests, ConnectedProject) {
   this.runTest = async (test_index) => {
-    const [testBefore, testMain, eventsTest, testAfter] = Tests;
+    const test = testData[test_index];
     if (section === 1) {
-      //run full tests plus evaluations
+      //run full tests plus evaluations if is main test
+      const [testBefore, testMain, eventsTest, testAfter] = Tests;
       await Promise.all([
+        //...eventsTest.map(async (test) => test.runTest()),
         ...testBefore.map(async (test) => test.runTest()),
         ...testMain.map(async (test) => test.runTest()),
         ...testAfter.map(async (test) => test.runTest()),
       ]);
-      const { evaluations, totalErrors } = validateResults(
-        testData[test_index].results,
-        testData[test_index].response_type,
-        []
-      );
-      testData[test_index].evaluations = evaluations;
-      testData[test_index].total_errors = totalErrors;
+      const { evaluations, total_errors } = validateResults(test.results, test.response_type, []);
+      test.evaluations = evaluations;
+      test.total_errors = total_errors;
     } else {
       //run only one test
-      await testData[test_index].runTest(testData[test_index]);
+      await test.runTest();
     }
     setState([...testData]);
   };

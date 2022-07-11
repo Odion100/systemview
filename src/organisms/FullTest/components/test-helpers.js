@@ -1,4 +1,4 @@
-import { getType } from "../../../molecules/ValidationInput/validations";
+import { getType } from "../../../molecules/ValidationInput/validator";
 export const isObjectLike = (value) => ["object", "array", "string"].indexOf(getType(value)) > -1;
 export const isValidName = (str) => /^(?![0-9])[a-zA-Z0-9$_]+$/.test(str); //_id
 export const isNameAndArray = (str) => /^(?![0-9])[a-zA-Z0-9$_]+(\[\d\])+$/.test(str); //users[0]...

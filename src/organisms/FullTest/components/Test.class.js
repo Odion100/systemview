@@ -23,13 +23,16 @@ export default function Test(namespace, args, title) {
 
   this.runTest = async () => {
     try {
+      console.log(this.args);
       const { service_id, module_name, method_name } = this.namespace;
       const args = this.args.map((arg) => arg.value());
       this.test_start = moment().toJSON();
       this.results = await this.connection[service_id][module_name][method_name].apply({}, args);
       this.test_end = moment().toJSON();
       this.response_type = "results";
+      console.log(this.results);
     } catch (error) {
+      console.log(this.error);
       this.test_end = moment().toJSON();
       this.results = error;
       this.response_type = "error";
