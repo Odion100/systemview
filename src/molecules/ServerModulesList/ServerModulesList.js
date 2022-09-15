@@ -1,7 +1,7 @@
 import React from "react";
 import "./styles.scss";
 import ExpandableList from "../ExpandableList/ExpandableList";
-import Link from "../../atoms/Link/Link";
+import MyLink from "../../atoms/Link/Link";
 import MissingDocIcon from "../../atoms/DocsIcon/DocsIcon";
 import TestsIcon from "../../atoms/TestsIcon/TestsIcon";
 
@@ -24,7 +24,7 @@ const ServerModulesList = ({
             key={i}
             title={
               <React.Fragment>
-                <Link link={`/${project_code}/${service_id}/${name}`} text={name} />
+                <MyLink link={`/${project_code}/${service_id}/${name}`} text={name} />
                 <div className={`${classname}__docs-icon`}>
                   <MissingDocIcon isSaved={parseInt(Math.random() * 1000) % 2} />
                 </div>
@@ -39,7 +39,7 @@ const ServerModulesList = ({
                     fn === method_name && isSelected
                   }`}
                 >
-                  <Link
+                  <MyLink
                     key={i}
                     link={`/${project_code}/${service_id}/${name}/${fn}`}
                     text={`.${fn}(data, cb)`}

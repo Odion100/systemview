@@ -1,0 +1,36 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`<DataTable/> should match snapshot 1`] = `
+<table
+  className="data-table test"
+>
+  <thead>
+    <tr>
+      <th>
+        column 1
+      </th>
+      <th>
+        column 2
+      </th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        r1c1
+      </td>
+      <td>
+        r1c2
+      </td>
+    </tr>
+    <tr>
+      <td>
+        r2c1
+      </td>
+      <td>
+        r2c2
+      </td>
+    </tr>
+  </tbody>
+</table>
+`;

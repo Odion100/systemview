@@ -1,20 +1,20 @@
 import React from "react";
 import "./styles.scss";
-import savedDoc from "../../assets/saved-doc.png";
-import missingDoc from "../../assets/missing-doc.png";
+import savedDocImg from "../../assets/saved-doc.png";
+import missingDocImg from "../../assets/missing-doc.png";
 
-const MissingDocIcon = ({ add_class, isSaved }) => {
+const DocIcon = ({ isSaved }) => {
   return (
-    <React.Fragment>
-      <div className={`doc-icon ${add_class || ""}`}>
+    <>
+      <div className={`doc-icon`}>
         <img
-          className={`doc-icon__img ${add_class || ""}`}
-          src={isSaved ? savedDoc : missingDoc}
-          alt="missing docs"
+          className={`doc-icon__img`}
+          src={isSaved ? savedDocImg : missingDocImg}
+          alt={isSaved ? "Saved Doc" : "Missing Doc"}
         />
       </div>
-    </React.Fragment>
+    </>
   );
 };
 
-export default MissingDocIcon;
+export default DocIcon;

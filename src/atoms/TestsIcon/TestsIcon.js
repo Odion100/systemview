@@ -1,13 +1,13 @@
 import React from "react";
 import "./styles.scss";
-import testMissingIcon from "../../assets/test-missing.png";
-import testSavedIcion from "../../assets/test-saved.png";
-const TestsIcon = ({ add_class, isSaved }) => {
+import testMissingImg from "../../assets/test-missing.png";
+import testSavedImg from "../../assets/test-saved.png";
+const TestsIcon = ({ isSaved }) => {
   return (
-    <div className={`doc-icon ${add_class}`}>
+    <div className={`doc-icon`}>
       <img
-        className={`doc-icon__img ${add_class}`}
-        src={isSaved ? testSavedIcion : testMissingIcon}
+        className={`doc-icon__img`}
+        src={isSaved ? testSavedImg : testMissingImg}
         alt="missing tests"
       />
     </div>

@@ -1,7 +1,7 @@
 import React from "react";
 import "./styles.scss";
 
-const DataTable = ({ headers, table, tableClassName }) => {
+const DataTable = ({ headers = [], table = [], tableClassName }) => {
   return (
     <table className={`data-table ${tableClassName}`}>
       <thead>
@@ -12,9 +12,9 @@ const DataTable = ({ headers, table, tableClassName }) => {
         </tr>
       </thead>
       <tbody>
-        {table.map((data, i) => (
+        {table.map((row, i) => (
           <tr key={i}>
-            {data.map((value, i) => (
+            {row.map((value, i) => (
               <td key={i}>{value}</td>
             ))}
           </tr>

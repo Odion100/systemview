@@ -28,8 +28,8 @@ const EditBox = ({ formSubmit, mainObject, hiddenForm, onCancel }) => {
         </div>
         <div className="row">
           <div className="edit-box__button">
-            <Button buttonSubmit={saveClicked}>Save</Button>
-            <Button buttonSubmit={cancelClicked}>Close</Button>
+            <Button submit={saveClicked}>Save</Button>
+            <Button submit={cancelClicked}>Close</Button>
           </div>
         </div>
       </div>
