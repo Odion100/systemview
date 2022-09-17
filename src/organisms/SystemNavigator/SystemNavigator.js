@@ -21,7 +21,6 @@ const SystemNav = ({ project_code, service_id, module_name, method_name }) => {
         setServiceList(results.services);
         setConnectedProject(results.services);
       } else setConnectedProject([]);
-      console.log(results);
     } catch (error) {
       console.error(error);
       setConnectedProject([]);

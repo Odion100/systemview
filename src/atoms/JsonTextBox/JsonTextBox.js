@@ -17,8 +17,6 @@ const JsonTextBox = ({ obj, onSubmit, onCancel }) => {
     }
     setIsJson(true);
     setJson(JSON.parse(str));
-
-    console.log(str);
     return true;
   };
   const submit = () => {

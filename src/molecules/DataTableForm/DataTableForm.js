@@ -48,7 +48,6 @@ const MethodDataForm = ({ data, submit }) => {
   const deleteRow = ([i]) => {
     dataTable.splice(i, 1);
     setTable([...dataTable]);
-    console.log(dataTable);
   };
   const updateCell = (row, col, e) => {
     dataTable[row][col] = e.target.value;
