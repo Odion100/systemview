@@ -4,7 +4,12 @@ import "./styles.scss";
 
 const AfterTest = ({ testData, TestController }) => {
   return (
-    <MultiTestSection testData={testData} TestController={TestController} caption="After Test" />
+    <MultiTestSection
+      dynamic={true}
+      testData={testData}
+      TestController={TestController}
+      caption="After Test"
+    />
   );
 };
 

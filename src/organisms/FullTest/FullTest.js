@@ -11,8 +11,9 @@ const FullTest = (nsp) => {
   const { ConnectedProject } = useContext(ServiceContext);
   const [testBefore, setTestBefore] = useState([]);
   const [testAfter, setTestAfter] = useState([]);
-  const [eventTest, setEventTest] = useState([]);
   const [testMain, setTestMain] = useState([new Test(nsp)]);
+  const event_nsp = { service_id: nsp.service_id, module_name: nsp.module_name, method_name: "on" };
+  const [eventTest, setEventTest] = useState(new Test(event_nsp));
   const Tests = [testBefore, testMain, eventTest, testAfter];
   window.Tests = Tests;
   useEffect(() => {
@@ -42,6 +43,8 @@ const FullTest = (nsp) => {
         <EventsTest
           TestController={new TestController(eventTest, setEventTest, 2, Tests, ConnectedProject)}
           testData={eventTest}
+          nsp={event_nsp}
+          Tests={Tests}
         />
       </div>
       <div className="row test-panel__section">

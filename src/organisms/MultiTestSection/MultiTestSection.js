@@ -2,10 +2,21 @@ import React from "react";
 import ExpandableSection from "../../molecules/ExpandableSection/ExpandableSection";
 import TestCaption from "../../molecules/TestCaption/TestCaption";
 import TestContainer from "../TestContainer/TestContainer";
+import Argument from "../FullTest/components/Argument.class";
 import "./styles.scss";
 
-const MultiTestSection = ({ caption, TestController, testData }) => {
+const MultiTestSection = ({
+  caption,
+  TestController,
+  testData,
+  dynamic,
+  nsp,
+  arg = {},
+  staticArguments,
+}) => {
   const className = "multi-test-section";
+  const addTest = () =>
+    TestController.addTest(nsp, arg.name && [new Argument(arg.name, arg.Tests, arg.input_type)]);
 
   return (
     <section className={className}>
@@ -14,7 +25,7 @@ const MultiTestSection = ({ caption, TestController, testData }) => {
         title={
           <>
             <TestCaption caption={`${caption}`} />
-            <AddButton onClick={TestController.addTest} className={className} />
+            <AddButton onClick={addTest} className={className} />
           </>
         }
         title_color="#0d8065"
@@ -27,10 +38,11 @@ const MultiTestSection = ({ caption, TestController, testData }) => {
                 TestController={TestController}
                 test={test}
                 test_index={i}
-                title={`Action${i + 1}:`}
+                title={`${i + 1}:`}
                 title_color={"#4b53b3"}
-                dynamic={true}
+                dynamic={dynamic}
                 open={true}
+                staticArguments={staticArguments}
               />
             ))
           ) : (

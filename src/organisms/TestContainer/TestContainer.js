@@ -5,7 +5,7 @@ import ScratchPad from "../ScratchPad/ScratchPad";
 
 import "./styles.scss";
 
-const QuickTestSection = ({
+const TestContainer = ({
   open,
   title,
   children,
@@ -14,8 +14,9 @@ const QuickTestSection = ({
   test,
   test_index,
   title_color,
+  staticArguments,
 }) => {
-  const className = "quick-test";
+  const className = "test-container";
   const deleteTest = () => {
     TestController.deleteTest(test_index);
   };
@@ -27,13 +28,11 @@ const QuickTestSection = ({
         title={
           <>
             <TestCaption caption={<b>{title}</b>} useInput={true} />
-            {dynamic ? (
+            {
               <span className={`${className}__delete-btn btn delete-btn`} onClick={deleteTest}>
                 x
               </span>
-            ) : (
-              ""
-            )}
+            }
           </>
         }
       >
@@ -42,6 +41,7 @@ const QuickTestSection = ({
           test={test}
           test_index={test_index}
           dynamic={dynamic}
+          staticArguments={staticArguments}
         />
         {children}
       </ExpandableSection>
@@ -49,4 +49,4 @@ const QuickTestSection = ({
   );
 };
 
-export default QuickTestSection;
+export default TestContainer;

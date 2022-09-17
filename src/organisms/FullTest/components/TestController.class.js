@@ -8,8 +8,10 @@ export default function TestController(testData, setState, section, Tests, Conne
     if (section === 1) {
       //run full tests plus evaluations if is main test
       const [testBefore, testMain, eventsTest, testAfter] = Tests;
+      //run events test asynchronously
+      eventsTest.map((test) => test.runTest(() => setState([...testData])));
+      //run test synchronously
       await Promise.all([
-        //...eventsTest.map(async (test) => test.runTest()),
         ...testBefore.map(async (test) => test.runTest()),
         ...testMain.map(async (test) => test.runTest()),
         ...testAfter.map(async (test) => test.runTest()),
@@ -27,9 +29,10 @@ export default function TestController(testData, setState, section, Tests, Conne
     testData[index].namespace = namespace;
     testData[index].getConnection(ConnectedProject).then(() => setState([...testData]));
   };
-  this.addTest = () => {
-    testData.push(new Test());
+  this.addTest = (nsp, args, title) => {
+    testData.push(new Test(nsp, args, title));
     setState([...testData]);
+    if (nsp) this.updateNamespace(testData.length - 1, nsp);
   };
   this.deleteTest = (index) => {
     testData.splice(index, 1);
