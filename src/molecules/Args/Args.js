@@ -6,10 +6,10 @@ import ExpandableIcon from "../../atoms/ExpandableIcon/ExpandableIcon";
 import TypeSelector from "../../atoms/TypeSelector/TypeSelector";
 import TargetSelector from "../TargetSelector/TargetSelector";
 import Toggle from "../../atoms/Toggle/Toggle";
-import { getType, defaultValue } from "../ValidationInput/validations";
+import { getType, defaultValue } from "../ValidationInput/validator";
 import "./styles.scss";
 
-const Args = ({ args, controller, test_index }) => {
+const Args = ({ args, controller, test_index, locked }) => {
   const className = "args";
   const add = () => controller.addArg(test_index);
 
@@ -25,23 +25,27 @@ const Args = ({ args, controller, test_index }) => {
               i={i}
               className={className}
               controller={controller}
+              locked={locked}
             />
           ))}
         </div>
       ) : (
         ""
       )}
-      <span className={`${className}__add-btn btn`} onClick={add}>
-        +
-      </span>
+      {locked ? (
+        ""
+      ) : (
+        <span className={`${className}__add-btn btn`} onClick={add}>
+          +
+        </span>
+      )}
     </>
   );
 };
-const ArgData = ({ className, arg, test_index, i, controller }) => {
+const ArgData = ({ className, arg, test_index, i, controller, locked }) => {
   const { name, input_type, targetValues } = arg;
   const [isOpen, setOpen] = useState(true);
   const showData = () => {
-    console.log(arg);
     setOpen(!isOpen);
   };
   const inputTypeChanged = (e) => {
@@ -91,10 +95,13 @@ const ArgData = ({ className, arg, test_index, i, controller }) => {
           />
         </div>
       </div>
-
-      <span className={`${className}__data__delete-btn btn delete-btn`} onClick={deleteArg}>
-        x
-      </span>
+      {locked ? (
+        ""
+      ) : (
+        <span className={`${className}__data__delete-btn btn delete-btn`} onClick={deleteArg}>
+          x
+        </span>
+      )}
     </div>
   );
 };
@@ -109,7 +116,6 @@ const ArgName = ({ name, className, isOpen, showData }) => {
 const ArgDataForm = ({ arg, className, test_index, i, controller, is12 }) => {
   const { input, input_type, data_type, targetValues } = arg;
   const [jsonBoxVisible, setJsonBoxVisible] = useState(false);
-  console.log(arg);
   const showJsonTxb = () => setJsonBoxVisible(true);
   const hideJsonTxb = () => setJsonBoxVisible(false);
   const inputChanged = (e) => {
@@ -119,7 +125,6 @@ const ArgDataForm = ({ arg, className, test_index, i, controller, is12 }) => {
     controller.editArg(test_index, i, arg);
   };
   const jsonTextboxSubmit = (new_object) => {
-    console.log(new_object);
     arg.input = new_object;
     controller.editArg(test_index, i, arg);
     controller.checkTargetValues(test_index, i);
@@ -127,7 +132,6 @@ const ArgDataForm = ({ arg, className, test_index, i, controller, is12 }) => {
   };
   const jsonObjectSubmit = ({ updated_src, namespace, name, new_value }) => {
     jsonTextboxSubmit(updated_src || {});
-    console.log(namespace, new_value);
     const source_map = namespace;
     source_map.push(name);
     source_map.unshift("input");
@@ -137,8 +141,9 @@ const ArgDataForm = ({ arg, className, test_index, i, controller, is12 }) => {
   };
 
   const adjustSize = (e) => {
-    e.target.style.height = "inherit";
-    e.target.style.height = `${e.target.scrollHeight}px`;
+    const new_lines = Array.from(e.target.value.matchAll(/\n/g)).length;
+    const new_height = 33 + new_lines * 18;
+    e.target.style.height = `${new_height}px`;
   };
 
   const textboxChanged = (e) => {
@@ -251,7 +256,7 @@ const ArgDataForm = ({ arg, className, test_index, i, controller, is12 }) => {
 
 const ArgValue = ({ className, value, data_type, tv }) => {
   return (
-    <div className={`${className}__value`}>
+    <div className={`${className}__value ${!tv.length && className + "__value--hide"}`}>
       {data_type === "undefined" || data_type === "null" ? (
         <span className={`${className}__value__${data_type}`}>{value + ""}</span>
       ) : data_type === "string" ? (
@@ -269,11 +274,7 @@ const ArgValue = ({ className, value, data_type, tv }) => {
       ) : data_type === "date" ? (
         <span className={`${className}__value__${data_type}`}>{moment(value).format() + ""}</span>
       ) : data_type === "object" || data_type === "array" ? (
-        <span
-          className={`${className}__value__${data_type} ${className}__value__${data_type}${
-            !tv.length && "--hide"
-          }`}
-        >
+        <span className={`${className}__value__${data_type}`}>
           <ReactJson
             src={value}
             name={false}

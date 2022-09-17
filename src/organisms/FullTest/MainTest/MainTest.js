@@ -1,17 +1,17 @@
 import React from "react";
 import Evaluations from "./Evaluations";
-import TestContainer from "../TestContainer/TestContainer";
+import TestContainer from "../../TestContainer/TestContainer";
 
 import "./styles.scss";
 
-const EventsTestSection = ({ TestController, testData, test_index }) => {
+const MainTest = ({ TestController, testData }) => {
   return (
     <section className="current-data-section">
       <TestContainer
-        title="Events Test:"
+        title="Main Test:"
         open={true}
         test={testData[0]}
-        test_index={test_index}
+        test_index={0}
         TestController={TestController}
       >
         <Evaluations test={testData[0]} />
@@ -20,4 +20,4 @@ const EventsTestSection = ({ TestController, testData, test_index }) => {
   );
 };
 
-export default EventsTestSection;
+export default MainTest;

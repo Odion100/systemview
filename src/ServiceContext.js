@@ -1,5 +1,4 @@
 import React from "react";
-import { Client } from "sht-tasks";
 
 const ServiceContext = React.createContext({
   SystemLinkService: {},

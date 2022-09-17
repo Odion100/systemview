@@ -11,10 +11,10 @@ export function TargetValue(target_namespace, source_map, source_index) {
   this.source_map = source_map || [];
   this.source_index = source_index || 0;
 }
-export default function Argument(name, Tests) {
+export default function Argument(name, Tests, input_type = "undefined") {
   this.name = name;
   this.input = undefined;
-  this.input_type = "undefined";
+  this.input_type = input_type;
   this.data_type = "";
   this.targetValues = [];
 
@@ -74,7 +74,7 @@ export default function Argument(name, Tests) {
   const getTargetValue = (input) => {
     const [test, action] = input.split(".");
     const nsp = input
-      .replace(test, { beforeTest: 0, mainTest: 1, afterTest: 2 }[test])
+      .replace(test, { beforeTest: 0, mainTest: 1, eventTest: 2, afterTest: 3 }[test])
       .replace(action, parseInt(action.replace("Action", "")) - 1)
       .replace("error", "results");
     return obj(Tests).valueAtNsp(nsp);

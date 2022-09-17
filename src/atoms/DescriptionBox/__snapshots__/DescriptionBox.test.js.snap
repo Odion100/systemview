@@ -1,0 +1,14 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`<DescriptionBox/> should match snapshot 1`] = `
+<div
+  className="description-box"
+>
+  <textarea
+    className="description-box__textbox"
+    id="description-box"
+    name="description-box"
+    onChange={null}
+  />
+</div>
+`;

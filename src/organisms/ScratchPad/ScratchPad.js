@@ -6,7 +6,13 @@ import Args from "../../molecules/Args/Args";
 import ServiceContext from "../../ServiceContext";
 import "./styles.scss";
 
-const ScratchPad = ({ TestController, test, test_index = 0, dynamic = false }) => {
+const ScratchPad = ({
+  TestController,
+  test,
+  test_index = 0,
+  dynamic = false,
+  staticArguments = false,
+}) => {
   const placeholder = "service.module.method";
   const { project_code, service_id, module_name, method_name } = test.namespace;
   const [nsp, setNsp] = useState(method_name ? `${service_id}.${module_name}.${method_name}` : "");
@@ -69,7 +75,12 @@ const ScratchPad = ({ TestController, test, test_index = 0, dynamic = false }) =
             placeholder={placeholder}
           />
           <span className="scratchpad__test-data__parentheses">{"("}</span>
-          <Args args={test.args} controller={TestController} test_index={test_index} />
+          <Args
+            args={test.args}
+            controller={TestController}
+            test_index={test_index}
+            locked={staticArguments}
+          />
           <span className="scratchpad__test-data__parentheses">{")"}</span>
         </div>
         <div

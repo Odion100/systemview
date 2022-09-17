@@ -123,6 +123,9 @@
   }
   &__value {
     padding: 14px;
+    &--hide {
+      display: none;
+    }
     &__number {
       color: #9741ed;
       font-weight: bold;
@@ -139,9 +142,6 @@
     }
     &__object {
       background: white;
-      &--hide {
-        display: none;
-      }
     }
     &__boolean {
       font-weight: bold;

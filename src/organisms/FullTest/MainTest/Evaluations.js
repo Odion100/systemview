@@ -1,51 +1,46 @@
 import React, { useState, useEffect } from "react";
-import ExpandableSection from "../../molecules/ExpandableSection/ExpandableSection";
-import ValidationInput from "../../molecules/ValidationInput/ValidationInput";
-import validation_options from "../../molecules/ValidationInput/ValidationOptions";
-import TypeSelector from "../../atoms/TypeSelector/TypeSelector";
-import { getErrors } from "../../molecules/ValidationInput/validations";
+import ExpandableSection from "../../../molecules/ExpandableSection/ExpandableSection";
+import ValidationInput from "../../../molecules/ValidationInput/ValidationInput";
+import validation_options from "../../../molecules/ValidationInput/ValidationOptions";
+import TypeSelector from "../../../atoms/TypeSelector/TypeSelector";
+import { getErrors } from "../../../molecules/ValidationInput/validator";
 
 export default function Evaluations({ test }) {
-  const [currentEvaluations, updateEvaluations] = useState([]);
+  const [evaluations, setEvaluations] = useState([]);
   const [errorCount, setErrorCount] = useState(0);
-  const [state, setState] = useState(true);
 
   const addValidation = (i) => {
-    const { expected_type, type } = currentEvaluations[i];
+    const { expected_type, type } = evaluations[i];
 
-    currentEvaluations[i].validations.push({
+    evaluations[i].validations.push({
       name: validation_options[expected_type].values[0],
       value:
         expected_type === "number" || (expected_type === "mixed" && type === "number") ? 0 : "",
     });
 
-    updateErrors(currentEvaluations[i]);
-    updateEvaluations(currentEvaluations);
-    setState(!state);
-    console.log(currentEvaluations);
+    updateErrors(evaluations[i]);
+    setEvaluations([...evaluations]);
   };
+
   const deleteValidation = (x, y) => {
-    currentEvaluations[x].validations.splice(y, 1);
-    updateErrors(currentEvaluations[x]);
-    updateEvaluations(currentEvaluations);
-    setState(!state);
-    console.log(currentEvaluations);
+    evaluations[x].validations.splice(y, 1);
+    updateErrors(evaluations[x]);
+    setEvaluations([...evaluations]);
   };
+
   const updateValidations = (x, y, p, v) => {
-    currentEvaluations[x].validations[y][p] = v;
-    updateErrors(currentEvaluations[x]);
-    updateEvaluations(currentEvaluations);
-    setState(!state);
-    console.log(currentEvaluations);
+    evaluations[x].validations[y][p] = v;
+    updateErrors(evaluations[x]);
+    setEvaluations([...evaluations]);
   };
+
   const updateExpectedType = (x, e) => {
-    currentEvaluations[x].expected_type = e.target.value;
-    currentEvaluations[x].validations = [];
-    updateErrors(currentEvaluations[x]);
-    updateEvaluations(currentEvaluations);
-    setState(!state);
-    console.log(currentEvaluations);
+    evaluations[x].expected_type = e.target.value;
+    evaluations[x].validations = [];
+    updateErrors(evaluations[x]);
+    setEvaluations([...evaluations]);
   };
+
   const updateErrors = (evaluation) => {
     evaluation.errors = getErrors(
       evaluation.type,
@@ -53,22 +48,22 @@ export default function Evaluations({ test }) {
       evaluation.validations,
       evaluation.expected_type
     );
-    const count = currentEvaluations.reduce((a, b) => a + b.errors.count, 0);
+    const count = evaluations.reduce((sum, e) => sum + e.errors.count, 0);
     setErrorCount(count);
   };
 
   useEffect(() => {
     if (test.test_end !== null) {
-      updateEvaluations(test.evaluations);
+      setEvaluations(test.evaluations);
       setErrorCount(test.total_errors);
     } else {
-      updateEvaluations([]);
+      setEvaluations([]);
       setErrorCount(0);
     }
   }, [test.test_end]);
 
   return (
-    <div className={`evaluations evaluations--visible-${currentEvaluations.length > 0}`}>
+    <div className={`evaluations evaluations--visible-${evaluations.length > 0}`}>
       <ExpandableSection
         title={
           <div className={`evaluations__title evaluations--error-${errorCount > 0}`}>
@@ -81,26 +76,23 @@ export default function Evaluations({ test }) {
           </div>
         }
       >
-        {currentEvaluations.map(
-          ({ namespace, type, expected_type, value, errors, validations }, i) => {
-            return (
-              <EvaluationRow
-                key={i}
-                namespace={namespace}
-                type={type}
-                expected_type={expected_type}
-                errors={errors}
-                validations={validations}
-                value={value}
-                index={i}
-                addValidation={addValidation}
-                deleteValidation={deleteValidation}
-                updateValidations={updateValidations}
-                updateExpectedType={updateExpectedType}
-              />
-            );
-          }
-        )}
+        {evaluations.map(({ namespace, type, expected_type, value, errors, validations }, i) => {
+          return (
+            <EvaluationRow
+              key={i}
+              namespace={namespace}
+              type={type}
+              expected_type={expected_type}
+              errors={errors}
+              validations={validations}
+              index={i}
+              addValidation={addValidation}
+              deleteValidation={deleteValidation}
+              updateValidations={updateValidations}
+              updateExpectedType={updateExpectedType}
+            />
+          );
+        })}
       </ExpandableSection>
     </div>
   );
@@ -112,7 +104,6 @@ const EvaluationRow = ({
   expected_type,
   errors,
   validations,
-  value,
   index,
   addValidation,
   deleteValidation,

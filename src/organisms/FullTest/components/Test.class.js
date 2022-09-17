@@ -21,18 +21,38 @@ export default function Test(namespace, args, title) {
   };
   this.clearResults();
 
-  this.runTest = async () => {
-    try {
-      const { service_id, module_name, method_name } = this.namespace;
-      const args = this.args.map((arg) => arg.value());
-      this.test_start = moment().toJSON();
-      this.results = await this.connection[service_id][module_name][method_name].apply({}, args);
-      this.test_end = moment().toJSON();
-      this.response_type = "results";
-    } catch (error) {
-      this.test_end = moment().toJSON();
-      this.results = error;
-      this.response_type = "error";
+  this.runTest = async (cb) => {
+    const { service_id, module_name, method_name } = this.namespace;
+    const args = this.args.map((arg) => arg.value());
+
+    console.log(
+      `--------> [invoking]:${service_id}.${module_name}.${method_name}(${args})`,
+      "args:",
+      args
+    );
+    this.test_start = moment().toJSON();
+    if (method_name === "on") {
+      this.connection[service_id][module_name].on(args[0], (e) => {
+        this.results = e;
+        this.test_end = moment().toJSON();
+        this.response_type = "event";
+        typeof cb === "function" && cb();
+      });
+    } else {
+      try {
+        this.results = await this.connection[service_id][module_name][method_name].apply({}, args);
+        this.test_end = moment().toJSON();
+        this.response_type = "results";
+      } catch (error) {
+        this.test_end = moment().toJSON();
+        this.results = error;
+        this.response_type = "error";
+      }
+      console.log(
+        `--------> [${this.response_type}]:${service_id}.${module_name}.${method_name}()`,
+        `${this.response_type}:`,
+        this.results
+      );
     }
     return this;
   };
