@@ -1,12 +1,17 @@
 .edit-box {
   width: 100%;
-
+  border: 1px solid gainsboro;
+  border-radius: 4px;
+  background: white;
+  overflow: scroll;
+  max-height: 80vh;
+  &:hover {
+    border: 2px dashed #5960b6;
+    cursor: pointer;
+  }
   &__main {
     border: 2px dashed transparent;
-    &:hover {
-      border: 2px dashed #0d8065;
-      cursor: pointer;
-    }
+    padding: 0 15px;
     &--hidden {
       display: none;
     }

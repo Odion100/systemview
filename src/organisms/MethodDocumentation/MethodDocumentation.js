@@ -1,11 +1,10 @@
 import React, { useState, useContext, useEffect } from "react";
 import "./styles.scss";
-import Text from "../../atoms/Text/Text";
-import DescriptionText from "../../atoms/DescriptionText/DescriptionText";
 import DescriptionBox from "../../atoms/DescriptionBox/DescriptionBox";
 import EditBox from "../../molecules/EditBox/EditBox";
-import DataTableForm from "../../molecules/DataTableForm/DataTableForm";
 import Title from "../../atoms/Title/Title";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import ServiceContext from "../../ServiceContext";
 
 const MethodDoc = ({ project_code, service_id, module_name, method_name }) => {
@@ -21,9 +20,9 @@ const MethodDoc = ({ project_code, service_id, module_name, method_name }) => {
         method_name,
       });
       if (results.status === 200) setDocument(results.documentation);
-      else setDocument({});
+      else setDocument({ project_code, service_id, module_name, method_name });
     } catch (error) {
-      setDocument({});
+      setDocument({ project_code, service_id, module_name, method_name });
       console.error(error);
     }
   };
@@ -38,13 +37,7 @@ const MethodDoc = ({ project_code, service_id, module_name, method_name }) => {
         <DocTitle service_id={service_id} module_name={module_name} method_name={method_name} />
       </div>
       <div className="row documentation-view__data-table">
-        <RequestDescription doc={doc} setDocument={setDocument} />
-      </div>
-      <div className="row documentation-view__data-table">
-        <RequestDataTable doc={doc} setDocument={setDocument} />
-      </div>
-      <div className="row">
-        <ResponseDataTable doc={doc} setDocument={setDocument} />
+        <DocDescription doc={doc} setDocument={setDocument} />
       </div>
     </div>
   );
@@ -63,12 +56,12 @@ const DocTitle = ({ service_id, module_name, method_name, variable_name = "data"
   );
 };
 
-const RequestDescription = ({ doc, setDocument }) => {
+const DocDescription = ({ doc, setDocument }) => {
   const { MethodDocumentation } = useContext(ServiceContext).SystemLinkService;
   let description = doc.description;
   const updateDescription = (new_description) => (description = new_description);
 
-  const saveDescription = async () => {
+  const saveDescription = async (setFormDisplay) => {
     try {
       const results = await MethodDocumentation.saveDoc({
         project_code: doc.project_code,
@@ -78,7 +71,8 @@ const RequestDescription = ({ doc, setDocument }) => {
         description: description,
       });
 
-      if (results.status === 200) setDocument(results.documentation);
+      setDocument(results.documentation);
+      setFormDisplay(false);
     } catch (error) {
       console.error(error);
     }
@@ -86,88 +80,16 @@ const RequestDescription = ({ doc, setDocument }) => {
 
   return (
     <EditBox
-      mainObject={<DescriptionText text={doc.description || "What does this method do?"} />}
+      mainObject={
+        <ReactMarkdown
+          children={doc.description || "What does this method do?"}
+          remarkPlugins={[remarkGfm]}
+        />
+      }
       hiddenForm={<DescriptionBox text={doc.description} setValue={updateDescription} />}
       formSubmit={saveDescription}
     />
   );
 };
 
-const RequestDataTable = ({ doc, setDocument }) => {
-  const { MethodDocumentation } = useContext(ServiceContext).SystemLinkService;
-
-  const saveRequestData = async (properties) => {
-    console.log(properties);
-    try {
-      const results = await MethodDocumentation.saveDoc({
-        project_code: doc.project_code,
-        service_id: doc.service_id,
-        module_name: doc.module_name,
-        method_name: doc.method_name,
-        request_data: { ...doc.request_data, properties },
-      });
-
-      if (results.status === 200) setDocument(results.documentation);
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  return (
-    <React.Fragment>
-      <Text
-        text={
-          <span>
-            The following table describes the properties of the{" "}
-            <span className="documentation-view__parameter">data</span> parameter of the above
-            method.
-          </span>
-        }
-      />
-      <DataTableForm
-        data={doc.request_data ? doc.request_data.properties : []}
-        submit={saveRequestData}
-      />
-    </React.Fragment>
-  );
-};
-const ResponseDataTable = ({ doc, setDocument }) => {
-  const { MethodDocumentation } = useContext(ServiceContext).SystemLinkService;
-
-  const saveResponseData = async (properties) => {
-    console.log(properties);
-    try {
-      const results = await MethodDocumentation.saveDoc({
-        project_code: doc.project_code,
-        service_id: doc.service_id,
-        module_name: doc.module_name,
-        method_name: doc.method_name,
-        response_data: { ...doc.response_data, properties },
-      });
-
-      if (results.status === 200) setDocument(results.documentation);
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  return (
-    <React.Fragment>
-      <Text
-        text={
-          <span>
-            The following table describes the properties of the{" "}
-            <span className="documentation-view__parameter">results</span> parameter of the{" "}
-            <span className="documentation-view__parameter">callback(error, results)</span>{" "}
-            function.
-          </span>
-        }
-      />
-      <DataTableForm
-        data={doc.response_data ? doc.response_data.properties : []}
-        submit={saveResponseData}
-      />
-    </React.Fragment>
-  );
-};
 export default MethodDoc;

@@ -4,13 +4,14 @@
   &__textbox {
     min-width: 100%;
     max-width: 100%;
-    min-height: 146px;
-    max-height: 146px;
+    min-height: 60vh;
     background: white;
     color: black;
     font-size: 15px;
     font-family: inherit;
     padding: 8px;
     border-radius: 2px;
+    border: none;
+    outline: none;
   }
 }
