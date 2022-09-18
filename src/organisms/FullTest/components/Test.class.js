@@ -62,7 +62,10 @@ export default function Test(namespace, args, title) {
 
     if (ConnectedProject.length > 0) {
       const connData = ConnectedProject.find((connData) => connData.service_id === service_id);
-      if (!connData) return console.log("connection data not found");
+      if (!connData) {
+        console.log("connection data not found");
+        return this;
+      }
       if (!Client.loadedServices[connData.url]) {
         try {
           const service = await Client.loadService(connData.url);
