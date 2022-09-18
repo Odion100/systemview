@@ -5,13 +5,14 @@
   background: white;
   overflow: scroll;
   max-height: 80vh;
+  border: 2px solid #f1f1f1;
   &:hover {
     border: 2px dashed #5960b6;
+    border: 2px dashed gainsboro;
     cursor: pointer;
   }
   &__main {
     border: 2px dashed transparent;
-    padding: 0 15px;
     &--hidden {
       display: none;
     }

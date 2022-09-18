@@ -3,13 +3,19 @@ import "./styles.scss";
 import DescriptionBox from "../../atoms/DescriptionBox/DescriptionBox";
 import EditBox from "../../molecules/EditBox/EditBox";
 import Title from "../../atoms/Title/Title";
-import ReactMarkdown from "react-markdown";
+import Markdown from "../../atoms/Markdown/Markdown";
 import remarkGfm from "remark-gfm";
 import ServiceContext from "../../ServiceContext";
 
 const MethodDoc = ({ project_code, service_id, module_name, method_name }) => {
   const { MethodDocumentation } = useContext(ServiceContext).SystemLinkService;
-  const [doc, setDocument] = useState({});
+  const [doc, setDocument] = useState({
+    project_code,
+    service_id,
+    module_name,
+    method_name,
+    description: "",
+  });
 
   const fetchDocument = async () => {
     try {
@@ -43,13 +49,13 @@ const MethodDoc = ({ project_code, service_id, module_name, method_name }) => {
   );
 };
 
-const DocTitle = ({ service_id, module_name, method_name, variable_name = "data" }) => {
+const DocTitle = ({ service_id, module_name, method_name, variable_name = "payload" }) => {
   return (
     <Title
       text={
         <span className="documentation-view__title">
           {`${service_id}.${module_name}.${method_name}`}(
-          <span className="documentation-view__parameter">{variable_name}</span>, callback)
+          <span className="documentation-view__parameter">{variable_name}</span>, [callback])
         </span>
       }
     />
@@ -81,13 +87,14 @@ const DocDescription = ({ doc, setDocument }) => {
   return (
     <EditBox
       mainObject={
-        <ReactMarkdown
+        <Markdown
           children={doc.description || "What does this method do?"}
           remarkPlugins={[remarkGfm]}
         />
       }
-      hiddenForm={<DescriptionBox text={doc.description} setValue={updateDescription} />}
+      hiddenForm={<DescriptionBox text={doc.description || ""} setValue={updateDescription} />}
       formSubmit={saveDescription}
+      stateChange={[doc.method_name, doc.module_name, doc.service_id]}
     />
   );
 };
