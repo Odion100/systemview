@@ -13,7 +13,7 @@ const FullTest = (nsp) => {
   const [testAfter, setTestAfter] = useState([]);
   const [testMain, setTestMain] = useState([new Test(nsp)]);
   const event_nsp = { service_id: nsp.service_id, module_name: nsp.module_name, method_name: "on" };
-  const [eventTest, setEventTest] = useState(new Test(event_nsp));
+  const [eventTest, setEventTest] = useState([new Test(event_nsp)]);
   const Tests = [testBefore, testMain, eventTest, testAfter];
   window.Tests = Tests;
   useEffect(() => {
