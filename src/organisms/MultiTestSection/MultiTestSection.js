@@ -21,7 +21,7 @@ const MultiTestSection = ({
   return (
     <section className={className}>
       <ExpandableSection
-        open={true}
+        open={false}
         title={
           <>
             <TestCaption caption={`${caption}`} />

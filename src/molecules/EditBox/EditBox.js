@@ -1,8 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "./styles.scss";
 import Button from "../../atoms/Button/Button";
 
-const EditBox = ({ formSubmit, mainObject, hiddenForm, onCancel }) => {
+const EditBox = ({ formSubmit, mainObject, hiddenForm, onCancel, stateChange }) => {
   const [editMode, setEditMode] = useState(false);
   const editBoxClicked = () => setEditMode(true);
   const cancelClicked = () => {
@@ -14,6 +14,9 @@ const EditBox = ({ formSubmit, mainObject, hiddenForm, onCancel }) => {
     formSubmit(setEditMode);
     //setEditMode(false);
   };
+  useEffect(() => {
+    setEditMode(false);
+  }, [stateChange]);
   return (
     <div className="edit-box">
       <div

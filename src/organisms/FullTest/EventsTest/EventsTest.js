@@ -10,7 +10,7 @@ const EventsTest = ({ testData, TestController, nsp, Tests, connection }) => {
       TestController={TestController}
       nsp={nsp}
       arg={{ name: "event_name", input_type: "string", Tests }}
-      caption="Events Test"
+      caption="Events"
       staticArguments={true}
     />
   );
