@@ -16,11 +16,11 @@ const SystemNav = ({ project_code, service_id, module_name, method_name }) => {
 
   const fetchProject = async (project_code) => {
     try {
+      console.log(project_code);
       const results = await SystemLink.getServices({ project_code });
-      if (results.status === 200) {
-        setServiceList(results.services);
-        setConnectedProject(results.services);
-      } else setConnectedProject([]);
+      console.log(results);
+      setServiceList(results);
+      setConnectedProject(results);
     } catch (error) {
       console.error(error);
       setConnectedProject([]);
@@ -71,30 +71,32 @@ const NavigationLinks = ({
   _module_name,
   _method_name,
 }) => {
-  return servicesList.map(({ server_modules, system_modules, dependencies, service_id }, i) => {
-    return (
-      <ExpandableList
-        open={_service_id === service_id}
-        key={i}
-        title={
-          <React.Fragment>
-            <Link link={`/${project_code}/${service_id}`} text={service_id} />
-            <div className="server-module__docs-icon">
-              <MissingDocIcon isSaved={parseInt(Math.random() * 1000) % 2} />
-            </div>
-          </React.Fragment>
-        }
-      >
-        <ServerModulesList
-          module_name={_module_name}
-          project_code={project_code}
-          service_id={service_id}
-          server_modules={server_modules}
-          method_name={_method_name}
-        />
-      </ExpandableList>
-    );
-  });
+  return servicesList.map(
+    ({ server_modules, system_modules, dependencies, service_id }, i) => {
+      return (
+        <ExpandableList
+          open={_service_id === service_id}
+          key={i}
+          title={
+            <React.Fragment>
+              <Link link={`/${project_code}/${service_id}`} text={service_id} />
+              <div className="server-module__docs-icon">
+                <MissingDocIcon isSaved={parseInt(Math.random() * 1000) % 2} />
+              </div>
+            </React.Fragment>
+          }
+        >
+          <ServerModulesList
+            module_name={_module_name}
+            project_code={project_code}
+            service_id={service_id}
+            server_modules={server_modules}
+            method_name={_method_name}
+          />
+        </ExpandableList>
+      );
+    }
+  );
 };
 
 export default SystemNav;

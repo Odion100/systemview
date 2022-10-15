@@ -25,8 +25,7 @@ const MethodDoc = ({ project_code, service_id, module_name, method_name }) => {
         module_name,
         method_name,
       });
-      if (results.status === 200) setDocument(results.documentation);
-      else setDocument({ project_code, service_id, module_name, method_name });
+      setDocument(results);
     } catch (error) {
       setDocument({ project_code, service_id, module_name, method_name });
       console.error(error);
@@ -40,7 +39,11 @@ const MethodDoc = ({ project_code, service_id, module_name, method_name }) => {
   return (
     <div className="documentation-view">
       <div className="row">
-        <DocTitle service_id={service_id} module_name={module_name} method_name={method_name} />
+        <DocTitle
+          service_id={service_id}
+          module_name={module_name}
+          method_name={method_name}
+        />
       </div>
       <div className="row documentation-view__data-table">
         <DocDescription doc={doc} setDocument={setDocument} />
@@ -49,13 +52,19 @@ const MethodDoc = ({ project_code, service_id, module_name, method_name }) => {
   );
 };
 
-const DocTitle = ({ service_id, module_name, method_name, variable_name = "payload" }) => {
+const DocTitle = ({
+  service_id,
+  module_name,
+  method_name,
+  variable_name = "payload",
+}) => {
   return (
     <Title
       text={
         <span className="documentation-view__title">
           {`${service_id}.${module_name}.${method_name}`}(
-          <span className="documentation-view__parameter">{variable_name}</span>, [callback])
+          <span className="documentation-view__parameter">{variable_name}</span>,
+          [callback])
         </span>
       }
     />
@@ -77,7 +86,7 @@ const DocDescription = ({ doc, setDocument }) => {
         description: description,
       });
 
-      setDocument(results.documentation);
+      setDocument(results);
       setFormDisplay(false);
     } catch (error) {
       console.error(error);
@@ -92,7 +101,9 @@ const DocDescription = ({ doc, setDocument }) => {
           remarkPlugins={[remarkGfm]}
         />
       }
-      hiddenForm={<DescriptionBox text={doc.description || ""} setValue={updateDescription} />}
+      hiddenForm={
+        <DescriptionBox text={doc.description || ""} setValue={updateDescription} />
+      }
       formSubmit={saveDescription}
       stateChange={[doc.method_name, doc.module_name, doc.service_id]}
     />
