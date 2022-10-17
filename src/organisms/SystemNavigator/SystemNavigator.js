@@ -9,15 +9,15 @@ import MissingDocIcon from "../../atoms/DocsIcon/DocsIcon";
 import "./styles.scss";
 
 const SystemNav = ({ project_code, service_id, module_name, method_name }) => {
-  const { SystemLinkService, setConnectedProject } = useContext(ServiceContext);
-  const { SystemLink } = SystemLinkService;
+  const { SystemViewService, setConnectedProject } = useContext(ServiceContext);
+  const { SystemView } = SystemViewService;
   const [servicesList, setServiceList] = useState([]);
   const history = useHistory();
 
   const fetchProject = async (project_code) => {
     try {
       console.log(project_code);
-      const results = await SystemLink.getServices({ project_code });
+      const results = await SystemView.getServices({ project_code });
       console.log(results);
       setServiceList(results);
       setConnectedProject(results);

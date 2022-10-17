@@ -1,7 +1,7 @@
 import React from "react";
 
 const ServiceContext = React.createContext({
-  SystemLinkService: {},
+  SystemViewService: {},
   ConnectedProject: [],
   setConnectedProject: () => {},
 });

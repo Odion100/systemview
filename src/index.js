@@ -4,14 +4,14 @@ import "./index.css";
 import App from "./App";
 import reportWebVitals from "./reportWebVitals";
 
-import { Client } from "sht-tasks";
+import { Client } from "systemlynx";
 
-const url = "http://localhost:3300/systemlink/api";
+const url = "http://localhost:3300/systemview/api";
 
-Client.loadService(url).then((SystemLinkService) => {
+Client.loadService(url).then((SystemViewService) => {
   ReactDOM.render(
     <React.StrictMode>
-      <App SystemLinkService={SystemLinkService} />
+      <App SystemViewService={SystemViewService} />
     </React.StrictMode>,
     document.getElementById("root")
   );

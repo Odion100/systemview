@@ -8,7 +8,7 @@ import remarkGfm from "remark-gfm";
 import ServiceContext from "../../ServiceContext";
 
 const MethodDoc = ({ project_code, service_id, module_name, method_name }) => {
-  const { MethodDocumentation } = useContext(ServiceContext).SystemLinkService;
+  const { MethodDocumentation } = useContext(ServiceContext).SystemViewService;
   const [doc, setDocument] = useState({
     project_code,
     service_id,
@@ -72,7 +72,7 @@ const DocTitle = ({
 };
 
 const DocDescription = ({ doc, setDocument }) => {
-  const { MethodDocumentation } = useContext(ServiceContext).SystemLinkService;
+  const { MethodDocumentation } = useContext(ServiceContext).SystemViewService;
   let description = doc.description;
   const updateDescription = (new_description) => (description = new_description);
 

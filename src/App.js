@@ -1,13 +1,15 @@
 import React, { useState } from "react";
-import SystemLink from "./pages/SystemLink/SystemLink";
+import SystemView from "./pages/SystemView/SystemView";
 import ServiceContext from "./ServiceContext";
 import { BrowserRouter as Router, Route } from "react-router-dom";
 
-function App({ SystemLinkService }) {
+function App({ SystemViewService }) {
   const [ConnectedProject, setConnectedProject] = useState([]);
 
   return (
-    <ServiceContext.Provider value={{ SystemLinkService, ConnectedProject, setConnectedProject }}>
+    <ServiceContext.Provider
+      value={{ SystemViewService, ConnectedProject, setConnectedProject }}
+    >
       <Router>
         <Route
           path={[
@@ -18,7 +20,7 @@ function App({ SystemLinkService }) {
             "/",
           ]}
         >
-          <SystemLink />
+          <SystemView />
         </Route>
       </Router>
     </ServiceContext.Provider>

@@ -1,4 +1,4 @@
-import { Client } from "sht-tasks";
+import { Client } from "systemlynx";
 import moment from "moment";
 
 export default function Test(namespace, args, title) {
@@ -40,7 +40,10 @@ export default function Test(namespace, args, title) {
       });
     } else {
       try {
-        this.results = await this.connection[service_id][module_name][method_name].apply({}, args);
+        this.results = await this.connection[service_id][module_name][method_name].apply(
+          {},
+          args
+        );
         this.test_end = moment().toJSON();
         this.response_type = "results";
       } catch (error) {
@@ -61,7 +64,9 @@ export default function Test(namespace, args, title) {
     const { service_id } = this.namespace;
 
     if (ConnectedProject.length > 0) {
-      const connData = ConnectedProject.find((connData) => connData.service_id === service_id);
+      const connData = ConnectedProject.find(
+        (connData) => connData.service_id === service_id
+      );
       if (!connData) {
         console.log("connection data not found");
         return this;

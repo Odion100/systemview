@@ -5,7 +5,7 @@ import Documentation from "../../organisms/Documentation/Documentation";
 import TestPanel from "../../organisms/TestPanel/TestPanel";
 import "./styles.scss";
 
-const SystemLinkPage = () => {
+const SystemViewPage = () => {
   const { project_code, service_id, module_name, method_name } = useParams();
   return (
     <section className="system-viewer">
@@ -40,4 +40,4 @@ const SystemLinkPage = () => {
   );
 };
 
-export default SystemLinkPage;
+export default SystemViewPage;
