@@ -37,12 +37,13 @@ export function validateResults(results, namespace, savedValidations = []) {
     evaluations.push(evaluation);
     total_errors++;
   });
-
+  console.log(evaluations);
   return { evaluations, total_errors };
 }
 
 export function getErrors(type, value, validations, expected_type) {
-  if (type !== expected_type && expected_type !== "mixed") return { count: 1, typeError: true };
+  if (type !== expected_type && expected_type !== "mixed")
+    return { count: 1, typeError: true };
   const test_type = expected_type !== "mixed" ? expected_type : type;
 
   switch (test_type) {

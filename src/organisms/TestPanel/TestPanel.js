@@ -4,7 +4,7 @@ import FullTest from "../FullTest/FullTest";
 import Title from "../../atoms/Title/Title";
 import "./styles.scss";
 
-const TestPanel = ({ project_code, service_id, module_name, method_name }) => {
+const TestPanel = ({ projectCode, serviceId, moduleName, methodName }) => {
   return (
     <section className="test-panel">
       <div className="container">
@@ -12,18 +12,18 @@ const TestPanel = ({ project_code, service_id, module_name, method_name }) => {
           <Title text="Scratch Pad" />
         </div>
         <FullTest
-          project_code={project_code}
-          service_id={service_id}
-          module_name={module_name}
-          method_name={method_name}
+          projectCode={projectCode}
+          serviceId={serviceId}
+          moduleName={moduleName}
+          methodName={methodName}
         />
 
         <div className="row test-panel__section">
           <SavedTests
-            project_code={project_code}
-            service_id={service_id}
-            module_name={module_name}
-            method_name={method_name}
+            projectCode={projectCode}
+            serviceId={serviceId}
+            moduleName={moduleName}
+            methodName={methodName}
           />
         </div>
       </div>

@@ -3,7 +3,7 @@ import ExpandableSection from "../../molecules/ExpandableSection/ExpandableSecti
 import TestCaption from "../../molecules/TestCaption/TestCaption";
 import "./styles.scss";
 
-const TestSavedSection = ({ project_code, service_id, module_name, method_name }) => {
+const TestSavedSection = ({ projectCode, serviceId, moduleName, methodName }) => {
   return (
     <section className="test-saved-section">
       <ExpandableSection

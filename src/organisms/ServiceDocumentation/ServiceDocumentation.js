@@ -2,10 +2,10 @@ import React from "react";
 import "./styles.scss";
 import Title from "../../atoms/Title/Title";
 
-const ServiceDocumentation = ({ service_id }) => {
+const ServiceDocumentation = ({ serviceId }) => {
   return (
     <section className="service-documentation">
-      <Title text={`Service Documentation:${service_id}`} />
+      <Title text={`Service Documentation:${serviceId}`} />
     </section>
   );
 };

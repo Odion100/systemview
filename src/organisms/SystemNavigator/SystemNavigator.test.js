@@ -5,9 +5,9 @@ import { render } from "@testing-library/react";
 import "@testing-library/jest-dom/extend-expect";
 import SystemNavigator from "./SystemNavigator";
 
-const mockService = (fn, name, service_id) => {
+const mockService = (fn, name, serviceId) => {
   return {
-    service_id,
+    serviceId,
     system_modules: [{ methods: [{ fn }], name }],
   };
 };
@@ -15,7 +15,9 @@ describe("<SystemNavigator/>", () => {
   it("renders without crashing", () => {
     const div = document.createElement("div");
     ReactDom.render(
-      <SystemNavigator servicesList={[mockService("test_fn", "test_name", "test_service_id")]} />,
+      <SystemNavigator
+        servicesList={[mockService("test_fn", "test_name", "test_serviceId")]}
+      />,
       div
     );
   });

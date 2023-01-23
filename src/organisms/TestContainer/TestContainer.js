@@ -28,11 +28,14 @@ const TestContainer = ({
         title={
           <>
             <TestCaption caption={<b>{title}</b>} useInput={true} />
-            {
-              <span className={`${className}__delete-btn btn delete-btn`} onClick={deleteTest}>
+            {test_index !== 1 && (
+              <span
+                className={`${className}__delete-btn btn delete-btn`}
+                onClick={deleteTest}
+              >
                 x
               </span>
-            }
+            )}
           </>
         }
       >

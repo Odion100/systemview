@@ -4,19 +4,19 @@ import ServiceContext from "./ServiceContext";
 import { BrowserRouter as Router, Route } from "react-router-dom";
 
 function App({ SystemViewService }) {
-  const [ConnectedProject, setConnectedProject] = useState([]);
+  const [connectedServices, setConnectedServices] = useState([]);
 
   return (
     <ServiceContext.Provider
-      value={{ SystemViewService, ConnectedProject, setConnectedProject }}
+      value={{ SystemViewService, connectedServices, setConnectedServices }}
     >
       <Router>
         <Route
           path={[
-            "/:project_code/:service_id/:module_name/:method_name",
-            "/:project_code/:service_id/:module_name",
-            "/:project_code/:service_id",
-            "/:project_code/",
+            "/:projectCode/:serviceId/:moduleName/:methodName",
+            "/:projectCode/:serviceId/:moduleName",
+            "/:projectCode/:serviceId",
+            "/:projectCode/",
             "/",
           ]}
         >

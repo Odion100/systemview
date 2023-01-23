@@ -6,9 +6,9 @@ export default function Test(namespace, args, title) {
   this.title = title;
   this.args = args || [];
   this.namespace = namespace || {
-    service_id: "",
-    module_name: "",
-    method_name: "",
+    serviceId: "",
+    moduleName: "",
+    methodName: "",
   };
   this.clearResults = () => {
     this.results = null;
@@ -22,17 +22,17 @@ export default function Test(namespace, args, title) {
   this.clearResults();
 
   this.runTest = async (cb) => {
-    const { service_id, module_name, method_name } = this.namespace;
+    const { serviceId, moduleName, methodName } = this.namespace;
     const args = this.args.map((arg) => arg.value());
 
     console.log(
-      `--------> [invoking]:${service_id}.${module_name}.${method_name}(${args})`,
+      `--------> [invoking]:${serviceId}.${moduleName}.${methodName}(${args})`,
       "args:",
       args
     );
     this.test_start = moment().toJSON();
-    if (method_name === "on") {
-      this.connection[service_id][module_name].on(args[0], (e) => {
+    if (methodName === "on") {
+      this.connection[serviceId][moduleName].on(args[0], (e) => {
         this.results = e;
         this.test_end = moment().toJSON();
         this.response_type = "event";
@@ -40,7 +40,7 @@ export default function Test(namespace, args, title) {
       });
     } else {
       try {
-        this.results = await this.connection[service_id][module_name][method_name].apply(
+        this.results = await this.connection[serviceId][moduleName][methodName].apply(
           {},
           args
         );
@@ -52,7 +52,7 @@ export default function Test(namespace, args, title) {
         this.response_type = "error";
       }
       console.log(
-        `--------> [${this.response_type}]:${service_id}.${module_name}.${method_name}()`,
+        `--------> [${this.response_type}]:${serviceId}.${moduleName}.${methodName}()`,
         `${this.response_type}:`,
         this.results
       );
@@ -60,27 +60,20 @@ export default function Test(namespace, args, title) {
     return this;
   };
 
-  this.getConnection = async (ConnectedProject) => {
-    const { service_id } = this.namespace;
+  this.getConnection = async (connectedServices) => {
+    const { serviceId } = this.namespace;
 
-    if (ConnectedProject.length > 0) {
-      const connData = ConnectedProject.find(
-        (connData) => connData.service_id === service_id
+    if (connectedServices.length > 0) {
+      const service = connectedServices.find(
+        (service) => service.serviceId === serviceId
       );
-      if (!connData) {
+      if (!service) {
         console.log("connection data not found");
         return this;
       }
-      if (!Client.loadedServices[connData.url]) {
-        try {
-          const service = await Client.loadService(connData.url);
-          this.connection[service_id] = service;
-        } catch (error) {
-          console.error(error);
-        }
-      } else {
-        this.connection[service_id] = Client.loadedServices[connData.url];
-      }
+      const { connectionData } = service.system;
+
+      this.connection[serviceId] = Client.createService(connectionData);
     }
     return this;
   };

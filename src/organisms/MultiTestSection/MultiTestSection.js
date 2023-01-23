@@ -16,7 +16,10 @@ const MultiTestSection = ({
 }) => {
   const className = "multi-test-section";
   const addTest = () =>
-    TestController.addTest(nsp, arg.name && [new Argument(arg.name, arg.Tests, arg.input_type)]);
+    TestController.addTest(
+      nsp,
+      arg.name && [new Argument(arg.name, arg.Tests, arg.input_type)]
+    );
 
   return (
     <section className={className}>

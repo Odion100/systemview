@@ -14,11 +14,13 @@ const ScratchPad = ({
   staticArguments = false,
 }) => {
   const placeholder = "service.module.method";
-  const { project_code, service_id, module_name, method_name } = test.namespace;
-  const [nsp, setNsp] = useState(method_name ? `${service_id}.${module_name}.${method_name}` : "");
+  const { projectCode, serviceId, moduleName, methodName } = test.namespace;
+  const [nsp, setNsp] = useState(
+    methodName ? `${serviceId}.${moduleName}.${methodName}` : ""
+  );
   const [text_length, setLength] = useState(placeholder.length + 0.4);
   const [test_suggestions, setSuggestions] = useState([]);
-  const { ConnectedProject } = useContext(ServiceContext);
+  const { connectedServices } = useContext(ServiceContext);
   const [testResults, setTestResults] = useState(test.results);
 
   const runTest = async () => {
@@ -26,10 +28,10 @@ const ScratchPad = ({
   };
   const createSuggestions = () => {
     const new_suggestions = [];
-    ConnectedProject.forEach((service) => {
-      service.server_modules.forEach((server_module) => {
-        server_module.methods.forEach((method) => {
-          new_suggestions.push(`${service.service_id}.${server_module.name}.${method.fn}()`);
+    connectedServices.forEach((service) => {
+      service.system.connectionData.modules.forEach((mod) => {
+        mod.methods.forEach((method) => {
+          new_suggestions.push(`${service.serviceId}.${mod.name}.${method.fn}()`);
         });
       });
     });
@@ -39,8 +41,8 @@ const ScratchPad = ({
   const changeConnection = (namespaces) => {
     //remove open-close parentheses
     namespaces = namespaces.slice(0, -2);
-    const [service_id, module_name, method_name] = namespaces.split(".");
-    TestController.updateNamespace(test_index, { service_id, module_name, method_name });
+    const [serviceId, moduleName, methodName] = namespaces.split(".");
+    TestController.updateNamespace(test_index, { serviceId, moduleName, methodName });
   };
 
   const clearResponse = () => {
@@ -49,12 +51,12 @@ const ScratchPad = ({
   useEffect(() => {
     setTestResults(test.results);
   }, [test.results]);
-  useEffect(() => createSuggestions(), [project_code, ConnectedProject]);
+  useEffect(() => createSuggestions(), [projectCode, connectedServices]);
   useEffect(() => {
-    const new_namespace = method_name ? `${service_id}.${module_name}.${method_name}` : "";
+    const new_namespace = methodName ? `${serviceId}.${moduleName}.${methodName}` : "";
     setNsp(new_namespace);
     setLength((new_namespace || placeholder).length + 0.4);
-  }, [test.namespace, ConnectedProject]);
+  }, [test.namespace, connectedServices]);
 
   const style = { "--text-length": text_length ? text_length + "ch" : "auto" };
   return (
@@ -88,7 +90,10 @@ const ScratchPad = ({
             test.test_end !== null
           }`}
         >
-          <span onClick={clearResponse} className={`scratchpad__response-data__clear-btn btn`}>
+          <span
+            onClick={clearResponse}
+            className={`scratchpad__response-data__clear-btn btn`}
+          >
             x
           </span>
           <ReactJson

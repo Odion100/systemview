@@ -1,7 +1,11 @@
 {
-  "name": "systemview1",
-  "version": "0.1.0",
-  "private": true,
+  "name": "systemview",
+  "description": "A documentation and testing suite for SystemLynx",
+  "version": "1.0.0",
+  "license": "UNLICENSED",
+  "bin": {
+    "SystemView": "cli/index.js"
+  },
   "dependencies": {
     "@babel/preset-react": "^7.18.6",
     "@testing-library/react": "^11.1.0",
@@ -17,8 +21,14 @@
     "react-scripts": "^4.0.0",
     "remark-gfm": "^3.0.1",
     "systemlynx": "^1.2.0",
-    "textparsermatrix": "^1.0.6",
-    "web-vitals": "^0.2.4"
+    "web-vitals": "^0.2.4",
+    "chalk": "^4.1.2",
+    "cli-alerts": "^1.2.2",
+    "cli-handle-error": "^4.4.0",
+    "cli-handle-unhandled": "^1.1.1",
+    "cli-meow-help": "^3.1.0",
+    "cli-welcome": "^2.2.2",
+    "meow": "^9.0.0"
   },
   "scripts": {
     "start": "react-scripts start",
@@ -57,10 +67,17 @@
       "path": "./node_modules/cz-conventional-changelog"
     }
   },
-  "jest": {
-    "moduleNameMapper": {
-      "\\.(css|less|sass|scss)$": "<rootDir>/__mocks__/style.mock.js",
-      "\\.(gif|ttf|eot|svg|png)$": "<rootDir>/__mocks__/file.mock.js"
-    }
-  }
+  "author": {
+    "name": "Odion Edwards",
+    "email": "odionedwards@gmail.com",
+    "url": "none"
+  },
+  "keywords": [
+    "SystemView",
+    "Odion Edwards"
+  ],
+  "files": [
+    "index.js",
+    "utils"
+  ]
 }

@@ -1,70 +1,56 @@
-# Getting Started with Create React App
+# Establishing a connection between SystemView and the Test Services
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+## SystemView Plugin
 
-## Available Scripts
+```javascript
+const SystemView = require("systemView")({
+  SystemViewConnection: "http://localhost:3300", //default
+  SystemViewDocumentation: "./SystemView", //default
+  projectCode: "ProjectName", //optional. Used to conveniently load multiple services as one project
+  serviceId: "ServiceName", //required. If not included
+});
 
-In the project directory, you can run:
+App.use(SystemView);
+```
 
-### `yarn start`
+Every time the app reload the plugin will load the SystemView Service using the `SystemViewConnection` value provided. It also adds a local module called `SystemView` to the test Service with the following methods and event:
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+- `SystemView.saveSpecs`
+- `SystemView.getSpecs`
+- `SystemView.emit("specs-updated")`
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+Once the test Service is ready the plugin will send the `system` data to the SystemView Service via the following method call.
 
-### `yarn test`
+```javascript
+SystemView.connect({
+  system,
+  projectCode,
+  serviceId,
+});
+```
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+The SystemView Service will Store the `system` data in memory. When the SystemView app makes a request for a connection (`SystemView.getConnection`), then the it will return the data from memory or from the service directly
 
-### `yarn build`
+> Normally it's not a good idea to hold data in memory or maintain state with in a service but since this is a local project it won't be an issue.
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+## Loading One or More Services
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+1. User enters a `projectCode` or a `serviceUrl` in the search input
+2. The `SystemView.api.getConnection(projectCode || servicerUrl)` method will be called. This method will facilitate the process of retrieving the `connectionData` for the Service or Services being searched.
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+- if a url is passed it will first check for a `system` in memory with that url and return that, or make a request for the `connectionData` and return that
+- if a `projectCode` is passed the service will check for a `system` in memory with the same `projectCode` and return that data to the app, or a 404 error
+  > It's ok to use memory as this is a local project
 
-### `yarn eject`
+## Saving Tests and Documentation
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+1. SystemView plugin creates a SystemView module in the test Service
+   - `SystemView.saveSpecs`
+   - `SystemView.getSpecs`
+2. The plugin also adds the SystemView service and calls `SystemView.connect` when the app is read
+3. The users enters a project code in the search input
+4.
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+## Quick Testing Random Services (Without the plugin)
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
-
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `yarn build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+1. User enters a service url in the search input

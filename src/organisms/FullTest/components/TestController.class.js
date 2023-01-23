@@ -2,7 +2,13 @@ import { getType, validateResults } from "../../../molecules/ValidationInput/val
 import Test from "./Test.class";
 import Argument, { TargetValue } from "./Argument.class";
 
-export default function TestController(testData, setState, section, Tests, ConnectedProject) {
+export default function TestController(
+  testData,
+  setState,
+  section,
+  Tests,
+  connectedServices
+) {
   this.runTest = async (test_index) => {
     const test = testData[test_index];
     if (section === 1) {
@@ -16,7 +22,11 @@ export default function TestController(testData, setState, section, Tests, Conne
         ...testMain.map(async (test) => test.runTest()),
         ...testAfter.map(async (test) => test.runTest()),
       ]);
-      const { evaluations, total_errors } = validateResults(test.results, test.response_type, []);
+      const { evaluations, total_errors } = validateResults(
+        test.results,
+        test.response_type,
+        []
+      );
       test.evaluations = evaluations;
       test.total_errors = total_errors;
     } else {
@@ -27,7 +37,7 @@ export default function TestController(testData, setState, section, Tests, Conne
   };
   this.updateNamespace = (index, namespace) => {
     testData[index].namespace = namespace;
-    testData[index].getConnection(ConnectedProject).then(() => setState([...testData]));
+    testData[index].getConnection(connectedServices).then(() => setState([...testData]));
   };
   this.addTest = (nsp, args, title) => {
     testData.push(new Test(nsp, args, title));
@@ -57,7 +67,13 @@ export default function TestController(testData, setState, section, Tests, Conne
     setState([...testData]);
   };
 
-  this.addTargetValue = (test_index, arg_index, target_namespace, source_map, source_index) => {
+  this.addTargetValue = (
+    test_index,
+    arg_index,
+    target_namespace,
+    source_map,
+    source_index
+  ) => {
     //check to see if target value already exists first
     const arg = testData[test_index].args[arg_index];
     arg.addTargetValue(target_namespace, source_map, source_index);

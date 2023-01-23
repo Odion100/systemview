@@ -6,26 +6,26 @@ import MissingDocIcon from "../../atoms/DocsIcon/DocsIcon";
 import TestsIcon from "../../atoms/TestsIcon/TestsIcon";
 
 const ServerModulesList = ({
-  project_code,
-  service_id,
-  server_modules,
-  module_name,
-  method_name,
+  projectCode,
+  serviceId,
+  modules,
+  moduleName,
+  methodName,
 }) => {
-  const classname = "server-module";
-
+  const className = "server-module";
+  console.log("modules---->", modules);
   return (
     <React.Fragment>
-      {server_modules.map(({ name, methods }, i) => {
-        const isSelected = module_name === name;
+      {modules.map(({ name, methods }, i) => {
+        const isSelected = moduleName === name;
         return (
           <ExpandableList
-            open={module_name === name}
+            open={moduleName === name}
             key={i}
             title={
               <React.Fragment>
-                <MyLink link={`/${project_code}/${service_id}/${name}`} text={name} />
-                <div className={`${classname}__docs-icon`}>
+                <MyLink link={`/${projectCode}/${serviceId}/${name}`} text={name} />
+                <div className={`${className}__docs-icon`}>
                   <MissingDocIcon isSaved={parseInt(Math.random() * 1000) % 2} />
                 </div>
               </React.Fragment>
@@ -35,16 +35,16 @@ const ServerModulesList = ({
               return (
                 <div
                   key={i}
-                  className={`${classname}__methods ${classname}__methods--selected-${
-                    fn === method_name && isSelected
+                  className={`${className}__methods ${className}__methods--selected-${
+                    fn === methodName && isSelected
                   }`}
                 >
                   <MyLink
                     key={i}
-                    link={`/${project_code}/${service_id}/${name}/${fn}`}
+                    link={`/${projectCode}/${serviceId}/${name}/${fn}`}
                     text={`.${fn}(data, cb)`}
                   />
-                  <div className={`${classname}__docs-icon`}>
+                  <div className={`${className}__docs-icon`}>
                     <MissingDocIcon isSaved={parseInt(Math.random() * 1000) % 2} />
                     <TestsIcon isSaved={parseInt(Math.random() * 1000) % 2} />
                   </div>

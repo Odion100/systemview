@@ -2,8 +2,8 @@ import React from "react";
 
 const ServiceContext = React.createContext({
   SystemViewService: {},
-  ConnectedProject: [],
-  setConnectedProject: () => {},
+  connectedServices: [],
+  setConnectedServices: () => {},
 });
 
 export default ServiceContext;
