@@ -1,48 +1,66 @@
-import { getType, validateResults } from "../../../molecules/ValidationInput/validator";
+import { getType } from "../../../molecules/ValidationInput/validator";
 import Test from "./Test.class";
 import Argument, { TargetValue } from "./Argument.class";
-
-export default function TestController(
+export default function TestController({
   testData,
   setState,
   section,
   Tests,
-  connectedServices
-) {
+  connectedServices,
+}) {
   this.runTest = async (test_index) => {
     const test = testData[test_index];
-    if (section === 1) {
-      //run full tests plus evaluations if is main test
-      const [testBefore, testMain, eventsTest, testAfter] = Tests;
-      //run events test asynchronously
-      eventsTest.map((test) => test.runTest(() => setState([...testData])));
-      //run test synchronously
-      await Promise.all([
-        ...testBefore.map(async (test) => test.runTest()),
-        ...testMain.map(async (test) => test.runTest()),
-        ...testAfter.map(async (test) => test.runTest()),
-      ]);
-      const { evaluations, total_errors } = validateResults(
-        test.results,
-        test.response_type,
-        []
-      );
-      test.evaluations = evaluations;
-      test.total_errors = total_errors;
-    } else {
-      //run only one test
-      await test.runTest();
-    }
+    //run only one test
+    await test.runTest();
     setState([...testData]);
   };
+
+  this.runFullTest = async (updateAll) => {
+    //run full tests plus evaluations if is main test
+    const [Before, Main, Events, After] = Tests;
+    //run events test asynchronously
+    Events.forEach((test) => test.runTest());
+    //run test synchronously
+    await Promise.all([
+      ...Before.map(async (test) => test.runTest()),
+      ...Main.map(async (test) => test.runTest()),
+      ...After.map(async (test) => test.runTest()),
+    ]);
+    updateAll && updateAll([Before, Main, Events, After]);
+  };
+
+  this.saveTests = async () => {
+    const { title, evaluations, getConnection, namespace } = Tests[1][0];
+    if (!title) return console.log("Test title is required");
+    if (!evaluations.length) return console.log("You must run the test before saving");
+    const { connection } = getConnection(connectedServices);
+
+    const { SystemView } = connection[namespace.serviceId];
+
+    if (SystemView) {
+      const [Before, Main, Events, After] = Tests.map((test) =>
+        test.map(({ args, evaluations, namespace, title }) => ({
+          args,
+          namespace,
+          title,
+          savedValidations: evaluations,
+        }))
+      );
+      console.log({ Before, Main, Events, After, title, namespace });
+      console.log(Tests);
+      SystemView.saveTest({ Before, Main, Events, After, title, namespace });
+    } else console.log("SystemView is undefined");
+  };
+
   this.updateNamespace = (index, namespace) => {
     testData[index].namespace = namespace;
-    testData[index].getConnection(connectedServices).then(() => setState([...testData]));
-  };
-  this.addTest = (nsp, args, title) => {
-    testData.push(new Test(nsp, args, title));
+    testData[index].getConnection(connectedServices);
     setState([...testData]);
-    if (nsp) this.updateNamespace(testData.length - 1, nsp);
+  };
+  this.addTest = (namespace, args, title) => {
+    testData.push(new Test({ namespace, args, title }));
+    setState([...testData]);
+    if (namespace) this.updateNamespace(testData.length - 1, namespace);
   };
   this.deleteTest = (index) => {
     testData.splice(index, 1);
@@ -105,6 +123,10 @@ export default function TestController(
   this.checkTargetValues = (test_index, arg_index) => {
     const arg = testData[test_index].args[arg_index];
     arg.checkTargetNamespaces();
+    setState([...testData]);
+  };
+  this.updateTitle = (test_index, title) => {
+    testData[test_index].title = title;
     setState([...testData]);
   };
   this.getTargetSuggestions = (test_index) => {

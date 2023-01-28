@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import ExpandableSection from "../../molecules/ExpandableSection/ExpandableSection";
 import TestCaption from "../../molecules/TestCaption/TestCaption";
 import TestContainer from "../TestContainer/TestContainer";
@@ -10,24 +10,42 @@ const MultiTestSection = ({
   TestController,
   testData,
   dynamic,
-  nsp,
+  namespace,
   arg = {},
   staticArguments,
 }) => {
   const className = "multi-test-section";
-  const addTest = () =>
+  const [open, setOpen] = useState(false);
+
+  const toggleExpansion = () => {
+    setOpen((state) => !state);
+  };
+
+  const addTest = () => {
     TestController.addTest(
-      nsp,
+      namespace,
       arg.name && [new Argument(arg.name, arg.Tests, arg.input_type)]
     );
-
+    testData.length === 1 && setOpen(true);
+    console.log("Arguments", testData);
+  };
   return (
     <section className={className}>
       <ExpandableSection
-        open={false}
+        toggleExpansion={toggleExpansion}
+        open={open}
         title={
           <>
-            <TestCaption caption={`${caption}`} />
+            <TestCaption
+              caption={
+                <span>
+                  {caption}{" "}
+                  {testData.length > 0 && (
+                    <span className={`${className}__count`}>{testData.length}</span>
+                  )}
+                </span>
+              }
+            />
             <AddButton onClick={addTest} className={className} />
           </>
         }
@@ -46,6 +64,7 @@ const MultiTestSection = ({
                 dynamic={dynamic}
                 open={true}
                 staticArguments={staticArguments}
+                multiTest
               />
             ))
           ) : (

@@ -1,5 +1,5 @@
 const { HttpClient: http, App } = require("systemlynx");
-const connectedServices = [];
+const LocalData = require("./Connections")();
 const route = "systemview/api";
 const port = 3300;
 const host = "localhost";
@@ -11,39 +11,33 @@ const isUrl = (str) =>
 function connect(data) {
   const { system, projectCode, serviceId } = data;
 
-  const service = connectedServices.find(
-    (service) =>
-      service.system.connectionData.serviceUrl === system.connectionData.serviceUrl
-  );
-  console.log("connectedService found:---->", !!service);
-  if (service) {
-    console.log("connectionData---->", service.system.connectionData);
+  const service = LocalData.findService(system.connectionData.serviceUrl);
 
+  if (service) {
     service.system = system;
     service.projectCode = projectCode;
     service.serviceId = serviceId;
     this.emit(`service-updated:${serviceId}`, service);
-  } else connectedServices.push({ system, projectCode, serviceId });
+  } else LocalData.save({ system, projectCode, serviceId });
 }
 
 function getServices(searchText) {
-  console.log("searchText---->", searchText, connectedServices);
   if (isUrl(searchText)) {
-    const service = connectedServices.find(
-      (service) => service.system.connectionData.serviceUrl === searchText
-    );
+    const service = LocalData.findService(searchText);
     return [service || getConnectionData(searchText)];
   } else {
-    return connectedServices.reduce(
-      (sum, service) => (service.projectCode === searchText ? sum.concat(service) : sum),
-      []
-    );
+    return LocalData.findProject(searchText);
   }
 }
 
 async function getConnectionData(url) {
   try {
-    return await { system: { modules: http.request({ url }).modules } };
+    const connectionData = await http.request({ url });
+    return {
+      system: { connectionData },
+      serviceId: url,
+      projectCode: url,
+    };
   } catch (error) {
     return [];
   }

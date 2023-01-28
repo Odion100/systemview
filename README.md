@@ -15,8 +15,8 @@ App.use(SystemView);
 
 Every time the app reload the plugin will load the SystemView Service using the `SystemViewConnection` value provided. It also adds a local module called `SystemView` to the test Service with the following methods and event:
 
-- `SystemView.saveSpecs`
-- `SystemView.getSpecs`
+- `SystemView.saveDoc`
+- `SystemView.getDoc`
 - `SystemView.emit("specs-updated")`
 
 Once the test Service is ready the plugin will send the `system` data to the SystemView Service via the following method call.
@@ -45,8 +45,8 @@ The SystemView Service will Store the `system` data in memory. When the SystemVi
 ## Saving Tests and Documentation
 
 1. SystemView plugin creates a SystemView module in the test Service
-   - `SystemView.saveSpecs`
-   - `SystemView.getSpecs`
+   - `SystemView.saveDoc`
+   - `SystemView.getDoc`
 2. The plugin also adds the SystemView service and calls `SystemView.connect` when the app is read
 3. The users enters a project code in the search input
 4.

@@ -24,10 +24,13 @@ const MethodDoc = ({ serviceId, moduleName, methodName }) => {
   });
 
   const fetchDocument = async (SystemViewPlugin) => {
-    console.log(SystemViewPlugin);
+    setDocument({
+      documentation: "",
+      namespace: { serviceId, moduleName, methodName },
+    });
     try {
       if (SystemViewPlugin) {
-        const results = await SystemViewPlugin.getSpecs({
+        const results = await SystemViewPlugin.getDoc({
           serviceId,
           moduleName,
           methodName,
@@ -36,10 +39,6 @@ const MethodDoc = ({ serviceId, moduleName, methodName }) => {
         console.log("setDocument", results);
       }
     } catch (error) {
-      setDocument({
-        documentation: "",
-        namespace: { serviceId, moduleName, methodName },
-      });
       console.error(error);
     }
   };
@@ -49,14 +48,18 @@ const MethodDoc = ({ serviceId, moduleName, methodName }) => {
   }, [methodName, moduleName, serviceId, SystemViewPlugin]);
 
   useEffect(() => {
-    SystemView.on(`service-updated:${serviceId}`, async ({ system }) => {
-      const { SystemView: SystemViewPlugin } = await Client.loadService(
-        system.connectionData.serviceUrl,
-        { forceReload: true }
-      );
+    console.log("`methodDocs` useEffect call");
+    SystemView.on(
+      `service-updated:${serviceId}`,
+      async function updateDocumentation({ system }) {
+        const { SystemView: SystemViewPlugin } = await Client.loadService(
+          system.connectionData.serviceUrl,
+          { forceReload: true }
+        );
 
-      fetchDocument(SystemViewPlugin);
-    });
+        fetchDocument(SystemViewPlugin);
+      }
+    );
   }, []);
   return (
     <div className="documentation-view">
@@ -74,7 +77,7 @@ const MethodDoc = ({ serviceId, moduleName, methodName }) => {
   );
 };
 
-const DocTitle = ({ serviceId, moduleName, methodName, variable_name = "payload" }) => {
+const DocTitle = ({ serviceId, moduleName, methodName, variable_name = "..." }) => {
   return (
     <Title
       text={
@@ -82,7 +85,7 @@ const DocTitle = ({ serviceId, moduleName, methodName, variable_name = "payload"
           {methodName && moduleName && serviceId ? (
             <>
               {`${serviceId}.${moduleName}.${methodName}`}(
-              <span className="documentation-view__parameter">{variable_name}</span>)
+              <span className="documentation-view__parameter btn">{variable_name}</span>)
             </>
           ) : moduleName && serviceId ? (
             <>{`${serviceId}.${moduleName}`}</>
@@ -98,7 +101,7 @@ const DocTitle = ({ serviceId, moduleName, methodName, variable_name = "payload"
 const DocDescription = ({ doc, setDocument, SystemViewPlugin }) => {
   const saveDocument = async (setFormDisplay) => {
     try {
-      const results = await SystemViewPlugin.saveSpecs(doc);
+      const results = await SystemViewPlugin.saveDoc(doc);
       setDocument(results);
       setFormDisplay(false);
     } catch (error) {

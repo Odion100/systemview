@@ -16,9 +16,7 @@ const SystemNav = ({ projectCode, serviceId, moduleName, methodName }) => {
 
   const fetchProject = async (projectCode) => {
     try {
-      console.log(projectCode);
       const results = await SystemView.getServices(projectCode);
-      console.log(results);
       setConnectedServices(results);
     } catch (error) {
       console.error(error);
@@ -35,15 +33,18 @@ const SystemNav = ({ projectCode, serviceId, moduleName, methodName }) => {
     if (projectCode) fetchProject(projectCode);
   }, []);
   useEffect(() => {
-    SystemView.on(`service-updated:${serviceId}`, async (updatedService) => {
-      const i = connectedServices.findIndex(
-        (service) =>
-          service.projectCode === updatedService.projectCode &&
-          service.serviceId === updatedService.serviceId
-      );
-      connectedServices[i] = updatedService;
-      setConnectedServices(connectedServices);
-    });
+    SystemView.on(
+      `service-updated:${serviceId}`,
+      async function updateServices(updatedService) {
+        const i = connectedServices.findIndex(
+          (service) =>
+            service.projectCode === updatedService.projectCode &&
+            service.serviceId === updatedService.serviceId
+        );
+        connectedServices[i] = updatedService;
+        setConnectedServices(connectedServices);
+      }
+    );
   }, [SystemView, connectedServices]);
   return (
     <section className="system-nav">
@@ -81,7 +82,6 @@ const NavigationLinks = ({
   _methodName,
 }) => {
   return servicesList.map(({ system, serviceId }, i) => {
-    console.log("system-------->", system);
     return (
       <ExpandableList
         open={_serviceId === serviceId}

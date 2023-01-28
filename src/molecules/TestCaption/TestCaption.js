@@ -1,15 +1,18 @@
 import React from "react";
 import "./styles.scss";
 
-const TestCaption = ({ caption, useInput = false }) => {
-  const classname = "test-caption";
+const TestCaption = ({ caption, useInput = false, onChange }) => {
+  const className = "test-caption";
+  const clickHandle = (e) => {
+    typeof onChange === "function" && onChange(e.target.value);
+  };
   return (
-    <div className={`${classname}`}>
-      <span className={`${classname}__title`}>{caption}</span>
+    <div className={`${className}`}>
+      <span className={`${className}__title`}>{caption}</span>
       <span
-        className={`${classname}__description-input ${classname}__description-input--visible-${useInput}`}
+        className={`${className}__description-input ${className}__description-input--visible-${useInput}`}
       >
-        <input type="text" />
+        <input type="text" placeholder="describe the test..." onChange={clickHandle} />
       </span>
     </div>
   );

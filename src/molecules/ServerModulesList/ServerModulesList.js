@@ -13,7 +13,7 @@ const ServerModulesList = ({
   methodName,
 }) => {
   const className = "server-module";
-  console.log("modules---->", modules);
+
   return (
     <React.Fragment>
       {modules.map(({ name, methods }, i) => {
@@ -42,7 +42,13 @@ const ServerModulesList = ({
                   <MyLink
                     key={i}
                     link={`/${projectCode}/${serviceId}/${name}/${fn}`}
-                    text={`.${fn}(data, cb)`}
+                    text={
+                      <span>
+                        {`.${fn}(`}
+                        <span style={{ fontWeight: "bold" }}>...</span>
+                        {")"}
+                      </span>
+                    }
                   />
                   <div className={`${className}__docs-icon`}>
                     <MissingDocIcon isSaved={parseInt(Math.random() * 1000) % 2} />

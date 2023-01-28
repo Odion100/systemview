@@ -67,14 +67,15 @@ export default function Argument(name, Tests, input_type = "undefined") {
         tv.target_namespace === target_namespace &&
         isEqualArrays(tv.source_map, source_map || []) &&
         tv.source_index === source_index
-    ) === -1 && this.targetValues.push(new TargetValue(target_namespace, source_map, source_index));
+    ) === -1 &&
+      this.targetValues.push(new TargetValue(target_namespace, source_map, source_index));
     return this;
   };
 
   const getTargetValue = (input) => {
     const [test, action] = input.split(".");
     const nsp = input
-      .replace(test, { beforeTest: 0, mainTest: 1, eventTest: 2, afterTest: 3 }[test])
+      .replace(test, { beforeTest: 0, mainTest: 1, Events: 2, afterTest: 3 }[test])
       .replace(action, parseInt(action.replace("Action", "")) - 1)
       .replace("error", "results");
     return obj(Tests).valueAtNsp(nsp);

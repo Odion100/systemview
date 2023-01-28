@@ -1,13 +1,18 @@
 import React, { useState, useEffect } from "react";
-import ExpandableSection from "../../../molecules/ExpandableSection/ExpandableSection";
-import ValidationInput from "../../../molecules/ValidationInput/ValidationInput";
-import validation_options from "../../../molecules/ValidationInput/ValidationOptions";
-import TypeSelector from "../../../atoms/TypeSelector/TypeSelector";
-import { getErrors } from "../../../molecules/ValidationInput/validator";
+import ExpandableSection from "../../molecules/ExpandableSection/ExpandableSection";
+import ValidationInput from "../../molecules/ValidationInput/ValidationInput";
+import validation_options from "../../molecules/ValidationInput/ValidationOptions";
+import TypeSelector from "../../atoms/TypeSelector/TypeSelector";
+import { getErrors } from "../../molecules/ValidationInput/validator";
 
 export default function Evaluations({ test }) {
   const [evaluations, setEvaluations] = useState([]);
   const [errorCount, setErrorCount] = useState(0);
+  const [open, setOpen] = useState(false);
+
+  const toggleExpansion = () => {
+    setOpen((state) => !state);
+  };
 
   const addValidation = (i) => {
     const { expected_type, type } = evaluations[i];
@@ -15,7 +20,9 @@ export default function Evaluations({ test }) {
     evaluations[i].validations.push({
       name: validation_options[expected_type].values[0],
       value:
-        expected_type === "number" || (expected_type === "mixed" && type === "number") ? 0 : "",
+        expected_type === "number" || (expected_type === "mixed" && type === "number")
+          ? 0
+          : "",
     });
 
     updateErrors(evaluations[i]);
@@ -65,6 +72,8 @@ export default function Evaluations({ test }) {
   return (
     <div className={`evaluations evaluations--visible-${evaluations.length > 0}`}>
       <ExpandableSection
+        open={open}
+        toggleExpansion={toggleExpansion}
         title={
           <div className={`evaluations__title evaluations--error-${errorCount > 0}`}>
             <span className="evaluations__namespace">
@@ -76,23 +85,25 @@ export default function Evaluations({ test }) {
           </div>
         }
       >
-        {evaluations.map(({ namespace, type, expected_type, value, errors, validations }, i) => {
-          return (
-            <EvaluationRow
-              key={i}
-              namespace={namespace}
-              type={type}
-              expected_type={expected_type}
-              errors={errors}
-              validations={validations}
-              index={i}
-              addValidation={addValidation}
-              deleteValidation={deleteValidation}
-              updateValidations={updateValidations}
-              updateExpectedType={updateExpectedType}
-            />
-          );
-        })}
+        {evaluations.map(
+          ({ namespace, type, expected_type, value, errors, validations }, i) => {
+            return (
+              <EvaluationRow
+                key={i}
+                namespace={namespace}
+                type={type}
+                expected_type={expected_type}
+                errors={errors}
+                validations={validations}
+                index={i}
+                addValidation={addValidation}
+                deleteValidation={deleteValidation}
+                updateValidations={updateValidations}
+                updateExpectedType={updateExpectedType}
+              />
+            );
+          }
+        )}
       </ExpandableSection>
     </div>
   );
@@ -128,11 +139,16 @@ const EvaluationRow = ({
     <ExpandableSection
       title={
         <div className={`evaluations__title`} style={style}>
-          <span className={`evaluations__namespace evaluations--error-${errors.count > 0}`}>
+          <span
+            className={`evaluations__namespace evaluations--error-${errors.count > 0}`}
+          >
             {namespace}:{" "}
           </span>
 
-          <TypeSelector default_type={expected_type} onSelect={onSelect.bind(this, index)} />
+          <TypeSelector
+            default_type={expected_type}
+            onSelect={onSelect.bind(this, index)}
+          />
           <span
             className={`evaluations__type-error-msg 
               evaluations__type-error-msg--${errors.typeError} 
@@ -146,7 +162,9 @@ const EvaluationRow = ({
       <div className="evaluations__row">
         <span
           className={`evaluations__input evaluations__input--visible-${
-            expected_type !== "object" && expected_type !== "null" && expected_type !== "undefined"
+            expected_type !== "object" &&
+            expected_type !== "null" &&
+            expected_type !== "undefined"
           }`}
         >
           <div className="evaluations__add-btn-container">

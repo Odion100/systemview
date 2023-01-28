@@ -1,10 +1,10 @@
 import React, { useContext, useEffect, useState } from "react";
 import ReactJson from "react-json-view";
-import TestsIcon from "../../atoms/TestsIcon/TestsIcon";
 import AutoCompleteBox from "../../molecules/AutoCompleteBox/AutoCompleteBox";
 import Args from "../../molecules/Args/Args";
 import ServiceContext from "../../ServiceContext";
 import "./styles.scss";
+import RunTestIcon from "../../atoms/RunTestIcon";
 
 const ScratchPad = ({
   TestController,
@@ -64,7 +64,7 @@ const ScratchPad = ({
       <div className="scratchpad__test-data-container">
         <div className="scratchpad__btn-container">
           <span className="scratchpad__run-test-btn btn" onClick={runTest}>
-            <TestsIcon isSaved={true} />
+            <RunTestIcon />
           </span>
         </div>
         <div className="scratchpad__test-data">

@@ -8,7 +8,7 @@ const AfterTest = ({ testData, TestController }) => {
       dynamic={true}
       testData={testData}
       TestController={TestController}
-      caption="After Test"
+      caption="After"
     />
   );
 };

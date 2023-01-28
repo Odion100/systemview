@@ -7,7 +7,6 @@ module.exports = function ({
   serviceId,
 }) {
   return function (App) {
-    console.log("SystemViewConnection", SystemViewConnection, projectCode, serviceId);
     App.loadService("SystemView", SystemViewConnection)
       .module("SystemView", SystemViewModule(specs))
       .on("ready", async function (system) {

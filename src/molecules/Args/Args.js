@@ -52,7 +52,8 @@ const ArgData = ({ className, arg, test_index, i, controller, locked }) => {
     arg.input_type = e.target.value;
     arg.input = defaultValue(arg.input_type);
     controller.checkTargetValues(test_index, i, 0);
-    if (arg.input_type === "target") controller.addTargetValue(test_index, i, "", ["input"], 0);
+    if (arg.input_type === "target")
+      controller.addTargetValue(test_index, i, "", ["input"], 0);
     controller.editArg(test_index, i, arg);
   };
 
@@ -75,7 +76,12 @@ const ArgData = ({ className, arg, test_index, i, controller, locked }) => {
       <div className={`row no-gutters justify-content-start align-items-center`}>
         <div className={`col`}>
           <div className={`${className}__from-container`}>
-            <ArgName className={className} name={name} isOpen={isOpen} showData={showData} />
+            <ArgName
+              className={className}
+              name={name}
+              isOpen={isOpen}
+              showData={showData}
+            />
           </div>
         </div>
         <div className={`col`}>
@@ -98,7 +104,10 @@ const ArgData = ({ className, arg, test_index, i, controller, locked }) => {
       {locked ? (
         ""
       ) : (
-        <span className={`${className}__data__delete-btn btn delete-btn`} onClick={deleteArg}>
+        <span
+          className={`${className}__data__delete-btn btn delete-btn`}
+          onClick={deleteArg}
+        >
           x
         </span>
       )}
@@ -108,7 +117,11 @@ const ArgData = ({ className, arg, test_index, i, controller, locked }) => {
 const ArgName = ({ name, className, isOpen, showData }) => {
   return (
     <div className={`${className}__name`}>
-      <ExpandableIcon isOpen={isOpen} ClassName={`${className}__expand-btn`} onClick={showData} />{" "}
+      <ExpandableIcon
+        isOpen={isOpen}
+        ClassName={`${className}__expand-btn`}
+        onClick={showData}
+      />{" "}
       <span className={`${className}__name__text`}>{name + ""}</span>
     </div>
   );
@@ -140,14 +153,14 @@ const ArgDataForm = ({ arg, className, test_index, i, controller, is12 }) => {
     else controller.checkTargetValues(test_index, i);
   };
 
-  const adjustSize = (e) => {
-    const new_lines = Array.from(e.target.value.matchAll(/\n/g)).length;
-    const new_height = 33 + new_lines * 18;
-    e.target.style.height = `${new_height}px`;
-  };
+  // const adjustSize = (e) => {
+  //   const new_lines = Array.from(e.target.value.matchAll(/\n/g)).length;
+  //   const new_height = 33 + new_lines * 18;
+  //   e.target.style.height = `${new_height}px`;
+  // };
 
   const textboxChanged = (e) => {
-    adjustSize(e);
+    // adjustSize(e);
     inputChanged(e);
     controller.parseTargetValues(test_index, i, e.target.value, ["input"]);
   };
@@ -161,7 +174,7 @@ const ArgDataForm = ({ arg, className, test_index, i, controller, is12 }) => {
             className={`${className}__form__input ${className}__form__input--${input_type}`}
             value={input}
             onChange={textboxChanged}
-            onFocus={adjustSize}
+            // onFocus={adjustSize}
           />
           <ArgValue
             value={arg.value()}
@@ -202,8 +215,14 @@ const ArgDataForm = ({ arg, className, test_index, i, controller, is12 }) => {
         />
       ) : input_type === "object" ? (
         <span className={`${className}__form__${input_type}`}>
-          <div className={`${className}__json-txb ${className}__json-txb--show-${jsonBoxVisible}`}>
-            <JsonTextBox onSubmit={jsonTextboxSubmit} onCancel={hideJsonTxb} obj={input} />
+          <div
+            className={`${className}__json-txb ${className}__json-txb--show-${jsonBoxVisible}`}
+          >
+            <JsonTextBox
+              onSubmit={jsonTextboxSubmit}
+              onCancel={hideJsonTxb}
+              obj={input}
+            />
           </div>
           <ReactJson
             src={input}
@@ -272,7 +291,9 @@ const ArgValue = ({ className, value, data_type, tv }) => {
           {(value === true) + ""}
         </span>
       ) : data_type === "date" ? (
-        <span className={`${className}__value__${data_type}`}>{moment(value).format() + ""}</span>
+        <span className={`${className}__value__${data_type}`}>
+          {moment(value).format() + ""}
+        </span>
       ) : data_type === "object" || data_type === "array" ? (
         <span className={`${className}__value__${data_type}`}>
           <ReactJson
