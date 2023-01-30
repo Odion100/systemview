@@ -3,7 +3,9 @@ import ExpandableSection from "../../molecules/ExpandableSection/ExpandableSecti
 import TestCaption from "../../molecules/TestCaption/TestCaption";
 import TestContainer from "../TestContainer/TestContainer";
 import Argument from "../FullTest/components/Argument.class";
+
 import "./styles.scss";
+import Count from "../../atoms/Count";
 
 const MultiTestSection = ({
   caption,
@@ -39,10 +41,7 @@ const MultiTestSection = ({
             <TestCaption
               caption={
                 <span>
-                  {caption}{" "}
-                  {testData.length > 0 && (
-                    <span className={`${className}__count`}>{testData.length}</span>
-                  )}
+                  {caption} {testData.length > 0 && <Count count={testData.length} />}
                 </span>
               }
             />

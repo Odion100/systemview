@@ -1,23 +1,26 @@
 const fs = require("fs");
 
 module.exports = function ConnectedServices() {
-  const LOCAL_STORAGE = "./api/connectedServices.json";
-  this.save = (serviceData) => {
-    const connectedServices = JSON.parse(fs.readFileSync(LOCAL_STORAGE, "utf8"));
-    connectedServices.push(serviceData);
-    fs.writeFileSync(LOCAL_STORAGE, JSON.stringify(connectedServices), "utf8");
+  const LOCAL_STORAGE = "./api/connections.txt";
+  this.save = (serviceData, index) => {
+    const connections = JSON.parse(fs.readFileSync(LOCAL_STORAGE, "utf8"));
+    if (typeof index === "number") connections[index] = serviceData;
+    else connections.push(serviceData);
+    fs.writeFileSync(LOCAL_STORAGE, JSON.stringify(connections), "utf8");
   };
 
   this.findService = (url) => {
-    const connectedServices = JSON.parse(fs.readFileSync(LOCAL_STORAGE, "utf8"));
-    return connectedServices.find(
+    const connections = JSON.parse(fs.readFileSync(LOCAL_STORAGE, "utf8"));
+    const index = connections.findIndex(
       (service) => service.system.connectionData.serviceUrl === url
     );
+    const service = connections[index];
+    return { service, index };
   };
 
   this.findProject = (projectCode) => {
-    const connectedServices = JSON.parse(fs.readFileSync(LOCAL_STORAGE, "utf8"));
-    return connectedServices.reduce(
+    const connections = JSON.parse(fs.readFileSync(LOCAL_STORAGE, "utf8"));
+    return connections.reduce(
       (sum, service) => (service.projectCode === projectCode ? sum.concat(service) : sum),
       []
     );

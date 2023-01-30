@@ -3,7 +3,8 @@ import "./styles.scss";
 export function SavedFile({ name }) {
   return (
     <span className="status-indicator saved-message">
-      Saved Test 1<span className="clear-button btn">x</span>
+      <span className="status-indicator__title">Saved Test 1</span>
+      <span className="status-indicator__clear-button btn">×</span>
     </span>
   );
 }

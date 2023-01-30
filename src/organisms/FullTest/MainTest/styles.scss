@@ -6,6 +6,7 @@
   border-radius: 0px 0px 4px 4px;
   overflow-wrap: anywhere;
   padding: 12px 18px;
+  font-family: monospace;
   &--visible-false {
     display: none;
   }
@@ -51,6 +52,7 @@
     display: inline-grid;
   }
   &__validation {
+    border-bottom: 1px solid #9797d1;
     &__delete-btn {
       display: inline;
       font-family: system-ui;
@@ -73,9 +75,9 @@
   }
   &--error-true,
   &--error-true > * {
-    color: red;
-    color: #993939;
+    color: #cd4343;
+    //color: #993939;
     font-weight: bold;
-    font-style: italic;
+    //font-style: italic;
   }
 }

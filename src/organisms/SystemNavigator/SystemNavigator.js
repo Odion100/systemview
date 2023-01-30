@@ -7,23 +7,29 @@ import ExpandableList from "../../molecules/ExpandableList/ExpandableList";
 import ServerModulesList from "../../molecules/ServerModulesList/ServerModulesList";
 import MissingDocIcon from "../../atoms/DocsIcon/DocsIcon";
 import "./styles.scss";
+import { Client } from "systemlynx";
 
 const SystemNav = ({ projectCode, serviceId, moduleName, methodName }) => {
   const { SystemViewService, setConnectedServices, connectedServices } =
     useContext(ServiceContext);
+  const service = connectedServices.find((service) => service.serviceId === serviceId);
+  const { SystemView: SystemViewPlugin } = service
+    ? Client.createService(service.system.connectionData)
+    : {};
   const { SystemView } = SystemViewService;
-  const history = useHistory();
 
-  const fetchProject = async (projectCode) => {
+  const fetchProject = async (pc = projectCode) => {
     try {
-      const results = await SystemView.getServices(projectCode);
+      const results = await SystemView.getServices((pc = projectCode));
       setConnectedServices(results);
+      console.log("fetchProject<---------");
     } catch (error) {
       console.error(error);
       setConnectedServices([]);
     }
   };
 
+  const history = useHistory();
   const SearchInputSubmit = (e) => {
     fetchProject(e.target.value);
     history.push(`/${e.target.value}`);
@@ -33,19 +39,8 @@ const SystemNav = ({ projectCode, serviceId, moduleName, methodName }) => {
     if (projectCode) fetchProject(projectCode);
   }, []);
   useEffect(() => {
-    SystemView.on(
-      `service-updated:${serviceId}`,
-      async function updateServices(updatedService) {
-        const i = connectedServices.findIndex(
-          (service) =>
-            service.projectCode === updatedService.projectCode &&
-            service.serviceId === updatedService.serviceId
-        );
-        connectedServices[i] = updatedService;
-        setConnectedServices(connectedServices);
-      }
-    );
-  }, [SystemView, connectedServices]);
+    if (SystemViewPlugin) SystemViewPlugin.on(`reconnect`, fetchProject);
+  }, [SystemViewPlugin, connectedServices]);
   return (
     <section className="system-nav">
       <div className="container">

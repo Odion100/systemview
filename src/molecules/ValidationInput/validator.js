@@ -141,7 +141,8 @@ const validateArray = (arr, validations) =>
 const validateString = (str, validations) =>
   validations.reduce((errors, { name, value }) => {
     if (name === "strEquals") errors[name] = str !== value;
-    if (name === "isLike") errors[name] = str.match(new RegExp(value, "gi")).length === 0;
+    //str.match() returns null when there is no match
+    if (name === "isLike") errors[name] = !str.match(new RegExp(value, "gi"));
     if (name === "isOneOf" && typeof value === "string")
       errors[name] = !value
         .split(",")

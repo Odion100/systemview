@@ -1,7 +1,9 @@
 import React, { useState } from "react";
-import RunTestIcon, { DeleteButton, EditIcon, XButton } from "../../atoms/RunTestIcon";
+import Count from "../../atoms/Count";
+import RunTestIcon, { EditIcon, XButton } from "../../atoms/RunTestIcon";
 import ExpandableSection from "../../molecules/ExpandableSection/ExpandableSection";
 import TestCaption from "../../molecules/TestCaption/TestCaption";
+import TestSummary from "../../molecules/TestSummary";
 import "./styles.scss";
 
 const SavedTests = ({ savedTests = [] }) => {
@@ -20,12 +22,7 @@ const SavedTests = ({ savedTests = [] }) => {
             <TestCaption
               caption={
                 <span>
-                  {"Saved"}{" "}
-                  {savedTests.length > 0 && (
-                    <span className={"multi-test-section__count"}>
-                      {savedTests.length}
-                    </span>
-                  )}
+                  {"Saved"} {savedTests.length > 0 && <Count count={savedTests.length} />}
                 </span>
               }
             />
@@ -36,15 +33,7 @@ const SavedTests = ({ savedTests = [] }) => {
         {savedTests.length ? (
           <div className="test-saved-section__test-container">
             {savedTests.map(({ title }, i) => (
-              <div key={i} className="test-saved-section__test-row">
-                <span className="test-saved-section__test-index ">Test {i + 1}:</span>
-                <span className="test-saved-section__test-title">{title}</span>
-                <span className="test-saved-section__buttons">
-                  <RunTestIcon />
-                  <EditIcon />
-                  <XButton />
-                </span>
-              </div>
+              <TestDisplay key={i} title={title} index={i} />
             ))}
           </div>
         ) : (
@@ -57,4 +46,20 @@ const SavedTests = ({ savedTests = [] }) => {
   );
 };
 
+function TestDisplay({ title, index }) {
+  return (
+    <>
+      <div className="test-saved-section__test-row">
+        <span className="test-saved-section__test-index ">Test {index + 1}:</span>
+        <span className="test-saved-section__test-title">{title}</span>
+        <span className="test-saved-section__buttons">
+          <RunTestIcon />
+          <EditIcon />
+          <XButton />
+        </span>
+      </div>
+      <TestSummary />
+    </>
+  );
+}
 export default SavedTests;

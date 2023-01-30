@@ -3,7 +3,8 @@ import ReactDOM from "react-dom";
 import "./index.css";
 import App from "./App";
 import reportWebVitals from "./reportWebVitals";
-
+// import "./assets/fonts/FontsFree-Net-SFMono-Regular.ttf";
+// import "./assets/fonts/Malkor-Regular.ttf";
 import { Client } from "systemlynx";
 
 const url = "http://localhost:3300/systemview/api";

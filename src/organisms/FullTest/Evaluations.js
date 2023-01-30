@@ -124,7 +124,11 @@ const EvaluationRow = ({
   const calcWidth = (text) => Math.ceil(text.length / 0.1125);
   const [type_width, setWidth] = useState(calcWidth(0));
   const style = { "--type-width": type_width + "px" };
+  const [open, setOpen] = useState(false);
 
+  const toggleExpansion = () => {
+    setOpen((state) => !state);
+  };
   const onSelect = (i, e) => {
     updateExpectedType(i, e);
     setWidth(calcWidth(expected_type));
@@ -137,6 +141,8 @@ const EvaluationRow = ({
   );
   return (
     <ExpandableSection
+      open={open}
+      toggleExpansion={toggleExpansion}
       title={
         <div className={`evaluations__title`} style={style}>
           <span

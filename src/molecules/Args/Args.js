@@ -195,16 +195,15 @@ const ArgDataForm = ({ arg, className, test_index, i, controller, is12 }) => {
           />
         </div>
       ) : input_type === "boolean" ? (
-        <>
+        <div className="row justify-content-around">
           <Toggle isChecked={input} onChange={inputChanged} round={true} />{" "}
           <span
             className={`${className}__form__value--boolean ${className}__form__value--boolean--${input}`}
           >
             {(input === true) + ""}
           </span>
-        </>
+        </div>
       ) : input_type === "date" ? (
-        // <span className={`${className}__form__${input_type}`}>{moment(value).format()}</span>
         <input
           className={`${className}__form__input ${className}__form__input--${input_type}`}
           type={"datetime-local"}

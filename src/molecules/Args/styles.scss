@@ -10,6 +10,7 @@
     margin: 0 5px;
     line-height: 16px;
     background: #5a77e5;
+    font-family: monospace;
   }
   &__data {
     background: #cecee3;
@@ -83,10 +84,11 @@
     &__value {
       &--boolean {
         &--true {
-          color: #207844;
+          color: #2eab8c;
+          margin-right: 5px;
         }
         &--false {
-          color: #cf1515;
+          color: #d52518;
         }
         position: relative;
         top: 7px;

@@ -11,19 +11,19 @@ const isUrl = (str) =>
 function connect(data) {
   const { system, projectCode, serviceId } = data;
 
-  const service = LocalData.findService(system.connectionData.serviceUrl);
+  const { service, index } = LocalData.findService(system.connectionData.serviceUrl);
 
   if (service) {
     service.system = system;
     service.projectCode = projectCode;
     service.serviceId = serviceId;
-    this.emit(`service-updated:${serviceId}`, service);
+    LocalData.save(service, index);
   } else LocalData.save({ system, projectCode, serviceId });
 }
 
 function getServices(searchText) {
   if (isUrl(searchText)) {
-    const service = LocalData.findService(searchText);
+    const { service } = LocalData.findService(searchText);
     return [service || getConnectionData(searchText)];
   } else {
     return LocalData.findProject(searchText);

@@ -1,26 +1,28 @@
 .validation-input {
   margin: 3px 0;
   display: flex;
-  &__selector {
-    padding: 3px;
-    outline: none;
-    border-right: none;
-    background: #8cdecb;
-    border-color: #0b886b;
-    appearance: none;
-    cursor: pointer;
-    text-align-last: center;
-    font-weight: bold;
-  }
-
   &__input,
   &__selector {
     background: none;
     border: none;
-    border-bottom: 1px solid #9797d1;
     font-family: monospace;
     font-size: 14px;
   }
+  &__selector {
+    padding: 3px;
+    outline: none;
+    border-right: none;
+    appearance: none;
+    cursor: pointer;
+    font-weight: bold;
+    color: #009688;
+    &:hover {
+      background: #b3c1e8;
+      border-radius: 33px;
+      // color: #f1f1f1;
+    }
+  }
+
   &__input {
     padding: 4px;
     outline: none;
