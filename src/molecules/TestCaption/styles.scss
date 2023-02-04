@@ -7,6 +7,10 @@
   font-weight: 400;
   font-family: sans-serif;
   align-items: center;
+
+  &__title {
+    color: #0d8065;
+  }
   &__description-input {
     flex: 1;
     padding-left: 5px;

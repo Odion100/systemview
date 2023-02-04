@@ -1,3 +1,23 @@
+.error-message {
+  padding: 4px 25px;
+  color: #ff5722;
+  word-break: break-word;
+  font-family: monospace;
+  &__message {
+    padding: 6px 23px;
+    background: #ededed;
+    border-radius: 5px;
+  }
+  &__namespace {
+    color: #b136c6;
+    font-weight: 600;
+  }
+  &__expected {
+    color: #0b8b22;
+    font-weight: 700;
+  }
+}
+
 .validation-input {
   margin: 3px 0;
   display: flex;

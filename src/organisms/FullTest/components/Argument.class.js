@@ -11,7 +11,7 @@ export function TargetValue(target_namespace, source_map, source_index) {
   this.source_map = source_map || [];
   this.source_index = source_index || 0;
 }
-export default function Argument(name, Tests, input_type = "undefined") {
+export default function Argument(name, FullTest, input_type = "undefined") {
   this.name = name;
   this.input = undefined;
   this.input_type = input_type;
@@ -78,6 +78,6 @@ export default function Argument(name, Tests, input_type = "undefined") {
       .replace(test, { beforeTest: 0, mainTest: 1, Events: 2, afterTest: 3 }[test])
       .replace(action, parseInt(action.replace("Action", "")) - 1)
       .replace("error", "results");
-    return obj(Tests).valueAtNsp(nsp);
+    return obj(FullTest).valueAtNsp(nsp);
   };
 }

@@ -11,6 +11,7 @@ import RunTestIcon from "../../atoms/RunTestIcon";
 import SaveIcon from "../../atoms/SaveIcon/SaveIcon";
 import SavedTests from "../SavedTests/SavedTests";
 import { Client } from "systemlynx";
+import FullTestController from "./components/FullTestController";
 
 const FullTest = (namespace) => {
   const { serviceId, moduleName } = namespace;
@@ -26,30 +27,39 @@ const FullTest = (namespace) => {
   const [Main, setTestMain] = useState([new Test({ namespace, validate: true })]);
   const eventNamespace = { serviceId, moduleName, methodName: "on" };
   const [Events, setEventTest] = useState([new Test({ namespace: eventNamespace })]);
-
-  const Tests = [Before, Main, Events, After];
-  window.Tests = Tests;
-  const testCtrl = (testData, setState, section, Tests) =>
+  const FullTest = [Before, Main, Events, After];
+  const [savedTests, setSavedTests] = useState([]);
+  window.Tests = FullTest;
+  const testCtrl = (TestSection, setState, section, FullTest) =>
     new TestController({
-      testData,
+      TestSection,
       setState,
       section,
-      Tests,
+      FullTest,
       connectedServices,
     });
-  const MainCtrl = testCtrl(Main, setTestMain, 1, Tests);
-  const BeforeCtrl = testCtrl(Before, setTestBefore, 0, Tests);
-  const EventCtrl = testCtrl(Events, setEventTest, 2, Tests);
-  const AfterCtrl = testCtrl(After, setTestAfter, 3, Tests);
+  const MainCtrl = testCtrl(Main, setTestMain, 1, FullTest);
+  const BeforeCtrl = testCtrl(Before, setTestBefore, 0, FullTest);
+  const EventCtrl = testCtrl(Events, setEventTest, 2, FullTest);
+  const AfterCtrl = testCtrl(After, setTestAfter, 3, FullTest);
 
-  const updateAllTest = ([Before, Main, Events, After]) => {
+  const { runFullTest, saveTests } = new FullTestController({
+    FullTest,
+    connectedServices,
+  });
+
+  const runTest = async () => {
+    const [Before, Main, Events, After] = await runFullTest();
     setTestMain([...Main]);
     setTestBefore([...Before]);
     setEventTest([...Events]);
     setTestAfter([...After]);
   };
-  const { runFullTest, saveTests } = MainCtrl;
-  const [savedTests, setSavedTests] = useState([]);
+  const save = async () => {
+    await saveTests();
+    fetchTests();
+  };
+
   const fetchTests = async () => {
     try {
       if (SystemViewPlugin) {
@@ -67,44 +77,44 @@ const FullTest = (namespace) => {
     //get connection for the main test and set state
     const test = new Test({ namespace, validate: true }).getConnection(connectedServices);
     setTestMain([test]);
-    fetchTests(SystemViewPlugin);
+    fetchTests();
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [namespace, connectedServices, SystemViewPlugin]);
+  }, [namespace, connectedServices]);
 
   return (
     <div>
       <span className="row test__buttons">
         <span>
-          <span className="btn" onClick={runFullTest.bind({}, updateAllTest)}>
+          <span className="btn" onClick={runTest}>
             <RunTestIcon />
           </span>
-          <span className="btn" onClick={saveTests}>
+          <span className="btn" onClick={save}>
             <SaveIcon />
           </span>
         </span>
       </span>
 
       <div className="row test-panel__section">
-        <BeforeTest TestController={BeforeCtrl} testData={Before} />
+        <BeforeTest TestController={BeforeCtrl} TestSection={Before} />
       </div>
       <div className="row test-panel__section">
-        <MainTest TestController={MainCtrl} testData={Main} />
+        <MainTest TestController={MainCtrl} TestSection={Main} />
       </div>
       <div className="row test-panel__section">
         <EventsTest
           TestController={EventCtrl}
-          testData={Events}
+          TestSection={Events}
           namespace={eventNamespace}
-          Tests={Tests}
+          FullTest={FullTest}
         />
       </div>
       <div className="row test-panel__section">
-        <AfterTest TestController={AfterCtrl} testData={After} />
+        <AfterTest TestController={AfterCtrl} TestSection={After} />
       </div>
 
       <div className="row test-panel__section">
-        <SavedTests savedTests={savedTests} />
+        <SavedTests savedTests={savedTests} connectedServices={connectedServices} />
       </div>
     </div>
   );

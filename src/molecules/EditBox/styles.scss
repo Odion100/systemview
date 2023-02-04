@@ -6,8 +6,11 @@
   max-height: 80vh;
   border: 2px solid #f1f1f1;
   &:hover {
-    border: 2px dashed #5960b6;
-    border: 2px dashed gainsboro;
+    // border: 2px dashed #5960b6;
+    // border: 2px dashed gainsboro;
+    // border: 2px dashed #92a3d3;
+    border: 2px dashed #8b97ba;
+
     cursor: pointer;
   }
   &__main {

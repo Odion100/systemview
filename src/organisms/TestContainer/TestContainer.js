@@ -12,7 +12,7 @@ const TestContainer = ({
   dynamic,
   TestController,
   test,
-  test_index,
+  testIndex,
   title_color,
   staticArguments,
   multiTest,
@@ -24,11 +24,11 @@ const TestContainer = ({
     setOpen((state) => !state);
   };
   const deleteTest = () => {
-    TestController.deleteTest(test_index);
+    TestController.deleteTest(testIndex);
   };
 
   const updateTitle = (text) => {
-    TestController.updateTitle(test_index, text);
+    TestController.updateTitle(testIndex, text);
   };
   return (
     <section className={className}>
@@ -57,7 +57,7 @@ const TestContainer = ({
         <ScratchPad
           TestController={TestController}
           test={test}
-          test_index={test_index}
+          testIndex={testIndex}
           dynamic={dynamic}
           staticArguments={staticArguments}
         />

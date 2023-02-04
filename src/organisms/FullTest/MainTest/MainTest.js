@@ -4,17 +4,20 @@ import TestContainer from "../../TestContainer/TestContainer";
 
 import "./styles.scss";
 
-const MainTest = ({ TestController, testData }) => {
+const MainTest = ({ TestController, TestSection }) => {
   return (
     <section className="current-data-section">
       <TestContainer
         title="Main:"
         open={true}
-        test={testData[0]}
-        test_index={0}
+        test={TestSection[0]}
+        testIndex={0}
         TestController={TestController}
       >
-        <Evaluations test={testData[0]} />
+        <Evaluations
+          updateEvaluations={TestController.updateEvaluations.bind({}, 0)}
+          test={TestSection[0]}
+        />
       </TestContainer>
     </section>
   );

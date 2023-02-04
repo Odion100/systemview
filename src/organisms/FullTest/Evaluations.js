@@ -5,19 +5,18 @@ import validation_options from "../../molecules/ValidationInput/ValidationOption
 import TypeSelector from "../../atoms/TypeSelector/TypeSelector";
 import { getErrors } from "../../molecules/ValidationInput/validator";
 
-export default function Evaluations({ test }) {
-  const [evaluations, setEvaluations] = useState([]);
-  const [errorCount, setErrorCount] = useState(0);
+export default function Evaluations({ test, updateEvaluations }) {
+  const { evaluations, errors } = test;
   const [open, setOpen] = useState(false);
 
   const toggleExpansion = () => {
     setOpen((state) => !state);
   };
 
-  const addValidation = (i) => {
-    const { expected_type, type } = evaluations[i];
+  const addValidation = (x) => {
+    const { expected_type, type } = evaluations[x];
 
-    evaluations[i].validations.push({
+    evaluations[x].validations.push({
       name: validation_options[expected_type].values[0],
       value:
         expected_type === "number" || (expected_type === "mixed" && type === "number")
@@ -25,47 +24,34 @@ export default function Evaluations({ test }) {
           : "",
     });
 
-    updateErrors(evaluations[i]);
-    setEvaluations([...evaluations]);
+    evaluations[x].errors = getErrors(evaluations[x]);
+    updateEvaluations(evaluations);
   };
 
   const deleteValidation = (x, y) => {
     evaluations[x].validations.splice(y, 1);
-    updateErrors(evaluations[x]);
-    setEvaluations([...evaluations]);
+    evaluations[x].errors = getErrors(evaluations[x]);
+    updateEvaluations(evaluations);
   };
 
   const updateValidations = (x, y, p, v) => {
     evaluations[x].validations[y][p] = v;
-    updateErrors(evaluations[x]);
-    setEvaluations([...evaluations]);
+    evaluations[x].errors = getErrors(evaluations[x]);
+    updateEvaluations(evaluations);
   };
 
   const updateExpectedType = (x, e) => {
     evaluations[x].expected_type = e.target.value;
     evaluations[x].validations = [];
-    updateErrors(evaluations[x]);
-    setEvaluations([...evaluations]);
-  };
-
-  const updateErrors = (evaluation) => {
-    evaluation.errors = getErrors(
-      evaluation.type,
-      evaluation.value,
-      evaluation.validations,
-      evaluation.expected_type
-    );
-    const count = evaluations.reduce((sum, e) => sum + e.errors.count, 0);
-    setErrorCount(count);
+    evaluations[x].errors = getErrors(evaluations[x]);
+    updateEvaluations(evaluations);
   };
 
   useEffect(() => {
     if (test.test_end !== null) {
-      setEvaluations(test.evaluations);
-      setErrorCount(test.total_errors);
+      updateEvaluations(test.evaluations);
     } else {
-      setEvaluations([]);
-      setErrorCount(0);
+      updateEvaluations([]);
     }
   }, [test.test_end]);
 
@@ -75,12 +61,12 @@ export default function Evaluations({ test }) {
         open={open}
         toggleExpansion={toggleExpansion}
         title={
-          <div className={`evaluations__title evaluations--error-${errorCount > 0}`}>
+          <div className={`evaluations__title evaluations--error-${errors.length > 0}`}>
             <span className="evaluations__namespace">
-              {errorCount > 0 ? "Test Failed: " : "Test Passed: "}
+              {errors.length > 0 ? "Test Failed: " : "Test Passed: "}
             </span>
-            <span className={`evaluations__type evaluations--error-${errorCount > 0}`}>
-              {errorCount} errors
+            <span className={`evaluations__type evaluations--error-${errors.length > 0}`}>
+              {errors.length} errors
             </span>
           </div>
         }
@@ -126,6 +112,7 @@ const EvaluationRow = ({
   const style = { "--type-width": type_width + "px" };
   const [open, setOpen] = useState(false);
 
+  const typeError = !!errors.find(({ name }) => name === "typeError");
   const toggleExpansion = () => {
     setOpen((state) => !state);
   };
@@ -146,7 +133,7 @@ const EvaluationRow = ({
       title={
         <div className={`evaluations__title`} style={style}>
           <span
-            className={`evaluations__namespace evaluations--error-${errors.count > 0}`}
+            className={`evaluations__namespace evaluations--error-${errors.length > 0}`}
           >
             {namespace}:{" "}
           </span>
@@ -157,8 +144,8 @@ const EvaluationRow = ({
           />
           <span
             className={`evaluations__type-error-msg 
-              evaluations__type-error-msg--${errors.typeError} 
-              evaluations--error-${errors.typeError}`}
+              evaluations__type-error-msg--${typeError} 
+              evaluations--error-${typeError}`}
           >
             (received {type})
           </span>
@@ -183,10 +170,11 @@ const EvaluationRow = ({
           </div>
           <div className="evaluations__validation-container">
             {validations.map(({ name, value }, i) => {
+              const isError = !!errors.find(({ name: errName }) => errName === name);
               return (
                 <div className="evaluations__validation" key={i}>
                   <ValidationInput
-                    className={`evaluations--error-${errors[name]} evaluations__validation__input`}
+                    className={`evaluations--error-${isError} evaluations__validation__input`}
                     type={expected_type}
                     name={name}
                     value={value}

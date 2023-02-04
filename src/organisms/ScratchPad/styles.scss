@@ -26,6 +26,7 @@
     &--visible-false {
       display: none;
     }
+
     &__clear-btn {
       position: absolute;
       right: 9px;
@@ -33,6 +34,27 @@
       color: #c50000;
       font-family: sans-serif;
     }
+  }
+  &__response-value {
+    font-family: "FS Mono", monospace;
+    margin-left: 10px;
+    margin: 5px 0 0 5px;
+    color: #223a95;
+    color: #a954ff;
+    font-weight: 500;
+    display: flex;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    & span.collapsed-icon {
+      position: relative;
+      top: 2px;
+      left: 7px;
+    }
+  }
+  &__response-type {
+    color: #a954ff;
+    font-weight: 700;
+    font-size: 15px;
   }
   &__btn-container {
     position: absolute;

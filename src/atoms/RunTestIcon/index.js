@@ -4,9 +4,15 @@ import EDIT_ICON from "../../assets/edit.png";
 import X_BUTTON from "../../assets/x.svg";
 import "./styles.scss";
 
-export default function RunTestIcon() {
+export default function RunTestIcon({ onClick }) {
   return (
-    <img className="btn" style={{ width: "16px" }} src={TEST_ICON} alt={"Run Test"} />
+    <img
+      className="btn"
+      onClick={onClick}
+      style={{ width: "16px" }}
+      src={TEST_ICON}
+      alt={"Run Test"}
+    />
   );
 }
 

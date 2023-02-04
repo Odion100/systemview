@@ -1,17 +1,16 @@
 import moment from "moment";
 
-export function validateResults(results, namespace, savedValidations = []) {
+export function validateResults(results, namespace, savedEvaluations = []) {
   const evaluations = [];
-  let total_errors = 0;
+  const errorList = [];
 
   const getValidations = (value, nsp) => {
     const type = getType(value);
-    const i = savedValidations.findIndex((val) => val.namespace === nsp);
-    const savedEval = i !== -1 ? savedValidations.splice(i, 1) : {};
+    const savedEval = savedEvaluations.find((val) => val.namespace === nsp) || {};
     const validations = savedEval.validations || [];
     const expected_type = savedEval.expected_type || type;
-    const errors = getErrors(type, value, validations, expected_type);
-    total_errors += errors.count;
+    const errors = getErrors({ type, value, validations, expected_type });
+    errors.forEach((e) => errorList.push({ ...e, namespace: nsp }));
     return {
       namespace: nsp,
       type,
@@ -25,28 +24,24 @@ export function validateResults(results, namespace, savedValidations = []) {
   (function recursiveEval(data, nsp) {
     const evaluation = getValidations(data, nsp);
     evaluations.push(evaluation);
-    if (evaluation.type === "object")
-      Object.getOwnPropertyNames(data).forEach((prop) =>
-        recursiveEval(data[prop], `${nsp}.${prop}`)
-      );
-    else if (evaluation.type === "array") recursiveEval(data[0], `${nsp}[0]`);
+    if (evaluation.type === "object") {
+      Object.getOwnPropertyNames(data).forEach((prop) => {
+        recursiveEval(data[prop], `${nsp}.${prop}`);
+      });
+    } else if (evaluation.type === "array") {
+      recursiveEval(data[0], `${nsp}[0]`);
+    }
   })(results, namespace);
 
-  savedValidations.forEach((evaluation) => {
-    evaluation.errors = { count: 1, missingNamespace: true };
-    evaluations.push(evaluation);
-    total_errors++;
-  });
   console.log(evaluations);
-  return { evaluations, total_errors };
+  return { evaluations, errors: errorList };
 }
 
-export function getErrors(type, value, validations, expected_type) {
+export function getErrors({ type, value, validations, expected_type }) {
   if (type !== expected_type && expected_type !== "mixed")
-    return { count: 1, typeError: true };
-  const test_type = expected_type !== "mixed" ? expected_type : type;
+    return [{ name: "typeError", expected: expected_type, received: type }];
 
-  switch (test_type) {
+  switch (type) {
     case "number":
       return validateNumber(value, validations);
     case "date":
@@ -59,19 +54,8 @@ export function getErrors(type, value, validations, expected_type) {
       return validateBoolean(value, validations);
     case "null":
     case "undefined":
-      if (expected_type !== "mixed")
-        //all validation failed
-        return validations.reduce(
-          (errors, { name }) => {
-            errors[name] = true;
-            errors.count++;
-            return errors;
-          },
-          { count: 0 }
-        );
-      else return { count: 0 };
     default:
-      return { count: 0 };
+      return [];
   }
 }
 
@@ -120,73 +104,76 @@ export const defaultValue = (data_type) => {
 };
 
 const validateLength = (item, validations) =>
-  validations.reduce(
-    (errors, { name, value }) => {
-      if (name === "lengthEquals") errors[name] = item.length !== value;
-      if (name === "maxLength") errors[name] = item.length > value;
-      if (name === "minLength") errors[name] = item.length < value;
-      if (errors[name]) errors.count++;
-      return errors;
-    },
-    { count: 0 }
-  );
+  validations.reduce((errors, { name, value }) => {
+    if (name === "lengthEquals" && item.length !== value)
+      return errors.concat({ name, expected: value, received: item.length });
+    if (name === "maxLength" && item.length > value)
+      return errors.concat({ name, expected: value, received: item.length });
+    if (name === "minLength" && item.length < value)
+      return errors.concat({ name, expected: value, received: item.length });
+    return errors;
+  }, []);
 
 const validateArray = (arr, validations) =>
   validations.reduce((errors, { name, value }) => {
-    if (name === "includes") errors[name] = !arr.includes(value);
-    if (errors[name]) errors.count++;
+    if (name === "includes" && !arr.includes(value))
+      return errors.concat({ name, expected: value, received: arr });
     return errors;
   }, validateLength(arr, validations));
 
 const validateString = (str, validations) =>
   validations.reduce((errors, { name, value }) => {
-    if (name === "strEquals") errors[name] = str !== value;
+    if (name === "strEquals" && str !== value)
+      return errors.concat({ name, expected: value, received: str });
     //str.match() returns null when there is no match
-    if (name === "isLike") errors[name] = !str.match(new RegExp(value, "gi"));
-    if (name === "isOneOf" && typeof value === "string")
-      errors[name] = !value
+    if ((name === "isLike") & !str.match(new RegExp(value, "gi")))
+      return errors.concat({ name, expected: value, received: str });
+    if (
+      name === "isOneOf" &&
+      typeof value === "string" &&
+      !value
         .split(",")
         .map((v) => v.trim())
-        .includes(str);
-    if (errors[name]) errors.count++;
+        .includes(str)
+    )
+      return errors.concat({ name, expected: value, received: str });
     return errors;
   }, validateLength(str, validations));
 
 const validateNumber = (num, validations) =>
-  validations.reduce(
-    (errors, { name, value }) => {
-      if (name === "numEquals") errors[name] = num !== value;
-      if (name === "max") errors[name] = num > value;
-      if (name === "min") errors[name] = num < value;
-      if (name === "isOneOf" && typeof value === "string")
-        errors[name] = !value
-          .split(",")
-          .map((v) => parseInt(v))
-          .includes(num);
-      if (errors[name]) errors.count++;
-      return errors;
-    },
-    { count: 0 }
-  );
+  validations.reduce((errors, { name, value }) => {
+    if (name === "numEquals" && num !== value)
+      return errors.concat({ name, expected: value, received: num });
+    if (name === "max" && num > value)
+      return errors.concat({ name, expected: value, received: num });
+    if (name === "min" && num < value)
+      return errors.concat({ name, expected: value, received: num });
+    if (
+      name === "isOneOf" &&
+      typeof value === "string" &&
+      !value
+        .split(",")
+        .map((v) => parseInt(v))
+        .includes(num)
+    )
+      return errors.concat({ name, expected: value, received: num });
+    return errors;
+  }, []);
 
 const validateBoolean = (bool, validations) =>
-  validations.reduce(
-    (errors, { name, value }) => {
-      if (name === "boolEquals") errors[name] = bool !== value;
-      if (errors[name]) errors.count++;
-      return errors;
-    },
-    { count: 0 }
-  );
+  validations.reduce((errors, { name, value }) => {
+    if (name === "boolEquals" && bool !== value)
+      return errors.concat({ name, expected: value, received: bool });
+    return errors;
+  }, []);
 
 const validateDate = (datetime, validations) =>
-  validations.reduce(
-    (errors, { name, value }) => {
-      if (name === "dateEquals") errors[name] = !moment(datetime).isSame(value);
-      if (name === "maxDate") errors[name] = moment(datetime).isAfter(value);
-      if (name === "minDate") errors[name] = moment(datetime).isBefore(value);
-      if (errors[name]) errors.count++;
-      return errors;
-    },
-    { count: 0 }
-  );
+  validations.reduce((errors, { name, value }) => {
+    if (name === "dateEquals" && !moment(datetime).isSame(value))
+      return errors.concat({ name, expected: value, received: datetime });
+    if (name === "maxDate" && moment(datetime).isAfter(value))
+      return errors.concat({ name, expected: value, received: datetime });
+    if (name === "minDate" && moment(datetime).isBefore(value))
+      return errors.concat({ name, expected: value, received: datetime });
+    return errors;
+  }, []);

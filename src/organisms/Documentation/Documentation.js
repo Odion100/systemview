@@ -115,7 +115,9 @@ const DocDescription = ({ doc, setDocument, SystemViewPlugin }) => {
   }, [doc]);
   return (
     <EditBox
-      mainObject={<Markdown children={text || "What does this method do?"} />}
+      mainObject={
+        <Markdown children={text || "Use markdown to create your documentation here"} />
+      }
       hiddenForm={<DescriptionBox text={text || ""} setValue={updateDoc} />}
       formSubmit={saveDocument}
       stateChange={[serviceId, methodName, moduleName]}

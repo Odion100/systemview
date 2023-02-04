@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useState } from "react";
 import ReactJson from "react-json-view";
 import AutoCompleteBox from "../../molecules/AutoCompleteBox/AutoCompleteBox";
-import Args from "../../molecules/Args/Args";
+import Args, { Argument } from "../../molecules/Args/Args";
 import ServiceContext from "../../ServiceContext";
 import "./styles.scss";
 import RunTestIcon from "../../atoms/RunTestIcon";
@@ -9,7 +9,7 @@ import RunTestIcon from "../../atoms/RunTestIcon";
 const ScratchPad = ({
   TestController,
   test,
-  test_index = 0,
+  testIndex = 0,
   dynamic = false,
   staticArguments = false,
 }) => {
@@ -24,7 +24,7 @@ const ScratchPad = ({
   const [testResults, setTestResults] = useState(test.results);
 
   const runTest = async () => {
-    TestController.runTest(test_index);
+    TestController.runTest(testIndex);
   };
   const createSuggestions = () => {
     const new_suggestions = [];
@@ -42,11 +42,11 @@ const ScratchPad = ({
     //remove open-close parentheses
     namespaces = namespaces.slice(0, -2);
     const [serviceId, moduleName, methodName] = namespaces.split(".");
-    TestController.updateNamespace(test_index, { serviceId, moduleName, methodName });
+    TestController.updateNamespace(testIndex, { serviceId, moduleName, methodName });
   };
 
   const clearResponse = () => {
-    TestController.resetResults(test_index);
+    TestController.resetResults(testIndex);
   };
   useEffect(() => {
     setTestResults(test.results);
@@ -80,7 +80,7 @@ const ScratchPad = ({
           <Args
             args={test.args}
             controller={TestController}
-            test_index={test_index}
+            testIndex={testIndex}
             locked={staticArguments}
           />
           <span className="scratchpad__test-data__parentheses">{")"}</span>
@@ -96,13 +96,10 @@ const ScratchPad = ({
           >
             x
           </span>
-          <ReactJson
-            src={testResults || {}}
-            name={test.response_type}
-            displayObjectSize={false}
-            displayDataTypes={false}
-            collapsed={true}
-          />
+          <div className="scratchpad__response-value">
+            <span className={`scratchpad__response-type`}>{test.response_type}:</span>
+            <Argument value={testResults} />
+          </div>
         </div>
       </div>
     </div>

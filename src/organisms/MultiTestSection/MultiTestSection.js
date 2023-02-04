@@ -10,7 +10,7 @@ import Count from "../../atoms/Count";
 const MultiTestSection = ({
   caption,
   TestController,
-  testData,
+  TestSection,
   dynamic,
   namespace,
   arg = {},
@@ -26,10 +26,10 @@ const MultiTestSection = ({
   const addTest = () => {
     TestController.addTest(
       namespace,
-      arg.name && [new Argument(arg.name, arg.Tests, arg.input_type)]
+      arg.name && [new Argument(arg.name, arg.FullTest, arg.input_type)]
     );
-    testData.length === 1 && setOpen(true);
-    console.log("Arguments", testData);
+    TestSection.length === 1 && setOpen(true);
+    console.log("Arguments", TestSection);
   };
   return (
     <section className={className}>
@@ -41,7 +41,8 @@ const MultiTestSection = ({
             <TestCaption
               caption={
                 <span>
-                  {caption} {testData.length > 0 && <Count count={testData.length} />}
+                  {caption}{" "}
+                  {TestSection.length > 0 && <Count count={TestSection.length} />}
                 </span>
               }
             />
@@ -51,13 +52,13 @@ const MultiTestSection = ({
         title_color="#0d8065"
       >
         <div className={`${className}__test-data`}>
-          {testData.length > 0 ? (
-            testData.map((test, i) => (
+          {TestSection.length > 0 ? (
+            TestSection.map((test, i) => (
               <TestContainer
                 key={i}
                 TestController={TestController}
                 test={test}
-                test_index={i}
+                testIndex={i}
                 title={`${i + 1}:`}
                 title_color={"#4b53b3"}
                 dynamic={dynamic}

@@ -5,21 +5,19 @@ import ExpandIcon from "../../atoms/ExpandableIcon/ExpandableIcon";
 const ExpandableSection = ({
   children,
   title,
-  title_color,
+  color = "#2aa198",
   open,
   lock,
   toggleExpansion,
 }) => {
-  const style = { color: title_color || "black" };
-
   return (
     <div className="expandable-section">
-      <div className="expandable-section__title" style={style}>
+      <div className="expandable-section__title">
         <span
           className={`expandable-section__btn expandable-section__btn--hide-${lock}`}
           onClick={toggleExpansion}
         >
-          <ExpandIcon isOpen={open} />
+          <ExpandIcon color={color} isOpen={open} />
         </span>
         {title}
       </div>

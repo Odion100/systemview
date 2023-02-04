@@ -10,5 +10,5 @@ export function SavedFile({ name }) {
 }
 
 export function ErrorStatus({ message }) {
-  return <span className="status-indicator error-message">{message}</span>;
+  return <span className="status-indicator">{message}</span>;
 }

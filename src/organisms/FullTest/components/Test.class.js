@@ -7,7 +7,7 @@ export default function Test({
   args,
   title,
   validate = false,
-  savedValidations = [],
+  savedEvaluations = [],
 }) {
   this.connection = {};
   this.title = title;
@@ -23,18 +23,22 @@ export default function Test({
     this.test_start = null;
     this.test_end = null;
     this.evaluations = [];
-    this.savedValidations = savedValidations; //will be populated by saved tests
-    this.total_errors = 0;
-    this.validateResults = validate || !!savedValidations.length;
+    this.savedEvaluations = savedEvaluations; //will be populated by saved tests
+    this.errors = [];
+    this.shouldValidate = validate || !!savedEvaluations.length;
     return this;
   };
   this.clearResults();
 
   this.validate = () => {
     const { results, response_type } = this;
-    const { evaluations, total_errors } = validateResults(results, response_type, []);
+    const { evaluations, errors } = validateResults(
+      results,
+      response_type,
+      savedEvaluations
+    );
     this.evaluations = evaluations;
-    this.total_errors = total_errors;
+    this.errors = errors;
     return this;
   };
   this.runTest = async (cb) => {
@@ -52,7 +56,7 @@ export default function Test({
         this.results = e;
         this.test_end = moment().toJSON();
         this.response_type = "event";
-        this.validateResults && this.validate();
+        this.shouldValidate && this.validate();
         typeof cb === "function" && cb();
       });
     } else {
@@ -63,12 +67,12 @@ export default function Test({
         );
         this.test_end = moment().toJSON();
         this.response_type = "results";
-        this.validateResults && this.validate();
+        this.shouldValidate && this.validate();
       } catch (error) {
         this.test_end = moment().toJSON();
         this.results = error;
         this.response_type = "error";
-        this.validateResults && this.validate();
+        this.shouldValidate && this.validate();
       }
       console.log(
         `--------> [${this.response_type}]:${serviceId}.${moduleName}.${methodName}()`,
@@ -87,7 +91,7 @@ export default function Test({
         (service) => service.serviceId === serviceId
       );
       if (!service) {
-        console.log("connection data not found");
+        console.error("connection data not found");
         return this;
       }
       const { connectionData } = service.system;

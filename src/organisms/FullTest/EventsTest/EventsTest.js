@@ -2,14 +2,14 @@ import React from "react";
 import MultiTestSection from "../../MultiTestSection/MultiTestSection";
 import "./styles.scss";
 
-const EventsTest = ({ testData, TestController, namespace, Tests, connection }) => {
+const EventsTest = ({ TestSection, TestController, namespace, FullTest, connection }) => {
   return (
     <MultiTestSection
       dynamic={false}
-      testData={testData}
+      TestSection={TestSection}
       TestController={TestController}
       namespace={namespace}
-      arg={{ name: "event_name", input_type: "string", Tests }}
+      arg={{ name: "event_name", input_type: "string", FullTest }}
       caption="Events"
       staticArguments={true}
     />

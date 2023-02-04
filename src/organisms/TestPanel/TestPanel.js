@@ -20,6 +20,7 @@ const TestPanel = ({ projectCode, serviceId, moduleName, methodName }) => {
           methodName={methodName}
         />
       </div>
+      <div className="scroll-buffer"></div>
     </section>
   );
 };
