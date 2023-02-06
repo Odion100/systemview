@@ -1,5 +1,4 @@
 import React, { useContext, useEffect, useState } from "react";
-import ReactJson from "react-json-view";
 import AutoCompleteBox from "../../molecules/AutoCompleteBox/AutoCompleteBox";
 import Args, { Argument } from "../../molecules/Args/Args";
 import ServiceContext from "../../ServiceContext";
@@ -13,7 +12,7 @@ const ScratchPad = ({
   dynamic = false,
   staticArguments = false,
 }) => {
-  const placeholder = "service.module.method";
+  const placeholder = "service.module.method ";
   const { projectCode, serviceId, moduleName, methodName } = test.namespace;
   const [nsp, setNsp] = useState(
     methodName ? `${serviceId}.${moduleName}.${methodName}` : ""
@@ -48,6 +47,8 @@ const ScratchPad = ({
   const clearResponse = () => {
     TestController.resetResults(testIndex);
   };
+  const resetLength = () => setLength(placeholder.length + 0.4);
+
   useEffect(() => {
     setTestResults(test.results);
   }, [test.results]);
@@ -75,6 +76,7 @@ const ScratchPad = ({
             value={`${nsp}`}
             disabled={!dynamic}
             placeholder={placeholder}
+            onBlur={resetLength}
           />
           <span className="scratchpad__test-data__parentheses">{"("}</span>
           <Args

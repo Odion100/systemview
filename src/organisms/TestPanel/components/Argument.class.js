@@ -11,9 +11,9 @@ export function TargetValue(target_namespace, source_map, source_index) {
   this.source_map = source_map || [];
   this.source_index = source_index || 0;
 }
-export default function Argument(name, FullTest, input_type = "undefined") {
+export default function Argument(name, FullTest, input_type = "undefined", input) {
   this.name = name;
-  this.input = undefined;
+  this.input = input;
   this.input_type = input_type;
   this.data_type = "";
   this.targetValues = [];

@@ -7,6 +7,7 @@ const AutoCompleteBox = ({
   className,
   onSubmit,
   onChange,
+  onBlur,
   disabled = false,
   placeholder,
   filterSuggestion = true,
@@ -33,7 +34,9 @@ const AutoCompleteBox = ({
 
     if (
       (!requireSelection && unLinked.indexOf(userInput) > -1) ||
-      (!requireSelection && unLinked.length <= 1 && userInput.length > (unLinked[0] || "").length)
+      (!requireSelection &&
+        unLinked.length <= 1 &&
+        userInput.length > (unLinked[0] || "").length)
     )
       setShowSuggestions(false);
     else setShowSuggestions(true);
@@ -47,7 +50,9 @@ const AutoCompleteBox = ({
     setActiveSuggestionIndex(0);
     setShowSuggestions(false);
   };
-
+  const blur = (e) => {
+    typeof onBlur === "function" && onBlur(e.target.value);
+  };
   const SuggestionsListComponent = () => {
     return filteredSuggestions.length ? (
       <div className="auto-complete__suggestions">
@@ -83,6 +88,7 @@ const AutoCompleteBox = ({
         type="text"
         onChange={change}
         onKeyDown={onKeyDown}
+        onBlur={blur}
         value={input}
         disabled={disabled}
         placeholder={placeholder}

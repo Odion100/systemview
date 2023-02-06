@@ -8,12 +8,17 @@
     background: white;
     color: black;
     font-size: 13px;
-    padding: 20px;
+    padding: 38px;
     border-radius: 2px;
     border: none;
-    // border-bottom: 1px solid gainsboro;
     outline: none;
     resize: none;
-    font-family: "SF Mono", "Ubuntu Mono", monospace;
+    // font-family: "SF Mono", "Ubuntu Mono", monospace;
+    font-size: 15px;
+    font-weight: 500;
+
+    // background: #3d8470;
+    // color: white;
+    border-bottom: 1px solid #07625a;
   }
 }

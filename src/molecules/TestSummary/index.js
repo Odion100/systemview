@@ -7,7 +7,7 @@ import ARROW from "../../assets/arrow.png";
 import "./styles.scss";
 import ExpandIcon from "../../atoms/ExpandableIcon/ExpandableIcon";
 import { Argument } from "../Args/Args";
-import Test from "../../organisms/FullTest/components/Test.class";
+import Test from "../../organisms/TestPanel/components/Test.class";
 import ValidationMessage from "../ValidationInput/ValidationMessages";
 
 const CLASS_NAME = "test-summary";
@@ -55,14 +55,14 @@ export default function TestSummary({ testSection = [], section, isTesting }) {
               <span>{section + " Test"}:</span>
               <span>
                 <Count count={testSection.length} stat="actions" />
-                <Count count={validationCount} stat="validations" />
+                <Count
+                  count={validationCount}
+                  stat="validations"
+                  type={!!validationCount && "caution"}
+                />
               </span>
               <span>
-                {!errorCount ? (
-                  <Count count={errorCount} stat="errors" />
-                ) : (
-                  <Count count={errorCount} stat="errors" type={"error"} />
-                )}
+                <Count count={errorCount} stat="errors" type={!!errorCount && "error"} />
               </span>
             </div>
           }
@@ -118,9 +118,8 @@ function Action({
               {!!errors.length && <TestValidations errors={errors} />}
             </>
           )}
-          {!!totalValidations.length && (
-            <TestValidations errors={totalValidations} isError={false} />
-          )}
+
+          <TestValidations errors={totalValidations} isError={false} />
         </>
       )}
     </div>
@@ -137,10 +136,12 @@ function TestMethod({ namespace, args }) {
       >{`${serviceId}.${moduleName}.${methodName}`}</span>
       <span className={`${CLASS_NAME}__parentheses`}>(</span>
       {args.map(({ input, data_type }, i) => (
-        <span key={i} className={`${CLASS_NAME}__parameter`}>
-          <Argument value={input} data_type={data_type} />
+        <React.Fragment key={i}>
+          <span className={`${CLASS_NAME}__parameter`}>
+            <Argument value={input} data_type={data_type} />
+          </span>
           {i < args.length - 1 && <span className={`${CLASS_NAME}__comma`}>,</span>}
-        </span>
+        </React.Fragment>
       ))}
       <span className={`${CLASS_NAME}__parentheses`}>)</span>
     </div>

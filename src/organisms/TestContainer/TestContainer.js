@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import ExpandableSection from "../../molecules/ExpandableSection/ExpandableSection";
 import TestCaption from "../../molecules/TestCaption/TestCaption";
 import ScratchPad from "../ScratchPad/ScratchPad";
@@ -30,6 +30,7 @@ const TestContainer = ({
   const updateTitle = (text) => {
     TestController.updateTitle(testIndex, text);
   };
+  useEffect(() => {}, [test.title]);
   return (
     <section className={className}>
       <ExpandableSection
@@ -42,6 +43,7 @@ const TestContainer = ({
               onChange={updateTitle}
               caption={<b>{title}</b>}
               useInput={true}
+              title={test.title || ""}
             />
             {multiTest && (
               <span

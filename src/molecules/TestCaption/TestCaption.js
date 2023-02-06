@@ -1,7 +1,7 @@
 import React from "react";
 import "./styles.scss";
 
-const TestCaption = ({ caption, useInput = false, onChange }) => {
+const TestCaption = ({ caption, useInput = false, onChange, title }) => {
   const className = "test-caption";
   const clickHandle = (e) => {
     typeof onChange === "function" && onChange(e.target.value);
@@ -12,7 +12,12 @@ const TestCaption = ({ caption, useInput = false, onChange }) => {
       <span
         className={`${className}__description-input ${className}__description-input--visible-${useInput}`}
       >
-        <input type="text" placeholder="describe the test..." onChange={clickHandle} />
+        <input
+          value={title}
+          type="text"
+          placeholder="describe the test..."
+          onChange={clickHandle}
+        />
       </span>
     </div>
   );

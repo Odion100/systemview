@@ -119,7 +119,7 @@ const ArgName = ({ name, isOpen, showData }) => {
   );
 };
 const ArgDataForm = ({ arg, testIndex, i, controller, is12 }) => {
-  const { input, input_type, data_type, targetValues } = arg;
+  const { input, input_type, targetValues } = arg;
   const [jsonBoxVisible, setJsonBoxVisible] = useState(false);
   const showJsonTxb = () => setJsonBoxVisible(true);
   const hideJsonTxb = () => setJsonBoxVisible(false);
@@ -145,14 +145,14 @@ const ArgDataForm = ({ arg, testIndex, i, controller, is12 }) => {
     else controller.checkTargetValues(testIndex, i);
   };
 
-  // const adjustSize = (e) => {
-  //   const new_lines = Array.from(e.target.value.matchAll(/\n/g)).length;
-  //   const new_height = 33 + new_lines * 18;
-  //   e.target.style.height = `${new_height}px`;
-  // };
+  const adjustSize = (e) => {
+    const new_lines = e.target.value.length / 38;
+    const new_height = Math.min(33 + new_lines * 18, 320);
+    e.target.style.height = `${new_height}px`;
+  };
 
   const textboxChanged = (e) => {
-    // adjustSize(e);
+    adjustSize(e);
     inputChanged(e);
     controller.parseTargetValues(testIndex, i, e.target.value, ["input"]);
   };
@@ -166,7 +166,7 @@ const ArgDataForm = ({ arg, testIndex, i, controller, is12 }) => {
             className={`${className}__form__input ${className}__form__input--${input_type}`}
             value={input}
             onChange={textboxChanged}
-            // onFocus={adjustSize}
+            onFocus={adjustSize}
           />
           <ArgValue value={arg.value()} hide={!targetValues.length} />
         </div>
@@ -256,7 +256,11 @@ export function Argument({ value }) {
       {data_type === "undefined" || data_type === "null" ? (
         <span className={`${className}__value__${data_type}`}>{value + ""}</span>
       ) : data_type === "string" ? (
-        <span className={`${className}__value__${data_type}`}>{value + ""}</span>
+        <span className={`${className}__value__${data_type}`}>
+          <span className={`${className}__quote`}>"</span>
+          {value}
+          <span className={`${className}__quote`}>"</span>
+        </span>
       ) : data_type === "number" ? (
         <span className={`${className}__value__${data_type}`}>{value + ""}</span>
       ) : data_type === "boolean" ? (

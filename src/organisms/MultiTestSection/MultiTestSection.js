@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import ExpandableSection from "../../molecules/ExpandableSection/ExpandableSection";
 import TestCaption from "../../molecules/TestCaption/TestCaption";
 import TestContainer from "../TestContainer/TestContainer";
-import Argument from "../FullTest/components/Argument.class";
+import Argument from "../TestPanel/components/Argument.class";
 
 import "./styles.scss";
 import Count from "../../atoms/Count";
@@ -29,7 +29,7 @@ const MultiTestSection = ({
       arg.name && [new Argument(arg.name, arg.FullTest, arg.input_type)]
     );
     TestSection.length === 1 && setOpen(true);
-    console.log("Arguments", TestSection);
+    console.log("Arguments", arg);
   };
   return (
     <section className={className}>

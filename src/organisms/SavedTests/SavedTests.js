@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Client } from "systemlynx";
 import Count from "../../atoms/Count";
 import ExpandIcon from "../../atoms/ExpandableIcon/ExpandableIcon";
@@ -6,29 +6,44 @@ import RunTestIcon, { EditIcon, XButton } from "../../atoms/RunTestIcon";
 import ExpandableSection from "../../molecules/ExpandableSection/ExpandableSection";
 import TestCaption from "../../molecules/TestCaption/TestCaption";
 import TestSummary from "../../molecules/TestSummary";
-import FullTestController from "../FullTest/components/FullTestController";
+import FullTestController from "../TestPanel/components/FullTestController";
+import { resetSavedTests, resetFullTest } from "./transformTests";
+import CLEAR_ICON from "../../assets/clear.png";
 import "./styles.scss";
-import transformTest from "./transformTests";
+
 window.Client = Client;
-const SavedTests = ({ savedTests = [], connectedServices }) => {
+const CLASSNAME = "test-saved-section";
+
+const SavedTests = ({
+  savedTests = [],
+  connectedServices,
+  setFullTest,
+  SystemViewPlugin,
+  fetchTests,
+}) => {
   const [open, setOpen] = useState(false);
   const toggleExpansion = () => setOpen((state) => !state);
   const [openAll, setOpenAll] = useState(false);
+  const [closeAll, setCloseAll] = useState(false);
   const [savedTestList, setTests] = useState(
-    transformTest(savedTests, connectedServices)
+    resetSavedTests(savedTests, connectedServices)
   );
-
   window.savedTestList = savedTestList;
+  window.savedTests = savedTests;
+
   const updateTests = (i, FullTest) => {
     savedTestList[i] = { ...FullTest };
     setTests([...savedTestList]);
   };
+  const clearTests = () => {
+    setTests(resetSavedTests(savedTests, connectedServices));
+    setCloseAll((state) => !state);
+  };
 
   const runAllTests = async () => {
     setOpen(true);
-    setOpenAll(true);
+    setOpenAll((state) => !state);
     await Promise.all(savedTestList.map((FullTest, i) => runTest(i, FullTest)));
-    setOpenAll(false);
   };
 
   const runTest = async (index, { Before, Main, Events, After }) => {
@@ -42,10 +57,10 @@ const SavedTests = ({ savedTests = [], connectedServices }) => {
     updateTests(index, { Before: B, Main: M, Events: E, After: A, title, namespace });
   };
   useEffect(() => {
-    setTests(transformTest(savedTests, connectedServices));
+    setTests(resetSavedTests(savedTests, connectedServices));
   }, [savedTests]);
   return (
-    <section className="test-saved-section">
+    <section className={`${CLASSNAME}`}>
       <ExpandableSection
         toggleExpansion={toggleExpansion}
         open={open}
@@ -58,8 +73,13 @@ const SavedTests = ({ savedTests = [], connectedServices }) => {
                   {savedTestList.length > 0 && <Count count={savedTestList.length} />}
                 </span>
               }
-            />{" "}
-            <RunTestIcon onClick={runAllTests} />
+            />
+            <div className={`${CLASSNAME}__buttons ${CLASSNAME}__top-buttons`}>
+              <span className={`${CLASSNAME}__clear-button btn`} onClick={clearTests}>
+                <img src={CLEAR_ICON} alt="clear" />
+              </span>
+              <RunTestIcon onClick={runAllTests} />
+            </div>
           </>
         }
       >
@@ -72,7 +92,12 @@ const SavedTests = ({ savedTests = [], connectedServices }) => {
                 index={i}
                 isOpen={open}
                 openAll={openAll}
+                closeAll={closeAll}
                 runTest={runTest.bind({}, i, FullTest)}
+                setFullTest={setFullTest}
+                connectedServices={connectedServices}
+                SystemViewPlugin={SystemViewPlugin}
+                fetchTests={fetchTests}
               />
             ))}
           </div>
@@ -96,11 +121,30 @@ function TestDetails({
   namespace,
   runTest,
   openAll,
+  closeAll,
+  setFullTest,
+  connectedServices,
+  SystemViewPlugin,
+  fetchTests,
 }) {
   const [open, setOpen] = useState(true);
-  const toggleExpansion = () => setOpen((state) => !state);
-
-  const testHandler = () => {
+  const [showDeleteMsg, setDeleteMsg] = useState(false);
+  const toggleExpansion = () => {
+    setOpen((state) => !state);
+  };
+  const editTest = () => {
+    Main[0].index = index;
+    const Tests = resetFullTest([Before, Main, Events, After], connectedServices);
+    setFullTest(Tests);
+  };
+  const hideDelete = () => setDeleteMsg(false);
+  const showDelete = () => setDeleteMsg(true);
+  const deleteTest = async () => {
+    await SystemViewPlugin.deleteTest(namespace, index);
+    hideDelete();
+    fetchTests();
+  };
+  const runTestHandler = () => {
     setOpen(true);
     runTest();
   };
@@ -109,17 +153,39 @@ function TestDetails({
   }, [openAll]);
   useEffect(() => {
     setOpen(false);
+  }, [closeAll]);
+  useEffect(() => {
+    setOpen(false);
   }, [namespace.serviceId, namespace.moduleName, namespace.methodName]);
   return (
-    <div className="test-saved-section__test-container">
-      <div className="test-saved-section__test-row">
+    <div className={`${CLASSNAME}__test-container`}>
+      <div className={`${CLASSNAME}__test-row`}>
         <ExpandIcon color="#4caf50" onClick={toggleExpansion} isOpen={open} />
-        <span className="test-saved-section__test-index ">Test {index + 1}:</span>
-        <span className="test-saved-section__test-title">{title}</span>
-        <span className="test-saved-section__buttons">
-          <RunTestIcon onClick={testHandler} />
-          <EditIcon />
-          <XButton />
+        <span className={`${CLASSNAME}__test-index`}>Test {index + 1}:</span>
+        {showDeleteMsg ? (
+          <span className={`${CLASSNAME}__delete-prompt ${CLASSNAME}__test-title`}>
+            Delete test?{"  "}
+            <span
+              onClick={deleteTest}
+              className={`${CLASSNAME}__delete-btn ${CLASSNAME}__delete-btn--yes btn`}
+            >
+              Yes
+            </span>
+            <span
+              onClick={hideDelete}
+              className={`${CLASSNAME}__delete-btn ${CLASSNAME}__delete-btn--no btn`}
+            >
+              No
+            </span>
+          </span>
+        ) : (
+          <span className={`${CLASSNAME}__test-title`}>{title}</span>
+        )}
+
+        <span className={`${CLASSNAME}__buttons`}>
+          <RunTestIcon onClick={runTestHandler} />
+          <EditIcon onClick={editTest} />
+          <XButton onClick={showDelete} />
         </span>
       </div>
       {open && (

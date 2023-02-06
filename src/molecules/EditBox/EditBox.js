@@ -25,7 +25,7 @@ const EditBox = ({
   //   setEditMode(false);
   // }, [stateChange]);
   return (
-    <div className="edit-box">
+    <div className={`edit-box edit-box--${editMode ? "edit" : "read"}`}>
       <div
         onClick={editBoxClicked}
         className={`edit-box__main edit-box__main--${editMode ? "hidden" : "visible"}`}
@@ -35,9 +35,7 @@ const EditBox = ({
       <div
         className={`edit-box__form edit-box__form--${editMode ? "visible" : "hidden"}`}
       >
-        <div className="row">
-          <div className="container">{hiddenForm}</div>
-        </div>
+        <div className="row">{hiddenForm}</div>
 
         <div className="edit-box__button">
           <Button submit={saveClicked}>Save</Button>

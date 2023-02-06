@@ -131,25 +131,28 @@ const EvaluationRow = ({
       open={open}
       toggleExpansion={toggleExpansion}
       title={
-        <div className={`evaluations__title`} style={style}>
-          <span
-            className={`evaluations__namespace evaluations--error-${errors.length > 0}`}
-          >
-            {namespace}:{" "}
-          </span>
+        <>
+          <div className={`evaluations__title`} style={style}>
+            <span
+              className={`evaluations__namespace evaluations--error-${errors.length > 0}`}
+            >
+              {namespace}:{" "}
+            </span>
 
-          <TypeSelector
-            default_type={expected_type}
-            onSelect={onSelect.bind(this, index)}
-          />
-          <span
-            className={`evaluations__type-error-msg 
+            <TypeSelector
+              default_type={expected_type}
+              onSelect={onSelect.bind(this, index)}
+            />
+            <span
+              className={`evaluations__type-error-msg 
               evaluations__type-error-msg--${typeError} 
               evaluations--error-${typeError}`}
-          >
-            (received {type})
-          </span>
-        </div>
+            >
+              (received {type})
+            </span>
+          </div>
+          <input type="checkbox" />
+        </>
       }
     >
       <div className="evaluations__row">

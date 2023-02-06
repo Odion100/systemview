@@ -58,7 +58,7 @@ export function getErrors({ type, value, validations, expected_type }) {
       return [];
   }
 }
-
+window.moment = moment;
 export function getType(value) {
   switch (true) {
     case typeof value === "object":

@@ -8,7 +8,9 @@ export default function Test({
   title,
   validate = false,
   savedEvaluations = [],
+  index,
 }) {
+  this.index = index;
   this.connection = {};
   this.title = title;
   this.args = args || [];

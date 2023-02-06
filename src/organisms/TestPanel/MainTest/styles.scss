@@ -18,6 +18,7 @@
   &__title {
     --type-width: auto;
     margin-left: 10px;
+    width: 100%;
     & select {
       width: var(--type-width);
     }

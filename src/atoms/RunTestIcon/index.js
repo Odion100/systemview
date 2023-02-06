@@ -16,14 +16,26 @@ export default function RunTestIcon({ onClick }) {
   );
 }
 
-export function EditIcon() {
+export function EditIcon({ onClick }) {
   return (
-    <img className="btn" style={{ width: "16px" }} src={EDIT_ICON} alt={"Edit Test"} />
+    <img
+      className="btn"
+      style={{ width: "16px" }}
+      src={EDIT_ICON}
+      alt={"Edit Test"}
+      onClick={onClick}
+    />
   );
 }
 
-export function XButton() {
+export function XButton({ onClick }) {
   return (
-    <img className="btn" style={{ width: "10px" }} src={X_BUTTON} alt={"Delete Test"} />
+    <img
+      className="btn"
+      style={{ width: "10px" }}
+      src={X_BUTTON}
+      alt={"Delete Test"}
+      onClick={onClick}
+    />
   );
 }

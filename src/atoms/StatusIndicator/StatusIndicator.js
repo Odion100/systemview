@@ -1,10 +1,12 @@
 import "./styles.scss";
 
-export function SavedFile({ name }) {
+export function CurrentTest({ name, onClick }) {
   return (
     <span className="status-indicator saved-message">
-      <span className="status-indicator__title">Saved Test 1</span>
-      <span className="status-indicator__clear-button btn">×</span>
+      <span className="status-indicator__title">{name}</span>
+      <span onClick={onClick} className="status-indicator__clear-button btn">
+        ×
+      </span>
     </span>
   );
 }
