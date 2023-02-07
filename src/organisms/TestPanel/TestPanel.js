@@ -26,7 +26,7 @@ const FullTest = ({ serviceId, moduleName, methodName }) => {
     : {};
   const [Before, setTestBefore] = useState([]);
   const [After, setTestAfter] = useState([]);
-  const [Main, setTestMain] = useState([new Test({ namespace, validate: true })]);
+  const [Main, setTestMain] = useState([new Test({ namespace, shouldValidate: true })]);
   const eventNamespace = { serviceId, moduleName, methodName: "on" };
   const [Events, setEventTest] = useState([]);
   const FullTest = [Before, Main, Events, After];
@@ -64,7 +64,12 @@ const FullTest = ({ serviceId, moduleName, methodName }) => {
   const clearMessage = () => setMessage({ error: false, message: "" });
   const save = async () => {
     const { error, message } = await saveTests();
-    if (!error) fetchTests();
+
+    if (!error) {
+      resetTests();
+      fetchTests();
+    }
+
     setMessage({ error, message });
     setTimeout(() => setMessage({ error: false, message: "" }), 4000);
   };
@@ -84,7 +89,9 @@ const FullTest = ({ serviceId, moduleName, methodName }) => {
     setTestAfter([]);
     setEventTest([]);
     //get connection for the main test and set state
-    const test = new Test({ namespace, validate: true }).getConnection(connectedServices);
+    const test = new Test({ namespace, shouldValidate: true }).getConnection(
+      connectedServices
+    );
     setTestMain([test]);
   };
   const clearTest = () => {

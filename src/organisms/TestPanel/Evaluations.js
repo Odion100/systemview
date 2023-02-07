@@ -1,14 +1,20 @@
 import React, { useState, useEffect } from "react";
 import ExpandableSection from "../../molecules/ExpandableSection/ExpandableSection";
 import ValidationInput from "../../molecules/ValidationInput/ValidationInput";
-import validation_options from "../../molecules/ValidationInput/ValidationOptions";
+import ValidationOptions from "../../molecules/ValidationInput/ValidationOptions";
 import TypeSelector from "../../atoms/TypeSelector/TypeSelector";
 import { getErrors } from "../../molecules/ValidationInput/validator";
+import Count from "../../atoms/Count";
 
+const validationCount = (evaluations) =>
+  evaluations.reduce((sum, e) => (e.save ? e.validations.length + 1 : 0) + sum, 0);
 export default function Evaluations({ test, updateEvaluations }) {
   const { evaluations, errors } = test;
   const [open, setOpen] = useState(false);
-
+  const [saveAll, setSaveAll] = useState(!test.savedEvaluations.length);
+  const [totalValidations, setTotalValidations] = useState(
+    validationCount(test.evaluations)
+  );
   const toggleExpansion = () => {
     setOpen((state) => !state);
   };
@@ -17,7 +23,7 @@ export default function Evaluations({ test, updateEvaluations }) {
     const { expected_type, type } = evaluations[x];
 
     evaluations[x].validations.push({
-      name: validation_options[expected_type].values[0],
+      name: ValidationOptions[expected_type].values[0],
       value:
         expected_type === "number" || (expected_type === "mixed" && type === "number")
           ? 0
@@ -26,12 +32,14 @@ export default function Evaluations({ test, updateEvaluations }) {
 
     evaluations[x].errors = getErrors(evaluations[x]);
     updateEvaluations(evaluations);
+    setTotalValidations(validationCount(evaluations));
   };
 
   const deleteValidation = (x, y) => {
     evaluations[x].validations.splice(y, 1);
     evaluations[x].errors = getErrors(evaluations[x]);
     updateEvaluations(evaluations);
+    setTotalValidations(validationCount(evaluations));
   };
 
   const updateValidations = (x, y, p, v) => {
@@ -47,6 +55,22 @@ export default function Evaluations({ test, updateEvaluations }) {
     updateEvaluations(evaluations);
   };
 
+  const updateSaveStatus = (x, save) => {
+    evaluations[x].save = save;
+    updateEvaluations(evaluations);
+    setTotalValidations(validationCount(evaluations));
+  };
+
+  const toggleAllSaveStatuses = () => {
+    setSaveAll((state) => {
+      for (let i = 0; i < evaluations.length; i++) {
+        evaluations[i].save = !state;
+      }
+      updateEvaluations(evaluations);
+      setTotalValidations(validationCount(evaluations));
+      return !state;
+    });
+  };
   useEffect(() => {
     if (test.test_end !== null) {
       updateEvaluations(test.evaluations);
@@ -55,24 +79,39 @@ export default function Evaluations({ test, updateEvaluations }) {
     }
   }, [test.test_end]);
 
+  useEffect(() => {
+    setTotalValidations(validationCount(test.evaluations));
+  }, [test.evaluations]);
+
   return (
     <div className={`evaluations evaluations--visible-${evaluations.length > 0}`}>
       <ExpandableSection
         open={open}
         toggleExpansion={toggleExpansion}
         title={
-          <div className={`evaluations__title evaluations--error-${errors.length > 0}`}>
-            <span className="evaluations__namespace">
-              {errors.length > 0 ? "Test Failed: " : "Test Passed: "}
-            </span>
-            <span className={`evaluations__type evaluations--error-${errors.length > 0}`}>
-              {errors.length} errors
-            </span>
-          </div>
+          <>
+            <div className={`evaluations__title evaluations--error-${errors.length > 0}`}>
+              <span className="evaluations__namespace">
+                {errors.length > 0 ? "Test Failed: " : "Test Passed: "}
+              </span>
+              <span
+                className={`evaluations__type evaluations--error-${errors.length > 0}`}
+              >
+                {errors.length} errors
+              </span>
+              <Count count={totalValidations} />
+            </div>
+            <input
+              className="evaluations__checkbox"
+              type="checkbox"
+              checked={saveAll}
+              onChange={toggleAllSaveStatuses}
+            />
+          </>
         }
       >
         {evaluations.map(
-          ({ namespace, type, expected_type, value, errors, validations }, i) => {
+          ({ namespace, type, expected_type, save, errors, validations }, i) => {
             return (
               <EvaluationRow
                 key={i}
@@ -86,6 +125,8 @@ export default function Evaluations({ test, updateEvaluations }) {
                 deleteValidation={deleteValidation}
                 updateValidations={updateValidations}
                 updateExpectedType={updateExpectedType}
+                updateSaveStatus={updateSaveStatus}
+                save={save}
               />
             );
           }
@@ -106,6 +147,8 @@ const EvaluationRow = ({
   deleteValidation,
   updateValidations,
   updateExpectedType,
+  updateSaveStatus,
+  save,
 }) => {
   const calcWidth = (text) => Math.ceil(text.length / 0.1125);
   const [type_width, setWidth] = useState(calcWidth(0));
@@ -120,12 +163,13 @@ const EvaluationRow = ({
     updateExpectedType(i, e);
     setWidth(calcWidth(expected_type));
   };
-
+  const toggleSave = () => updateSaveStatus(index, !save);
   useEffect(
     () => setWidth(calcWidth(expected_type)),
 
     [expected_type, type_width]
   );
+
   return (
     <ExpandableSection
       open={open}
@@ -150,8 +194,14 @@ const EvaluationRow = ({
             >
               (received {type})
             </span>
+            {!!validations.length && <Count count={validations.length} />}
           </div>
-          <input type="checkbox" />
+          <input
+            className="evaluations__checkbox"
+            type="checkbox"
+            checked={save}
+            onChange={toggleSave}
+          />
         </>
       }
     >

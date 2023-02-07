@@ -9,6 +9,7 @@ export function validateResults(results, namespace, savedEvaluations = []) {
     const savedEval = savedEvaluations.find((val) => val.namespace === nsp) || {};
     const validations = savedEval.validations || [];
     const expected_type = savedEval.expected_type || type;
+    const save = !savedEvaluations.length || !!savedEval.save;
     const errors = getErrors({ type, value, validations, expected_type });
     errors.forEach((e) => errorList.push({ ...e, namespace: nsp }));
     return {
@@ -18,6 +19,7 @@ export function validateResults(results, namespace, savedEvaluations = []) {
       value,
       errors,
       validations,
+      save,
     };
   };
 

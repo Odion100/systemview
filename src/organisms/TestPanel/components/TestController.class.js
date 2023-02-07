@@ -101,8 +101,15 @@ export default function TestController({
         sum.concat(errors.map((e) => ({ ...e, namespace }))),
       []
     );
-    console.log("TestSection---->", TestSection);
     setState([...TestSection]);
+  };
+  this.updateValidationStatus = (testIndex) => {
+    if (section !== 1) {
+      TestSection[testIndex].evaluations = [];
+      TestSection[testIndex].shouldValidate = !TestSection[testIndex].shouldValidate;
+      setState([...TestSection]);
+      this.runTest(testIndex);
+    }
   };
   this.getTargetSuggestions = (testIndex) => {
     //get target value suggestion (namespaces) for previous test including sub test

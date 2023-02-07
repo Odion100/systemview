@@ -6,7 +6,7 @@ export default function Test({
   namespace,
   args,
   title,
-  validate = false,
+  shouldValidate = false,
   savedEvaluations = [],
   index,
 }) {
@@ -27,7 +27,7 @@ export default function Test({
     this.evaluations = [];
     this.savedEvaluations = savedEvaluations; //will be populated by saved tests
     this.errors = [];
-    this.shouldValidate = validate || !!savedEvaluations.length;
+    this.shouldValidate = shouldValidate || !!savedEvaluations.length;
     return this;
   };
   this.clearResults();

@@ -19,7 +19,8 @@ export const resetTest = (test, FullTest, connectedServices) => {
   return new Test({
     ...test,
     args: test.args.map(
-      (arg) => new Argument(arg.name, FullTest, arg.input_type, arg.input)
+      (arg) =>
+        new Argument(arg.name, FullTest, arg.input_type, arg.input, arg.targetValues)
     ),
   }).getConnection(connectedServices);
 };

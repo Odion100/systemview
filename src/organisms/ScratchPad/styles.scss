@@ -85,6 +85,17 @@
       //color: initial;
     }
   }
+  &__eval-btn {
+    position: absolute;
+    right: 7px;
+    top: 23px;
+  }
+
+  &__eval-btn.btn {
+    color: #3f51b5;
+    font-weight: bold;
+    font-size: 15px;
+  }
 }
 
 .react-json-view {

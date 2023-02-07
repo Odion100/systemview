@@ -2,7 +2,6 @@ import moment from "moment/moment";
 
 const vowels = ["a", "e", "i", "o", "u"];
 const isVowel = (str) => vowels.includes(str.toLowerCase());
-const equals = (n, e) => `Expected ${n} to equal ${e}`;
 export const errorMessages = {
   typeError: (n, e) => {
     const a = isVowel(e) ? "an" : "a";
@@ -14,8 +13,8 @@ export const errorMessages = {
   includes: (n, e) => `Expected ${n} to include the following value: ${e}`,
   isLike: (n, e) => `Expected ${n} to be like the following expression: ${e}`,
   isOneOf: (n, e) => `Expected ${n} to be one of the following values: ${e}`,
-  strEquals: equals,
-  numEquals: equals,
+  strEquals: (n, e) => `Expected ${n} to equal "${e}"`,
+  numEquals: (n, e) => `Expected ${n} to equal ${e}`,
   max: (n, e) => `Expected ${n} to be less than ${e}`,
   min: (n, e) => `Expected ${n} to be greater than ${e}`,
   boolEquals: (n, e) => `Expected ${n} to be ${e.toString()}`,
@@ -42,7 +41,7 @@ const isEqual = (n, e, EXPECTED) => (
 );
 export const ErrorMessages = {
   typeError: (n, e, EXPECTED) => {
-    const a = isVowel(e) ? "an" : "a";
+    const a = isVowel(e[0]) ? "an" : "a";
     return (
       <div className={`${className}__message`}>
         {EXPECTED} <span className={`${className}__namespace`}>{n}</span> to be {a}{" "}
@@ -86,8 +85,18 @@ export const ErrorMessages = {
       following values: <span className={`${className}__expected`}>{e}</span>
     </div>
   ),
-  strEquals: isEqual,
-  numEquals: isEqual,
+  strEquals: (n, e, EXPECTED) => (
+    <div className={`${className}__message`}>
+      {EXPECTED} <span className={`${className}__namespace`}>{n}</span> to equal{" "}
+      <span className={`${className}__expected`}>"{e}"</span>
+    </div>
+  ),
+  numEquals: (n, e, EXPECTED) => (
+    <div className={`${className}__message`}>
+      {EXPECTED} <span className={`${className}__namespace`}>{n}</span> to equal{" "}
+      <span className={`${className}__expected`}>{parseInt(e)}</span>
+    </div>
+  ),
   max: (n, e, EXPECTED) => (
     <div className={`${className}__message`}>
       {EXPECTED} <span className={`${className}__namespace`}>{n}</span> to be less than{" "}

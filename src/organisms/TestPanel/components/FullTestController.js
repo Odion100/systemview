@@ -17,7 +17,7 @@ export default function FullTestController({ FullTest, connectedServices }) {
         message: `${sections[section]}: Action ${index + 1} description is required`,
         error: true,
       };
-    if (!evaluations.length && shouldValidate)
+    if (shouldValidate && !evaluations.filter((e) => e.save).length)
       return {
         message: `${sections[section]}: Action ${index + 1} validations required`,
         error: true,
@@ -45,12 +45,15 @@ export default function FullTestController({ FullTest, connectedServices }) {
           args,
           namespace,
           title,
-          savedEvaluations: evaluations,
+          savedEvaluations: evaluations.filter((e) => e.save),
         }))
       );
 
-      await SystemView.saveTest({ Before, Main, Events, After, title, namespace }, index);
-      return { message: "Test Saved!", error: false };
+      const testIndex = await SystemView.saveTest(
+        { Before, Main, Events, After, title, namespace },
+        index
+      );
+      return { message: "Test Saved!", error: false, testIndex };
     } else return { message: "SystemView Plugin not connected!", error: true };
   };
 }

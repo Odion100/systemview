@@ -7,7 +7,6 @@ import ARROW from "../../assets/arrow.png";
 import "./styles.scss";
 import ExpandIcon from "../../atoms/ExpandableIcon/ExpandableIcon";
 import { Argument } from "../Args/Args";
-import Test from "../../organisms/TestPanel/components/Test.class";
 import ValidationMessage from "../ValidationInput/ValidationMessages";
 
 const CLASS_NAME = "test-summary";
@@ -16,8 +15,6 @@ export default function TestSummary({ testSection = [], section, isTesting }) {
   const toggleExpansion = () => {
     setOpen((state) => !state);
   };
-
-  console.log(new Test(testSection[0]));
 
   const validationCount = testSection.reduce((sum, test) => {
     test.totalValidations = test.savedEvaluations.reduce(

@@ -4,8 +4,18 @@ import Toggle from "../../atoms/Toggle/Toggle";
 import options from "./ValidationOptions";
 import "./styles.scss";
 
-const ValidationInput = ({ type, name, value, className = "", onSelect, onInputChanged }) => {
-  const [inputType, setType] = useState(options[type].inputs[0]);
+const ValidationInput = ({
+  type,
+  name,
+  value,
+  className = "",
+  onSelect,
+  onInputChanged,
+}) => {
+  const [inputType, setType] = useState(
+    options[type].inputs[Math.max(options[type].values.indexOf(name), 0)]
+  );
+
   const select = (e) => {
     const validation_type = e.target.value;
     const i = options[type].values.findIndex((v) => v === validation_type);
@@ -40,7 +50,9 @@ const ValidationInput = ({ type, name, value, className = "", onSelect, onInputC
       ) : (
         <>
           <Toggle isChecked={value} onChange={inputChanged} round={true} />{" "}
-          <span className={`${classname}__value--boolean ${classname}__value--boolean--${value}`}>
+          <span
+            className={`${classname}__value--boolean ${classname}__value--boolean--${value}`}
+          >
             {(value === true) + ""}
           </span>
         </>

@@ -11,12 +11,18 @@ export function TargetValue(target_namespace, source_map, source_index) {
   this.source_map = source_map || [];
   this.source_index = source_index || 0;
 }
-export default function Argument(name, FullTest, input_type = "undefined", input) {
+export default function Argument(
+  name,
+  FullTest,
+  input_type = "undefined",
+  input,
+  targetValues = []
+) {
   this.name = name;
   this.input = input;
   this.input_type = input_type;
   this.data_type = "";
-  this.targetValues = [];
+  this.targetValues = targetValues;
 
   this.value = () => {
     return this.targetValues.reduce((arg, { source_map, target_namespace }) => {

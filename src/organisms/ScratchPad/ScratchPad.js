@@ -4,6 +4,8 @@ import Args, { Argument } from "../../molecules/Args/Args";
 import ServiceContext from "../../ServiceContext";
 import "./styles.scss";
 import RunTestIcon from "../../atoms/RunTestIcon";
+import Evaluations from "../TestPanel/Evaluations";
+import EVAL_ICON from "../../assets/eval-icon.svg";
 
 const ScratchPad = ({
   TestController,
@@ -49,6 +51,9 @@ const ScratchPad = ({
   };
   const resetLength = () => setLength(placeholder.length + 0.4);
 
+  const toggleValidationStatus = () => {
+    TestController.updateValidationStatus(testIndex);
+  };
   useEffect(() => {
     setTestResults(test.results);
   }, [test.results]);
@@ -98,11 +103,23 @@ const ScratchPad = ({
           >
             x
           </span>
+          <span onClick={toggleValidationStatus} className={`scratchpad__eval-btn btn`}>
+            {test.shouldValidate ? (
+              <img style={{ width: 12 }} src={EVAL_ICON} alt="eval" />
+            ) : (
+              " + "
+            )}
+          </span>
+
           <div className="scratchpad__response-value">
             <span className={`scratchpad__response-type`}>{test.response_type}:</span>
             <Argument value={testResults} />
           </div>
         </div>
+        <Evaluations
+          updateEvaluations={TestController.updateEvaluations.bind({}, testIndex)}
+          test={test}
+        />
       </div>
     </div>
   );

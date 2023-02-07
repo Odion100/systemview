@@ -140,9 +140,11 @@ function TestDetails({
   const hideDelete = () => setDeleteMsg(false);
   const showDelete = () => setDeleteMsg(true);
   const deleteTest = async () => {
-    await SystemViewPlugin.deleteTest(namespace, index);
-    hideDelete();
-    fetchTests();
+    if (SystemViewPlugin) {
+      await SystemViewPlugin.deleteTest(namespace, index);
+      hideDelete();
+      fetchTests();
+    }
   };
   const runTestHandler = () => {
     setOpen(true);
