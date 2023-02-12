@@ -1,28 +1,31 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useEffect, useContext } from "react";
 import { useHistory } from "react-router-dom";
 import ServiceContext from "../../ServiceContext";
 import TextBox from "../../atoms/Textbox/Textbox";
 import Link from "../../atoms/Link/Link";
 import ExpandableList from "../../molecules/ExpandableList/ExpandableList";
 import ServerModulesList from "../../molecules/ServerModulesList/ServerModulesList";
-import MissingDocIcon from "../../atoms/DocsIcon/DocsIcon";
+import DocIcon from "../../atoms/DocsIcon/DocsIcon";
 import "./styles.scss";
 import { Client } from "systemlynx";
 
 const SystemNav = ({ projectCode, serviceId, moduleName, methodName }) => {
   const { SystemViewService, setConnectedServices, connectedServices } =
     useContext(ServiceContext);
-  const service = connectedServices.find((service) => service.serviceId === serviceId);
-  const { SystemView: SystemViewPlugin } = service
-    ? Client.createService(service.system.connectionData)
+  const serviceData = connectedServices.find(
+    (serviceData) =>
+      serviceData.serviceId === serviceId && serviceData.projectCode === projectCode
+  );
+  const { SystemView: SystemViewPlugin } = serviceData
+    ? Client.createService(serviceData.system.connectionData)
     : {};
   const { SystemView } = SystemViewService;
 
   const fetchProject = async (pc = projectCode) => {
     try {
-      const results = await SystemView.getServices((pc = projectCode));
+      const results = await SystemView.getServices(pc);
       setConnectedServices(results);
-      console.log("fetchProject<---------");
+      return results;
     } catch (error) {
       console.error(error);
       setConnectedServices([]);
@@ -30,11 +33,28 @@ const SystemNav = ({ projectCode, serviceId, moduleName, methodName }) => {
   };
 
   const history = useHistory();
-  const SearchInputSubmit = (e) => {
-    fetchProject(e.target.value);
-    history.push(`/${e.target.value}`);
+  const SearchInputSubmit = async (e) => {
+    const project = await fetchProject(e.target.value);
+    if (project[0].projectCode) history.push(`/${project[0].projectCode}`);
   };
 
+  useEffect(() => {
+    if (connectedServices.length)
+      SystemView.on(
+        `spec-list-updated:${projectCode}`,
+        function updateSpecList({ specList, serviceId }) {
+          const serviceData = connectedServices.find(
+            (serviceData) =>
+              serviceData.serviceId === serviceId &&
+              serviceData.projectCode === projectCode
+          );
+          if (serviceData) {
+            serviceData.specList = specList;
+            setConnectedServices([...connectedServices]);
+          }
+        }
+      );
+  }, [projectCode, connectedServices]);
   useEffect(() => {
     if (projectCode) fetchProject(projectCode);
   }, []);
@@ -56,46 +76,67 @@ const SystemNav = ({ projectCode, serviceId, moduleName, methodName }) => {
         <div className="row system-nav__section">
           <div className="col-12 ">
             <NavigationLinks
-              servicesList={connectedServices}
+              connectedServices={connectedServices}
               projectCode={projectCode}
-              _serviceId={serviceId}
-              _moduleName={moduleName}
-              _methodName={methodName}
+              selectedServiceId={serviceId}
+              selectedModuleName={moduleName}
+              selectedMethodName={methodName}
             />
           </div>
         </div>
       </div>
+      <div className="scroll-buffer"></div>
     </section>
   );
 };
 
 const NavigationLinks = ({
-  servicesList,
+  connectedServices,
   projectCode,
-  _serviceId,
-  _moduleName,
-  _methodName,
+  selectedServiceId,
+  selectedModuleName,
+  selectedMethodName,
 }) => {
-  return servicesList.map(({ system, serviceId }, i) => {
+  return connectedServices.map(({ system, serviceId, specList }, i) => {
+    const { serviceUrl } = system.connectionData;
+    const isSaved = specList.docs.includes(`${serviceId}.md`);
+    const isSelected = selectedServiceId === serviceId;
     return (
       <ExpandableList
-        open={_serviceId === serviceId}
+        open={isSelected}
         key={i}
         title={
-          <React.Fragment>
-            <Link link={`/${projectCode}/${serviceId}`} text={serviceId} />
-            <div className="server-module__docs-icon">
-              <MissingDocIcon isSaved={parseInt(Math.random() * 1000) % 2} />
-            </div>
-          </React.Fragment>
+          <span
+            className={`system-nav__link system-nav__link--selected-${
+              !selectedModuleName && isSelected
+            }`}
+          >
+            <>
+              <Link link={`/${projectCode}/${serviceId}`} text={serviceId} />
+              <span>
+                <a
+                  className="system-nav__service-url"
+                  href={serviceUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {serviceUrl}
+                </a>
+              </span>
+            </>
+            <span className="server-module__docs-icon">
+              <DocIcon isSaved={isSaved} />
+            </span>
+          </span>
         }
       >
         <ServerModulesList
-          moduleName={_moduleName}
+          selectedModuleName={selectedModuleName}
+          selectedMethodName={selectedMethodName}
           projectCode={projectCode}
           serviceId={serviceId}
           modules={system.connectionData.modules}
-          methodName={_methodName}
+          specList={specList}
         />
       </ExpandableList>
     );

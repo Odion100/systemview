@@ -7,10 +7,17 @@ import Markdown from "../../atoms/Markdown/Markdown";
 import ServiceContext from "../../ServiceContext";
 import { Client } from "systemlynx";
 
-export default function Documentation({ serviceId, moduleName, methodName }) {
+export default function Documentation({
+  projectCode,
+  serviceId,
+  moduleName,
+  methodName,
+}) {
   const { connectedServices } = useContext(ServiceContext);
 
-  const service = connectedServices.find((service) => service.serviceId === serviceId);
+  const service = connectedServices.find(
+    (service) => service.serviceId === serviceId && service.projectCode === projectCode
+  );
   const { SystemView: SystemViewPlugin } = service
     ? Client.createService(service.system.connectionData)
     : {};
@@ -98,12 +105,14 @@ const DocDescription = ({ doc, setDocument, SystemViewPlugin }) => {
   const { serviceId, methodName, moduleName } = doc;
   const [text, setText] = useState(doc.documentation);
   const saveDocument = async (setFormDisplay) => {
-    try {
-      const results = await SystemViewPlugin.saveDoc({ ...doc, documentation: text });
-      setDocument(results);
-      setFormDisplay(false);
-    } catch (error) {
-      console.error(error);
+    if (SystemViewPlugin) {
+      try {
+        const results = await SystemViewPlugin.saveDoc({ ...doc, documentation: text });
+        setDocument(results);
+        setFormDisplay(false);
+      } catch (error) {
+        console.error(error);
+      }
     }
   };
 

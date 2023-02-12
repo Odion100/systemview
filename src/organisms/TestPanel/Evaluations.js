@@ -62,14 +62,10 @@ export default function Evaluations({ test, updateEvaluations }) {
   };
 
   const toggleAllSaveStatuses = () => {
-    setSaveAll((state) => {
-      for (let i = 0; i < evaluations.length; i++) {
-        evaluations[i].save = !state;
-      }
-      updateEvaluations(evaluations);
-      setTotalValidations(validationCount(evaluations));
-      return !state;
-    });
+    setSaveAll(!saveAll);
+    const changedEvaluations = evaluations.map((e) => ({ ...e, save: !saveAll }));
+    updateEvaluations(changedEvaluations);
+    setTotalValidations(validationCount(changedEvaluations));
   };
   useEffect(() => {
     if (test.test_end !== null) {
@@ -97,9 +93,10 @@ export default function Evaluations({ test, updateEvaluations }) {
               <span
                 className={`evaluations__type evaluations--error-${errors.length > 0}`}
               >
-                {errors.length} errors
+                <Count count={errors.length} type={errors.length && "error"} /> errors
               </span>
-              <Count count={totalValidations} />
+              <Count count={totalValidations} />{" "}
+              <span className="evaluations__total">Total</span>
             </div>
             <input
               className="evaluations__checkbox"

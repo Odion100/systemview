@@ -2,16 +2,20 @@ import Argument from "../TestPanel/components/Argument.class";
 import Test from "../TestPanel/components/Test.class";
 
 export function resetSavedTests(savedTests, connectedServices) {
-  return savedTests.map(({ Before, Main, Events, After, title, namespace }) => {
-    const FullTest = [Before, Main, Events, After];
-    return {
-      Before: Before.map((test) => resetTest(test, FullTest, connectedServices)),
-      Main: Main.map((test) => resetTest(test, FullTest, connectedServices)),
-      Events: Events.map((test) => resetTest(test, FullTest, connectedServices)),
-      After: After.map((test) => resetTest(test, FullTest, connectedServices)),
-      title,
-      namespace,
-    };
+  return savedTests.map((ft) => {
+    // context matters
+    const newTests = [];
+    const { title, namespace } = ft;
+
+    const Before = ft.Before.map((test) => resetTest(test, newTests, connectedServices));
+    const Main = ft.Main.map((test) => resetTest(test, newTests, connectedServices));
+    const Events = ft.Events.map((test) => resetTest(test, newTests, connectedServices));
+    const After = ft.After.map((test) => resetTest(test, newTests, connectedServices));
+    newTests.push(Before);
+    newTests.push(Main);
+    newTests.push(Events);
+    newTests.push(After);
+    return { Before, Main, Events, After, title, namespace };
   });
 }
 

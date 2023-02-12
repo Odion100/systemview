@@ -14,6 +14,7 @@ import { Client } from "systemlynx";
 import FullTestController from "./components/FullTestController";
 import Title from "../../atoms/Title/Title";
 import { CurrentTest } from "../../atoms/StatusIndicator/StatusIndicator";
+import { ClearButton } from "../../atoms/Button/Button";
 
 const FullTest = ({ serviceId, moduleName, methodName }) => {
   const namespace = { serviceId, moduleName, methodName };
@@ -110,7 +111,7 @@ const FullTest = ({ serviceId, moduleName, methodName }) => {
         <div className="row">
           <Title text="Scratch Pad" />
           {typeof Main[0].index === "number" && (
-            <CurrentTest name={`Save Test ${1 + Main[0].index}`} onClick={clearTest} />
+            <CurrentTest name={`Saved Test ${1 + Main[0].index}`} onClick={clearTest} />
           )}
         </div>
         <div>
@@ -125,6 +126,7 @@ const FullTest = ({ serviceId, moduleName, methodName }) => {
                 ×
               </span>
             </span>
+
             <span>
               <span className="btn" onClick={runTest}>
                 <RunTestIcon />

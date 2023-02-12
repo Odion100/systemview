@@ -9,11 +9,15 @@ module.exports = function ConnectedServices() {
     fs.writeFileSync(LOCAL_STORAGE, JSON.stringify(connections), "utf8");
   };
 
-  this.findService = (url) => {
+  this.findService = (url, code, id) => {
     const connections = JSON.parse(fs.readFileSync(LOCAL_STORAGE, "utf8"));
-    const index = connections.findIndex(
-      (service) => service.system.connectionData.serviceUrl === url
-    );
+    const index = connections.findIndex((service) => {
+      if (id) return id === service.serviceId && code === service.projectCode;
+      return (
+        service.system.connectionData.serviceUrl === url &&
+        (code ? service.projectCode === code : true)
+      );
+    });
     const service = connections[index];
     return { service, index };
   };

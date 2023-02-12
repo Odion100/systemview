@@ -3,6 +3,9 @@
   color: #ff5722;
   word-break: break-word;
   font-family: monospace;
+  &__message-container {
+    background: #ededed;
+  }
   &__message {
     padding: 6px 23px;
     background: #ededed;

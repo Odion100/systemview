@@ -97,18 +97,18 @@ export default function TestController({
   this.updateEvaluations = (testIndex, evaluations) => {
     TestSection[testIndex].evaluations = evaluations;
     TestSection[testIndex].errors = evaluations.reduce(
-      (sum, { errors, namespace }) =>
-        sum.concat(errors.map((e) => ({ ...e, namespace }))),
+      (sum, { errors, namespace, save }) =>
+        save ? sum.concat(errors.map((e) => ({ ...e, namespace }))) : sum,
       []
     );
     setState([...TestSection]);
   };
   this.updateValidationStatus = (testIndex) => {
     if (section !== 1) {
-      TestSection[testIndex].evaluations = [];
       TestSection[testIndex].shouldValidate = !TestSection[testIndex].shouldValidate;
+      if (TestSection[testIndex].shouldValidate) TestSection[testIndex].validate();
+      else TestSection[testIndex].evaluations = [];
       setState([...TestSection]);
-      this.runTest(testIndex);
     }
   };
   this.getTargetSuggestions = (testIndex) => {

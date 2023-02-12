@@ -2,12 +2,16 @@ const sections = ["Before", "Main", "Events", "After"];
 
 export default function FullTestController({ FullTest, connectedServices }) {
   this.runFullTest = async ([Before, Main, Events, After] = FullTest) => {
-    Events.forEach((test) => test.runTest());
-    await Promise.all([
-      ...Before.map(async (test) => test.runTest()),
-      ...Main.map(async (test) => test.runTest()),
-      ...After.map(async (test) => test.runTest()),
-    ]);
+    Events.forEach((test) => test.runTest);
+
+    await new Promise((resolve) => {
+      function recursiveRunTest(tests, i = 0) {
+        if (i === tests.length) resolve();
+        else tests[i].runTest().then(() => recursiveRunTest(tests, i + 1));
+      }
+      recursiveRunTest([...Before, ...Main, ...After]);
+    });
+
     return [Before, Main, Events, After];
   };
 

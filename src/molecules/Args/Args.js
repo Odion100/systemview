@@ -199,7 +199,7 @@ const ArgDataForm = ({ arg, testIndex, i, controller, is12 }) => {
           value={input}
           onChange={inputChanged}
         />
-      ) : input_type === "object" ? (
+      ) : input_type === "object" || input_type === "array" ? (
         <span className={`${className}__form__${input_type}`}>
           <div
             className={`${className}__json-txb ${className}__json-txb--show-${jsonBoxVisible}`}

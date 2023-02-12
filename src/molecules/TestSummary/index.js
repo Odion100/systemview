@@ -68,14 +68,14 @@ export default function TestSummary({ testSection = [], section, isTesting }) {
       {open && (
         <div>
           {testSection.map((test, i) => (
-            <Action key={i} {...test} />
+            <Test key={i} {...test} />
           ))}
         </div>
       )}
     </section>
   );
 }
-function Action({
+function Test({
   title,
   errors = [],
   namespace,
@@ -85,6 +85,11 @@ function Action({
   response_type,
   totalValidations,
 }) {
+  const filterPassingValidations = (tv) =>
+    tv.filter(
+      (v) => !errors.find((e) => e.namespace === v.namespace && e.name === v.name)
+    );
+
   const [open, setOpen] = useState(false);
   const toggleExpansion = () => {
     setOpen((state) => !state);
@@ -112,11 +117,17 @@ function Action({
           {!!test_end && (
             <>
               <TestResponse results={results} response_type={response_type} />
-              {!!errors.length && <TestValidations errors={errors} />}
+              {!!errors.length && (
+                <TestValidations title={"failing validations"} validations={errors} />
+              )}
             </>
           )}
 
-          <TestValidations errors={totalValidations} isError={false} />
+          <TestValidations
+            title={`${!errors.length ? "total" : "passing"} validations`}
+            validations={filterPassingValidations(totalValidations)}
+            isError={false}
+          />
         </>
       )}
     </div>
@@ -132,10 +143,11 @@ function TestMethod({ namespace, args }) {
         className={`${CLASS_NAME}__namespace`}
       >{`${serviceId}.${moduleName}.${methodName}`}</span>
       <span className={`${CLASS_NAME}__parentheses`}>(</span>
-      {args.map(({ input, data_type }, i) => (
+      {args.map(({ data_type, value, targetValues }, i) => (
         <React.Fragment key={i}>
           <span className={`${CLASS_NAME}__parameter`}>
-            <Argument value={input} data_type={data_type} />
+            {!!targetValues.length && "tv:"}
+            <Argument value={value()} data_type={data_type} />
           </span>
           {i < args.length - 1 && <span className={`${CLASS_NAME}__comma`}>,</span>}
         </React.Fragment>
@@ -155,26 +167,26 @@ function TestResponse({ results = mock, response_type = "results" }) {
   );
 }
 
-function TestValidations({ errors = [], isError = true }) {
+function TestValidations({ validations = [], isError = true, title }) {
   // const color = ;
   const color = isError ? "#f44336" : "#2aa198";
   const [open, setOpen] = useState(isError);
   const toggleExpansion = () => {
     setOpen((state) => !state);
   };
-  const title = isError ? " failing validations:" : " total validations:";
+
   return (
     <div>
       <div className={`${CLASS_NAME}__method ${CLASS_NAME}__validations`}>
         <img className={`${CLASS_NAME}__arrow`} src={ARROW} alt="arrow" />
         <span style={{ color }} className={`${CLASS_NAME}__results`}>
-          {errors.length} {title}
+          {validations.length} {title}:
         </span>
         <ExpandIcon onClick={toggleExpansion} isOpen={open} color={"#2aa198"} size={10} />
       </div>
       {open && (
         <>
-          {errors.map((error, i) => {
+          {validations.map((error, i) => {
             return <ValidationMessage key={i} {...error} error={isError} />;
           })}
         </>

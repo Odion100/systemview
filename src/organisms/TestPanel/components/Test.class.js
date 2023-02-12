@@ -2,6 +2,29 @@ import { validateResults } from "../../../molecules/ValidationInput/validator";
 import { Client } from "systemlynx";
 import moment from "moment";
 
+function TestLogger(test) {
+  this.start = (args) => {
+    const { serviceId, moduleName, methodName } = test.namespace;
+
+    console.log(
+      `[${moment(this.test_start).format(
+        "L LTS"
+      )}]> [invoking]:${serviceId}.${moduleName}.${methodName}()`
+    );
+    console.log.apply({}, ["args:"].concat(args));
+  };
+  this.end = () => {
+    const { serviceId, moduleName, methodName } = test.namespace;
+    const { results, response_type } = test;
+    console.log(
+      `[${moment(this.test_end).format(
+        "L LTS"
+      )}]> [${response_type}]:${serviceId}.${moduleName}.${methodName}()`,
+      `${response_type}:`,
+      results
+    );
+  };
+}
 export default function Test({
   namespace,
   args,
@@ -10,6 +33,7 @@ export default function Test({
   savedEvaluations = [],
   index,
 }) {
+  const logger = new TestLogger(this);
   this.index = index;
   this.connection = {};
   this.title = title;
@@ -47,22 +71,20 @@ export default function Test({
     const { serviceId, moduleName, methodName } = this.namespace;
     const args = this.args.map((arg) => arg.value());
 
-    console.log(
-      `--------> [invoking]:${serviceId}.${moduleName}.${methodName}(${args})`,
-      "args:",
-      args
-    );
     this.test_start = moment().toJSON();
     if (methodName === "on") {
+      logger.start(args);
       this.connection[serviceId][moduleName].on(args[0], (e) => {
         this.results = e;
         this.test_end = moment().toJSON();
         this.response_type = "event";
         this.shouldValidate && this.validate();
+        logger.end();
         typeof cb === "function" && cb();
       });
     } else {
       try {
+        logger.start(args);
         this.results = await this.connection[serviceId][moduleName][methodName].apply(
           {},
           args
@@ -70,17 +92,14 @@ export default function Test({
         this.test_end = moment().toJSON();
         this.response_type = "results";
         this.shouldValidate && this.validate();
+        logger.end();
       } catch (error) {
         this.test_end = moment().toJSON();
         this.results = error;
         this.response_type = "error";
         this.shouldValidate && this.validate();
+        logger.end();
       }
-      console.log(
-        `--------> [${this.response_type}]:${serviceId}.${moduleName}.${methodName}()`,
-        `${this.response_type}:`,
-        this.results
-      );
     }
     return this;
   };
@@ -93,7 +112,7 @@ export default function Test({
         (service) => service.serviceId === serviceId
       );
       if (!service) {
-        console.error("connection data not found");
+        console.warn("connection data not found");
         return this;
       }
       const { connectionData } = service.system;

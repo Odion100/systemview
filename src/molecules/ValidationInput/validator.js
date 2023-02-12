@@ -1,19 +1,21 @@
 import moment from "moment";
 
 export function validateResults(results, namespace, savedEvaluations = []) {
+  const savedEvalClone = [...savedEvaluations];
   const evaluations = [];
   const errorList = [];
 
-  const getValidations = (value, nsp) => {
+  const getValidations = (value, namespace) => {
     const type = getType(value);
-    const savedEval = savedEvaluations.find((val) => val.namespace === nsp) || {};
+    const i = savedEvalClone.findIndex((val) => val.namespace === namespace);
+    const savedEval = i > -1 ? savedEvalClone.splice(i, 1)[0] : {};
     const validations = savedEval.validations || [];
     const expected_type = savedEval.expected_type || type;
-    const save = !savedEvaluations.length || !!savedEval.save;
+    const save = !savedEvalClone.length || !!savedEval.save;
     const errors = getErrors({ type, value, validations, expected_type });
-    errors.forEach((e) => errorList.push({ ...e, namespace: nsp }));
+    errors.forEach((e) => save && errorList.push({ ...e, namespace }));
     return {
-      namespace: nsp,
+      namespace,
       type,
       expected_type,
       value,
@@ -23,19 +25,22 @@ export function validateResults(results, namespace, savedEvaluations = []) {
     };
   };
 
-  (function recursiveEval(data, nsp) {
-    const evaluation = getValidations(data, nsp);
+  (function recursiveEval(data, namespace) {
+    const evaluation = getValidations(data, namespace);
     evaluations.push(evaluation);
     if (evaluation.type === "object") {
       Object.getOwnPropertyNames(data).forEach((prop) => {
-        recursiveEval(data[prop], `${nsp}.${prop}`);
+        recursiveEval(data[prop], `${namespace}.${prop}`);
       });
     } else if (evaluation.type === "array") {
-      recursiveEval(data[0], `${nsp}[0]`);
+      recursiveEval(data[0], `${namespace}[0]`);
     }
   })(results, namespace);
+  //each remaining evaluation is a potential TypeError: undefined
+  savedEvalClone.forEach(({ namespace }) => {
+    evaluations.push(getValidations(undefined, namespace));
+  });
 
-  console.log(evaluations);
   return { evaluations, errors: errorList };
 }
 
@@ -60,7 +65,7 @@ export function getErrors({ type, value, validations, expected_type }) {
       return [];
   }
 }
-window.moment = moment;
+
 export function getType(value) {
   switch (true) {
     case typeof value === "object":

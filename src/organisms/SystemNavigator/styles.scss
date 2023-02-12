@@ -8,4 +8,31 @@
   &__object-title {
     display: inline;
   }
+
+  &__service-url {
+    color: #3f51b5;
+    color: #607d8b !important;
+    text-decoration: none;
+    /* font-weight: bold; */
+    font-size: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: block !important;
+    width: 230px;
+  }
+  &__link {
+    width: 100%;
+    margin-left: 3px;
+    &--selected-true {
+      background: linear-gradient(90deg, #deefe8 69%, white 100%);
+      background: linear-gradient(90deg, #d8d7e9 69%, white 100%);
+      border-radius: 5px 2px 2px 5px;
+
+      & > a {
+        font-weight: bold;
+        color: #575fc1 !important;
+      }
+    }
+  }
 }

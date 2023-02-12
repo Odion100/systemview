@@ -25,9 +25,8 @@ export default function Argument(
   this.targetValues = targetValues;
 
   this.value = () => {
-    return this.targetValues.reduce((arg, { source_map, target_namespace }) => {
+    return this.targetValues.reduce((arg, { source_map, target_namespace: nsp }) => {
       const [value, placeholder, key] = obj(arg).parse(source_map);
-      const nsp = target_namespace;
 
       if (isTargetReplacer(nsp)) {
         placeholder[key] = value

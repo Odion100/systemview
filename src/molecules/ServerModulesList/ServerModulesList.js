@@ -2,41 +2,49 @@ import React from "react";
 import "./styles.scss";
 import ExpandableList from "../ExpandableList/ExpandableList";
 import MyLink from "../../atoms/Link/Link";
-import MissingDocIcon from "../../atoms/DocsIcon/DocsIcon";
+import DocIcon from "../../atoms/DocsIcon/DocsIcon";
 import TestsIcon from "../../atoms/TestsIcon/TestsIcon";
 
 const ServerModulesList = ({
   projectCode,
   serviceId,
   modules,
-  moduleName,
-  methodName,
+  selectedModuleName,
+  selectedMethodName,
+  specList,
 }) => {
   const className = "server-module";
 
   return (
     <React.Fragment>
       {modules.map(({ name, methods }, i) => {
-        const isSelected = moduleName === name;
+        const isSelected = selectedModuleName === name;
+        const isSaved = specList.docs.includes(`${name}.md`);
         return (
           <ExpandableList
-            open={moduleName === name}
+            open={selectedModuleName === name}
             key={i}
             title={
-              <React.Fragment>
+              <span
+                className={`system-nav__link system-nav__link--selected-${
+                  !selectedMethodName && isSelected
+                }`}
+              >
                 <MyLink link={`/${projectCode}/${serviceId}/${name}`} text={name} />
-                <div className={`${className}__docs-icon`}>
-                  <MissingDocIcon isSaved={parseInt(Math.random() * 1000) % 2} />
-                </div>
-              </React.Fragment>
+                <span className={`${className}__docs-icon`}>
+                  <DocIcon isSaved={isSaved} />
+                </span>
+              </span>
             }
           >
             {methods.map(({ fn }, i) => {
+              const isSavedDoc = !!specList.docs.includes(`${name}.${fn}.md`);
+              const isSavedTest = !!specList.tests.includes(`${name}.${fn}.txt`);
               return (
                 <div
                   key={i}
-                  className={`${className}__methods ${className}__methods--selected-${
-                    fn === methodName && isSelected
+                  className={`${className}__methods system-nav__link--selected-${
+                    fn === selectedMethodName && isSelected
                   }`}
                 >
                   <MyLink
@@ -51,8 +59,8 @@ const ServerModulesList = ({
                     }
                   />
                   <div className={`${className}__docs-icon`}>
-                    <MissingDocIcon isSaved={parseInt(Math.random() * 1000) % 2} />
-                    <TestsIcon isSaved={parseInt(Math.random() * 1000) % 2} />
+                    <DocIcon isSaved={isSavedDoc} />
+                    <TestsIcon isSaved={isSavedTest} />
                   </div>
                 </div>
               );

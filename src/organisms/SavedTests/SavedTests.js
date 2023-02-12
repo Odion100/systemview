@@ -8,8 +8,8 @@ import TestCaption from "../../molecules/TestCaption/TestCaption";
 import TestSummary from "../../molecules/TestSummary";
 import FullTestController from "../TestPanel/components/FullTestController";
 import { resetSavedTests, resetFullTest } from "./transformTests";
-import CLEAR_ICON from "../../assets/clear.png";
 import "./styles.scss";
+import { ClearButton } from "../../atoms/Button/Button";
 
 window.Client = Client;
 const CLASSNAME = "test-saved-section";
@@ -75,9 +75,7 @@ const SavedTests = ({
               }
             />
             <div className={`${CLASSNAME}__buttons ${CLASSNAME}__top-buttons`}>
-              <span className={`${CLASSNAME}__clear-button btn`} onClick={clearTests}>
-                <img src={CLEAR_ICON} alt="clear" />
-              </span>
+              <ClearButton onClick={clearTests} />
               <RunTestIcon onClick={runAllTests} />
             </div>
           </>
