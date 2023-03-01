@@ -87,4 +87,57 @@
   &__checkbox {
     cursor: pointer;
   }
+  &__index-button {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    &.btn:hover {
+      font-weight: bold;
+      color: #2326fe;
+      color: #ff5722;
+      color: #c717e5;
+      color: #1131df;
+    }
+    &--indexed-true {
+      font-weight: bold;
+    }
+  }
+  &__namespace {
+    display: inline-flex;
+    flex-wrap: wrap;
+  }
+
+  &__index-input {
+    width: 45px;
+    height: 15px;
+  }
+
+  &__brackets {
+    align-self: baseline;
+    font-size: 14px;
+    color: black;
+    font-weight: bold;
+  }
+
+  &__index-checkbox {
+    cursor: pointer;
+  }
+  &__random {
+    align-self: baseline;
+    font-weight: bold;
+    color: #2b9b2c;
+    font-style: italic;
+  }
+  &__clear-error {
+    color: gray;
+    font-size: 16px;
+    &:hover {
+      color: black;
+    }
+  }
+  &__add-index-btn {
+    color: #2776ff;
+    font-weight: bold;
+    font-size: 16px;
+  }
 }

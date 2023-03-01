@@ -7,10 +7,18 @@ export function resetSavedTests(savedTests, connectedServices) {
     const newTests = [];
     const { title, namespace } = ft;
 
-    const Before = ft.Before.map((test) => resetTest(test, newTests, connectedServices));
-    const Main = ft.Main.map((test) => resetTest(test, newTests, connectedServices));
-    const Events = ft.Events.map((test) => resetTest(test, newTests, connectedServices));
-    const After = ft.After.map((test) => resetTest(test, newTests, connectedServices));
+    const Before = ft.Before.map((test) =>
+      resetTest(test, newTests, connectedServices, false)
+    );
+    const Main = ft.Main.map((test) =>
+      resetTest(test, newTests, connectedServices, false)
+    );
+    const Events = ft.Events.map((test) =>
+      resetTest(test, newTests, connectedServices, false)
+    );
+    const After = ft.After.map((test) =>
+      resetTest(test, newTests, connectedServices, false)
+    );
     newTests.push(Before);
     newTests.push(Main);
     newTests.push(Events);
@@ -19,22 +27,23 @@ export function resetSavedTests(savedTests, connectedServices) {
   });
 }
 
-export const resetTest = (test, FullTest, connectedServices) => {
+export const resetTest = (test, FullTest, connectedServices, editMode) => {
   return new Test({
     ...test,
     args: test.args.map(
       (arg) =>
         new Argument(arg.name, FullTest, arg.input_type, arg.input, arg.targetValues)
     ),
+    editMode,
   }).getConnection(connectedServices);
 };
 
-export const resetFullTest = (FullTest, connectedServices) => {
+export const resetFullTest = (FullTest, connectedServices, editMode) => {
   //context matters
   const newTests = [[], [], [], []];
   return FullTest.map((section, i) => {
     return section.map((test) => {
-      const newTest = resetTest(test, newTests, connectedServices);
+      const newTest = resetTest(test, newTests, connectedServices, editMode);
       newTests[i].push(newTest);
       return newTest;
     });

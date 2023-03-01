@@ -16,7 +16,7 @@ const SystemNav = ({ projectCode, serviceId, moduleName, methodName }) => {
     (serviceData) =>
       serviceData.serviceId === serviceId && serviceData.projectCode === projectCode
   );
-  const { SystemView: SystemViewPlugin } = serviceData
+  const { SystemViewPlugin } = serviceData
     ? Client.createService(serviceData.system.connectionData)
     : {};
   const { SystemView } = SystemViewService;
@@ -35,7 +35,8 @@ const SystemNav = ({ projectCode, serviceId, moduleName, methodName }) => {
   const history = useHistory();
   const SearchInputSubmit = async (e) => {
     const project = await fetchProject(e.target.value);
-    if (project[0].projectCode) history.push(`/${project[0].projectCode}`);
+    if (project.length)
+      if (project[0].projectCode) history.push(`/${project[0].projectCode}`);
   };
 
   useEffect(() => {

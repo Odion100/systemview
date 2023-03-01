@@ -9,7 +9,6 @@ const DescriptionBox = ({ text, setValue }) => {
         name="description-box"
         id="description-box"
         value={text}
-        onBlur={console.log}
         onChange={
           setValue
             ? (e) => {

@@ -1,30 +1,8 @@
 import { validateResults } from "../../../molecules/ValidationInput/validator";
 import { Client } from "systemlynx";
 import moment from "moment";
+import { getArrayNamespaces, getLastArrayNamespace, obj } from "./test-helpers";
 
-function TestLogger(test) {
-  this.start = (args) => {
-    const { serviceId, moduleName, methodName } = test.namespace;
-
-    console.log(
-      `[${moment(this.test_start).format(
-        "L LTS"
-      )}]> [invoking]:${serviceId}.${moduleName}.${methodName}()`
-    );
-    console.log.apply({}, ["args:"].concat(args));
-  };
-  this.end = () => {
-    const { serviceId, moduleName, methodName } = test.namespace;
-    const { results, response_type } = test;
-    console.log(
-      `[${moment(this.test_end).format(
-        "L LTS"
-      )}]> [${response_type}]:${serviceId}.${moduleName}.${methodName}()`,
-      `${response_type}:`,
-      results
-    );
-  };
-}
 export default function Test({
   namespace,
   args,
@@ -32,12 +10,15 @@ export default function Test({
   shouldValidate = false,
   savedEvaluations = [],
   index,
+  editMode = true,
 }) {
   const logger = new TestLogger(this);
   this.index = index;
   this.connection = {};
   this.title = title;
   this.args = args || [];
+  this.editMode = editMode;
+  this.shouldValidate = shouldValidate || !!savedEvaluations.length;
   this.namespace = namespace || {
     serviceId: "",
     moduleName: "",
@@ -49,25 +30,27 @@ export default function Test({
     this.test_start = null;
     this.test_end = null;
     this.evaluations = [];
-    this.savedEvaluations = savedEvaluations; //will be populated by saved tests
+    this.savedEvaluations = obj(savedEvaluations).clone();
     this.errors = [];
-    this.shouldValidate = shouldValidate || !!savedEvaluations.length;
     return this;
   };
+
   this.clearResults();
 
-  this.validate = () => {
-    const { results, response_type } = this;
-    const { evaluations, errors } = validateResults(
-      results,
-      response_type,
-      savedEvaluations
-    );
-    this.evaluations = evaluations;
-    this.errors = errors;
-    return this;
+  this.getErrors = () => {
+    this.errors = this.evaluations
+      .filter(({ save }) => save)
+      .reduce(
+        (sum, { errors, namespace }) =>
+          sum.concat(errors.map((e) => ({ ...e, namespace }))),
+        []
+      );
+    return this.errors;
   };
-  this.runTest = async (cb) => {
+
+  this.validate = validateResults.bind(this);
+
+  this.runTest = async () => {
     const { serviceId, moduleName, methodName } = this.namespace;
     const args = this.args.map((arg) => arg.value());
 
@@ -80,7 +63,6 @@ export default function Test({
         this.response_type = "event";
         this.shouldValidate && this.validate();
         logger.end();
-        typeof cb === "function" && cb();
       });
     } else {
       try {
@@ -119,6 +101,62 @@ export default function Test({
 
       this.connection[serviceId] = Client.createService(connectionData);
     }
+
     return this;
+  };
+
+  this.addEvaluation = (evaluation) => {
+    const savedEval = this.savedEvaluations.find(
+      ({ namespace }) => namespace === evaluation.namespace
+    );
+    if (savedEval) Object.assign(savedEval, evaluation);
+    else this.savedEvaluations.push(evaluation);
+  };
+  this.removeEvaluation = (namespace) => {
+    const index = this.savedEvaluations.findIndex((e) => e.namespace === namespace);
+    if (index > -1) return this.savedEvaluations.splice(index, 1)[0];
+    else return {};
+  };
+
+  this.addSavedIndices = (arrayNamespace, newArrayNamespace) => {
+    //break namespace into multiple array namespaces
+    const nspList = getArrayNamespaces(arrayNamespace);
+    this.evaluations.forEach((e) => {
+      if (nspList.includes(getLastArrayNamespace(e.namespace))) {
+        e.namespace = e.namespace.replace(arrayNamespace, newArrayNamespace);
+        e.indexed = true;
+        e.expected_type = undefined;
+        this.addEvaluation(e);
+      }
+    });
+  };
+  this.removeSavedIndices = (namespace) => {
+    this.savedEvaluations = this.savedEvaluations.filter(
+      (e) => !e.namespace.includes(namespace) //|| !e.indexed
+    );
+  };
+}
+
+function TestLogger(test) {
+  this.start = (args) => {
+    const { serviceId, moduleName, methodName } = test.namespace;
+
+    console.log(
+      `[${moment(this.test_start).format(
+        "L LTS"
+      )}]> [invoking]:${serviceId}.${moduleName}.${methodName}()`
+    );
+    console.log.apply({}, ["args:"].concat(args));
+  };
+  this.end = () => {
+    const { serviceId, moduleName, methodName } = test.namespace;
+    const { results, response_type } = test;
+    console.log(
+      `[${moment(this.test_end).format(
+        "L LTS"
+      )}]> [${response_type}]:${serviceId}.${moduleName}.${methodName}()`,
+      `${response_type}:`,
+      results
+    );
   };
 }

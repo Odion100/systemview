@@ -1,23 +1,69 @@
 import { getType } from "../../../molecules/ValidationInput/validator";
+export const rnb = (min, max) => Math.floor(Math.random() * (max - min + 1) + min);
 export const isObjectLike = (value) =>
   ["object", "array", "string"].indexOf(getType(value)) > -1;
-export const isValidName = (str) => /^(?![0-9])[a-zA-Z0-9$_]+$/.test(str); //_id
-export const isNameAndArray = (str) => /^(?![0-9])[a-zA-Z0-9$_]+(\[\d\])+$/.test(str); //users[0]...
+
 export const isTargetNamespace = (str) =>
   /^(?:before|main|after)Test\.Action\d\.(?:error|results)(?:\.(?![0-9])[a-zA-Z0-9$_]+(?:\[\d\])*)*$/.test(
     str
   );
 export const targetReplacerRegex =
   /tv\((?:before|main|after)Test\.Action\d\.(?:error|results)(?:\.(?![0-9])[a-zA-Z0-9$_]+(?:\[\d\])*)*\)/g;
-
 export const isTargetReplacer = (str) =>
   /tv\((?:before|main|after)Test\.Action\d\.(?:error|results)(?:\.(?![0-9])[a-zA-Z0-9$_]+(?:\[\d\])*)*\)/.test(
     str
   );
-
 export const hasTargetReplacer = (str) => targetReplacerRegex.test(str);
-
 export const isEqualArrays = (a, b) => a.join(".") === b.join("."); //specifically for arrays of strings
+export const isValidNamespace = (str) => /^(?![0-9])[a-zA-Z0-9$_]+$/.test(str); //_id
+export const startsWithNameAndArray = (str) => /^\w+(\[\d+\])+/.test(str); //users[0]
+export const isNameAndArray = (str) => /^\w+(\[\d+\])+$/.test(str); //users[0]
+export const endsWithArrayIndex = (str) => /\w+(\[\d+\])+$/.test(str); //users[0].docs[3]...
+export const getLastArrayNamespace = (str) => (str.match(/(\w+(\[\d+\])+)$/) || [str])[0];
+
+export const parseIndex = (nsp) => parseInt((nsp.match(/\[(\d+)\]$/) || [null, "0"])[1]);
+export const replaceFirstIndex = (nsp, insert = "0") =>
+  nsp.replace(/(\[\d+\])/, `[${insert}]`);
+export const replaceLastIndex = (nsp, insert = "0") =>
+  nsp.replace(/(\[\d+\])$/, `[${insert}]`);
+
+export const replaceAllIndices = (nsp, insert = "0") =>
+  nsp.replace(/(\[\d+\])/g, `[${insert}]`);
+
+export const getArrayNamespaces = (str) =>
+  str
+    .split(/(\w+(\[\d+\])+)/)
+    .filter(isNameAndArray)
+    .reduce((sum, nsp) => {
+      //split by indexes in case of nested arrays
+      const indices = nsp.split(/(\[\d+\])/).filter((n) => n);
+      const [name] = indices.splice(0, 1);
+      return sum.concat(
+        indices.map((index, i) => {
+          return name + indices.slice(0, i + 1).join("");
+        }, [])
+      );
+    }, []);
+export const switchArrayIndices = (nsp, replace) => {
+  // normalize nsp and replace nsp
+  const n = replaceAllIndices(nsp);
+  const r = replaceAllIndices(replace);
+  // match the normalized namespaces
+  if (n.substr(0, r.length) === r) {
+    // create new namespace by concatenating
+    const n = nsp.split(".");
+    const r = replace.split(".");
+    n.splice(...[0, r.length, ...r]);
+    return n.join(".");
+  } else return nsp;
+};
+
+//separate prop names from other prop names and indices (ie. 'test.results[0][0]'...);
+export const mapNamespace = (nsp) =>
+  nsp
+    .replace(/(?:\.|\[|\])/g, " ")
+    .split(" ")
+    .reduce((sum, str) => sum.concat(str.trim() || []), []);
 
 export const obj = function ObjectParser(obj) {
   const parser = this || {};
@@ -26,39 +72,22 @@ export const obj = function ObjectParser(obj) {
 
   parser.valueAt = (map) => parser.parse(map)[0];
 
-  parser.valueAtNsp = (nsp) => parser.valueAt(nspToMap(nsp));
+  parser.valueAtNsp = (nsp) => parser.valueAt(mapNamespace(nsp));
 
-  parser.parseNsp = (nsp) => parser.parse(nspToMap(nsp));
+  parser.parseNsp = (nsp) => parser.parse(mapNamespace(nsp));
   //using JSON to create a deep copy in order to lose refs to original
   parser.clone = () => JSON.parse(JSON.stringify(obj));
 
-  parser.safeClone = (object = obj) =>
-    Object.getOwnPropertyNames(object).reduce((sum, prop) => {
-      const type = getType(object[prop]);
-      if (type === "object") {
-        sum[prop] = parser.safeClone(object[prop]);
-      } else if (type === "array") {
-        sum[prop] = object[prop].map(function cloneArray(item) {
-          const type = getType(item);
-          if (type === "object") {
-            return parser.safeClone(item);
-          } else if (type === "array") {
-            return cloneArray(item);
-          } else return item;
-        });
-      } else {
-        sum[prop] = object[prop];
-      }
-      return sum;
-    }, {});
   parser.isEmpty = () => Object.getOwnPropertyNames(obj).length === 0;
 
-  //separate prop names from other prop names and indices (ie. 'test.results[0][0]'...)j;
-  const nspToMap = (nsp) =>
-    nsp
-      .replace(/(?:\.|\[|\])/g, " ")
-      .split(" ")
-      .reduce((sum, str) => sum.concat(str.trim() || []), []);
   return parser;
 };
-window.obj = obj;
+
+export const arr = function ArrayParser(arr) {
+  const parser = this || {};
+
+  parser.randomIndex = () => rnb(0, arr.length - 1);
+
+  parser.randomItem = () => arr[parser.randomIndex()];
+  return parser;
+};

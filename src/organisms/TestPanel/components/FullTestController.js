@@ -1,3 +1,5 @@
+import Test from "./Test.class";
+
 const sections = ["Before", "Main", "Events", "After"];
 
 export default function FullTestController({ FullTest, connectedServices }) {
@@ -41,23 +43,36 @@ export default function FullTestController({ FullTest, connectedServices }) {
 
     const { connection } = getConnection(connectedServices);
 
-    const { SystemView } = connection[namespace.serviceId];
+    const { SystemViewPlugin } = connection[namespace.serviceId];
 
-    if (SystemView) {
+    if (SystemViewPlugin) {
       const [Before, Main, Events, After] = Tests.map((testSection) =>
-        testSection.map(({ args, evaluations, namespace, title }) => ({
-          args,
-          namespace,
-          title,
-          savedEvaluations: evaluations.filter((e) => e.save),
-        }))
+        testSection.map((test) => {
+          const { args, evaluations, namespace, title } = test;
+          //resetting scope of test
+          Object.assign(test, new Test(test));
+          return {
+            args,
+            namespace,
+            title,
+            savedEvaluations: evaluations
+              .filter((e) => e.save)
+              .map(({ namespace, expected_type, validations, save, indexed }) => ({
+                namespace,
+                expected_type,
+                validations,
+                save,
+                indexed,
+              })),
+          };
+        })
       );
 
-      const testIndex = await SystemView.saveTest(
+      const testIndex = await SystemViewPlugin.saveTest(
         { Before, Main, Events, After, title, namespace },
         index
       );
       return { message: "Test Saved!", error: false, testIndex };
-    } else return { message: "SystemView Plugin not connected!", error: true };
+    } else return { message: "SystemViewPlugin Plugin not connected!", error: true };
   };
 }

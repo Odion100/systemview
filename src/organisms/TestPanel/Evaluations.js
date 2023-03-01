@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from "react";
 import ExpandableSection from "../../molecules/ExpandableSection/ExpandableSection";
 import ValidationInput from "../../molecules/ValidationInput/ValidationInput";
-import ValidationOptions from "../../molecules/ValidationInput/ValidationOptions";
+import ValidationOptions, {
+  inputToTypes,
+} from "../../molecules/ValidationInput/ValidationOptions";
 import TypeSelector from "../../atoms/TypeSelector/TypeSelector";
-import { getErrors } from "../../molecules/ValidationInput/validator";
+import { getErrors, defaultValue } from "../../molecules/ValidationInput/validator";
 import Count from "../../atoms/Count";
+import { endsWithArrayIndex } from "./components/test-helpers";
 
 const validationCount = (evaluations) =>
   evaluations.reduce((sum, e) => (e.save ? e.validations.length + 1 : 0) + sum, 0);
-export default function Evaluations({ test, updateEvaluations }) {
+export default function Evaluations({ test, updateTests }) {
   const { evaluations, errors } = test;
   const [open, setOpen] = useState(false);
   const [saveAll, setSaveAll] = useState(!test.savedEvaluations.length);
@@ -19,65 +22,63 @@ export default function Evaluations({ test, updateEvaluations }) {
     setOpen((state) => !state);
   };
 
-  const addValidation = (x) => {
-    const { expected_type, type } = evaluations[x];
+  const updateEvaluation = (evaluation) => {
+    evaluation.errors = getErrors(evaluation);
+    test.addEvaluation(evaluation);
+    test.errors = test.getErrors();
+    updateTests();
+  };
 
+  const addValidation = (x) => {
+    const { expected_type } = evaluations[x];
+    const input_type = ValidationOptions[expected_type].inputs[0];
     evaluations[x].validations.push({
       name: ValidationOptions[expected_type].values[0],
-      value:
-        expected_type === "number" || (expected_type === "mixed" && type === "number")
-          ? 0
-          : "",
+      value: defaultValue(inputToTypes[input_type]),
     });
-
-    evaluations[x].errors = getErrors(evaluations[x]);
-    updateEvaluations(evaluations);
+    updateEvaluation(evaluations[x]);
     setTotalValidations(validationCount(evaluations));
   };
 
   const deleteValidation = (x, y) => {
     evaluations[x].validations.splice(y, 1);
-    evaluations[x].errors = getErrors(evaluations[x]);
-    updateEvaluations(evaluations);
+    updateEvaluation(evaluations[x]);
     setTotalValidations(validationCount(evaluations));
   };
 
   const updateValidations = (x, y, p, v) => {
     evaluations[x].validations[y][p] = v;
-    evaluations[x].errors = getErrors(evaluations[x]);
-    updateEvaluations(evaluations);
+    updateEvaluation(evaluations[x]);
   };
 
   const updateExpectedType = (x, e) => {
     evaluations[x].expected_type = e.target.value;
     evaluations[x].validations = [];
-    evaluations[x].errors = getErrors(evaluations[x]);
-    updateEvaluations(evaluations);
+    updateEvaluation(evaluations[x]);
   };
 
   const updateSaveStatus = (x, save) => {
     evaluations[x].save = save;
-    updateEvaluations(evaluations);
+    updateEvaluation(evaluations[x]);
     setTotalValidations(validationCount(evaluations));
   };
 
   const toggleAllSaveStatuses = () => {
     setSaveAll(!saveAll);
-    const changedEvaluations = evaluations.map((e) => ({ ...e, save: !saveAll }));
-    updateEvaluations(changedEvaluations);
-    setTotalValidations(validationCount(changedEvaluations));
+    test.evaluations = test.evaluations.map((e) => ({ ...e, save: !saveAll }));
+    test.errors = test.getErrors();
+    updateTests();
+    setTotalValidations(validationCount(evaluations));
   };
-  useEffect(() => {
-    if (test.test_end !== null) {
-      updateEvaluations(test.evaluations);
-    } else {
-      updateEvaluations([]);
-    }
-  }, [test.test_end]);
 
   useEffect(() => {
-    setTotalValidations(validationCount(test.evaluations));
-  }, [test.evaluations]);
+    if (test.test_end !== null) {
+      updateTests(test.evaluations);
+    } else {
+      updateTests([]);
+    }
+    if (test.test_end !== null) setTotalValidations(validationCount(test.evaluations));
+  }, [test.evaluations, test.test_end]);
 
   return (
     <div className={`evaluations evaluations--visible-${evaluations.length > 0}`}>
@@ -108,7 +109,10 @@ export default function Evaluations({ test, updateEvaluations }) {
         }
       >
         {evaluations.map(
-          ({ namespace, type, expected_type, save, errors, validations }, i) => {
+          (
+            { namespace, type, expected_type, save, errors, validations, indexed, value },
+            i
+          ) => {
             return (
               <EvaluationRow
                 key={i}
@@ -123,7 +127,11 @@ export default function Evaluations({ test, updateEvaluations }) {
                 updateValidations={updateValidations}
                 updateExpectedType={updateExpectedType}
                 updateSaveStatus={updateSaveStatus}
+                updateTests={updateTests}
                 save={save}
+                test={test}
+                indexed={indexed}
+                value={value}
               />
             );
           }
@@ -145,12 +153,16 @@ const EvaluationRow = ({
   updateValidations,
   updateExpectedType,
   updateSaveStatus,
+  updateTests,
   save,
+  test,
+  indexed,
+  value,
 }) => {
-  const calcWidth = (text) => Math.ceil(text.length / 0.1125);
+  const calcWidth = (text = "") => Math.ceil(text.length / 0.12);
   const [type_width, setWidth] = useState(calcWidth(0));
   const style = { "--type-width": type_width + "px" };
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(errors.length && validations.length);
 
   const typeError = !!errors.find(({ name }) => name === "typeError");
   const toggleExpansion = () => {
@@ -158,7 +170,7 @@ const EvaluationRow = ({
   };
   const onSelect = (i, e) => {
     updateExpectedType(i, e);
-    setWidth(calcWidth(expected_type));
+    setWidth(calcWidth(e.target.value));
   };
   const toggleSave = () => updateSaveStatus(index, !save);
   useEffect(
@@ -167,6 +179,9 @@ const EvaluationRow = ({
     [expected_type, type_width]
   );
 
+  useEffect(() => {
+    if (errors.length && validations.length) setOpen(true);
+  }, [errors]);
   return (
     <ExpandableSection
       open={open}
@@ -174,12 +189,23 @@ const EvaluationRow = ({
       title={
         <>
           <div className={`evaluations__title`} style={style}>
-            <span
-              className={`evaluations__namespace evaluations--error-${errors.length > 0}`}
-            >
-              {namespace}:{" "}
-            </span>
-
+            {endsWithArrayIndex(namespace) ? (
+              <ArrayNamespace
+                updateTests={updateTests}
+                namespace={namespace}
+                test={test}
+                indexed={indexed}
+                value={value}
+              />
+            ) : (
+              <span
+                className={`evaluations__namespace evaluations--error-${
+                  errors.length > 0
+                }`}
+              >
+                {namespace}:{" "}
+              </span>
+            )}
             <TypeSelector
               default_type={expected_type}
               onSelect={onSelect.bind(this, index)}
@@ -246,3 +272,98 @@ const EvaluationRow = ({
     </ExpandableSection>
   );
 };
+
+function ArrayNamespace({ namespace, errorCount, updateTests, test, indexed, value }) {
+  const [name = "", index = ""] = namespace.split(/(\[\d+\])$/);
+  const [open, setOpen] = useState(false);
+  const [isIndexed, setIsIndexed] = useState(!!indexed);
+  const [testIndex, setIndex] = useState(parseInt(index.substr(1, index.length - 1)));
+
+  const inputChange = (e) => setIndex(parseInt(e.target.value));
+  const add = () => {
+    // push ensures that the evaluation namespace is add and not overwritten
+    test.savedEvaluations.push({
+      namespace: `${name}[${testIndex + 1}]`,
+      save: true,
+      indexed: true,
+    });
+
+    if (!indexed)
+      //add the current index because the test will only use the one
+      //saved index, but we need the current index to stay as well
+      test.addSavedIndices(namespace, `${name}[${testIndex}]`);
+
+    test.validate();
+    updateTests();
+    setOpen(false);
+  };
+  const show = () => setOpen(true);
+
+  const hide = () => {
+    test.removeSavedIndices(namespace);
+    if (isIndexed) {
+      test.addSavedIndices(namespace, `${name}[${testIndex}]`);
+    } else {
+      const e = test.evaluations.find((e) => e.namespace === namespace);
+      if (e) {
+        e.indexed = false;
+        e.expected_type = undefined;
+        test.addEvaluation(e);
+      }
+    }
+    test.validate();
+    updateTests();
+    setOpen(false);
+  };
+  const handleCheck = (e) => setIsIndexed(e.target.checked);
+
+  useEffect(() => setIsIndexed(!!indexed), [indexed]);
+  useEffect(() => {
+    const [name = "", index = ""] = namespace.split(/(\[\d+\])$/);
+    setIndex(parseInt(index.substr(1, index.length - 1)));
+  }, [namespace]);
+
+  return (
+    <span className={`evaluations__namespace evaluations--error-${errorCount > 0}`}>
+      <span>{name}</span>
+      {!open ? (
+        <span
+          onClick={show}
+          className={`evaluations__index-button btn evaluations__index-button--indexed-${isIndexed}`}
+        >
+          {index}
+        </span>
+      ) : (
+        <span className={`evaluations__index-button`}>
+          <span className="evaluations__brackets">{"["}</span>
+          {isIndexed ? (
+            <input
+              className="evaluations__index-input"
+              type={"number"}
+              onChange={inputChange}
+              min={0}
+              //max={value.length}
+              value={testIndex}
+            />
+          ) : (
+            <span className="evaluations__random">random</span>
+          )}
+          <input
+            className="evaluations__index-checkbox"
+            checked={isIndexed}
+            onChange={handleCheck}
+            type={"checkbox"}
+          />
+          <span onClick={add} className="evaluations__add-index-btn btn">
+            +
+          </span>
+          <span className="evaluations__brackets">{"]"}</span>
+          <span onClick={hide} className="evaluations__clear-error btn">
+            ×
+          </span>
+        </span>
+      )}
+      :{" "}
+    </span>
+  );
+}

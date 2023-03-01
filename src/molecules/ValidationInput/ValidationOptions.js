@@ -105,3 +105,9 @@ const target = {
 };
 const options = { array, number, date, boolean, string, object, target };
 export default options;
+export const inputToTypes = {
+  text: "string",
+  number: "number",
+  "datetime-local": "date",
+  checkbox: "boolean",
+};

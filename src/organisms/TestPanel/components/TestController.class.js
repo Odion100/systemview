@@ -23,7 +23,7 @@ export default function TestController({
     setState([...TestSection]);
   };
   this.addTest = (namespace, args, title) => {
-    TestSection.push(new Test({ namespace, args, title }));
+    TestSection.push(new Test({ namespace, args, title, editMode: true }));
     setState([...TestSection]);
     if (namespace) this.updateNamespace(TestSection.length - 1, namespace);
   };
@@ -96,11 +96,9 @@ export default function TestController({
   };
   this.updateEvaluations = (testIndex, evaluations) => {
     TestSection[testIndex].evaluations = evaluations;
-    TestSection[testIndex].errors = evaluations.reduce(
-      (sum, { errors, namespace, save }) =>
-        save ? sum.concat(errors.map((e) => ({ ...e, namespace }))) : sum,
-      []
-    );
+    setState([...TestSection]);
+  };
+  this.updateTests = () => {
     setState([...TestSection]);
   };
   this.updateValidationStatus = (testIndex) => {

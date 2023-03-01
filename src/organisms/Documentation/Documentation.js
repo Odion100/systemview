@@ -18,7 +18,7 @@ export default function Documentation({
   const service = connectedServices.find(
     (service) => service.serviceId === serviceId && service.projectCode === projectCode
   );
-  const { SystemView: SystemViewPlugin } = service
+  const { SystemViewPlugin } = service
     ? Client.createService(service.system.connectionData)
     : {};
 
@@ -40,7 +40,6 @@ export default function Documentation({
           methodName,
         });
         setDocument(results);
-        console.log("setDocument", results);
       }
     } catch (error) {
       console.error(error);

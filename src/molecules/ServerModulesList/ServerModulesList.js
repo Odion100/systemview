@@ -28,7 +28,7 @@ const ServerModulesList = ({
               <span
                 className={`system-nav__link system-nav__link--selected-${
                   !selectedMethodName && isSelected
-                }`}
+                } ${name === "SystemViewPlugin" && className + "__name--plugin"}`}
               >
                 <MyLink link={`/${projectCode}/${serviceId}/${name}`} text={name} />
                 <span className={`${className}__docs-icon`}>

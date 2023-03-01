@@ -30,7 +30,7 @@ module.exports = function ConnectedServices() {
     );
   };
   // clear & ensure file existence
-  const res = fs.writeFileSync(LOCAL_STORAGE, "[]", "utf8");
-  console.log(res);
+  fs.writeFileSync(LOCAL_STORAGE, "[]", "utf8");
+
   return this;
 };

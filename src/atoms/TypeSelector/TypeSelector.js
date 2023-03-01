@@ -13,14 +13,14 @@ const options = [
   "target",
 ];
 
-const TypeSelector = ({ default_type, onSelect, className = "" }) => {
+const TypeSelector = ({ default_type = "undefined", onSelect, className = "" }) => {
   const class_name = "type-selector";
   return (
     <Selector
       className={`${class_name} ${className}`}
       options={options}
-      selected_option={default_type}
       onSelect={onSelect}
+      controlledOption={default_type}
     />
   );
 };

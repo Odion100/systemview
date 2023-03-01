@@ -14,7 +14,6 @@ import { Client } from "systemlynx";
 import FullTestController from "./components/FullTestController";
 import Title from "../../atoms/Title/Title";
 import { CurrentTest } from "../../atoms/StatusIndicator/StatusIndicator";
-import { ClearButton } from "../../atoms/Button/Button";
 
 const FullTest = ({ serviceId, moduleName, methodName }) => {
   const namespace = { serviceId, moduleName, methodName };
@@ -22,7 +21,7 @@ const FullTest = ({ serviceId, moduleName, methodName }) => {
   const serviceData = connectedServices.find(
     (service) => service.serviceId === serviceId
   );
-  const { SystemView: SystemViewPlugin } = serviceData
+  const { SystemViewPlugin } = serviceData
     ? Client.createService(serviceData.system.connectionData)
     : {};
   const [Before, setTestBefore] = useState([]);
@@ -72,7 +71,7 @@ const FullTest = ({ serviceId, moduleName, methodName }) => {
     }
 
     setMessage({ error, message });
-    setTimeout(() => setMessage({ error: false, message: "" }), 4000);
+    setTimeout(clearMessage, 4000);
   };
 
   const fetchTests = async () => {
@@ -95,9 +94,6 @@ const FullTest = ({ serviceId, moduleName, methodName }) => {
     );
     setTestMain([test]);
   };
-  const clearTest = () => {
-    resetTests();
-  };
 
   useEffect(() => {
     resetTests();
@@ -111,7 +107,7 @@ const FullTest = ({ serviceId, moduleName, methodName }) => {
         <div className="row">
           <Title text="Scratch Pad" />
           {typeof Main[0].index === "number" && (
-            <CurrentTest name={`Saved Test ${1 + Main[0].index}`} onClick={clearTest} />
+            <CurrentTest name={`Saved Test ${1 + Main[0].index}`} onClick={resetTests} />
           )}
         </div>
         <div>

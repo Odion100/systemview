@@ -38,9 +38,13 @@ function updateSpecList(specList, projectCode, serviceId) {
 function getServices(searchText) {
   if (isUrl(searchText)) {
     const { service } = LocalStorage.findService(searchText);
-    return service
-      ? [{ ...service, projectCode: "SystemLynx", serviceId: "Service" }]
-      : getConnectionData(searchText);
+    if (service) {
+      const project = { ...service, projectCode: "SystemLynx", serviceId: "Service" };
+      connect(project);
+      return [project];
+    } else {
+      return getConnectionData(searchText);
+    }
   } else {
     return LocalStorage.findProject(searchText);
   }
@@ -72,26 +76,3 @@ App.startService({
   getServices,
   updateSpecList,
 });
-
-// {
-//     services: [
-//       {
-//         name: 'PluginService',
-//         url: 'http://localhost:8520/test-service',
-//         onLoad: null,
-//         client: {}
-//       }
-//     ],
-//     modules: [
-//       { name: 'testModule', __constructor: [Object] },
-//       { name: 'plugin', __constructor: [Object] }
-//     ],
-//     configurations: {},
-//     routing: null,
-//     Service: {
-//       startService: [Function (anonymous)],
-//       Server: [Function: Server],
-//       WebSocket: [Function: WebSocket],
-//       module: [Function (anonymous)]
-//     }
-//   }

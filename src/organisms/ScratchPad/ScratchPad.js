@@ -117,7 +117,7 @@ const ScratchPad = ({
           </div>
         </div>
         <Evaluations
-          updateEvaluations={TestController.updateEvaluations.bind({}, testIndex)}
+          updateTests={TestController.updateTests.bind({}, testIndex)}
           test={test}
         />
       </div>

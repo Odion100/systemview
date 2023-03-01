@@ -53,12 +53,14 @@
     display: inline-flex;
     border-radius: 4px;
     background: white;
+    border: 1px solid #fce8ff;
   }
   &__comma {
     font-weight: bold;
     color: green;
     font-size: 17;
     margin-right: 3px;
+    align-self: flex-end;
   }
   &__parentheses {
     font-weight: bolder;

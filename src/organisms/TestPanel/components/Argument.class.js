@@ -6,10 +6,10 @@ import {
   isEqualArrays,
 } from "./test-helpers";
 
-export function TargetValue(target_namespace, source_map, source_index) {
+export function TargetValue(target_namespace, source_map = [], source_index = 0) {
   this.target_namespace = target_namespace;
-  this.source_map = source_map || [];
-  this.source_index = source_index || 0;
+  this.source_map = source_map;
+  this.source_index = source_index;
 }
 export default function Argument(
   name,
@@ -65,12 +65,12 @@ export default function Argument(
     return this;
   };
 
-  this.addTargetValue = (target_namespace, source_map, source_index) => {
+  this.addTargetValue = (target_namespace, source_map = [], source_index) => {
     //check to see if target value already exists first
     this.targetValues.findIndex(
       (tv) =>
         tv.target_namespace === target_namespace &&
-        isEqualArrays(tv.source_map, source_map || []) &&
+        isEqualArrays(tv.source_map, source_map) &&
         tv.source_index === source_index
     ) === -1 &&
       this.targetValues.push(new TargetValue(target_namespace, source_map, source_index));

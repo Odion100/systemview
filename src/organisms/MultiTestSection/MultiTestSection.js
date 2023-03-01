@@ -29,7 +29,6 @@ const MultiTestSection = ({
       arg.name && [new Argument(arg.name, arg.FullTest, arg.input_type)]
     );
     TestSection.length === 1 && setOpen(true);
-    console.log("Arguments", arg);
   };
   return (
     <section className={className}>

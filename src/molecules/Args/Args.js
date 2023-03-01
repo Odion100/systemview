@@ -152,7 +152,7 @@ const ArgDataForm = ({ arg, testIndex, i, controller, is12 }) => {
   };
 
   const textboxChanged = (e) => {
-    adjustSize(e);
+    //adjustSize(e);
     inputChanged(e);
     controller.parseTargetValues(testIndex, i, e.target.value, ["input"]);
   };

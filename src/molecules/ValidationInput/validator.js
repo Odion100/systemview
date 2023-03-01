@@ -1,47 +1,104 @@
 import moment from "moment";
+import {
+  arr,
+  obj,
+  parseIndex,
+  mapNamespace,
+  replaceLastIndex,
+  switchArrayIndices,
+} from "../../organisms/TestPanel/components/test-helpers";
 
-export function validateResults(results, namespace, savedEvaluations = []) {
+export function evaluate(value, namespace, savedEval = {}, shouldSave) {
+  const type = getType(value);
+  const validations = savedEval.validations || [];
+  const expected_type = savedEval.expected_type || type;
+  const save = shouldSave || !!savedEval.save;
+  const indexed = savedEval.indexed;
+  const errors = getErrors({ type, value, validations, expected_type });
+  return {
+    namespace,
+    expected_type,
+    validations,
+    save,
+    indexed,
+    type,
+    value,
+    errors,
+  };
+}
+
+export function validateResults() {
+  const { results, response_type, savedEvaluations, editMode } = this;
   const savedEvalClone = [...savedEvaluations];
   const evaluations = [];
-  const errorList = [];
+  const errors = [];
 
-  const getValidations = (value, namespace) => {
-    const type = getType(value);
-    const i = savedEvalClone.findIndex((val) => val.namespace === namespace);
-    const savedEval = i > -1 ? savedEvalClone.splice(i, 1)[0] : {};
-    const validations = savedEval.validations || [];
-    const expected_type = savedEval.expected_type || type;
-    const save = !savedEvalClone.length || !!savedEval.save;
-    const errors = getErrors({ type, value, validations, expected_type });
-    errors.forEach((e) => save && errorList.push({ ...e, namespace }));
-    return {
-      namespace,
-      type,
-      expected_type,
-      value,
-      errors,
-      validations,
-      save,
+  function getSavedIndices(data, nsp) {
+    const randomIndex = () => {
+      // get all matching indices and rename them
+      // so they can be found later during getSavedEval
+      const index = arr(data).randomIndex();
+      const new_nsp = replaceLastIndex(nsp, index);
+      savedEvalClone.forEach((e) => {
+        if (!e.indexed) e.namespace = switchArrayIndices(e.namespace, new_nsp);
+      });
+      return index;
     };
+    const savedIndices = savedEvalClone
+      .filter(({ namespace }) => {
+        return replaceLastIndex(namespace) === nsp;
+      })
+      .map((e) => {
+        if (e.indexed) {
+          return parseIndex(e.namespace);
+        } else {
+          return randomIndex();
+        }
+      });
+    return savedIndices.length ? savedIndices : [randomIndex()];
+  }
+  const getSavedEval = (nsp) => {
+    const i = savedEvalClone.findIndex(({ namespace }) => {
+      return replaceLastIndex(namespace) === replaceLastIndex(nsp);
+    });
+    return i > -1 ? savedEvalClone.splice(i, 1)[0] : {};
+  };
+  const addEvaluation = (evaluation) => {
+    evaluation.errors.forEach(
+      (e) => evaluation.save && errors.push({ ...e, namespace: evaluation.namespace })
+    );
+    evaluations.push(evaluation);
   };
 
-  (function recursiveEval(data, namespace) {
-    const evaluation = getValidations(data, namespace);
-    evaluations.push(evaluation);
-    if (evaluation.type === "object") {
-      Object.getOwnPropertyNames(data).forEach((prop) => {
-        recursiveEval(data[prop], `${namespace}.${prop}`);
-      });
-    } else if (evaluation.type === "array") {
-      recursiveEval(data[0], `${namespace}[0]`);
-    }
-  })(results, namespace);
-  //each remaining evaluation is a potential TypeError: undefined
-  savedEvalClone.forEach(({ namespace }) => {
-    evaluations.push(getValidations(undefined, namespace));
-  });
+  //evaluate based on the result only in edit mode
+  if (editMode)
+    (function recursiveEval(data, namespace) {
+      const evaluation = evaluate(data, namespace, getSavedEval(namespace), editMode);
+      addEvaluation(evaluation);
+      if (evaluation.type === "object") {
+        Object.getOwnPropertyNames(data).forEach((prop) => {
+          recursiveEval(data[prop], `${namespace}.${prop}`);
+        });
+      } else if (evaluation.type === "array") {
+        const indices = getSavedIndices(data, `${namespace}[0]`);
+        indices.forEach((index) => recursiveEval(data[index], `${namespace}[${index}]`));
+      }
+    })(results, response_type);
 
-  return { evaluations, errors: errorList };
+  //evaluate based on the saved evaluations
+
+  // if (!editMode) {
+  const objParser = new obj({ [response_type]: results });
+  savedEvalClone.forEach(({ namespace, ...e }) => {
+    const value = objParser.valueAtNsp(namespace);
+    if (e.save) addEvaluation(evaluate(value, namespace, e));
+  });
+  // }
+
+  Object.assign(this, {
+    evaluations: evaluations.sort((e1, e2) => e1.namespace.localeCompare(e2.namespace)),
+    errors,
+  });
 }
 
 export function getErrors({ type, value, validations, expected_type }) {

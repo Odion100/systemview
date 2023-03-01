@@ -80,10 +80,11 @@ const strEquals = (namespace, expected, PRETEXT) => (
     <span className={`${className}__expected`}>"{expected}"</span>
   </div>
 );
-const numEquals = (namespace, expected, PRETEXT) => (
+const numEquals = (namespace, expected, PRETEXT, received) => (
   <div className={`${className}__message`}>
     {PRETEXT} <span className={`${className}__namespace`}>{namespace}</span> to equal{" "}
-    <span className={`${className}__expected`}>{parseInt(expected)}</span>
+    <span className={`${className}__expected`}>{parseInt(expected)} </span>
+    {received && <span> (received {received})</span>}
   </div>
 );
 const max = (namespace, expected, PRETEXT, received) => (
@@ -114,15 +115,15 @@ const min = (namespace, expected, PRETEXT, received) => (
     )}
   </div>
 );
-const boolEquals = (namespace, expected, PRETEXT) => (
+const boolEquals = (namespace, expected, PRETEXT, received) => (
   <div className={`${className}__message`}>
-    {PRETEXT} <span className={`${className}__namespace`}>{namespace}</span> to be $
-    {expected.toString()}
+    {PRETEXT} <span className={`${className}__namespace`}>{namespace}</span> to be
+    {expected.toString()} {received && <span> (received {received})</span>}
   </div>
 );
 const dateEquals = (namespace, expected, PRETEXT) => (
   <div className={`${className}__message`}>
-    {PRETEXT} <span className={`${className}__namespace`}>{namespace}</span> to be $
+    {PRETEXT} <span className={`${className}__namespace`}>{namespace}</span> to be
     {moment(expected).format()}
   </div>
 );
