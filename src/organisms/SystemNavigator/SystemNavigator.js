@@ -16,7 +16,7 @@ const SystemNav = ({ projectCode, serviceId, moduleName, methodName }) => {
     (serviceData) =>
       serviceData.serviceId === serviceId && serviceData.projectCode === projectCode
   );
-  const { SystemViewPlugin } = serviceData
+  const { Plugin } = serviceData
     ? Client.createService(serviceData.system.connectionData)
     : {};
   const { SystemView } = SystemViewService;
@@ -60,8 +60,8 @@ const SystemNav = ({ projectCode, serviceId, moduleName, methodName }) => {
     if (projectCode) fetchProject(projectCode);
   }, []);
   useEffect(() => {
-    if (SystemViewPlugin) SystemViewPlugin.on(`reconnect`, fetchProject);
-  }, [SystemViewPlugin, connectedServices]);
+    if (Plugin) Plugin.on(`reconnect`, fetchProject);
+  }, [Plugin, connectedServices]);
   return (
     <section className="system-nav">
       <div className="container">

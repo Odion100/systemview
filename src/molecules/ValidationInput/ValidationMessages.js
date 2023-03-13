@@ -117,14 +117,14 @@ const min = (namespace, expected, PRETEXT, received) => (
 );
 const boolEquals = (namespace, expected, PRETEXT, received) => (
   <div className={`${className}__message`}>
-    {PRETEXT} <span className={`${className}__namespace`}>{namespace}</span> to be
+    {PRETEXT} <span className={`${className}__namespace`}>{namespace}</span> to be{" "}
     {expected.toString()} {received && <span> (received {received})</span>}
   </div>
 );
 const dateEquals = (namespace, expected, PRETEXT) => (
   <div className={`${className}__message`}>
     {PRETEXT} <span className={`${className}__namespace`}>{namespace}</span> to be
-    {moment(expected).format()}
+    {moment(expected).format("L LTS")}
   </div>
 );
 const minDate = (namespace, expected, PRETEXT) => (

@@ -18,7 +18,7 @@ const SavedTests = ({
   savedTests = [],
   connectedServices,
   setFullTest,
-  SystemViewPlugin,
+  Plugin,
   fetchTests,
 }) => {
   const [open, setOpen] = useState(false);
@@ -94,7 +94,7 @@ const SavedTests = ({
                 runTest={runTest.bind({}, i, FullTest)}
                 setFullTest={setFullTest}
                 connectedServices={connectedServices}
-                SystemViewPlugin={SystemViewPlugin}
+                Plugin={Plugin}
                 fetchTests={fetchTests}
               />
             ))}
@@ -122,7 +122,7 @@ function TestDetails({
   closeAll,
   setFullTest,
   connectedServices,
-  SystemViewPlugin,
+  Plugin,
   fetchTests,
 }) {
   const [open, setOpen] = useState(true);
@@ -138,8 +138,8 @@ function TestDetails({
   const hideDelete = () => setDeleteMsg(false);
   const showDelete = () => setDeleteMsg(true);
   const deleteTest = async () => {
-    if (SystemViewPlugin) {
-      await SystemViewPlugin.deleteTest(namespace, index);
+    if (Plugin) {
+      await Plugin.deleteTest(namespace, index);
       hideDelete();
       fetchTests();
     }

@@ -4,6 +4,7 @@ import TestCaption from "../TestCaption/TestCaption";
 import CHECK from "../../assets/check.svg";
 import ERROR from "../../assets/error.svg";
 import ARROW from "../../assets/arrow.png";
+import LOADING from "../../assets/loading.gif";
 import "./styles.scss";
 import ExpandIcon from "../../atoms/ExpandableIcon/ExpandableIcon";
 import { Argument } from "../Args/Args";
@@ -82,6 +83,7 @@ function Test({
   args,
   results,
   test_end,
+  test_start,
   response_type,
   totalValidations,
 }) {
@@ -101,6 +103,11 @@ function Test({
         <span className={`${CLASS_NAME}__action-text`}>
           <ExpandIcon color="black" onClick={toggleExpansion} isOpen={open} /> {title}
         </span>
+        {!!test_start && !test_end && (
+          <img src={LOADING} alt="check" style={{ width: "18px" }} />
+        )}
+        {/* <img src={LOADING} alt="check" style={{ width: "18px" }} /> */}
+
         {!!test_end && (
           <>
             {errors.length ? (
@@ -124,7 +131,7 @@ function Test({
           )}
 
           <TestValidations
-            title={`${!errors.length ? "total" : "passing"} validations`}
+            title={`${!test_end ? "total" : "passing"} validations`}
             validations={filterPassingValidations(totalValidations)}
             isError={false}
           />

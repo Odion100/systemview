@@ -30,6 +30,7 @@ export function evaluate(value, namespace, savedEval = {}, shouldSave) {
 export function validateResults() {
   const { results, response_type, savedEvaluations, editMode } = this;
   const savedEvalClone = [...savedEvaluations];
+  const shouldSave = !savedEvaluations.length;
   const evaluations = [];
   const errors = [];
 
@@ -73,7 +74,7 @@ export function validateResults() {
   //evaluate based on the result only in edit mode
   if (editMode)
     (function recursiveEval(data, namespace) {
-      const evaluation = evaluate(data, namespace, getSavedEval(namespace), editMode);
+      const evaluation = evaluate(data, namespace, getSavedEval(namespace), shouldSave);
       addEvaluation(evaluation);
       if (evaluation.type === "object") {
         Object.getOwnPropertyNames(data).forEach((prop) => {

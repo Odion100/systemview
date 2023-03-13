@@ -18,23 +18,21 @@ export default function Documentation({
   const service = connectedServices.find(
     (service) => service.serviceId === serviceId && service.projectCode === projectCode
   );
-  const { SystemViewPlugin } = service
-    ? Client.createService(service.system.connectionData)
-    : {};
+  const { Plugin } = service ? Client.createService(service.system.connectionData) : {};
 
   const [doc, setDocument] = useState({
     documentation: "",
     namespace: { serviceId, moduleName, methodName },
   });
 
-  const fetchDocument = async (SystemViewPlugin) => {
+  const fetchDocument = async (Plugin) => {
     setDocument({
       documentation: "",
       namespace: { serviceId, moduleName, methodName },
     });
     try {
-      if (SystemViewPlugin) {
-        const results = await SystemViewPlugin.getDoc({
+      if (Plugin) {
+        const results = await Plugin.getDoc({
           serviceId,
           moduleName,
           methodName,
@@ -47,13 +45,12 @@ export default function Documentation({
   };
 
   useEffect(() => {
-    fetchDocument(SystemViewPlugin);
-  }, [methodName, moduleName, serviceId, SystemViewPlugin]);
+    fetchDocument(Plugin);
+  }, [methodName, moduleName, serviceId, Plugin]);
 
   useEffect(() => {
-    if (SystemViewPlugin)
-      SystemViewPlugin.on(`reconnect`, fetchDocument.bind({}, SystemViewPlugin));
-  }, [SystemViewPlugin]);
+    if (Plugin) Plugin.on(`reconnect`, fetchDocument.bind({}, Plugin));
+  }, [Plugin]);
   return (
     <section className="documentation">
       <div className="documentation-view">
@@ -65,11 +62,7 @@ export default function Documentation({
           />
         </div>
         <div className="row documentation-view__data-table">
-          <DocDescription
-            doc={doc}
-            setDocument={setDocument}
-            SystemViewPlugin={SystemViewPlugin}
-          />
+          <DocDescription doc={doc} setDocument={setDocument} Plugin={Plugin} />
         </div>
       </div>
     </section>
@@ -100,13 +93,13 @@ const DocTitle = ({ serviceId, moduleName, methodName, variable_name = "..." }) 
   );
 };
 
-const DocDescription = ({ doc, setDocument, SystemViewPlugin }) => {
+const DocDescription = ({ doc, setDocument, Plugin }) => {
   const { serviceId, methodName, moduleName } = doc;
   const [text, setText] = useState(doc.documentation);
   const saveDocument = async (setFormDisplay) => {
-    if (SystemViewPlugin) {
+    if (Plugin) {
       try {
-        const results = await SystemViewPlugin.saveDoc({ ...doc, documentation: text });
+        const results = await Plugin.saveDoc({ ...doc, documentation: text });
         setDocument(results);
         setFormDisplay(false);
       } catch (error) {

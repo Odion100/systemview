@@ -1,9 +1,11 @@
 import {
-  isTargetReplacer,
+  isTargetValueFn,
   isTargetNamespace,
-  targetReplacerRegex,
+  targetValueFnRegex,
   obj,
   isEqualArrays,
+  isFunction,
+  strFn,
 } from "./test-helpers";
 
 export function TargetValue(target_namespace, source_map = [], source_index = 0) {
@@ -28,12 +30,14 @@ export default function Argument(
     return this.targetValues.reduce((arg, { source_map, target_namespace: nsp }) => {
       const [value, placeholder, key] = obj(arg).parse(source_map);
 
-      if (isTargetReplacer(nsp)) {
+      if (isTargetValueFn(nsp)) {
         placeholder[key] = value
           .trim()
           .replace(nsp, getTargetValue(nsp.substring(3, nsp.length - 1)));
       } else if (isTargetNamespace(nsp)) {
         placeholder[key] = getTargetValue(nsp);
+      } else {
+        placeholder[key] = strFn(nsp);
       }
 
       return arg;
@@ -43,10 +47,12 @@ export default function Argument(
 
   this.parseTargetValues = (input, source_map) => {
     //extract one or more target replacer text from string (i.e. "tv(beforeTest.Action1.error)")
-    Array.from(input.matchAll(targetReplacerRegex)).forEach((match) => {
+    Array.from(input.matchAll(targetValueFnRegex)).forEach((match) => {
       this.addTargetValue(match[0], source_map, match.index);
     });
-    if (isTargetNamespace(input)) this.addTargetValue(input, source_map, 0);
+    if (isTargetNamespace(input) || isFunction(input))
+      this.addTargetValue(input, source_map, 0);
+
     return this;
   };
 

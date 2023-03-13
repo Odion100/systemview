@@ -21,7 +21,7 @@ const FullTest = ({ serviceId, moduleName, methodName }) => {
   const serviceData = connectedServices.find(
     (service) => service.serviceId === serviceId
   );
-  const { SystemViewPlugin } = serviceData
+  const { Plugin } = serviceData
     ? Client.createService(serviceData.system.connectionData)
     : {};
   const [Before, setTestBefore] = useState([]);
@@ -76,8 +76,8 @@ const FullTest = ({ serviceId, moduleName, methodName }) => {
 
   const fetchTests = async () => {
     try {
-      if (SystemViewPlugin) {
-        const results = await SystemViewPlugin.getTests(namespace);
+      if (Plugin) {
+        const results = await Plugin.getTests(namespace);
         setSavedTests(results);
       }
     } catch (error) {
@@ -132,13 +132,6 @@ const FullTest = ({ serviceId, moduleName, methodName }) => {
               </span>
             </span>
           </span>
-
-          <div className="row test-panel__section">
-            <BeforeTest TestController={BeforeCtrl} TestSection={Before} />
-          </div>
-          <div className="row test-panel__section">
-            <MainTest TestController={MainCtrl} TestSection={Main} />
-          </div>
           <div className="row test-panel__section">
             <EventsTest
               TestController={EventCtrl}
@@ -147,6 +140,14 @@ const FullTest = ({ serviceId, moduleName, methodName }) => {
               FullTest={FullTest}
             />
           </div>
+
+          <div className="row test-panel__section">
+            <BeforeTest TestController={BeforeCtrl} TestSection={Before} />
+          </div>
+          <div className="row test-panel__section">
+            <MainTest TestController={MainCtrl} TestSection={Main} />
+          </div>
+
           <div className="row test-panel__section">
             <AfterTest TestController={AfterCtrl} TestSection={After} />
           </div>
@@ -156,7 +157,7 @@ const FullTest = ({ serviceId, moduleName, methodName }) => {
               savedTests={savedTests}
               connectedServices={connectedServices}
               setFullTest={setFullTest}
-              SystemViewPlugin={SystemViewPlugin}
+              Plugin={Plugin}
               fetchTests={fetchTests}
             />
           </div>

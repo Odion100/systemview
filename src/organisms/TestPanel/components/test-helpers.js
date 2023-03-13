@@ -1,3 +1,4 @@
+import moment from "moment";
 import { getType } from "../../../molecules/ValidationInput/validator";
 export const rnb = (min, max) => Math.floor(Math.random() * (max - min + 1) + min);
 export const isObjectLike = (value) =>
@@ -7,13 +8,12 @@ export const isTargetNamespace = (str) =>
   /^(?:before|main|after)Test\.Action\d\.(?:error|results)(?:\.(?![0-9])[a-zA-Z0-9$_]+(?:\[\d\])*)*$/.test(
     str
   );
-export const targetReplacerRegex =
+export const targetValueFnRegex =
   /tv\((?:before|main|after)Test\.Action\d\.(?:error|results)(?:\.(?![0-9])[a-zA-Z0-9$_]+(?:\[\d\])*)*\)/g;
-export const isTargetReplacer = (str) =>
-  /tv\((?:before|main|after)Test\.Action\d\.(?:error|results)(?:\.(?![0-9])[a-zA-Z0-9$_]+(?:\[\d\])*)*\)/.test(
+export const isTargetValueFn = (str) =>
+  /^tv\((?:before|main|after)Test\.Action\d\.(?:error|results)(?:\.(?![0-9])[a-zA-Z0-9$_]+(?:\[\d\])*)*\)$/.test(
     str
   );
-export const hasTargetReplacer = (str) => targetReplacerRegex.test(str);
 export const isEqualArrays = (a, b) => a.join(".") === b.join("."); //specifically for arrays of strings
 export const isValidNamespace = (str) => /^(?![0-9])[a-zA-Z0-9$_]+$/.test(str); //_id
 export const startsWithNameAndArray = (str) => /^\w+(\[\d+\])+/.test(str); //users[0]
@@ -91,3 +91,19 @@ export const arr = function ArrayParser(arr) {
   parser.randomItem = () => arr[parser.randomIndex()];
   return parser;
 };
+
+const isFn = /^\w+\(([^,)]*(,[^,)]*)*)\)$/;
+const parseArgs = (str) => str.split(",").map((value) => value.trim());
+export const isFunction = (str) => isFn.test(str);
+export const isDateFunction = (str) => /^[dD]ate\(([^,)]*(,[^,)]*)*)\)$/.test(str);
+
+export const strFn = (str) => {
+  if (isDateFunction(str)) {
+    const [fullStr, args] = str.match(isFn);
+    return moment(args).toJSON();
+  }
+
+  return str;
+};
+window.moment = moment;
+window.strFn = strFn;

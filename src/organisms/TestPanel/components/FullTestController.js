@@ -43,9 +43,9 @@ export default function FullTestController({ FullTest, connectedServices }) {
 
     const { connection } = getConnection(connectedServices);
 
-    const { SystemViewPlugin } = connection[namespace.serviceId];
+    const { Plugin } = connection[namespace.serviceId];
 
-    if (SystemViewPlugin) {
+    if (Plugin) {
       const [Before, Main, Events, After] = Tests.map((testSection) =>
         testSection.map((test) => {
           const { args, evaluations, namespace, title } = test;
@@ -68,11 +68,11 @@ export default function FullTestController({ FullTest, connectedServices }) {
         })
       );
 
-      const testIndex = await SystemViewPlugin.saveTest(
+      const testIndex = await Plugin.saveTest(
         { Before, Main, Events, After, title, namespace },
         index
       );
       return { message: "Test Saved!", error: false, testIndex };
-    } else return { message: "SystemViewPlugin Plugin not connected!", error: true };
+    } else return { message: "Plugin Plugin not connected!", error: true };
   };
 }

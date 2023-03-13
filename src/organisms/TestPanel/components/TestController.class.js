@@ -121,7 +121,7 @@ export default function TestController({
       const count = sIndex === section ? testIndex : test_section.length;
       for (let i = 0; i < count; i++) {
         suggestions.push(
-          `${test_names[sIndex]}.${sIndex === 1 ? "" : "Action" + (i + 1) + "."}${
+          `${test_names[sIndex]}.${"Action" + (i + 1) + "."}${
             test_section[i].response_type || "results"
           }`
         );
