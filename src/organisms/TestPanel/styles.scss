@@ -1,5 +1,21 @@
+.test {
+  &__buttons {
+    justify-content: space-between;
+    margin-bottom: 3px;
+    & > span > span {
+      margin: 0 5px;
+    }
+
+    & > span {
+      font-family: Helvetica, arial, sans-serif;
+      background: #e9e9e9;
+      border-radius: 41px;
+      padding: 2px 11px;
+      margin-right: 3px;
+    }
+  }
+}
 .test-panel {
-  font-family: monospace;
   padding: 2rem 1rem;
   overflow: auto;
   font-size: 14px;
@@ -11,9 +27,19 @@
   &__section > section {
     width: 100%;
   }
-}
-
-.react-json-view {
-  font-size: 14px;
-  margin: 8px 0px;
+  &__error-message {
+    display: flex;
+    align-items: center;
+    color: #c02a2a;
+    font-weight: 700;
+    background: #e4d554;
+    background: #d4d4d4;
+    padding: 2px 8px !important;
+    &--hide-true {
+      opacity: 0;
+    }
+    &--error-false {
+      color: green;
+    }
+  }
 }

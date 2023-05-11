@@ -1,3 +1,22 @@
-.documentation {
+.documentation-view {
   padding-top: 2rem;
+  color: black;
+
+  &__parameter {
+    color: #3dceac;
+    font-weight: bold;
+  }
+
+  &__data-table {
+    margin-bottom: 30px;
+  }
+  &__title {
+    color: #454c69;
+    display: flex;
+    align-items: flex-start;
+    margin-left: 4px;
+  }
+  &__parentheses {
+    font-size: 26px;
+  }
 }

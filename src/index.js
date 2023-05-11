@@ -3,15 +3,16 @@ import ReactDOM from "react-dom";
 import "./index.css";
 import App from "./App";
 import reportWebVitals from "./reportWebVitals";
+// import "./assets/fonts/FontsFree-Net-SFMono-Regular.ttf";
+// import "./assets/fonts/Malkor-Regular.ttf";
+import { Client } from "systemlynx";
 
-import { Client } from "sht-tasks";
+const url = "http://localhost:3300/systemview/api";
 
-const url = "http://localhost:3300/systemlink/api";
-
-Client.loadService(url).then((SystemLinkService) => {
+Client.loadService(url).then((SystemViewService) => {
   ReactDOM.render(
     <React.StrictMode>
-      <App SystemLinkService={SystemLinkService} />
+      <App SystemViewService={SystemViewService} />
     </React.StrictMode>,
     document.getElementById("root")
   );

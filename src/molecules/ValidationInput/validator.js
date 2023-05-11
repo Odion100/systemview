@@ -1,51 +1,112 @@
 import moment from "moment";
+import {
+  arr,
+  obj,
+  parseIndex,
+  mapNamespace,
+  replaceLastIndex,
+  switchArrayIndices,
+} from "../../organisms/TestPanel/components/test-helpers";
 
-export function validateResults(results, namespace, savedValidations = []) {
-  const evaluations = [];
-  let total_errors = 0;
-
-  const getValidations = (value, nsp) => {
-    const type = getType(value);
-    const i = savedValidations.findIndex((val) => val.namespace === nsp);
-    const savedEval = i !== -1 ? savedValidations.splice(i, 1) : {};
-    const validations = savedEval.validations || [];
-    const expected_type = savedEval.expected_type || type;
-    const errors = getErrors(type, value, validations, expected_type);
-    total_errors += errors.count;
-    return {
-      namespace: nsp,
-      type,
-      expected_type,
-      value,
-      errors,
-      validations,
-    };
+export function evaluate(value, namespace, savedEval = {}, shouldSave) {
+  const type = getType(value);
+  const validations = savedEval.validations || [];
+  const expected_type = savedEval.expected_type || type;
+  const save = shouldSave || !!savedEval.save;
+  const indexed = savedEval.indexed;
+  const errors = getErrors({ type, value, validations, expected_type });
+  return {
+    namespace,
+    expected_type,
+    validations,
+    save,
+    indexed,
+    type,
+    value,
+    errors,
   };
-
-  (function recursiveEval(data, nsp) {
-    const evaluation = getValidations(data, nsp);
-    evaluations.push(evaluation);
-    if (evaluation.type === "object")
-      Object.getOwnPropertyNames(data).forEach((prop) =>
-        recursiveEval(data[prop], `${nsp}.${prop}`)
-      );
-    else if (evaluation.type === "array") recursiveEval(data[0], `${nsp}[0]`);
-  })(results, namespace);
-
-  savedValidations.forEach((evaluation) => {
-    evaluation.errors = { count: 1, missingNamespace: true };
-    evaluations.push(evaluation);
-    total_errors++;
-  });
-
-  return { evaluations, total_errors };
 }
 
-export function getErrors(type, value, validations, expected_type) {
-  if (type !== expected_type && expected_type !== "mixed") return { count: 1, typeError: true };
-  const test_type = expected_type !== "mixed" ? expected_type : type;
+export function validateResults() {
+  const { results, response_type, savedEvaluations, editMode } = this;
+  const savedEvalClone = [...savedEvaluations];
+  const shouldSave = !savedEvaluations.length;
+  const evaluations = [];
+  const errors = [];
 
-  switch (test_type) {
+  function getSavedIndices(data, nsp) {
+    const randomIndex = () => {
+      // get all matching indices and rename them
+      // so they can be found later during getSavedEval
+      const index = arr(data).randomIndex();
+      const new_nsp = replaceLastIndex(nsp, index);
+      savedEvalClone.forEach((e) => {
+        if (!e.indexed) e.namespace = switchArrayIndices(e.namespace, new_nsp);
+      });
+      return index;
+    };
+    const savedIndices = savedEvalClone
+      .filter(({ namespace }) => {
+        return replaceLastIndex(namespace) === nsp;
+      })
+      .map((e) => {
+        if (e.indexed) {
+          return parseIndex(e.namespace);
+        } else {
+          return randomIndex();
+        }
+      });
+    return savedIndices.length ? savedIndices : [randomIndex()];
+  }
+  const getSavedEval = (nsp) => {
+    const i = savedEvalClone.findIndex(({ namespace }) => {
+      return replaceLastIndex(namespace) === replaceLastIndex(nsp);
+    });
+    return i > -1 ? savedEvalClone.splice(i, 1)[0] : {};
+  };
+  const addEvaluation = (evaluation) => {
+    evaluation.errors.forEach(
+      (e) => evaluation.save && errors.push({ ...e, namespace: evaluation.namespace })
+    );
+    evaluations.push(evaluation);
+  };
+
+  //evaluate based on the result only in edit mode
+  if (editMode)
+    (function recursiveEval(data, namespace) {
+      const evaluation = evaluate(data, namespace, getSavedEval(namespace), shouldSave);
+      addEvaluation(evaluation);
+      if (evaluation.type === "object") {
+        Object.getOwnPropertyNames(data).forEach((prop) => {
+          recursiveEval(data[prop], `${namespace}.${prop}`);
+        });
+      } else if (evaluation.type === "array") {
+        const indices = getSavedIndices(data, `${namespace}[0]`);
+        indices.forEach((index) => recursiveEval(data[index], `${namespace}[${index}]`));
+      }
+    })(results, response_type);
+
+  //evaluate based on the saved evaluations
+
+  // if (!editMode) {
+  const objParser = new obj({ [response_type]: results });
+  savedEvalClone.forEach(({ namespace, ...e }) => {
+    const value = objParser.valueAtNsp(namespace);
+    if (e.save) addEvaluation(evaluate(value, namespace, e));
+  });
+  // }
+
+  Object.assign(this, {
+    evaluations: evaluations.sort((e1, e2) => e1.namespace.localeCompare(e2.namespace)),
+    errors,
+  });
+}
+
+export function getErrors({ type, value, validations, expected_type }) {
+  if (type !== expected_type && expected_type !== "mixed")
+    return [{ name: "typeError", expected: expected_type, received: type }];
+
+  switch (type) {
     case "number":
       return validateNumber(value, validations);
     case "date":
@@ -58,19 +119,8 @@ export function getErrors(type, value, validations, expected_type) {
       return validateBoolean(value, validations);
     case "null":
     case "undefined":
-      if (expected_type !== "mixed")
-        //all validation failed
-        return validations.reduce(
-          (errors, { name }) => {
-            errors[name] = true;
-            errors.count++;
-            return errors;
-          },
-          { count: 0 }
-        );
-      else return { count: 0 };
     default:
-      return { count: 0 };
+      return [];
   }
 }
 
@@ -119,72 +169,76 @@ export const defaultValue = (data_type) => {
 };
 
 const validateLength = (item, validations) =>
-  validations.reduce(
-    (errors, { name, value }) => {
-      if (name === "lengthEquals") errors[name] = item.length !== value;
-      if (name === "maxLength") errors[name] = item.length > value;
-      if (name === "minLength") errors[name] = item.length < value;
-      if (errors[name]) errors.count++;
-      return errors;
-    },
-    { count: 0 }
-  );
+  validations.reduce((errors, { name, value }) => {
+    if (name === "lengthEquals" && item.length !== value)
+      return errors.concat({ name, expected: value, received: item.length });
+    if (name === "maxLength" && item.length > value)
+      return errors.concat({ name, expected: value, received: item.length });
+    if (name === "minLength" && item.length < value)
+      return errors.concat({ name, expected: value, received: item.length });
+    return errors;
+  }, []);
 
 const validateArray = (arr, validations) =>
   validations.reduce((errors, { name, value }) => {
-    if (name === "includes") errors[name] = !arr.includes(value);
-    if (errors[name]) errors.count++;
+    if (name === "includes" && !arr.includes(value))
+      return errors.concat({ name, expected: value, received: arr });
     return errors;
   }, validateLength(arr, validations));
 
 const validateString = (str, validations) =>
   validations.reduce((errors, { name, value }) => {
-    if (name === "strEquals") errors[name] = str !== value;
-    if (name === "isLike") errors[name] = str.match(new RegExp(value, "gi")).length === 0;
-    if (name === "isOneOf" && typeof value === "string")
-      errors[name] = !value
+    if (name === "strEquals" && str !== value)
+      return errors.concat({ name, expected: value, received: str });
+    //str.match() returns null when there is no match
+    if ((name === "isLike") & !str.match(new RegExp(value, "gi")))
+      return errors.concat({ name, expected: value, received: str });
+    if (
+      name === "isOneOf" &&
+      typeof value === "string" &&
+      !value
         .split(",")
         .map((v) => v.trim())
-        .includes(str);
-    if (errors[name]) errors.count++;
+        .includes(str)
+    )
+      return errors.concat({ name, expected: value, received: str });
     return errors;
   }, validateLength(str, validations));
 
 const validateNumber = (num, validations) =>
-  validations.reduce(
-    (errors, { name, value }) => {
-      if (name === "numEquals") errors[name] = num !== value;
-      if (name === "max") errors[name] = num > value;
-      if (name === "min") errors[name] = num < value;
-      if (name === "isOneOf" && typeof value === "string")
-        errors[name] = !value
-          .split(",")
-          .map((v) => parseInt(v))
-          .includes(num);
-      if (errors[name]) errors.count++;
-      return errors;
-    },
-    { count: 0 }
-  );
+  validations.reduce((errors, { name, value }) => {
+    if (name === "numEquals" && num !== value)
+      return errors.concat({ name, expected: value, received: num });
+    if (name === "max" && num > value)
+      return errors.concat({ name, expected: value, received: num });
+    if (name === "min" && num < value)
+      return errors.concat({ name, expected: value, received: num });
+    if (
+      name === "isOneOf" &&
+      typeof value === "string" &&
+      !value
+        .split(",")
+        .map((v) => parseInt(v))
+        .includes(num)
+    )
+      return errors.concat({ name, expected: value, received: num });
+    return errors;
+  }, []);
 
 const validateBoolean = (bool, validations) =>
-  validations.reduce(
-    (errors, { name, value }) => {
-      if (name === "boolEquals") errors[name] = bool !== value;
-      if (errors[name]) errors.count++;
-      return errors;
-    },
-    { count: 0 }
-  );
+  validations.reduce((errors, { name, value }) => {
+    if (name === "boolEquals" && bool !== value)
+      return errors.concat({ name, expected: value, received: bool });
+    return errors;
+  }, []);
 
 const validateDate = (datetime, validations) =>
-  validations.reduce(
-    (errors, { name, value }) => {
-      if (name === "dateEquals") errors[name] = !moment(datetime).isSame(value);
-      if (name === "maxDate") errors[name] = moment(datetime).isAfter(value);
-      if (name === "minDate") errors[name] = moment(datetime).isBefore(value);
-      if (errors[name]) errors.count++;
-      return errors;
-    },
-    { count: 0 }
-  );
+  validations.reduce((errors, { name, value }) => {
+    if (name === "dateEquals" && !moment(datetime).isSame(value))
+      return errors.concat({ name, expected: value, received: datetime });
+    if (name === "maxDate" && moment(datetime).isAfter(value))
+      return errors.concat({ name, expected: value, received: datetime });
+    if (name === "minDate" && moment(datetime).isBefore(value))
+      return errors.concat({ name, expected: value, received: datetime });
+    return errors;
+  }, []);

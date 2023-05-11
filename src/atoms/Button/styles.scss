@@ -21,3 +21,15 @@
     top: 1px;
   }
 }
+.clear-button {
+  background: #607d8b;
+  padding: 0px 8px;
+  color: white;
+  border-radius: 17px;
+  font-weight: 600;
+  align-self: flex-end;
+  & > img {
+    width: 13px;
+    padding-top: 2px;
+  }
+}

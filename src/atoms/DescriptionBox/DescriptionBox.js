@@ -8,7 +8,7 @@ const DescriptionBox = ({ text, setValue }) => {
         className="description-box__textbox"
         name="description-box"
         id="description-box"
-        defaultValue={text}
+        value={text}
         onChange={
           setValue
             ? (e) => {

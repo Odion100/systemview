@@ -1,0 +1,25 @@
+.count {
+  background: gainsboro;
+  padding: 0px 9px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: bold;
+  color: #777777 !important;
+  margin-left: 5px;
+  display: inline-block;
+  &__stat {
+    padding: 3px 0;
+    display: inline-block;
+  }
+  &__error {
+    background: #ffc4b1;
+    color: #f44336 !important;
+  }
+  &__caution {
+    color: #bcb047 !important;
+  }
+  &__passed {
+    background: #6fc878;
+    color: #ffffff !important;
+  }
+}

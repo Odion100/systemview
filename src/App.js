@@ -1,24 +1,26 @@
 import React, { useState } from "react";
-import SystemLink from "./pages/SystemLink/SystemLink";
+import SystemView from "./pages/SystemView/SystemView";
 import ServiceContext from "./ServiceContext";
 import { BrowserRouter as Router, Route } from "react-router-dom";
 
-function App({ SystemLinkService }) {
-  const [ConnectedProject, setConnectedProject] = useState([]);
+function App({ SystemViewService }) {
+  const [connectedServices, setConnectedServices] = useState([]);
 
   return (
-    <ServiceContext.Provider value={{ SystemLinkService, ConnectedProject, setConnectedProject }}>
+    <ServiceContext.Provider
+      value={{ SystemViewService, connectedServices, setConnectedServices }}
+    >
       <Router>
         <Route
           path={[
-            "/:project_code/:service_id/:module_name/:method_name",
-            "/:project_code/:service_id/:module_name",
-            "/:project_code/:service_id",
-            "/:project_code/",
+            "/:projectCode/:serviceId/:moduleName/:methodName",
+            "/:projectCode/:serviceId/:moduleName",
+            "/:projectCode/:serviceId",
+            "/:projectCode/",
             "/",
           ]}
         >
-          <SystemLink />
+          <SystemView />
         </Route>
       </Router>
     </ServiceContext.Provider>

@@ -10,6 +10,7 @@
     margin: 0 5px;
     line-height: 16px;
     background: #5a77e5;
+    font-family: monospace;
   }
   &__data {
     background: #cecee3;
@@ -18,7 +19,10 @@
     padding: 11px;
     position: relative;
     &__delete-btn {
-      border-radius: 0px 7px 0px 0px;
+      border-radius: 0px 7px 0px 0px !important;
+      top: 0px !important;
+      right: 0px !important;
+      padding: 0px 5px 1px 5px !important;
     }
   }
 
@@ -67,7 +71,7 @@
         height: 31px;
         min-width: 100%;
         max-width: 100%;
-        resize: none;
+        max-height: 320px;
       }
       &--target {
         font-weight: bold;
@@ -81,10 +85,11 @@
     &__value {
       &--boolean {
         &--true {
-          color: #207844;
+          color: #2eab8c;
+          margin-right: 5px;
         }
         &--false {
-          color: #cf1515;
+          color: #d52518;
         }
         position: relative;
         top: 7px;
@@ -92,7 +97,11 @@
       }
     }
   }
-
+  &__quote {
+    color: #209cff;
+    font-size: 21px;
+    line-height: 1px;
+  }
   &__type {
     text-align: center;
   }
@@ -141,7 +150,8 @@
       color: #5a5a5a;
     }
     &__object {
-      background: white;
+      // background: white;
+      padding: 0;
     }
     &__boolean {
       font-weight: bold;

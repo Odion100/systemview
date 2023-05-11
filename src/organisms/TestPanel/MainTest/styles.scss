@@ -1,0 +1,143 @@
+.evaluations {
+  background: #25d0a8;
+  background: #76b1f7;
+  background: #ced8f4;
+
+  border-radius: 0px 0px 4px 4px;
+  overflow-wrap: anywhere;
+  padding: 12px 18px;
+  font-family: monospace;
+  &--visible-false {
+    display: none;
+  }
+  &__row {
+    margin: 4px;
+    padding: 8px 5px;
+  }
+
+  &__title {
+    --type-width: auto;
+    margin-left: 10px;
+    width: 100%;
+    & select {
+      width: var(--type-width);
+    }
+  }
+
+  &__input {
+    & > input {
+      width: 100%;
+      padding: 6px 9px;
+      margin: 8px 0;
+      box-sizing: border-box;
+      border: none;
+      border: 1px solid #383836;
+      background: #a5ffda;
+    }
+    &--visible-false {
+      display: none;
+    }
+  }
+  &__add-validation-btn {
+    background: #5a77ca;
+    padding: 0px 5px 1px 5px;
+    border-radius: 16px;
+    font-weight: bold;
+    color: #ffffff;
+  }
+  &__validation-container {
+    display: inline-grid;
+    margin-left: 4px;
+  }
+  &__add-btn-container {
+    display: inline-grid;
+  }
+  &__validation {
+    border-bottom: 1px solid #9797d1;
+    &__delete-btn {
+      display: inline;
+      font-family: system-ui;
+      margin-left: 6px;
+      font-size: 15px;
+      color: #6565a1;
+      &:hover {
+        color: #c30f0f;
+      }
+    }
+    &__input {
+      display: inline-flex;
+    }
+  }
+  &__type-error-msg {
+    display: none;
+    &--true {
+      display: initial;
+    }
+  }
+  &--error-true,
+  &--error-true > * {
+    color: #cd4343;
+    //color: #993939;
+    font-weight: bold;
+    //font-style: italic;
+  }
+  &__total {
+    color: grey;
+  }
+  &__checkbox {
+    cursor: pointer;
+  }
+  &__index-button {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    &.btn:hover {
+      font-weight: bold;
+      color: #2326fe;
+      color: #ff5722;
+      color: #c717e5;
+      color: #1131df;
+    }
+    &--indexed-true {
+      font-weight: bold;
+    }
+  }
+  &__namespace {
+    display: inline-flex;
+    flex-wrap: wrap;
+  }
+
+  &__index-input {
+    width: 45px;
+    height: 15px;
+  }
+
+  &__brackets {
+    align-self: baseline;
+    font-size: 14px;
+    color: black;
+    font-weight: bold;
+  }
+
+  &__index-checkbox {
+    cursor: pointer;
+  }
+  &__random {
+    align-self: baseline;
+    font-weight: bold;
+    color: #2b9b2c;
+    font-style: italic;
+  }
+  &__clear-error {
+    color: gray;
+    font-size: 16px;
+    &:hover {
+      color: black;
+    }
+  }
+  &__add-index-btn {
+    color: #2776ff;
+    font-weight: bold;
+    font-size: 16px;
+  }
+}

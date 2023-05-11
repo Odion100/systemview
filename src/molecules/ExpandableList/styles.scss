@@ -9,6 +9,10 @@
   &__button {
     text-align: left;
     display: flex;
-    padding-right: 6px;
+    & > span,
+    a {
+      display: flex;
+      align-items: center;
+    }
   }
 }

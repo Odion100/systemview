@@ -4,9 +4,7 @@
     background: #dadada;
     padding: 12px 15px;
     width: 100%;
-  }
-  & .test-caption__description-input > input {
-    border-bottom: 1px solid #c5c5c5;
+    border-radius: 5px;
   }
   &__add-btn {
     padding: 0px 4px;
@@ -15,6 +13,7 @@
     color: #5960b6;
     font-size: 16px;
     background: #cecee3;
+    font-family: monospace;
   }
 }
 

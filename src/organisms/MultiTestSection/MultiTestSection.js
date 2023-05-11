@@ -1,48 +1,69 @@
-import React from "react";
+import React, { useState } from "react";
 import ExpandableSection from "../../molecules/ExpandableSection/ExpandableSection";
 import TestCaption from "../../molecules/TestCaption/TestCaption";
 import TestContainer from "../TestContainer/TestContainer";
-import Argument from "../FullTest/components/Argument.class";
+import Argument from "../TestPanel/components/Argument.class";
+
 import "./styles.scss";
+import Count from "../../atoms/Count";
 
 const MultiTestSection = ({
   caption,
   TestController,
-  testData,
+  TestSection,
   dynamic,
-  nsp,
+  namespace,
   arg = {},
   staticArguments,
 }) => {
   const className = "multi-test-section";
-  const addTest = () =>
-    TestController.addTest(nsp, arg.name && [new Argument(arg.name, arg.Tests, arg.input_type)]);
+  const [open, setOpen] = useState(false);
 
+  const toggleExpansion = () => {
+    setOpen((state) => !state);
+  };
+
+  const addTest = () => {
+    TestController.addTest(
+      namespace,
+      arg.name && [new Argument(arg.name, arg.FullTest, arg.input_type)]
+    );
+    TestSection.length === 1 && setOpen(true);
+  };
   return (
     <section className={className}>
       <ExpandableSection
-        open={false}
+        toggleExpansion={toggleExpansion}
+        open={open}
         title={
           <>
-            <TestCaption caption={`${caption}`} />
+            <TestCaption
+              caption={
+                <span>
+                  {caption}{" "}
+                  {TestSection.length > 0 && <Count count={TestSection.length} />}
+                </span>
+              }
+            />
             <AddButton onClick={addTest} className={className} />
           </>
         }
         title_color="#0d8065"
       >
         <div className={`${className}__test-data`}>
-          {testData.length > 0 ? (
-            testData.map((test, i) => (
+          {TestSection.length > 0 ? (
+            TestSection.map((test, i) => (
               <TestContainer
                 key={i}
                 TestController={TestController}
                 test={test}
-                test_index={i}
+                testIndex={i}
                 title={`${i + 1}:`}
                 title_color={"#4b53b3"}
                 dynamic={dynamic}
                 open={true}
                 staticArguments={staticArguments}
+                multiTest
               />
             ))
           ) : (

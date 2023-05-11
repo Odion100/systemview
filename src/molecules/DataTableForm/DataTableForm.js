@@ -93,55 +93,64 @@ const MethodDataForm = ({ data, submit }) => {
             <DataTable
               tableClassName="data-table-form"
               headers={formHeaders}
-              table={dataTable.map(([name, type, description, default_value, required], i) => {
-                const _required = /true/i.test(required);
-                console.log(required, _required);
-                return [
-                  <Textbox
-                    inputClassName={`data-table-form__input-validation--${
-                      /^(?![0-9])[a-zA-Z0-9$_]+$/.test(name)
-                        ? "complete"
-                        : formSubmitted
-                        ? "invalid"
-                        : "incomplete"
-                    }`}
-                    text={name}
-                    setValue={updateCell.bind(this, i, 0)}
-                  />,
-                  <Selector
-                    options={_options}
-                    selected_option={type}
-                    onSelect={updateCell.bind(this, i, 1)}
-                    className={`data-table-form__data-type-selector`}
-                  />,
-                  <textarea
-                    value={description}
-                    className={`data-table-form__description-text data-table-form__input-validation--${
-                      description ? "complete" : formSubmitted ? "invalid" : "incomplete"
-                    }`}
-                    onChange={updateCell.bind(this, i, 2)}
-                  />,
-                  <Textbox
-                    inputClassName={`data-table-form__input-validation--${
-                      default_value ? "complete" : formSubmitted ? "invalid" : "incomplete"
-                    }`}
-                    text={default_value}
-                    setValue={updateCell.bind(this, i, 3)}
-                    disabled={_required}
-                  />,
-                  <Toggle
-                    round={true}
-                    isChecked={_required}
-                    onChange={updateCheckboxCell.bind(this, i, 4)}
-                  />,
-                  <span
-                    className="data-table-form__delete-button"
-                    onClick={deleteRow.bind(this, [i])}
-                  >
-                    x
-                  </span>,
-                ];
-              })}
+              table={dataTable.map(
+                ([name, type, description, default_value, required], i) => {
+                  const _required = /true/i.test(required);
+                  return [
+                    <Textbox
+                      inputClassName={`data-table-form__input-validation--${
+                        /^(?![0-9])[a-zA-Z0-9$_]+$/.test(name)
+                          ? "complete"
+                          : formSubmitted
+                          ? "invalid"
+                          : "incomplete"
+                      }`}
+                      text={name}
+                      setValue={updateCell.bind(this, i, 0)}
+                    />,
+                    <Selector
+                      options={_options}
+                      selected_option={type}
+                      onSelect={updateCell.bind(this, i, 1)}
+                      className={`data-table-form__data-type-selector`}
+                    />,
+                    <textarea
+                      value={description}
+                      className={`data-table-form__description-text data-table-form__input-validation--${
+                        description
+                          ? "complete"
+                          : formSubmitted
+                          ? "invalid"
+                          : "incomplete"
+                      }`}
+                      onChange={updateCell.bind(this, i, 2)}
+                    />,
+                    <Textbox
+                      inputClassName={`data-table-form__input-validation--${
+                        default_value
+                          ? "complete"
+                          : formSubmitted
+                          ? "invalid"
+                          : "incomplete"
+                      }`}
+                      text={default_value}
+                      setValue={updateCell.bind(this, i, 3)}
+                      disabled={_required}
+                    />,
+                    <Toggle
+                      round={true}
+                      isChecked={_required}
+                      onChange={updateCheckboxCell.bind(this, i, 4)}
+                    />,
+                    <span
+                      className="data-table-form__delete-button"
+                      onClick={deleteRow.bind(this, [i])}
+                    >
+                      x
+                    </span>,
+                  ];
+                }
+              )}
             />
             <span className="data-table-form__add-button" href="#" onClick={addRow}>
               +Prop

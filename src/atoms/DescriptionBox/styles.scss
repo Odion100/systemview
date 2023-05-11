@@ -4,14 +4,21 @@
   &__textbox {
     min-width: 100%;
     max-width: 100%;
-    min-height: 60vh;
+    min-height: 70vh;
     background: white;
     color: black;
     font-size: 13px;
-    padding: 8px;
+    padding: 38px;
     border-radius: 2px;
-    border: 1px solid gainsboro;
-    font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+    border: none;
     outline: none;
+    resize: none;
+    // font-family: "SF Mono", "Ubuntu Mono", monospace;
+    font-size: 15px;
+    font-weight: 500;
+
+    // background: #3d8470;
+    // color: white;
+    border-bottom: 1px solid #07625a;
   }
 }

@@ -1,0 +1,83 @@
+.test-summary {
+  padding: 8px 5px;
+  border: 1px solid #dfdfdf;
+  border-top: none;
+  border-bottom: 1px solid #e8e8e8;
+  &:last-child {
+    border-bottom: 1px solid #dfdfdf;
+  }
+  &__actions {
+    padding: 3px 0px;
+    display: flex;
+    font-weight: 300;
+  }
+  &__action-text {
+    flex: 1;
+  }
+  &__method {
+    font-family: "FS Mono", monospace;
+    margin-left: 10px;
+    margin-bottom: 10px;
+    color: #223a95;
+    color: #a954ff;
+    font-weight: 500;
+    display: flex;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    & span.collapsed-icon {
+      position: relative;
+      top: 2px;
+      left: 7px;
+    }
+  }
+  &__validations {
+    & .expandable-icon {
+      align-self: flex-end;
+      margin-left: 3px;
+    }
+  }
+  &__failed-validations {
+    padding: 4px 25px;
+    color: #ff5722;
+    font-family: monospace;
+    &--namespace {
+      color: #a954ff;
+      font-weight: 700;
+    }
+  }
+  &__header {
+    display: flex;
+    align-items: center;
+  }
+  &__parameter {
+    display: inline-flex;
+    border-radius: 4px;
+    background: white;
+    border: 1px solid #fce8ff;
+  }
+  &__comma {
+    font-weight: bold;
+    color: green;
+    font-size: 17;
+    margin-right: 3px;
+    align-self: flex-end;
+  }
+  &__parentheses {
+    font-weight: bolder;
+    font-size: 15px;
+    position: relative;
+    top: -1px;
+    align-self: flex-end;
+  }
+
+  &__results {
+    color: #a954ff;
+    font-weight: 700;
+  }
+  &__arrow {
+    margin-right: 10px;
+  }
+  &__caption--Main {
+    font-weight: bold;
+  }
+}

@@ -1,5 +1,5 @@
 .markdown {
-  font-family: Helvetica, arial, sans-serif;
+  // font-family: Helvetica, arial, sans-serif;
   font-size: 15px;
   line-height: 1.6;
   padding-top: 10px;
@@ -129,6 +129,7 @@
     color: #cccccc;
     height: 4px;
     padding: 0;
+    border-bottom: 1px solid;
   }
 
   & > h2:first-child {
@@ -217,9 +218,10 @@
   }
 
   & blockquote {
-    border-left: 4px solid #dddddd;
-    padding: 0 15px;
+    border-left: 3px solid #c3c3c3;
     color: #777777;
+    font-size: 14px;
+    text-indent: 8px;
   }
   & blockquote > :first-child {
     margin-top: 0;
@@ -343,13 +345,13 @@
   & code,
   tt {
     margin: 0 2px;
-    padding: 3px 5px;
+    padding: 2px 3px;
     white-space: nowrap;
-    border: 1px solid #dadada;
-    background-color: #f8f8f8;
+    background-color: #efeeee;
     border-radius: 3px;
-    color: #207844;
-    font-weight: 500;
+    color: #3f51b5;
+    // font-weight: 600;
+    font-size: 14px;
   }
 
   & pre code {
@@ -362,23 +364,23 @@
   }
 
   & .highlight pre {
-    background-color: #f8f8f8;
-    border: 1px solid #cccccc;
+    // background-color: #f8f8f8;
+    // border: 1px solid #cccccc;
     font-size: 13px;
-    line-height: 19px;
-    overflow: auto;
-    padding: 6px 10px;
-    border-radius: 3px;
+    // line-height: 19px;
+    // overflow: auto;
+    // padding: 6px 10px;
+    // border-radius: 3px;
   }
 
   & pre {
-    background-color: #f8f8f8;
-    border: 1px solid #cccccc;
+    // background-color: #f8f8f8;
+    // border: 1px solid #cccccc;
     font-size: 13px;
-    line-height: 19px;
-    overflow: auto;
-    padding: 6px 10px;
-    border-radius: 3px;
+    // line-height: 19px;
+    // overflow: auto;
+    // padding: 6px 10px;
+    // border-radius: 3px;
   }
   & pre code,
   pre tt {

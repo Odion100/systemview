@@ -19,4 +19,10 @@
       width: 23px !important;
     }
   }
+  &__name {
+    &--plugin a {
+      color: #4caf50;
+      font-weight: bold;
+    }
+  }
 }

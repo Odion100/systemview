@@ -1,5 +1,12 @@
 const string = {
-  options: ["Equals:", "Min Lenght:", "Max Length:", "Lenght Equals:", "Is Like:", "Is One Of:"],
+  options: [
+    "Equals:",
+    "Min Length:",
+    "Max Length:",
+    "Length Equals:",
+    "Is Like:",
+    "Is One Of:",
+  ],
   values: ["strEquals", "minLength", "maxLength", "lengthEquals", "isLike", "isOneOf"],
   inputs: ["text", "number", "number", "number", "text", "text"],
 };
@@ -9,7 +16,7 @@ const number = {
   inputs: ["number", "number", "number", "text"],
 };
 const array = {
-  options: ["Min Lenght:", "Max Length:", "Lenght Equals:", "Includes:"],
+  options: ["Min Length:", "Max Length:", "Length Equals:", "Includes:"],
   values: ["minLength", "maxLength", "lengthEquals", "includes"],
   inputs: ["number", "number", "number", "text"],
 };
@@ -24,9 +31,9 @@ const target = {
   options: [
     //string
     "Equals (str):",
-    "Min Lenght (str):",
+    "Min Length (str):",
     "Max Length (str):",
-    "Lenght Equals (str):",
+    "Length Equals (str):",
     "Is Like:",
     "Is One Of (str):",
     //number
@@ -35,9 +42,9 @@ const target = {
     "Max (num):",
     "Is One Of (num):",
     //array
-    "Min Lenght (arr):",
+    "Min Length (arr):",
     "Max Length (arr):",
-    "Lenght Equals (arr):",
+    "Length Equals (arr):",
     "Includes:",
     //date
     "Date Equals:",
@@ -98,3 +105,9 @@ const target = {
 };
 const options = { array, number, date, boolean, string, object, target };
 export default options;
+export const inputToTypes = {
+  text: "string",
+  number: "number",
+  "datetime-local": "date",
+  checkbox: "boolean",
+};

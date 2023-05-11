@@ -1,35 +1,38 @@
 import React, { useContext, useEffect, useState } from "react";
-import ReactJson from "react-json-view";
-import TestsIcon from "../../atoms/TestsIcon/TestsIcon";
 import AutoCompleteBox from "../../molecules/AutoCompleteBox/AutoCompleteBox";
-import Args from "../../molecules/Args/Args";
+import Args, { Argument } from "../../molecules/Args/Args";
 import ServiceContext from "../../ServiceContext";
 import "./styles.scss";
+import RunTestIcon from "../../atoms/RunTestIcon";
+import Evaluations from "../TestPanel/Evaluations";
+import EVAL_ICON from "../../assets/eval-icon.svg";
 
 const ScratchPad = ({
   TestController,
   test,
-  test_index = 0,
+  testIndex = 0,
   dynamic = false,
   staticArguments = false,
 }) => {
-  const placeholder = "service.module.method";
-  const { project_code, service_id, module_name, method_name } = test.namespace;
-  const [nsp, setNsp] = useState(method_name ? `${service_id}.${module_name}.${method_name}` : "");
+  const placeholder = "service.module.method ";
+  const { projectCode, serviceId, moduleName, methodName } = test.namespace;
+  const [nsp, setNsp] = useState(
+    methodName ? `${serviceId}.${moduleName}.${methodName}` : ""
+  );
   const [text_length, setLength] = useState(placeholder.length + 0.4);
   const [test_suggestions, setSuggestions] = useState([]);
-  const { ConnectedProject } = useContext(ServiceContext);
+  const { connectedServices } = useContext(ServiceContext);
   const [testResults, setTestResults] = useState(test.results);
 
   const runTest = async () => {
-    TestController.runTest(test_index);
+    TestController.runTest(testIndex);
   };
   const createSuggestions = () => {
     const new_suggestions = [];
-    ConnectedProject.forEach((service) => {
-      service.server_modules.forEach((server_module) => {
-        server_module.methods.forEach((method) => {
-          new_suggestions.push(`${service.service_id}.${server_module.name}.${method.fn}()`);
+    connectedServices.forEach((service) => {
+      service.system.connectionData.modules.forEach((mod) => {
+        mod.methods.forEach((method) => {
+          new_suggestions.push(`${service.serviceId}.${mod.name}.${method.fn}()`);
         });
       });
     });
@@ -39,22 +42,27 @@ const ScratchPad = ({
   const changeConnection = (namespaces) => {
     //remove open-close parentheses
     namespaces = namespaces.slice(0, -2);
-    const [service_id, module_name, method_name] = namespaces.split(".");
-    TestController.updateNamespace(test_index, { service_id, module_name, method_name });
+    const [serviceId, moduleName, methodName] = namespaces.split(".");
+    TestController.updateNamespace(testIndex, { serviceId, moduleName, methodName });
   };
 
   const clearResponse = () => {
-    TestController.resetResults(test_index);
+    TestController.resetResults(testIndex);
+  };
+  const resetLength = () => setLength(placeholder.length + 0.4);
+
+  const toggleValidationStatus = () => {
+    TestController.updateValidationStatus(testIndex);
   };
   useEffect(() => {
     setTestResults(test.results);
   }, [test.results]);
-  useEffect(() => createSuggestions(), [project_code, ConnectedProject]);
+  useEffect(() => createSuggestions(), [projectCode, connectedServices]);
   useEffect(() => {
-    const new_namespace = method_name ? `${service_id}.${module_name}.${method_name}` : "";
+    const new_namespace = methodName ? `${serviceId}.${moduleName}.${methodName}` : "";
     setNsp(new_namespace);
     setLength((new_namespace || placeholder).length + 0.4);
-  }, [test.namespace, ConnectedProject]);
+  }, [test.namespace, connectedServices]);
 
   const style = { "--text-length": text_length ? text_length + "ch" : "auto" };
   return (
@@ -62,7 +70,7 @@ const ScratchPad = ({
       <div className="scratchpad__test-data-container">
         <div className="scratchpad__btn-container">
           <span className="scratchpad__run-test-btn btn" onClick={runTest}>
-            <TestsIcon isSaved={true} />
+            <RunTestIcon />
           </span>
         </div>
         <div className="scratchpad__test-data">
@@ -73,12 +81,13 @@ const ScratchPad = ({
             value={`${nsp}`}
             disabled={!dynamic}
             placeholder={placeholder}
+            onBlur={resetLength}
           />
           <span className="scratchpad__test-data__parentheses">{"("}</span>
           <Args
             args={test.args}
             controller={TestController}
-            test_index={test_index}
+            testIndex={testIndex}
             locked={staticArguments}
           />
           <span className="scratchpad__test-data__parentheses">{")"}</span>
@@ -88,17 +97,29 @@ const ScratchPad = ({
             test.test_end !== null
           }`}
         >
-          <span onClick={clearResponse} className={`scratchpad__response-data__clear-btn btn`}>
+          <span
+            onClick={clearResponse}
+            className={`scratchpad__response-data__clear-btn btn`}
+          >
             x
           </span>
-          <ReactJson
-            src={testResults || {}}
-            name={test.response_type}
-            displayObjectSize={false}
-            displayDataTypes={false}
-            collapsed={true}
-          />
+          <span onClick={toggleValidationStatus} className={`scratchpad__eval-btn btn`}>
+            {test.shouldValidate ? (
+              <img style={{ width: 12 }} src={EVAL_ICON} alt="eval" />
+            ) : (
+              " + "
+            )}
+          </span>
+
+          <div className="scratchpad__response-value">
+            <span className={`scratchpad__response-type`}>{test.response_type}:</span>
+            <Argument value={testResults} />
+          </div>
         </div>
+        <Evaluations
+          updateTests={TestController.updateTests.bind({}, testIndex)}
+          test={test}
+        />
       </div>
     </div>
   );

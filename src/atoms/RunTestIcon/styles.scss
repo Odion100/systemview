@@ -1,0 +1,16 @@
+.doc-icon {
+  display: inline-flex;
+  vertical-align: middle;
+  img {
+    width: 20px;
+  }
+}
+
+.delete-button {
+  font-family: system-ui;
+  color: #c50000;
+  background: white;
+  padding: 6px 3px;
+  border-radius: 40px;
+  font-weight: 300;
+}
