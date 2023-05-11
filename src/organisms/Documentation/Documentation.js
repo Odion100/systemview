@@ -49,7 +49,7 @@ export default function Documentation({
   }, [methodName, moduleName, serviceId, Plugin]);
 
   useEffect(() => {
-    if (Plugin) Plugin.on(`reconnect`, fetchDocument.bind({}, Plugin));
+    // if (Plugin) Plugin.on(`reconnect`, fetchDocument.bind({}, Plugin));
   }, [Plugin]);
   return (
     <section className="documentation">
