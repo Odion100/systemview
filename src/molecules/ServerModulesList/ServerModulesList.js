@@ -39,7 +39,7 @@ const ServerModulesList = ({
           >
             {methods.map(({ fn }, i) => {
               const isSavedDoc = !!specList.docs.includes(`${name}.${fn}.md`);
-              const isSavedTest = !!specList.tests.includes(`${name}.${fn}.txt`);
+              const isSavedTest = !!specList.tests.includes(`${name}.${fn}.json`);
               return (
                 <div
                   key={i}

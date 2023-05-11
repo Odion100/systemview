@@ -4,7 +4,7 @@ const sections = ["Before", "Main", "Events", "After"];
 
 export default function FullTestController({ FullTest, connectedServices }) {
   this.runFullTest = async ([Before, Main, Events, After] = FullTest) => {
-    Events.forEach((test) => test.runTest);
+    Events.forEach((test) => test.runTest());
 
     await new Promise((resolve) => {
       function recursiveRunTest(tests, i = 0) {

@@ -114,7 +114,7 @@ const ArgName = ({ name, isOpen, showData }) => {
         ClassName={`${className}__expand-btn`}
         onClick={showData}
       />{" "}
-      <span className={`${className}__name__text`}>{name + ""}</span>
+      {/* <span className={`${className}__name__text`}>{name + ""}</span> */}
     </div>
   );
 };

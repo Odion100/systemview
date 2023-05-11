@@ -55,22 +55,22 @@ export default function Test({
     const args = this.args.map((arg) => arg.value());
 
     this.test_start = moment().toJSON();
+    const Module = this.connection[serviceId][moduleName];
     if (methodName === "on") {
-      logger.start(args);
-      this.connection[serviceId][moduleName].on(args[0], (e) => {
+      const eventTest = (e) => {
         this.results = e;
         this.test_end = moment().toJSON();
         this.response_type = "event";
         this.shouldValidate && this.validate();
         logger.end();
-      });
+        Module.$clearEvent(args[0], "eventTest");
+      };
+      logger.start(args);
+      Module.on(args[0], eventTest);
     } else {
       try {
         logger.start(args);
-        this.results = await this.connection[serviceId][moduleName][methodName].apply(
-          {},
-          args
-        );
+        this.results = await Module[methodName](...args);
         this.test_end = moment().toJSON();
         this.response_type = "results";
         this.shouldValidate && this.validate();

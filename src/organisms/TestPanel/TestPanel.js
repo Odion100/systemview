@@ -67,7 +67,7 @@ const FullTest = ({ serviceId, moduleName, methodName }) => {
 
     if (!error) {
       resetTests();
-      fetchTests();
+      //fetchTests();
     }
 
     setMessage({ error, message });
@@ -132,14 +132,6 @@ const FullTest = ({ serviceId, moduleName, methodName }) => {
               </span>
             </span>
           </span>
-          <div className="row test-panel__section">
-            <EventsTest
-              TestController={EventCtrl}
-              TestSection={Events}
-              namespace={eventNamespace}
-              FullTest={FullTest}
-            />
-          </div>
 
           <div className="row test-panel__section">
             <BeforeTest TestController={BeforeCtrl} TestSection={Before} />
@@ -151,7 +143,14 @@ const FullTest = ({ serviceId, moduleName, methodName }) => {
           <div className="row test-panel__section">
             <AfterTest TestController={AfterCtrl} TestSection={After} />
           </div>
-
+          <div className="row test-panel__section">
+            <EventsTest
+              TestController={EventCtrl}
+              TestSection={Events}
+              namespace={eventNamespace}
+              FullTest={FullTest}
+            />
+          </div>
           <div className="row test-panel__section">
             <SavedTests
               savedTests={savedTests}

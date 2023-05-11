@@ -43,7 +43,14 @@ const SavedTests = ({
   const runAllTests = async () => {
     setOpen(true);
     setOpenAll((state) => !state);
-    await Promise.all(savedTestList.map((FullTest, i) => runTest(i, FullTest)));
+    // await Promise.all(savedTestList.map((FullTest, i) => runTest(i, FullTest)));
+    await new Promise((resolve) => {
+      function recursiveRunTest(tests, i = 0) {
+        if (i === tests.length) resolve();
+        else runTest(i, tests[i]).then(() => recursiveRunTest(tests, i + 1));
+      }
+      recursiveRunTest(savedTestList);
+    });
   };
 
   const runTest = async (index, { Before, Main, Events, After }) => {
