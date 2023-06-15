@@ -5,13 +5,13 @@ export const isObjectLike = (value) =>
   ["object", "array", "string"].indexOf(getType(value)) > -1;
 
 export const isTargetNamespace = (str) =>
-  /^(?:before|main|after)Test\.Action\d\.(?:error|results)(?:\.(?![0-9])[a-zA-Z0-9$_]+(?:\[\d\])*)*$/.test(
+  /^(?:before|main|after)Test\.Action\d+\.(?:error|results)(?:\.(?![0-9])[a-zA-Z0-9$_]+(?:\[\d\])*)*$/.test(
     str
   );
 export const targetValueFnRegex =
-  /tv\((?:before|main|after)Test\.Action\d\.(?:error|results)(?:\.(?![0-9])[a-zA-Z0-9$_]+(?:\[\d\])*)*\)/g;
+  /tv\((?:before|main|after)Test\.Action\d+\.(?:error|results)(?:\.(?![0-9])[a-zA-Z0-9$_]+(?:\[\d\])*)*\)/g;
 export const isTargetValueFn = (str) =>
-  /^tv\((?:before|main|after)Test\.Action\d\.(?:error|results)(?:\.(?![0-9])[a-zA-Z0-9$_]+(?:\[\d\])*)*\)$/.test(
+  /^tv\((?:before|main|after)Test\.Action\d+\.(?:error|results)(?:\.(?![0-9])[a-zA-Z0-9$_]+(?:\[\d\])*)*\)$/.test(
     str
   );
 export const isEqualArrays = (a, b) => a.join(".") === b.join("."); //specifically for arrays of strings
