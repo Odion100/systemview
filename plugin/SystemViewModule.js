@@ -1,9 +1,10 @@
 const fs = require("fs");
+const getAllTests = require("./getAllTest");
 
 module.exports = (specs, projectCode, serviceId, helperMethods = {}) => {
   specs = specs.substr(-1) === "/" ? specs.substr(0, specs.length - 1) : specs;
 
-  return function Plugin() {
+  return function SystemViewPlugin() {
     const { SystemView } = this.useService("SystemView");
     Object.assign(this, helperMethods);
 
@@ -25,13 +26,20 @@ module.exports = (specs, projectCode, serviceId, helperMethods = {}) => {
       return { namespace, documentation };
     };
 
-    this.getTests = (namespace) => {
-      const fileName = `${specs}/tests/${getName(namespace)}.txt`;
-      const tests = JSON.parse(getFile(fileName) || "[]");
-      return tests;
+    this.getTests = (namespace = {}) => {
+      const { moduleName, methodName } = namespace;
+      if (methodName) {
+        const fileName = `${specs}/tests/${moduleName}.${methodName}.json`;
+        const tests = JSON.parse(getFile(fileName) || "[]");
+        return tests;
+      } else if (moduleName) {
+        return getAllTests(`${specs}/tests/`, moduleName);
+      } else {
+        return getAllTests(`${specs}/tests/`);
+      }
     };
     this.saveTest = (test, index) => {
-      const fileName = `${specs}/tests/${getName(test.namespace)}.txt`;
+      const fileName = `${specs}/tests/${getName(test.namespace)}.json`;
       const tests = JSON.parse(getFile(fileName) || "[]");
       if (typeof index === "number") {
         tests[index] = test;
@@ -43,9 +51,10 @@ module.exports = (specs, projectCode, serviceId, helperMethods = {}) => {
       return index || tests.length - 1;
     };
     this.deleteTest = (namespace, index) => {
-      const fileName = `${specs}/tests/${getName(namespace)}.txt`;
+      const fileName = `${specs}/tests/${getName(namespace)}.json`;
       const tests = JSON.parse(getFile(fileName) || "[]");
       tests.splice(index, 1);
+      console.log(tests.length);
       if (tests.length) {
         fs.writeFileSync(fileName, JSON.stringify(tests), "utf8");
       } else {
@@ -64,14 +73,14 @@ module.exports = (specs, projectCode, serviceId, helperMethods = {}) => {
       console.log(fileName);
       fs.unlinkSync(fileName);
     } catch (err) {
-      console.error(err);
+      // console.error(err);
     }
   }
   function getFile(fileName) {
     try {
       return fs.readFileSync(fileName, "utf8");
     } catch (error) {
-      console.log(error);
+      // console.log(error);
     }
   }
   function ensureDir(dir) {

@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "license": "UNLICENSED",
   "bin": {
-    "SystemView": "cli/index.js"
+    "systemview": "cli/index.js"
   },
   "dependencies": {
     "@babel/preset-react": "^7.18.6",
@@ -28,11 +28,11 @@
     "react-scripts": "^4.0.0",
     "react-syntax-highlighter": "^15.5.0",
     "remark-gfm": "^3.0.1",
-    "systemlynx": "^1.2.0",
+    "systemlynx": "^1.8.3",
     "web-vitals": "^0.2.4"
   },
   "scripts": {
-    "start": "react-scripts start",
+    "start": "nodemon api & react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"

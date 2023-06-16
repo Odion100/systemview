@@ -31,7 +31,7 @@ module.exports = function ({
           const specList = getSpecList(specs);
           console.log("reconnection");
           await SystemView.connect({ system, projectCode, serviceId, specList });
-          SystemView.on("reconnect", connectSystemView.bind(this, system));
+          // SystemView.on("reconnect", connectSystemView.bind(this, system));
         } catch (error) {
           console.log("SystemView connection failed---->", error);
         }
