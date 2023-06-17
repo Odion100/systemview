@@ -1,7 +1,7 @@
 {
   "name": "systemview",
   "description": "A documentation and testing suite for SystemLynx",
-  "version": "1.0.0",
+  "version": "1.5.2",
   "license": "UNLICENSED",
   "bin": {
     "systemview": "cli/index.js"
@@ -16,6 +16,7 @@
     "cli-handle-unhandled": "^1.1.1",
     "cli-meow-help": "^3.1.0",
     "cli-welcome": "^2.2.2",
+    "express": "^4.18.2",
     "meow": "^9.0.0",
     "moment": "^2.29.1",
     "node-sass": "^4.14.1",
@@ -78,7 +79,9 @@
     "Odion Edwards"
   ],
   "files": [
-    "index.js",
-    "utils"
+    "cli/",
+    "api/",
+    "build/",
+    "server.js"
   ]
 }
