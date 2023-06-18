@@ -1,13 +1,14 @@
-import moment from "moment";
-import {
+const moment = require("moment");
+const {
   arr,
   obj,
   parseIndex,
   replaceLastIndex,
   switchArrayIndices,
-} from "./test-helpers";
+  getType,
+} = require("./test-helpers");
 
-export function evaluate(value, namespace, savedEval = {}, shouldSave) {
+function evaluate(value, namespace, savedEval = {}, shouldSave) {
   const type = getType(value);
   const validations = savedEval.validations || [];
   const expected_type = savedEval.expected_type || type;
@@ -26,7 +27,7 @@ export function evaluate(value, namespace, savedEval = {}, shouldSave) {
   };
 }
 
-export function validateResults() {
+function validateResults() {
   const { results, response_type, savedEvaluations, editMode } = this;
   const savedEvalClone = [...savedEvaluations];
   const shouldSave = !savedEvaluations.length;
@@ -86,14 +87,11 @@ export function validateResults() {
     })(results, response_type);
 
   //evaluate based on the saved evaluations
-
-  // if (!editMode) {
   const objParser = new obj({ [response_type]: results });
   savedEvalClone.forEach(({ namespace, ...e }) => {
     const value = objParser.valueAtNsp(namespace);
     if (e.save) addEvaluation(evaluate(value, namespace, e));
   });
-  // }
 
   Object.assign(this, {
     evaluations: evaluations.sort((e1, e2) => e1.namespace.localeCompare(e2.namespace)),
@@ -101,7 +99,7 @@ export function validateResults() {
   });
 }
 
-export function getErrors({ type, value, validations, expected_type }) {
+function getErrors({ type, value, validations, expected_type }) {
   if (type !== expected_type && expected_type !== "mixed")
     return [{ name: "typeError", expected: expected_type, received: type }];
 
@@ -123,27 +121,7 @@ export function getErrors({ type, value, validations, expected_type }) {
   }
 }
 
-export function getType(value) {
-  switch (true) {
-    case typeof value === "object":
-      if (!value) return "null";
-      else if (Array.isArray(value)) return "array";
-      else return "object";
-    case typeof value === "string":
-      if (moment(value).isValid()) return "date";
-      else return "string";
-    case typeof value === "number":
-      return "number";
-    case typeof value === "boolean":
-      return "boolean";
-    case typeof value === "undefined":
-      return "undefined";
-    default:
-      return "?";
-  }
-}
-
-export const defaultValue = (data_type) => {
+const defaultValue = (data_type) => {
   switch (data_type) {
     case "string":
       return "";
@@ -241,3 +219,10 @@ const validateDate = (datetime, validations) =>
       return errors.concat({ name, expected: value, received: datetime });
     return errors;
   }, []);
+
+module.exports = {
+  evaluate,
+  validateResults,
+  getErrors,
+  defaultValue,
+};

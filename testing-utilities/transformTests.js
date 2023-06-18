@@ -1,23 +1,23 @@
-import Argument from "../TestPanel/components/Argument.class";
-import Test from "../TestPanel/components/Test.class";
+const { Argument } = require("./Argument.class");
+const Test = require("./Test.class");
 
-export function initializeSavedTests(savedTests, connectedServices) {
+function initializeSavedTests(savedTests, connectedServices) {
   return savedTests.map((ft) => {
     // context matters
     const newTests = [];
     const { title, namespace } = ft;
 
     const Before = ft.Before.map((test) =>
-      resetTest(test, newTests, connectedServices, false)
+      resetTestClass(test, newTests, connectedServices, false)
     );
     const Main = ft.Main.map((test) =>
-      resetTest(test, newTests, connectedServices, false)
+      resetTestClass(test, newTests, connectedServices, false)
     );
     const Events = ft.Events.map((test) =>
-      resetTest(test, newTests, connectedServices, false)
+      resetTestClass(test, newTests, connectedServices, false)
     );
     const After = ft.After.map((test) =>
-      resetTest(test, newTests, connectedServices, false)
+      resetTestClass(test, newTests, connectedServices, false)
     );
     newTests.push(Before);
     newTests.push(Main);
@@ -27,7 +27,7 @@ export function initializeSavedTests(savedTests, connectedServices) {
   });
 }
 
-export const resetTest = (test, FullTest, connectedServices, editMode) => {
+const resetTestClass = (test, FullTest, connectedServices, editMode) => {
   return new Test({
     ...test,
     args: test.args.map(
@@ -38,14 +38,19 @@ export const resetTest = (test, FullTest, connectedServices, editMode) => {
   }).getConnection(connectedServices);
 };
 
-export const resetFullTest = (FullTest, connectedServices, editMode) => {
+const resetFullTest = (FullTest, connectedServices, editMode) => {
   //context matters
   const newTests = [[], [], [], []];
   return FullTest.map((section, i) => {
     return section.map((test) => {
-      const newTest = resetTest(test, newTests, connectedServices, editMode);
+      const newTest = resetTestClass(test, newTests, connectedServices, editMode);
       newTests[i].push(newTest);
       return newTest;
     });
   });
+};
+module.exports = {
+  initializeSavedTests,
+  resetTestClass,
+  resetFullTest,
 };

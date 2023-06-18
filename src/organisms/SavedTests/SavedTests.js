@@ -7,7 +7,7 @@ import ExpandableSection from "../../molecules/ExpandableSection/ExpandableSecti
 import TestCaption from "../../molecules/TestCaption/TestCaption";
 import TestSummary from "../../molecules/TestSummary";
 import FullTestController from "../TestPanel/components/FullTestController";
-import { resetSavedTests, resetFullTest } from "./transformTests";
+import { initializeSavedTests, resetFullTest } from "./transformTests";
 import "./styles.scss";
 import { ClearButton } from "../../atoms/Button/Button";
 
@@ -26,7 +26,7 @@ const SavedTests = ({
   const [openAll, setOpenAll] = useState(false);
   const [closeAll, setCloseAll] = useState(false);
   const [savedTestList, setTests] = useState(
-    resetSavedTests(savedTests, connectedServices)
+    initializeSavedTests(savedTests, connectedServices)
   );
   window.savedTestList = savedTestList;
   window.savedTests = savedTests;
@@ -36,7 +36,7 @@ const SavedTests = ({
     setTests([...savedTestList]);
   };
   const clearTests = () => {
-    setTests(resetSavedTests(savedTests, connectedServices));
+    setTests(initializeSavedTests(savedTests, connectedServices));
     setCloseAll((state) => !state);
   };
 
@@ -64,7 +64,7 @@ const SavedTests = ({
     updateTests(index, { Before: B, Main: M, Events: E, After: A, title, namespace });
   };
   useEffect(() => {
-    setTests(resetSavedTests(savedTests, connectedServices));
+    setTests(initializeSavedTests(savedTests, connectedServices));
   }, [savedTests]);
   return (
     <section className={`${CLASSNAME}`}>
