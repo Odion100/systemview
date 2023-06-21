@@ -3,18 +3,22 @@ const cli = require("./utils/cli");
 
 const readline = require("readline");
 
-module.exports = function startLineReader(shutdown) {
+module.exports = function startLineReader(api) {
   const lineReader = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
   });
   const handleInput = (input = "") => {
-    const [command, argument] = input.split(" ").map((s) => s.trim());
-    if (["exit", "q"].includes(command)) {
-      shutdown();
-      lineReader.close();
+    const args = input.split(" ").map((s) => s.trim());
+    const command = args.shift();
+    if (["exit", "q", "shutdown"].includes(command)) {
+      process.exit(0);
     } else if (command === "test") {
-      runTests(argument);
+      try {
+        runTests(api, ...args);
+      } catch (error) {
+        console.error("Error executing tests:", error.message);
+      }
     } else if (command === "help") {
       cli.showHelp(0);
     }
@@ -23,5 +27,6 @@ module.exports = function startLineReader(shutdown) {
 
   lineReader.prompt();
   lineReader.on("line", handleInput);
-  lineReader.on("close", shutdown);
+  lineReader.on("close", () => process.exit(0));
+  return lineReader;
 };

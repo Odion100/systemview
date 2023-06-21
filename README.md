@@ -4,7 +4,7 @@
 
 ```javascript
 const SystemView = require("systemView")({
-  SystemViewConnection: "http://localhost:3300", //default
+  SystemViewConnection: "http://localhost:3000", //default
   SystemViewDocumentation: "./SystemView", //default
   projectCode: "ProjectName", //optional. Used to conveniently load multiple services as one project
   serviceId: "ServiceName", //required. If not included

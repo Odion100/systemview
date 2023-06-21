@@ -1,7 +1,16 @@
 const fs = require("fs");
+const appIsRunning = require("../cli/appIsRunning");
+const LOCAL_STORAGE = "./connections.txt";
 
 module.exports = function ConnectedServices() {
-  const LOCAL_STORAGE = "./api/connections.txt";
+  this.clearStorage = async () => {
+    const connections = JSON.parse(fs.readFileSync(LOCAL_STORAGE, "utf8"));
+    const appUrls = connections.map(({ system }) => system.connectionData.serviceUrl);
+    const runningApps = await Promise.all(appUrls.map(appIsRunning));
+    const filteredConnections = connections.filter((c, i) => runningApps[i]);
+    fs.writeFileSync(LOCAL_STORAGE, JSON.stringify(filteredConnections), "utf8");
+  };
+
   this.save = (serviceData, index) => {
     const connections = JSON.parse(fs.readFileSync(LOCAL_STORAGE, "utf8"));
     if (typeof index === "number") connections[index] = serviceData;
@@ -29,8 +38,5 @@ module.exports = function ConnectedServices() {
       []
     );
   };
-  // clear & ensure file existence
-  fs.writeFileSync(LOCAL_STORAGE, "[]", "utf8");
-
   return this;
 };

@@ -1,48 +1,22 @@
 const log = require("./utils/log");
-const { spawn } = require("child_process");
-const path = require("path");
 const appIsRunning = require("./appIsRunning");
-const parentDirectory = path.resolve(__dirname, "..");
-const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const launchSystemView = require("../api");
+const startLineReader = require("./startLineReader");
 
-function logConnection(api, app) {
+function logConnection(api) {
   log("connected!", "success");
-  console.log(`SystemView API running @${api}`);
-  console.log(`SystemView UI running @${app}`);
+  console.log(`SystemView UI running @${api}`);
+  console.log(`SystemView API running @${api}/systemview/api`);
 }
-module.exports = async function launchApp(_port) {
-  const port = isNaN(_port) ? 3000 : _port;
-  const env = Object.create(process.env);
-  const api = `http://localhost:${3300}/systemview/api`;
-  const app = `http://localhost:${port}/`;
-  env.PORT = port;
-
-  if (await appIsRunning([api, app])) {
+module.exports = async function launchApp(port) {
+  const api = `http://localhost:${port}/systemview/api`;
+  if (await appIsRunning(api)) {
     log("SystemView is running from another terminal", "info", "info");
-    logConnection(api, app);
-    return true;
+    logConnection(api);
   } else {
     log("Launching...");
-
-    const appProcess = spawn("node", ["api & node server"], {
-      stdio: ["inherit"],
-      shell: true,
-      env,
-      cwd: parentDirectory,
-    });
-
-    appProcess.on("close", (code) => {
-      console.log(`SystemView APP exited with code ${code}`);
-    });
-    const shutdown = () => {
-      if (appProcess) appProcess.kill();
-    };
-
-    await delay(2000);
-    const isRunning = await appIsRunning([api, app]);
-    if (isRunning) {
-      logConnection(api, app);
-      return shutdown;
-    }
+    await launchSystemView(port);
+    logConnection(api);
+    startLineReader(api);
   }
 };

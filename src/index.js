@@ -7,7 +7,7 @@ import reportWebVitals from "./reportWebVitals";
 // import "./assets/fonts/Malkor-Regular.ttf";
 import { Client } from "systemlynx";
 
-const url = "http://localhost:3300/systemview/api";
+const url = "http://localhost:3000/systemview/api";
 
 Client.loadService(url).then((SystemViewService) => {
   ReactDOM.render(

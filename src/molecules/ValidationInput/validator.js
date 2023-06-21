@@ -5,7 +5,7 @@ import {
   parseIndex,
   replaceLastIndex,
   switchArrayIndices,
-} from "./test-helpers";
+} from "../../organisms/TestPanel/components/test-helpers";
 
 export function evaluate(value, namespace, savedEval = {}, shouldSave) {
   const type = getType(value);

@@ -1,8 +1,9 @@
 const { HttpClient: http, App } = require("systemlynx");
 const LocalStorage = require("./Connections")();
 const route = "systemview/api";
-const port = 3300;
 const host = "localhost";
+const express = require("express");
+const path = require("path");
 const isUrl = (str) =>
   /^(http:\/\/|https:\/\/)?((localhost|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})|([a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,5}))(:[0-9]{1,5})?(\/.*)?$/.test(
     str
@@ -38,6 +39,7 @@ function updateSpecList(specList, projectCode, serviceId) {
 function getServices(searchText) {
   if (isUrl(searchText)) {
     const { service } = LocalStorage.findService(searchText);
+
     if (service) {
       const project = { ...service, projectCode: "SystemLynx", serviceId: "Service" };
       connect(project);
@@ -67,12 +69,32 @@ async function getConnectionData(url) {
   }
 }
 
-App.startService({
-  route,
-  port,
-  host,
-}).module("SystemView", {
-  connect,
-  getServices,
-  updateSpecList,
-});
+const shutdown = () => process.exit(0);
+
+module.exports = function launchSystemView(port = 3000) {
+  const { server } = App;
+  const buildPath = path.resolve(__dirname, "../build");
+  const indexPath = path.join(buildPath, "index.html");
+
+  server.use(express.static(buildPath));
+
+  App.startService({
+    route,
+    port,
+    host,
+    staticRouting: true,
+  })
+    .module("SystemView", {
+      connect,
+      getServices,
+      updateSpecList,
+      shutdown,
+    })
+    .on("ready", () => {
+      server.get("*", (req, res) => {
+        res.sendFile(indexPath);
+      });
+      LocalStorage.clearStorage();
+    });
+  return new Promise((resolve) => App.on("ready", resolve));
+};
