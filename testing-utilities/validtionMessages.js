@@ -11,7 +11,7 @@ module.exports = function validationMessage({ name, namespace, expected, receive
 const errorMessages = {
   typeError: (namespace, expected, received) => {
     const a = isVowel(expected) ? "an" : "a";
-    return `Expected ${namespace}to be ${a} ${expected}, received ${received}`;
+    return `Expected ${namespace} to be ${a} ${expected}, received ${received}`;
   },
 
   lengthEquals: (namespace, expected, received) =>

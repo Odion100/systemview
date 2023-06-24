@@ -30,11 +30,11 @@
     "react-syntax-highlighter": "^15.5.0",
     "readline": "^1.3.0",
     "remark-gfm": "^3.0.1",
-    "systemlynx": "^1.9.4",
+    "systemlynx": "^1.9.5",
     "web-vitals": "^0.2.4"
   },
   "scripts": {
-    "start": "nodemon api & react-scripts start",
+    "start": "nodemon cli",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"

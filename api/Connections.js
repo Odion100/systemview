@@ -1,6 +1,6 @@
 const fs = require("fs");
 const appIsRunning = require("../cli/appIsRunning");
-const LOCAL_STORAGE = "./connections.txt";
+const LOCAL_STORAGE = `${__dirname}/connections.txt`;
 
 module.exports = function ConnectedServices() {
   this.clearStorage = async () => {

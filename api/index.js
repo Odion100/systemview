@@ -1,5 +1,5 @@
 const { HttpClient: http, App } = require("systemlynx");
-const LocalStorage = require("./Connections")();
+const ConnectedServices = require("./Connections")();
 const route = "systemview/api";
 const host = "localhost";
 const express = require("express");
@@ -10,7 +10,7 @@ const isUrl = (str) =>
   );
 
 function connect({ system, projectCode, serviceId, specList }) {
-  const { service, index } = LocalStorage.findService(
+  const { service, index } = ConnectedServices.findService(
     system.connectionData.serviceUrl,
     projectCode
   );
@@ -20,15 +20,19 @@ function connect({ system, projectCode, serviceId, specList }) {
     service.projectCode = projectCode;
     service.serviceId = serviceId;
     service.specList = specList;
-    LocalStorage.save(service, index);
-  } else LocalStorage.save({ system, projectCode, serviceId, specList });
+    ConnectedServices.save(service, index);
+  } else ConnectedServices.save({ system, projectCode, serviceId, specList });
 }
 
 function updateSpecList(specList, projectCode, serviceId) {
-  const { service, index } = LocalStorage.findService(undefined, projectCode, serviceId);
+  const { service, index } = ConnectedServices.findService(
+    undefined,
+    projectCode,
+    serviceId
+  );
   if (service) {
     service.specList = specList;
-    LocalStorage.save(service, index);
+    ConnectedServices.save(service, index);
     this.emit(`spec-list-updated:${projectCode}`, {
       projectCode,
       serviceId,
@@ -38,7 +42,7 @@ function updateSpecList(specList, projectCode, serviceId) {
 }
 function getServices(searchText) {
   if (isUrl(searchText)) {
-    const { service } = LocalStorage.findService(searchText);
+    const { service } = ConnectedServices.findService(searchText);
 
     if (service) {
       const project = { ...service, projectCode: "SystemLynx", serviceId: "Service" };
@@ -48,7 +52,7 @@ function getServices(searchText) {
       return getConnectionData(searchText);
     }
   } else {
-    return LocalStorage.findProject(searchText);
+    return ConnectedServices.findProject(searchText);
   }
 }
 
@@ -94,7 +98,8 @@ module.exports = function launchSystemView(port = 3000) {
       server.get("*", (req, res) => {
         res.sendFile(indexPath);
       });
-      LocalStorage.clearStorage();
+      ConnectedServices.clearStorage();
     });
+
   return new Promise((resolve) => App.on("ready", resolve));
 };

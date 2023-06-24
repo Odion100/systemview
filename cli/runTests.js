@@ -3,6 +3,8 @@ const { initializeSavedTests } = require("../testing-utilities/transformTests");
 const FullTestController = require("../testing-utilities/FullTestController");
 const log = require("./utils/log");
 const validationMessages = require("../testing-utilities/validtionMessages");
+const { runFullTest } = new FullTestController();
+
 const PARTITION =
   "-------------------------------------------------------------------------";
 
@@ -84,36 +86,21 @@ const Logger = function (trackTime) {
     // }
   };
 };
-const sections = ["Before", "Main", "Events", "After"];
-const { runFullTest } = new FullTestController();
 
 const runAllTests = async (savedTest, trackTime) => {
   const runTest = async ({ Before, Main, Events, After }) => {
     const fullTest = [Before, Main, Events, After];
-    const testResults = await runFullTest(fullTest, new Logger(trackTime));
-    const { title, namespace, results } = Main[0];
-    const { serviceId, moduleName, methodName } = namespace;
-    const totalError = testResults.reduce((sum, testSection) => {
-      return sum + testSection.reduce((sum, test) => (sum += test.errors.length), 0);
-    }, 0);
-    //console.log(PARTITION);
+    await runFullTest(fullTest, new Logger(trackTime));
+    const { namespace } = Main[0];
+    const { moduleName, methodName } = namespace;
+
+    log(`Testing --> ${moduleName}.${methodName}(...)`, "info", namespace.serviceId);
     console.log(PARTITION);
-    if (totalError) {
-      log(title + ` (${totalError} errors)`, "error", namespace.serviceId);
-      testResults.forEach((testSection) => {
-        testSection.forEach(({ errors, results, namespace, title }, i) => {
-          const { serviceId, moduleName, methodName } = namespace;
-          log(title, "error", sections[i]);
-          console.log(`${serviceId}${moduleName}.${methodName}(...)`);
-          console.log("results:", results);
-          errors.forEach((err) => console.log(validationMessages(err)));
-        });
-      });
-    } else {
-      log(title, "success", namespace.serviceId);
-      console.log(`Main: ${serviceId}.${moduleName}.${methodName}(...)\n`);
-      console.log("results:", results);
-    }
+    console.log(PARTITION);
+    logTestSection(Before, "Before");
+    logTestSection(Main, "Main", true);
+    logTestSection(Events, "Events");
+    logTestSection(After, "After");
   };
 
   await new Promise((resolve) => {
@@ -124,6 +111,21 @@ const runAllTests = async (savedTest, trackTime) => {
     recursiveRunTest();
   });
 };
+
+function logTestSection(tests, section, logSuccess = false) {
+  tests.forEach(({ errors, results, namespace, title, response_type }, i) => {
+    const { serviceId, moduleName, methodName } = namespace;
+    const LOG_TYPE = errors.length ? "error" : "success";
+    const LABEL = LOG_TYPE === "error" ? "FAILED" : "PASSED";
+    if (LOG_TYPE === "error" || logSuccess) {
+      log(title, "info", section + ":");
+      log(`${serviceId}.${moduleName}.${methodName}(...)`, LOG_TYPE, `${LABEL}`);
+      console.log(`${response_type}:`, results);
+      errors.forEach((err) => console.log(`-> ${validationMessages(err)}`));
+      console.log(PARTITION);
+    }
+  });
+}
 async function getTests(connectedServices) {
   return await new Promise(async (resolve) => {
     const results = [];
@@ -149,6 +151,6 @@ async function getConnectedServices(api, project_code) {
       return await SystemView.getServices(project_code);
     } catch (error) {}
   } catch (error) {
-    console.log("Failed to connect to systemview");
+    console.log("Failed to connect to systemview", error);
   }
 }

@@ -100,6 +100,7 @@ module.exports = function Test({
       const { connectionData } = service.system;
 
       this.connection[serviceId] = Client.createService(connectionData);
+      this.connection[serviceId].setHeaders({ Origin: `http://localhost:${3000}` });
     }
 
     return this;
