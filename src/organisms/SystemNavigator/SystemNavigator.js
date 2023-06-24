@@ -22,7 +22,6 @@ const SystemNav = ({ projectCode, serviceId, moduleName, methodName }) => {
   const { SystemView } = SystemViewService;
 
   const fetchProject = async (pc = projectCode) => {
-    console.log("fetchProject------->");
     try {
       const results = await SystemView.getServices(pc);
       setConnectedServices(results);

@@ -94,7 +94,7 @@ const runAllTests = async (savedTest, trackTime) => {
     const { namespace } = Main[0];
     const { moduleName, methodName } = namespace;
 
-    log(`Testing --> ${moduleName}.${methodName}(...)`, "info", namespace.serviceId);
+    log(`Testing: ${moduleName}.${methodName}(...)`, "info", namespace.serviceId);
     console.log(PARTITION);
     console.log(PARTITION);
     logTestSection(Before, "Before");

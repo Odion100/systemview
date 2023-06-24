@@ -7,6 +7,7 @@
  * @author Odion Edwards <none>
  */
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+const openBrowser = require("./openBrowser");
 const init = require("./utils/init");
 const cli = require("./utils/cli");
 const log = require("./utils/log");
@@ -15,30 +16,27 @@ const launchApp = require("./launchApp");
 const runTests = require("./runTests");
 const appIsRunning = require("./appIsRunning");
 const { HttpClient } = require("systemlynx");
-const startLineReader = require("./startLineReader");
 
 const input = cli.input;
 const flags = cli.flags;
 const { clear, debug } = flags;
 const DEFAULT_PORT = 3000;
 
-async function startApp(input = []) {
+async function startApp() {
   const port = isNaN(input[1]) ? DEFAULT_PORT : input[1];
-  const api = `http://localhost:${port}/systemview/api`;
   try {
     await launchApp(port);
-    return startLineReader(api);
   } catch (error) {
     log("Launch failed:" + error.message, "error");
     console.log(error);
   }
 }
 
-async function startTest(input = []) {
+async function startTest() {
   const api = `http://localhost:${DEFAULT_PORT}/systemview/api`;
   input.shift();
   try {
-    const lineReader = await startApp();
+    const lineReader = await launchApp();
     setTimeout(async () => {
       await runTests(api, ...input);
       lineReader.prompt();
@@ -48,7 +46,19 @@ async function startTest(input = []) {
   }
 }
 
-async function quitApp(input = []) {
+async function open() {
+  const port = isNaN(input[1]) ? DEFAULT_PORT : input[1];
+  const ui = `http://localhost:${DEFAULT_PORT}`;
+  const api = `${ui}/systemview/api`;
+  if (await appIsRunning(api)) {
+    openBrowser(ui);
+    process.exit(0);
+  } else {
+    await launchApp(port);
+    openBrowser(ui);
+  }
+}
+async function quitApp() {
   const port = isNaN(input[1]) ? DEFAULT_PORT : input[1];
   const api = `http://localhost:${port}/systemview/api`;
 
@@ -77,16 +87,18 @@ async function quitApp(input = []) {
 
 (async () => {
   init({ clear });
-  if (input.includes(`help`)) {
+  if (input[0] === "open") {
+    open();
+  } else if (input.includes(`help`)) {
     cli.showHelp(0);
   } else if (input.includes("test")) {
-    startTest(input);
+    startTest();
   } else if (["exit", "q", "shutdown"].includes(input[0])) {
-    quitApp(input);
+    quitApp();
   } else if (input[0] === "start") {
     startApp();
   } else {
-    startApp();
+    await startApp();
   }
   cli.input = [];
   debug && log(flags);

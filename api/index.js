@@ -98,6 +98,7 @@ module.exports = function launchSystemView(port = 3000) {
       server.get("*", (req, res) => {
         res.sendFile(indexPath);
       });
+
       ConnectedServices.clearStorage();
     });
 

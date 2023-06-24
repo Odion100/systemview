@@ -1,7 +1,7 @@
 {
   "name": "systemview",
   "description": "A documentation and testing suite for SystemLynx",
-  "version": "1.7.5",
+  "version": "1.10.6",
   "license": "UNLICENSED",
   "bin": {
     "systemview": "cli/index.js"
@@ -30,7 +30,7 @@
     "react-syntax-highlighter": "^15.5.0",
     "readline": "^1.3.0",
     "remark-gfm": "^3.0.1",
-    "systemlynx": "^1.9.5",
+    "systemlynx": "^1.10.6",
     "web-vitals": "^0.2.4"
   },
   "scripts": {
