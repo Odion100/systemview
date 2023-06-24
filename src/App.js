@@ -22,7 +22,6 @@ function App({ SystemViewService }) {
         >
           <SystemView />
         </Route>
-        <Redirect to="/" />
       </Router>
     </ServiceContext.Provider>
   );

@@ -36,10 +36,10 @@ async function startTest() {
   const api = `http://localhost:${DEFAULT_PORT}/systemview/api`;
   input.shift();
   try {
-    const lineReader = await launchApp();
+    const lineReader = await launchApp(DEFAULT_PORT);
     setTimeout(async () => {
       await runTests(api, ...input);
-      lineReader.prompt();
+      if (lineReader) lineReader.prompt();
     }, 0);
   } catch (error) {
     console.error("Error executing tests:", error.message);
