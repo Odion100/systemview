@@ -19,6 +19,6 @@ module.exports = async function launchApp(port) {
     log("Launching...");
     await launchSystemView(port);
     logConnection();
-    return startLineReader(api);
+    return startLineReader(ui);
   }
 };
