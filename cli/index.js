@@ -24,6 +24,7 @@ const DEFAULT_PORT = 3000;
 
 async function startApp() {
   const port = isNaN(input[1]) ? DEFAULT_PORT : input[1];
+
   try {
     await launchApp(port);
   } catch (error) {
@@ -33,13 +34,17 @@ async function startApp() {
 }
 
 async function startTest() {
-  const api = `http://localhost:${DEFAULT_PORT}/systemview/api`;
+  const url = `http://localhost:${DEFAULT_PORT}`;
   input.shift();
   try {
     const lineReader = await launchApp(DEFAULT_PORT);
     setTimeout(async () => {
-      await runTests(api, ...input);
-      if (lineReader) lineReader.prompt();
+      await runTests(url, ...input);
+      if (lineReader) {
+        lineReader.prompt();
+      } else {
+        process.exit(0);
+      }
     }, 0);
   } catch (error) {
     console.error("Error executing tests:", error.message);
@@ -47,15 +52,16 @@ async function startTest() {
 }
 
 async function open() {
-  const port = isNaN(input[1]) ? DEFAULT_PORT : input[1];
+  const project_code = input[1];
+  const namespace = input[2];
   const ui = `http://localhost:${DEFAULT_PORT}`;
   const api = `${ui}/systemview/api`;
   if (await appIsRunning(api)) {
-    openBrowser(ui);
+    openBrowser(ui, project_code, namespace);
     process.exit(0);
   } else {
-    await launchApp(port);
-    openBrowser(ui);
+    await launchApp(DEFAULT_PORT);
+    openBrowser(ui, project_code, namespace);
   }
 }
 async function quitApp() {
@@ -93,7 +99,7 @@ async function quitApp() {
     cli.showHelp(0);
   } else if (input.includes("test")) {
     startTest();
-  } else if (["exit", "q", "shutdown"].includes(input[0])) {
+  } else if (["exit", "q", "shutdown", "stop"].includes(input[0])) {
     quitApp();
   } else if (input[0] === "start") {
     startApp();

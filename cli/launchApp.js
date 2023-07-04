@@ -9,7 +9,7 @@ module.exports = async function launchApp(port) {
   function logConnection() {
     log("connected!", "success");
     console.log(`SystemView UI running @${ui}`);
-    console.log(`SystemView API running @${api}`);
+    console.log(`SystemView API running @${api}\n`);
   }
 
   if (await appIsRunning(api)) {

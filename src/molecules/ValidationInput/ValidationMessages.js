@@ -28,7 +28,7 @@ const typeError = (namespace, expected, pretext, received, amendment) => {
       {an(expected)} <span className={`${className}__expected`}>{expected} </span>
       {received && (
         <span>
-          (received {an(received)} {received})
+          (, but received {an(received)} {received})
         </span>
       )}
       {amendment && amendment}
@@ -39,52 +39,56 @@ const lengthEquals = (namespace, expected, PRETEXT, received) => (
   <div className={`${className}__message`}>
     {PRETEXT} <span className={`${className}__namespace`}>{namespace}</span> to have a
     length of <span className={`${className}__expected`}>{expected}</span>
-    {received && <span> (received {received})</span>}
+    {received && <span> (, but received {received})</span>}
   </div>
 );
 const maxLength = (namespace, expected, PRETEXT, received) => (
   <div className={`${className}__message`}>
     {PRETEXT} <span className={`${className}__namespace`}>{namespace}</span> to have a
     maximum length of <span className={`${className}__expected`}>{expected}</span>
-    {received && <span> (received {received})</span>}
+    {received && <span> (, but received {received})</span>}
   </div>
 );
 const minLength = (namespace, expected, PRETEXT, received) => (
   <div className={`${className}__message`}>
     {PRETEXT} <span className={`${className}__namespace`}>{namespace}</span> to have a
     minimum length of <span className={`${className}__expected`}>{expected}</span>
-    {received && <span> (received {received})</span>}
+    {received && <span> (, but received {received})</span>}
   </div>
 );
-const includes = (namespace, expected, PRETEXT) => (
+const includes = (namespace, expected, PRETEXT, received) => (
   <div className={`${className}__message`}>
     {PRETEXT} <span className={`${className}__namespace`}>{namespace}</span> to include
     the following value: <span className={`${className}__expected`}>{expected}</span>
+    {received && <span> (, but received {received})</span>}
   </div>
 );
-const isLike = (namespace, expected, PRETEXT) => (
+const isLike = (namespace, expected, PRETEXT, received) => (
   <div className={`${className}__message`}>
     {PRETEXT} <span className={`${className}__namespace`}>{namespace}</span> to be like
     the following expression: <span className={`${className}__expected`}>{expected}</span>
+    {received && <span> (, but received {received})</span>}
   </div>
 );
-const isOneOf = (namespace, expected, PRETEXT) => (
+const isOneOf = (namespace, expected, PRETEXT, received) => (
   <div className={`${className}__message`}>
     {PRETEXT} <span className={`${className}__namespace`}>{namespace}</span> to be one of
     the following values: <span className={`${className}__expected`}>{expected}</span>
+    {received && <span> (, but received {received})</span>}
   </div>
 );
-const strEquals = (namespace, expected, PRETEXT) => (
+const strEquals = (namespace, expected, PRETEXT, received) => (
   <div className={`${className}__message`}>
     {PRETEXT} <span className={`${className}__namespace`}>{namespace}</span> to equal{" "}
     <span className={`${className}__expected`}>"{expected}"</span>
+    {received && <span> (, but received {received})</span>}
   </div>
 );
 const numEquals = (namespace, expected, PRETEXT, received) => (
   <div className={`${className}__message`}>
     {PRETEXT} <span className={`${className}__namespace`}>{namespace}</span> to equal{" "}
     <span className={`${className}__expected`}>{parseInt(expected)} </span>
-    {received && <span> (received {received})</span>}
+    {received && <span> (, but received {received})</span>}
   </div>
 );
 const max = (namespace, expected, PRETEXT, received) => (
@@ -96,7 +100,7 @@ const max = (namespace, expected, PRETEXT, received) => (
       undefined,
       <span>
         less than <span className={`${className}__expected`}>{expected}</span>
-        {received && <span> (received {received})</span>}
+        {received && <span> (, but received {received})</span>}
       </span>
     )}
   </div>
@@ -110,7 +114,7 @@ const min = (namespace, expected, PRETEXT, received) => (
       undefined,
       <span>
         greater than <span className={`${className}__expected`}>{expected}</span>
-        {received && <span> (received {received})</span>}
+        {received && <span> (, but received {received})</span>}
       </span>
     )}
   </div>
@@ -118,7 +122,7 @@ const min = (namespace, expected, PRETEXT, received) => (
 const boolEquals = (namespace, expected, PRETEXT, received) => (
   <div className={`${className}__message`}>
     {PRETEXT} <span className={`${className}__namespace`}>{namespace}</span> to be{" "}
-    {expected.toString()} {received && <span> (received {received})</span>}
+    {expected.toString()} {received && <span> (, but received {received})</span>}
   </div>
 );
 const dateEquals = (namespace, expected, PRETEXT) => (
@@ -156,23 +160,3 @@ export const ErrorMessages = {
   minDate,
   maxDate,
 };
-// export const errorMessages = {
-//   typeError= (namespace, expected) => {
-//     const a = isVowel(e) ? "an" : "a";
-//     return `Expected ${namespace}to be ${a} ${expected}`;
-//   },
-//   lengthEquals= (namespace, expected) => `Expected ${namespace} to have a length of ${expected}`,
-//   maxLength= (namespace, expected) => `Expected ${namespace} to have a maximum length of ${expected}`,
-//   minLength= (namespace, expected) => `Expected ${namespace} to have a minimum length of ${expected}`,
-//   includes= (namespace, expected) => `Expected ${namespace} to include the following value: ${expected}`,
-//   isLike= (namespace, expected) => `Expected ${namespace} to be like the following expression: ${expected}`,
-//   isOneOf= (namespace, expected) => `Expected ${namespace} to be one of the following values: ${expected}`,
-//   strEquals= (namespace, expected) => `Expected ${namespace} to equal "${expected}"`,
-//   numEquals= (namespace, expected) => `Expected ${namespace} to equal ${expected}`,
-//   max= (namespace, expected) => `Expected ${namespace} to be less than ${expected}`,
-//   min= (namespace, expected) => `Expected ${namespace} to be greater than ${expected}`,
-//   boolEquals= (namespace, expected) => `Expected ${namespace} to be ${e.toString()}`,
-//   dateEquals= (namespace, expected) => `Expected ${namespace} to be ${moment(e).format()}`,
-//   minDate= (namespace, expected) => `Expected ${namespace} to be a date/time later than ${expected}`,
-//   maxDate= (namespace, expected) => `Expected ${namespace} to be a date/time earlier than ${expected}`,
-// };

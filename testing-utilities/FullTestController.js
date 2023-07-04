@@ -3,13 +3,13 @@ const Test = require("./Test.class");
 const sections = ["Before", "Main", "Events", "After"];
 
 module.exports = function FullTestController({ FullTest, connectedServices } = {}) {
-  this.runFullTest = async ([Before, Main, Events, After] = FullTest || [], Logger) => {
-    Events.forEach((test) => test.runTest(Logger));
+  this.runFullTest = async ([Before, Main, Events, After] = FullTest || []) => {
+    Events.forEach((test) => test.runTest());
 
     await new Promise((resolve) => {
       function recursiveRunTest(tests, i = 0) {
         if (i === tests.length) resolve();
-        else tests[i].runTest(Logger).then(() => recursiveRunTest(tests, i + 1));
+        else tests[i].runTest().then(() => recursiveRunTest(tests, i + 1));
       }
       recursiveRunTest([...Before, ...Main, ...After]);
     });

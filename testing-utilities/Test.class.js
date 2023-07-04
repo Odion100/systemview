@@ -11,6 +11,7 @@ module.exports = function Test({
   savedEvaluations = [],
   index,
   editMode = true,
+  logger,
 }) {
   this.index = index;
   this.connection = {};
@@ -49,8 +50,7 @@ module.exports = function Test({
 
   this.validate = validateResults.bind(this);
 
-  this.runTest = async (_logger) => {
-    const logger = _logger || new TestLogger(this);
+  this.runTest = async () => {
     const { serviceId, moduleName, methodName } = this.namespace;
     const args = this.args.map((arg) => arg.value());
 
@@ -62,25 +62,25 @@ module.exports = function Test({
         this.test_end = moment().toJSON();
         this.response_type = "event";
         this.shouldValidate && this.validate();
-        logger.end(this);
+        if (logger) logger.end(this);
         Module.$clearEvent(args[0], "eventTest");
       };
-      logger.start(args);
+      if (logger) logger.start(args);
       Module.on(args[0], eventTest);
     } else {
       try {
-        logger.start(args);
+        if (logger) logger.start(args);
         this.results = await Module[methodName](...args);
         this.test_end = moment().toJSON();
         this.response_type = "results";
         this.shouldValidate && this.validate();
-        logger.end(this);
+        if (logger) logger.end(this);
       } catch (error) {
         this.test_end = moment().toJSON();
         this.results = error;
         this.response_type = "error";
         this.shouldValidate && this.validate();
-        logger.end(this);
+        if (logger) logger.end(this);
       }
     }
     return this;
@@ -137,27 +137,3 @@ module.exports = function Test({
     );
   };
 };
-
-function TestLogger(test) {
-  this.start = (args) => {
-    const { serviceId, moduleName, methodName } = test.namespace;
-
-    console.log(
-      `[${moment(this.test_start).format(
-        "L LTS"
-      )}]> [invoking]:${serviceId}.${moduleName}.${methodName}()`
-    );
-    console.log.apply({}, ["args:"].concat(args));
-  };
-  this.end = () => {
-    const { serviceId, moduleName, methodName } = test.namespace;
-    const { results, response_type } = test;
-    console.log(
-      `[${moment(this.test_end).format(
-        "L LTS"
-      )}]> [${response_type}]:${serviceId}.${moduleName}.${methodName}()`,
-      `${response_type}:`,
-      results
-    );
-  };
-}
