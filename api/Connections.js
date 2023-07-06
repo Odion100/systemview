@@ -1,14 +1,35 @@
 const fs = require("fs");
-const appIsRunning = require("../cli/appIsRunning");
+const { Client } = require("systemlynx");
 const LOCAL_STORAGE = `${__dirname}/connections.txt`;
 
+function refreshConnections(connections) {
+  return new Promise((resolve) => {
+    const newConnections = [];
+    const recursiveCheckConnection = async (i = 0) => {
+      if (i === connections.length) return resolve(newConnections);
+
+      const { serviceUrl } = connections[i].system.connectionData;
+      try {
+        const { Plugin } = await Client.loadService(serviceUrl);
+        if (Plugin) {
+          newConnections.push(await Plugin.getConnection());
+        }
+        recursiveCheckConnection(i + 1);
+      } catch (error) {
+        recursiveCheckConnection(i + 1);
+      }
+    };
+
+    recursiveCheckConnection();
+  });
+}
+
 module.exports = function ConnectedServices() {
-  this.clearStorage = async () => {
+  this.refreshConnections = async () => {
     const connections = JSON.parse(fs.readFileSync(LOCAL_STORAGE, "utf8"));
-    const appUrls = connections.map(({ system }) => system.connectionData.serviceUrl);
-    const runningApps = await Promise.all(appUrls.map(appIsRunning));
-    const filteredConnections = connections.filter((c, i) => runningApps[i]);
-    fs.writeFileSync(LOCAL_STORAGE, JSON.stringify(filteredConnections), "utf8");
+    const newConnections = await refreshConnections(connections);
+    if (newConnections.length)
+      fs.writeFileSync(LOCAL_STORAGE, JSON.stringify(newConnections), "utf8");
   };
 
   this.save = (serviceData, index) => {

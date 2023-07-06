@@ -99,7 +99,7 @@ module.exports = function launchSystemView(port = 3000) {
         res.sendFile(indexPath);
       });
 
-      ConnectedServices.clearStorage();
+      ConnectedServices.refreshConnections();
     });
 
   return new Promise((resolve) => App.on("ready", resolve));

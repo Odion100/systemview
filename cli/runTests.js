@@ -31,7 +31,6 @@ module.exports = async function runTests(url, project_code, namespace) {
   }
 
   const testsReceived = await getTests(connectedServices);
-
   const testToRun = !namespace
     ? testsReceived
     : testsReceived
@@ -69,7 +68,7 @@ module.exports = async function runTests(url, project_code, namespace) {
     for (let key in summary) {
       const { passed, failed } = summary[key];
       log(
-        `total: ${passed + failed}, passed: ${passed}, failed: ${failed}`,
+        `tests: ${passed + failed}, passed: ${passed}, failed: ${failed}`,
         failed ? "error" : "success",
         key
       );
@@ -83,9 +82,9 @@ const runAllTests = async (savedTest, url, project_code) => {
   const sum = { passed: 0, failed: 0 };
   const runTest = async ({ Before, Main, Events, After }) => {
     const fullTest = [Before, Main, Events, After];
-    await runFullTest(fullTest);
     const { namespace } = Main[0];
     const { moduleName, methodName, serviceId } = namespace;
+
     console.log(PARTITION);
     log(
       `testing -> ${serviceId}.${moduleName}.${methodName}(...)`,
@@ -96,6 +95,8 @@ const runAllTests = async (savedTest, url, project_code) => {
       `systemview ui -> @${url}/${project_code}/${serviceId}/${moduleName}/${methodName}`
     );
     console.log(PARTITION);
+
+    await runFullTest(fullTest);
     if (
       logResults(Before, "Before") +
       logResults(Main, "Main", true) +
@@ -147,7 +148,7 @@ async function getTests(connectedServices) {
         try {
           results.push(await Client.createService(connectionData).Plugin.getTests());
         } catch (error) {
-          console.log(`Failed to retrieve test from:${connectionData.serviceUrl}`);
+          console.log(`Failed to retrieve test from:${connectionData.serviceUrl}:\n`);
         }
 
         await recursiveGetTests(i + 1);
