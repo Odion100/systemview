@@ -1,4 +1,5 @@
 const moment = require("moment");
+const createMockFile = require("./createMockFile");
 moment.suppressDeprecationWarnings = true;
 const rnb = (min, max) => Math.floor(Math.random() * (max - min + 1) + min);
 
@@ -87,19 +88,6 @@ const arr = function ArrayParser(arr) {
   return parser;
 };
 
-const isFn = /^\w+\(([^,)]*(,[^,)]*)*)\)$/;
-const parseArgs = (str) => str.split(",").map((value) => value.trim());
-const isFunction = (str) => isFn.test(str);
-const isDateFunction = (str) => /^[dD]ate\(([^,)]*(,[^,)]*)*)\)$/.test(str);
-
-const strFn = (str) => {
-  if (isDateFunction(str)) {
-    const [fullStr, args] = str.match(isFn);
-    return moment(args).toJSON();
-  }
-
-  return str;
-};
 function getType(value) {
   switch (true) {
     case typeof value === "object":
@@ -121,6 +109,23 @@ function getType(value) {
 }
 const isObjectLike = (value) =>
   ["object", "array", "string"].indexOf(getType(value)) > -1;
+
+const isFnRegEx = /^\w+\(([^,)]*(,[^,)]*)*)\)$/;
+const parseArgs = (str) => str.split(",").map((value) => value.trim());
+const isFunction = (str) => isFnRegEx.test(str);
+const isDateFunction = (str) => /^[dD]ate\(([^,)]*(,[^,)]*)*)\)$/.test(str);
+const isMockFileFunction = (str) => /^mockFile\(([^,)]*(,[^,)]*)*)\)$/.test(str);
+const strFn = (str) => {
+  if (isDateFunction(str)) {
+    const [fullStr, args] = str.match(isFnRegEx);
+    return moment(args).toJSON();
+  }
+  if (isMockFileFunction(str)) {
+    const [fullStr, args] = str.match(isFnRegEx);
+    return createMockFile(args);
+  }
+  return str;
+};
 module.exports = {
   rnb,
   isObjectLike,

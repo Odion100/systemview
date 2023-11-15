@@ -1,5 +1,6 @@
 import moment from "moment";
 import { getType } from "../../../molecules/ValidationInput/validator";
+import createMockFile from "./createMockFile";
 export const rnb = (min, max) => Math.floor(Math.random() * (max - min + 1) + min);
 export const isObjectLike = (value) =>
   ["object", "array", "string"].indexOf(getType(value)) > -1;
@@ -92,18 +93,28 @@ export const arr = function ArrayParser(arr) {
   return parser;
 };
 
-const isFn = /^\w+\(([^,)]*(,[^,)]*)*)\)$/;
+const isFnRegEx = /^\w+\(([^,)]*(,[^,)]*)*)\)$/;
 const parseArgs = (str) => str.split(",").map((value) => value.trim());
-export const isFunction = (str) => isFn.test(str);
+export const isFunction = (str) => isFnRegEx.test(str);
 export const isDateFunction = (str) => /^[dD]ate\(([^,)]*(,[^,)]*)*)\)$/.test(str);
+const isMockFileFunction = (str) => /^mockFile\(([^,)]*(,[^,)]*)*)\)$/.test(str);
+const isMockFilesFunction = (str) => /^mockFiles\(([^,)]*(,[^,)]*)*)\)$/.test(str);
 
 export const strFn = (str) => {
   if (isDateFunction(str)) {
-    const [fullStr, args] = str.match(isFn);
+    const [fullStr, args] = str.match(isFnRegEx);
     return moment(args).toJSON();
   }
-
+  if (isMockFileFunction(str)) {
+    const [fullStr, args] = str.match(isFnRegEx);
+    return createMockFile(args);
+  }
+  if (isMockFilesFunction(str)) {
+    const [fullStr, args] = str.match(isFnRegEx);
+    return parseArgs(args).map(createMockFile);
+  }
   return str;
 };
+
 window.moment = moment;
 window.strFn = strFn;
