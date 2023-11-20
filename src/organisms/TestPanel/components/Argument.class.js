@@ -61,7 +61,7 @@ export default function Argument(
     //keep if the target value string still exist on this.input...
     this.targetValues = this.targetValues.filter(
       ({ target_namespace, source_map, source_index }) => {
-        const value = obj(this).valueAt(source_map);
+        const value = obj(this).get(source_map);
         return (
           typeof value === "string" &&
           value.indexOf(target_namespace, source_index) === source_index
@@ -89,6 +89,6 @@ export default function Argument(
       .replace(test, { beforeTest: 0, mainTest: 1, Events: 2, afterTest: 3 }[test])
       .replace(action, parseInt(action.replace("Action", "")) - 1)
       .replace("error", "results");
-    return obj(FullTest).valueAtNsp(nsp);
+    return obj(FullTest).get(nsp);
   };
 }

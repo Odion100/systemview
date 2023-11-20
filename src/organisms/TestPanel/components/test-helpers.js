@@ -61,22 +61,48 @@ export const switchArrayIndices = (nsp, replace) => {
 
 //separate prop names from other prop names and indices (ie. 'test.results[0][0]'...);
 export const mapNamespace = (nsp) =>
-  nsp
-    .replace(/(?:\.|\[|\])/g, " ")
-    .split(" ")
-    .reduce((sum, str) => sum.concat(str.trim() || []), []);
+  nsp.split(/(?:\.|\[|\])/g).filter((str) => str.trim());
 
 export const obj = function ObjectParser(obj) {
   const parser = this || {};
-  parser.parse = (map) =>
-    map.reduce(([placeholder], key) => [placeholder?.[key], placeholder, key], [obj]);
 
-  parser.valueAt = (map) => parser.parse(map)[0];
+  const parseObject = (keys) =>
+    keys.reduce(([placeholder], key) => [placeholder?.[key], placeholder, key], [obj]);
 
-  parser.valueAtNsp = (nsp) => parser.valueAt(mapNamespace(nsp));
+  parser.parse = (keys) => {
+    if (Array.isArray(keys)) {
+      return parseObject(keys);
+    } else if (typeof keys === "string") {
+      return parseObject(mapNamespace(keys));
+    } else
+      throw Error(
+        "ObjectParser.parse requires a string namespace or an array of keys a the first parameter."
+      );
+  };
 
-  parser.parseNsp = (nsp) => parser.parse(mapNamespace(nsp));
-  //using JSON to create a deep copy in order to lose refs to original
+  parser.get = (keys) => {
+    if (Array.isArray(keys)) {
+      return parseObject(keys)[0];
+    } else if (typeof keys === "string") {
+      return parseObject(mapNamespace(keys))[0];
+    } else
+      throw Error(
+        "ObjectParser.get requires a string namespace or an array of keys a the first parameter."
+      );
+  };
+
+  parser.apply = (keys, newValue) => {
+    if (Array.isArray(keys)) {
+      const [currentValue, placeholder, key] = parseObject(keys);
+      placeholder[key] = newValue;
+    } else if (typeof keys === "string") {
+      const [currentValue, placeholder, key] = parseObject(mapNamespace(keys));
+      placeholder[key] = newValue;
+    } else
+      throw Error(
+        "ObjectParser.apply requires a string namespace or an array of keys a the first parameter."
+      );
+  };
   parser.clone = () => JSON.parse(JSON.stringify(obj));
 
   parser.isEmpty = () => Object.getOwnPropertyNames(obj).length === 0;

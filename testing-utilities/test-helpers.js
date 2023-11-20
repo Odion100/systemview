@@ -55,22 +55,47 @@ const switchArrayIndices = (nsp, replace) => {
 };
 
 //separate prop names from other prop names and indices (ie. 'test.results[0][0]'...);
-const mapNamespace = (nsp) =>
-  nsp
-    .replace(/(?:\.|\[|\])/g, " ")
-    .split(" ")
-    .reduce((sum, str) => sum.concat(str.trim() || []), []);
+const mapNamespace = (nsp) => nsp.split(/(?:\.|\[|\])/g).filter((str) => str.trim());
 
 const obj = function ObjectParser(obj) {
   const parser = this || {};
-  parser.parse = (map) =>
-    map.reduce(([placeholder], key) => [placeholder?.[key], placeholder, key], [obj]);
+  const parseObject = (keys) =>
+    keys.reduce(([placeholder], key) => [placeholder?.[key], placeholder, key], [obj]);
 
-  parser.valueAt = (map) => parser.parse(map)[0];
+  parser.parse = (keys) => {
+    if (Array.isArray(keys)) {
+      return parseObject(keys);
+    } else if (typeof keys === "string") {
+      return parseObject(mapNamespace(keys));
+    } else
+      throw Error(
+        "ObjectParser.parse requires a string namespace or an array of keys a the first parameter."
+      );
+  };
 
-  parser.valueAtNsp = (nsp) => parser.valueAt(mapNamespace(nsp));
+  parser.get = (keys) => {
+    if (Array.isArray(keys)) {
+      return parseObject(keys)[0];
+    } else if (typeof keys === "string") {
+      return parseObject(mapNamespace(keys))[0];
+    } else
+      throw Error(
+        "ObjectParser.get requires a string namespace or an array of keys a the first parameter."
+      );
+  };
 
-  parser.parseNsp = (nsp) => parser.parse(mapNamespace(nsp));
+  parser.apply = (keys, newValue) => {
+    if (Array.isArray(keys)) {
+      const [currentValue, placeholder, key] = parseObject(keys);
+      placeholder[key] = newValue;
+    } else if (typeof keys === "string") {
+      const [currentValue, placeholder, key] = parseObject(mapNamespace(keys));
+      placeholder[key] = newValue;
+    } else
+      throw Error(
+        "ObjectParser.apply requires a string namespace or an array of keys a the first parameter."
+      );
+  };
   //using JSON to create a deep copy in order to lose refs to original
   parser.clone = () => JSON.parse(JSON.stringify(obj));
 

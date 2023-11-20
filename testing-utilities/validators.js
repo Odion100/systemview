@@ -89,7 +89,7 @@ function validateResults() {
   //evaluate based on the saved evaluations
   const objParser = new obj({ [response_type]: results });
   savedEvalClone.forEach(({ namespace, ...e }) => {
-    const value = objParser.valueAtNsp(namespace);
+    const value = objParser.get(namespace);
     if (e.save) addEvaluation(evaluate(value, namespace, e));
   });
 

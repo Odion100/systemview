@@ -63,7 +63,7 @@ export default function Test({
         this.response_type = "event";
         this.shouldValidate && this.validate();
         logger.end();
-        Module.$clearEvent(args[0], "eventTest");
+        Module.$clearEvent(args[0], eventTest);
       };
       logger.start(args);
       Module.on(args[0], eventTest);

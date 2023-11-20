@@ -90,7 +90,7 @@ export function validateResults() {
   // if (!editMode) {
   const objParser = new obj({ [response_type]: results });
   savedEvalClone.forEach(({ namespace, ...e }) => {
-    const value = objParser.valueAtNsp(namespace);
+    const value = objParser.get(namespace);
     if (e.save) addEvaluation(evaluate(value, namespace, e));
   });
   // }
