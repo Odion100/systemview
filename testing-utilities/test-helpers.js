@@ -3,14 +3,14 @@ const createMockFile = require("./createMockFile");
 moment.suppressDeprecationWarnings = true;
 const rnb = (min, max) => Math.floor(Math.random() * (max - min + 1) + min);
 
-const isTargetNamespace = (str) =>
-  /^(?:before|main|after)Test\.Action\d+\.(?:error|results)(?:\.(?![0-9])[a-zA-Z0-9$_]+(?:\[\d\])*)*$/.test(
+export const isTargetNamespace = (str) =>
+  /^(?:before|main|after)Test\.Action\d+\.(?:error|results)(?:\[(?:\d+)\]|\.(?:(?![0-9])[a-zA-Z0-9$_]+(?:\[(?:\d+)\])?))*$/.test(
     str
   );
-const targetValueFnRegex =
-  /tv\((?:before|main|after)Test\.Action\d+\.(?:error|results)(?:\.(?![0-9])[a-zA-Z0-9$_]+(?:\[\d\])*)*\)/g;
-const isTargetValueFn = (str) =>
-  /^tv\((?:before|main|after)Test\.Action\d+\.(?:error|results)(?:\.(?![0-9])[a-zA-Z0-9$_]+(?:\[\d\])*)*\)$/.test(
+export const targetValueFnRegex =
+  /tv\((?:before|main|after)Test\.Action\d+\.(?:error|results)(?:\[(?:\d+)\]|\.(?:(?![0-9])[a-zA-Z0-9$_]+(?:\[(?:\d+)\])?))*\)/g;
+export const isTargetValueFn = (str) =>
+  /^tv\((?:before|main|after)Test\.Action\d+\.(?:error|results)(?:\[(?:\d+)\]|\.(?:(?![0-9])[a-zA-Z0-9$_]+(?:\[(?:\d+)\])?))*\)$/.test(
     str
   );
 const isEqualArrays = (a, b) => a.join(".") === b.join("."); //specifically for arrays of strings
