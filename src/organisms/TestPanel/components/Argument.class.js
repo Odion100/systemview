@@ -16,7 +16,7 @@ export function TargetValue(target_namespace, source_map = [], source_index = 0)
 export default function Argument(
   name,
   FullTest,
-  input_type = "undefined",
+  input_type = "object",
   input,
   targetValues = []
 ) {

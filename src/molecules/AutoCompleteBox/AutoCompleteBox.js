@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import "./styles.scss";
 
 const AutoCompleteBox = ({
@@ -17,6 +17,8 @@ const AutoCompleteBox = ({
   const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(0);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [input, setInput] = useState(value);
+  const inputRef = useRef(null);
+
   useEffect(() => setInput(value), [value]);
   const change = (e) => {
     const userInput = e.target.value;
@@ -42,16 +44,37 @@ const AutoCompleteBox = ({
     else setShowSuggestions(true);
     if (typeof onChange === "function") onChange(e.target.value);
   };
-  const onClick = (e) => {
-    const text = e.target.innerText.substr(0, e.target.innerText.length);
+  const completeSuggestion = (text) => {
     if (typeof onSubmit === "function") onSubmit(text);
     setFilteredSuggestions([]);
     setInput(text);
     setActiveSuggestionIndex(0);
     setShowSuggestions(false);
   };
+  const onClick = (e) => {
+    const text = e.target.innerText.substr(0, e.target.innerText.length);
+    completeSuggestion(text);
+  };
   const blur = (e) => {
     typeof onBlur === "function" && onBlur(e.target.value);
+  };
+
+  const onKeyDown = (event) => {
+    if (event.keyCode === 13) {
+      inputRef.current.blur();
+      completeSuggestion(filteredSuggestions[activeSuggestionIndex]);
+    }
+
+    // Check if the Up arrow key is pressed
+    if (event.keyCode === 40) {
+      if (activeSuggestionIndex < filteredSuggestions.length - 1)
+        setActiveSuggestionIndex(activeSuggestionIndex + 1);
+    }
+
+    // Check if the Down arrow key is pressed
+    if (event.keyCode === 38) {
+      if (activeSuggestionIndex) setActiveSuggestionIndex(activeSuggestionIndex - 1);
+    }
   };
   const SuggestionsListComponent = () => {
     return filteredSuggestions.length ? (
@@ -80,7 +103,7 @@ const AutoCompleteBox = ({
       </div>
     );
   };
-  const onKeyDown = () => {};
+
   return (
     <div className="auto-complete">
       <input
@@ -92,6 +115,7 @@ const AutoCompleteBox = ({
         value={input}
         disabled={disabled}
         placeholder={placeholder}
+        ref={inputRef}
       />
       {showSuggestions && input && <SuggestionsListComponent />}
     </div>
