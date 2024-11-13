@@ -3,13 +3,13 @@ const createMockFile = require("./createMockFile");
 moment.suppressDeprecationWarnings = true;
 const rnb = (min, max) => Math.floor(Math.random() * (max - min + 1) + min);
 
-export const isTargetNamespace = (str) =>
+const isTargetNamespace = (str) =>
   /^(?:before|main|after)Test\.Action\d+\.(?:error|results)(?:\[(?:\d+)\]|\.(?:(?![0-9])[a-zA-Z0-9$_]+(?:\[(?:\d+)\])?))*$/.test(
     str
   );
-export const targetValueFnRegex =
+const targetValueFnRegex =
   /tv\((?:before|main|after)Test\.Action\d+\.(?:error|results)(?:\[(?:\d+)\]|\.(?:(?![0-9])[a-zA-Z0-9$_]+(?:\[(?:\d+)\])?))*\)/g;
-export const isTargetValueFn = (str) =>
+const isTargetValueFn = (str) =>
   /^tv\((?:before|main|after)Test\.Action\d+\.(?:error|results)(?:\[(?:\d+)\]|\.(?:(?![0-9])[a-zA-Z0-9$_]+(?:\[(?:\d+)\])?))*\)$/.test(
     str
   );
