@@ -100,7 +100,7 @@ const runAllTests = async (savedTest, url, project_code) => {
     if (
       logResults(Before, "Before") +
       logResults(Main, "Main", true) +
-      logResults(Events, "Events") +
+      logResults(Events, "Events", true) +
       logResults(After, "After")
     ) {
       sum.failed++;

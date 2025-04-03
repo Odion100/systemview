@@ -1,4 +1,4 @@
-import React, { useEffect, useContext } from "react";
+import React, { useEffect, useContext, useState } from "react";
 import { useHistory } from "react-router-dom";
 import ServiceContext from "../../ServiceContext";
 import TextBox from "../../atoms/Textbox/Textbox";
@@ -6,10 +6,12 @@ import Link from "../../atoms/Link/Link";
 import ExpandableList from "../../molecules/ExpandableList/ExpandableList";
 import ServerModulesList from "../../molecules/ServerModulesList/ServerModulesList";
 import DocIcon from "../../atoms/DocsIcon/DocsIcon";
+import refreshIcon from "../../assets/refresh.png";
 import "./styles.scss";
 import { Client } from "systemlynx";
 
 const SystemNav = ({ projectCode, serviceId, moduleName, methodName }) => {
+  const [searchTerm, setSearchTerm] = useState(projectCode);
   const { SystemViewService, setConnectedServices, connectedServices } =
     useContext(ServiceContext);
   const serviceData = connectedServices.find(
@@ -35,10 +37,21 @@ const SystemNav = ({ projectCode, serviceId, moduleName, methodName }) => {
   const history = useHistory();
   const SearchInputSubmit = async (e) => {
     const project = await fetchProject(e.target.value);
-    if (project.length)
-      if (project[0].projectCode) history.push(`/${project[0].projectCode}`);
+    if (project.length) {
+      if (project[0].projectCode) {
+        history.push(`/${project[0].projectCode}`);
+        setSearchTerm(project[0].projectCode);
+      }
+    } else setSearchTerm("");
   };
-
+  const refreshHandler = async (e) => {
+    try {
+      const results = await SystemView.refreshConnection(searchTerm);
+      setConnectedServices(results);
+    } catch (error) {
+      setConnectedServices([]);
+    }
+  };
   useEffect(() => {
     if (connectedServices.length)
       SystemView.on(
@@ -66,11 +79,18 @@ const SystemNav = ({ projectCode, serviceId, moduleName, methodName }) => {
     <section className="system-nav">
       <div className="container">
         <div className="row system-nav__section">
-          <div className="col-12">
+          <div className="col-12" style={{ display: "flex" }}>
             <TextBox
               defaultText={projectCode}
               placeholderText="projectCode"
               TextboxSubmit={SearchInputSubmit}
+            />
+            <img
+              className={`btn`}
+              src={refreshIcon}
+              alt={"Refresh"}
+              style={{ width: "24px", height: "24px", margin: "2px" }}
+              onClick={refreshHandler}
             />
           </div>
         </div>

@@ -72,7 +72,10 @@ async function getConnectionData(url) {
     return [];
   }
 }
-
+async function refreshConnection(searchText) {
+  await ConnectedServices.refreshConnections();
+  return getServices(searchText);
+}
 const shutdown = () => process.exit(0);
 
 module.exports = function launchSystemView(port = 3000) {
@@ -93,6 +96,7 @@ module.exports = function launchSystemView(port = 3000) {
       getServices,
       updateSpecList,
       shutdown,
+      refreshConnection,
     })
     .on("ready", () => {
       server.get("*", (req, res) => {

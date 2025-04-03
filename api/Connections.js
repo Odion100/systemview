@@ -1,6 +1,6 @@
 const fs = require("fs");
 const { Client } = require("systemlynx");
-const LOCAL_STORAGE = `${__dirname}/connections.txt`;
+const LOCAL_STORAGE = `${__dirname}/connections.json`;
 
 function refreshConnections(connections) {
   return new Promise((resolve) => {
@@ -30,6 +30,7 @@ module.exports = function ConnectedServices() {
     const newConnections = await refreshConnections(connections);
     if (newConnections.length)
       fs.writeFileSync(LOCAL_STORAGE, JSON.stringify(newConnections), "utf8");
+    return newConnections;
   };
 
   this.save = (serviceData, index) => {

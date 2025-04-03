@@ -139,10 +139,6 @@ const FullTest = ({ serviceId, moduleName, methodName }) => {
           <div className="row test-panel__section">
             <MainTest TestController={MainCtrl} TestSection={Main} />
           </div>
-
-          <div className="row test-panel__section">
-            <AfterTest TestController={AfterCtrl} TestSection={After} />
-          </div>
           <div className="row test-panel__section">
             <EventsTest
               TestController={EventCtrl}
@@ -151,6 +147,10 @@ const FullTest = ({ serviceId, moduleName, methodName }) => {
               FullTest={FullTest}
             />
           </div>
+          <div className="row test-panel__section">
+            <AfterTest TestController={AfterCtrl} TestSection={After} />
+          </div>
+
           <div className="row test-panel__section">
             <SavedTests
               savedTests={savedTests}

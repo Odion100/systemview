@@ -4,6 +4,7 @@
 @import "../../sass/bootstrap/bootstrap-grid.scss";
 
 .textbox {
+  flex: 1;
   & input,
   textarea {
     padding: 0.75rem;
