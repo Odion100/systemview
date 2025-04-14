@@ -8,7 +8,7 @@ import ServerModulesList from "../../molecules/ServerModulesList/ServerModulesLi
 import DocIcon from "../../atoms/DocsIcon/DocsIcon";
 import refreshIcon from "../../assets/refresh.png";
 import "./styles.scss";
-import { Client } from "systemlynx";
+import { Client } from "systemlynx-client";
 
 const SystemNav = ({ projectCode, serviceId, moduleName, methodName }) => {
   const [searchTerm, setSearchTerm] = useState(projectCode);

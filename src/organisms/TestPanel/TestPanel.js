@@ -10,7 +10,7 @@ import "./styles.scss";
 import RunTestIcon from "../../atoms/RunTestIcon";
 import SaveIcon from "../../atoms/SaveIcon/SaveIcon";
 import SavedTests from "../SavedTests/SavedTests";
-import { Client } from "systemlynx";
+import { Client } from "systemlynx-client";
 import FullTestController from "./components/FullTestController";
 import Title from "../../atoms/Title/Title";
 import { CurrentTest } from "../../atoms/StatusIndicator/StatusIndicator";

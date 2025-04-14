@@ -1,5 +1,5 @@
 import { validateResults } from "../../../molecules/ValidationInput/validator";
-import { Client } from "systemlynx";
+import { Client } from "systemlynx-client";
 import moment from "moment";
 import { getArrayNamespaces, getLastArrayNamespace, obj } from "./test-helpers";
 

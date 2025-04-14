@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Client } from "systemlynx";
+import { Client } from "systemlynx-client";
 import Count from "../../atoms/Count";
 import ExpandIcon from "../../atoms/ExpandableIcon/ExpandableIcon";
 import RunTestIcon, { EditIcon, XButton } from "../../atoms/RunTestIcon";
