@@ -11348,10 +11348,10 @@ symbol-tree@^3.2.4:
   resolved "https://registry.npmjs.org/symbol-tree/-/symbol-tree-3.2.4.tgz"
   integrity sha512-9QNk5KwDF+Bvz+PyObkmSYjI5ksVUYtjW7AU22r2NKcfLJcXp96hkDWU3+XndOsUb+AQ9QhfzfCT2O+CNWT5Tw==
 
-systemlynx-client@^1.18.11:
-  version "1.18.11"
-  resolved "https://registry.npmjs.org/systemlynx-client/-/systemlynx-client-1.18.11.tgz"
-  integrity sha512-3zT2QcSQX19l4kIG2JxAjeacwll/e0gXIsmyey7lpGwy+zWABG8Rq4B4iE6iVc2zTJIx9JaZo17o2aVxMciw+Q==
+systemlynx-client@^1.18.12:
+  version "1.18.12"
+  resolved "https://registry.npmjs.org/systemlynx-client/-/systemlynx-client-1.18.12.tgz"
+  integrity sha512-X6AlVqBRWHaGkzFNgDEc6dFo6EdeJvgIrSvBqBwCMhl1AZ84/NOljao70tPJrEQjaJh83R1lVyGCnMOOpR3Hbw==
   dependencies:
     axios "^1.6.7"
     socket.io-client "^4.8.1"
