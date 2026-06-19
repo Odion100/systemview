@@ -1,0 +1,39 @@
+[
+  {
+    "title": "Repeat a string",
+    "namespace": { "serviceId": "TestService", "moduleName": "String", "methodName": "repeat" },
+    "Before": [],
+    "Main": [
+      {
+        "title": "Repeat 'ha' 3 times",
+        "namespace": { "serviceId": "TestService", "moduleName": "String", "methodName": "repeat" },
+        "args": [
+          {
+            "name": "str:",
+            "input": "ha",
+            "input_type": "string",
+            "data_type": "",
+            "targetValues": []
+          },
+          {
+            "name": "times:",
+            "input": 3,
+            "input_type": "number",
+            "data_type": "",
+            "targetValues": []
+          }
+        ],
+        "savedEvaluations": [
+          {
+            "namespace": "results.result",
+            "expected_type": "string",
+            "validations": [{ "name": "strEquals", "value": "hahaha" }],
+            "save": true
+          }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": []
+  }
+]

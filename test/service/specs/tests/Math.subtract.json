@@ -1,0 +1,32 @@
+[
+  {
+    "title": "Subtract two numbers",
+    "namespace": { "serviceId": "TestService", "moduleName": "Math", "methodName": "subtract" },
+    "Before": [],
+    "Main": [
+      {
+        "title": "Subtract 3 from 10",
+        "namespace": { "serviceId": "TestService", "moduleName": "Math", "methodName": "subtract" },
+        "args": [
+          {
+            "name": "argument:",
+            "input": { "a": 10, "b": 3 },
+            "input_type": "object",
+            "data_type": "",
+            "targetValues": []
+          }
+        ],
+        "savedEvaluations": [
+          {
+            "namespace": "results.difference",
+            "expected_type": "number",
+            "validations": [{ "name": "numEquals", "value": 7 }],
+            "save": true
+          }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": []
+  }
+]

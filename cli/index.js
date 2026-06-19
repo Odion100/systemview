@@ -1,53 +1,45 @@
 #!/usr/bin/env node
 
-/**
- * SystemView
- * A documentation and testing suite for SystemLynx
- *
- * @author Odion Edwards <none>
- */
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
-const openBrowser = require("./openBrowser");
-const init = require("./utils/init");
-const cli = require("./utils/cli");
-const log = require("./utils/log");
 
+const { input, flags, showHelp } = require("./utils/cli");
+const init = require("./utils/init");
+const log = require("./logger");
 const launchApp = require("./launchApp");
 const runTests = require("./runTests");
 const appIsRunning = require("./appIsRunning");
+const openBrowser = require("./openBrowser");
+const connectService = require("./connectService");
+const probe = require("./probe");
 const { HttpClient } = require("systemlynx");
 
-const input = cli.input;
-const flags = cli.flags;
-const { clear, debug } = flags;
 const DEFAULT_PORT = 3000;
 
 async function startApp() {
-  const port = isNaN(input[1]) ? DEFAULT_PORT : input[1];
-
+  const port = isNaN(input[1]) ? DEFAULT_PORT : Number(input[1]);
   try {
-    await launchApp(port);
+    await launchApp(port, { interactive: true });
   } catch (error) {
-    log("Launch failed:" + error.message, "error");
-    console.log(error);
+    log.error("Launch failed: " + error.message);
   }
 }
 
 async function startTest() {
+  const project_code = input[1];
+  const namespace = input[2];
   const url = `http://localhost:${DEFAULT_PORT}`;
-  input.shift();
   try {
-    const lineReader = await launchApp(DEFAULT_PORT);
-    setTimeout(async () => {
-      await runTests(url, ...input);
-      if (lineReader) {
-        lineReader.prompt();
-      } else {
-        process.exit(0);
-      }
-    }, 0);
+    await launchApp(DEFAULT_PORT);
+    const exitCode = await runTests(url, project_code, namespace, {
+      json: flags.json,
+      verbose: flags.verbose,
+      manifest: flags.manifest,
+      headers: flags.headers,
+    });
+    process.exit(exitCode);
   } catch (error) {
-    console.error("Error executing tests:", error.message);
+    log.error("Error executing tests: " + error.message);
+    process.exit(1);
   }
 }
 
@@ -56,56 +48,58 @@ async function open() {
   const namespace = input[2];
   const ui = `http://localhost:${DEFAULT_PORT}`;
   const api = `${ui}/systemview/api`;
-  if (await appIsRunning(api)) {
-    openBrowser(ui, project_code, namespace);
-    process.exit(0);
-  } else {
+  if (!(await appIsRunning(api))) {
     await launchApp(DEFAULT_PORT);
-    openBrowser(ui, project_code, namespace);
   }
+  openBrowser(ui, project_code, namespace);
+  process.exit(0);
 }
+
 async function quitApp() {
-  const port = isNaN(input[1]) ? DEFAULT_PORT : input[1];
+  const port = isNaN(input[1]) ? DEFAULT_PORT : Number(input[1]);
   const api = `http://localhost:${port}/systemview/api`;
 
   if (await appIsRunning(api)) {
-    log("SystemView is running from another terminal", "info", "info");
-    log("Attempting remote shutdown...", "info", "info");
-
+    log.info("Attempting remote shutdown...");
     const url = `${api}/SystemView/shutdown`;
-    const method = "put";
-    HttpClient.request({ url, method })
-      .then(() => console.log("SystemView shutdown successful!"))
-      .catch(async (error) => {
-        if (await appIsRunning(api)) {
-          log("Remote shutdown failed!", "error", "error");
-          console.error(error);
-        } else {
-          console.log("SystemView shutdown successful!");
-        }
-      });
+    try {
+      await HttpClient.request({ url, method: "put" });
+      log.success("SystemView shutdown successful!");
+      process.exit(0);
+    } catch (error) {
+      if (!(await appIsRunning(api))) {
+        log.success("SystemView shutdown successful!");
+        process.exit(0);
+      } else {
+        log.error("Remote shutdown failed!");
+        process.exit(1);
+      }
+    }
   } else {
-    log(`SystemView instance not found @${api}`, "warning", "warning");
-    console.log("Please include the port if default port is not being used:");
-    log("systemview shutdown 4000", "info", "example");
+    log.warn(`No SystemView instance found @ ${api}`);
+    process.exit(0);
   }
 }
 
 (async () => {
-  init({ clear });
-  if (input[0] === "open") {
-    open();
-  } else if (input.includes(`help`)) {
-    cli.showHelp(0);
-  } else if (input.includes("test")) {
-    startTest();
-  } else if (["exit", "q", "shutdown", "stop"].includes(input[0])) {
-    quitApp();
-  } else if (input[0] === "start") {
-    startApp();
+  init();
+  const command = input[0];
+
+  if (command === "open") {
+    await open();
+  } else if (command === "help" || input.includes("help")) {
+    showHelp();
+  } else if (command === "test") {
+    await startTest();
+  } else if (["exit", "q", "shutdown", "stop"].includes(command)) {
+    await quitApp();
+  } else if (command === "connect") {
+    await connectService(input[1], input[2], { manifest: flags.manifest });
+    process.exit(0);
+  } else if (command === "probe") {
+    const exitCode = await probe(input[1], input[2], { json: flags.json, manifest: flags.manifest, headers: flags.headers });
+    process.exit(exitCode || 0);
   } else {
     await startApp();
   }
-  cli.input = [];
-  debug && log(flags);
 })();

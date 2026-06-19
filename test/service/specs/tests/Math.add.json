@@ -1,0 +1,32 @@
+[
+  {
+    "title": "Add two numbers",
+    "namespace": { "serviceId": "TestService", "moduleName": "Math", "methodName": "add" },
+    "Before": [],
+    "Main": [
+      {
+        "title": "Add 2 + 3",
+        "namespace": { "serviceId": "TestService", "moduleName": "Math", "methodName": "add" },
+        "args": [
+          {
+            "name": "argument:",
+            "input": { "a": 2, "b": 3 },
+            "input_type": "object",
+            "data_type": "",
+            "targetValues": []
+          }
+        ],
+        "savedEvaluations": [
+          {
+            "namespace": "results.sum",
+            "expected_type": "number",
+            "validations": [{ "name": "numEquals", "value": 5 }],
+            "save": true
+          }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": []
+  }
+]

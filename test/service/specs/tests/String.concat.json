@@ -1,0 +1,39 @@
+[
+  {
+    "title": "Concatenate two strings",
+    "namespace": { "serviceId": "TestService", "moduleName": "String", "methodName": "concat" },
+    "Before": [],
+    "Main": [
+      {
+        "title": "Concat hello + world",
+        "namespace": { "serviceId": "TestService", "moduleName": "String", "methodName": "concat" },
+        "args": [
+          {
+            "name": "a:",
+            "input": "hello ",
+            "input_type": "string",
+            "data_type": "",
+            "targetValues": []
+          },
+          {
+            "name": "b:",
+            "input": "world",
+            "input_type": "string",
+            "data_type": "",
+            "targetValues": []
+          }
+        ],
+        "savedEvaluations": [
+          {
+            "namespace": "results.result",
+            "expected_type": "string",
+            "validations": [{ "name": "strEquals", "value": "hello world" }],
+            "save": true
+          }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": []
+  }
+]

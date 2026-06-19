@@ -17,9 +17,7 @@ npm install -g systemview
 ## Starting SystemView
 
 ```bash
-systemview
-# or
-systemview start        # default port 3000
+systemview              # start on port 3000 (interactive)
 systemview start 4000   # custom port
 ```
 
@@ -27,60 +25,74 @@ Once running:
 - **UI** → `http://localhost:3000`
 - **API** → `http://localhost:3000/systemview/api`
 
-To open the browser directly (optionally navigating to a specific service):
-
 ```bash
-systemview open                                  # open to home
+systemview open                                  # open browser to home
 systemview open myProject                        # open to project
 systemview open myProject Basketball/Games/add   # open to a specific method
-```
-
-To stop a running instance:
-
-```bash
-systemview shutdown        # default port
-systemview shutdown 4000   # custom port
+systemview shutdown                              # stop the running instance
 ```
 
 ---
 
 ## Connecting a SystemLynx Service
 
-Install the plugin in your service:
+Install the plugin in your service project:
 
 ```bash
 npm install systemview-plugin
 ```
 
-Then add it to your SystemLynx app. The plugin connects your service to the SystemView instance on startup and enables saving/loading docs and tests locally.
+Add it to your SystemLynx app:
 
 ```js
-const { createApp } = require("systemlynx");
-const App = createApp(server);
+const { App } = require("systemlynx");
 
-App.startService({ route, port, host })
+App.startService({ route, port })
   .module("Users", Users)
   .module("Orders", Orders);
 
 if (process.env.SYSTEMVIEW_HOST) {
-  const SystemView = require("systemview-plugin")({
-    connection: process.env.SYSTEMVIEW_HOST,  // e.g. "http://localhost:3000"
-    specs: "./MyService/specs",               // local path for saving docs and tests
+  const SystemViewPlugin = require("systemview-plugin")({
+    connection: process.env.SYSTEMVIEW_HOST,  // e.g. "http://localhost:3000/systemview/api"
+    specs: "./specs",                          // local path for saving docs and tests
     projectCode: "myProject",                 // groups services together in the UI
     serviceId: "MyService",                   // name for this service
-    module: plugin,                           // optional: expose extra methods to SystemView
   });
-  App.use(SystemView);
+  App.use(SystemViewPlugin);
 }
 ```
 
-Once connected, the service appears automatically in the SystemView UI under `myProject > MyService`.
+On startup the plugin:
+1. Connects the service to the SystemView UI
+2. Writes `systemview.manifest.json` to the project root — lets the CLI run tests without the SystemView server
+
+```json
+{
+  "projectCode": "myProject",
+  "services": [
+    {
+      "serviceId": "MyService",
+      "system": {
+        "connectionData": {
+          "serviceUrl": "http://localhost:4100/my/api",
+          "modules": { ... },
+          "routing": { ... }
+        }
+      },
+      "specList": {
+        "docs": ["Users.md"],
+        "tests": ["Users.signUp.json"]
+      }
+    }
+  ]
+}
+```
+
+Add `systemview.manifest.json` to `.gitignore` — it regenerates each time the service starts.
 
 ---
 
 ## Using the UI
-
-The UI has three panels:
 
 | Panel | Description |
 |---|---|
@@ -88,58 +100,73 @@ The UI has three panels:
 | **Documentation** (center) | Read and write markdown docs for the selected method |
 | **Test Panel** (right) | Build, run, and save tests for the selected method |
 
-### URL routing
-
-The UI URL reflects your current location:
-
-```
-http://localhost:3000/:projectCode/:serviceId/:moduleName/:methodName
-```
+URL pattern: `http://localhost:3000/:projectCode/:serviceId/:moduleName/:methodName`
 
 ### Building a test
-
-The Test Panel (also called Scratch Pad) lets you build a full test sequence:
 
 - **Before** — setup calls that run before the main test
 - **Main** — the method call being tested, with argument inputs and response validations
 - **Events** — WebSocket events to listen for during the test
 - **After** — teardown calls that run after the main test
 
-Click **Run** to execute the full sequence. Click **Save** to persist the test to the service's `specs/` folder via the plugin.
+Click **Run** to execute the sequence. Click **Save** to persist the test to the service's `specs/` folder.
 
 ---
 
 ## Running Tests from the CLI
 
-Run all saved tests for a project:
+```bash
+systemview test myProject                  # run all tests for a project
+systemview test myProject Users            # filter by module
+systemview test myProject Users.signUp     # filter by method
+systemview test myProject --json           # structured JSON output for CI/agents
+systemview test myProject --verbose        # show args passed to each call
+```
+
+Starts the SystemView server headlessly if needed, runs all tests, exits with `0` (all passed) or `1` (any failure).
+
+---
+
+## Registering Services Without the Plugin
 
 ```bash
-systemview test myProject
-```
+# Probe a live service and write its connection data to systemview.manifest.json
+systemview connect MyService http://localhost:4100/my/api
 
-Run tests filtered to a specific namespace:
-
-```bash
-systemview test myProject Games
-systemview test myProject Games.add
-```
-
-SystemView connects to the running instance, fetches saved tests from each service, runs the full test sequence for each, and prints a summary:
-
-```
-✔  Basketball   tests: 12, passed: 12, failed: 0
-✖  Profiles     tests: 4, passed: 3, failed: 1
+# Re-probe all services already in the manifest
+systemview connect
 ```
 
 ---
 
-## CLI reference
+## Calling Methods Ad-Hoc
+
+```bash
+# Human-readable
+systemview probe MyService.Users.getUser '{"userId":"123"}'
+
+# JSON output (agent/CI use)
+systemview probe MyService.Users.getUser '{"userId":"123"}' --json
+
+# Multiple positional args (JSON array)
+systemview probe MyService.String.repeat '["ha", 3]'
+```
+
+---
+
+## CLI Reference
 
 | Command | Description |
 |---|---|
-| `systemview` | Start SystemView on port 3000 |
-| `systemview start [port]` | Start on a custom port |
+| `systemview [start] [port]` | Start SystemView UI (interactive, default port 3000) |
+| `systemview test <projectCode> [namespace]` | Run saved tests |
+| `systemview connect <serviceId> <url>` | Register a service, write manifest |
+| `systemview connect` | Re-probe all services in existing manifest |
+| `systemview probe <Service.Module.method> [args]` | Call a method ad-hoc |
 | `systemview open [projectCode] [namespace]` | Open the UI in a browser |
-| `systemview test <projectCode> [namespace]` | Run saved tests from CLI |
 | `systemview shutdown [port]` | Stop a running instance |
 | `systemview help` | Print help |
+
+**Flags:** `--json` · `--verbose` · `--manifest <path>`
+
+Full reference: [`docs/cli.md`](docs/cli.md)

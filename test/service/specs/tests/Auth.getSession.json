@@ -1,0 +1,46 @@
+[
+  {
+    "title": "Session cookie persists across calls",
+    "namespace": { "serviceId": "TestService", "moduleName": "Auth", "methodName": "getSession" },
+    "Before": [
+      {
+        "title": "Sign in to establish session",
+        "namespace": { "serviceId": "TestService", "moduleName": "Auth", "methodName": "signIn" },
+        "args": [
+          {
+            "name": "argument:",
+            "input": { "email": "test@test.com", "password": "abc123" },
+            "input_type": "object",
+            "data_type": "",
+            "targetValues": []
+          }
+        ],
+        "savedEvaluations": [
+          {
+            "namespace": "results.success",
+            "expected_type": "boolean",
+            "validations": [{ "name": "boolEquals", "value": true }],
+            "save": true
+          }
+        ]
+      }
+    ],
+    "Main": [
+      {
+        "title": "Cookie is carried to next request",
+        "namespace": { "serviceId": "TestService", "moduleName": "Auth", "methodName": "getSession" },
+        "args": [],
+        "savedEvaluations": [
+          {
+            "namespace": "results.cookie",
+            "expected_type": "string",
+            "validations": [{ "name": "isLike", "value": "session=test-session-value" }],
+            "save": true
+          }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": []
+  }
+]

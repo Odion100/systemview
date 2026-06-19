@@ -1,0 +1,32 @@
+[
+  {
+    "title": "Sign in",
+    "namespace": { "serviceId": "TestService", "moduleName": "Auth", "methodName": "signIn" },
+    "Before": [],
+    "Main": [
+      {
+        "title": "Signs in with valid credentials",
+        "namespace": { "serviceId": "TestService", "moduleName": "Auth", "methodName": "signIn" },
+        "args": [
+          {
+            "name": "argument:",
+            "input": { "email": "test@test.com", "password": "abc123" },
+            "input_type": "object",
+            "data_type": "",
+            "targetValues": []
+          }
+        ],
+        "savedEvaluations": [
+          {
+            "namespace": "results.success",
+            "expected_type": "boolean",
+            "validations": [{ "name": "boolEquals", "value": true }],
+            "save": true
+          }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": []
+  }
+]

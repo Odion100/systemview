@@ -1,0 +1,24 @@
+[
+  {
+    "title": "probeHeaders Origin is forwarded to service",
+    "namespace": { "serviceId": "TestService", "moduleName": "Headers", "methodName": "getOrigin" },
+    "Before": [],
+    "Main": [
+      {
+        "title": "Origin header arrives from CLI cookie client",
+        "namespace": { "serviceId": "TestService", "moduleName": "Headers", "methodName": "getOrigin" },
+        "args": [],
+        "savedEvaluations": [
+          {
+            "namespace": "results.received",
+            "expected_type": "boolean",
+            "validations": [{ "name": "boolEquals", "value": true }],
+            "save": true
+          }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": []
+  }
+]

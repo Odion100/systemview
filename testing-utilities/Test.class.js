@@ -12,6 +12,7 @@ module.exports = function Test({
   index,
   editMode = true,
   logger,
+  client,
 }) {
   this.index = index;
   this.connection = {};
@@ -99,7 +100,7 @@ module.exports = function Test({
       }
       const { connectionData } = service.system;
 
-      this.connection[serviceId] = Client.createService(connectionData);
+      this.connection[serviceId] = (client || Client).createService(connectionData);
       this.connection[serviceId].setHeaders({ Origin: `http://localhost:${3000}` });
     }
 

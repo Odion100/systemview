@@ -1,0 +1,30 @@
+{
+  "name": "systemview-plugin",
+  "version": "1.3.1",
+  "description": "Connects your SystemLynx project to the SystemView UI",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Odion100/systemview-plugin.git"
+  },
+  "keywords": [
+    "systemlynx"
+  ],
+  "author": "Odion Edwards",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Odion100/systemview-plugin/issues"
+  },
+  "homepage": "https://github.com/Odion100/systemview-plugin#readme",
+  "devDependencies": {
+    "cz-conventional-changelog": "^3.3.0"
+  },
+  "config": {
+    "commitizen": {
+      "path": "./node_modules/cz-conventional-changelog"
+    }
+  }
+}

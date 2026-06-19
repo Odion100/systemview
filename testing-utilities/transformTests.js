@@ -1,23 +1,23 @@
 const { Argument } = require("./Argument.class");
 const Test = require("./Test.class");
 
-function initializeSavedTests(savedTests, connectedServices) {
+function initializeSavedTests(savedTests, connectedServices, client) {
   return savedTests.map((ft) => {
     // context matters
     const newTests = [];
     const { title, namespace } = ft;
 
     const Before = ft.Before.map((test) =>
-      resetTestClass(test, newTests, connectedServices, false)
+      resetTestClass(test, newTests, connectedServices, false, client)
     );
     const Main = ft.Main.map((test) =>
-      resetTestClass(test, newTests, connectedServices, false)
+      resetTestClass(test, newTests, connectedServices, false, client)
     );
     const Events = ft.Events.map((test) =>
-      resetTestClass(test, newTests, connectedServices, false)
+      resetTestClass(test, newTests, connectedServices, false, client)
     );
     const After = ft.After.map((test) =>
-      resetTestClass(test, newTests, connectedServices, false)
+      resetTestClass(test, newTests, connectedServices, false, client)
     );
     newTests.push(Before);
     newTests.push(Main);
@@ -27,7 +27,7 @@ function initializeSavedTests(savedTests, connectedServices) {
   });
 }
 
-const resetTestClass = (test, FullTest, connectedServices, editMode) => {
+const resetTestClass = (test, FullTest, connectedServices, editMode, client) => {
   return new Test({
     ...test,
     args: test.args.map(
@@ -35,6 +35,7 @@ const resetTestClass = (test, FullTest, connectedServices, editMode) => {
         new Argument(arg.name, FullTest, arg.input_type, arg.input, arg.targetValues)
     ),
     editMode,
+    client,
   }).getConnection(connectedServices);
 };
 

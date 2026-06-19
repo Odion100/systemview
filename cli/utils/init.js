@@ -1,17 +1,10 @@
-const welcome = require("cli-welcome");
-const pkg = require("../../package.json");
-const unhandled = require("cli-handle-unhandled");
-
-module.exports = ({ clear = true }) => {
-  unhandled();
-  welcome({
-    title: `SystemView`,
-    tagLine: `by Odion Edwards`,
-    description: pkg.description,
-    version: pkg.version,
-    bgColor: "#36BB09",
-    color: "#000000",
-    bold: true,
-    clear,
+module.exports = function init() {
+  process.on("uncaughtException", (err) => {
+    console.error(err);
+    process.exit(1);
+  });
+  process.on("unhandledRejection", (err) => {
+    console.error(err);
+    process.exit(1);
   });
 };
