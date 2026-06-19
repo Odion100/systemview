@@ -23,7 +23,7 @@
     "meow": "^9.0.0",
     "moment": "^2.29.1",
     "systemlynx": "^1.18.12",
-    "systemlynx-client": "^1.18.12",
+    "systemlynx-client": "^1.19.12",
     "web-vitals": "^0.2.4"
   },
   "scripts": {

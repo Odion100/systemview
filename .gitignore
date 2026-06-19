@@ -127,3 +127,6 @@ yarn-debug.log*
 yarn-error.log*
 api/connections.txt
 vectorStore
+CLAUDE.md
+.claude/
+wiki/

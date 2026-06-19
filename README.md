@@ -1,56 +1,145 @@
-# Establishing a connection between SystemView and the Test Services
+# SystemView
 
-## SystemView Plugin
+A documentation and testing suite for [SystemLynx](https://github.com/Odion100/SystemLynx) services. SystemView gives you a browser-based UI to browse your service's modules and methods, read and write markdown documentation, build and run tests interactively, and execute saved test suites from the CLI.
 
-```javascript
-const SystemView = require("systemView")({
-  SystemViewConnection: "http://localhost:3000", //default
-  SystemViewDocumentation: "./SystemView", //default
-  projectCode: "ProjectName", //optional. Used to conveniently load multiple services as one project
-  serviceId: "ServiceName", //required. If not included
-});
+---
 
-App.use(SystemView);
+## Installation
+
+```bash
+npm install -g systemview
 ```
 
-Every time the app reload the plugin will load the SystemView Service using the `SystemViewConnection` value provided. It also adds a local module called `SystemView` to the test Service with the following methods and event:
+> Requires Node >= 18
 
-- `SystemView.saveDoc`
-- `SystemView.getDoc`
-- `SystemView.emit("specs-updated")`
+---
 
-Once the test Service is ready the plugin will send the `system` data to the SystemView Service via the following method call.
+## Starting SystemView
 
-```javascript
-SystemView.connect({
-  system,
-  projectCode,
-  serviceId,
-});
+```bash
+systemview
+# or
+systemview start        # default port 3000
+systemview start 4000   # custom port
 ```
 
-The SystemView Service will Store the `system` data in memory. When the SystemView app makes a request for a connection (`SystemView.getConnection`), then the it will return the data from memory or from the service directly
+Once running:
+- **UI** → `http://localhost:3000`
+- **API** → `http://localhost:3000/systemview/api`
 
-> Normally it's not a good idea to hold data in memory or maintain state with in a service but since this is a local project it won't be an issue.
+To open the browser directly (optionally navigating to a specific service):
 
-## Loading One or More Services
+```bash
+systemview open                                  # open to home
+systemview open myProject                        # open to project
+systemview open myProject Basketball/Games/add   # open to a specific method
+```
 
-1. User enters a `projectCode` or a `serviceUrl` in the search input
-2. The `SystemView.api.getConnection(projectCode || servicerUrl)` method will be called. This method will facilitate the process of retrieving the `connectionData` for the Service or Services being searched.
+To stop a running instance:
 
-- if a url is passed it will first check for a `system` in memory with that url and return that, or make a request for the `connectionData` and return that
-- if a `projectCode` is passed the service will check for a `system` in memory with the same `projectCode` and return that data to the app, or a 404 error
-  > It's ok to use memory as this is a local project
+```bash
+systemview shutdown        # default port
+systemview shutdown 4000   # custom port
+```
 
-## Saving Tests and Documentation
+---
 
-1. SystemView plugin creates a SystemView module in the test Service
-   - `SystemView.saveDoc`
-   - `SystemView.getDoc`
-2. The plugin also adds the SystemView service and calls `SystemView.connect` when the app is read
-3. The users enters a project code in the search input
-4.
+## Connecting a SystemLynx Service
 
-## Quick Testing Random Services (Without the plugin)
+Install the plugin in your service:
 
-1. User enters a service url in the search input
+```bash
+npm install systemview-plugin
+```
+
+Then add it to your SystemLynx app. The plugin connects your service to the SystemView instance on startup and enables saving/loading docs and tests locally.
+
+```js
+const { createApp } = require("systemlynx");
+const App = createApp(server);
+
+App.startService({ route, port, host })
+  .module("Users", Users)
+  .module("Orders", Orders);
+
+if (process.env.SYSTEMVIEW_HOST) {
+  const SystemView = require("systemview-plugin")({
+    connection: process.env.SYSTEMVIEW_HOST,  // e.g. "http://localhost:3000"
+    specs: "./MyService/specs",               // local path for saving docs and tests
+    projectCode: "myProject",                 // groups services together in the UI
+    serviceId: "MyService",                   // name for this service
+    module: plugin,                           // optional: expose extra methods to SystemView
+  });
+  App.use(SystemView);
+}
+```
+
+Once connected, the service appears automatically in the SystemView UI under `myProject > MyService`.
+
+---
+
+## Using the UI
+
+The UI has three panels:
+
+| Panel | Description |
+|---|---|
+| **Navigator** (left) | Browse connected projects, services, modules, and methods |
+| **Documentation** (center) | Read and write markdown docs for the selected method |
+| **Test Panel** (right) | Build, run, and save tests for the selected method |
+
+### URL routing
+
+The UI URL reflects your current location:
+
+```
+http://localhost:3000/:projectCode/:serviceId/:moduleName/:methodName
+```
+
+### Building a test
+
+The Test Panel (also called Scratch Pad) lets you build a full test sequence:
+
+- **Before** — setup calls that run before the main test
+- **Main** — the method call being tested, with argument inputs and response validations
+- **Events** — WebSocket events to listen for during the test
+- **After** — teardown calls that run after the main test
+
+Click **Run** to execute the full sequence. Click **Save** to persist the test to the service's `specs/` folder via the plugin.
+
+---
+
+## Running Tests from the CLI
+
+Run all saved tests for a project:
+
+```bash
+systemview test myProject
+```
+
+Run tests filtered to a specific namespace:
+
+```bash
+systemview test myProject Games
+systemview test myProject Games.add
+```
+
+SystemView connects to the running instance, fetches saved tests from each service, runs the full test sequence for each, and prints a summary:
+
+```
+✔  Basketball   tests: 12, passed: 12, failed: 0
+✖  Profiles     tests: 4, passed: 3, failed: 1
+```
+
+---
+
+## CLI reference
+
+| Command | Description |
+|---|---|
+| `systemview` | Start SystemView on port 3000 |
+| `systemview start [port]` | Start on a custom port |
+| `systemview open [projectCode] [namespace]` | Open the UI in a browser |
+| `systemview test <projectCode> [namespace]` | Run saved tests from CLI |
+| `systemview shutdown [port]` | Stop a running instance |
+| `systemview help` | Print help |

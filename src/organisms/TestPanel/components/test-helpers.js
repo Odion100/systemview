@@ -129,7 +129,7 @@ const isMockFilesFunction = (str) => /^mockFiles\(([^,)]*(,[^,)]*)*)\)$/.test(st
 export const strFn = (str) => {
   if (isDateFunction(str)) {
     const [fullStr, args] = str.match(isFnRegEx);
-    return moment(args).toJSON();
+    return moment(!args ? undefined : args).toJSON();
   }
   if (isMockFileFunction(str)) {
     const [fullStr, args] = str.match(isFnRegEx);
