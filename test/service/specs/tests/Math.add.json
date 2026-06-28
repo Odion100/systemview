@@ -24,6 +24,27 @@
             "save": true
           }
         ]
+      },
+      {
+        "title": "Add 10 + 20",
+        "namespace": { "serviceId": "TestService", "moduleName": "Math", "methodName": "add" },
+        "args": [
+          {
+            "name": "argument:",
+            "input": { "a": 10, "b": 20 },
+            "input_type": "object",
+            "data_type": "",
+            "targetValues": []
+          }
+        ],
+        "savedEvaluations": [
+          {
+            "namespace": "results.sum",
+            "expected_type": "number",
+            "validations": [{ "name": "numEquals", "value": 30 }],
+            "save": true
+          }
+        ]
       }
     ],
     "Events": [],

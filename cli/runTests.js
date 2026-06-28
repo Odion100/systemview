@@ -5,12 +5,55 @@ const { initializeSavedTests } = require("../testing-utilities/transformTests");
 const FullTestController = require("../testing-utilities/FullTestController");
 const log = require("./logger");
 const validationMessages = require("../testing-utilities/validtionMessages");
+const { truncate, TruncationMarker } = require("./utils/truncate");
+
+function formatTruncated(value, indent = 0) {
+  const pad = "  ".repeat(indent);
+  const inner = "  ".repeat(indent + 1);
+  if (value instanceof TruncationMarker) return chalk.dim(value.message);
+  if (value === null) return "null";
+  if (typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) {
+    if (!value.length) return "[]";
+    const items = value.map((v) =>
+      v instanceof TruncationMarker
+        ? inner + chalk.dim(v.message)
+        : inner + formatTruncated(v, indent + 1)
+    );
+    return "[\n" + items.join(",\n") + "\n" + pad + "]";
+  }
+  const keys = Object.keys(value);
+  if (!keys.length) return "{}";
+  const entries = keys.map((k) => {
+    const v = value[k];
+    if (k === "__more__" && v instanceof TruncationMarker)
+      return inner + chalk.dim(v.message);
+    return inner + JSON.stringify(k) + ": " + formatTruncated(v, indent + 1);
+  });
+  return "{\n" + entries.join(",\n") + "\n" + pad + "}";
+}
 const { runFullTest } = new FullTestController();
 
 const chalk = require("chalk");
 const DIVIDER = chalk.dim("  " + "─".repeat(60));
+const SUITE_DIVIDER = chalk.cyan("  " + "─".repeat(60));
 
-module.exports = async function runTests(url, project_code, namespace, { json = false, verbose = false, manifest: manifestPath, headers: cliHeaders = {} } = {}) {
+module.exports = async function runTests(
+  url,
+  project_code,
+  namespace,
+  {
+    json = false,
+    verbose = false,
+    manifest: manifestPath,
+    headers: cliHeaders = {},
+    bail = false,
+    dryRun = false,
+    phase: phaseFilter = null,
+    index: indexFilter = undefined,
+    skip: skipPatterns = [],
+  } = {}
+) {
   const api = `${url}/systemview/api`;
 
   if (!project_code) {
@@ -18,7 +61,11 @@ module.exports = async function runTests(url, project_code, namespace, { json = 
     return 1;
   }
 
-  const { services: connectedServices, probeHeaders: manifestHeaders } = await resolveServices(api, project_code, manifestPath);
+  const { services: connectedServices, probeHeaders: manifestHeaders } = await resolveServices(
+    api,
+    project_code,
+    manifestPath
+  );
   if (!connectedServices || !connectedServices.length) {
     log.warn("No connected services found for project: " + project_code);
     return 1;
@@ -36,11 +83,12 @@ module.exports = async function runTests(url, project_code, namespace, { json = 
   const allTestLists = await getTests(connectedServices, Client);
   const testToRun = allTestLists
     .map((list) =>
-      namespace
-        ? list.filter(({ namespace: n }) =>
-            `${n.serviceId}.${n.moduleName}.${n.methodName}`.includes(namespace)
-          )
-        : list
+      list.filter(({ namespace: n }) => {
+        const full = `${n.serviceId}.${n.moduleName}.${n.methodName}`;
+        const matchesInclude = !namespace || full.includes(namespace);
+        const matchesSkip = skipPatterns.length && skipPatterns.some((p) => full.includes(p));
+        return matchesInclude && !matchesSkip;
+      })
     )
     .filter((list) => list.length);
 
@@ -49,8 +97,24 @@ module.exports = async function runTests(url, project_code, namespace, { json = 
     return 0;
   }
 
+  if (dryRun) {
+    const total = testToRun.reduce((n, list) => n + list.length, 0);
+    console.log("");
+    console.log(`  Would run ${total} ${total === 1 ? "test" : "tests"}:`);
+    console.log("");
+    testToRun.forEach((list) => {
+      list.forEach(({ namespace: n, title }) => {
+        console.log(`  ${chalk.cyan(`${n.serviceId}.${n.moduleName}.${n.methodName}`)} — "${title}"`);
+      });
+    });
+    console.log("");
+    return 0;
+  }
+
   const jsonOutput = json ? { projectCode: project_code, passed: 0, failed: 0, tests: [] } : null;
   let totalFailed = 0;
+  const serviceSummaries = [];
+  const allFailures = [];
 
   for (const testList of testToRun) {
     const { serviceId } = testList[0].namespace;
@@ -58,7 +122,14 @@ module.exports = async function runTests(url, project_code, namespace, { json = 
 
     try {
       const initialized = initializeSavedTests(testList, connectedServices, Client);
-      const { passed, failed, jsonTests } = await runAllTests(initialized, url, project_code, json, verbose);
+      const { passed, failed, jsonTests, failures } = await runAllTests(
+        initialized,
+        url,
+        project_code,
+        json,
+        verbose,
+        { bail, phaseFilter, indexFilter }
+      );
       totalFailed += failed;
 
       if (json) {
@@ -66,10 +137,11 @@ module.exports = async function runTests(url, project_code, namespace, { json = 
         jsonOutput.failed += failed;
         jsonOutput.tests.push(...jsonTests);
       } else {
-        log[failed ? "error" : "success"](
-          `${serviceId}: ${passed + failed} tests, ${passed} passed, ${failed} failed`
-        );
+        serviceSummaries.push({ serviceId, passed, failed });
+        allFailures.push(...failures);
       }
+
+      if (bail && failed > 0) break;
     } catch (error) {
       log.error(`Unexpected error for ${serviceId}: ${error.message}`);
     }
@@ -81,22 +153,67 @@ module.exports = async function runTests(url, project_code, namespace, { json = 
     console.log("");
     log.info("TEST COMPLETE");
     console.log("");
+
+    serviceSummaries.forEach(({ serviceId, passed, failed }) => {
+      const total = passed + failed;
+      log[failed ? "error" : "success"](
+        `${serviceId}: ${total} tests, ${passed} passed, ${failed} failed`
+      );
+    });
+
+    if (allFailures.length) {
+      console.log("");
+      log.warn("FAILED:");
+      allFailures.forEach(({ serviceId, moduleName, methodName, title, failedPhases }) => {
+        console.log("");
+        log.error(`  ${serviceId}.${moduleName}.${methodName} — "${title}"`);
+        failedPhases.forEach(({ phase, actions }) => {
+          actions.forEach(({ actionTitle, errors }) => {
+            console.log(`      ${phase}: "${actionTitle}"`);
+            errors.forEach((err) => console.log(`        → ${validationMessages(err)}`));
+          });
+        });
+      });
+      console.log("");
+    }
   }
 
   return totalFailed > 0 ? 1 : 0;
 };
 
-const runAllTests = async (savedTests, url, project_code, json, verbose) => {
-  const sum = { passed: 0, failed: 0, jsonTests: [] };
+const runAllTests = async (savedTests, url, project_code, json, verbose, opts = {}) => {
+  const { bail = false, phaseFilter = null, indexFilter = undefined } = opts;
+  const sum = { passed: 0, failed: 0, jsonTests: [], failures: [] };
 
-  for (const { Before, Main, Events, After, title, namespace } of savedTests) {
-    const { moduleName, methodName, serviceId } = namespace;
+  for (const { Before: B, Main: M, Events: E, After: A, title, namespace } of savedTests) {
+    let Before = [...B];
+    let Main = [...M];
+    let Events = [...E];
+    let After = [...A];
+
+    if (phaseFilter) {
+      const allowed = phaseFilter.split(",").map((p) => p.trim().toLowerCase());
+      if (!allowed.includes("before")) Before = [];
+      if (!allowed.includes("main")) Main = [];
+      if (!allowed.includes("events")) Events = [];
+      if (!allowed.includes("after")) After = [];
+    }
+
+    if (indexFilter !== undefined) {
+      Before = Before.slice(indexFilter, indexFilter + 1);
+      Main = Main.slice(indexFilter, indexFilter + 1);
+      Events = Events.slice(indexFilter, indexFilter + 1);
+      After = After.slice(indexFilter, indexFilter + 1);
+    }
+
     const fullTest = [Before, Main, Events, After];
+    const { moduleName, methodName, serviceId } = namespace;
 
     if (!json) {
-      console.log("");
-      console.log("  " + chalk.bold.cyan(`${serviceId}.${moduleName}.${methodName}(...)`));
-      console.log(chalk.dim(`    UI → ${url}/${project_code}/${serviceId}/${moduleName}/${methodName}`));
+      console.log(SUITE_DIVIDER);
+      console.log("  " + chalk.bold("Test: ") + chalk.bold.cyan(title));
+      console.log(SUITE_DIVIDER);
+      console.log(chalk.dim(`    ${serviceId}.${moduleName}.${methodName} → ${url}/${project_code}/${serviceId}/${moduleName}/${methodName}`));
       console.log("");
     }
 
@@ -105,8 +222,24 @@ const runAllTests = async (savedTests, url, project_code, json, verbose) => {
     const hasFailed =
       countErrors(Before) + countErrors(Main) + countErrors(Events) + countErrors(After) > 0;
 
-    if (hasFailed) sum.failed++;
-    else sum.passed++;
+    if (hasFailed) {
+      sum.failed++;
+      const failedPhases = [];
+      [
+        { phase: "Before", tests: Before },
+        { phase: "Main", tests: Main },
+        { phase: "Events", tests: Events },
+        { phase: "After", tests: After },
+      ].forEach(({ phase, tests }) => {
+        const actions = tests
+          .filter((t) => t.errors && t.errors.length)
+          .map((t) => ({ actionTitle: t.title, errors: t.errors }));
+        if (actions.length) failedPhases.push({ phase, actions });
+      });
+      sum.failures.push({ serviceId, moduleName, methodName, title, failedPhases });
+    } else {
+      sum.passed++;
+    }
 
     if (json) {
       sum.jsonTests.push({
@@ -121,45 +254,63 @@ const runAllTests = async (savedTests, url, project_code, json, verbose) => {
         After: serializePhase(After),
       });
     } else {
-      logPhase(Before, "Before", verbose, verbose);
-      logPhase(Main, "Main", true, verbose);
-      logPhase(Events, "Events", verbose, verbose);
-      logPhase(After, "After", verbose, verbose);
+      const compact = !verbose;
+      logPhase(Before, "Before", verbose, compact, false);
+      logPhase(Main, "Main", verbose, false, true);
+      logPhase(Events, "Events", verbose, compact, false);
+      logPhase(After, "After", verbose, compact, false);
     }
+
+    if (bail && hasFailed) break;
   }
 
   return sum;
 };
 
-function countErrors(tests) {
-  return tests.reduce((n, t) => n + (t.errors ? t.errors.length : 0), 0);
-}
-
-function logPhase(tests, section, logSuccess = false, verbose = false) {
+function logPhase(tests, section, verbose = false, compact = false, isMain = false) {
   tests.forEach(({ errors, results, namespace, title, args }) => {
     const { serviceId, moduleName, methodName } = namespace;
     const failed = errors && errors.length;
-    if (!failed && !logSuccess) return;
-    console.log(chalk.dim(`    ${section}: ${title}`));
-    failed
-      ? log.error(`  ${serviceId}.${moduleName}.${methodName}(...)`)
-      : log.success(`  ${serviceId}.${moduleName}.${methodName}(...)`);
+
+    const label = isMain ? chalk.bold.green(section) : chalk.blue(section);
+    console.log(`    ${label}: ${chalk.dim(title)}`);
+    if (failed) {
+      console.log("  " + chalk.bold.red(`${serviceId}.${moduleName}.${methodName}(...)`));
+    } else if (isMain) {
+      console.log("  " + chalk.bold.green(`${serviceId}.${moduleName}.${methodName}(...)`));
+    } else {
+      log.success(`  ${serviceId}.${moduleName}.${methodName}(...)`);
+    }
+
     if (verbose && args && args.length) {
       console.log("");
       args.forEach(({ name, input }) => {
         console.log(`    ${chalk.dim(name)}`, JSON.stringify(input));
       });
     }
+
     console.log("");
-    console.log("    results:", JSON.stringify(results, null, 2).replace(/\n/g, "\n    "));
+    if (compact) {
+      console.log("    results:", JSON.stringify(truncate(results)));
+    } else if (verbose) {
+      console.log("    results:", JSON.stringify(results, null, 2).replace(/\n/g, "\n    "));
+    } else {
+      console.log("    results:", formatTruncated(truncate(results)).replace(/\n/g, "\n    "));
+    }
     console.log("");
+
     if (failed) {
       log.warn(`  ${errors.length} validation error(s)`);
       errors.forEach((err) => console.log(`    → ${validationMessages(err)}`));
       console.log("");
     }
+
     console.log(DIVIDER);
   });
+}
+
+function countErrors(tests) {
+  return tests.reduce((n, t) => n + (t.errors ? t.errors.length : 0), 0);
 }
 
 function serializePhase(tests) {
@@ -214,7 +365,9 @@ async function resolveServices(api, project_code, manifestPath) {
         : [{ serviceId: raw.serviceId, system: raw.system, specList: raw.specList }];
 
       if (project_code && raw.projectCode && raw.projectCode !== project_code) {
-        log.warn(`Manifest projectCode "${raw.projectCode}" doesn't match "${project_code}", falling back to API`);
+        log.warn(
+          `Manifest projectCode "${raw.projectCode}" doesn't match "${project_code}", falling back to API`
+        );
       } else {
         return { services, probeHeaders: raw.probeHeaders || {} };
       }

@@ -2,16 +2,20 @@
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
+const fs = require("fs");
+const path = require("path");
 const { input, flags, showHelp } = require("./utils/cli");
 const init = require("./utils/init");
 const log = require("./logger");
 const launchApp = require("./launchApp");
 const runTests = require("./runTests");
+const listTests = require("./listTests");
 const appIsRunning = require("./appIsRunning");
 const openBrowser = require("./openBrowser");
 const connectService = require("./connectService");
 const probe = require("./probe");
 const { HttpClient } = require("systemlynx");
+const { createCookieClient } = require("./cookieClient");
 
 const DEFAULT_PORT = 3000;
 
@@ -35,12 +39,29 @@ async function startTest() {
       verbose: flags.verbose,
       manifest: flags.manifest,
       headers: flags.headers,
+      bail: flags.bail,
+      dryRun: flags.dryRun,
+      phase: flags.phase,
+      index: flags.index,
+      skip: flags.skip,
     });
     process.exit(exitCode);
   } catch (error) {
     log.error("Error executing tests: " + error.message);
     process.exit(1);
   }
+}
+
+async function list() {
+  const project_code = input[1];
+  const namespace = input[2];
+  const url = `http://localhost:${DEFAULT_PORT}`;
+  const api = `${url}/systemview/api`;
+  if (!(await appIsRunning(api))) {
+    await launchApp(DEFAULT_PORT);
+  }
+  await listTests(url, project_code, namespace, { manifest: flags.manifest, verbose: flags.verbose });
+  process.exit(0);
 }
 
 async function open() {
@@ -51,7 +72,24 @@ async function open() {
   if (!(await appIsRunning(api))) {
     await launchApp(DEFAULT_PORT);
   }
-  openBrowser(ui, project_code, namespace);
+
+  let connectedServices = [];
+  if (namespace && project_code) {
+    const manifestFile = flags.manifest || path.join(process.cwd(), "systemview.manifest.json");
+    if (fs.existsSync(manifestFile)) {
+      try {
+        const raw = JSON.parse(fs.readFileSync(manifestFile, "utf8"));
+        connectedServices = raw.services ? raw.services : [raw];
+      } catch {}
+    } else {
+      try {
+        const { SystemView } = await createCookieClient().loadService(api);
+        connectedServices = (await SystemView.getServices(project_code)) || [];
+      } catch {}
+    }
+  }
+
+  openBrowser(ui, project_code, namespace, connectedServices);
   process.exit(0);
 }
 
@@ -87,6 +125,8 @@ async function quitApp() {
 
   if (command === "open") {
     await open();
+  } else if (command === "list") {
+    await list();
   } else if (command === "help" || input.includes("help")) {
     showHelp();
   } else if (command === "test") {
@@ -97,7 +137,11 @@ async function quitApp() {
     await connectService(input[1], input[2], { manifest: flags.manifest });
     process.exit(0);
   } else if (command === "probe") {
-    const exitCode = await probe(input[1], input[2], { json: flags.json, manifest: flags.manifest, headers: flags.headers });
+    const exitCode = await probe(input[1], input[2], {
+      json: flags.json,
+      manifest: flags.manifest,
+      headers: flags.headers,
+    });
     process.exit(exitCode || 0);
   } else {
     await startApp();

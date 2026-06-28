@@ -60,5 +60,10 @@ module.exports = function ConnectedServices() {
       []
     );
   };
+
+  this.getAllConnections = () => {
+    return JSON.parse(fs.readFileSync(LOCAL_STORAGE, "utf8"));
+  };
+
   return this;
 };

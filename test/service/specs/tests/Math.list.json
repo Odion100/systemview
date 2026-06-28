@@ -1,0 +1,32 @@
+[
+  {
+    "title": "Get items (truncation demo)",
+    "namespace": { "serviceId": "TestService", "moduleName": "Math", "methodName": "getItems" },
+    "Before": [],
+    "Main": [
+      {
+        "title": "Get 10 items",
+        "namespace": { "serviceId": "TestService", "moduleName": "Math", "methodName": "getItems" },
+        "args": [
+          {
+            "name": "argument:",
+            "input": { "count": 10 },
+            "input_type": "object",
+            "data_type": "",
+            "targetValues": []
+          }
+        ],
+        "savedEvaluations": [
+          {
+            "namespace": "results.total",
+            "expected_type": "number",
+            "validations": [{ "name": "numEquals", "value": 10 }],
+            "save": true
+          }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": []
+  }
+]

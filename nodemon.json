@@ -1,0 +1,10 @@
+{
+  "ignore": [
+    "api/connections.json",
+    "systemview.manifest.json",
+    "systemview.cookies.json",
+    "systemview.logs",
+    "wiki/",
+    ".claude/"
+  ]
+}

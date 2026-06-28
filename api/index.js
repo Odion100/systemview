@@ -76,6 +76,21 @@ async function refreshConnection(searchText) {
   await ConnectedServices.refreshConnections();
   return getServices(searchText);
 }
+
+function getProjects() {
+  const connections = ConnectedServices.getAllConnections();
+  const projects = {};
+  connections.forEach(({ projectCode, serviceId, system }) => {
+    if (!projects[projectCode]) projects[projectCode] = [];
+    projects[projectCode].push({
+      serviceId,
+      serviceUrl: system.connectionData.serviceUrl,
+      connectionData: system.connectionData,
+    });
+  });
+  return projects;
+}
+
 const shutdown = () => process.exit(0);
 
 module.exports = function launchSystemView(port = 3000) {
@@ -94,6 +109,7 @@ module.exports = function launchSystemView(port = 3000) {
     .module("SystemView", {
       connect,
       getServices,
+      getProjects,
       updateSpecList,
       shutdown,
       refreshConnection,

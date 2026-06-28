@@ -1,11 +1,127 @@
 [
   {
-    "title": "Subtract two numbers",
+    "title": "Subtract numbers (with Before + After)",
+    "namespace": { "serviceId": "TestService", "moduleName": "Math", "methodName": "subtract" },
+    "Before": [
+      {
+        "title": "Verify add works (10 + 5)",
+        "namespace": { "serviceId": "TestService", "moduleName": "Math", "methodName": "add" },
+        "args": [
+          {
+            "name": "argument:",
+            "input": { "a": 10, "b": 5 },
+            "input_type": "object",
+            "data_type": "",
+            "targetValues": []
+          }
+        ],
+        "savedEvaluations": [
+          {
+            "namespace": "results.sum",
+            "expected_type": "number",
+            "validations": [{ "name": "numEquals", "value": 15 }],
+            "save": true
+          }
+        ]
+      },
+      {
+        "title": "Verify add works (2 + 2)",
+        "namespace": { "serviceId": "TestService", "moduleName": "Math", "methodName": "add" },
+        "args": [
+          {
+            "name": "argument:",
+            "input": { "a": 2, "b": 2 },
+            "input_type": "object",
+            "data_type": "",
+            "targetValues": []
+          }
+        ],
+        "savedEvaluations": [
+          {
+            "namespace": "results.sum",
+            "expected_type": "number",
+            "validations": [{ "name": "numEquals", "value": 4 }],
+            "save": true
+          }
+        ]
+      }
+    ],
+    "Main": [
+      {
+        "title": "Subtract 10 - 5",
+        "namespace": { "serviceId": "TestService", "moduleName": "Math", "methodName": "subtract" },
+        "args": [
+          {
+            "name": "argument:",
+            "input": { "a": 10, "b": 5 },
+            "input_type": "object",
+            "data_type": "",
+            "targetValues": []
+          }
+        ],
+        "savedEvaluations": [
+          {
+            "namespace": "results.difference",
+            "expected_type": "number",
+            "validations": [{ "name": "numEquals", "value": 5 }],
+            "save": true
+          }
+        ]
+      },
+      {
+        "title": "Subtract 20 - 7",
+        "namespace": { "serviceId": "TestService", "moduleName": "Math", "methodName": "subtract" },
+        "args": [
+          {
+            "name": "argument:",
+            "input": { "a": 20, "b": 7 },
+            "input_type": "object",
+            "data_type": "",
+            "targetValues": []
+          }
+        ],
+        "savedEvaluations": [
+          {
+            "namespace": "results.difference",
+            "expected_type": "number",
+            "validations": [{ "name": "numEquals", "value": 13 }],
+            "save": true
+          }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": [
+      {
+        "title": "Confirm add still works after subtracting",
+        "namespace": { "serviceId": "TestService", "moduleName": "Math", "methodName": "add" },
+        "args": [
+          {
+            "name": "argument:",
+            "input": { "a": 1, "b": 1 },
+            "input_type": "object",
+            "data_type": "",
+            "targetValues": []
+          }
+        ],
+        "savedEvaluations": [
+          {
+            "namespace": "results.sum",
+            "expected_type": "number",
+            "validations": [{ "name": "numEquals", "value": 2 }],
+            "save": true
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "title": "Wrong expected value (failure demo)",
     "namespace": { "serviceId": "TestService", "moduleName": "Math", "methodName": "subtract" },
     "Before": [],
     "Main": [
       {
-        "title": "Subtract 3 from 10",
+        "title": "10 - 3 (expects wrong answer)",
         "namespace": { "serviceId": "TestService", "moduleName": "Math", "methodName": "subtract" },
         "args": [
           {
@@ -20,7 +136,7 @@
           {
             "namespace": "results.difference",
             "expected_type": "number",
-            "validations": [{ "name": "numEquals", "value": 7 }],
+            "validations": [{ "name": "numEquals", "value": 99 }],
             "save": true
           }
         ]
