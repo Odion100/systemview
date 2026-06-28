@@ -15,6 +15,7 @@ const HELP_TEXT = `
     shutdown [port]                        Stop a running SystemView instance
 
   Flags:
+    --version                              Print version and exit
     --json                                 Output results as JSON (for agents/CI)
     --verbose                              test: full results and args for all phases; list: expand to show methods and test titles
     --manifest <path>                      Path to manifest file (default: ./systemview.manifest.json)
@@ -47,7 +48,7 @@ const flagValueArgs = ["--manifest", "--header", "--skip", "--phase", "--index"]
 
 const flags = {
   json: rawArgs.includes("--json"),
-  verbose: rawArgs.includes("--verbose") || rawArgs.includes("-v"),
+  verbose: rawArgs.includes("--verbose"),
   debug: rawArgs.includes("--debug") || rawArgs.includes("-d"),
   bail: rawArgs.includes("--bail"),
   dryRun: rawArgs.includes("--dry-run"),

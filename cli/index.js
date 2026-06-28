@@ -18,6 +18,7 @@ const { HttpClient } = require("systemlynx");
 const { createCookieClient } = require("./cookieClient");
 
 const DEFAULT_PORT = 3000;
+const VERSION = require("../package.json").version;
 
 async function startApp() {
   const port = isNaN(input[1]) ? DEFAULT_PORT : Number(input[1]);
@@ -120,6 +121,11 @@ async function quitApp() {
 }
 
 (async () => {
+  if (process.argv.includes("--version") || process.argv.includes("-v")) {
+    console.log(VERSION);
+    process.exit(0);
+  }
+
   init();
   const command = input[0];
 
