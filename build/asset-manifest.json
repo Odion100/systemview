@@ -1,0 +1,23 @@
+{
+  "files": {
+    "main.css": "/static/css/main.3e4f9bc0.css",
+    "main.js": "/static/js/main.179035a1.js",
+    "static/js/422.05c538a9.chunk.js": "/static/js/422.05c538a9.chunk.js",
+    "static/media/FontsFree-Net-SFMono-Regular.ttf": "/static/media/FontsFree-Net-SFMono-Regular.9647425ef282c28529df.ttf",
+    "static/media/loading.gif": "/static/media/loading.10ca842f103fd1282bdb.gif",
+    "static/media/Malkor-Regular.ttf": "/static/media/Malkor-Regular.f55d6a829566789554a5.ttf",
+    "static/media/test-icon.svg": "/static/media/test-icon.2b1ada73e6e33301aeac287a15063a4a.svg",
+    "static/media/eval-icon.svg": "/static/media/eval-icon.c95744a8bbde20641e4a13f19f9f5ae6.svg",
+    "index.html": "/index.html",
+    "static/media/check.svg": "/static/media/check.c17549c742b818356d1a95bfa3b0404a.svg",
+    "static/media/error.svg": "/static/media/error.1d9e99c1bb443d2374ef72a7205a5b71.svg",
+    "static/media/x.svg": "/static/media/x.f680188c9bc9ed62e3647ad587e1bea0.svg",
+    "main.3e4f9bc0.css.map": "/static/css/main.3e4f9bc0.css.map",
+    "main.179035a1.js.map": "/static/js/main.179035a1.js.map",
+    "422.05c538a9.chunk.js.map": "/static/js/422.05c538a9.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.3e4f9bc0.css",
+    "static/js/main.179035a1.js"
+  ]
+}
