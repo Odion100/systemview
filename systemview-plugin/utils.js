@@ -45,12 +45,6 @@ function getFilesByNamespace(folder, namespace) {
     }, []);
 }
 
-function ensureDir(dir) {
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-}
-
 const getSpecList = (specs) => {
   ensureDir(`${specs}/docs/`);
   ensureDir(`${specs}/tests/`);

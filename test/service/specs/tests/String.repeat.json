@@ -5,6 +5,34 @@
     "Before": [],
     "Main": [
       {
+        "title": "Repeat 1500 times (warn)",
+        "namespace": { "serviceId": "TestService", "moduleName": "String", "methodName": "repeat" },
+        "args": [
+          {
+            "name": "str:",
+            "input": "x",
+            "input_type": "string",
+            "data_type": "",
+            "targetValues": []
+          },
+          {
+            "name": "times:",
+            "input": 1500,
+            "input_type": "number",
+            "data_type": "",
+            "targetValues": []
+          }
+        ],
+        "savedEvaluations": [
+          {
+            "namespace": "results.result",
+            "expected_type": "string",
+            "validations": [{ "name": "strEquals", "value": "" }],
+            "save": false
+          }
+        ]
+      },
+      {
         "title": "Repeat 'ha' 3 times",
         "namespace": { "serviceId": "TestService", "moduleName": "String", "methodName": "repeat" },
         "args": [

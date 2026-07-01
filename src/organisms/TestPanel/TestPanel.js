@@ -15,7 +15,11 @@ import FullTestController from "./components/FullTestController";
 import Title from "../../atoms/Title/Title";
 import { CurrentTest } from "../../atoms/StatusIndicator/StatusIndicator";
 
-const FullTest = ({ serviceId, moduleName, methodName }) => {
+export default function FullTest({ serviceId, moduleName, methodName }) {
+  return <FullTestInner serviceId={serviceId} moduleName={moduleName} methodName={methodName} />;
+}
+
+const FullTestInner = ({ serviceId, moduleName, methodName }) => {
   const namespace = { serviceId, moduleName, methodName };
   const { connectedServices } = useContext(ServiceContext);
   const serviceData = connectedServices.find(
@@ -88,6 +92,7 @@ const FullTest = ({ serviceId, moduleName, methodName }) => {
     setTestBefore([]);
     setTestAfter([]);
     setEventTest([]);
+    setSavedTests([]);
     //get connection for the main test and set state
     const test = new Test({ namespace, shouldValidate: true }).getConnection(
       connectedServices
@@ -167,4 +172,3 @@ const FullTest = ({ serviceId, moduleName, methodName }) => {
   );
 };
 
-export default FullTest;

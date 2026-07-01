@@ -48,6 +48,24 @@
   padding: 0px 35px;
 }
 
+.logs-nav-link {
+  position: absolute;
+  right: 35px;
+  font-size: 16px;
+  font-family: Malkor;
+  color: #6886ba;
+  text-decoration: none;
+  padding: 5px 16px;
+  border: 1.5px solid #b0bed8;
+  border-radius: 20px;
+  background: #f4f6fb;
+  transition: background 0.15s, border-color 0.15s;
+  &:hover {
+    background: #e4eaf8;
+    border-color: #6886ba;
+  }
+}
+
 .scroll-buffer {
   height: 20vh;
 }

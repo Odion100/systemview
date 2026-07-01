@@ -14,6 +14,7 @@ const appIsRunning = require("./appIsRunning");
 const openBrowser = require("./openBrowser");
 const connectService = require("./connectService");
 const probe = require("./probe");
+const logsCommand = require("./logs");
 const { HttpClient } = require("systemlynx");
 const { createCookieClient } = require("./cookieClient");
 
@@ -149,6 +150,19 @@ async function quitApp() {
       headers: flags.headers,
     });
     process.exit(exitCode || 0);
+  } else if (command === "logs") {
+    const url = `http://localhost:${DEFAULT_PORT}`;
+    const api = `${url}/systemview/api`;
+    if (!(await appIsRunning(api))) {
+      await launchApp(DEFAULT_PORT);
+    }
+    await logsCommand(url, input[1], input[2], {
+      level: flags.level,
+      limit: flags.limit,
+      clear: flags.clear,
+      json: flags.json,
+    });
+    process.exit(0);
   } else {
     await startApp();
   }

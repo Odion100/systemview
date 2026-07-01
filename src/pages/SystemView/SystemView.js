@@ -1,5 +1,5 @@
 import React from "react";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import SystemNavigator from "../../organisms/SystemNavigator/SystemNavigator";
 import Documentation from "../../organisms/Documentation/Documentation";
 import TestPanel from "../../organisms/TestPanel/TestPanel";
@@ -23,6 +23,7 @@ const SystemViewPage = () => {
           SystemView
         </span>
         <img src={LOGO} alt="logo" />
+        <Link to="/logs" className="logs-nav-link">Logs</Link>
         {/* <span
           style={{
             fontSize: "28px",

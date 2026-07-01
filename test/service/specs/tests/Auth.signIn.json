@@ -5,6 +5,27 @@
     "Before": [],
     "Main": [
       {
+        "title": "Signs in with missing credentials (warn)",
+        "namespace": { "serviceId": "TestService", "moduleName": "Auth", "methodName": "signIn" },
+        "args": [
+          {
+            "name": "argument:",
+            "input": { "email": "", "password": "" },
+            "input_type": "object",
+            "data_type": "",
+            "targetValues": []
+          }
+        ],
+        "savedEvaluations": [
+          {
+            "namespace": "results.success",
+            "expected_type": "boolean",
+            "validations": [{ "name": "boolEquals", "value": false }],
+            "save": true
+          }
+        ]
+      },
+      {
         "title": "Signs in with valid credentials",
         "namespace": { "serviceId": "TestService", "moduleName": "Auth", "methodName": "signIn" },
         "args": [

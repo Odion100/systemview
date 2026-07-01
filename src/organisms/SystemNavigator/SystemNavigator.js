@@ -23,34 +23,38 @@ const SystemNav = ({ projectCode, serviceId, moduleName, methodName }) => {
     : {};
   const { SystemView } = SystemViewService;
 
+  const mergeServices = (existing, incoming, pc) => {
+    const others = existing.filter((s) => s.projectCode !== pc);
+    return [...others, ...incoming];
+  };
+
   const fetchProject = async (pc = projectCode) => {
     try {
       const results = await SystemView.getServices(pc);
-      setConnectedServices(results);
+      setConnectedServices((prev) => mergeServices(prev, results, pc));
       return results;
     } catch (error) {
       console.error(error);
-      setConnectedServices([]);
+      return [];
     }
   };
 
   const history = useHistory();
   const SearchInputSubmit = async (e) => {
-    const project = await fetchProject(e.target.value);
-    if (project.length) {
-      if (project[0].projectCode) {
-        history.push(`/${project[0].projectCode}`);
-        setSearchTerm(project[0].projectCode);
-      }
-    } else setSearchTerm("");
+    const pc = e.target.value;
+    const results = await fetchProject(pc);
+    if (results && results.length) {
+      history.push(`/${results[0].projectCode}`);
+      setSearchTerm(results[0].projectCode);
+    } else {
+      setSearchTerm("");
+    }
   };
-  const refreshHandler = async (e) => {
+  const refreshHandler = async () => {
     try {
       const results = await SystemView.refreshConnection(searchTerm);
-      setConnectedServices(results);
-    } catch (error) {
-      setConnectedServices([]);
-    }
+      setConnectedServices((prev) => mergeServices(prev, results, searchTerm));
+    } catch (error) {}
   };
   useEffect(() => {
     if (connectedServices.length)
@@ -98,7 +102,7 @@ const SystemNav = ({ projectCode, serviceId, moduleName, methodName }) => {
           <div className="col-12 ">
             <NavigationLinks
               connectedServices={connectedServices}
-              projectCode={projectCode}
+              selectedProjectCode={projectCode}
               selectedServiceId={serviceId}
               selectedModuleName={moduleName}
               selectedMethodName={methodName}
@@ -113,52 +117,76 @@ const SystemNav = ({ projectCode, serviceId, moduleName, methodName }) => {
 
 const NavigationLinks = ({
   connectedServices,
-  projectCode,
+  selectedProjectCode,
   selectedServiceId,
   selectedModuleName,
   selectedMethodName,
 }) => {
-  return connectedServices.map(({ system, serviceId, specList }, i) => {
-    const { serviceUrl } = system.connectionData;
-    const isSaved = specList.docs.includes(`${serviceId}.md`);
-    const isSelected = selectedServiceId === serviceId;
+  const projects = connectedServices.reduce((acc, service) => {
+    const pc = service.projectCode;
+    if (!acc[pc]) acc[pc] = [];
+    acc[pc].push(service);
+    return acc;
+  }, {});
+
+  return Object.entries(projects).map(([pc, services], pi) => {
+    const isSelectedProject = pc === selectedProjectCode;
     return (
       <ExpandableList
-        open={isSelected}
-        key={i}
+        open={isSelectedProject}
+        key={pc}
         title={
           <span
             className={`system-nav__link system-nav__link--selected-${
-              !selectedModuleName && isSelected
+              isSelectedProject && !selectedServiceId
             }`}
           >
-            <>
-              <Link link={`/${projectCode}/${serviceId}`} text={serviceId} />
-              <span>
-                <a
-                  className="system-nav__service-url"
-                  href={serviceUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  {serviceUrl}
-                </a>
-              </span>
-            </>
-            <span className="server-module__docs-icon">
-              <DocIcon isSaved={isSaved} />
-            </span>
+            <Link link={`/${pc}`} text={pc} />
           </span>
         }
       >
-        <ServerModulesList
-          selectedModuleName={selectedModuleName}
-          selectedMethodName={selectedMethodName}
-          projectCode={projectCode}
-          serviceId={serviceId}
-          modules={system.connectionData.modules}
-          specList={specList}
-        />
+        {services.map(({ system, serviceId, specList }, i) => {
+          const { serviceUrl } = system.connectionData;
+          const isSaved = specList.docs.includes(`${serviceId}.md`);
+          const isSelected = isSelectedProject && selectedServiceId === serviceId;
+          return (
+            <ExpandableList
+              open={isSelected}
+              key={i}
+              title={
+                <span
+                  className={`system-nav__link system-nav__link--selected-${
+                    !selectedModuleName && isSelected
+                  }`}
+                >
+                  <span>
+                    <Link link={`/${pc}/${serviceId}`} text={serviceId} />
+                    <a
+                      className="system-nav__service-url"
+                      href={serviceUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {serviceUrl}
+                    </a>
+                  </span>
+                  <span className="server-module__docs-icon">
+                    <DocIcon isSaved={isSaved} />
+                  </span>
+                </span>
+              }
+            >
+              <ServerModulesList
+                selectedModuleName={selectedModuleName}
+                selectedMethodName={selectedMethodName}
+                projectCode={pc}
+                serviceId={serviceId}
+                modules={system.connectionData.modules}
+                specList={specList}
+              />
+            </ExpandableList>
+          );
+        })}
       </ExpandableList>
     );
   });

@@ -1,3 +1,44 @@
+@import "../../sass/log-table";
+
+.doc-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid #e0e0e8;
+  margin-bottom: 16px;
+}
+
+.doc-tab {
+  padding: 6px 16px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  font-size: 13px;
+  color: #888;
+  cursor: pointer;
+
+  &--active {
+    color: #6886ba;
+    border-bottom-color: #6886ba;
+    font-weight: 600;
+  }
+
+  &:hover:not(.doc-tab--active) {
+    color: #555;
+  }
+}
+
+.inline-logs {
+  overflow-y: auto;
+  max-height: calc(100vh - 220px);
+
+  &__empty {
+    color: #aaa;
+    font-size: 13px;
+    padding: 16px 4px;
+  }
+}
+
 .documentation-view {
   padding-top: 2rem;
   color: black;

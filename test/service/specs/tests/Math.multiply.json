@@ -1,16 +1,16 @@
 [
   {
-    "title": "Get items (truncation demo)",
-    "namespace": { "serviceId": "TestService", "moduleName": "Math", "methodName": "getItems" },
+    "title": "Multiply numbers",
+    "namespace": { "serviceId": "TestService", "moduleName": "Math", "methodName": "multiply" },
     "Before": [],
     "Main": [
       {
-        "title": "Get 150 items (warn)",
-        "namespace": { "serviceId": "TestService", "moduleName": "Math", "methodName": "getItems" },
+        "title": "Multiply 4 x 5",
+        "namespace": { "serviceId": "TestService", "moduleName": "Math", "methodName": "multiply" },
         "args": [
           {
             "name": "argument:",
-            "input": { "count": 150 },
+            "input": { "a": 4, "b": 5 },
             "input_type": "object",
             "data_type": "",
             "targetValues": []
@@ -18,20 +18,20 @@
         ],
         "savedEvaluations": [
           {
-            "namespace": "results.total",
+            "namespace": "results.product",
             "expected_type": "number",
-            "validations": [{ "name": "numEquals", "value": 150 }],
+            "validations": [{ "name": "numEquals", "value": 20 }],
             "save": true
           }
         ]
       },
       {
-        "title": "Get 10 items",
-        "namespace": { "serviceId": "TestService", "moduleName": "Math", "methodName": "getItems" },
+        "title": "Multiply large numbers (warn)",
+        "namespace": { "serviceId": "TestService", "moduleName": "Math", "methodName": "multiply" },
         "args": [
           {
             "name": "argument:",
-            "input": { "count": 10 },
+            "input": { "a": 1000000, "b": 2000 },
             "input_type": "object",
             "data_type": "",
             "targetValues": []
@@ -39,9 +39,9 @@
         ],
         "savedEvaluations": [
           {
-            "namespace": "results.total",
+            "namespace": "results.product",
             "expected_type": "number",
-            "validations": [{ "name": "numEquals", "value": 10 }],
+            "validations": [{ "name": "numEquals", "value": 2000000000 }],
             "save": true
           }
         ]

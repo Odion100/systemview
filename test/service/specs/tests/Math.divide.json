@@ -1,0 +1,46 @@
+[
+  {
+    "title": "Divide numbers",
+    "namespace": { "serviceId": "TestService", "moduleName": "Math", "methodName": "divide" },
+    "Before": [],
+    "Main": [
+      {
+        "title": "Divide 10 / 2",
+        "namespace": { "serviceId": "TestService", "moduleName": "Math", "methodName": "divide" },
+        "args": [
+          {
+            "name": "argument:",
+            "input": { "a": 10, "b": 2 },
+            "input_type": "object",
+            "data_type": "",
+            "targetValues": []
+          }
+        ],
+        "savedEvaluations": [
+          {
+            "namespace": "results.quotient",
+            "expected_type": "number",
+            "validations": [{ "name": "numEquals", "value": 5 }],
+            "save": true
+          }
+        ]
+      },
+      {
+        "title": "Divide by zero (error)",
+        "namespace": { "serviceId": "TestService", "moduleName": "Math", "methodName": "divide" },
+        "args": [
+          {
+            "name": "argument:",
+            "input": { "a": 10, "b": 0 },
+            "input_type": "object",
+            "data_type": "",
+            "targetValues": []
+          }
+        ],
+        "savedEvaluations": []
+      }
+    ],
+    "Events": [],
+    "After": []
+  }
+]

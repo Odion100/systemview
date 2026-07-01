@@ -4,6 +4,32 @@ const route = "systemview/api";
 const host = "localhost";
 const express = require("express");
 const path = require("path");
+const fs = require("fs");
+
+const LOG_FILE = path.join(__dirname, "../systemview.logs");
+
+function saveLog(entry) {
+  const record = JSON.stringify({ timestamp: new Date().toISOString(), ...entry });
+  fs.appendFileSync(LOG_FILE, record + "\n");
+  return true;
+}
+
+function getLogs({ projectCode, serviceId, level, limit = 200 } = {}) {
+  if (!fs.existsSync(LOG_FILE)) return [];
+  const lines = fs.readFileSync(LOG_FILE, "utf8").trim().split("\n").filter(Boolean);
+  let entries = lines
+    .map((l) => { try { return JSON.parse(l); } catch { return null; } })
+    .filter(Boolean);
+  if (projectCode) entries = entries.filter((e) => e.projectCode === projectCode);
+  if (serviceId) entries = entries.filter((e) => e.serviceId === serviceId);
+  if (level) entries = entries.filter((e) => e.level === level);
+  return entries.slice(-limit);
+}
+
+function clearLogs() {
+  fs.writeFileSync(LOG_FILE, "");
+  return true;
+}
 const isUrl = (str) =>
   /^(http:\/\/|https:\/\/)?((localhost|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})|([a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,5}))(:[0-9]{1,5})?(\/.*)?$/.test(
     str
@@ -113,6 +139,9 @@ module.exports = function launchSystemView(port = 3000) {
       updateSpecList,
       shutdown,
       refreshConnection,
+      saveLog,
+      getLogs,
+      clearLogs,
     })
     .on("ready", () => {
       server.get("*", (req, res) => {
