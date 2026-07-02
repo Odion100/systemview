@@ -1,6 +1,7 @@
 const runTests = require("./runTests");
 const cli = require("./utils/cli");
 const openBrowser = require("./openBrowser");
+const logsCommand = require("./logs");
 const readline = require("readline");
 
 module.exports = function startLineReader(url) {
@@ -8,23 +9,42 @@ module.exports = function startLineReader(url) {
     input: process.stdin,
     output: process.stdout,
   });
+
   const handleInput = (input = "") => {
-    const args = input.split(" ").map((s) => s.trim());
-    const command = args.shift();
+    const parts = input.trim().split(/\s+/);
+    const command = parts[0];
+    const args = parts.slice(1);
+
+    const flags = { filter: [], or: [] };
+    const positional = [];
+    for (let i = 0; i < args.length; i++) {
+      if (args[i] === "--level" && args[i + 1]) { flags.level = args[++i]; }
+      else if (args[i] === "--limit" && args[i + 1]) { flags.limit = parseInt(args[++i], 10); }
+      else if (args[i] === "--filter" && args[i + 1]) { flags.filter.push(args[++i]); }
+      else if (args[i] === "--or" && args[i + 1]) { flags.or.push(args[++i]); }
+      else if (args[i] === "--verbose") { flags.verbose = true; }
+      else if (args[i] === "--current") { flags.current = true; }
+      else if (args[i] === "--json") { flags.json = true; }
+      else if (!args[i].startsWith("--")) { positional.push(args[i]); }
+    }
+
     if (["exit", "q", "shutdown", "stop"].includes(command)) {
       process.exit(0);
     } else if (command === "test") {
-      try {
-        runTests(url, ...args);
-      } catch (error) {
-        console.error("Error executing tests:", error.message);
-      }
+      try { runTests(url, positional[0], positional[1]); } catch (e) { console.error(e.message); }
+      lineReader.prompt();
+    } else if (command === "logs") {
+      logsCommand(url, positional[0], positional[1], { ...flags, follow: true, current: flags.current });
+    } else if (command === "clearlogs" || command === "flush") {
+      logsCommand(url, null, null, { clear: true, follow: false });
     } else if (command === "help") {
       cli.showHelp(0);
     } else if (command === "open") {
-      openBrowser(url, ...args);
+      openBrowser(url, positional[0], positional[1]);
+      lineReader.prompt();
+    } else {
+      lineReader.prompt();
     }
-    lineReader.prompt();
   };
 
   lineReader.prompt();

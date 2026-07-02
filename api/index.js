@@ -14,14 +14,24 @@ function saveLog(entry) {
   return true;
 }
 
-function getLogs({ projectCode, serviceId, level, limit = 200 } = {}) {
+function getLogs({ projectCode, serviceId, moduleMethod, level, limit = 200 } = {}) {
   if (!fs.existsSync(LOG_FILE)) return [];
   const lines = fs.readFileSync(LOG_FILE, "utf8").trim().split("\n").filter(Boolean);
   let entries = lines
-    .map((l) => { try { return JSON.parse(l); } catch { return null; } })
+    .map((l) => {
+      try {
+        return JSON.parse(l);
+      } catch {
+        return null;
+      }
+    })
     .filter(Boolean);
   if (projectCode) entries = entries.filter((e) => e.projectCode === projectCode);
   if (serviceId) entries = entries.filter((e) => e.serviceId === serviceId);
+  if (moduleMethod)
+    entries = entries.filter(
+      (e) => e.moduleMethod && e.moduleMethod.includes(moduleMethod),
+    );
   if (level) entries = entries.filter((e) => e.level === level);
   return entries.slice(-limit);
 }
@@ -32,13 +42,13 @@ function clearLogs() {
 }
 const isUrl = (str) =>
   /^(http:\/\/|https:\/\/)?((localhost|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})|([a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,5}))(:[0-9]{1,5})?(\/.*)?$/.test(
-    str
+    str,
   );
 
 function connect({ system, projectCode, serviceId, specList }) {
   const { service, index } = ConnectedServices.findService(
     system.connectionData.serviceUrl,
-    projectCode
+    projectCode,
   );
 
   if (service) {
@@ -54,7 +64,7 @@ function updateSpecList(specList, projectCode, serviceId) {
   const { service, index } = ConnectedServices.findService(
     undefined,
     projectCode,
-    serviceId
+    serviceId,
   );
   if (service) {
     service.specList = specList;

@@ -3,7 +3,7 @@ const path = require("path");
 const SystemViewModule = require("./SystemViewModule");
 const { getSpecList } = require("./utils");
 
-const SKIP_MODULES = ["Plugin", "SystemView"];
+const SKIP_MODULES = ["Plugin", "SystemView", "SystemViewLogs"];
 
 module.exports = function ({
   connection = "http://localhost:3300/systemview/api",
@@ -15,6 +15,9 @@ module.exports = function ({
   return function (App) {
     let SystemView;
     let makeLogger;
+    let logsModule;
+
+    App.module("SystemViewLogs", {});
 
     App.before("$all", (req, res, next) => {
       if (SKIP_MODULES.includes(req.module_name)) return next();
@@ -34,6 +37,21 @@ module.exports = function ({
         ? makeLogger(req.module_name, req.fn, req)
         : { log: () => {}, warn: () => {}, error: () => {}, debug: () => {} }
       );
+
+      if (logsModule) {
+        const entry = {
+          projectCode,
+          serviceId,
+          moduleMethod: `${req.module_name}.${req.fn}`,
+          traceId: req._svTraceId,
+          level: "trace",
+          message: `${req.module_name}.${req.fn} start`,
+          arguments: req.arguments,
+        };
+        try { SystemView && SystemView.saveLog(entry); } catch {}
+        logsModule.emit("log", { timestamp: new Date().toISOString(), ...entry });
+      }
+
       next();
     });
 
@@ -41,17 +59,19 @@ module.exports = function ({
       if (SKIP_MODULES.includes(req.module_name)) return next();
       if (SystemView) {
         try {
-          await SystemView.saveLog({
+          const entry = {
             projectCode,
             serviceId,
             moduleMethod: `${req.module_name}.${req.fn}`,
             traceId: req._svTraceId,
             level: "trace",
-            message: `${req.module_name}.${req.fn} called`,
+            message: `${req.module_name}.${req.fn} end`,
             arguments: req.arguments,
             returnValue: req.returnValue,
             duration: Date.now() - req._svStart,
-          });
+          };
+          await SystemView.saveLog(entry);
+          if (logsModule) logsModule.emit("log", { timestamp: new Date().toISOString(), ...entry });
         } catch {}
       }
       next();
@@ -71,7 +91,14 @@ module.exports = function ({
           SystemView = null;
         }
 
+        logsModule = App.getModule("SystemViewLogs");
+
         if (SystemView) {
+          const emitLog = (entry) => {
+            SystemView.saveLog(entry);
+            if (logsModule) logsModule.emit("log", { timestamp: new Date().toISOString(), ...entry });
+          };
+
           makeLogger = (moduleName, methodName, req) => {
             const moduleMethod = methodName ? `${moduleName}.${methodName}` : moduleName;
             function buildEntry(level, message, logData) {
@@ -81,10 +108,10 @@ module.exports = function ({
               return entry;
             }
             return {
-              log:   (message, data) => SystemView.saveLog(buildEntry("log",   message, data)),
-              warn:  (message, data) => SystemView.saveLog(buildEntry("warn",  message, data)),
-              error: (message, data) => SystemView.saveLog(buildEntry("error", message, data)),
-              debug: (message, data) => SystemView.saveLog(buildEntry("debug", message, data)),
+              log:   (message, data) => emitLog(buildEntry("log",   message, data)),
+              warn:  (message, data) => emitLog(buildEntry("warn",  message, data)),
+              error: (message, data) => emitLog(buildEntry("error", message, data)),
+              debug: (message, data) => emitLog(buildEntry("debug", message, data)),
             };
           };
 
@@ -95,7 +122,7 @@ module.exports = function ({
               if (typeof mod.on === "function") {
                 mod.on("error", async (info) => {
                   try {
-                    await SystemView.saveLog({
+                    const entry = {
                       projectCode,
                       serviceId,
                       moduleMethod: `${info.module_name}.${info.fn}`,
@@ -105,7 +132,9 @@ module.exports = function ({
                       arguments: info.arguments,
                       error: { message: info.message, status: info.status },
                       duration: mod._svPendingDuration,
-                    });
+                    };
+                    await SystemView.saveLog(entry);
+                    if (logsModule) logsModule.emit("log", { timestamp: new Date().toISOString(), ...entry });
                   } catch {}
                 });
               }

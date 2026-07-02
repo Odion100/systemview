@@ -1,7 +1,11 @@
 const fs = require("fs");
 const path = require("path");
-const { createCookieClient } = require("./cookieClient");
+const { createClient } = require("systemlynx");
+const { createCookieHttpClient } = require("./cookieClient");
 const log = require("./logger");
+
+const cookieHttpClient = createCookieHttpClient();
+const Client = createClient(cookieHttpClient);
 
 module.exports = async function probe(namespace, argsStr, { json = false, manifest: manifestPath, headers: cliHeaders = {} } = {}) {
   if (!namespace) {
@@ -52,7 +56,8 @@ module.exports = async function probe(namespace, argsStr, { json = false, manife
   if (!json) log.info(`${serviceId}.${moduleName}.${methodName}(${argsStr || ""})`);
 
   try {
-    const client = createCookieClient(extraHeaders).createService(service.system.connectionData);
+    const client = Client.createService(service.system.connectionData);
+    if (Object.keys(extraHeaders).length) client.setHeaders(extraHeaders);
     const result = await client[moduleName][methodName](...args);
     if (json) {
       process.stdout.write(JSON.stringify({ serviceId, moduleName, methodName, args, result }, null, 2) + "\n");

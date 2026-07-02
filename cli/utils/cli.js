@@ -8,7 +8,7 @@ const HELP_TEXT = `
     start [port]                           Launch SystemView UI (default port 3000)
     test <projectCode> [namespace]         Run saved tests for a project
     list [projectCode] [namespace]         List projects, services, or tests
-    logs [projectCode] [serviceId]         View auto-captured and manual log entries
+    logs [projectCode] [namespace]         View log entries
     connect <serviceId> <url>             Register a service and write manifest
     connect                               Re-probe all services in existing manifest
     probe <ServiceId.Module.method> [args] Call a method ad-hoc
@@ -28,6 +28,7 @@ const HELP_TEXT = `
     --index <n>                            Run only action at index n within each phase (0-based)
     --level <trace|info|warn|error|debug>  logs: filter by level
     --limit <n>                            logs: max entries to return (default 50)
+    --follow                               logs: stream new entries as they arrive
     --clear                                logs: wipe the log file
 
   Examples:
@@ -48,7 +49,7 @@ const HELP_TEXT = `
 
 const rawArgs = process.argv.slice(2);
 
-const flagValueArgs = ["--manifest", "--header", "--skip", "--phase", "--index", "--level", "--limit"];
+const flagValueArgs = ["--manifest", "--header", "--skip", "--phase", "--index", "--level", "--limit", "--follow", "--filter", "--or"];
 
 const flags = {
   json: rawArgs.includes("--json"),
@@ -86,6 +87,17 @@ const flags = {
     if (i === -1) return undefined;
     const val = parseInt(rawArgs[i + 1], 10);
     return isNaN(val) ? undefined : val;
+  })(),
+  follow: rawArgs.includes("--follow") || rawArgs.includes("-f"),
+  filter: (() => {
+    const result = [];
+    rawArgs.forEach((a, i) => { if (a === "--filter" && rawArgs[i + 1]) result.push(rawArgs[i + 1]); });
+    return result;
+  })(),
+  or: (() => {
+    const result = [];
+    rawArgs.forEach((a, i) => { if (a === "--or" && rawArgs[i + 1]) result.push(rawArgs[i + 1]); });
+    return result;
   })(),
   clear: rawArgs.includes("--clear"),
   headers: (() => {

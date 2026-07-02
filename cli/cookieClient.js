@@ -87,7 +87,4 @@ function createCookieHttpClient(extraHeaders = {}) {
   };
 }
 
-module.exports = {
-  createCookieHttpClient,
-  createCookieClient: (extraHeaders = {}) => createClient(createCookieHttpClient(extraHeaders)),
-};
+module.exports = { createCookieHttpClient };

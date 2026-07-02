@@ -1,12 +1,15 @@
 const fs = require("fs");
 const path = require("path");
-const { createCookieClient } = require("./cookieClient");
+const { createClient } = require("systemlynx");
+const { createCookieHttpClient } = require("./cookieClient");
 const log = require("./logger");
 const chalk = require("chalk");
 
+const cookieHttpClient = createCookieHttpClient();
+const Client = createClient(cookieHttpClient);
+
 module.exports = async function listTests(url, project_code, namespace, { manifest: manifestPath, verbose = false } = {}) {
   const api = `${url}/systemview/api`;
-  const Client = createCookieClient();
 
   if (!project_code) {
     await listAllProjects(api, Client, verbose);
@@ -30,7 +33,7 @@ module.exports = async function listTests(url, project_code, namespace, { manife
 
     let testList = [];
     try {
-      const svc = createCookieClient().createService(system.connectionData);
+      const svc = Client.createService(system.connectionData);
       testList = await svc.Plugin.getTests();
     } catch {
       console.log(`${servicePrefix}${chalk.dim(serviceId)}  ${chalk.dim("(could not load tests)")}`);

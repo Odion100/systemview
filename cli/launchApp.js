@@ -17,6 +17,7 @@ module.exports = async function launchApp(port, { interactive = false } = {}) {
     if (interactive) {
       log.info("SystemView is running from another terminal");
       logConnection();
+      return startLineReader(ui);
     }
     return;
   }

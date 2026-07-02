@@ -1,6 +1,9 @@
 const fs = require("fs");
 const path = require("path");
-const { createCookieClient } = require("./cookieClient");
+const { createClient } = require("systemlynx");
+const { createCookieHttpClient } = require("./cookieClient");
+const cookieHttpClient = createCookieHttpClient();
+const Client = createClient(cookieHttpClient);
 const { initializeSavedTests } = require("../testing-utilities/transformTests");
 const FullTestController = require("../testing-utilities/FullTestController");
 const log = require("./logger");
@@ -72,7 +75,6 @@ module.exports = async function runTests(
   }
 
   const extraHeaders = { ...manifestHeaders, ...cliHeaders };
-  const Client = createCookieClient(extraHeaders);
 
   if (!json) {
     connectedServices.forEach(({ serviceId, system }) => {
@@ -121,7 +123,7 @@ module.exports = async function runTests(
     if (!json) log.info(`Initializing tests for ${serviceId}...`);
 
     try {
-      const initialized = initializeSavedTests(testList, connectedServices, Client);
+      const initialized = initializeSavedTests(testList, connectedServices, Client, extraHeaders);
       const { passed, failed, jsonTests, failures } = await runAllTests(
         initialized,
         url,
@@ -376,8 +378,7 @@ async function resolveServices(api, project_code, manifestPath) {
     }
   }
 
-  const BaseClient = createCookieClient();
-  const services = await getConnectedServices(api, project_code, BaseClient);
+  const services = await getConnectedServices(api, project_code, Client);
   return { services, probeHeaders: {} };
 }
 

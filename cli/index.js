@@ -15,8 +15,10 @@ const openBrowser = require("./openBrowser");
 const connectService = require("./connectService");
 const probe = require("./probe");
 const logsCommand = require("./logs");
-const { HttpClient } = require("systemlynx");
-const { createCookieClient } = require("./cookieClient");
+const { HttpClient, createClient } = require("systemlynx");
+const { createCookieHttpClient } = require("./cookieClient");
+const cookieHttpClient = createCookieHttpClient();
+const Client = createClient(cookieHttpClient);
 
 const DEFAULT_PORT = 3000;
 const VERSION = require("../package.json").version;
@@ -85,7 +87,7 @@ async function open() {
       } catch {}
     } else {
       try {
-        const { SystemView } = await createCookieClient().loadService(api);
+        const { SystemView } = await Client.loadService(api);
         connectedServices = (await SystemView.getServices(project_code)) || [];
       } catch {}
     }
@@ -161,6 +163,10 @@ async function quitApp() {
       limit: flags.limit,
       clear: flags.clear,
       json: flags.json,
+      follow: command === "follow" || flags.follow,
+      verbose: flags.verbose,
+      filter: flags.filter,
+      or: flags.or,
     });
     process.exit(0);
   } else {

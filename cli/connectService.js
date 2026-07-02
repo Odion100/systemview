@@ -1,8 +1,9 @@
 const fs = require("fs");
 const path = require("path");
-const { HttpClient } = require("systemlynx");
-const { createCookieClient } = require("./cookieClient");
-const Client = createCookieClient();
+const { HttpClient, createClient } = require("systemlynx");
+const { createCookieHttpClient } = require("./cookieClient");
+const cookieHttpClient = createCookieHttpClient();
+const Client = createClient(cookieHttpClient);
 const log = require("./logger");
 
 async function probeService(url) {
