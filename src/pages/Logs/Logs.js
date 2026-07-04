@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useContext, useCallback, useMemo } from "react";
-import { useHistory } from "react-router-dom";
+import { useHistory, useLocation } from "react-router-dom";
 import ReactJson from "react-json-view";
 import moment from "moment";
+import { Client } from "systemlynx-client";
 import ServiceContext from "../../ServiceContext";
 import LOGO from "../../assets/sysly.png";
 import "./styles.scss";
@@ -169,7 +170,7 @@ function FieldAnalyzer({
   useEffect(() => {
     const hasPresenceFilter = activeVals.some((v) => v === "?+" || v === "?-");
     const resolved = fullPath && !valuesAreDates && (!valuesAreObjects || hasPresenceFilter) ? fullPath : null;
-    onPathChange && onPathChange(resolved);
+    onPathChange && onPathChange({ resolved, display: fullPath || null });
   }, [fullPath, valuesAreObjects, valuesAreDates, quickFilters, slotId]);
 
   const childInfo = useMemo(() => {
@@ -427,8 +428,9 @@ function Dashboard({
     onAnalyzerSlotsChange(next.map((x) => ({
       id: x.id,
       path: x.resolvedPath,
+      displayPath: x.displayPath,
       conjunction: x.conjunction,
-    })).filter((x) => x.path));
+    })).filter((x) => x.path || x.displayPath));
   }
 
   function addAnalyzer() {
@@ -444,13 +446,13 @@ function Dashboard({
     });
   }
 
-  function updateResolvedPath(id, resolvedPath) {
+  function updateResolvedPath(id, { resolved, display }) {
     setAnalyzers((a) => {
       const prev = a.find((x) => x.id === id);
-      if (prev?.resolvedPath && prev.resolvedPath !== resolvedPath) {
+      if (prev?.resolvedPath && prev.resolvedPath !== resolved) {
         onClearFilter(id);
       }
-      const next = a.map((x) => (x.id === id ? { ...x, resolvedPath } : x));
+      const next = a.map((x) => (x.id === id ? { ...x, resolvedPath: resolved, displayPath: display } : x));
       reportState(next);
       return next;
     });
@@ -531,7 +533,7 @@ function cellValue(entry, path) {
   return String(v);
 }
 
-function LogRow({ entry, isExpanded, onToggle, dynamicColumns }) {
+export function LogRow({ entry, isExpanded, onToggle, dynamicColumns, filteredFixedPaths, compact }) {
   const level = entry.level || "info";
   const isTrace = level === "trace";
   const msg = isTrace
@@ -546,9 +548,9 @@ function LogRow({ entry, isExpanded, onToggle, dynamicColumns }) {
         onClick={onToggle}
       >
         <div className="log-cell log-cell--time">{formatTime(entry.timestamp)}</div>
-        <div className="log-cell log-cell--project">{entry.projectCode || "—"}</div>
-        <div className="log-cell log-cell--service">{entry.serviceId || "—"}</div>
-        <div className="log-cell log-cell--method">{entry.moduleMethod || "—"}</div>
+        {!compact && <div className={`log-cell log-cell--project${filteredFixedPaths?.has("projectCode") ? " log-cell--filtered" : ""}`}>{entry.projectCode || "—"}</div>}
+        {!compact && <div className={`log-cell log-cell--service${filteredFixedPaths?.has("serviceId") ? " log-cell--filtered" : ""}`}>{entry.serviceId || "—"}</div>}
+        <div className={`log-cell log-cell--method${filteredFixedPaths?.has("moduleMethod") ? " log-cell--filtered" : ""}`}>{entry.moduleMethod || "—"}</div>
         <div className="log-cell log-cell--level">
           <span className={`log-level log-level--${LEVEL_CLASS[level] || "info"}`}>
             {level}
@@ -560,10 +562,8 @@ function LogRow({ entry, isExpanded, onToggle, dynamicColumns }) {
             <span className="log-duration"> {entry.duration}ms</span>
           )}
         </div>
-        <div className="log-cell log-cell--traceid" title={entry.traceId || ""}>
-          {shortTraceId}
-        </div>
-        {dynamicColumns &&
+        {!compact && <div className="log-cell log-cell--traceid" title={entry.traceId || ""}>{shortTraceId}</div>}
+        {!compact && dynamicColumns &&
           dynamicColumns.map((path) => (
             <div key={path} className="log-cell log-cell--dynamic" title={path}>
               {cellValue(entry, path)}
@@ -582,6 +582,7 @@ function LogRow({ entry, isExpanded, onToggle, dynamicColumns }) {
                 collapsed={1}
                 theme="monokai"
                 style={{ fontSize: "12px", fontFamily: "monospace", background: "transparent" }}
+                enableClipboard={(copy) => { try { navigator.clipboard.writeText(typeof copy.src === "string" ? copy.src : JSON.stringify(copy.src, null, 2)); } catch {} }}
               />
             </div>
           </div>
@@ -593,16 +594,19 @@ function LogRow({ entry, isExpanded, onToggle, dynamicColumns }) {
 
 export default function Logs() {
   const { SystemViewService } = useContext(ServiceContext);
+  const location = useLocation();
+  const history = useHistory();
+
+  const initParams = new URLSearchParams(location.search);
   const [entries, setEntries] = useState([]);
   const [connectedProjects, setConnectedProjects] = useState({});
-  const [filterProject, setFilterProject] = useState("");
-  const [filterService, setFilterService] = useState("");
-  const [filterLevel, setFilterLevel] = useState("");
+  const [filterProject, setFilterProject] = useState(initParams.get("project") || "");
+  const [filterService, setFilterService] = useState(initParams.get("service") || "");
+  const [filterLevel, setFilterLevel] = useState(initParams.get("level") || "");
   const [quickFilters, setQuickFilters] = useState({});
   const [dateRangeFilters, setDateRangeFilters] = useState({});
   const [analyzerSlots, setAnalyzerSlots] = useState([]);
   const [expandedKey, setExpandedKey] = useState(null);
-  const history = useHistory();
 
   useEffect(() => {
     SystemViewService.SystemView.getProjects()
@@ -612,17 +616,35 @@ export default function Logs() {
       .catch(() => {});
   }, [SystemViewService]);
 
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (filterProject) params.set("project", filterProject);
+    if (filterService) params.set("service", filterService);
+    if (filterLevel) params.set("level", filterLevel);
+    history.replace({ search: params.toString() });
+  }, [filterProject, filterService, filterLevel, history]);
+
   const loadLogs = useCallback(async () => {
-    try {
-      const result = await SystemViewService.SystemView.getLogs({
-        projectCode: filterProject || undefined,
-        serviceId: filterService || undefined,
-        level: filterLevel || undefined,
-        limit: 200,
-      });
-      if (Array.isArray(result)) setEntries(result);
-    } catch {}
-  }, [SystemViewService, filterProject, filterService, filterLevel]);
+    const allServices = Object.entries(connectedProjects).flatMap(([pc, services]) =>
+      services.map((s) => ({ projectCode: pc, ...s }))
+    );
+    const targets = allServices.filter((s) =>
+      (!filterProject || s.projectCode === filterProject) &&
+      (!filterService || s.serviceId === filterService)
+    );
+    if (allServices.length > 0 && targets.length === 0) return;
+    const all = [];
+    for (const t of targets) {
+      try {
+        const { SystemView } = Client.createService(t.connectionData);
+        const entries = await SystemView.getLog({ limit: 200 });
+        if (Array.isArray(entries)) all.push(...entries);
+      } catch {}
+    }
+    let result = filterLevel ? all.filter((e) => e.level === filterLevel) : all;
+    result = result.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)).slice(-200);
+    setEntries(result);
+  }, [connectedProjects, filterProject, filterService, filterLevel]);
 
   useEffect(() => {
     loadLogs();
@@ -644,7 +666,11 @@ export default function Logs() {
       : [...new Set(entries.map((e) => e.serviceId).filter(Boolean))];
   const levels = [...new Set(entries.map((e) => e.level).filter(Boolean))];
 
-  const dynamicColumns = analyzerSlots.map((s) => s.path).filter((p) => p && !FIXED_PATHS.has(p));
+  const dynamicColumns = analyzerSlots.map((s) => s.displayPath || s.path).filter((p) => p && !FIXED_PATHS.has(p));
+  const filteredFixedPaths = useMemo(
+    () => new Set(Object.keys(quickFilters).filter((k) => FIXED_PATHS.has(k) && (quickFilters[k] || []).length > 0)),
+    [quickFilters]
+  );
 
   // Build ordered filter chain: fixed panels (always OR) then analyzers (& or ||)
   const FIXED_FILTER_ORDER = ["moduleMethod"];
@@ -730,7 +756,15 @@ export default function Logs() {
   async function handleClear() {
     if (!window.confirm("Clear all logs?")) return;
     try {
-      await SystemViewService.SystemView.clearLogs();
+      const allServices = Object.values(connectedProjects).flat();
+      await Promise.all(
+        allServices.map(async (s) => {
+          try {
+            const { SystemView } = Client.createService(s.connectionData);
+            await SystemView.clearLog();
+          } catch {}
+        })
+      );
       setEntries([]);
       setExpandedKey(null);
       setQuickFilters({});
@@ -857,11 +891,11 @@ export default function Logs() {
         {displayEntries.length > 0 && (
           <div className="logs-table-header">
             <div className="log-th log-th--time">Time</div>
-            <div className="log-th log-th--project">Project</div>
-            <div className="log-th log-th--service">Service</div>
-            <div className="log-th log-th--method">Module.Method</div>
-            <div className="log-th log-th--level">Level</div>
-            <div className="log-th log-th--msg">Message</div>
+            <div className={`log-th log-th--project${filteredFixedPaths.has("projectCode") ? " log-th--filtered" : ""}`}>Project</div>
+            <div className={`log-th log-th--service${filteredFixedPaths.has("serviceId") ? " log-th--filtered" : ""}`}>Service</div>
+            <div className={`log-th log-th--method${filteredFixedPaths.has("moduleMethod") ? " log-th--filtered" : ""}`}>Module.Method</div>
+            <div className={`log-th log-th--level${filteredFixedPaths.has("level") ? " log-th--filtered" : ""}`}>Level</div>
+            <div className={`log-th log-th--msg${filteredFixedPaths.has("message") ? " log-th--filtered" : ""}`}>Message</div>
             <div className="log-th log-th--traceid">Trace ID</div>
             {dynamicColumns.map((path) => (
               <div key={path} className="log-th log-th--dynamic">
@@ -890,6 +924,7 @@ export default function Logs() {
                   isExpanded={expandedKey === key}
                   onToggle={() => toggleRow(key)}
                   dynamicColumns={dynamicColumns}
+                  filteredFixedPaths={filteredFixedPaths}
                 />
               );
             })}

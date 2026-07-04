@@ -353,33 +353,11 @@
   background: #e0e0e8;
 }
 
-.logs-table-header {
-  display: flex;
-  width: 100%;
-}
-
-.logs-table-header .log-th {
-  flex: 1;
-}
-
 .logs-body {
   flex: 1;
   overflow-y: auto;
   overflow-x: auto;
   padding-bottom: 40px;
-}
-
-.logs-body .log-row {
-  display: flex;
-  width: 100%;
-}
-
-.logs-body .log-row--expanded {
-  display: block;
-}
-
-.logs-body .log-cell {
-  flex: 1;
 }
 
 .logs-empty {

@@ -219,6 +219,7 @@ const ArgDataForm = ({ arg, testIndex, i, controller, is12 }) => {
             displayObjectSize={false}
             displayDataTypes={false}
             collapsed={true}
+            enableClipboard={(copy) => { try { navigator.clipboard.writeText(typeof copy.src === "string" ? copy.src : JSON.stringify(copy.src, null, 2)); } catch {} }}
           />
           <ArgValue value={arg.value()} hide={!targetValues.length} />
           <span
@@ -283,6 +284,7 @@ export function Argument({ value }) {
             displayObjectSize={false}
             displayDataTypes={false}
             collapsed={true}
+            enableClipboard={(copy) => { try { navigator.clipboard.writeText(typeof copy.src === "string" ? copy.src : JSON.stringify(copy.src, null, 2)); } catch {} }}
           />
         </span>
       ) : (

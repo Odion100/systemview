@@ -29,6 +29,7 @@ const HELP_TEXT = `
     --level <trace|info|warn|error|debug>  logs: filter by level
     --limit <n>                            logs: max entries to return (default 50)
     --follow                               logs: stream new entries as they arrive
+    --current                              logs: show existing entries before streaming
     --clear                                logs: wipe the log file
 
   Examples:
@@ -49,7 +50,7 @@ const HELP_TEXT = `
 
 const rawArgs = process.argv.slice(2);
 
-const flagValueArgs = ["--manifest", "--header", "--skip", "--phase", "--index", "--level", "--limit", "--follow", "--filter", "--or"];
+const flagValueArgs = ["--manifest", "--header", "--skip", "--phase", "--index", "--level", "--limit", "--follow", "--filter", "--or", "--include"];
 
 const flags = {
   json: rawArgs.includes("--json"),
@@ -89,6 +90,7 @@ const flags = {
     return isNaN(val) ? undefined : val;
   })(),
   follow: rawArgs.includes("--follow") || rawArgs.includes("-f"),
+  current: rawArgs.includes("--current"),
   filter: (() => {
     const result = [];
     rawArgs.forEach((a, i) => { if (a === "--filter" && rawArgs[i + 1]) result.push(rawArgs[i + 1]); });
@@ -97,6 +99,11 @@ const flags = {
   or: (() => {
     const result = [];
     rawArgs.forEach((a, i) => { if (a === "--or" && rawArgs[i + 1]) result.push(rawArgs[i + 1]); });
+    return result;
+  })(),
+  include: (() => {
+    const result = [];
+    rawArgs.forEach((a, i) => { if (a === "--include" && rawArgs[i + 1]) result.push(rawArgs[i + 1]); });
     return result;
   })(),
   clear: rawArgs.includes("--clear"),

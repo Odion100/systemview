@@ -64,11 +64,12 @@ module.exports = async function runTests(
     return 1;
   }
 
-  const { services: connectedServices, probeHeaders: manifestHeaders } = await resolveServices(
+  const { services: connectedServices, probeHeaders: manifestHeaders, resolvedNamespace } = await resolveServices(
     api,
     project_code,
     manifestPath
   );
+  if (resolvedNamespace && !namespace) namespace = resolvedNamespace;
   if (!connectedServices || !connectedServices.length) {
     log.warn("No connected services found for project: " + project_code);
     return 1;
@@ -80,6 +81,12 @@ module.exports = async function runTests(
     connectedServices.forEach(({ serviceId, system }) => {
       log.success(`connected: ${serviceId} @ ${system.connectionData.serviceUrl}`);
     });
+    if (namespace || skipPatterns.length) {
+      console.log("");
+      console.log(chalk.dim(`  Filters:`));
+      if (namespace) console.log(`    ${chalk.dim(`namespace: ${chalk.white(namespace)}`)}`);
+      if (skipPatterns.length) console.log(`    ${chalk.dim(`skip: ${chalk.white(skipPatterns.join(", "))}`)}`);
+    }
   }
 
   const allTestLists = await getTests(connectedServices, Client);
@@ -367,9 +374,19 @@ async function resolveServices(api, project_code, manifestPath) {
         : [{ serviceId: raw.serviceId, system: raw.system, specList: raw.specList }];
 
       if (project_code && raw.projectCode && raw.projectCode !== project_code) {
-        log.warn(
-          `Manifest projectCode "${raw.projectCode}" doesn't match "${project_code}", falling back to API`
+        const isNamespace = services.some(({ system }) =>
+          (system.connectionData.modules || []).some(({ name, methods }) =>
+            name.toLowerCase().includes(project_code.toLowerCase()) ||
+            (methods || []).some(({ fn }) => fn.toLowerCase().includes(project_code.toLowerCase()))
+          )
         );
+        if (!isNamespace) {
+          log.warn(
+            `Manifest projectCode "${raw.projectCode}" doesn't match "${project_code}", falling back to API`
+          );
+        } else {
+          return { services, probeHeaders: raw.probeHeaders || {}, resolvedNamespace: project_code };
+        }
       } else {
         return { services, probeHeaders: raw.probeHeaders || {} };
       }

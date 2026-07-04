@@ -153,20 +153,16 @@ async function quitApp() {
     });
     process.exit(exitCode || 0);
   } else if (command === "logs") {
-    const url = `http://localhost:${DEFAULT_PORT}`;
-    const api = `${url}/systemview/api`;
-    if (!(await appIsRunning(api))) {
-      await launchApp(DEFAULT_PORT);
-    }
-    await logsCommand(url, input[1], input[2], {
+    await logsCommand(input[1], input[2], {
       level: flags.level,
       limit: flags.limit,
       clear: flags.clear,
       json: flags.json,
-      follow: command === "follow" || flags.follow,
+      current: flags.current,
       verbose: flags.verbose,
       filter: flags.filter,
       or: flags.or,
+      include: flags.include,
     });
     process.exit(0);
   } else {

@@ -6,90 +6,33 @@ import Title from "../../atoms/Title/Title";
 import Markdown from "../../atoms/Markdown/Markdown";
 import ServiceContext from "../../ServiceContext";
 import { Client } from "systemlynx-client";
-
-const LEVEL_CLASS = { trace: "dim", log: "log", info: "info", warn: "warn", error: "error", debug: "debug" };
-
-function formatTime(ts) {
-  return new Date(ts).toLocaleTimeString("en-US", { hour12: false });
-}
-
-function InlineLogRow({ entry, isExpanded, onToggle }) {
-  const level = entry.level || "info";
-  const isTrace = level === "trace";
-  const hasData = Boolean(entry.data);
-  const msg = isTrace
-    ? (entry.data && entry.data.duration != null ? `${entry.data.duration}ms` : "")
-    : (typeof entry.message === "string" ? entry.message : JSON.stringify(entry.message) || "");
-
-  return (
-    <>
-      <tr
-        className={`log-row${isTrace ? " log-row--dim" : ""} ${hasData ? "log-row--clickable" : ""} ${isExpanded ? "log-row--active" : ""}`}
-        onClick={() => hasData && onToggle()}
-      >
-        <td className="log-cell log-cell--time">{formatTime(entry.timestamp)}</td>
-        <td className="log-cell log-cell--method">{entry.moduleMethod || "—"}</td>
-        <td className="log-cell log-cell--level">
-          <span className={`log-level log-level--${LEVEL_CLASS[level] || "info"}`}>{level}</span>
-        </td>
-        <td className="log-cell log-cell--msg">
-          {msg}
-          {!isTrace && entry.data && entry.data.duration != null && (
-            <span className="log-duration"> {entry.data.duration}ms</span>
-          )}
-        </td>
-      </tr>
-      {isExpanded && hasData && (
-        <tr className="log-row log-row--expanded" onClick={onToggle}>
-          <td colSpan={4} className="log-cell--detail">
-            <div className="log-data-wrap">
-              <button
-                className="log-data-copy"
-                title="Copy JSON"
-                onClick={(e) => { e.stopPropagation(); try { navigator.clipboard.writeText(JSON.stringify(entry.data, null, 2)); } catch {} }}
-              >
-                copy
-              </button>
-              <pre className="log-data">{JSON.stringify(entry.data, null, 2)}</pre>
-            </div>
-          </td>
-        </tr>
-      )}
-    </>
-  );
-}
+import { LogRow } from "../../pages/Logs/Logs";
 
 function InlineLogs({ projectCode, serviceId, moduleName, methodName }) {
-  const { SystemViewService } = useContext(ServiceContext);
+  const { connectedServices } = useContext(ServiceContext);
   const [entries, setEntries] = useState([]);
   const [expandedKey, setExpandedKey] = useState(null);
 
-  // Derive filter scope from current nav level
-  const scopeFilter = methodName && moduleName
-    ? { moduleMethod: `${moduleName}.${methodName}` }
-    : moduleName
-    ? { moduleName }
-    : { serviceId };
+  const serviceData = connectedServices.find(
+    (s) => s.serviceId === serviceId && s.projectCode === projectCode
+  );
 
   const loadLogs = useCallback(async () => {
+    if (!serviceData) return;
     try {
-      const result = await SystemViewService.SystemView.getLogs({
-        projectCode: projectCode || undefined,
-        serviceId: serviceId || undefined,
-        limit: 100,
-      });
+      const { SystemView } = Client.createService(serviceData.system.connectionData);
+      const result = await SystemView.getLog({ limit: 100 });
       if (!Array.isArray(result)) return;
       let all = result;
-      // Client-side filter to method/module scope
-      if (scopeFilter.moduleMethod) {
-        all = all.filter((e) => e.moduleMethod === scopeFilter.moduleMethod);
-      } else if (scopeFilter.moduleName) {
-        all = all.filter((e) => e.moduleMethod && e.moduleMethod.startsWith(`${scopeFilter.moduleName}.`));
+      if (methodName && moduleName) {
+        all = all.filter((e) => e.moduleMethod === `${moduleName}.${methodName}`);
+      } else if (moduleName) {
+        all = all.filter((e) => e.moduleMethod && e.moduleMethod.startsWith(`${moduleName}.`));
       }
       setEntries(all);
     } catch {}
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [SystemViewService, projectCode, serviceId, moduleName, methodName]);
+  }, [serviceData, moduleName, methodName]);
 
   useEffect(() => {
     loadLogs();
@@ -101,29 +44,26 @@ function InlineLogs({ projectCode, serviceId, moduleName, methodName }) {
 
   return (
     <div className="inline-logs">
-      <table className="logs-table">
-        <thead>
-          <tr>
-            <th className="log-th log-th--time">Time</th>
-            <th className="log-th log-th--method">Module.Method</th>
-            <th className="log-th log-th--level">Level</th>
-            <th className="log-th log-th--msg">Message</th>
-          </tr>
-        </thead>
-        <tbody>
-          {entries.map((entry, i) => {
-            const key = `${i}-${entry.timestamp}`;
-            return (
-              <InlineLogRow
-                key={i}
-                entry={entry}
-                isExpanded={expandedKey === key}
-                onToggle={() => setExpandedKey((prev) => prev === key ? null : key)}
-              />
-            );
-          })}
-        </tbody>
-      </table>
+      <div className="logs-table-header">
+        <div className="log-th log-th--time">Time</div>
+        <div className="log-th log-th--method">Module.Method</div>
+        <div className="log-th log-th--level">Level</div>
+        <div className="log-th log-th--msg">Message</div>
+      </div>
+      <div className="logs-table">
+        {entries.map((entry, i) => {
+          const key = `${i}-${entry.timestamp}`;
+          return (
+            <LogRow
+              key={i}
+              entry={entry}
+              isExpanded={expandedKey === key}
+              onToggle={() => setExpandedKey((prev) => prev === key ? null : key)}
+              compact
+            />
+          );
+        })}
+      </div>
     </div>
   );
 }

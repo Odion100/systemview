@@ -1,10 +1,20 @@
 // Shared log table styles — used by Logs page and Documentation inline logs tab
 
+.logs-table-header {
+  display: flex;
+  width: 100%;
+
+  .log-th { flex: 1; }
+}
+
 .logs-table {
   width: 100%;
-  border-collapse: collapse;
   font-size: 13px;
   font-family: monospace;
+
+  .log-row { display: flex; width: 100%; }
+  .log-row--expanded { display: block; }
+  .log-cell { flex: 1; }
 }
 
 .log-th {
@@ -27,6 +37,7 @@
   &--msg     { }
   &--traceid  { flex: 0 0 110px; color: #9494b7; font-size: 10px; letter-spacing: 0.02em; }
   &--dynamic { flex: 0 0 120px; color: #7070a0; text-transform: none; letter-spacing: 0; font-weight: 600; font-style: normal; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  &--filtered { color: #7070a0; text-transform: none; letter-spacing: 0; font-weight: 600; font-style: normal; }
 }
 
 .log-row {
@@ -53,6 +64,7 @@
   &--msg     { color: #555; max-width: 360px; white-space: normal; }
   &--traceid  { flex: 0 0 110px; color: #9494b7; font-size: 10px; font-family: monospace; }
   &--dynamic { flex: 0 0 100px; color: #7070a0; font-size: 11px; overflow: hidden; text-overflow: ellipsis; }
+  &--filtered { color: #7070a0; font-weight: 600; }
 }
 
 .log-level {

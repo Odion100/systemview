@@ -10,18 +10,21 @@ module.exports = function startLineReader(url) {
     output: process.stdout,
   });
 
+  let stopLogs = null;
+
   const handleInput = (input = "") => {
     const parts = input.trim().split(/\s+/);
     const command = parts[0];
     const args = parts.slice(1);
 
-    const flags = { filter: [], or: [] };
+    const flags = { filter: [], or: [], include: [] };
     const positional = [];
     for (let i = 0; i < args.length; i++) {
       if (args[i] === "--level" && args[i + 1]) { flags.level = args[++i]; }
       else if (args[i] === "--limit" && args[i + 1]) { flags.limit = parseInt(args[++i], 10); }
       else if (args[i] === "--filter" && args[i + 1]) { flags.filter.push(args[++i]); }
       else if (args[i] === "--or" && args[i + 1]) { flags.or.push(args[++i]); }
+      else if (args[i] === "--include" && args[i + 1]) { flags.include.push(args[++i]); }
       else if (args[i] === "--verbose") { flags.verbose = true; }
       else if (args[i] === "--current") { flags.current = true; }
       else if (args[i] === "--json") { flags.json = true; }
@@ -34,9 +37,12 @@ module.exports = function startLineReader(url) {
       try { runTests(url, positional[0], positional[1]); } catch (e) { console.error(e.message); }
       lineReader.prompt();
     } else if (command === "logs") {
-      logsCommand(url, positional[0], positional[1], { ...flags, follow: true, current: flags.current });
+      if (stopLogs) { stopLogs(); stopLogs = null; }
+      logsCommand(positional[0], positional[1], { ...flags, current: flags.current })
+        .then((stop) => { if (stop) stopLogs = stop; });
     } else if (command === "clearlogs" || command === "flush") {
-      logsCommand(url, null, null, { clear: true, follow: false });
+      if (stopLogs) { stopLogs(); stopLogs = null; }
+      logsCommand(null, null, { clear: true });
     } else if (command === "help") {
       cli.showHelp(0);
     } else if (command === "open") {
