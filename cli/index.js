@@ -13,6 +13,7 @@ const listTests = require("./listTests");
 const appIsRunning = require("./appIsRunning");
 const openBrowser = require("./openBrowser");
 const connectService = require("./connectService");
+const manifestCommands = require("./manifest");
 const probe = require("./probe");
 const logsCommand = require("./logs");
 const { HttpClient, createClient } = require("systemlynx");
@@ -22,11 +23,29 @@ const Client = createClient(cookieHttpClient);
 
 const DEFAULT_PORT = 3000;
 const VERSION = require("../package.json").version;
+const UI_URL = `http://localhost:${DEFAULT_PORT}`;
+
+const MANIFEST_FILE = flags.manifest || path.join(process.cwd(), "systemview.manifest.json");
+const connectedUrls = new Set();
+
+function loadManifest() {
+  if (!fs.existsSync(MANIFEST_FILE)) return;
+  try {
+    const manifest = JSON.parse(fs.readFileSync(MANIFEST_FILE, "utf8"));
+    const services = manifest.services || [manifest];
+    for (const { system } of services) {
+      if (system && system.connectionData) {
+        Client.createService(system.connectionData);
+        connectedUrls.add(system.connectionData.serviceUrl);
+      }
+    }
+  } catch {}
+}
 
 async function startApp() {
   const port = isNaN(input[1]) ? DEFAULT_PORT : Number(input[1]);
   try {
-    await launchApp(port, { interactive: true });
+    await launchApp(port, { interactive: true, connectedUrls });
   } catch (error) {
     log.error("Launch failed: " + error.message);
   }
@@ -35,13 +54,11 @@ async function startApp() {
 async function startTest() {
   const project_code = input[1];
   const namespace = input[2];
-  const url = `http://localhost:${DEFAULT_PORT}`;
   try {
     await launchApp(DEFAULT_PORT);
-    const exitCode = await runTests(url, project_code, namespace, {
+    const exitCode = await runTests(UI_URL, project_code, namespace, {
       json: flags.json,
       verbose: flags.verbose,
-      manifest: flags.manifest,
       headers: flags.headers,
       bail: flags.bail,
       dryRun: flags.dryRun,
@@ -59,41 +76,34 @@ async function startTest() {
 async function list() {
   const project_code = input[1];
   const namespace = input[2];
-  const url = `http://localhost:${DEFAULT_PORT}`;
-  const api = `${url}/systemview/api`;
+  const api = `${UI_URL}/systemview/api`;
   if (!(await appIsRunning(api))) {
     await launchApp(DEFAULT_PORT);
   }
-  await listTests(url, project_code, namespace, { manifest: flags.manifest, verbose: flags.verbose });
+  await listTests(UI_URL, project_code, namespace, {
+    connectedUrls,
+    verbose: flags.verbose,
+  });
   process.exit(0);
 }
 
 async function open() {
   const project_code = input[1];
   const namespace = input[2];
-  const ui = `http://localhost:${DEFAULT_PORT}`;
-  const api = `${ui}/systemview/api`;
+  const api = `${UI_URL}/systemview/api`;
   if (!(await appIsRunning(api))) {
     await launchApp(DEFAULT_PORT);
   }
 
   let connectedServices = [];
   if (namespace && project_code) {
-    const manifestFile = flags.manifest || path.join(process.cwd(), "systemview.manifest.json");
-    if (fs.existsSync(manifestFile)) {
-      try {
-        const raw = JSON.parse(fs.readFileSync(manifestFile, "utf8"));
-        connectedServices = raw.services ? raw.services : [raw];
-      } catch {}
-    } else {
-      try {
-        const { SystemView } = await Client.loadService(api);
-        connectedServices = (await SystemView.getServices(project_code)) || [];
-      } catch {}
-    }
+    try {
+      const { SystemView } = await Client.loadService(api);
+      connectedServices = (await SystemView.getServices(project_code)) || [];
+    } catch {}
   }
 
-  openBrowser(ui, project_code, namespace, connectedServices);
+  openBrowser(UI_URL, project_code, namespace, connectedServices);
   process.exit(0);
 }
 
@@ -130,6 +140,8 @@ async function quitApp() {
   }
 
   init();
+  loadManifest();
+
   const command = input[0];
 
   if (command === "open") {
@@ -143,17 +155,43 @@ async function quitApp() {
   } else if (["exit", "q", "shutdown", "stop"].includes(command)) {
     await quitApp();
   } else if (command === "connect") {
-    await connectService(input[1], input[2], { manifest: flags.manifest });
+    const useManifest = process.argv.includes("--manifest");
+    await connectService(input[1], {
+      useManifest,
+      force: flags.force,
+      connectedUrls,
+      uiUrl: UI_URL,
+    });
+    process.exit(0);
+  } else if (command === "disconnect") {
+    await manifestCommands.disconnect(input[1], input[2], {
+      connectedUrls,
+      uiUrl: UI_URL,
+    });
+    process.exit(0);
+  } else if (command === "manifest") {
+    const sub = input[1];
+    if (sub === "save") {
+      log.warn("manifest save requires an interactive session. Run: systemview start");
+    } else if (sub === "clean") {
+      await manifestCommands.clean(MANIFEST_FILE);
+    } else {
+      log.warn("Usage: systemview manifest <save|clean>");
+    }
     process.exit(0);
   } else if (command === "probe") {
+    await launchApp(DEFAULT_PORT);
     const exitCode = await probe(input[1], input[2], {
       json: flags.json,
       manifest: flags.manifest,
       headers: flags.headers,
+      uiUrl: UI_URL,
     });
     process.exit(exitCode || 0);
   } else if (command === "logs") {
+    await launchApp(DEFAULT_PORT);
     await logsCommand(input[1], input[2], {
+      uiUrl: UI_URL,
       level: flags.level,
       limit: flags.limit,
       clear: flags.clear,

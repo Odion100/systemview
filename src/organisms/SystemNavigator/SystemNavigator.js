@@ -10,8 +10,19 @@ import refreshIcon from "../../assets/refresh.png";
 import "./styles.scss";
 import { Client } from "systemlynx-client";
 
+const TrashIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="3 6 5 6 21 6"/>
+    <path d="M19 6l-1 14H6L5 6"/>
+    <line x1="10" y1="11" x2="10" y2="17"/>
+    <line x1="14" y1="11" x2="14" y2="17"/>
+    <path d="M9 6V4h6v2"/>
+  </svg>
+);
+
 const SystemNav = ({ projectCode, serviceId, moduleName, methodName }) => {
   const [searchTerm, setSearchTerm] = useState(projectCode);
+  const [serviceStatus, setServiceStatus] = useState({});
   const { SystemViewService, setConnectedServices, connectedServices } =
     useContext(ServiceContext);
   const serviceData = connectedServices.find(
@@ -39,6 +50,59 @@ const SystemNav = ({ projectCode, serviceId, moduleName, methodName }) => {
     }
   };
 
+  const probeServices = async (services) => {
+    const results = await Promise.all(
+      services.map(async ({ system }) => {
+        const url = system.connectionData.serviceUrl;
+        try {
+          const res = await Promise.race([
+            fetch(url),
+            new Promise((_, rej) => setTimeout(() => rej(), 3000)),
+          ]);
+          return [url, res.ok ? "live" : "down"];
+        } catch {
+          return [url, "down"];
+        }
+      })
+    );
+    setServiceStatus((prev) => ({ ...prev, ...Object.fromEntries(results) }));
+  };
+
+  const fetchAllProjects = async () => {
+    try {
+      const projects = await SystemView.getProjects();
+      const all = Object.entries(projects).flatMap(([pc, svcs]) =>
+        svcs.map((svc) => ({ projectCode: pc, ...svc }))
+      );
+      if (all.length) {
+        setConnectedServices(all);
+        probeServices(all);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleDeleteService = async (pc, svcId) => {
+    try {
+      await SystemView.deleteService(pc, svcId);
+      setConnectedServices((prev) =>
+        prev.filter((s) => !(s.projectCode === pc && s.serviceId === svcId))
+      );
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleDeleteProject = async (pc) => {
+    try {
+      await SystemView.deleteProject(pc);
+      setConnectedServices((prev) => prev.filter((s) => s.projectCode !== pc));
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   const history = useHistory();
   const SearchInputSubmit = async (e) => {
     const pc = e.target.value;
@@ -54,6 +118,7 @@ const SystemNav = ({ projectCode, serviceId, moduleName, methodName }) => {
     try {
       const results = await SystemView.refreshConnection(searchTerm);
       setConnectedServices((prev) => mergeServices(prev, results, searchTerm));
+      probeServices(results);
     } catch (error) {}
   };
   useEffect(() => {
@@ -73,6 +138,9 @@ const SystemNav = ({ projectCode, serviceId, moduleName, methodName }) => {
         }
       );
   }, [projectCode, connectedServices]);
+  useEffect(() => {
+    fetchAllProjects();
+  }, []);
   useEffect(() => {
     if (projectCode) fetchProject(projectCode);
   }, []);
@@ -106,6 +174,9 @@ const SystemNav = ({ projectCode, serviceId, moduleName, methodName }) => {
               selectedServiceId={serviceId}
               selectedModuleName={moduleName}
               selectedMethodName={methodName}
+              onDeleteService={handleDeleteService}
+              onDeleteProject={handleDeleteProject}
+              serviceStatus={serviceStatus}
             />
           </div>
         </div>
@@ -121,6 +192,9 @@ const NavigationLinks = ({
   selectedServiceId,
   selectedModuleName,
   selectedMethodName,
+  onDeleteService,
+  onDeleteProject,
+  serviceStatus,
 }) => {
   const projects = connectedServices.reduce((acc, service) => {
     const pc = service.projectCode;
@@ -137,17 +211,24 @@ const NavigationLinks = ({
         key={pc}
         title={
           <span
-            className={`system-nav__link system-nav__link--selected-${
+            className={`system-nav__link system-nav__link--project system-nav__link--selected-${
               isSelectedProject && !selectedServiceId
             }`}
           >
             <Link link={`/${pc}`} text={pc} />
+            <button
+              className="system-nav__delete-btn"
+              title="Remove project"
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDeleteProject(pc); }}
+            >
+              <TrashIcon />
+            </button>
           </span>
         }
       >
         {services.map(({ system, serviceId, specList }, i) => {
           const { serviceUrl } = system.connectionData;
-          const isSaved = specList.docs.includes(`${serviceId}.md`);
+          const isSaved = specList && specList.docs && specList.docs.includes(`${serviceId}.md`);
           const isSelected = isSelectedProject && selectedServiceId === serviceId;
           return (
             <ExpandableList
@@ -159,20 +240,30 @@ const NavigationLinks = ({
                     !selectedModuleName && isSelected
                   }`}
                 >
-                  <span>
+                  <span className="system-nav__service-info">
                     <Link link={`/${pc}/${serviceId}`} text={serviceId} />
-                    <a
-                      className="system-nav__service-url"
-                      href={serviceUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      {serviceUrl}
-                    </a>
+                    <span className="system-nav__url-row">
+                      <a
+                        className="system-nav__service-url"
+                        href={serviceUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {serviceUrl}
+                      </a>
+                      <span className={`system-nav__status-dot system-nav__status-dot--${serviceStatus[serviceUrl] || "unknown"}`} />
+                    </span>
                   </span>
                   <span className="server-module__docs-icon">
                     <DocIcon isSaved={isSaved} />
                   </span>
+                  <button
+                    className="system-nav__delete-btn"
+                    title="Remove service"
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDeleteService(pc, serviceId); }}
+                  >
+                    <TrashIcon />
+                  </button>
                 </span>
               }
             >

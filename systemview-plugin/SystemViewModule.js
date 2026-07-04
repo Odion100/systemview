@@ -94,5 +94,10 @@ module.exports = ({ App, specs, projectCode, serviceId, module = {} }) => {
         return [];
       }
     };
+    this.getManifest = () => {
+      const manifestFile = path.join(process.cwd(), "systemview.manifest.json");
+      try { return JSON.parse(fs.readFileSync(manifestFile, "utf8")); }
+      catch { return null; }
+    };
   };
 };

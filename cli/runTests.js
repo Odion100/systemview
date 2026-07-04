@@ -1,5 +1,3 @@
-const fs = require("fs");
-const path = require("path");
 const { createClient } = require("systemlynx");
 const { createCookieHttpClient } = require("./cookieClient");
 const cookieHttpClient = createCookieHttpClient();
@@ -48,7 +46,6 @@ module.exports = async function runTests(
   {
     json = false,
     verbose = false,
-    manifest: manifestPath,
     headers: cliHeaders = {},
     bail = false,
     dryRun = false,
@@ -64,18 +61,14 @@ module.exports = async function runTests(
     return 1;
   }
 
-  const { services: connectedServices, probeHeaders: manifestHeaders, resolvedNamespace } = await resolveServices(
-    api,
-    project_code,
-    manifestPath
-  );
+  const { services: connectedServices, resolvedNamespace } = await resolveServices(api, project_code);
   if (resolvedNamespace && !namespace) namespace = resolvedNamespace;
   if (!connectedServices || !connectedServices.length) {
     log.warn("No connected services found for project: " + project_code);
     return 1;
   }
 
-  const extraHeaders = { ...manifestHeaders, ...cliHeaders };
+  const extraHeaders = { ...cliHeaders };
 
   if (!json) {
     connectedServices.forEach(({ serviceId, system }) => {
@@ -363,48 +356,32 @@ async function getTests(connectedServices, Client) {
   return results;
 }
 
-async function resolveServices(api, project_code, manifestPath) {
-  const manifestFile = manifestPath || path.join(process.cwd(), "systemview.manifest.json");
-
-  if (fs.existsSync(manifestFile)) {
-    try {
-      const raw = JSON.parse(fs.readFileSync(manifestFile, "utf8"));
-      const services = raw.services
-        ? raw.services
-        : [{ serviceId: raw.serviceId, system: raw.system, specList: raw.specList }];
-
-      if (project_code && raw.projectCode && raw.projectCode !== project_code) {
-        const isNamespace = services.some(({ system }) =>
-          (system.connectionData.modules || []).some(({ name, methods }) =>
-            name.toLowerCase().includes(project_code.toLowerCase()) ||
-            (methods || []).some(({ fn }) => fn.toLowerCase().includes(project_code.toLowerCase()))
-          )
-        );
-        if (!isNamespace) {
-          log.warn(
-            `Manifest projectCode "${raw.projectCode}" doesn't match "${project_code}", falling back to API`
-          );
-        } else {
-          return { services, probeHeaders: raw.probeHeaders || {}, resolvedNamespace: project_code };
-        }
-      } else {
-        return { services, probeHeaders: raw.probeHeaders || {} };
-      }
-    } catch (err) {
-      log.warn(`Failed to read manifest: ${err.message}`);
-    }
-  }
-
-  const services = await getConnectedServices(api, project_code, Client);
-  return { services, probeHeaders: {} };
-}
-
-async function getConnectedServices(api, project_code, Client) {
+async function resolveServices(api, project_code) {
   try {
     const { SystemView } = await Client.loadService(api);
-    return await SystemView.getServices(project_code);
+
+    // Try exact project code match first
+    const services = await SystemView.getServices(project_code);
+    if (services && services.length) {
+      return { services };
+    }
+
+    // Fuzzy namespace: check if project_code matches any module or method across all services
+    const projects = await SystemView.getProjects();
+    const all = Object.values(projects).flat();
+    const isNamespace = all.some(({ system }) =>
+      (system.connectionData.modules || []).some(({ name, methods }) =>
+        name.toLowerCase().includes(project_code.toLowerCase()) ||
+        (methods || []).some(({ fn }) => fn.toLowerCase().includes(project_code.toLowerCase()))
+      )
+    );
+    if (isNamespace) {
+      return { services: all, resolvedNamespace: project_code };
+    }
+
+    return { services: [] };
   } catch (error) {
     log.error("Failed to connect to SystemView: " + error.message);
-    return [];
+    return { services: [] };
   }
 }

@@ -1,5 +1,3 @@
-const fs = require("fs");
-const path = require("path");
 const { createClient } = require("systemlynx");
 const { createCookieHttpClient } = require("./cookieClient");
 const log = require("./logger");
@@ -8,15 +6,15 @@ const chalk = require("chalk");
 const cookieHttpClient = createCookieHttpClient();
 const Client = createClient(cookieHttpClient);
 
-module.exports = async function listTests(url, project_code, namespace, { manifest: manifestPath, verbose = false } = {}) {
+module.exports = async function listTests(url, project_code, namespace, { connectedUrls = new Set(), verbose = false } = {}) {
   const api = `${url}/systemview/api`;
 
   if (!project_code) {
-    await listAllProjects(api, Client, verbose);
+    await listAllProjects(api, Client, verbose, connectedUrls);
     return;
   }
 
-  const connectedServices = await loadServices(api, project_code, manifestPath, Client);
+  const connectedServices = await loadServices(api, project_code, Client);
   if (!connectedServices.length) {
     log.warn("No connected services found for project: " + project_code);
     return;
@@ -96,7 +94,7 @@ module.exports = async function listTests(url, project_code, namespace, { manife
   console.log("");
 };
 
-async function listAllProjects(api, Client, verbose = false) {
+async function listAllProjects(api, Client, verbose = false, connectedUrls = new Set()) {
   let projects;
   try {
     const { SystemView } = await Client.loadService(api);
@@ -123,9 +121,11 @@ async function listAllProjects(api, Client, verbose = false) {
       const isLastService = si === services.length - 1;
       const servicePrefix = isLastService ? "  └── " : "  ├── ";
       const childPad = isLastService ? "       " : "  │    ";
+      const connected = connectedUrls.has(serviceUrl);
+      const connectedMark = connected ? chalk.green(" ●") : chalk.dim(" ○");
 
       if (verbose && connectionData && connectionData.modules) {
-        console.log(`${servicePrefix}${chalk.bold(serviceId)}   ${chalk.dim(serviceUrl)}`);
+        console.log(`${servicePrefix}${chalk.bold(serviceId)}${connectedMark}   ${chalk.dim(serviceUrl)}`);
         const mods = connectionData.modules.filter((m) => m.name !== "Plugin");
         mods.forEach((mod, mi) => {
           const isLastMod = mi === mods.length - 1;
@@ -140,7 +140,7 @@ async function listAllProjects(api, Client, verbose = false) {
           });
         });
       } else {
-        console.log(`${servicePrefix}${serviceId}   ${chalk.dim(serviceUrl)}`);
+        console.log(`${servicePrefix}${serviceId}${connectedMark}   ${chalk.dim(serviceUrl)}`);
       }
     });
     if (pi < codes.length - 1) console.log("");
@@ -148,14 +148,7 @@ async function listAllProjects(api, Client, verbose = false) {
   console.log("");
 }
 
-async function loadServices(api, project_code, manifestPath, Client) {
-  const manifestFile = manifestPath || path.join(process.cwd(), "systemview.manifest.json");
-  if (fs.existsSync(manifestFile)) {
-    try {
-      const raw = JSON.parse(fs.readFileSync(manifestFile, "utf8"));
-      return raw.services ? raw.services : [raw];
-    } catch {}
-  }
+async function loadServices(api, project_code, Client) {
   try {
     const { SystemView } = await Client.loadService(api);
     return (await SystemView.getServices(project_code)) || [];

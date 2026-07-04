@@ -1,5 +1,3 @@
-const fs = require("fs");
-const path = require("path");
 const chalk = require("chalk");
 const log = require("./logger");
 const { createClient } = require("systemlynx");
@@ -111,7 +109,7 @@ function filterDisplayField(f) {
 module.exports = async function logsCommand(
   projectCode,
   namespace,
-  { level, limit = 50, clear, current, verbose, filter, or: orFilters, include },
+  { uiUrl, level, limit = 50, clear, current, verbose, filter, or: orFilters, include },
 ) {
   const andFilters = parseFilters(filter);
   const orFiltersParsed = parseFilters(orFilters);
@@ -121,35 +119,47 @@ module.exports = async function logsCommand(
     ...(include || []),
   ].filter((f, i, arr) => !DISPLAY_SKIP.has(f) && arr.indexOf(f) === i);
 
-  const manifestFile = path.join(process.cwd(), "systemview.manifest.json");
-  if (!fs.existsSync(manifestFile)) {
-    log.warn("No manifest found. Use: systemview connect <serviceId> <url>");
+  let services = [];
+  let effectiveNamespace = namespace;
+
+  try {
+    const { SystemView } = await Client.loadService(`${uiUrl}/systemview/api`);
+
+    if (!projectCode) {
+      const projects = await SystemView.getProjects();
+      services = Object.values(projects).flat();
+    } else {
+      const matches = await SystemView.getServices(projectCode);
+      if (matches && matches.length) {
+        services = matches;
+      } else {
+        // Fuzzy namespace: check if arg is a module/method name
+        const projects = await SystemView.getProjects();
+        const all = Object.values(projects).flat();
+        const isNamespace = all.some(({ system }) =>
+          (system.connectionData.modules || []).some(({ name, methods }) =>
+            name.toLowerCase().includes(projectCode.toLowerCase()) ||
+            (methods || []).some(({ fn }) => fn.toLowerCase().includes(projectCode.toLowerCase()))
+          )
+        );
+        if (isNamespace) {
+          services = all;
+          effectiveNamespace = projectCode;
+        } else {
+          log.warn(`No services found for: ${projectCode}`);
+          return;
+        }
+      }
+    }
+  } catch (err) {
+    log.error("Failed to connect to SystemView: " + err.message);
     return;
   }
-  const manifest = JSON.parse(fs.readFileSync(manifestFile, "utf8"));
-  const allServices = manifest.services || [manifest];
 
-  // Fuzzy resolve: check if the arg matches any module or method name in the manifest
-  function isNamespaceArg(arg) {
-    if (!arg) return false;
-    return allServices.some(({ system }) =>
-      (system.connectionData.modules || []).some(({ name, methods }) =>
-        name.toLowerCase().includes(arg.toLowerCase()) ||
-        (methods || []).some(({ fn }) => fn.toLowerCase().includes(arg.toLowerCase()))
-      )
-    );
+  if (!services.length) {
+    log.warn("No services in store. Use: systemview connect <url>");
+    return;
   }
-
-  let effectiveProjectCode = projectCode;
-  let effectiveNamespace = namespace;
-  if (projectCode && !namespace && isNamespaceArg(projectCode)) {
-    effectiveNamespace = projectCode;
-    effectiveProjectCode = null;
-  }
-
-  const services = allServices.filter((s) =>
-    !effectiveProjectCode || !manifest.projectCode || manifest.projectCode === effectiveProjectCode
-  );
 
   if (clear) {
     const confirmed = await promptConfirm("Clear all logs? (y/N) ");
@@ -169,14 +179,12 @@ module.exports = async function logsCommand(
   console.log("");
   console.log(chalk.dim(`  Services (${services.length}):`));
 
-  let stopped = false;
   const connected = [];
   for (const { serviceId, system } of services) {
     const { serviceUrl } = system.connectionData;
     try {
       const svc = await Client.loadService(serviceUrl);
-      svc.SystemView.on("log", (entry) => {
-        if (stopped) return;
+      const unsub = svc.SystemView.on("log", (entry) => {
         if (effectiveNamespace && !(entry.moduleMethod && entry.moduleMethod.includes(effectiveNamespace))) return;
         if (andFilters.length || orFiltersParsed.length) {
           if (!matchesFilters(entry, andFilters, orFiltersParsed)) return;
@@ -185,7 +193,7 @@ module.exports = async function logsCommand(
         console.log(formatRow(entry, verbose, extraFields));
       });
       console.log(`    ${chalk.green("✓")} ${chalk.cyan(serviceId).padEnd(20)} ${chalk.dim(serviceUrl)}`);
-      connected.push({ serviceId, svc });
+      connected.push({ serviceId, svc, unsub });
     } catch {
       console.log(`    ${chalk.red("✗")} ${chalk.cyan(serviceId).padEnd(20)} ${chalk.dim(serviceUrl)} ${chalk.red("(failed to connect)")}`);
     }
@@ -229,7 +237,7 @@ module.exports = async function logsCommand(
     }
   }
 
-  return () => { stopped = true; };
+  return () => { connected.forEach(({ unsub }) => unsub()); };
 };
 
 function promptConfirm(question) {

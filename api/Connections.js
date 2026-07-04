@@ -65,5 +65,19 @@ module.exports = function ConnectedServices() {
     return JSON.parse(fs.readFileSync(LOCAL_STORAGE, "utf8"));
   };
 
+  this.deleteService = (projectCode, serviceId) => {
+    const connections = JSON.parse(fs.readFileSync(LOCAL_STORAGE, "utf8"));
+    const filtered = connections.filter(
+      (s) => !(s.projectCode === projectCode && s.serviceId === serviceId)
+    );
+    fs.writeFileSync(LOCAL_STORAGE, JSON.stringify(filtered), "utf8");
+  };
+
+  this.deleteProject = (projectCode) => {
+    const connections = JSON.parse(fs.readFileSync(LOCAL_STORAGE, "utf8"));
+    const filtered = connections.filter((s) => s.projectCode !== projectCode);
+    fs.writeFileSync(LOCAL_STORAGE, JSON.stringify(filtered), "utf8");
+  };
+
   return this;
 };

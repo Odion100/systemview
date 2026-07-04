@@ -3,7 +3,7 @@ const appIsRunning = require("./appIsRunning");
 const launchSystemView = require("../api");
 const startLineReader = require("./startLineReader");
 
-module.exports = async function launchApp(port, { interactive = false } = {}) {
+module.exports = async function launchApp(port, { interactive = false, connectedUrls = new Set() } = {}) {
   const ui = `http://localhost:${port}`;
   const api = `${ui}/systemview/api`;
 
@@ -15,18 +15,18 @@ module.exports = async function launchApp(port, { interactive = false } = {}) {
 
   if (await appIsRunning(api)) {
     if (interactive) {
-      log.info("SystemView is running from another terminal");
+      log.info(`SystemView already running on port ${port} — attaching.`);
       logConnection();
-      return startLineReader(ui);
+      return startLineReader(ui, { connectedUrls });
     }
     return;
   }
 
-  if (interactive) log.info("Launching...");
+  if (interactive) log.info(`Launching on port ${port}...`);
   await launchSystemView(port);
   logConnection();
 
   if (interactive) {
-    return startLineReader(ui);
+    return startLineReader(ui, { connectedUrls });
   }
 };

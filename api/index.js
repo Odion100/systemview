@@ -1,5 +1,6 @@
-const { HttpClient: http, App } = require("systemlynx");
+const { HttpClient: http, createClient, App } = require("systemlynx");
 const ConnectedServices = require("./Connections")();
+const Client = createClient();
 const route = "systemview/api";
 const host = "localhost";
 const express = require("express");
@@ -60,13 +61,27 @@ function getServices(searchText) {
 async function getConnectionData(url) {
   try {
     const connectionData = await http.request({ url });
-    const project = {
-      system: { connectionData },
-      serviceId: "Service",
-      projectCode: "SystemLynx",
-      specList: { tests: [], docs: [] },
-    };
-
+    if (!connectionData || !connectionData.SystemLynxService) return [];
+    const svc = Client.createService(connectionData);
+    let project;
+    try {
+      const connection = await svc.Plugin.getConnection();
+      project = {
+        system: connection.system,
+        projectCode: connection.projectCode,
+        serviceId: connection.serviceId,
+        specList: connection.specList,
+      };
+    } catch {
+      const routeSegs = (connectionData.route || "").split("/").filter(Boolean);
+      const serviceId = [...routeSegs].reverse().find((s) => s.toLowerCase() !== "api") || "Service";
+      project = {
+        system: { connectionData },
+        serviceId,
+        projectCode: "connected-services",
+        specList: { tests: [], docs: [] },
+      };
+    }
     connect(project);
     return [project];
   } catch (error) {
@@ -81,15 +96,25 @@ async function refreshConnection(searchText) {
 function getProjects() {
   const connections = ConnectedServices.getAllConnections();
   const projects = {};
-  connections.forEach(({ projectCode, serviceId, system }) => {
+  connections.forEach(({ projectCode, serviceId, system, specList }) => {
     if (!projects[projectCode]) projects[projectCode] = [];
     projects[projectCode].push({
       serviceId,
       serviceUrl: system.connectionData.serviceUrl,
       connectionData: system.connectionData,
+      system,
+      specList: specList || { tests: [], docs: [] },
     });
   });
   return projects;
+}
+
+function deleteService(projectCode, serviceId) {
+  ConnectedServices.deleteService(projectCode, serviceId);
+}
+
+function deleteProject(projectCode) {
+  ConnectedServices.deleteProject(projectCode);
 }
 
 const shutdown = () => process.exit(0);
@@ -114,6 +139,8 @@ module.exports = function launchSystemView(port = 3000) {
       updateSpecList,
       shutdown,
       refreshConnection,
+      deleteService,
+      deleteProject,
     })
     .on("ready", () => {
       server.get("*", (req, res) => {

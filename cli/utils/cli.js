@@ -8,29 +8,36 @@ const HELP_TEXT = `
     start [port]                           Launch SystemView UI (default port 3000)
     test <projectCode> [namespace]         Run saved tests for a project
     list [projectCode] [namespace]         List projects, services, or tests
-    logs [projectCode] [namespace]         View log entries
-    connect <serviceId> <url>             Register a service and write manifest
-    connect                               Re-probe all services in existing manifest
-    probe <ServiceId.Module.method> [args] Call a method ad-hoc
+    logs [projectCode] [namespace]         Stream log entries from connected services
+    stoplogs                               Stop streaming logs (keeps log file)
+    clearlogs                              Wipe the log file and stop streaming
+    connect [url|projectCode]             Connect a service URL, reconnect a stored project, or connect all
+    connect <url> --manifest              Connect via plugin manifest — registers under real projectCode
+    disconnect [projectCode] [serviceId]  Remove a project or service from the UI store
+    manifest clean                        Re-probe manifest entries, remove stale ones
+    probe <ServiceId.Module.method> [args] Call a service method ad-hoc
     open [projectCode] [namespace]         Open the browser UI
     shutdown [port]                        Stop a running SystemView instance
 
   Flags:
     --version                              Print version and exit
     --json                                 Output results as JSON (for agents/CI)
-    --verbose                              test: full results and args for all phases; list: expand to show methods and test titles
-    --manifest <path>                      Path to manifest file (default: ./systemview.manifest.json)
-    --header "Name: Value"                 Extra request header (repeatable; overrides manifest.probeHeaders)
+    --verbose                              test: full results and args for all phases; list: expand hierarchy
+    --manifest                             connect: use plugin manifest to get real projectCode
+    --manifest <path>                      probe: path to manifest file (default: ./systemview.manifest.json)
+    --header "Name: Value"                 Extra request header (repeatable)
     --skip <pattern>                       Exclude tests matching pattern (repeatable)
     --bail                                 Stop after first failure
     --dry-run                              Print which tests would run without executing
     --phase <before|main|events|after>     Run only specified phase(s), comma-separated
     --index <n>                            Run only action at index n within each phase (0-based)
     --level <trace|info|warn|error|debug>  logs: filter by level
-    --limit <n>                            logs: max entries to return (default 50)
-    --follow                               logs: stream new entries as they arrive
+    --limit <n>                            logs: max entries to show with --current (default 50)
     --current                              logs: show existing entries before streaming
-    --clear                                logs: wipe the log file
+    --filter <field=value>                 logs: AND filter on a field (repeatable)
+    --or <field=value>                     logs: OR filter on a field (repeatable)
+    --include <field>                      logs: include extra field in output (repeatable)
+    --force                                connect: re-probe even if already connected
 
   Examples:
     systemview start
@@ -41,8 +48,14 @@ const HELP_TEXT = `
     systemview list
     systemview list buAPI
     systemview list buAPI --verbose
-    systemview list buAPI signUp
-    systemview connect ProfilesService http://localhost:4100/bu/api/profiles
+    systemview logs buAPI
+    systemview logs buAPI --current --limit 20
+    systemview logs buAPI --filter level=error
+    systemview connect http://localhost:4100/bu/api/profiles
+    systemview connect http://localhost:4100/bu/api/profiles --manifest
+    systemview connect buAPI
+    systemview disconnect buAPI
+    systemview disconnect buAPI ProfilesService
     systemview probe ProfilesService.Users.getUser '{"userId":"123"}'
     systemview open buAPI signUp
     systemview test buAPI --header "X-Api-Key: secret"
@@ -107,6 +120,7 @@ const flags = {
     return result;
   })(),
   clear: rawArgs.includes("--clear"),
+  force: rawArgs.includes("--force"),
   headers: (() => {
     const result = {};
     rawArgs.forEach((a, i) => {
@@ -131,8 +145,8 @@ const input = rawArgs.filter((a, i) => {
 module.exports = {
   input,
   flags,
-  showHelp() {
+  showHelp(exit = true) {
     console.log(HELP_TEXT);
-    process.exit(0);
+    if (exit) process.exit(0);
   },
 };
