@@ -17,7 +17,7 @@ module.exports = ({ App, specs, projectCode, serviceId, module = {} }) => {
     system.services = _system.services;
   });
   return function SystemViewPlugin() {
-    const { SystemView } = this.useService("SystemView");
+    const { SystemView } = this.useService("SystemViewUI");
 
     Object.assign(this, module);
     this.saveDoc = ({ documentation, namespace }) => {
@@ -88,7 +88,7 @@ module.exports = ({ App, specs, projectCode, serviceId, module = {} }) => {
         const lines = fs.readFileSync(logsFile, "utf8")
           .split("\n")
           .filter(Boolean)
-          .map(JSON.parse);
+          .map((line) => JSON.parse(line));
         return limit ? lines.slice(-limit) : lines;
       } catch {
         return [];

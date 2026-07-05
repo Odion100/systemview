@@ -1,5 +1,6 @@
 const { HttpClient: http, createClient, App } = require("systemlynx");
 const ConnectedServices = require("./Connections")();
+const CLIHistory = require("./CLIHistory")();
 const Client = createClient();
 const route = "systemview/api";
 const host = "localhost";
@@ -141,6 +142,10 @@ module.exports = function launchSystemView(port = 3000) {
       refreshConnection,
       deleteService,
       deleteProject,
+    })
+    .module("CLI", {
+      getHistory: CLIHistory.getHistory,
+      saveHistory: CLIHistory.saveHistory,
     })
     .on("ready", () => {
       server.get("*", (req, res) => {

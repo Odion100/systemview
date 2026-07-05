@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useRef, useContext, useCallback, useMemo } from "react";
 import { useHistory, useLocation } from "react-router-dom";
 import ReactJson from "react-json-view";
 import moment from "moment";
@@ -141,8 +141,9 @@ function FieldAnalyzer({
   conjunction,
   onConjunctionChange,
   slotId,
+  initialField,
 }) {
-  const [field, setField] = useState("");
+  const [field, setField] = useState(initialField || "");
   const [drillSegments, setDrillSegments] = useState([]);
   const [search, setSearch] = useState("");
   const [customValues, setCustomValues] = useState([]);
@@ -417,12 +418,21 @@ function Dashboard({
   onAnalyzerSlotsChange,
   dateRangeFilters,
   onDateRange,
+  initialPaths,
 }) {
-  const [analyzers, setAnalyzers] = useState([{ id: Date.now(), resolvedPath: null, conjunction: "and" }]);
+  const [analyzers, setAnalyzers] = useState(() => {
+    const pre = (initialPaths || []).map((p) => ({ id: `url-${p}`, resolvedPath: p, displayPath: p, conjunction: "and" }));
+    return [...pre, { id: Date.now(), resolvedPath: null, conjunction: "and" }];
+  });
   const traceEntries = entries.filter((e) => e.level === "trace");
   const keyPaths = getKeyPaths(entries);
 
   const lastResolved = analyzers[analyzers.length - 1]?.resolvedPath;
+
+  useEffect(() => {
+    if (initialPaths && initialPaths.length) reportState(analyzers);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function reportState(next) {
     onAnalyzerSlotsChange(next.map((x) => ({
@@ -466,8 +476,6 @@ function Dashboard({
     });
   }
 
-  if (entries.length === 0) return null;
-
   return (
     <div className="dashboard">
       <div className="dashboard__panels">
@@ -494,6 +502,7 @@ function Dashboard({
             conjunction={a.conjunction}
             onConjunctionChange={(c) => updateConjunction(a.id, c)}
             slotId={a.id}
+            initialField={a.displayPath || a.resolvedPath || ""}
           />
         ))}
         {(analyzers.length === 0 || lastResolved) && (
@@ -533,7 +542,7 @@ function cellValue(entry, path) {
   return String(v);
 }
 
-export function LogRow({ entry, isExpanded, onToggle, dynamicColumns, filteredFixedPaths, compact }) {
+export function LogRow({ entry, isExpanded, onToggle, dynamicColumns, filteredFixedPaths, compact, isNew }) {
   const level = entry.level || "info";
   const isTrace = level === "trace";
   const msg = isTrace
@@ -544,7 +553,7 @@ export function LogRow({ entry, isExpanded, onToggle, dynamicColumns, filteredFi
   return (
     <>
       <div
-        className={`log-row${isTrace ? " log-row--dim" : ""} log-row--clickable ${isExpanded ? "log-row--active" : ""}`}
+        className={`log-row${isTrace ? " log-row--dim" : ""} log-row--clickable${isExpanded ? " log-row--active" : ""}${isNew ? " log-row--new" : ""}`}
         onClick={onToggle}
       >
         <div className="log-cell log-cell--time">{formatTime(entry.timestamp)}</div>
@@ -602,11 +611,30 @@ export default function Logs() {
   const [connectedProjects, setConnectedProjects] = useState({});
   const [filterProject, setFilterProject] = useState(initParams.get("project") || "");
   const [filterService, setFilterService] = useState(initParams.get("service") || "");
+  const [filterMethod, setFilterMethod] = useState(initParams.get("method") || "");
   const [filterLevel, setFilterLevel] = useState(initParams.get("level") || "");
-  const [quickFilters, setQuickFilters] = useState({});
+  const _initTraceId = initParams.get("traceId") || "";
+  const initAnalyzerPaths = [
+    ...initParams.getAll("has"),
+    ...initParams.getAll("missing"),
+    ...(_initTraceId ? ["traceId"] : []),
+  ];
+  const [quickFilters, setQuickFilters] = useState(() => {
+    const init = {};
+    initParams.getAll("has").forEach((p) => { init[`url-${p}`] = ["?+"]; });
+    initParams.getAll("missing").forEach((p) => { init[`url-${p}`] = ["?-"]; });
+    if (_initTraceId) init["url-traceId"] = [_initTraceId];
+    return init;
+  });
   const [dateRangeFilters, setDateRangeFilters] = useState({});
-  const [analyzerSlots, setAnalyzerSlots] = useState([]);
+  const [analyzerSlots, setAnalyzerSlots] = useState(() =>
+    initAnalyzerPaths.map((p) => ({ id: `url-${p}`, path: p, displayPath: p, conjunction: "and" }))
+  );
   const [expandedKey, setExpandedKey] = useState(null);
+  const [isMonitoring, setIsMonitoring] = useState(false);
+  const [newEntryKeys, setNewEntryKeys] = useState(new Set());
+  const monitorUnsubs = useRef([]);
+  const bodyRef = useRef(null);
 
   useEffect(() => {
     SystemViewService.SystemView.getProjects()
@@ -620,9 +648,17 @@ export default function Logs() {
     const params = new URLSearchParams();
     if (filterProject) params.set("project", filterProject);
     if (filterService) params.set("service", filterService);
+    if (filterMethod) params.set("method", filterMethod);
     if (filterLevel) params.set("level", filterLevel);
-    history.replace({ search: params.toString() });
-  }, [filterProject, filterService, filterLevel, history]);
+    analyzerSlots.forEach((slot) => {
+      const vals = quickFilters[slot.id] || [];
+      if (slot.path && vals.includes("?+")) params.append("has", slot.path);
+      else if (slot.path && vals.includes("?-")) params.append("missing", slot.path);
+      else if (slot.path === "traceId" && vals.length > 0) params.set("traceId", vals[0]);
+    });
+    const qs = params.toString();
+    window.history.replaceState(null, "", "/logs" + (qs ? "?" + qs : ""));
+  }, [filterProject, filterService, filterMethod, filterLevel, analyzerSlots, quickFilters]);
 
   const loadLogs = useCallback(async () => {
     const allServices = Object.entries(connectedProjects).flatMap(([pc, services]) =>
@@ -641,16 +677,62 @@ export default function Logs() {
         if (Array.isArray(entries)) all.push(...entries);
       } catch {}
     }
-    let result = filterLevel ? all.filter((e) => e.level === filterLevel) : all;
+    let result = filterMethod ? all.filter((e) => (e.moduleMethod && e.moduleMethod.includes(filterMethod)) || (e.method && e.method === filterMethod)) : all;
     result = result.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)).slice(-200);
     setEntries(result);
-  }, [connectedProjects, filterProject, filterService, filterLevel]);
+  }, [connectedProjects, filterProject, filterService, filterMethod]);
 
   useEffect(() => {
+    if (isMonitoring) return;
     loadLogs();
-    const timer = setInterval(loadLogs, 5000);
-    return () => clearInterval(timer);
-  }, [loadLogs]);
+  }, [loadLogs, isMonitoring]);
+
+  // Monitor: subscribe to live log events per service; re-runs when filters or monitoring state changes
+  useEffect(() => {
+    if (!isMonitoring) return;
+    monitorUnsubs.current.forEach((u) => u());
+    monitorUnsubs.current = [];
+
+    const allServices = Object.entries(connectedProjects).flatMap(([pc, svcs]) =>
+      svcs.map((s) => ({ projectCode: pc, ...s }))
+    );
+    const targets = allServices.filter((s) =>
+      (!filterProject || s.projectCode === filterProject) &&
+      (!filterService || s.serviceId === filterService)
+    );
+
+    // Load current snapshot first so monitor starts with full context
+    loadLogs();
+
+    targets.forEach((t) => {
+      try {
+        const { SystemView } = Client.createService(t.connectionData);
+        const unsub = SystemView.on("log", (entry) => {
+          if (filterMethod && !((entry.moduleMethod && entry.moduleMethod.includes(filterMethod)) || (entry.method && entry.method === filterMethod))) return;
+          const eKey = `${entry.timestamp}-${entry.traceId}-${entry.moduleMethod}`;
+          setEntries((prev) => {
+            if (prev.some((e) => e.timestamp === entry.timestamp && e.traceId === entry.traceId && e.moduleMethod === entry.moduleMethod)) return prev;
+            return [...prev, entry];
+          });
+          setNewEntryKeys((prev) => new Set([...prev, eKey]));
+          setTimeout(() => setNewEntryKeys((prev) => { const n = new Set(prev); n.delete(eKey); return n; }), 400);
+        });
+        monitorUnsubs.current.push(unsub);
+      } catch {}
+    });
+
+    return () => {
+      monitorUnsubs.current.forEach((u) => u());
+      monitorUnsubs.current = [];
+    };
+  }, [isMonitoring, connectedProjects, filterProject, filterService, filterMethod, loadLogs]);
+
+  useEffect(() => {
+    if (!isMonitoring) return;
+    const el = bodyRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [entries, isMonitoring]);
+
 
   const projects =
     Object.keys(connectedProjects).length > 0
@@ -664,7 +746,31 @@ export default function Logs() {
             .flat()
             .map((s) => s.serviceId)
       : [...new Set(entries.map((e) => e.serviceId).filter(Boolean))];
-  const levels = [...new Set(entries.map((e) => e.level).filter(Boolean))];
+  const methods = useMemo(() => {
+    const projectServices = filterProject && connectedProjects[filterProject]
+      ? connectedProjects[filterProject]
+      : Object.values(connectedProjects).flat();
+    const targetServices = filterService
+      ? projectServices.filter((s) => s.serviceId === filterService)
+      : projectServices;
+    const moduleNames = new Set();
+    const methodNames = new Set();
+    targetServices.forEach(({ connectionData }) => {
+      (connectionData.modules || []).forEach(({ name, methods: fns }) => {
+        if (name === "Plugin" || name === "SystemView") return;
+        moduleNames.add(name);
+        (fns || []).forEach(({ fn }) => methodNames.add(`${name}.${fn}`));
+      });
+    });
+    const result = [];
+    moduleNames.forEach((mod) => {
+      result.push({ label: mod, value: mod, isModule: true });
+      methodNames.forEach((m) => {
+        if (m.startsWith(mod + ".")) result.push({ label: `  ${m}`, value: m, isModule: false });
+      });
+    });
+    return result;
+  }, [connectedProjects, filterProject, filterService]);
 
   const dynamicColumns = analyzerSlots.map((s) => s.displayPath || s.path).filter((p) => p && !FIXED_PATHS.has(p));
   const filteredFixedPaths = useMemo(
@@ -729,6 +835,9 @@ export default function Logs() {
       }),
     );
   }
+  if (filterLevel) {
+    displayEntries = displayEntries.filter((e) => e.level === filterLevel);
+  }
 
   function toggleFilter(path, val) {
     setQuickFilters((prev) => {
@@ -778,7 +887,7 @@ export default function Logs() {
   return (
     <section className="logs-page">
       <div className="page-header">
-        <button className="logs-back" onClick={() => history.goBack()}>
+        <button className="logs-back" onClick={() => window.history.length > 1 ? history.goBack() : history.push("/specs")}>
           ← back
         </button>
         <span className="logs-title">SystemView</span>
@@ -792,6 +901,8 @@ export default function Logs() {
             value={filterProject}
             onChange={(e) => {
               setFilterProject(e.target.value);
+              setFilterService("");
+              setFilterMethod("");
               setQuickFilters({});
             }}
           >
@@ -806,6 +917,7 @@ export default function Logs() {
             value={filterService}
             onChange={(e) => {
               setFilterService(e.target.value);
+              setFilterMethod("");
               setQuickFilters({});
             }}
           >
@@ -817,16 +929,17 @@ export default function Logs() {
             ))}
           </select>
           <select
-            value={filterLevel}
+            value={filterMethod}
             onChange={(e) => {
-              setFilterLevel(e.target.value);
+              setFilterMethod(e.target.value);
               setQuickFilters({});
             }}
+            disabled={!methods.length}
           >
-            <option value="">all levels</option>
-            {levels.map((l) => (
-              <option key={l} value={l}>
-                {l}
+            <option value="">all methods</option>
+            {methods.map(({ label, value }) => (
+              <option key={value} value={value}>
+                {label}
               </option>
             ))}
           </select>
@@ -860,10 +973,40 @@ export default function Logs() {
               {path}: {from ? moment(from).format("MMM D HH:mm") : "—"} → {to ? moment(to).format("MMM D HH:mm") : "—"} ×
             </button>
           ))}
+          {filterMethod && !methods.some((m) => m.value === filterMethod) && (
+            <button className="logs-quick-filter" onClick={() => setFilterMethod("")}>
+              method: {filterMethod} ×
+            </button>
+          )}
+          {filterLevel && (
+            <button className="logs-quick-filter" onClick={() => setFilterLevel("")}>
+              level: {filterLevel} ×
+            </button>
+          )}
           <span className="logs-count">
             {displayEntries.length}
             {orderedFilters.length > 0 ? ` / ${entries.length}` : ""} entries
           </span>
+          <span style={{flex: 1}} />
+          <button
+            className="logs-reset-btn"
+            onClick={() => {
+              setFilterProject("");
+              setFilterService("");
+              setFilterMethod("");
+              setFilterLevel("");
+              setQuickFilters({});
+              setDateRangeFilters({});
+            }}
+          >
+            Reset filters
+          </button>
+          <button
+            className={`logs-monitor-btn${isMonitoring ? " logs-monitor-btn--on" : ""}`}
+            onClick={() => setIsMonitoring((m) => !m)}
+          >
+            {isMonitoring ? "● Monitor" : "○ Monitor"}
+          </button>
           <button className="logs-clear-btn" onClick={handleClear}>
             Clear
           </button>
@@ -885,11 +1028,11 @@ export default function Logs() {
           onToggleFilter={toggleFilter}
           onClearFilter={clearFieldFilter}
           onAnalyzerSlotsChange={setAnalyzerSlots}
+          initialPaths={initAnalyzerPaths}
           dateRangeFilters={dateRangeFilters}
           onDateRange={handleDateRange}
         />
-        {displayEntries.length > 0 && (
-          <div className="logs-table-header">
+        <div className="logs-table-header">
             <div className="log-th log-th--time">Time</div>
             <div className={`log-th log-th--project${filteredFixedPaths.has("projectCode") ? " log-th--filtered" : ""}`}>Project</div>
             <div className={`log-th log-th--service${filteredFixedPaths.has("serviceId") ? " log-th--filtered" : ""}`}>Service</div>
@@ -903,10 +1046,9 @@ export default function Logs() {
               </div>
             ))}
           </div>
-        )}
       </div>
 
-      <div className="logs-body">
+      <div className="logs-body" ref={bodyRef}>
         {displayEntries.length === 0 ? (
           <p className="logs-empty">
             {entries.length === 0
@@ -917,6 +1059,7 @@ export default function Logs() {
           <div className="logs-table">
             {displayEntries.map((entry, i) => {
               const key = `${i}-${entry.timestamp}-${entry.moduleMethod}`;
+              const eKey = `${entry.timestamp}-${entry.traceId}-${entry.moduleMethod}`;
               return (
                 <LogRow
                   key={i}
@@ -925,6 +1068,7 @@ export default function Logs() {
                   onToggle={() => toggleRow(key)}
                   dynamicColumns={dynamicColumns}
                   filteredFixedPaths={filteredFixedPaths}
+                  isNew={newEntryKeys.has(eKey)}
                 />
               );
             })}

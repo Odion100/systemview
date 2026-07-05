@@ -3,7 +3,7 @@ const Auth = {
   signIn({ email, password }) {
     if (!email || !password) {
       this.warn("sign in failed — missing credentials", { email, hasPassword: !!password });
-      throw { message: "Unauthorized", status: 401 };
+      return { success: false };
     }
     this.log("sign in succeeded", { email });
     return { success: true };

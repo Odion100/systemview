@@ -6,17 +6,36 @@ const chalk = require("chalk");
 const cookieHttpClient = createCookieHttpClient();
 const Client = createClient(cookieHttpClient);
 
-module.exports = async function listTests(url, project_code, namespace, { connectedUrls = new Set(), verbose = false } = {}) {
+module.exports = async function listTests(url, project_code, namespace, { connectedUrls = new Set(), verbose = false, json = false } = {}) {
   const api = `${url}/systemview/api`;
 
   if (!project_code) {
-    await listAllProjects(api, Client, verbose, connectedUrls);
+    await listAllProjects(api, Client, verbose, connectedUrls, json);
     return;
   }
 
   const connectedServices = await loadServices(api, project_code, Client);
   if (!connectedServices.length) {
     log.warn("No connected services found for project: " + project_code);
+    return;
+  }
+
+  if (json) {
+    const output = [];
+    for (const { serviceId, system } of connectedServices) {
+      let testList = [];
+      try {
+        const svc = Client.createService(system.connectionData);
+        testList = await svc.Plugin.getTests();
+      } catch { continue; }
+      const filtered = namespace
+        ? testList.filter(({ namespace: n }) =>
+            `${n.serviceId}.${n.moduleName}.${n.methodName}`.includes(namespace)
+          )
+        : testList;
+      output.push({ serviceId, tests: filtered });
+    }
+    console.log(JSON.stringify(output, null, 2));
     return;
   }
 
@@ -94,7 +113,7 @@ module.exports = async function listTests(url, project_code, namespace, { connec
   console.log("");
 };
 
-async function listAllProjects(api, Client, verbose = false, connectedUrls = new Set()) {
+async function listAllProjects(api, Client, verbose = false, connectedUrls = new Set(), json = false) {
   let projects;
   try {
     const { SystemView } = await Client.loadService(api);
@@ -106,9 +125,12 @@ async function listAllProjects(api, Client, verbose = false, connectedUrls = new
 
   const codes = Object.keys(projects);
   if (!codes.length) {
+    if (json) { console.log(JSON.stringify({})); return; }
     log.warn("No connected projects found.");
     return;
   }
+
+  if (json) { console.log(JSON.stringify(projects, null, 2)); return; }
 
   const total = codes.reduce((n, c) => n + projects[c].length, 0);
   console.log("");

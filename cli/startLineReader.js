@@ -8,12 +8,22 @@ const logsCommand = require("./logs");
 const log = require("./logger");
 const cli = require("./utils/cli");
 const readline = require("readline");
+const { createClient } = require("systemlynx");
+const { createCookieHttpClient } = require("./cookieClient");
+const Client = createClient(createCookieHttpClient());
 
-module.exports = function startLineReader(url, { connectedUrls = new Set() } = {}) {
+module.exports = async function startLineReader(url, { connectedUrls = new Set() } = {}) {
   const lineReader = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
   });
+
+  let CLI = null;
+  try {
+    ({ CLI } = await Client.loadService(`${url}/systemview/api`));
+    const history = await CLI.getHistory();
+    lineReader.history = [...history].reverse();
+  } catch {}
 
   let stopLogs = null;
 
@@ -36,12 +46,18 @@ module.exports = function startLineReader(url, { connectedUrls = new Set() } = {
       }
       else if (args[i] === "--verbose") { flags.verbose = true; }
       else if (args[i] === "--current") { flags.current = true; }
+      else if (args[i] === "--follow" || args[i] === "-f") { flags.follow = true; }
+      else if (args[i] === "--clear") { flags.clear = true; }
       else if (args[i] === "--json") { flags.json = true; }
       else if (args[i] === "--bail") { flags.bail = true; }
       else if (args[i] === "--dry-run") { flags.dryRun = true; }
       else if (args[i] === "--force") { flags.force = true; }
       else if (args[i] === "--manifest") { flags.useManifest = true; }
-      else if (!args[i].startsWith("--")) { positional.push(args[i]); }
+      else if (args[i] === "--saved") { flags.saved = true; }
+      else if (args[i] === "--save" && args[i + 1] && !args[i + 1].startsWith("-")) { flags.save = args[++i]; }
+      else if (args[i] === "--save") { flags.save = true; }
+      else if (args[i] === "--save-limit" && args[i + 1]) { flags.saveLimit = parseInt(args[++i], 10); }
+      else if (!args[i].startsWith("-")) { positional.push(args[i]); }
     }
     return { flags, positional };
   };
@@ -52,8 +68,22 @@ module.exports = function startLineReader(url, { connectedUrls = new Set() } = {
     if (!command) { lineReader.prompt(); return; }
     const { flags, positional } = parseArgs(parts.slice(1));
 
-    if (["exit", "q", "shutdown", "stop"].includes(command)) {
+    if (["exit", "q"].includes(command)) {
       process.exit(0);
+    } else if (["stop", "shutdown"].includes(command)) {
+      const api = `${url}/systemview/api`;
+      try {
+        const { SystemView } = await Client.loadService(api);
+        await SystemView.shutdown();
+      } catch {}
+      const appIsRunning = require("./appIsRunning");
+      if (!(await appIsRunning(api))) {
+        log.success("SystemView stopped.");
+        process.exit(0);
+      } else {
+        log.error("Shutdown failed.");
+        lineReader.prompt();
+      }
     } else if (command === "test") {
       try {
         await runTests(url, positional[0], positional[1], {
@@ -137,7 +167,13 @@ module.exports = function startLineReader(url, { connectedUrls = new Set() } = {
   };
 
   lineReader.prompt();
-  lineReader.on("line", handleInput);
+  lineReader.on("line", async (input) => {
+    const trimmed = input.trim();
+    if (trimmed && CLI) {
+      try { await CLI.saveHistory(trimmed); } catch {}
+    }
+    handleInput(trimmed);
+  });
   lineReader.on("close", () => process.exit(0));
   return lineReader;
 };

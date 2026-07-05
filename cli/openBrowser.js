@@ -8,7 +8,7 @@ module.exports = function openBrowser(url, project_code, namespace, connectedSer
   }
 
   const browserCommand = process.platform === "win32" ? "start" : "open";
-  const code = project_code ? "/" + project_code : "";
+  const code = project_code ? "/specs/" + project_code : "/specs";
 
   if (namespace && connectedServices && connectedServices.length) {
     const matches = resolveNamespace(namespace, connectedServices);

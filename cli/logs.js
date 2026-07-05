@@ -1,3 +1,5 @@
+const fs = require("fs");
+const path = require("path");
 const chalk = require("chalk");
 const log = require("./logger");
 const { createClient } = require("systemlynx");
@@ -5,9 +7,11 @@ const { createCookieHttpClient } = require("./cookieClient");
 const cookieHttpClient = createCookieHttpClient();
 const Client = createClient(cookieHttpClient);
 
+const DEFAULT_SNAPSHOT = "systemview-snapshot.ndjson";
+
 const LEVEL_COLOR = {
   trace: (s) => chalk.dim(s),
-  info: (s) => chalk.white(s),
+  log: (s) => chalk.white(s),
   warn: (s) => chalk.yellow(s),
   error: (s) => chalk.red(s),
   debug: (s) => chalk.blue(s),
@@ -15,13 +19,15 @@ const LEVEL_COLOR = {
 
 function colorLevel(level) {
   const fn = LEVEL_COLOR[level] || ((s) => s);
-  return fn((level || "info").padEnd(5));
+  return fn((level || "log").padEnd(5));
 }
 
 const SKIP_KEYS = new Set([
   "timestamp",
   "projectCode",
   "serviceId",
+  "module",
+  "method",
   "moduleMethod",
   "traceId",
   "level",
@@ -44,7 +50,9 @@ function formatRow(entry, verbose, extraFields) {
   const traceId = chalk.dim(entry.traceId || "—");
   let row = `  ${chalk.dim(time)}  ${chalk.cyan(project)} › ${chalk.cyan(service)}   ${method.padEnd(15)}  ${level}  ${traceId}  ${msg}${dur}`;
   if (extraFields && extraFields.length) {
-    const parts = extraFields.map((p) => `${chalk.dim(p + ":")} ${cellStr(getAtPath(entry, p))}`);
+    const parts = extraFields.map(
+      (p) => `${chalk.dim(p + ":")} ${cellStr(getAtPath(entry, p))}`,
+    );
     row += "  " + parts.join("  ");
   }
   if (verbose) {
@@ -99,17 +107,55 @@ function matchesFilters(entry, andFilters, orFilters) {
   return andPass && orPass;
 }
 
-const DISPLAY_SKIP = new Set(["timestamp", "projectCode", "serviceId", "moduleMethod", "traceId", "level", "message", "duration"]);
+const DISPLAY_SKIP = new Set([
+  "timestamp",
+  "projectCode",
+  "serviceId",
+  "module",
+  "method",
+  "moduleMethod",
+  "traceId",
+  "level",
+  "message",
+  "duration",
+]);
 
 function filterDisplayField(f) {
   if (f.field === "has" || f.field === "missing") return f.value;
   return f.field;
 }
 
+function appendSnapshot(filePath, entry, saveLimit) {
+  try {
+    let lines = [];
+    if (fs.existsSync(filePath)) {
+      lines = fs.readFileSync(filePath, "utf8").split("\n").filter(Boolean);
+    }
+    lines.push(JSON.stringify(entry));
+    if (lines.length > saveLimit) lines = lines.slice(lines.length - saveLimit);
+    fs.writeFileSync(filePath, lines.join("\n") + "\n");
+  } catch {}
+}
+
 module.exports = async function logsCommand(
   projectCode,
   namespace,
-  { uiUrl, level, limit = 50, clear, current, verbose, filter, or: orFilters, include },
+  {
+    uiUrl,
+    level,
+    limit = 300,
+    clear,
+    current,
+    follow,
+    verbose,
+    filter,
+    or: orFilters,
+    include,
+    json,
+    save,
+    saved,
+    saveLimit = 500,
+  },
 ) {
   const andFilters = parseFilters(filter);
   const orFiltersParsed = parseFilters(orFilters);
@@ -118,6 +164,51 @@ module.exports = async function logsCommand(
     ...orFiltersParsed.map(filterDisplayField),
     ...(include || []),
   ].filter((f, i, arr) => !DISPLAY_SKIP.has(f) && arr.indexOf(f) === i);
+
+  const savePath =
+    save && typeof save === "string"
+      ? path.resolve(process.cwd(), save)
+      : path.resolve(process.cwd(), DEFAULT_SNAPSHOT);
+
+  const printEntry = (entry) => {
+    if (json) {
+      console.log(JSON.stringify(entry));
+      return;
+    }
+    console.log(formatRow(entry, verbose, extraFields));
+  };
+
+  // --saved: read local snapshot, no live streaming
+  if (saved) {
+    if (!fs.existsSync(savePath)) {
+      log.warn(`No snapshot found at: ${savePath}`);
+      return;
+    }
+    let entries = [];
+    try {
+      entries = fs
+        .readFileSync(savePath, "utf8")
+        .split("\n")
+        .filter(Boolean)
+        .map((l) => JSON.parse(l));
+    } catch (err) {
+      log.error("Failed to read snapshot: " + err.message);
+      return;
+    }
+    if (namespace)
+      entries = entries.filter(
+        (e) => e.moduleMethod && e.moduleMethod.includes(namespace),
+      );
+    if (andFilters.length || orFiltersParsed.length)
+      entries = entries.filter((e) => matchesFilters(e, andFilters, orFiltersParsed));
+    if (level) entries = entries.filter((e) => e.level === level);
+    entries = entries.slice(-limit);
+    console.log("");
+    console.log(chalk.bold(`  Snapshot: ${savePath}  (${entries.length} entries)`));
+    console.log("");
+    entries.forEach(printEntry);
+    return;
+  }
 
   let services = [];
   let effectiveNamespace = namespace;
@@ -137,10 +228,13 @@ module.exports = async function logsCommand(
         const projects = await SystemView.getProjects();
         const all = Object.values(projects).flat();
         const isNamespace = all.some(({ system }) =>
-          (system.connectionData.modules || []).some(({ name, methods }) =>
-            name.toLowerCase().includes(projectCode.toLowerCase()) ||
-            (methods || []).some(({ fn }) => fn.toLowerCase().includes(projectCode.toLowerCase()))
-          )
+          (system.connectionData.modules || []).some(
+            ({ name, methods }) =>
+              name.toLowerCase().includes(projectCode.toLowerCase()) ||
+              (methods || []).some(({ fn }) =>
+                fn.toLowerCase().includes(projectCode.toLowerCase()),
+              ),
+          ),
         );
         if (isNamespace) {
           services = all;
@@ -163,7 +257,10 @@ module.exports = async function logsCommand(
 
   if (clear) {
     const confirmed = await promptConfirm("Clear all logs? (y/N) ");
-    if (!confirmed) { log.warn("Aborted."); return; }
+    if (!confirmed) {
+      log.warn("Aborted.");
+      return;
+    }
     for (const { system } of services) {
       try {
         const svc = await Client.loadService(system.connectionData.serviceUrl);
@@ -185,31 +282,63 @@ module.exports = async function logsCommand(
     try {
       const svc = await Client.loadService(serviceUrl);
       const unsub = svc.SystemView.on("log", (entry) => {
-        if (effectiveNamespace && !(entry.moduleMethod && entry.moduleMethod.includes(effectiveNamespace))) return;
+        if (
+          effectiveNamespace &&
+          !(entry.moduleMethod && entry.moduleMethod.includes(effectiveNamespace))
+        )
+          return;
         if (andFilters.length || orFiltersParsed.length) {
           if (!matchesFilters(entry, andFilters, orFiltersParsed)) return;
         }
         if (level && entry.level !== level) return;
-        console.log(formatRow(entry, verbose, extraFields));
+        if (save) appendSnapshot(savePath, entry, saveLimit);
+        printEntry(entry);
+        if (queryUrl && !json && entry.traceId) {
+          const sep = queryUrl.includes("?") ? "&" : "?";
+          console.log(`      ${chalk.dim(queryUrl + sep + "traceId=" + encodeURIComponent(entry.traceId))}`);
+        }
+        console.log("");
       });
-      console.log(`    ${chalk.green("✓")} ${chalk.cyan(serviceId).padEnd(20)} ${chalk.dim(serviceUrl)}`);
+      console.log(
+        `    ${chalk.green("✓")} ${chalk.cyan(serviceId).padEnd(20)} ${chalk.dim(serviceUrl)}`,
+      );
       connected.push({ serviceId, svc, unsub });
     } catch {
-      console.log(`    ${chalk.red("✗")} ${chalk.cyan(serviceId).padEnd(20)} ${chalk.dim(serviceUrl)} ${chalk.red("(failed to connect)")}`);
+      console.log(
+        `    ${chalk.red("✗")} ${chalk.cyan(serviceId).padEnd(20)} ${chalk.dim(serviceUrl)} ${chalk.red("(failed to connect)")}`,
+      );
     }
   }
 
+  if (save) {
+    console.log(chalk.dim(`  Snapshot: ${savePath}  (limit ${saveLimit})`));
+  }
+
   const activeFilters = [];
-  if (effectiveNamespace) activeFilters.push(`namespace: ${chalk.white(effectiveNamespace)}`);
+  if (effectiveNamespace)
+    activeFilters.push(`namespace: ${chalk.white(effectiveNamespace)}`);
   if (level) activeFilters.push(`level: ${chalk.white(level)}`);
-  if (andFilters.length) activeFilters.push(`filter: ${chalk.white(andFilters.map((f) => `${f.field}=${f.value}`).join(", "))}`);
-  if (orFiltersParsed.length) activeFilters.push(`or: ${chalk.white(orFiltersParsed.map((f) => `${f.field}=${f.value}`).join(", "))}`);
-  if (extraFields.length) activeFilters.push(`include: ${chalk.white(extraFields.join(", "))}`);
+  if (andFilters.length)
+    activeFilters.push(
+      `filter: ${chalk.white(andFilters.map((f) => `${f.field}=${f.value}`).join(", "))}`,
+    );
+  if (orFiltersParsed.length)
+    activeFilters.push(
+      `or: ${chalk.white(orFiltersParsed.map((f) => `${f.field}=${f.value}`).join(", "))}`,
+    );
+  if (extraFields.length)
+    activeFilters.push(`include: ${chalk.white(extraFields.join(", "))}`);
   if (verbose) activeFilters.push(`verbose: ${chalk.white("on")}`);
+  const queryUrl = uiUrl ? buildLogsUrl(uiUrl, { projectCode, effectiveNamespace, level, andFilters, orFilters }) : null;
+
   if (activeFilters.length) {
     console.log("");
     console.log(chalk.dim(`  Filters:`));
     activeFilters.forEach((f) => console.log(`    ${chalk.dim(f)}`));
+  }
+  if (queryUrl && !json) {
+    console.log("");
+    console.log(`  ${chalk.dim("UI:")} ${chalk.cyan(queryUrl)}`);
   }
   console.log("");
 
@@ -224,21 +353,53 @@ module.exports = async function logsCommand(
       try {
         let entries = await svc.SystemView.getLog({ limit });
         entries = entries || [];
-        if (effectiveNamespace) entries = entries.filter((e) => e.moduleMethod && e.moduleMethod.includes(effectiveNamespace));
-        if (andFilters.length || orFiltersParsed.length) entries = entries.filter((e) => matchesFilters(e, andFilters, orFiltersParsed));
+        if (effectiveNamespace)
+          entries = entries.filter(
+            (e) => e.moduleMethod && e.moduleMethod.includes(effectiveNamespace),
+          );
+        if (andFilters.length || orFiltersParsed.length)
+          entries = entries.filter((e) => matchesFilters(e, andFilters, orFiltersParsed));
         if (level) entries = entries.filter((e) => e.level === level);
         allEntries.push(...entries);
       } catch {}
     }
     if (allEntries.length) {
       console.log(chalk.dim(`  ── current (${allEntries.length}) ──`));
-      allEntries.forEach((e) => console.log(formatRow(e, verbose, extraFields)));
-      console.log(chalk.dim(`  ── streaming ──`));
+      allEntries.forEach((entry) => {
+        printEntry(entry);
+        if (queryUrl && !json && entry.traceId) {
+          const sep = queryUrl.includes("?") ? "&" : "?";
+          console.log(`      ${chalk.dim(queryUrl + sep + "traceId=" + encodeURIComponent(entry.traceId))}`);
+        }
+        console.log("");
+      });
     }
+
+    if (!follow) {
+      connected.forEach(({ unsub }) => unsub());
+      return () => {};
+    }
+    console.log(chalk.dim(`  ── streaming ──`));
   }
 
-  return () => { connected.forEach(({ unsub }) => unsub()); };
+  return () => {
+    connected.forEach(({ unsub }) => unsub());
+  };
 };
+
+function buildLogsUrl(uiUrl, { projectCode, effectiveNamespace, level, andFilters, orFilters }) {
+  const params = new URLSearchParams();
+  if (projectCode && effectiveNamespace !== projectCode) params.set("project", projectCode);
+  if (effectiveNamespace) params.set("method", effectiveNamespace);
+  if (level) params.set("level", level);
+  for (const f of andFilters || []) {
+    if (f.field === "has") params.append("has", f.value);
+    else if (f.field === "missing") params.append("missing", f.value);
+    else params.set(f.field, f.value);
+  }
+  const q = params.toString();
+  return `${uiUrl}/logs${q ? "?" + q : ""}`;
+}
 
 function promptConfirm(question) {
   return new Promise((resolve) => {

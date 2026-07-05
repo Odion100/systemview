@@ -5,6 +5,7 @@ import Documentation from "../../organisms/Documentation/Documentation";
 import TestPanel from "../../organisms/TestPanel/TestPanel";
 import LOGO from "../../assets/sysly.png";
 import "./styles.scss";
+const VERSION = "1.22.0";
 
 const SystemViewPage = () => {
   const { projectCode, serviceId, moduleName, methodName } = useParams();
@@ -23,7 +24,20 @@ const SystemViewPage = () => {
           SystemView
         </span>
         <img src={LOGO} alt="logo" />
-        <Link to="/logs" className="logs-nav-link">Logs</Link>
+        <Link to="/logs" className="logs-nav-link">
+          Logs
+        </Link>
+        <span
+          style={{
+            position: "absolute",
+            fontFamily: "Malkor",
+            left: "40px",
+            fontSize: "18px",
+            color: "#2db432",
+          }}
+        >
+          v{VERSION}
+        </span>
         {/* <span
           style={{
             fontSize: "28px",

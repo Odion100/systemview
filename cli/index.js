@@ -16,7 +16,7 @@ const connectService = require("./connectService");
 const manifestCommands = require("./manifest");
 const probe = require("./probe");
 const logsCommand = require("./logs");
-const { HttpClient, createClient } = require("systemlynx");
+const { createClient } = require("systemlynx");
 const { createCookieHttpClient } = require("./cookieClient");
 const cookieHttpClient = createCookieHttpClient();
 const Client = createClient(cookieHttpClient);
@@ -45,7 +45,7 @@ function loadManifest() {
 async function startApp() {
   const port = isNaN(input[1]) ? DEFAULT_PORT : Number(input[1]);
   try {
-    await launchApp(port, { interactive: true, connectedUrls });
+    await launchApp(port, { interactive: true, connectedUrls, client: Client });
   } catch (error) {
     log.error("Launch failed: " + error.message);
   }
@@ -83,6 +83,7 @@ async function list() {
   await listTests(UI_URL, project_code, namespace, {
     connectedUrls,
     verbose: flags.verbose,
+    json: flags.json,
   });
   process.exit(0);
 }
@@ -113,24 +114,20 @@ async function quitApp() {
 
   if (await appIsRunning(api)) {
     log.info("Attempting remote shutdown...");
-    const url = `${api}/SystemView/shutdown`;
     try {
-      await HttpClient.request({ url, method: "put" });
+      const { SystemView } = await Client.loadService(api);
+      await SystemView.shutdown();
+    } catch {}
+    if (!(await appIsRunning(api))) {
       log.success("SystemView shutdown successful!");
-      process.exit(0);
-    } catch (error) {
-      if (!(await appIsRunning(api))) {
-        log.success("SystemView shutdown successful!");
-        process.exit(0);
-      } else {
-        log.error("Remote shutdown failed!");
-        process.exit(1);
-      }
+    } else {
+      log.error("Remote shutdown failed!");
+      process.exit(1);
     }
   } else {
     log.warn(`No SystemView instance found @ ${api}`);
-    process.exit(0);
   }
+  process.exit(0);
 }
 
 (async () => {
@@ -188,7 +185,7 @@ async function quitApp() {
       uiUrl: UI_URL,
     });
     process.exit(exitCode || 0);
-  } else if (command === "logs") {
+  } else if (command === "logs" || command === "log") {
     await launchApp(DEFAULT_PORT);
     await logsCommand(input[1], input[2], {
       uiUrl: UI_URL,
@@ -197,12 +194,16 @@ async function quitApp() {
       clear: flags.clear,
       json: flags.json,
       current: flags.current,
+      follow: flags.follow,
       verbose: flags.verbose,
       filter: flags.filter,
       or: flags.or,
       include: flags.include,
+      save: flags.save,
+      saved: flags.saved,
+      saveLimit: flags.saveLimit,
     });
-    process.exit(0);
+    if (!flags.follow) process.exit(0);
   } else {
     await startApp();
   }

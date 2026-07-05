@@ -108,7 +108,7 @@ const SystemNav = ({ projectCode, serviceId, moduleName, methodName }) => {
     const pc = e.target.value;
     const results = await fetchProject(pc);
     if (results && results.length) {
-      history.push(`/${results[0].projectCode}`);
+      history.push(`/specs/${results[0].projectCode}`);
       setSearchTerm(results[0].projectCode);
     } else {
       setSearchTerm("");
@@ -215,7 +215,7 @@ const NavigationLinks = ({
               isSelectedProject && !selectedServiceId
             }`}
           >
-            <Link link={`/${pc}`} text={pc} />
+            <Link link={`/specs/${pc}`} text={pc} />
             <button
               className="system-nav__delete-btn"
               title="Remove project"
@@ -241,7 +241,7 @@ const NavigationLinks = ({
                   }`}
                 >
                   <span className="system-nav__service-info">
-                    <Link link={`/${pc}/${serviceId}`} text={serviceId} />
+                    <Link link={`/specs/${pc}/${serviceId}`} text={serviceId} />
                     <span className="system-nav__url-row">
                       <a
                         className="system-nav__service-url"

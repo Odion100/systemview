@@ -28,9 +28,15 @@
     flex-shrink: 0;
     background: #ccc;
 
-    &--live { background: #4caf50; }
-    &--down { background: #e05757; }
-    &--unknown { background: #ccc; }
+    &--live {
+      background: #4caf50;
+    }
+    &--down {
+      background: #e05757;
+    }
+    &--unknown {
+      background: #ccc;
+    }
   }
 
   &__service-url {
@@ -46,7 +52,7 @@
     align-items: center;
     &--project {
       & > a {
-        color: #e05757 !important;
+        color: #3f51b5 !important;
         font-weight: bold;
       }
     }
@@ -78,7 +84,10 @@
     align-items: center;
     justify-content: center;
     opacity: 0;
-    transition: opacity 0.15s, color 0.15s, background 0.15s;
+    transition:
+      opacity 0.15s,
+      color 0.15s,
+      background 0.15s;
 
     &:hover {
       color: #e53e3e;

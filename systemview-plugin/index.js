@@ -5,6 +5,21 @@ const { getSpecList } = require("./utils");
 
 const SKIP_MODULES = ["Plugin", "SystemView"];
 
+function redactClone(data, paths) {
+  if (!paths.length || data == null) return data;
+  const clone = JSON.parse(JSON.stringify(data));
+  paths.forEach((p) => {
+    const keys = p.replace(/\[(\w+)\]/g, ".$1").split(".").filter(Boolean);
+    let node = clone;
+    for (let i = 0; i < keys.length - 1; i++) {
+      if (node == null) return;
+      node = node[keys[i]];
+    }
+    if (node != null && keys.length) node[keys[keys.length - 1]] = "[REDACTED]";
+  });
+  return clone;
+}
+
 module.exports = function ({
   connection = "http://localhost:3300/systemview/api",
   specs = "./specs",
@@ -15,23 +30,28 @@ module.exports = function ({
   module,
   useSystemViewLogs = true,
   useSystemViewUI = true,
+  trace: traceConfig = true,
+  redact = [],
+  exclude = [],
 }) {
   return function (App) {
     const LOG_FILE = path.resolve(process.cwd(), logs);
+    const excludeModules = new Set([...SKIP_MODULES, ...exclude.filter((s) => !s.includes("."))]);
+    const excludeMethods = new Set(exclude.filter((s) => s.includes(".")));
     let sv;
 
     // -- SystemView log module --
 
     function makeBaseRecord(meta) {
-      const moduleName = (meta && meta.moduleName) || "SystemView";
-      const methodName = meta && meta.methodName;
-      const moduleMethod = methodName ? `${moduleName}.${methodName}` : moduleName;
+      const module = (meta && meta.moduleName) || "SystemView";
+      const method = meta && meta.methodName;
+      const moduleMethod = method ? `${module}.${method}` : module;
       return {
         timestamp: new Date().toISOString(),
         projectCode,
         serviceId,
-        moduleName,
-        ...(methodName && { methodName }),
+        module,
+        ...(method && { method }),
         moduleMethod,
         ...(meta && meta.traceId && { traceId: meta.traceId }),
       };
@@ -44,14 +64,23 @@ module.exports = function ({
       this.emit("log", record);
     }
 
-    // manual log levels: data goes into "log" key (not "data"), arguments from meta
-    function makeManualRecord(level, message, logData, meta) {
+    // manual log levels: first arg can be object {message?, ...data} or string; data goes into "log" key
+    function makeManualRecord(level, messageOrData, logData, meta) {
+      let message, data;
+      if (typeof messageOrData === "object" && messageOrData !== null) {
+        const { message: msg, ...rest } = messageOrData;
+        message = msg || "";
+        data = Object.keys(rest).length ? rest : null;
+      } else {
+        message = messageOrData || "";
+        data = logData;
+      }
       return {
         ...makeBaseRecord(meta),
         ...(meta && meta.arguments !== undefined && { arguments: meta.arguments }),
         level,
         message,
-        ...(logData !== undefined && { log: logData }),
+        ...(data != null ? { log: data } : {}),
       };
     }
 
@@ -81,7 +110,7 @@ module.exports = function ({
 
     function getLog({ limit: requestedLimit } = {}) {
       try {
-        const lines = fs.readFileSync(LOG_FILE, "utf8").split("\n").filter(Boolean).map(JSON.parse);
+        const lines = fs.readFileSync(LOG_FILE, "utf8").split("\n").filter(Boolean).map((line) => JSON.parse(line));
         return lines.slice(-(requestedLimit || limit));
       } catch { return []; }
     }
@@ -101,15 +130,14 @@ module.exports = function ({
       this.clearLog = clearLog;
     }
 
-    // -- makeLogger: closes over sv; captures traceId + reqArguments at injection time --
-
-    const makeLogger = (moduleName, methodName, traceId, reqArguments) => {
-      const make = (level) => (message, logData) => {
-        if (sv) sv[level](message, logData, {
+    const makeLogger = (moduleName) => {
+      const make = (level) => function(message, logData) {
+        if (!sv || !this.req) return;
+        sv[level](message, logData, {
           moduleName,
-          ...(methodName && { methodName }),
-          ...(traceId && { traceId }),
-          ...(reqArguments !== undefined && { arguments: reqArguments }),
+          methodName: this.req.fn,
+          traceId: this.req._svTraceId,
+          arguments: redactClone(this.req.arguments, redact),
         });
       };
       return { log: make("log"), warn: make("warn"), error: make("error"), debug: make("debug") };
@@ -121,7 +149,7 @@ module.exports = function ({
       App.module("SystemView", SystemViewLogModule);
 
       App.before("$all", (req, res, next) => {
-        if (SKIP_MODULES.includes(req.module_name)) return next();
+        if (excludeModules.has(req.module_name) || excludeMethods.has(`${req.module_name}.${req.fn}`)) return next();
         req._svStart = Date.now();
         req._svTraceId = `${String(req._svStart).slice(-6)}-${Math.random().toString(36).slice(2, 6)}`;
 
@@ -134,13 +162,14 @@ module.exports = function ({
           _sendError(err);
         };
 
-        Object.assign(req.Module, sv
-          ? makeLogger(req.module_name, req.fn, req._svTraceId, req.arguments)
-          : { log: () => {}, warn: () => {}, error: () => {}, debug: () => {} }
-        );
+        // Inject stateless logger once per module (fallback when App.getModules unavailable)
+        if (req.Module && !req.Module._svLoggerInjected) {
+          Object.assign(req.Module, makeLogger(req.module_name));
+          req.Module._svLoggerInjected = true;
+        }
 
-        if (sv) {
-          sv.trace(`${req.module_name}.${req.fn} start`, { arguments: req.arguments }, {
+        if (sv && traceConfig !== false) {
+          sv.trace(`${req.module_name}.${req.fn} start`, { arguments: redactClone(req.arguments, redact) }, {
             moduleName: req.module_name,
             methodName: req.fn,
             traceId: req._svTraceId,
@@ -151,12 +180,14 @@ module.exports = function ({
       });
 
       App.after("$all", (req, res, next) => {
-        if (SKIP_MODULES.includes(req.module_name)) return next();
-        if (sv) {
+        if (excludeModules.has(req.module_name) || excludeMethods.has(`${req.module_name}.${req.fn}`)) return next();
+        if (sv && traceConfig !== false) {
+          const ctx = typeof traceConfig === "function" ? traceConfig(req) : {};
           sv.trace(`${req.module_name}.${req.fn} end`, {
-            arguments: req.arguments,
-            returnValue: req.returnValue,
+            arguments: redactClone(req.arguments, redact),
+            returnValue: redactClone(req.returnValue, redact),
             duration: Date.now() - req._svStart,
+            ...ctx,
           }, {
             moduleName: req.module_name,
             methodName: req.fn,
@@ -168,7 +199,7 @@ module.exports = function ({
     }
 
     function registerSystemViewUIPlugin() {
-      App.loadService("SystemView", connection)
+      App.loadService("SystemViewUI", connection)
         .module("Plugin", SystemViewModule({ specs, App, projectCode, serviceId, module }))
         .on("ready", async function connectSystemView({ connectionData, modules, routing, services }) {
           if (useSystemViewLogs) {
@@ -176,13 +207,13 @@ module.exports = function ({
 
             if (typeof App.getModules === "function") {
               Object.entries(App.getModules()).forEach(([name, mod]) => {
-                if (SKIP_MODULES.includes(name) || !mod) return;
+                if (excludeModules.has(name) || !mod) return;
                 Object.assign(mod, makeLogger(name));
                 if (typeof mod.on === "function") {
                   mod.on("error", (info) => {
                     if (!sv) return;
                     sv.trace(info.message, {
-                      arguments: info.arguments,
+                      arguments: redactClone(info.arguments, redact),
                       error: { message: info.message, status: info.status },
                       duration: mod._svPendingDuration,
                     }, {
@@ -200,7 +231,7 @@ module.exports = function ({
           const specList = getSpecList(specs);
 
           try {
-            const { SystemView: SystemViewSvc } = this.useService("SystemView");
+            const { SystemView: SystemViewSvc } = this.useService("SystemViewUI");
             await SystemViewSvc.connect({ system, projectCode, serviceId, specList });
             console.log(`[SystemView]: ${projectCode}.${serviceId} connected!\n`);
           } catch (err) {

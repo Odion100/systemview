@@ -30,7 +30,7 @@ const ServerModulesList = ({
                   !selectedMethodName && isSelected
                 } ${(name === "Plugin" || name === "SystemView") && className + "__name--plugin"}`}
               >
-                <MyLink link={`/${projectCode}/${serviceId}/${name}`} text={name} />
+                <MyLink link={`/specs/${projectCode}/${serviceId}/${name}`} text={name} />
                 <span className={`${className}__docs-icon`}>
                   <DocIcon isSaved={isSaved} />
                 </span>
@@ -49,7 +49,7 @@ const ServerModulesList = ({
                 >
                   <MyLink
                     key={i}
-                    link={`/${projectCode}/${serviceId}/${name}/${fn}`}
+                    link={`/specs/${projectCode}/${serviceId}/${name}/${fn}`}
                     text={
                       <span>
                         {`.${fn}(`}
