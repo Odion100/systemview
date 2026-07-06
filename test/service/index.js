@@ -33,4 +33,9 @@ if (SYSTEMVIEW_HOST) {
     serviceId: "TestService",
   });
   App.use(SystemViewPlugin);
+  App.on("ready", function () {
+    const AuthModule = this.useModule("Auth");
+    setTimeout(() => AuthModule.log("service ready - internal check", { port: PORT }), 3000);
+    setTimeout(() => AuthModule.warn("internal heartbeat", { uptime: process.uptime() }), 6000);
+  });
 }

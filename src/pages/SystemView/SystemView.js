@@ -5,7 +5,7 @@ import Documentation from "../../organisms/Documentation/Documentation";
 import TestPanel from "../../organisms/TestPanel/TestPanel";
 import LOGO from "../../assets/sysly.png";
 import "./styles.scss";
-const VERSION = "1.22.0";
+const { version: VERSION } = require("../../../package.json");
 
 const SystemViewPage = () => {
   const { projectCode, serviceId, moduleName, methodName } = useParams();

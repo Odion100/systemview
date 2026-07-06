@@ -521,7 +521,7 @@ const FIXED_PATHS = new Set([
   "serviceId",
   "moduleMethod",
   "level",
-  "message",
+  "scope",
   "traceId",
 ]);
 
@@ -547,7 +547,7 @@ export function LogRow({ entry, isExpanded, onToggle, dynamicColumns, filteredFi
   const isTrace = level === "trace";
   const msg = isTrace
     ? entry.duration != null ? `${entry.duration}ms` : ""
-    : typeof entry.message === "string" ? entry.message : JSON.stringify(entry.message) || "";
+    : typeof entry.scope === "string" ? entry.scope : JSON.stringify(entry.scope) || "";
   const shortTraceId = entry.traceId || "—";
 
   return (
@@ -1038,7 +1038,7 @@ export default function Logs() {
             <div className={`log-th log-th--service${filteredFixedPaths.has("serviceId") ? " log-th--filtered" : ""}`}>Service</div>
             <div className={`log-th log-th--method${filteredFixedPaths.has("moduleMethod") ? " log-th--filtered" : ""}`}>Module.Method</div>
             <div className={`log-th log-th--level${filteredFixedPaths.has("level") ? " log-th--filtered" : ""}`}>Level</div>
-            <div className={`log-th log-th--msg${filteredFixedPaths.has("message") ? " log-th--filtered" : ""}`}>Message</div>
+            <div className={`log-th log-th--msg${filteredFixedPaths.has("scope") ? " log-th--filtered" : ""}`}>Scope</div>
             <div className="log-th log-th--traceid">Trace ID</div>
             {dynamicColumns.map((path) => (
               <div key={path} className="log-th log-th--dynamic">

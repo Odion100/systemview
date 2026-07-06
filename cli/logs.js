@@ -31,7 +31,7 @@ const SKIP_KEYS = new Set([
   "moduleMethod",
   "traceId",
   "level",
-  "message",
+  "scope",
   "duration",
 ]);
 
@@ -45,7 +45,7 @@ function formatRow(entry, verbose, extraFields) {
   const service = entry.serviceId || "—";
   const method = entry.moduleMethod || "—";
   const level = colorLevel(entry.level);
-  const msg = entry.message || "";
+  const msg = entry.scope || "";
   const dur = entry.duration != null ? chalk.dim(` ${entry.duration}ms`) : "";
   const traceId = chalk.dim(entry.traceId || "—");
   let row = `  ${chalk.dim(time)}  ${chalk.cyan(project)} › ${chalk.cyan(service)}   ${method.padEnd(15)}  ${level}  ${traceId}  ${msg}${dur}`;
@@ -116,7 +116,7 @@ const DISPLAY_SKIP = new Set([
   "moduleMethod",
   "traceId",
   "level",
-  "message",
+  "scope",
   "duration",
 ]);
 

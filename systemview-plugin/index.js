@@ -58,52 +58,50 @@ module.exports = function ({
     }
 
     // trace: fields (arguments, returnValue, duration, error, etc.) spread directly onto record
-    function trace(message, fields, meta) {
-      const record = { ...makeBaseRecord(meta), level: "trace", message, ...fields };
+    function trace(scope, fields, meta) {
+      const record = { ...makeBaseRecord(meta), level: "trace", scope, ...fields };
       try { fs.appendFileSync(LOG_FILE, JSON.stringify(record) + "\n"); } catch {}
       this.emit("log", record);
     }
 
-    // manual log levels: first arg can be object {message?, ...data} or string; data goes into "log" key
-    function makeManualRecord(level, messageOrData, logData, meta) {
-      let message, data;
-      if (typeof messageOrData === "object" && messageOrData !== null) {
-        const { message: msg, ...rest } = messageOrData;
-        message = msg || "";
-        data = Object.keys(rest).length ? rest : null;
+    // manual log levels: first arg can be object {scope?, ...data} or string; data goes into "log" key
+    function makeManualRecord(level, scopeOrData, logData, meta) {
+      let scope, data;
+      if (typeof scopeOrData === "object" && scopeOrData !== null) {
+        scope = "";
+        data = scopeOrData;
       } else {
-        message = messageOrData || "";
+        scope = scopeOrData || "";
         data = logData;
       }
       return {
         ...makeBaseRecord(meta),
-        ...(meta && meta.arguments !== undefined && { arguments: meta.arguments }),
         level,
-        message,
+        scope,
         ...(data != null ? { log: data } : {}),
       };
     }
 
-    function log(message, logData, meta) {
-      const record = makeManualRecord("log", message, logData, meta);
+    function log(scope, logData, meta) {
+      const record = makeManualRecord("log", scope, logData, meta);
       try { fs.appendFileSync(LOG_FILE, JSON.stringify(record) + "\n"); } catch {}
       this.emit("log", record);
     }
 
-    function warn(message, logData, meta) {
-      const record = makeManualRecord("warn", message, logData, meta);
+    function warn(scope, logData, meta) {
+      const record = makeManualRecord("warn", scope, logData, meta);
       try { fs.appendFileSync(LOG_FILE, JSON.stringify(record) + "\n"); } catch {}
       this.emit("log", record);
     }
 
-    function error(message, logData, meta) {
-      const record = makeManualRecord("error", message, logData, meta);
+    function error(scope, logData, meta) {
+      const record = makeManualRecord("error", scope, logData, meta);
       try { fs.appendFileSync(LOG_FILE, JSON.stringify(record) + "\n"); } catch {}
       this.emit("log", record);
     }
 
-    function debug(message, logData, meta) {
-      const record = makeManualRecord("debug", message, logData, meta);
+    function debug(scope, logData, meta) {
+      const record = makeManualRecord("debug", scope, logData, meta);
       try { fs.appendFileSync(LOG_FILE, JSON.stringify(record) + "\n"); } catch {}
       this.emit("log", record);
     }
@@ -130,14 +128,12 @@ module.exports = function ({
       this.clearLog = clearLog;
     }
 
-    const makeLogger = (moduleName) => {
-      const make = (level) => function(message, logData) {
-        if (!sv || !this.req) return;
-        sv[level](message, logData, {
+    const makeLogger = (moduleName, req) => {
+      const make = (level) => (scope, logData) => {
+        if (!sv) return;
+        sv[level](scope, logData, {
           moduleName,
-          methodName: this.req.fn,
-          traceId: this.req._svTraceId,
-          arguments: redactClone(this.req.arguments, redact),
+          ...(req ? { methodName: req.fn, traceId: req._svTraceId } : { traceId: "internal" }),
         });
       };
       return { log: make("log"), warn: make("warn"), error: make("error"), debug: make("debug") };
@@ -153,6 +149,10 @@ module.exports = function ({
         req._svStart = Date.now();
         req._svTraceId = `${String(req._svStart).slice(-6)}-${Math.random().toString(36).slice(2, 6)}`;
 
+        if (req.Module) {
+          Object.assign(req.Module, makeLogger(req.module_name, req));
+        }
+
         const _sendError = res.sendError;
         res.sendError = (err) => {
           if (req.Module) {
@@ -161,12 +161,6 @@ module.exports = function ({
           }
           _sendError(err);
         };
-
-        // Inject stateless logger once per module (fallback when App.getModules unavailable)
-        if (req.Module && !req.Module._svLoggerInjected) {
-          Object.assign(req.Module, makeLogger(req.module_name));
-          req.Module._svLoggerInjected = true;
-        }
 
         if (sv && traceConfig !== false) {
           sv.trace(`${req.module_name}.${req.fn} start`, { arguments: redactClone(req.arguments, redact) }, {
@@ -202,30 +196,6 @@ module.exports = function ({
       App.loadService("SystemViewUI", connection)
         .module("Plugin", SystemViewModule({ specs, App, projectCode, serviceId, module }))
         .on("ready", async function connectSystemView({ connectionData, modules, routing, services }) {
-          if (useSystemViewLogs) {
-            sv = this.useModule("SystemView");
-
-            if (typeof App.getModules === "function") {
-              Object.entries(App.getModules()).forEach(([name, mod]) => {
-                if (excludeModules.has(name) || !mod) return;
-                Object.assign(mod, makeLogger(name));
-                if (typeof mod.on === "function") {
-                  mod.on("error", (info) => {
-                    if (!sv) return;
-                    sv.trace(info.message, {
-                      arguments: redactClone(info.arguments, redact),
-                      error: { message: info.message, status: info.status },
-                      duration: mod._svPendingDuration,
-                    }, {
-                      moduleName: info.module_name,
-                      methodName: info.fn,
-                      traceId: mod._svTraceId,
-                    });
-                  });
-                }
-              });
-            }
-          }
 
           const system = { connectionData, modules, routing, services };
           const specList = getSpecList(specs);
@@ -260,6 +230,28 @@ module.exports = function ({
 
     if (useSystemViewLogs) registerSystemViewLogs();
     if (useSystemViewUI) registerSystemViewUIPlugin();
-    if (useSystemViewLogs && !useSystemViewUI) App.on("ready", function () { sv = this.useModule("SystemView"); });
+    if (useSystemViewLogs) App.on("ready", function () {
+      sv = this.useModule("SystemView");
+      if (typeof App.getModules === "function") {
+        Object.entries(App.getModules()).forEach(([name, mod]) => {
+          if (excludeModules.has(name) || !mod) return;
+          Object.assign(mod, makeLogger(name));
+          if (typeof mod.on === "function") {
+            mod.on("error", (info) => {
+              if (!sv) return;
+              sv.trace(info.message, {
+                arguments: redactClone(info.arguments, redact),
+                error: { message: info.message, status: info.status },
+                duration: mod._svPendingDuration,
+              }, {
+                moduleName: info.module_name,
+                methodName: info.fn,
+                traceId: mod._svTraceId,
+              });
+            });
+          }
+        });
+      }
+    });
   };
 };
