@@ -1,0 +1,17 @@
+[
+  {
+    "title": "Trigger thrown error",
+    "namespace": { "serviceId": "TestService", "moduleName": "Auth", "methodName": "throwError" },
+    "Before": [],
+    "Main": [
+      {
+        "title": "Auth.throwError",
+        "namespace": { "serviceId": "TestService", "moduleName": "Auth", "methodName": "throwError" },
+        "args": [],
+        "savedEvaluations": []
+      }
+    ],
+    "Events": [],
+    "After": []
+  }
+]

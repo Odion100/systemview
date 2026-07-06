@@ -1,0 +1,17 @@
+[
+  {
+    "title": "Trigger null error",
+    "namespace": { "serviceId": "TestService", "moduleName": "Auth", "methodName": "divideByZero" },
+    "Before": [],
+    "Main": [
+      {
+        "title": "Auth.divideByZero",
+        "namespace": { "serviceId": "TestService", "moduleName": "Auth", "methodName": "divideByZero" },
+        "args": [],
+        "savedEvaluations": []
+      }
+    ],
+    "Events": [],
+    "After": []
+  }
+]

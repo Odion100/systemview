@@ -4,7 +4,7 @@ const launchSystemView = require("../api");
 const startLineReader = require("./startLineReader");
 const listTests = require("./listTests");
 
-module.exports = async function launchApp(port, { interactive = false, connectedUrls = new Set() } = {}) {
+module.exports = async function launchApp(port, { interactive = false, connectedUrls = new Set(), onReady } = {}) {
   const ui = `http://localhost:${port}`;
   const api = `${ui}/systemview/api`;
 
@@ -18,6 +18,7 @@ module.exports = async function launchApp(port, { interactive = false, connected
     if (interactive) {
       log.warn(`SystemView already running on port ${port} — attaching.`);
       logConnection();
+      if (onReady) await onReady();
       await listTests(ui, null, null, { connectedUrls });
       return startLineReader(ui, { connectedUrls });
     }
@@ -29,6 +30,7 @@ module.exports = async function launchApp(port, { interactive = false, connected
   logConnection();
 
   if (interactive) {
+    if (onReady) await onReady();
     await listTests(ui, null, null, { connectedUrls });
     return startLineReader(ui, { connectedUrls });
   }

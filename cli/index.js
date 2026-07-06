@@ -25,27 +25,40 @@ const DEFAULT_PORT = 3000;
 const VERSION = require("../package.json").version;
 const UI_URL = `http://localhost:${DEFAULT_PORT}`;
 
-const MANIFEST_FILE = flags.manifest || path.join(process.cwd(), "systemview.manifest.json");
+const MANIFEST_FILE =
+  flags.manifest || path.join(process.cwd(), "systemview.manifest.json");
 const connectedUrls = new Set();
 
-function loadManifest() {
+async function loadManifest() {
   if (!fs.existsSync(MANIFEST_FILE)) return;
   try {
     const manifest = JSON.parse(fs.readFileSync(MANIFEST_FILE, "utf8"));
+    const { projectCode } = manifest;
     const services = manifest.services || [manifest];
-    for (const { system } of services) {
-      if (system && system.connectionData) {
-        Client.createService(system.connectionData);
-        connectedUrls.add(system.connectionData.serviceUrl);
-      }
-    }
-  } catch {}
+    log.info(`Reading manifest: ${projectCode} — ${services.length} service(s)`);
+    const api = `http://localhost:${DEFAULT_PORT}/systemview/api`;
+    const { SystemView } = await Client.loadService(api);
+    await Promise.all(
+      services.map(async ({ system, serviceId, specList }) => {
+        if (!system || !system.connectionData) return;
+        const alive = await appIsRunning(system.connectionData.serviceUrl);
+        if (alive) {
+          Client.createService(system.connectionData);
+          connectedUrls.add(system.connectionData.serviceUrl);
+          try { await SystemView.connect({ system, projectCode, serviceId, specList }); } catch {}
+        }
+        log.info(`  ${serviceId || system.connectionData.serviceUrl} — ${alive ? "live" : "offline"}`);
+      }),
+    );
+  } catch (err) {
+    log.warn("Failed to read manifest: " + err.message);
+  }
 }
 
 async function startApp() {
   const port = isNaN(input[1]) ? DEFAULT_PORT : Number(input[1]);
   try {
-    await launchApp(port, { interactive: true, connectedUrls, client: Client });
+    await launchApp(port, { interactive: true, connectedUrls, onReady: loadManifest });
   } catch (error) {
     log.error("Launch failed: " + error.message);
   }
@@ -56,6 +69,7 @@ async function startTest() {
   const namespace = input[2];
   try {
     await launchApp(DEFAULT_PORT);
+    await loadManifest();
     const exitCode = await runTests(UI_URL, project_code, namespace, {
       json: flags.json,
       verbose: flags.verbose,
@@ -137,7 +151,6 @@ async function quitApp() {
   }
 
   init();
-  loadManifest();
 
   const command = input[0];
 

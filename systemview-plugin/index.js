@@ -155,15 +155,22 @@ module.exports = function ({
 
         const _sendError = res.sendError;
         res.sendError = (err) => {
-          if (req.Module) {
-            req.Module._svPendingDuration = Date.now() - req._svStart;
-            req.Module._svTraceId = req._svTraceId;
+          if (sv && traceConfig !== false) {
+            sv.trace("error", {
+              arguments: redactClone(req.arguments, redact),
+              error: { message: err && err.message, status: (err && err.status) || 500 },
+              duration: Date.now() - req._svStart,
+            }, {
+              moduleName: req.module_name,
+              methodName: req.fn,
+              traceId: req._svTraceId,
+            });
           }
           _sendError(err);
         };
 
         if (sv && traceConfig !== false) {
-          sv.trace(`${req.module_name}.${req.fn} start`, { arguments: redactClone(req.arguments, redact) }, {
+          sv.trace("start", { arguments: redactClone(req.arguments, redact) }, {
             moduleName: req.module_name,
             methodName: req.fn,
             traceId: req._svTraceId,
@@ -177,7 +184,7 @@ module.exports = function ({
         if (excludeModules.has(req.module_name) || excludeMethods.has(`${req.module_name}.${req.fn}`)) return next();
         if (sv && traceConfig !== false) {
           const ctx = typeof traceConfig === "function" ? traceConfig(req) : {};
-          sv.trace(`${req.module_name}.${req.fn} end`, {
+          sv.trace("end", {
             arguments: redactClone(req.arguments, redact),
             returnValue: redactClone(req.returnValue, redact),
             duration: Date.now() - req._svStart,
@@ -236,20 +243,6 @@ module.exports = function ({
         Object.entries(App.getModules()).forEach(([name, mod]) => {
           if (excludeModules.has(name) || !mod) return;
           Object.assign(mod, makeLogger(name));
-          if (typeof mod.on === "function") {
-            mod.on("error", (info) => {
-              if (!sv) return;
-              sv.trace(info.message, {
-                arguments: redactClone(info.arguments, redact),
-                error: { message: info.message, status: info.status },
-                duration: mod._svPendingDuration,
-              }, {
-                moduleName: info.module_name,
-                methodName: info.fn,
-                traceId: mod._svTraceId,
-              });
-            });
-          }
         });
       }
     });

@@ -12,6 +12,12 @@ const Auth = {
     this.debug("getSession called", { cookie: Auth._lastCookie });
     return { cookie: Auth._lastCookie };
   },
+  divideByZero() {
+    return null.value;
+  },
+  throwError() {
+    throw new Error("test error");
+  },
 };
 
 module.exports = Auth;

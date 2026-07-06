@@ -545,9 +545,8 @@ function cellValue(entry, path) {
 export function LogRow({ entry, isExpanded, onToggle, dynamicColumns, filteredFixedPaths, compact, isNew }) {
   const level = entry.level || "info";
   const isTrace = level === "trace";
-  const msg = isTrace
-    ? entry.duration != null ? `${entry.duration}ms` : ""
-    : typeof entry.scope === "string" ? entry.scope : JSON.stringify(entry.scope) || "";
+  const scopeVal = entry.scope || "";
+  const msg = typeof scopeVal === "string" ? scopeVal : JSON.stringify(scopeVal) || "";
   const shortTraceId = entry.traceId || "—";
 
   return (
@@ -567,7 +566,7 @@ export function LogRow({ entry, isExpanded, onToggle, dynamicColumns, filteredFi
         </div>
         <div className="log-cell log-cell--msg">
           {msg}
-          {!isTrace && entry.duration != null && (
+          {entry.duration != null && (
             <span className="log-duration"> {entry.duration}ms</span>
           )}
         </div>
