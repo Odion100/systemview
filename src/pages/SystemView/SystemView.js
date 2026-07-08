@@ -16,7 +16,7 @@ const SystemViewPage = () => {
           style={{
             fontSize: "28px",
             fontFamily: "Malkor",
-            color: "#6886ba",
+            color: "#3f51b5",
             marginRight: "10px",
             textShadow: "1px 1px 2px #d6cbca",
           }}

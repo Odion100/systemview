@@ -1,0 +1,156 @@
+[
+  {
+    "title": "CLI test: a passing namespace exits 0",
+    "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "test" },
+    "Before": [],
+    "Main": [
+      {
+        "title": "run `systemview test systemview-test Math.add --json`",
+        "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "test" },
+        "args": [
+          {
+            "name": "argument:",
+            "input": { "namespace": "Math.add" },
+            "input_type": "object",
+            "data_type": "",
+            "targetValues": []
+          }
+        ],
+        "savedEvaluations": [
+          { "namespace": "results.exitCode", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 0 }], "save": true }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": []
+  },
+  {
+    "title": "CLI test: a failed evaluation makes the run exit 1",
+    "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "test" },
+    "Before": [],
+    "Main": [
+      {
+        "title": "run `systemview test systemview-test Math.subtract --json` (has the failure demo) → exit 1, failed:1",
+        "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "test" },
+        "args": [
+          {
+            "name": "argument:",
+            "input": { "namespace": "Math.subtract" },
+            "input_type": "object",
+            "data_type": "",
+            "targetValues": []
+          }
+        ],
+        "savedEvaluations": [
+          { "namespace": "results.exitCode", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 1 }], "save": true },
+          { "namespace": "results.result.failed", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 1 }], "save": true }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": []
+  },
+  {
+    "title": "CLI test: --dry-run does not execute, exits 0",
+    "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "test" },
+    "Before": [],
+    "Main": [
+      {
+        "title": "run `systemview test systemview-test Math.subtract --dry-run --json`",
+        "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "test" },
+        "args": [
+          {
+            "name": "argument:",
+            "input": { "namespace": "Math.subtract", "flags": ["--dry-run"] },
+            "input_type": "object",
+            "data_type": "",
+            "targetValues": []
+          }
+        ],
+        "savedEvaluations": [
+          { "namespace": "results.exitCode", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 0 }], "save": true }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": []
+  },
+  {
+    "title": "CLI test: --skip excludes matching tests (skips the failure demo → green)",
+    "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "test" },
+    "Before": [],
+    "Main": [
+      {
+        "title": "run `systemview test systemview-test Math --skip subtract --json` → no failures",
+        "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "test" },
+        "args": [
+          {
+            "name": "argument:",
+            "input": { "namespace": "Math", "flags": ["--skip", "subtract"] },
+            "input_type": "object",
+            "data_type": "",
+            "targetValues": []
+          }
+        ],
+        "savedEvaluations": [
+          { "namespace": "results.exitCode", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 0 }], "save": true },
+          { "namespace": "results.result.failed", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 0 }], "save": true }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": []
+  },
+  {
+    "title": "CLI test: --json output shape (projectCode + passed/failed counts)",
+    "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "test" },
+    "Before": [],
+    "Main": [
+      {
+        "title": "run `systemview test systemview-test Math.add --json` → passed 1, failed 0",
+        "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "test" },
+        "args": [
+          {
+            "name": "argument:",
+            "input": { "namespace": "Math.add" },
+            "input_type": "object",
+            "data_type": "",
+            "targetValues": []
+          }
+        ],
+        "savedEvaluations": [
+          { "namespace": "results.result.projectCode", "expected_type": "string", "validations": [{ "name": "strEquals", "value": "systemview-test" }], "save": true },
+          { "namespace": "results.result.passed", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 1 }], "save": true },
+          { "namespace": "results.result.failed", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 0 }], "save": true }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": []
+  },
+  {
+    "title": "CLI test: --bail exits 1 when a failure occurs",
+    "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "test" },
+    "Before": [],
+    "Main": [
+      {
+        "title": "run `systemview test systemview-test Math --bail --json` → exit 1",
+        "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "test" },
+        "args": [
+          {
+            "name": "argument:",
+            "input": { "namespace": "Math", "flags": ["--bail"] },
+            "input_type": "object",
+            "data_type": "",
+            "targetValues": []
+          }
+        ],
+        "savedEvaluations": [
+          { "namespace": "results.exitCode", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 1 }], "save": true }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": []
+  }
+]

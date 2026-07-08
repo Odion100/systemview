@@ -1,0 +1,182 @@
+[
+  {
+    "title": "CLI harness: `systemview probe` (real subprocess) attaches the manifest @file header",
+    "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "probe" },
+    "Before": [],
+    "Main": [
+      {
+        "title": "run `systemview probe TestService.Headers.echo --json` and confirm the token reached the service",
+        "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "probe" },
+        "args": [
+          {
+            "name": "argument:",
+            "input": { "namespace": "TestService.Headers.echo" },
+            "input_type": "object",
+            "data_type": "",
+            "targetValues": []
+          }
+        ],
+        "savedEvaluations": [
+          { "namespace": "results.exitCode", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 0 }], "save": true },
+          { "namespace": "results.result.result.headers.testtoken", "expected_type": "string", "validations": [{ "name": "strEquals", "value": "SEEKRIT-FILE-TOKEN" }], "save": true }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": []
+  },
+  {
+    "title": "CLI probe: object arg returns the right result",
+    "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "probe" },
+    "Before": [],
+    "Main": [
+      {
+        "title": "probe TestService.Math.add {a:2,b:3}",
+        "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "probe" },
+        "args": [
+          {
+            "name": "argument:",
+            "input": { "namespace": "TestService.Math.add", "args": { "a": 2, "b": 3 } },
+            "input_type": "object",
+            "data_type": "",
+            "targetValues": []
+          }
+        ],
+        "savedEvaluations": [
+          { "namespace": "results.exitCode", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 0 }], "save": true },
+          { "namespace": "results.result.result.sum", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 5 }], "save": true }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": []
+  },
+  {
+    "title": "CLI probe: no-arg method succeeds",
+    "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "probe" },
+    "Before": [],
+    "Main": [
+      {
+        "title": "probe TestService.Headers.getOrigin (no args)",
+        "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "probe" },
+        "args": [
+          {
+            "name": "argument:",
+            "input": { "namespace": "TestService.Headers.getOrigin" },
+            "input_type": "object",
+            "data_type": "",
+            "targetValues": []
+          }
+        ],
+        "savedEvaluations": [
+          { "namespace": "results.exitCode", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 0 }], "save": true },
+          { "namespace": "results.result.result.received", "expected_type": "boolean", "validations": [{ "name": "boolEquals", "value": true }], "save": true }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": []
+  },
+  {
+    "title": "CLI probe: bad namespace format → exit 1",
+    "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "probe" },
+    "Before": [],
+    "Main": [
+      {
+        "title": "probe Math.add (only 2 parts — invalid)",
+        "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "probe" },
+        "args": [
+          {
+            "name": "argument:",
+            "input": { "namespace": "Math.add" },
+            "input_type": "object",
+            "data_type": "",
+            "targetValues": []
+          }
+        ],
+        "savedEvaluations": [
+          { "namespace": "results.exitCode", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 1 }], "save": true }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": []
+  },
+  {
+    "title": "CLI probe: unknown service → exit 1",
+    "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "probe" },
+    "Before": [],
+    "Main": [
+      {
+        "title": "probe Nope.Math.add {} — service does not exist",
+        "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "probe" },
+        "args": [
+          {
+            "name": "argument:",
+            "input": { "namespace": "Nope.Math.add", "args": {} },
+            "input_type": "object",
+            "data_type": "",
+            "targetValues": []
+          }
+        ],
+        "savedEvaluations": [
+          { "namespace": "results.exitCode", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 1 }], "save": true }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": []
+  },
+  {
+    "title": "CLI probe: multi-arg (JSON array) spreads positionally",
+    "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "probe" },
+    "Before": [],
+    "Main": [
+      {
+        "title": "probe TestService.String.concat [\"foo\",\"bar\"] → \"foobar\"",
+        "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "probe" },
+        "args": [
+          {
+            "name": "argument:",
+            "input": { "namespace": "TestService.String.concat", "args": ["foo", "bar"] },
+            "input_type": "object",
+            "data_type": "",
+            "targetValues": []
+          }
+        ],
+        "savedEvaluations": [
+          { "namespace": "results.exitCode", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 0 }], "save": true },
+          { "namespace": "results.result.result.result", "expected_type": "string", "validations": [{ "name": "strEquals", "value": "foobar" }], "save": true }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": []
+  },
+  {
+    "title": "CLI probe: --header overrides the manifest header of the same name (BUG #3)",
+    "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "probe" },
+    "Before": [],
+    "Main": [
+      {
+        "title": "probe Headers.echo --header 'testtoken: OVERRIDE-WINS' — flag beats manifest @file",
+        "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "probe" },
+        "args": [
+          {
+            "name": "argument:",
+            "input": { "namespace": "TestService.Headers.echo", "flags": ["--header", "testtoken: OVERRIDE-WINS"] },
+            "input_type": "object",
+            "data_type": "",
+            "targetValues": []
+          }
+        ],
+        "savedEvaluations": [
+          { "namespace": "results.exitCode", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 0 }], "save": true },
+          { "namespace": "results.result.result.headers.testtoken", "expected_type": "string", "validations": [{ "name": "strEquals", "value": "OVERRIDE-WINS" }], "save": true }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": []
+  }
+]

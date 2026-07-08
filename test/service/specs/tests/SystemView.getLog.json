@@ -1,0 +1,132 @@
+[
+  {
+    "title": "trace config enriches every log entry sharing a request's traceId",
+    "namespace": { "serviceId": "TestService", "moduleName": "SystemView", "methodName": "getLog" },
+    "Before": [
+      {
+        "title": "clear the log so we know exactly what getLog returns",
+        "namespace": { "serviceId": "TestService", "moduleName": "SystemView", "methodName": "clearLog" },
+        "args": [],
+        "savedEvaluations": [
+          {
+            "namespace": "results",
+            "expected_type": "boolean",
+            "validations": [{ "name": "boolEquals", "value": true }],
+            "save": true
+          }
+        ]
+      },
+      {
+        "title": "call a method that emits an auto-trace + a manual log",
+        "namespace": { "serviceId": "TestService", "moduleName": "String", "methodName": "concat" },
+        "args": [
+          { "name": "a:", "input": "trace-", "input_type": "string", "data_type": "", "targetValues": [] },
+          { "name": "b:", "input": "test", "input_type": "string", "data_type": "", "targetValues": [] }
+        ],
+        "savedEvaluations": [
+          {
+            "namespace": "results.result",
+            "expected_type": "string",
+            "validations": [{ "name": "strEquals", "value": "trace-test" }],
+            "save": true
+          }
+        ]
+      }
+    ],
+    "Main": [
+      {
+        "title": "getLog entries carry the trace ctx (start auto-trace AND the manual log)",
+        "namespace": { "serviceId": "TestService", "moduleName": "SystemView", "methodName": "getLog" },
+        "args": [
+          { "name": "argument:", "input": { "limit": 10 }, "input_type": "object", "data_type": "", "targetValues": [] }
+        ],
+        "savedEvaluations": [
+          {
+            "namespace": "results[0].scope",
+            "expected_type": "string",
+            "validations": [{ "name": "strEquals", "value": "start" }],
+            "save": true
+          },
+          {
+            "namespace": "results[0].svtest_ctx",
+            "expected_type": "string",
+            "validations": [{ "name": "strEquals", "value": "u123" }],
+            "save": true
+          },
+          {
+            "namespace": "results[0].svtest_fn",
+            "expected_type": "string",
+            "validations": [{ "name": "strEquals", "value": "concat" }],
+            "save": true
+          },
+          {
+            "namespace": "results[1].scope",
+            "expected_type": "string",
+            "validations": [{ "name": "strEquals", "value": "concat called" }],
+            "save": true
+          },
+          {
+            "namespace": "results[1].svtest_ctx",
+            "expected_type": "string",
+            "validations": [{ "name": "strEquals", "value": "u123" }],
+            "save": true
+          }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": []
+  },
+  {
+    "title": "redact config masks sensitive fields in logged arguments",
+    "namespace": { "serviceId": "TestService", "moduleName": "SystemView", "methodName": "getLog" },
+    "Before": [
+      {
+        "title": "clear the log",
+        "namespace": { "serviceId": "TestService", "moduleName": "SystemView", "methodName": "clearLog" },
+        "args": [],
+        "savedEvaluations": []
+      },
+      {
+        "title": "sign in with a password (must not appear in the log)",
+        "namespace": { "serviceId": "TestService", "moduleName": "Auth", "methodName": "signIn" },
+        "args": [
+          { "name": "argument:", "input": { "email": "a@b.com", "password": "s3cret" }, "input_type": "object", "data_type": "", "targetValues": [] }
+        ],
+        "savedEvaluations": [
+          {
+            "namespace": "results.success",
+            "expected_type": "boolean",
+            "validations": [{ "name": "boolEquals", "value": true }],
+            "save": true
+          }
+        ]
+      }
+    ],
+    "Main": [
+      {
+        "title": "logged arguments show password redacted, email intact",
+        "namespace": { "serviceId": "TestService", "moduleName": "SystemView", "methodName": "getLog" },
+        "args": [
+          { "name": "argument:", "input": { "limit": 10 }, "input_type": "object", "data_type": "", "targetValues": [] }
+        ],
+        "savedEvaluations": [
+          {
+            "namespace": "results[0].arguments[0].password",
+            "expected_type": "string",
+            "validations": [{ "name": "strEquals", "value": "[REDACTED]" }],
+            "save": true
+          },
+          {
+            "namespace": "results[0].arguments[0].email",
+            "expected_type": "string",
+            "validations": [{ "name": "strEquals", "value": "a@b.com" }],
+            "save": true
+          }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": []
+  }
+]

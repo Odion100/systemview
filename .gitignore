@@ -129,7 +129,6 @@ NPM_TOKEN.txt
 api/connections.json
 api/cli-history.json
 systemview.manifest.json
-systemview.cookies.json
 systemview.logs
 vectorStore
 CLAUDE.md

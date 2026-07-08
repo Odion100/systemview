@@ -13,7 +13,9 @@ const HELP_TEXT = `
     flush                                  Wipe the log file and stop streaming  [alias: clearlogs]
     connect [url|projectCode]             Connect a service URL, reconnect a stored project, or connect all
     connect <url> --manifest              Connect via plugin manifest — registers under real projectCode
+    connect <url> --manifest --save       Connect, then persist the connection (services + headers + cookie) to the manifest
     disconnect [projectCode] [serviceId]  Remove a project or service from the UI store
+    manifest save                          Persist session manifest — services, auth headers, cookies  [interactive]
     manifest clean                        Re-probe manifest entries, remove stale ones
     probe <ServiceId.Module.method> [args] Call a service method ad-hoc
     open [projectCode] [namespace]         Open the browser UI
@@ -26,7 +28,9 @@ const HELP_TEXT = `
     --verbose                              test: full results and args for all phases; list: expand hierarchy
     --manifest                             connect: use plugin manifest to get real projectCode
     --manifest <path>                      probe: path to manifest file (default: ./systemview.manifest.json)
-    --header "Name: Value"                 Extra request header (repeatable)
+    --header "Name: Value"                 Extra request header (repeatable; overrides manifest headers).
+                                             For a standing token, add it to the manifest "headers"
+                                             (literal or "@file") — see docs/cli.md.
     --skip <pattern>                       Exclude tests matching pattern (repeatable)
     --bail                                 Stop after first failure
     --dry-run                              Print which tests would run without executing
@@ -42,6 +46,7 @@ const HELP_TEXT = `
     --filter missing=<field>                 → only entries where field is absent
     --or <field=value>                     logs: OR filter on a field (repeatable)
     --include <field>                      logs: include extra field as a column (repeatable)
+    --save                                 connect: persist this connection to the manifest (headers + cookie tag along)
     --save [path]                          logs: append streamed entries to a local snapshot file
     --saved                                logs: read from local snapshot instead of live service
     --save-limit <n>                       logs: max entries to keep in snapshot (default 500)

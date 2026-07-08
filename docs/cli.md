@@ -44,7 +44,7 @@ systemview test buAPI Users --json
 
 **`--manifest <path>`** reads connection data from a specific manifest file instead of the default `./systemview.manifest.json`.
 
-**`--header "Name: Value"`** adds a request header to every call made during the test run. Repeatable. Overrides `manifest.probeHeaders` for the same header name.
+**`--header "Name: Value"`** adds a request header to every call made during the test run. Repeatable. Overrides `manifest.headers` for the same header name.
 
 ```bash
 systemview test buAPI --header "X-Api-Key: secret"
@@ -162,7 +162,7 @@ On error:
 { "serviceId": "ProfilesService", "moduleName": "Users", "methodName": "getUser", "args": [...], "error": "message" }
 ```
 
-**`--header "Name: Value"`** adds a request header to the call. Repeatable. Overrides `manifest.probeHeaders` for the same header name.
+**`--header "Name: Value"`** adds a request header to the call. Repeatable. Overrides `manifest.headers` for the same header name.
 
 ```bash
 systemview probe ProfilesService.Users.get --header "Origin: http://localhost:3300"
@@ -200,7 +200,6 @@ A per-project connection file written by the SystemView plugin on service startu
 ```json
 {
   "projectCode": "buAPI",
-  "probeHeaders": { "Origin": "http://localhost:3300" },
   "services": [
     {
       "serviceId": "Profiles",
@@ -220,7 +219,20 @@ A per-project connection file written by the SystemView plugin on service startu
 }
 ```
 
-**`probeHeaders`** — written automatically by the plugin on startup. Contains the `Origin` header derived from the SystemView connection URL. The CLI merges these headers into every request made by `probe` and `test`, so authenticated services that check the `Origin` header work without any manual configuration. `--header` flags override individual entries.
+**`headers`** — the single, per-origin header store the CLI attaches to every request it makes to that origin. **SystemView never sets headers itself** — the plugin writes none; you author them. Use it to reach an **auth-gated** project without re-pasting `--header` on every call (e.g. an `Origin` for a dev session, or an auth token). Each value is a literal **or** a `@file` pointer that keeps the secret out of the manifest:
+
+```json
+"headers": {
+  "http://localhost:4100": {
+    "Internal-Access": "@./.secrets/token",
+    "Authorization": "Bearer literal-is-fine-too"
+  }
+}
+```
+
+Author the header once, keyed by the service's URL origin. Precedence: `--header` flag > `headers`.
+
+**Cookies live here too** — there is no separate cookie jar. A `Set-Cookie` from any response is folded into the `Cookie` entry under that origin. Captured cookies and headers are held in memory during a session and **persisted only when you run `systemview save`** (which merges them into the manifest, preserving your authored `headers`). Because captured cookies are written as literal values, keep the manifest gitignored (it already is by default).
 
 Add to `.gitignore` — it's a local artifact that changes each time a service starts.
 

@@ -1,0 +1,74 @@
+[
+  {
+    "title": "CLI list: a project lists its services",
+    "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "list" },
+    "Before": [],
+    "Main": [
+      {
+        "title": "run `systemview list systemview-test --json`",
+        "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "list" },
+        "args": [
+          {
+            "name": "argument:",
+            "input": { "project": "systemview-test" },
+            "input_type": "object",
+            "data_type": "",
+            "targetValues": []
+          }
+        ],
+        "savedEvaluations": [
+          { "namespace": "results.exitCode", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 0 }], "save": true },
+          { "namespace": "results.result[0].serviceId", "expected_type": "string", "validations": [{ "name": "strEquals", "value": "TestService" }], "save": true }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": []
+  },
+  {
+    "title": "CLI list: no project lists ALL projects (object keyed by projectCode)",
+    "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "list" },
+    "Before": [],
+    "Main": [
+      {
+        "title": "run `systemview list --json` → includes the systemview-test project + TestService",
+        "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "list" },
+        "args": [],
+        "savedEvaluations": [
+          { "namespace": "results.exitCode", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 0 }], "save": true },
+          { "namespace": "results.stdout", "expected_type": "string", "validations": [{ "name": "isLike", "value": "systemview-test" }], "save": true },
+          { "namespace": "results.stdout", "expected_type": "string", "validations": [{ "name": "isLike", "value": "TestService" }], "save": true }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": []
+  },
+  {
+    "title": "CLI list: namespace filter scopes to the module's tests",
+    "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "list" },
+    "Before": [],
+    "Main": [
+      {
+        "title": "run `systemview list systemview-test Math --json` → only Math tests",
+        "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "list" },
+        "args": [
+          {
+            "name": "argument:",
+            "input": { "project": "systemview-test", "namespace": "Math" },
+            "input_type": "object",
+            "data_type": "",
+            "targetValues": []
+          }
+        ],
+        "savedEvaluations": [
+          { "namespace": "results.exitCode", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 0 }], "save": true },
+          { "namespace": "results.result[0].serviceId", "expected_type": "string", "validations": [{ "name": "strEquals", "value": "TestService" }], "save": true },
+          { "namespace": "results.result[0].tests[0].namespace.moduleName", "expected_type": "string", "validations": [{ "name": "strEquals", "value": "Math" }], "save": true }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": []
+  }
+]

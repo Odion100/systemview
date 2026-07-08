@@ -3,6 +3,7 @@ const { createCookieHttpClient } = require("./cookieClient");
 const cookieHttpClient = createCookieHttpClient();
 const Client = createClient(cookieHttpClient);
 const log = require("./logger");
+const manifestCommands = require("./manifest");
 
 async function getUiSvc(uiUrl) {
   try {
@@ -33,7 +34,7 @@ function printSummary(entries) {
   console.log("");
 }
 
-module.exports = async function connectService(target, { useManifest, force, connectedUrls, uiUrl } = {}) {
+module.exports = async function connectService(target, { useManifest, save, force, connectedUrls, uiUrl } = {}) {
   const uiSvc = await getUiSvc(uiUrl);
 
   // connect (no args) — connect to every service stored in UI
@@ -133,6 +134,17 @@ module.exports = async function connectService(target, { useManifest, force, con
           }
         }
         printSummary(summary);
+        if (save) {
+          // --save persists THIS connection to the local manifest. The subject is the connection
+          // (the services); the applied headers + captured session cookie tag along via save().
+          const services = manifest.services.map((s) => ({
+            projectCode: manifest.projectCode,
+            serviceId: s.serviceId,
+            system: s.system,
+            specList: s.specList || { tests: [], docs: [] },
+          }));
+          manifestCommands.save(services);
+        }
       } else {
         log.warn("No plugin manifest found. Storing as connected-services.");
         const connectionData = await HttpClient.request({ url: target });
@@ -165,6 +177,11 @@ module.exports = async function connectService(target, { useManifest, force, con
       await notifyUi(uiSvc, project);
       log.success(`connected-services › ${serviceId}`);
       printSummary([{ projectCode: "connected-services", serviceId, url: target }]);
+      if (save) {
+        manifestCommands.save([
+          { projectCode: "connected-services", serviceId, system: { connectionData }, specList: { tests: [], docs: [] } },
+        ]);
+      }
     }
   } catch (err) {
     log.error(`Connection failed: ${err.message}`);

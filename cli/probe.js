@@ -2,6 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const { createClient } = require("systemlynx");
 const { createCookieHttpClient } = require("./cookieClient");
+const { takeNotices } = require("./manifestHeaders");
 const log = require("./logger");
 
 const cookieHttpClient = createCookieHttpClient();
@@ -76,6 +77,7 @@ module.exports = async function probe(namespace, argsStr, { json = false, manife
     } else {
       log.success("result:");
       console.log(JSON.stringify(result, null, 2));
+      takeNotices().forEach((n) => log.info(n));
     }
     return 0;
   } catch (err) {
@@ -83,6 +85,7 @@ module.exports = async function probe(namespace, argsStr, { json = false, manife
       process.stdout.write(JSON.stringify({ serviceId, moduleName, methodName, args, error: err.message }, null, 2) + "\n");
     } else {
       log.error(err.message);
+      takeNotices().forEach((n) => log.info(n));
     }
     return 1;
   }

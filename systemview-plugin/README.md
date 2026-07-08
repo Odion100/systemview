@@ -40,6 +40,52 @@ SYSTEMVIEW_HOST=http://localhost:3000/systemview/api node index.js
 
 ---
 
+## Config options
+
+| Option | Default | Description |
+|---|---|---|
+| `connection` | `http://localhost:3300/systemview/api` | SystemView API URL to register with |
+| `specs` | `./specs` | Local path for docs and test files |
+| `projectCode` | — | Groups services together in the UI |
+| `serviceId` | — | Name for this service |
+| `logs` | `./systemview.logs` | Local NDJSON log file path |
+| `limit` | `100` | Default number of entries `getLog` returns |
+| `trace` | `true` | Auto-tracing — see below |
+| `redact` | `[]` | Paths to mask in logged `arguments`/`returnValue` — see below |
+| `exclude` | `[]` | Module or `Module.method` names to skip entirely |
+| `useSystemViewLogs` | `true` | Register the local log module + auto-instrumentation |
+| `useSystemViewUI` | `true` | Register with the SystemView UI server |
+
+### `trace`
+
+Controls auto-instrumentation. Every RPC call emits a `start` trace and one terminal trace — `end` on success, `error` on failure — all sharing a single `traceId`.
+
+- `trace: true` (default) — trace every call.
+- `trace: false` — disable auto-tracing entirely.
+- `trace: (req) => ({ ...ctx })` — a function returning **request-scoped context**. It runs **fresh at each entry**, and its result is merged into *every* record sharing that request's `traceId` — the `start`/`end`/`error` auto-traces **and** any manual `this.log()`/`warn()`/`error()`/`debug()` fired during the request. Use it to stamp e.g. a user id onto everything a request logged, so you can filter the whole request by who caused it. (Out-of-request logs carry no `req`, so they get nothing.)
+
+```js
+trace: (req) => ({ user_id: req.session?.user_id })
+```
+
+### `redact`
+
+Masks sensitive values in the captured `arguments`/`returnValue` before they're written. Paths are relative to the argument **array** — `["[0].password"]` masks `password` on the first argument. Masked values become `"[REDACTED]"`.
+
+```js
+redact: ["[0].password", "[0].card.number"]
+```
+
+### `exclude`
+
+Skip logging/tracing for whole modules or specific methods:
+
+```js
+exclude: ["HealthCheck", "Users.ping"]
+```
+
+---
+
 ## What it does on startup
 
 1. **Registers with SystemView** — sends connection data to the SystemView server so the service appears in the UI under `projectCode > serviceId`

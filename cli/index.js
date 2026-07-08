@@ -25,6 +25,17 @@ const DEFAULT_PORT = 3000;
 const VERSION = require("../package.json").version;
 const UI_URL = `http://localhost:${DEFAULT_PORT}`;
 
+// process.exit() truncates buffered stdout when stdout is a pipe (agents/CI, and large `--json`
+// output). Drain stdout + stderr first, then exit — otherwise big results get cut off mid-stream.
+function flushAndExit(code = 0) {
+  let pending = 2;
+  const done = () => {
+    if (--pending === 0) process.exit(code);
+  };
+  process.stdout.write("", done);
+  process.stderr.write("", done);
+}
+
 const MANIFEST_FILE =
   flags.manifest || path.join(process.cwd(), "systemview.manifest.json");
 const connectedUrls = new Set();
@@ -80,10 +91,10 @@ async function startTest() {
       index: flags.index,
       skip: flags.skip,
     });
-    process.exit(exitCode);
+    flushAndExit(exitCode);
   } catch (error) {
     log.error("Error executing tests: " + error.message);
-    process.exit(1);
+    flushAndExit(1);
   }
 }
 
@@ -99,7 +110,7 @@ async function list() {
     verbose: flags.verbose,
     json: flags.json,
   });
-  process.exit(0);
+  flushAndExit(0);
 }
 
 async function open() {
@@ -119,7 +130,7 @@ async function open() {
   }
 
   openBrowser(UI_URL, project_code, namespace, connectedServices);
-  process.exit(0);
+  flushAndExit(0);
 }
 
 async function quitApp() {
@@ -136,18 +147,18 @@ async function quitApp() {
       log.success("SystemView shutdown successful!");
     } else {
       log.error("Remote shutdown failed!");
-      process.exit(1);
+      flushAndExit(1);
     }
   } else {
     log.warn(`No SystemView instance found @ ${api}`);
   }
-  process.exit(0);
+  flushAndExit(0);
 }
 
 (async () => {
   if (process.argv.includes("--version") || process.argv.includes("-v")) {
     console.log(VERSION);
-    process.exit(0);
+    flushAndExit(0);
   }
 
   init();
@@ -168,17 +179,18 @@ async function quitApp() {
     const useManifest = process.argv.includes("--manifest");
     await connectService(input[1], {
       useManifest,
+      save: process.argv.includes("--save"),
       force: flags.force,
       connectedUrls,
       uiUrl: UI_URL,
     });
-    process.exit(0);
+    flushAndExit(0);
   } else if (command === "disconnect") {
     await manifestCommands.disconnect(input[1], input[2], {
       connectedUrls,
       uiUrl: UI_URL,
     });
-    process.exit(0);
+    flushAndExit(0);
   } else if (command === "manifest") {
     const sub = input[1];
     if (sub === "save") {
@@ -188,7 +200,7 @@ async function quitApp() {
     } else {
       log.warn("Usage: systemview manifest <save|clean>");
     }
-    process.exit(0);
+    flushAndExit(0);
   } else if (command === "probe") {
     await launchApp(DEFAULT_PORT);
     const exitCode = await probe(input[1], input[2], {
@@ -197,7 +209,7 @@ async function quitApp() {
       headers: flags.headers,
       uiUrl: UI_URL,
     });
-    process.exit(exitCode || 0);
+    flushAndExit(exitCode || 0);
   } else if (command === "logs" || command === "log") {
     await launchApp(DEFAULT_PORT);
     await logsCommand(input[1], input[2], {
@@ -216,7 +228,7 @@ async function quitApp() {
       saved: flags.saved,
       saveLimit: flags.saveLimit,
     });
-    if (!flags.follow) process.exit(0);
+    if (!flags.follow) flushAndExit(0);
   } else {
     await startApp();
   }
