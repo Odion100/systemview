@@ -30,7 +30,10 @@ function note(key, msg) {
 }
 
 function load() {
-  if (headers) return headers;
+  // Cache only a NON-empty result. A short-lived CLI process loads once and is done; a long-running
+  // UI server, though, may make its first call before the plugin has written the manifest headers —
+  // caching that empty read would blind it forever. Re-read until headers actually appear, then cache.
+  if (headers && Object.keys(headers).length) return headers;
   headers = {};
   try {
     const m = JSON.parse(fs.readFileSync(MANIFEST_FILE, "utf8"));

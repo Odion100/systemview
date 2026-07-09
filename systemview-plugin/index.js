@@ -31,6 +31,7 @@ module.exports = function ({
   projectCode,
   serviceId,
   module,
+  headers = {},
   useSystemViewLogs = true,
   useSystemViewUI = true,
   trace: traceConfig = true,
@@ -310,9 +311,21 @@ module.exports = function ({
               if (idx > -1) manifest.services[idx] = entry;
               else manifest.services.push(entry);
               manifest.projectCode = projectCode;
-              // The plugin does not set request headers. Auth headers (e.g. an Origin for a dev
-              // session, or a token) are the operator's config, authored in the manifest `headers`
-              // section (literal or `@file`). SystemView forwards headers; it never mints them.
+              // The plugin never *mints* headers — but it will *carry* headers the operator
+              // authored in its config, writing them into the manifest `headers` store under
+              // this service's own origin. They are DEFAULTS: any header already present in the
+              // manifest (hand-authored, or a captured cookie) wins, so `{ ...configHeaders,
+              // ...existing }`. Values are literals or `@file` pointers, same as manifest headers.
+              if (headers && Object.keys(headers).length) {
+                let origin = null;
+                try {
+                  origin = new URL(connectionData.serviceUrl).origin;
+                } catch {}
+                if (origin) {
+                  if (!manifest.headers) manifest.headers = {};
+                  manifest.headers[origin] = { ...headers, ...(manifest.headers[origin] || {}) };
+                }
+              }
               fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
             } catch (err) {
               console.log(`[SystemView]: failed to write manifest: ${err.message}\n`);

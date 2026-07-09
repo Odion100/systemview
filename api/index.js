@@ -1,7 +1,14 @@
-const { HttpClient: http, createClient, App } = require("systemlynx");
+const { createClient, App } = require("systemlynx");
+const { createCookieHttpClient } = require("../cli/cookieClient");
+const { headersFor } = require("../cli/manifestHeaders");
 const ConnectedServices = require("./Connections")();
 const CLIHistory = require("./CLIHistory")();
-const Client = createClient();
+// The UI server calls services the same way the CLI does: through the manifest-header client,
+// so operator-authored headers (e.g. an Origin for a gated dev session — see cli/manifestHeaders.js)
+// are attached to every outbound call and every probe. One resolver, shared with the CLI; the UI is
+// driven off the same manifest format (RFC-007). Without this the UI cannot reach a gated service.
+const httpClient = createCookieHttpClient();
+const Client = createClient(httpClient);
 const route = "systemview/api";
 const host = "localhost";
 const express = require("express");
@@ -61,7 +68,7 @@ function getServices(searchText) {
 
 async function getConnectionData(url) {
   try {
-    const connectionData = await http.request({ url });
+    const connectionData = await httpClient.request({ url });
     if (!connectionData || !connectionData.SystemLynxService) return [];
     const svc = Client.createService(connectionData);
     let project;
@@ -105,6 +112,10 @@ function getProjects() {
       connectionData: system.connectionData,
       system,
       specList: specList || { tests: [], docs: [] },
+      // Resolved headers for this service's origin (@file already deref'd to values, server-side —
+      // the browser has no filesystem). The UI calls svc.setHeaders(headers) after createService so
+      // every browser-run test/log/probe carries them. Same manifest.headers store as the CLI.
+      headers: headersFor(system.connectionData.serviceUrl),
     });
   });
   return projects;

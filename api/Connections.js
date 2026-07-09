@@ -1,5 +1,10 @@
 const fs = require("fs");
-const { Client } = require("systemlynx");
+const { createClient } = require("systemlynx");
+const { createCookieHttpClient } = require("../cli/cookieClient");
+// Same manifest-header client as api/index.js and the CLI — so re-probing stored connections
+// (refreshConnections) also carries operator-authored headers. A gated service would otherwise
+// silently drop out of the UI on every refresh.
+const Client = createClient(createCookieHttpClient());
 const LOCAL_STORAGE = `${__dirname}/connections.json`;
 
 function refreshConnections(connections) {

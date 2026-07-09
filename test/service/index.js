@@ -45,16 +45,23 @@ if (SYSTEMVIEW_HOST) {
     specs: "./test/service/specs",
     projectCode: "systemview-test",
     serviceId: "TestService",
+    // Operator-authored plugin-config headers. The plugin does not MINT headers, but it CARRIES
+    // these into the manifest `headers` store under this service's origin (as defaults). This is
+    // the buAPI dev-session case: the operator declares the Origin once, in config, and the plugin
+    // writes it through on every startup — no hand-editing the manifest after each restart. The
+    // Headers.getOrigin fixture confirms this Origin actually reaches the service.
+    headers: { Origin: "http://localhost:3000" },
     trace: (req) => ({ svtest_ctx: "u123", svtest_fn: req.fn }),
     redact: ["[0].password"],
     exclude: ["CLI"],
   });
   App.use(SystemViewPlugin);
   App.on("ready", function () {
-    // Seed operator-authored manifest headers so the CLI header pass-through tests are
-    // self-contained. The plugin no longer writes any headers (probeHeaders is gone), so WE author
-    // them here — an `@file` token and a literal `Origin` — indexed by the service URL origin.
-    // This models the real world: the operator authors headers; SystemView only forwards them.
+    // Seed the `@file` token header the operator adds directly to the manifest. The `Origin` is NOT
+    // seeded here — it comes from the plugin config `headers` (above), which the plugin writes into
+    // the manifest under this origin. We spread the existing bucket so we ADD the token on top of the
+    // plugin-written Origin instead of clobbering it — modeling operator-authored headers layering
+    // over plugin-config defaults. This keeps the CLI header pass-through tests self-contained.
     try {
       fs.writeFileSync(path.join(process.cwd(), "test/service/.testtoken"), "SEEKRIT-FILE-TOKEN");
     } catch {}
@@ -62,11 +69,12 @@ if (SYSTEMVIEW_HOST) {
       try {
         const mp = path.join(process.cwd(), "systemview.manifest.json");
         const m = JSON.parse(fs.readFileSync(mp, "utf8"));
+        const origin = `http://localhost:${PORT}`;
         m.headers = {
           ...(m.headers || {}),
-          [`http://localhost:${PORT}`]: {
+          [origin]: {
+            ...((m.headers && m.headers[origin]) || {}),
             testtoken: "@./test/service/.testtoken",
-            Origin: "http://localhost:3000",
           },
         };
         fs.writeFileSync(mp, JSON.stringify(m, null, 2));

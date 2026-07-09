@@ -1,11 +1,11 @@
 [
   {
-    "title": "probeHeaders Origin is forwarded to service",
+    "title": "plugin-config Origin is written to the manifest and reaches the service",
     "namespace": { "serviceId": "TestService", "moduleName": "Headers", "methodName": "getOrigin" },
     "Before": [],
     "Main": [
       {
-        "title": "Origin header arrives from CLI cookie client",
+        "title": "Origin authored in plugin config → manifest headers → service request",
         "namespace": { "serviceId": "TestService", "moduleName": "Headers", "methodName": "getOrigin" },
         "args": [],
         "savedEvaluations": [

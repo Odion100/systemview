@@ -1,5 +1,5 @@
 import { validateResults } from "../../../molecules/ValidationInput/validator";
-import { Client } from "systemlynx-client";
+import loadServiceWithHeaders from "../../../utils/loadService";
 import moment from "moment";
 import { getArrayNamespaces, getLastArrayNamespace, obj } from "./test-helpers";
 
@@ -99,7 +99,10 @@ export default function Test({
       }
       const { connectionData } = service.system;
 
-      this.connection[serviceId] = Client.createService(connectionData);
+      this.connection[serviceId] = loadServiceWithHeaders(
+        connectionData,
+        service.headers
+      );
     }
 
     return this;
