@@ -15,7 +15,7 @@ const express = require("express");
 const path = require("path");
 
 const isUrl = (str) =>
-  /^(http:\/\/|https:\/\/)?((localhost|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})|([a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,5}))(:[0-9]{1,5})?(\/.*)?$/.test(
+  /^(http:\/\/|https:\/\/)?((localhost|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})|([a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,}))(:[0-9]{1,5})?(\/.*)?$/i.test(
     str,
   );
 
@@ -52,18 +52,19 @@ function updateSpecList(specList, projectCode, serviceId) {
 }
 function getServices(searchText) {
   if (isUrl(searchText)) {
-    const { service } = ConnectedServices.findService(searchText);
-
-    if (service) {
-      const project = { ...service, projectCode: "SystemLynx", serviceId: "Service" };
-      connect(project);
-      return [project];
-    } else {
-      return getConnectionData(searchText);
-    }
+    // Always (re)pull from the URL — one URL brings in the whole project manifest. Don't short-circuit
+    // to a stored entry (the old path relabeled the project "SystemLynx" and skipped the manifest).
+    return getConnectionData(searchText);
   } else {
     return ConnectedServices.findProject(searchText);
   }
+}
+
+// The UI's connect-by-URL. Always treats the input as a URL — no isUrl heuristic — so remote hosts
+// and long TLDs (.global, .systems, …) that the heuristic mis-rejects still connect. Mirrors the
+// CLI's `connect <url>`: probe → pull the whole project manifest.
+function connectUrl(url) {
+  return getConnectionData(url);
 }
 
 async function getConnectionData(url) {
@@ -71,6 +72,23 @@ async function getConnectionData(url) {
     const connectionData = await httpClient.request({ url });
     if (!connectionData || !connectionData.SystemLynxService) return [];
     const svc = Client.createService(connectionData);
+
+    // One URL → the whole project: try the plugin manifest first (every service), then fall back
+    // to this single service's connection, then a bare connected-services entry (no plugin).
+    try {
+      const manifest = await svc.Plugin.getManifest();
+      if (manifest && manifest.services && manifest.services.length) {
+        const projects = manifest.services.map((s) => ({
+          system: s.system,
+          projectCode: manifest.projectCode,
+          serviceId: s.serviceId,
+          specList: s.specList || { tests: [], docs: [] },
+        }));
+        projects.forEach(connect);
+        return projects;
+      }
+    } catch {}
+
     let project;
     try {
       const connection = await svc.Plugin.getConnection();
@@ -146,6 +164,7 @@ module.exports = function launchSystemView(port = 3000) {
   })
     .module("SystemView", {
       connect,
+      connectUrl,
       getServices,
       getProjects,
       updateSpecList,

@@ -72,9 +72,15 @@ export default function Documentation({ projectCode, serviceId, moduleName, meth
   const { connectedServices } = useContext(ServiceContext);
   const [tab, setTab] = useState("docs");
 
-  const service = connectedServices.find(
-    (s) => s.serviceId === serviceId && s.projectCode === projectCode
-  );
+  const service =
+    connectedServices.find(
+      (s) => s.serviceId === serviceId && s.projectCode === projectCode
+    ) ||
+    // Project level (no service selected): any service of the project gives a Plugin handle — the
+    // project doc lives at the project root, so every service's plugin reads the same {projectCode}.md.
+    (!serviceId
+      ? connectedServices.find((s) => s.projectCode === projectCode)
+      : undefined);
   const { Plugin } = service ? Client.createService(service.system.connectionData) : {};
 
   const [doc, setDocument] = useState({
@@ -108,7 +114,7 @@ export default function Documentation({ projectCode, serviceId, moduleName, meth
     <section className="documentation">
       <div className="documentation-view">
         <div className="row">
-          <DocTitle serviceId={serviceId} moduleName={moduleName} methodName={methodName} />
+          <DocTitle projectCode={projectCode} serviceId={serviceId} moduleName={moduleName} methodName={methodName} />
         </div>
         <div className="doc-tabs">
           <button
@@ -141,7 +147,7 @@ export default function Documentation({ projectCode, serviceId, moduleName, meth
   );
 }
 
-const DocTitle = ({ serviceId, moduleName, methodName, variable_name = "..." }) => {
+const DocTitle = ({ projectCode, serviceId, moduleName, methodName, variable_name = "..." }) => {
   return (
     <Title
       style={{ marginBottom: "5px" }}
@@ -156,8 +162,10 @@ const DocTitle = ({ serviceId, moduleName, methodName, variable_name = "..." }) 
             </>
           ) : moduleName && serviceId ? (
             <>{`${serviceId}.${moduleName}`}</>
+          ) : serviceId ? (
+            <>{`${serviceId}`}</>
           ) : (
-            serviceId && <>{`${serviceId}`}</>
+            projectCode && <>{projectCode}</>
           )}
         </span>
       }

@@ -1,12 +1,10 @@
 import React, { useEffect, useContext, useState } from "react";
 import { useHistory } from "react-router-dom";
 import ServiceContext from "../../ServiceContext";
-import TextBox from "../../atoms/Textbox/Textbox";
 import Link from "../../atoms/Link/Link";
 import ExpandableList from "../../molecules/ExpandableList/ExpandableList";
 import ServerModulesList from "../../molecules/ServerModulesList/ServerModulesList";
 import DocIcon from "../../atoms/DocsIcon/DocsIcon";
-import refreshIcon from "../../assets/refresh.png";
 import "./styles.scss";
 import { Client } from "systemlynx-client";
 
@@ -20,9 +18,18 @@ const TrashIcon = () => (
   </svg>
 );
 
+const ArrowIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="5" y1="12" x2="19" y2="12" />
+    <polyline points="12 5 19 12 12 19" />
+  </svg>
+);
+
 const SystemNav = ({ projectCode, serviceId, moduleName, methodName }) => {
-  const [searchTerm, setSearchTerm] = useState(projectCode);
   const [serviceStatus, setServiceStatus] = useState({});
+  const [adding, setAdding] = useState(false);
+  const [connectUrl, setConnectUrl] = useState("");
+  const [connecting, setConnecting] = useState(false);
   const { SystemViewService, setConnectedServices, connectedServices } =
     useContext(ServiceContext);
   const serviceData = connectedServices.find(
@@ -36,7 +43,7 @@ const SystemNav = ({ projectCode, serviceId, moduleName, methodName }) => {
 
   const mergeServices = (existing, incoming, pc) => {
     const others = existing.filter((s) => s.projectCode !== pc);
-    return [...others, ...incoming];
+    return [...incoming, ...others]; // newly connected/updated project floats to the top
   };
 
   const fetchProject = async (pc = projectCode) => {
@@ -104,22 +111,36 @@ const SystemNav = ({ projectCode, serviceId, moduleName, methodName }) => {
   };
 
   const history = useHistory();
-  const SearchInputSubmit = async (e) => {
-    const pc = e.target.value;
-    const results = await fetchProject(pc);
-    if (results && results.length) {
-      history.push(`/specs/${results[0].projectCode}`);
-      setSearchTerm(results[0].projectCode);
-    } else {
-      setSearchTerm("");
+  // Everything typed here is treated as a URL. Add a scheme if the user didn't, so we don't reject
+  // otherwise-valid hosts. connect → getServices(url) pulls the whole project manifest (api/).
+  const normalizeUrl = (v) => {
+    const t = (v || "").trim();
+    if (!t) return "";
+    return /^https?:\/\//i.test(t) ? t : `http://${t}`;
+  };
+  const handleConnect = async () => {
+    const target = normalizeUrl(connectUrl);
+    if (!target || connecting) return;
+    setConnecting(true);
+    try {
+      const results = await SystemView.connectUrl(target);
+      if (results && results.length) {
+        const pc = results[0].projectCode;
+        setConnectedServices((prev) => mergeServices(prev, results, pc));
+        probeServices(results);
+        history.push(`/specs/${pc}`);
+        setConnectUrl("");
+        setAdding(false);
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setConnecting(false);
     }
   };
-  const refreshHandler = async () => {
-    try {
-      const results = await SystemView.refreshConnection(searchTerm);
-      setConnectedServices((prev) => mergeServices(prev, results, searchTerm));
-      probeServices(results);
-    } catch (error) {}
+  const cancelConnect = () => {
+    setConnectUrl("");
+    setAdding(false);
   };
   useEffect(() => {
     if (connectedServices.length)
@@ -151,19 +172,51 @@ const SystemNav = ({ projectCode, serviceId, moduleName, methodName }) => {
     <section className="system-nav">
       <div className="container">
         <div className="row system-nav__section">
-          <div className="col-12" style={{ display: "flex" }}>
-            <TextBox
-              defaultText={projectCode}
-              placeholderText="projectCode"
-              TextboxSubmit={SearchInputSubmit}
-            />
-            <img
-              className={`btn`}
-              src={refreshIcon}
-              alt={"Refresh"}
-              style={{ width: "24px", height: "24px", margin: "2px" }}
-              onClick={refreshHandler}
-            />
+          <div className="col-12">
+            {adding ? (
+              <div className="system-nav__connect-form">
+                <input
+                  className="system-nav__connect-input"
+                  type="text"
+                  autoFocus
+                  placeholder="https://host/route"
+                  value={connectUrl}
+                  onChange={(e) => setConnectUrl(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleConnect();
+                    if (e.key === "Escape") cancelConnect();
+                  }}
+                  disabled={connecting}
+                />
+                <button
+                  className="system-nav__connect-arrow system-nav__connect-submit"
+                  title="Connect"
+                  onClick={handleConnect}
+                  disabled={connecting || !connectUrl.trim()}
+                >
+                  {connecting ? "…" : <ArrowIcon />}
+                </button>
+                <button
+                  className="system-nav__connect-cancel"
+                  title="Cancel"
+                  onClick={cancelConnect}
+                  disabled={connecting}
+                >
+                  ✕
+                </button>
+              </div>
+            ) : (
+              <button
+                className="system-nav__connect-btn"
+                onClick={() => setAdding(true)}
+              >
+                <span className="system-nav__connect-bullet">•</span>
+                loadService(...)
+                <span className="system-nav__connect-arrow">
+                  <ArrowIcon />
+                </span>
+              </button>
+            )}
           </div>
         </div>
         <div className="row system-nav__section">

@@ -20,9 +20,20 @@ module.exports = ({ App, specs, projectCode, serviceId, module = {} }) => {
     const { SystemView } = this.useService("SystemViewUI");
 
     Object.assign(this, module);
+
+    // Resolve where a doc lives. Service/module/method docs live in specs/docs/. A project-level doc
+    // (namespace has no service/module/method) is a single {projectCode}.md at the project ROOT (cwd) —
+    // shared by every service in the project, since they all run from the same working directory.
+    const docPath = (namespace) => {
+      const name = getName(namespace);
+      return name
+        ? `${specs}/docs/${name}.md`
+        : path.join(process.cwd(), `${projectCode}.md`);
+    };
+
     this.saveDoc = ({ documentation, namespace }) => {
-      const fileName = `${specs}/docs/${getName(namespace)}.md`;
-      ensureDir(`${specs}/docs/`);
+      const fileName = docPath(namespace);
+      if (getName(namespace)) ensureDir(`${specs}/docs/`);
       if (documentation) {
         fs.writeFileSync(fileName, documentation, "utf8");
       } else {
@@ -33,7 +44,7 @@ module.exports = ({ App, specs, projectCode, serviceId, module = {} }) => {
     };
 
     this.getDoc = (namespace) => {
-      const fileName = `${specs}/docs/${getName(namespace)}.md`;
+      const fileName = docPath(namespace);
       const documentation = getFile(fileName) || "";
       return { namespace, documentation };
     };
