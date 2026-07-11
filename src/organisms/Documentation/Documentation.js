@@ -5,7 +5,7 @@ import EditBox from "../../molecules/EditBox/EditBox";
 import Title from "../../atoms/Title/Title";
 import Markdown from "../../atoms/Markdown/Markdown";
 import ServiceContext from "../../ServiceContext";
-import { Client } from "systemlynx-client";
+import { Client } from "../../systemClient";
 import { LogRow } from "../../pages/Logs/Logs";
 
 function InlineLogs({ projectCode, serviceId, moduleName, methodName }) {

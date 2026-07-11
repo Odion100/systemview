@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useContext, useCallback, useMemo } 
 import { useHistory, useLocation } from "react-router-dom";
 import ReactJson from "react-json-view";
 import moment from "moment";
-import { Client } from "systemlynx-client";
+import { Client } from "../../systemClient";
 import ServiceContext from "../../ServiceContext";
 import LOGO from "../../assets/sysly.png";
 import "./styles.scss";

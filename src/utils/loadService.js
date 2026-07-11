@@ -1,4 +1,4 @@
-import { Client } from "systemlynx-client";
+import { Client } from "../systemClient";
 
 // Load a service client with its auth headers attached.
 //
