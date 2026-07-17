@@ -11,7 +11,7 @@
       },
       {
         "title": "generate a log entry via String.concat",
-        "namespace": { "serviceId": "TestService", "moduleName": "String", "methodName": "concat" },
+        "namespace": { "serviceId": "GatedService", "moduleName": "String", "methodName": "concat" },
         "args": [
           { "name": "a:", "input": "logtest-", "input_type": "string", "data_type": "", "targetValues": [] },
           { "name": "b:", "input": "x", "input_type": "string", "data_type": "", "targetValues": [] }
@@ -48,7 +48,7 @@
       { "title": "clear log", "namespace": { "serviceId": "TestService", "moduleName": "SystemView", "methodName": "clearLog" }, "args": [], "savedEvaluations": [] },
       {
         "title": "String.concat → produces trace(start/end) + one log entry",
-        "namespace": { "serviceId": "TestService", "moduleName": "String", "methodName": "concat" },
+        "namespace": { "serviceId": "GatedService", "moduleName": "String", "methodName": "concat" },
         "args": [
           { "name": "a:", "input": "lvl-", "input_type": "string", "data_type": "", "targetValues": [] },
           { "name": "b:", "input": "y", "input_type": "string", "data_type": "", "targetValues": [] }
@@ -80,7 +80,7 @@
       { "title": "clear log", "namespace": { "serviceId": "TestService", "moduleName": "SystemView", "methodName": "clearLog" }, "args": [], "savedEvaluations": [] },
       {
         "title": "String.concat (noise)",
-        "namespace": { "serviceId": "TestService", "moduleName": "String", "methodName": "concat" },
+        "namespace": { "serviceId": "GatedService", "moduleName": "String", "methodName": "concat" },
         "args": [
           { "name": "a:", "input": "f-", "input_type": "string", "data_type": "", "targetValues": [] },
           { "name": "b:", "input": "z", "input_type": "string", "data_type": "", "targetValues": [] }
@@ -136,7 +136,7 @@
       { "title": "clear log", "namespace": { "serviceId": "TestService", "moduleName": "SystemView", "methodName": "clearLog" }, "args": [], "savedEvaluations": [] },
       {
         "title": "String.concat → start, log, end (end is last)",
-        "namespace": { "serviceId": "TestService", "moduleName": "String", "methodName": "concat" },
+        "namespace": { "serviceId": "GatedService", "moduleName": "String", "methodName": "concat" },
         "args": [
           { "name": "a:", "input": "lim-", "input_type": "string", "data_type": "", "targetValues": [] },
           { "name": "b:", "input": "q", "input_type": "string", "data_type": "", "targetValues": [] }

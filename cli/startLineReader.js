@@ -11,6 +11,8 @@ const readline = require("readline");
 const { createClient } = require("systemlynx");
 const { createCookieHttpClient } = require("./cookieClient");
 const Client = createClient(createCookieHttpClient());
+const { setCaseSensitive } = require("./utils/matchNamespace");
+const toggle = require("./toggle");
 
 module.exports = async function startLineReader(url, { connectedUrls = new Set() } = {}) {
   const lineReader = readline.createInterface({
@@ -23,6 +25,13 @@ module.exports = async function startLineReader(url, { connectedUrls = new Set()
     ({ CLI } = await Client.loadService(`${url}/systemview/api`));
     const history = await CLI.getHistory();
     lineReader.history = [...history].reverse();
+    try {
+      const settings = await CLI.getSettings();
+      setCaseSensitive(settings.caseSensitive);
+      log.info(
+        `Namespace matching: ${settings.caseSensitive ? "case-SENSITIVE" : "case-insensitive"}   (toggle: cs / ci)`,
+      );
+    } catch {}
   } catch {}
 
   let stopLogs = null;
@@ -105,6 +114,13 @@ module.exports = async function startLineReader(url, { connectedUrls = new Set()
           verbose: flags.verbose,
         });
       } catch (e) { console.error(e.message); }
+      lineReader.prompt();
+    } else if (command === "toggle") {
+      // parts[1] (raw) not positional[0] — a `--cs`-style arg gets eaten by the flag parser.
+      try { await toggle(CLI, parts[1]); } catch (e) { console.error(e.message); }
+      lineReader.prompt();
+    } else if (["cs", "ci", "case-sensitive", "case-insensitive"].includes(command)) {
+      try { await toggle(CLI, command); } catch (e) { console.error(e.message); }
       lineReader.prompt();
     } else if (command === "logs") {
       if (stopLogs) { stopLogs(); stopLogs = null; }

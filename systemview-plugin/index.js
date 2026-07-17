@@ -32,6 +32,10 @@ module.exports = function ({
   serviceId,
   module,
   headers = {},
+  // Declares this service COOKIE-CREDENTIALED (RFC-013): its CORS reflects the origin and allows
+  // credentials, and it authenticates via session cookies — so browser clients must send
+  // withCredentials even though it declares no header profile. Rides the registration to the UI.
+  credentials = false,
   useSystemViewLogs = true,
   useSystemViewUI = true,
   trace: traceConfig = true,
@@ -274,7 +278,7 @@ module.exports = function ({
       App.loadService("SystemViewUI", connection)
         .module(
           "Plugin",
-          SystemViewModule({ specs, App, projectCode, serviceId, module }),
+          SystemViewModule({ specs, App, projectCode, serviceId, module, credentials }),
         )
         .on(
           "ready",
@@ -289,7 +293,13 @@ module.exports = function ({
 
             try {
               const { SystemView: SystemViewSvc } = this.useService("SystemViewUI");
-              await SystemViewSvc.connect({ system, projectCode, serviceId, specList });
+              await SystemViewSvc.connect({
+                system,
+                projectCode,
+                serviceId,
+                specList,
+                credentials,
+              });
               console.log(`[SystemView]: ${projectCode}.${serviceId} connected!\n`);
             } catch (err) {
               console.log(
@@ -306,7 +316,7 @@ module.exports = function ({
                 } catch {}
                 if (!manifest.services) manifest.services = [];
               }
-              const entry = { serviceId, system, specList };
+              const entry = { serviceId, system, specList, credentials };
               const idx = manifest.services.findIndex((s) => s.serviceId === serviceId);
               if (idx > -1) manifest.services[idx] = entry;
               else manifest.services.push(entry);

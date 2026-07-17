@@ -6,6 +6,13 @@ const { createClient } = require("systemlynx");
 const { createCookieHttpClient } = require("./cookieClient");
 const cookieHttpClient = createCookieHttpClient();
 const Client = createClient(cookieHttpClient);
+const resolveTarget = require("./utils/resolveTarget");
+const { matchNamespace } = require("./utils/matchNamespace");
+
+// Namespace match against a log entry's full Service.Module.method path (honoring the case mode), so
+// bare service names ("Profiles"), dotted paths ("Posts.add"), and method names ("signUp") all filter.
+const nsMatch = (entry, ns) =>
+  matchNamespace(`${entry.serviceId || ""}.${entry.moduleMethod || ""}`, ns);
 
 const DEFAULT_SNAPSHOT = "systemview-snapshot.ndjson";
 
@@ -197,7 +204,7 @@ module.exports = async function logsCommand(
     }
     if (namespace)
       entries = entries.filter(
-        (e) => e.moduleMethod && e.moduleMethod.includes(namespace),
+        (e) => nsMatch(e, namespace),
       );
     if (andFilters.length || orFiltersParsed.length)
       entries = entries.filter((e) => matchesFilters(e, andFilters, orFiltersParsed));
@@ -216,33 +223,13 @@ module.exports = async function logsCommand(
   try {
     const { SystemView } = await Client.loadService(`${uiUrl}/systemview/api`);
 
-    if (!projectCode) {
-      const projects = await SystemView.getProjects();
-      services = Object.values(projects).flat();
-    } else {
-      const matches = await SystemView.getServices(projectCode);
-      if (matches && matches.length) {
-        services = matches;
-      } else {
-        // Fuzzy namespace: check if arg is a module/method name
-        const projects = await SystemView.getProjects();
-        const all = Object.values(projects).flat();
-        const isNamespace = all.some(({ system }) =>
-          (system.connectionData.modules || []).some(
-            ({ name, methods }) =>
-              name.toLowerCase().includes(projectCode.toLowerCase()) ||
-              (methods || []).some(({ fn }) =>
-                fn.toLowerCase().includes(projectCode.toLowerCase()),
-              ),
-          ),
-        );
-        if (isNamespace) {
-          services = all;
-          effectiveNamespace = projectCode;
-        } else {
-          log.warn(`No services found for: ${projectCode}`);
-          return;
-        }
+    {
+      const resolved = await resolveTarget(SystemView, projectCode);
+      services = resolved.services;
+      if (resolved.resolvedNamespace && !namespace) effectiveNamespace = resolved.resolvedNamespace;
+      if (projectCode && !services.length) {
+        log.warn(`No services found for: ${projectCode}`);
+        return;
       }
     }
   } catch (err) {
@@ -284,7 +271,7 @@ module.exports = async function logsCommand(
       const unsub = svc.SystemView.on("log", (entry) => {
         if (
           effectiveNamespace &&
-          !(entry.moduleMethod && entry.moduleMethod.includes(effectiveNamespace))
+          !nsMatch(entry, effectiveNamespace)
         )
           return;
         if (andFilters.length || orFiltersParsed.length) {
@@ -349,18 +336,26 @@ module.exports = async function logsCommand(
 
   if (current) {
     const allEntries = [];
+    // Services in one project can share a log file (same cwd) — getLog then returns the SAME records
+    // from each service. Dedupe identical entries so a log isn't shown once per sibling service.
+    const seen = new Set();
     for (const { svc } of connected) {
       try {
         let entries = await svc.SystemView.getLog({ limit });
         entries = entries || [];
         if (effectiveNamespace)
           entries = entries.filter(
-            (e) => e.moduleMethod && e.moduleMethod.includes(effectiveNamespace),
+            (e) => nsMatch(e, effectiveNamespace),
           );
         if (andFilters.length || orFiltersParsed.length)
           entries = entries.filter((e) => matchesFilters(e, andFilters, orFiltersParsed));
         if (level) entries = entries.filter((e) => e.level === level);
-        allEntries.push(...entries);
+        for (const e of entries) {
+          const key = `${e.traceId || ""}|${e.timestamp || ""}|${e.scope || ""}|${e.level || ""}|${e.moduleMethod || ""}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          allEntries.push(e);
+        }
       } catch {}
     }
     if (allEntries.length) {

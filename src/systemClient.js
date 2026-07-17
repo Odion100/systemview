@@ -2,18 +2,45 @@ import { createClient } from "systemlynx-client";
 import axios from "axios";
 import FormData from "form-data";
 
-// SystemView's own browser SystemLynx client. It's the default systemlynx-client HTTP client plus
-// `withCredentials: true`, passed into `createClient(...)` — the same pattern the CLI uses with
-// `createCookieHttpClient`. This keeps the cookie behavior in SystemView's own source (no edit to the
-// systemlynx-client package). `withCredentials` makes the browser send AND receive the session cookie
-// cross-origin, so a signed-in identity survives across calls (pairs with credentialed CORS on the
-// server, which must reflect the Origin — `*` is illegal with credentials).
+// SystemView's own browser SystemLynx client — the default systemlynx-client HTTP client passed into
+// `createClient(...)` (same pattern as the CLI's `createCookieHttpClient`), with `withCredentials`
+// decided PER SERVICE, systematically.
+//
+// The rule (not a heuristic): a service is CREDENTIALED when it declares an auth header profile in the
+// manifest (a token, a captured session cookie, etc.). Such a service is set up to accept credentialed
+// cross-origin requests (its CORS reflects the origin + allows credentials — `*` is illegal with
+// credentials). We turn `withCredentials` ON for those origins so the browser sends/receives the
+// session cookie; PLAIN services (no declared headers, default wildcard CORS) stay credential-less so
+// they keep working. Origins are marked once, at load time (loadServiceWithHeaders), keyed by origin —
+// we never sniff an individual request's headers to guess.
+const credentialedOrigins = new Set();
+
+function originOf(url) {
+  try {
+    return new URL(url).origin;
+  } catch {
+    return null;
+  }
+}
+
+// Called by loadServiceWithHeaders when a service is loaded WITH a declared header profile.
+export function markCredentialed(url) {
+  const origin = originOf(url);
+  if (origin) credentialedOrigins.add(origin);
+}
+
+function sendsCredentials(url) {
+  return credentialedOrigins.has(originOf(url));
+}
+
 function createBrowserHttpClient() {
   const http = {};
   http.request = async ({ method = "get", url, body: data, headers }) => {
     method = method.toLowerCase();
     try {
-      const res = await axios({ url, method, headers, data, withCredentials: true });
+      // TEMP diagnostic — remove after confirming credentialed behavior in the browser.
+      console.log(`[sv-cred] withCredentials=${sendsCredentials(url)} → ${url}`);
+      const res = await axios({ url, method, headers, data, withCredentials: sendsCredentials(url) });
       if (res.status >= 400) throw res.data;
       return res.data;
     } catch (error) {
@@ -32,7 +59,7 @@ function createBrowserHttpClient() {
     try {
       const res = await axios.post(url, form, {
         headers: { ...headers, "Content-Type": "multipart/form-data" },
-        withCredentials: true,
+        withCredentials: sendsCredentials(url),
       });
       if (res.status >= 400) throw res.data;
       return res.data;

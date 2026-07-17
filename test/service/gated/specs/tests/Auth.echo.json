@@ -1,0 +1,37 @@
+[
+  {
+    "title": "declared manifest headers reach the gated service",
+    "namespace": { "serviceId": "GatedService", "moduleName": "Auth", "methodName": "echo" },
+    "Before": [],
+    "Main": [
+      {
+        "title": "echo returns the @file token header (manifest headers → gated service request)",
+        "namespace": { "serviceId": "GatedService", "moduleName": "Auth", "methodName": "echo" },
+        "args": [],
+        "savedEvaluations": [
+          {
+            "namespace": "results.headers.testtoken",
+            "expected_type": "string",
+            "validations": [{ "name": "strEquals", "value": "SEEKRIT-FILE-TOKEN" }],
+            "save": true
+          }
+        ]
+      },
+      {
+        "title": "echo shows the plugin-config Origin reached the service",
+        "namespace": { "serviceId": "GatedService", "moduleName": "Auth", "methodName": "echo" },
+        "args": [],
+        "savedEvaluations": [
+          {
+            "namespace": "results.hasOrigin",
+            "expected_type": "boolean",
+            "validations": [{ "name": "boolEquals", "value": true }],
+            "save": true
+          }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": []
+  }
+]

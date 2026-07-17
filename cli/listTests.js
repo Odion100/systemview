@@ -5,6 +5,8 @@ const chalk = require("chalk");
 
 const cookieHttpClient = createCookieHttpClient();
 const Client = createClient(cookieHttpClient);
+const resolveTarget = require("./utils/resolveTarget");
+const { matchNamespace } = require("./utils/matchNamespace");
 
 module.exports = async function listTests(url, project_code, namespace, { connectedUrls = new Set(), verbose = false, json = false } = {}) {
   const api = `${url}/systemview/api`;
@@ -14,9 +16,16 @@ module.exports = async function listTests(url, project_code, namespace, { connec
     return;
   }
 
-  const connectedServices = await loadServices(api, project_code, Client);
+  // Same resolver as test/logs: exact projectCode, else fuzzy namespace (no projectCode required).
+  let connectedServices = [];
+  try {
+    const { SystemView } = await Client.loadService(api);
+    const resolved = await resolveTarget(SystemView, project_code);
+    connectedServices = resolved.services;
+    if (resolved.resolvedNamespace && !namespace) namespace = resolved.resolvedNamespace;
+  } catch {}
   if (!connectedServices.length) {
-    log.warn("No connected services found for project: " + project_code);
+    log.warn("No connected services found for: " + project_code);
     return;
   }
 
@@ -28,11 +37,14 @@ module.exports = async function listTests(url, project_code, namespace, { connec
         const svc = Client.createService(system.connectionData);
         testList = await svc.Plugin.getTests();
       } catch { continue; }
+      // Scope to specs that belong to THIS service (services can share a specs folder, so getTests
+      // returns the whole folder). Then apply the optional namespace filter.
+      const own = testList.filter(({ namespace: n }) => n && n.serviceId === serviceId);
       const filtered = namespace
-        ? testList.filter(({ namespace: n }) =>
-            `${n.serviceId}.${n.moduleName}.${n.methodName}`.includes(namespace)
+        ? own.filter(({ namespace: n }) =>
+            matchNamespace(`${n.serviceId}.${n.moduleName}.${n.methodName}`, namespace)
           )
-        : testList;
+        : own;
       output.push({ serviceId, tests: filtered });
     }
     console.log(JSON.stringify(output, null, 2));
@@ -57,11 +69,14 @@ module.exports = async function listTests(url, project_code, namespace, { connec
       continue;
     }
 
+    // Scope to specs that belong to THIS service (services can share a specs folder, so getTests
+    // returns the whole folder). Then apply the optional namespace filter.
+    const own = testList.filter(({ namespace: n }) => n && n.serviceId === serviceId);
     const filtered = namespace
-      ? testList.filter(({ namespace: n }) =>
-          `${n.serviceId}.${n.moduleName}.${n.methodName}`.includes(namespace)
+      ? own.filter(({ namespace: n }) =>
+          matchNamespace(`${n.serviceId}.${n.moduleName}.${n.methodName}`, namespace)
         )
-      : testList;
+      : own;
 
     if (!filtered.length) {
       console.log(`${servicePrefix}${chalk.dim(serviceId)}  ${chalk.dim("(no matching tests)")}`);
@@ -170,11 +185,3 @@ async function listAllProjects(api, Client, verbose = false, connectedUrls = new
   console.log("");
 }
 
-async function loadServices(api, project_code, Client) {
-  try {
-    const { SystemView } = await Client.loadService(api);
-    return (await SystemView.getServices(project_code)) || [];
-  } catch {
-    return [];
-  }
-}

@@ -24,7 +24,8 @@
     "start": "nodemon cli",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "services": "node test/service/index.js & sleep 1; node test/service/gated/index.js & sleep 1; node test/service/gated/sibling.js & wait"
   },
   "eslintConfig": {
     "parser": "@babel/eslint-parser",

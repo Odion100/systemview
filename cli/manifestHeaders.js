@@ -74,9 +74,29 @@ function headersFor(url) {
     const value = deref(raw);
     if (value != null && value !== "") out[name] = value;
   }
+  // PURE per-origin. This is what `api/getProjects` feeds the browser to decide which services are
+  // credentialed — a plain service MUST read as empty here, or the browser marks it credentialed and
+  // sends withCredentials to its wildcard CORS (illegal → blocked). Project-wide cookie sharing (the
+  // cross-service ride) lives only in the CLI request path (sessionCookieHeader, used by cookieClient),
+  // never in what the browser sees.
   const names = Object.keys(out);
   if (names.length) note("attach:" + origin, `using ${names.length} manifest header(s) for ${origin}`);
   return out;
+}
+
+// Project-wide session cookie for the CLI request path ONLY (createCookieHttpClient), never fed to the
+// browser. A session captured for ANY service in this manifest rides to the project's other services —
+// the CLI's origin-scoped jar otherwise wouldn't (the browser's domain jar does this for free). Returns
+// a borrowed { Cookie } only when the requested origin has no Cookie of its own (its own rides via
+// headersFor). One manifest = one project/deployment = one session.
+function sessionCookieHeader(url) {
+  const origin = originOf(url);
+  load();
+  if (headers[origin] && headers[origin].Cookie) return {};
+  for (const [o, b] of Object.entries(headers)) {
+    if (o !== origin && b && b.Cookie) return { Cookie: b.Cookie };
+  }
+  return {};
 }
 
 // Fold Set-Cookie response headers into the in-memory Cookie header for the url's origin.
@@ -117,4 +137,4 @@ function takeNotices() {
   return _notices.splice(0, _notices.length);
 }
 
-module.exports = { headersFor, captureCookie, getHeaders, takeNotices, MANIFEST_FILE };
+module.exports = { headersFor, sessionCookieHeader, captureCookie, getHeaders, takeNotices, MANIFEST_FILE };

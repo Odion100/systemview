@@ -1,11 +1,11 @@
 [
   {
-    "title": "Session cookie persists across calls",
-    "namespace": { "serviceId": "TestService", "moduleName": "Auth", "methodName": "getSession" },
+    "title": "This sibling receives the session established on GatedService (session rides across the project)",
+    "namespace": { "serviceId": "GatedSibling", "moduleName": "Auth", "methodName": "getSession" },
     "Before": [
       {
-        "title": "Sign in to establish session",
-        "namespace": { "serviceId": "TestService", "moduleName": "Auth", "methodName": "signIn" },
+        "title": "Sign in on GatedService (:5556) — establishes the project session",
+        "namespace": { "serviceId": "GatedService", "moduleName": "Auth", "methodName": "signIn" },
         "args": [
           {
             "name": "argument:",
@@ -27,8 +27,8 @@
     ],
     "Main": [
       {
-        "title": "Cookie is carried to next request",
-        "namespace": { "serviceId": "TestService", "moduleName": "Auth", "methodName": "getSession" },
+        "title": "getSession on this sibling (:5557) sees the session — it rode from GatedService",
+        "namespace": { "serviceId": "GatedSibling", "moduleName": "Auth", "methodName": "getSession" },
         "args": [],
         "savedEvaluations": [
           {

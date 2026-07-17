@@ -1,12 +1,12 @@
 [
   {
     "title": "Sign in",
-    "namespace": { "serviceId": "TestService", "moduleName": "Auth", "methodName": "signIn" },
+    "namespace": { "serviceId": "GatedService", "moduleName": "Auth", "methodName": "signIn" },
     "Before": [],
     "Main": [
       {
         "title": "Signs in with missing credentials (warn)",
-        "namespace": { "serviceId": "TestService", "moduleName": "Auth", "methodName": "signIn" },
+        "namespace": { "serviceId": "GatedService", "moduleName": "Auth", "methodName": "signIn" },
         "args": [
           {
             "name": "argument:",
@@ -27,7 +27,7 @@
       },
       {
         "title": "Signs in with valid credentials",
-        "namespace": { "serviceId": "TestService", "moduleName": "Auth", "methodName": "signIn" },
+        "namespace": { "serviceId": "GatedService", "moduleName": "Auth", "methodName": "signIn" },
         "args": [
           {
             "name": "argument:",

@@ -1,0 +1,120 @@
+[
+  {
+    "title": "toggle: `toggle cs` flips namespace matching to case-SENSITIVE",
+    "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "run" },
+    "Before": [
+      {
+        "title": "baseline: `toggle ci`",
+        "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "run" },
+        "args": [
+          { "name": "argument:", "input": { "args": ["toggle", "ci"] }, "input_type": "object", "data_type": "", "targetValues": [] }
+        ],
+        "savedEvaluations": []
+      }
+    ],
+    "Main": [
+      {
+        "title": "run `toggle cs` → stdout says case-SENSITIVE",
+        "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "run" },
+        "args": [
+          { "name": "argument:", "input": { "args": ["toggle", "cs"] }, "input_type": "object", "data_type": "", "targetValues": [] }
+        ],
+        "savedEvaluations": [
+          { "namespace": "results.exitCode", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 0 }], "save": true },
+          { "namespace": "results.stdout", "expected_type": "string", "validations": [{ "name": "isLike", "value": "case-SENSITIVE" }], "save": true }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": [
+      {
+        "title": "reset: `toggle ci`",
+        "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "run" },
+        "args": [
+          { "name": "argument:", "input": { "args": ["toggle", "ci"] }, "input_type": "object", "data_type": "", "targetValues": [] }
+        ],
+        "savedEvaluations": [
+          { "namespace": "results.stdout", "expected_type": "string", "validations": [{ "name": "isLike", "value": "case-insensitive" }], "save": true }
+        ]
+      }
+    ]
+  },
+  {
+    "title": "toggle: dash form `toggle --cs` works (leading dashes stripped)",
+    "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "run" },
+    "Before": [
+      {
+        "title": "baseline: `toggle ci`",
+        "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "run" },
+        "args": [
+          { "name": "argument:", "input": { "args": ["toggle", "ci"] }, "input_type": "object", "data_type": "", "targetValues": [] }
+        ],
+        "savedEvaluations": []
+      }
+    ],
+    "Main": [
+      {
+        "title": "run `toggle --cs` → stdout says case-SENSITIVE",
+        "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "run" },
+        "args": [
+          { "name": "argument:", "input": { "args": ["toggle", "--cs"] }, "input_type": "object", "data_type": "", "targetValues": [] }
+        ],
+        "savedEvaluations": [
+          { "namespace": "results.stdout", "expected_type": "string", "validations": [{ "name": "isLike", "value": "case-SENSITIVE" }], "save": true }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": [
+      {
+        "title": "reset: `toggle ci`",
+        "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "run" },
+        "args": [
+          { "name": "argument:", "input": { "args": ["toggle", "ci"] }, "input_type": "object", "data_type": "", "targetValues": [] }
+        ],
+        "savedEvaluations": [
+          { "namespace": "results.stdout", "expected_type": "string", "validations": [{ "name": "isLike", "value": "case-insensitive" }], "save": true }
+        ]
+      }
+    ]
+  },
+  {
+    "title": "toggle: bare `toggle` flips from insensitive → case-SENSITIVE",
+    "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "run" },
+    "Before": [
+      {
+        "title": "baseline: `toggle ci`",
+        "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "run" },
+        "args": [
+          { "name": "argument:", "input": { "args": ["toggle", "ci"] }, "input_type": "object", "data_type": "", "targetValues": [] }
+        ],
+        "savedEvaluations": []
+      }
+    ],
+    "Main": [
+      {
+        "title": "run bare `toggle` → flips to case-SENSITIVE",
+        "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "run" },
+        "args": [
+          { "name": "argument:", "input": { "args": ["toggle"] }, "input_type": "object", "data_type": "", "targetValues": [] }
+        ],
+        "savedEvaluations": [
+          { "namespace": "results.stdout", "expected_type": "string", "validations": [{ "name": "isLike", "value": "case-SENSITIVE" }], "save": true }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": [
+      {
+        "title": "reset: `toggle ci`",
+        "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "run" },
+        "args": [
+          { "name": "argument:", "input": { "args": ["toggle", "ci"] }, "input_type": "object", "data_type": "", "targetValues": [] }
+        ],
+        "savedEvaluations": [
+          { "namespace": "results.stdout", "expected_type": "string", "validations": [{ "name": "isLike", "value": "case-insensitive" }], "save": true }
+        ]
+      }
+    ]
+  }
+]

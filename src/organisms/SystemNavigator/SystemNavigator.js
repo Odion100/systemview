@@ -6,7 +6,7 @@ import ExpandableList from "../../molecules/ExpandableList/ExpandableList";
 import ServerModulesList from "../../molecules/ServerModulesList/ServerModulesList";
 import DocIcon from "../../atoms/DocsIcon/DocsIcon";
 import "./styles.scss";
-import { Client } from "../../systemClient";
+import { Client, markCredentialed } from "../../systemClient";
 
 const TrashIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -81,6 +81,16 @@ const SystemNav = ({ projectCode, serviceId, moduleName, methodName }) => {
       const all = Object.entries(projects).flatMap(([pc, svcs]) =>
         svcs.map((svc) => ({ projectCode: pc, ...svc }))
       );
+      // Mark credentialed origins UP FRONT (not lazily on first setHeaders) so the very first request
+      // to a gated service — including a signIn whose Set-Cookie must be STORED — already carries
+      // withCredentials. Otherwise an early non-credentialed request drops the Set-Cookie and the
+      // session never persists. A service is credentialed when it declares a header profile OR
+      // registered the cookie-only `credentials: true` flag (RFC-013).
+      all.forEach((s) => {
+        const url = (s.system && s.system.connectionData && s.system.connectionData.serviceUrl) || s.serviceUrl;
+        if (url && ((s.headers && Object.keys(s.headers).length) || s.credentials))
+          markCredentialed(url);
+      });
       if (all.length) {
         setConnectedServices(all);
         probeServices(all);
@@ -321,6 +331,7 @@ const NavigationLinks = ({
               }
             >
               <ServerModulesList
+                selectedServiceId={selectedServiceId}
                 selectedModuleName={selectedModuleName}
                 selectedMethodName={selectedMethodName}
                 projectCode={pc}

@@ -3,6 +3,7 @@ const { createCookieHttpClient } = require("../cli/cookieClient");
 const { headersFor } = require("../cli/manifestHeaders");
 const ConnectedServices = require("./Connections")();
 const CLIHistory = require("./CLIHistory")();
+const Settings = require("./Settings")();
 // The UI server calls services the same way the CLI does: through the manifest-header client,
 // so operator-authored headers (e.g. an Origin for a gated dev session — see cli/manifestHeaders.js)
 // are attached to every outbound call and every probe. One resolver, shared with the CLI; the UI is
@@ -19,7 +20,7 @@ const isUrl = (str) =>
     str,
   );
 
-function connect({ system, projectCode, serviceId, specList }) {
+function connect({ system, projectCode, serviceId, specList, credentials }) {
   const { service, index } = ConnectedServices.findService(
     system.connectionData.serviceUrl,
     projectCode,
@@ -30,8 +31,16 @@ function connect({ system, projectCode, serviceId, specList }) {
     service.projectCode = projectCode;
     service.serviceId = serviceId;
     service.specList = specList;
+    service.credentials = !!credentials;
     ConnectedServices.save(service, index);
-  } else ConnectedServices.save({ system, projectCode, serviceId, specList });
+  } else
+    ConnectedServices.save({
+      system,
+      projectCode,
+      serviceId,
+      specList,
+      credentials: !!credentials,
+    });
 }
 
 function updateSpecList(specList, projectCode, serviceId) {
@@ -83,6 +92,7 @@ async function getConnectionData(url) {
           projectCode: manifest.projectCode,
           serviceId: s.serviceId,
           specList: s.specList || { tests: [], docs: [] },
+          credentials: !!s.credentials,
         }));
         projects.forEach(connect);
         return projects;
@@ -97,6 +107,7 @@ async function getConnectionData(url) {
         projectCode: connection.projectCode,
         serviceId: connection.serviceId,
         specList: connection.specList,
+        credentials: !!connection.credentials,
       };
     } catch {
       const routeSegs = (connectionData.route || "").split("/").filter(Boolean);
@@ -122,7 +133,7 @@ async function refreshConnection(searchText) {
 function getProjects() {
   const connections = ConnectedServices.getAllConnections();
   const projects = {};
-  connections.forEach(({ projectCode, serviceId, system, specList }) => {
+  connections.forEach(({ projectCode, serviceId, system, specList, credentials }) => {
     if (!projects[projectCode]) projects[projectCode] = [];
     projects[projectCode].push({
       serviceId,
@@ -134,6 +145,10 @@ function getProjects() {
       // the browser has no filesystem). The UI calls svc.setHeaders(headers) after createService so
       // every browser-run test/log/probe carries them. Same manifest.headers store as the CLI.
       headers: headersFor(system.connectionData.serviceUrl),
+      // Cookie-credentialed declaration (RFC-013): the service's plugin registered credentials:true,
+      // meaning it authenticates via session cookies (no header profile) — the browser must mark its
+      // origin credentialed so withCredentials rides from the very first request.
+      credentials: !!credentials,
     });
   });
   return projects;
@@ -176,6 +191,8 @@ module.exports = function launchSystemView(port = 3000) {
     .module("CLI", {
       getHistory: CLIHistory.getHistory,
       saveHistory: CLIHistory.saveHistory,
+      getSettings: Settings.getSettings,
+      saveSettings: Settings.saveSettings,
     })
     .on("ready", () => {
       server.get("*", (req, res) => {

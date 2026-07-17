@@ -1,12 +1,12 @@
 [
   {
     "title": "Repeat a string",
-    "namespace": { "serviceId": "TestService", "moduleName": "String", "methodName": "repeat" },
+    "namespace": { "serviceId": "GatedService", "moduleName": "String", "methodName": "repeat" },
     "Before": [],
     "Main": [
       {
         "title": "Repeat 1500 times (warn)",
-        "namespace": { "serviceId": "TestService", "moduleName": "String", "methodName": "repeat" },
+        "namespace": { "serviceId": "GatedService", "moduleName": "String", "methodName": "repeat" },
         "args": [
           {
             "name": "str:",
@@ -34,7 +34,7 @@
       },
       {
         "title": "Repeat 'ha' 3 times",
-        "namespace": { "serviceId": "TestService", "moduleName": "String", "methodName": "repeat" },
+        "namespace": { "serviceId": "GatedService", "moduleName": "String", "methodName": "repeat" },
         "args": [
           {
             "name": "str:",

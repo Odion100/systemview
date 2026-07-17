@@ -20,6 +20,8 @@ const { createClient } = require("systemlynx");
 const { createCookieHttpClient } = require("./cookieClient");
 const cookieHttpClient = createCookieHttpClient();
 const Client = createClient(cookieHttpClient);
+const { setCaseSensitive } = require("./utils/matchNamespace");
+const toggle = require("./toggle");
 
 const DEFAULT_PORT = 3000;
 const VERSION = require("../package.json").version;
@@ -155,6 +157,22 @@ async function quitApp() {
   flushAndExit(0);
 }
 
+// Load the sticky case-sensitivity setting (persisted on the UI, default insensitive) into the
+// namespace matcher before a namespace command resolves. Change it with the `toggle` command
+// (`toggle cs` / `toggle ci`, or bare `cs`/`ci`) — see cli/toggle.js.
+async function loadCaseSetting() {
+  const NS_CMDS = ["test", "list", "logs", "log", "open"];
+  if (!NS_CMDS.includes(input[0])) return;
+  try {
+    await launchApp(DEFAULT_PORT); // idempotent — ensure the UI is up so the setting reads
+    const { CLI } = await Client.loadService(`${UI_URL}/systemview/api`);
+    const settings = await CLI.getSettings();
+    setCaseSensitive(settings.caseSensitive);
+  } catch {
+    setCaseSensitive(false); // UI down / older server → default insensitive
+  }
+}
+
 (async () => {
   if (process.argv.includes("--version") || process.argv.includes("-v")) {
     console.log(VERSION);
@@ -162,11 +180,21 @@ async function quitApp() {
   }
 
   init();
+  await loadCaseSetting();
 
   const command = input[0];
 
   if (command === "open") {
     await open();
+  } else if (command === "toggle" || ["cs", "ci", "case-sensitive", "case-insensitive"].includes(command)) {
+    await launchApp(DEFAULT_PORT);
+    let CLI = null;
+    try { ({ CLI } = await Client.loadService(`${UI_URL}/systemview/api`)); } catch {}
+    // Raw token after "toggle" — a `--cs`-style arg is stripped from meow's `input`.
+    const toggleArg =
+      command === "toggle" ? process.argv[process.argv.indexOf("toggle") + 1] : command;
+    await toggle(CLI, toggleArg);
+    flushAndExit(0);
   } else if (command === "list") {
     await list();
   } else if (command === "help" || input.includes("help")) {

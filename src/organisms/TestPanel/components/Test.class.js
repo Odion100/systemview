@@ -101,7 +101,8 @@ export default function Test({
 
       this.connection[serviceId] = loadServiceWithHeaders(
         connectionData,
-        service.headers
+        service.headers,
+        service.credentials
       );
     }
 

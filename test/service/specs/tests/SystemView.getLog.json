@@ -18,16 +18,15 @@
       },
       {
         "title": "call a method that emits an auto-trace + a manual log",
-        "namespace": { "serviceId": "TestService", "moduleName": "String", "methodName": "concat" },
+        "namespace": { "serviceId": "TestService", "moduleName": "Math", "methodName": "add" },
         "args": [
-          { "name": "a:", "input": "trace-", "input_type": "string", "data_type": "", "targetValues": [] },
-          { "name": "b:", "input": "test", "input_type": "string", "data_type": "", "targetValues": [] }
+          { "name": "argument:", "input": { "a": 2, "b": 3 }, "input_type": "object", "data_type": "", "targetValues": [] }
         ],
         "savedEvaluations": [
           {
-            "namespace": "results.result",
-            "expected_type": "string",
-            "validations": [{ "name": "strEquals", "value": "trace-test" }],
+            "namespace": "results.sum",
+            "expected_type": "number",
+            "validations": [{ "name": "numEquals", "value": 5 }],
             "save": true
           }
         ]
@@ -56,13 +55,13 @@
           {
             "namespace": "results[0].svtest_fn",
             "expected_type": "string",
-            "validations": [{ "name": "strEquals", "value": "concat" }],
+            "validations": [{ "name": "strEquals", "value": "add" }],
             "save": true
           },
           {
             "namespace": "results[1].scope",
             "expected_type": "string",
-            "validations": [{ "name": "strEquals", "value": "concat called" }],
+            "validations": [{ "name": "strEquals", "value": "add called" }],
             "save": true
           },
           {

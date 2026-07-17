@@ -1,7 +1,7 @@
 const axios = require("axios").default;
 const FormData = require("form-data");
 const path = require("path");
-const { headersFor, captureCookie } = require("./manifestHeaders");
+const { headersFor, sessionCookieHeader, captureCookie } = require("./manifestHeaders");
 
 // HTTP client for the SystemLynx CLI. Per request it attaches the manifest's headers for
 // the target origin (auth tokens, cookies, any scheme — see manifestHeaders.js) and folds
@@ -16,7 +16,7 @@ function createCookieHttpClient(extraHeaders = {}) {
       // CLI `--header` flag) and constructor extraHeaders override them by name. (Matches the upload
       // path below — the request path previously had these flipped, letting the manifest win over
       // an explicit --header.)
-      headers = { ...headersFor(url), ...headers, ...extraHeaders };
+      headers = { ...headersFor(url), ...sessionCookieHeader(url), ...headers, ...extraHeaders };
       try {
         const res = await axios({ url, method, headers, data });
         captureCookie(url, res.headers["set-cookie"]);
@@ -37,6 +37,7 @@ function createCookieHttpClient(extraHeaders = {}) {
       if (__arguments) form.append("__arguments", JSON.stringify(__arguments));
       const allHeaders = {
         ...headersFor(url),
+        ...sessionCookieHeader(url),
         ...headers,
         ...extraHeaders,
         "Content-Type": "multipart/form-data",

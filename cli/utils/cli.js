@@ -6,9 +6,11 @@ const HELP_TEXT = `
 
   Commands:
     start [port]                           Launch SystemView UI (default port 3000)
-    test <projectCode> [namespace]         Run saved tests for a project
-    list [projectCode] [namespace]         List projects, services, or tests
-    logs [projectCode] [namespace]         Stream log entries from connected services
+    test [target]                          Run saved tests. target = projectCode OR any namespace
+                                           (service / module / method / dotted, e.g. Posts.add) — no
+                                           projectCode required; it resolves where it lives
+    list [target]                          List projects, services, or tests (target resolves like test)
+    logs [target]                          Stream logs (target resolves like test)
     unsubscribe                            Stop streaming logs (keeps log file)  [alias: stoplogs]
     flush                                  Wipe the log file and stop streaming  [alias: clearlogs]
     connect [url|projectCode]             Connect a service URL, reconnect a stored project, or connect all
@@ -18,6 +20,8 @@ const HELP_TEXT = `
     manifest save                          Persist session manifest — services, auth headers, cookies  [interactive]
     manifest clean                        Re-probe manifest entries, remove stale ones
     probe <ServiceId.Module.method> [args] Call a service method ad-hoc
+    toggle cs | ci                         Toggle namespace case-sensitivity (sticky; default insensitive)
+                                           [also: bare cs / ci; works in interactive mode]
     open [projectCode] [namespace]         Open the browser UI
     shutdown [port]                        Stop a running SystemView instance  [aliases: exit, stop, q]
 

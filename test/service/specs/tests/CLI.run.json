@@ -137,10 +137,10 @@
     "Before": [],
     "Main": [
       {
-        "title": "run `systemview connect http://localhost:5555/test/api --manifest --save` → connected + manifest persisted with headers and cookie",
+        "title": "run `systemview connect http://localhost:5556/test/api --manifest --save` → connected + manifest persisted with headers and cookie",
         "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "run" },
         "args": [
-          { "name": "argument:", "input": { "args": ["connect", "http://localhost:5555/test/api", "--manifest", "--save"] }, "input_type": "object", "data_type": "", "targetValues": [] }
+          { "name": "argument:", "input": { "args": ["connect", "http://localhost:5556/test/api", "--manifest", "--save"] }, "input_type": "object", "data_type": "", "targetValues": [] }
         ],
         "savedEvaluations": [
           { "namespace": "results.exitCode", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 0 }], "save": true },
@@ -150,10 +150,10 @@
         ]
       },
       {
-        "title": "cold reuse: `probe TestService.Headers.echo --json` (no --header) sends the persisted session cookie",
+        "title": "cold reuse: `probe GatedService.Auth.echo --json` (no --header) sends the persisted session cookie",
         "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "run" },
         "args": [
-          { "name": "argument:", "input": { "args": ["probe", "TestService.Headers.echo", "--json"] }, "input_type": "object", "data_type": "", "targetValues": [] }
+          { "name": "argument:", "input": { "args": ["probe", "GatedService.Auth.echo", "--json"] }, "input_type": "object", "data_type": "", "targetValues": [] }
         ],
         "savedEvaluations": [
           { "namespace": "results.exitCode", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 0 }], "save": true },

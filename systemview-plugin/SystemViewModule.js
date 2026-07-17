@@ -7,7 +7,7 @@ const {
   getName,
   getFilesByNamespace,
 } = require("./utils");
-module.exports = ({ App, specs, projectCode, serviceId, module = {} }) => {
+module.exports = ({ App, specs, projectCode, serviceId, module = {}, credentials = false }) => {
   specs = specs.substr(-1) === "/" ? specs.substr(0, specs.length - 1) : specs;
   const system = {};
   App.on("ready", (_system) => {
@@ -51,15 +51,20 @@ module.exports = ({ App, specs, projectCode, serviceId, module = {} }) => {
 
     this.getTests = (namespace = {}) => {
       const { moduleName, methodName } = namespace;
+      let tests;
       if (methodName) {
         const fileName = `${specs}/tests/${moduleName}.${methodName}.json`;
-        const tests = JSON.parse(getFile(fileName) || "[]");
-        return tests;
+        tests = JSON.parse(getFile(fileName) || "[]");
       } else if (moduleName) {
-        return getFilesByNamespace(`${specs}/tests/`, moduleName);
+        tests = getFilesByNamespace(`${specs}/tests/`, moduleName);
       } else {
-        return getFilesByNamespace(`${specs}/tests/`);
+        tests = getFilesByNamespace(`${specs}/tests/`);
       }
+      // Several services in one project can share a specs folder, so a `Module.method.json` file may
+      // hold tests for a sibling service. Return only THIS service's specs (by its own serviceId) so a
+      // service's test panel / getTests never shows a sibling's tests. No-op when each service has its
+      // own specs folder (every spec already matches).
+      return tests.filter((t) => !serviceId || !t.namespace || t.namespace.serviceId === serviceId);
     };
     this.saveTest = (test, index) => {
       const fileName = `${specs}/tests/${getName(test.namespace)}.json`;
@@ -91,7 +96,9 @@ module.exports = ({ App, specs, projectCode, serviceId, module = {} }) => {
     });
     this.getConnection = () => {
       const specList = this.getSpecList();
-      return { projectCode, serviceId, system, specList };
+      // `credentials` must survive this path — refreshConnections re-pulls getConnection(),
+      // so omitting it here would silently un-credential the service on every refresh (RFC-013).
+      return { projectCode, serviceId, system, specList, credentials };
     };
     this.getLog = ({ limit } = {}) => {
       const logsFile = path.join(process.cwd(), "systemview.logs");

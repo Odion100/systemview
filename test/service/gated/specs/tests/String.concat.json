@@ -1,12 +1,12 @@
 [
   {
     "title": "Concatenate two strings",
-    "namespace": { "serviceId": "TestService", "moduleName": "String", "methodName": "concat" },
+    "namespace": { "serviceId": "GatedService", "moduleName": "String", "methodName": "concat" },
     "Before": [],
     "Main": [
       {
         "title": "Concat hello + world",
-        "namespace": { "serviceId": "TestService", "moduleName": "String", "methodName": "concat" },
+        "namespace": { "serviceId": "GatedService", "moduleName": "String", "methodName": "concat" },
         "args": [
           {
             "name": "a:",

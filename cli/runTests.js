@@ -7,6 +7,8 @@ const FullTestController = require("../testing-utilities/FullTestController");
 const log = require("./logger");
 const validationMessages = require("../testing-utilities/validtionMessages");
 const { truncate, TruncationMarker } = require("./utils/truncate");
+const resolveTarget = require("./utils/resolveTarget");
+const { matchNamespace } = require("./utils/matchNamespace");
 
 function formatTruncated(value, indent = 0) {
   const pad = "  ".repeat(indent);
@@ -87,8 +89,8 @@ module.exports = async function runTests(
     .map((list) =>
       list.filter(({ namespace: n }) => {
         const full = `${n.serviceId}.${n.moduleName}.${n.methodName}`;
-        const matchesInclude = !namespace || full.includes(namespace);
-        const matchesSkip = skipPatterns.length && skipPatterns.some((p) => full.includes(p));
+        const matchesInclude = !namespace || matchNamespace(full, namespace);
+        const matchesSkip = skipPatterns.length && skipPatterns.some((p) => matchNamespace(full, p));
         return matchesInclude && !matchesSkip;
       })
     )
@@ -345,10 +347,14 @@ function serializePhase(tests) {
 
 async function getTests(connectedServices, Client) {
   const results = [];
-  for (const { system } of connectedServices) {
+  for (const { serviceId, system } of connectedServices) {
     const { connectionData } = system;
     try {
-      results.push(await Client.createService(connectionData).Plugin.getTests());
+      const list = await Client.createService(connectionData).Plugin.getTests();
+      // A project's services can share one specs folder, so getTests returns the WHOLE folder
+      // (every service's specs) from each service. Keep only the specs that belong to THIS service
+      // (by serviceId) — otherwise a shared spec runs once per sibling service (double-count).
+      results.push(list.filter((t) => t && t.namespace && t.namespace.serviceId === serviceId));
     } catch (error) {
       log.warn(`Failed to retrieve tests from ${connectionData.serviceUrl}`);
     }
@@ -359,27 +365,7 @@ async function getTests(connectedServices, Client) {
 async function resolveServices(api, project_code) {
   try {
     const { SystemView } = await Client.loadService(api);
-
-    // Try exact project code match first
-    const services = await SystemView.getServices(project_code);
-    if (services && services.length) {
-      return { services };
-    }
-
-    // Fuzzy namespace: check if project_code matches any module or method across all services
-    const projects = await SystemView.getProjects();
-    const all = Object.values(projects).flat();
-    const isNamespace = all.some(({ system }) =>
-      (system.connectionData.modules || []).some(({ name, methods }) =>
-        name.toLowerCase().includes(project_code.toLowerCase()) ||
-        (methods || []).some(({ fn }) => fn.toLowerCase().includes(project_code.toLowerCase()))
-      )
-    );
-    if (isNamespace) {
-      return { services: all, resolvedNamespace: project_code };
-    }
-
-    return { services: [] };
+    return await resolveTarget(SystemView, project_code);
   } catch (error) {
     log.error("Failed to connect to SystemView: " + error.message);
     return { services: [] };

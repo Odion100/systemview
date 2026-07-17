@@ -11,15 +11,16 @@ import RunTestIcon from "../../atoms/RunTestIcon";
 import SaveIcon from "../../atoms/SaveIcon/SaveIcon";
 import SavedTests from "../SavedTests/SavedTests";
 import { Client } from "../../systemClient";
+import loadServiceWithHeaders from "../../utils/loadService";
 import FullTestController from "./components/FullTestController";
 import Title from "../../atoms/Title/Title";
 import { CurrentTest } from "../../atoms/StatusIndicator/StatusIndicator";
 
-export default function FullTest({ serviceId, moduleName, methodName }) {
-  return <FullTestInner serviceId={serviceId} moduleName={moduleName} methodName={methodName} />;
+export default function FullTest({ projectCode, serviceId, moduleName, methodName }) {
+  return <FullTestInner projectCode={projectCode} serviceId={serviceId} moduleName={moduleName} methodName={methodName} />;
 }
 
-const FullTestInner = ({ serviceId, moduleName, methodName }) => {
+const FullTestInner = ({ projectCode, serviceId, moduleName, methodName }) => {
   const namespace = { serviceId, moduleName, methodName };
   const { connectedServices } = useContext(ServiceContext);
   const serviceData = connectedServices.find(
@@ -83,6 +84,19 @@ const FullTestInner = ({ serviceId, moduleName, methodName }) => {
       if (Plugin) {
         const results = await Plugin.getTests(namespace);
         setSavedTests(results);
+      } else if (projectCode && !serviceId) {
+        // Project level (project code clicked, no service): aggregate EVERY service's own tests so the
+        // "run all" button runs the whole project — the same way running a service runs all its tests.
+        const svcs = connectedServices.filter((s) => s.projectCode === projectCode);
+        const all = [];
+        for (const s of svcs) {
+          try {
+            const svc = loadServiceWithHeaders(s.system.connectionData, s.headers, s.credentials);
+            const tests = await svc.Plugin.getTests({ serviceId: s.serviceId });
+            all.push(...(tests || []));
+          } catch {}
+        }
+        setSavedTests(all);
       }
     } catch (error) {
       return [];
@@ -104,7 +118,7 @@ const FullTestInner = ({ serviceId, moduleName, methodName }) => {
     resetTests();
     fetchTests();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [serviceId, moduleName, methodName, connectedServices]);
+  }, [projectCode, serviceId, moduleName, methodName, connectedServices]);
 
   return (
     <section className="test-panel">

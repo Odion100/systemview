@@ -5,12 +5,12 @@
     "Before": [],
     "Main": [
       {
-        "title": "run `systemview probe TestService.Headers.echo --json` and confirm the token reached the service",
+        "title": "run `systemview probe GatedService.Auth.echo --json` and confirm the token reached the service",
         "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "probe" },
         "args": [
           {
             "name": "argument:",
-            "input": { "namespace": "TestService.Headers.echo" },
+            "input": { "namespace": "GatedService.Auth.echo" },
             "input_type": "object",
             "data_type": "",
             "targetValues": []
@@ -57,12 +57,12 @@
     "Before": [],
     "Main": [
       {
-        "title": "probe TestService.Headers.getOrigin (no args)",
+        "title": "probe GatedService.Auth.echo (no args)",
         "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "probe" },
         "args": [
           {
             "name": "argument:",
-            "input": { "namespace": "TestService.Headers.getOrigin" },
+            "input": { "namespace": "GatedService.Auth.echo" },
             "input_type": "object",
             "data_type": "",
             "targetValues": []
@@ -70,7 +70,7 @@
         ],
         "savedEvaluations": [
           { "namespace": "results.exitCode", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 0 }], "save": true },
-          { "namespace": "results.result.result.received", "expected_type": "boolean", "validations": [{ "name": "boolEquals", "value": true }], "save": true }
+          { "namespace": "results.result.result.hasOrigin", "expected_type": "boolean", "validations": [{ "name": "boolEquals", "value": true }], "save": true }
         ]
       }
     ],
@@ -133,12 +133,12 @@
     "Before": [],
     "Main": [
       {
-        "title": "probe TestService.String.concat [\"foo\",\"bar\"] → \"foobar\"",
+        "title": "probe GatedService.String.concat [\"foo\",\"bar\"] → \"foobar\"",
         "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "probe" },
         "args": [
           {
             "name": "argument:",
-            "input": { "namespace": "TestService.String.concat", "args": ["foo", "bar"] },
+            "input": { "namespace": "GatedService.String.concat", "args": ["foo", "bar"] },
             "input_type": "object",
             "data_type": "",
             "targetValues": []
@@ -159,12 +159,12 @@
     "Before": [],
     "Main": [
       {
-        "title": "probe Headers.echo --header 'testtoken: OVERRIDE-WINS' — flag beats manifest @file",
+        "title": "probe GatedService.Auth.echo --header 'testtoken: OVERRIDE-WINS' — flag beats manifest @file",
         "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "probe" },
         "args": [
           {
             "name": "argument:",
-            "input": { "namespace": "TestService.Headers.echo", "flags": ["--header", "testtoken: OVERRIDE-WINS"] },
+            "input": { "namespace": "GatedService.Auth.echo", "flags": ["--header", "testtoken: OVERRIDE-WINS"] },
             "input_type": "object",
             "data_type": "",
             "targetValues": []
