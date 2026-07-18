@@ -168,6 +168,13 @@ Open (flagged, not yet fixed):
 - [~] malformed JSON args → **handled by design**: `probe` falls back to treating the raw string as a
   single arg (no throw, exit 0) — not an error path. *(worth an explicit fixture documenting that)*
 
+### 9. namespace resolution + case toggle  (tier A)
+- [x] `toggle cs` → stdout `isLike` "case-SENSITIVE"; `toggle ci` → "case-insensitive"  *(CLI.toggle.json)*
+- [x] dash form `toggle --cs` (leading dashes stripped) flips it  *(CLI.toggle.json)*
+- [x] bare `toggle` flips from the baseline  *(CLI.toggle.json)*; every case resets to insensitive in `After`
+- [ ] resolution behavior: `list <service>` / `test <Module.method>` with no projectCode returns the right
+  set, and case-sensitive mode makes a lowercase dotted arg stop matching *(verified manually; no fixture yet)*
+
 ---
 
 ## Build order (suggested)

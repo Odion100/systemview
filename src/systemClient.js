@@ -38,8 +38,6 @@ function createBrowserHttpClient() {
   http.request = async ({ method = "get", url, body: data, headers }) => {
     method = method.toLowerCase();
     try {
-      // TEMP diagnostic — remove after confirming credentialed behavior in the browser.
-      console.log(`[sv-cred] withCredentials=${sendsCredentials(url)} → ${url}`);
       const res = await axios({ url, method, headers, data, withCredentials: sendsCredentials(url) });
       if (res.status >= 400) throw res.data;
       return res.data;
