@@ -8,6 +8,13 @@
 
 const { spawn } = require("child_process");
 const path = require("path");
+const fs = require("fs");
+
+// Isolated manifest for the session-persistence fixture (RFC-016), so those cases never touch the
+// shared cwd manifest other CLI tests depend on. Probing with `--manifest <this>` also dogfoods the
+// header-source reconciliation (a session must persist to AND ride back from the same manifest).
+const SESSION_MANIFEST = "test/service/.session.manifest.json";
+const sessManifest = (m) => path.resolve(process.cwd(), m || SESSION_MANIFEST);
 
 const CLI_ENTRY = path.join(process.cwd(), "cli", "index.js");
 
@@ -92,7 +99,20 @@ const CLI = {
     if (namespace) cliArgs.push(namespace);
     cliArgs.push("--json", ...(Array.isArray(flags) ? flags : []));
     const { exitCode, stdout, stderr } = await runCli(cliArgs);
-    return { exitCode, result: parseJson(stdout), stdout, stderr };
+    const result = parseJson(stdout);
+    // Order-independent views so assertions don't depend on which service registered first.
+    const services = Array.isArray(result) ? result : [];
+    const serviceIds = services.map((s) => s && s.serviceId).filter(Boolean).sort();
+    const moduleNames = [
+      ...new Set(services.flatMap((s) => ((s && s.tests) || []).map((t) => t && t.namespace && t.namespace.moduleName))),
+    ].filter(Boolean).sort();
+    return {
+      exitCode, result, stdout, stderr,
+      serviceCount: services.length,
+      hasTestService: serviceIds.includes("TestService"),
+      moduleNames,
+      onlyModule: moduleNames.length === 1 ? moduleNames[0] : "",
+    };
   },
 
   // `systemview logs [project] [namespace] --current --json` → NDJSON entries + exit code.
@@ -114,6 +134,43 @@ const CLI = {
       }
     }
     return { exitCode, entries, stdout, stderr };
+  },
+
+  // --- RFC-016 session-persistence helpers (file-mediated setup/teardown for the fixture) ---
+
+  // Clear the isolated session manifest so a case starts from a known clean slate (no policy, no cookie).
+  async resetSession({ manifest } = {}) {
+    try {
+      fs.unlinkSync(sessManifest(manifest));
+    } catch {}
+    return { ok: true };
+  },
+
+  // Delete ONLY the captured Cookie for an origin (keeping the session policy). Lets a case prove the
+  // policy STAYED on: after clearing the cookie, a plain probe (no flag) must persist a fresh one again.
+  async clearCookie({ manifest, origin = "http://localhost:5556" } = {}) {
+    const p = sessManifest(manifest);
+    try {
+      const m = JSON.parse(fs.readFileSync(p, "utf8"));
+      if (m.headers && m.headers[origin]) delete m.headers[origin].Cookie;
+      fs.writeFileSync(p, JSON.stringify(m, null, 2));
+    } catch {}
+    return { ok: true };
+  },
+
+  // Read the isolated manifest back so a case can assert what actually landed on disk.
+  async readManifest({ manifest, origin = "http://localhost:5556" } = {}) {
+    let m = null;
+    try {
+      m = JSON.parse(fs.readFileSync(sessManifest(manifest), "utf8"));
+    } catch {}
+    const cookie = (m && m.headers && m.headers[origin] && m.headers[origin].Cookie) || "";
+    return {
+      exists: !!m,
+      sessionSave: !!(m && m.session && m.session.save),
+      cookie,
+      hasHeaders: !!(m && m.headers && Object.keys(m.headers).length),
+    };
   },
 };
 

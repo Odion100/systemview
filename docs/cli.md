@@ -232,9 +232,25 @@ A per-project connection file written by the SystemView plugin on service startu
 
 Author the header once, keyed by the service's URL origin. Precedence: `--header` flag > `headers`.
 
-**Cookies live here too** — there is no separate cookie jar. A `Set-Cookie` from any response is folded into the `Cookie` entry under that origin. Captured cookies and headers are held in memory during a session and **persisted only when you run `systemview save`** (which merges them into the manifest, preserving your authored `headers`). Because captured cookies are written as literal values, keep the manifest gitignored (it already is by default).
+**Cookies live here too** — there is no separate cookie jar. A `Set-Cookie` from any response is folded into the `Cookie` entry under that origin. Within one CLI process the captured cookie is re-sent on the next request automatically. To make it survive **across** processes (so a `probe` sign-in leaves a session the next `probe` reuses), opt in with the session policy below. Because captured cookies are written as literal values, keep the manifest gitignored (it already is by default).
 
-Add to `.gitignore` — it's a local artifact that changes each time a service starts.
+**`session` — cross-process persistence policy.** By default a captured cookie dies when the CLI process exits. Set `session.save` and a `probe` that captures a `Set-Cookie` (e.g. a sign-in) writes it back into the manifest for the next `probe` to reuse — no interactive session, no `--header`, no `save` dance:
+
+```json
+"session": { "save": true }
+```
+
+Turn it on once with `connect … --save-session` (saving is implied — it creates a manifest if none exists, else amends the existing one):
+
+```bash
+systemview connect https://127.0.0.1:4100/bu/api/profiles --manifest --save-session
+systemview probe Profiles.Users.signIn '{"email":"you@x.com","password":"…"}'   # captures + persists connect.sid
+systemview probe Profiles.Users.isRecognized                                     # separate process — reuses the session
+```
+
+Without the policy, `probe` never writes to the manifest (the safe default). `save` still persists everything on demand as before.
+
+Add the manifest to `.gitignore` — it's a local artifact that changes each time a service starts, and now also holds live session cookies.
 
 When multiple services in the same project start (e.g., buAPI's 4 services), each plugin run merges its own entry into the manifest rather than overwriting.
 

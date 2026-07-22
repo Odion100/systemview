@@ -18,7 +18,7 @@
         ],
         "savedEvaluations": [
           { "namespace": "results.exitCode", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 0 }], "save": true },
-          { "namespace": "results.result[0].serviceId", "expected_type": "string", "validations": [{ "name": "strEquals", "value": "TestService" }], "save": true }
+          { "namespace": "results.hasTestService", "expected_type": "boolean", "validations": [{ "name": "boolEquals", "value": true }], "save": true }
         ]
       }
     ],
@@ -63,8 +63,8 @@
         ],
         "savedEvaluations": [
           { "namespace": "results.exitCode", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 0 }], "save": true },
-          { "namespace": "results.result[0].serviceId", "expected_type": "string", "validations": [{ "name": "strEquals", "value": "TestService" }], "save": true },
-          { "namespace": "results.result[0].tests[0].namespace.moduleName", "expected_type": "string", "validations": [{ "name": "strEquals", "value": "Math" }], "save": true }
+          { "namespace": "results.hasTestService", "expected_type": "boolean", "validations": [{ "name": "boolEquals", "value": true }], "save": true },
+          { "namespace": "results.onlyModule", "expected_type": "string", "validations": [{ "name": "strEquals", "value": "Math" }], "save": true }
         ]
       }
     ],

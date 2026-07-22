@@ -83,7 +83,10 @@ Open (flagged, not yet fixed):
 - [x] `--header` overrides manifest header for same name  *(BUG #3 — regression-locked)*
 - [~] cookie captured → re-sent: **in-process** round-trip covered by `Auth.getSession.json`
   (`signIn` sets Set-Cookie → `cookieClient` captures → `getSession` sees it). Across *separate* `probe`
-  processes it does **not** persist (by design — needs `manifest save`; tier-C).
+  processes it now persists **when the manifest opts in** via the `session.save` policy (RFC-016,
+  `connect --save-session`) — otherwise it does not (the safe default). *Proposed fixture:
+  `CLI.session.json` (+ a `resetSession`/`readManifest` harness helper) to regression-lock both
+  directions; verified by hand against the gated service AND real buAPI, not yet a saved test.*
 - [ ] `--manifest <path>` uses the given manifest — *deferred: `probe` is UI-first so this only bites
   when the UI is down; also `manifestHeaders.js` hardcodes the default manifest path, so `--manifest`
   wouldn't redirect the header source. **Flagged** (header-source reconciliation).*
@@ -151,7 +154,8 @@ Open (flagged, not yet fixed):
 - [ ] literal header value reaches the service
 - [x] `--header` > manifest header precedence  *(BUG #3 — CLI.probe.json)*
 - [ ] project-level vs service-level cascade  *(after the cascade is built — extra credit)*
-- [~] cookie: capture → re-send covered in-process (`Auth.getSession.json`); persists-on-`save` is tier-C
+- [~] cookie: capture → re-send covered in-process (`Auth.getSession.json`); cross-process persist is
+  now opt-in via the `session.save` policy (RFC-016) — *proposed fixture `CLI.session.json`*
 - [ ] secret stays out of the manifest (save writes the `@file` pointer, not the value)
 
 ### 7. meta / lifecycle  (tier B/C)

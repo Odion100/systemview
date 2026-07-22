@@ -7,6 +7,18 @@ const { createCookieHttpClient } = require("../cli/cookieClient");
 const Client = createClient(createCookieHttpClient());
 const LOCAL_STORAGE = `${__dirname}/connections.json`;
 
+// The connections store is a gitignored runtime file — absent on a fresh clone and until the first
+// save. Read it defensively so a missing/empty/corrupt file reads as "no connections yet" instead of
+// throwing ENOENT and crashing the UI on launch (refreshConnections runs on the `ready` event).
+function readConnections() {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(LOCAL_STORAGE, "utf8"));
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 function refreshConnections(connections) {
   return new Promise((resolve) => {
     const newConnections = [];
@@ -31,7 +43,7 @@ function refreshConnections(connections) {
 
 module.exports = function ConnectedServices() {
   this.refreshConnections = async () => {
-    const connections = JSON.parse(fs.readFileSync(LOCAL_STORAGE, "utf8"));
+    const connections = readConnections();
     const newConnections = await refreshConnections(connections);
     if (newConnections.length)
       fs.writeFileSync(LOCAL_STORAGE, JSON.stringify(newConnections), "utf8");
@@ -39,14 +51,14 @@ module.exports = function ConnectedServices() {
   };
 
   this.save = (serviceData, index) => {
-    const connections = JSON.parse(fs.readFileSync(LOCAL_STORAGE, "utf8"));
+    const connections = readConnections();
     if (typeof index === "number") connections[index] = serviceData;
     else connections.push(serviceData);
     fs.writeFileSync(LOCAL_STORAGE, JSON.stringify(connections), "utf8");
   };
 
   this.findService = (url, code, id) => {
-    const connections = JSON.parse(fs.readFileSync(LOCAL_STORAGE, "utf8"));
+    const connections = readConnections();
     const index = connections.findIndex((service) => {
       if (id) return id === service.serviceId && code === service.projectCode;
       return (
@@ -59,7 +71,7 @@ module.exports = function ConnectedServices() {
   };
 
   this.findProject = (projectCode) => {
-    const connections = JSON.parse(fs.readFileSync(LOCAL_STORAGE, "utf8"));
+    const connections = readConnections();
     return connections.reduce(
       (sum, service) => (service.projectCode === projectCode ? sum.concat(service) : sum),
       []
@@ -67,11 +79,11 @@ module.exports = function ConnectedServices() {
   };
 
   this.getAllConnections = () => {
-    return JSON.parse(fs.readFileSync(LOCAL_STORAGE, "utf8"));
+    return readConnections();
   };
 
   this.deleteService = (projectCode, serviceId) => {
-    const connections = JSON.parse(fs.readFileSync(LOCAL_STORAGE, "utf8"));
+    const connections = readConnections();
     const filtered = connections.filter(
       (s) => !(s.projectCode === projectCode && s.serviceId === serviceId)
     );
@@ -79,7 +91,7 @@ module.exports = function ConnectedServices() {
   };
 
   this.deleteProject = (projectCode) => {
-    const connections = JSON.parse(fs.readFileSync(LOCAL_STORAGE, "utf8"));
+    const connections = readConnections();
     const filtered = connections.filter((s) => s.projectCode !== projectCode);
     fs.writeFileSync(LOCAL_STORAGE, JSON.stringify(filtered), "utf8");
   };

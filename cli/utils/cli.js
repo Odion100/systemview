@@ -51,6 +51,9 @@ const HELP_TEXT = `
     --or <field=value>                     logs: OR filter on a field (repeatable)
     --include <field>                      logs: include extra field as a column (repeatable)
     --save                                 connect: persist this connection to the manifest (headers + cookie tag along)
+    --save-session                         connect: opt in to session persistence — a later probe that
+                                             signs in saves its cookie to the manifest so the next probe
+                                             reuses it (saving implied: creates a manifest if none, else amends)
     --save [path]                          logs: append streamed entries to a local snapshot file
     --saved                                logs: read from local snapshot instead of live service
     --save-limit <n>                       logs: max entries to keep in snapshot (default 500)
@@ -75,6 +78,7 @@ const HELP_TEXT = `
     systemview logs buAPI --saved
     systemview connect http://localhost:4100/bu/api/profiles
     systemview connect http://localhost:4100/bu/api/profiles --manifest
+    systemview connect http://localhost:4100/bu/api/profiles --manifest --save-session
     systemview connect buAPI
     systemview disconnect buAPI
     systemview disconnect buAPI ProfilesService

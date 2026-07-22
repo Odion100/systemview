@@ -178,5 +178,534 @@
     ],
     "Events": [],
     "After": []
+  },
+  {
+    "title": "CLI probe (RFC-016): `probe … --save-session` turns the policy on and persists the sign-in cookie; a separate probe reads it back",
+    "namespace": {
+      "serviceId": "TestService",
+      "moduleName": "CLI",
+      "methodName": "probe"
+    },
+    "Before": [
+      {
+        "title": "setup (local file) — delete the isolated session manifest so this case starts clean",
+        "namespace": {
+          "serviceId": "TestService",
+          "moduleName": "CLI",
+          "methodName": "resetSession"
+        },
+        "args": [
+          {
+            "name": "argument:",
+            "input": {},
+            "input_type": "object",
+            "data_type": "",
+            "targetValues": []
+          }
+        ]
+      }
+    ],
+    "Main": [
+      {
+        "title": "run CLI — `systemview probe GatedService.Auth.signIn {…} --manifest <isolated> --save-session`: enable the policy via the flag AND persist this call's Set-Cookie",
+        "namespace": {
+          "serviceId": "TestService",
+          "moduleName": "CLI",
+          "methodName": "probe"
+        },
+        "args": [
+          {
+            "name": "argument:",
+            "input": {
+              "namespace": "GatedService.Auth.signIn",
+              "args": {
+                "email": "a@b.c",
+                "password": "pw"
+              },
+              "flags": [
+                "--manifest",
+                "test/service/.session.manifest.json",
+                "--save-session"
+              ]
+            },
+            "input_type": "object",
+            "data_type": "",
+            "targetValues": []
+          }
+        ],
+        "savedEvaluations": [
+          {
+            "namespace": "results.exitCode",
+            "expected_type": "number",
+            "validations": [
+              {
+                "name": "numEquals",
+                "value": 0
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.result.result.success",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          }
+        ]
+      },
+      {
+        "title": "check (local file) — the flag wrote the policy AND the cookie landed on disk",
+        "namespace": {
+          "serviceId": "TestService",
+          "moduleName": "CLI",
+          "methodName": "readManifest"
+        },
+        "args": [
+          {
+            "name": "argument:",
+            "input": {},
+            "input_type": "object",
+            "data_type": "",
+            "targetValues": []
+          }
+        ],
+        "savedEvaluations": [
+          {
+            "namespace": "results.sessionSave",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.cookie",
+            "expected_type": "string",
+            "validations": [
+              {
+                "name": "strEquals",
+                "value": "session=test-session-value"
+              }
+            ],
+            "save": true
+          }
+        ]
+      },
+      {
+        "title": "run CLI (new process) — `systemview probe GatedService.Auth.getSession --manifest <isolated>`: the saved cookie rides, so the session comes back",
+        "namespace": {
+          "serviceId": "TestService",
+          "moduleName": "CLI",
+          "methodName": "probe"
+        },
+        "args": [
+          {
+            "name": "argument:",
+            "input": {
+              "namespace": "GatedService.Auth.getSession",
+              "flags": [
+                "--manifest",
+                "test/service/.session.manifest.json"
+              ]
+            },
+            "input_type": "object",
+            "data_type": "",
+            "targetValues": []
+          }
+        ],
+        "savedEvaluations": [
+          {
+            "namespace": "results.exitCode",
+            "expected_type": "number",
+            "validations": [
+              {
+                "name": "numEquals",
+                "value": 0
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.result.result.cookie",
+            "expected_type": "string",
+            "validations": [
+              {
+                "name": "strEquals",
+                "value": "session=test-session-value"
+              }
+            ],
+            "save": true
+          }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": [
+      {
+        "title": "teardown (local file) — delete the isolated session manifest",
+        "namespace": {
+          "serviceId": "TestService",
+          "moduleName": "CLI",
+          "methodName": "resetSession"
+        },
+        "args": [
+          {
+            "name": "argument:",
+            "input": {},
+            "input_type": "object",
+            "data_type": "",
+            "targetValues": []
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "title": "CLI probe (RFC-016): lifecycle — off (not persisted) → `--save-session` turns it on → clear the cookie → a plain probe persists again, proving the policy STAYED on",
+    "namespace": {
+      "serviceId": "TestService",
+      "moduleName": "CLI",
+      "methodName": "probe"
+    },
+    "Before": [
+      {
+        "title": "setup (local file) — delete the isolated session manifest; no policy yet",
+        "namespace": {
+          "serviceId": "TestService",
+          "moduleName": "CLI",
+          "methodName": "resetSession"
+        },
+        "args": [
+          {
+            "name": "argument:",
+            "input": {},
+            "input_type": "object",
+            "data_type": "",
+            "targetValues": []
+          }
+        ]
+      }
+    ],
+    "Main": [
+      {
+        "title": "run CLI — `systemview probe GatedService.Auth.signIn {…} --manifest <isolated>` (NO flag): with no policy the captured cookie must NOT be written",
+        "namespace": {
+          "serviceId": "TestService",
+          "moduleName": "CLI",
+          "methodName": "probe"
+        },
+        "args": [
+          {
+            "name": "argument:",
+            "input": {
+              "namespace": "GatedService.Auth.signIn",
+              "args": {
+                "email": "a@b.c",
+                "password": "pw"
+              },
+              "flags": [
+                "--manifest",
+                "test/service/.session.manifest.json"
+              ]
+            },
+            "input_type": "object",
+            "data_type": "",
+            "targetValues": []
+          }
+        ],
+        "savedEvaluations": [
+          {
+            "namespace": "results.exitCode",
+            "expected_type": "number",
+            "validations": [
+              {
+                "name": "numEquals",
+                "value": 0
+              }
+            ],
+            "save": true
+          }
+        ]
+      },
+      {
+        "title": "check (local file) — nothing persisted yet (no cookie)",
+        "namespace": {
+          "serviceId": "TestService",
+          "moduleName": "CLI",
+          "methodName": "readManifest"
+        },
+        "args": [
+          {
+            "name": "argument:",
+            "input": {},
+            "input_type": "object",
+            "data_type": "",
+            "targetValues": []
+          }
+        ],
+        "savedEvaluations": [
+          {
+            "namespace": "results.cookie",
+            "expected_type": "string",
+            "validations": [
+              {
+                "name": "strEquals",
+                "value": ""
+              }
+            ],
+            "save": true
+          }
+        ]
+      },
+      {
+        "title": "run CLI — `systemview probe GatedService.Auth.signIn {…} --manifest <isolated> --save-session`: apply the policy AND persist this cookie",
+        "namespace": {
+          "serviceId": "TestService",
+          "moduleName": "CLI",
+          "methodName": "probe"
+        },
+        "args": [
+          {
+            "name": "argument:",
+            "input": {
+              "namespace": "GatedService.Auth.signIn",
+              "args": {
+                "email": "a@b.c",
+                "password": "pw"
+              },
+              "flags": [
+                "--manifest",
+                "test/service/.session.manifest.json",
+                "--save-session"
+              ]
+            },
+            "input_type": "object",
+            "data_type": "",
+            "targetValues": []
+          }
+        ],
+        "savedEvaluations": [
+          {
+            "namespace": "results.exitCode",
+            "expected_type": "number",
+            "validations": [
+              {
+                "name": "numEquals",
+                "value": 0
+              }
+            ],
+            "save": true
+          }
+        ]
+      },
+      {
+        "title": "check (local file) — policy is on and the cookie is now persisted",
+        "namespace": {
+          "serviceId": "TestService",
+          "moduleName": "CLI",
+          "methodName": "readManifest"
+        },
+        "args": [
+          {
+            "name": "argument:",
+            "input": {},
+            "input_type": "object",
+            "data_type": "",
+            "targetValues": []
+          }
+        ],
+        "savedEvaluations": [
+          {
+            "namespace": "results.sessionSave",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.cookie",
+            "expected_type": "string",
+            "validations": [
+              {
+                "name": "strEquals",
+                "value": "session=test-session-value"
+              }
+            ],
+            "save": true
+          }
+        ]
+      },
+      {
+        "title": "setup (local file) — delete JUST the persisted cookie, leaving the policy in place",
+        "namespace": {
+          "serviceId": "TestService",
+          "moduleName": "CLI",
+          "methodName": "clearCookie"
+        },
+        "args": [
+          {
+            "name": "argument:",
+            "input": {},
+            "input_type": "object",
+            "data_type": "",
+            "targetValues": []
+          }
+        ]
+      },
+      {
+        "title": "check (local file) — cookie gone, but policy still on",
+        "namespace": {
+          "serviceId": "TestService",
+          "moduleName": "CLI",
+          "methodName": "readManifest"
+        },
+        "args": [
+          {
+            "name": "argument:",
+            "input": {},
+            "input_type": "object",
+            "data_type": "",
+            "targetValues": []
+          }
+        ],
+        "savedEvaluations": [
+          {
+            "namespace": "results.cookie",
+            "expected_type": "string",
+            "validations": [
+              {
+                "name": "strEquals",
+                "value": ""
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.sessionSave",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          }
+        ]
+      },
+      {
+        "title": "run CLI (new process) — `systemview probe GatedService.Auth.signIn {…} --manifest <isolated>` (NO flag): the policy stayed on, so the fresh cookie persists again",
+        "namespace": {
+          "serviceId": "TestService",
+          "moduleName": "CLI",
+          "methodName": "probe"
+        },
+        "args": [
+          {
+            "name": "argument:",
+            "input": {
+              "namespace": "GatedService.Auth.signIn",
+              "args": {
+                "email": "a@b.c",
+                "password": "pw"
+              },
+              "flags": [
+                "--manifest",
+                "test/service/.session.manifest.json"
+              ]
+            },
+            "input_type": "object",
+            "data_type": "",
+            "targetValues": []
+          }
+        ],
+        "savedEvaluations": [
+          {
+            "namespace": "results.exitCode",
+            "expected_type": "number",
+            "validations": [
+              {
+                "name": "numEquals",
+                "value": 0
+              }
+            ],
+            "save": true
+          }
+        ]
+      },
+      {
+        "title": "check (local file) — cookie persisted again → the policy STAYED on across probes",
+        "namespace": {
+          "serviceId": "TestService",
+          "moduleName": "CLI",
+          "methodName": "readManifest"
+        },
+        "args": [
+          {
+            "name": "argument:",
+            "input": {},
+            "input_type": "object",
+            "data_type": "",
+            "targetValues": []
+          }
+        ],
+        "savedEvaluations": [
+          {
+            "namespace": "results.cookie",
+            "expected_type": "string",
+            "validations": [
+              {
+                "name": "strEquals",
+                "value": "session=test-session-value"
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.sessionSave",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": [
+      {
+        "title": "teardown (local file) — delete the isolated session manifest",
+        "namespace": {
+          "serviceId": "TestService",
+          "moduleName": "CLI",
+          "methodName": "resetSession"
+        },
+        "args": [
+          {
+            "name": "argument:",
+            "input": {},
+            "input_type": "object",
+            "data_type": "",
+            "targetValues": []
+          }
+        ]
+      }
+    ]
   }
 ]

@@ -2,13 +2,13 @@ const fs = require("fs");
 const path = require("path");
 const { createClient } = require("systemlynx");
 const { createCookieHttpClient } = require("./cookieClient");
-const { takeNotices } = require("./manifestHeaders");
+const { takeNotices, persist, readSessionPolicy, setSessionPolicy, setManifestFile } = require("./manifestHeaders");
 const log = require("./logger");
 
 const cookieHttpClient = createCookieHttpClient();
 const Client = createClient(cookieHttpClient);
 
-module.exports = async function probe(namespace, argsStr, { json = false, manifest: manifestPath, headers: cliHeaders = {}, uiUrl } = {}) {
+module.exports = async function probe(namespace, argsStr, { json = false, manifest: manifestPath, headers: cliHeaders = {}, uiUrl, saveSession = false } = {}) {
   if (!namespace) {
     log.error("Usage: systemview probe <ServiceId.Module.method> [args]");
     return 1;
@@ -32,6 +32,15 @@ module.exports = async function probe(namespace, argsStr, { json = false, manife
     }
   }
 
+  // Repoint the WHOLE header store at an explicit --manifest <path> up front — so the cookie is both
+  // persisted to AND re-attached from the same manifest (load/capture/persist/policy all share it).
+  // No-op without --manifest (stays on the cwd manifest). Must run before any service call below.
+  const manifestFile = setManifestFile(manifestPath);
+  // `--save-session` on a probe turns the persistence policy ON at call time (not just via `connect`) —
+  // set it before the request so this same call's captured cookie is persisted below. Writes to the
+  // resolved manifest (honors --manifest).
+  if (saveSession) setSessionPolicy({ save: true }, manifestFile);
+
   let service = null;
 
   // Try UI server first
@@ -46,7 +55,6 @@ module.exports = async function probe(namespace, argsStr, { json = false, manife
 
   // Fall back to manifest file
   if (!service) {
-    const manifestFile = manifestPath || path.join(process.cwd(), "systemview.manifest.json");
     if (!fs.existsSync(manifestFile)) {
       log.error(`Service "${serviceId}" not found. Connect it first with: systemview connect <url>`);
       return 1;
@@ -72,6 +80,11 @@ module.exports = async function probe(namespace, argsStr, { json = false, manife
     const client = Client.createService(service.system.connectionData);
     if (Object.keys(cliHeaders).length) client.setHeaders(cliHeaders);
     const result = await client[moduleName][methodName](...args);
+    // Persist any session captured on this call (e.g. a sign-in's Set-Cookie) so the NEXT probe
+    // reuses it — the fix for "captured but never saved," which forced sessions to die per-process.
+    // Gated by the manifest's opt-in `session.save` policy (set via `connect ... --save-session`);
+    // without it, a read-only or one-off probe leaves the manifest untouched (the safe default).
+    if (readSessionPolicy(manifestFile).save) persist(manifestFile);
     if (json) {
       process.stdout.write(JSON.stringify({ serviceId, moduleName, methodName, args, result }, null, 2) + "\n");
     } else {

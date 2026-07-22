@@ -4,20 +4,38 @@
 // ("Bearer abc") or a file-pointer ("@./token") that keeps the secret out of the manifest.
 // Cookies are just the "Cookie" header — a captured Set-Cookie folds into the same store.
 //
-// Read on load, written only on `save`. This module holds the manifest's `headers` in
-// memory for the life of the CLI process (shared across every command via Node's module
-// cache), so a cookie captured by one request is re-sent by the next, and `save` persists
-// whatever accumulated.
+// Read on load; written back by `save`, and — when the manifest opts in via the `session`
+// policy (`connect ... --save-session`) — by `probe` after it captures a Set-Cookie. This module
+// holds the manifest's `headers` in memory for the life of the CLI process (shared across every
+// command via Node's module cache), so a cookie captured by one request is re-sent by the next,
+// and persistence writes whatever accumulated back to disk for the NEXT process to reuse.
 
 const fs = require("fs");
 const path = require("path");
 
-const MANIFEST_FILE = path.join(process.cwd(), "systemview.manifest.json");
+// The manifest file the header store reads AND writes. Defaults to the cwd manifest. `setManifestFile`
+// repoints the WHOLE store — load + capture + persist + policy — at an explicit `--manifest <path>`, so
+// a session saved under that manifest is also re-attached from it. Without this, the read side (load)
+// was locked to cwd while persist honored the flag, so `--manifest` sessions saved but never rode back.
+let _manifestFile = path.join(process.cwd(), "systemview.manifest.json");
 
 // { "<origin>": { "Header-Name": "value" | "@file", "Cookie": "a=1; b=2" } }
 // This is the ONLY header store — user-authored, indexed by service URL origin. The plugin never
 // writes headers; there is no separate project-level default (the old `probeHeaders` is gone).
 let headers = null;
+
+// Set when a request captures a Set-Cookie, so `persist()` knows the store changed and only
+// rewrites the manifest when there's actually a new session to save.
+let _dirty = false;
+
+// Repoint the store at an explicit manifest (from `--manifest <path>`). Resets the cache so the next
+// load() reads the newly-targeted file. Call once, early, before any request/persist. No-op if falsy.
+function setManifestFile(file) {
+  if (!file) return _manifestFile;
+  _manifestFile = path.isAbsolute(file) ? file : path.resolve(process.cwd(), file);
+  headers = null;
+  return _manifestFile;
+}
 
 // One-time, de-duplicated notices surfaced by CLI commands so the user gets confirmation
 // that something happened ("using headers for X", "captured cookie for X"). Drained via takeNotices().
@@ -36,7 +54,7 @@ function load() {
   if (headers && Object.keys(headers).length) return headers;
   headers = {};
   try {
-    const m = JSON.parse(fs.readFileSync(MANIFEST_FILE, "utf8"));
+    const m = JSON.parse(fs.readFileSync(_manifestFile, "utf8"));
     if (m && m.headers && typeof m.headers === "object") headers = m.headers;
   } catch {
     /* no manifest / unreadable — start empty */
@@ -123,7 +141,67 @@ function captureCookie(url, setCookieHeaders) {
   store[origin].Cookie = Object.entries(jar)
     .map(([k, v]) => `${k}=${v}`)
     .join("; ");
+  _dirty = true;
   note("cookie:" + origin, `captured cookie for ${origin}`);
+}
+
+// Persist the in-memory header store (captured cookies included) back into the manifest's
+// `headers` key, preserving `services`/`projectCode`/etc. THIS is what makes a session survive
+// across separate CLI invocations: a `probe` that signed in leaves its cookie for the next one,
+// instead of dropping it when the process exits (the old behavior — captured, never saved). Only
+// writes when something was captured (`_dirty`) and a manifest file exists to attach to.
+function persist(manifestFile = _manifestFile) {
+  if (!_dirty) return false;
+  const store = load();
+  let manifest;
+  try {
+    manifest = JSON.parse(fs.readFileSync(manifestFile, "utf8"));
+  } catch {
+    return false; // no manifest (e.g. UI-server-only run) — nothing to attach the session to
+  }
+  manifest.headers = store;
+  try {
+    fs.writeFileSync(manifestFile, JSON.stringify(manifest, null, 2));
+    _dirty = false;
+    note("persist", `saved session to ${path.basename(manifestFile)}`);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// The session-persistence POLICY, read from the manifest's `session` key. This is the opt-in that
+// turns cross-process persistence on: a plain `probe` only saves a captured cookie when the manifest
+// says so. Set it once with `connect ... --save-session` (see setSessionPolicy). Returns the policy
+// object, or `{}` when there's no manifest / no policy — the safe default (probe leaves disk alone).
+function readSessionPolicy(manifestFile = _manifestFile) {
+  try {
+    const m = JSON.parse(fs.readFileSync(manifestFile, "utf8"));
+    return m && m.session && typeof m.session === "object" ? m.session : {};
+  } catch {
+    return {}; // no manifest / unreadable — no policy
+  }
+}
+
+// Write the session-persistence policy into the manifest's `session` key (merged with any existing
+// policy), preserving services/headers/etc. Saving is IMPLIED: if no manifest exists yet, bootstrap a
+// minimal one holding just the policy — the rest of the system amends it afterward (`connect --save`
+// adds services, `probe` folds in captured cookies). Returns the resulting policy, or null only if the
+// write itself fails.
+function setSessionPolicy(patch, manifestFile = _manifestFile) {
+  let manifest = {};
+  try {
+    manifest = JSON.parse(fs.readFileSync(manifestFile, "utf8"));
+  } catch {
+    manifest = {}; // no manifest yet — bootstrap a minimal one
+  }
+  manifest.session = { ...(manifest.session || {}), ...patch };
+  try {
+    fs.writeFileSync(manifestFile, JSON.stringify(manifest, null, 2));
+    return manifest.session;
+  } catch {
+    return null; // write failed (e.g. permissions)
+  }
 }
 
 // The live headers map — for `save` to persist. (Not dereferenced: @file pointers and
@@ -137,4 +215,4 @@ function takeNotices() {
   return _notices.splice(0, _notices.length);
 }
 
-module.exports = { headersFor, sessionCookieHeader, captureCookie, getHeaders, takeNotices, MANIFEST_FILE };
+module.exports = { headersFor, sessionCookieHeader, captureCookie, getHeaders, persist, readSessionPolicy, setSessionPolicy, setManifestFile, takeNotices };
