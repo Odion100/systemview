@@ -48,9 +48,15 @@
   padding: 0px 35px;
 }
 
-.logs-nav-link {
+.nav-links {
   position: absolute;
   right: 35px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.logs-nav-link {
   font-size: 16px;
   font-family: Malkor;
   color: #6886ba;

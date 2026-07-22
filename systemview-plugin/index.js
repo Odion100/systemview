@@ -1,6 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const SystemViewModule = require("./SystemViewModule");
+const createStats = require("./stats");
 const { getSpecList } = require("./utils");
 
 const SKIP_MODULES = ["Plugin", "SystemView"];
@@ -38,7 +39,14 @@ module.exports = function ({
   credentials = false,
   useSystemViewLogs = true,
   useSystemViewUI = true,
+  // Write/refresh this service's entry in the local systemview.manifest.json on startup. INDEPENDENT
+  // of the UI — a service with no local UI still writes its manifest so the CLI (or a remote UI) can
+  // reach it via the manifest. Default on; set false to opt out.
+  writeManifest = true,
   trace: traceConfig = true,
+  // RFC-015 Reports: roll up the trace stream into bounded per-method + time-bucketed stats.
+  // `true` (default) / `false`, or an object of overrides ({ bucketMs, retention, file }).
+  stats: statsConfig = true,
   redact = [],
   exclude = [],
 }) {
@@ -50,6 +58,18 @@ module.exports = function ({
     ]);
     const excludeMethods = new Set(exclude.filter((s) => s.includes(".")));
     let sv;
+
+    // -- RFC-015 stats aggregator (bounded rollups; per-serviceId file so cwd-sharing siblings
+    //    don't collide on the read-modify-write) --
+    const statsEnabled = statsConfig !== false;
+    const statsOpts = typeof statsConfig === "object" && statsConfig ? statsConfig : {};
+    const statsFile = path.resolve(
+      process.cwd(),
+      statsOpts.file || `systemview.stats.${serviceId || "default"}.json`,
+    );
+    const statsAgg = statsEnabled
+      ? createStats({ serviceId, projectCode, ...statsOpts, file: statsFile })
+      : null;
 
     // -- SystemView log module --
 
@@ -162,6 +182,17 @@ module.exports = function ({
       return true;
     }
 
+    function getStats() {
+      if (!statsAgg) return { serviceId, projectCode, methods: [], series: [] };
+      statsAgg.flush(); // persist latest on read
+      return statsAgg.snapshot();
+    }
+
+    function clearStats() {
+      if (statsAgg) statsAgg.clear();
+      return true;
+    }
+
     function SystemViewLogModule() {
       this.trace = trace;
       this.log = log;
@@ -170,6 +201,8 @@ module.exports = function ({
       this.debug = debug;
       this.getLog = getLog;
       this.clearLog = clearLog;
+      this.getStats = getStats;
+      this.clearStats = clearStats;
     }
 
     const makeLogger = (moduleName, req) => {
@@ -210,6 +243,12 @@ module.exports = function ({
 
         const _sendError = res.sendError;
         res.sendError = (err) => {
+          if (statsAgg)
+            statsAgg.record(`${req.module_name}.${req.fn}`, {
+              duration: Date.now() - req._svStart,
+              error: true,
+              status: (err && err.status) || 500,
+            });
           if (sv && traceConfig !== false) {
             sv.trace(
               "error",
@@ -254,6 +293,10 @@ module.exports = function ({
           excludeMethods.has(`${req.module_name}.${req.fn}`)
         )
           return next();
+        if (statsAgg)
+          statsAgg.record(`${req.module_name}.${req.fn}`, {
+            duration: Date.now() - req._svStart,
+          });
         if (sv && traceConfig !== false) {
           sv.trace(
             "end",
@@ -307,45 +350,60 @@ module.exports = function ({
               );
             }
 
-            try {
-              const manifestPath = path.join(process.cwd(), "systemview.manifest.json");
-              let manifest = { projectCode, services: [] };
-              if (fs.existsSync(manifestPath)) {
-                try {
-                  manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
-                } catch {}
-                if (!manifest.services) manifest.services = [];
-              }
-              const entry = { serviceId, system, specList, credentials };
-              const idx = manifest.services.findIndex((s) => s.serviceId === serviceId);
-              if (idx > -1) manifest.services[idx] = entry;
-              else manifest.services.push(entry);
-              manifest.projectCode = projectCode;
-              // The plugin never *mints* headers — but it will *carry* headers the operator
-              // authored in its config, writing them into the manifest `headers` store under
-              // this service's own origin. They are DEFAULTS: any header already present in the
-              // manifest (hand-authored, or a captured cookie) wins, so `{ ...configHeaders,
-              // ...existing }`. Values are literals or `@file` pointers, same as manifest headers.
-              if (headers && Object.keys(headers).length) {
-                let origin = null;
-                try {
-                  origin = new URL(connectionData.serviceUrl).origin;
-                } catch {}
-                if (origin) {
-                  if (!manifest.headers) manifest.headers = {};
-                  manifest.headers[origin] = { ...headers, ...(manifest.headers[origin] || {}) };
-                }
-              }
-              fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
-            } catch (err) {
-              console.log(`[SystemView]: failed to write manifest: ${err.message}\n`);
-            }
+            // NOTE: the manifest file write moved out of here — it now runs on `ready` via
+            // persistManifest(), gated by `writeManifest` (independent of the UI), so a service with
+            // no local UI still writes its manifest. This handler only connects to the UI.
           },
         );
     }
 
+    // Write/refresh THIS service's entry in the local systemview.manifest.json — independent of the UI
+    // so the CLI (or a remote UI) can reach the service via the manifest even when no UI runs locally.
+    function persistManifest(system) {
+      try {
+        const { connectionData } = system;
+        const specList = getSpecList(specs);
+        const manifestPath = path.join(process.cwd(), "systemview.manifest.json");
+        let manifest = { projectCode, services: [] };
+        if (fs.existsSync(manifestPath)) {
+          try {
+            manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+          } catch {}
+          if (!manifest.services) manifest.services = [];
+        }
+        const entry = { serviceId, system, specList, credentials };
+        const idx = manifest.services.findIndex((s) => s.serviceId === serviceId);
+        if (idx > -1) manifest.services[idx] = entry;
+        else manifest.services.push(entry);
+        manifest.projectCode = projectCode;
+        // Carry operator-authored config headers into the manifest as DEFAULTS (existing/captured win),
+        // under this service's own origin. Literals or `@file` pointers, same as manifest headers.
+        if (headers && Object.keys(headers).length) {
+          let origin = null;
+          try {
+            origin = new URL(connectionData.serviceUrl).origin;
+          } catch {}
+          if (origin) {
+            if (!manifest.headers) manifest.headers = {};
+            manifest.headers[origin] = { ...headers, ...(manifest.headers[origin] || {}) };
+          }
+        }
+        fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+      } catch (err) {
+        console.log(`[SystemView]: failed to write manifest: ${err.message}\n`);
+      }
+    }
+
     if (useSystemViewLogs) registerSystemViewLogs();
     if (useSystemViewUI) registerSystemViewUIPlugin();
+    if (writeManifest)
+      App.on("ready", function ({ connectionData, modules, routing, services }) {
+        persistManifest({ connectionData, modules, routing, services });
+      });
+    if (statsAgg) {
+      const flushTimer = setInterval(() => statsAgg.flush(), 30000);
+      if (flushTimer.unref) flushTimer.unref();
+    }
     if (useSystemViewLogs)
       App.on("ready", function () {
         sv = this.useModule("SystemView");

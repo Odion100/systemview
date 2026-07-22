@@ -1,0 +1,494 @@
+// RFC-015 SystemView Reports — Phase 1 (State of the System + Load & Scaling)
+
+$ok: #2e7d32;
+$watch: #d4a017;
+$bad: #c62828;
+
+.reports-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  box-sizing: border-box;
+  padding-top: 61px; // clear the absolutely-positioned global .page-header (62px), same as SystemView
+  background: #fafafb;
+
+  .page-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 20px;
+    background: #fff;
+    border-bottom: 1px solid #f0f0f0;
+    img { height: 34px; }
+  }
+}
+
+.reports-back {
+  background: none;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  color: #777;
+  font-size: 13px;
+  padding: 3px 10px;
+  cursor: pointer;
+  &:hover { background: #f0f0f8; }
+}
+
+.reports-title {
+  font-family: Malkor, sans-serif;
+  font-size: 24px;
+  color: #3f51b5;
+}
+.reports-heading {
+  font-family: Malkor, sans-serif;
+  font-size: 18px;
+  color: #6886ba;
+  margin-left: 4px;
+}
+
+.reports-project {
+  margin-left: 12px;
+  padding: 3px 12px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #e05757;
+  background: #fdeeee;
+  border: 1px solid #f3caca;
+  border-radius: 14px;
+  font-family: monospace;
+}
+
+.reports-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 20px;
+  background: #fff;
+  border-bottom: 1px solid #f0f0f0;
+
+  select {
+    padding: 4px 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 13px;
+    background: #fafafa;
+    color: #333;
+  }
+}
+
+.reports-switch {
+  display: inline-flex;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-left: 6px;
+
+  &__btn {
+    padding: 5px 14px;
+    background: #fafafa;
+    border: none;
+    color: #777;
+    font-size: 13px;
+    cursor: pointer;
+    &:not(:last-child) { border-right: 1px solid #ddd; }
+    &:hover { background: #f0f0f8; }
+    &--on { background: #3367d6; color: #fff; &:hover { background: #3367d6; } }
+  }
+}
+
+.reports-refresh {
+  padding: 4px 14px;
+  background: #fff;
+  border: 1px solid #9494b7;
+  color: #9494b7;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  &:hover { background: #9494b7; color: #fff; }
+}
+
+// headline verdict — the story in one line
+.reports-verdict {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 16px 20px 0;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 15px;
+  line-height: 1.4;
+  background: #fff;
+  border: 1px solid #e6e6ee;
+  border-left: 4px solid #cfcfe0;
+  color: #333;
+
+  &--ok    { border-left-color: $ok; }
+  &--watch { border-left-color: $watch; }
+  &--bad   { border-left-color: $bad; }
+
+  &__dot {
+    width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+    &--ok { background: $ok; } &--watch { background: $watch; } &--bad { background: $bad; }
+  }
+}
+
+.reports-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px 60px;
+}
+
+// tiles
+.reports-tiles {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.report-tile {
+  flex: 1;
+  min-width: 130px;
+  background: #fff;
+  border: 1px solid #e6e6ee;
+  border-radius: 8px;
+  padding: 14px 16px;
+
+  &__value {
+    font-size: 26px;
+    font-weight: 700;
+    color: #2a2a40;
+    &--ok  { color: $ok; }
+    &--bad { color: $bad; }
+  }
+  &__label {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #999;
+    margin-top: 2px;
+  }
+}
+
+.report-section {
+  margin-top: 20px;
+  &__title {
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #777;
+    margin: 0 0 10px;
+  }
+  &__hint {
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: 0;
+    color: #aaa;
+    font-size: 12px;
+  }
+}
+
+// service health grid
+.report-health-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+.report-health-card {
+  background: #fff;
+  border: 1px solid #e6e6ee;
+  border-radius: 8px;
+  padding: 12px 14px;
+  border-left: 4px solid #cfcfe0;
+
+  &--ok    { border-left-color: $ok; }
+  &--watch { border-left-color: $watch; }
+  &--bad   { border-left-color: $bad; }
+
+  &__head { display: flex; align-items: center; gap: 8px; }
+  &__dot { width: 9px; height: 9px; border-radius: 50%;
+    &--ok { background: $ok; } &--watch { background: $watch; } &--bad { background: $bad; } }
+  &__name { font-weight: 600; color: #333; flex: 1; }
+  &__badge { font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: #999; }
+  &__stats {
+    display: flex; gap: 14px; margin-top: 8px;
+    font-size: 12px; font-family: monospace; color: #666;
+  }
+}
+
+// load bars
+.report-loadbar {
+  margin-bottom: 12px;
+  &__head { display: flex; justify-content: space-between; align-items: baseline; }
+  &__label {
+    font-family: monospace; font-size: 13px; color: #333; font-weight: 600;
+    &--watch { color: darken($watch, 8%); }
+    &--bad { color: $bad; }
+  }
+  &__value { font-size: 12px; color: #888; font-family: monospace; }
+  &__track { height: 8px; background: #eeeef4; border-radius: 4px; overflow: hidden; margin: 4px 0 2px; }
+  &__fill {
+    height: 100%; border-radius: 4px; background: #3367d6;
+    &--watch { background: $watch; }
+    &--bad { background: $bad; }
+  }
+  &__sub { font-size: 11px; color: #999; font-family: monospace; }
+}
+
+// tables
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  background: #fff;
+  border: 1px solid #e6e6ee;
+  border-radius: 8px;
+  overflow: hidden;
+
+  th {
+    text-align: left;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #999;
+    padding: 8px 12px;
+    background: #f5f5fa;
+    border-bottom: 1px solid #e6e6ee;
+  }
+  td {
+    padding: 7px 12px;
+    border-bottom: 1px solid #f0f0f4;
+    color: #444;
+    font-family: monospace;
+  }
+  tr:last-child td { border-bottom: none; }
+  &__method { color: #2a2a40 !important; font-weight: 600; }
+}
+
+.report-cell--bad { color: $bad; font-weight: 700; }
+
+.report-dot {
+  display: inline-block;
+  width: 8px; height: 8px; border-radius: 50%; margin-right: 7px;
+  &--ok { background: $ok; } &--watch { background: $watch; } &--bad { background: $bad; }
+}
+
+// charts
+.report-chart {
+  width: 100%;
+  height: 90px;
+  display: block;
+  background: #fff;
+  border: 1px solid #e6e6ee;
+  border-radius: 8px;
+}
+.report-chart-empty {
+  padding: 24px;
+  text-align: center;
+  color: #bbb;
+  font-size: 13px;
+  background: #fff;
+  border: 1px dashed #e0e0e8;
+  border-radius: 8px;
+}
+
+.report-empty {
+  color: #aaa;
+  font-size: 13px;
+  padding: 8px 0;
+}
+
+.report-lede {
+  font-size: 14px;
+  color: #555;
+  background: #f5f7fc;
+  border: 1px solid #e2e8f5;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin: 0 0 4px;
+  b { color: #3367d6; }
+}
+
+.report-note {
+  font-size: 12px;
+  color: #999;
+  font-style: italic;
+  margin-top: 14px;
+}
+
+// Surface Coverage
+.report-cov-bar {
+  height: 10px;
+  background: #f0d9d9;
+  border-radius: 5px;
+  overflow: hidden;
+  margin-bottom: 12px;
+  &__fill { height: 100%; background: $ok; border-radius: 5px; }
+}
+
+.report-cov-block {
+  margin-bottom: 14px;
+  &__title {
+    font-size: 12px;
+    font-weight: 700;
+    color: #666;
+    margin-bottom: 6px;
+    span { font-weight: 400; color: #aaa; }
+  }
+  &--danger .report-cov-block__title { color: $bad; span { color: darken(#e0a0a0, 5%); } }
+}
+
+.report-cov-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.report-chip {
+  font-family: monospace;
+  font-size: 12px;
+  color: #888;
+  background: #f2f2f6;
+  border: 1px solid #e4e4ec;
+  border-radius: 12px;
+  padding: 2px 10px;
+}
+
+.report-tile__sub {
+  font-size: 11px;
+  color: #b0894b;
+  margin-top: 2px;
+}
+
+// chart help caption
+.report-chart-help {
+  font-size: 11px;
+  color: #999;
+  margin-top: 5px;
+  line-height: 1.35;
+}
+
+// MOCK marker — "not real data yet"
+.report-mock {
+  display: inline-block;
+  font-family: monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #8a5a00;
+  background: repeating-linear-gradient(45deg, #fbeccb, #fbeccb 6px, #f7e0ad 6px, #f7e0ad 12px);
+  border: 1px solid #e0b849;
+  border-radius: 4px;
+  padding: 1px 7px;
+  vertical-align: middle;
+}
+
+.reports-timerange {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  select { padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; background: #f2f2f2; color: #999; }
+}
+
+.report-noreport {
+  margin: 8px 0;
+  padding: 16px 18px;
+  background: #fff8ec;
+  border: 1px solid #f0dca8;
+  border-radius: 8px;
+  color: #7a5b12;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+// report tabs on their own row (so nothing overflows the filter toolbar)
+.reports-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 20px 10px;
+  background: #fff;
+  border-bottom: 1px solid #f0f0f0;
+
+  .reports-switch__btn {
+    border: 1px solid #d8d8e4;
+    border-radius: 16px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+}
+
+.reports-clear {
+  padding: 4px 14px;
+  background: #fff;
+  border: 1px solid #d9534f;
+  color: #d9534f;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  &:hover { background: #d9534f; color: #fff; }
+}
+
+.report-health-card--clickable {
+  cursor: pointer;
+  transition: box-shadow 0.12s, transform 0.12s;
+  &:hover { box-shadow: 0 2px 10px rgba(60, 60, 100, 0.14); transform: translateY(-1px); }
+}
+
+// Topology — real service nodes (cards): health border, method-volume bars
+.topo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.topo-node {
+  background: #fff;
+  border: 1px solid #e6e6ee;
+  border-top: 4px solid #cfcfe0;
+  border-radius: 8px;
+  padding: 12px 14px;
+
+  &--ok    { border-top-color: $ok; }
+  &--watch { border-top-color: $watch; }
+  &--bad   { border-top-color: $bad; }
+
+  &__head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 3px;
+  }
+  &__name { font-weight: 700; color: #2a2a40; font-size: 15px; flex: 1; }
+  &__badge { font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: #999; }
+  &__meta { font-size: 12px; font-family: monospace; color: #888; margin-bottom: 10px; }
+  &__methods { display: flex; flex-direction: column; gap: 5px; }
+}
+
+.topo-method {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: monospace;
+  font-size: 12px;
+
+  &__name {
+    flex: 0 0 42%;
+    color: #3a4a72;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  &__track { flex: 1; height: 9px; background: #f0f0f4; border-radius: 5px; overflow: hidden; }
+  &__bar {
+    height: 100%;
+    border-radius: 5px;
+    background: #6886ba;
+    &--ok    { background: #6886ba; }
+    &--watch { background: $watch; }
+    &--bad   { background: $bad; }
+  }
+  &__count { flex: 0 0 46px; text-align: right; color: #666; }
+  &__empty { color: #bbb; font-size: 12px; font-style: italic; }
+}

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import SystemView from "./pages/SystemView/SystemView";
 import Logs from "./pages/Logs/Logs";
+import Reports from "./pages/Reports/Reports";
 import ServiceContext from "./ServiceContext";
 import {
   BrowserRouter as Router,
@@ -27,6 +28,9 @@ function App({ SystemViewService }) {
           <Switch>
             <Route path="/logs" exact>
               <Logs />
+            </Route>
+            <Route path="/reports/:projectCode?" exact>
+              <Reports />
             </Route>
             <Route path="/specs/:projectCode?/:serviceId?/:moduleName?/:methodName?">
               <SystemView />

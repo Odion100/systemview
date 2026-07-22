@@ -37,7 +37,7 @@ module.exports = async function startLineReader(url, { connectedUrls = new Set()
   let stopLogs = null;
 
   const parseArgs = (args) => {
-    const flags = { filter: [], or: [], include: [], skip: [], headers: {} };
+    const flags = { filter: [], or: [], include: [], highlight: [], skip: [], headers: {} };
     const positional = [];
     for (let i = 0; i < args.length; i++) {
       if (args[i] === "--level" && args[i + 1]) { flags.level = args[++i]; }
@@ -45,6 +45,7 @@ module.exports = async function startLineReader(url, { connectedUrls = new Set()
       else if (args[i] === "--filter" && args[i + 1]) { flags.filter.push(args[++i]); }
       else if (args[i] === "--or" && args[i + 1]) { flags.or.push(args[++i]); }
       else if (args[i] === "--include" && args[i + 1]) { flags.include.push(args[++i]); }
+      else if (args[i] === "--highlight" && args[i + 1]) { flags.highlight.push(args[++i]); }
       else if (args[i] === "--skip" && args[i + 1]) { flags.skip.push(args[++i]); }
       else if (args[i] === "--phase" && args[i + 1]) { flags.phase = args[++i]; }
       else if (args[i] === "--index" && args[i + 1]) { flags.index = parseInt(args[++i], 10); }

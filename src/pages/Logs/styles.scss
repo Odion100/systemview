@@ -397,3 +397,109 @@
   font-size: 14px;
 }
 
+// RFC-011 — Filter ↔ Highlight per-clause mode toggle (amber = highlight)
+.field-analyzer__mode {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 6px;
+  height: 20px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: monospace;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  border: 1px solid currentColor;
+  color: #9494b7;
+  background: #f0f0f8;
+  white-space: nowrap;
+  &:hover { opacity: 0.75; }
+  &--highlight {
+    color: #b7791f;
+    background: #fdf3d9;
+  }
+}
+
+// Highlight-mode analyzer panel gets an amber header accent
+.dash-panel--highlight .dash-panel__header {
+  background: #fdf6e3;
+  box-shadow: inset 3px 0 0 #e0b849;
+}
+
+// RFC-011 — highlight indicator chip (amber), distinct from filter (blue) / OR (green)
+.logs-quick-filter--highlight {
+  background: #fdf3d9;
+  border-color: #e0b849;
+  color: #b7791f;
+  &:hover { background: #f9e9bf; }
+}
+
+// RFC-011 — Table | JSON view-mode toggle
+.logs-viewmode {
+  display: inline-flex;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  overflow: hidden;
+
+  &__btn {
+    padding: 4px 12px;
+    background: #fafafa;
+    border: none;
+    color: #777;
+    font-size: 13px;
+    font-family: monospace;
+    cursor: pointer;
+    &:not(:last-child) { border-right: 1px solid #ddd; }
+    &:hover { background: #f0f0f8; }
+    &--on {
+      background: #3367d6;
+      color: #fff;
+      &:hover { background: #3367d6; }
+    }
+  }
+}
+
+// RFC-011 — collapsible analyzer
+.dashboard {
+  &--collapsed {
+    min-height: 0;
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+
+  &__collapse {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 2px 4px;
+    margin-bottom: 8px;
+    background: none;
+    border: none;
+    color: #9494b7;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    &:hover { color: #6886ba; }
+  }
+
+  &--collapsed &__collapse { margin-bottom: 0; }
+
+  &__collapse-chevron {
+    font-size: 10px;
+    color: #b0b0cc;
+  }
+
+  &__collapse-count {
+    color: #b7791f;
+    background: #fdf3d9;
+    border-radius: 10px;
+    padding: 1px 8px;
+    font-size: 10px;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+}
+

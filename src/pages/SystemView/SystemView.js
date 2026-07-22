@@ -24,9 +24,14 @@ const SystemViewPage = () => {
           SystemView
         </span>
         <img src={LOGO} alt="logo" />
-        <Link to="/logs" className="logs-nav-link">
-          Logs
-        </Link>
+        <div className="nav-links">
+          <Link to="/logs" className="logs-nav-link">
+            Logs
+          </Link>
+          <Link to={projectCode ? `/reports/${projectCode}` : "/reports"} className="logs-nav-link">
+            Reports
+          </Link>
+        </div>
         <span
           style={{
             position: "absolute",

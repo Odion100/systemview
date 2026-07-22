@@ -15,6 +15,15 @@
   .log-row { display: flex; width: 100%; }
   .log-row--expanded { display: block; }
   .log-cell { flex: 1; }
+
+  // RFC-011 — JSON view mode: every entry shown expanded (expand-all), separated as cards
+  &--json {
+    .log-row--clickable { cursor: default; border-bottom: none; }
+    .log-row--expanded {
+      margin-bottom: 8px;
+      border-bottom: 1px solid #e0e0e8;
+    }
+  }
 }
 
 .log-th {
@@ -49,6 +58,18 @@
   &--active .log-cell { background: #d0d0ec !important; opacity: 1 !important; }
   &--expanded { background: #f7f7fb; cursor: pointer; }
   &--expanded:hover { background: #eeeef8; }
+
+  // RFC-011 — highlight (filter's twin): matched rows stay, get an amber tint + left accent
+  &--highlight .log-cell { background: #fdf6e3; }
+  &--highlight.log-row--clickable:hover .log-cell { background: #f9edcf; }
+  &--highlight .log-cell--time { box-shadow: inset 3px 0 0 #e0b849; }
+}
+
+// RFC-011 — emphasize the specific cell whose path matched a highlight clause
+.log-cell--highlight {
+  background: #fbe9a8 !important;
+  color: #7a5b12 !important;
+  font-weight: 600;
 }
 
 .log-cell {

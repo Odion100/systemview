@@ -140,6 +140,8 @@ function FieldAnalyzer({
   onDateRange,
   conjunction,
   onConjunctionChange,
+  mode,
+  onModeChange,
   slotId,
   initialField,
 }) {
@@ -224,15 +226,24 @@ function FieldAnalyzer({
   const hasDrill = field && drillSegments.length > 0;
 
   return (
-    <div className={`dash-panel${hasDrill ? " dash-panel--wide" : ""}`}>
+    <div className={`dash-panel${hasDrill ? " dash-panel--wide" : ""}${mode === "highlight" ? " dash-panel--highlight" : ""}`}>
       <div className="dash-panel__header">
         <button
-          className={`field-analyzer__conj${conjunction === "or" ? " field-analyzer__conj--or" : ""}`}
-          title={conjunction === "and" ? "& AND — intersect with other filters" : "|| OR — union with other filters"}
-          onClick={() => onConjunctionChange && onConjunctionChange(conjunction === "and" ? "or" : "and")}
+          className={`field-analyzer__mode${mode === "highlight" ? " field-analyzer__mode--highlight" : ""}`}
+          title={mode === "highlight" ? "Highlight — mark matches, keep every row (click to switch to Filter)" : "Filter — hide non-matching rows (click to switch to Highlight)"}
+          onClick={() => onModeChange && onModeChange(mode === "highlight" ? "filter" : "highlight")}
         >
-          {conjunction === "and" ? "&" : "||"}
+          {mode === "highlight" ? "✦ mark" : "▽ hide"}
         </button>
+        {mode !== "highlight" && (
+          <button
+            className={`field-analyzer__conj${conjunction === "or" ? " field-analyzer__conj--or" : ""}`}
+            title={conjunction === "and" ? "& AND — intersect with other filters" : "|| OR — union with other filters"}
+            onClick={() => onConjunctionChange && onConjunctionChange(conjunction === "and" ? "or" : "and")}
+          >
+            {conjunction === "and" ? "&" : "||"}
+          </button>
+        )}
         {hasDrill ? (
           <div className="field-analyzer__crumbs">
             <span className="field-analyzer__crumb" onClick={() => jumpToDrill(-1)}>
@@ -421,13 +432,15 @@ function Dashboard({
   initialPaths,
 }) {
   const [analyzers, setAnalyzers] = useState(() => {
-    const pre = (initialPaths || []).map((p) => ({ id: `url-${p}`, resolvedPath: p, displayPath: p, conjunction: "and" }));
-    return [...pre, { id: Date.now(), resolvedPath: null, conjunction: "and" }];
+    const pre = (initialPaths || []).map((p) => ({ id: `url-${p}`, resolvedPath: p, displayPath: p, conjunction: "and", mode: "filter" }));
+    return [...pre, { id: Date.now(), resolvedPath: null, conjunction: "and", mode: "highlight" }];
   });
+  const [collapsed, setCollapsed] = useState(false);
   const traceEntries = entries.filter((e) => e.level === "trace");
   const keyPaths = getKeyPaths(entries);
 
   const lastResolved = analyzers[analyzers.length - 1]?.resolvedPath;
+  const activeCount = analyzers.filter((a) => a.resolvedPath).length;
 
   useEffect(() => {
     if (initialPaths && initialPaths.length) reportState(analyzers);
@@ -440,11 +453,12 @@ function Dashboard({
       path: x.resolvedPath,
       displayPath: x.displayPath,
       conjunction: x.conjunction,
+      mode: x.mode,
     })).filter((x) => x.path || x.displayPath));
   }
 
   function addAnalyzer() {
-    setAnalyzers((a) => [...a, { id: Date.now(), resolvedPath: null, conjunction: "and" }]);
+    setAnalyzers((a) => [...a, { id: Date.now(), resolvedPath: null, conjunction: "and", mode: "highlight" }]);
   }
 
   function removeAnalyzer(id) {
@@ -476,8 +490,28 @@ function Dashboard({
     });
   }
 
+  function updateMode(id, mode) {
+    setAnalyzers((a) => {
+      const next = a.map((x) => (x.id === id ? { ...x, mode } : x));
+      reportState(next);
+      return next;
+    });
+  }
+
   return (
-    <div className="dashboard">
+    <div className={`dashboard${collapsed ? " dashboard--collapsed" : ""}`}>
+      <button
+        className="dashboard__collapse"
+        onClick={() => setCollapsed((c) => !c)}
+        title={collapsed ? "Expand analyzer" : "Collapse analyzer — reclaim table height"}
+      >
+        <span className="dashboard__collapse-chevron">{collapsed ? "▸" : "▾"}</span>
+        Analyzer
+        {collapsed && activeCount > 0 && (
+          <span className="dashboard__collapse-count">{activeCount} active</span>
+        )}
+      </button>
+      {!collapsed && (
       <div className="dashboard__panels">
         {traceEntries.length > 0 && (
           <FreqPanel
@@ -501,6 +535,8 @@ function Dashboard({
             onDateRange={onDateRange}
             conjunction={a.conjunction}
             onConjunctionChange={(c) => updateConjunction(a.id, c)}
+            mode={a.mode || "highlight"}
+            onModeChange={(m) => updateMode(a.id, m)}
             slotId={a.id}
             initialField={a.displayPath || a.resolvedPath || ""}
           />
@@ -511,6 +547,7 @@ function Dashboard({
           </button>
         )}
       </div>
+      )}
     </div>
   );
 }
@@ -542,38 +579,40 @@ function cellValue(entry, path) {
   return String(v);
 }
 
-export function LogRow({ entry, isExpanded, onToggle, dynamicColumns, filteredFixedPaths, compact, isNew }) {
+export function LogRow({ entry, isExpanded, onToggle, dynamicColumns, filteredFixedPaths, highlightPaths, compact, isNew, jsonMode }) {
   const level = entry.level || "info";
   const isTrace = level === "trace";
   const scopeVal = entry.scope || "";
   const msg = typeof scopeVal === "string" ? scopeVal : JSON.stringify(scopeVal) || "";
   const shortTraceId = entry.traceId || "—";
+  const isHighlighted = highlightPaths && highlightPaths.size > 0;
+  const hl = (path) => (highlightPaths && highlightPaths.has(path) ? " log-cell--highlight" : "");
 
   return (
     <>
       <div
-        className={`log-row${isTrace ? " log-row--dim" : ""} log-row--clickable${isExpanded ? " log-row--active" : ""}${isNew ? " log-row--new" : ""}`}
+        className={`log-row${isTrace ? " log-row--dim" : ""} log-row--clickable${isExpanded && !jsonMode ? " log-row--active" : ""}${isNew ? " log-row--new" : ""}${isHighlighted ? " log-row--highlight" : ""}`}
         onClick={onToggle}
       >
-        <div className="log-cell log-cell--time">{formatTime(entry.timestamp)}</div>
-        {!compact && <div className={`log-cell log-cell--project${filteredFixedPaths?.has("projectCode") ? " log-cell--filtered" : ""}`}>{entry.projectCode || "—"}</div>}
-        {!compact && <div className={`log-cell log-cell--service${filteredFixedPaths?.has("serviceId") ? " log-cell--filtered" : ""}`}>{entry.serviceId || "—"}</div>}
-        <div className={`log-cell log-cell--method${filteredFixedPaths?.has("moduleMethod") ? " log-cell--filtered" : ""}`}>{entry.moduleMethod || "—"}</div>
-        <div className="log-cell log-cell--level">
+        <div className={`log-cell log-cell--time${hl("timestamp")}`}>{formatTime(entry.timestamp)}</div>
+        {!compact && <div className={`log-cell log-cell--project${filteredFixedPaths?.has("projectCode") ? " log-cell--filtered" : ""}${hl("projectCode")}`}>{entry.projectCode || "—"}</div>}
+        {!compact && <div className={`log-cell log-cell--service${filteredFixedPaths?.has("serviceId") ? " log-cell--filtered" : ""}${hl("serviceId")}`}>{entry.serviceId || "—"}</div>}
+        <div className={`log-cell log-cell--method${filteredFixedPaths?.has("moduleMethod") ? " log-cell--filtered" : ""}${hl("moduleMethod")}`}>{entry.moduleMethod || "—"}</div>
+        <div className={`log-cell log-cell--level${hl("level")}`}>
           <span className={`log-level log-level--${LEVEL_CLASS[level] || "info"}`}>
             {level}
           </span>
         </div>
-        <div className="log-cell log-cell--msg">
+        <div className={`log-cell log-cell--msg${hl("scope")}`}>
           {msg}
           {entry.duration != null && (
             <span className="log-duration"> {entry.duration}ms</span>
           )}
         </div>
-        {!compact && <div className="log-cell log-cell--traceid" title={entry.traceId || ""}>{shortTraceId}</div>}
+        {!compact && <div className={`log-cell log-cell--traceid${hl("traceId")}`} title={entry.traceId || ""}>{shortTraceId}</div>}
         {!compact && dynamicColumns &&
           dynamicColumns.map((path) => (
-            <div key={path} className="log-cell log-cell--dynamic" title={path}>
+            <div key={path} className={`log-cell log-cell--dynamic${hl(path)}`} title={path}>
               {cellValue(entry, path)}
             </div>
           ))}
@@ -630,6 +669,7 @@ export default function Logs() {
     initAnalyzerPaths.map((p) => ({ id: `url-${p}`, path: p, displayPath: p, conjunction: "and" }))
   );
   const [expandedKey, setExpandedKey] = useState(null);
+  const [viewMode, setViewMode] = useState("table");
   const [isMonitoring, setIsMonitoring] = useState(false);
   const [newEntryKeys, setNewEntryKeys] = useState(new Set());
   const monitorUnsubs = useRef([]);
@@ -777,16 +817,35 @@ export default function Logs() {
     [quickFilters]
   );
 
-  // Build ordered filter chain: fixed panels (always OR) then analyzers (& or ||)
+  // Build ordered filter chain: fixed panels (always OR) then FILTER-mode analyzers (& or ||).
+  // Highlight-mode analyzer clauses are pulled out — they mark rows instead of hiding them.
   const FIXED_FILTER_ORDER = ["moduleMethod"];
   const orderedFilters = [
     ...FIXED_FILTER_ORDER
       .filter((p) => (quickFilters[p] || []).length > 0)
       .map((p) => ({ path: p, vals: quickFilters[p], mode: "and", slotId: p })),
     ...analyzerSlots
-      .filter((s) => s.path && (quickFilters[s.id] || []).length > 0)
+      .filter((s) => s.path && s.mode !== "highlight" && (quickFilters[s.id] || []).length > 0)
       .map((s) => ({ path: s.path, vals: quickFilters[s.id], mode: s.conjunction, slotId: s.id })),
   ];
+
+  // Highlight clauses: matches are emphasized, every row stays. A row highlights if it matches ANY
+  // highlight clause (OR); the matched path is emphasized on its cell.
+  const highlightSlots = analyzerSlots
+    .filter((s) => s.path && s.mode === "highlight" && (quickFilters[s.id] || []).length > 0)
+    .map((s) => ({ path: s.path, vals: quickFilters[s.id], slotId: s.id }));
+
+  const highlightPathsFor = useCallback(
+    (entry) => {
+      const paths = new Set();
+      highlightSlots.forEach(({ path, vals }) => {
+        if (vals.some((v) => matchesVal(getAtPath(entry, path), v))) paths.add(path);
+      });
+      return paths;
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [JSON.stringify(highlightSlots)]
+  );
 
   // Group by precedence: & binds tighter, each || starts a new group
   const filterGroups = (() => {
@@ -963,6 +1022,16 @@ export default function Logs() {
               </React.Fragment>
             );
           })}
+          {highlightSlots.map(({ path, vals, slotId }) => (
+            <button
+              key={`hl-${slotId}`}
+              className="logs-quick-filter logs-quick-filter--highlight"
+              title="Highlight clause — click to remove"
+              onClick={() => setQuickFilters((prev) => { const n = { ...prev }; delete n[slotId]; return n; })}
+            >
+              ✦ {path}: {vals.map((v) => v === "?+" ? "has value" : v === "?-" ? "null/missing" : v.startsWith("~") ? v.slice(1) : v).join(", ")} ×
+            </button>
+          ))}
           {activeDateRanges.map(([path, { from, to }]) => (
             <button
               key={`dr-${path}`}
@@ -1000,6 +1069,20 @@ export default function Logs() {
           >
             Reset filters
           </button>
+          <div className="logs-viewmode">
+            <button
+              className={`logs-viewmode__btn${viewMode === "table" ? " logs-viewmode__btn--on" : ""}`}
+              onClick={() => setViewMode("table")}
+            >
+              Table
+            </button>
+            <button
+              className={`logs-viewmode__btn${viewMode === "json" ? " logs-viewmode__btn--on" : ""}`}
+              onClick={() => setViewMode("json")}
+            >
+              JSON
+            </button>
+          </div>
           <button
             className={`logs-monitor-btn${isMonitoring ? " logs-monitor-btn--on" : ""}`}
             onClick={() => setIsMonitoring((m) => !m)}
@@ -1055,7 +1138,7 @@ export default function Logs() {
               : "No entries match the current filter."}
           </p>
         ) : (
-          <div className="logs-table">
+          <div className={`logs-table${viewMode === "json" ? " logs-table--json" : ""}`}>
             {displayEntries.map((entry, i) => {
               const key = `${i}-${entry.timestamp}-${entry.moduleMethod}`;
               const eKey = `${entry.timestamp}-${entry.traceId}-${entry.moduleMethod}`;
@@ -1063,10 +1146,12 @@ export default function Logs() {
                 <LogRow
                   key={i}
                   entry={entry}
-                  isExpanded={expandedKey === key}
+                  isExpanded={viewMode === "json" || expandedKey === key}
+                  jsonMode={viewMode === "json"}
                   onToggle={() => toggleRow(key)}
                   dynamicColumns={dynamicColumns}
                   filteredFixedPaths={filteredFixedPaths}
+                  highlightPaths={highlightPathsFor(entry)}
                   isNew={newEntryKeys.has(eKey)}
                 />
               );

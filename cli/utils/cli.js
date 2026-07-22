@@ -50,6 +50,7 @@ const HELP_TEXT = `
     --filter missing=<field>                 → only entries where field is absent
     --or <field=value>                     logs: OR filter on a field (repeatable)
     --include <field>                      logs: include extra field as a column (repeatable)
+    --highlight <field=value>              logs: emphasize matching entries, keep all rows (repeatable; same grammar as --filter)
     --save                                 connect: persist this connection to the manifest (headers + cookie tag along)
     --save-session                         connect: opt in to session persistence — a later probe that
                                              signs in saves its cookie to the manifest so the next probe
@@ -74,6 +75,7 @@ const HELP_TEXT = `
     systemview logs buAPI --filter level=error
     systemview logs buAPI --filter has=log.userId
     systemview logs buAPI --filter missing=error --include log
+    systemview logs buAPI --highlight level=error
     systemview logs buAPI --save
     systemview logs buAPI --saved
     systemview connect http://localhost:4100/bu/api/profiles
@@ -89,7 +91,7 @@ const HELP_TEXT = `
 
 const rawArgs = process.argv.slice(2);
 
-const flagValueArgs = ["--manifest", "--header", "--skip", "--phase", "--index", "--level", "--limit", "--follow", "--filter", "--or", "--include", "--save", "--save-limit"];
+const flagValueArgs = ["--manifest", "--header", "--skip", "--phase", "--index", "--level", "--limit", "--follow", "--filter", "--or", "--include", "--highlight", "--save", "--save-limit"];
 
 const flags = {
   json: rawArgs.includes("--json"),
@@ -143,6 +145,11 @@ const flags = {
   include: (() => {
     const result = [];
     rawArgs.forEach((a, i) => { if (a === "--include" && rawArgs[i + 1]) result.push(rawArgs[i + 1]); });
+    return result;
+  })(),
+  highlight: (() => {
+    const result = [];
+    rawArgs.forEach((a, i) => { if (a === "--highlight" && rawArgs[i + 1]) result.push(rawArgs[i + 1]); });
     return result;
   })(),
   clear: rawArgs.includes("--clear"),

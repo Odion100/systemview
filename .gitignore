@@ -130,6 +130,7 @@ api/connections.json
 api/cli-history.json
 api/cli-settings.json
 systemview.manifest.json
+systemview.stats.*.json
 systemview.logs
 vectorStore
 CLAUDE.md

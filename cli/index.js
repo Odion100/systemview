@@ -262,6 +262,7 @@ async function loadCaseSetting() {
       filter: flags.filter,
       or: flags.or,
       include: flags.include,
+      highlight: flags.highlight,
       save: flags.save,
       saved: flags.saved,
       saveLimit: flags.saveLimit,

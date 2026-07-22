@@ -42,7 +42,7 @@ const SKIP_KEYS = new Set([
   "duration",
 ]);
 
-function formatRow(entry, verbose, extraFields) {
+function formatRow(entry, verbose, extraFields, highlighted) {
   const d = new Date(entry.timestamp);
   const time =
     d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) +
@@ -52,10 +52,12 @@ function formatRow(entry, verbose, extraFields) {
   const service = entry.serviceId || "—";
   const method = entry.moduleMethod || "—";
   const level = colorLevel(entry.level);
-  const msg = entry.scope || "";
+  const msg = highlighted ? chalk.bgYellow.black(entry.scope || "") : entry.scope || "";
   const dur = entry.duration != null ? chalk.dim(` ${entry.duration}ms`) : "";
   const traceId = chalk.dim(entry.traceId || "—");
-  let row = `  ${chalk.dim(time)}  ${chalk.cyan(project)} › ${chalk.cyan(service)}   ${method.padEnd(15)}  ${level}  ${traceId}  ${msg}${dur}`;
+  // Highlight (RFC-011): a left gutter marker keeps every row but flags matches (filter's twin).
+  const gutter = highlighted ? chalk.bgYellow.black(" ► ") : "  ";
+  let row = `${gutter}${chalk.dim(time)}  ${chalk.cyan(project)} › ${chalk.cyan(service)}   ${method.padEnd(15)}  ${level}  ${traceId}  ${msg}${dur}`;
   if (extraFields && extraFields.length) {
     const parts = extraFields.map(
       (p) => `${chalk.dim(p + ":")} ${cellStr(getAtPath(entry, p))}`,
@@ -158,6 +160,7 @@ module.exports = async function logsCommand(
     filter,
     or: orFilters,
     include,
+    highlight,
     json,
     save,
     saved,
@@ -166,9 +169,13 @@ module.exports = async function logsCommand(
 ) {
   const andFilters = parseFilters(filter);
   const orFiltersParsed = parseFilters(orFilters);
+  const highlightClauses = parseFilters(highlight);
+  const isHighlighted = (entry) =>
+    highlightClauses.length > 0 && matchesFilters(entry, [], highlightClauses);
   const extraFields = [
     ...andFilters.map(filterDisplayField),
     ...orFiltersParsed.map(filterDisplayField),
+    ...highlightClauses.map(filterDisplayField),
     ...(include || []),
   ].filter((f, i, arr) => !DISPLAY_SKIP.has(f) && arr.indexOf(f) === i);
 
@@ -182,7 +189,7 @@ module.exports = async function logsCommand(
       console.log(JSON.stringify(entry));
       return;
     }
-    console.log(formatRow(entry, verbose, extraFields));
+    console.log(formatRow(entry, verbose, extraFields, isHighlighted(entry)));
   };
 
   // --saved: read local snapshot, no live streaming
@@ -312,6 +319,10 @@ module.exports = async function logsCommand(
   if (orFiltersParsed.length)
     activeFilters.push(
       `or: ${chalk.white(orFiltersParsed.map((f) => `${f.field}=${f.value}`).join(", "))}`,
+    );
+  if (highlightClauses.length)
+    activeFilters.push(
+      `highlight: ${chalk.bgYellow.black(highlightClauses.map((f) => `${f.field}=${f.value}`).join(", "))}`,
     );
   if (extraFields.length)
     activeFilters.push(`include: ${chalk.white(extraFields.join(", "))}`);
