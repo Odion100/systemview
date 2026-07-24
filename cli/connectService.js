@@ -4,6 +4,7 @@ const cookieHttpClient = createCookieHttpClient();
 const Client = createClient(cookieHttpClient);
 const log = require("./logger");
 const manifestCommands = require("./manifest");
+const manifestHeaders = require("./manifestHeaders");
 
 async function getUiSvc(uiUrl) {
   try {
@@ -144,6 +145,9 @@ module.exports = async function connectService(target, { useManifest, save, forc
             specList: s.specList || { tests: [], docs: [] },
           }));
           manifestCommands.save(services);
+          // RFC-017: a session cookie captured during the authed getManifest pull lives in the CLI's
+          // header store — persist it to `.systemview/session.json` so the next process reuses it.
+          manifestHeaders.persist();
         }
       } else {
         log.warn("No plugin manifest found. Storing as connected-services.");
@@ -181,6 +185,7 @@ module.exports = async function connectService(target, { useManifest, save, forc
         manifestCommands.save([
           { projectCode: "connected-services", serviceId, system: { connectionData }, specList: { tests: [], docs: [] } },
         ]);
+        manifestHeaders.persist();
       }
     }
   } catch (err) {

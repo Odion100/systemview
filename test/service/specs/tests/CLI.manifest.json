@@ -1,0 +1,74 @@
+[
+  {
+    "title": "CLI manifest: each service writes its OWN .systemview/<serviceId>.manifest.json (per-service files, no shared write → no race)",
+    "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "manifestFiles" },
+    "Before": [],
+    "Main": [
+      {
+        "title": "read the .systemview/ folder — one file per service",
+        "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "manifestFiles" },
+        "args": [],
+        "savedEvaluations": [
+          { "namespace": "results.hasTestService", "expected_type": "boolean", "validations": [{ "name": "boolEquals", "value": true }], "save": true },
+          { "namespace": "results.hasGatedService", "expected_type": "boolean", "validations": [{ "name": "boolEquals", "value": true }], "save": true },
+          { "namespace": "results.hasGatedSibling", "expected_type": "boolean", "validations": [{ "name": "boolEquals", "value": true }], "save": true }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": []
+  },
+  {
+    "title": "CLI manifest: getManifest globs the folder and returns the WHOLE project in one call (all siblings, no hub)",
+    "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "getManifest" },
+    "Before": [],
+    "Main": [
+      {
+        "title": "probe TestService.Plugin.getManifest → assembled from the per-service files",
+        "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "getManifest" },
+        "args": [
+          {
+            "name": "argument:",
+            "input": { "serviceId": "TestService" },
+            "input_type": "object",
+            "data_type": "",
+            "targetValues": []
+          }
+        ],
+        "savedEvaluations": [
+          { "namespace": "results.exitCode", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 0 }], "save": true },
+          { "namespace": "results.projectCode", "expected_type": "string", "validations": [{ "name": "strEquals", "value": "systemview-test" }], "save": true },
+          { "namespace": "results.hasAllThree", "expected_type": "boolean", "validations": [{ "name": "boolEquals", "value": true }], "save": true }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": []
+  },
+  {
+    "title": "CLI manifest clean: re-probes per-service files, DELETES stale ones, keeps live services",
+    "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "cleanManifest" },
+    "Before": [
+      {
+        "title": "seed a stale GhostService.manifest.json pointing at a dead URL",
+        "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "seedStale" },
+        "args": [],
+        "savedEvaluations": []
+      }
+    ],
+    "Main": [
+      {
+        "title": "run `systemview manifest clean` → prunes Ghost, keeps TestService",
+        "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "cleanManifest" },
+        "args": [],
+        "savedEvaluations": [
+          { "namespace": "results.exitCode", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 0 }], "save": true },
+          { "namespace": "results.ghostGone", "expected_type": "boolean", "validations": [{ "name": "boolEquals", "value": true }], "save": true },
+          { "namespace": "results.testServiceKept", "expected_type": "boolean", "validations": [{ "name": "boolEquals", "value": true }], "save": true }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": []
+  }
+]

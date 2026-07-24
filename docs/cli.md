@@ -106,7 +106,7 @@ Each test is the unit. Before/Main/Events/After phases are listed directly on th
 
 #### Service resolution order
 
-1. `systemview.manifest.json` in cwd (or `--manifest` path) — no SystemView server needed
+1. `.systemview/` per-service manifest files in cwd (or a combined file via `--manifest <path>`) — no SystemView server needed
 2. SystemView API (`http://localhost:3000/systemview/api`) — fallback if no manifest
 
 ---
@@ -123,7 +123,7 @@ The service must be running. `serviceId` is used as a label; the actual service 
 
 ### `systemview connect`
 
-Re-probes all services already listed in `systemview.manifest.json` and refreshes their connection data.
+Re-probes all services from the `.systemview/` per-service manifest files. `systemview manifest clean` prunes any whose service no longer responds (it deletes that service's file).
 
 ```bash
 systemview connect
@@ -193,9 +193,11 @@ systemview shutdown 4000
 
 ---
 
-## `systemview.manifest.json`
+## Storage: the `.systemview/` folder
 
-A per-project connection file written by the SystemView plugin on service startup, or by `systemview connect`. Lives in the root of your SystemLynx service project.
+SystemView keeps its runtime state in a `.systemview/` folder in the root of your SystemLynx service project. Add `.systemview/` to `.gitignore` — it's local, per-machine, and holds live session cookies.
+
+**Per-service manifest files** — on startup each service's plugin writes **only its own** `.systemview/<serviceId>.manifest.json` (its connection data + spec list). Because no two services ever write the same file, the services in a project can all start at once with no clobbering — this is what a project's manifest is *made of*. Assembled — by the plugin's `getManifest()` (which globs the folder) or by the CLI — they read as one project manifest:
 
 ```json
 {
@@ -219,7 +221,7 @@ A per-project connection file written by the SystemView plugin on service startu
 }
 ```
 
-**`headers`** — the single, per-origin header store the CLI attaches to every request it makes to that origin. **SystemView never sets headers itself** — the plugin writes none; you author them. Use it to reach an **auth-gated** project without re-pasting `--header` on every call (e.g. an `Origin` for a dev session, or an auth token). Each value is a literal **or** a `@file` pointer that keeps the secret out of the manifest:
+**`headers`** — the per-origin header store the CLI attaches to every request it makes to that origin, kept in **`.systemview/session.json`**. You author them (a service's `headers:{}` plugin-config defaults also merge in from its per-service manifest file; captured cookies win). Use it to reach an **auth-gated** project without re-pasting `--header` on every call (e.g. an `Origin` for a dev session, or an auth token). Each value is a literal **or** a `@file` pointer that keeps the secret out of the store:
 
 ```json
 "headers": {
@@ -232,7 +234,7 @@ A per-project connection file written by the SystemView plugin on service startu
 
 Author the header once, keyed by the service's URL origin. Precedence: `--header` flag > `headers`.
 
-**Cookies live here too** — there is no separate cookie jar. A `Set-Cookie` from any response is folded into the `Cookie` entry under that origin. Within one CLI process the captured cookie is re-sent on the next request automatically. To make it survive **across** processes (so a `probe` sign-in leaves a session the next `probe` reuses), opt in with the session policy below. Because captured cookies are written as literal values, keep the manifest gitignored (it already is by default).
+**Cookies live here too** — there is no separate cookie jar. A `Set-Cookie` from any response is folded into the `Cookie` entry under that origin. Within one CLI process the captured cookie is re-sent on the next request automatically. To make it survive **across** processes (so a `probe` sign-in leaves a session the next `probe` reuses), opt in with the session policy below. Because captured cookies are written as literal values into `.systemview/session.json`, the `.systemview/` folder is gitignored by default.
 
 **`session` — cross-process persistence policy.** By default a captured cookie dies when the CLI process exits. Set `session.save` and a `probe` that captures a `Set-Cookie` (e.g. a sign-in) writes it back into the manifest for the next `probe` to reuse — no interactive session, no `--header`, no `save` dance:
 
@@ -250,9 +252,9 @@ systemview probe Profiles.Users.isRecognized                                    
 
 Without the policy, `probe` never writes to the manifest (the safe default). `save` still persists everything on demand as before.
 
-Add the manifest to `.gitignore` — it's a local artifact that changes each time a service starts, and now also holds live session cookies.
+The `.systemview/` folder is gitignored by default — it's local, per-machine, changes each time a service starts, and holds live session cookies.
 
-When multiple services in the same project start (e.g., buAPI's 4 services), each plugin run merges its own entry into the manifest rather than overwriting.
+When multiple services in the same project start (e.g., buAPI's services), each plugin writes its **own** `.systemview/<serviceId>.manifest.json` — no shared file and no read-modify-write, so nothing clobbers even when they all start at once. The `headers`/`session` cookie store described above is the CLI's own `systemview.manifest.json` (a single-writer file), kept separate from those per-service registration files.
 
 ---
 

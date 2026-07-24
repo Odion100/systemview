@@ -6,8 +6,9 @@ const { getHeaders } = require("./manifestHeaders");
 const cookieHttpClient = createCookieHttpClient();
 const Client = createClient(cookieHttpClient);
 const log = require("./logger");
+const { readFolderManifest, removeServiceFile, manifestDir } = require("./manifestStore");
 
-const DEFAULT_MANIFEST = path.join(process.cwd(), "systemview.manifest.json");
+const DEFAULT_MANIFEST = path.join(process.cwd(), ".systemview", "manifest.json");
 
 async function getUiSvc(uiUrl) {
   try {
@@ -39,6 +40,7 @@ module.exports.save = function saveManifest(manifestServices, manifestFile = DEF
     services: byProject[projectCode],
     ...(headers && Object.keys(headers).length && { headers }),
   };
+  fs.mkdirSync(path.dirname(manifestFile), { recursive: true });
   fs.writeFileSync(manifestFile, JSON.stringify(manifest, null, 2));
   const headerOrigins = Object.keys(headers || {});
   const cookieOrigins = headerOrigins.filter((o) => headers[o] && headers[o].Cookie);
@@ -48,35 +50,31 @@ module.exports.save = function saveManifest(manifestServices, manifestFile = DEF
   log.success(`Manifest saved to ${manifestFile} — ${parts.join(", ")}`);
 };
 
-module.exports.clean = async function cleanManifest(manifestFile = DEFAULT_MANIFEST) {
-  if (!fs.existsSync(manifestFile)) {
-    log.warn("No manifest file found at " + manifestFile);
+// RFC-017: re-probe each per-service file under `.systemview/` and DELETE the stale ones (instead of
+// rewriting a shared array). Each `<serviceId>.manifest.json` is independent, so pruning is a file unlink.
+module.exports.clean = async function cleanManifest() {
+  const manifest = readFolderManifest();
+  if (!manifest || !manifest.services || !manifest.services.length) {
+    log.warn("No per-service manifest files found in " + manifestDir());
     return;
   }
-  let manifest;
-  try {
-    manifest = JSON.parse(fs.readFileSync(manifestFile, "utf8"));
-  } catch {
-    log.error("Failed to parse manifest.");
-    return;
-  }
-  const services = manifest.services || [manifest];
-  log.info(`Re-probing ${services.length} service(s)...`);
-  const alive = [];
-  for (const entry of services) {
+  log.info(`Re-probing ${manifest.services.length} service(s)...`);
+  let kept = 0;
+  let removed = 0;
+  for (const entry of manifest.services) {
     const url = entry.system && entry.system.connectionData && entry.system.connectionData.serviceUrl;
     if (!url) continue;
     try {
       await HttpClient.request({ url });
-      alive.push(entry);
+      kept++;
       log.success(`alive: ${entry.serviceId}`);
     } catch {
+      removeServiceFile(entry.serviceId);
+      removed++;
       log.warn(`stale: ${entry.serviceId} (removed)`);
     }
   }
-  manifest.services = alive;
-  fs.writeFileSync(manifestFile, JSON.stringify(manifest, null, 2));
-  log.success(`Manifest cleaned. ${alive.length} service(s) remaining.`);
+  log.success(`Manifest cleaned. ${kept} service(s) remaining, ${removed} removed.`);
 };
 
 module.exports.disconnect = async function disconnect(projectCode, serviceId, { connectedUrls, uiUrl } = {}) {

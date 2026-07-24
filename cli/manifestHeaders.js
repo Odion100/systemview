@@ -17,7 +17,7 @@ const path = require("path");
 // repoints the WHOLE store — load + capture + persist + policy — at an explicit `--manifest <path>`, so
 // a session saved under that manifest is also re-attached from it. Without this, the read side (load)
 // was locked to cwd while persist honored the flag, so `--manifest` sessions saved but never rode back.
-let _manifestFile = path.join(process.cwd(), "systemview.manifest.json");
+let _manifestFile = path.join(process.cwd(), ".systemview", "session.json");
 
 // { "<origin>": { "Header-Name": "value" | "@file", "Cookie": "a=1; b=2" } }
 // This is the ONLY header store — user-authored, indexed by service URL origin. The plugin never
@@ -53,11 +53,27 @@ function load() {
   // caching that empty read would blind it forever. Re-read until headers actually appear, then cache.
   if (headers && Object.keys(headers).length) return headers;
   headers = {};
+  // RFC-017: config-header DEFAULTS now live in the per-service manifest files the plugins wrote
+  // (`.systemview/*.manifest.json` → entry.headers). Pull those first, keyed by origin.
+  try {
+    const { readFolderManifest } = require("./manifestStore");
+    const folder = readFolderManifest(path.dirname(_manifestFile));
+    if (folder && folder.headers) {
+      for (const [origin, bucket] of Object.entries(folder.headers)) headers[origin] = { ...bucket };
+    }
+  } catch {
+    /* no folder / unreadable — no config defaults */
+  }
+  // The session store (captured cookies + any user-authored headers) WINS over the config defaults.
   try {
     const m = JSON.parse(fs.readFileSync(_manifestFile, "utf8"));
-    if (m && m.headers && typeof m.headers === "object") headers = m.headers;
+    if (m && m.headers && typeof m.headers === "object") {
+      for (const [origin, bucket] of Object.entries(m.headers)) {
+        headers[origin] = { ...(headers[origin] || {}), ...bucket };
+      }
+    }
   } catch {
-    /* no manifest / unreadable — start empty */
+    /* no session store / unreadable — defaults only */
   }
   return headers;
 }
@@ -161,6 +177,7 @@ function persist(manifestFile = _manifestFile) {
   }
   manifest.headers = store;
   try {
+    fs.mkdirSync(path.dirname(manifestFile), { recursive: true });
     fs.writeFileSync(manifestFile, JSON.stringify(manifest, null, 2));
     _dirty = false;
     note("persist", `saved session to ${path.basename(manifestFile)}`);
@@ -197,6 +214,7 @@ function setSessionPolicy(patch, manifestFile = _manifestFile) {
   }
   manifest.session = { ...(manifest.session || {}), ...patch };
   try {
+    fs.mkdirSync(path.dirname(manifestFile), { recursive: true });
     fs.writeFileSync(manifestFile, JSON.stringify(manifest, null, 2));
     return manifest.session;
   } catch {

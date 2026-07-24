@@ -172,6 +172,83 @@ const CLI = {
       hasHeaders: !!(m && m.headers && Object.keys(m.headers).length),
     };
   },
+
+  // --- RFC-017 manifest-folder helpers (each plugin writes its OWN `.systemview/<serviceId>.manifest.json`
+  //     so N services starting at once never clobber a shared file — the deploy-boot race is gone) ---
+
+  // Inspect the `.systemview/` folder: which per-service files the plugins wrote, on disk.
+  async manifestFiles() {
+    const dir = path.join(process.cwd(), ".systemview");
+    let all = [];
+    try {
+      all = fs.readdirSync(dir).filter((f) => f.endsWith(".manifest.json"));
+    } catch {}
+    const perService = all
+      .filter((f) => f !== "manifest.json")
+      .map((f) => f.replace(/\.manifest\.json$/, ""))
+      .sort();
+    return {
+      exitCode: 0,
+      files: perService,
+      fileCount: perService.length,
+      hasTestService: perService.includes("TestService"),
+      hasGatedService: perService.includes("GatedService"),
+      hasGatedSibling: perService.includes("GatedSibling"),
+      hasCombined: all.includes("manifest.json"),
+    };
+  },
+
+  // Call the plugin's getManifest over the wire — it globs the folder and assembles the whole project.
+  // Proves one call to ANY service returns every sibling (the shared cwd is the aggregator, no hub needed).
+  async getManifest({ serviceId = "TestService" } = {}) {
+    const { exitCode, stdout } = await runCli(["probe", `${serviceId}.Plugin.getManifest`, "--json"]);
+    const parsed = parseJson(stdout);
+    const manifest = (parsed && parsed.result) || {}; // probe --json wraps the return under `.result`
+    const services = manifest.services || [];
+    const serviceIds = services.map((s) => s && s.serviceId).filter(Boolean).sort();
+    return {
+      exitCode,
+      projectCode: manifest.projectCode || "",
+      serviceIds,
+      serviceCount: serviceIds.length,
+      hasAllThree: ["GatedService", "GatedSibling", "TestService"].every((id) => serviceIds.includes(id)),
+    };
+  },
+
+  // Seed a stale per-service file pointing at a dead URL, so `manifest clean` has something to prune.
+  async seedStale({ serviceId = "GhostService", url = "http://localhost:5999/dead/api" } = {}) {
+    const dir = path.join(process.cwd(), ".systemview");
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(
+        path.join(dir, `${serviceId}.manifest.json`),
+        JSON.stringify({ projectCode: "systemview-test", serviceId, system: { connectionData: { serviceUrl: url } }, specList: { tests: [], docs: [] } }, null, 2),
+      );
+    } catch {}
+    return { ok: true, seeded: serviceId };
+  },
+
+  // Run `systemview manifest clean`, then read the folder back: it should re-probe each per-service file,
+  // DELETE the stale (dead-URL) ones, and keep the live services.
+  async cleanManifest({ ghost = "GhostService" } = {}) {
+    const { exitCode, stdout, stderr } = await runCli(["manifest", "clean"]);
+    const dir = path.join(process.cwd(), ".systemview");
+    let remaining = [];
+    try {
+      remaining = fs
+        .readdirSync(dir)
+        .filter((f) => f.endsWith(".manifest.json") && f !== "manifest.json")
+        .map((f) => f.replace(/\.manifest\.json$/, ""));
+    } catch {}
+    return {
+      exitCode,
+      remaining: remaining.sort(),
+      ghostGone: !remaining.includes(ghost),
+      testServiceKept: remaining.includes("TestService"),
+      stdout,
+      stderr,
+    };
+  },
 };
 
 module.exports = CLI;

@@ -7,7 +7,8 @@ const {
   getName,
   getFilesByNamespace,
 } = require("./utils");
-module.exports = ({ App, specs, projectCode, serviceId, module = {}, credentials = false }) => {
+module.exports = ({ App, specs, projectCode, serviceId, module = {}, credentials = false, svDir }) => {
+  svDir = svDir || path.resolve(process.cwd(), ".systemview");
   specs = specs.substr(-1) === "/" ? specs.substr(0, specs.length - 1) : specs;
   const system = {};
   App.on("ready", (_system) => {
@@ -101,7 +102,7 @@ module.exports = ({ App, specs, projectCode, serviceId, module = {}, credentials
       return { projectCode, serviceId, system, specList, credentials };
     };
     this.getLog = ({ limit } = {}) => {
-      const logsFile = path.join(process.cwd(), "systemview.logs");
+      const logsFile = path.join(svDir, "systemview.logs");
       try {
         const lines = fs.readFileSync(logsFile, "utf8")
           .split("\n")
@@ -112,10 +113,45 @@ module.exports = ({ App, specs, projectCode, serviceId, module = {}, credentials
         return [];
       }
     };
+    // RFC-017: assemble the whole project from the per-service files the plugins wrote (siblings share
+    // this cwd, so one call returns every service — no hub needed), materialize the combined
+    // `.systemview/manifest.json`, and return it. Safe to save here: getManifest is called on-demand by a
+    // single caller (a CLI/UI request), NOT by the services stampeding at boot — that stampede was the
+    // race, and it's gone now that each plugin writes only its own file.
     this.getManifest = () => {
-      const manifestFile = path.join(process.cwd(), "systemview.manifest.json");
-      try { return JSON.parse(fs.readFileSync(manifestFile, "utf8")); }
-      catch { return null; }
+      try {
+        const files = fs
+          .readdirSync(svDir)
+          .filter((f) => f.endsWith(".manifest.json") && f !== "manifest.json");
+        const services = [];
+        const headers = {};
+        let pc = projectCode;
+        for (const f of files) {
+          try {
+            const entry = JSON.parse(fs.readFileSync(path.join(svDir, f), "utf8"));
+            if (!entry || !entry.serviceId) continue;
+            if (entry.projectCode) pc = entry.projectCode;
+            if (entry.headers) Object.assign(headers, entry.headers); // per-origin config defaults
+            services.push({
+              serviceId: entry.serviceId,
+              system: entry.system,
+              specList: entry.specList,
+              credentials: entry.credentials,
+            });
+          } catch {}
+        }
+        const manifest = { projectCode: pc, services };
+        if (Object.keys(headers).length) manifest.headers = headers;
+        try {
+          fs.writeFileSync(
+            path.join(svDir, "manifest.json"),
+            JSON.stringify(manifest, null, 2),
+          );
+        } catch {}
+        return manifest;
+      } catch {
+        return null;
+      }
     };
   };
 };

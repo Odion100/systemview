@@ -14,6 +14,7 @@ const appIsRunning = require("./appIsRunning");
 const openBrowser = require("./openBrowser");
 const connectService = require("./connectService");
 const manifestCommands = require("./manifest");
+const { readFolderManifest } = require("./manifestStore");
 const probe = require("./probe");
 const logsCommand = require("./logs");
 const { createClient } = require("systemlynx");
@@ -38,16 +39,21 @@ function flushAndExit(code = 0) {
   process.stderr.write("", done);
 }
 
-const MANIFEST_FILE =
-  flags.manifest || path.join(process.cwd(), "systemview.manifest.json");
 const connectedUrls = new Set();
 
 async function loadManifest() {
-  if (!fs.existsSync(MANIFEST_FILE)) return;
+  // RFC-017: services come from the per-service files under `.systemview/`, assembled on read. An
+  // explicit `--manifest <path>` still points at a single combined file (e.g. a saved snapshot).
+  let manifest = null;
+  if (flags.manifest) {
+    try { manifest = JSON.parse(fs.readFileSync(flags.manifest, "utf8")); } catch {}
+  } else {
+    manifest = readFolderManifest();
+  }
+  if (!manifest || !manifest.services || !manifest.services.length) return;
   try {
-    const manifest = JSON.parse(fs.readFileSync(MANIFEST_FILE, "utf8"));
     const { projectCode } = manifest;
-    const services = manifest.services || [manifest];
+    const services = manifest.services;
     log.info(`Reading manifest: ${projectCode} — ${services.length} service(s)`);
     const api = `http://localhost:${DEFAULT_PORT}/systemview/api`;
     const { SystemView } = await Client.loadService(api);
@@ -233,7 +239,7 @@ async function loadCaseSetting() {
     if (sub === "save") {
       log.warn("manifest save requires an interactive session. Run: systemview start");
     } else if (sub === "clean") {
-      await manifestCommands.clean(MANIFEST_FILE);
+      await manifestCommands.clean();
     } else {
       log.warn("Usage: systemview manifest <save|clean>");
     }

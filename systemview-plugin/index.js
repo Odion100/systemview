@@ -2,7 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const SystemViewModule = require("./SystemViewModule");
 const createStats = require("./stats");
-const { getSpecList } = require("./utils");
+const { getSpecList, ensureDir } = require("./utils");
 
 const SKIP_MODULES = ["Plugin", "SystemView"];
 
@@ -28,6 +28,8 @@ module.exports = function ({
   connection = "http://localhost:3300/systemview/api",
   specs = "./specs",
   logs = "./systemview.logs",
+  // RFC-017: all SystemView runtime files live under this folder in the observed project's cwd.
+  dir = ".systemview",
   limit = 100,
   projectCode,
   serviceId,
@@ -51,7 +53,10 @@ module.exports = function ({
   exclude = [],
 }) {
   return function (App) {
-    const LOG_FILE = path.resolve(process.cwd(), logs);
+    // RFC-017: one folder for everything SystemView writes into the project.
+    const SV_DIR = path.resolve(process.cwd(), dir);
+    ensureDir(SV_DIR);
+    const LOG_FILE = path.resolve(SV_DIR, logs);
     const excludeModules = new Set([
       ...SKIP_MODULES,
       ...exclude.filter((s) => !s.includes(".")),
@@ -64,7 +69,7 @@ module.exports = function ({
     const statsEnabled = statsConfig !== false;
     const statsOpts = typeof statsConfig === "object" && statsConfig ? statsConfig : {};
     const statsFile = path.resolve(
-      process.cwd(),
+      SV_DIR,
       statsOpts.file || `systemview.stats.${serviceId || "default"}.json`,
     );
     const statsAgg = statsEnabled
@@ -321,7 +326,7 @@ module.exports = function ({
       App.loadService("SystemViewUI", connection)
         .module(
           "Plugin",
-          SystemViewModule({ specs, App, projectCode, serviceId, module, credentials }),
+          SystemViewModule({ specs, App, projectCode, serviceId, module, credentials, svDir: SV_DIR }),
         )
         .on(
           "ready",
@@ -357,38 +362,27 @@ module.exports = function ({
         );
     }
 
-    // Write/refresh THIS service's entry in the local systemview.manifest.json — independent of the UI
-    // so the CLI (or a remote UI) can reach the service via the manifest even when no UI runs locally.
+    // RFC-017: write THIS service's OWN file — `.systemview/<serviceId>.manifest.json`. No read-modify-
+    // write of a shared file, so N services starting at once never clobber each other (that stampede was
+    // the deploy-boot wedge). getManifest() and the CLI glob these files and assemble the whole project.
     function persistManifest(system) {
       try {
         const { connectionData } = system;
         const specList = getSpecList(specs);
-        const manifestPath = path.join(process.cwd(), "systemview.manifest.json");
-        let manifest = { projectCode, services: [] };
-        if (fs.existsSync(manifestPath)) {
-          try {
-            manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
-          } catch {}
-          if (!manifest.services) manifest.services = [];
-        }
-        const entry = { serviceId, system, specList, credentials };
-        const idx = manifest.services.findIndex((s) => s.serviceId === serviceId);
-        if (idx > -1) manifest.services[idx] = entry;
-        else manifest.services.push(entry);
-        manifest.projectCode = projectCode;
-        // Carry operator-authored config headers into the manifest as DEFAULTS (existing/captured win),
-        // under this service's own origin. Literals or `@file` pointers, same as manifest headers.
+        // Persist ONLY serializable connectionData — never the live `system` (its `modules` are live
+        // instances, `services` are socket-backed clients; JSON.stringify walking their getters can block).
+        const entry = { projectCode, serviceId, system: { connectionData }, specList, credentials };
+        // Operator-authored config headers ride as DEFAULTS under this service's own origin; the
+        // assembler merges them (captured cookies win at read time).
         if (headers && Object.keys(headers).length) {
           let origin = null;
-          try {
-            origin = new URL(connectionData.serviceUrl).origin;
-          } catch {}
-          if (origin) {
-            if (!manifest.headers) manifest.headers = {};
-            manifest.headers[origin] = { ...headers, ...(manifest.headers[origin] || {}) };
-          }
+          try { origin = new URL(connectionData.serviceUrl).origin; } catch {}
+          if (origin) entry.headers = { [origin]: { ...headers } };
         }
-        fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+        fs.writeFileSync(
+          path.join(SV_DIR, `${serviceId}.manifest.json`),
+          JSON.stringify(entry, null, 2),
+        );
       } catch (err) {
         console.log(`[SystemView]: failed to write manifest: ${err.message}\n`);
       }

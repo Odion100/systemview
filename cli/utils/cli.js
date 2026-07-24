@@ -31,7 +31,7 @@ const HELP_TEXT = `
     --json                                 Output results as JSON (for agents/CI)
     --verbose                              test: full results and args for all phases; list: expand hierarchy
     --manifest                             connect: use plugin manifest to get real projectCode
-    --manifest <path>                      probe: path to manifest file (default: ./systemview.manifest.json)
+    --manifest <path>                      read connection data from a combined manifest file (default: assembled from .systemview/)
     --header "Name: Value"                 Extra request header (repeatable; overrides manifest headers).
                                              For a standing token, add it to the manifest "headers"
                                              (literal or "@file") — see docs/cli.md.

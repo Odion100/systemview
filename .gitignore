@@ -132,6 +132,7 @@ api/cli-settings.json
 systemview.manifest.json
 systemview.stats.*.json
 systemview.logs
+.systemview/
 vectorStore
 CLAUDE.md
 .claude/

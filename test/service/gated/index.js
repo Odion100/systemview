@@ -42,8 +42,12 @@ if (SYSTEMVIEW_HOST) {
     } catch {}
     setTimeout(() => {
       try {
-        const mp = path.join(process.cwd(), "systemview.manifest.json");
-        const m = JSON.parse(fs.readFileSync(mp, "utf8"));
+        // RFC-017: operator-authored headers live in the CLI's session store, `.systemview/session.json`.
+        const dir = path.join(process.cwd(), ".systemview");
+        fs.mkdirSync(dir, { recursive: true });
+        const mp = path.join(dir, "session.json");
+        let m = {};
+        try { m = JSON.parse(fs.readFileSync(mp, "utf8")); } catch {}
         m.headers = {
           ...(m.headers || {}),
           [ORIGIN]: { ...((m.headers && m.headers[ORIGIN]) || {}), testtoken: "@./test/service/.testtoken" },
