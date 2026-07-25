@@ -18,9 +18,16 @@ module.exports = ({ App, specs, projectCode, serviceId, module = {}, credentials
     system.services = _system.services;
   });
   return function SystemViewPlugin() {
-    const { SystemView } = this.useService("SystemViewUI");
-
     Object.assign(this, module);
+
+    // The UI hub is OPTIONAL — this module is registered on EVERY service (hub or not) so a remote,
+    // UI-less service still serves getManifest/getTests/getDoc + your own functions. `saveDoc`/`saveTest`
+    // push live spec updates to a CONNECTED UI; with no hub the write still lands on disk, push is skipped.
+    const pushSpecList = () => {
+      try {
+        this.useService("SystemViewUI").SystemView.updateSpecList(this.getSpecList(), projectCode, serviceId);
+      } catch {}
+    };
 
     // Resolve where a doc lives. Service/module/method docs live in specs/docs/. A project-level doc
     // (namespace has no service/module/method) is a single {projectCode}.md at the project ROOT (cwd) —
@@ -40,7 +47,7 @@ module.exports = ({ App, specs, projectCode, serviceId, module = {}, credentials
       } else {
         deleteFile(fileName);
       }
-      SystemView.updateSpecList(this.getSpecList(), projectCode, serviceId);
+      pushSpecList();
       return { documentation, namespace };
     };
 
@@ -76,7 +83,7 @@ module.exports = ({ App, specs, projectCode, serviceId, module = {}, credentials
         tests.push(test);
       }
       fs.writeFileSync(fileName, JSON.stringify(tests), "utf8");
-      SystemView.updateSpecList(this.getSpecList(), projectCode, serviceId);
+      pushSpecList();
       return index || tests.length - 1;
     };
     this.deleteTest = (namespace, index) => {
@@ -88,7 +95,7 @@ module.exports = ({ App, specs, projectCode, serviceId, module = {}, credentials
         fs.writeFileSync(fileName, JSON.stringify(tests), "utf8");
       } else {
         deleteFile(fileName);
-        SystemView.updateSpecList(this.getSpecList(), projectCode, serviceId);
+        pushSpecList();
       }
     };
     this.getSpecList = () => ({

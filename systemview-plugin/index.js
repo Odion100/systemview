@@ -322,44 +322,30 @@ module.exports = function ({
       });
     }
 
-    function registerSystemViewUIPlugin() {
-      App.loadService("SystemViewUI", connection)
-        .module(
-          "Plugin",
-          SystemViewModule({ specs, App, projectCode, serviceId, module, credentials, svDir: SV_DIR }),
-        )
-        .on(
-          "ready",
-          async function connectSystemView({
-            connectionData,
-            modules,
-            routing,
-            services,
-          }) {
-            const system = { connectionData, modules, routing, services };
-            const specList = getSpecList(specs);
+    // Register the Plugin module on EVERY service, hub or not — its methods (getManifest/getTests/getDoc/
+    // getConnection + the user's own `module` functions) must be reachable remotely so a UI-less remote
+    // service can be inspected and TESTED. Registration is now independent of the UI connection.
+    function registerPluginModule() {
+      App.module(
+        "Plugin",
+        SystemViewModule({ specs, App, projectCode, serviceId, module, credentials, svDir: SV_DIR }),
+      );
+    }
 
-            try {
-              const { SystemView: SystemViewSvc } = this.useService("SystemViewUI");
-              await SystemViewSvc.connect({
-                system,
-                projectCode,
-                serviceId,
-                specList,
-                credentials,
-              });
-              console.log(`[SystemView]: ${projectCode}.${serviceId} connected!\n`);
-            } catch (err) {
-              console.log(
-                `[SystemView]: ${projectCode}.${serviceId} connection failed\n`,
-              );
-            }
-
-            // NOTE: the manifest file write moved out of here — it now runs on `ready` via
-            // persistManifest(), gated by `writeManifest` (independent of the UI), so a service with
-            // no local UI still writes its manifest. This handler only connects to the UI.
-          },
-        );
+    // The actual UI connection — load the hub and push this service's registration on ready. UI-only.
+    function connectToUI() {
+      App.loadService("SystemViewUI", connection);
+      App.on("ready", async function connectSystemView({ connectionData, modules, routing, services }) {
+        const system = { connectionData, modules, routing, services };
+        const specList = getSpecList(specs);
+        try {
+          const { SystemView: SystemViewSvc } = this.useService("SystemViewUI");
+          await SystemViewSvc.connect({ system, projectCode, serviceId, specList, credentials });
+          console.log(`[SystemView]: ${projectCode}.${serviceId} connected!\n`);
+        } catch (err) {
+          console.log(`[SystemView]: ${projectCode}.${serviceId} connection failed\n`);
+        }
+      });
     }
 
     // RFC-017: write THIS service's OWN file — `.systemview/<serviceId>.manifest.json`. No read-modify-
@@ -389,7 +375,8 @@ module.exports = function ({
     }
 
     if (useSystemViewLogs) registerSystemViewLogs();
-    if (useSystemViewUI) registerSystemViewUIPlugin();
+    registerPluginModule(); // ALWAYS — the plugin's methods must be reachable with or without a hub
+    if (useSystemViewUI) connectToUI();
     if (writeManifest)
       App.on("ready", function ({ connectionData, modules, routing, services }) {
         persistManifest({ connectionData, modules, routing, services });
