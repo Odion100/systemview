@@ -210,9 +210,8 @@ async function loadCaseSetting() {
   } else if (["exit", "q", "shutdown", "stop"].includes(command)) {
     await quitApp();
   } else if (command === "connect") {
-    const useManifest = process.argv.includes("--manifest");
     await connectService(input[1], {
-      useManifest,
+      useManifest: flags.useManifest,
       save: process.argv.includes("--save"),
       force: flags.force,
       connectedUrls,
@@ -221,7 +220,7 @@ async function loadCaseSetting() {
     // --save-session: opt in to cross-process session persistence. Records the policy in the manifest
     // so a later `probe` that captures a Set-Cookie (e.g. a sign-in) saves it for the next probe to
     // reuse. Saving is implied — no manifest yet? one is created; an existing one is amended.
-    if (process.argv.includes("--save-session")) {
+    if (flags.saveSession) {
       const { setSessionPolicy } = require("./manifestHeaders");
       const policy = setSessionPolicy({ save: true });
       if (policy) log.success("session persistence enabled — a captured sign-in cookie will be saved for later probes");
@@ -251,7 +250,8 @@ async function loadCaseSetting() {
       manifest: flags.manifest,
       headers: flags.headers,
       uiUrl: UI_URL,
-      saveSession: process.argv.includes("--save-session"),
+      saveSession: flags.saveSession,
+      global: flags.global,
     });
     flushAndExit(exitCode || 0);
   } else if (command === "logs" || command === "log") {

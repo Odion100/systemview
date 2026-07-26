@@ -1,10 +1,10 @@
 [
   {
-    "title": "This sibling receives the session established on GatedService (session rides across the project)",
+    "title": "GatedSibling does NOT auto-receive GatedService's session — the sibling-borrow was removed; a project-wide session is now explicit via `probe --save-session -g` (see CLI.probe)",
     "namespace": { "serviceId": "GatedSibling", "moduleName": "Auth", "methodName": "getSession" },
     "Before": [
       {
-        "title": "Sign in on GatedService (:5556) — establishes the project session",
+        "title": "Sign in on GatedService (:5556) — captures a cookie for THAT origin only",
         "namespace": { "serviceId": "GatedService", "moduleName": "Auth", "methodName": "signIn" },
         "args": [
           {
@@ -27,14 +27,14 @@
     ],
     "Main": [
       {
-        "title": "getSession on this sibling (:5557) sees the session — it rode from GatedService",
+        "title": "getSession on this sibling (:5557) sees NO session — nothing auto-rode from GatedService (borrow gone)",
         "namespace": { "serviceId": "GatedSibling", "moduleName": "Auth", "methodName": "getSession" },
         "args": [],
         "savedEvaluations": [
           {
             "namespace": "results.cookie",
             "expected_type": "string",
-            "validations": [{ "name": "isLike", "value": "session=test-session-value" }],
+            "validations": [{ "name": "strEquals", "value": "" }],
             "save": true
           }
         ]

@@ -18,10 +18,24 @@ module.exports = async function resolveTarget(SystemView, arg) {
 
   if (!arg) return { services: all };
 
-  const byProject = all.filter((s) => nsEquals(s.projectCode, arg));
-  if (byProject.length) return { services: byProject };
+  // `projectCode:namespace` — scope the (fuzzy) namespace resolution to ONE project. Necessary because
+  // resolveNamespace matches the joined path across ALL services, so the same service connected under two
+  // project codes is otherwise ambiguous. The colon pins the project; the namespace after it stays fuzzy
+  // ("buAPI-prod:signIn" resolves signIn within buAPI-prod only). `projectCode:` alone → that project.
+  const colon = arg.indexOf(":");
+  const scope = colon > -1 ? arg.slice(0, colon) : null;
+  const ns = colon > -1 ? arg.slice(colon + 1) : arg;
+  const pool = scope ? all.filter((s) => nsEquals(s.projectCode, scope)) : all;
 
-  if (resolveNamespace(arg, all).length) return { services: all, resolvedNamespace: arg };
+  if (scope && !ns) return { services: pool };
+
+  // bare exact projectCode (no colon) still means "that whole project"
+  if (!scope) {
+    const byProject = all.filter((s) => nsEquals(s.projectCode, arg));
+    if (byProject.length) return { services: byProject };
+  }
+
+  if (resolveNamespace(ns, pool).length) return { services: pool, resolvedNamespace: ns };
 
   return { services: [] };
 };

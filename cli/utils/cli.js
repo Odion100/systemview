@@ -52,9 +52,10 @@ const HELP_TEXT = `
     --include <field>                      logs: include extra field as a column (repeatable)
     --highlight <field=value>              logs: emphasize matching entries, keep all rows (repeatable; same grammar as --filter)
     --save                                 connect: persist this connection to the manifest (headers + cookie tag along)
-    --save-session                         connect: opt in to session persistence — a later probe that
-                                             signs in saves its cookie to the manifest so the next probe
-                                             reuses it (saving implied: creates a manifest if none, else amends)
+    --save-session                         probe/connect: persist a captured session cookie so the next
+                                             process reuses it (single-origin unless -g)
+    -g, --global                           with --save-session: make the session PROJECT-WIDE — the cookie
+                                             rides to every service in that project (not just its origin)
     --save [path]                          logs: append streamed entries to a local snapshot file
     --saved                                logs: read from local snapshot instead of live service
     --save-limit <n>                       logs: max entries to keep in snapshot (default 500)
@@ -89,108 +90,103 @@ const HELP_TEXT = `
     systemview test buAPI --header "X-Api-Key: secret"
 `;
 
-const rawArgs = process.argv.slice(2);
-
 const flagValueArgs = ["--manifest", "--header", "--skip", "--phase", "--index", "--level", "--limit", "--follow", "--filter", "--or", "--include", "--highlight", "--save", "--save-limit"];
 
-const flags = {
-  json: rawArgs.includes("--json"),
-  verbose: rawArgs.includes("--verbose"),
-  debug: rawArgs.includes("--debug") || rawArgs.includes("-d"),
-  bail: rawArgs.includes("--bail"),
-  dryRun: rawArgs.includes("--dry-run"),
-  manifest: (() => {
-    const i = rawArgs.indexOf("--manifest");
-    return i !== -1 ? rawArgs[i + 1] : null;
-  })(),
-  phase: (() => {
-    const i = rawArgs.indexOf("--phase");
-    return i !== -1 ? rawArgs[i + 1] : null;
-  })(),
-  index: (() => {
-    const i = rawArgs.indexOf("--index");
-    if (i === -1) return undefined;
-    const val = parseInt(rawArgs[i + 1], 10);
-    return isNaN(val) ? 0 : val;
-  })(),
-  skip: (() => {
-    const result = [];
-    rawArgs.forEach((a, i) => {
-      if (a === "--skip" && rawArgs[i + 1]) result.push(rawArgs[i + 1]);
-    });
-    return result;
-  })(),
-  level: (() => {
-    const i = rawArgs.indexOf("--level");
-    return i !== -1 ? rawArgs[i + 1] : null;
-  })(),
-  limit: (() => {
-    const i = rawArgs.indexOf("--limit");
-    if (i === -1) return undefined;
-    const val = parseInt(rawArgs[i + 1], 10);
-    return isNaN(val) ? undefined : val;
-  })(),
-  follow: rawArgs.includes("--follow") || rawArgs.includes("-f"),
-  current: rawArgs.includes("--current"),
-  filter: (() => {
-    const result = [];
-    rawArgs.forEach((a, i) => { if (a === "--filter" && rawArgs[i + 1]) result.push(rawArgs[i + 1]); });
-    return result;
-  })(),
-  or: (() => {
-    const result = [];
-    rawArgs.forEach((a, i) => { if (a === "--or" && rawArgs[i + 1]) result.push(rawArgs[i + 1]); });
-    return result;
-  })(),
-  include: (() => {
-    const result = [];
-    rawArgs.forEach((a, i) => { if (a === "--include" && rawArgs[i + 1]) result.push(rawArgs[i + 1]); });
-    return result;
-  })(),
-  highlight: (() => {
-    const result = [];
-    rawArgs.forEach((a, i) => { if (a === "--highlight" && rawArgs[i + 1]) result.push(rawArgs[i + 1]); });
-    return result;
-  })(),
-  clear: rawArgs.includes("--clear"),
-  force: rawArgs.includes("--force"),
-  save: (() => {
-    const i = rawArgs.indexOf("--save");
-    if (i === -1) return false;
-    const next = rawArgs[i + 1];
-    return (next && !next.startsWith("-")) ? next : true;
-  })(),
-  saved: rawArgs.includes("--saved"),
-  saveLimit: (() => {
-    const i = rawArgs.indexOf("--save-limit");
-    if (i === -1) return 500;
-    const val = parseInt(rawArgs[i + 1], 10);
-    return isNaN(val) ? 500 : val;
-  })(),
-  headers: (() => {
-    const result = {};
-    rawArgs.forEach((a, i) => {
-      if (a === "--header" && rawArgs[i + 1]) {
-        const val = rawArgs[i + 1];
-        const colonIdx = val.indexOf(":");
-        if (colonIdx !== -1) {
-          result[val.slice(0, colonIdx).trim()] = val.slice(colonIdx + 1).trim();
-        }
-      }
-    });
-    return result;
-  })(),
-};
+// Quote-aware tokenizer: a single/double-quoted arg (e.g. a JSON payload with spaces) stays ONE token,
+// surrounding quotes stripped. Turns an interactive REPL line into the same argv shape the shell hands
+// one-shot mode — so both feed the SAME parseArgs below instead of each rolling their own.
+function tokenize(str) {
+  const tokens = [];
+  const re = /"([^"]*)"|'([^']*)'|(\S+)/g;
+  let m;
+  while ((m = re.exec(str)) !== null) {
+    tokens.push(m[1] !== undefined ? m[1] : m[2] !== undefined ? m[2] : m[3]);
+  }
+  return tokens;
+}
 
-const input = rawArgs.filter((a, i) => {
-  if (a.startsWith("-")) return false;
-  if (i > 0 && flagValueArgs.includes(rawArgs[i - 1])) return false;
-  return true;
-});
+// THE single arg parser — used by BOTH one-shot (process.argv) and interactive (a tokenized line).
+// Any flag added here works in EVERY mode; that's the whole point (interactive used to keep its own
+// partial list and silently drift, which is how --save-session died in the REPL).
+function parseArgs(rawArgs) {
+  const listOf = (name) => {
+    const r = [];
+    rawArgs.forEach((a, i) => { if (a === name && rawArgs[i + 1]) r.push(rawArgs[i + 1]); });
+    return r;
+  };
+  const valOf = (name) => {
+    const i = rawArgs.indexOf(name);
+    return i !== -1 ? rawArgs[i + 1] : null;
+  };
+  const intOf = (name, dflt) => {
+    const i = rawArgs.indexOf(name);
+    if (i === -1) return dflt;
+    const v = parseInt(rawArgs[i + 1], 10);
+    return isNaN(v) ? dflt : v;
+  };
+  const flags = {
+    json: rawArgs.includes("--json"),
+    verbose: rawArgs.includes("--verbose"),
+    debug: rawArgs.includes("--debug") || rawArgs.includes("-d"),
+    bail: rawArgs.includes("--bail"),
+    dryRun: rawArgs.includes("--dry-run"),
+    manifest: valOf("--manifest"), // probe: path after --manifest
+    useManifest: rawArgs.includes("--manifest"), // connect: boolean presence
+    phase: valOf("--phase"),
+    index: (() => {
+      const i = rawArgs.indexOf("--index");
+      if (i === -1) return undefined;
+      const v = parseInt(rawArgs[i + 1], 10);
+      return isNaN(v) ? 0 : v;
+    })(),
+    skip: listOf("--skip"),
+    level: valOf("--level"),
+    limit: intOf("--limit", undefined),
+    follow: rawArgs.includes("--follow") || rawArgs.includes("-f"),
+    current: rawArgs.includes("--current"),
+    filter: listOf("--filter"),
+    or: listOf("--or"),
+    include: listOf("--include"),
+    highlight: listOf("--highlight"),
+    clear: rawArgs.includes("--clear"),
+    force: rawArgs.includes("--force"),
+    save: (() => {
+      const i = rawArgs.indexOf("--save");
+      if (i === -1) return false;
+      const next = rawArgs[i + 1];
+      return next && !next.startsWith("-") ? next : true;
+    })(),
+    saved: rawArgs.includes("--saved"),
+    saveSession: rawArgs.includes("--save-session"),
+    global: rawArgs.includes("--global") || rawArgs.includes("-g"),
+    saveLimit: intOf("--save-limit", 500),
+    headers: (() => {
+      const result = {};
+      rawArgs.forEach((a, i) => {
+        if (a === "--header" && rawArgs[i + 1]) {
+          const val = rawArgs[i + 1];
+          const colonIdx = val.indexOf(":");
+          if (colonIdx !== -1) result[val.slice(0, colonIdx).trim()] = val.slice(colonIdx + 1).trim();
+        }
+      });
+      return result;
+    })(),
+  };
+  const input = rawArgs.filter((a, i) => {
+    if (a.startsWith("-")) return false;
+    if (i > 0 && flagValueArgs.includes(rawArgs[i - 1])) return false;
+    return true;
+  });
+  return { input, flags };
+}
+
+const { input, flags } = parseArgs(process.argv.slice(2));
 
 module.exports = {
   input,
   flags,
+  parseArgs,
+  tokenize,
   showHelp(exit = true) {
     console.log(HELP_TEXT);
     if (exit) process.exit(0);

@@ -146,7 +146,7 @@
           { "namespace": "results.exitCode", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 0 }], "save": true },
           { "namespace": "results.stdout", "expected_type": "string", "validations": [{ "name": "isLike", "value": "Plugin manifest found: systemview-test" }], "save": true },
           { "namespace": "results.stdout", "expected_type": "string", "validations": [{ "name": "isLike", "value": "Manifest saved" }], "save": true },
-          { "namespace": "results.stdout", "expected_type": "string", "validations": [{ "name": "isLike", "value": "cookies for 1 origin" }], "save": true }
+          { "namespace": "results.stdout", "expected_type": "string", "validations": [{ "name": "isLike", "value": "cookies for 2 origin" }], "save": true }
         ]
       },
       {

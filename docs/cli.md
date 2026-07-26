@@ -143,6 +143,10 @@ systemview probe ProfilesService.Users.getUser '{"userId":"123"}' --json
 
 Dot notation mirrors how you call the service in code: `ProfilesService.Users.getUser(args)`.
 
+**Fuzzy namespace** — you don't have to type the whole path; probe resolves the same way `test`/`logs`/`list` do (matches against every connected `Service.Module.method`). `probe getUser` resolves if it's unambiguous. If more than one method matches, probe **lists the candidates and exits 1** rather than guessing.
+
+**`projectCode:` prefix** — when the same service is connected under more than one project code (e.g. the same project run as two deployments), scope the resolution to one: `probe buAPI-prod:Users.getUser`. Everything after the colon still resolves fuzzily, within that project only.
+
 **args** — a JSON string. Pass an object for single-arg methods, a JSON array for multi-arg methods (spread positionally), or a plain string for primitives. Omit for methods with no arguments.
 
 ```bash
@@ -234,7 +238,7 @@ SystemView keeps its runtime state in a `.systemview/` folder in the root of you
 
 Author the header once, keyed by the service's URL origin. Precedence: `--header` flag > `headers`.
 
-**Cookies live here too** — there is no separate cookie jar. A `Set-Cookie` from any response is folded into the `Cookie` entry under that origin. Within one CLI process the captured cookie is re-sent on the next request automatically. To make it survive **across** processes (so a `probe` sign-in leaves a session the next `probe` reuses), opt in with the session policy below. Because captured cookies are written as literal values into `.systemview/session.json`, the `.systemview/` folder is gitignored by default.
+**Cookies live here too** — there is no separate cookie jar. A `Set-Cookie` from any response is folded into the `Cookie` entry under that origin, and re-sent on the next request **to that same origin**. It does **not** automatically cross to other services — cross-service is explicit via `-g` (below). To make a session survive **across** processes (so a `probe` sign-in leaves a session the next `probe` reuses), opt in with the session policy below. Because captured cookies are written as literal values into `.systemview/session.json`, the `.systemview/` folder is gitignored by default.
 
 **`session` — cross-process persistence policy.** By default a captured cookie dies when the CLI process exits. Set `session.save` and a `probe` that captures a `Set-Cookie` (e.g. a sign-in) writes it back into the manifest for the next `probe` to reuse — no interactive session, no `--header`, no `save` dance:
 
@@ -251,6 +255,19 @@ systemview probe Profiles.Users.isRecognized                                    
 ```
 
 Without the policy, `probe` never writes to the manifest (the safe default). `save` still persists everything on demand as before.
+
+**`-g` / `--global` — project-wide session.** A saved session is single-origin by default (it rides only to the service it was captured on). Add `-g` to a `--save-session` sign-in to make it **project-wide**: the sign-in records that project's service origins into the session, and the cookie then rides to all of them — deterministically, scoped to the project:
+
+```bash
+systemview probe buAPI:Profiles.Users.signIn '{…}' --save-session -g   # records buAPI's origins + the cookie
+systemview probe buAPI:Media.Assets.list                                # different service, SAME project — the session rides
+```
+
+```json
+"session": { "save": true, "origins": ["https://…:4000", "https://…:4100"], "cookie": "connect.sid=…" }
+```
+
+A session **never** auto-crosses services otherwise. (An earlier build borrowed the first cookie in the store across origins — which could hand a request the wrong session, e.g. a `localhost` test cookie into a remote call; that borrow is gone.) `-g` scopes strictly to the recorded project origins, so a cookie can't leak into an unrelated deployment.
 
 The `.systemview/` folder is gitignored by default — it's local, per-machine, changes each time a service starts, and holds live session cookies.
 

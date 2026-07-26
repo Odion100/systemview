@@ -28,6 +28,9 @@ let headers = null;
 // rewrites the manifest when there's actually a new session to save.
 let _dirty = false;
 
+// The most recent captured cookie, so `--save-session -g` can stamp it as the project-wide session cookie.
+let _lastCapturedCookie = null;
+
 // Repoint the store at an explicit manifest (from `--manifest <path>`). Resets the cache so the next
 // load() reads the newly-targeted file. Call once, early, before any request/persist. No-op if falsy.
 function setManifestFile(file) {
@@ -119,16 +122,17 @@ function headersFor(url) {
 }
 
 // Project-wide session cookie for the CLI request path ONLY (createCookieHttpClient), never fed to the
-// browser. A session captured for ANY service in this manifest rides to the project's other services —
-// the CLI's origin-scoped jar otherwise wouldn't (the browser's domain jar does this for free). Returns
-// a borrowed { Cookie } only when the requested origin has no Cookie of its own (its own rides via
-// headersFor). One manifest = one project/deployment = one session.
+// browser. Saved with `--save-session -g` (global): the policy records the project's service origins and
+// the captured cookie; here it rides to EXACTLY those origins — deterministic and project-scoped. This
+// REPLACES the old "borrow the first Cookie in the store" guess, which leaked a cookie from an unrelated
+// deployment (e.g. a localhost test cookie into a remote request).
 function sessionCookieHeader(url) {
   const origin = originOf(url);
   load();
-  if (headers[origin] && headers[origin].Cookie) return {};
-  for (const [o, b] of Object.entries(headers)) {
-    if (o !== origin && b && b.Cookie) return { Cookie: b.Cookie };
+  if (headers[origin] && headers[origin].Cookie) return {}; // its own cookie rides via headersFor
+  const session = readSessionPolicy();
+  if (session.cookie && Array.isArray(session.origins) && session.origins.includes(origin)) {
+    return { Cookie: session.cookie };
   }
   return {};
 }
@@ -157,6 +161,7 @@ function captureCookie(url, setCookieHeaders) {
   store[origin].Cookie = Object.entries(jar)
     .map(([k, v]) => `${k}=${v}`)
     .join("; ");
+  _lastCapturedCookie = store[origin].Cookie;
   _dirty = true;
   note("cookie:" + origin, `captured cookie for ${origin}`);
 }
@@ -176,6 +181,11 @@ function persist(manifestFile = _manifestFile) {
     return false; // no manifest (e.g. UI-server-only run) — nothing to attach the session to
   }
   manifest.headers = store;
+  // `-g` global session: stamp the just-captured cookie as the project-wide session cookie, so it rides to
+  // the recorded origins on later runs (sessionCookieHeader). Only when the policy opted into `origins`.
+  if (manifest.session && Array.isArray(manifest.session.origins) && _lastCapturedCookie) {
+    manifest.session.cookie = _lastCapturedCookie;
+  }
   try {
     fs.mkdirSync(path.dirname(manifestFile), { recursive: true });
     fs.writeFileSync(manifestFile, JSON.stringify(manifest, null, 2));

@@ -36,47 +36,15 @@ module.exports = async function startLineReader(url, { connectedUrls = new Set()
 
   let stopLogs = null;
 
-  const parseArgs = (args) => {
-    const flags = { filter: [], or: [], include: [], highlight: [], skip: [], headers: {} };
-    const positional = [];
-    for (let i = 0; i < args.length; i++) {
-      if (args[i] === "--level" && args[i + 1]) { flags.level = args[++i]; }
-      else if (args[i] === "--limit" && args[i + 1]) { flags.limit = parseInt(args[++i], 10); }
-      else if (args[i] === "--filter" && args[i + 1]) { flags.filter.push(args[++i]); }
-      else if (args[i] === "--or" && args[i + 1]) { flags.or.push(args[++i]); }
-      else if (args[i] === "--include" && args[i + 1]) { flags.include.push(args[++i]); }
-      else if (args[i] === "--highlight" && args[i + 1]) { flags.highlight.push(args[++i]); }
-      else if (args[i] === "--skip" && args[i + 1]) { flags.skip.push(args[++i]); }
-      else if (args[i] === "--phase" && args[i + 1]) { flags.phase = args[++i]; }
-      else if (args[i] === "--index" && args[i + 1]) { flags.index = parseInt(args[++i], 10); }
-      else if (args[i] === "--header" && args[i + 1]) {
-        const val = args[++i];
-        const colonIdx = val.indexOf(":");
-        if (colonIdx !== -1) flags.headers[val.slice(0, colonIdx).trim()] = val.slice(colonIdx + 1).trim();
-      }
-      else if (args[i] === "--verbose") { flags.verbose = true; }
-      else if (args[i] === "--current") { flags.current = true; }
-      else if (args[i] === "--follow" || args[i] === "-f") { flags.follow = true; }
-      else if (args[i] === "--clear") { flags.clear = true; }
-      else if (args[i] === "--json") { flags.json = true; }
-      else if (args[i] === "--bail") { flags.bail = true; }
-      else if (args[i] === "--dry-run") { flags.dryRun = true; }
-      else if (args[i] === "--force") { flags.force = true; }
-      else if (args[i] === "--manifest") { flags.useManifest = true; }
-      else if (args[i] === "--saved") { flags.saved = true; }
-      else if (args[i] === "--save" && args[i + 1] && !args[i + 1].startsWith("-")) { flags.save = args[++i]; }
-      else if (args[i] === "--save") { flags.save = true; }
-      else if (args[i] === "--save-limit" && args[i + 1]) { flags.saveLimit = parseInt(args[++i], 10); }
-      else if (!args[i].startsWith("-")) { positional.push(args[i]); }
-    }
-    return { flags, positional };
-  };
-
-  const handleInput = async (input = "") => {
-    const parts = input.trim().split(/\s+/);
+  // Tokenizing + flag parsing are the SHARED cli.tokenize / cli.parseArgs — ONE pipeline for interactive
+  // AND one-shot, so a flag added once works in both (they used to drift; that's how --save-session died
+  // here). `parts` keeps the raw tokens for the toggle raw-arg path; positional/flags come from the parser.
+  const handleInput = async (line = "") => {
+    const parts = cli.tokenize(line.trim());
     const command = parts[0];
     if (!command) { lineReader.prompt(); return; }
-    const { flags, positional } = parseArgs(parts.slice(1));
+    const { input, flags } = cli.parseArgs(parts);
+    const positional = input.slice(1);
 
     if (["exit", "q"].includes(command)) {
       process.exit(0);
@@ -169,7 +137,7 @@ module.exports = async function startLineReader(url, { connectedUrls = new Set()
       lineReader.prompt();
     } else if (command === "probe") {
       try {
-        await probe(positional[0], positional[1], { json: flags.json, headers: flags.headers, uiUrl: url });
+        await probe(positional[0], positional[1], { json: flags.json, headers: flags.headers, uiUrl: url, saveSession: flags.saveSession, global: flags.global });
       } catch (e) { console.error(e.message); }
       lineReader.prompt();
     } else if (command === "open") {

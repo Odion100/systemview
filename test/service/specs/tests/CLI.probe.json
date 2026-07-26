@@ -707,5 +707,108 @@
         ]
       }
     ]
+  },
+  {
+    "title": "CLI probe: `projectCode:` prefix scopes resolution to one project",
+    "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "probe" },
+    "Before": [],
+    "Main": [
+      {
+        "title": "probe systemview-test:GatedService.Auth.echo → resolves within the named project",
+        "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "probe" },
+        "args": [
+          { "name": "argument:", "input": { "namespace": "systemview-test:GatedService.Auth.echo" }, "input_type": "object", "data_type": "", "targetValues": [] }
+        ],
+        "savedEvaluations": [
+          { "namespace": "results.exitCode", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 0 }], "save": true },
+          { "namespace": "results.result.result.hasOrigin", "expected_type": "boolean", "validations": [{ "name": "boolEquals", "value": true }], "save": true }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": []
+  },
+  {
+    "title": "CLI probe: fuzzy namespace (module.method, no serviceId) resolves via the shared resolver",
+    "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "probe" },
+    "Before": [],
+    "Main": [
+      {
+        "title": "probe String.concat [foo,bar] → resolves to GatedService.String.concat → foobar",
+        "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "probe" },
+        "args": [
+          { "name": "argument:", "input": { "namespace": "String.concat", "args": ["foo", "bar"] }, "input_type": "object", "data_type": "", "targetValues": [] }
+        ],
+        "savedEvaluations": [
+          { "namespace": "results.exitCode", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 0 }], "save": true },
+          { "namespace": "results.result.result.result", "expected_type": "string", "validations": [{ "name": "strEquals", "value": "foobar" }], "save": true }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": []
+  },
+  {
+    "title": "CLI probe: ambiguous namespace (matches multiple services) → error with the choices, not a silent guess",
+    "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "probe" },
+    "Before": [],
+    "Main": [
+      {
+        "title": "probe Auth.echo — TestService/GatedService/GatedSibling all have it → ambiguous, exit 1",
+        "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "probe" },
+        "args": [
+          { "name": "argument:", "input": { "namespace": "Auth.echo" }, "input_type": "object", "data_type": "", "targetValues": [] }
+        ],
+        "savedEvaluations": [
+          { "namespace": "results.exitCode", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 1 }], "save": true },
+          { "namespace": "results.result.error", "expected_type": "string", "validations": [{ "name": "isLike", "value": "ambiguous" }], "save": true }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": []
+  },
+  {
+    "title": "CLI probe (--save-session -g): a PROJECT-WIDE session rides to a DIFFERENT service in the same project",
+    "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "probe" },
+    "Before": [
+      {
+        "title": "setup (local file) — delete the isolated session manifest so this case starts clean",
+        "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "resetSession" },
+        "args": [{ "name": "argument:", "input": {}, "input_type": "object", "data_type": "", "targetValues": [] }]
+      }
+    ],
+    "Main": [
+      {
+        "title": "sign in on GatedService (:5556) with --save-session -g → records the project's origins + the cookie",
+        "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "probe" },
+        "args": [
+          { "name": "argument:", "input": { "namespace": "GatedService.Auth.signIn", "args": { "email": "a@b.c", "password": "pw" }, "flags": ["--manifest", "test/service/.session.manifest.json", "--save-session", "-g"] }, "input_type": "object", "data_type": "", "targetValues": [] }
+        ],
+        "savedEvaluations": [
+          { "namespace": "results.exitCode", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 0 }], "save": true },
+          { "namespace": "results.result.result.success", "expected_type": "boolean", "validations": [{ "name": "boolEquals", "value": true }], "save": true }
+        ]
+      },
+      {
+        "title": "getSession on GatedSibling (:5557 — different origin, SAME project) → the global session rides",
+        "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "probe" },
+        "args": [
+          { "name": "argument:", "input": { "namespace": "GatedSibling.Auth.getSession", "flags": ["--manifest", "test/service/.session.manifest.json"] }, "input_type": "object", "data_type": "", "targetValues": [] }
+        ],
+        "savedEvaluations": [
+          { "namespace": "results.exitCode", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 0 }], "save": true },
+          { "namespace": "results.result.result.cookie", "expected_type": "string", "validations": [{ "name": "strEquals", "value": "session=test-session-value" }], "save": true }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": [
+      {
+        "title": "teardown (local file) — delete the isolated session manifest",
+        "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "resetSession" },
+        "args": [{ "name": "argument:", "input": {}, "input_type": "object", "data_type": "", "targetValues": [] }]
+      }
+    ]
   }
 ]
