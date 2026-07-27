@@ -5,6 +5,7 @@ import Link from "../../atoms/Link/Link";
 import ExpandableList from "../../molecules/ExpandableList/ExpandableList";
 import ServerModulesList from "../../molecules/ServerModulesList/ServerModulesList";
 import DocIcon from "../../atoms/DocsIcon/DocsIcon";
+import Title from "../../atoms/Title/Title";
 import "./styles.scss";
 import { Client, markCredentialed } from "../../systemClient";
 
@@ -25,7 +26,7 @@ const ArrowIcon = () => (
   </svg>
 );
 
-const SystemNav = ({ projectCode, serviceId, moduleName, methodName }) => {
+const SystemNav = ({ projectCode, serviceId, moduleName, methodName, onCollapse }) => {
   const [serviceStatus, setServiceStatus] = useState({});
   const [adding, setAdding] = useState(false);
   const [connectUrl, setConnectUrl] = useState("");
@@ -181,6 +182,16 @@ const SystemNav = ({ projectCode, serviceId, moduleName, methodName }) => {
   return (
     <section className="system-nav">
       <div className="container">
+        {onCollapse && (
+          <div className="row system-nav__section">
+            <div className="col-12">
+              <span className="panel-title panel-title--nav" title="Collapse the navigator" onClick={onCollapse}>
+                <span className="panel-title__arrow">‹</span>
+                <Title text="Navigator" />
+              </span>
+            </div>
+          </div>
+        )}
         <div className="row system-nav__section">
           <div className="col-12">
             {adding ? (

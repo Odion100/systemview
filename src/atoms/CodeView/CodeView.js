@@ -63,13 +63,23 @@ const CodeView = ({ code = "", language = "text", highlight }) => {
       parent: host.current,
     });
 
+    // Center the highlighted line ONLY when the editor has its own scroll. In content-height layouts
+    // (flex grid) the whole file already fits, so scrollIntoView would instead scroll the containing
+    // STAGE to the middle — that's the "switching stories jumps to the middle" bug. Deferred a frame so
+    // the scroller is laid out and measurable.
+    let destroyed = false;
     if (range) {
-      const lineNo = Math.min(range[0], view.state.doc.lines);
-      const pos = view.state.doc.line(lineNo).from;
-      view.dispatch({ effects: EditorView.scrollIntoView(pos, { y: "center" }) });
+      requestAnimationFrame(() => {
+        if (destroyed || !view.scrollDOM) return;
+        if (view.scrollDOM.scrollHeight - view.scrollDOM.clientHeight > 4) {
+          const lineNo = Math.min(range[0], view.state.doc.lines);
+          const pos = view.state.doc.line(lineNo).from;
+          view.dispatch({ effects: EditorView.scrollIntoView(pos, { y: "center" }) });
+        }
+      });
     }
 
-    return () => view.destroy();
+    return () => { destroyed = true; view.destroy(); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [code, language, hlKey]);
 

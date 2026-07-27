@@ -16,11 +16,11 @@ import FullTestController from "./components/FullTestController";
 import Title from "../../atoms/Title/Title";
 import { CurrentTest } from "../../atoms/StatusIndicator/StatusIndicator";
 
-export default function FullTest({ projectCode, serviceId, moduleName, methodName }) {
-  return <FullTestInner projectCode={projectCode} serviceId={serviceId} moduleName={moduleName} methodName={methodName} />;
+export default function FullTest({ projectCode, serviceId, moduleName, methodName, onCollapse }) {
+  return <FullTestInner projectCode={projectCode} serviceId={serviceId} moduleName={moduleName} methodName={methodName} onCollapse={onCollapse} />;
 }
 
-const FullTestInner = ({ projectCode, serviceId, moduleName, methodName }) => {
+const FullTestInner = ({ projectCode, serviceId, moduleName, methodName, onCollapse }) => {
   const namespace = { serviceId, moduleName, methodName };
   const { connectedServices } = useContext(ServiceContext);
   const serviceData = connectedServices.find(
@@ -124,7 +124,14 @@ const FullTestInner = ({ projectCode, serviceId, moduleName, methodName }) => {
     <section className="test-panel">
       <div className="container">
         <div className="row">
-          <Title text="Scratch Pad" />
+          {onCollapse ? (
+            <span className="panel-title panel-title--scratch" title="Collapse the scratchpad" onClick={onCollapse}>
+              <Title text="Scratch Pad" />
+              <span className="panel-title__arrow">›</span>
+            </span>
+          ) : (
+            <Title text="Scratch Pad" />
+          )}
           {typeof Main[0].index === "number" && (
             <CurrentTest name={`Saved Test ${1 + Main[0].index}`} onClick={resetTests} />
           )}

@@ -204,7 +204,7 @@ Stories are especially useful for **AI agents** handing off work (here's the dif
 here's the runnable proof, narrated). Drive them from the CLI:
 
 ```bash
-systemview story <projectCode> "<name>" --ns <namespace> --diff <path> --source <Mod.method> --test <target> --text "notes"
+systemview story <projectCode> "<name>" --ns <namespace> --diff <path> --file <path>#L40-70 --test <target> --text "notes"
 systemview stories <projectCode>          # list every saved story
 ```
 

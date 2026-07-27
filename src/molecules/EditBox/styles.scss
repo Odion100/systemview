@@ -23,6 +23,9 @@
     &--hidden {
       display: none;
     }
+    & .markdown {
+      padding: 30px;
+    }
   }
 
   &__form {
@@ -44,11 +47,15 @@
     font-size: 13px;
     color: #97a0b8;
     user-select: none;
-    &:hover { color: #46506a; }
+    &:hover {
+      color: #46506a;
+    }
     &--save {
       color: #6886ba;
       font-weight: 600;
-      &:hover { color: #47608f; }
+      &:hover {
+        color: #47608f;
+      }
     }
   }
 }

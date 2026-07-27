@@ -25,6 +25,8 @@ const HELP_TEXT = `
     open [projectCode] [namespace]         Open the browser UI
     story <target> "<name>" [--ns ns] [--text|--source|--file|--diff|--test]… [--note md]  Create/update a saved, namespaced Story (see docs/stories-for-agents.md)
     stories <target>                       List saved Stories (name · namespace · pane count)
+    story-add|rm|move|edit <target> "<name>" [--ns ns] …  Edit an existing story's panes: insert (--at i), remove (--at i), reorder (--from i --to j), replace/annotate (--at i)
+    story-layout|rename|delete <target> "<name>" [--ns ns]  Set --layout, --to "<new name>", or delete the story
     show <target> [--file|--source|--text] Drive the live Window to one thing (a file, a method's source, or prose)
     assemble <target> [--text|--source|--file]…  Fill the live Window with several panes at once
     stage add <target> [--file|--source|--text]  Append a pane to the live Window   stage clear <target>  Empty it
@@ -67,8 +69,8 @@ const HELP_TEXT = `
     --saved                                logs: read from local snapshot instead of live service
     --save-limit <n>                       logs: max entries to keep in snapshot (default 500)
     --force                                connect: re-probe even if already connected
-    --file <path>                          show/assemble/stage: a project file to display (repeatable)
-    --source <Mod.method>                  show/assemble/stage: a method's source span to display (repeatable)
+    --file <path[#L a-b]>                  story/show/assemble/stage: a project file to display; optional inline line range e.g. src/x.js#L40-70 (repeatable)
+    --source <Mod.method>                  (legacy — prefer --file + #L) a method's source span by convention (repeatable)
     --diff <path>                          show/assemble/stage: a file's before/after vs git HEAD (repeatable)
     --test <target>                        story/show/assemble/stage: saved tests as runnable examples — any level: * | Service | Module | Mod.method | Mod.method:N (repeatable)
     --text "…"                             story/show/assemble/stage: inline markdown/prose pane (repeatable)
@@ -111,7 +113,7 @@ const HELP_TEXT = `
     systemview highlight buAPI --match "await hash"
 `;
 
-const flagValueArgs = ["--manifest", "--header", "--skip", "--phase", "--index", "--level", "--limit", "--follow", "--filter", "--or", "--include", "--highlight", "--save", "--save-limit", "--file", "--source", "--text", "--lines", "--match", "--layout", "--diff", "--test", "--ns", "--note"];
+const flagValueArgs = ["--manifest", "--header", "--skip", "--phase", "--index", "--level", "--limit", "--follow", "--filter", "--or", "--include", "--highlight", "--save", "--save-limit", "--file", "--source", "--text", "--lines", "--match", "--layout", "--diff", "--test", "--ns", "--note", "--at", "--from", "--to"];
 
 // Quote-aware tokenizer: a single/double-quoted arg (e.g. a JSON payload with spaces) stays ONE token,
 // surrounding quotes stripped. Turns an interactive REPL line into the same argv shape the shell hands
@@ -193,6 +195,9 @@ function parseArgs(rawArgs) {
     layout: valOf("--layout"),
     ns: valOf("--ns"),
     note: valOf("--note"),
+    at: valOf("--at"),
+    from: valOf("--from"),
+    to: valOf("--to"),
     // ORDERED pane sequence for `assemble` — walk the raw args left→right so panes render in the
     // order given (markdown can sit BETWEEN code/diff/test to tell a story). Grouping by kind would
     // clump all the prose at the top and kill the narrative.

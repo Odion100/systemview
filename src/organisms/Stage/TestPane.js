@@ -82,8 +82,7 @@ const TestPane = ({ target = {}, projectCode }) => {
   // with the real index so the story header shows "#N".
   return (
     <div className="test-pane">
-      {/* Agent-authored markdown that travels WITH this test block — the agent's narrative for it.
-          Only renders when present, so an ordinary test looks exactly as it did (no note, no diff). */}
+      {/* Agent-authored markdown that travels WITH this test block. Only renders when present. */}
       {note ? <div className="test-pane__note"><Markdown children={note} /></div> : null}
       {tests.length > 1 && (
         <div className="test-pane__bar">

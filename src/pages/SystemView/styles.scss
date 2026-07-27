@@ -65,7 +65,9 @@
   border: 1.5px solid #b0bed8;
   border-radius: 20px;
   background: #f4f6fb;
-  transition: background 0.15s, border-color 0.15s;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
   &:hover {
     background: #e4eaf8;
     border-color: #6886ba;
@@ -107,4 +109,109 @@
   to {
     transform: scale(1.2);
   }
+}
+
+// The scratchpad (test panel) DE-EXPANDS into a corner tab, freeing the middle to go full width.
+.scratchpad {
+  position: relative;
+
+  &__toggle {
+    border: 1px solid #b0bed8;
+    background: #f4f6fb;
+    color: #6886ba;
+    font-family: Malkor, sans-serif;
+    cursor: pointer;
+    border-radius: 4px;
+    padding: 2px 8px;
+    &:hover {
+      background: #e4eaf8;
+      border-color: #6886ba;
+    }
+  }
+
+  // Open: a small "›" collapse handle floats at the top-right of the panel.
+  &--open .scratchpad__toggle {
+    position: absolute;
+    top: -2px;
+    right: 0;
+    z-index: 5;
+    font-size: 14px;
+    line-height: 1;
+    padding: 2px 7px;
+  }
+
+  // Collapsed: out of the grid flow entirely — a vertical tab pinned to the right edge, in the corner.
+  &--collapsed {
+    position: fixed;
+    right: 0;
+    top: 74px;
+    z-index: 30;
+    width: auto;
+  }
+  &--collapsed .scratchpad__toggle {
+    writing-mode: vertical-rl;
+    padding: 14px 6px;
+    font-size: 13px;
+    border-radius: 6px 0 0 6px;
+    box-shadow: -1px 1px 6px rgba(40, 50, 90, 0.12);
+  }
+}
+
+// The panel TITLE is the collapse control. The arrow sits at the panel's outer end and points toward
+// the corner it hides into (‹ nav on the left, scratchpad › on the right), sized to sit with the title.
+.panel-title {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  .title {
+    cursor: pointer;
+  }
+  &:hover .panel-title__arrow {
+    color: #6886ba;
+  }
+}
+.panel-title__arrow {
+  font-size: 26px;
+  line-height: 1;
+  font-weight: 700;
+  color: #3f51b5;
+}
+
+// Nav panel — mirror of the scratchpad, de-expanding into the LEFT corner.
+.nav-panel {
+  position: relative;
+  &--collapsed {
+    position: fixed;
+    left: 0;
+    top: 74px;
+    z-index: 30;
+    width: auto;
+  }
+  &__toggle {
+    border: 1px solid #b0bed8;
+    background: #f4f6fb;
+    color: #6886ba;
+    font-family: Malkor, sans-serif;
+    cursor: pointer;
+    writing-mode: vertical-rl;
+    padding: 14px 6px;
+    font-size: 13px;
+    border-radius: 0 6px 6px 0;
+    box-shadow: 1px 1px 6px rgba(40, 50, 90, 0.12);
+    &:hover {
+      background: #e4eaf8;
+      border-color: #6886ba;
+    }
+  }
+}
+
+// Margin ONLY when a side is collapsed, so its corner tab has breathing room and never hovers over
+// the center panel. Symmetric on both sides.
+.center-panel--nav-collapsed {
+  padding-left: 68px;
+}
+.center-panel--scratch-collapsed {
+  padding-right: 68px;
 }

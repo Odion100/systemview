@@ -18,6 +18,8 @@ const { readFolderManifest } = require("./manifestStore");
 const probe = require("./probe");
 const logsCommand = require("./logs");
 const stageCmd = require("./stage");
+// Surgical story pane-ops → the storyOp verb they map to.
+const STORY_OPS = { "story-add": "add", "story-rm": "rm", "story-move": "move", "story-edit": "edit", "story-layout": "layout", "story-rename": "rename", "story-delete": "delete" };
 const { createClient } = require("systemlynx");
 const { createCookieHttpClient } = require("./cookieClient");
 const cookieHttpClient = createCookieHttpClient();
@@ -275,7 +277,7 @@ async function loadCaseSetting() {
       saveLimit: flags.saveLimit,
     });
     if (!flags.follow) flushAndExit(0);
-  } else if (["show", "assemble", "stage", "highlight", "view", "selection", "story", "stories"].includes(command)) {
+  } else if (["show", "assemble", "stage", "highlight", "view", "selection", "story", "stories"].includes(command) || STORY_OPS[command]) {
     // RFC-018 AI Window — drive the open UI's stage. Needs the UI up (that's what renders the stage).
     await launchApp(DEFAULT_PORT);
     const opts = {
@@ -284,9 +286,11 @@ async function loadCaseSetting() {
       file: flags.file, source: flags.source, text: flags.text, diff: flags.diff, test: flags.test,
       paneSeq: flags.paneSeq,
       lines: flags.lines, match: flags.match, layout: flags.layout, ns: flags.ns, note: flags.note,
+      at: flags.at, from: flags.from, to: flags.to,
     };
     let exitCode = 0;
-    if (command === "show") exitCode = await stageCmd.show(input[1], opts);
+    if (STORY_OPS[command]) exitCode = await stageCmd.storyOp(STORY_OPS[command], input[1], input[2], opts); // story-add/rm/move/edit/layout/rename/delete <target> <name>
+    else if (command === "show") exitCode = await stageCmd.show(input[1], opts);
     else if (command === "assemble") exitCode = await stageCmd.assemble(input[1], opts);
     else if (command === "highlight") exitCode = await stageCmd.highlight(input[1], opts);
     else if (command === "view") exitCode = await stageCmd.view(input[1], input[2], input[3], opts); // view <sub> <target> <name>

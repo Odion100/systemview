@@ -12,22 +12,30 @@ import PaneView from "./PaneView";
 // vertical space), while the big drill lives in its OWN block below — separated so opening it never
 // reflows or shoves the chips row around.
 const KINDS = [
-  { k: "source", label: "Source", hint: "a method's code" },
-  { k: "test", label: "Test", hint: "saved tests — at any namespace level" },
+  { k: "test", label: "+Test", hint: "saved tests — at any namespace level" },
   { k: "diff", label: "Diff", hint: "a file's changes vs git" },
-  { k: "file", label: "File", hint: "a file in a service's folder" },
-  { k: "markdown", label: "Note", hint: "your own markdown" },
+  { k: "file", label: "File", hint: "a file (optionally a line range) in a service's folder" },
+  { k: "markdown", label: "Note", hint: "your own markdown pane" },
 ];
+
+// "40-70" / "40" → a highlight descriptor; anything else → null.
+const parseLines = (s) => {
+  const m = String(s || "").trim().match(/^(\d+)(?:-(\d+))?$/);
+  if (!m) return null;
+  const a = parseInt(m[1], 10);
+  return { lines: [a, m[2] ? parseInt(m[2], 10) : a] };
+};
 
 export function useStageAdd({ projectCode, connectedServices, SystemView, current = {}, onAdd }) {
   const [kind, setKind] = useState(null);
   const [serviceId, setServiceId] = useState("");
   const [moduleName, setModuleName] = useState("");
   const [methodName, setMethodName] = useState("");
-  const [note, setNote] = useState("");
+  const [note, setNote] = useState("");        // the Note KIND's own markdown text
   const [fileQuery, setFileQuery] = useState("");
   const [files, setFiles] = useState([]);
   const [filePath, setFilePath] = useState(""); // the SELECTED file — added only when you hit Add
+  const [fileLines, setFileLines] = useState(""); // optional "40-70" range for a file pane
 
   const svcs = useMemo(
     () => connectedServices.filter((s) => s.projectCode === projectCode),
@@ -64,6 +72,7 @@ export function useStageAdd({ projectCode, connectedServices, SystemView, curren
     let cancelled = false;
     setFiles([]);
     setFilePath("");
+    setFileLines("");
     if (isFileKind && service) {
       const Plugin = pluginFor(service);
       if (Plugin) {
@@ -81,10 +90,6 @@ export function useStageAdd({ projectCode, connectedServices, SystemView, curren
     else { try { SystemView.addPane(projectCode, pane); } catch { /* ignore */ } }
   };
 
-  const addSource = () => {
-    if (serviceId && moduleName && methodName)
-      emit({ kind: "source", target: { serviceId, module: moduleName, method: methodName } });
-  };
   const addTest = () => {
     const target = {};
     if (serviceId) target.serviceId = serviceId;
@@ -92,7 +97,10 @@ export function useStageAdd({ projectCode, connectedServices, SystemView, curren
     if (methodName) target.methodName = methodName;
     emit({ kind: "test", target });
   };
-  const addFile = (p) => emit({ kind, target: { serviceId, path: p } });
+  const addFile = (p) => {
+    const highlight = parseLines(fileLines);
+    emit({ kind, target: { serviceId, path: p }, ...(highlight ? { highlight } : {}) });
+  };
   const addNote = () => {
     if (note.trim()) { emit({ kind: "markdown", target: { text: note.trim() } }); setNote(""); setKind(null); }
   };
@@ -112,8 +120,7 @@ export function useStageAdd({ projectCode, connectedServices, SystemView, curren
   // A live PREVIEW of the current selection — you SEE the real file/diff/source/test before you commit
   // it. Built from the same locator the Add button will emit, rendered through the same PaneView.
   let previewPane = null;
-  if (isFileKind && filePath) previewPane = { kind, target: { serviceId, path: filePath } };
-  else if (kind === "source" && serviceId && moduleName && methodName) previewPane = { kind: "source", target: { serviceId, module: moduleName, method: methodName } };
+  if (isFileKind && filePath) previewPane = { kind, target: { serviceId, path: filePath }, ...(parseLines(fileLines) ? { highlight: parseLines(fileLines) } : {}) };
   else if (kind === "test") previewPane = { kind: "test", target: { ...(serviceId ? { serviceId } : {}), ...(moduleName ? { moduleName } : {}), ...(methodName ? { methodName } : {}) } };
 
   // COMPACT BAR — kinds segmented control + (when a kind is active) the Add button. Sits in the chips
@@ -141,16 +148,12 @@ export function useStageAdd({ projectCode, connectedServices, SystemView, curren
             type="button"
             className="stage-add__btn"
             onClick={() => {
-              if (kind === "source") addSource();
-              else if (kind === "test") addTest();
+              if (kind === "test") addTest();
               else if (isFileKind) addFile(filePath);
-              setKind(null); // collapse the selector + clear the preview — the item's now in the story
+              // collapse + clear — the item (with its lines) is now in the story
+              setKind(null); setFileLines(""); setFilePath("");
             }}
-            disabled={
-              kind === "source" ? !(moduleName && methodName)
-              : kind === "test" ? false
-              : !filePath
-            }
+            disabled={kind === "test" ? false : !filePath}
           >
             ＋ Add {kind}
           </button>
@@ -162,10 +165,9 @@ export function useStageAdd({ projectCode, connectedServices, SystemView, curren
   // THE DRILL — its own block, only when a kind is active. Never part of the chips flex row.
   const drill = !kind ? null : (
     <div className="stage-add__panel">
-      {current.moduleName && current.methodName && (
+      {current.moduleName && current.methodName && kind === "test" && (
         <div className="stage-add__current">
           <span className="stage-add__current-ns">{current.serviceId}.{current.moduleName}.{current.methodName}</span>
-          <button type="button" className="stage-add__chip" onClick={() => emit({ kind: "source", target: { serviceId: current.serviceId, module: current.moduleName, method: current.methodName } })}>＋ Source</button>
           <button type="button" className="stage-add__chip" onClick={() => emit({ kind: "test", target: { serviceId: current.serviceId, moduleName: current.moduleName, methodName: current.methodName } })}>＋ Test</button>
         </div>
       )}
@@ -232,6 +234,13 @@ export function useStageAdd({ projectCode, connectedServices, SystemView, curren
                 ))}
                 {!filteredFiles.length && <div className="stage-add__empty">no matching files</div>}
               </div>
+              {/* Optional line range to highlight — this is what makes `file` cover everything `source` did. */}
+              <input
+                className="stage-add__input"
+                placeholder="lines to highlight, e.g. 40-70 (optional)"
+                value={fileLines}
+                onChange={(e) => setFileLines(e.target.value)}
+              />
             </div>
           )}
         </div>

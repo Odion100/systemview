@@ -188,7 +188,7 @@ There are two ways to drive it:
 ```bash
 # Saved, namespaced Stories — the persistent way
 systemview story buAPI "sign-up flow" --ns buAPI/Profiles/Users/signUp \
-  --text "## What changed" --diff src/modules/Users.js --source Users.signUp --test Users.signUp
+  --text "## What changed" --diff src/modules/Users.js --file src/modules/Users.js#L40-70 --test Users.signUp
 systemview story buAPI "regression: empty email" --ns buAPI/Profiles/Users/signUp \
   --test Users.signUp:2 --note "## Guards an empty email — asserts a 400 throw."
 systemview stories buAPI                              # list every saved story (name · namespace · panes)
@@ -200,15 +200,33 @@ systemview stories buAPI                              # list every saved story (
 
 Every verb resolves its `<target>` the same way `test`/`logs` do (fuzzy, `projectCode:` prefix supported).
 
+#### Editing a saved story in place (pane-ops)
+
+Once a story exists you don't have to re-emit the whole thing to change one pane — surgical verbs edit it by name (`--ns` disambiguates if the name repeats across namespaces). Each is a read-modify-write through the same store and broadcasts live, so an open UI updates instantly.
+
+```bash
+systemview story-add    buAPI "sign-up flow" --file src/modules/Users.js#L88-96   # append a pane…
+systemview story-add    buAPI "sign-up flow" --text "## Edge cases" --at 0        # …or insert at an index
+systemview story-rm     buAPI "sign-up flow" --at 2                                # remove the pane at index 2
+systemview story-move   buAPI "sign-up flow" --from 0 --to 3                       # reorder a pane
+systemview story-edit   buAPI "sign-up flow" --at 1 --file src/db.js#L10-20        # replace the pane at an index
+systemview story-edit   buAPI "sign-up flow" --at 1 --note "## Updated note"       # (test pane) just change its --note
+systemview story-layout buAPI "sign-up flow" --layout grid                         # change the layout
+systemview story-rename buAPI "sign-up flow" --to "sign-up walkthrough"            # rename (new slug, old file removed)
+systemview story-delete buAPI "sign-up flow"                                       # delete the whole story
+```
+
+`--at` / `--from` / `--to` are 0-based pane indices (clamped to range; omitted `--at` on `story-add` appends). `story-add` and `story-edit` build the pane from the same flags as `story` (`--file` · `--diff` · `--test` · `--text` · `--source`), one pane per call.
+
 ```bash
 # Focus one thing
-systemview show buAPI --source Users.signUp          # a method's source span, framed
+systemview show buAPI --file src/modules/Users.js#L40-70   # a file, exact lines highlighted (prefer this over --source)
 systemview show buAPI --file src/modules/Users.js --lines 40-70
 systemview show buAPI --diff src/modules/Users.js    # before/after vs git HEAD, side by side
 systemview show buAPI --test Users.signUp            # a saved test as a runnable worked example
 
 # Fill the Window with several panes at once (grid by default)
-systemview assemble buAPI --text "Here's the sign-up flow" --source Users.signUp --file src/modules/Users.js
+systemview assemble buAPI --text "Here's the sign-up flow" --file src/modules/Users.js#L40-70
 
 # Adjust
 systemview stage add buAPI --file src/db.js          # append a pane
@@ -225,7 +243,7 @@ systemview view open buAPI signup-flow
 systemview selection buAPI
 ```
 
-**Pane kinds:** `markdown` (`--text`), `file` (`--file`), `source` (`--source Mod.method`), `diff` (`--diff path`), `test` (`--test <target>`, any namespace level). Repeat any flag (in `assemble` or `story`) to add multiple panes; command order is preserved so prose can interleave.
+**Pane kinds:** `markdown` (`--text`), `file` (`--file <path[#L a-b]>` — optional inline line range to highlight), `diff` (`--diff path`), `test` (`--test <target>`, any namespace level). `source` (`--source Mod.method`) is **legacy** — prefer `file` + `#L`. Repeat any flag (in `assemble` or `story`) to add multiple panes; command order is preserved so prose can interleave.
 
 **Layouts** (`--layout`, user-switchable in the UI toolbar): `column` (stack, default) · `grid` (flex; per-pane half/full width) · `single` · `gallery`. Panes size to content; each is independently scrollable, and the user can reorder, remove, or resize them.
 

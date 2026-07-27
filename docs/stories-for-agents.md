@@ -32,6 +32,66 @@ plugin at render time. So a story is always live and truthful, never a stale cop
 
 ---
 
+## Schema
+
+You will almost always build stories through the **CLI** (next section) — it constructs this shape for
+you. But here is the exact on-disk/over-the-wire schema so you know every field and nothing is a mystery.
+
+### Story
+
+```jsonc
+{
+  "id":          "divide-by-zero-narrated", // = slugify(name); ALSO the filename: .systemview/stories/<id>.json
+  "projectCode": "systemview-test",
+  "namespace":   "systemview-test/TestService/Math/divide", // project | project/Service | …/Module | …/method
+  "name":        "Divide by zero — narrated", // free text; the chip label. Same name+namespace UPSERTS.
+  "layout":      "column",                  // "column" (default) | "grid" | "single" | "gallery"
+  "panes":       [ /* Pane[], rendered top-to-bottom in this order */ ]
+}
+```
+
+### Pane
+
+```jsonc
+{
+  "id":     "pane_...",         // assigned by the API when the pane is added
+  "kind":   "file",             // "markdown" | "source" | "test" | "diff" | "file"
+  "target": { /* shape depends on kind — see table */ },
+  "span":   "full",             // optional, grid layout only: "full" (whole row) | "half" (shares a row)
+  "highlight": { "lines": [40, 70] } // optional (file/source): { "lines": [a, b] } OR { "match": "substr" }
+}
+```
+
+`target` by `kind`:
+
+| kind | `target` shape | notes |
+|---|---|---|
+| `markdown` | `{ "text": "<markdown>" }` | prose / narrative |
+| `source` | `{ "serviceId", "module", "method" }` | ⚠ uses `module`/`method` |
+| `test` | `{ "serviceId"?, "moduleName"?, "methodName"?, "index"?, "note"? }` | which fields are present picks the level (service / module / method / one index); `note` = your markdown for the block |
+| `diff` | `{ "serviceId", "path" }` | path is repo-relative |
+| `file` | `{ "serviceId", "path" }` | path is repo-relative |
+
+> ⚠ **Key-name inconsistency to know:** `source` uses `module` / `method`, while `test` uses `moduleName`
+> / `methodName`. This is historical. **Use the CLI** — it builds the right keys for each kind so you
+> never trip on this.
+
+### Gotchas worth knowing
+
+- **Prefer `file` + a line range over `source`.** A `file` pane takes an inline range —
+  `--file src/modules/Users.js#L40-70` (or `#L40`) — and highlights exactly those lines. This covers
+  everything `source` did and more, so **`source` is dropped from the add UI** (the `--source` CLI flag
+  still works as legacy). `source` resolves a method by convention (`**/Module.js` + span), which is
+  misleading when methods are attached dynamically, the real work is in middleware, or bodies are lean.
+  Point at the real code with `file#L`.
+- The **UI must be running** (`systemview start`) — stories are driven against the live instance.
+- Panes are **live**: they hold locators, so a story never goes stale, but the target must resolve at
+  render time (the file/method/test must exist on the connected service).
+- A story is found in the UI under the **namespace it's filed on and any namespace above it drills into**
+  — file it where the reviewer will look.
+
+---
+
 ## When and why to use a Story
 
 Reach for a story **after you've done a slice of work** and want to hand it off or prove it out. It is
@@ -86,6 +146,24 @@ systemview story <projectCode> "<name>" [--ns <namespace>] [--layout <layout>] <
 systemview stories <projectCode>          # name · namespace · pane count for every saved story
 ```
 
+### Edit a saved story in place (pane-ops)
+
+You don't have to re-emit a whole story to change one pane. These verbs edit an existing story by name
+(`--ns` disambiguates a repeated name). All are read-modify-write and broadcast live to an open UI.
+
+```bash
+systemview story-add    <project> "<name>" --file path#L88-96   # append a pane (or --at N to insert)
+systemview story-rm     <project> "<name>" --at 2               # remove the pane at index 2
+systemview story-move   <project> "<name>" --from 0 --to 3      # reorder a pane
+systemview story-edit   <project> "<name>" --at 1 --file f#L10-20   # replace a pane; test panes accept --note
+systemview story-layout <project> "<name>" --layout grid        # column | grid | single | gallery
+systemview story-rename <project> "<name>" --to "<new name>"    # rename (new slug, old file removed)
+systemview story-delete <project> "<name>"                      # delete the story
+```
+
+`--at` / `--from` / `--to` are 0-based pane indices (clamped; omitted `--at` on `story-add` appends).
+`story-add` / `story-edit` build the pane from the same flags as `story`.
+
 ---
 
 ## Worked examples (against the `systemview-test` project)
@@ -107,13 +185,13 @@ systemview story systemview-test "All Math tests" \
   --ns systemview-test/TestService/Math \
   --test Math --layout column
 
-# 3) A change handoff: prose → the diff → the source → the tests that prove it, in order.
+# 3) A change handoff: prose → the diff → the exact lines (file#L) → the tests that prove it, in order.
 systemview story systemview-test "combine(): multi-object args" \
   --ns systemview-test/TestService/Math/combine \
   --text "## What changed
 Added \`Math.combine({a,label},{b,label})\` — two OBJECT arguments." \
   --diff test/service/Math/index.js \
-  --source Math.combine \
+  --file test/service/Math/index.js#L40-46 \
   --test Math.combine \
   --layout column
 

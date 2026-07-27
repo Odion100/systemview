@@ -95,6 +95,20 @@ $pane-max: 72vh;
     font-size: 12px;
     background: #fff;
   }
+  // Optional markdown note attachable to ANY pane being added.
+  &__note-input {
+    display: block;
+    width: 100%;
+    min-height: 44px;
+    margin-top: 8px;
+    border: 1px solid #d7dbe6;
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-size: 12px;
+    font-family: inherit;
+    resize: vertical;
+    background: #fff;
+  }
   &__btn {
     border: 1px solid #6886ba;
     background: #6886ba;
@@ -572,6 +586,17 @@ $pane-max: 72vh;
     }
     &__markdown {
       padding: 4px 14px;
+    }
+    // Agent markdown attached to any pane — sits between the header and the body.
+    &__note {
+      flex: none;
+      padding: 6px 12px;
+      font-size: 12.5px;
+      color: #46506a;
+      background: #fbfcfe;
+      border-bottom: 1px solid #eef0f5;
+      overflow: auto;
+      max-height: 30vh;
     }
     &__status {
       padding: 16px;

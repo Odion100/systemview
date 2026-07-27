@@ -37,6 +37,24 @@ const sourcePane = (serviceId, module, method, highlight) => ({
 const diffPane = (serviceId, path) => ({ kind: "diff", target: { serviceId, path } });
 const markdownPane = (text) => ({ kind: "markdown", target: { text } });
 
+// A file value can carry an inline line range, GitHub-style: `path#L40-70` or `path#L40` (also `path:40-70`)
+// — so each `--file` pane highlights its own lines. This is what makes `file` strictly better than the
+// (removed) `source` pane: point at the real file AND the exact lines.
+function parseFileSpec(value) {
+  const s = String(value);
+  const m = s.match(/#L(\d+)(?:-(\d+))?$/i) || s.match(/:(\d+)(?:-(\d+))?$/);
+  if (m) {
+    const a = parseInt(m[1], 10);
+    const b = m[2] ? parseInt(m[2], 10) : a;
+    return { path: s.slice(0, m.index), highlight: { lines: [a, b] } };
+  }
+  return { path: s, highlight: null };
+}
+const fileFrom = (serviceId, value, fallback) => {
+  const { path, highlight } = parseFileSpec(value);
+  return filePane(serviceId, path, highlight || fallback || null);
+};
+
 // A `test` pane names the saved test to render (as a runnable worked example). A trailing `:N` pins
 // ONE test by index (for a report you don't want every test for a method, just the one you made).
 // Resolve the owning service from the namespace so the UI fetches the test from the right plugin.
@@ -105,7 +123,7 @@ function paneFromFlags(resolved, flags, highlight) {
   const diff = first(flags.diff);
   const test = first(flags.test);
   const text = first(flags.text);
-  if (file) return filePane(sid0, file, highlight);
+  if (file) return fileFrom(sid0, file, highlight);
   if (source) return sourceFrom(source, services, highlight);
   if (diff) return diffPane(sid0, diff);
   if (test) return testFrom(test, services);
@@ -155,7 +173,7 @@ async function assemble(targetArg, { uiUrl, json = false, ...flags } = {}) {
   const buildPane = ({ kind, value }) => {
     if (kind === "markdown") return markdownPane(value);
     if (kind === "source") return sourceFrom(value, services);
-    if (kind === "file") return filePane(sid0, value);
+    if (kind === "file") return fileFrom(sid0, value);
     if (kind === "diff") return diffPane(sid0, value);
     if (kind === "test") return testFrom(value, services);
     return null;
@@ -169,7 +187,7 @@ async function assemble(targetArg, { uiUrl, json = false, ...flags } = {}) {
     panes = [];
     list(flags.text).forEach((t) => panes.push(markdownPane(t)));
     list(flags.source).forEach((s) => panes.push(sourceFrom(s, services)));
-    list(flags.file).forEach((f) => panes.push(filePane(sid0, f)));
+    list(flags.file).forEach((f) => panes.push(fileFrom(sid0, f)));
     list(flags.diff).forEach((d) => panes.push(diffPane(sid0, d)));
     list(flags.test).forEach((t) => panes.push(testFrom(t, services)));
   }
@@ -296,7 +314,7 @@ async function story(targetArg, name, { uiUrl, json = false, ...flags } = {}) {
   const buildPane = ({ kind, value }) => {
     if (kind === "markdown") return markdownPane(value);
     if (kind === "source") return sourceFrom(value, services);
-    if (kind === "file") return filePane(sid0, value);
+    if (kind === "file") return fileFrom(sid0, value);
     if (kind === "diff") return diffPane(sid0, value);
     if (kind === "test") return withNote(testFrom(value, services));
     return null;
@@ -308,7 +326,7 @@ async function story(targetArg, name, { uiUrl, json = false, ...flags } = {}) {
     panes = [];
     list(flags.text).forEach((t) => panes.push(markdownPane(t)));
     list(flags.source).forEach((s) => panes.push(sourceFrom(s, services)));
-    list(flags.file).forEach((f) => panes.push(filePane(sid0, f)));
+    list(flags.file).forEach((f) => panes.push(fileFrom(sid0, f)));
     list(flags.diff).forEach((d) => panes.push(diffPane(sid0, d)));
     list(flags.test).forEach((t) => panes.push(withNote(testFrom(t, services))));
   }
@@ -343,4 +361,97 @@ async function stories(targetArg, { uiUrl, json = false } = {}) {
   return 0;
 }
 
-module.exports = { show, assemble, stage, highlight, view, selection, story, stories };
+const paneId = () => `pane_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+
+// Find an existing story (full object, panes included) by name — optionally scoped to a namespace.
+async function loadStoryByName(SystemView, projectCode, name, namespace) {
+  const listed = (await SystemView.listStories(projectCode)) || [];
+  return namespace
+    ? listed.find((s) => s.name === name && s.namespace === namespace) || null
+    : listed.find((s) => s.name === name) || null;
+}
+
+// Surgical edits to an EXISTING story (found by name + optional --ns): insert/remove/move/edit a pane,
+// set layout, rename, or delete. Read-modify-write through saveStory (no new API), broadcasts live so an
+// open UI updates. `op` ∈ add | rm | move | edit | layout | rename | delete.
+async function storyOp(op, targetArg, name, { uiUrl, json = false, ...flags } = {}) {
+  const SystemView = await loadApi(uiUrl);
+  const resolved = await resolveScope(SystemView, targetArg);
+  if (!resolved) { log.error(`No connected services for "${targetArg || ""}"`); return 1; }
+  if (!name) { log.error(`story-${op} needs a story name: story-${op} <target> "<name>" [--ns ns] …`); return 1; }
+  const services = resolved.services;
+  const sid0 = services[0].serviceId;
+  const projectCode = services[0].projectCode;
+  const namespace = flags.ns || null;
+
+  const story = await loadStoryByName(SystemView, projectCode, name, namespace);
+  if (!story) { log.error(`no story "${name}"${namespace ? ` @ ${namespace}` : ""} in ${projectCode}`); return 1; }
+  story.panes = story.panes || [];
+  const N = story.panes.length;
+  const idx = (v, max, dflt) => {
+    if (v == null || v === "") return dflt;
+    const n = parseInt(v, 10);
+    return isNaN(n) ? dflt : Math.max(0, Math.min(n, max));
+  };
+  // Build ONE pane from the flags (first of each) — the same builders `story`/`assemble` use.
+  const onePane = () => {
+    const f = first(flags.file), s = first(flags.source), d = first(flags.diff), t = first(flags.test), x = first(flags.text);
+    if (f) return fileFrom(sid0, f, parseHighlight(flags));
+    if (s) return sourceFrom(s, services, parseHighlight(flags));
+    if (d) return diffPane(sid0, d);
+    if (t) return testFrom(t, services);
+    if (x != null) return markdownPane(x);
+    return null;
+  };
+
+  if (op === "delete") {
+    await SystemView.deleteStory(projectCode, story.id);
+    if (!json) log.success(`deleted story "${name}"`);
+    return 0;
+  }
+  if (op === "rename") {
+    if (!flags.to) { log.error('story-rename needs --to "<new name>"'); return 1; }
+    // The id (= slug of the name) IS the filename, so a rename is a new file + delete of the old.
+    const created = await SystemView.createStory(projectCode, { namespace: story.namespace, name: flags.to, layout: story.layout });
+    created.panes = story.panes;
+    const saved = await SystemView.saveStory(projectCode, created);
+    if (saved.id !== story.id) await SystemView.deleteStory(projectCode, story.id);
+    if (!json) log.success(`renamed story "${name}" → "${flags.to}"`);
+    return 0;
+  }
+
+  if (op === "layout") {
+    if (!flags.layout) { log.error("story-layout needs --layout <column|grid|single|gallery>"); return 1; }
+    story.layout = flags.layout;
+  } else if (op === "add") {
+    const pane = onePane();
+    if (!pane) { log.error("story-add needs a pane: --file / --diff / --test / --text / --source"); return 1; }
+    pane.id = paneId();
+    if (pane.kind === "test" && flags.note) pane.target.note = flags.note;
+    story.panes.splice(idx(flags.at, N, N), 0, pane);
+  } else if (op === "rm") {
+    if (!N) { log.error("story has no panes to remove"); return 1; }
+    story.panes.splice(idx(flags.at, N - 1, N - 1), 1);
+  } else if (op === "move") {
+    if (N < 2) { log.error("nothing to move"); return 1; }
+    const [p] = story.panes.splice(idx(flags.from, N - 1, 0), 1);
+    if (p) story.panes.splice(idx(flags.to, N - 1, N - 1), 0, p);
+  } else if (op === "edit") {
+    if (!N) { log.error("story has no panes to edit"); return 1; }
+    const at = idx(flags.at, N - 1, 0);
+    const rebuilt = onePane();
+    if (rebuilt) { rebuilt.id = story.panes[at].id; story.panes[at] = rebuilt; }
+    const cur = story.panes[at];
+    if (cur.kind === "test" && flags.note != null) { cur.target = cur.target || {}; cur.target.note = flags.note; }
+  } else {
+    log.error(`unknown story op "${op}"`);
+    return 1;
+  }
+
+  const saved = await SystemView.saveStory(projectCode, story);
+  if (json) process.stdout.write(JSON.stringify(saved, null, 2) + "\n");
+  else log.success(`story "${name}" ${op} → ${saved.panes.length} pane(s) [${saved.layout}]`);
+  return 0;
+}
+
+module.exports = { show, assemble, stage, highlight, view, selection, story, stories, storyOp };
