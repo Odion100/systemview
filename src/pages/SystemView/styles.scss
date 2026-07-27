@@ -70,6 +70,11 @@
     background: #e4eaf8;
     border-color: #6886ba;
   }
+  &--current {
+    background: #6886ba;
+    color: #fff;
+    border-color: #6886ba;
+  }
 }
 
 .scroll-buffer {

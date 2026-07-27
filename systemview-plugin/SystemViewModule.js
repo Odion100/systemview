@@ -7,6 +7,7 @@ const {
   getName,
   getFilesByNamespace,
 } = require("./utils");
+const fileProviders = require("./fileProviders");
 module.exports = ({ App, specs, projectCode, serviceId, module = {}, credentials = false, svDir }) => {
   svDir = svDir || path.resolve(process.cwd(), ".systemview");
   specs = specs.substr(-1) === "/" ? specs.substr(0, specs.length - 1) : specs;
@@ -159,6 +160,80 @@ module.exports = ({ App, specs, projectCode, serviceId, module = {}, credentials
       } catch {
         return null;
       }
+    };
+
+    // RFC-018 — ground-truth file/code providers. These run inside THIS service and read its own
+    // source from cwd, path-guarded to the repo root. The AI Window's stage carries only locators;
+    // the browser calls these directly (like getDoc) to fetch the real bytes at render time.
+    this.readFile = fileProviders.readFile;
+    this.listFiles = fileProviders.listFiles;
+    this.search = fileProviders.search;
+    this.getSource = fileProviders.getSource;
+    this.getDiff = fileProviders.getDiff;
+    this.writeFile = fileProviders.writeFile;
+
+    // RFC-018 — saved views (the agent's communications as documents). A view = a stage description
+    // {layout, panes}. Stored per-name in `.systemview/views/` so it TRAVELS with the repo (RFC-017):
+    // a teammate who clones gets "here's what we did" reopenable. Name is basename-sanitized (no
+    // traversal). Any service in a project can serve these — they share this cwd.
+    const viewsDir = () => path.join(svDir, "views");
+    const viewName = (name) => String(name || "").replace(/[^a-zA-Z0-9._-]/g, "_");
+    this.saveView = ({ name, view }) => {
+      const safe = viewName(name);
+      if (!safe) throw new Error("saveView: a name is required");
+      ensureDir(viewsDir());
+      fs.writeFileSync(path.join(viewsDir(), `${safe}.json`), JSON.stringify(view || {}, null, 2), "utf8");
+      return { name: safe };
+    };
+    this.getView = ({ name }) => {
+      try {
+        return JSON.parse(fs.readFileSync(path.join(viewsDir(), `${viewName(name)}.json`), "utf8"));
+      } catch {
+        return null;
+      }
+    };
+    this.listViews = () => {
+      try {
+        return fs.readdirSync(viewsDir())
+          .filter((f) => f.endsWith(".json"))
+          .map((f) => f.replace(/\.json$/, ""));
+      } catch {
+        return [];
+      }
+    };
+    this.deleteView = ({ name }) => {
+      deleteFile(path.join(viewsDir(), `${viewName(name)}.json`));
+      return { name: viewName(name) };
+    };
+
+    // RFC-018 — STORIES. Unlike the single live stage, a project has MANY stories, each filed on a
+    // namespace (project / service / module / method) with a free name — the same way a method has many
+    // tests. Each is one file `.systemview/stories/<id>.json` holding { id, namespace, name, layout,
+    // panes } so it travels with the repo. The full object round-trips (list returns whole stories) so
+    // the /stories page can group by namespace without a second fetch.
+    const storiesDir = () => path.join(svDir, "stories");
+    const storyFile = (id) => path.join(storiesDir(), `${viewName(id)}.json`);
+    this.saveStory = ({ story }) => {
+      if (!story || !story.id) throw new Error("saveStory: story.id is required");
+      ensureDir(storiesDir());
+      fs.writeFileSync(storyFile(story.id), JSON.stringify(story, null, 2), "utf8");
+      return { id: story.id };
+    };
+    this.getStory = ({ id }) => {
+      try { return JSON.parse(fs.readFileSync(storyFile(id), "utf8")); }
+      catch { return null; }
+    };
+    this.listStories = () => {
+      try {
+        return fs.readdirSync(storiesDir())
+          .filter((f) => f.endsWith(".json"))
+          .map((f) => { try { return JSON.parse(fs.readFileSync(path.join(storiesDir(), f), "utf8")); } catch { return null; } })
+          .filter(Boolean);
+      } catch { return []; }
+    };
+    this.deleteStory = ({ id }) => {
+      deleteFile(storyFile(id));
+      return { id };
     };
   };
 };

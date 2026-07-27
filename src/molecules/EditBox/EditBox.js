@@ -1,29 +1,15 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import "./styles.scss";
-import Button from "../../atoms/Button/Button";
 
-const EditBox = ({
-  formSubmit,
-  mainObject,
-  hiddenForm,
-  onCancel,
-  open = false,
-  stateChange,
-}) => {
+const EditBox = ({ formSubmit, mainObject, hiddenForm, onCancel, open = false }) => {
   const [editMode, setEditMode] = useState(open);
   const editBoxClicked = () => setEditMode(true);
   const cancelClicked = () => {
     if (typeof onCancel === "function") onCancel();
     setEditMode(false);
   };
+  const saveClicked = () => formSubmit(setEditMode);
 
-  const saveClicked = () => {
-    formSubmit(setEditMode);
-    //setEditMode(false);
-  };
-  // useEffect(() => {
-  //   setEditMode(false);
-  // }, [stateChange]);
   return (
     <div className={`edit-box edit-box--${editMode ? "edit" : "read"}`}>
       <div
@@ -32,15 +18,14 @@ const EditBox = ({
       >
         {mainObject}
       </div>
-      <div
-        className={`edit-box__form edit-box__form--${editMode ? "visible" : "hidden"}`}
-      >
-        <div className="row">{hiddenForm}</div>
-
-        <div className="edit-box__button">
-          <Button submit={saveClicked}>Save</Button>
-          <Button submit={cancelClicked}>Close</Button>
+      <div className={`edit-box__form edit-box__form--${editMode ? "visible" : "hidden"}`}>
+        {/* Save/Close are plain words pinned at the top of the editor, OUTSIDE its scroll — not
+            buttons stuck at the bottom of a tall scrolling box (RFC-018 editor feedback). */}
+        <div className="edit-box__actions">
+          <span className="edit-box__link edit-box__link--save" onClick={saveClicked}>Save</span>
+          <span className="edit-box__link" onClick={cancelClicked}>Close</span>
         </div>
+        {hiddenForm}
       </div>
     </div>
   );

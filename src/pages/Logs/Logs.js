@@ -4,6 +4,7 @@ import ReactJson from "react-json-view";
 import moment from "moment";
 import { Client } from "../../systemClient";
 import ServiceContext from "../../ServiceContext";
+import NavLinks from "../../organisms/NavLinks/NavLinks";
 import LOGO from "../../assets/sysly.png";
 import "./styles.scss";
 
@@ -951,6 +952,7 @@ export default function Logs() {
         <span className="logs-title">SystemView</span>
         <img src={LOGO} alt="logo" />
         <span className="logs-heading">Logs</span>
+        <NavLinks projectCode={filterProject} current="logs" />
       </div>
 
       <div className="logs-sticky-area">

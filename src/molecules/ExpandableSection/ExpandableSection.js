@@ -5,7 +5,7 @@ import ExpandIcon from "../../atoms/ExpandableIcon/ExpandableIcon";
 const ExpandableSection = ({
   children,
   title,
-  color = "#2aa198",
+  color = "#3F51B5",
   open,
   lock,
   toggleExpansion,

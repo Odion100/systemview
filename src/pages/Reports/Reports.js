@@ -2,6 +2,7 @@ import React, { useState, useEffect, useContext, useMemo, useCallback } from "re
 import { useHistory, useParams, useLocation } from "react-router-dom";
 import { Client } from "../../systemClient";
 import ServiceContext from "../../ServiceContext";
+import NavLinks from "../../organisms/NavLinks/NavLinks";
 import LOGO from "../../assets/sysly.png";
 import "./styles.scss";
 
@@ -354,8 +355,9 @@ export default function Reports() {
         </button>
         <span className="reports-title">SystemView</span>
         <img src={LOGO} alt="logo" />
-        <span className="reports-heading">Reports</span>
+        <span className="reports-heading">Stats</span>
         {projectCode && <span className="reports-project">{projectCode}</span>}
+        <NavLinks projectCode={projectCode} current="reports" />
       </div>
 
       <div className="reports-toolbar">

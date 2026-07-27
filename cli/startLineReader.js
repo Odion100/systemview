@@ -5,6 +5,7 @@ const manifestCommands = require("./manifest");
 const probe = require("./probe");
 const openBrowser = require("./openBrowser");
 const logsCommand = require("./logs");
+const stageCmd = require("./stage");
 const log = require("./logger");
 const cli = require("./utils/cli");
 const readline = require("readline");
@@ -142,6 +143,23 @@ module.exports = async function startLineReader(url, { connectedUrls = new Set()
       lineReader.prompt();
     } else if (command === "open") {
       openBrowser(url, positional[0], positional[1]);
+      lineReader.prompt();
+    } else if (["show", "assemble", "stage", "highlight", "view", "selection"].includes(command)) {
+      // RFC-018 AI Window — drive THIS session's UI stage live from the REPL.
+      const opts = {
+        uiUrl: url, json: flags.json,
+        file: flags.file, source: flags.source, text: flags.text, diff: flags.diff, test: flags.test,
+        paneSeq: flags.paneSeq,
+        lines: flags.lines, match: flags.match, layout: flags.layout,
+      };
+      try {
+        if (command === "show") await stageCmd.show(positional[0], opts);
+        else if (command === "assemble") await stageCmd.assemble(positional[0], opts);
+        else if (command === "highlight") await stageCmd.highlight(positional[0], opts);
+        else if (command === "view") await stageCmd.view(positional[0], positional[1], positional[2], opts);
+        else if (command === "selection") await stageCmd.selection(positional[0], opts);
+        else await stageCmd.stage(positional[0], positional[1], opts);
+      } catch (e) { console.error(e.message); }
       lineReader.prompt();
     } else if (command === "help") {
       cli.showHelp(false);

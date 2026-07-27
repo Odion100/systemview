@@ -1,0 +1,79 @@
+import React, { useRef, useEffect } from "react";
+import { EditorState } from "@codemirror/state";
+import { EditorView, lineNumbers, Decoration } from "@codemirror/view";
+import { oneDark } from "@codemirror/theme-one-dark";
+import { langExt } from "./languages";
+import "./styles.scss";
+
+// RFC-018 — read-only CodeMirror 6 view, mounted directly on core (no React wrapper: the @uiw React
+// binding pulls a bare `react/jsx-runtime` import that CRA5/webpack can't resolve without ejecting).
+// The renderer for `file`/`source`/(diff head) panes: real plugin bytes, syntax-highlit, framed.
+// `highlight` = { lines:[a,b] } or { match:"str" } → scroll-to + line-range emphasis (RFC-011 instinct).
+
+// Resolve a highlight descriptor to a 1-based [from,to] line range against the actual code.
+function resolveRange(highlight, code) {
+  if (!highlight) return null;
+  if (Array.isArray(highlight.lines)) {
+    const [a, b] = highlight.lines;
+    if (a) return [a, b || a];
+  }
+  if (highlight.match) {
+    const idx = code.split("\n").findIndex((l) => l.includes(highlight.match));
+    if (idx > -1) return [idx + 1, idx + 1];
+  }
+  return null;
+}
+
+// A decorations extension that line-classes a [from,to] range — CSS paints the emphasis.
+function highlightLines(range) {
+  return EditorView.decorations.of((view) => {
+    if (!range) return Decoration.none;
+    const marks = [];
+    const [from, to] = range;
+    for (let n = from; n <= to && n <= view.state.doc.lines; n++) {
+      marks.push(Decoration.line({ class: "cm-sv-highlight" }).range(view.state.doc.line(n).from));
+    }
+    return Decoration.set(marks);
+  });
+}
+
+const CodeView = ({ code = "", language = "text", highlight }) => {
+  const host = useRef(null);
+  // Key the rebuild on the VALUES, not object identity. PaneView hands us a fresh `highlight` object on
+  // every render, so depending on it would tear down + recreate the editor on any stage change (pin,
+  // width, ×) — and the mass reflow yanked scroll to the bottom. A stable string key kills that.
+  const hlKey = highlight ? JSON.stringify(highlight) : "";
+
+  useEffect(() => {
+    if (!host.current) return undefined;
+    const range = resolveRange(highlight, code);
+    const extensions = [
+      lineNumbers(),
+      EditorView.editable.of(false),
+      EditorState.readOnly.of(true),
+      EditorView.lineWrapping,
+      oneDark,
+    ];
+    const lang = langExt(language);
+    if (lang) extensions.push(lang);
+    if (range) extensions.push(highlightLines(range));
+
+    const view = new EditorView({
+      state: EditorState.create({ doc: code, extensions }),
+      parent: host.current,
+    });
+
+    if (range) {
+      const lineNo = Math.min(range[0], view.state.doc.lines);
+      const pos = view.state.doc.line(lineNo).from;
+      view.dispatch({ effects: EditorView.scrollIntoView(pos, { y: "center" }) });
+    }
+
+    return () => view.destroy();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [code, language, hlKey]);
+
+  return <div className="code-view" ref={host} />;
+};
+
+export default CodeView;

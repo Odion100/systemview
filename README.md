@@ -189,12 +189,38 @@ systemview probe MyService.String.repeat '["ha", 3]'
 
 ---
 
+## Stories
+
+A **Story** is a saved, named, namespaced view of a piece of work — an ordered set of panes
+(markdown notes, a method's source, runnable saved tests, git diffs, whole files) that answers *"what
+changed, and how do I know it works?"* Stories are filed under a namespace (project / service / module /
+method) and a namespace can hold many of them, like a method holds many tests. They persist in
+`.systemview/stories/` and travel with the repo.
+
+Open them in the UI under **Specs → navigate to a namespace → the Stories tab**: pick a story's chip to
+view it, **Run** its tests inline, and **filter** pass/fail.
+
+Stories are especially useful for **AI agents** handing off work (here's the diff, here's the source,
+here's the runnable proof, narrated). Drive them from the CLI:
+
+```bash
+systemview story <projectCode> "<name>" --ns <namespace> --diff <path> --source <Mod.method> --test <target> --text "notes"
+systemview stories <projectCode>          # list every saved story
+```
+
+**→ Agents: read [`docs/stories-for-agents.md`](docs/stories-for-agents.md)** for when, why, and how
+(with worked examples).
+
+---
+
 ## CLI Reference
 
 | Command | Description |
 |---|---|
 | `systemview [start] [port]` | Start SystemView UI; attach if already running |
 | `systemview test <projectCode> [namespace]` | Run saved tests |
+| `systemview story <projectCode> "<name>" [--ns …] [panes…]` | Create/update a namespaced Story ([agent guide](docs/stories-for-agents.md)) |
+| `systemview stories <projectCode>` | List saved Stories |
 | `systemview list [projectCode] [namespace]` | List projects, services, or tests |
 | `systemview logs [projectCode] [namespace]` | Stream log entries from connected services |
 | `systemview connect <url\|projectCode>` | Connect a service or reconnect a project |

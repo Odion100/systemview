@@ -5,7 +5,7 @@ const ExpandIcon = ({
   isOpen,
   className = "",
   onClick,
-  color = "black",
+  color = "#3F51B5",
   size: fontSize,
 }) => {
   return isOpen ? (

@@ -174,6 +174,65 @@ systemview probe ProfilesService.Users.get --header "Origin: http://localhost:33
 
 ---
 
+### Stories & the live Window (`story` / `stories` / `show` / `assemble` / `stage` / `highlight` / `view` / `selection`)
+
+The center panel of the UI has three tabs per namespace: **Documentation · Logs · Stories**. A **Story** is a living view surface — files, source, diffs, runnable tests, prose — that an agent (or you) drives. What it shows is **real** (fetched from each service's plugin at render time), never generated.
+
+There are two ways to drive it:
+
+- **`story` / `stories`** — create **saved, named, namespaced** stories. A project holds many; each is filed under a namespace and persists in `.systemview/stories/`, travelling with the repo. **This is the one to use for handoffs.**
+- **`show` / `assemble` / `stage` / …** — drive a single **ephemeral** live Window in real time.
+
+**→ Agents:** read [`docs/stories-for-agents.md`](./stories-for-agents.md) for when, why, and how — with worked examples.
+
+```bash
+# Saved, namespaced Stories — the persistent way
+systemview story buAPI "sign-up flow" --ns buAPI/Profiles/Users/signUp \
+  --text "## What changed" --diff src/modules/Users.js --source Users.signUp --test Users.signUp
+systemview story buAPI "regression: empty email" --ns buAPI/Profiles/Users/signUp \
+  --test Users.signUp:2 --note "## Guards an empty email — asserts a 400 throw."
+systemview stories buAPI                              # list every saved story (name · namespace · panes)
+```
+
+`--ns <path>` files the story (`project` · `project/Service` · `project/Service/Module` · `project/Service/Module/method`; defaults to the project). `--note "<md>"` attaches your markdown to a `test` pane. Re-running the same name+namespace **upserts** it.
+
+`--test` targets any level: `--test *` (whole project) · `--test <Service>` · `--test <Module>` · `--test <Mod.method>` · `--test <Mod.method>:N` (one indexed test).
+
+Every verb resolves its `<target>` the same way `test`/`logs` do (fuzzy, `projectCode:` prefix supported).
+
+```bash
+# Focus one thing
+systemview show buAPI --source Users.signUp          # a method's source span, framed
+systemview show buAPI --file src/modules/Users.js --lines 40-70
+systemview show buAPI --diff src/modules/Users.js    # before/after vs git HEAD, side by side
+systemview show buAPI --test Users.signUp            # a saved test as a runnable worked example
+
+# Fill the Window with several panes at once (grid by default)
+systemview assemble buAPI --text "Here's the sign-up flow" --source Users.signUp --file src/modules/Users.js
+
+# Adjust
+systemview stage add buAPI --file src/db.js          # append a pane
+systemview stage clear buAPI                         # empty it
+systemview highlight buAPI --match "await hash"      # emphasize a region of the last pane
+systemview highlight buAPI --lines 12-20
+
+# Save / reopen a Window (persists in the project's .systemview/views/, travels with the repo)
+systemview view save buAPI signup-flow
+systemview view list buAPI
+systemview view open buAPI signup-flow
+
+# Read what the user selected in the Window (the reverse channel)
+systemview selection buAPI
+```
+
+**Pane kinds:** `markdown` (`--text`), `file` (`--file`), `source` (`--source Mod.method`), `diff` (`--diff path`), `test` (`--test <target>`, any namespace level). Repeat any flag (in `assemble` or `story`) to add multiple panes; command order is preserved so prose can interleave.
+
+**Layouts** (`--layout`, user-switchable in the UI toolbar): `column` (stack, default) · `grid` (flex; per-pane half/full width) · `single` · `gallery`. Panes size to content; each is independently scrollable, and the user can reorder, remove, or resize them.
+
+**For agents — when and why:** don't paste code into chat — build a **story**. After a slice of work, `systemview story <project> "<name>" --ns <namespace>` with the `diff`s of what changed, the `source` of the key methods, the runnable `test`s that prove it, and `--text`/`--note` narrating it. File it on the namespace it's about so the user finds it there. Use the ephemeral `show`/`assemble` only for real-time pointing; use `story` for anything worth keeping. `systemview selection <project>` tells you what the user is looking at when you resume. See **[`docs/stories-for-agents.md`](./stories-for-agents.md)**; `systemview help` lists every flag.
+
+---
+
 ### `systemview open [projectCode] [namespace]`
 
 Opens the SystemView browser UI. Starts the server if needed.

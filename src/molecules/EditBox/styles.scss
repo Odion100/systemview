@@ -2,18 +2,21 @@
   width: 100%;
   border-radius: 13px;
   background: white;
-  overflow: scroll;
-  max-height: 80vh;
   border: 2px solid #f1f1f1;
-  &--read {
-    &:hover {
-      // border: 2px dashed #5960b6;
-      // border: 2px dashed gainsboro;
-      // border: 2px dashed #92a3d3;
-      border: 2px dashed #8b97ba;
 
+  // Read mode scrolls (long markdown). Edit mode does NOT — the editor manages its own scroll, so the
+  // action words stay pinned at the top and nothing nests two scrollbars.
+  &--read {
+    overflow: auto;
+    max-height: 80vh;
+    &:hover {
+      border: 2px dashed #8b97ba;
       cursor: pointer;
     }
+  }
+  &--edit {
+    overflow: visible;
+    max-height: none;
   }
   &__main {
     border: 2px dashed transparent;
@@ -28,11 +31,24 @@
     }
   }
 
-  &__button {
+  // Words, not buttons — pinned top-right, above the scroll.
+  &__actions {
     display: flex;
-    width: 100%;
-    flex-direction: row;
     justify-content: flex-end;
-    padding: 6px 15px;
+    gap: 16px;
+    padding: 8px 14px;
+    border-bottom: 1px solid #eef0f5;
+  }
+  &__link {
+    cursor: pointer;
+    font-size: 13px;
+    color: #97a0b8;
+    user-select: none;
+    &:hover { color: #46506a; }
+    &--save {
+      color: #6886ba;
+      font-weight: 600;
+      &:hover { color: #47608f; }
+    }
   }
 }

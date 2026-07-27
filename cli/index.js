@@ -17,6 +17,7 @@ const manifestCommands = require("./manifest");
 const { readFolderManifest } = require("./manifestStore");
 const probe = require("./probe");
 const logsCommand = require("./logs");
+const stageCmd = require("./stage");
 const { createClient } = require("systemlynx");
 const { createCookieHttpClient } = require("./cookieClient");
 const cookieHttpClient = createCookieHttpClient();
@@ -274,6 +275,26 @@ async function loadCaseSetting() {
       saveLimit: flags.saveLimit,
     });
     if (!flags.follow) flushAndExit(0);
+  } else if (["show", "assemble", "stage", "highlight", "view", "selection", "story", "stories"].includes(command)) {
+    // RFC-018 AI Window — drive the open UI's stage. Needs the UI up (that's what renders the stage).
+    await launchApp(DEFAULT_PORT);
+    const opts = {
+      uiUrl: UI_URL,
+      json: flags.json,
+      file: flags.file, source: flags.source, text: flags.text, diff: flags.diff, test: flags.test,
+      paneSeq: flags.paneSeq,
+      lines: flags.lines, match: flags.match, layout: flags.layout, ns: flags.ns, note: flags.note,
+    };
+    let exitCode = 0;
+    if (command === "show") exitCode = await stageCmd.show(input[1], opts);
+    else if (command === "assemble") exitCode = await stageCmd.assemble(input[1], opts);
+    else if (command === "highlight") exitCode = await stageCmd.highlight(input[1], opts);
+    else if (command === "view") exitCode = await stageCmd.view(input[1], input[2], input[3], opts); // view <sub> <target> <name>
+    else if (command === "selection") exitCode = await stageCmd.selection(input[1], opts);
+    else if (command === "story") exitCode = await stageCmd.story(input[1], input[2], opts); // story <target> <name>
+    else if (command === "stories") exitCode = await stageCmd.stories(input[1], opts); // stories <target>
+    else exitCode = await stageCmd.stage(input[1], input[2], opts); // stage <add|clear> <target>
+    flushAndExit(exitCode || 0);
   } else {
     await startApp();
   }

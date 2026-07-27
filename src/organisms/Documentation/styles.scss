@@ -4,7 +4,6 @@
   display: flex;
   gap: 0;
   border-bottom: 2px solid #e0e0e8;
-  margin-bottom: 16px;
 }
 
 .doc-tab {
@@ -26,6 +25,22 @@
   &:hover:not(.doc-tab--active) {
     color: #555;
   }
+
+  // Green dot on the Window tab when the AI Window has panes (an agent drove it).
+  &__dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    margin-left: 6px;
+    border-radius: 50%;
+    background: #2db432;
+    vertical-align: middle;
+  }
+}
+
+// The AI Window tab body — give it real height so the stage/panes/CodeMirror can fill and scroll.
+.documentation-view__window {
+  height: calc(100vh - 200px);
 }
 
 .inline-logs {
@@ -40,7 +55,7 @@
 }
 
 .documentation-view {
-  padding-top: 2rem;
+  padding-top: 0.5rem;
   color: black;
 
   &__parameter {
@@ -50,6 +65,43 @@
 
   &__data-table {
     margin-bottom: 30px;
+
+    // The doc card and the editor read as ONE component — same rounded shape, clean edges. But the two
+    // MODES look different on purpose: read = a clean WHITE card (the markdown is white; nice contrast),
+    // edit = the dark editor. The key fix: read mode is NOT dark, so no editor-black peeks behind the
+    // white markdown. The markdown fills the card edge-to-edge (it has its own white bg + padding).
+    .edit-box {
+      border-radius: 10px;
+      overflow: hidden;
+
+      &--read {
+        background: #fff;
+        border: 1px solid #e3e7f0;
+        &:hover {
+          border-color: #6886ba;
+        }
+      }
+      &--edit {
+        background: #282c34;
+        border: 1px solid #3a3f4b;
+      }
+    }
+    // Edit-mode action bar (Save/Close) sits on the dark editor — light links to match.
+    .edit-box--edit .edit-box__actions {
+      border-bottom-color: #3a3f4b;
+    }
+    .edit-box--edit .edit-box__link {
+      color: #8b93a7;
+      &:hover {
+        color: #cdd3e0;
+      }
+      &--save {
+        color: #82a8ff;
+        &:hover {
+          color: #a9c5ff;
+        }
+      }
+    }
   }
   &__title {
     color: #3f51b5;

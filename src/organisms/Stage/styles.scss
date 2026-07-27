@@ -1,0 +1,756 @@
+// The most a pane may take vertically — it must fit the page. Taller content scrolls INSIDE the pane
+// so nothing ever runs the full length off the screen (that's what breaks grid's mixed-row layout).
+$pane-max: 72vh;
+
+.stage-wrap {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+// The user's "add a pane" bar (RFC-018): one-click for what you're viewing + a real picker for anything.
+.stage-add {
+  padding: 4px 0;
+  margin-bottom: 4px;
+  border-bottom: 1px solid #eef0f5;
+
+  &__current {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+    flex-wrap: wrap;
+  }
+  &__current-ns {
+    font-size: 12px;
+    color: #46506a;
+    font-weight: 600;
+    background: #eef1f8;
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+  &__chip {
+    border: 1px solid #6886ba;
+    background: #fff;
+    color: #6886ba;
+    font-size: 11px;
+    padding: 2px 10px;
+    border-radius: 12px;
+    cursor: pointer;
+    &:hover {
+      background: #6886ba;
+      color: #fff;
+    }
+  }
+
+  // Row 1 of the selector — the kinds bar and (for source/test) the Add button share this row.
+  &__bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  // The drill/note area — its own row beneath the bar, only present when a kind is picked.
+  // Segmented control — the kinds read as ONE rounded block, buttons joined, only the ends round.
+  &__kinds {
+    display: inline-flex;
+    border: 1px solid #d7dbe6;
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  &__kind {
+    border: none;
+    border-right: 1px solid #d7dbe6;
+    background: #f4f6fb;
+    color: #8b93a7;
+    font-size: 11px;
+    padding: 4px 12px;
+    cursor: pointer;
+    &:last-child {
+      border-right: none;
+    }
+    &:hover {
+      color: #46506a;
+      background: #eef1f8;
+    }
+    &--active {
+      background: #6886ba;
+      color: #fff;
+    }
+  }
+
+  &__row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  &__input {
+    flex: 1;
+    min-width: 200px;
+    border: 1px solid #d7dbe6;
+    border-radius: 4px;
+    padding: 4px 10px;
+    font-size: 12px;
+    background: #fff;
+  }
+  &__btn {
+    border: 1px solid #6886ba;
+    background: #6886ba;
+    color: #fff;
+    border-radius: 4px;
+    font-size: 12px;
+    padding: 4px 14px;
+    cursor: pointer;
+    &:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+  }
+
+  // The namespace DRILL — columns of service → module → method (or a per-service file browser). Each
+  // column is its own scrollable list of chips; the chosen one highlights and reveals the next level.
+  &__drill {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    margin-top: 8px;
+  }
+  &__col {
+    display: flex;
+    flex-direction: column;
+    min-width: 130px;
+    max-width: 220px;
+    &--files {
+      min-width: 260px;
+      flex: 1;
+    }
+  }
+  &__col-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #97a0b8;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  &__opts {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-height: 168px;
+    overflow: auto; // many methods scroll instead of spilling/clipping
+    border: 1px solid #eef0f5;
+    border-radius: 6px;
+    padding: 4px;
+    background: #fbfcfe;
+  }
+  &__opt {
+    flex: none; // don't let many methods smoosh — the list scrolls instead
+    border: none;
+    background: transparent;
+    text-align: left;
+    font-size: 12px;
+    color: #46506a;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    &:hover {
+      background: #eef1f8;
+    }
+    &.is-sel {
+      background: #6886ba;
+      color: #fff;
+    }
+  }
+  &__files {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    max-height: 168px;
+    overflow: auto;
+    margin-top: 4px;
+    border: 1px solid #eef0f5;
+    border-radius: 6px;
+    padding: 4px;
+    background: #fbfcfe;
+  }
+  &__file {
+    flex: none;
+    border: none;
+    background: transparent;
+    text-align: left;
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 11px;
+    color: #46506a;
+    padding: 3px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    white-space: nowrap;
+    &:hover {
+      background: #eef1f8;
+    }
+    &.is-sel {
+      background: #6886ba;
+      color: #fff;
+    }
+  }
+  &__empty {
+    font-size: 11px;
+    color: #97a0b8;
+    padding: 6px 8px;
+  }
+
+  // Live preview of the selection — you SEE it before committing with Add.
+  &__preview {
+    margin-top: 10px;
+  }
+  &__preview-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #97a0b8;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  &__preview-body.stage {
+    min-height: 0;
+    height: 320px;
+    max-height: 55vh;
+    overflow: hidden;
+    flex: none;
+    border: 1px dashed #c3cade;
+    border-radius: 6px;
+    padding: 6px;
+  }
+
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 8px;
+  }
+  &__level {
+    font-size: 11px;
+    color: #46608f;
+    background: #eef1f8;
+    border-radius: 4px;
+    padding: 3px 10px;
+    font-family: "SF Mono", Menlo, monospace;
+  }
+}
+
+// Named story chips — the many stories filed at/under this namespace. Pick one to edit; the selected
+// chip carries an ✕ (step off it, never deletes) and a 🗑 (delete). This is the badge that shows which
+// story you're on.
+.stage-stories {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 6px 0 8px;
+  border-bottom: 1px solid #eef0f5;
+
+  // One title style for BOTH states (the de-expanded look), and the whole thing is the click target.
+  &__title-toggle {
+    border: none;
+    background: transparent;
+    color: #6886ba;
+    cursor: pointer;
+    font-size: 12px;
+    font-family: "SF Mono", Menlo, monospace;
+    padding: 2px 4px 2px 0;
+    text-align: left;
+    &:hover {
+      color: #46608f;
+    }
+  }
+  &__add {
+    border: 1px dashed #b8c2da;
+    background: #fff;
+    color: #6886ba;
+    font-size: 12px;
+    padding: 3px 12px;
+    border-radius: 12px;
+    cursor: pointer;
+    &:hover {
+      border-color: #6886ba;
+      background: #eef1f8;
+    }
+  }
+  &__new {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  &__new-input {
+    border: 1px solid #6886ba;
+    border-radius: 12px;
+    padding: 3px 10px;
+    font-size: 12px;
+    width: 180px;
+  }
+  &__new-btn {
+    border: 1px solid #6886ba;
+    background: #6886ba;
+    color: #fff;
+    border-radius: 12px;
+    font-size: 12px;
+    padding: 3px 12px;
+    cursor: pointer;
+    &:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+  }
+  &__new-cancel {
+    border: none;
+    background: transparent;
+    color: #97a0b8;
+    cursor: pointer;
+    font-size: 15px;
+    line-height: 1;
+    &:hover {
+      color: #e05757;
+    }
+  }
+}
+.stage-story-chip {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #d7dbe6;
+  background: #f4f6fb;
+  border-radius: 14px;
+  overflow: hidden;
+
+  &.is-sel {
+    border-color: #6886ba;
+    background: #6886ba;
+  }
+  &.is-sel .stage-story-chip__name {
+    color: #fff;
+  }
+
+  &__name {
+    border: none;
+    background: transparent;
+    color: #46506a;
+    font-size: 12px;
+    padding: 4px 12px;
+    cursor: pointer;
+    &:hover {
+      color: #6886ba;
+    }
+  }
+  &.is-sel .stage-story-chip__name:hover {
+    color: #fff;
+  }
+  &__x {
+    border: none;
+    background: transparent;
+    color: #dbe4f7;
+    cursor: pointer;
+    font-size: 15px;
+    line-height: 1;
+    padding: 0 8px 0 0;
+    &:hover {
+      color: #fff;
+    }
+  }
+  &__del {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 11px;
+    padding: 0 8px 0 2px;
+    opacity: 0.55;
+    &:hover {
+      opacity: 1;
+    }
+  }
+}
+.stage__editing {
+  font-size: 12px;
+  color: #8b93a7;
+  strong {
+    color: #46506a;
+  }
+}
+
+// Saved-views toolbar (RFC-018 Phase 3): reopen a saved window, or save the current one.
+.stage__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  min-height: 20px;
+}
+.stage__views {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 5px;
+  &-label {
+    font-size: 11px;
+    color: #8b93a7;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+}
+.stage__view-chip {
+  display: inline-flex;
+  align-items: center;
+  background: #eef1f8;
+  border: 1px solid #d7dbe6;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.stage__view-open {
+  border: none;
+  background: transparent;
+  color: #46506a;
+  font-size: 12px;
+  padding: 2px 8px;
+  cursor: pointer;
+  &:hover {
+    color: #6886ba;
+  }
+}
+.stage__view-del {
+  border: none;
+  background: transparent;
+  color: #97a0b8;
+  cursor: pointer;
+  padding: 2px 6px 2px 0;
+  &:hover {
+    color: #e05757;
+  }
+}
+.stage__save {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.stage__save-input {
+  border: 1px solid #d7dbe6;
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 12px;
+  width: 160px;
+}
+.stage__save-btn {
+  border: 1px solid #6886ba;
+  background: #6886ba;
+  color: #fff;
+  border-radius: 4px;
+  font-size: 12px;
+  padding: 3px 12px;
+  cursor: pointer;
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+}
+
+.stage {
+  width: 100%;
+  flex: 1;
+  min-height: 400px;
+  overflow: auto;
+
+  // Each pane is self-contained and independently scrollable; no pane grows unbounded (RFC-018 rule).
+  .pane {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #d7dbe6;
+    border-radius: 6px;
+    background: #fff;
+    overflow: hidden;
+    min-height: 0;
+
+    &__header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 10px;
+      background: #f2f4f9;
+      border-bottom: 1px solid #e3e7f0;
+      font-size: 12px;
+    }
+    &__drag {
+      cursor: grab;
+      color: #b8bfd0;
+      font-size: 13px;
+      line-height: 1;
+      user-select: none;
+      &:hover {
+        color: #6886ba;
+      }
+      &:active {
+        cursor: grabbing;
+      }
+    }
+    &__kind {
+      text-transform: uppercase;
+      font-size: 10px;
+      letter-spacing: 0.5px;
+      color: #fff;
+      background: #6886ba;
+      padding: 1px 6px;
+      border-radius: 3px;
+    }
+    &__label {
+      color: #46506a;
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+
+      &--select {
+        border: none;
+        background: transparent;
+        font: inherit;
+        text-align: left;
+        padding: 0;
+        cursor: pointer;
+        &:hover {
+          color: #6886ba;
+          text-decoration: underline;
+        }
+      }
+    }
+    &__action {
+      border: 1px solid #c3cade;
+      background: #fff;
+      color: #46506a;
+      font-size: 11px;
+      padding: 1px 8px;
+      border-radius: 3px;
+      cursor: pointer;
+      &:hover:not(:disabled) {
+        border-color: #6886ba;
+        color: #6886ba;
+      }
+      &:disabled {
+        opacity: 0.5;
+        cursor: default;
+      }
+      &--save {
+        background: #6886ba;
+        color: #fff;
+        border-color: #6886ba;
+      }
+      &--pinned {
+        background: #eaf0fb;
+        border-color: #6886ba;
+        color: #6886ba;
+      }
+    }
+    &__remove {
+      border: none;
+      background: transparent;
+      color: #97a0b8;
+      font-size: 16px;
+      line-height: 1;
+      cursor: pointer;
+      &:hover {
+        color: #e05757;
+      }
+    }
+    &__body {
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+    }
+    &__markdown {
+      padding: 4px 14px;
+    }
+    &__status {
+      padding: 16px;
+      color: #8b93a7;
+      font-size: 13px;
+      &--error {
+        color: #e05757;
+      }
+    }
+  }
+
+  // --- Layouts: presentation is a framing choice (RFC-018) ---
+  &--single .pane {
+    height: 100%;
+  }
+
+  // Grid = FLEX. Panes flow left→right and wrap; half-width panes share a row, full-width take it.
+  // NOTHING is forced to a fixed height — every pane sizes to its CONTENT (a short diff is a short
+  // pane, no white space), capped at $pane-max and scrolling inside only if it's genuinely long.
+  &--grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: flex-start;
+    .pane {
+      flex: 1 1 calc(50% - 5px);
+      min-width: 280px;
+      height: auto;
+      max-height: $pane-max;
+    }
+    .pane--full {
+      flex-basis: 100%;
+    }
+    .stage__buffer {
+      flex-basis: 100%;
+    }
+  }
+
+  // Stack full-width, one on top of the other — also content-height (no fixed heights).
+  &--column {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    .pane {
+      flex: none;
+      height: auto;
+      max-height: $pane-max;
+    }
+  }
+
+  // In grid/column a code or diff pane lets CodeMirror grow to its lines (content height) so a short
+  // file doesn't leave a slab of white space; the pane caps + scrolls only when the content is long.
+  &--grid,
+  &--column {
+    .code-view,
+    .code-view .cm-editor,
+    .diff-view,
+    .diff-view .cm-editor {
+      height: auto;
+    }
+  }
+
+  // Study a few side by side.
+  &--split {
+    display: flex;
+    gap: 10px;
+    .pane {
+      flex: 1;
+      min-width: 0;
+      height: 100%;
+    }
+  }
+
+  // Move through many one at a time.
+  &--gallery {
+    display: flex;
+    flex-direction: column;
+    .pane {
+      flex: 1;
+      min-height: 0;
+    }
+  }
+  &__gallery-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 8px;
+    font-size: 12px;
+    color: #46506a;
+    button {
+      border: 1px solid #c3cade;
+      background: #fff;
+      border-radius: 4px;
+      width: 26px;
+      height: 22px;
+      cursor: pointer;
+      &:disabled {
+        opacity: 0.4;
+        cursor: default;
+      }
+    }
+  }
+
+  // A pinned pane reads as kept.
+  .pane--pinned {
+    border-color: #6886ba;
+    box-shadow: 0 0 0 1px #6886ba;
+  }
+
+  // Scroll buffer — space under the last pane so it can scroll clear to the top of the view.
+  &__buffer {
+    height: 40vh;
+    width: 100%;
+    flex: none;
+    pointer-events: none;
+  }
+
+  &--empty {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    color: #8b93a7;
+    padding: 40px 24px;
+
+    p {
+      margin: 4px 0;
+    }
+    .stage__hint {
+      max-width: 480px;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    code {
+      background: #f2f4f9;
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-size: 12px;
+      color: #46506a;
+    }
+  }
+}
+
+.stage__undo {
+  border: 1px solid #6886ba;
+  background: #eaf0fb;
+  color: #46608f;
+  font-size: 12px;
+  padding: 3px 12px;
+  border-radius: 14px;
+  cursor: pointer;
+  &:hover {
+    background: #6886ba;
+    color: #fff;
+  }
+}
+
+// Layout switcher in the toolbar.
+.stage__layouts {
+  display: flex;
+  gap: 2px;
+}
+.stage__layout-btn {
+  border: 1px solid #d7dbe6;
+  background: #f4f6fb;
+  color: #8b93a7;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  text-transform: capitalize;
+  &:hover {
+    color: #46506a;
+  }
+  &--active {
+    background: #6886ba;
+    color: #fff;
+    border-color: #6886ba;
+  }
+}

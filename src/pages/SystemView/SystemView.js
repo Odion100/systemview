@@ -1,8 +1,9 @@
 import React from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import SystemNavigator from "../../organisms/SystemNavigator/SystemNavigator";
 import Documentation from "../../organisms/Documentation/Documentation";
 import TestPanel from "../../organisms/TestPanel/TestPanel";
+import NavLinks from "../../organisms/NavLinks/NavLinks";
 import LOGO from "../../assets/sysly.png";
 import "./styles.scss";
 const { version: VERSION } = require("../../../package.json");
@@ -24,14 +25,7 @@ const SystemViewPage = () => {
           SystemView
         </span>
         <img src={LOGO} alt="logo" />
-        <div className="nav-links">
-          <Link to="/logs" className="logs-nav-link">
-            Logs
-          </Link>
-          <Link to={projectCode ? `/reports/${projectCode}` : "/reports"} className="logs-nav-link">
-            Reports
-          </Link>
-        </div>
+        <NavLinks projectCode={projectCode} current="specs" />
         <span
           style={{
             position: "absolute",

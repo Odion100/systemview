@@ -1,10 +1,12 @@
-import React, { useState, useContext, useEffect, useCallback } from "react";
+import React, { useState, useContext, useEffect, useCallback, useRef } from "react";
+import { useHistory, useLocation } from "react-router-dom";
 import "./styles.scss";
 import DescriptionBox from "../../atoms/DescriptionBox/DescriptionBox";
 import EditBox from "../../molecules/EditBox/EditBox";
 import Title from "../../atoms/Title/Title";
 import Markdown from "../../atoms/Markdown/Markdown";
 import ServiceContext from "../../ServiceContext";
+import Stage from "../Stage/Stage";
 import { Client } from "../../systemClient";
 import { LogRow } from "../../pages/Logs/Logs";
 
@@ -70,7 +72,32 @@ function InlineLogs({ projectCode, serviceId, moduleName, methodName }) {
 
 export default function Documentation({ projectCode, serviceId, moduleName, methodName }) {
   const { connectedServices } = useContext(ServiceContext);
-  const [tab, setTab] = useState("docs");
+
+  // The active tab persists in the URL (?tab=window) so it survives navigation, refresh, and can be
+  // deep-linked. selectTab writes it; a back/forward that changes the URL syncs back into state.
+  const history = useHistory();
+  const location = useLocation();
+  const urlTab = new URLSearchParams(location.search).get("tab") || "docs";
+  const [tab, setTab] = useState(urlTab);
+  const selectTab = useCallback((t) => {
+    setTab(t);
+    const p = new URLSearchParams(window.location.search);
+    p.set("tab", t);
+    history.replace({ search: p.toString() });
+  }, [history]);
+  useEffect(() => { setTab(urlTab); }, [urlTab]);
+
+  // The AI Window (RFC-018) is the third peer tab here — Documentation / Logs / Window — so it lives
+  // in the same per-namespace tab strip, not a separate switcher. The Stage stays mounted (its socket
+  // subscription must be live to auto-focus), so we track pane count to badge the tab and to flip to
+  // it only on the empty→non-empty transition (an agent just drove it) — never yanking a reader off.
+  const [stageCount, setStageCount] = useState(0);
+  const prevStageCount = useRef(0);
+  const handleStageChange = useCallback((count) => {
+    setStageCount(count);
+    if (count > 0 && prevStageCount.current === 0) selectTab("window");
+    prevStageCount.current = count;
+  }, [selectTab]);
 
   const service =
     connectedServices.find(
@@ -102,7 +129,7 @@ export default function Documentation({ projectCode, serviceId, moduleName, meth
 
   useEffect(() => {
     fetchDocument(Plugin);
-    setTab("docs");
+    // Tab is NOT reset on navigation — it persists via the URL so you stay where you were.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [methodName, moduleName, serviceId, Plugin]);
 
@@ -119,22 +146,29 @@ export default function Documentation({ projectCode, serviceId, moduleName, meth
         <div className="doc-tabs">
           <button
             className={`doc-tab ${tab === "docs" ? "doc-tab--active" : ""}`}
-            onClick={() => setTab("docs")}
+            onClick={() => selectTab("docs")}
           >
             Documentation
           </button>
           <button
             className={`doc-tab ${tab === "logs" ? "doc-tab--active" : ""}`}
-            onClick={() => setTab("logs")}
+            onClick={() => selectTab("logs")}
           >
             Logs
           </button>
+          <button
+            className={`doc-tab ${tab === "window" ? "doc-tab--active" : ""}`}
+            onClick={() => selectTab("window")}
+          >
+            Stories{stageCount > 0 ? <span className="doc-tab__dot" /> : null}
+          </button>
         </div>
-        {tab === "docs" ? (
+        {tab === "docs" && (
           <div className="row documentation-view__data-table">
             <DocDescription doc={doc} setDocument={setDocument} Plugin={Plugin} />
           </div>
-        ) : (
+        )}
+        {tab === "logs" && (
           <InlineLogs
             projectCode={projectCode}
             serviceId={serviceId}
@@ -142,6 +176,19 @@ export default function Documentation({ projectCode, serviceId, moduleName, meth
             methodName={methodName}
           />
         )}
+        {/* Stage stays mounted (subscription live for auto-focus); tab just toggles visibility. */}
+        <div
+          className="documentation-view__window"
+          style={{ display: tab === "window" ? "block" : "none" }}
+        >
+          <Stage
+            projectCode={projectCode}
+            serviceId={serviceId}
+            moduleName={moduleName}
+            methodName={methodName}
+            onStageChange={handleStageChange}
+          />
+        </div>
       </div>
     </section>
   );

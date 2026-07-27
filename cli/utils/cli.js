@@ -23,6 +23,13 @@ const HELP_TEXT = `
     toggle cs | ci                         Toggle namespace case-sensitivity (sticky; default insensitive)
                                            [also: bare cs / ci; works in interactive mode]
     open [projectCode] [namespace]         Open the browser UI
+    story <target> "<name>" [--ns ns] [--text|--source|--file|--diff|--test]… [--note md]  Create/update a saved, namespaced Story (see docs/stories-for-agents.md)
+    stories <target>                       List saved Stories (name · namespace · pane count)
+    show <target> [--file|--source|--text] Drive the live Window to one thing (a file, a method's source, or prose)
+    assemble <target> [--text|--source|--file]…  Fill the live Window with several panes at once
+    stage add <target> [--file|--source|--text]  Append a pane to the live Window   stage clear <target>  Empty it
+    highlight <target> --lines A-B|--match s      Emphasize a region of the last pane on the stage
+    view save|open|list|delete <target> [name]   Save the live Window as a reopenable view, or reopen one
     shutdown [port]                        Stop a running SystemView instance  [aliases: exit, stop, q]
 
   Flags:
@@ -60,6 +67,16 @@ const HELP_TEXT = `
     --saved                                logs: read from local snapshot instead of live service
     --save-limit <n>                       logs: max entries to keep in snapshot (default 500)
     --force                                connect: re-probe even if already connected
+    --file <path>                          show/assemble/stage: a project file to display (repeatable)
+    --source <Mod.method>                  show/assemble/stage: a method's source span to display (repeatable)
+    --diff <path>                          show/assemble/stage: a file's before/after vs git HEAD (repeatable)
+    --test <target>                        story/show/assemble/stage: saved tests as runnable examples — any level: * | Service | Module | Mod.method | Mod.method:N (repeatable)
+    --text "…"                             story/show/assemble/stage: inline markdown/prose pane (repeatable)
+    --ns <path>                            story: namespace to file it under (project | project/Service | …/Module | …/method)
+    --note "<md>"                          story: markdown attached to a test pane, rendered with the block
+    --lines A-B                            show/highlight: emphasize a line range on the pane
+    --match <string>                       show/highlight: emphasize the first match on the pane
+    --layout <column|grid|single|gallery>  story/assemble: how to frame multiple panes
 
   Examples:
     systemview start
@@ -88,9 +105,13 @@ const HELP_TEXT = `
     systemview probe ProfilesService.Users.getUser '{"userId":"123"}'
     systemview open buAPI signUp
     systemview test buAPI --header "X-Api-Key: secret"
+    systemview show buAPI --source Users.signUp
+    systemview show buAPI --file src/modules/Users.js --lines 40-70
+    systemview assemble buAPI --text "Here's the sign-up flow" --source Users.signUp --file src/modules/Users.js
+    systemview highlight buAPI --match "await hash"
 `;
 
-const flagValueArgs = ["--manifest", "--header", "--skip", "--phase", "--index", "--level", "--limit", "--follow", "--filter", "--or", "--include", "--highlight", "--save", "--save-limit"];
+const flagValueArgs = ["--manifest", "--header", "--skip", "--phase", "--index", "--level", "--limit", "--follow", "--filter", "--or", "--include", "--highlight", "--save", "--save-limit", "--file", "--source", "--text", "--lines", "--match", "--layout", "--diff", "--test", "--ns", "--note"];
 
 // Quote-aware tokenizer: a single/double-quoted arg (e.g. a JSON payload with spaces) stays ONE token,
 // surrounding quotes stripped. Turns an interactive REPL line into the same argv shape the shell hands
@@ -160,6 +181,27 @@ function parseArgs(rawArgs) {
     saveSession: rawArgs.includes("--save-session"),
     global: rawArgs.includes("--global") || rawArgs.includes("-g"),
     saveLimit: intOf("--save-limit", 500),
+    // RFC-018 AI Window (show/stage/assemble/highlight): file/source/text are repeatable so `assemble`
+    // can take several; `show`/`stage add` use the first of each. lines/match drive highlight.
+    file: listOf("--file"),
+    source: listOf("--source"),
+    text: listOf("--text"),
+    diff: listOf("--diff"),
+    test: listOf("--test"),
+    lines: valOf("--lines"),
+    match: valOf("--match"),
+    layout: valOf("--layout"),
+    ns: valOf("--ns"),
+    note: valOf("--note"),
+    // ORDERED pane sequence for `assemble` — walk the raw args left→right so panes render in the
+    // order given (markdown can sit BETWEEN code/diff/test to tell a story). Grouping by kind would
+    // clump all the prose at the top and kill the narrative.
+    paneSeq: (() => {
+      const PANE = { "--text": "markdown", "--source": "source", "--file": "file", "--diff": "diff", "--test": "test" };
+      const seq = [];
+      rawArgs.forEach((a, i) => { if (PANE[a] && rawArgs[i + 1] != null) seq.push({ kind: PANE[a], value: rawArgs[i + 1] }); });
+      return seq;
+    })(),
     headers: (() => {
       const result = {};
       rawArgs.forEach((a, i) => {

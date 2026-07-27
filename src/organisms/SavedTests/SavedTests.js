@@ -26,7 +26,7 @@ const SavedTests = ({
   const [openAll, setOpenAll] = useState(false);
   const [closeAll, setCloseAll] = useState(false);
   const [savedTestList, setTests] = useState(
-    initializeSavedTests(savedTests, connectedServices)
+    initializeSavedTests(savedTests, connectedServices),
   );
   window.savedTestList = savedTestList;
   window.savedTests = savedTests;
@@ -167,7 +167,7 @@ function TestDetails({
   return (
     <div className={`${CLASSNAME}__test-container`}>
       <div className={`${CLASSNAME}__test-row`}>
-        <ExpandIcon color="#4caf50" onClick={toggleExpansion} isOpen={open} />
+        <ExpandIcon onClick={toggleExpansion} isOpen={open} />
         <span className={`${CLASSNAME}__test-index`}>Test {index + 1}:</span>
         {showDeleteMsg ? (
           <span className={`${CLASSNAME}__delete-prompt ${CLASSNAME}__test-title`}>

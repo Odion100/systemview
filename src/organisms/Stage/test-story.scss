@@ -1,0 +1,437 @@
+// RFC-018 — compact test-as-story for the Stories window. Reads like documentation: title → phases →
+// each step's call(args) → returns → the clauses that pin it. Blue to blend, foldable at every level.
+$sv-blue: #6886ba;
+
+// Run-all + Clear live on the RIGHT, same edge as each test's own Run button.
+// Pinned to the top of the scroll — the tests scroll UNDER it, it never scrolls away.
+.test-pane__bar {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  padding: 6px 8px;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #fff;
+  border-bottom: 1px solid #eef0f5;
+}
+.test-pane__run-all {
+  border: 1px solid $sv-blue;
+  background: #eef1f8;
+  color: #46608f;
+  font-size: 11px;
+  padding: 3px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  &:hover {
+    background: $sv-blue;
+    color: #fff;
+  }
+}
+.test-pane__clear {
+  border: 1px solid #d7dbe6;
+  background: #fff;
+  color: #8b93a7;
+  font-size: 11px;
+  padding: 3px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  &:hover {
+    border-color: #97a0b8;
+    color: #46506a;
+  }
+}
+// Aggregate run-all result, on the bar next to the buttons.
+.test-pane__summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  margin-right: auto;
+}
+// Clickable result filters — click "N passed" / "N failed" to show only those; click again to clear.
+.test-pane__summary-pass,
+.test-pane__summary-fail {
+  border: 1px solid transparent;
+  background: transparent;
+  font-weight: 700;
+  font-size: 11px;
+  padding: 1px 8px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.test-pane__summary-pass {
+  color: #1f9d4f;
+  &:hover {
+    background: #e4f6e9;
+  }
+  &.is-active {
+    background: #1f9d4f;
+    color: #fff;
+  }
+}
+.test-pane__summary-fail {
+  color: #e05757;
+  &:hover {
+    background: #fdeaea;
+  }
+  &.is-active {
+    background: #e05757;
+    color: #fff;
+  }
+}
+.test-pane__summary-run {
+  color: $sv-blue;
+}
+
+// A plain bottom border between tests (no cards/rounding/shadow) + a colored LEFT edge that shows
+// pass/fail/running at a glance — that side bar is how you spot a failure without hunting.
+// Nothing in a test may push the pane wider than it is — a big react-json-view result scrolls INSIDE
+// its own box, never the whole pane/story sideways.
+// No overflow here — it must NOT become its own scroll box, or the sticky bar below would pin to it
+// (which never scrolls) instead of the pane's scroll area. The test-story children clip their own width.
+.test-pane {
+  max-width: 100%;
+  min-width: 0;
+}
+// Agent's markdown for a test block — only present when the agent set one (no note ⇒ no element).
+.test-pane__note {
+  font-size: 12.5px;
+  color: #46506a;
+}
+
+.test-story {
+  padding: 0px 10px;
+  margin-bottom: 8px;
+  font-size: 12.5px;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
+  border-bottom: 1px solid #e3e7f0;
+  border-left: 3px solid transparent;
+
+  &--pass {
+    border-left-color: #2db44f;
+  }
+  &--fail {
+    border-left-color: #e05757;
+  }
+  &--running {
+    border-left-color: $sv-blue;
+  }
+  &--error {
+    color: #e05757;
+  }
+
+  &__head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 2px 2px 4px;
+  }
+  &__fold {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+    min-width: 0;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    padding: 2px 0;
+    text-align: left;
+  }
+  &__caret {
+    color: #97a0b8;
+    font-size: 9px;
+  }
+  &__title {
+    font-weight: 700;
+    color: $sv-blue;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  &__idx {
+    color: #97a0b8;
+    font-weight: 500;
+  }
+  &__status {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    &--pass {
+      background: #e4f6e9;
+      color: #1f9d4f;
+    }
+    &--fail {
+      background: #fdeaea;
+      color: #e05757;
+    }
+    &--running {
+      background: #eef1f8;
+      color: $sv-blue;
+      animation: test-story-pulse 1s ease-in-out infinite;
+    }
+  }
+  &__clear1 {
+    border: 1px solid #d7dbe6;
+    background: #fff;
+    color: #8b93a7;
+    font-size: 11px;
+    padding: 4px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    &:hover {
+      border-color: #97a0b8;
+      color: #46506a;
+    }
+    &:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
+  }
+  &__run {
+    border: 1px solid $sv-blue;
+    background: $sv-blue;
+    color: #fff;
+    font-size: 11px;
+    padding: 4px 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-left: 2px;
+    &:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
+  }
+
+  &__phase {
+    margin-top: 6px;
+  }
+  &__phase-name {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    border: none;
+    background: transparent;
+    padding: 4px 0;
+    cursor: pointer;
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: $sv-blue;
+    font-weight: 600;
+    border-bottom: 1px solid #eef0f5;
+  }
+  &__count {
+    margin-left: auto;
+    background: #eef1f8;
+    color: #6b7797;
+    border-radius: 8px;
+    padding: 0 6px;
+    font-size: 10px;
+  }
+}
+
+.test-action {
+  border-left: 2px solid #e3e7f0;
+  padding: 5px 0 6px 10px;
+  margin: 5px 0;
+
+  &--pass {
+    border-left-color: #2db44f;
+  }
+  &--fail {
+    border-left-color: #e05757;
+  }
+
+  // The whole action folds from here — click to show/hide its args, return, and assertions.
+  &__head {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    width: 100%;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    padding: 3px 0;
+    text-align: left;
+  }
+  &__title {
+    color: #46506a;
+    font-weight: 600;
+  }
+  &__row {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+  &__badge {
+    font-weight: 700;
+    &.is-pass {
+      color: #2db44f;
+    }
+    &.is-fail {
+      color: #e05757;
+    }
+  }
+  &__call {
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 12px;
+    color: #2b3350;
+    b {
+      color: $sv-blue;
+    }
+  }
+
+  // Args read like real code: each arg on its own indented line, the object hugging its trailing comma
+  // (react-json-view sized to content, not stretched), and the closing paren on its OWN line at the
+  // call indent — never floated off at the end of a full-width row.
+  &__args-list {
+    padding-left: 20px;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+  &__arg {
+    padding: 1px 0;
+    max-width: 100%;
+    .react-json-view {
+      display: inline-block !important;
+      vertical-align: top;
+      max-width: 100%;
+    }
+  }
+  &__comma {
+    font-family: "SF Mono", Menlo, monospace;
+    color: #8b93a7;
+  }
+  &__paren {
+    font-family: "SF Mono", Menlo, monospace;
+    color: #8b93a7;
+  }
+  &__paren--close {
+    display: block;
+  }
+  &__lit {
+    font-family: "SF Mono", Menlo, monospace;
+    color: #8a6d3b;
+  }
+
+  &__returns {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    margin-top: 4px;
+    padding: 4px 8px;
+    background: #f6f8fc;
+    border-radius: 4px;
+    max-width: 100%;
+    overflow-x: auto;
+    .react-json-view {
+      flex: 1;
+      min-width: 0;
+      max-width: 100%;
+    }
+    &.is-error {
+      background: #fdefef;
+      .test-action__arrow {
+        color: #e05757;
+      }
+    }
+  }
+  &__arrow {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #97a0b8;
+  }
+
+  &__evals {
+    margin-top: 6px;
+  }
+  &__evals-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    padding: 2px 0;
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #97a0b8;
+  }
+  &__evals-count {
+    background: #eef1f8;
+    color: #6b7797;
+    border-radius: 8px;
+    padding: 0 6px;
+    font-size: 10px;
+  }
+  &__caret {
+    color: #b8bfd0;
+    font-size: 9px;
+  }
+}
+
+// Assertions read as sentences — a checkbox, then "expecting <path> to be a string, to equal X".
+.test-clause {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 11.5px;
+  padding: 2px 0 2px 14px;
+  color: #6b7797;
+  line-height: 1.5;
+
+  &__box {
+    color: #b8bfd0;
+    font-weight: 700;
+    flex: none;
+  }
+  &.is-pass .test-clause__box {
+    color: #2db44f;
+  }
+  &.is-fail {
+    color: #e05757;
+  }
+  &.is-fail .test-clause__box {
+    color: #e05757;
+  }
+
+  &__sentence {
+    min-width: 0;
+  }
+  &__ns {
+    font-family: "SF Mono", Menlo, monospace;
+    color: #46506a;
+    font-weight: 600;
+  }
+  // The expected token in its own color — a TYPE (purple) vs a concrete VALUE (gold).
+  &__val {
+    font-family: "SF Mono", Menlo, monospace;
+    font-weight: 600;
+    &--type {
+      color: #864cff;
+    }
+    &--value {
+      color: #8a6d3b;
+    }
+  }
+}
+
+@keyframes test-story-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}

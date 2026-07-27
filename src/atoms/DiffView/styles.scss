@@ -1,0 +1,18 @@
+.diff-view {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  border-radius: 4px;
+
+  .cm-mergeView,
+  .cm-editor {
+    height: 100%;
+    font-size: 12.5px;
+  }
+  .cm-mergeView {
+    display: flex;
+  }
+  .cm-scroller {
+    overflow: auto;
+  }
+}

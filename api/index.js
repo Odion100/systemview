@@ -4,6 +4,7 @@ const { headersFor } = require("../cli/manifestHeaders");
 const ConnectedServices = require("./Connections")();
 const CLIHistory = require("./CLIHistory")();
 const Settings = require("./Settings")();
+const Stage = require("./Stage")();
 // The UI server calls services the same way the CLI does: through the manifest-header client,
 // so operator-authored headers (e.g. an Origin for a gated dev session — see cli/manifestHeaders.js)
 // are attached to every outbound call and every probe. One resolver, shared with the CLI; the UI is
@@ -162,6 +163,194 @@ function deleteProject(projectCode) {
   ConnectedServices.deleteProject(projectCode);
 }
 
+// RFC-018 — the AI Window stage. Each mutation ends by broadcasting the new stage over sockets to
+// every open UI for that project (`stage-updated:<projectCode>`), reusing the exact push pattern as
+// updateSpecList above. `this.emit` is bound to the module by systemlynx. getStage lets a UI
+// rehydrate the current stage on mount / reconnect. The stage holds only targets — never file bytes.
+function getStage(projectCode) {
+  return Stage.get(projectCode);
+}
+function emitStage(ctx, projectCode, stage) {
+  ctx.emit(`stage-updated:${projectCode}`, stage);
+  return stage;
+}
+function assembleStage(projectCode, spec) {
+  return emitStage(this, projectCode, Stage.assemble(projectCode, spec || {}));
+}
+function showTarget(projectCode, pane) {
+  return emitStage(this, projectCode, Stage.show(projectCode, pane));
+}
+function addPane(projectCode, pane) {
+  return emitStage(this, projectCode, Stage.addPane(projectCode, pane));
+}
+function removePane(projectCode, paneId) {
+  return emitStage(this, projectCode, Stage.removePane(projectCode, paneId));
+}
+function clearStage(projectCode) {
+  return emitStage(this, projectCode, Stage.clear(projectCode));
+}
+function setStageLayout(projectCode, layout) {
+  return emitStage(this, projectCode, Stage.setLayout(projectCode, layout));
+}
+function highlightPane(projectCode, paneId, highlight) {
+  return emitStage(this, projectCode, Stage.highlight(projectCode, paneId, highlight));
+}
+function pinPane(projectCode, paneId, pinned) {
+  return emitStage(this, projectCode, Stage.pin(projectCode, paneId, pinned));
+}
+function setPaneSpan(projectCode, paneId, span) {
+  return emitStage(this, projectCode, Stage.setSpan(projectCode, paneId, span));
+}
+function reorderPanes(projectCode, ids) {
+  return emitStage(this, projectCode, Stage.reorder(projectCode, ids));
+}
+// Reverse channel (UI → agent). setSelection is fire-and-forget from the browser; getSelection is what
+// the agent reads via the CLI. No broadcast needed — the agent pulls, it doesn't watch.
+function setSelection(projectCode, selection) {
+  Stage.setSelection(projectCode, selection);
+  return { ok: true };
+}
+function getSelection(projectCode) {
+  return Stage.getSelection(projectCode);
+}
+
+// RFC-018 saved views — persist the live stage as a reopenable "communication". Storage lives in the
+// observed project's `.systemview/views/` (via any of its service plugins, since siblings share a
+// cwd), so views travel with the repo. The API orchestrates: it holds the stage, the plugin the disk.
+function projectPlugin(projectCode) {
+  const services = ConnectedServices.findProject(projectCode) || [];
+  const svc = services.find((s) => s.system && s.system.connectionData);
+  if (!svc) return null;
+  const client = Client.createService(svc.system.connectionData);
+  return client && client.Plugin ? client.Plugin : null;
+}
+async function saveView(projectCode, name) {
+  const Plugin = projectPlugin(projectCode);
+  if (!Plugin) throw new Error(`no connected service for project "${projectCode}"`);
+  return Plugin.saveView({ name, view: Stage.get(projectCode) });
+}
+async function openView(projectCode, name) {
+  const Plugin = projectPlugin(projectCode);
+  if (!Plugin) throw new Error(`no connected service for project "${projectCode}"`);
+  const view = await Plugin.getView({ name });
+  if (!view) throw new Error(`no saved view "${name}" for "${projectCode}"`);
+  return emitStage(this, projectCode, Stage.assemble(projectCode, view));
+}
+async function listViews(projectCode) {
+  const Plugin = projectPlugin(projectCode);
+  return Plugin ? (await Plugin.listViews()) || [] : [];
+}
+async function deleteView(projectCode, name) {
+  const Plugin = projectPlugin(projectCode);
+  if (!Plugin) throw new Error(`no connected service for project "${projectCode}"`);
+  return Plugin.deleteView({ name });
+}
+
+// RFC-018 — STORIES. A project has MANY stories (not one live stage), each filed on a namespace with a
+// free name — like a method has many tests. Disk (the project plugin) is the source of truth; the API
+// read-modify-writes a story and broadcasts `stories-updated:<projectCode>` so every open UI (the tab
+// AND the /stories page) refreshes. A pane still carries only a locator — the UI fetches real bytes.
+let storySeq = 0;
+function genId(prefix) {
+  storySeq += 1;
+  return `${prefix}_${Date.now().toString(36)}_${storySeq.toString(36)}`;
+}
+// A story's id (and thus its on-disk filename) is just its NAME, slugified — `RFC-018-work.json`. The
+// namespace lives INSIDE the file (a field), not in the filename. Re-saving the same name upserts it.
+const slugify = (s) =>
+  String(s || "").trim().replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 90) || "untitled";
+function storyId(namespace, name) {
+  return slugify(name);
+}
+async function listStories(projectCode) {
+  const Plugin = projectPlugin(projectCode);
+  return Plugin ? (await Plugin.listStories()) || [] : [];
+}
+async function emitStories(ctx, projectCode) {
+  const list = await listStories(projectCode);
+  ctx.emit(`stories-updated:${projectCode}`, list);
+  return list;
+}
+async function getStory(projectCode, id) {
+  const Plugin = projectPlugin(projectCode);
+  return Plugin ? await Plugin.getStory({ id }) : null;
+}
+async function createStory(projectCode, meta = {}) {
+  const Plugin = projectPlugin(projectCode);
+  if (!Plugin) throw new Error(`no connected service for project "${projectCode}"`);
+  const namespace = meta.namespace || projectCode;
+  const name = meta.name || "Untitled story";
+  const story = {
+    id: storyId(namespace, name),
+    projectCode,
+    namespace,
+    name,
+    layout: meta.layout || "column",
+    panes: [],
+  };
+  await Plugin.saveStory({ story });
+  await emitStories(this, projectCode);
+  return story;
+}
+// Full write (rename / relayout / bulk panes) — the story object round-trips through the client.
+async function saveStory(projectCode, story) {
+  const Plugin = projectPlugin(projectCode);
+  if (!Plugin) throw new Error(`no connected service for project "${projectCode}"`);
+  if (!story || !story.id) throw new Error("saveStory: a story with an id is required");
+  await Plugin.saveStory({ story });
+  await emitStories(this, projectCode);
+  return story;
+}
+async function deleteStory(projectCode, id) {
+  const Plugin = projectPlugin(projectCode);
+  if (!Plugin) throw new Error(`no connected service for project "${projectCode}"`);
+  await Plugin.deleteStory({ id });
+  await emitStories(this, projectCode);
+  return { id };
+}
+// Pane ops read the current story, mutate, persist, broadcast. New panes land at the TOP.
+async function addStoryPane(projectCode, id, pane) {
+  const story = await getStory(projectCode, id);
+  if (!story) throw new Error(`no story "${id}" in "${projectCode}"`);
+  story.panes = story.panes || [];
+  story.panes.unshift({ id: genId("pane"), ...pane });
+  return saveStory.call(this, projectCode, story);
+}
+async function removeStoryPane(projectCode, id, paneId) {
+  const story = await getStory(projectCode, id);
+  if (!story) return null;
+  story.panes = (story.panes || []).filter((p) => p.id !== paneId);
+  return saveStory.call(this, projectCode, story);
+}
+async function setStoryLayout(projectCode, id, layout) {
+  const story = await getStory(projectCode, id);
+  if (!story) return null;
+  story.layout = layout;
+  return saveStory.call(this, projectCode, story);
+}
+async function renameStory(projectCode, id, name) {
+  const story = await getStory(projectCode, id);
+  if (!story) return null;
+  story.name = name;
+  return saveStory.call(this, projectCode, story);
+}
+async function reorderStoryPanes(projectCode, id, ids) {
+  const story = await getStory(projectCode, id);
+  if (!story) return null;
+  const byId = new Map((story.panes || []).map((p) => [p.id, p]));
+  const next = (ids || []).map((pid) => byId.get(pid)).filter(Boolean);
+  (story.panes || []).forEach((p) => { if (!next.includes(p)) next.push(p); });
+  story.panes = next;
+  return saveStory.call(this, projectCode, story);
+}
+async function setStoryPaneSpan(projectCode, id, paneId, span) {
+  const story = await getStory(projectCode, id);
+  if (!story) return null;
+  const pane = (story.panes || []).find((p) => p.id === paneId);
+  if (pane) pane.span = span;
+  return saveStory.call(this, projectCode, story);
+}
+
 const shutdown = () => process.exit(0);
 
 module.exports = function launchSystemView(port = 3000) {
@@ -187,6 +376,34 @@ module.exports = function launchSystemView(port = 3000) {
       refreshConnection,
       deleteService,
       deleteProject,
+      getStage,
+      assembleStage,
+      showTarget,
+      addPane,
+      removePane,
+      clearStage,
+      setStageLayout,
+      highlightPane,
+      pinPane,
+      setPaneSpan,
+      reorderPanes,
+      setSelection,
+      getSelection,
+      saveView,
+      openView,
+      listViews,
+      deleteView,
+      listStories,
+      getStory,
+      createStory,
+      saveStory,
+      deleteStory,
+      addStoryPane,
+      removeStoryPane,
+      setStoryLayout,
+      renameStory,
+      reorderStoryPanes,
+      setStoryPaneSpan,
     })
     .module("CLI", {
       getHistory: CLIHistory.getHistory,

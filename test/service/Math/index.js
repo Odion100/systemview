@@ -24,6 +24,19 @@ module.exports = {
     this.log("divide called", { a, b, quotient });
     return { quotient };
   },
+  // Two OBJECT arguments — so the Stories test view can show multi-arg / multi-object rendering.
+  combine({ a, label: aLabel }, { b, label: bLabel }) {
+    const sum = a + b;
+    this.log("combine called", { a, b, sum });
+    return { sum, inputs: { a: { value: a, label: aLabel }, b: { value: b, label: bLabel } } };
+  },
+  // Primitive positional args (string, number, boolean, array) — so the Stories test view can prove it
+  // renders ANY argument type, not just objects, exactly like the scratchpad's Args display does.
+  describe(name, count, active, scores) {
+    const average = scores.length ? scores.reduce((s, n) => s + n, 0) / scores.length : 0;
+    this.log("describe called", { name, count, active, scores });
+    return { summary: `${name} x${count}`, active, average, scoreCount: scores.length };
+  },
   getItems({ count = 10 } = {}) {
     if (count > 100) this.warn("large item count requested", { count });
     else this.debug("getItems called", { count });

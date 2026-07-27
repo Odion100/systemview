@@ -28,10 +28,10 @@ export default function TestSummary({ testSection = [], section, isTesting }) {
         });
 
         return sum.concat(
-          validations.map(({ name, value }) => ({ name, expected: value, namespace }))
+          validations.map(({ name, value }) => ({ name, expected: value, namespace })),
         );
       },
-      []
+      [],
     );
 
     return (sum += test.totalValidations.length);
@@ -45,7 +45,7 @@ export default function TestSummary({ testSection = [], section, isTesting }) {
   return (
     <section className={`${CLASS_NAME}`}>
       <div className={`${CLASS_NAME}__header`}>
-        <ExpandIcon color="#0d8065" isOpen={open} onClick={toggleExpansion} />
+        <ExpandIcon isOpen={open} onClick={toggleExpansion} />
 
         <TestCaption
           caption={
@@ -89,7 +89,7 @@ function Test({
 }) {
   const filterPassingValidations = (tv) =>
     tv.filter(
-      (v) => !errors.find((e) => e.namespace === v.namespace && e.name === v.name)
+      (v) => !errors.find((e) => e.namespace === v.namespace && e.name === v.name),
     );
 
   const [open, setOpen] = useState(false);
@@ -101,7 +101,7 @@ function Test({
     <div>
       <div className={`${CLASS_NAME}__actions`}>
         <span className={`${CLASS_NAME}__action-text`}>
-          <ExpandIcon color="black" onClick={toggleExpansion} isOpen={open} /> {title}
+          <ExpandIcon onClick={toggleExpansion} isOpen={open} /> {title}
         </span>
         {!!test_start && !test_end && (
           <img src={LOADING} alt="check" style={{ width: "18px" }} />

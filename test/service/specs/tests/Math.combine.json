@@ -1,0 +1,24 @@
+[
+  {
+    "title": "combine two objects into a sum",
+    "namespace": { "serviceId": "TestService", "moduleName": "Math", "methodName": "combine" },
+    "Before": [],
+    "Main": [
+      {
+        "title": "combine { a: 2 } and { b: 3 } → sum 5",
+        "namespace": { "serviceId": "TestService", "moduleName": "Math", "methodName": "combine" },
+        "args": [
+          { "name": "argument:", "input": { "a": 2, "label": "first" }, "input_type": "object", "data_type": "", "targetValues": [] },
+          { "name": "argument:", "input": { "b": 3, "label": "second" }, "input_type": "object", "data_type": "", "targetValues": [] }
+        ],
+        "savedEvaluations": [
+          { "namespace": "results.sum", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 5 }], "save": true },
+          { "namespace": "results.inputs.a.label", "expected_type": "string", "validations": [{ "name": "strEquals", "value": "first" }], "save": true },
+          { "namespace": "results.inputs.b.value", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 3 }], "save": true }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": []
+  }
+]

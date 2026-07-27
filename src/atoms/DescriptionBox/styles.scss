@@ -1,24 +1,20 @@
+// RFC-018 Phase 4 — the doc editor is now CodeMirror (CodeEditor), not a textarea. Give it room (docs
+// are long) and make sure it fits the box: line-wrapping is on, so nothing scrolls horizontally.
 .description-box {
   width: 100%;
+  max-width: 100%;
 
-  &__textbox {
-    min-width: 100%;
-    max-width: 100%;
-    min-height: 70vh;
-    background: white;
-    color: black;
-    font-size: 13px;
-    padding: 38px;
-    border-radius: 2px;
+  .code-editor {
     border: none;
-    outline: none;
-    resize: none;
-    // font-family: "SF Mono", "Ubuntu Mono", monospace;
-    font-size: 15px;
-    font-weight: 500;
-
-    // background: #3d8470;
-    // color: white;
-    border-bottom: 1px solid #07625a;
+    max-width: 100%;
+  }
+  .cm-editor {
+    min-height: 60vh;
+    max-width: 100%;
+  }
+  // Wrapping is enabled in CodeEditor; belt-and-suspenders so a long token can never force a sideways
+  // scrollbar inside the doc box.
+  .cm-scroller {
+    overflow-x: hidden;
   }
 }

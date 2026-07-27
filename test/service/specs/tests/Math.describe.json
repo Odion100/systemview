@@ -1,0 +1,125 @@
+[
+  {
+    "title": "Describe with primitive arguments",
+    "namespace": { "serviceId": "TestService", "moduleName": "Math", "methodName": "describe" },
+    "Before": [],
+    "Main": [
+      {
+        "title": "String, number, boolean, and array args",
+        "namespace": { "serviceId": "TestService", "moduleName": "Math", "methodName": "describe" },
+        "args": [
+          {
+            "name": "name",
+            "input": "widget",
+            "input_type": "string",
+            "data_type": "",
+            "targetValues": []
+          },
+          {
+            "name": "count",
+            "input": 3,
+            "input_type": "number",
+            "data_type": "",
+            "targetValues": []
+          },
+          {
+            "name": "active",
+            "input": true,
+            "input_type": "boolean",
+            "data_type": "",
+            "targetValues": []
+          },
+          {
+            "name": "scores",
+            "input": [10, 20, 30],
+            "input_type": "array",
+            "data_type": "",
+            "targetValues": []
+          }
+        ],
+        "savedEvaluations": [
+          {
+            "namespace": "results.summary",
+            "expected_type": "string",
+            "validations": [{ "name": "strEquals", "value": "widget x3" }],
+            "save": true
+          },
+          {
+            "namespace": "results.active",
+            "expected_type": "boolean",
+            "validations": [{ "name": "boolEquals", "value": true }],
+            "save": true
+          },
+          {
+            "namespace": "results.average",
+            "expected_type": "number",
+            "validations": [{ "name": "numEquals", "value": 20 }],
+            "save": true
+          },
+          {
+            "namespace": "results.scoreCount",
+            "expected_type": "number",
+            "validations": [{ "name": "numEquals", "value": 3 }],
+            "save": true
+          }
+        ]
+      },
+      {
+        "title": "A single string argument",
+        "namespace": { "serviceId": "TestService", "moduleName": "Math", "methodName": "describe" },
+        "args": [
+          {
+            "name": "name",
+            "input": "solo",
+            "input_type": "string",
+            "data_type": "",
+            "targetValues": []
+          },
+          {
+            "name": "count",
+            "input": 1,
+            "input_type": "number",
+            "data_type": "",
+            "targetValues": []
+          },
+          {
+            "name": "active",
+            "input": false,
+            "input_type": "boolean",
+            "data_type": "",
+            "targetValues": []
+          },
+          {
+            "name": "scores",
+            "input": [],
+            "input_type": "array",
+            "data_type": "",
+            "targetValues": []
+          }
+        ],
+        "savedEvaluations": [
+          {
+            "namespace": "results.summary",
+            "expected_type": "string",
+            "validations": [{ "name": "strEquals", "value": "solo x1" }],
+            "save": true
+          },
+          {
+            "namespace": "results.active",
+            "expected_type": "boolean",
+            "validations": [{ "name": "boolEquals", "value": false }],
+            "save": true
+          },
+          {
+            "namespace": "results.scoreCount",
+            "expected_type": "number",
+            "validations": [{ "name": "numEquals", "value": 0 }],
+            "save": true
+          }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": []
+  }
+]
