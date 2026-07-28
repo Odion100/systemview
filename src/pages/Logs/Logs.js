@@ -1,4 +1,11 @@
-import React, { useState, useEffect, useRef, useContext, useCallback, useMemo } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useContext,
+  useCallback,
+  useMemo,
+} from "react";
 import { useHistory, useLocation } from "react-router-dom";
 import ReactJson from "react-json-view";
 import moment from "moment";
@@ -7,7 +14,6 @@ import ServiceContext from "../../ServiceContext";
 import NavLinks from "../../organisms/NavLinks/NavLinks";
 import LOGO from "../../assets/sysly.png";
 import "./styles.scss";
-
 
 const LEVEL_CLASS = {
   trace: "dim",
@@ -23,13 +29,20 @@ function formatTime(ts) {
 }
 
 function isDateString(v) {
-  return v != null && typeof v === "string" && /^\d{4}-\d{2}-\d{2}/.test(v) && !isNaN(new Date(v).getTime());
+  return (
+    v != null &&
+    typeof v === "string" &&
+    /^\d{4}-\d{2}-\d{2}/.test(v) &&
+    !isNaN(new Date(v).getTime())
+  );
 }
 
 function getKeyPaths(entries) {
   const paths = new Set();
   entries.forEach((e) => {
-    Object.keys(e).forEach((k) => { paths.add(k); });
+    Object.keys(e).forEach((k) => {
+      paths.add(k);
+    });
   });
   return [...paths].sort();
 }
@@ -63,15 +76,20 @@ function matchesVal(entryVal, filterVal) {
   if (filterVal === "?-") return entryVal == null;
   if (entryVal == null) return false;
   if (typeof filterVal === "string" && filterVal.startsWith("~")) {
-    try { return new RegExp(filterVal.slice(1), "i").test(String(entryVal)); } catch { return false; }
+    try {
+      return new RegExp(filterVal.slice(1), "i").test(String(entryVal));
+    } catch {
+      return false;
+    }
   }
-  const cmp = typeof filterVal === "string" && filterVal.match(/^(>=|<=|>|<)\s*(-?\d+(?:\.\d+)?)$/);
+  const cmp =
+    typeof filterVal === "string" && filterVal.match(/^(>=|<=|>|<)\s*(-?\d+(?:\.\d+)?)$/);
   if (cmp) {
     const n = parseFloat(String(entryVal));
     const num = parseFloat(cmp[2]);
     if (isNaN(n)) return false;
-    if (cmp[1] === ">")  return n > num;
-    if (cmp[1] === "<")  return n < num;
+    if (cmp[1] === ">") return n > num;
+    if (cmp[1] === "<") return n < num;
     if (cmp[1] === ">=") return n >= num;
     if (cmp[1] === "<=") return n <= num;
   }
@@ -173,7 +191,10 @@ function FieldAnalyzer({
 
   useEffect(() => {
     const hasPresenceFilter = activeVals.some((v) => v === "?+" || v === "?-");
-    const resolved = fullPath && !valuesAreDates && (!valuesAreObjects || hasPresenceFilter) ? fullPath : null;
+    const resolved =
+      fullPath && !valuesAreDates && (!valuesAreObjects || hasPresenceFilter)
+        ? fullPath
+        : null;
     onPathChange && onPathChange({ resolved, display: fullPath || null });
   }, [fullPath, valuesAreObjects, valuesAreDates, quickFilters, slotId]);
 
@@ -184,8 +205,11 @@ function FieldAnalyzer({
 
   const presenceCounts = useMemo(() => {
     if (!fullPath) return null;
-    let has = 0, missing = 0;
-    entries.forEach((e) => { getAtPath(e, fullPath) != null ? has++ : missing++; });
+    let has = 0,
+      missing = 0;
+    entries.forEach((e) => {
+      getAtPath(e, fullPath) != null ? has++ : missing++;
+    });
     return { has, missing };
   }, [entries, fullPath]);
 
@@ -193,7 +217,11 @@ function FieldAnalyzer({
   const freqs = search
     ? allFreqs.filter(([val]) => {
         if (matchesVal(val, search)) return true;
-        try { return new RegExp(search, "i").test(val); } catch { return val.includes(search); }
+        try {
+          return new RegExp(search, "i").test(val);
+        } catch {
+          return val.includes(search);
+        }
       })
     : allFreqs;
 
@@ -219,7 +247,7 @@ function FieldAnalyzer({
     if (!search || !fullPath) return;
     const isComparison = /^(>=|<=|>|<)/.test(search);
     const val = isComparison ? search : `~${search}`;
-    setCustomValues((prev) => prev.includes(val) ? prev : [...prev, val]);
+    setCustomValues((prev) => (prev.includes(val) ? prev : [...prev, val]));
     onRowClick(fullPath, val);
     setSearch("");
   }
@@ -227,20 +255,35 @@ function FieldAnalyzer({
   const hasDrill = field && drillSegments.length > 0;
 
   return (
-    <div className={`dash-panel${hasDrill ? " dash-panel--wide" : ""}${mode === "highlight" ? " dash-panel--highlight" : ""}`}>
+    <div
+      className={`dash-panel${hasDrill ? " dash-panel--wide" : ""}${mode === "highlight" ? " dash-panel--highlight" : ""}`}
+    >
       <div className="dash-panel__header">
         <button
           className={`field-analyzer__mode${mode === "highlight" ? " field-analyzer__mode--highlight" : ""}`}
-          title={mode === "highlight" ? "Highlight — mark matches, keep every row (click to switch to Filter)" : "Filter — hide non-matching rows (click to switch to Highlight)"}
-          onClick={() => onModeChange && onModeChange(mode === "highlight" ? "filter" : "highlight")}
+          title={
+            mode === "highlight"
+              ? "Highlight — mark matches, keep every row (click to switch to Filter)"
+              : "Filter — hide non-matching rows (click to switch to Highlight)"
+          }
+          onClick={() =>
+            onModeChange && onModeChange(mode === "highlight" ? "filter" : "highlight")
+          }
         >
           {mode === "highlight" ? "✦ mark" : "▽ hide"}
         </button>
         {mode !== "highlight" && (
           <button
             className={`field-analyzer__conj${conjunction === "or" ? " field-analyzer__conj--or" : ""}`}
-            title={conjunction === "and" ? "& AND — intersect with other filters" : "|| OR — union with other filters"}
-            onClick={() => onConjunctionChange && onConjunctionChange(conjunction === "and" ? "or" : "and")}
+            title={
+              conjunction === "and"
+                ? "& AND — intersect with other filters"
+                : "|| OR — union with other filters"
+            }
+            onClick={() =>
+              onConjunctionChange &&
+              onConjunctionChange(conjunction === "and" ? "or" : "and")
+            }
           >
             {conjunction === "and" ? "&" : "||"}
           </button>
@@ -287,8 +330,23 @@ function FieldAnalyzer({
                 <td className="dash-panel__val--date-input">
                   <input
                     type="datetime-local"
-                    value={(dateRangeFilters && dateRangeFilters[fullPath] && dateRangeFilters[fullPath].from) || ""}
-                    onChange={(e) => onDateRange && onDateRange(fullPath, e.target.value, (dateRangeFilters && dateRangeFilters[fullPath] && dateRangeFilters[fullPath].to) || "")}
+                    value={
+                      (dateRangeFilters &&
+                        dateRangeFilters[fullPath] &&
+                        dateRangeFilters[fullPath].from) ||
+                      ""
+                    }
+                    onChange={(e) =>
+                      onDateRange &&
+                      onDateRange(
+                        fullPath,
+                        e.target.value,
+                        (dateRangeFilters &&
+                          dateRangeFilters[fullPath] &&
+                          dateRangeFilters[fullPath].to) ||
+                          "",
+                      )
+                    }
                   />
                 </td>
               </tr>
@@ -297,8 +355,23 @@ function FieldAnalyzer({
                 <td className="dash-panel__val--date-input">
                   <input
                     type="datetime-local"
-                    value={(dateRangeFilters && dateRangeFilters[fullPath] && dateRangeFilters[fullPath].to) || ""}
-                    onChange={(e) => onDateRange && onDateRange(fullPath, (dateRangeFilters && dateRangeFilters[fullPath] && dateRangeFilters[fullPath].from) || "", e.target.value)}
+                    value={
+                      (dateRangeFilters &&
+                        dateRangeFilters[fullPath] &&
+                        dateRangeFilters[fullPath].to) ||
+                      ""
+                    }
+                    onChange={(e) =>
+                      onDateRange &&
+                      onDateRange(
+                        fullPath,
+                        (dateRangeFilters &&
+                          dateRangeFilters[fullPath] &&
+                          dateRangeFilters[fullPath].from) ||
+                          "",
+                        e.target.value,
+                      )
+                    }
                   />
                 </td>
               </tr>
@@ -316,17 +389,23 @@ function FieldAnalyzer({
                       className={`dash-panel__row dash-panel__row--presence${activeVals.includes("?+") ? " dash-panel__row--active" : ""}`}
                       onClick={() => onRowClick(fullPath, "?+")}
                     >
-                      <td className="dash-panel__val dash-panel__val--presence">has value</td>
+                      <td className="dash-panel__val dash-panel__val--presence">
+                        has value
+                      </td>
                       <td className="dash-panel__count">×{presenceCounts.has}</td>
                     </tr>
                     <tr
                       className={`dash-panel__row dash-panel__row--presence${activeVals.includes("?-") ? " dash-panel__row--active" : ""}`}
                       onClick={() => onRowClick(fullPath, "?-")}
                     >
-                      <td className="dash-panel__val dash-panel__val--presence">null / missing</td>
+                      <td className="dash-panel__val dash-panel__val--presence">
+                        null / missing
+                      </td>
                       <td className="dash-panel__count">×{presenceCounts.missing}</td>
                     </tr>
-                    <tr className="dash-panel__row--divider"><td colSpan={2} /></tr>
+                    <tr className="dash-panel__row--divider">
+                      <td colSpan={2} />
+                    </tr>
                   </>
                 )}
                 {Object.entries(childInfo).map(([key, { isObject }]) => (
@@ -335,7 +414,9 @@ function FieldAnalyzer({
                     className="dash-panel__row"
                     onClick={() => drillInto(key)}
                   >
-                    <td className="dash-panel__val">{/^\d+$/.test(key) ? `[${key}]` : key}</td>
+                    <td className="dash-panel__val">
+                      {/^\d+$/.test(key) ? `[${key}]` : key}
+                    </td>
                     <td className="dash-panel__count">
                       {isObject ? <span className="field-analyzer__drill">▶</span> : null}
                     </td>
@@ -367,22 +448,30 @@ function FieldAnalyzer({
               </tr>
               {presenceCounts && (
                 <>
-                  <tr className="dash-panel__row--divider"><td colSpan={2} /></tr>
+                  <tr className="dash-panel__row--divider">
+                    <td colSpan={2} />
+                  </tr>
                   <tr
                     className={`dash-panel__row dash-panel__row--presence${activeVals.includes("?+") ? " dash-panel__row--active" : ""}`}
                     onClick={() => onRowClick(fullPath, "?+")}
                   >
-                    <td className="dash-panel__val dash-panel__val--presence">has value</td>
+                    <td className="dash-panel__val dash-panel__val--presence">
+                      has value
+                    </td>
                     <td className="dash-panel__count">×{presenceCounts.has}</td>
                   </tr>
                   <tr
                     className={`dash-panel__row dash-panel__row--presence${activeVals.includes("?-") ? " dash-panel__row--active" : ""}`}
                     onClick={() => onRowClick(fullPath, "?-")}
                   >
-                    <td className="dash-panel__val dash-panel__val--presence">null / missing</td>
+                    <td className="dash-panel__val dash-panel__val--presence">
+                      null / missing
+                    </td>
                     <td className="dash-panel__count">×{presenceCounts.missing}</td>
                   </tr>
-                  <tr className="dash-panel__row--divider"><td colSpan={2} /></tr>
+                  <tr className="dash-panel__row--divider">
+                    <td colSpan={2} />
+                  </tr>
                 </>
               )}
               {customValues.map((v) => (
@@ -391,7 +480,9 @@ function FieldAnalyzer({
                   className={`dash-panel__row dash-panel__row--custom${activeVals.includes(v) ? " dash-panel__row--active" : ""}`}
                   onClick={() => onRowClick(fullPath, v)}
                 >
-                  <td className="dash-panel__val">{v.startsWith("~") ? `/${v.slice(1)}/` : v}</td>
+                  <td className="dash-panel__val">
+                    {v.startsWith("~") ? `/${v.slice(1)}/` : v}
+                  </td>
                   <td className="dash-panel__count">×</td>
                 </tr>
               ))}
@@ -433,8 +524,17 @@ function Dashboard({
   initialPaths,
 }) {
   const [analyzers, setAnalyzers] = useState(() => {
-    const pre = (initialPaths || []).map((p) => ({ id: `url-${p}`, resolvedPath: p, displayPath: p, conjunction: "and", mode: "filter" }));
-    return [...pre, { id: Date.now(), resolvedPath: null, conjunction: "and", mode: "highlight" }];
+    const pre = (initialPaths || []).map((p) => ({
+      id: `url-${p}`,
+      resolvedPath: p,
+      displayPath: p,
+      conjunction: "and",
+      mode: "filter",
+    }));
+    return [
+      ...pre,
+      { id: Date.now(), resolvedPath: null, conjunction: "and", mode: "highlight" },
+    ];
   });
   const [collapsed, setCollapsed] = useState(false);
   const traceEntries = entries.filter((e) => e.level === "trace");
@@ -445,21 +545,28 @@ function Dashboard({
 
   useEffect(() => {
     if (initialPaths && initialPaths.length) reportState(analyzers);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function reportState(next) {
-    onAnalyzerSlotsChange(next.map((x) => ({
-      id: x.id,
-      path: x.resolvedPath,
-      displayPath: x.displayPath,
-      conjunction: x.conjunction,
-      mode: x.mode,
-    })).filter((x) => x.path || x.displayPath));
+    onAnalyzerSlotsChange(
+      next
+        .map((x) => ({
+          id: x.id,
+          path: x.resolvedPath,
+          displayPath: x.displayPath,
+          conjunction: x.conjunction,
+          mode: x.mode,
+        }))
+        .filter((x) => x.path || x.displayPath),
+    );
   }
 
   function addAnalyzer() {
-    setAnalyzers((a) => [...a, { id: Date.now(), resolvedPath: null, conjunction: "and", mode: "highlight" }]);
+    setAnalyzers((a) => [
+      ...a,
+      { id: Date.now(), resolvedPath: null, conjunction: "and", mode: "highlight" },
+    ]);
   }
 
   function removeAnalyzer(id) {
@@ -477,7 +584,9 @@ function Dashboard({
       if (prev?.resolvedPath && prev.resolvedPath !== resolved) {
         onClearFilter(id);
       }
-      const next = a.map((x) => (x.id === id ? { ...x, resolvedPath: resolved, displayPath: display } : x));
+      const next = a.map((x) =>
+        x.id === id ? { ...x, resolvedPath: resolved, displayPath: display } : x,
+      );
       reportState(next);
       return next;
     });
@@ -513,41 +622,43 @@ function Dashboard({
         )}
       </button>
       {!collapsed && (
-      <div className="dashboard__panels">
-        {traceEntries.length > 0 && (
-          <FreqPanel
-            title="Call counts"
-            path="moduleMethod"
-            rows={countByPath(traceEntries, "moduleMethod")}
-            quickFilters={quickFilters}
-            onRowClick={onToggleFilter}
-          />
-        )}
-        {analyzers.map((a) => (
-          <FieldAnalyzer
-            key={a.id}
-            entries={a.conjunction === "and" ? getContextEntries(a.resolvedPath) : entries}
-            keyPaths={keyPaths}
-            onRemove={() => removeAnalyzer(a.id)}
-            onPathChange={(path) => updateResolvedPath(a.id, path)}
-            quickFilters={quickFilters}
-            onRowClick={(path, val) => onToggleFilter(a.id, val)}
-            dateRangeFilters={dateRangeFilters}
-            onDateRange={onDateRange}
-            conjunction={a.conjunction}
-            onConjunctionChange={(c) => updateConjunction(a.id, c)}
-            mode={a.mode || "highlight"}
-            onModeChange={(m) => updateMode(a.id, m)}
-            slotId={a.id}
-            initialField={a.displayPath || a.resolvedPath || ""}
-          />
-        ))}
-        {(analyzers.length === 0 || lastResolved) && (
-          <button className="dashboard__add" onClick={addAnalyzer}>
-            + Analyze field
-          </button>
-        )}
-      </div>
+        <div className="dashboard__panels">
+          {traceEntries.length > 0 && (
+            <FreqPanel
+              title="Call counts"
+              path="moduleMethod"
+              rows={countByPath(traceEntries, "moduleMethod")}
+              quickFilters={quickFilters}
+              onRowClick={onToggleFilter}
+            />
+          )}
+          {analyzers.map((a) => (
+            <FieldAnalyzer
+              key={a.id}
+              entries={
+                a.conjunction === "and" ? getContextEntries(a.resolvedPath) : entries
+              }
+              keyPaths={keyPaths}
+              onRemove={() => removeAnalyzer(a.id)}
+              onPathChange={(path) => updateResolvedPath(a.id, path)}
+              quickFilters={quickFilters}
+              onRowClick={(path, val) => onToggleFilter(a.id, val)}
+              dateRangeFilters={dateRangeFilters}
+              onDateRange={onDateRange}
+              conjunction={a.conjunction}
+              onConjunctionChange={(c) => updateConjunction(a.id, c)}
+              mode={a.mode || "highlight"}
+              onModeChange={(m) => updateMode(a.id, m)}
+              slotId={a.id}
+              initialField={a.displayPath || a.resolvedPath || ""}
+            />
+          ))}
+          {(analyzers.length === 0 || lastResolved) && (
+            <button className="dashboard__add" onClick={addAnalyzer}>
+              + Analyze field
+            </button>
+          )}
+        </div>
       )}
     </div>
   );
@@ -580,14 +691,25 @@ function cellValue(entry, path) {
   return String(v);
 }
 
-export function LogRow({ entry, isExpanded, onToggle, dynamicColumns, filteredFixedPaths, highlightPaths, compact, isNew, jsonMode }) {
+export function LogRow({
+  entry,
+  isExpanded,
+  onToggle,
+  dynamicColumns,
+  filteredFixedPaths,
+  highlightPaths,
+  compact,
+  isNew,
+  jsonMode,
+}) {
   const level = entry.level || "info";
   const isTrace = level === "trace";
   const scopeVal = entry.scope || "";
   const msg = typeof scopeVal === "string" ? scopeVal : JSON.stringify(scopeVal) || "";
   const shortTraceId = entry.traceId || "—";
   const isHighlighted = highlightPaths && highlightPaths.size > 0;
-  const hl = (path) => (highlightPaths && highlightPaths.has(path) ? " log-cell--highlight" : "");
+  const hl = (path) =>
+    highlightPaths && highlightPaths.has(path) ? " log-cell--highlight" : "";
 
   return (
     <>
@@ -595,10 +717,28 @@ export function LogRow({ entry, isExpanded, onToggle, dynamicColumns, filteredFi
         className={`log-row${isTrace ? " log-row--dim" : ""} log-row--clickable${isExpanded && !jsonMode ? " log-row--active" : ""}${isNew ? " log-row--new" : ""}${isHighlighted ? " log-row--highlight" : ""}`}
         onClick={onToggle}
       >
-        <div className={`log-cell log-cell--time${hl("timestamp")}`}>{formatTime(entry.timestamp)}</div>
-        {!compact && <div className={`log-cell log-cell--project${filteredFixedPaths?.has("projectCode") ? " log-cell--filtered" : ""}${hl("projectCode")}`}>{entry.projectCode || "—"}</div>}
-        {!compact && <div className={`log-cell log-cell--service${filteredFixedPaths?.has("serviceId") ? " log-cell--filtered" : ""}${hl("serviceId")}`}>{entry.serviceId || "—"}</div>}
-        <div className={`log-cell log-cell--method${filteredFixedPaths?.has("moduleMethod") ? " log-cell--filtered" : ""}${hl("moduleMethod")}`}>{entry.moduleMethod || "—"}</div>
+        <div className={`log-cell log-cell--time${hl("timestamp")}`}>
+          {formatTime(entry.timestamp)}
+        </div>
+        {!compact && (
+          <div
+            className={`log-cell log-cell--project${filteredFixedPaths?.has("projectCode") ? " log-cell--filtered" : ""}${hl("projectCode")}`}
+          >
+            {entry.projectCode || "—"}
+          </div>
+        )}
+        {!compact && (
+          <div
+            className={`log-cell log-cell--service${filteredFixedPaths?.has("serviceId") ? " log-cell--filtered" : ""}${hl("serviceId")}`}
+          >
+            {entry.serviceId || "—"}
+          </div>
+        )}
+        <div
+          className={`log-cell log-cell--method${filteredFixedPaths?.has("moduleMethod") ? " log-cell--filtered" : ""}${hl("moduleMethod")}`}
+        >
+          {entry.moduleMethod || "—"}
+        </div>
         <div className={`log-cell log-cell--level${hl("level")}`}>
           <span className={`log-level log-level--${LEVEL_CLASS[level] || "info"}`}>
             {level}
@@ -610,10 +750,22 @@ export function LogRow({ entry, isExpanded, onToggle, dynamicColumns, filteredFi
             <span className="log-duration"> {entry.duration}ms</span>
           )}
         </div>
-        {!compact && <div className={`log-cell log-cell--traceid${hl("traceId")}`} title={entry.traceId || ""}>{shortTraceId}</div>}
-        {!compact && dynamicColumns &&
+        {!compact && (
+          <div
+            className={`log-cell log-cell--traceid${hl("traceId")}`}
+            title={entry.traceId || ""}
+          >
+            {shortTraceId}
+          </div>
+        )}
+        {!compact &&
+          dynamicColumns &&
           dynamicColumns.map((path) => (
-            <div key={path} className={`log-cell log-cell--dynamic${hl(path)}`} title={path}>
+            <div
+              key={path}
+              className={`log-cell log-cell--dynamic${hl(path)}`}
+              title={path}
+            >
               {cellValue(entry, path)}
             </div>
           ))}
@@ -629,8 +781,20 @@ export function LogRow({ entry, isExpanded, onToggle, dynamicColumns, filteredFi
                 displayDataTypes={false}
                 collapsed={1}
                 theme="monokai"
-                style={{ fontSize: "12px", fontFamily: "monospace", background: "transparent" }}
-                enableClipboard={(copy) => { try { navigator.clipboard.writeText(typeof copy.src === "string" ? copy.src : JSON.stringify(copy.src, null, 2)); } catch {} }}
+                style={{
+                  fontSize: "12px",
+                  fontFamily: "monospace",
+                  background: "transparent",
+                }}
+                enableClipboard={(copy) => {
+                  try {
+                    navigator.clipboard.writeText(
+                      typeof copy.src === "string"
+                        ? copy.src
+                        : JSON.stringify(copy.src, null, 2),
+                    );
+                  } catch {}
+                }}
               />
             </div>
           </div>
@@ -660,14 +824,23 @@ export default function Logs() {
   ];
   const [quickFilters, setQuickFilters] = useState(() => {
     const init = {};
-    initParams.getAll("has").forEach((p) => { init[`url-${p}`] = ["?+"]; });
-    initParams.getAll("missing").forEach((p) => { init[`url-${p}`] = ["?-"]; });
+    initParams.getAll("has").forEach((p) => {
+      init[`url-${p}`] = ["?+"];
+    });
+    initParams.getAll("missing").forEach((p) => {
+      init[`url-${p}`] = ["?-"];
+    });
     if (_initTraceId) init["url-traceId"] = [_initTraceId];
     return init;
   });
   const [dateRangeFilters, setDateRangeFilters] = useState({});
   const [analyzerSlots, setAnalyzerSlots] = useState(() =>
-    initAnalyzerPaths.map((p) => ({ id: `url-${p}`, path: p, displayPath: p, conjunction: "and" }))
+    initAnalyzerPaths.map((p) => ({
+      id: `url-${p}`,
+      path: p,
+      displayPath: p,
+      conjunction: "and",
+    })),
   );
   const [expandedKey, setExpandedKey] = useState(null);
   const [viewMode, setViewMode] = useState("table");
@@ -679,9 +852,16 @@ export default function Logs() {
   useEffect(() => {
     SystemViewService.SystemView.getProjects()
       .then((result) => {
-        if (result && typeof result === "object") setConnectedProjects(result);
+        if (result && typeof result === "object") {
+          setConnectedProjects(result);
+          // Logs are per-project. If we arrived without a project derived and exactly one is connected,
+          // pick it; otherwise the body prompts the user to choose one (there is no "all projects").
+          const keys = Object.keys(result);
+          if (!filterProject && keys.length === 1) setFilterProject(keys[0]);
+        }
       })
       .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [SystemViewService]);
 
   useEffect(() => {
@@ -698,15 +878,29 @@ export default function Logs() {
     });
     const qs = params.toString();
     window.history.replaceState(null, "", "/logs" + (qs ? "?" + qs : ""));
-  }, [filterProject, filterService, filterMethod, filterLevel, analyzerSlots, quickFilters]);
+  }, [
+    filterProject,
+    filterService,
+    filterMethod,
+    filterLevel,
+    analyzerSlots,
+    quickFilters,
+  ]);
 
   const loadLogs = useCallback(async () => {
+    // Logs are per-project — with no project selected there is nothing to load (never aggregate across
+    // projects). The body shows a "choose a project" prompt in this state.
+    if (!filterProject) {
+      setEntries([]);
+      return;
+    }
     const allServices = Object.entries(connectedProjects).flatMap(([pc, services]) =>
-      services.map((s) => ({ projectCode: pc, ...s }))
+      services.map((s) => ({ projectCode: pc, ...s })),
     );
-    const targets = allServices.filter((s) =>
-      (!filterProject || s.projectCode === filterProject) &&
-      (!filterService || s.serviceId === filterService)
+    const targets = allServices.filter(
+      (s) =>
+        (!filterProject || s.projectCode === filterProject) &&
+        (!filterService || s.serviceId === filterService),
     );
     if (allServices.length > 0 && targets.length === 0) return;
     const all = [];
@@ -717,8 +911,16 @@ export default function Logs() {
         if (Array.isArray(entries)) all.push(...entries);
       } catch {}
     }
-    let result = filterMethod ? all.filter((e) => (e.moduleMethod && e.moduleMethod.includes(filterMethod)) || (e.method && e.method === filterMethod)) : all;
-    result = result.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)).slice(-200);
+    let result = filterMethod
+      ? all.filter(
+          (e) =>
+            (e.moduleMethod && e.moduleMethod.includes(filterMethod)) ||
+            (e.method && e.method === filterMethod),
+        )
+      : all;
+    result = result
+      .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+      .slice(-200);
     setEntries(result);
   }, [connectedProjects, filterProject, filterService, filterMethod]);
 
@@ -729,16 +931,17 @@ export default function Logs() {
 
   // Monitor: subscribe to live log events per service; re-runs when filters or monitoring state changes
   useEffect(() => {
-    if (!isMonitoring) return;
+    if (!isMonitoring || !filterProject) return;
     monitorUnsubs.current.forEach((u) => u());
     monitorUnsubs.current = [];
 
     const allServices = Object.entries(connectedProjects).flatMap(([pc, svcs]) =>
-      svcs.map((s) => ({ projectCode: pc, ...s }))
+      svcs.map((s) => ({ projectCode: pc, ...s })),
     );
-    const targets = allServices.filter((s) =>
-      (!filterProject || s.projectCode === filterProject) &&
-      (!filterService || s.serviceId === filterService)
+    const targets = allServices.filter(
+      (s) =>
+        (!filterProject || s.projectCode === filterProject) &&
+        (!filterService || s.serviceId === filterService),
     );
 
     // Load current snapshot first so monitor starts with full context
@@ -748,14 +951,37 @@ export default function Logs() {
       try {
         const { SystemView } = Client.createService(t.connectionData);
         const unsub = SystemView.on("log", (entry) => {
-          if (filterMethod && !((entry.moduleMethod && entry.moduleMethod.includes(filterMethod)) || (entry.method && entry.method === filterMethod))) return;
+          if (
+            filterMethod &&
+            !(
+              (entry.moduleMethod && entry.moduleMethod.includes(filterMethod)) ||
+              (entry.method && entry.method === filterMethod)
+            )
+          )
+            return;
           const eKey = `${entry.timestamp}-${entry.traceId}-${entry.moduleMethod}`;
           setEntries((prev) => {
-            if (prev.some((e) => e.timestamp === entry.timestamp && e.traceId === entry.traceId && e.moduleMethod === entry.moduleMethod)) return prev;
+            if (
+              prev.some(
+                (e) =>
+                  e.timestamp === entry.timestamp &&
+                  e.traceId === entry.traceId &&
+                  e.moduleMethod === entry.moduleMethod,
+              )
+            )
+              return prev;
             return [...prev, entry];
           });
           setNewEntryKeys((prev) => new Set([...prev, eKey]));
-          setTimeout(() => setNewEntryKeys((prev) => { const n = new Set(prev); n.delete(eKey); return n; }), 400);
+          setTimeout(
+            () =>
+              setNewEntryKeys((prev) => {
+                const n = new Set(prev);
+                n.delete(eKey);
+                return n;
+              }),
+            400,
+          );
         });
         monitorUnsubs.current.push(unsub);
       } catch {}
@@ -765,14 +991,20 @@ export default function Logs() {
       monitorUnsubs.current.forEach((u) => u());
       monitorUnsubs.current = [];
     };
-  }, [isMonitoring, connectedProjects, filterProject, filterService, filterMethod, loadLogs]);
+  }, [
+    isMonitoring,
+    connectedProjects,
+    filterProject,
+    filterService,
+    filterMethod,
+    loadLogs,
+  ]);
 
   useEffect(() => {
     if (!isMonitoring) return;
     const el = bodyRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [entries, isMonitoring]);
-
 
   const projects =
     Object.keys(connectedProjects).length > 0
@@ -787,9 +1019,10 @@ export default function Logs() {
             .map((s) => s.serviceId)
       : [...new Set(entries.map((e) => e.serviceId).filter(Boolean))];
   const methods = useMemo(() => {
-    const projectServices = filterProject && connectedProjects[filterProject]
-      ? connectedProjects[filterProject]
-      : Object.values(connectedProjects).flat();
+    const projectServices =
+      filterProject && connectedProjects[filterProject]
+        ? connectedProjects[filterProject]
+        : Object.values(connectedProjects).flat();
     const targetServices = filterService
       ? projectServices.filter((s) => s.serviceId === filterService)
       : projectServices;
@@ -806,34 +1039,54 @@ export default function Logs() {
     moduleNames.forEach((mod) => {
       result.push({ label: mod, value: mod, isModule: true });
       methodNames.forEach((m) => {
-        if (m.startsWith(mod + ".")) result.push({ label: `  ${m}`, value: m, isModule: false });
+        if (m.startsWith(mod + "."))
+          result.push({ label: `  ${m}`, value: m, isModule: false });
       });
     });
     return result;
   }, [connectedProjects, filterProject, filterService]);
 
-  const dynamicColumns = analyzerSlots.map((s) => s.displayPath || s.path).filter((p) => p && !FIXED_PATHS.has(p));
+  const dynamicColumns = analyzerSlots
+    .map((s) => s.displayPath || s.path)
+    .filter((p) => p && !FIXED_PATHS.has(p));
   const filteredFixedPaths = useMemo(
-    () => new Set(Object.keys(quickFilters).filter((k) => FIXED_PATHS.has(k) && (quickFilters[k] || []).length > 0)),
-    [quickFilters]
+    () =>
+      new Set(
+        Object.keys(quickFilters).filter(
+          (k) => FIXED_PATHS.has(k) && (quickFilters[k] || []).length > 0,
+        ),
+      ),
+    [quickFilters],
   );
 
   // Build ordered filter chain: fixed panels (always OR) then FILTER-mode analyzers (& or ||).
   // Highlight-mode analyzer clauses are pulled out — they mark rows instead of hiding them.
   const FIXED_FILTER_ORDER = ["moduleMethod"];
   const orderedFilters = [
-    ...FIXED_FILTER_ORDER
-      .filter((p) => (quickFilters[p] || []).length > 0)
-      .map((p) => ({ path: p, vals: quickFilters[p], mode: "and", slotId: p })),
+    ...FIXED_FILTER_ORDER.filter((p) => (quickFilters[p] || []).length > 0).map((p) => ({
+      path: p,
+      vals: quickFilters[p],
+      mode: "and",
+      slotId: p,
+    })),
     ...analyzerSlots
-      .filter((s) => s.path && s.mode !== "highlight" && (quickFilters[s.id] || []).length > 0)
-      .map((s) => ({ path: s.path, vals: quickFilters[s.id], mode: s.conjunction, slotId: s.id })),
+      .filter(
+        (s) => s.path && s.mode !== "highlight" && (quickFilters[s.id] || []).length > 0,
+      )
+      .map((s) => ({
+        path: s.path,
+        vals: quickFilters[s.id],
+        mode: s.conjunction,
+        slotId: s.id,
+      })),
   ];
 
   // Highlight clauses: matches are emphasized, every row stays. A row highlights if it matches ANY
   // highlight clause (OR); the matched path is emphasized on its cell.
   const highlightSlots = analyzerSlots
-    .filter((s) => s.path && s.mode === "highlight" && (quickFilters[s.id] || []).length > 0)
+    .filter(
+      (s) => s.path && s.mode === "highlight" && (quickFilters[s.id] || []).length > 0,
+    )
     .map((s) => ({ path: s.path, vals: quickFilters[s.id], slotId: s.id }));
 
   const highlightPathsFor = useCallback(
@@ -845,7 +1098,7 @@ export default function Logs() {
       return paths;
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [JSON.stringify(highlightSlots)]
+    [JSON.stringify(highlightSlots)],
   );
 
   // Group by precedence: & binds tighter, each || starts a new group
@@ -877,8 +1130,10 @@ export default function Logs() {
     filterGroups.length > 0
       ? entries.filter((e) =>
           filterGroups.some((group) =>
-            group.every(({ path, vals }) => vals.some((v) => matchesVal(getAtPath(e, path), v)))
-          )
+            group.every(({ path, vals }) =>
+              vals.some((v) => matchesVal(getAtPath(e, path), v)),
+            ),
+          ),
         )
       : entries;
 
@@ -931,7 +1186,7 @@ export default function Logs() {
             const { SystemView } = Client.createService(s.connectionData);
             await SystemView.clearLog();
           } catch {}
-        })
+        }),
       );
       setEntries([]);
       setExpandedKey(null);
@@ -946,12 +1201,17 @@ export default function Logs() {
   return (
     <section className="logs-page">
       <div className="page-header">
-        <button className="logs-back" onClick={() => window.history.length > 1 ? history.goBack() : history.push("/specs")}>
+        <button
+          className="logs-back"
+          onClick={() =>
+            window.history.length > 1 ? history.goBack() : history.push("/specs")
+          }
+        >
           ← back
         </button>
         <span className="logs-title">SystemView</span>
         <img src={LOGO} alt="logo" />
-        <span className="logs-heading">Logs</span>
+        {/* <span className="logs-heading">Logs</span> */}
         <NavLinks projectCode={filterProject} current="logs" />
       </div>
 
@@ -966,7 +1226,7 @@ export default function Logs() {
               setQuickFilters({});
             }}
           >
-            <option value="">all projects</option>
+            <option value="">— choose a project —</option>
             {projects.map((p) => (
               <option key={p} value={p}>
                 {p}
@@ -1014,9 +1274,27 @@ export default function Logs() {
                     {fi > 0 && <span className="logs-filter-op">&</span>}
                     <button
                       className={`logs-quick-filter${mode === "or" ? " logs-quick-filter--or" : ""}`}
-                      onClick={() => setQuickFilters((prev) => { const n = { ...prev }; delete n[slotId]; return n; })}
+                      onClick={() =>
+                        setQuickFilters((prev) => {
+                          const n = { ...prev };
+                          delete n[slotId];
+                          return n;
+                        })
+                      }
                     >
-                      {path}: {vals.map((v) => v === "?+" ? "has value" : v === "?-" ? "null/missing" : v.startsWith("~") ? v.slice(1) : v).join(", ")} ×
+                      {path}:{" "}
+                      {vals
+                        .map((v) =>
+                          v === "?+"
+                            ? "has value"
+                            : v === "?-"
+                              ? "null/missing"
+                              : v.startsWith("~")
+                                ? v.slice(1)
+                                : v,
+                        )
+                        .join(", ")}{" "}
+                      ×
                     </button>
                   </React.Fragment>
                 ))}
@@ -1029,9 +1307,27 @@ export default function Logs() {
               key={`hl-${slotId}`}
               className="logs-quick-filter logs-quick-filter--highlight"
               title="Highlight clause — click to remove"
-              onClick={() => setQuickFilters((prev) => { const n = { ...prev }; delete n[slotId]; return n; })}
+              onClick={() =>
+                setQuickFilters((prev) => {
+                  const n = { ...prev };
+                  delete n[slotId];
+                  return n;
+                })
+              }
             >
-              ✦ {path}: {vals.map((v) => v === "?+" ? "has value" : v === "?-" ? "null/missing" : v.startsWith("~") ? v.slice(1) : v).join(", ")} ×
+              ✦ {path}:{" "}
+              {vals
+                .map((v) =>
+                  v === "?+"
+                    ? "has value"
+                    : v === "?-"
+                      ? "null/missing"
+                      : v.startsWith("~")
+                        ? v.slice(1)
+                        : v,
+                )
+                .join(", ")}{" "}
+              ×
             </button>
           ))}
           {activeDateRanges.map(([path, { from, to }]) => (
@@ -1040,7 +1336,8 @@ export default function Logs() {
               className="logs-quick-filter"
               onClick={() => handleDateRange(path, "", "")}
             >
-              {path}: {from ? moment(from).format("MMM D HH:mm") : "—"} → {to ? moment(to).format("MMM D HH:mm") : "—"} ×
+              {path}: {from ? moment(from).format("MMM D HH:mm") : "—"} →{" "}
+              {to ? moment(to).format("MMM D HH:mm") : "—"} ×
             </button>
           ))}
           {filterMethod && !methods.some((m) => m.value === filterMethod) && (
@@ -1057,7 +1354,7 @@ export default function Logs() {
             {displayEntries.length}
             {orderedFilters.length > 0 ? ` / ${entries.length}` : ""} entries
           </span>
-          <span style={{flex: 1}} />
+          <span style={{ flex: 1 }} />
           <button
             className="logs-reset-btn"
             onClick={() => {
@@ -1095,45 +1392,91 @@ export default function Logs() {
             Clear
           </button>
         </div>
-        <Dashboard
-          entries={entries}
-          getContextEntries={(path) => {
-            const groups = path
-              ? filterGroups.map((g) => g.filter((f) => f.path !== path)).filter((g) => g.length > 0)
-              : filterGroups;
-            if (groups.length === 0) return entries;
-            return entries.filter((e) =>
-              groups.some((group) =>
-                group.every(({ path: p, vals }) => vals.some((v) => matchesVal(getAtPath(e, p), v)))
-              )
-            );
-          }}
-          quickFilters={quickFilters}
-          onToggleFilter={toggleFilter}
-          onClearFilter={clearFieldFilter}
-          onAnalyzerSlotsChange={setAnalyzerSlots}
-          initialPaths={initAnalyzerPaths}
-          dateRangeFilters={dateRangeFilters}
-          onDateRange={handleDateRange}
-        />
-        <div className="logs-table-header">
-            <div className="log-th log-th--time">Time</div>
-            <div className={`log-th log-th--project${filteredFixedPaths.has("projectCode") ? " log-th--filtered" : ""}`}>Project</div>
-            <div className={`log-th log-th--service${filteredFixedPaths.has("serviceId") ? " log-th--filtered" : ""}`}>Service</div>
-            <div className={`log-th log-th--method${filteredFixedPaths.has("moduleMethod") ? " log-th--filtered" : ""}`}>Module.Method</div>
-            <div className={`log-th log-th--level${filteredFixedPaths.has("level") ? " log-th--filtered" : ""}`}>Level</div>
-            <div className={`log-th log-th--msg${filteredFixedPaths.has("scope") ? " log-th--filtered" : ""}`}>Scope</div>
-            <div className="log-th log-th--traceid">Trace ID</div>
-            {dynamicColumns.map((path) => (
-              <div key={path} className="log-th log-th--dynamic">
-                {displayPath(path)}
+        {filterProject && (
+          <>
+            <Dashboard
+              entries={entries}
+              getContextEntries={(path) => {
+                const groups = path
+                  ? filterGroups
+                      .map((g) => g.filter((f) => f.path !== path))
+                      .filter((g) => g.length > 0)
+                  : filterGroups;
+                if (groups.length === 0) return entries;
+                return entries.filter((e) =>
+                  groups.some((group) =>
+                    group.every(({ path: p, vals }) =>
+                      vals.some((v) => matchesVal(getAtPath(e, p), v)),
+                    ),
+                  ),
+                );
+              }}
+              quickFilters={quickFilters}
+              onToggleFilter={toggleFilter}
+              onClearFilter={clearFieldFilter}
+              onAnalyzerSlotsChange={setAnalyzerSlots}
+              initialPaths={initAnalyzerPaths}
+              dateRangeFilters={dateRangeFilters}
+              onDateRange={handleDateRange}
+            />
+            <div className="logs-table-header">
+              <div className="log-th log-th--time">Time</div>
+              <div
+                className={`log-th log-th--project${filteredFixedPaths.has("projectCode") ? " log-th--filtered" : ""}`}
+              >
+                Project
               </div>
-            ))}
-          </div>
+              <div
+                className={`log-th log-th--service${filteredFixedPaths.has("serviceId") ? " log-th--filtered" : ""}`}
+              >
+                Service
+              </div>
+              <div
+                className={`log-th log-th--method${filteredFixedPaths.has("moduleMethod") ? " log-th--filtered" : ""}`}
+              >
+                Module.Method
+              </div>
+              <div
+                className={`log-th log-th--level${filteredFixedPaths.has("level") ? " log-th--filtered" : ""}`}
+              >
+                Level
+              </div>
+              <div
+                className={`log-th log-th--msg${filteredFixedPaths.has("scope") ? " log-th--filtered" : ""}`}
+              >
+                Scope
+              </div>
+              <div className="log-th log-th--traceid">Trace ID</div>
+              {dynamicColumns.map((path) => (
+                <div key={path} className="log-th log-th--dynamic">
+                  {displayPath(path)}
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
       <div className="logs-body" ref={bodyRef}>
-        {displayEntries.length === 0 ? (
+        {!filterProject ? (
+          <div className="logs-choose">
+            <p className="logs-choose__title">Systemview Logs</p>
+            <p className="logs-choose__hint">Choose a project to view logs.</p>
+            {projects.length > 0 && (
+              <div className="logs-choose__options">
+                {projects.map((p) => (
+                  <button
+                    key={p}
+                    className="logs-choose__btn"
+                    onClick={() => setFilterProject(p)}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : displayEntries.length === 0 ? (
           <p className="logs-empty">
             {entries.length === 0
               ? "No log entries."

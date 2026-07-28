@@ -478,6 +478,9 @@ $pane-max: 72vh;
   flex: 1;
   min-height: 400px;
   overflow: auto;
+  box-sizing: border-box;
+
+  padding: 8px 0;
 
   // Each pane is self-contained and independently scrollable; no pane grows unbounded (RFC-018 rule).
   .pane {
@@ -520,6 +523,25 @@ $pane-max: 72vh;
       padding: 1px 6px;
       border-radius: 3px;
     }
+    // One color per kind, so a markdown doc and a code file (which can now look alike in the body) read
+    // apart at a glance from the corner badge.
+    // NB: use the literal `.pane__kind` here, NOT `&__kind` — `.pane` is nested under `.stage`, so a second
+    // `&` would re-insert `.stage` and yield `.pane--markdown .stage .pane__kind`, which never matches.
+    &--markdown .pane__kind {
+      background: #2e9b6b;
+    } // green — prose
+    &--file .pane__kind {
+      background: #4f79c9;
+    } // blue — a file's bytes
+    &--diff .pane__kind {
+      background: #d3893a;
+    } // orange — a change
+    &--test .pane__kind {
+      background: #8b5cc7;
+    } // purple — a runnable test
+    &--source .pane__kind {
+      background: #6b8a9c;
+    } // slate — legacy source span
     &__label {
       color: #46506a;
       flex: 1;
@@ -587,6 +609,8 @@ $pane-max: 72vh;
     &__markdown {
       padding: 4px 14px;
     }
+    // A markdown FILE pane renders through the shared `.md-view` look (formatted read + dark unified edit)
+    // — the SAME treatment the Documentation tab uses, so the two never drift. See `.md-view` below.
     // Agent markdown attached to any pane — sits between the header and the body.
     &__note {
       flex: none;
@@ -777,5 +801,55 @@ $pane-max: 72vh;
     background: #6886ba;
     color: #fff;
     border-color: #6886ba;
+  }
+}
+
+// Shared "documentation look" for markdown — used BOTH by a markdown `file` pane (in a story) and by the
+// Documentation tab, so the same EditBox + Markdown + DescriptionBox trio renders identically in both and
+// never drifts. Formatted read with a dashed click-to-edit frame you scroll WITHIN; edit is one smooth
+// dark component (Save/Close on the oneDark editor background, flush with the editor).
+.md-view {
+  .edit-box {
+    border: 2px solid transparent;
+    border-radius: 6px;
+    background: transparent;
+  }
+  .edit-box--read {
+    overflow: auto;
+    max-height: 60vh;
+    &:hover {
+      border: 2px dashed #8b97ba;
+      cursor: pointer;
+    }
+  }
+  .edit-box__main .markdown {
+    padding: 4px 14px;
+  }
+
+  .edit-box--edit {
+    border-color: #21252b;
+    overflow: hidden;
+  }
+  .edit-box__actions {
+    background: #282c34;
+    border-bottom: 1px solid #1b1f27; // the barely-perceptible dark divider
+    border-radius: 0; // square where the bar meets the editor, so they read as one piece
+    padding: 6px 12px;
+  }
+  .edit-box__link {
+    color: #9aa4bf;
+    &:hover {
+      color: #d3d9ea;
+    }
+  }
+  .edit-box__link--save {
+    color: #8ab4ff;
+    &:hover {
+      color: #accaff;
+    }
+  }
+  .code-editor {
+    border: none;
+    border-radius: 0;
   }
 }

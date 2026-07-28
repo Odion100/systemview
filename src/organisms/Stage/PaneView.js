@@ -3,8 +3,14 @@ import Markdown from "../../atoms/Markdown/Markdown";
 import CodeView from "../../atoms/CodeView/CodeView";
 import CodeEditor from "../../atoms/CodeView/CodeEditor";
 import DiffView from "../../atoms/DiffView/DiffView";
+import EditBox from "../../molecules/EditBox/EditBox";
+import DescriptionBox from "../../atoms/DescriptionBox/DescriptionBox";
 import TestPane from "./TestPane";
 import loadServiceWithHeaders from "../../utils/loadService";
+
+// A `file` pane whose target is a markdown file renders like the Documentation tab — formatted (read)
+// with a click-to-edit box — instead of raw CodeMirror. Same EditBox/Markdown/DescriptionBox trio.
+const isMarkdownPath = (p) => /\.(md|markdown)$/i.test(p || "");
 
 // RFC-018 — one pane. The stage carries only a locator; THIS is where the real bytes are fetched, in
 // the browser, from the target service's own plugin (readFile/getSource/getDiff) — exactly how
@@ -84,6 +90,22 @@ const PaneView = ({ pane, connectedServices, projectCode, onRemove, onPin, onSel
     highlight ||
     (kind === "source" && data && data.startLine ? { lines: [data.startLine, data.endLine] } : null);
 
+  const isMdFile = kind === "file" && isMarkdownPath(target.path);
+  // Formatted-read content for a markdown file: if a line range was given, render just that section
+  // (so a pane pinned to `docs/x.md#L40-70` shows a formatted excerpt, not the whole doc). Editing,
+  // however, always operates on the WHOLE file — writing back a slice would truncate it.
+  const mdReadContent = (() => {
+    if (!data) return "";
+    const hl = effectiveHighlight;
+    if (hl && Array.isArray(hl.lines) && hl.lines[0]) {
+      const [a, b] = hl.lines;
+      return data.content.split("\n").slice(a - 1, b || a).join("\n");
+    }
+    return data.content;
+  })();
+  // Seed the editor draft from the loaded file so the markdown EditBox can open straight into edit.
+  useEffect(() => { if (data) setDraft(data.content); }, [data]);
+
   const startEdit = () => { setDraft(data.content); setEditing(true); };
   const cancelEdit = () => setEditing(false);
   const saveEdit = async () => {
@@ -99,6 +121,17 @@ const PaneView = ({ pane, connectedServices, projectCode, onRemove, onPin, onSel
       setSaving(false);
     }
   };
+  // The markdown EditBox drives its own read/edit toggle and hands us setEditMode on Save.
+  const saveMdEdit = async (setEditMode) => {
+    if (!Plugin) return;
+    try {
+      await Plugin.writeFile({ path: data.path, content: draft });
+      setState((s) => ({ ...s, data: { ...s.data, content: draft, lines: draft.split("\n").length } }));
+      if (setEditMode) setEditMode(false);
+    } catch (err) {
+      setState((s) => ({ ...s, error: err.message }));
+    }
+  };
 
   let body;
   if (kind === "markdown") {
@@ -109,6 +142,19 @@ const PaneView = ({ pane, connectedServices, projectCode, onRemove, onPin, onSel
     body = <div className="pane__status">Loading…</div>;
   } else if (error) {
     body = <div className="pane__status pane__status--error">Couldn’t load: {error}</div>;
+  } else if (data && isMdFile) {
+    // Markdown file → formatted read + click-to-edit, exactly like the Documentation tab. The pane
+    // header/frame is unchanged; only the body reads as a doc instead of raw code.
+    body = (
+      <div className="md-view">
+        <EditBox
+          mainObject={<Markdown>{mdReadContent}</Markdown>}
+          hiddenForm={<DescriptionBox text={draft} setValue={setDraft} />}
+          formSubmit={saveMdEdit}
+          onCancel={() => setDraft(data.content)}
+        />
+      </div>
+    );
   } else if (data && kind === "file" && editing) {
     body = <CodeEditor value={draft} language={data.language} onChange={setDraft} dark />;
   } else if (data && (kind === "file" || kind === "source")) {
@@ -120,8 +166,9 @@ const PaneView = ({ pane, connectedServices, projectCode, onRemove, onPin, onSel
   }
 
   // Edit affordance is file-only (a source pane is a span of a larger file; editing whole files is the
-  // safe unit). Shown once the file's loaded and a writable plugin is reachable.
-  const canEdit = kind === "file" && data && Plugin;
+  // safe unit). Shown once the file's loaded and a writable plugin is reachable. Markdown files edit
+  // through their own EditBox (click the rendered doc), so they don't get the raw-code Edit button.
+  const canEdit = kind === "file" && data && Plugin && !isMdFile;
 
   return (
     <div
@@ -140,7 +187,7 @@ const PaneView = ({ pane, connectedServices, projectCode, onRemove, onPin, onSel
             ⠿
           </span>
         )}
-        <span className="pane__kind">{kind}</span>
+        <span className="pane__kind">{kind === "markdown" ? "note" : kind}</span>
         {/* Clicking the label posts a selection back to the agent (reverse channel). */}
         <button
           type="button"

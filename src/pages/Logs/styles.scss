@@ -397,6 +397,48 @@
   font-size: 14px;
 }
 
+// Shown when no project is selected — logs are per-project, so we prompt for one instead of aggregating.
+.logs-choose {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 64px 20px;
+  text-align: center;
+  &__title {
+    font-size: 18px;
+    color: #46506a;
+    font-weight: 600;
+    margin: 0;
+  }
+  &__hint {
+    color: #8b93a7;
+    font-size: 14px;
+    margin: 0 0 8px;
+  }
+  &__options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+  }
+  &__btn {
+    border: 1px solid #b0bed8;
+    background: #f4f6fb;
+    color: #46608f;
+    font-size: 14px;
+    padding: 6px 18px;
+    border-radius: 20px;
+    cursor: pointer;
+    &:hover {
+      background: #6886ba;
+      color: #fff;
+      border-color: #6886ba;
+    }
+  }
+}
+
 // RFC-011 — Filter ↔ Highlight per-clause mode toggle (amber = highlight)
 .field-analyzer__mode {
   flex-shrink: 0;

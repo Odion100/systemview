@@ -65,43 +65,6 @@
 
   &__data-table {
     margin-bottom: 30px;
-
-    // The doc card and the editor read as ONE component — same rounded shape, clean edges. But the two
-    // MODES look different on purpose: read = a clean WHITE card (the markdown is white; nice contrast),
-    // edit = the dark editor. The key fix: read mode is NOT dark, so no editor-black peeks behind the
-    // white markdown. The markdown fills the card edge-to-edge (it has its own white bg + padding).
-    .edit-box {
-      border-radius: 10px;
-      overflow: hidden;
-
-      &--read {
-        background: #fff;
-        border: 1px solid #e3e7f0;
-        &:hover {
-          border-color: #6886ba;
-        }
-      }
-      &--edit {
-        background: #282c34;
-        border: 1px solid #3a3f4b;
-      }
-    }
-    // Edit-mode action bar (Save/Close) sits on the dark editor — light links to match.
-    .edit-box--edit .edit-box__actions {
-      border-bottom-color: #3a3f4b;
-    }
-    .edit-box--edit .edit-box__link {
-      color: #8b93a7;
-      &:hover {
-        color: #cdd3e0;
-      }
-      &--save {
-        color: #82a8ff;
-        &:hover {
-          color: #a9c5ff;
-        }
-      }
-    }
   }
   &__title {
     color: #3f51b5;
@@ -111,5 +74,77 @@
   }
   &__parentheses {
     font-size: 26px;
+  }
+}
+
+// The documentation, rendered AS a file panel — a framed pane with a header/badge. It sizes to its CONTENT
+// (like it always did): an empty doc is a short little display, a doc with lots of content grows up to a
+// cap and scrolls inside. The body reuses the shared `.md-view` look, so a doc and a markdown file pane in
+// a story look identical.
+.doc-pane {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 180px); // grows to content BELOW this; caps + scrolls only when genuinely long
+  border: 1px solid #d7dbe6;
+  border-radius: 6px;
+  background: #fff;
+  overflow: hidden;
+
+  &__header {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 12px;
+    background: #f2f4f9;
+    border-bottom: 1px solid #e3e7f0;
+    font-size: 12px;
+  }
+  &__kind {
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: 0.5px;
+    color: #fff;
+    background: #2e9b6b; // doc = green, same family as the NOTE/markdown badge
+    padding: 1px 6px;
+    border-radius: 3px;
+  }
+  &__label {
+    color: #46506a;
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 11.5px;
+  }
+  &__body {
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  // The read box sizes to its content and scrolls WITHIN its own fixed dashed frame once it gets tall.
+  // A large cap (NOT max-height:none — that stretched even an empty doc to fill the whole tab), so a real
+  // doc has room while short/empty docs stay short.
+  .md-view .edit-box {
+    border-radius: 0; // the doc-pane frame provides the outer rounding
+  }
+  .md-view .edit-box--read {
+    max-height: calc(100vh - 240px);
+  }
+
+  // No documentation yet — a small, centered placeholder. SHORT, so an empty doc is a little display, not
+  // a long white box. Clicking it opens the editor.
+  .doc-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: #97a0b8;
+    font-size: 13px;
+    min-height: 130px;
+    padding: 20px;
+    &__icon {
+      font-size: 26px;
+      opacity: 0.6;
+    }
   }
 }

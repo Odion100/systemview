@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect, useCallback, useRef } from "react";
+import React, { useState, useContext, useEffect, useCallback } from "react";
 import { useHistory, useLocation } from "react-router-dom";
 import "./styles.scss";
 import DescriptionBox from "../../atoms/DescriptionBox/DescriptionBox";
@@ -87,17 +87,14 @@ export default function Documentation({ projectCode, serviceId, moduleName, meth
   }, [history]);
   useEffect(() => { setTab(urlTab); }, [urlTab]);
 
-  // The AI Window (RFC-018) is the third peer tab here — Documentation / Logs / Window — so it lives
-  // in the same per-namespace tab strip, not a separate switcher. The Stage stays mounted (its socket
-  // subscription must be live to auto-focus), so we track pane count to badge the tab and to flip to
-  // it only on the empty→non-empty transition (an agent just drove it) — never yanking a reader off.
+  // Stories (RFC-018) is the third peer tab here — Documentation / Logs / Stories. The Stage stays mounted
+  // (its socket subscription must be live), so we track pane count ONLY to badge the tab with a dot. We do
+  // NOT auto-switch to it: navigating to a namespace that has stories would flip you off the tab you were
+  // on for no reason — jarring. The dot tells you stories exist; you click in when you want them.
   const [stageCount, setStageCount] = useState(0);
-  const prevStageCount = useRef(0);
   const handleStageChange = useCallback((count) => {
     setStageCount(count);
-    if (count > 0 && prevStageCount.current === 0) selectTab("window");
-    prevStageCount.current = count;
-  }, [selectTab]);
+  }, []);
 
   const service =
     connectedServices.find(
@@ -164,8 +161,24 @@ export default function Documentation({ projectCode, serviceId, moduleName, meth
           </button>
         </div>
         {tab === "docs" && (
-          <div className="row documentation-view__data-table">
-            <DocDescription doc={doc} setDocument={setDocument} Plugin={Plugin} />
+          <div className="documentation-view__data-table">
+            {/* The doc IS a file panel now — a framed pane with a header/badge, spread across the page.
+                Same functionality (getDoc/saveDoc, per-namespace); the body reuses the shared md-view look. */}
+            <div className="doc-pane">
+              <div className="doc-pane__header">
+                <span className="doc-pane__kind">doc</span>
+                <span className="doc-pane__label">
+                  {methodName && moduleName && serviceId
+                    ? `${serviceId}.${moduleName}.${methodName}`
+                    : moduleName && serviceId
+                    ? `${serviceId}.${moduleName}`
+                    : serviceId || projectCode || ""}
+                </span>
+              </div>
+              <div className="doc-pane__body">
+                <DocDescription doc={doc} setDocument={setDocument} Plugin={Plugin} />
+              </div>
+            </div>
           </div>
         )}
         {tab === "logs" && (
@@ -244,14 +257,25 @@ const DocDescription = ({ doc, setDocument, Plugin }) => {
   }, [doc]);
 
   return (
-    <EditBox
-      mainObject={
-        <Markdown children={text || "Use markdown to create your documentation here"} />
-      }
-      hiddenForm={<DescriptionBox text={text || ""} setValue={updateDoc} />}
-      formSubmit={saveDocument}
-      stateChange={[serviceId, methodName, moduleName]}
-      onCancel={cancel}
-    />
+    // RFC-018 — the doc renders through the SAME `.md-view` look as a markdown file pane (formatted read +
+    // dark unified editor). Same functionality (getDoc/saveDoc, per-namespace); just the new look.
+    <div className="md-view">
+      <EditBox
+        mainObject={
+          text ? (
+            <Markdown children={text} />
+          ) : (
+            <div className="doc-empty">
+              <span className="doc-empty__icon">✎</span>
+              No documentation yet — click to write it.
+            </div>
+          )
+        }
+        hiddenForm={<DescriptionBox text={text || ""} setValue={updateDoc} />}
+        formSubmit={saveDocument}
+        stateChange={[serviceId, methodName, moduleName]}
+        onCancel={cancel}
+      />
+    </div>
   );
 };
