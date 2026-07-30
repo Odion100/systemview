@@ -12,6 +12,9 @@ import loadServiceWithHeaders from "../../utils/loadService";
 // with a click-to-edit box — instead of raw CodeMirror. Same EditBox/Markdown/DescriptionBox trio.
 const isMarkdownPath = (p) => /\.(md|markdown)$/i.test(p || "");
 
+// Grid panes size to their CONTENT (flex) with a default MAX height (the cap lives in CSS). A dragged
+// height (heightPx) pins an explicit height and adds `pane--sized` so the code editor fills + scrolls it.
+
 // RFC-018 — one pane. The stage carries only a locator; THIS is where the real bytes are fetched, in
 // the browser, from the target service's own plugin (readFile/getSource/getDiff) — exactly how
 // Documentation fetches getDoc. That's the "UI vouches" split: the agent says what, the plugin proves it.
@@ -47,13 +50,87 @@ const paneLabel = (kind, target, data, hl) => {
   return kind;
 };
 
-const PaneView = ({ pane, connectedServices, projectCode, onRemove, onPin, onSelect, onSpan, onDragStartPane, onDropPane }) => {
+// Which side of the target the cursor is on → drop before/after it (reorder in either direction).
+const sideAt = (e) => {
+  const r = e.currentTarget.getBoundingClientRect();
+  return e.clientX > r.left + r.width / 2 ? "after" : "before";
+};
+
+const PaneView = ({ pane, connectedServices, projectCode, onRemove, onPin, onSelect, onResize, layout, onDragStartPane, onDragOverPane, onDragEndPane, onDropPane, dropSide }) => {
   const { kind, target = {}, highlight, pinned, span } = pane;
   const [state, setState] = useState({ loading: kind !== "markdown", error: null, data: null });
   // Phase 4 — edit-any-file. A file pane can flip to an editable CodeMirror and write back via the plugin.
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
+
+  // A grid pane carries its OWN size — `span` is `{ w, h }` (width % + height px). Resize the WIDTH from the
+  // RIGHT edge or the LEFT edge (either one — the left grows the pane as you drag left), and the HEIGHT from
+  // the BOTTOM edge. Live via local `drag` state, persist on release.
+  const spanObj = span && typeof span === "object" ? span : null;
+  const storedWidth = spanObj ? spanObj.w || 50 : typeof span === "number" ? span : span === "full" ? 100 : 50;
+  const storedHeight = spanObj && spanObj.h != null ? spanObj.h : null;
+  const [drag, setDrag] = useState(null); // { w } | { h } while dragging
+  const widthPct = drag && drag.w != null ? drag.w : storedWidth;
+  const heightPx = drag && drag.h != null ? drag.h : storedHeight;
+
+  const startResize = (edge) => (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const paneEl = e.currentTarget.closest(".pane");
+    const grid = paneEl && paneEl.parentElement;
+    const gridWidth = (grid && grid.clientWidth) || 1;
+    const startX = e.clientX, startY = e.clientY;
+    const startH = storedHeight != null ? storedHeight : paneEl ? paneEl.offsetHeight : 300;
+    const maxH = Math.round(window.innerHeight * 0.9);
+    // Left edge widens as you drag LEFT (mirror of the right edge); both set this pane's own width.
+    const wAt = (x) => {
+      const dPct = ((x - startX) / gridWidth) * 100;
+      return Math.max(20, Math.min(100, storedWidth + (edge === "left" ? -dPct : dPct)));
+    };
+    const hAt = (y) => Math.max(80, Math.min(maxH, startH + (y - startY)));
+    const onMove = (ev) => setDrag(edge === "bottom" ? { h: hAt(ev.clientY) } : { w: wAt(ev.clientX) });
+    const onUp = (ev) => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      setDrag(null);
+      if (!onResize) return;
+      if (edge === "bottom") onResize(pane.id, { w: storedWidth, h: Math.round(hAt(ev.clientY)) });
+      else onResize(pane.id, { w: Math.round(wAt(ev.clientX)), h: storedHeight });
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  };
+  // Double-click the width grip → fill the REST of the current row (measure the siblings sharing this row).
+  const fillRow = (e) => {
+    if (!onResize) return;
+    const paneEl = e.currentTarget.closest(".pane");
+    const grid = paneEl && paneEl.parentElement;
+    if (!grid || !paneEl) return;
+    const cs = window.getComputedStyle(grid);
+    const contentW = grid.clientWidth - parseFloat(cs.paddingLeft || 0) - parseFloat(cs.paddingRight || 0);
+    const myTop = paneEl.offsetTop;
+    let used = 0;
+    Array.from(grid.children).forEach((el) => {
+      if (el === paneEl || !el.classList || !el.classList.contains("pane")) return;
+      if (Math.abs(el.offsetTop - myTop) < 6) used += el.offsetWidth + 10;
+    });
+    onResize(pane.id, { w: Math.max(20, Math.min(100, Math.round(((contentW - used) / contentW) * 100))), h: storedHeight });
+  };
+  // Double-click the height grip → match the TALLEST pane sharing this row.
+  const matchRow = (e) => {
+    if (!onResize) return;
+    const paneEl = e.currentTarget.closest(".pane");
+    const grid = paneEl && paneEl.parentElement;
+    if (!grid || !paneEl) return;
+    const myTop = paneEl.offsetTop;
+    let maxH = 0;
+    Array.from(grid.children).forEach((el) => {
+      if (el === paneEl || !el.classList || !el.classList.contains("pane")) return;
+      if (Math.abs(el.offsetTop - myTop) < 6) maxH = Math.max(maxH, el.offsetHeight);
+    });
+    if (maxH > 0) onResize(pane.id, { w: storedWidth, h: Math.round(maxH) });
+  };
 
   const Plugin = pluginFor(connectedServices, projectCode, target.serviceId);
 
@@ -172,17 +249,33 @@ const PaneView = ({ pane, connectedServices, projectCode, onRemove, onPin, onSel
 
   return (
     <div
-      className={`pane pane--${kind} ${pinned ? "pane--pinned" : ""} ${span === "full" ? "pane--full" : "pane--half"}`}
-      onDragOver={onDropPane ? (e) => e.preventDefault() : undefined}
-      onDrop={onDropPane ? (e) => { e.preventDefault(); onDropPane(pane.id); } : undefined}
+      className={`pane pane--${kind} ${pinned ? "pane--pinned" : ""} ${widthPct >= 100 ? "pane--full" : "pane--half"} ${heightPx != null ? "pane--sized" : ""}`}
+      style={layout === "grid" ? { flexBasis: `calc(${widthPct}% - 10px)`, ...(heightPx != null ? { height: `${heightPx}px`, maxHeight: `${heightPx}px` } : {}) } : undefined}
+      onDragOver={onDropPane ? (e) => {
+        e.preventDefault();
+        onDragOverPane && onDragOverPane(pane.id, sideAt(e));
+      } : undefined}
+      onDrop={onDropPane ? (e) => {
+        e.preventDefault();
+        onDropPane(pane.id, sideAt(e));
+      } : undefined}
     >
+      {dropSide && <div className={`pane__drop pane__drop--${dropSide}`} />}
       <div className="pane__header">
         {onDragStartPane && (
           <span
             className="pane__drag"
             draggable
             title="Drag to reorder"
-            onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", pane.id); onDragStartPane(pane.id); }}
+            onDragStart={(e) => {
+              e.dataTransfer.effectAllowed = "move";
+              e.dataTransfer.setData("text/plain", pane.id);
+              // Drag a ghost of the WHOLE pane, not just this ⠿ handle.
+              const paneEl = e.currentTarget.closest(".pane");
+              if (paneEl) { try { e.dataTransfer.setDragImage(paneEl, 24, 16); } catch { /* ignore */ } }
+              onDragStartPane(pane.id);
+            }}
+            onDragEnd={() => onDragEndPane && onDragEndPane()}
           >
             ⠿
           </span>
@@ -197,15 +290,25 @@ const PaneView = ({ pane, connectedServices, projectCode, onRemove, onPin, onSel
         >
           {paneLabel(kind, target, data, effectiveHighlight)}
         </button>
-        {onSpan && (
-          <button
-            type="button"
-            className="pane__action"
-            title="Toggle width — full row or share it"
-            onClick={() => onSpan(pane.id, span === "full" ? "half" : "full")}
-          >
-            {span === "full" ? "½ width" : "full width"}
-          </button>
+        {onResize && (
+          <>
+            <button
+              type="button"
+              className={`pane__action ${widthPct >= 100 ? "pane__action--pinned" : ""}`}
+              title="Snap to full width (or drag the right / bottom edge for any size)"
+              onClick={() => onResize(pane.id, { w: 100, h: storedHeight })}
+            >
+              full
+            </button>
+            <button
+              type="button"
+              className={`pane__action ${widthPct <= 50 ? "pane__action--pinned" : ""}`}
+              title="Snap to half width"
+              onClick={() => onResize(pane.id, { w: 50, h: storedHeight })}
+            >
+              ½
+            </button>
+          </>
         )}
         {onPin && (
           <button
@@ -233,6 +336,13 @@ const PaneView = ({ pane, connectedServices, projectCode, onRemove, onPin, onSel
         )}
       </div>
       <div className="pane__body">{body}</div>
+      {/* Width from the right edge, height from the bottom edge (double-click to fill the row / match it). */}
+      {layout === "grid" && onResize && (
+        <>
+          <div className="pane__resize pane__resize--x" title="Drag to resize width · double-click to fill the row" onMouseDown={startResize("right")} onDoubleClick={fillRow} />
+          <div className="pane__resize pane__resize--y" title="Drag to resize height · double-click to match the row" onMouseDown={startResize("bottom")} onDoubleClick={matchRow} />
+        </>
+      )}
     </div>
   );
 };

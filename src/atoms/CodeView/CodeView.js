@@ -72,8 +72,10 @@ const CodeView = ({ code = "", language = "text", highlight }) => {
       requestAnimationFrame(() => {
         if (destroyed || !view.scrollDOM) return;
         if (view.scrollDOM.scrollHeight - view.scrollDOM.clientHeight > 4) {
-          const lineNo = Math.min(range[0], view.state.doc.lines);
-          const pos = view.state.doc.line(lineNo).from;
+          // Center the MIDDLE of the range (not its first line) so the whole highlighted span sits
+          // centered — otherwise range[0] centers and the rest of the range spills below.
+          const midLine = Math.min(Math.floor((range[0] + range[1]) / 2), view.state.doc.lines);
+          const pos = view.state.doc.line(midLine).from;
           view.dispatch({ effects: EditorView.scrollIntoView(pos, { y: "center" }) });
         }
       });

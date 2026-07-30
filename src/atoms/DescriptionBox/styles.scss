@@ -10,11 +10,15 @@
   }
   .cm-editor {
     min-height: 60vh;
+    // Cap the editor so it stops growing with the document and its OWN scroller takes over — otherwise it
+    // grows past the (overflow:hidden) doc/edit box and the bottom of a long doc is unreachable.
+    max-height: 68vh;
     max-width: 100%;
   }
   // Wrapping is enabled in CodeEditor; belt-and-suspenders so a long token can never force a sideways
-  // scrollbar inside the doc box.
+  // scrollbar inside the doc box. Vertical scroll must stay on so long docs scroll INSIDE the editor.
   .cm-scroller {
     overflow-x: hidden;
+    overflow-y: auto;
   }
 }

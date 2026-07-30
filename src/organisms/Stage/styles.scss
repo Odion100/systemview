@@ -138,8 +138,8 @@ $pane-max: 72vh;
     min-width: 130px;
     max-width: 220px;
     &--files {
-      min-width: 260px;
-      flex: 1;
+      min-width: 200px;
+      max-width: 240px;
     }
   }
   &__col-label {
@@ -186,7 +186,7 @@ $pane-max: 72vh;
     display: flex;
     flex-direction: column;
     gap: 1px;
-    max-height: 168px;
+    max-height: 132px;
     overflow: auto;
     margin-top: 4px;
     border: 1px solid #eef0f5;
@@ -220,6 +220,54 @@ $pane-max: 72vh;
     padding: 6px 8px;
   }
 
+  // File pane row: [file selector] → [chosen file + Add] → [preview], left to right. It WRAPS when the
+  // center is narrow (so the preview drops below instead of overlapping the confirm), and the preview
+  // flexes to fill whatever width is left. Everything else keeps the default block flow.
+  &__work--split {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: flex-start;
+
+    .stage-add__drill {
+      flex: 0 1 auto; // the file selector keeps its (compact) width but may give a little…
+      margin-top: 8px;
+    }
+    .stage-add__preview {
+      flex: 1 1 300px; // …the preview fills the rest, and wraps to its own line below 300px of room
+      min-width: 0;
+      overflow: hidden; // never let its content spill over a neighbor
+      margin-top: 8px;
+    }
+  }
+  // The chosen file + line range + Add button, sitting right beside the file selector. The filename may
+  // grow to fit (up to a max), so a long path is still readable without pushing the preview around.
+  &__confirm {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 0 1 auto;
+    min-width: 150px;
+    max-width: 240px;
+    margin-top: 8px;
+
+    .stage-add__input,
+    .stage-add__btn {
+      width: 100%;
+    }
+  }
+  &__confirm-file {
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 11px;
+    color: #46506a;
+    background: #eef1f8;
+    border-radius: 4px;
+    padding: 5px 8px;
+    word-break: break-all;
+    max-height: 96px;
+    overflow: auto;
+  }
+
   // Live preview of the selection — you SEE it before committing with Add.
   &__preview {
     margin-top: 10px;
@@ -240,6 +288,7 @@ $pane-max: 72vh;
     flex: none;
     border: 1px dashed #c3cade;
     border-radius: 6px;
+    margin: 0; // the real stage gutter-trick (-15px margin) must NOT apply to the inline preview
     padding: 6px;
   }
 
@@ -276,10 +325,11 @@ $pane-max: 72vh;
     background: transparent;
     color: #6886ba;
     cursor: pointer;
-    font-size: 12px;
+    font-size: 14px;
     font-family: "SF Mono", Menlo, monospace;
     padding: 2px 4px 2px 0;
     text-align: left;
+    font-weight: bold;
     &:hover {
       color: #46608f;
     }
@@ -474,13 +524,21 @@ $pane-max: 72vh;
 }
 
 .stage {
-  width: 100%;
   flex: 1;
   min-height: 400px;
   overflow: auto;
   box-sizing: border-box;
-
-  padding: 8px 0;
+  // background: white;
+  // WIDE scroll gutter. The KEY invariant: the negative margin and the horizontal padding are EQUAL, so
+  // the net offset is ZERO — the panes always land back at the container's content edge, exactly where the
+  // header (tabs/title/.stage-stories/.stage-add) sits, in BOTH collapse modes (the container's own inset
+  // — 15px open, 68px collapsed — moves everything together). The margin pulls the scroll box out past the
+  // content edge (into the free column padding + a little of the adjacent gap); the equal padding is the
+  // gutter you park the mouse in to wheel the whole story past a self-scrolling pane. Change both together.
+  margin: 0 -24px;
+  padding: 8px 24px;
+  border: 1px solid gainsboro;
+  border-radius: 10px;
 
   // Each pane is self-contained and independently scrollable; no pane grows unbounded (RFC-018 rule).
   .pane {
@@ -491,6 +549,54 @@ $pane-max: 72vh;
     background: #fff;
     overflow: hidden;
     min-height: 0;
+    position: relative; // anchor the resize handle
+
+    // Resize grips (grid only; rendered by PaneView): RIGHT edge = width, BOTTOM edge = height. Each is a
+    // full-length strip along its edge that lights up on hover (the "long border") — drag to resize,
+    // double-click to expand (right → fill the row, bottom → match the row). They stop short of the corner
+    // so the two never overlap.
+    &__resize {
+      position: absolute;
+      z-index: 4;
+      &:hover {
+        background: rgba(104, 134, 186, 0.35);
+      }
+      &:active {
+        background: rgba(104, 134, 186, 0.55);
+      }
+      &--x {
+        top: 0;
+        bottom: 7px;
+        right: 0;
+        width: 7px;
+        cursor: col-resize;
+      }
+      &--y {
+        left: 0;
+        right: 7px;
+        bottom: 0;
+        height: 7px;
+        cursor: row-resize;
+      }
+    }
+
+    // Drop indicator — the bright vertical bar showing WHERE a dragged pane lands (before/after this one).
+    &__drop {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      background: #6886ba;
+      box-shadow: 0 0 7px rgba(104, 134, 186, 0.85);
+      z-index: 6;
+      pointer-events: none;
+      &--before {
+        left: 0;
+      }
+      &--after {
+        right: 0;
+      }
+    }
 
     &__header {
       display: flex;
@@ -503,8 +609,8 @@ $pane-max: 72vh;
     }
     &__drag {
       cursor: grab;
-      color: #b8bfd0;
-      font-size: 13px;
+      color: #7d88a6; // less subtle — it's the reorder grip
+      font-size: 15px;
       line-height: 1;
       user-select: none;
       &:hover {
@@ -632,24 +738,25 @@ $pane-max: 72vh;
     }
   }
 
-  // --- Layouts: presentation is a framing choice (RFC-018) ---
-  &--single .pane {
-    height: 100%;
-  }
+  // --- Layout: grid IS the composition model (RFC-019); gallery is only a way to VIEW the same grid. ---
 
-  // Grid = FLEX. Panes flow left→right and wrap; half-width panes share a row, full-width take it.
-  // NOTHING is forced to a fixed height — every pane sizes to its CONTENT (a short diff is a short
-  // pane, no white space), capped at $pane-max and scrolling inside only if it's genuinely long.
+  // Grid = REAL flex. Each pane carries its OWN width % (PaneView sets flex-basis inline; drag the right
+  // edge to resize). flex-grow:0 so a pane keeps the width you gave it (not stretched to fill); panes wrap
+  // when the row is full. NOTHING is forced to a fixed height — a pane sizes to its CONTENT, capped at
+  // $pane-max and scrolling inside only if it's genuinely long. flex-basis here is just the default before
+  // PaneView's inline width takes over.
   &--grid {
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
     align-items: flex-start;
     .pane {
-      flex: 1 1 calc(50% - 5px);
-      min-width: 280px;
-      height: auto;
-      max-height: $pane-max;
+      flex-grow: 0;
+      flex-shrink: 1;
+      flex-basis: calc(50% - 10px);
+      min-width: 240px;
+      height: auto; // content-height (flex) …
+      max-height: $pane-max; // … up to a default MAX
     }
     .pane--full {
       flex-basis: 100%;
@@ -657,40 +764,26 @@ $pane-max: 72vh;
     .stage__buffer {
       flex-basis: 100%;
     }
-  }
-
-  // Stack full-width, one on top of the other — also content-height (no fixed heights).
-  &--column {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    .pane {
-      flex: none;
-      height: auto;
-      max-height: $pane-max;
-    }
-  }
-
-  // In grid/column a code or diff pane lets CodeMirror grow to its lines (content height) so a short
-  // file doesn't leave a slab of white space; the pane caps + scrolls only when the content is long.
-  &--grid,
-  &--column {
+    // Code/diff grow to their lines up to a cap, then scroll INSIDE the editor — that internal scroll is
+    // what lets a `#L` range auto-center (if the pane body scrolled instead, the editor never navigates).
     .code-view,
+    .diff-view {
+      height: auto;
+    }
     .code-view .cm-editor,
-    .diff-view,
     .diff-view .cm-editor {
       height: auto;
+      max-height: calc(#{$pane-max} - 44px);
     }
-  }
-
-  // Study a few side by side.
-  &--split {
-    display: flex;
-    gap: 10px;
-    .pane {
-      flex: 1;
-      min-width: 0;
-      height: 100%;
+    // When a pane has an explicit dragged height, the editor FILLS it (and still scrolls internally).
+    .pane--sized {
+      .code-view,
+      .code-view .cm-editor,
+      .diff-view,
+      .diff-view .cm-editor {
+        height: 100%;
+        max-height: none;
+      }
     }
   }
 
@@ -722,6 +815,136 @@ $pane-max: 72vh;
         opacity: 0.4;
         cursor: default;
       }
+    }
+  }
+
+  // Gallery "RAIL" view (filmstrip): a big focused pane on the left + a scrollable rail of the rest on the
+  // right. The rail is only a PICKER — click an item to swap it into the big view; the divider drags to
+  // widen the big pane. Each rail item is a small non-interactive thumbnail.
+  &--rail {
+    display: flex;
+    gap: 10px;
+    align-items: stretch;
+    overflow: hidden; // the focus pane and the rail each scroll internally; the container itself doesn't
+  }
+  .stage__focus {
+    flex-grow: 0;
+    flex-shrink: 0;
+    min-width: 260px;
+    display: flex;
+    .pane {
+      flex: 1;
+      min-height: 0;
+      height: 100%;
+      max-height: none;
+    }
+  }
+  .stage__focus-resize {
+    flex: none;
+    align-self: stretch;
+    width: 10px;
+    cursor: col-resize;
+    position: relative;
+    &::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 3px;
+      height: 42px;
+      border-radius: 2px;
+      background: #cfd6e6;
+    }
+    &:hover::after,
+    &:active::after {
+      background: #6886ba;
+    }
+  }
+  .stage__rail {
+    flex: 1 1 0;
+    min-width: 150px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-right: 2px;
+  }
+  .stage__rail-item {
+    flex: none;
+    border: 1px solid #d7dbe6;
+    border-radius: 6px;
+    overflow: hidden;
+    background: #fff;
+    cursor: pointer;
+    &:hover {
+      border-color: #97a7cc;
+    }
+    // The clearly-selected one (currently in the big view): accent border + ring.
+    &.is-sel {
+      border-color: #6886ba;
+      box-shadow: 0 0 0 2px rgba(104, 134, 186, 0.55);
+    }
+  }
+  .stage__rail-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    background: #f2f4f9;
+    border-bottom: 1px solid #e3e7f0;
+    font-size: 11px;
+  }
+  .stage__rail-item.is-sel .stage__rail-head {
+    background: #eaf0fb;
+  }
+  .stage__rail-kind {
+    flex: none;
+    text-transform: uppercase;
+    font-size: 9px;
+    letter-spacing: 0.5px;
+    color: #fff;
+    background: #6886ba;
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+  .stage__rail-name {
+    flex: 1;
+    min-width: 0;
+    color: #46506a;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .stage__rail-badge {
+    flex: none;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #6886ba;
+    background: #fff;
+    border: 1px solid #6886ba;
+    border-radius: 3px;
+    padding: 0 4px;
+  }
+  .stage__rail-preview {
+    height: 120px;
+    overflow: hidden;
+    pointer-events: none; // a thumbnail only — clicks select the item, they never reach the pane
+    .pane {
+      border: none;
+      border-radius: 0;
+      height: auto;
+      max-height: none;
+    }
+    .pane__header {
+      display: none; // the rail-head already labels it
+    }
+    .pane__body {
+      overflow: hidden;
+    }
+    .md-view .edit-box--read {
+      max-height: none;
     }
   }
 
@@ -804,6 +1027,46 @@ $pane-max: 72vh;
   }
 }
 
+// Layout + per-row controls sit together, centered in the toolbar so they keep a stable home when the
+// per-row presets show/hide (grid only).
+.stage__controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 auto;
+}
+.stage__cols {
+  display: inline-flex;
+  gap: 4px;
+}
+.stage__col-btn {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #d7dbe6;
+  background: #fff;
+  color: #6886ba;
+  padding: 3px 7px;
+  border-radius: 3px;
+  cursor: pointer;
+  &:hover {
+    background: #eef1f8;
+    border-color: #6886ba;
+  }
+}
+// Box icon: N little vertical bars = N panes per row.
+.stage__col-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 1.5px;
+  i {
+    display: block;
+    width: 3px;
+    height: 11px;
+    background: currentColor;
+    border-radius: 1px;
+  }
+}
+
 // Shared "documentation look" for markdown — used BOTH by a markdown `file` pane (in a story) and by the
 // Documentation tab, so the same EditBox + Markdown + DescriptionBox trio renders identically in both and
 // never drifts. Formatted read with a dashed click-to-edit frame you scroll WITHIN; edit is one smooth
@@ -851,5 +1114,33 @@ $pane-max: 72vh;
   .code-editor {
     border: none;
     border-radius: 0;
+  }
+}
+
+// When a STORY pane is stretched to an explicit (dragged) height, a markdown/doc pane FILLS that height —
+// both the read box and the editor grow with the pane and scroll INSIDE, instead of stopping at the shared
+// 60vh/68vh viewport caps (which left dead space below a stretched doc). Scoped to `.pane--sized` so the
+// Documentation tab and normal content-height panes are untouched.
+.stage .pane--sized {
+  .md-view,
+  .md-view .edit-box {
+    height: 100%;
+  }
+  .md-view .edit-box--read {
+    max-height: none; // fill the pane; the read box's own overflow:auto scrolls a long doc
+  }
+  .md-view .edit-box--edit,
+  .md-view .edit-box__form--visible,
+  .md-view .description-box,
+  .md-view .code-editor {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+  }
+  .md-view .cm-editor {
+    flex: 1;
+    min-height: 0;
+    max-height: none;
   }
 }

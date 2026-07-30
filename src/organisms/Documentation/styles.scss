@@ -40,7 +40,7 @@
 
 // The AI Window tab body — give it real height so the stage/panes/CodeMirror can fill and scroll.
 .documentation-view__window {
-  height: calc(100vh - 200px);
+  height: calc(100vh - 140px);
 }
 
 .inline-logs {
@@ -84,7 +84,9 @@
 .doc-pane {
   display: flex;
   flex-direction: column;
-  max-height: calc(100vh - 180px); // grows to content BELOW this; caps + scrolls only when genuinely long
+  max-height: calc(
+    100vh - 180px
+  ); // grows to content BELOW this; caps + scrolls only when genuinely long
   border: 1px solid #d7dbe6;
   border-radius: 6px;
   background: #fff;

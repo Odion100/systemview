@@ -167,6 +167,7 @@ module.exports = ({ App, specs, projectCode, serviceId, module = {}, credentials
     // the browser calls these directly (like getDoc) to fetch the real bytes at render time.
     this.readFile = fileProviders.readFile;
     this.listFiles = fileProviders.listFiles;
+    this.changedFiles = fileProviders.changedFiles;
     this.search = fileProviders.search;
     this.getSource = fileProviders.getSource;
     this.getDiff = fileProviders.getDiff;

@@ -285,7 +285,7 @@ async function createStory(projectCode, meta = {}) {
     projectCode,
     namespace,
     name,
-    layout: meta.layout || "column",
+    layout: meta.layout || "grid",
     panes: [],
   };
   await Plugin.saveStory({ story });

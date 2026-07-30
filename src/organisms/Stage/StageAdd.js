@@ -76,14 +76,16 @@ export function useStageAdd({ projectCode, connectedServices, SystemView, curren
     if (isFileKind && service) {
       const Plugin = pluginFor(service);
       if (Plugin) {
-        Plugin.listFiles({})
-          .then((r) => { if (!cancelled) setFiles(((r && r.files) || []).map((f) => f.path)); })
-          .catch(() => {});
+        const setFrom = (r) => { if (!cancelled) setFiles(((r && r.files) || []).map((f) => f.path)); };
+        // A diff pane should offer ONLY files that actually changed (git). listFiles for everything else.
+        // (Old plugins without changedFiles fall back to the full list so nothing breaks.)
+        if (kind === "diff" && Plugin.changedFiles) Plugin.changedFiles().then(setFrom).catch(() => {});
+        else Plugin.listFiles({}).then(setFrom).catch(() => {});
       }
     }
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isFileKind, serviceId]);
+  }, [isFileKind, serviceId, kind]);
 
   const emit = (pane) => {
     if (onAdd) onAdd(pane);
@@ -140,22 +142,16 @@ export function useStageAdd({ projectCode, connectedServices, SystemView, curren
           </button>
         ))}
       </div>
-      {kind && !isNote && (
+      {/* Test's Add lives here in the bar. File/diff move their Add next to the file selector (below). */}
+      {kind === "test" && (
         <>
-          {kind === "test" && <span className="stage-add__level">{testLevel}</span>}
-          {isFileKind && filePath && <span className="stage-add__level">{filePath}</span>}
+          <span className="stage-add__level">{testLevel}</span>
           <button
             type="button"
             className="stage-add__btn"
-            onClick={() => {
-              if (kind === "test") addTest();
-              else if (isFileKind) addFile(filePath);
-              // collapse + clear — the item (with its lines) is now in the story
-              setKind(null); setFileLines(""); setFilePath("");
-            }}
-            disabled={kind === "test" ? false : !filePath}
+            onClick={() => { addTest(); setKind(null); }}
           >
-            ＋ Add {kind}
+            ＋ Add test
           </button>
         </>
       )}
@@ -183,10 +179,10 @@ export function useStageAdd({ projectCode, connectedServices, SystemView, curren
           <button type="button" className="stage-add__btn" onClick={addNote} disabled={!note.trim()}>＋ Add note</button>
         </div>
       ) : (
-        <>
+        <div className={`stage-add__work ${isFileKind ? "stage-add__work--split" : ""}`}>
         <div className="stage-add__drill">
           <div className="stage-add__col">
-            <div className="stage-add__col-label">Service</div>
+            <div className="stage-add__col-label">Service (cwd)</div>
             <div className="stage-add__opts">
               {kind === "test" && (
                 <button type="button" className={`stage-add__opt ${serviceId === "" ? "is-sel" : ""}`} onClick={() => { setServiceId(""); setModuleName(""); setMethodName(""); }}>whole project</button>
@@ -221,10 +217,10 @@ export function useStageAdd({ projectCode, connectedServices, SystemView, curren
 
           {isFileKind && serviceId && (
             <div className="stage-add__col stage-add__col--files">
-              <div className="stage-add__col-label">File in {serviceId}</div>
+              <div className="stage-add__col-label">{kind === "diff" ? "Changed" : "File"} in {serviceId}</div>
               <input
                 className="stage-add__input"
-                placeholder="search this service's files…"
+                placeholder={kind === "diff" ? "search changed files…" : "search files…"}
                 value={fileQuery}
                 onChange={(e) => setFileQuery(e.target.value)}
               />
@@ -232,18 +228,32 @@ export function useStageAdd({ projectCode, connectedServices, SystemView, curren
                 {filteredFiles.map((f) => (
                   <button key={f} type="button" className={`stage-add__file ${filePath === f ? "is-sel" : ""}`} onClick={() => setFilePath(f)}>{f}</button>
                 ))}
-                {!filteredFiles.length && <div className="stage-add__empty">no matching files</div>}
+                {!filteredFiles.length && <div className="stage-add__empty">{kind === "diff" ? "no changed files" : "no matching files"}</div>}
               </div>
-              {/* Optional line range to highlight — this is what makes `file` cover everything `source` did. */}
-              <input
-                className="stage-add__input"
-                placeholder="lines to highlight, e.g. 40-70 (optional)"
-                value={fileLines}
-                onChange={(e) => setFileLines(e.target.value)}
-              />
             </div>
           )}
         </div>
+        {/* CONFIRM — sits right next to the file selector: the chosen file, its line range, and Add. */}
+        {isFileKind && (
+          <div className="stage-add__confirm">
+            <div className="stage-add__col-label">Chosen file</div>
+            <div className="stage-add__confirm-file" title={filePath}>{filePath || "pick a file →"}</div>
+            <input
+              className="stage-add__input"
+              placeholder="lines, e.g. 40-70 (optional)"
+              value={fileLines}
+              onChange={(e) => setFileLines(e.target.value)}
+            />
+            <button
+              type="button"
+              className="stage-add__btn"
+              disabled={!filePath}
+              onClick={() => { addFile(filePath); setKind(null); setFileLines(""); setFilePath(""); }}
+            >
+              ＋ Add {kind}
+            </button>
+          </div>
+        )}
         {/* PREVIEW — see the real thing before you keep it. Add commits it; otherwise it's just a look. */}
         {previewPane && (
           <div className="stage-add__preview">
@@ -253,7 +263,7 @@ export function useStageAdd({ projectCode, connectedServices, SystemView, curren
             </div>
           </div>
         )}
-        </>
+        </div>
       )}
     </div>
   );

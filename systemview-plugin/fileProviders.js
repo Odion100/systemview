@@ -237,6 +237,28 @@ function getDiff({ path: userPath } = {}) {
   return { path: rel, base, head, language: languageOf(abs) };
 }
 
+// changedFiles() → { files: [{ path, language }] } — only the files that DIFFER from HEAD (tracked
+// changes + untracked new files), via one git call each. Lets a `diff` picker show ONLY what changed
+// instead of the whole tree. Not a repo / nothing changed → { files: [] } (UI falls back to the full list).
+// `--relative` keeps diff paths relative to THIS service's cwd (matching listFiles); ls-files is already.
+function changedFiles() {
+  const { execFileSync } = require("child_process");
+  const run = (args) => {
+    try {
+      return execFileSync("git", args, {
+        cwd: root(), encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], maxBuffer: 10 * 1024 * 1024,
+      });
+    } catch { return ""; }
+  };
+  const set = new Set();
+  run(["diff", "--name-only", "--relative", "HEAD"]).split("\n").forEach((l) => { if (l.trim()) set.add(l.trim()); });
+  run(["ls-files", "--others", "--exclude-standard"]).split("\n").forEach((l) => { if (l.trim()) set.add(l.trim()); });
+  const files = [...set]
+    .filter((rel) => !rel.split("/").some((seg) => IGNORE_DIRS.has(seg)))
+    .map((rel) => ({ path: rel, language: languageOf(rel) }));
+  return { files };
+}
+
 // writeFile({ path, content }) → save (the editor's write path, guarded). Phase 4.
 function writeFile({ path: userPath, content } = {}) {
   if (!userPath) throw new Error("writeFile: `path` is required");
@@ -245,4 +267,4 @@ function writeFile({ path: userPath, content } = {}) {
   return { path: relFromRoot(abs), bytes: Buffer.byteLength(content || "", "utf8") };
 }
 
-module.exports = { readFile, listFiles, search, getSource, getDiff, writeFile, languageOf, safeResolve };
+module.exports = { readFile, listFiles, changedFiles, search, getSource, getDiff, writeFile, languageOf, safeResolve };

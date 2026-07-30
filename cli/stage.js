@@ -336,7 +336,7 @@ async function story(targetArg, name, { uiUrl, json = false, ...flags } = {}) {
   );
   let target;
   if (existing) target = await SystemView.getStory(projectCode, existing.id);
-  else target = await SystemView.createStory(projectCode, { namespace, name, layout: flags.layout || "column" });
+  else target = await SystemView.createStory(projectCode, { namespace, name, layout: flags.layout || "grid" });
   target.namespace = namespace;
   target.name = name;
   if (flags.layout) target.layout = flags.layout;
