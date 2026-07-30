@@ -736,6 +736,134 @@ $pane-max: 72vh;
         color: #e05757;
       }
     }
+
+    // Replies — corrections/comments left ON a pane. Pinned at the pane's bottom, visually distinct
+    // (amber, left accent) so they read as a separate reply thread, together with but apart from the content.
+    // Original subtle amber look — restored. Your (UI) reply is the base; ADD only an agent variant.
+    &__replies {
+      flex: none;
+      border-top: 1px solid #efe4c8;
+      background: #fdf9ee;
+      padding: 6px 44px 6px 10px; // right pad keeps the corner reply button off the text
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    &__reply {
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+      font-size: 12.5px;
+      color: #5a4a2a;
+      border-left: 3px solid #e0b64e;
+      padding: 2px 0 2px 8px;
+
+      // The ONLY addition: agent (CLI) replies read apart — indigo instead of amber.
+      &--agent {
+        color: #35406a;
+        border-left-color: #6a74c4;
+        .pane__reply-badge {
+          background: #6a74c4;
+        }
+      }
+    }
+    &__reply-badge {
+      flex: none;
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #fff;
+      background: #d19a2e;
+      padding: 1px 5px;
+      border-radius: 3px;
+      margin-top: 1px;
+    }
+    &__reply-text {
+      flex: 1;
+      min-width: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      line-height: 15px;
+    }
+    &__reply-del {
+      flex: none;
+      border: none;
+      background: transparent;
+      color: #b8a97e;
+      cursor: pointer;
+      font-size: 14px;
+      line-height: 1;
+      &:hover {
+        color: #e05757;
+      }
+    }
+    &__reply-form {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    &__reply-input {
+      width: 100%;
+      min-height: 46px;
+      border: 1px solid #e0b64e;
+      border-radius: 4px;
+      padding: 5px 8px;
+      font-size: 12.5px;
+      font-family: inherit;
+      resize: vertical;
+      background: #fff;
+    }
+    &__reply-actions {
+      display: flex;
+      gap: 6px;
+    }
+    &__reply-post {
+      border: 1px solid #d19a2e;
+      background: #d19a2e;
+      color: #fff;
+      border-radius: 4px;
+      font-size: 12px;
+      padding: 2px 12px;
+      cursor: pointer;
+      &:disabled {
+        opacity: 0.5;
+        cursor: default;
+      }
+    }
+    &__reply-cancel {
+      border: 1px solid #d7dbe6;
+      background: #fff;
+      color: #8b93a7;
+      border-radius: 4px;
+      font-size: 12px;
+      padding: 2px 12px;
+      cursor: pointer;
+    }
+
+    // Floating reply button — stays where it was: bottom-right corner, white, fades in on hover.
+    &__reply-fab {
+      position: absolute;
+      bottom: 10px;
+      right: 12px;
+      z-index: 5;
+      border: 1px solid #cdd4e2;
+      background: #fff;
+      color: #56617f;
+      font-size: 12px;
+      line-height: 1;
+      padding: 4px 9px;
+      border-radius: 14px;
+      cursor: pointer;
+      opacity: 0;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.14);
+      transition: opacity 0.12s ease;
+      &:hover {
+        border-color: #6886ba;
+      }
+    }
+    &:hover .pane__reply-fab {
+      opacity: 1;
+    }
   }
 
   // --- Layout: grid IS the composition model (RFC-019); gallery is only a way to VIEW the same grid. ---

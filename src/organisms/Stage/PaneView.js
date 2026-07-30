@@ -56,8 +56,11 @@ const sideAt = (e) => {
   return e.clientX > r.left + r.width / 2 ? "after" : "before";
 };
 
-const PaneView = ({ pane, connectedServices, projectCode, onRemove, onPin, onSelect, onResize, layout, onDragStartPane, onDragOverPane, onDragEndPane, onDropPane, dropSide }) => {
+const PaneView = ({ pane, connectedServices, projectCode, onRemove, onPin, onSelect, onResize, onReply, onRemoveReply, layout, onDragStartPane, onDragOverPane, onDragEndPane, onDropPane, dropSide }) => {
   const { kind, target = {}, highlight, pinned, span } = pane;
+  const [replying, setReplying] = useState(false);
+  const [replyText, setReplyText] = useState("");
+  const replies = pane.replies || [];
   const [state, setState] = useState({ loading: kind !== "markdown", error: null, data: null });
   // Phase 4 — edit-any-file. A file pane can flip to an editable CodeMirror and write back via the plugin.
   const [editing, setEditing] = useState(false);
@@ -336,6 +339,43 @@ const PaneView = ({ pane, connectedServices, projectCode, onRemove, onPin, onSel
         )}
       </div>
       <div className="pane__body">{body}</div>
+      {/* One flat thread per pane. Your replies keep their original look; agent replies get their own. */}
+      {onReply && (replies.length > 0 || replying) && (
+        <div className="pane__replies">
+          {replies.map((r, i) => (
+            <div className={`pane__reply ${r.author === "agent" ? "pane__reply--agent" : ""}`} key={i}>
+              <span className="pane__reply-badge">{r.author === "agent" ? "agent" : "reply"}</span>
+              <span className="pane__reply-text">{r.text}</span>
+              {onRemoveReply && (
+                <button type="button" className="pane__reply-del" title="Delete reply" onClick={() => onRemoveReply(pane.id, i)}>×</button>
+              )}
+            </div>
+          ))}
+          {replying && (
+            <div className="pane__reply-form">
+              <textarea
+                className="pane__reply-input"
+                autoFocus
+                placeholder="reply on this…"
+                value={replyText}
+                onChange={(e) => setReplyText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { onReply(pane.id, replyText); setReplyText(""); setReplying(false); }
+                  if (e.key === "Escape") { setReplying(false); setReplyText(""); }
+                }}
+              />
+              <div className="pane__reply-actions">
+                <button type="button" className="pane__reply-post" disabled={!replyText.trim()} onClick={() => { onReply(pane.id, replyText); setReplyText(""); setReplying(false); }}>Post</button>
+                <button type="button" className="pane__reply-cancel" onClick={() => { setReplying(false); setReplyText(""); }}>Cancel</button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      {/* The reply button stays where it was — floating, bottom-right, white (fades in on hover). */}
+      {onReply && !replying && (
+        <button type="button" className="pane__reply-fab" title="Reply / comment on this pane" onClick={() => setReplying(true)}>💬</button>
+      )}
       {/* Width from the right edge, height from the bottom edge (double-click to fill the row / match it). */}
       {layout === "grid" && onResize && (
         <>

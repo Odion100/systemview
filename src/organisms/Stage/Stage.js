@@ -69,6 +69,25 @@ const Stage = ({ projectCode, serviceId, moduleName, methodName, onStageChange }
     if (selectedId && !nsStories.some((s) => s.id === selectedId)) setSelectedId(null);
   }, [nsStories, selectedId]);
 
+  // Remember the open story per namespace and RESTORE it on refresh — so a reload drops you back exactly
+  // where you were instead of an empty stage. Persist only a selection that belongs here (no cross-ns
+  // leak); restore once per mount, as soon as the story list has loaded.
+  useEffect(() => {
+    if (selectedId && nsStories.some((s) => s.id === selectedId)) {
+      try { localStorage.setItem(`sv.story.${nsKey}`, selectedId); } catch { /* ignore */ }
+    }
+  }, [selectedId, nsKey, nsStories]);
+  const didRestore = useRef(false);
+  useEffect(() => {
+    if (didRestore.current || selectedId) return;
+    let saved = null;
+    try { saved = localStorage.getItem(`sv.story.${nsKey}`); } catch { /* ignore */ }
+    if (saved && nsStories.some((s) => s.id === saved)) {
+      didRestore.current = true;
+      setSelectedId(saved);
+    }
+  }, [nsKey, nsStories, selectedId]);
+
   // Tell Documentation how many stories live here (tab badge + auto-focus on the empty→non-empty jump).
   useEffect(() => { if (onStageChange) onStageChange(nsStories.length); }, [nsStories.length, onStageChange]);
 
@@ -100,6 +119,22 @@ const Stage = ({ projectCode, serviceId, moduleName, methodName, onStageChange }
     if (!selected) return;
     try { SystemView.setStoryPaneSpan(projectCode, selected.id, paneId, span); } catch { /* ignore */ }
   }, [SystemView, projectCode, selected]);
+  // Leave a REPLY on a pane — a note/correction the agent reads back when planning. Rides on `pane.replies`
+  // and persists through saveStory (no api/plugin change; the story object round-trips).
+  const addReply = useCallback((paneId, text) => {
+    if (!selected || !text || !text.trim()) return;
+    const panes = (selected.panes || []).map((p) =>
+      p.id === paneId ? { ...p, replies: [...(p.replies || []), { text: text.trim(), ts: Date.now(), author: "user" }] } : p,
+    );
+    try { SystemView.saveStory(projectCode, { ...selected, panes }); } catch { /* ignore */ }
+  }, [selected, SystemView, projectCode]);
+  const removeReply = useCallback((paneId, i) => {
+    if (!selected) return;
+    const panes = (selected.panes || []).map((p) =>
+      p.id === paneId ? { ...p, replies: (p.replies || []).filter((_, idx) => idx !== i) } : p,
+    );
+    try { SystemView.saveStory(projectCode, { ...selected, panes }); } catch { /* ignore */ }
+  }, [selected, SystemView, projectCode]);
   const setLayout = useCallback((layout) => {
     if (!selected) return;
     try { SystemView.setStoryLayout(projectCode, selected.id, layout); } catch { /* ignore */ }
@@ -169,7 +204,7 @@ const Stage = ({ projectCode, serviceId, moduleName, methodName, onStageChange }
   };
 
   // onResize persists the pane's { w, h } size through the same setStoryPaneSpan path (span holds it).
-  const paneProps = { projectCode, connectedServices, onResize: setSpan, onDragStartPane, onDragOverPane, onDragEndPane, onDropPane };
+  const paneProps = { projectCode, connectedServices, onResize: setSpan, onReply: addReply, onRemoveReply: removeReply, onDragStartPane, onDragOverPane, onDragEndPane, onDropPane };
 
   // The selector: `bar` (compact kinds control) goes IN the chips row; `drill` (the big columns) gets
   // its OWN block below — so opening it never reflows or moves the chips row.
