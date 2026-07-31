@@ -78,7 +78,7 @@ const HELP_TEXT = `
     --note "<md>"                          story: markdown attached to a test pane, rendered with the block
     --lines A-B                            show/highlight: emphasize a line range on the pane
     --match <string>                       show/highlight: emphasize the first match on the pane
-    --layout <column|grid|single|gallery>  story/assemble: how to frame multiple panes
+    --layout <grid|gallery>                story/assemble: how to frame multiple panes (grid default)
 
   Examples:
     systemview start

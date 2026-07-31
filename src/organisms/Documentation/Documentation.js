@@ -70,7 +70,32 @@ function InlineLogs({ projectCode, serviceId, moduleName, methodName }) {
   );
 }
 
+// Shown in the center when NOTHING is selected in the nav — SystemView's own help, so the Specs area is
+// useful on arrival instead of blank.
+const SYSTEMVIEW_HELP = `# SystemView
+
+A documentation + testing surface for your **SystemLynx** services — and, increasingly, any codebase.
+
+## Get started
+- **Connect a service** — in the left **SystemLynx** tab, click **＋** and paste a \`loadService\` URL
+  (\`https://host/route\`). Your services → modules → methods show up as a navigable tree.
+- **Navigate** — click a service, module, or method. The center shows its **Documentation**, **Logs**, and
+  **Stories**; the right **Scratch Pad** builds and runs tests against it.
+- **Write docs** — click into the Documentation pane and type. It saves to the repo (\`specs/docs/\`) and
+  travels with your code.
+- **Build tests** — in the Scratch Pad, assemble Before / Main / Events / After steps, run them, and save.
+  Reusable **named actions** live under the Actions tab.
+- **Tell the story** — assemble **Stories**: named, runnable arrangements of docs, diffs, files, and tests
+  that show what you did and prove it works.
+
+## Tips
+- Click a **selected** nav item again to **deselect** and come back here.
+- The **File systems** tab opens your codebase directly (RFC-022) — coming.
+
+_Select something on the left to dive in._`;
+
 export default function Documentation({ projectCode, serviceId, moduleName, methodName }) {
+  const nothingSelected = !projectCode && !serviceId && !moduleName && !methodName;
   const { connectedServices } = useContext(ServiceContext);
 
   // The active tab persists in the URL (?tab=window) so it survives navigation, refresh, and can be
@@ -140,6 +165,7 @@ export default function Documentation({ projectCode, serviceId, moduleName, meth
         <div className="row">
           <DocTitle projectCode={projectCode} serviceId={serviceId} moduleName={moduleName} methodName={methodName} />
         </div>
+        {/* Tabs ALWAYS show — SystemView mode doesn't switch the page, it just shows a different document. */}
         <div className="doc-tabs">
           <button
             className={`doc-tab ${tab === "docs" ? "doc-tab--active" : ""}`}
@@ -162,13 +188,15 @@ export default function Documentation({ projectCode, serviceId, moduleName, meth
         </div>
         {tab === "docs" && (
           <div className="documentation-view__data-table">
-            {/* The doc IS a file panel now — a framed pane with a header/badge, spread across the page.
-                Same functionality (getDoc/saveDoc, per-namespace); the body reuses the shared md-view look. */}
+            {/* The doc IS a file panel — a framed pane with a header/badge. When nothing is selected it
+                shows SystemView's own help; otherwise the per-namespace doc (getDoc/saveDoc). */}
             <div className="doc-pane">
               <div className="doc-pane__header">
                 <span className="doc-pane__kind">doc</span>
                 <span className="doc-pane__label">
-                  {methodName && moduleName && serviceId
+                  {nothingSelected
+                    ? "SystemView"
+                    : methodName && moduleName && serviceId
                     ? `${serviceId}.${moduleName}.${methodName}`
                     : moduleName && serviceId
                     ? `${serviceId}.${moduleName}`
@@ -176,7 +204,13 @@ export default function Documentation({ projectCode, serviceId, moduleName, meth
                 </span>
               </div>
               <div className="doc-pane__body">
-                <DocDescription doc={doc} setDocument={setDocument} Plugin={Plugin} />
+                {nothingSelected ? (
+                  <div className="md-view">
+                    <Markdown>{SYSTEMVIEW_HELP}</Markdown>
+                  </div>
+                ) : (
+                  <DocDescription doc={doc} setDocument={setDocument} Plugin={Plugin} />
+                )}
               </div>
             </div>
           </div>

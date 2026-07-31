@@ -38,6 +38,18 @@ const Stage = ({ projectCode, serviceId, moduleName, methodName, onStageChange }
   useEffect(() => { localStorage.setItem("sv.galleryView", galleryView); }, [galleryView]);
   useEffect(() => { localStorage.setItem("sv.focusWidth", String(focusWidth)); }, [focusWidth]);
 
+  // The .stage div is the scroll container. When you switch to another story or flip the layout/view, it
+  // must start at the TOP — otherwise it holds the previous scroll position (or a pane's centered range
+  // scrolls it mid-way). A callback ref captures whichever .stage variant is mounted; reset it to 0 on
+  // every switch, deferred a frame so it wins against any pane's own post-mount scroll.
+  const stageRef = useRef(null);
+  useEffect(() => {
+    const el = stageRef.current;
+    if (!el) return undefined;
+    const id = requestAnimationFrame(() => { el.scrollTop = 0; });
+    return () => cancelAnimationFrame(id);
+  }, [selectedId, galleryView, focusIndex]);
+
   // Load + live-subscribe every story in the project (we filter to this namespace below).
   const loadStories = useCallback(async () => {
     if (!SystemView || !projectCode) { setStories([]); return; }
@@ -329,7 +341,7 @@ const Stage = ({ projectCode, serviceId, moduleName, methodName, onStageChange }
           {panes.length && layout === "gallery" && galleryView === "rail" ? (
             // Filmstrip: a big focused pane + a scrollable rail of the rest. Click a rail item to swap it
             // into the big view; drag the divider to widen the big pane. Rail items are just for picking.
-            <div className="stage stage--rail">
+            <div className="stage stage--rail" ref={stageRef}>
               <div className="stage__focus" style={{ flexBasis: `${focusWidth}%` }}>
                 <PaneView key={panes[fi].id} pane={panes[fi]} {...paneProps} onRemove={() => removePane(panes[fi].id)} />
               </div>
@@ -355,7 +367,7 @@ const Stage = ({ projectCode, serviceId, moduleName, methodName, onStageChange }
               </div>
             </div>
           ) : panes.length && layout === "gallery" ? (
-            <div className="stage stage--gallery">
+            <div className="stage stage--gallery" ref={stageRef}>
               <div className="stage__gallery-nav">
                 <button type="button" onClick={() => setFocusIndex(Math.max(0, fi - 1))} disabled={fi === 0}>‹</button>
                 <span>{fi + 1} / {panes.length}</span>
@@ -364,7 +376,7 @@ const Stage = ({ projectCode, serviceId, moduleName, methodName, onStageChange }
               <PaneView key={panes[fi].id} pane={panes[fi]} {...paneProps} onRemove={() => removePane(panes[fi].id)} />
             </div>
           ) : panes.length ? (
-            <div className="stage stage--grid">
+            <div className="stage stage--grid" ref={stageRef}>
               {panes.map((pane) => (
                 <PaneView key={pane.id} pane={pane} {...paneProps} layout="grid" dropSide={dropTarget && dropTarget.id === pane.id ? dropTarget.side : null} onRemove={() => removePane(pane.id)} />
               ))}

@@ -1,12 +1,14 @@
 .evaluations {
-  background: #25d0a8;
-  background: #76b1f7;
-  background: #ced8f4;
-
+  // The block is tinted by the run result: translucent green when the test passed, translucent red
+  // when any assertion failed (errors.length > 0 — the same signal the "Test Passed/Failed" title uses).
+  background: #25d0a81f;
   border-radius: 0px 0px 4px 4px;
   overflow-wrap: anywhere;
   padding: 12px 18px;
   font-family: monospace;
+  &--error-true {
+    background: #e057571f;
+  }
   &--visible-false {
     display: none;
   }

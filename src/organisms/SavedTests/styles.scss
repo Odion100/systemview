@@ -69,8 +69,356 @@
       color: #c02a2a;
     }
   }
+
+  // Each saved test now renders as a TestStory (the story presentation). The scratchpad-only Edit/Delete
+  // ride in a hover toolbar pinned to a RESERVED right gutter, so they never collide with TestStory's own
+  // Run/Clear (the head gets right padding to open that gutter).
+  // Each saved test is its OWN distinct WHITE CARD — clearly separated blocks, not a merged list. Uses
+  // the story presentation inside, but the card frame makes it read as its own thing (not identical to
+  // the flush story-pane list).
+  &__item {
+    position: relative;
+    margin-bottom: 10px;
+    background: #fff;
+    border: 1px solid #e6e9f0;
+    border-radius: 7px;
+    padding: 6px 6px 4px;
+    box-shadow: 0 1px 2px rgba(40, 50, 80, 0.05);
+    overflow: hidden;
+    .test-story__head {
+      padding-right: 60px;
+    }
+    // The OUTER card represents the test's pass/fail/running state (the colored left edge below). So the
+    // test's OWN middle-layer border is dropped entirely — no nested colored frame. Per-action ✓/✗ stays.
+    .test-story {
+      border-bottom: none;
+      border-left: none;
+      margin-bottom: 0;
+      padding-left: 8px;
+    }
+  }
+  // Card-level state accent on the LEFT edge (driven by the run status the parent tracks).
+  &__item--pass {
+    border-left: 3px solid #2db44f;
+  }
+  &__item--fail {
+    border-left: 3px solid #e05757;
+  }
+  &__item--running {
+    border-left: 3px solid #6886ba;
+    // An indeterminate progress stripe across the top makes "in progress" unmistakable — not just color.
+    &::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 2px;
+      width: 40%;
+      background: linear-gradient(90deg, transparent, #6886ba, transparent);
+      animation: saved-test-progress 1.1s ease-in-out infinite;
+    }
+  }
+  &__tools {
+    position: absolute;
+    top: 5px;
+    right: 8px;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    opacity: 0;
+    transition: opacity 0.12s ease;
+    img {
+      width: 14px;
+    }
+  }
+  &__item:hover &__tools {
+    opacity: 1;
+  }
+  &__confirm {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    color: #c02a2a;
+    background: #fff;
+    padding: 1px 4px;
+    border-radius: 4px;
+  }
+  &__confirm-yes {
+    color: #c02a2a;
+    font-weight: 700;
+  }
+  &__confirm-no {
+    color: #56617f;
+  }
+
+  // Overall controls on the "Saved" header — text buttons matching the per-test Run/Clear.
+  &__controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  &__auto {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 11px;
+    color: #8a93a8;
+    cursor: pointer;
+    user-select: none;
+    input {
+      cursor: pointer;
+    }
+  }
+  &__ctrl {
+    border: 1px solid #d7dbe6;
+    background: #fff;
+    color: #8b93a7;
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    white-space: nowrap;
+    &:hover {
+      border-color: #97a0b8;
+      color: #46506a;
+    }
+  }
+  &__run-all {
+    border: 1px solid #6886ba;
+    background: #6886ba;
+    color: #fff;
+    font-size: 11px;
+    padding: 3px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    white-space: nowrap;
+    &:hover {
+      background: #5a76a8;
+    }
+  }
+
+  // Pass/fail aggregate on the "Saved" header — click a count to filter the list (mirrors the story pane).
+  &__summary {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-right: 4px;
+  }
+  &__summary-run {
+    font-size: 11px;
+    color: #8a93a8;
+  }
+  &__summary-pass,
+  &__summary-fail {
+    border: none;
+    background: transparent;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 0 2px;
+    border-radius: 3px;
+  }
+  &__summary-pass {
+    color: #1f9d63;
+    &.is-active {
+      background: #e6f6ee;
+    }
+  }
+  &__summary-fail {
+    color: #c0413e;
+    &.is-active {
+      background: #fbeaea;
+    }
+  }
+
+  // Two-row "Saved" header — the narrow scratchpad can't fit everything on one line, so buttons sit on
+  // row 1 and the auto-track toggle + summary go on row 2 underneath.
+  &__header2 {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+    min-width: 0;
+  }
+  &__hrow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    width: 100%;
+    min-width: 0;
+  }
+  &__hrow--sub {
+    justify-content: flex-start;
+    gap: 10px;
+  }
+  // Compact icon button (the expand/collapse-all toggle + the clear-all button) — a glyph/icon, not a wide
+  // text button.
+  &__icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #d7dbe6;
+    background: #fff;
+    color: #8b93a7;
+    font-size: 12px;
+    line-height: 1;
+    padding: 3px 7px;
+    border-radius: 4px;
+    cursor: pointer;
+    &:hover {
+      border-color: #97a0b8;
+      color: #46506a;
+    }
+  }
+  &__clear-img {
+    width: 12px;
+    display: block;
+    // The source PNG is white — tint it dark so it's visible on the light button.
+    filter: brightness(0) opacity(0.5);
+  }
+  &__label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #56617f;
+  }
+
+  // PANE-STYLE header on each saved test — a TEST badge + namespace + status on the left, Run/Edit/× on the
+  // right (mirrors a story pane's header). The card's running progress-stripe (::before) is untouched.
+  &__phead {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 2px 4px;
+    border-bottom: 1px solid #eef0f5;
+  }
+  &__fold {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+    min-width: 0;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    padding: 1px 0;
+    text-align: left;
+  }
+  &__caret {
+    color: #97a0b8;
+    font-size: 9px;
+    flex-shrink: 0;
+  }
+  &__kind {
+    text-transform: uppercase;
+    font-size: 9px;
+    letter-spacing: 0.5px;
+    color: #fff;
+    background: #6a74c4;
+    padding: 1px 6px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+  &__ns {
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 11px;
+    color: #6b7797;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    b {
+      color: #46608f;
+    }
+  }
+  &__badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    padding: 1px 6px;
+    border-radius: 8px;
+    flex-shrink: 0;
+    text-transform: uppercase;
+    &.is-pass {
+      background: #e4f6e9;
+      color: #1f9d4f;
+    }
+    &.is-fail {
+      background: #fdeaea;
+      color: #e05757;
+    }
+    &.is-running {
+      background: #eef1f8;
+      color: #6886ba;
+    }
+  }
+  &__phead-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+    img {
+      width: 14px;
+    }
+  }
+  &__hrun {
+    border: 1px solid #6886ba;
+    background: #6886ba;
+    color: #fff;
+    font-size: 11px;
+    padding: 2px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    white-space: nowrap;
+    &:hover {
+      background: #5a76a8;
+    }
+    &:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
+  }
+  &__hclear {
+    border: 1px solid #d7dbe6;
+    background: #fff;
+    color: #8b93a7;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    &:hover {
+      border-color: #97a0b8;
+      color: #46506a;
+    }
+  }
+  &__title-row {
+    display: block;
+    width: 100%;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    text-align: left;
+    padding: 4px 2px 2px 4px;
+    font-weight: 600;
+    color: #46506a;
+    overflow-wrap: anywhere;
+  }
 }
 
 .react-json-view {
   font-size: 14px;
+}
+
+@keyframes saved-test-progress {
+  0% {
+    left: -40%;
+  }
+  100% {
+    left: 100%;
+  }
 }

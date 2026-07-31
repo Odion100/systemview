@@ -3,16 +3,18 @@ const createMockFile = require("./createMockFile");
 moment.suppressDeprecationWarnings = true;
 const rnb = (min, max) => Math.floor(Math.random() * (max - min + 1) + min);
 
-const isTargetNamespace = (str) =>
-  /^(?:before|main|after)Test\.Action\d+\.(?:error|results)(?:\[(?:\d+)\]|\.(?:(?![0-9])[a-zA-Z0-9$_]+(?:\[(?:\d+)\])?))*$/.test(
-    str
-  );
-const targetValueFnRegex =
-  /tv\((?:before|main|after)Test\.Action\d+\.(?:error|results)(?:\[(?:\d+)\]|\.(?:(?![0-9])[a-zA-Z0-9$_]+(?:\[(?:\d+)\])?))*\)/g;
-const isTargetValueFn = (str) =>
-  /^tv\((?:before|main|after)Test\.Action\d+\.(?:error|results)(?:\[(?:\d+)\]|\.(?:(?![0-9])[a-zA-Z0-9$_]+(?:\[(?:\d+)\])?))*\)$/.test(
-    str
-  );
+// A target-value reference — two grammars, both resolved by Argument.getTargetValue (RFC-020):
+//   legacy positional — beforeTest.Action1.error   (kept for back-compat; mirrors the UI "Section → Action N" labels)
+//   natural path      — test.before[0].results / test.before.signIn.results / test.main[2].results.userId
+// The TAIL (nested fields / array indices reaching into the result) is shared by both.
+const TV_TAIL = `(?:\\[(?:\\d+)\\]|\\.(?:(?![0-9])[a-zA-Z0-9$_]+(?:\\[(?:\\d+)\\])?))*`;
+const TV_LEGACY = `(?:before|main|after)Test\\.Action\\d+\\.(?:error|results)${TV_TAIL}`;
+// natural: a `test.` root, a section (before|main|events|after), then a step by [index] OR .name, then the field.
+const TV_NATURAL = `test\\.(?:before|main|events|after)(?:\\[\\d+\\]|\\.(?![0-9])[a-zA-Z0-9$_]+)\\.(?:error|results)${TV_TAIL}`;
+const TV_BODY = `(?:${TV_LEGACY}|${TV_NATURAL})`;
+const isTargetNamespace = (str) => new RegExp(`^${TV_BODY}$`).test(str);
+const targetValueFnRegex = new RegExp(`tv\\(${TV_BODY}\\)`, "g");
+const isTargetValueFn = (str) => new RegExp(`^tv\\(${TV_BODY}\\)$`).test(str);
 const isEqualArrays = (a, b) => a.join(".") === b.join("."); //specifically for arrays of strings
 const isValidNamespace = (str) => /^(?![0-9])[a-zA-Z0-9$_]+$/.test(str); //_id
 const startsWithNameAndArray = (str) => /^\w+(\[\d+\])+/.test(str); //users[0]

@@ -245,7 +245,9 @@ systemview selection buAPI
 
 **Pane kinds:** `markdown` (`--text`), `file` (`--file <path[#L a-b]>` — optional inline line range to highlight), `diff` (`--diff path`), `test` (`--test <target>`, any namespace level). `source` (`--source Mod.method`) is **legacy** — prefer `file` + `#L`. Repeat any flag (in `assemble` or `story`) to add multiple panes; command order is preserved so prose can interleave.
 
-**Layouts** (`--layout`, user-switchable in the UI toolbar): `column` (stack, default) · `grid` (flex; per-pane half/full width) · `single` · `gallery`. Panes size to content; each is independently scrollable, and the user can reorder, remove, or resize them.
+**Layouts** (`--layout`, user-switchable in the UI toolbar): `grid` (default; flex — panes flow into rows with resizable widths/heights, drag to reorder) · `gallery` (one pane at a time, or a big pane + a rail of the rest). `single`/`column` were removed — passing them renders as grid. Panes size to content up to a cap and each is independently scrollable.
+
+**Replies:** in the UI the user can leave a **reply on any pane** (a per-pane review thread; stored as `pane.replies[]` with `author: "user"`/`"agent"`). It's how the user annotates a story in place and you plan back-and-forth per point — see **[`docs/stories-for-agents.md`](./stories-for-agents.md)** › _Replies_.
 
 **For agents — when and why:** don't paste code into chat — build a **story**. After a slice of work, `systemview story <project> "<name>" --ns <namespace>` with the `diff`s of what changed, the `source` of the key methods, the runnable `test`s that prove it, and `--text`/`--note` narrating it. File it on the namespace it's about so the user finds it there. Use the ephemeral `show`/`assemble` only for real-time pointing; use `story` for anything worth keeping. `systemview selection <project>` tells you what the user is looking at when you resume. See **[`docs/stories-for-agents.md`](./stories-for-agents.md)**; `systemview help` lists every flag.
 

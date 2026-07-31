@@ -6,6 +6,26 @@
   }
 }
 
+// Play button for running a test — same background as the run-test button ($sv-blue), white glyph, no label.
+.run-play-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #6886ba;
+  color: #fff;
+  border-radius: 4px;
+  font-size: 9px;
+  line-height: 1;
+  padding: 4px 7px;
+  cursor: pointer;
+  &:hover {
+    background: #5a76a8;
+  }
+  &:active {
+    transform: translate(0, -1px);
+  }
+}
+
 .delete-button {
   font-family: system-ui;
   color: #c50000;

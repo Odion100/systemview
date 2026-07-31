@@ -30,7 +30,9 @@ const ServerModulesList = ({
             key={i}
             title={
               <span
-                className={`system-nav__link system-nav__link--selected-${
+                className={`system-nav__link system-nav__link--active-${
+                  isSelected
+                } system-nav__link--selected-${
                   !selectedMethodName && isSelected
                 } ${(name === "Plugin" || name === "SystemView") && className + "__name--plugin"}`}
               >

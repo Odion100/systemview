@@ -81,7 +81,9 @@ export default function Evaluations({ test, updateTests }) {
   }, [test.evaluations, test.test_end]);
 
   return (
-    <div className={`evaluations evaluations--visible-${evaluations.length > 0}`}>
+    <div
+      className={`evaluations evaluations--visible-${evaluations.length > 0} evaluations--error-${errors.length > 0}`}
+    >
       <ExpandableSection
         open={open}
         toggleExpansion={toggleExpansion}

@@ -45,7 +45,7 @@ you. But here is the exact on-disk/over-the-wire schema so you know every field 
   "projectCode": "systemview-test",
   "namespace":   "systemview-test/TestService/Math/divide", // project | project/Service | …/Module | …/method
   "name":        "Divide by zero — narrated", // free text; the chip label. Same name+namespace UPSERTS.
-  "layout":      "column",                  // "column" (default) | "grid" | "single" | "gallery"
+  "layout":      "grid",                    // "grid" (default) | "gallery" — single/column removed (legacy values render as grid)
   "panes":       [ /* Pane[], rendered top-to-bottom in this order */ ]
 }
 ```
@@ -57,8 +57,9 @@ you. But here is the exact on-disk/over-the-wire schema so you know every field 
   "id":     "pane_...",         // assigned by the API when the pane is added
   "kind":   "file",             // "markdown" | "source" | "test" | "diff" | "file"
   "target": { /* shape depends on kind — see table */ },
-  "span":   "full",             // optional, grid layout only: "full" (whole row) | "half" (shares a row)
-  "highlight": { "lines": [40, 70] } // optional (file/source): { "lines": [a, b] } OR { "match": "substr" }
+  "span":   { "w": 50, "h": 320 }, // optional (grid): w = width %, h = height px (legacy "full"/"half" still read)
+  "highlight": { "lines": [40, 70] }, // optional (file/source): { "lines": [a, b] } OR { "match": "substr" }
+  "replies": [ { "text": "…", "ts": 0, "author": "user" } ] // optional review thread — see "Replies" below
 }
 ```
 
@@ -126,7 +127,8 @@ systemview story <projectCode> "<name>" [--ns <namespace>] [--layout <layout>] <
 - **Panes are added in command order**, so `--text` can sit _between_ code/diff/test panes to tell a story.
 - `--ns <namespace>` files it. Format is a path: `project`, `project/Service`, `project/Service/Module`,
   or `project/Service/Module/method`. Defaults to the project (project-level) if omitted.
-- `--layout` ∈ `column` (stack, default) · `grid` (flex; mix half/full-width) · `single` · `gallery`.
+- `--layout` ∈ `grid` (default; flex — panes flow into rows, resizable widths/heights) · `gallery` (one at a
+  time, or a big pane + a rail of the rest). `single`/`column` are gone — pass them and they render as grid.
 - `--note "<markdown>"` attaches your **own markdown to a `test` pane** — it renders _with_ the test block
   (never interrupting the test's steps). Use it to narrate a test.
 
@@ -156,7 +158,7 @@ systemview story-add    <project> "<name>" --file path#L88-96   # append a pane 
 systemview story-rm     <project> "<name>" --at 2               # remove the pane at index 2
 systemview story-move   <project> "<name>" --from 0 --to 3      # reorder a pane
 systemview story-edit   <project> "<name>" --at 1 --file f#L10-20   # replace a pane; test panes accept --note
-systemview story-layout <project> "<name>" --layout grid        # column | grid | single | gallery
+systemview story-layout <project> "<name>" --layout grid        # grid | gallery
 systemview story-rename <project> "<name>" --to "<new name>"    # rename (new slug, old file removed)
 systemview story-delete <project> "<name>"                      # delete the story
 ```
@@ -193,7 +195,7 @@ Added \`Math.combine({a,label},{b,label})\` — two OBJECT arguments." \
   --diff test/service/Math/index.js \
   --file test/service/Math/index.js#L40-46 \
   --test Math.combine \
-  --layout column
+  --layout grid
 
 # See them all
 systemview stories systemview-test
@@ -214,3 +216,38 @@ locators you filed, with bytes fetched live from the service.
 - The live stage verbs (`show` / `assemble` / `stage` / `highlight` / `view` / `selection`) still exist for
   driving a single ephemeral Window in real time; **prefer `story`** when you want a persistent, named,
   namespaced artifact — which is almost always, for handoffs.
+
+---
+
+## Replies — the review / planning loop
+
+A story is **two-way**. In the UI the user can leave a **reply on any pane** — a correction, a question,
+a "change this here." Each reply is stored on the pane it targets:
+
+```jsonc
+"replies": [
+  { "text": "positional refs won't splice — use the natural path", "ts": 1690000000000, "author": "user" }
+]
+```
+
+`author` is `"user"` (left in the UI) or `"agent"` (your response). The two render distinctly (amber vs
+indigo), so a pane becomes a small threaded conversation — flat, one level (you don't reply to a reply;
+your response is just the next entry).
+
+**The loop — great for iterating on a plan or a design:**
+
+1. You build a story (a plan, an RFC walk-through, a change handoff) — prose + the exact code, interleaved.
+2. The user leaves replies across the panes, then says *"I left responses — take a look."*
+3. You **read** them. Each reply sits on its pane, so you know exactly which note / file / test it targets:
+   ```bash
+   # the replies live in the story file, under each pane
+   cat .systemview/stories/<id>.json      # → panes[].replies  (author: "user")
+   ```
+4. You **respond** on the same pane by appending a reply with `"author": "agent"`, then keep planning.
+
+Put the plan and the real code in a story, let the user annotate it **in place**, and converse per-point
+instead of losing the thread in chat.
+
+> A dedicated `systemview story-reply` verb (post an agent reply live, broadcast to the open UI) is
+> planned. Until it lands, read the story file and append your `agent` replies to the relevant pane
+> (the user sees them on the next refresh).

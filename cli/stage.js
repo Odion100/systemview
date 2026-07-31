@@ -421,7 +421,7 @@ async function storyOp(op, targetArg, name, { uiUrl, json = false, ...flags } = 
   }
 
   if (op === "layout") {
-    if (!flags.layout) { log.error("story-layout needs --layout <column|grid|single|gallery>"); return 1; }
+    if (!flags.layout) { log.error("story-layout needs --layout <grid|gallery>"); return 1; }
     story.layout = flags.layout;
   } else if (op === "add") {
     const pane = onePane();

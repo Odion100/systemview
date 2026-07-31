@@ -45,7 +45,19 @@ const MultiTestSection = ({
                 </span>
               }
             />
-            <AddButton onClick={addTest} className={className} />
+            <span className={`${className}__actions`}>
+              {TestSection.length > 0 && (
+                <button
+                  type="button"
+                  className={`${className}__run-btn`}
+                  title={`Run ${caption} only`}
+                  onClick={(e) => { e.stopPropagation(); TestController.runAllTest(); }}
+                >
+                  ▶ Run
+                </button>
+              )}
+              <AddButton onClick={addTest} className={className} />
+            </span>
           </>
         }
         title_color="#0d8065"

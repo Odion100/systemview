@@ -31,6 +31,10 @@ const SystemNav = ({ projectCode, serviceId, moduleName, methodName, onCollapse 
   const [adding, setAdding] = useState(false);
   const [connectUrl, setConnectUrl] = useState("");
   const [connecting, setConnecting] = useState(false);
+  // The nav is tabbed like the scratchpad: your connected SERVICES, a SYSTEMLYNX view, and the FILE-SYSTEM
+  // (RFC-022 codebase surface). Persisted so it sticks across refresh.
+  const [navTab, setNavTab] = useState(() => localStorage.getItem("sv.navTab") || "systemlynx");
+  useEffect(() => { localStorage.setItem("sv.navTab", navTab); }, [navTab]);
   const { SystemViewService, setConnectedServices, connectedServices } =
     useContext(ServiceContext);
   const serviceData = connectedServices.find(
@@ -192,66 +196,85 @@ const SystemNav = ({ projectCode, serviceId, moduleName, methodName, onCollapse 
             </div>
           </div>
         )}
+        {/* Tabs sit right under the header — parallel to the scratchpad's Test/Actions tabs. */}
         <div className="row system-nav__section">
           <div className="col-12">
-            {adding ? (
-              <div className="system-nav__connect-form">
-                <input
-                  className="system-nav__connect-input"
-                  type="text"
-                  autoFocus
-                  placeholder="https://host/route"
-                  value={connectUrl}
-                  onChange={(e) => setConnectUrl(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleConnect();
-                    if (e.key === "Escape") cancelConnect();
-                  }}
-                  disabled={connecting}
-                />
-                <button
-                  className="system-nav__connect-arrow system-nav__connect-submit"
-                  title="Connect"
-                  onClick={handleConnect}
-                  disabled={connecting || !connectUrl.trim()}
-                >
-                  {connecting ? "…" : <ArrowIcon />}
-                </button>
-                <button
-                  className="system-nav__connect-cancel"
-                  title="Cancel"
-                  onClick={cancelConnect}
-                  disabled={connecting}
-                >
-                  ✕
-                </button>
-              </div>
-            ) : (
+            <div className="system-nav__tabs">
               <button
-                className="system-nav__connect-btn"
-                onClick={() => setAdding(true)}
+                type="button"
+                className={`system-nav__tab ${navTab === "systemlynx" ? "system-nav__tab--active" : ""}`}
+                onClick={() => setNavTab("systemlynx")}
               >
-                <span className="system-nav__connect-bullet">•</span>
-                loadService(...)
-                <span className="system-nav__connect-arrow">
-                  <ArrowIcon />
-                </span>
+                SystemLynx
               </button>
-            )}
+              <button
+                type="button"
+                className={`system-nav__tab ${navTab === "files" ? "system-nav__tab--active" : ""}`}
+                onClick={() => setNavTab("files")}
+              >
+                File systems
+              </button>
+              {navTab === "systemlynx" && (
+                <button
+                  type="button"
+                  className={`system-nav__tab-add ${adding ? "system-nav__tab-add--open" : ""}`}
+                  title={adding ? "Cancel" : "loadService — connect a service"}
+                  onClick={() => (adding ? cancelConnect() : setAdding(true))}
+                >
+                  {adding ? "✕" : "+"}
+                </button>
+              )}
+            </div>
           </div>
         </div>
         <div className="row system-nav__section">
           <div className="col-12 ">
-            <NavigationLinks
-              connectedServices={connectedServices}
-              selectedProjectCode={projectCode}
-              selectedServiceId={serviceId}
-              selectedModuleName={moduleName}
-              selectedMethodName={methodName}
-              onDeleteService={handleDeleteService}
-              onDeleteProject={handleDeleteProject}
-              serviceStatus={serviceStatus}
-            />
+            {navTab === "systemlynx" && (
+              <>
+                {/* loadService input only appears when you click ＋ — otherwise the projects sit right
+                    under the tabs. Cancel is the ＋ toggle (now ✕), so there's no ugly extra button. */}
+                {adding && (
+                  <div className="system-nav__connect">
+                    <div className="system-nav__connect-form">
+                      <input
+                        className="system-nav__connect-input"
+                        type="text"
+                        autoFocus
+                        placeholder="loadService — https://host/route"
+                        value={connectUrl}
+                        onChange={(e) => setConnectUrl(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleConnect();
+                          if (e.key === "Escape") cancelConnect();
+                        }}
+                        disabled={connecting}
+                      />
+                      <button
+                        className="system-nav__connect-arrow system-nav__connect-submit"
+                        title="Connect"
+                        onClick={handleConnect}
+                        disabled={connecting || !connectUrl.trim()}
+                      >
+                        {connecting ? "…" : <ArrowIcon />}
+                      </button>
+                    </div>
+                  </div>
+                )}
+                <NavigationLinks
+                  connectedServices={connectedServices}
+                  selectedProjectCode={projectCode}
+                  selectedServiceId={serviceId}
+                  selectedModuleName={moduleName}
+                  selectedMethodName={methodName}
+                  onDeleteService={handleDeleteService}
+                  onDeleteProject={handleDeleteProject}
+                  serviceStatus={serviceStatus}
+                />
+              </>
+            )}
+            {navTab === "files" && (
+              <div className="system-nav__placeholder">File system — coming soon (RFC-022 codebase surface).</div>
+            )}
           </div>
         </div>
       </div>
@@ -285,7 +308,9 @@ const NavigationLinks = ({
         key={pc}
         title={
           <span
-            className={`system-nav__link system-nav__link--project system-nav__link--selected-${
+            className={`system-nav__link system-nav__link--project system-nav__link--active-${
+              isSelectedProject
+            } system-nav__link--selected-${
               isSelectedProject && !selectedServiceId
             }`}
           >
@@ -310,7 +335,9 @@ const NavigationLinks = ({
               key={i}
               title={
                 <span
-                  className={`system-nav__link system-nav__link--selected-${
+                  className={`system-nav__link system-nav__link--active-${
+                    isSelected
+                  } system-nav__link--selected-${
                     !selectedModuleName && isSelected
                   }`}
                 >

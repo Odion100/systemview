@@ -1,0 +1,46 @@
+[
+  {
+    "title": "RFC-020: use a named action + natural-path reference",
+    "namespace": {
+      "serviceId": "TestService",
+      "moduleName": "Math",
+      "methodName": "chainUse"
+    },
+    "Before": [{ "use": "seedSum" }],
+    "Main": [
+      {
+        "title": "add(before[0].results.sum, 10) === 15",
+        "namespace": {
+          "serviceId": "TestService",
+          "moduleName": "Math",
+          "methodName": "add"
+        },
+        "args": [
+          {
+            "name": "argument:",
+            "input": { "a": 0, "b": 10 },
+            "input_type": "object",
+            "data_type": "",
+            "targetValues": [
+              {
+                "target_namespace": "test.before[0].results.sum",
+                "source_map": ["input", "a"],
+                "source_index": 0
+              }
+            ]
+          }
+        ],
+        "savedEvaluations": [
+          {
+            "namespace": "results.sum",
+            "expected_type": "number",
+            "validations": [{ "name": "numEquals", "value": 15 }],
+            "save": true
+          }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": []
+  }
+]

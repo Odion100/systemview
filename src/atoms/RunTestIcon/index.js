@@ -1,18 +1,19 @@
 import React from "react";
-import TEST_ICON from "../../assets/test-icon.svg";
 import EDIT_ICON from "../../assets/edit.png";
 import X_BUTTON from "../../assets/x.svg";
 import "./styles.scss";
 
+// The run affordance is a play button in the run-test button color (no label), not the old test-icon img.
 export default function RunTestIcon({ onClick }) {
   return (
-    <img
-      className="btn"
+    <span
+      className="run-play-btn"
       onClick={onClick}
-      style={{ width: "16px" }}
-      src={TEST_ICON}
-      alt={"Run Test"}
-    />
+      role="button"
+      aria-label="Run Test"
+    >
+      ▶
+    </span>
   );
 }
 

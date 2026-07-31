@@ -15,7 +15,14 @@ export default function TestController({
     setState([...TestSection]);
   };
 
-  this.runAllTest = async () => {};
+  // Run every step in THIS section, in sequence (awaiting each) — so a section (Before / Events / After)
+  // can be run on its own. Sequential mirrors the full-run discipline (shared session/cookies never race).
+  this.runAllTest = async () => {
+    for (let i = 0; i < TestSection.length; i++) {
+      await TestSection[i].runTest();
+      setState([...TestSection]);
+    }
+  };
 
   this.updateNamespace = (index, namespace) => {
     TestSection[index].namespace = namespace;

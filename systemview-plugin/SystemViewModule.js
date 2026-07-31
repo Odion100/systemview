@@ -99,9 +99,65 @@ module.exports = ({ App, specs, projectCode, serviceId, module = {}, credentials
         pushSpecList();
       }
     };
+    // RFC-020 — named actions. A named action = a name + an ordered list of steps (the same shape as a
+    // test's Before/Main/After array). PERMANENT ones live in `specs/actions/<name>.json` (a third sibling
+    // to docs/ and tests/), travel with the repo, and are pulled into tests/stories via `{ use: <name> }`.
+    // One action per file, keyed by NAME (not Module.method like tests).
+    this.getActions = (namespace = {}) => {
+      const dir = `${specs}/actions/`;
+      let files;
+      try {
+        files = fs.readdirSync(dir).filter((f) => f.endsWith(".json"));
+      } catch {
+        return [];
+      }
+      const actions = files
+        .map((f) => {
+          try {
+            return JSON.parse(fs.readFileSync(`${dir}${f}`, "utf8"));
+          } catch {
+            return null;
+          }
+        })
+        .filter(Boolean);
+      // Only THIS service's actions (siblings can share a specs folder), and optionally scope to a module.
+      return actions.filter(
+        (a) =>
+          (!serviceId || !a.namespace || a.namespace.serviceId === serviceId) &&
+          (!namespace.moduleName || (a.namespace && a.namespace.moduleName === namespace.moduleName))
+      );
+    };
+    this.getAction = (name) => {
+      try {
+        return JSON.parse(getFile(`${specs}/actions/${name}.json`) || "null");
+      } catch {
+        return null;
+      }
+    };
+    this.saveAction = (action) => {
+      ensureDir(`${specs}/actions/`);
+      const name = action && action.name;
+      if (!name) return { error: true, message: "A named action needs a name." };
+      fs.writeFileSync(`${specs}/actions/${name}.json`, JSON.stringify(action), "utf8");
+      pushSpecList();
+      return { error: false, name };
+    };
+    this.deleteAction = (name) => {
+      deleteFile(`${specs}/actions/${name}.json`);
+      pushSpecList();
+      return { error: false, name };
+    };
     this.getSpecList = () => ({
       docs: fs.readdirSync(`${specs}/docs/`),
       tests: fs.readdirSync(`${specs}/tests/`),
+      // actions/ is a newer sibling — may not exist in older repos, so tolerate its absence.
+      actions: (() => {
+        try {
+          return fs.readdirSync(`${specs}/actions/`);
+        } catch {
+          return [];
+        }
+      })(),
     });
     this.getConnection = () => {
       const specList = this.getSpecList();

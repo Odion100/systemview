@@ -9,20 +9,21 @@
     width: 100%;
   }
   &__test-data {
-    background: #e9e9e9;
-    padding: 25px 15px 25px 15px;
-    border-radius: 5px 5px 0px 0px;
+    padding: 14px 14px 14px;
+    border: 1px solid #e6e9f0;
+    border-radius: 6px 6px 0 0;
 
     &__parentheses {
-      font-size: 19px;
+      font-size: 16px;
+      color: #97a0b8;
     }
   }
   &__response-data {
-    padding: 12px 15px;
+    padding: 10px 14px;
     background: #ffffff;
     position: relative;
-    border-left: 1px solid #e9e9e9;
-    border-right: 1px solid #e9e9e9;
+    border: 1px solid #e6e9f0;
+    border-top: none;
     &--visible-false {
       display: none;
     }
@@ -54,7 +55,7 @@
   &__response-type {
     color: #a954ff;
     font-weight: 700;
-    font-size: 15px;
+    font-size: 13px;
   }
   &__btn-container {
     position: absolute;
@@ -65,24 +66,33 @@
     }
   }
   &__run-test-btn {
+    border: 1px solid #6886ba;
+    background: #6886ba;
+    color: #fff;
+    font-size: 11px;
+    padding: 2px 10px;
+    border-radius: 4px;
     cursor: pointer;
+    white-space: nowrap;
+    &:hover {
+      background: #5a76a8;
+    }
   }
 
   &__test-method-input {
+    // Blends into the method wrapper — no box. (Only pops a white fill while you're typing a namespace.)
     font-family: "SF Mono", monospace;
     background: none;
     border: none;
-    font-size: 17px;
+    font-size: 14px;
     width: var(--text-length);
     text-indent: 0;
     text-overflow: clip;
     max-width: 100%;
-    color: #223a95;
+    color: #3a4a8c;
     &:focus {
-      background: white;
-    }
-    &:disabled {
-      //color: initial;
+      background: #fff;
+      border-radius: 4px;
     }
   }
   &__eval-btn {

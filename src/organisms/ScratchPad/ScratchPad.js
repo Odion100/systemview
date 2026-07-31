@@ -3,7 +3,6 @@ import AutoCompleteBox from "../../molecules/AutoCompleteBox/AutoCompleteBox";
 import Args, { Argument } from "../../molecules/Args/Args";
 import ServiceContext from "../../ServiceContext";
 import "./styles.scss";
-import RunTestIcon from "../../atoms/RunTestIcon";
 import Evaluations from "../TestPanel/Evaluations";
 import EVAL_ICON from "../../assets/eval-icon.svg";
 
@@ -69,9 +68,9 @@ const ScratchPad = ({
     <div className="scratchpad" style={style}>
       <div className="scratchpad__test-data-container">
         <div className="scratchpad__btn-container">
-          <span className="scratchpad__run-test-btn btn" onClick={runTest}>
-            <RunTestIcon />
-          </span>
+          <button type="button" className="scratchpad__run-test-btn" onClick={runTest}>
+            ▶ Run
+          </button>
         </div>
         <div className="scratchpad__test-data">
           <AutoCompleteBox

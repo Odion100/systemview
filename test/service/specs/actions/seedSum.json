@@ -1,0 +1,28 @@
+{
+  "name": "seedSum",
+  "namespace": {
+    "serviceId": "TestService",
+    "moduleName": "Math",
+    "methodName": "add"
+  },
+  "steps": [
+    {
+      "title": "seed: add 2 + 3",
+      "namespace": {
+        "serviceId": "TestService",
+        "moduleName": "Math",
+        "methodName": "add"
+      },
+      "args": [
+        {
+          "name": "argument:",
+          "input": { "a": 2, "b": 3 },
+          "input_type": "object",
+          "data_type": "",
+          "targetValues": []
+        }
+      ],
+      "savedEvaluations": []
+    }
+  ]
+}

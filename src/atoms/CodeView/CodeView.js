@@ -63,20 +63,24 @@ const CodeView = ({ code = "", language = "text", highlight }) => {
       parent: host.current,
     });
 
-    // Center the highlighted line ONLY when the editor has its own scroll. In content-height layouts
-    // (flex grid) the whole file already fits, so scrollIntoView would instead scroll the containing
-    // STAGE to the middle — that's the "switching stories jumps to the middle" bug. Deferred a frame so
-    // the scroller is laid out and measurable.
+    // Center the highlighted line ONLY when the editor has its own scroll, and ONLY inside the editor's
+    // own scroller. We deliberately do NOT use EditorView.scrollIntoView: it walks UP the DOM and scrolls
+    // every scrollable ancestor (the .stage) to center the pane — that's the "switching stories/layout
+    // yanks the whole story to the middle" bug. Setting scrollDOM.scrollTop directly touches only this
+    // editor and never the stage. Deferred a frame so the scroller is laid out and measurable.
     let destroyed = false;
     if (range) {
       requestAnimationFrame(() => {
         if (destroyed || !view.scrollDOM) return;
-        if (view.scrollDOM.scrollHeight - view.scrollDOM.clientHeight > 4) {
+        const scroller = view.scrollDOM;
+        if (scroller.scrollHeight - scroller.clientHeight > 4) {
           // Center the MIDDLE of the range (not its first line) so the whole highlighted span sits
           // centered — otherwise range[0] centers and the rest of the range spills below.
           const midLine = Math.min(Math.floor((range[0] + range[1]) / 2), view.state.doc.lines);
           const pos = view.state.doc.line(midLine).from;
-          view.dispatch({ effects: EditorView.scrollIntoView(pos, { y: "center" }) });
+          const block = view.lineBlockAt(pos);
+          const target = block.top - scroller.clientHeight / 2 + block.height / 2;
+          scroller.scrollTop = Math.max(0, target);
         }
       });
     }

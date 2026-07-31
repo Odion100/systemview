@@ -87,7 +87,7 @@ const evalsOf = (action) => {
   catch { return []; }
 };
 
-function TestAction({ action, ran, phaseSig, phaseCollapsed }) {
+function TestAction({ action, ran, phaseSig, phaseCollapsed, autoExpand }) {
   const ns = action.namespace || {};
   const errs = ran ? errsOf(action) : [];
   const passed = ran && !errs.length;
@@ -99,9 +99,17 @@ function TestAction({ action, ran, phaseSig, phaseCollapsed }) {
   // its OWN pass/fail, not a whole-evaluation verdict.
   const errSet = new Set(errs.map((e) => `${e.namespace}::${e.name}`));
 
-  // Collapsed to a one-line preview by default; running the test auto-expands every action (like the
-  // scratchpad) so the results read as the full story. Clearing collapses them back.
-  React.useEffect(() => { setOpenAction(ran); }, [ran]);
+  // Collapsed to a one-line preview by default. On run: a FAILED action always auto-expands (you need to
+  // see what broke); a PASSED action stays collapsed unless the caller opts in (autoExpand). Not run ⇒
+  // collapsed. Keeps passing runs calm (and not fighting the auto-scroll) while never hiding a failure.
+  React.useEffect(() => {
+    if (!ran) { setOpenAction(false); return; }
+    const failedThis = errs.length > 0;
+    setOpenAction(failedThis || !!autoExpand);
+    // If it FAILED, open the evaluations too — the failing assertion is the whole point of expanding.
+    if (failedThis) setShowEvals(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ran, autoExpand]);
   // Folding a PHASE cascades to its actions: collapse → all actions drop to previews (still visible,
   // just title + call); expand → all open. Only fires on a real toggle (phaseSig starts at 0).
   React.useEffect(() => { if (phaseSig) setOpenAction(!phaseCollapsed); // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -150,7 +158,8 @@ function TestAction({ action, ran, phaseSig, phaseCollapsed }) {
         <div className={`test-action__returns ${action.response_type === "error" ? "is-error" : ""}`}>
           {/* Distinguish a THROW from a normal return — a divide-by-zero shows as an error, not a value
               (a test can still PASS by asserting the error; this just shows what actually happened). */}
-          <span className="test-action__arrow">{action.response_type === "error" ? "threw" : "returns"}</span>
+          {/* Labelled with the KEY you reference it by (results / error) — e.g. tv(test.main[0].results). */}
+          <span className="test-action__arrow">{action.response_type === "error" ? "error" : "results"}</span>
           {isObj(action.results)
             ? <Json src={errToObj(action.results)} />
             : <code className="test-action__lit">{String(action.results)}</code>}
@@ -193,13 +202,14 @@ const freshTest = (test, connectedServices) => {
   catch { return null; }
 };
 
-const TestStory = React.forwardRef(({ test, connectedServices, index, onResult }, ref) => {
+const TestStory = React.forwardRef(({ test, connectedServices, index, onResult, autoExpand, chromeless }, ref) => {
   const [ft, setFt] = useState(() => freshTest(test, connectedServices));
   const [running, setRunning] = useState(false);
   const [ran, setRan] = useState(false);
   const [collapsed, setCollapsed] = useState({});
   const [phaseSig, setPhaseSig] = useState({});
-  const [open, setOpen] = useState(true);
+  // Chromeless (scratchpad) tests start COLLAPSED — just the header. Story panes keep their open default.
+  const [open, setOpen] = useState(!chromeless);
   // Toggling a phase flips its collapsed flag AND bumps a per-phase signal so its actions cascade
   // (collapse to previews / expand) — the actions stay VISIBLE either way, never hidden.
   const toggle = (phase) => {
@@ -238,7 +248,11 @@ const TestStory = React.forwardRef(({ test, connectedServices, index, onResult }
   // Run-all / Clear-all: the parent calls these via ref, in SEQUENCE (never concurrently) — the exact
   // same discipline as the scratchpad's runAllTests. `run` is awaitable so the parent runs one test at
   // a time, so there's no session/cookie drift between running here and running in the scratchpad.
-  React.useImperativeHandle(ref, () => ({ run, clear }), [run, clear]);
+  React.useImperativeHandle(
+    ref,
+    () => ({ run, clear, expand: () => setOpen(true), collapse: () => setOpen(false) }),
+    [run, clear]
+  );
 
   if (!ft) return <div className="test-story test-story--error">Couldn’t load this test.</div>;
 
@@ -247,31 +261,37 @@ const TestStory = React.forwardRef(({ test, connectedServices, index, onResult }
 
   return (
     <div className={`test-story ${running ? "test-story--running" : ran ? (failed ? "test-story--fail" : "test-story--pass") : ""}`}>
-      <div className="test-story__head">
-        {/* The whole test folds — click the title. */}
-        <button type="button" className="test-story__fold" onClick={() => setOpen((o) => !o)}>
-          <span className="test-story__caret">{open ? "▾" : "▸"}</span>
-          <span className="test-story__title">
-            {ft.title || `${(ft.namespace || {}).moduleName}.${(ft.namespace || {}).methodName}`}
-            {typeof index === "number" && <span className="test-story__idx"> #{index}</span>}
-          </span>
-        </button>
-        {running ? (
-          <span className="test-story__status test-story__status--running">RUNNING…</span>
-        ) : ran ? (
-          <span className={`test-story__status test-story__status--${failed ? "fail" : "pass"}`}>
-            {failed ? "FAILED" : "PASSED"}
-          </span>
-        ) : null}
-        {ran && (
-          <button type="button" className="test-story__clear1" onClick={clear} disabled={running}>
-            Clear
+      {/* Chromeless (scratchpad): the surrounding card provides the header + Run/Edit/×, so we skip our
+          own head entirely and render just the phases. */}
+      {!chromeless && (
+        <div className="test-story__head">
+          {/* The whole test folds — click the title. */}
+          <button type="button" className="test-story__fold" onClick={() => setOpen((o) => !o)}>
+            <span className="test-story__caret">{open ? "▾" : "▸"}</span>
+            <span className="test-story__title">
+              {ft.title || `${(ft.namespace || {}).moduleName}.${(ft.namespace || {}).methodName}`}
+              {typeof index === "number" && <span className="test-story__idx"> #{index}</span>}
+            </span>
           </button>
-        )}
-        <button type="button" className="test-story__run" onClick={run} disabled={running}>
-          {running ? "Running…" : "▶ Run"}
-        </button>
-      </div>
+          {running ? (
+            <span className="test-story__status test-story__status--running">
+              <span className="test-story__spinner" />RUNNING…
+            </span>
+          ) : ran ? (
+            <span className={`test-story__status test-story__status--${failed ? "fail" : "pass"}`}>
+              {failed ? "FAILED" : "PASSED"}
+            </span>
+          ) : null}
+          {ran && (
+            <button type="button" className="test-story__clear1" onClick={clear} disabled={running}>
+              Clear
+            </button>
+          )}
+          <button type="button" className="test-story__run" onClick={run} disabled={running}>
+            {running ? "Running…" : "▶ Run"}
+          </button>
+        </div>
+      )}
       {open && PHASES.map((phase) => {
         const actions = ft[phase] || [];
         if (!actions.length) return null;
@@ -284,7 +304,7 @@ const TestStory = React.forwardRef(({ test, connectedServices, index, onResult }
               <span className="test-story__count">{actions.length}</span>
             </button>
             {actions.map((a, i) => (
-              <TestAction key={i} action={a} ran={ran} phaseSig={phaseSig[phase] || 0} phaseCollapsed={isCollapsed} />
+              <TestAction key={i} action={a} ran={ran} phaseSig={phaseSig[phase] || 0} phaseCollapsed={isCollapsed} autoExpand={autoExpand} />
             ))}
           </div>
         );

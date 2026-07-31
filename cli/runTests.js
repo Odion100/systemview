@@ -85,6 +85,9 @@ module.exports = async function runTests(
   }
 
   const allTestLists = await getTests(connectedServices, Client);
+  // Resolver for `{ use }` steps — permanent actions pulled from the services (RFC-020).
+  const actionMap = await getActionMap(connectedServices, Client);
+  const resolveAction = (name) => actionMap[name] || null;
   const testToRun = allTestLists
     .map((list) =>
       list.filter(({ namespace: n }) => {
@@ -125,7 +128,7 @@ module.exports = async function runTests(
     if (!json) log.info(`Initializing tests for ${serviceId}...`);
 
     try {
-      const initialized = initializeSavedTests(testList, connectedServices, Client, extraHeaders);
+      const initialized = initializeSavedTests(testList, connectedServices, Client, extraHeaders, resolveAction);
       const { passed, failed, jsonTests, failures } = await runAllTests(
         initialized,
         url,
@@ -360,6 +363,26 @@ async function getTests(connectedServices, Client) {
     }
   }
   return results;
+}
+
+// RFC-020 — pull every permanent named action from the connected services into a name → action map so the
+// runner can resolve `{ use }` steps. Tolerant: a service on an older plugin without getActions is skipped.
+async function getActionMap(connectedServices, Client) {
+  const map = {};
+  for (const { system } of connectedServices) {
+    const { connectionData } = system;
+    try {
+      const svc = Client.createService(connectionData);
+      if (!svc.Plugin || !svc.Plugin.getActions) continue;
+      const list = (await svc.Plugin.getActions()) || [];
+      list.forEach((a) => {
+        if (a && a.name && !map[a.name]) map[a.name] = a;
+      });
+    } catch (error) {
+      /* older plugin / no actions — fine */
+    }
+  }
+  return map;
 }
 
 async function resolveServices(api, project_code) {

@@ -15,6 +15,7 @@ import loadServiceWithHeaders from "../../utils/loadService";
 import FullTestController from "./components/FullTestController";
 import Title from "../../atoms/Title/Title";
 import { CurrentTest } from "../../atoms/StatusIndicator/StatusIndicator";
+import ActionsPanel from "../ActionsPanel/ActionsPanel";
 
 export default function FullTest({ projectCode, serviceId, moduleName, methodName, onCollapse }) {
   return <FullTestInner projectCode={projectCode} serviceId={serviceId} moduleName={moduleName} methodName={methodName} onCollapse={onCollapse} />;
@@ -37,6 +38,8 @@ const FullTestInner = ({ projectCode, serviceId, moduleName, methodName, onColla
   const FullTest = [Before, Main, Events, After];
   const [savedTests, setSavedTests] = useState([]);
   const [saveResponse, setMessage] = useState({ message: "", error: false });
+  // The scratchpad has two tabs: build a TEST, or create a named ACTION (RFC-020). Same builder machinery.
+  const [tab, setTab] = useState("test");
   window.Tests = FullTest;
   const testCtrl = (TestSection, setState, section, FullTest) =>
     new TestController({
@@ -136,6 +139,32 @@ const FullTestInner = ({ projectCode, serviceId, moduleName, methodName, onColla
             <CurrentTest name={`Saved Test ${1 + Main[0].index}`} onClick={resetTests} />
           )}
         </div>
+
+        <div className="row test-panel__tabs">
+          <button
+            type="button"
+            className={`test-panel__tab ${tab === "test" ? "test-panel__tab--active" : ""}`}
+            onClick={() => setTab("test")}
+          >
+            Test
+          </button>
+          <button
+            type="button"
+            className={`test-panel__tab ${tab === "actions" ? "test-panel__tab--active" : ""}`}
+            onClick={() => setTab("actions")}
+          >
+            Actions
+          </button>
+        </div>
+
+        {tab === "actions" ? (
+          <ActionsPanel
+            projectCode={projectCode}
+            serviceId={serviceId}
+            moduleName={moduleName}
+            methodName={methodName}
+          />
+        ) : (
         <div>
           <span className="row test__buttons">
             <span
@@ -149,10 +178,10 @@ const FullTestInner = ({ projectCode, serviceId, moduleName, methodName, onColla
               </span>
             </span>
 
-            <span>
-              <span className="btn" onClick={runTest}>
-                <RunTestIcon />
-              </span>
+            <span className="test-panel__run-actions">
+              <button type="button" className="test-panel__run-all" onClick={runTest}>
+                ▶ Run all
+              </button>
               <span className="btn" onClick={save}>
                 <SaveIcon />
               </span>
@@ -187,6 +216,7 @@ const FullTestInner = ({ projectCode, serviceId, moduleName, methodName, onColla
             />
           </div>
         </div>
+        )}
       </div>
       <div className="scroll-buffer"></div>
     </section>

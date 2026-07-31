@@ -174,8 +174,19 @@ $sv-blue: #6886ba;
     &--running {
       background: #eef1f8;
       color: $sv-blue;
-      animation: test-story-pulse 1s ease-in-out infinite;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
     }
+  }
+  &__spinner {
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    border: 1.5px solid rgba(104, 134, 186, 0.35);
+    border-top-color: $sv-blue;
+    border-radius: 50%;
+    animation: test-story-spin 0.7s linear infinite;
   }
   &__clear1 {
     border: 1px solid #d7dbe6;
@@ -250,11 +261,14 @@ $sv-blue: #6886ba;
     border-left-color: #e05757;
   }
 
-  // The whole action folds from here — click to show/hide its args, return, and assertions.
+  // The whole action folds from here — click to show/hide its args, return, and assertions. Collapsed it's
+  // [title][method call]; if the title crowds it, the call drops WHOLE onto the next line (flex-wrap), and
+  // the call itself never breaks mid-token.
   &__head {
     display: flex;
     align-items: baseline;
-    gap: 6px;
+    flex-wrap: wrap;
+    gap: 3px 6px;
     width: 100%;
     border: none;
     background: transparent;
@@ -265,6 +279,11 @@ $sv-blue: #6886ba;
   &__title {
     color: #46506a;
     font-weight: 600;
+  }
+  // The collapsed-preview method call: never wraps internally — it moves to its own line as one unit.
+  &__head &__call {
+    white-space: nowrap;
+    flex: 0 0 auto;
   }
   &__row {
     display: flex;
@@ -433,5 +452,11 @@ $sv-blue: #6886ba;
   }
   50% {
     opacity: 0.55;
+  }
+}
+
+@keyframes test-story-spin {
+  to {
+    transform: rotate(360deg);
   }
 }

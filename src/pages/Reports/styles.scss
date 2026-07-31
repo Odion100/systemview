@@ -9,7 +9,7 @@ $bad: #c62828;
   flex-direction: column;
   height: 100vh;
   box-sizing: border-box;
-  padding-top: 61px; // clear the absolutely-positioned global .page-header (62px), same as SystemView
+  // header is a real in-flow top bar now (was absolute) — no padding-top offset needed.
   background: #fafafb;
 
   .page-header {

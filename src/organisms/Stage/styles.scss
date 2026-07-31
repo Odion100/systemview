@@ -323,7 +323,7 @@ $pane-max: 72vh;
   &__title-toggle {
     border: none;
     background: transparent;
-    color: #6886ba;
+    color: #46608f; // the darker tone as the default (was the hover)
     cursor: pointer;
     font-size: 14px;
     font-family: "SF Mono", Menlo, monospace;
@@ -331,7 +331,7 @@ $pane-max: 72vh;
     text-align: left;
     font-weight: bold;
     &:hover {
-      color: #46608f;
+      color: #6886ba; // lighter on hover (swapped)
     }
   }
   &__add {

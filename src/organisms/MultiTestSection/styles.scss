@@ -1,19 +1,43 @@
 .multi-test-section {
   width: 100%;
   &__test-data {
-    background: #dadada;
-    padding: 12px 15px;
+    background: #eef1f7;
+    border: 1px solid #dde1ec;
+    padding: 10px 12px;
     width: 100%;
-    border-radius: 5px;
+    border-radius: 6px;
   }
   &__add-btn {
-    padding: 0px 4px;
+    padding: 0 6px;
     border-radius: 21px;
     font-weight: bold;
     color: #5960b6;
-    font-size: 16px;
-    background: #cecee3;
+    font-size: 15px;
+    background: #e3e5f3;
     font-family: monospace;
+    cursor: pointer;
+    &:hover {
+      background: #d5d8ee;
+    }
+  }
+  // Per-section controls — a Run-this-section button next to the add (+).
+  &__actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  &__run-btn {
+    border: 1px solid #6886ba;
+    background: #6886ba;
+    color: #fff;
+    font-size: 11px;
+    padding: 2px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    white-space: nowrap;
+    &:hover {
+      background: #5a76a8;
+    }
   }
 }
 

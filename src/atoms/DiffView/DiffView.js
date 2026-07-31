@@ -35,7 +35,27 @@ const DiffView = ({ base = "", head = "", language = "text" }) => {
       gutter: true,
     });
 
-    return () => view.destroy();
+    // The split merge view scrolls its two editors independently — you can swipe one side and leave the
+    // other behind, which is nonsense for a diff whose rows are aligned. Lock them together. The equality
+    // guard is what breaks the feedback loop: mirroring makes the two scrollTops equal, so the reflected
+    // scroll event early-returns instead of bouncing back.
+    const a = view.a.scrollDOM;
+    const b = view.b.scrollDOM;
+    const sync = (from, to) => () => {
+      if (to.scrollTop === from.scrollTop && to.scrollLeft === from.scrollLeft) return;
+      to.scrollTop = from.scrollTop;
+      to.scrollLeft = from.scrollLeft;
+    };
+    const syncAB = sync(a, b);
+    const syncBA = sync(b, a);
+    a.addEventListener("scroll", syncAB);
+    b.addEventListener("scroll", syncBA);
+
+    return () => {
+      a.removeEventListener("scroll", syncAB);
+      b.removeEventListener("scroll", syncBA);
+      view.destroy();
+    };
   }, [base, head, language]);
 
   return <div className="diff-view" ref={host} />;
