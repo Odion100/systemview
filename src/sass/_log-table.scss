@@ -4,21 +4,33 @@
   display: flex;
   width: 100%;
 
-  .log-th { flex: 1; }
+  .log-th {
+    flex: 1;
+  }
 }
 
 .logs-table {
   width: 100%;
   font-size: 13px;
   font-family: monospace;
-
-  .log-row { display: flex; width: 100%; }
-  .log-row--expanded { display: block; }
-  .log-cell { flex: 1; }
+  background: white;
+  .log-row {
+    display: flex;
+    width: 100%;
+  }
+  .log-row--expanded {
+    display: block;
+  }
+  .log-cell {
+    flex: 1;
+  }
 
   // RFC-011 — JSON view mode: every entry shown expanded (expand-all), separated as cards
   &--json {
-    .log-row--clickable { cursor: default; border-bottom: none; }
+    .log-row--clickable {
+      cursor: default;
+      border-bottom: none;
+    }
     .log-row--expanded {
       margin-bottom: 8px;
       border-bottom: 1px solid #e0e0e8;
@@ -37,32 +49,86 @@
   background: #f5f5fa;
   border-bottom: 2px solid #e0e0e8;
   white-space: nowrap;
+  overflow: hidden; // clip within the column instead of spilling into the next
+  text-overflow: ellipsis;
 
-  &--time    { min-width: 80px; }
-  &--project { min-width: 130px; }
-  &--service { min-width: 130px; }
-  &--method  { min-width: 160px; }
-  &--level   { min-width: 70px; }
-  &--msg     { }
-  &--traceid  { flex: 0 0 110px; color: #9494b7; font-size: 10px; letter-spacing: 0.02em; }
-  &--dynamic { flex: 0 0 120px; color: #7070a0; text-transform: none; letter-spacing: 0; font-weight: 600; font-style: normal; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  &--filtered { color: #7070a0; text-transform: none; letter-spacing: 0; font-weight: 600; font-style: normal; }
+  &--time {
+    min-width: 80px;
+  }
+  &--project {
+    min-width: 130px;
+  }
+  &--service {
+    min-width: 130px;
+  }
+  &--method {
+    min-width: 160px;
+  }
+  &--level {
+    min-width: 70px;
+  }
+  &--msg {
+  }
+  &--traceid {
+    flex: 0 0 110px;
+    color: #9494b7;
+    font-size: 10px;
+    letter-spacing: 0.02em;
+  }
+  &--dynamic {
+    flex: 0 0 120px;
+    color: #7070a0;
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: 600;
+    font-style: normal;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  &--filtered {
+    color: #7070a0;
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: 600;
+    font-style: normal;
+  }
 }
 
 .log-row {
   border-bottom: 1px solid #ebebf0;
 
-  &--dim .log-level { opacity: 0.55; }
-  &--clickable { cursor: pointer; }
-  &--clickable:hover .log-cell { background: #e4e4f4; }
-  &--active .log-cell { background: #d0d0ec !important; opacity: 1 !important; }
-  &--expanded { background: #f7f7fb; cursor: pointer; }
-  &--expanded:hover { background: #eeeef8; }
+  &--dim .log-level {
+    opacity: 0.55;
+  }
+  &--clickable {
+    cursor: pointer;
+  }
+  &--clickable:hover .log-cell {
+    background: #e4e4f4;
+  }
+  &--active .log-cell {
+    background: #d0d0ec !important;
+    opacity: 1 !important;
+  }
+  &--expanded {
+    background: #ffffff;
+    cursor: pointer;
+  }
+  // &--expanded:hover {
+  //   background: #eeeef8;
+  // }
 
   // RFC-011 — highlight (filter's twin): matched rows stay, get an amber tint + left accent
-  &--highlight .log-cell { background: #fdf6e3; }
-  &--highlight.log-row--clickable:hover .log-cell { background: #f9edcf; }
-  &--highlight .log-cell--time { box-shadow: inset 3px 0 0 #e0b849; }
+  &--highlight .log-cell {
+    background: #fdf6e3;
+  }
+  &--highlight.log-row--clickable:hover .log-cell {
+    background: #f9edcf;
+  }
+  &--highlight .log-cell--time {
+    box-shadow: inset 3px 0 0 #e0b849;
+  }
 }
 
 // RFC-011 — emphasize the specific cell whose path matched a highlight clause
@@ -76,16 +142,51 @@
   padding: 5px 10px;
   white-space: nowrap;
   vertical-align: top;
+  overflow: hidden; // each cell clips its OWN content (ellipsis) rather than overlapping the next column
+  text-overflow: ellipsis;
 
-  &--time    { color: #888; min-width: 80px; }
-  &--project { color: #5577aa; min-width: 130px; }
-  &--service { color: #5577aa; min-width: 130px; }
-  &--method  { color: #333; min-width: 160px; }
-  &--level   { min-width: 70px; }
-  &--msg     { color: #555; max-width: 360px; white-space: normal; }
-  &--traceid  { flex: 0 0 110px; color: #9494b7; font-size: 10px; font-family: monospace; }
-  &--dynamic { flex: 0 0 100px; color: #7070a0; font-size: 11px; overflow: hidden; text-overflow: ellipsis; }
-  &--filtered { color: #7070a0; font-weight: 600; }
+  &--time {
+    color: #888;
+    min-width: 80px;
+  }
+  &--project {
+    color: #5577aa;
+    min-width: 130px;
+  }
+  &--service {
+    color: #5577aa;
+    min-width: 130px;
+  }
+  &--method {
+    color: #333;
+    min-width: 160px;
+  }
+  &--level {
+    min-width: 70px;
+  }
+  &--msg {
+    color: #555;
+    max-width: 360px;
+    white-space: normal;
+  }
+  &--traceid {
+    flex: 0 0 110px;
+    color: #9494b7;
+    font-size: 10px;
+    font-family: monospace;
+  }
+  &--dynamic {
+    flex: 0 0 120px; // MUST match .log-th--dynamic (was 100px → header/cell columns drifted out of line)
+    color: #7070a0;
+    font-size: 11px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  &--filtered {
+    color: #7070a0;
+    font-weight: 600;
+  }
 }
 
 .log-level {
@@ -96,21 +197,75 @@
   font-weight: 600;
   text-transform: uppercase;
 
-  &--dim   { background: #eee;    color: #999; }
-  &--log   { background: #e8f0fe; color: #3367d6; }
-  &--info  { background: #e8f0fe; color: #3367d6; }
-  &--warn  { background: #fef9e7; color: #d4a017; }
-  &--error { background: #fdecea; color: #c62828; }
-  &--debug { background: #e8f5e9; color: #2e7d32; }
+  &--dim {
+    background: #eee;
+    color: #999;
+  }
+  &--log {
+    background: #e8f0fe;
+    color: #3367d6;
+  }
+  &--info {
+    background: #e8f0fe;
+    color: #3367d6;
+  }
+  &--warn {
+    background: #fef9e7;
+    color: #d4a017;
+  }
+  &--error {
+    background: #fdecea;
+    color: #c62828;
+  }
+  &--debug {
+    background: #e8f5e9;
+    color: #2e7d32;
+  }
 }
 
 @keyframes log-row-appear {
-  from { opacity: 0; transform: translateY(5px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// A just-arrived entry: a quick, cool "ping" — a light indigo pulse across the row plus a left accent bar
+// that fades out in about a second. Deliberately NOT the amber highlight color (that's reserved for the
+// filter-highlight feature you use while monitoring) and deliberately short, so a burst of new rows reads
+// as "boom boom boom" landing — never a whole sheet washed in a slowly-fading tint.
+@keyframes log-row-flash {
+  0% {
+    background: rgba(79, 110, 240, 0.16);
+  }
+  100% {
+    background: transparent;
+  }
+}
+@keyframes log-row-flash-accent {
+  0% {
+    box-shadow: inset 3px 0 0 #4f6ef0;
+  }
+  100% {
+    box-shadow: inset 3px 0 0 rgba(79, 110, 240, 0);
+  }
 }
 
 .log-row--new {
-  animation: log-row-appear 0.35s ease-out;
+  animation: log-row-appear 0.3s ease-out;
+
+  .log-cell {
+    animation: log-row-flash 0.9s ease-out;
+  }
+  .log-cell--time {
+    animation:
+      log-row-flash 0.9s ease-out,
+      log-row-flash-accent 0.9s ease-out;
+  }
 }
 
 .log-duration {
@@ -139,14 +294,18 @@
   padding: 2px 8px;
   cursor: pointer;
   z-index: 1;
-  &:hover { background: rgba(255, 255, 255, 0.22); }
+  &:hover {
+    background: rgba(255, 255, 255, 0.22);
+  }
 }
 
+// The expanded-row object view — same light surface as a test's result object (react-json-view default
+// theme on a light box), NOT the old dark terminal look.
 .log-data {
-  margin: 0;
+  margin: 11px;
+  background: #f7f8fc;
   padding: 10px 14px;
-  background: #1e1e2e;
-  color: #cdd6f4;
+  border: 1px solid #e3e7f0;
   border-radius: 4px;
   font-size: 12px;
   overflow: auto;

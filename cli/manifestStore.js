@@ -33,6 +33,10 @@ function readFolderManifest(dir = manifestDir()) {
       if (entry.projectCode) projectCode = entry.projectCode;
       if (entry.headers) Object.assign(headers, entry.headers);
       services.push({
+        // Each service keeps its OWN projectCode — siblings sharing a cwd may belong to DIFFERENT projects
+        // (e.g. a dedicated log-test service under its own code). Callers register each under its own
+        // project instead of lumping them all under the last-seen `projectCode`.
+        projectCode: entry.projectCode,
         serviceId: entry.serviceId,
         system: entry.system,
         specList: entry.specList,

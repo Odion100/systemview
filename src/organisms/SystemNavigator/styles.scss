@@ -1,10 +1,29 @@
 .system-nav {
-  overflow: auto;
-  height: 100%; // fill the nav panel and scroll inside (equal height with the scratchpad)
+  // Proper container structure: the nav itself does NOT scroll. Flex column — a FIXED header (title +
+  // tabs) and a single scrolling BODY (the service tree). The body IS the bootstrap .container so the
+  // tree rows are its direct children and their gutters are absorbed — vertical scroll only, no stray
+  // horizontal scroll / clipped edge.
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  height: 100%; // fill the nav panel (equal height with the scratchpad)
   max-height: none;
-  padding-top: 18px; // drop the nav down so its title lines up with the scratchpad's header
   &__section {
     margin: 10px 10px; // was 21px — the header→next gap was way too big
+  }
+  // FIXED header — title + tabs. Never scrolls. Now a sibling of the .container (not inside it), so it
+  // needs the container's own 15px side padding back, or the title/tabs sit flush against the left edge.
+  &__header {
+    flex-shrink: 0;
+    padding: 18px 15px 0; // top drops it to line up with the scratchpad header; 15px sides = container's
+  }
+  // The ONLY scroll area (also the .container). Vertical scroll only; x is clipped as a backstop.
+  &__body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 0px !important;
   }
   &__object-title {
     display: inline;
@@ -68,9 +87,15 @@
     flex: 1;
     min-width: 0;
     // Make the service NAME fill its line, so the whole row is clickable — not just the text (matches how
-    // the module rows already behave).
+    // the module rows already behave). Bumped a touch heavier than a module so the service reads as the
+    // section head of its modules.
     > .link {
       display: block;
+      a {
+        font-size: 14.5px;
+        font-weight: 700;
+        color: #3b4460;
+      }
     }
   }
 
@@ -79,6 +104,7 @@
     align-items: center;
     gap: 5px;
     min-width: 0;
+    margin-top: 1px;
   }
 
   &__status-dot {
@@ -99,28 +125,38 @@
     }
   }
 
+  // The URL under a service — a quiet caption, so it never competes with the service name above it.
   &__service-url {
-    color: #607d8b !important;
+    color: #a0a6bb !important;
     text-decoration: none;
-    font-size: 13px;
+    font-size: 11px;
+    letter-spacing: 0.1px;
     word-break: break-all;
+    &:hover {
+      color: #6886ba !important;
+    }
   }
   &__link {
     width: 100%;
     margin-left: 3px;
     display: flex;
     align-items: center;
-    padding: 3px 7px;
+    padding: 2.5px 8px;
     border: 1px solid transparent; // reserved so selecting doesn't shift the row
     box-sizing: border-box;
-    border-radius: 5px;
+    border-radius: 6px;
     transition: background 0.12s;
 
-    // Base link text (the service-url keeps its own color via !important, so it's untouched). The anchor
-    // FILLS its row so the whole line is clickable — not just the text.
+    // Base link text (modules). The service name + project get their own bumped sizes below, so the tree
+    // reads as a clear hierarchy: project ▸ service ▸ module ▸ method. The anchor FILLS its row so the
+    // whole line is clickable — not just the text.
     a {
-      color: #46506a;
+      color: #4c5570;
       text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      line-height: 1.4;
+      letter-spacing: 0.1px;
     }
     & > .link {
       flex: 1;
@@ -133,6 +169,8 @@
       & > a {
         color: #575fc1 !important;
         font-weight: 700;
+        font-size: 15px;
+        letter-spacing: 0.2px;
       }
     }
     // Hierarchy PATH (ancestors, not the selection): ONLY a LEFT border, in a LIGHTER indigo, with a
@@ -143,7 +181,7 @@
     // The ACTUAL selection: the full 1px border AROUND *and* the left board, in the stronger indigo, on a
     // darker fill — so it clearly reads as the real selection, not just part of the path.
     &--selected-true {
-      background: #d9ddf4;
+      background: #d9ddf447;
       border-color: #6a74c4; // full 1px indigo border all the way around…
       box-shadow: inset 3px 0 0 #6a74c4; // …and the thicker board on the LEFT
       &:hover {

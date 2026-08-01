@@ -16,13 +16,46 @@
   }
 }
 .test-panel {
-  padding: 2rem 0rem 2rem 1rem;
-  overflow: auto;
+  // Proper container structure: the panel itself does NOT scroll. It's a flex column — a FIXED header
+  // (title + tabs) and a single scrolling BODY. The body IS the bootstrap .container, so the section
+  // rows are its direct children and their negative gutter margins are absorbed by the container padding
+  // — no stray horizontal scroll, no clipped edge. Vertical scroll only.
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
   font-size: 14px;
-  height: 100%; // fill the scratchpad panel and scroll inside (symmetrical with the nav)
+  height: 100%; // fill the scratchpad panel
   max-height: none;
   &__section {
     margin-bottom: 6px;
+  }
+  // FIXED header — title + tabs. Never scrolls. Its two rows are simple flex bars (no bootstrap grid),
+  // so zero their negative gutter margins to keep them from overflowing horizontally.
+  &__header {
+    flex-shrink: 0;
+    padding: 2rem 15px 0 16px;
+    > .row {
+      margin-left: 0;
+      margin-right: 0;
+    }
+  }
+  // The ONLY scroll area (also the .container). Vertical scroll only; x is clipped as a backstop.
+  &__body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+  // The scratchpad title + the "editing this saved test" chip share ONE row and never wrap — the chip's
+  // own title ellipsis handles a long name (before, a long name pushed the chip onto a second line).
+  &__head {
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 6px;
+    .status-indicator {
+      min-width: 0; // allow the chip to shrink so its title can ellipsis instead of wrapping the row
+    }
   }
 
   &__run-actions {
@@ -41,6 +74,22 @@
     white-space: nowrap;
     &:hover {
       background: #5a76a8;
+    }
+  }
+  // Expand-all / collapse-all + clear-all — quiet outline buttons next to the primary Run all.
+  &__icon-btn {
+    border: 1px solid #d7dbe6;
+    background: #fff;
+    color: #8b93a7;
+    font-size: 12px;
+    line-height: 1;
+    padding: 3px 9px;
+    border-radius: 4px;
+    cursor: pointer;
+    white-space: nowrap;
+    &:hover {
+      border-color: #97a0b8;
+      color: #46506a;
     }
   }
 

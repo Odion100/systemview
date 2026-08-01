@@ -58,9 +58,9 @@ const ServerModulesList = ({
                     link={`/specs/${projectCode}/${serviceId}/${name}/${fn}`}
                     text={
                       <span>
-                        {`.${fn}(`}
-                        <span style={{ fontWeight: "bold" }}>...</span>
-                        {")"}
+                        <span className={`${className}__methods__paren`}>.</span>
+                        {fn}
+                        <span className={`${className}__methods__paren`}>(…)</span>
                       </span>
                     }
                   />

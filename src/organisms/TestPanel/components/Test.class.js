@@ -27,6 +27,7 @@ export default function Test({
   this.clearResults = () => {
     this.results = null;
     this.response_type = "";
+    this.running = false;
     this.test_start = null;
     this.test_end = null;
     this.evaluations = [];

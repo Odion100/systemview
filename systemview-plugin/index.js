@@ -56,7 +56,14 @@ module.exports = function ({
     // RFC-017: one folder for everything SystemView writes into the project.
     const SV_DIR = path.resolve(process.cwd(), dir);
     ensureDir(SV_DIR);
-    const LOG_FILE = path.resolve(SV_DIR, logs);
+    // PER-SERVICE log file (mirrors the per-service stats file below). Sibling services in one project
+    // share this cwd; a single shared log file meant every service's getLog returned the WHOLE file, so
+    // aggregating logs across N services duplicated every record N times. Giving each service its own file
+    // (systemview.<serviceId>.logs) makes getLog return only that service's records — reads merge cleanly
+    // by timestamp with zero duplication, and it's already how things look when services run on separate
+    // hosts. `logs` config still overrides the base name.
+    const logBase = String(logs).replace(/\.logs$/, "");
+    const LOG_FILE = path.resolve(SV_DIR, `${logBase}.${serviceId || "default"}.logs`);
     const excludeModules = new Set([
       ...SKIP_MODULES,
       ...exclude.filter((s) => !s.includes(".")),

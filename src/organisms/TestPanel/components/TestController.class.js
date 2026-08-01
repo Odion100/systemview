@@ -10,16 +10,25 @@ export default function TestController({
 }) {
   this.runTest = async (testIndex) => {
     const test = TestSection[testIndex];
-    //run only one test
+    //run only one test — flag it running BEFORE awaiting so the step shows its running indicator
+    //(border + spinner) live, then settles to pass/fail once done.
+    test.running = true;
+    setState([...TestSection]);
     await test.runTest();
+    test.running = false;
     setState([...TestSection]);
   };
 
   // Run every step in THIS section, in sequence (awaiting each) — so a section (Before / Events / After)
   // can be run on its own. Sequential mirrors the full-run discipline (shared session/cookies never race).
+  // Each step flips its `running` flag around its await + re-renders, so the border/spinner track the
+  // currently-running step and each one settles to pass/fail as the run walks down the section.
   this.runAllTest = async () => {
     for (let i = 0; i < TestSection.length; i++) {
+      TestSection[i].running = true;
+      setState([...TestSection]);
       await TestSection[i].runTest();
+      TestSection[i].running = false;
       setState([...TestSection]);
     }
   };

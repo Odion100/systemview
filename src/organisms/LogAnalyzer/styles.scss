@@ -1,0 +1,63 @@
+// The analyzer fills its container as a flex column: toolbar + dashboard are fixed, and ONLY the table
+// body scrolls beneath them.
+.log-analyzer {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+
+  // The toolbar and the frequency dashboard never scroll — they hold their height above the table.
+  > .logs-toolbar,
+  > .dashboard {
+    flex: none;
+  }
+}
+
+// The one scroll region: the table body. The header inside rides sticky so it stays put as rows scroll.
+.log-analyzer__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+
+  .logs-table-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #f5f5fa; // opaque so scrolling rows never show through the sticky header
+  }
+}
+
+// The inline analyzer's toolbar: a single non-wrapping row — filter chips scroll horizontally on the left,
+// the count + controls hold their natural width on the right.
+.log-analyzer__toolbar {
+  flex-wrap: nowrap;
+}
+
+// The filter-chip lane. One line, scrolls sideways when the chips overflow, and shrinks (min-width:0) so
+// the right-side controls always keep room. Chips themselves never shrink.
+.log-analyzer__filters {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+  scrollbar-width: thin;
+
+  & > * {
+    flex: 0 0 auto;
+  }
+}
+
+// The count and the controls hold their intrinsic width — the filter lane absorbs all the flex.
+.log-analyzer__toolbar > .logs-count {
+  flex: 0 0 auto;
+}
+.log-analyzer__controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+}

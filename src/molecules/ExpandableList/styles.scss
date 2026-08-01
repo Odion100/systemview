@@ -9,6 +9,7 @@
   &__button {
     text-align: left;
     display: flex;
+    margin: 0.5px 0; // a little breathing room between rows so the tree doesn't read as a dense block
     & > span,
     a {
       display: flex;

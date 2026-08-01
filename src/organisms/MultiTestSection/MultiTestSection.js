@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import ExpandableSection from "../../molecules/ExpandableSection/ExpandableSection";
 import TestCaption from "../../molecules/TestCaption/TestCaption";
 import TestContainer from "../TestContainer/TestContainer";
 import Argument from "../TestPanel/components/Argument.class";
+import FoldContext from "../TestPanel/FoldContext";
 
 import "./styles.scss";
 import Count from "../../atoms/Count";
@@ -18,6 +19,18 @@ const MultiTestSection = ({
 }) => {
   const className = "multi-test-section";
   const [open, setOpen] = useState(false);
+
+  // When a run reaches this section (any step flips to running), auto-expand it so you can watch the
+  // steps go — the section shouldn't stay collapsed while it's actively running underneath.
+  useEffect(() => {
+    if (TestSection.some((t) => t.running)) setOpen(true);
+  }, [TestSection]);
+
+  // Expand-all / collapse-all from the scratchpad's top toolbar.
+  const fold = useContext(FoldContext);
+  useEffect(() => {
+    if (fold.signal) setOpen(fold.open);
+  }, [fold.signal]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggleExpansion = () => {
     setOpen((state) => !state);
@@ -39,7 +52,12 @@ const MultiTestSection = ({
           <>
             <TestCaption
               caption={
-                <span>
+                // The label itself toggles the section — not just the caret (the run/add buttons sit in
+                // their own actions group, so they're unaffected).
+                <span
+                  className={`${className}__caption-toggle`}
+                  onClick={toggleExpansion}
+                >
                   {caption}{" "}
                   {TestSection.length > 0 && <Count count={TestSection.length} />}
                 </span>

@@ -11,8 +11,10 @@
   .cm-editor {
     min-height: 60vh;
     // Cap the editor so it stops growing with the document and its OWN scroller takes over — otherwise it
-    // grows past the (overflow:hidden) doc/edit box and the bottom of a long doc is unreachable.
-    max-height: 68vh;
+    // grows past the (overflow:hidden) doc/edit box and the bottom of a long doc is unreachable. Matches
+    // the READ box's cap (.doc-pane .edit-box--read = 100vh - 138px) MINUS the editor's Save/Close action
+    // bar (~40px), so edit mode reaches the same bottom as read mode instead of snapping shorter.
+    max-height: calc(100vh - 178px);
     max-width: 100%;
   }
   // Wrapping is enabled in CodeEditor; belt-and-suspenders so a long token can never force a sideways

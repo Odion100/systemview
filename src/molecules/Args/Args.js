@@ -9,6 +9,38 @@ import Toggle from "../../atoms/Toggle/Toggle";
 import { getType, defaultValue } from "../ValidationInput/validator";
 import "./styles.scss";
 const className = "args";
+// A compact, type-indicative preview of a COLLAPSED argument's value — so a folded arg says what it holds
+// (an object/array/string/etc.) without opening it. Long values are clipped; short ones (bool/number)
+// show in full.
+const trunc = (s, n = 14) => (s.length > n ? s.slice(0, n) + "…" : s);
+const argPreview = (input_type, input, targetValues) => {
+  switch (input_type) {
+    case "object":
+      return "{…}";
+    case "array":
+      return "[…]";
+    case "string": {
+      const s = String(input == null ? "" : input);
+      return `"${s ? trunc(s) : "…"}"`;
+    }
+    case "number":
+      return String(input);
+    case "boolean":
+      return String(input === true);
+    case "date":
+      return trunc(String(input || ""), 16) || "date";
+    case "target": {
+      const t = targetValues && targetValues[0] && targetValues[0].target_namespace;
+      return t ? `ref → ${trunc(String(t))}` : "ref → …";
+    }
+    case "undefined":
+      return "undefined";
+    case "null":
+      return "null";
+    default:
+      return "…";
+  }
+};
 const Args = ({ args, controller, testIndex, locked }) => {
   const add = () => controller.addArg(testIndex);
 
@@ -41,7 +73,7 @@ const Args = ({ args, controller, testIndex, locked }) => {
   );
 };
 const ArgData = ({ arg, testIndex, i, controller, locked }) => {
-  const { name, input_type } = arg;
+  const { input_type } = arg;
   const [isOpen, setOpen] = useState(true);
   const showData = () => {
     setOpen(!isOpen);
@@ -66,15 +98,27 @@ const ArgData = ({ arg, testIndex, i, controller, locked }) => {
     input_type === "date" ||
     input_type === "target";
   return !isOpen ? (
+    // Collapsed: JUST the value indicator (the type says what it is — no "argument" label needed). The
+    // caret + preview are the whole token; click it to expand.
     <div className={`${className}__name-display`}>
-      <ArgName name={name} isOpen={isOpen} showData={showData} />
+      <ExpandableIcon
+        isOpen={isOpen}
+        ClassName={`${className}__expand-btn`}
+        onClick={showData}
+      />
+      <span
+        className={`${className}__preview ${className}__preview--${input_type}`}
+        onClick={showData}
+      >
+        {argPreview(input_type, arg.input, arg.targetValues)}
+      </span>
     </div>
   ) : (
     <div className={`${className}__data container`} key={i}>
       <div className={`row no-gutters justify-content-start align-items-center`}>
         <div className={`col`}>
           <div className={`${className}__from-container`}>
-            <ArgName name={name} isOpen={isOpen} showData={showData} />
+            <ArgName isOpen={isOpen} showData={showData} />
           </div>
         </div>
         <div className={`col`}>
@@ -106,7 +150,9 @@ const ArgData = ({ arg, testIndex, i, controller, locked }) => {
     </div>
   );
 };
-const ArgName = ({ name, isOpen, showData }) => {
+// Expanded only. One UNIFIED label — always "argument:" (never arg1/arg2/arg3) — the type selector and
+// value form beside it carry the specifics. Collapsed args render their value indicator instead (above).
+const ArgName = ({ isOpen, showData }) => {
   return (
     <div className={`${className}__name`}>
       <ExpandableIcon
@@ -114,7 +160,9 @@ const ArgName = ({ name, isOpen, showData }) => {
         ClassName={`${className}__expand-btn`}
         onClick={showData}
       />{" "}
-      {/* <span className={`${className}__name__text`}>{name + ""}</span> */}
+      <span className={`${className}__name__text`} onClick={showData}>
+        argument:
+      </span>
     </div>
   );
 };

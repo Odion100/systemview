@@ -3,10 +3,8 @@ import { useParams } from "react-router-dom";
 import SystemNavigator from "../../organisms/SystemNavigator/SystemNavigator";
 import Documentation from "../../organisms/Documentation/Documentation";
 import TestPanel from "../../organisms/TestPanel/TestPanel";
-import NavLinks from "../../organisms/NavLinks/NavLinks";
-import LOGO from "../../assets/sysly.png";
+import PageHeader from "../../organisms/PageHeader/PageHeader";
 import "./styles.scss";
-const { version: VERSION } = require("../../../package.json");
 
 const SystemViewPage = () => {
   const { projectCode, serviceId, moduleName, methodName } = useParams();
@@ -26,44 +24,7 @@ const SystemViewPage = () => {
   }, [scratchOpen]);
   return (
     <section className="system-viewer">
-      <div className="page-header">
-        <span
-          style={{
-            fontSize: "28px",
-            fontFamily: "Malkor",
-            color: "#3f51b5",
-            marginRight: "10px",
-            textShadow: "1px 1px 2px #d6cbca",
-          }}
-        >
-          SystemView
-        </span>
-        <img src={LOGO} alt="logo" />
-        <NavLinks projectCode={projectCode} current="specs" />
-        <span
-          style={{
-            position: "absolute",
-            fontFamily: "Malkor",
-            left: "40px",
-            fontSize: "20px",
-            color: "#2db432",
-            fontWeight: "500",
-          }}
-        >
-          v{VERSION}
-        </span>
-        {/* <span
-          style={{
-            fontSize: "28px",
-            fontFamily: "Malkor",
-            color: "#6886ba",
-            marginLeft: "10px",
-            textShadow: "1px 1px 2px #d6cbca",
-          }}
-        >
-          SystemLynx
-        </span> */}
-      </div>
+      <PageHeader projectCode={projectCode} current="specs" />
       <div className="row">
         {/* Left navigator — collapses into the LEFT corner (its handle sits by "Load Service"). */}
         <div

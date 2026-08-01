@@ -1,5 +1,8 @@
 .multi-test-section {
   width: 100%;
+  &__caption-toggle {
+    cursor: pointer; // the label toggles the section, like the caret
+  }
   &__test-data {
     background: #eef1f7;
     border: 1px solid #dde1ec;

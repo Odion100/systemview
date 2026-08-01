@@ -9,53 +9,9 @@ $bad: #c62828;
   flex-direction: column;
   height: 100vh;
   box-sizing: border-box;
-  // header is a real in-flow top bar now (was absolute) — no padding-top offset needed.
+  // The header is the shared `.page-header` bar (organisms/PageHeader) — identical to every other page,
+  // so NO local override here (that override is what made the Stats header look different).
   background: #fafafb;
-
-  .page-header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 20px;
-    background: #fff;
-    border-bottom: 1px solid #f0f0f0;
-    img { height: 34px; }
-  }
-}
-
-.reports-back {
-  background: none;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  color: #777;
-  font-size: 13px;
-  padding: 3px 10px;
-  cursor: pointer;
-  &:hover { background: #f0f0f8; }
-}
-
-.reports-title {
-  font-family: Malkor, sans-serif;
-  font-size: 24px;
-  color: #3f51b5;
-}
-.reports-heading {
-  font-family: Malkor, sans-serif;
-  font-size: 18px;
-  color: #6886ba;
-  margin-left: 4px;
-}
-
-.reports-project {
-  margin-left: 12px;
-  padding: 3px 12px;
-  font-size: 14px;
-  font-weight: 700;
-  color: #e05757;
-  background: #fdeeee;
-  border: 1px solid #f3caca;
-  border-radius: 14px;
-  font-family: monospace;
 }
 
 .reports-toolbar {

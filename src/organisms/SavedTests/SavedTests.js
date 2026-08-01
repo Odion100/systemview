@@ -4,7 +4,6 @@ import Count from "../../atoms/Count";
 import { EditIcon, XButton } from "../../atoms/RunTestIcon";
 import { resetFullTest } from "./transformTests";
 import TestStory from "../Stage/TestStory";
-import CLEAR_ICON from "../../assets/clear.png";
 import "./styles.scss";
 
 window.Client = Client;
@@ -100,11 +99,11 @@ const SavedTests = ({
             </button>
             <button
               type="button"
-              className={`${CLASSNAME}__icon-btn`}
+              className={`${CLASSNAME}__ctrl`}
               title="Clear all results"
               onClick={clearAllSeq}
             >
-              <img className={`${CLASSNAME}__clear-img`} src={CLEAR_ICON} alt="clear" />
+              Clear
             </button>
             <button
               type="button"
@@ -175,7 +174,9 @@ const SavedTests = ({
 // namespace + status, and the Run / Edit / × buttons moved into that header's right slot. The test body
 // renders chromeless below. `autoTrack` = auto-SCROLL only (NOT expand): when on it politely WAITS, EASES,
 // and GIVES UP the instant you scroll. Expansion is manual / on-fail only.
-function SavedTestItem({ test, index, status, hidden, connectedServices, storyRef, onResult, onEdit, onDelete, autoTrack }) {
+// Reused by the Stories `test` pane (TestPane) — there it's rendered WITHOUT onEdit/onDelete (a story just
+// shows + runs the test; it isn't the builder), so those controls only appear when the handlers are given.
+export function SavedTestItem({ test, index, status, hidden, connectedServices, storyRef, onResult, onEdit, onDelete, autoTrack }) {
   const nodeRef = useRef(null);
   const localRef = useRef(null);
   const [expanded, setExpanded] = useState(false); // collapsed by default — just the header
@@ -186,10 +187,9 @@ function SavedTestItem({ test, index, status, hidden, connectedServices, storyRe
 
   const setRefs = (el) => { localRef.current = el; if (storyRef) storyRef(el); };
 
-  // A FAILED test auto-expands so you can see what broke (a passing one stays collapsed).
-  useEffect(() => {
-    if (failed) { setExpanded(true); if (localRef.current && localRef.current.expand) localRef.current.expand(); }
-  }, [failed]);
+  // A failed test does NOT force its whole card open — you see it failed from the badge + red edge and
+  // open it yourself. When you DO open it, the failed step(s) inside are already expanded (TestStory's
+  // actions auto-expand the ones that broke), so you land right on what failed without expanding all.
 
   // Auto-track (auto-scroll to the running test). The scroll is scheduled the moment a run STARTS and is
   // NOT tied to the running state — a fast test finishes in <700ms, and if the timer were cleaned up on
@@ -259,8 +259,8 @@ function SavedTestItem({ test, index, status, hidden, connectedServices, storyRe
           ) : null}
         </button>
         <span className="test-saved-section__phead-actions">
-          <EditIcon onClick={onEdit} />
-          <DeleteControl onConfirm={onDelete} />
+          {onEdit && <EditIcon onClick={onEdit} />}
+          {onDelete && <DeleteControl onConfirm={onDelete} />}
           {ran && (
             <button type="button" className="test-saved-section__hclear" onClick={() => localRef.current && localRef.current.clear()} disabled={running}>
               Clear

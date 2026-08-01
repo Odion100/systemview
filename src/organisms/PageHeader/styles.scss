@@ -1,0 +1,24 @@
+// Element styles for the shared header. The `.page-header` BAR itself (height, flex, border, centering)
+// lives in SystemView/styles.scss and is global, so every page's header is the same bar; here we only
+// style its contents so brand / logo / version read identically everywhere.
+.page-header {
+  &__brand {
+    font-size: 28px;
+    font-family: Malkor;
+    color: #3f51b5;
+    margin-right: 10px;
+    text-shadow: 1px 1px 2px #d6cbca;
+  }
+  &__logo {
+    height: 38px;
+    width: auto;
+  }
+  &__version {
+    position: absolute;
+    left: 40px;
+    font-family: Malkor;
+    font-size: 20px;
+    color: #2db432;
+    font-weight: 500;
+  }
+}

@@ -1,28 +1,43 @@
 .evaluations {
-  // The block is tinted by the run result: translucent green when the test passed, translucent red
-  // when any assertion failed (errors.length > 0 — the same signal the "Test Passed/Failed" title uses).
-  background: #25d0a81f;
-  border-radius: 0px 0px 4px 4px;
+  // A clean, framed assertions panel (continues the response box above it). A faint wash signals the run
+  // result — soft green when it passed, soft red when any assertion failed — but subtle, so the per-clause
+  // green/red is what actually reads.
+  background: #f3faf6;
+  border: 1px solid #e6e9f0;
+  border-top: none;
+  border-radius: 0 0 6px 6px;
   overflow-wrap: anywhere;
-  padding: 12px 18px;
-  font-family: monospace;
+  padding: 10px 14px 12px;
+  font-family: "SF Mono", Menlo, monospace;
+  font-size: 12.5px;
+  color: #46506a;
   &--error-true {
-    background: #e057571f;
+    background: #fdf5f5;
   }
   &--visible-false {
     display: none;
   }
   &__row {
-    margin: 4px;
-    padding: 8px 5px;
+    margin: 2px 0;
+    padding: 6px 4px;
   }
 
   &__title {
     --type-width: auto;
-    margin-left: 10px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-left: 6px;
     width: 100%;
+    font-size: 12px;
     & select {
       width: var(--type-width);
+    }
+    // The top "Test Passed/Failed" header toggles the evaluations panel (the save-all checkbox is a
+    // sibling outside this div, so it's unaffected).
+    &--toggle {
+      cursor: pointer;
     }
   }
 
@@ -30,38 +45,66 @@
     & > input {
       width: 100%;
       padding: 6px 9px;
-      margin: 8px 0;
+      margin: 6px 0;
       box-sizing: border-box;
-      border: none;
-      border: 1px solid #383836;
-      background: #a5ffda;
+      border: 1px solid #cfd5e6;
+      border-radius: 5px;
+      background: #fff;
+      font-family: inherit;
+      font-size: 12.5px;
+      color: #46506a;
+      transition:
+        border-color 0.12s,
+        box-shadow 0.12s;
+      &:focus {
+        outline: none;
+        border-color: #6a74c4;
+        box-shadow: 0 0 0 2px rgba(106, 116, 196, 0.15);
+      }
     }
     &--visible-false {
       display: none;
     }
   }
+  // Small round "add a validation" button (＋) — quiet indigo, not a big blue blob.
   &__add-validation-btn {
-    background: #5a77ca;
-    padding: 0px 5px 1px 5px;
-    border-radius: 16px;
-    font-weight: bold;
-    color: #ffffff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    background: #eef0fa;
+    color: #6a74c4;
+    border: 1px solid #d9ddf4;
+    border-radius: 50%;
+    font-weight: 700;
+    font-size: 13px;
+    line-height: 1;
+    &:hover {
+      background: #6a74c4;
+      color: #fff;
+      border-color: #6a74c4;
+    }
   }
   &__validation-container {
     display: inline-grid;
-    margin-left: 4px;
+    margin-left: 6px;
+    gap: 2px;
   }
   &__add-btn-container {
     display: inline-grid;
+    align-content: start;
+    padding-top: 4px;
   }
   &__validation {
-    border-bottom: 1px solid #9797d1;
+    border-bottom: 1px solid #e4e7f2;
+    padding: 2px 0;
     &__delete-btn {
       display: inline;
       font-family: system-ui;
       margin-left: 6px;
-      font-size: 15px;
-      color: #6565a1;
+      font-size: 14px;
+      color: #aeb4c9;
       &:hover {
         color: #c30f0f;
       }
@@ -70,18 +113,50 @@
       display: inline-flex;
     }
   }
+  // The "Test Passed / Failed" HEADER label reads as a status badge. Scoped to the header title (it's the
+  // one carrying the error-/pass- modifier); the per-clause row titles don't match, so their namespaces
+  // are untouched.
+  &__title.evaluations--error-false > &__namespace,
+  &__title.evaluations--error-true > &__namespace {
+    padding: 2px 9px;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 0.2px;
+    background: #eaedf3;
+  }
+  &__title.evaluations--pass-true > &__namespace {
+    background: #e4f6e9;
+  }
+  &__title.evaluations--error-true > &__namespace {
+    background: #fdeaea;
+  }
+
   &__type-error-msg {
     display: none;
     &--true {
       display: initial;
     }
   }
-  &--error-true,
-  &--error-true > * {
+  // Only the FAILING pieces go red — NOT the whole block. The old `&--error-true > *` reddened every
+  // descendant the moment the test had ANY error, so a passing clause looked identical to a failing one.
+  // Now each element that itself carries `evaluations--error-true` colors only itself; the root block
+  // keeps just its red background tint (above) as the overall "failed" signal.
+  &__title.evaluations--error-true,
+  &__namespace.evaluations--error-true,
+  &__type.evaluations--error-true,
+  &__validation__input.evaluations--error-true,
+  &__type-error-msg--true {
     color: #cd4343;
-    //color: #993939;
     font-weight: bold;
-    //font-style: italic;
+  }
+  // A PASSED clause (the test ran and this piece had no error) reads GREEN — so at a glance you see what
+  // passed right next to what failed, instead of a wall of one color.
+  &__title.evaluations--pass-true,
+  &__namespace.evaluations--pass-true,
+  &__validation__input.evaluations--pass-true {
+    color: #1f9d4f;
+    font-weight: bold;
   }
   &__total {
     color: grey;

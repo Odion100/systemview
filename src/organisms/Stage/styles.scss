@@ -708,7 +708,10 @@ $pane-max: 72vh;
       }
     }
     &__body {
-      flex: 1;
+      // `flex: 1 1 auto` (basis AUTO, not 0%) so the body's base size is its CONTENT — in an auto-height
+      // pane it never collapses toward zero and let the `flex: none` replies swallow the whole pane (that
+      // was the "markdown with comments shows nothing" bug). It still shrinks/scrolls when space is tight.
+      flex: 1 1 auto;
       min-height: 0;
       overflow: auto;
     }
@@ -748,6 +751,10 @@ $pane-max: 72vh;
       display: flex;
       flex-direction: column;
       gap: 5px;
+      // A long conversation scrolls WITHIN the reply strip instead of growing the pane and stealing the
+      // document/test's own scroll height.
+      max-height: 33vh;
+      overflow-y: auto;
     }
     &__reply {
       display: flex;
@@ -884,7 +891,16 @@ $pane-max: 72vh;
       flex-basis: calc(50% - 10px);
       min-width: 240px;
       height: auto; // content-height (flex) …
-      max-height: $pane-max; // … up to a default MAX
+      // The cap lives on the BODY, not the whole pane — so the document/test/code gets its FULL scroll
+      // height and the reply thread (below it) is ADDITIVE, never stealing the content's height.
+      max-height: none;
+    }
+    .pane__body {
+      max-height: $pane-max; // … the content scrolls up to a default MAX, independent of any replies
+    }
+    // A dragged pane has an explicit height — its body fills that (the reply cap above still applies).
+    .pane--sized .pane__body {
+      max-height: none;
     }
     .pane--full {
       flex-basis: 100%;
@@ -1250,6 +1266,11 @@ $pane-max: 72vh;
 // 60vh/68vh viewport caps (which left dead space below a stretched doc). Scoped to `.pane--sized` so the
 // Documentation tab and normal content-height panes are untouched.
 .stage .pane--sized {
+  // On a dragged (definite-height) pane, the reply thread takes at most ~40% of the pane so the
+  // document/test always keeps the majority of the height (it never gets squeezed to nothing by comments).
+  .pane__replies {
+    max-height: 40%;
+  }
   .md-view,
   .md-view .edit-box {
     height: 100%;

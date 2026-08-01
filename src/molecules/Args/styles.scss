@@ -19,7 +19,6 @@
   // The arguments sit INSIDE the method wrapper — a coordinated (lighter indigo) surface so they read as a
   // distinct group from the wrapper, with the accent carried by the name pill.
   &__data {
-    background: whitesmoke;
     border: 1px solid #dde0f2;
     margin: 4px 2px;
     border-radius: 7px;
@@ -35,16 +34,63 @@
 
   &__name {
     white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
 
+    // Subtle — a quiet muted label, NOT the old bold indigo pill. Just enough to name the arg next to
+    // its caret without competing with the type selector / value.
     &__text {
-      display: inline-block;
-      margin: 1px 0px;
-      background: #6a74c4;
-      font-weight: bold;
-      color: white;
-      padding: 2px 10px;
-      border-radius: 100px;
+      font-family: monospace;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.2px;
+      color: #97a0b8;
       cursor: pointer;
+      &:hover {
+        color: #6a74c4;
+      }
+    }
+  }
+  // The collapsed value preview after "name:" — monospace, colored by TYPE so you can read the shape at a
+  // glance (string orange, number purple, etc.). Clipped so a long value never blows out the token.
+  &__preview {
+    font-family: monospace;
+    font-size: 11px;
+    margin-left: 4px;
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+    color: #8b93a7;
+    &--string {
+      color: #cf5f2e;
+    }
+    &--number {
+      color: #9741ed;
+      font-weight: bold;
+    }
+    &--boolean {
+      color: #207844;
+      font-weight: bold;
+    }
+    &--date {
+      color: #9f4040;
+    }
+    &--target {
+      color: #009572;
+      font-weight: bold;
+    }
+    &--object,
+    &--array {
+      color: #6a74c4;
+      font-weight: bold;
+    }
+    &--undefined,
+    &--null {
+      color: #8b93a7;
+      font-style: italic;
     }
   }
   &__from-container {
@@ -112,9 +158,22 @@
   &__type {
     text-align: center;
   }
+  // Collapsed arg — reads as a compact, quiet TOKEN (caret + subtle name) so several folded args line
+  // up as tidy little chips instead of bare carets. They wrap and hover-highlight.
   &__name-display {
-    margin-right: 4px;
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    margin: 2px 5px 2px 0;
+    padding: 1px 8px 1px 5px;
+    border: 1px solid #e6e9f0;
+    border-radius: 100px;
+    background: #f4f6fb;
+    vertical-align: middle;
+    transition: background 0.12s, border-color 0.12s;
+    &:hover {
+      background: #eceeff;
+      border-color: #c3c8ee;
+    }
   }
   &__expand-btn {
     color: #0035cf61;

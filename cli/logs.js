@@ -347,9 +347,8 @@ module.exports = async function logsCommand(
 
   if (current) {
     const allEntries = [];
-    // Services in one project can share a log file (same cwd) — getLog then returns the SAME records
-    // from each service. Dedupe identical entries so a log isn't shown once per sibling service.
-    const seen = new Set();
+    // Each service owns its own log file (systemview.<serviceId>.logs), so getLog returns only that
+    // service's records — merging across services just concatenates distinct sets, no duplication.
     for (const { svc } of connected) {
       try {
         let entries = await svc.SystemView.getLog({ limit });
@@ -361,12 +360,7 @@ module.exports = async function logsCommand(
         if (andFilters.length || orFiltersParsed.length)
           entries = entries.filter((e) => matchesFilters(e, andFilters, orFiltersParsed));
         if (level) entries = entries.filter((e) => e.level === level);
-        for (const e of entries) {
-          const key = `${e.traceId || ""}|${e.timestamp || ""}|${e.scope || ""}|${e.level || ""}|${e.moduleMethod || ""}`;
-          if (seen.has(key)) continue;
-          seen.add(key);
-          allEntries.push(e);
-        }
+        allEntries.push(...entries);
       } catch {}
     }
     if (allEntries.length) {
@@ -393,18 +387,21 @@ module.exports = async function logsCommand(
   };
 };
 
-function buildLogsUrl(uiUrl, { projectCode, effectiveNamespace, level, andFilters, orFilters }) {
-  const params = new URLSearchParams();
-  if (projectCode && effectiveNamespace !== projectCode) params.set("project", projectCode);
-  if (effectiveNamespace) params.set("method", effectiveNamespace);
-  if (level) params.set("level", level);
-  for (const f of andFilters || []) {
-    if (f.field === "has") params.append("has", f.value);
-    else if (f.field === "missing") params.append("missing", f.value);
-    else params.set(f.field, f.value);
+// The standalone /logs page is gone — logs now live in the Specs page's per-namespace Logs tab. Build a
+// link INTO that: /specs/<projectCode>/<serviceId>/<moduleName>/<methodName>?tab=logs. The specs route is
+// POSITIONAL, so we only extend the path when the namespace is a full service.module.method (3+ parts); a
+// fuzzy 1–2 part namespace can't be placed reliably, so it falls back to the project-level Logs tab.
+function buildLogsUrl(uiUrl, { projectCode, effectiveNamespace }) {
+  const segs = [projectCode].filter(Boolean);
+  const nsParts =
+    effectiveNamespace && effectiveNamespace !== projectCode
+      ? effectiveNamespace.split(".").filter(Boolean)
+      : [];
+  if (nsParts.length >= 3) {
+    segs.push(nsParts[0], nsParts[1], nsParts.slice(2).join("."));
   }
-  const q = params.toString();
-  return `${uiUrl}/logs${q ? "?" + q : ""}`;
+  const path = "/specs/" + segs.map(encodeURIComponent).join("/");
+  return `${uiUrl}${path}?tab=logs`;
 }
 
 function promptConfirm(question) {

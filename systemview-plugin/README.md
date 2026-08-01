@@ -48,7 +48,7 @@ SYSTEMVIEW_HOST=http://localhost:3000/systemview/api node index.js
 | `specs` | `./specs` | Local path for docs and test files |
 | `projectCode` | — | Groups services together in the UI |
 | `serviceId` | — | Name for this service |
-| `logs` | `./systemview.logs` | Local NDJSON log file path |
+| `logs` | `./systemview.logs` | Base name for the per-service NDJSON log file — written as `systemview.<serviceId>.logs` so sibling services sharing a cwd don't collide on one shared file |
 | `limit` | `100` | Default number of entries `getLog` returns |
 | `trace` | `true` | Auto-tracing — see below |
 | `redact` | `[]` | Paths to mask in logged `arguments`/`returnValue` — see below |

@@ -2,8 +2,51 @@
 
 .doc-tabs {
   display: flex;
+  align-items: center;
   gap: 0;
   border-bottom: 2px solid #e0e0e8;
+
+  // The scope breadcrumb rides at the far end of the tab row — monospace so it names the scope without
+  // eating a whole row. Full hierarchy: project » service.module.method(…). Each segment is CLICKABLE to
+  // retarget the middle panel; the segment matching the current middle scope is blue, the rest grey.
+  &__ns {
+    margin-left: auto;
+    padding: 0 4px 0 12px;
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 16px;
+    color: #8b93a7;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 60%;
+  }
+  // A clickable segment. Grey by default (any level you're NOT scoped to), blue + bold when it IS the
+  // current middle scope. Hover hints it's interactive.
+  &__ns-seg {
+    color: #8b93a7;
+    cursor: pointer;
+    &:hover {
+      color: #6b7080;
+      text-decoration: underline;
+    }
+    &--active {
+      color: #3f51b5;
+      font-weight: 600;
+      &:hover {
+        color: #3f51b5;
+      }
+    }
+  }
+  &__ns-sep {
+    color: #b0b7cc;
+    margin: 0 7px;
+  }
+  &__ns-dot {
+    color: #b0b7cc;
+  }
+  &__ns-paren {
+    color: #b0b7cc;
+  }
 }
 
 .doc-tab {
@@ -44,8 +87,12 @@
 }
 
 .inline-logs {
-  overflow-y: auto;
-  max-height: calc(100vh - 220px);
+  // A definite-height flex frame — the analyzer inside it does the scrolling (only its table body), so the
+  // toolbar/dashboard/table-header stay fixed while the rows scroll.
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 120px);
+  overflow: hidden;
 
   &__empty {
     color: #aaa;
@@ -64,7 +111,7 @@
   }
 
   &__data-table {
-    margin-bottom: 30px;
+    margin-bottom: 0; // no bottom margin — the doc runs to the bottom
   }
   &__title {
     color: #3f51b5;
@@ -85,8 +132,8 @@
   display: flex;
   flex-direction: column;
   max-height: calc(
-    100vh - 180px
-  ); // grows to content BELOW this; caps + scrolls only when genuinely long
+    100vh - 30px
+  ); // grows to content BELOW this; caps + scrolls only when genuinely long (extends near the page bottom)
   border: 1px solid #d7dbe6;
   border-radius: 6px;
   background: #fff;
@@ -129,7 +176,9 @@
     border-radius: 0; // the doc-pane frame provides the outer rounding
   }
   .md-view .edit-box--read {
-    max-height: calc(100vh - 240px);
+    // This is the REAL cap on the visible doc — the pane frame is taller, but the read box is what
+    // scrolls, so it has to reach down too. Only enough headroom for page-header + tabs + pane header.
+    max-height: calc(100vh - 138px);
   }
 
   // No documentation yet — a small, centered placeholder. SHORT, so an empty doc is a little display, not

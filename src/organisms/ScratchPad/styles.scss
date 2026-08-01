@@ -36,26 +36,42 @@
       font-family: sans-serif;
     }
   }
+  // The value sits in a subtle box with a small uppercase label — the SAME treatment the saved test /
+  // story uses for its result (`.test-action__returns`). On a thrown error the box goes light-red and the
+  // label turns red, so a failure reads at a glance.
   &__response-value {
-    font-family: "FS Mono", monospace;
-    margin-left: 10px;
-    margin: 5px 0 0 5px;
-    color: #223a95;
-    color: #a954ff;
+    font-family: "SF Mono", Menlo, monospace;
+    margin: 6px 0 2px;
+    padding: 6px 10px;
+    background: #f6f8fc;
+    border-radius: 5px;
+    color: #46506a;
     font-weight: 500;
     display: flex;
-    align-items: flex-start;
+    align-items: baseline;
     flex-wrap: wrap;
+    gap: 8px;
+    max-width: 100%;
+    overflow-x: auto;
     & span.collapsed-icon {
       position: relative;
       top: 2px;
       left: 7px;
     }
+    &--error {
+      background: #fdefef;
+      .scratchpad__response-type {
+        color: #e05757;
+      }
+    }
   }
   &__response-type {
-    color: #a954ff;
+    color: #97a0b8;
     font-weight: 700;
-    font-size: 13px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    flex-shrink: 0;
   }
   &__btn-container {
     position: absolute;

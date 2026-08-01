@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useState, useCallback, useRef } from "rea
 import ServiceContext from "../../ServiceContext";
 import loadServiceWithHeaders from "../../utils/loadService";
 import Markdown from "../../atoms/Markdown/Markdown";
-import TestStory from "./TestStory";
+import { SavedTestItem } from "../SavedTests/SavedTests";
 
 // RFC-018 — the `test` pane: a saved test rendered as a worked example — setup → call → args →
 // response → the assertions that pin it — with a Run button and inline pass/fail. It reuses the
@@ -119,21 +119,24 @@ const TestPane = ({ target = {}, projectCode }) => {
           </button>
         </div>
       )}
-      {tests.map((t, i) => {
-        // Filter by result — hide (don't unmount, so run state survives) the tests that don't match.
-        const hidden = filter && results[i] !== filter;
-        return (
-          <div key={i} style={hidden ? { display: "none" } : undefined}>
-            <TestStory
-              ref={(el) => { storyRefs.current[i] = el; }}
-              test={t}
-              connectedServices={connectedServices}
-              index={typeof index === "number" ? index : i}
-              onResult={(status) => onResult(i, status)}
-            />
-          </div>
-        );
-      })}
+      {/* The tests render as the SAME white card components the scratchpad's Saved tests use — but here in
+          a GRAY flex-wrap grid: each card has a comfortable width and they SPREAD across when the pane is
+          wide (wrapping to more rows) and collapse to a single column when the pane is narrow. Edit/Delete
+          are omitted (a story shows + runs a test; it isn't the builder). */}
+      <div className="test-pane__grid">
+        {tests.map((t, i) => (
+          <SavedTestItem
+            key={i}
+            test={t}
+            index={typeof index === "number" ? index : i}
+            status={results[i]}
+            hidden={filter && results[i] !== filter}
+            connectedServices={connectedServices}
+            storyRef={(el) => { storyRefs.current[i] = el; }}
+            onResult={(status) => onResult(i, status)}
+          />
+        ))}
+      </div>
     </div>
   );
 };

@@ -110,8 +110,12 @@ const ScratchPad = ({
             )}
           </span>
 
-          <div className="scratchpad__response-value">
-            <span className={`scratchpad__response-type`}>{test.response_type}:</span>
+          <div
+            className={`scratchpad__response-value ${
+              test.response_type === "error" ? "scratchpad__response-value--error" : ""
+            }`}
+          >
+            <span className={`scratchpad__response-type`}>{test.response_type}</span>
             <Argument value={testResults} />
           </div>
         </div>

@@ -3,17 +3,20 @@ import Test from "./Test.class";
 const sections = ["Before", "Main", "Events", "After"];
 
 export default function FullTestController({ FullTest, connectedServices }) {
-  this.runFullTest = async ([Before, Main, Events, After] = FullTest) => {
-    ///Events.forEach((test) => test.runTest());
-
-    await new Promise((resolve) => {
-      function recursiveRunTest(tests, i = 0) {
-        if (i === tests.length) resolve();
-        else tests[i].runTest().then(() => recursiveRunTest(tests, i + 1));
-      }
-      recursiveRunTest([...Before, ...Events, ...Main, ...After]);
-    });
-
+  // `onStep` (optional) is called after every running-flag flip so the caller can re-render between steps
+  // — that's what makes the scratchpad show WHICH step is running/passing/failing live during a full run
+  // (without it the whole run is opaque until the end). TestStory calls this with no onStep (it renders
+  // its own way), so its behavior is unchanged.
+  this.runFullTest = async (onStep) => {
+    const [Before, Main, Events, After] = FullTest;
+    const order = [...Before, ...Events, ...Main, ...After];
+    for (let i = 0; i < order.length; i++) {
+      order[i].running = true;
+      if (onStep) onStep();
+      await order[i].runTest();
+      order[i].running = false;
+      if (onStep) onStep();
+    }
     return [Before, Main, Events, After];
   };
 

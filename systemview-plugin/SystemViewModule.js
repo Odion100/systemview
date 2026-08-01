@@ -166,7 +166,8 @@ module.exports = ({ App, specs, projectCode, serviceId, module = {}, credentials
       return { projectCode, serviceId, system, specList, credentials };
     };
     this.getLog = ({ limit } = {}) => {
-      const logsFile = path.join(svDir, "systemview.logs");
+      // Per-service file — see index.js: a shared log file duplicated records across sibling services.
+      const logsFile = path.join(svDir, `systemview.${serviceId || "default"}.logs`);
       try {
         const lines = fs.readFileSync(logsFile, "utf8")
           .split("\n")
@@ -189,12 +190,15 @@ module.exports = ({ App, specs, projectCode, serviceId, module = {}, credentials
           .filter((f) => f.endsWith(".manifest.json") && f !== "manifest.json");
         const services = [];
         const headers = {};
-        let pc = projectCode;
         for (const f of files) {
           try {
             const entry = JSON.parse(fs.readFileSync(path.join(svDir, f), "utf8"));
             if (!entry || !entry.serviceId) continue;
-            if (entry.projectCode) pc = entry.projectCode;
+            // ONLY this service's OWN project. Siblings sharing a cwd write their manifests into the same
+            // .systemview/, so a different-project service (e.g. a dedicated log-test service) must NOT be
+            // folded into this project — otherwise `connect`/`getProjects`/the test runner lump them into
+            // one project. Entries with no projectCode (legacy) are treated as belonging to this project.
+            if (entry.projectCode && entry.projectCode !== projectCode) continue;
             if (entry.headers) Object.assign(headers, entry.headers); // per-origin config defaults
             services.push({
               serviceId: entry.serviceId,
@@ -204,11 +208,12 @@ module.exports = ({ App, specs, projectCode, serviceId, module = {}, credentials
             });
           } catch {}
         }
-        const manifest = { projectCode: pc, services };
+        const manifest = { projectCode, services };
         if (Object.keys(headers).length) manifest.headers = headers;
         try {
+          // Per-project cache file so two projects sharing a cwd don't clobber each other's manifest.json.
           fs.writeFileSync(
-            path.join(svDir, "manifest.json"),
+            path.join(svDir, `manifest.${projectCode}.json`),
             JSON.stringify(manifest, null, 2),
           );
         } catch {}

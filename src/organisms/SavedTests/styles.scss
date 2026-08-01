@@ -235,12 +235,21 @@
 
   // Two-row "Saved" header — the narrow scratchpad can't fit everything on one line, so buttons sit on
   // row 1 and the auto-track toggle + summary go on row 2 underneath.
+  // STICKY: as you scroll the scratchpad, this toolbar pins to the top (just under the tabs) and the saved
+  // tests scroll UNDER it — so the count / expand-all / clear / run-all / pass-fail / auto-track stay
+  // reachable. Opaque (panel bg = whitesmoke) with a soft bottom shadow to separate it from the tests.
   &__header2 {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: whitesmoke;
     display: flex;
     flex-direction: column;
     gap: 4px;
     width: 100%;
     min-width: 0;
+    padding: 6px 0 8px;
+    box-shadow: 0 6px 7px -6px rgba(40, 50, 90, 0.16);
   }
   &__hrow {
     display: flex;

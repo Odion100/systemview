@@ -61,13 +61,15 @@ async function loadManifest() {
     const api = `http://localhost:${DEFAULT_PORT}/systemview/api`;
     const { SystemView } = await Client.loadService(api);
     await Promise.all(
-      services.map(async ({ system, serviceId, specList }) => {
+      services.map(async ({ system, serviceId, specList, projectCode: svcProject }) => {
         if (!system || !system.connectionData) return;
         const alive = await appIsRunning(system.connectionData.serviceUrl);
         if (alive) {
           Client.createService(system.connectionData);
           connectedUrls.add(system.connectionData.serviceUrl);
-          try { await SystemView.connect({ system, projectCode, serviceId, specList }); } catch {}
+          // Register each service under ITS OWN project (siblings in one cwd may differ) — never lump them
+          // all under the folder's last-seen projectCode.
+          try { await SystemView.connect({ system, projectCode: svcProject || projectCode, serviceId, specList }); } catch {}
         }
         log.info(`  ${serviceId || system.connectionData.serviceUrl} — ${alive ? "live" : "offline"}`);
       }),

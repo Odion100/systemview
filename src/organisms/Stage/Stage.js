@@ -1,4 +1,11 @@
-import React, { useContext, useEffect, useState, useCallback, useRef, useMemo } from "react";
+import React, {
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+  useRef,
+  useMemo,
+} from "react";
 import ServiceContext from "../../ServiceContext";
 import PaneView from "./PaneView";
 import { useStageAdd } from "./StageAdd";
@@ -30,13 +37,19 @@ const Stage = ({ projectCode, serviceId, moduleName, methodName, onStageChange }
   const [headerOpen, setHeaderOpen] = useState(true); // the whole chips+selector header collapses for space
   // Gallery has two views (like grid has presets): "single" (one at a time) and "rail" (a big focused pane
   // + a scrollable rail of the rest you click to swap in). The big pane's width is resizable. Both persist.
-  const [galleryView, setGalleryView] = useState(() => (localStorage.getItem("sv.galleryView") === "rail" ? "rail" : "single"));
+  const [galleryView, setGalleryView] = useState(() =>
+    localStorage.getItem("sv.galleryView") === "rail" ? "rail" : "single",
+  );
   const [focusWidth, setFocusWidth] = useState(() => {
     const v = parseFloat(localStorage.getItem("sv.focusWidth"));
     return v >= 25 && v <= 85 ? v : 68;
   });
-  useEffect(() => { localStorage.setItem("sv.galleryView", galleryView); }, [galleryView]);
-  useEffect(() => { localStorage.setItem("sv.focusWidth", String(focusWidth)); }, [focusWidth]);
+  useEffect(() => {
+    localStorage.setItem("sv.galleryView", galleryView);
+  }, [galleryView]);
+  useEffect(() => {
+    localStorage.setItem("sv.focusWidth", String(focusWidth));
+  }, [focusWidth]);
 
   // The .stage div is the scroll container. When you switch to another story or flip the layout/view, it
   // must start at the TOP — otherwise it holds the previous scroll position (or a pane's centered range
@@ -46,17 +59,27 @@ const Stage = ({ projectCode, serviceId, moduleName, methodName, onStageChange }
   useEffect(() => {
     const el = stageRef.current;
     if (!el) return undefined;
-    const id = requestAnimationFrame(() => { el.scrollTop = 0; });
+    const id = requestAnimationFrame(() => {
+      el.scrollTop = 0;
+    });
     return () => cancelAnimationFrame(id);
   }, [selectedId, galleryView, focusIndex]);
 
   // Load + live-subscribe every story in the project (we filter to this namespace below).
   const loadStories = useCallback(async () => {
-    if (!SystemView || !projectCode) { setStories([]); return; }
-    try { setStories((await SystemView.listStories(projectCode)) || []); }
-    catch { setStories([]); }
+    if (!SystemView || !projectCode) {
+      setStories([]);
+      return;
+    }
+    try {
+      setStories((await SystemView.listStories(projectCode)) || []);
+    } catch {
+      setStories([]);
+    }
   }, [SystemView, projectCode]);
-  useEffect(() => { loadStories(); }, [loadStories]);
+  useEffect(() => {
+    loadStories();
+  }, [loadStories]);
   useEffect(() => {
     if (!SystemView || !projectCode) return undefined;
     let unsub;
@@ -64,17 +87,27 @@ const Stage = ({ projectCode, serviceId, moduleName, methodName, onStageChange }
       unsub = SystemView.on(`stories-updated:${projectCode}`, (list) =>
         setStories(Array.isArray(list) ? list : []),
       );
-    } catch { /* socket not ready */ }
-    return () => { if (typeof unsub === "function") unsub(); };
+    } catch {
+      /* socket not ready */
+    }
+    return () => {
+      if (typeof unsub === "function") unsub();
+    };
   }, [SystemView, projectCode]);
 
   // Stories filed AT or UNDER this namespace — click a project and you get everything beneath it; a
   // method shows just its own. This is how a namespaced story is actually findable.
   const nsStories = useMemo(
-    () => stories.filter((s) => s.namespace === nsKey || (s.namespace || "").startsWith(nsKey + "/")),
+    () =>
+      stories.filter(
+        (s) => s.namespace === nsKey || (s.namespace || "").startsWith(nsKey + "/"),
+      ),
     [stories, nsKey],
   );
-  const selected = useMemo(() => nsStories.find((s) => s.id === selectedId) || null, [nsStories, selectedId]);
+  const selected = useMemo(
+    () => nsStories.find((s) => s.id === selectedId) || null,
+    [nsStories, selectedId],
+  );
 
   // If you navigate away, drop a selection that no longer belongs to this namespace.
   useEffect(() => {
@@ -86,14 +119,22 @@ const Stage = ({ projectCode, serviceId, moduleName, methodName, onStageChange }
   // leak); restore once per mount, as soon as the story list has loaded.
   useEffect(() => {
     if (selectedId && nsStories.some((s) => s.id === selectedId)) {
-      try { localStorage.setItem(`sv.story.${nsKey}`, selectedId); } catch { /* ignore */ }
+      try {
+        localStorage.setItem(`sv.story.${nsKey}`, selectedId);
+      } catch {
+        /* ignore */
+      }
     }
   }, [selectedId, nsKey, nsStories]);
   const didRestore = useRef(false);
   useEffect(() => {
     if (didRestore.current || selectedId) return;
     let saved = null;
-    try { saved = localStorage.getItem(`sv.story.${nsKey}`); } catch { /* ignore */ }
+    try {
+      saved = localStorage.getItem(`sv.story.${nsKey}`);
+    } catch {
+      /* ignore */
+    }
     if (saved && nsStories.some((s) => s.id === saved)) {
       didRestore.current = true;
       setSelectedId(saved);
@@ -101,89 +142,177 @@ const Stage = ({ projectCode, serviceId, moduleName, methodName, onStageChange }
   }, [nsKey, nsStories, selectedId]);
 
   // Tell Documentation how many stories live here (tab badge + auto-focus on the empty→non-empty jump).
-  useEffect(() => { if (onStageChange) onStageChange(nsStories.length); }, [nsStories.length, onStageChange]);
+  useEffect(() => {
+    if (onStageChange) onStageChange(nsStories.length);
+  }, [nsStories.length, onStageChange]);
 
   const createStory = useCallback(async () => {
     const name = newName.trim();
     if (!name || !SystemView) return;
     try {
       const story = await SystemView.createStory(projectCode, { namespace: nsKey, name });
-      setNewName(""); setNaming(false);
+      setNewName("");
+      setNaming(false);
       if (story && story.id) setSelectedId(story.id);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }, [newName, SystemView, projectCode, nsKey]);
 
-  const deleteStory = useCallback(async (id) => {
-    try { await SystemView.deleteStory(projectCode, id); } catch { /* ignore */ }
-    if (selectedId === id) setSelectedId(null);
-  }, [SystemView, projectCode, selectedId]);
+  const deleteStory = useCallback(
+    async (id) => {
+      try {
+        await SystemView.deleteStory(projectCode, id);
+      } catch {
+        /* ignore */
+      }
+      if (selectedId === id) setSelectedId(null);
+    },
+    [SystemView, projectCode, selectedId],
+  );
 
   // --- editing the SELECTED story's panes (persist per-story, rebroadcast) ---
-  const addPane = useCallback((pane) => {
-    if (!selected) return;
-    try { SystemView.addStoryPane(projectCode, selected.id, pane); } catch { /* ignore */ }
-  }, [SystemView, projectCode, selected]);
-  const removePane = useCallback((paneId) => {
-    if (!selected) return;
-    try { SystemView.removeStoryPane(projectCode, selected.id, paneId); } catch { /* ignore */ }
-  }, [SystemView, projectCode, selected]);
-  const setSpan = useCallback((paneId, span) => {
-    if (!selected) return;
-    try { SystemView.setStoryPaneSpan(projectCode, selected.id, paneId, span); } catch { /* ignore */ }
-  }, [SystemView, projectCode, selected]);
+  const addPane = useCallback(
+    (pane) => {
+      if (!selected) return;
+      try {
+        SystemView.addStoryPane(projectCode, selected.id, pane);
+      } catch {
+        /* ignore */
+      }
+    },
+    [SystemView, projectCode, selected],
+  );
+  const removePane = useCallback(
+    (paneId) => {
+      if (!selected) return;
+      try {
+        SystemView.removeStoryPane(projectCode, selected.id, paneId);
+      } catch {
+        /* ignore */
+      }
+    },
+    [SystemView, projectCode, selected],
+  );
+  const setSpan = useCallback(
+    (paneId, span) => {
+      if (!selected) return;
+      try {
+        SystemView.setStoryPaneSpan(projectCode, selected.id, paneId, span);
+      } catch {
+        /* ignore */
+      }
+    },
+    [SystemView, projectCode, selected],
+  );
   // Leave a REPLY on a pane — a note/correction the agent reads back when planning. Rides on `pane.replies`
   // and persists through saveStory (no api/plugin change; the story object round-trips).
-  const addReply = useCallback((paneId, text) => {
-    if (!selected || !text || !text.trim()) return;
-    const panes = (selected.panes || []).map((p) =>
-      p.id === paneId ? { ...p, replies: [...(p.replies || []), { text: text.trim(), ts: Date.now(), author: "user" }] } : p,
-    );
-    try { SystemView.saveStory(projectCode, { ...selected, panes }); } catch { /* ignore */ }
-  }, [selected, SystemView, projectCode]);
-  const removeReply = useCallback((paneId, i) => {
-    if (!selected) return;
-    const panes = (selected.panes || []).map((p) =>
-      p.id === paneId ? { ...p, replies: (p.replies || []).filter((_, idx) => idx !== i) } : p,
-    );
-    try { SystemView.saveStory(projectCode, { ...selected, panes }); } catch { /* ignore */ }
-  }, [selected, SystemView, projectCode]);
-  const setLayout = useCallback((layout) => {
-    if (!selected) return;
-    try { SystemView.setStoryLayout(projectCode, selected.id, layout); } catch { /* ignore */ }
-  }, [SystemView, projectCode, selected]);
+  const addReply = useCallback(
+    (paneId, text) => {
+      if (!selected || !text || !text.trim()) return;
+      const panes = (selected.panes || []).map((p) =>
+        p.id === paneId
+          ? {
+              ...p,
+              replies: [
+                ...(p.replies || []),
+                { text: text.trim(), ts: Date.now(), author: "user" },
+              ],
+            }
+          : p,
+      );
+      try {
+        SystemView.saveStory(projectCode, { ...selected, panes });
+      } catch {
+        /* ignore */
+      }
+    },
+    [selected, SystemView, projectCode],
+  );
+  const removeReply = useCallback(
+    (paneId, i) => {
+      if (!selected) return;
+      const panes = (selected.panes || []).map((p) =>
+        p.id === paneId
+          ? { ...p, replies: (p.replies || []).filter((_, idx) => idx !== i) }
+          : p,
+      );
+      try {
+        SystemView.saveStory(projectCode, { ...selected, panes });
+      } catch {
+        /* ignore */
+      }
+    },
+    [selected, SystemView, projectCode],
+  );
+  const setLayout = useCallback(
+    (layout) => {
+      if (!selected) return;
+      try {
+        SystemView.setStoryLayout(projectCode, selected.id, layout);
+      } catch {
+        /* ignore */
+      }
+    },
+    [SystemView, projectCode, selected],
+  );
   // Arrange the grid into N panes per row: give every pane an even width (100/N %) and drop custom heights
   // for a clean uniform grid. One saveStory call, so no per-pane read-modify-write race.
-  const gridColumns = useCallback((n) => {
-    if (!selected) return;
-    const w = 100 / n;
-    const clean = (selected.panes || []).map((p) => ({ ...p, span: { w } }));
-    try { SystemView.saveStory(projectCode, { ...selected, layout: "grid", panes: clean }); } catch { /* ignore */ }
-  }, [SystemView, projectCode, selected]);
+  const gridColumns = useCallback(
+    (n) => {
+      if (!selected) return;
+      const w = 100 / n;
+      const clean = (selected.panes || []).map((p) => ({ ...p, span: { w } }));
+      try {
+        SystemView.saveStory(projectCode, { ...selected, layout: "grid", panes: clean });
+      } catch {
+        /* ignore */
+      }
+    },
+    [SystemView, projectCode, selected],
+  );
 
   const draggedId = useRef(null);
   // Where the dragged pane will LAND: { id, side }. Drives the drop indicator (before/after which pane) and
   // drop inserts there — so reordering works in BOTH directions.
   const [dropTarget, setDropTarget] = useState(null);
-  const onDragStartPane = useCallback((id) => { draggedId.current = id; }, []);
-  const onDragOverPane = useCallback((id, side) => {
-    if (!draggedId.current || draggedId.current === id) { setDropTarget(null); return; }
-    setDropTarget((prev) => (prev && prev.id === id && prev.side === side ? prev : { id, side }));
+  const onDragStartPane = useCallback((id) => {
+    draggedId.current = id;
   }, []);
-  const onDragEndPane = useCallback(() => { draggedId.current = null; setDropTarget(null); }, []);
-  const onDropPane = useCallback((targetId, side) => {
-    const dragged = draggedId.current;
+  const onDragOverPane = useCallback((id, side) => {
+    if (!draggedId.current || draggedId.current === id) {
+      setDropTarget(null);
+      return;
+    }
+    setDropTarget((prev) =>
+      prev && prev.id === id && prev.side === side ? prev : { id, side },
+    );
+  }, []);
+  const onDragEndPane = useCallback(() => {
     draggedId.current = null;
     setDropTarget(null);
-    if (!dragged || dragged === targetId || !selected) return;
-    const ids = (selected.panes || []).map((p) => p.id);
-    const from = ids.indexOf(dragged);
-    if (from < 0) return;
-    ids.splice(from, 1);
-    const to = ids.indexOf(targetId);
-    if (to < 0) ids.push(dragged);
-    else ids.splice(side === "after" ? to + 1 : to, 0, dragged);
-    try { SystemView.reorderStoryPanes(projectCode, selected.id, ids); } catch { /* ignore */ }
-  }, [selected, SystemView, projectCode]);
+  }, []);
+  const onDropPane = useCallback(
+    (targetId, side) => {
+      const dragged = draggedId.current;
+      draggedId.current = null;
+      setDropTarget(null);
+      if (!dragged || dragged === targetId || !selected) return;
+      const ids = (selected.panes || []).map((p) => p.id);
+      const from = ids.indexOf(dragged);
+      if (from < 0) return;
+      ids.splice(from, 1);
+      const to = ids.indexOf(targetId);
+      if (to < 0) ids.push(dragged);
+      else ids.splice(side === "after" ? to + 1 : to, 0, dragged);
+      try {
+        SystemView.reorderStoryPanes(projectCode, selected.id, ids);
+      } catch {
+        /* ignore */
+      }
+    },
+    [selected, SystemView, projectCode],
+  );
 
   // Drag the divider between the big focused pane and the rail to make the big pane as wide as you want.
   // Drags the DOM live, commits the % on release (persisted via the focusWidth effect above).
@@ -212,11 +341,23 @@ const Stage = ({ projectCode, serviceId, moduleName, methodName, onStageChange }
     const t = p.target || {};
     if (p.kind === "markdown") return "note";
     if (p.kind === "test") return t.methodName || t.moduleName || t.serviceId || "tests";
-    return String(t.path || t.method || p.kind).split("/").pop();
+    return String(t.path || t.method || p.kind)
+      .split("/")
+      .pop();
   };
 
   // onResize persists the pane's { w, h } size through the same setStoryPaneSpan path (span holds it).
-  const paneProps = { projectCode, connectedServices, onResize: setSpan, onReply: addReply, onRemoveReply: removeReply, onDragStartPane, onDragOverPane, onDragEndPane, onDropPane };
+  const paneProps = {
+    projectCode,
+    connectedServices,
+    onResize: setSpan,
+    onReply: addReply,
+    onRemoveReply: removeReply,
+    onDragStartPane,
+    onDragOverPane,
+    onDragEndPane,
+    onDropPane,
+  };
 
   // The selector: `bar` (compact kinds control) goes IN the chips row; `drill` (the big columns) gets
   // its OWN block below — so opening it never reflows or moves the chips row.
@@ -237,7 +378,7 @@ const Stage = ({ projectCode, serviceId, moduleName, methodName, onStageChange }
   };
 
   const panes = selected ? selected.panes || [] : [];
-  const rawLayout = selected ? (selected.layout || "grid") : "grid";
+  const rawLayout = selected ? selected.layout || "grid" : "grid";
   const layout = rawLayout === "gallery" ? "gallery" : "grid"; // legacy single/column → grid
   const fi = Math.min(focusIndex, Math.max(0, panes.length - 1));
 
@@ -245,80 +386,157 @@ const Stage = ({ projectCode, serviceId, moduleName, methodName, onStageChange }
     <div className="stage-wrap">
       {/* The whole header (chips + selector) collapses so the story view can take the full space. */}
       {!headerOpen ? (
-        <button type="button" className="stage-stories__title-toggle" onClick={() => setHeaderOpen(true)}>
+        <button
+          type="button"
+          className="stage-stories__title-toggle"
+          onClick={() => setHeaderOpen(true)}
+        >
           ▸ Stories · {selected ? selected.name : nsKey}
         </button>
       ) : (
-      <>
-      {/* Named story chips — the badge you wanted back. Pick one to edit; ✕ steps off it. */}
-      <div className="stage-stories">
-        {/* Same title style + full click target as the collapsed state — click it to fold. */}
-        <button type="button" className="stage-stories__title-toggle" title="Collapse — reclaim the space" onClick={() => setHeaderOpen(false)}>
-          ▾ Stories · {selected ? selected.name : nsKey}
-        </button>
-        {nsStories.map((s) => (
-          <span key={s.id} className={`stage-story-chip ${selectedId === s.id ? "is-sel" : ""}`}>
-            <button type="button" className="stage-story-chip__name" onClick={() => setSelectedId(s.id === selectedId ? null : s.id)}>
-              {chipLabel(s)}
+        <>
+          {/* Named story chips — the badge you wanted back. Pick one to edit; ✕ steps off it. */}
+          <div className="stage-stories">
+            {/* Same title style + full click target as the collapsed state — click it to fold. */}
+            <button
+              type="button"
+              className="stage-stories__title-toggle"
+              title="Collapse — reclaim the space"
+              onClick={() => setHeaderOpen(false)}
+            >
+              ▾ Stories · {selected ? selected.name : nsKey}
             </button>
-            {selectedId === s.id && (
-              <button type="button" className="stage-story-chip__x" title="Step off this story (doesn't delete it)" onClick={() => setSelectedId(null)}>×</button>
+            {nsStories.map((s) => (
+              <span
+                key={s.id}
+                className={`stage-story-chip ${selectedId === s.id ? "is-sel" : ""}`}
+              >
+                <button
+                  type="button"
+                  className="stage-story-chip__name"
+                  onClick={() => setSelectedId(s.id === selectedId ? null : s.id)}
+                >
+                  {chipLabel(s)}
+                </button>
+                {selectedId === s.id && (
+                  <button
+                    type="button"
+                    className="stage-story-chip__x"
+                    title="Step off this story (doesn't delete it)"
+                    onClick={() => setSelectedId(null)}
+                  >
+                    ×
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="stage-story-chip__del"
+                  title="Delete this story"
+                  onClick={() => deleteStory(s.id)}
+                >
+                  🗑
+                </button>
+              </span>
+            ))}
+            {naming ? (
+              <span className="stage-stories__new">
+                <input
+                  className="stage-stories__new-input"
+                  autoFocus
+                  placeholder="name this story…"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") createStory();
+                    if (e.key === "Escape") {
+                      setNaming(false);
+                      setNewName("");
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  className="stage-stories__new-btn"
+                  onClick={createStory}
+                  disabled={!newName.trim()}
+                >
+                  Create
+                </button>
+                <button
+                  type="button"
+                  className="stage-stories__new-cancel"
+                  onClick={() => {
+                    setNaming(false);
+                    setNewName("");
+                  }}
+                >
+                  ×
+                </button>
+              </span>
+            ) : (
+              <button
+                type="button"
+                className="stage-stories__add"
+                onClick={() => setNaming(true)}
+              >
+                ＋ New story
+              </button>
             )}
-            <button type="button" className="stage-story-chip__del" title="Delete this story" onClick={() => deleteStory(s.id)}>🗑</button>
-          </span>
-        ))}
-        {naming ? (
-          <span className="stage-stories__new">
-            <input
-              className="stage-stories__new-input"
-              autoFocus
-              placeholder="name this story…"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") createStory(); if (e.key === "Escape") { setNaming(false); setNewName(""); } }}
-            />
-            <button type="button" className="stage-stories__new-btn" onClick={createStory} disabled={!newName.trim()}>Create</button>
-            <button type="button" className="stage-stories__new-cancel" onClick={() => { setNaming(false); setNewName(""); }}>×</button>
-          </span>
-        ) : (
-          <button type="button" className="stage-stories__add" onClick={() => setNaming(true)}>＋ New story</button>
-        )}
-        {/* Just the compact kinds bar wraps into this row — the big drill is a separate block below. */}
-        {selected && SystemView && addBar}
-      </div>
+            {/* Just the compact kinds bar wraps into this row — the big drill is a separate block below. */}
+            {selected && SystemView && addBar}
+          </div>
 
-      {/* The drill lives in its OWN block, only when a kind is picked — it never touches the chips row. */}
-      {selected && SystemView && addDrill}
-      </>
+          {/* The drill lives in its OWN block, only when a kind is picked — it never touches the chips row. */}
+          {selected && SystemView && addDrill}
+        </>
       )}
 
       {!selected ? (
         <div className="stage stage--empty">
-          <p>{nsStories.length ? "Pick a story above to open it." : "No stories filed here yet."}</p>
+          <p>
+            {nsStories.length
+              ? "Pick a story above to open it."
+              : "No stories filed here yet."}
+          </p>
           <p className="stage__hint">
-            A namespace can hold many named stories — like a method holds many tests. Create one with
-            <strong> ＋ New story</strong>, then pull in a method's source, a test at any level, a diff,
-            a file, or a note. An agent can drive them too
-            (<code>systemview story &lt;project&gt; "name" --ns {nsKey}</code>).
+            A namespace can hold many named stories — like a method holds many tests.
+            Create one with
+            <strong> ＋ New story</strong>, then pull in a method's source, a test at any
+            level, a diff, a file, or a note. An agent can drive them too (
+            <code>systemview story &lt;project&gt; "name" --ns {nsKey}</code>).
           </p>
         </div>
       ) : (
         <>
           <div className="stage__toolbar">
-            <span className="stage__editing">Editing: <strong>{selected.name}</strong></span>
             {panes.length > 1 && (
               <div className="stage__controls">
                 <div className="stage__layouts">
                   {LAYOUTS.map((l) => (
-                    <button key={l} type="button" className={`stage__layout-btn ${layout === l ? "stage__layout-btn--active" : ""}`} onClick={() => setLayout(l)}>{l}</button>
+                    <button
+                      key={l}
+                      type="button"
+                      className={`stage__layout-btn ${layout === l ? "stage__layout-btn--active" : ""}`}
+                      onClick={() => setLayout(l)}
+                    >
+                      {l}
+                    </button>
                   ))}
                 </div>
                 {layout === "grid" && (
                   <div className="stage__cols" title="Arrange the grid — panes per row">
                     {[1, 2, 3, 4].map((n) => (
-                      <button key={n} type="button" className="stage__col-btn" title={`${n} per row`} onClick={() => gridColumns(n)}>
+                      <button
+                        key={n}
+                        type="button"
+                        className="stage__col-btn"
+                        title={`${n} per row`}
+                        onClick={() => gridColumns(n)}
+                      >
                         <span className="stage__col-icon">
-                          {Array.from({ length: n }).map((_, i) => <i key={i} />)}
+                          {Array.from({ length: n }).map((_, i) => (
+                            <i key={i} />
+                          ))}
                         </span>
                       </button>
                     ))}
@@ -326,11 +544,26 @@ const Stage = ({ projectCode, serviceId, moduleName, methodName, onStageChange }
                 )}
                 {layout === "gallery" && (
                   <div className="stage__cols" title="Gallery view">
-                    <button type="button" className={`stage__col-btn ${galleryView === "single" ? "stage__col-btn--active" : ""}`} title="One at a time" onClick={() => setGalleryView("single")}>
-                      <span className="stage__col-icon"><i style={{ width: "11px" }} /></span>
+                    <button
+                      type="button"
+                      className={`stage__col-btn ${galleryView === "single" ? "stage__col-btn--active" : ""}`}
+                      title="One at a time"
+                      onClick={() => setGalleryView("single")}
+                    >
+                      <span className="stage__col-icon">
+                        <i style={{ width: "11px" }} />
+                      </span>
                     </button>
-                    <button type="button" className={`stage__col-btn ${galleryView === "rail" ? "stage__col-btn--active" : ""}`} title="Big pane + rail" onClick={() => setGalleryView("rail")}>
-                      <span className="stage__col-icon"><i style={{ width: "8px" }} /><i style={{ width: "3px" }} /></span>
+                    <button
+                      type="button"
+                      className={`stage__col-btn ${galleryView === "rail" ? "stage__col-btn--active" : ""}`}
+                      title="Big pane + rail"
+                      onClick={() => setGalleryView("rail")}
+                    >
+                      <span className="stage__col-icon">
+                        <i style={{ width: "8px" }} />
+                        <i style={{ width: "3px" }} />
+                      </span>
                     </button>
                   </div>
                 )}
@@ -343,9 +576,18 @@ const Stage = ({ projectCode, serviceId, moduleName, methodName, onStageChange }
             // into the big view; drag the divider to widen the big pane. Rail items are just for picking.
             <div className="stage stage--rail" ref={stageRef}>
               <div className="stage__focus" style={{ flexBasis: `${focusWidth}%` }}>
-                <PaneView key={panes[fi].id} pane={panes[fi]} {...paneProps} onRemove={() => removePane(panes[fi].id)} />
+                <PaneView
+                  key={panes[fi].id}
+                  pane={panes[fi]}
+                  {...paneProps}
+                  onRemove={() => removePane(panes[fi].id)}
+                />
               </div>
-              <div className="stage__focus-resize" title="Drag to resize the big pane" onMouseDown={startFocusResize} />
+              <div
+                className="stage__focus-resize"
+                title="Drag to resize the big pane"
+                onMouseDown={startFocusResize}
+              />
               <div className="stage__rail">
                 {panes.map((p, i) => (
                   <div
@@ -355,12 +597,18 @@ const Stage = ({ projectCode, serviceId, moduleName, methodName, onStageChange }
                     title={railLabel(p)}
                   >
                     <div className="stage__rail-head">
-                      <span className="stage__rail-kind">{p.kind === "markdown" ? "note" : p.kind}</span>
+                      <span className="stage__rail-kind">
+                        {p.kind === "markdown" ? "note" : p.kind}
+                      </span>
                       <span className="stage__rail-name">{railLabel(p)}</span>
                       {i === fi && <span className="stage__rail-badge">shown</span>}
                     </div>
                     <div className="stage__rail-preview">
-                      <PaneView pane={p} projectCode={projectCode} connectedServices={connectedServices} />
+                      <PaneView
+                        pane={p}
+                        projectCode={projectCode}
+                        connectedServices={connectedServices}
+                      />
                     </div>
                   </div>
                 ))}
@@ -369,23 +617,53 @@ const Stage = ({ projectCode, serviceId, moduleName, methodName, onStageChange }
           ) : panes.length && layout === "gallery" ? (
             <div className="stage stage--gallery" ref={stageRef}>
               <div className="stage__gallery-nav">
-                <button type="button" onClick={() => setFocusIndex(Math.max(0, fi - 1))} disabled={fi === 0}>‹</button>
-                <span>{fi + 1} / {panes.length}</span>
-                <button type="button" onClick={() => setFocusIndex(Math.min(panes.length - 1, fi + 1))} disabled={fi >= panes.length - 1}>›</button>
+                <button
+                  type="button"
+                  onClick={() => setFocusIndex(Math.max(0, fi - 1))}
+                  disabled={fi === 0}
+                >
+                  ‹
+                </button>
+                <span>
+                  {fi + 1} / {panes.length}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setFocusIndex(Math.min(panes.length - 1, fi + 1))}
+                  disabled={fi >= panes.length - 1}
+                >
+                  ›
+                </button>
               </div>
-              <PaneView key={panes[fi].id} pane={panes[fi]} {...paneProps} onRemove={() => removePane(panes[fi].id)} />
+              <PaneView
+                key={panes[fi].id}
+                pane={panes[fi]}
+                {...paneProps}
+                onRemove={() => removePane(panes[fi].id)}
+              />
             </div>
           ) : panes.length ? (
             <div className="stage stage--grid" ref={stageRef}>
               {panes.map((pane) => (
-                <PaneView key={pane.id} pane={pane} {...paneProps} layout="grid" dropSide={dropTarget && dropTarget.id === pane.id ? dropTarget.side : null} onRemove={() => removePane(pane.id)} />
+                <PaneView
+                  key={pane.id}
+                  pane={pane}
+                  {...paneProps}
+                  layout="grid"
+                  dropSide={
+                    dropTarget && dropTarget.id === pane.id ? dropTarget.side : null
+                  }
+                  onRemove={() => removePane(pane.id)}
+                />
               ))}
               <div className="stage__buffer" />
             </div>
           ) : (
             <div className="stage stage--empty">
               <p>“{selected.name}” is empty.</p>
-              <p className="stage__hint">Use the selector above to add a source, test, diff, file, or note.</p>
+              <p className="stage__hint">
+                Use the selector above to add a source, test, diff, file, or note.
+              </p>
             </div>
           )}
         </>

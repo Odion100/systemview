@@ -13,6 +13,7 @@ const validationCount = (evaluations) =>
   evaluations.reduce((sum, e) => (e.save ? e.validations.length + 1 : 0) + sum, 0);
 export default function Evaluations({ test, updateTests }) {
   const { evaluations, errors } = test;
+  const ran = test.test_end != null; // a pass is only "green" once the test has actually run
   const [open, setOpen] = useState(false);
   const [saveAll, setSaveAll] = useState(!test.savedEvaluations.length);
   const [totalValidations, setTotalValidations] = useState(
@@ -89,7 +90,12 @@ export default function Evaluations({ test, updateTests }) {
         toggleExpansion={toggleExpansion}
         title={
           <>
-            <div className={`evaluations__title evaluations--error-${errors.length > 0}`}>
+            <div
+              className={`evaluations__title evaluations__title--toggle evaluations--error-${errors.length > 0} evaluations--pass-${
+                ran && errors.length === 0
+              }`}
+              onClick={toggleExpansion}
+            >
               <span className="evaluations__namespace">
                 {errors.length > 0 ? "Test Failed: " : "Test Passed: "}
               </span>
@@ -165,6 +171,7 @@ const EvaluationRow = ({
   const [type_width, setWidth] = useState(calcWidth(0));
   const style = { "--type-width": type_width + "px" };
   const [open, setOpen] = useState(errors.length && validations.length);
+  const ran = !!test && test.test_end != null; // only color green once it has actually run
 
   const typeError = !!errors.find(({ name }) => name === "typeError");
   const toggleExpansion = () => {
@@ -203,7 +210,7 @@ const EvaluationRow = ({
               <span
                 className={`evaluations__namespace evaluations--error-${
                   errors.length > 0
-                }`}
+                } evaluations--pass-${ran && errors.length === 0}`}
               >
                 {namespace}:{" "}
               </span>
@@ -252,7 +259,9 @@ const EvaluationRow = ({
               return (
                 <div className="evaluations__validation" key={i}>
                   <ValidationInput
-                    className={`evaluations--error-${isError} evaluations__validation__input`}
+                    className={`evaluations--error-${isError} evaluations--pass-${
+                      ran && !isError
+                    } evaluations__validation__input`}
                     type={expected_type}
                     name={name}
                     value={value}

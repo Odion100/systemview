@@ -56,34 +56,50 @@
   z-index: 10;
 }
 
+// Page nav — a SEGMENTED CONTROL, not three separate boxes. The links sit in one recessed track; the
+// current page is a single raised white segment. Reads as one cohesive control that says "you are here".
 .nav-links {
   position: absolute;
   right: 35px;
-  display: flex;
-  gap: 10px;
+  display: inline-flex;
   align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid #c1c9f6;
+  background: #f5f7ff;
+  border-radius: 11px;
+  box-shadow: inset 0 1px 2px rgba(40, 50, 90, 0.08);
 }
 
 .logs-nav-link {
-  font-size: 16px;
-  font-family: Malkor;
-  color: #6886ba;
+  font-family: inherit;
+  font-size: 13.5px;
+  letter-spacing: 0.2px;
+  color: #6b7392;
   text-decoration: none;
-  padding: 5px 16px;
-  border: 1.5px solid #b0bed8;
-  border-radius: 20px;
-  background: #f4f6fb;
+  padding: 6px 16px;
+  border-radius: 8px;
+  background: transparent;
   transition:
     background 0.15s,
-    border-color 0.15s;
+    color 0.15s,
+    box-shadow 0.15s;
+  // Non-active segments just tint on hover — no border, no box, so the track stays one clean control.
   &:hover {
-    background: #e4eaf8;
-    border-color: #6886ba;
+    color: #46506a;
+    background: rgba(255, 255, 255, 0.55);
   }
+  // The current page is the RAISED white segment — the only one that reads as pressed-in / selected.
   &--current {
-    background: #6886ba;
-    color: #fff;
-    border-color: #6886ba;
+    background: #fff;
+    color: #3f51b5;
+    font-weight: 500;
+    box-shadow: 0 1px 3px rgba(40, 50, 90, 0.16);
+    border: 1px solid;
+    &:hover {
+      background: #fff;
+      color: #3f51b5;
+    }
   }
 }
 
@@ -172,6 +188,7 @@
   justify-content: center;
   align-items: center;
   gap: 8px;
+  float: right;
   cursor: pointer;
   .title {
     cursor: pointer;
@@ -218,10 +235,10 @@
 // Margin ONLY when a side is collapsed, so its corner tab has breathing room and never hovers over
 // the center panel. Symmetric on both sides.
 .center-panel--nav-collapsed {
-  padding-left: 68px;
+  padding-left: 66px;
 }
 .center-panel--scratch-collapsed {
-  padding-right: 68px;
+  padding-right: 41px;
 }
 
 // Each column fills the row height and scrolls INSIDE itself, so the nav and scratchpad are symmetrical
@@ -237,7 +254,4 @@
 .scratchpad__body {
   height: 100%;
   min-height: 0;
-}
-.center-panel {
-  overflow-y: auto;
 }
