@@ -16,10 +16,43 @@
       "args": [
         {
           "name": "argument:",
-          "input": { "a": 2, "b": 3 },
+          "input": {
+            "a": 2,
+            "b": 3
+          },
           "input_type": "object",
           "data_type": "",
           "targetValues": []
+        }
+      ],
+      "savedEvaluations": []
+    },
+    {
+      "title": "seed: multiply the seeded sum by 4 (refs its own step 1)",
+      "namespace": {
+        "serviceId": "TestService",
+        "moduleName": "Math",
+        "methodName": "multiply"
+      },
+      "args": [
+        {
+          "name": "argument:",
+          "input": {
+            "a": "test.seedSum[0].results.sum",
+            "b": 4
+          },
+          "input_type": "object",
+          "data_type": "",
+          "targetValues": [
+            {
+              "target_namespace": "test.seedSum[0].results.sum",
+              "source_map": [
+                "input",
+                "a"
+              ],
+              "source_index": 0
+            }
+          ]
         }
       ],
       "savedEvaluations": []

@@ -183,32 +183,44 @@ const SystemNav = ({ projectCode, serviceId, moduleName, methodName, onCollapse 
     setConnectUrl("");
     setAdding(false);
   };
+  // ONE live listener, cleaned up on re-register. The old version had no cleanup and depended on the
+  // connectedServices ARRAY IDENTITY — and its handler setConnectedServices'd a new array, so every event
+  // re-ran the effect and stacked ANOTHER listener. Each socket event then fired N handlers, each forcing
+  // a full synchronous re-render (React 17 doesn't batch outside its own events) and adding a listener —
+  // compounding until any spec save (saveTest/saveDoc/saveAction all push a spec-list update) froze the
+  // page. Functional setState reads current state, so the effect only re-keys on the project.
   useEffect(() => {
-    if (connectedServices.length)
-      SystemView.on(
-        `spec-list-updated:${projectCode}`,
-        function updateSpecList({ specList, serviceId }) {
-          const serviceData = connectedServices.find(
-            (serviceData) =>
-              serviceData.serviceId === serviceId &&
-              serviceData.projectCode === projectCode,
-          );
-          if (serviceData) {
-            serviceData.specList = specList;
-            setConnectedServices([...connectedServices]);
-          }
-        },
-      );
-  }, [projectCode, connectedServices]);
+    if (!connectedServices.length) return;
+    const updateSpecList = ({ specList, serviceId }) => {
+      setConnectedServices((prev) => {
+        const serviceData = prev.find(
+          (s) => s.serviceId === serviceId && s.projectCode === projectCode,
+        );
+        if (!serviceData) return prev;
+        serviceData.specList = specList;
+        return [...prev];
+      });
+    };
+    const unsub = SystemView.on(`spec-list-updated:${projectCode}`, updateSpecList);
+    return unsub;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectCode, connectedServices.length]);
   useEffect(() => {
     fetchAllProjects();
   }, []);
   useEffect(() => {
     if (projectCode) fetchProject(projectCode);
   }, []);
+  // Same listener-stacking hazard as the spec-list effect above: Plugin is CACHED per serviceUrl, so
+  // re-running this without cleanup piled listeners onto the same dispatcher (one more per
+  // connectedServices change), and every service restart fired them all. One listener, cleaned up.
   useEffect(() => {
-    if (Plugin) Plugin.on(`reconnect`, fetchProject);
-  }, [Plugin, connectedServices]);
+    if (!Plugin) return;
+    const onReconnect = () => fetchProject();
+    const unsub = Plugin.on(`reconnect`, onReconnect);
+    return unsub;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [Plugin, projectCode]);
   return (
     <section className="system-nav">
         {/* Title + tabs are a FIXED header region — they don't scroll. The service tree below is the ONLY

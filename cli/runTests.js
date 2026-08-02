@@ -192,28 +192,23 @@ const runAllTests = async (savedTests, url, project_code, json, verbose, opts = 
   const { bail = false, phaseFilter = null, indexFilter = undefined } = opts;
   const sum = { passed: 0, failed: 0, jsonTests: [], failures: [] };
 
-  for (const { Before: B, Main: M, Events: E, After: A, title, namespace } of savedTests) {
-    let Before = [...B];
-    let Main = [...M];
-    let Events = [...E];
-    let After = [...A];
+  for (const test of savedTests) {
+    // RFC-020 — a test is `{ sections, order }`; the run-order is a list of section names (built-in
+    // before/main/events/after + any named-action sections). We run and report each section in that order.
+    const { title, namespace } = test;
+    const sections = { ...test.sections };
+    let order = [...(test.order || [])];
 
     if (phaseFilter) {
       const allowed = phaseFilter.split(",").map((p) => p.trim().toLowerCase());
-      if (!allowed.includes("before")) Before = [];
-      if (!allowed.includes("main")) Main = [];
-      if (!allowed.includes("events")) Events = [];
-      if (!allowed.includes("after")) After = [];
+      order = order.filter((name) => allowed.includes(name));
     }
-
     if (indexFilter !== undefined) {
-      Before = Before.slice(indexFilter, indexFilter + 1);
-      Main = Main.slice(indexFilter, indexFilter + 1);
-      Events = Events.slice(indexFilter, indexFilter + 1);
-      After = After.slice(indexFilter, indexFilter + 1);
+      order.forEach((name) => {
+        sections[name] = (sections[name] || []).slice(indexFilter, indexFilter + 1);
+      });
     }
 
-    const fullTest = [Before, Main, Events, After];
     const { moduleName, methodName, serviceId } = namespace;
 
     if (!json) {
@@ -224,24 +219,19 @@ const runAllTests = async (savedTests, url, project_code, json, verbose, opts = 
       console.log("");
     }
 
-    await runFullTest(fullTest);
+    await runFullTest({ sections, order });
 
     const hasFailed =
-      countErrors(Before) + countErrors(Main) + countErrors(Events) + countErrors(After) > 0;
+      order.reduce((n, name) => n + countErrors(sections[name] || []), 0) > 0;
 
     if (hasFailed) {
       sum.failed++;
       const failedPhases = [];
-      [
-        { phase: "Before", tests: Before },
-        { phase: "Main", tests: Main },
-        { phase: "Events", tests: Events },
-        { phase: "After", tests: After },
-      ].forEach(({ phase, tests }) => {
-        const actions = tests
+      order.forEach((name) => {
+        const actions = (sections[name] || [])
           .filter((t) => t.errors && t.errors.length)
           .map((t) => ({ actionTitle: t.title, errors: t.errors }));
-        if (actions.length) failedPhases.push({ phase, actions });
+        if (actions.length) failedPhases.push({ phase: sectionLabel(name), actions });
       });
       sum.failures.push({ serviceId, moduleName, methodName, title, failedPhases });
     } else {
@@ -249,23 +239,14 @@ const runAllTests = async (savedTests, url, project_code, json, verbose, opts = 
     }
 
     if (json) {
-      sum.jsonTests.push({
-        title,
-        serviceId,
-        moduleName,
-        methodName,
-        status: hasFailed ? "failed" : "passed",
-        Before: serializePhase(Before),
-        Main: serializePhase(Main),
-        Events: serializePhase(Events),
-        After: serializePhase(After),
-      });
+      const jsonTest = { title, serviceId, moduleName, methodName, status: hasFailed ? "failed" : "passed" };
+      order.forEach((name) => { jsonTest[sectionLabel(name)] = serializePhase(sections[name] || []); });
+      sum.jsonTests.push(jsonTest);
     } else {
       const compact = !verbose;
-      logPhase(Before, "Before", verbose, compact, false);
-      logPhase(Main, "Main", verbose, false, true);
-      logPhase(Events, "Events", verbose, compact, false);
-      logPhase(After, "After", verbose, compact, false);
+      order.forEach((name) =>
+        logPhase(sections[name] || [], sectionLabel(name), verbose, compact, name === "main")
+      );
     }
 
     if (bail && hasFailed) break;
@@ -318,6 +299,12 @@ function logPhase(tests, section, verbose = false, compact = false, isMain = fal
 
 function countErrors(tests) {
   return tests.reduce((n, t) => n + (t.errors ? t.errors.length : 0), 0);
+}
+
+// RFC-020 — a section's display label. Built-ins get their capitalized name; a named-action section shows
+// its own name (so a custom section reads as itself, e.g. "seedSum", not "Before").
+function sectionLabel(name) {
+  return { before: "Before", main: "Main", events: "Events", after: "After" }[name] || name;
 }
 
 function serializePhase(tests) {

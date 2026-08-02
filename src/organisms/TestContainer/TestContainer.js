@@ -82,12 +82,25 @@ const TestContainer = ({
         title={
           <div className={`${className}__title-wrap`} onClick={expandOnClick}>
             <div className={`${className}__title-row`}>
-              <TestCaption
-                onChange={updateTitle}
-                caption={<b>{title}</b>}
-                useInput={true}
-                title={test.title || ""}
-              />
+              {/* The delete × ANCHORS to the input's box — absolutely positioned over its right end,
+                  shaped like the input's end cap (the shared .delete-btn), zero space taken. Hidden
+                  until you hover the input. */}
+              <span className={`${className}__caption-wrap`}>
+                <TestCaption
+                  onChange={updateTitle}
+                  caption={<b>{title}</b>}
+                  useInput={true}
+                  title={test.title || ""}
+                />
+                {multiTest && (
+                  <span
+                    className={`${className}__delete-btn btn delete-btn`}
+                    onClick={deleteTest}
+                  >
+                    x
+                  </span>
+                )}
+              </span>
               {/* Status badge mirrors the saved-test card: spinner while running, PASS/FAIL once run. */}
               {running ? (
                 <span className={`${className}__badge is-running`}>
@@ -98,14 +111,6 @@ const TestContainer = ({
                   {status === "fail" ? "failed" : "passed"}
                 </span>
               ) : null}
-              {multiTest && (
-                <span
-                  className={`${className}__delete-btn btn delete-btn`}
-                  onClick={deleteTest}
-                >
-                  x
-                </span>
-              )}
             </div>
             {/* Collapsed: still show the method being called (under the title) so you can see what the
                 step IS without expanding it — same idea as a collapsed saved test / story action. */}

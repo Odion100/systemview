@@ -2,6 +2,10 @@
   width: 100%;
   &__caption-toggle {
     cursor: pointer; // the label toggles the section, like the caret
+    // Flex line so the badge · name · count · × all sit vertically centered on one row.
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
   }
   &__test-data {
     background: #eef1f7;
@@ -40,6 +44,35 @@
     white-space: nowrap;
     &:hover {
       background: #5a76a8;
+    }
+  }
+  // RFC-020 — a named-action section's identity in the scratchpad: an "action" tag + a remove (×).
+  // Plum, NOT blue — blue is the running/loading border color.
+  &__tag {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #fff;
+    background: #8e5aa8;
+    border-radius: 3px;
+    padding: 1px 5px;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+  &__remove-btn {
+    display: inline-flex;
+    align-items: center;
+    color: #a04a4a;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 14px;
+    line-height: 1;
+    opacity: 0.6;
+    &:hover {
+      opacity: 1;
+      color: #d33;
     }
   }
 }

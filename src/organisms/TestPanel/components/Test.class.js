@@ -11,13 +11,21 @@ export default function Test({
   savedEvaluations = [],
   index,
   editMode = true,
+  FullTest,
 }) {
   const logger = new TestLogger(this);
   this.index = index;
-  this.connection = {};
+  // Non-enumerable: `connection` holds live systemlynx service objects (huge + self-referential). If a
+  // reference ever resolves to a live Test and it's rendered (react-json-view) or JSON-serialized, an
+  // enumerable `connection` makes that traversal hang the page. Keep it OUT of serialization/rendering.
+  Object.defineProperty(this, "connection", { value: {}, enumerable: false, writable: true });
   this.title = title;
   this.args = args || [];
   this.editMode = editMode;
+  // RFC-020 — the section-array-of-arrays this step lives in, so `validate` can resolve `tv()` references
+  // in evaluation values. Non-enumerable: FullTest holds Tests holding FullTest (a cycle) and must stay
+  // OUT of JSON.stringify / obj().clone().
+  Object.defineProperty(this, "FullTest", { value: FullTest, enumerable: false });
   this.shouldValidate = shouldValidate || !!savedEvaluations.length;
   this.namespace = namespace || {
     serviceId: "",

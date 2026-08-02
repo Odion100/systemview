@@ -471,6 +471,34 @@ $sv-blue: #6886ba;
       color: #8a6d3b;
     }
   }
+  // What a FAILED clause actually got — "…, but received undefined" (validtionMessages wording).
+  &__received {
+    font-family: "SF Mono", Menlo, monospace;
+    font-weight: 700;
+    color: #c13c3c;
+  }
+  // String values wear visible quotes in their OWN color — so an empty string reads as «""», never blank.
+  &__quote {
+    color: #9aa3b8;
+    font-weight: 700;
+  }
+  // An evaluation asserting against a live REFERENCE — tv(path) — reads as the path in a distinct
+  // teal (not blue = running), so a reference-check is visibly different from a literal expectation.
+  &__ref {
+    font-family: "SF Mono", Menlo, monospace;
+    font-weight: 600;
+    color: #1f8a8a;
+    background: rgba(31, 138, 138, 0.09);
+    border-radius: 3px;
+    padding: 0 4px;
+  }
+  // What a reference RESOLVED to after a run — ": 2" hugging the target label so it reads as one unit.
+  &__resolved {
+    font-family: "SF Mono", Menlo, monospace;
+    font-weight: 700;
+    color: #46506a;
+    margin-left: -3px;
+  }
 }
 
 @keyframes test-story-pulse {
@@ -487,4 +515,33 @@ $sv-blue: #6886ba;
   to {
     transform: rotate(360deg);
   }
+}
+
+/* RFC-020 — a named-action section in a saved test: NO wrapper border/indent (that read as nested
+   inside Before) — the title lines up flush with the sibling sections. Instead its STEPS' left rails
+   (gray by default on ordinary steps) default to plum, flipping to pass/fail color on a run as usual. */
+.test-story__phase--named .test-story__phase-name {
+  color: #8e5aa8;
+}
+.test-story__phase--named .test-action {
+  border-left-color: #8e5aa8;
+}
+.test-story__phase--named .test-action--pass {
+  border-left-color: #2db44f;
+}
+.test-story__phase--named .test-action--fail {
+  border-left-color: #e05757;
+}
+.test-story__phase-tag {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #fff;
+  background: #8e5aa8;
+  border-radius: 3px;
+  padding: 1px 5px;
+  margin-right: 6px;
+  vertical-align: middle;
 }

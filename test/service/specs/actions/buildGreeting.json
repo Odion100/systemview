@@ -1,0 +1,76 @@
+{
+  "name": "buildGreeting",
+  "namespace": {
+    "serviceId": "TestService",
+    "moduleName": "Math",
+    "methodName": "chainUse"
+  },
+  "steps": [
+    {
+      "title": "concat \"system\" + \"view\"",
+      "namespace": {
+        "serviceId": "GatedService",
+        "moduleName": "String",
+        "methodName": "concat"
+      },
+      "args": [
+        {
+          "name": "argument:",
+          "input": "system",
+          "input_type": "string",
+          "data_type": "",
+          "targetValues": []
+        },
+        {
+          "name": "argument:",
+          "input": "view",
+          "input_type": "string",
+          "data_type": "",
+          "targetValues": []
+        }
+      ],
+      "savedEvaluations": []
+    },
+    {
+      "title": "upper-case the greeting (refs its own step 1)",
+      "namespace": {
+        "serviceId": "GatedService",
+        "moduleName": "String",
+        "methodName": "toUpperCase"
+      },
+      "args": [
+        {
+          "name": "argument:",
+          "input": {
+            "value": "test.buildGreeting[0].results.result"
+          },
+          "input_type": "object",
+          "data_type": "",
+          "targetValues": [
+            {
+              "target_namespace": "test.buildGreeting[0].results.result",
+              "source_map": [
+                "input",
+                "value"
+              ],
+              "source_index": 0
+            }
+          ]
+        }
+      ],
+      "savedEvaluations": [
+        {
+          "namespace": "results.result",
+          "expected_type": "string",
+          "validations": [
+            {
+              "name": "strEquals",
+              "value": "SYSTEMVIEW"
+            }
+          ],
+          "save": true
+        }
+      ]
+    }
+  ]
+}

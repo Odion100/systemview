@@ -63,7 +63,10 @@ module.exports = ({ App, specs, projectCode, serviceId, module = {}, credentials
       let tests;
       if (methodName) {
         const fileName = `${specs}/tests/${moduleName}.${methodName}.json`;
-        tests = JSON.parse(getFile(fileName) || "[]");
+        // Same `slot` stamp the aggregated branches get (see getFilesByNamespace) — one contract.
+        tests = JSON.parse(getFile(fileName) || "[]").map((t, i) =>
+          t && typeof t === "object" ? { ...t, slot: i } : t
+        );
       } else if (moduleName) {
         tests = getFilesByNamespace(`${specs}/tests/`, moduleName);
       } else {
@@ -85,7 +88,8 @@ module.exports = ({ App, specs, projectCode, serviceId, module = {}, credentials
       }
       fs.writeFileSync(fileName, JSON.stringify(tests), "utf8");
       pushSpecList();
-      return index || tests.length - 1;
+      // index 0 is falsy — `index ||` misreported slot-0 overwrites as an append.
+      return typeof index === "number" ? index : tests.length - 1;
     };
     this.deleteTest = (namespace, index) => {
       const fileName = `${specs}/tests/${getName(namespace)}.json`;

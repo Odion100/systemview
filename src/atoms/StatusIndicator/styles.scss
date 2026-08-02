@@ -23,6 +23,23 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    &--clickable {
+      cursor: pointer;
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+  }
+  &__suffix {
+    flex: none;
+    padding-left: 4px;
+  }
+  // NEW-test variant: the save-target namespace, neutral gray — visibly "not a loaded saved test".
+  &--neutral {
+    background: #f3f4f7;
+    border-color: #e3e6ee;
+    color: #7c849a;
+    padding-right: 10px; // no × — keep the pill symmetric
   }
   &__clear-button {
     display: flex !important;

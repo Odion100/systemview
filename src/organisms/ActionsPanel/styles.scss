@@ -1,6 +1,15 @@
 .actions-panel {
   .actions-panel__head {
     margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+  }
+  // The Test tab's toolbar buttons (icon-btn/run-all classes are global BEM), right-aligned like there.
+  .test-panel__tools {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
   }
 
   .actions-panel__namebar {
@@ -8,6 +17,12 @@
     align-items: center;
     gap: 6px;
     margin-bottom: 8px;
+  }
+  .actions-panel__tools {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex: none;
   }
   .actions-panel__name {
     flex: 1;
@@ -49,54 +64,157 @@
   }
 
   .actions-panel__saved {
-    margin-top: 10px;
+    // Siblings above sit in bootstrap `.row`s (negative gutter margins), so a plain div reads INDENTED.
+    // Match them: bleed the container's 15px side padding and use the full panel width.
+    margin: 12px -15px 0;
     border-top: 1px solid #e6e9f0;
     padding-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
   }
   .actions-panel__saved-title {
     font-size: 12px;
     font-weight: 600;
     color: #56617f;
-    margin-bottom: 6px;
   }
-  .actions-panel__empty {
-    font-size: 12px;
-    color: #97a0b5;
-    font-style: italic;
+}
+
+/* RFC-020 — a saved action's card: its OWN identity via COLOR (plum — NOT blue, blue = running), not
+   extra chrome. ONE SECTION with steps — compact (the side panel is tight: no extra padding), the same
+   1px border weight as everything else, steps always on display with the saved-test step fidelity. */
+.action-card {
+  background: #fff;
+  border: 1px solid #e6e9f0;
+  // Resting identity = the named-section color on the left edge (plum — same as the section titles),
+  // NOT gray; a run flips it to running/pass/fail like a saved-test card.
+  border-left: 3px solid #8e5aa8;
+  border-radius: 6px;
+  padding: 5px 6px;
+  &--running {
+    border-left-color: #6886ba;
   }
-  .actions-panel__item {
+  &--pass {
+    border-left-color: #2db44f;
+  }
+  &--fail {
+    border-left-color: #e05757;
+  }
+  &__head {
     display: flex;
     align-items: center;
+    gap: 6px;
+  }
+  // The fold button carries caret + name + count — the whole left side toggles the steps.
+  &__fold {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: none;
+    background: none;
+    padding: 0;
+    cursor: pointer;
+    min-width: 0;
+  }
+  &__caret {
+    color: #8e5aa8;
+    font-size: 11px;
+    flex: none;
+  }
+  &__tag {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #fff;
+    background: #8e5aa8;
+    border-radius: 3px;
+    padding: 1px 5px;
+  }
+  &__name {
+    font-size: 13px;
+    font-weight: 700;
+    color: #6d3f85;
+    flex-shrink: 0;
+  }
+  &__badge {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    border-radius: 3px;
+    padding: 1px 6px;
+    &.is-pass {
+      color: #0d8065;
+      background: #e7f4ef;
+    }
+    &.is-fail {
+      color: #c14a4a;
+      background: #fbeaea;
+    }
+    &.is-running {
+      color: #8e5aa8;
+      background: #f5eefa;
+    }
+  }
+  &__controls {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
     gap: 8px;
-    padding: 4px 6px;
+  }
+  &__clear {
+    border: 1px solid #cdd4e2;
+    background: #fff;
+    color: #56617f;
+    font-size: 11px;
+    padding: 2px 8px;
     border-radius: 4px;
+    cursor: pointer;
+    white-space: nowrap;
     &:hover {
       background: #f4f6fb;
     }
   }
-  .actions-panel__item-name {
-    flex: 1;
-    min-width: 0;
-    font-size: 13px;
-    color: #46608f;
+  &__run {
+    border: 1px solid #6886ba;
+    background: #6886ba;
+    color: #fff;
+    font-size: 11px;
+    padding: 2px 10px;
+    border-radius: 4px;
     cursor: pointer;
-    overflow: hidden;
-    text-overflow: ellipsis;
     white-space: nowrap;
     &:hover {
-      text-decoration: underline;
+      background: #5a76a8;
+    }
+    &:disabled {
+      opacity: 0.6;
+      cursor: default;
     }
   }
-  .actions-panel__item-count {
-    font-size: 11px;
-    color: #97a0b5;
-    white-space: nowrap;
+  &__steps {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 4px;
   }
-  .actions-panel__item-del {
+  &__confirm {
+    font-size: 11px;
     color: #b0413e;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  &__confirm-yes,
+  &__confirm-no {
     cursor: pointer;
-    font-size: 14px;
-    line-height: 1;
+    font-weight: 700;
     padding: 0 4px;
+  }
+  &__confirm-yes {
+    color: #b0413e;
+  }
+  &__confirm-no {
+    color: #56617f;
   }
 }

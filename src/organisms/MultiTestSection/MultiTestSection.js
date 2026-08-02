@@ -16,6 +16,9 @@ const MultiTestSection = ({
   namespace,
   arg = {},
   staticArguments,
+  onRemove, // RFC-020 — named-action sections are removable from the test (built-ins pass nothing)
+  titleColor, // RFC-020 — named sections carry their own color identity
+  sectionTag, // RFC-020 — small "action" tag before the caption for a named section
 }) => {
   const className = "multi-test-section";
   const [open, setOpen] = useState(false);
@@ -58,8 +61,20 @@ const MultiTestSection = ({
                   className={`${className}__caption-toggle`}
                   onClick={toggleExpansion}
                 >
+                  {sectionTag && <span className={`${className}__tag`}>{sectionTag}</span>}
                   {caption}{" "}
                   {TestSection.length > 0 && <Count count={TestSection.length} />}
+                  {/* Remove (×) lives WITH the title (badge · name · count) — so the run/+ group below
+                      lines up flush with the other sections instead of being pushed in by an × there. */}
+                  {onRemove && (
+                    <span
+                      className={`${className}__remove-btn btn`}
+                      title="Remove this section from the test"
+                      onClick={(e) => { e.stopPropagation(); onRemove(); }}
+                    >
+                      ×
+                    </span>
+                  )}
                 </span>
               }
             />
@@ -78,7 +93,7 @@ const MultiTestSection = ({
             </span>
           </>
         }
-        title_color="#0d8065"
+        title_color={titleColor || "#0d8065"}
       >
         <div className={`${className}__test-data`}>
           {TestSection.length > 0 ? (

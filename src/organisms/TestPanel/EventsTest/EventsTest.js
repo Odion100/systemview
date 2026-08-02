@@ -5,7 +5,7 @@ import "./styles.scss";
 const EventsTest = ({ TestSection, TestController, namespace, FullTest, connection }) => {
   return (
     <MultiTestSection
-      dynamic={false}
+      dynamic={true}
       TestSection={TestSection}
       TestController={TestController}
       namespace={namespace}

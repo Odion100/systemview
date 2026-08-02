@@ -5,15 +5,34 @@ import {
   parseIndex,
   replaceLastIndex,
   switchArrayIndices,
+  isTargetValueFn,
+  resolveTargetValue,
 } from "../../organisms/TestPanel/components/test-helpers";
 
-export function evaluate(value, namespace, savedEval = {}, shouldSave) {
+// RFC-020 — an evaluation's expected `value` may itself be a `tv(...)` reference to another step's saved
+// result, resolved by the SAME resolver an arg targetValue uses. `resolveRef` is optional (only present
+// when the Test carries a FullTest) and only rewrites a validation whose value is a tv() string.
+const resolveValidations = (validations, resolveRef) =>
+  resolveRef
+    ? validations.map((v) =>
+        typeof v.value === "string" && isTargetValueFn(v.value)
+          ? { ...v, value: resolveRef(v.value) }
+          : v
+      )
+    : validations;
+
+export function evaluate(value, namespace, savedEval = {}, shouldSave, resolveRef) {
   const type = getType(value);
   const validations = savedEval.validations || [];
   const expected_type = savedEval.expected_type || type;
   const save = shouldSave || !!savedEval.save;
   const indexed = savedEval.indexed;
-  const errors = getErrors({ type, value, validations, expected_type });
+  const errors = getErrors({
+    type,
+    value,
+    validations: resolveValidations(validations, resolveRef),
+    expected_type,
+  });
   return {
     namespace,
     expected_type,
@@ -27,11 +46,15 @@ export function evaluate(value, namespace, savedEval = {}, shouldSave) {
 }
 
 export function validateResults() {
-  const { results, response_type, savedEvaluations, editMode } = this;
+  const { results, response_type, savedEvaluations, editMode, FullTest } = this;
   const savedEvalClone = [...savedEvaluations];
   const shouldSave = !savedEvaluations.length;
   const evaluations = [];
   const errors = [];
+  // RFC-020 — resolve `tv(...)` in evaluation values against this run's sibling-step results.
+  const resolveRef = FullTest
+    ? (v) => resolveTargetValue(v.substring(3, v.length - 1), FullTest)
+    : undefined;
 
   function getSavedIndices(data, nsp) {
     const randomIndex = () => {
@@ -73,7 +96,7 @@ export function validateResults() {
   //evaluate based on the result only in edit mode
   if (editMode)
     (function recursiveEval(data, namespace) {
-      const evaluation = evaluate(data, namespace, getSavedEval(namespace), shouldSave);
+      const evaluation = evaluate(data, namespace, getSavedEval(namespace), shouldSave, resolveRef);
       addEvaluation(evaluation);
       if (evaluation.type === "object") {
         Object.getOwnPropertyNames(data).forEach((prop) => {
@@ -91,7 +114,7 @@ export function validateResults() {
   const objParser = new obj({ [response_type]: results });
   savedEvalClone.forEach(({ namespace, ...e }) => {
     const value = objParser.get(namespace);
-    if (e.save) addEvaluation(evaluate(value, namespace, e));
+    if (e.save) addEvaluation(evaluate(value, namespace, e, undefined, resolveRef));
   });
   // }
 

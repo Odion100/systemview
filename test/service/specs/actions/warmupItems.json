@@ -1,0 +1,35 @@
+{
+  "name": "warmupItems",
+  "namespace": {
+    "serviceId": "TestService",
+    "moduleName": "Math",
+    "methodName": "getItems"
+  },
+  "steps": [
+    {
+      "title": "seed a small item list",
+      "namespace": {
+        "serviceId": "TestService",
+        "moduleName": "Math",
+        "methodName": "getItems"
+      },
+      "args": [
+        {
+          "name": "argument:",
+          "input": { "count": 3 },
+          "input_type": "object",
+          "data_type": "",
+          "targetValues": []
+        }
+      ],
+      "savedEvaluations": [
+        {
+          "namespace": "results.total",
+          "expected_type": "number",
+          "validations": [{ "name": "numEquals", "value": 3 }],
+          "save": true
+        }
+      ]
+    }
+  ]
+}

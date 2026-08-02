@@ -163,7 +163,13 @@ A documentation + testing surface for your **SystemLynx** services — and, incr
 - **Write docs** — click into the Documentation pane and type. It saves to the repo (\`specs/docs/\`) and
   travels with your code.
 - **Build tests** — in the Scratch Pad, assemble Before / Main / Events / After steps, run them, and save.
-  Reusable **named actions** live under the Actions tab.
+  A test is an **ordered list of named sections**: reusable **named actions** (built in the Actions tab)
+  drop in as sections via **+ actions**, stored as \`{use}\` references — edit the action once, every test
+  follows. Main holds multiple steps on any namespaces; the header **chip** is the \`service.module.method\`
+  the test saves under — click it to retarget with the method picker.
+- **Reference earlier outputs** — anywhere in an arg *or an evaluation's expected value*:
+  \`tv(test.before[0].results.sum)\`, \`tv(test.seedSum[1].results.product)\` — so one step's response can
+  be asserted against another's. \`random(n)\` inside a string makes it unique on every run.
 - **Tell the story** — assemble **Stories**: named, runnable arrangements of docs, diffs, files, and tests
   that show what you did and prove it works.
 

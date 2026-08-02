@@ -28,11 +28,19 @@ const ScratchPad = ({
   };
   const createSuggestions = () => {
     const new_suggestions = [];
+    // An EVENTS step listens on a service.module's `on` (its methodName is "on"). For those, offer
+    // `service.module.on()` across ALL services — you may want to assert a side-effect event on a service
+    // OTHER than main's. A normal step offers the real methods.
+    const isEvent = test.namespace.methodName === "on";
     connectedServices.forEach((service) => {
       service.system.connectionData.modules.forEach((mod) => {
-        mod.methods.forEach((method) => {
-          new_suggestions.push(`${service.serviceId}.${mod.name}.${method.fn}()`);
-        });
+        if (isEvent) {
+          new_suggestions.push(`${service.serviceId}.${mod.name}.on()`);
+        } else {
+          mod.methods.forEach((method) => {
+            new_suggestions.push(`${service.serviceId}.${mod.name}.${method.fn}()`);
+          });
+        }
       });
     });
     setSuggestions(new_suggestions);

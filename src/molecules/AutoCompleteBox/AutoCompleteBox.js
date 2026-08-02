@@ -12,6 +12,7 @@ const AutoCompleteBox = ({
   placeholder,
   filterSuggestion = true,
   requireSelection = true,
+  autoFocus = false,
 }) => {
   const [filteredSuggestions, setFilteredSuggestions] = useState([]);
   const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(0);
@@ -115,6 +116,7 @@ const AutoCompleteBox = ({
         value={input}
         disabled={disabled}
         placeholder={placeholder}
+        autoFocus={autoFocus}
         ref={inputRef}
       />
       {showSuggestions && input && <SuggestionsListComponent />}

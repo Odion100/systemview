@@ -39,7 +39,7 @@ export default function TestController({
     setState([...TestSection]);
   };
   this.addTest = (namespace, args, title) => {
-    TestSection.push(new Test({ namespace, args, title, editMode: true }));
+    TestSection.push(new Test({ namespace, args, title, editMode: true, FullTest }));
     setState([...TestSection]);
     if (namespace) this.updateNamespace(TestSection.length - 1, namespace);
   };
@@ -125,25 +125,17 @@ export default function TestController({
       setState([...TestSection]);
     }
   };
-  this.getTargetSuggestions = (testIndex) => {
-    //get target value suggestion (namespaces) for previous test including sub test
+  // RFC-020 — target-value suggestions are natural-path references into the sections object:
+  // `test.<section>[i].results`. FullTest is `{ before, main, events, after, <named> }`.
+  this.getTargetSuggestions = () => {
     const suggestions = [];
-    const test_names = ["beforeTest", "mainTest", "afterTest"];
-    //exclude all test sections following current section
-    const targetTests = FullTest.slice(0, section + 1);
-
-    targetTests.forEach((test_section, sIndex) => {
-      //also exclude current test and the tests that follow from the suggestions
-      const count = sIndex === section ? testIndex : test_section.length;
-      for (let i = 0; i < count; i++) {
-        suggestions.push(
-          `${test_names[sIndex]}.${"Action" + (i + 1) + "."}${
-            test_section[i].response_type || "results"
-          }`
-        );
-      }
+    Object.entries(FullTest || {}).forEach(([name, secTests]) => {
+      (secTests || []).forEach((t, i) => {
+        if (!TestSection.includes(t)) {
+          suggestions.push(`test.${name}[${i}].${t.response_type || "results"}`);
+        }
+      });
     });
-
     return suggestions;
   };
 

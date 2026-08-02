@@ -3,6 +3,7 @@ import ServiceContext from "../../ServiceContext";
 import loadServiceWithHeaders from "../../utils/loadService";
 import Markdown from "../../atoms/Markdown/Markdown";
 import { SavedTestItem } from "../SavedTests/SavedTests";
+import { resolveTestActions } from "../SavedTests/transformTests";
 
 // RFC-018 — the `test` pane: a saved test rendered as a worked example — setup → call → args →
 // response → the assertions that pin it — with a Run button and inline pass/fail. It reuses the
@@ -33,8 +34,18 @@ const TestPane = ({ target = {}, projectCode }) => {
           const svc = loadServiceWithHeaders(s.system.connectionData, s.headers, s.credentials);
           const Plugin = svc && svc.Plugin;
           if (!Plugin) return [];
-          try { return (await Plugin.getTests({ moduleName, methodName })) || []; }
-          catch { return []; }
+          try {
+            const list = (await Plugin.getTests({ moduleName, methodName })) || [];
+            // RFC-020 — resolve named-action sections ({ use } → the stored action's steps).
+            let resolve = () => null;
+            try {
+              const actions = (Plugin.getActions && (await Plugin.getActions({}))) || [];
+              const map = {};
+              actions.forEach((a) => a && a.name && (map[a.name] = a));
+              resolve = (name) => map[name] || null;
+            } catch {}
+            return list.map((t) => resolveTestActions(t, resolve));
+          } catch { return []; }
         }),
       );
       let list = perService.flat();

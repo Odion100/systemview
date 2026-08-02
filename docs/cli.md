@@ -109,6 +109,10 @@ Each test is the unit. Before/Main/Events/After phases are listed directly on th
 1. `.systemview/` per-service manifest files in cwd (or a combined file via `--manifest <path>`) — no SystemView server needed
 2. SystemView API (`http://localhost:3000/systemview/api`) — fallback if no manifest
 
+Test file format, named actions, and the reference system are documented in
+**[tests-for-agents.md](tests-for-agents.md)** — the operational guide for reading, authoring, and
+running test spec files.
+
 ---
 
 ### `systemview connect <serviceId> <url>`

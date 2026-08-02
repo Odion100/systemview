@@ -1,0 +1,51 @@
+{
+  "name": "signInUser",
+  "namespace": {
+    "serviceId": "TestService",
+    "moduleName": "Auth",
+    "methodName": "signIn"
+  },
+  "steps": [
+    {
+      "title": "sign in the dev user",
+      "namespace": {
+        "serviceId": "TestService",
+        "moduleName": "Auth",
+        "methodName": "signIn"
+      },
+      "args": [
+        {
+          "name": "argument:",
+          "input": { "email": "dev_random(6)@systemview.io", "password": "secret" },
+          "input_type": "object",
+          "data_type": "",
+          "targetValues": [
+            {
+              "target_namespace": "dev_random(6)@systemview.io",
+              "source_map": ["input", "email"],
+              "source_index": 0
+            }
+          ]
+        }
+      ],
+      "savedEvaluations": [
+        {
+          "namespace": "results.success",
+          "expected_type": "boolean",
+          "validations": [{ "name": "boolEquals", "value": true }],
+          "save": true
+        }
+      ]
+    },
+    {
+      "title": "read the session back",
+      "namespace": {
+        "serviceId": "TestService",
+        "moduleName": "Auth",
+        "methodName": "getSession"
+      },
+      "args": [],
+      "savedEvaluations": []
+    }
+  ]
+}

@@ -50,18 +50,111 @@
   // The scratchpad title + the "editing this saved test" chip share ONE row and never wrap — the chip's
   // own title ellipsis handles a long name (before, a long name pushed the chip onto a second line).
   &__head {
-    flex-wrap: nowrap;
+    flex-wrap: nowrap !important; // bootstrap .row's wrap ties on specificity and loads later — force it
     align-items: center;
     gap: 6px;
     .status-indicator {
       min-width: 0; // allow the chip to shrink so its title can ellipsis instead of wrapping the row
     }
+    .panel-title {
+      flex: none;
+      white-space: nowrap; // "Scratch Pad" never breaks — the CHIP is the shrinkable one
+    }
   }
 
+  // The chip's edit mode — the app's own AutoCompleteBox where the chip sits, dropdown beneath.
+  &__ns-picker {
+    position: relative;
+    min-width: 0;
+    .auto-complete__suggestions {
+      top: 24px; // clear the pill (taller than the step picker's bare input)
+    }
+  }
+  &__ns-input {
+    width: 260px;
+    max-width: 100%;
+    border: 1px solid #6886ba;
+    border-radius: 100px;
+    background: #fff;
+    color: #3b4460;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 2px 10px;
+    &:focus {
+      outline: none;
+    }
+  }
   &__run-actions {
     display: inline-flex;
     align-items: center;
     gap: 8px;
+    // In the TABS row (right-aligned, like the navigator's tab-bar button) — lift off the underline.
+    &--tabs {
+      margin-left: auto;
+      margin-bottom: 4px;
+    }
+  }
+  // The test's own name + the save button — the row the toolbar vacated.
+  &__title-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1 1 auto;
+    min-width: 0;
+    background: none !important; // opt out of the legacy .test__buttons gray-pill span styling
+    padding: 0 !important;
+  }
+  // Blends in as a quiet card until you click it — borderless, whitesmoke, long text ellipses.
+  // Only on focus does it read as an input (white field, blue border).
+  &__title-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    border: 1px solid transparent; // transparent (not none) so focus doesn't shift the layout
+    border-radius: 8px;
+    background: whitesmoke;
+    color: #7c849a; // soft, blends with the quiet card look…
+    font-size: 13px;
+    font-weight: 500;
+    padding: 4px 10px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    &::placeholder {
+      color: #a7aebf;
+      font-weight: 400;
+    }
+    // Focus changes COLOR only — same font size/weight/box, nothing reflows or grows.
+    &:focus {
+      outline: none;
+      background: #fff;
+      border-color: #6886ba;
+      color: #3b4460;
+    }
+  }
+  // The "Test Saved!" / validation note — wears the input's EXACT box metrics so swapping them
+  // in/out moves nothing.
+  &__save-note {
+    display: flex;
+    align-items: center;
+    flex: 1 1 auto;
+    min-width: 0;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: whitesmoke;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 4px 10px;
+    color: green;
+    &--error-true {
+      color: #c02a2a;
+    }
+    &-text {
+      flex: 1 1 auto;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
   }
   &__run-all {
     border: 1px solid #6886ba;
@@ -130,10 +223,140 @@
     background: #d4d4d4;
     padding: 2px 8px !important;
     &--hide-true {
-      opacity: 0;
+      display: none; // fully gone — opacity:0 left a phantom gray pill (and its ×) beside the title
     }
     &--error-false {
       color: green;
     }
+  }
+}
+
+/* RFC-020 — an insertion point for a named-action section (one before Main, one after). Collapsed: a
+   slim "+ section" affordance. Open: a HORIZONTALLY SCROLLABLE strip of saved-action chips (there can be
+   many). Plum — NOT blue (blue is the running border). */
+.test-panel__add-section {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 4px 6px;
+  min-width: 0;
+}
+.test-panel__add-section-right {
+  margin-left: auto; // pushes + main to the RIGHT edge of the shared row
+}
+.test-panel__add-section-toggle {
+  border: none;
+  background: none;
+  color: #8e5aa8;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0 2px;
+  opacity: 0.7;
+  &:hover {
+    opacity: 1;
+    text-decoration: underline;
+  }
+}
+.test-panel__add-section-strip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+  padding-bottom: 2px;
+}
+.test-panel__add-section-chip {
+  border: 1px dashed #8e5aa8;
+  background: #faf6fc;
+  color: #6d3f85;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 12px;
+  padding: 2px 12px;
+  cursor: pointer;
+  flex-shrink: 0;
+  &:hover {
+    background: #f1e8f7;
+  }
+}
+.test-panel__add-section-close {
+  border: none;
+  background: none;
+  color: #a04a4a;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+/* RFC-020 — a REFERENCED named-action section inside a test (scratchpad): read-only + runnable +
+   removable, NOT an editable builder. Same plum identity the saved-action card wears. */
+.named-section {
+  background: #fff;
+  border: 1px solid #e6e9f0;
+  border-left: 3px solid #8e5aa8;
+  border-radius: 6px;
+  padding: 5px 8px;
+  width: 100%;
+  &--running { border-left-color: #6886ba; }
+  &--pass { border-left-color: #2db44f; }
+  &--fail { border-left-color: #e05757; }
+  &__head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  &__fold {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border: none;
+    background: none;
+    padding: 0;
+    cursor: pointer;
+    min-width: 0;
+  }
+  &__caret { color: #8e5aa8; font-size: 11px; flex: none; }
+  &__tag {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #fff;
+    background: #8e5aa8;
+    border-radius: 3px;
+    padding: 1px 5px;
+  }
+  &__name { font-size: 13px; font-weight: 700; color: #6d3f85; }
+  &__remove {
+    color: #a04a4a;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 14px;
+    line-height: 1;
+    opacity: 0.6;
+    &:hover { opacity: 1; color: #d33; }
+  }
+  &__run {
+    margin-left: auto;
+    border: 1px solid #6886ba;
+    background: #6886ba;
+    color: #fff;
+    font-size: 11px;
+    padding: 2px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    white-space: nowrap;
+    &:hover { background: #5a76a8; }
+    &:disabled { opacity: 0.6; cursor: default; }
+  }
+  &__steps {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 4px;
   }
 }

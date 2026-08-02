@@ -108,12 +108,45 @@ URL pattern: `http://localhost:3000/:projectCode/:serviceId/:moduleName/:methodN
 
 ### Building a test
 
-- **Before** — setup calls that run before the main test
-- **Main** — the method call being tested, with argument inputs and response validations
-- **Events** — WebSocket events to listen for during the test
-- **After** — teardown calls that run after the main test
+A test is an **ordered list of named sections**. `Before / Main / Events / After` are the default
+sections — a saved **action** you insert becomes its own section, a peer of the built-ins.
 
-Click **Run** to execute the sequence. Click **Save** to persist the test to the service's `specs/` folder.
+- **Before / After** — setup and teardown calls around the main test
+- **Main** — the method being tested. Holds **multiple steps** if you want, each free to point at any
+  `service.module.method` — as long as at least one step matches the namespace the test saves under
+- **Events** — listen for a `service.module.on()` event on **any** connected service
+- **Actions** — reusable named sections. Build and save them in the Scratch Pad's **Actions** tab, then
+  insert one into a test with **+ actions** (before or after Main). The same action can be inserted more
+  than once (`seedSum`, `seedSum_2`, …). Tests store a `{ "use": "<name>" }` **reference** — edit the
+  action once and every test that uses it follows
+
+**References** — any argument (and any evaluation's expected value) can reference an earlier step's
+output with `tv(...)`:
+
+```
+tv(test.before[0].results.sum)       # step 0 of Before
+tv(test.seedSum[1].results.product)  # step 1 of the seedSum action section
+tv(test.main[0].error.message)       # a thrown error's field
+```
+
+So an **evaluation can assert one step's output against another's** — set the validation's value to a
+`tv(...)` reference and it resolves at run time.
+
+**`random(n)`** — insert `random(6)` anywhere inside a string argument to get fresh random characters
+on every run (`"user_random(6)@test.com"`) — unique emails/usernames for reusable actions.
+
+**Title & namespace** — the row above the builder holds the test's own **name** (defaults to Main's
+title if left blank) and the **namespace chip**: the `service.module.method` the test saves under.
+Click the chip to retarget it with the method picker — including from a module- or service-level page.
+Saving refuses a namespace that isn't a real connected method, and edits/deletes always hit the right
+saved slot even in the aggregated module/service views.
+
+Click **Run** to execute the sequence. Click **Save** to persist the test to the service's
+`specs/tests/<Module>.<method>.json`; actions live in `specs/actions/<name>.json`.
+
+Agents: the exact spec-file JSON (steps, `targetValues`, evaluations, actions, `{use}`/`run`) is in
+[docs/tests-for-agents.md](docs/tests-for-agents.md) — the testing counterpart to
+[docs/stories-for-agents.md](docs/stories-for-agents.md).
 
 ---
 

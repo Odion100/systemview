@@ -41,7 +41,12 @@ function getFilesByNamespace(folder, namespace) {
       const fileContents = fs.readFileSync(filePath, "utf-8");
       const parsedData = JSON.parse(fileContents);
 
-      return sum.concat(parsedData);
+      // `slot` = the entry's index WITHIN ITS OWN FILE. Aggregated views (module/service level) concat
+      // many files, so a consumer must never use its LIST position to save-over or delete — that
+      // corrupts a different file. Stamped here, before any filtering, so it stays accurate.
+      return sum.concat(
+        parsedData.map((t, i) => (t && typeof t === "object" ? { ...t, slot: i } : t))
+      );
     }, []);
 }
 

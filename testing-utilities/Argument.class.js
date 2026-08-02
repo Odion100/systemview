@@ -5,7 +5,9 @@ const {
   obj,
   isEqualArrays,
   isFunction,
+  hasRandomToken,
   strFn,
+  resolveTargetValue,
 } = require("./test-helpers");
 
 function TargetValue(target_namespace, source_map = [], source_index = 0) {
@@ -21,22 +23,32 @@ function Argument(name, FullTest, input_type = "undefined", input, targetValues 
   this.targetValues = targetValues;
 
   this.value = () => {
-    return this.targetValues.reduce((arg, { source_map, target_namespace: nsp }) => {
-      const [value, placeholder, key] = obj(arg).parse(source_map);
+    return this.targetValues.reduce(
+      (arg, { source_map, target_namespace: nsp, source_index = 0 }) => {
+        const [value, placeholder, key] = obj(arg).parse(source_map);
+        // A targetValue only applies while the input still HOLDS its token text at its spot. A stale
+        // reference (left behind by an earlier edit) must NEVER override a real value typed over it —
+        // that was the long-standing "the reference clobbers my value" bug. Also guards the .trim()
+        // crash when the input was replaced with a non-string.
+        const holds =
+          typeof value === "string" && value.indexOf(nsp, source_index) === source_index;
+        if (!holds) return arg;
 
-      if (isTargetValueFn(nsp)) {
-        placeholder[key] = value
-          .trim()
-          .replace(nsp, getTargetValue(nsp.substring(3, nsp.length - 1)));
-      } else if (isTargetNamespace(nsp)) {
-        placeholder[key] = getTargetValue(nsp);
-      } else {
-        placeholder[key] = strFn(nsp);
-      }
+        if (isTargetValueFn(nsp)) {
+          placeholder[key] = value
+            .trim()
+            .replace(nsp, getTargetValue(nsp.substring(3, nsp.length - 1)));
+        } else if (isTargetNamespace(nsp)) {
+          placeholder[key] = getTargetValue(nsp);
+        } else {
+          placeholder[key] = strFn(nsp);
+        }
 
-      return arg;
-      //creating a deep copy in order to lose refs to original
-    }, obj(this).clone()).input;
+        return arg;
+        //creating a deep copy in order to lose refs to original
+      },
+      obj(this).clone()
+    ).input;
   };
 
   this.parseTargetValues = (input, source_map) => {
@@ -44,7 +56,9 @@ function Argument(name, FullTest, input_type = "undefined", input, targetValues 
     Array.from(input.matchAll(targetValueFnRegex)).forEach((match) => {
       this.addTargetValue(match[0], source_map, match.index);
     });
-    if (isTargetNamespace(input) || isFunction(input))
+    // hasRandomToken — an EMBEDDED random(n) ("user_random(6)@test.com") isn't a whole-string function,
+    // so it needs its own detection to register for processing.
+    if (isTargetNamespace(input) || isFunction(input) || hasRandomToken(input))
       this.addTargetValue(input, source_map, 0);
 
     return this;
@@ -78,45 +92,9 @@ function Argument(name, FullTest, input_type = "undefined", input, targetValues 
   };
 
   // FullTest is [Before, Main, Events, After] — a section per slot, each an array of Test steps that each
-  // carry `.results` after running. A reference resolves to a value inside that structure (RFC-020).
-  const SECTION_INDEX = { before: 0, main: 1, events: 2, after: 3 };
-  const getTargetValue = (input) => {
-    // Legacy positional — beforeTest.Action1.error → "0.0.results" (kept EXACTLY as before).
-    if (/^(?:before|main|after)Test\.Action\d+/.test(input)) {
-      const [test, action] = input.split(".");
-      const nsp = input
-        .replace(test, { beforeTest: 0, mainTest: 1, Events: 2, afterTest: 3 }[test])
-        .replace(action, parseInt(action.replace("Action", "")) - 1)
-        .replace("error", "results");
-      return obj(FullTest).get(nsp);
-    }
-
-    // Natural path — [test.]<section>[<i> | .name].results[.field…]. We translate the section name to its
-    // slot index and a NAMED step to its index (by actionName/name/title), then let obj() walk the real
-    // structure. This is the forward form: a reference is a path, not a positional label that shifts when a
-    // named action is spliced in.
-    const parts = input
-      .replace(/^test\./, "")
-      .replace(/\[(\d+)\]/g, ".$1") // before[0] → before.0
-      .split(".")
-      .filter(Boolean);
-    const [sectionName, stepRef, ...tail] = parts;
-    const sectionIndex = SECTION_INDEX[sectionName];
-    if (sectionIndex === undefined) return obj(FullTest).get(input); // unrecognized → raw walk (defensive)
-
-    const section = FullTest[sectionIndex] || [];
-    let stepIndex = stepRef;
-    if (stepRef !== undefined && !/^\d+$/.test(stepRef)) {
-      const found = section.findIndex(
-        (t) => t && (t.actionName === stepRef || t.name === stepRef || t.title === stepRef)
-      );
-      stepIndex = found === -1 ? stepRef : found; // fall back to the raw key if no named step matches
-    }
-    const path = [sectionIndex, stepIndex, ...tail.map((p) => (p === "error" ? "results" : p))]
-      .filter((p) => p !== undefined)
-      .join(".");
-    return obj(FullTest).get(path);
-  };
+  // carry `.results` after running. A reference resolves to a value inside that structure (RFC-020). The
+  // resolution itself lives in test-helpers so `validators` can reuse it for evaluation `tv()` references.
+  const getTargetValue = (input) => resolveTargetValue(input, FullTest);
 }
 
 module.exports = { Argument, TargetValue, default: Argument };

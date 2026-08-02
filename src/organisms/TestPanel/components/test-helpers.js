@@ -5,16 +5,20 @@ export const rnb = (min, max) => Math.floor(Math.random() * (max - min + 1) + mi
 export const isObjectLike = (value) =>
   ["object", "array", "string"].indexOf(getType(value)) > -1;
 
-export const isTargetNamespace = (str) =>
-  /^(?:before|main|after)Test\.Action\d+\.(?:error|results)(?:\[(?:\d+)\]|\.(?:(?![0-9])[a-zA-Z0-9$_]+(?:\[(?:\d+)\])?))*$/.test(
-    str
-  );
-export const targetValueFnRegex =
-  /tv\((?:before|main|after)Test\.Action\d+\.(?:error|results)(?:\[(?:\d+)\]|\.(?:(?![0-9])[a-zA-Z0-9$_]+(?:\[(?:\d+)\])?))*\)/g;
-export const isTargetValueFn = (str) =>
-  /^tv\((?:before|main|after)Test\.Action\d+\.(?:error|results)(?:\[(?:\d+)\]|\.(?:(?![0-9])[a-zA-Z0-9$_]+(?:\[(?:\d+)\])?))*\)$/.test(
-    str
-  );
+// A target-value reference — two grammars, both resolved by resolveTargetValue (RFC-020):
+//   legacy positional — beforeTest.Action1.error   (kept for back-compat; mirrors the UI "Section → Action N" labels)
+//   natural path      — test.before[0].results / test.before.signIn.results / test.main[2].results.userId
+// Mirrors testing-utilities/test-helpers.js (the CLI copy). The natural form is a SUPERSET of the legacy
+// one, so every reference that matched before still matches.
+const TV_TAIL = `(?:\\[(?:\\d+)\\]|\\.(?:(?![0-9])[a-zA-Z0-9$_]+(?:\\[(?:\\d+)\\])?))*`;
+const TV_LEGACY = `(?:before|main|after)Test\\.Action\\d+\\.(?:error|results)${TV_TAIL}`;
+// head is any identifier: a section (before|main|events|after) OR a named-action name, so
+// `test.signIn[1].results` (a named action in its own local index space) parses alongside sections.
+const TV_NATURAL = `test\\.(?![0-9])[a-zA-Z0-9$_]+(?:\\[\\d+\\]|\\.(?![0-9])[a-zA-Z0-9$_]+)\\.(?:error|results)${TV_TAIL}`;
+const TV_BODY = `(?:${TV_LEGACY}|${TV_NATURAL})`;
+export const isTargetNamespace = (str) => new RegExp(`^${TV_BODY}$`).test(str);
+export const targetValueFnRegex = new RegExp(`tv\\(${TV_BODY}\\)`, "g");
+export const isTargetValueFn = (str) => new RegExp(`^tv\\(${TV_BODY}\\)$`).test(str);
 export const isEqualArrays = (a, b) => a.join(".") === b.join("."); //specifically for arrays of strings
 export const isValidNamespace = (str) => /^(?![0-9])[a-zA-Z0-9$_]+$/.test(str); //_id
 export const startsWithNameAndArray = (str) => /^\w+(\[\d+\])+/.test(str); //users[0]
@@ -126,7 +130,20 @@ export const isDateFunction = (str) => /^[dD]ate\(([^,)]*(,[^,)]*)*)\)$/.test(st
 const isMockFileFunction = (str) => /^mockFile\(([^,)]*(,[^,)]*)*)\)$/.test(str);
 const isMockFilesFunction = (str) => /^mockFiles\(([^,)]*(,[^,)]*)*)\)$/.test(str);
 
+// random(n) — n random lowercase-alphanumeric chars (default 8), fresh on EVERY run. Unlike date()/
+// mockFile() it's insertable ANYWHERE inside a string — "user_random(6)@test.com" → "user_k3n9x2@test.com"
+// — because its whole point is unique usernames/emails in reusable sections and repeated test runs.
+const randomTokenRegex = /random\((\d*)\)/g;
+export const hasRandomToken = (str) => typeof str === "string" && /random\(\d*\)/.test(str);
+const randomString = (len) => {
+  let out = "";
+  while (out.length < len) out += Math.random().toString(36).slice(2);
+  return out.slice(0, len);
+};
+
 export const strFn = (str) => {
+  if (hasRandomToken(str))
+    return str.replace(randomTokenRegex, (_, n) => randomString(parseInt(n || "8", 10)));
   if (isDateFunction(str)) {
     const [fullStr, args] = str.match(isFnRegEx);
     return moment(!args ? undefined : args).toJSON();
@@ -140,6 +157,42 @@ export const strFn = (str) => {
     return parseArgs(args).map(createMockFile);
   }
   return str;
+};
+
+// RFC-020 — the ONE resolver for a target-value reference (an arg targetValue OR an evaluation `tv()`).
+// Mirrors testing-utilities/test-helpers.js. FullTest is the **sections object** `{ before, main, …, <named> }`;
+// a reference IS an object path — `test.seedSum[0].results` → obj(sections).get("seedSum.0.results"). No
+// section-index table, no tag-gathering: the object's shape is the reference.
+export const resolveTargetValue = (input, FullTest) => {
+  // Legacy positional — map synthetic labels onto real object keys, then walk.
+  if (/^(?:before|main|after)Test\.Action\d+/.test(input)) {
+    const [sec, action] = input.split(".");
+    const nsp = input
+      .replace(sec, { beforeTest: "before", mainTest: "main", Events: "events", afterTest: "after" }[sec])
+      .replace(action, parseInt(action.replace("Action", "")) - 1)
+      .replace("error", "results");
+    return safeValue(obj(FullTest).get(nsp));
+  }
+
+  // Natural / named — the reference is the object path.
+  const path = input
+    .replace(/^test\./, "")
+    .replace(/\[(\d+)\]/g, ".$1")
+    .split(".")
+    .filter(Boolean)
+    .map((p) => (p === "error" ? "results" : p))
+    .join(".");
+  return safeValue(obj(FullTest).get(path));
+};
+
+// A reference must resolve to DATA. If a path stops at a step (a live Test) or a section (an array of
+// Tests) instead of a `.results` field, return undefined — a live Test carries circular refs and would
+// hang react-json-view / JSON.stringify when shown as an arg value.
+const isTest = (v) => v && typeof v === "object" && typeof v.runTest === "function";
+const safeValue = (v) => {
+  if (isTest(v)) return undefined;
+  if (Array.isArray(v) && v.some(isTest)) return undefined;
+  return v;
 };
 
 window.moment = moment;

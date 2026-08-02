@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Client } from "../../systemClient";
 import Count from "../../atoms/Count";
 import { EditIcon, XButton } from "../../atoms/RunTestIcon";
-import { resetFullTest } from "./transformTests";
+import { resetScratchpad } from "./transformTests";
 import TestStory from "../Stage/TestStory";
 import "./styles.scss";
 
@@ -56,13 +56,32 @@ const SavedTests = ({
     setAllExpanded(next);
   }, [allExpanded]);
 
+  // A test's save/delete SLOT is its index WITHIN ITS OWN FILE (module.method.json). Aggregated views
+  // (module/service/project level) concatenate many files, so the list position is NOT the slot — using
+  // it saved copies into (or deleted from) the wrong place. Prefer the plugin-stamped `slot`; fall back
+  // to occurrence-order per file key (accurate: aggregation concatenates file-by-file) for services
+  // still running an older plugin.
+  const fileKey = (t) => {
+    const ns = t.namespace || {};
+    return `${ns.serviceId}|${ns.moduleName}.${ns.methodName}`;
+  };
+  const slotOf = (test, i) => {
+    if (typeof test.slot === "number") return test.slot;
+    let n = 0;
+    for (let x = 0; x < i; x++) if (fileKey(savedTests[x]) === fileKey(test)) n++;
+    return n;
+  };
+
   const editTest = (rawTest, index) => {
-    const Tests = resetFullTest(
-      [rawTest.Before, rawTest.Main, rawTest.Events, rawTest.After],
-      connectedServices
-    );
-    if (Tests[1] && Tests[1][0]) Tests[1][0].index = index; // mark which saved slot we're editing
-    setFullTest(Tests);
+    // RFC-020 — load built-ins AND the test's named-action sections into the scratchpad (one shared
+    // sections object so cross-section refs resolve while editing).
+    const { Tests, named } = resetScratchpad(rawTest, connectedServices);
+    if (Tests[1] && Tests[1][0]) {
+      Tests[1][0].index = index; // mark which saved slot we're editing…
+      Tests[1][0].savedNamespace = rawTest.namespace; // …and which FILE that slot belongs to
+    }
+    // top-level title → the title input; top-level namespace → the save-target chip
+    setFullTest(Tests, named, rawTest.title, rawTest.namespace);
   };
   const deleteTest = async (index, namespace) => {
     if (Plugin) {
@@ -160,9 +179,12 @@ const SavedTests = ({
             connectedServices={connectedServices}
             storyRef={(el) => { storyRefs.current[i] = el; }}
             onResult={(status) => onResult(i, status)}
-            onEdit={() => editTest(test, i)}
-            onDelete={() => deleteTest(i, test.namespace)}
+            onEdit={() => editTest(test, slotOf(test, i))}
+            onDelete={() => deleteTest(slotOf(test, i), test.namespace)}
             autoTrack={autoTrack}
+            // Only ONE saved test here? Keep its steps expanded on run — collapsing-on-run is only useful
+            // when there are MULTIPLE tests (so the list stays scrollable). With one, don't fold it up.
+            autoExpand={savedTests.length === 1}
           />
         ))}
       </div>
@@ -176,7 +198,7 @@ const SavedTests = ({
 // and GIVES UP the instant you scroll. Expansion is manual / on-fail only.
 // Reused by the Stories `test` pane (TestPane) — there it's rendered WITHOUT onEdit/onDelete (a story just
 // shows + runs the test; it isn't the builder), so those controls only appear when the handlers are given.
-export function SavedTestItem({ test, index, status, hidden, connectedServices, storyRef, onResult, onEdit, onDelete, autoTrack }) {
+export function SavedTestItem({ test, index, status, hidden, connectedServices, storyRef, onResult, onEdit, onDelete, autoTrack, autoExpand }) {
   const nodeRef = useRef(null);
   const localRef = useRef(null);
   const [expanded, setExpanded] = useState(false); // collapsed by default — just the header
@@ -283,6 +305,7 @@ export function SavedTestItem({ test, index, status, hidden, connectedServices, 
         connectedServices={connectedServices}
         index={index}
         onResult={onResult}
+        autoExpand={autoExpand}
       />
     </div>
   );

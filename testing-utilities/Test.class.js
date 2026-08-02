@@ -14,12 +14,19 @@ module.exports = function Test({
   logger,
   client,
   extraHeaders,
+  FullTest,
 }) {
   this.index = index;
-  this.connection = {};
+  // Non-enumerable: `connection` holds live systemlynx service objects (huge + self-referential); keeping
+  // it out of serialization/rendering prevents a hang if a Test is ever JSON-walked (mirrors the browser).
+  Object.defineProperty(this, "connection", { value: {}, enumerable: false, writable: true });
   this.title = title;
   this.args = args || [];
   this.editMode = editMode;
+  // RFC-020 — the section-array-of-arrays this step lives in, so `validate` can resolve `tv()` references
+  // in evaluation values against sibling steps' results. Non-enumerable: FullTest holds Tests holding
+  // FullTest (a cycle), and it must stay OUT of JSON.stringify / obj().clone().
+  Object.defineProperty(this, "FullTest", { value: FullTest, enumerable: false });
   this.shouldValidate = shouldValidate || !!savedEvaluations.length;
   this.namespace = namespace || {
     serviceId: "",

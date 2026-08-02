@@ -218,3 +218,22 @@
     font-size: 16px;
   }
 }
+
+// RFC-020 — "+ main": adds another main step (Main is multi-step now). Quiet, matches the section adds.
+.current-data-section {
+  &__add {
+    display: inline-block;
+    margin: 2px 0 6px;
+    padding: 0 8px;
+    border-radius: 21px;
+    font-weight: bold;
+    color: #5960b6;
+    font-size: 13px;
+    background: #e3e5f3;
+    font-family: monospace;
+    cursor: pointer;
+    &:hover {
+      background: #d5d8ee;
+    }
+  }
+}

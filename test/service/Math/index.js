@@ -37,6 +37,13 @@ module.exports = {
     this.log("describe called", { name, count, active, scores });
     return { summary: `${name} x${count}`, active, average, scoreCount: scores.length };
   },
+  // RFC-020 demo anchor — the "use a named action + chained references" test files under Math.chainUse,
+  // so this method has to exist to give that test a real, navigable namespace in the UI. The test's Main
+  // steps do the actual add() work; chainUse itself just echoes what it's handed.
+  chainUse(input = {}) {
+    this.log("chainUse called", input);
+    return { ...input, chained: true };
+  },
   getItems({ count = 10 } = {}) {
     if (count > 100) this.warn("large item count requested", { count });
     else this.debug("getItems called", { count });

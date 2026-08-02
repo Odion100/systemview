@@ -54,6 +54,43 @@
     gap: 8px;
     min-width: 0;
   }
+  // Positioning anchor for the delete × — the shared .delete-btn end-cap overlays the title input's
+  // right end (its original home): no space taken, shaped to the pill's cap, shown on input hover.
+  &__caption-wrap {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    .delete-btn {
+      // A small CIRCLE floating inside the input's right end (like a search field's clear button) —
+      // no space taken, no shape games with the pill.
+      right: 15px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 16px;
+      height: 16px;
+      padding: 0;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+      cursor: pointer;
+      // The HIT AREA is bigger than the circle: an invisible pad reaching the pill's right edge and a
+      // little grace on every side — hovering near it already shows the ×, so clicking there works too.
+      &::before {
+        content: "";
+        position: absolute;
+        top: -5px;
+        bottom: -5px;
+        left: -8px;
+        right: -15px;
+      }
+    }
+    &:hover .delete-btn {
+      opacity: 1;
+    }
+  }
   // The collapsed method-call preview — muted monospace, the method name emphasized (like a story action
   // preview). It sits under the title, indented to line up past the caret.
   &__call {

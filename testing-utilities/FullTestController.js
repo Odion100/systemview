@@ -3,18 +3,22 @@ const Test = require("./Test.class");
 const sections = ["Before", "Main", "Events", "After"];
 
 module.exports = function FullTestController({ FullTest, connectedServices } = {}) {
-  this.runFullTest = async ([Before, Main, Events, After] = FullTest || []) => {
-    //Events.forEach((test) => test.runTest());
+  // RFC-020 — a test is `{ sections, order }`. Loop the **run-order** (a list of section names), flatten
+  // the referenced sections into one sequential run. No hardcoded `[...Before,...Events,...Main,...After]`
+  // — the order is data, so a named section runs wherever the list places it.
+  this.runFullTest = async (test = FullTest) => {
+    const { sections = {}, order = [] } = test || {};
+    const flat = order.reduce((all, name) => all.concat(sections[name] || []), []);
 
     await new Promise((resolve) => {
       function recursiveRunTest(tests, i = 0) {
         if (i === tests.length) resolve();
         else tests[i].runTest().then(() => recursiveRunTest(tests, i + 1));
       }
-      recursiveRunTest([...Before, ...Events, ...Main, ...After]);
+      recursiveRunTest(flat);
     });
 
-    return [Before, Main, Events, After];
+    return test;
   };
 
   function validateTest({ title, evaluations, shouldValidate }, section, index) {
