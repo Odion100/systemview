@@ -26,18 +26,20 @@ function Argument(name, FullTest, input_type = "undefined", input, targetValues 
     return this.targetValues.reduce(
       (arg, { source_map, target_namespace: nsp, source_index = 0 }) => {
         const [value, placeholder, key] = obj(arg).parse(source_map);
-        // A targetValue only applies while the input still HOLDS its token text at its spot. A stale
-        // reference (left behind by an earlier edit) must NEVER override a real value typed over it —
-        // that was the long-standing "the reference clobbers my value" bug. Also guards the .trim()
-        // crash when the input was replaced with a non-string.
-        const holds =
+        // A stale reference must never override a REAL value typed over it (the "reference clobbers
+        // my value" bug) — but ONLY a typed-over value blocks it. Legacy `target`-type args store the
+        // input EMPTY (or a 0/null placeholder) with the reference living solely in targetValues, and
+        // those must always resolve (skipping them sent "" to services — broke every legacy suite).
+        const hasTargetValue =
           typeof value === "string" && value.indexOf(nsp, source_index) === source_index;
-        if (!holds) return arg;
+        const typedOver = typeof value === "string" && value !== "" && !hasTargetValue;
+        if (typedOver) return arg;
 
         if (isTargetValueFn(nsp)) {
-          placeholder[key] = value
-            .trim()
-            .replace(nsp, getTargetValue(nsp.substring(3, nsp.length - 1)));
+          // Embedded tv(...) — substring-replace inside the string it rides in; a placeholder spot
+          // (empty/0/null — nothing to substring) takes the resolved value directly.
+          const resolved = getTargetValue(nsp.substring(3, nsp.length - 1));
+          placeholder[key] = hasTargetValue ? value.trim().replace(nsp, resolved) : resolved;
         } else if (isTargetNamespace(nsp)) {
           placeholder[key] = getTargetValue(nsp);
         } else {
