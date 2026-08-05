@@ -238,6 +238,42 @@ $bad: #c62828;
   border: 1px solid var(--sv-border-soft);
   border-radius: 8px;
 }
+// Hover crosshair overlay — the wrapper is the positioning context; dot + tip ride PERCENT
+// coordinates so they track the stretched svg exactly.
+.report-chart-wrap {
+  position: relative;
+}
+.report-chart-dot {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 2px solid var(--sv-surface);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.report-chart-tip {
+  position: absolute;
+  top: 5px;
+  transform: translateX(9px);
+  background: var(--sv-surface);
+  border: 1px solid var(--sv-border);
+  border-radius: 5px;
+  padding: 2px 8px;
+  font-size: 11px;
+  color: var(--sv-text-muted);
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 1px 4px rgba(31, 36, 48, 0.12);
+  b {
+    color: var(--sv-text-strong);
+    font-weight: 600;
+  }
+  // Past the 60% mark the tip flips to the LEFT of the crosshair so it never clips the edge.
+  &--left {
+    transform: translateX(calc(-100% - 9px));
+  }
+}
 .report-chart-empty {
   padding: 24px;
   text-align: center;

@@ -14,14 +14,20 @@ const ScratchPad = ({
   dynamic = false,
   staticArguments = false,
 }) => {
-  const placeholder = "service.module.method ";
   // The CURRENT PROJECT comes from the page URL — a test namespace never carries a projectCode, so
   // this is the only scope the step picker can trust.
   const { projectCode } = useParams();
   const { serviceId, moduleName, methodName } = test.namespace;
-  const [nsp, setNsp] = useState(
-    methodName ? `${serviceId}.${moduleName}.${methodName}` : ""
-  );
+  // An EVENT step is marked by methodName "on" — its empty state hints the listener shape.
+  const isEvent = methodName === "on";
+  const placeholder = isEvent ? "service.module.on " : "service.module.method ";
+  // Render the namespace only when ALL THREE parts are real — a partially-seeded namespace (e.g. an
+  // event step added with nothing targeted yet) shows the placeholder, never "undefined.undefined.on".
+  const fullNs = () =>
+    serviceId && moduleName && methodName
+      ? `${serviceId}.${moduleName}.${methodName}`
+      : "";
+  const [nsp, setNsp] = useState(fullNs());
   const [text_length, setLength] = useState(placeholder.length + 0.4);
   const [test_suggestions, setSuggestions] = useState([]);
   const { connectedServices } = useContext(ServiceContext);
@@ -35,7 +41,6 @@ const ScratchPad = ({
     // An EVENTS step listens on a service.module's `on` (its methodName is "on"). For those, offer
     // `service.module.on()` across ALL services — you may want to assert a side-effect event on a service
     // OTHER than main's. A normal step offers the real methods.
-    const isEvent = test.namespace.methodName === "on";
     // Only the CURRENT PROJECT's services — a step targets namespaces within the project, never
     // another project's (no projectCode on the URL = show everything, e.g. outside /specs routes).
     const scoped = projectCode
@@ -75,7 +80,7 @@ const ScratchPad = ({
   }, [test.results]);
   useEffect(() => createSuggestions(), [projectCode, connectedServices]);
   useEffect(() => {
-    const new_namespace = methodName ? `${serviceId}.${moduleName}.${methodName}` : "";
+    const new_namespace = fullNs();
     setNsp(new_namespace);
     setLength((new_namespace || placeholder).length + 0.4);
   }, [test.namespace, connectedServices]);

@@ -260,6 +260,45 @@ const Stage = ({ projectCode, serviceId, moduleName, methodName, onStageChange }
     },
     [SystemView, projectCode, selected],
   );
+  // Pane REVIEW marks — every story type has one. APPROVAL stories (story.type === "approval"): each
+  // pane approved / rejected / unreviewed + a story-level verdict. REPORT stories (the default): each
+  // pane can be marked READ (the sibling mark — "I've seen this one"). Verdicts ride the story object
+  // through saveStory exactly like replies (no api/plugin change); agents read them back.
+  const isApproval = !!(selected && selected.type === "approval");
+  const reviewMode = isApproval ? "approval" : "report";
+  const setPaneReview = useCallback(
+    (paneId, verdict) => {
+      if (!selected) return;
+      const panes = (selected.panes || []).map((p) => {
+        if (p.id !== paneId) return p;
+        if (!verdict) {
+          const { review, ...rest } = p;
+          return rest;
+        }
+        return { ...p, review: { verdict, at: Date.now() } };
+      });
+      try {
+        SystemView.saveStory(projectCode, { ...selected, panes });
+      } catch {
+        /* ignore */
+      }
+    },
+    [selected, SystemView, projectCode],
+  );
+  const setStoryVerdict = useCallback(
+    (status) => {
+      if (!selected) return;
+      const next = { ...selected };
+      if (status) next.verdict = { status, at: Date.now() };
+      else delete next.verdict;
+      try {
+        SystemView.saveStory(projectCode, next);
+      } catch {
+        /* ignore */
+      }
+    },
+    [selected, SystemView, projectCode],
+  );
   // Arrange the grid into N panes per row: give every pane an even width (100/N %) and drop custom heights
   // for a clean uniform grid. One saveStory call, so no per-pane read-modify-write race.
   const gridColumns = useCallback(
@@ -357,6 +396,9 @@ const Stage = ({ projectCode, serviceId, moduleName, methodName, onStageChange }
     onResize: setSpan,
     onReply: addReply,
     onRemoveReply: removeReply,
+    // Every story gets review marks: approval → ✓/✗, report (default) → mark-as-read.
+    onReview: setPaneReview,
+    reviewMode,
     onDragStartPane,
     onDragOverPane,
     onDragEndPane,
@@ -382,6 +424,10 @@ const Stage = ({ projectCode, serviceId, moduleName, methodName, onStageChange }
   };
 
   const panes = selected ? selected.panes || [] : [];
+  // Approval tallies for the toolbar readout + the story's own verdict.
+  const reviewedCount = panes.filter((p) => p.review && p.review.verdict).length;
+  const rejectedCount = panes.filter((p) => p.review && p.review.verdict === "rejected").length;
+  const storyVerdict = selected && selected.verdict ? selected.verdict.status : null;
   const rawLayout = selected ? selected.layout || "grid" : "grid";
   const layout = rawLayout === "gallery" ? "gallery" : "grid"; // legacy single/column → grid
   const fi = Math.min(focusIndex, Math.max(0, panes.length - 1));
@@ -415,6 +461,11 @@ const Stage = ({ projectCode, serviceId, moduleName, methodName, onStageChange }
                 key={s.id}
                 className={`stage-story-chip ${selectedId === s.id ? "is-sel" : ""}`}
               >
+                {s.type === "approval" && (
+                  <span className="stage-story-chip__mode" title="approval story">
+                    ✓
+                  </span>
+                )}
                 <button
                   type="button"
                   className="stage-story-chip__name"
@@ -513,6 +564,40 @@ const Stage = ({ projectCode, serviceId, moduleName, methodName, onStageChange }
       ) : (
         <>
           <div className="stage__toolbar">
+            {/* REPORT story — a quiet read tally (panes marked ✓ read). */}
+            {!isApproval && reviewedCount > 0 && (
+              <div className="stage__approval">
+                <span className="stage__approval-progress">
+                  {reviewedCount}/{panes.length} read
+                </span>
+              </div>
+            )}
+            {/* APPROVAL story — review progress + the overall verdict, left of the layout controls. */}
+            {isApproval && (
+              <div className="stage__approval">
+                <span className="stage__approval-tag">approval</span>
+                <span className="stage__approval-progress">
+                  {reviewedCount}/{panes.length} reviewed
+                  {rejectedCount ? ` · ${rejectedCount} ✗` : ""}
+                </span>
+                <button
+                  type="button"
+                  className={`stage__verdict-btn stage__verdict-btn--ok ${storyVerdict === "approved" ? "is-on" : ""}`}
+                  title="Approve the whole story (click again to clear)"
+                  onClick={() => setStoryVerdict(storyVerdict === "approved" ? null : "approved")}
+                >
+                  ✓ Approve story
+                </button>
+                <button
+                  type="button"
+                  className={`stage__verdict-btn stage__verdict-btn--no ${storyVerdict === "rejected" ? "is-on" : ""}`}
+                  title="Reject the whole story (click again to clear)"
+                  onClick={() => setStoryVerdict(storyVerdict === "rejected" ? null : "rejected")}
+                >
+                  ✗ Reject
+                </button>
+              </div>
+            )}
             {panes.length > 1 && (
               <div className="stage__controls">
                 <div className="stage__layouts">

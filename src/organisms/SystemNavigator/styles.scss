@@ -155,9 +155,9 @@
     // FULLY divorced from the title's anchor styling — the generic `.system-nav__link a` rules
     // (14px/500) outrank a single class, so the URL pins its own metrics with !important. Smaller
     // than the title on BOTH themes; slightly LESS subtle in light, MORE subtle in dark (below).
-    color: #aab0c2 !important;
+    color: #30374b !important;
     text-decoration: none;
-    font-size: 9.5px !important;
+    font-size: 10.5px !important;
     font-weight: 400 !important;
     letter-spacing: 0.1px;
     min-width: 0;

@@ -151,8 +151,8 @@ Click **Run** to execute the sequence. Click **Save** to persist the test to the
 `specs/tests/<Module>.<method>.json`; actions live in `specs/actions/<name>.json`.
 
 Agents: the exact spec-file JSON (steps, `targetValues`, evaluations, actions, `{use}`/`run`) is in
-[docs/tests-for-agents.md](docs/tests-for-agents.md) — the testing counterpart to
-[docs/stories-for-agents.md](docs/stories-for-agents.md).
+[docs/agents/tests.md](docs/agents/tests.md) — the testing counterpart to
+[docs/agents/stories.md](docs/agents/stories.md).
 
 ---
 
@@ -247,7 +247,7 @@ systemview story <projectCode> "<name>" --ns <namespace> --diff <path> --file <p
 systemview stories <projectCode>          # list every saved story
 ```
 
-**→ Agents: read [`docs/stories-for-agents.md`](docs/stories-for-agents.md)** for when, why, and how
+**→ Agents: read [`docs/agents/stories.md`](docs/agents/stories.md)** for when, why, and how
 (with worked examples).
 
 ---
@@ -258,7 +258,7 @@ systemview stories <projectCode>          # list every saved story
 |---|---|
 | `systemview [start] [port]` | Start SystemView UI; attach if already running |
 | `systemview test <projectCode> [namespace]` | Run saved tests |
-| `systemview story <projectCode> "<name>" [--ns …] [panes…]` | Create/update a namespaced Story ([agent guide](docs/stories-for-agents.md)) |
+| `systemview story <projectCode> "<name>" [--ns …] [panes…]` | Create/update a namespaced Story ([agent guide](docs/agents/stories.md)) |
 | `systemview stories <projectCode>` | List saved Stories |
 | `systemview list [projectCode] [namespace]` | List projects, services, or tests |
 | `systemview logs [projectCode] [namespace]` | Stream log entries from connected services |

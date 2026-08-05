@@ -55,10 +55,12 @@
 // the PageHeader pill, which stamps `sv-dark` on <html>. Canvas family matches the editor's oneDark
 // (#282c34 et al.) so code panes and the app read as one surface.
 :root.sv-dark {
-  --sv-blue: #6886ba;
-  --sv-blue-hover: #7a95c9; // hover LIGHTENS on dark
-  --sv-blue-deep: #8fa8d8;
-  --sv-indigo: #8891e0;
+  // The blue/indigo family sits a NOTCH lighter on dark — section badges, section captions, panel
+  // titles (Scratch Pad / Navigator), buttons, and everything else riding these tokens (user call).
+  --sv-blue: #7d99cc;
+  --sv-blue-hover: #8ea8da; // hover LIGHTENS on dark
+  --sv-blue-deep: #9ab3e2;
+  --sv-indigo: #99a1ee;
 
   --sv-text: #b8bfd3;
   --sv-text-strong: #d7dce9;

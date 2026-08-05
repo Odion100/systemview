@@ -8,6 +8,10 @@
     color: var(--sv-indigo);
     margin-right: 10px;
     text-shadow: 1px 1px 2px #d6cbca;
+    // Dark mode — no text shadow (the light shadow reads as a smudge on the dark header).
+    :root.sv-dark & {
+      text-shadow: none;
+    }
   }
   &__logo {
     height: 38px;

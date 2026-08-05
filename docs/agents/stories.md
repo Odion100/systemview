@@ -251,3 +251,57 @@ instead of losing the thread in chat.
 > A dedicated `systemview story-reply` verb (post an agent reply live, broadcast to the open UI) is
 > planned. Until it lands, read the story file and append your `agent` replies to the relevant pane
 > (the user sees them on the next refresh).
+
+## Story types — declare the story's PURPOSE
+
+Every story has a purpose, and `type` is where you declare it — BEFORE you build, because the type
+should shape what you put in the panes. Current types:
+
+- **`"report"`** (the default — an absent `type` means this): a walk-through / handoff / narration.
+  You're SHOWING something: what changed, how it works, what proves it. No response is required from
+  READ (`review: { "verdict": "read" }` — the sibling of approval’s marks) to track progress through it; replies are always available. Panes group by topic and flow like a document.
+- **`"approval"`**: a sign-off request. You're ASKING something — the user rules on the work, piece by
+  piece. Panes must be structured as decisions (below), and the UI grows review controls.
+
+`type` is open-ended: future modes (checklist, walkthrough, incident review…) follow the same pattern.
+Pick the type by asking: *what do I want the user to DO with this story?* Reading → report. Ruling →
+approval.
+
+### Approval stories — asking for sign-off
+
+Give a story `"type": "approval"` when the point of the story is a DECISION — you're presenting work
+(a plan, a change, a refactor) and you want the user to approve or reject it, piece by piece. The type
+changes what the user sees AND how you should build it.
+
+**What the user gets:** every pane grows ✓ / ✗ controls in its header. ✓ marks the card approved
+(green border), ✗ rejects it (red border). Comments are independent — leave a reply on ANY pane, verdict or not. Panes
+can also be left alone — unreviewed is a real state, not consent. The story toolbar shows the tally
+("4/7 reviewed · 1 ✗") plus an overall **Approve story / Reject** verdict.
+
+**How that changes your authoring:** each pane should be ONE approvable unit — one decision, not one
+topic. Lead with the claim, pair it with the code/diff/test that proves it. If a card mixes three
+decisions, the user can't reject just one.
+
+**Schema** (rides the story object like everything else — `saveStory` round-trips it):
+
+```jsonc
+{
+  "type": "approval",                       // the story-level mode
+  "verdict": { "status": "approved", "at": 1754350000000 },   // overall — absent until the user rules
+  "panes": [
+    { "id": "p1", "review": { "verdict": "rejected", "at": 1754350000000 }, "replies": [ ... ] }
+  ]
+}
+```
+
+**The loop:**
+
+1. Create the story with `"type": "approval"` (set it in the story JSON you write / `systemview story`
+   payload). One decision per pane.
+2. The user reviews: ✓ / ✗ per card (often with a reply on the rejected ones), maybe an overall verdict.
+3. You read it back — `cat .systemview/stories/<id>.json` — and act on `panes[].review` +
+   `panes[].replies`: revise exactly the rejected cards.
+4. **When you revise a pane, DELETE its `review`** — the old verdict is about content that no longer
+   exists; the card must return to unreviewed for re-review. Same for the story-level `verdict` if the
+   story materially changed. Never mark a card approved yourself.
+

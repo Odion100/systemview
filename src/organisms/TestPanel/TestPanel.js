@@ -66,7 +66,15 @@ const FullTestInner = ({
   const [Before, setTestBefore] = useState([]);
   const [After, setTestAfter] = useState([]);
   const [Main, setTestMain] = useState([new Test({ namespace, shouldValidate: true })]);
-  const eventNamespace = { serviceId, moduleName, methodName: "on" };
+  // A new EVENT listener defaults to wherever MAIN is pointed — the page props are only the seed,
+  // and on higher-level pages (no method in the URL) they're empty, which used to surface as
+  // "undefined.undefined.on". Main's first targeted step is the live source of truth.
+  const mainNs = Main.find((t) => t.namespace.serviceId)?.namespace || namespace;
+  const eventNamespace = {
+    serviceId: mainNs.serviceId,
+    moduleName: mainNs.moduleName,
+    methodName: "on",
+  };
   const [Events, setEventTest] = useState([]);
   // RFC-020 — the test's NAMED-ACTION sections: ordered [{ name, tests, pos }] where pos places the
   // section "pre" (between Before and Main) or "post" (between Main and After). They load with a saved

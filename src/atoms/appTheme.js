@@ -1,19 +1,10 @@
 import { useEffect, useState } from "react";
+import { setEditorDark } from "./CodeView/editorTheme";
 
-// ONE global APP theme (light/dark) + PER-PANE overrides.
-//
-// The PageHeader pill drives the app theme: it stamps `sv-dark` on <html> (the CSS tokens flip) and
-// RESETS every per-pane override — the whole app lands on the new theme together. From there, every
-// themed pane (document, code file, diff — each individually) can diverge with its own ☾/☀, keyed by
-// a stable pane key and persisted. No families, no groups: one pane, one theme.
+// ONE global APP theme (light/dark) — the PageHeader pill drives it, any component can subscribe.
+// The `sv-dark` class flip on <html> lives HERE (not in the header component), so the CSS tokens and
+// JS consumers (react-json-view themes etc.) can never drift apart.
 let dark = localStorage.getItem("sv.appDark") === "true";
-let paneOverrides = {};
-try {
-  paneOverrides = JSON.parse(localStorage.getItem("sv.paneDark") || "{}") || {};
-} catch {
-  paneOverrides = {};
-}
-const savePanes = () => localStorage.setItem("sv.paneDark", JSON.stringify(paneOverrides));
 const subs = new Set();
 const apply = () => document.documentElement.classList.toggle("sv-dark", dark);
 apply();
@@ -23,9 +14,9 @@ export const setAppDark = (v) => {
   dark = !!v;
   localStorage.setItem("sv.appDark", String(dark));
   apply();
-  // The app-level flip carries EVERY pane with it — clear the individual divergences.
-  paneOverrides = {};
-  savePanes();
+  // The ONE app toggle carries the documents with it — flipping the app also flips all three editor
+  // theme groups (code / docs / diff). Each group can then diverge until the next app-level flip.
+  setEditorDark(dark);
   subs.forEach((f) => f());
 };
 
@@ -37,26 +28,6 @@ export function useAppDark() {
     return () => subs.delete(f);
   }, []);
   return [dark, () => setAppDark(!dark)];
-}
-
-// ── Per-pane theme ────────────────────────────────────────────────────────────────────────────────
-// `key` identifies ONE themed surface (story pane id, code-pane file path, doc namespace). A pane
-// without an explicit override follows the app theme.
-export const getPaneDark = (key) => (key in paneOverrides ? paneOverrides[key] : dark);
-export const setPaneDark = (key, v) => {
-  paneOverrides[key] = !!v;
-  savePanes();
-  subs.forEach((f) => f());
-};
-
-export function usePaneDark(key) {
-  const [, bump] = useState(0);
-  useEffect(() => {
-    const f = () => bump((n) => n + 1);
-    subs.add(f);
-    return () => subs.delete(f);
-  }, []);
-  return [getPaneDark(key), () => setPaneDark(key, !getPaneDark(key))];
 }
 
 // react-json-view theme for the app theme — light keeps the stock look; dark is a base16 set tuned to

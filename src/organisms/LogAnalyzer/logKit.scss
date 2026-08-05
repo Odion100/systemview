@@ -163,7 +163,7 @@
     font-size: 12px;
     border: none;
     background: transparent;
-    color: #444;
+    color: var(--sv-text);
     cursor: pointer;
     min-width: 0;
   }
@@ -317,7 +317,7 @@
       border-radius: 3px;
       padding: 2px 4px;
       background: var(--sv-bg);
-      color: #333;
+      color: var(--sv-text);
       width: 100%;
       &:focus { outline: none; border-color: #9494b7; }
     }

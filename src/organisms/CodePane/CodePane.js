@@ -3,7 +3,7 @@ import ServiceContext from "../../ServiceContext";
 import loadServiceWithHeaders from "../../utils/loadService";
 import CodeEditor from "../../atoms/CodeView/CodeEditor";
 import DiffView from "../../atoms/DiffView/DiffView";
-import { usePaneDark, EditorThemeToggle } from "../../atoms/CodeView/editorTheme";
+import { useEditorDark, EditorThemeToggle } from "../../atoms/CodeView/editorTheme";
 import Markdown from "../../atoms/Markdown/Markdown";
 import "./styles.scss";
 
@@ -26,14 +26,19 @@ const CodePane = ({ file, onClose }) => {
   const [preview, setPreview] = useState(
     () => isMd && localStorage.getItem(`sv.mdPreview.${file.path}`) !== "false",
   );
-  // PER-PANE theme — this file's pane owns its light/dark individually, keyed by the file itself.
-  const paneKey = `file:${file.projectCode}/${file.serviceId}/${file.path}`;
-  const [editorDark] = usePaneDark(paneKey);
+  // Theme GROUPS by content: md files follow the docs family, code files the code family, diff the diff family.
+  const [codeDark] = useEditorDark("code");
+  const [docsDark] = useEditorDark("docs");
+  const [diffDark] = useEditorDark("diff");
+
   // Git diff: `hasDiff` = the file differs from HEAD (the nav's orange dot, answered here);
   // `diffMode` flips the body to the side-by-side DiffView; `diffData` is fetched on entry.
   const [hasDiff, setHasDiff] = useState(false);
   const [diffMode, setDiffMode] = useState(false);
   const [diffData, setDiffData] = useState(null);
+  // The pane's EFFECTIVE theme + which family its header toggle flips.
+  const themeScope = diffMode ? "diff" : isMd ? "docs" : "code";
+  const editorDark = diffMode ? diffDark : isMd ? docsDark : codeDark;
 
   const host = connectedServices.find(
     (s) => s.serviceId === file.serviceId && s.projectCode === file.projectCode,
@@ -147,7 +152,7 @@ const CodePane = ({ file, onClose }) => {
         </span>
         {dirty && <span className={`${CLASSNAME}__dirty`} title="unsaved changes" />}
         <span className={`${CLASSNAME}__actions`}>
-          <EditorThemeToggle paneKey={paneKey} />
+          <EditorThemeToggle scope={themeScope} />
           {hasDiff && (
             <button
               type="button"
@@ -187,7 +192,9 @@ const CodePane = ({ file, onClose }) => {
         {error && <div className={`${CLASSNAME}__error`}>{error}</div>}
         {!error && content === null && <div className={`${CLASSNAME}__loading`}>loading…</div>}
         {!error && content !== null && (diffMode && diffData ? (
-          <DiffView base={diffData.base} head={diffData.head} language={diffData.language} dark={editorDark} />
+          // The diff EDITS the working file: head = the editor's live content (unsaved edits show),
+          // typing in the right side feeds the same dirty/Save/⌘S machinery as the plain editor.
+          <DiffView base={diffData.base} head={content} language={diffData.language} dark={editorDark} onChange={setContent} />
         ) : preview && isMd ? (
           <div className={`md-view md-view--${editorDark ? "dark" : "light"}`}>
             <Markdown dark={editorDark}>{content}</Markdown>

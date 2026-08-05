@@ -26,7 +26,7 @@ const EditBox = ({ formSubmit, mainObject, hiddenForm, onCancel, open = false, s
           <span className="edit-box__link edit-box__link--save" onClick={saveClicked}>Save</span>
           <span className="edit-box__link" onClick={cancelClicked}>Close</span>
           {/* Editor-backed boxes get the global dark/light icon (opt-in — data forms don't). */}
-          {showThemeToggle && <EditorThemeToggle paneKey="editbox" />}
+          {showThemeToggle && <EditorThemeToggle scope="docs" />}
         </div>
         {hiddenForm}
       </div>

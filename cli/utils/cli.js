@@ -23,7 +23,7 @@ const HELP_TEXT = `
     toggle cs | ci                         Toggle namespace case-sensitivity (sticky; default insensitive)
                                            [also: bare cs / ci; works in interactive mode]
     open [projectCode] [namespace]         Open the browser UI
-    story <target> "<name>" [--ns ns] [--text|--source|--file|--diff|--test]… [--note md]  Create/update a saved, namespaced Story (see docs/stories-for-agents.md)
+    story <target> "<name>" [--ns ns] [--text|--source|--file|--diff|--test]… [--note md]  Create/update a saved, namespaced Story (see docs/agents/stories.md)
     stories <target>                       List saved Stories (name · namespace · pane count)
     story-add|rm|move|edit <target> "<name>" [--ns ns] …  Edit an existing story's panes: insert (--at i), remove (--at i), reorder (--from i --to j), replace/annotate (--at i)
     story-layout|rename|delete <target> "<name>" [--ns ns]  Set --layout, --to "<new name>", or delete the story

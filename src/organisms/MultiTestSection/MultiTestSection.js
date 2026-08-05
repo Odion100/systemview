@@ -9,6 +9,11 @@ import "./styles.scss";
 import Count from "../../atoms/Count";
 
 const DRAG_MIME = "application/x-sv-step";
+// EVENT steps are their own species (event_name arg + `.on` listener) — they rearrange within Events
+// only, and normal steps can't drop in. A separate MIME enforces it at dragover time, so the drop
+// indicators never light up across the boundary.
+const EVENTS_DRAG_MIME = "application/x-sv-step-events";
+const stepMime = (sectionKey) => (sectionKey === "events" ? EVENTS_DRAG_MIME : DRAG_MIME);
 
 // RFC-023 — the shell around ONE step: the drag grip (move within/across editable sections), the
 // duplicate (⧉), and the drop target (top half = before this step, bottom half = after). Sections
@@ -16,6 +21,8 @@ const DRAG_MIME = "application/x-sv-step";
 export function StepShell({ sectionKey, index, onStepMove, onStepDuplicate, onDelete, children }) {
   const [over, setOver] = useState(null); // "before" | "after" while a step hovers
   const canDrop = !!onStepMove;
+  const mime = stepMime(sectionKey);
+  const isEvents = sectionKey === "events";
   const sideAt = (e) => {
     const r = e.currentTarget.getBoundingClientRect();
     return e.clientY > r.top + r.height / 2 ? "after" : "before";
@@ -26,7 +33,7 @@ export function StepShell({ sectionKey, index, onStepMove, onStepDuplicate, onDe
       onDragOver={
         canDrop
           ? (e) => {
-              if (![...e.dataTransfer.types].includes(DRAG_MIME)) return;
+              if (![...e.dataTransfer.types].includes(mime)) return;
               e.preventDefault();
               setOver(sideAt(e));
             }
@@ -40,7 +47,7 @@ export function StepShell({ sectionKey, index, onStepMove, onStepDuplicate, onDe
               setOver(null);
               let d;
               try {
-                d = JSON.parse(e.dataTransfer.getData(DRAG_MIME));
+                d = JSON.parse(e.dataTransfer.getData(mime));
               } catch {
                 return;
               }
@@ -75,12 +82,16 @@ export function StepShell({ sectionKey, index, onStepMove, onStepDuplicate, onDe
           )}
           {canDrop && (
             <span
-              className="step-shell__grip"
-              title="Drag to move this step — within this section or into another"
+              className={`step-shell__grip${isEvents ? " step-shell__grip--events" : ""}`}
+              title={
+                isEvents
+                  ? "Drag to reorder this listener within Events"
+                  : "Drag to move this step — within this section or into another"
+              }
               draggable
               onDragStart={(e) => {
                 e.dataTransfer.effectAllowed = "move";
-                e.dataTransfer.setData(DRAG_MIME, JSON.stringify({ key: sectionKey, index }));
+                e.dataTransfer.setData(mime, JSON.stringify({ key: sectionKey, index }));
               }}
             >
               ⠿
@@ -144,7 +155,7 @@ const MultiTestSection = ({
       onDragOver={
         canDrop && !open
           ? (e) => {
-              if ([...e.dataTransfer.types].includes(DRAG_MIME)) e.preventDefault();
+              if ([...e.dataTransfer.types].includes(stepMime(sectionKey))) e.preventDefault();
             }
           : undefined
       }
@@ -153,7 +164,7 @@ const MultiTestSection = ({
           ? (e) => {
               e.preventDefault();
               try {
-                const d = JSON.parse(e.dataTransfer.getData(DRAG_MIME));
+                const d = JSON.parse(e.dataTransfer.getData(stepMime(sectionKey)));
                 if (d && d.key != null) onStepMove(d.key, d.index, sectionKey, TestSection.length);
               } catch {
                 /* not a step drag */
@@ -264,12 +275,12 @@ const MultiTestSection = ({
             <span
               className={`${className}__empty-drop`}
               onDragOver={(e) => {
-                if ([...e.dataTransfer.types].includes(DRAG_MIME)) e.preventDefault();
+                if ([...e.dataTransfer.types].includes(stepMime(sectionKey))) e.preventDefault();
               }}
               onDrop={(e) => {
                 e.preventDefault();
                 try {
-                  const d = JSON.parse(e.dataTransfer.getData(DRAG_MIME));
+                  const d = JSON.parse(e.dataTransfer.getData(stepMime(sectionKey)));
                   if (d && d.key != null) onStepMove(d.key, d.index, sectionKey, 0);
                 } catch {
                   /* not a step drag */

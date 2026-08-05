@@ -1303,3 +1303,139 @@ $pane-max: 72vh;
     max-height: none;
   }
 }
+
+// ── APPROVAL stories ──────────────────────────────────────────────────────────────────────────────
+// story.type === "approval": each pane gets ✓/✗ review controls in its header; the verdict wears the
+// pane's border (green approved / red rejected, zero layout shift); the toolbar shows the tallies and
+// the story-level verdict. Verdicts persist on the story object (like replies) — agents read them back.
+.pane__review {
+  display: inline-flex;
+  gap: 3px;
+  flex: none;
+}
+.pane__review-btn {
+  border: 1px solid var(--sv-border);
+  background: var(--sv-surface);
+  color: var(--sv-text-muted);
+  font-size: 11px;
+  line-height: 1;
+  padding: 2px 7px;
+  border-radius: 4px;
+  cursor: pointer;
+  &--ok:hover:not(.is-on) {
+    border-color: #2db44f;
+    color: #2db44f;
+  }
+  &--no:hover:not(.is-on) {
+    border-color: #e05757;
+    color: #e05757;
+  }
+  &--ok.is-on {
+    background: #2db44f;
+    border-color: #2db44f;
+    color: #fff;
+  }
+  &--no.is-on {
+    background: #e05757;
+    border-color: #e05757;
+    color: #fff;
+  }
+}
+.stage .pane--verdict-approved {
+  border-color: #2db44f;
+  box-shadow: 0 0 0 1px #2db44f;
+}
+.stage .pane--verdict-rejected {
+  border-color: #e05757;
+  box-shadow: 0 0 0 1px #e05757;
+}
+.stage__approval {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: auto; // owns the LEFT side; the layout controls keep the right
+  min-width: 0;
+}
+.stage__approval-tag {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #fff;
+  background: var(--sv-indigo);
+  border-radius: 3px;
+  padding: 1px 6px;
+  flex: none;
+}
+.stage__approval-progress {
+  font-size: 11.5px;
+  color: var(--sv-text-muted);
+  white-space: nowrap;
+}
+.stage__verdict-btn {
+  border: 1px solid var(--sv-border);
+  background: var(--sv-surface);
+  color: var(--sv-text-muted);
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  &--ok:hover:not(.is-on) {
+    border-color: #2db44f;
+    color: #2db44f;
+  }
+  &--no:hover:not(.is-on) {
+    border-color: #e05757;
+    color: #e05757;
+  }
+  &--ok.is-on {
+    background: #2db44f;
+    border-color: #2db44f;
+    color: #fff;
+  }
+  &--no.is-on {
+    background: #e05757;
+    border-color: #e05757;
+    color: #fff;
+  }
+}
+// The chip's approval marker — a quiet indigo tick before the story name.
+.stage-story-chip__mode {
+  color: var(--sv-indigo);
+  font-size: 11px;
+  font-weight: 700;
+  flex: none;
+}
+
+// REPORT stories — the "mark as read" sibling: one quiet ✓, indigo when on; the pane wears a soft
+// indigo edge so a glance shows what you've been through.
+.pane__review-btn--read {
+  &:hover:not(.is-on) {
+    border-color: #6a74c4;
+    color: #6a74c4;
+  }
+  &.is-on {
+    background: #6a74c4;
+    border-color: #6a74c4;
+    color: #fff;
+  }
+}
+.stage .pane--verdict-read {
+  border-color: #6a74c4;
+  box-shadow: 0 0 0 1px #6a74c4;
+  // The outline alone is too quiet — the HEADER wears the same indigo (both themes, same color),
+  // with the on-header text lifted to read on it. Token re-declaration recolors band + text + grips.
+  .pane__header {
+    --sv-pane-header: #6a74c4;
+    --sv-on-header: #f0f2fc;
+    --sv-on-header-muted: #cdd3f2;
+    background: #6a74c4;
+  }
+  // The ✓-read button would vanish indigo-on-indigo — invert it on the tinted header.
+  .pane__review-btn--read.is-on {
+    background: #fff;
+    border-color: #fff;
+    color: #6a74c4;
+  }
+}

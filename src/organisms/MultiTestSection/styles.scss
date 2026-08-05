@@ -27,11 +27,13 @@
     border-radius: 6px;
     &--empty {
       background: var(--sv-inset);
-      color: var(--sv-text-muted); // themed — was inherited dark text, invisible on the dark inset
+      color: var(
+        --sv-text-muted
+      ); // themed — was inherited dark text, invisible on the dark inset
     }
   }
   &__add-btn {
-    padding: 0 6px;
+    padding: 0 5px;
     border-radius: 21px;
     font-weight: bold;
     color: #5960b6;
@@ -125,7 +127,9 @@
     border-radius: 0 7px 0 6px;
     padding: 1px 4px 2px 6px;
     opacity: 0;
-    transition: opacity 0.12s, box-shadow 0.12s;
+    transition:
+      opacity 0.12s,
+      box-shadow 0.12s;
   }
   &:hover &__tools {
     opacity: 1;
@@ -136,6 +140,10 @@
     .step-shell__dup,
     .step-shell__del {
       color: #6b7385;
+    }
+    // Events grips keep their plum lean even when the row sharpens.
+    .step-shell__grip--events {
+      color: #9a7fb0;
     }
   }
   &__grip,
@@ -157,6 +165,14 @@
     }
     &:active {
       cursor: grabbing;
+    }
+  }
+  // EVENTS grips wear a slightly different (plum-leaning) tint — the cue that these steps rearrange
+  // within Events only; their drag never crosses sections.
+  &__grip--events {
+    color: #c2b0cb;
+    &:hover {
+      color: #8f5fc1 !important;
     }
   }
   &__dup {

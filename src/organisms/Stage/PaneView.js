@@ -3,7 +3,7 @@ import { useHistory } from "react-router-dom";
 import Markdown from "../../atoms/Markdown/Markdown";
 import CodeView from "../../atoms/CodeView/CodeView";
 import CodeEditor from "../../atoms/CodeView/CodeEditor";
-import { usePaneDark, EditorThemeToggle } from "../../atoms/CodeView/editorTheme";
+import { useEditorDark, EditorThemeToggle } from "../../atoms/CodeView/editorTheme";
 import DiffView from "../../atoms/DiffView/DiffView";
 import TestPane from "./TestPane";
 import loadServiceWithHeaders from "../../utils/loadService";
@@ -56,8 +56,10 @@ const sideAt = (e) => {
   return e.clientX > r.left + r.width / 2 ? "after" : "before";
 };
 
-const PaneView = ({ pane, connectedServices, projectCode, onRemove, onPin, onSelect, onResize, onReply, onRemoveReply, layout, onDragStartPane, onDragOverPane, onDragEndPane, onDropPane, dropSide }) => {
+const PaneView = ({ pane, connectedServices, projectCode, onRemove, onPin, onSelect, onResize, onReply, onRemoveReply, onReview, reviewMode = "report", layout, onDragStartPane, onDragOverPane, onDragEndPane, onDropPane, dropSide }) => {
   const { kind, target = {}, highlight, pinned, span } = pane;
+  // This pane's review mark: approval stories → approved/rejected; report stories → read.
+  const review = (onReview && pane.review) || {};
   const [replying, setReplying] = useState(false);
   const [replyText, setReplyText] = useState("");
   const replies = pane.replies || [];
@@ -115,10 +117,15 @@ const PaneView = ({ pane, connectedServices, projectCode, onRemove, onPin, onSel
   };
 
   const Plugin = pluginFor(connectedServices, projectCode, target.serviceId);
-  // PER-PANE theme — every themed pane owns its light/dark INDIVIDUALLY (no groups), keyed by its
-  // pane id; a pane with no explicit choice follows the app theme.
-  const paneKey = `pane:${pane.id}`;
-  const [editorDark] = usePaneDark(paneKey);
+  // Theme GROUPS: documents (md files + notes), code (file/source), diffs — each family flips
+  // together; this pane follows (and its toggle flips) the family its content belongs to.
+  const themeScope =
+    kind === "diff"
+      ? "diff"
+      : kind === "markdown" || (kind === "file" && isMarkdownPath(target.path))
+        ? "docs"
+        : "code";
+  const [editorDark] = useEditorDark(themeScope);
   const history = useHistory();
 
   useEffect(() => {
@@ -168,7 +175,7 @@ const PaneView = ({ pane, connectedServices, projectCode, onRemove, onPin, onSel
     return data.content;
   })();
   // Seed the editor draft from the loaded file so the markdown EditBox can open straight into edit.
-  useEffect(() => { if (data) setDraft(data.content); }, [data]);
+  useEffect(() => { if (data) setDraft(data.content != null ? data.content : data.head || ""); }, [data]);
 
   const startEdit = () => { setDraft(data.content); setEditing(true); };
   const cancelEdit = () => setEditing(false);
@@ -184,6 +191,27 @@ const PaneView = ({ pane, connectedServices, projectCode, onRemove, onPin, onSel
     } finally {
       setSaving(false);
     }
+  };
+  // DIFF panes edit IN PLACE — the right side is a live editor (no Edit mode); Save/Cancel appear in
+  // the header the moment the draft diverges from the working file. `diffEpoch` remounts the merge
+  // view on cancel so the editor snaps back to the file's real content.
+  const [diffEpoch, setDiffEpoch] = useState(0);
+  const diffDirty = kind === "diff" && !!data && draft !== (data.head || "");
+  const saveDiff = async () => {
+    if (!Plugin) return;
+    setSaving(true);
+    try {
+      await Plugin.writeFile({ path: data.path || target.path, content: draft });
+      setState((s) => ({ ...s, data: { ...s.data, head: draft } }));
+    } catch (err) {
+      setState((s) => ({ ...s, error: err.message }));
+    } finally {
+      setSaving(false);
+    }
+  };
+  const cancelDiff = () => {
+    setDraft(data.head || "");
+    setDiffEpoch((n) => n + 1);
   };
   let body;
   if (kind === "markdown") {
@@ -215,7 +243,17 @@ const PaneView = ({ pane, connectedServices, projectCode, onRemove, onPin, onSel
   } else if (data && (kind === "file" || kind === "source")) {
     body = <CodeView code={data.content} language={data.language} highlight={effectiveHighlight} dark={editorDark} />;
   } else if (data && kind === "diff") {
-    body = <DiffView base={data.base} head={data.head} language={data.language} dark={editorDark} />;
+    // Right side editable when a writable plugin is reachable — edit the working file from the diff.
+    body = (
+      <DiffView
+        key={diffEpoch}
+        base={data.base}
+        head={data.head}
+        language={data.language}
+        dark={editorDark}
+        onChange={Plugin ? setDraft : undefined}
+      />
+    );
   } else {
     body = <div className="pane__status">Nothing to show.</div>;
   }
@@ -227,7 +265,7 @@ const PaneView = ({ pane, connectedServices, projectCode, onRemove, onPin, onSel
 
   return (
     <div
-      className={`pane pane--${kind} ${pinned ? "pane--pinned" : ""} ${widthPct >= 100 ? "pane--full" : "pane--half"} ${heightPx != null ? "pane--sized" : ""}`}
+      className={`pane pane--${kind} ${pinned ? "pane--pinned" : ""} ${review.verdict ? `pane--verdict-${review.verdict}` : ""} ${widthPct >= 100 ? "pane--full" : "pane--half"} ${heightPx != null ? "pane--sized" : ""}`}
       style={layout === "grid" ? { flexBasis: `calc(${widthPct}% - 10px)`, ...(heightPx != null ? { height: `${heightPx}px`, maxHeight: `${heightPx}px` } : {}) } : undefined}
       onDragOver={onDropPane ? (e) => {
         e.preventDefault();
@@ -344,15 +382,57 @@ const PaneView = ({ pane, connectedServices, projectCode, onRemove, onPin, onSel
             {pinned ? "Pinned" : "Pin"}
           </button>
         )}
+        {/* Per-card review marks. APPROVAL story: ✓ approve / ✗ reject (click again to clear).
+            REPORT story (default): a single ✓ "mark as read" — the sibling mark. */}
+        {onReview && reviewMode === "approval" && (
+          <span className="pane__review">
+            <button
+              type="button"
+              className={`pane__review-btn pane__review-btn--ok ${review.verdict === "approved" ? "is-on" : ""}`}
+              title="Approve this card (click again to clear)"
+              onClick={() => onReview(pane.id, review.verdict === "approved" ? null : "approved")}
+            >
+              ✓
+            </button>
+            <button
+              type="button"
+              className={`pane__review-btn pane__review-btn--no ${review.verdict === "rejected" ? "is-on" : ""}`}
+              title="Reject this card (click again to clear)"
+              onClick={() => onReview(pane.id, review.verdict === "rejected" ? null : "rejected")}
+            >
+              ✗
+            </button>
+          </span>
+        )}
+        {onReview && reviewMode === "report" && (
+          <span className="pane__review">
+            <button
+              type="button"
+              className={`pane__review-btn pane__review-btn--read ${review.verdict === "read" ? "is-on" : ""}`}
+              title={review.verdict === "read" ? "Read — click to unmark" : "Mark as read"}
+              onClick={() => onReview(pane.id, review.verdict === "read" ? null : "read")}
+            >
+              ✓
+            </button>
+          </span>
+        )}
         {/* Any pane whose body follows the editor theme (code, md, notes, diffs) carries the toggle
             in READ mode too — not just while editing (matches the code pane's header). */}
-        {["file", "source", "diff", "markdown"].includes(kind) && !editing && <EditorThemeToggle paneKey={paneKey} />}
+        {["file", "source", "diff", "markdown"].includes(kind) && !editing && <EditorThemeToggle scope={themeScope} />}
+        {diffDirty && (
+          <>
+            <button type="button" className="pane__action pane__action--save" disabled={saving} onClick={saveDiff}>
+              {saving ? "Saving…" : "Save"}
+            </button>
+            <button type="button" className="pane__action" disabled={saving} onClick={cancelDiff}>Cancel</button>
+          </>
+        )}
         {canEdit && !editing && (
           <button type="button" className="pane__action" onClick={startEdit}>Edit</button>
         )}
         {canEdit && editing && (
           <>
-            <EditorThemeToggle paneKey={paneKey} />
+            <EditorThemeToggle scope={themeScope} />
             <button type="button" className="pane__action pane__action--save" disabled={saving} onClick={saveEdit}>
               {saving ? "Saving…" : "Save"}
             </button>

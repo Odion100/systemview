@@ -110,7 +110,7 @@ Each test is the unit. Before/Main/Events/After phases are listed directly on th
 2. SystemView API (`http://localhost:3000/systemview/api`) — fallback if no manifest
 
 Test file format, shared actions, and the reference system are documented in
-**[tests-for-agents.md](tests-for-agents.md)** — the operational guide for reading, authoring, and
+**[agents/tests.md](agents/tests.md)** — the operational guide for reading, authoring, and
 running test spec files.
 
 ---
@@ -187,7 +187,7 @@ There are two ways to drive it:
 - **`story` / `stories`** — create **saved, named, namespaced** stories. A project holds many; each is filed under a namespace and persists in `.systemview/stories/`, travelling with the repo. **This is the one to use for handoffs.**
 - **`show` / `assemble` / `stage` / …** — drive a single **ephemeral** live Window in real time.
 
-**→ Agents:** read [`docs/stories-for-agents.md`](./stories-for-agents.md) for when, why, and how — with worked examples.
+**→ Agents:** read [`docs/agents/stories.md`](./agents/stories.md) for when, why, and how — with worked examples.
 
 ```bash
 # Saved, namespaced Stories — the persistent way
@@ -251,9 +251,9 @@ systemview selection buAPI
 
 **Layouts** (`--layout`, user-switchable in the UI toolbar): `grid` (default; flex — panes flow into rows with resizable widths/heights, drag to reorder) · `gallery` (one pane at a time, or a big pane + a rail of the rest). `single`/`column` were removed — passing them renders as grid. Panes size to content up to a cap and each is independently scrollable.
 
-**Replies:** in the UI the user can leave a **reply on any pane** (a per-pane review thread; stored as `pane.replies[]` with `author: "user"`/`"agent"`). It's how the user annotates a story in place and you plan back-and-forth per point — see **[`docs/stories-for-agents.md`](./stories-for-agents.md)** › _Replies_.
+**Replies:** in the UI the user can leave a **reply on any pane** (a per-pane review thread; stored as `pane.replies[]` with `author: "user"`/`"agent"`). It's how the user annotates a story in place and you plan back-and-forth per point — see **[`docs/agents/stories.md`](./agents/stories.md)** › _Replies_.
 
-**For agents — when and why:** don't paste code into chat — build a **story**. After a slice of work, `systemview story <project> "<name>" --ns <namespace>` with the `diff`s of what changed, the `source` of the key methods, the runnable `test`s that prove it, and `--text`/`--note` narrating it. File it on the namespace it's about so the user finds it there. Use the ephemeral `show`/`assemble` only for real-time pointing; use `story` for anything worth keeping. `systemview selection <project>` tells you what the user is looking at when you resume. See **[`docs/stories-for-agents.md`](./stories-for-agents.md)**; `systemview help` lists every flag.
+**For agents — when and why:** don't paste code into chat — build a **story**. After a slice of work, `systemview story <project> "<name>" --ns <namespace>` with the `diff`s of what changed, the `source` of the key methods, the runnable `test`s that prove it, and `--text`/`--note` narrating it. File it on the namespace it's about so the user finds it there. Use the ephemeral `show`/`assemble` only for real-time pointing; use `story` for anything worth keeping. `systemview selection <project>` tells you what the user is looking at when you resume. See **[`docs/agents/stories.md`](./agents/stories.md)**; `systemview help` lists every flag.
 
 ---
 

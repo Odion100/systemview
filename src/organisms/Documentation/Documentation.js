@@ -2,7 +2,7 @@ import React, { useState, useContext, useEffect, useCallback } from "react";
 import { useHistory, useLocation } from "react-router-dom";
 import "./styles.scss";
 import DescriptionBox from "../../atoms/DescriptionBox/DescriptionBox";
-import { EditorThemeToggle, usePaneDark } from "../../atoms/CodeView/editorTheme";
+import { EditorThemeToggle, useEditorDark } from "../../atoms/CodeView/editorTheme";
 import Markdown from "../../atoms/Markdown/Markdown";
 import CodePane from "../CodePane/CodePane";
 import ServiceContext from "../../ServiceContext";
@@ -430,7 +430,7 @@ export default function Documentation({
 const DocDescription = ({ doc, setDocument, Plugin, label, readOnly, helpText }) => {
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(doc.documentation);
-  const [editorDark] = usePaneDark(`doc:${label}`);
+  const [editorDark] = useEditorDark("docs");
 
   const saveDocument = async () => {
     if (!Plugin) return;
@@ -461,7 +461,7 @@ const DocDescription = ({ doc, setDocument, Plugin, label, readOnly, helpText })
         <span className="doc-pane__actions">
           {/* The document follows the DOCS theme even in READ mode — the toggle rides the ONE
               corner cluster, right beside Edit (a second auto-margined span floated it to center). */}
-          <EditorThemeToggle paneKey={`doc:${label}`} />
+          <EditorThemeToggle scope="docs" />
           {!readOnly &&
             (!editing ? (
               <button type="button" className="doc-pane__btn" onClick={() => setEditing(true)}>

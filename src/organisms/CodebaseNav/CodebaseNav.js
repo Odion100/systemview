@@ -398,7 +398,7 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
               ))
             ) : (
               <div className={`${CLASSNAME}__empty`}>
-                none yet — an agent can define them (docs/namespaces-for-agents.md)
+                none yet — an agent can define them (docs/agents/namespaces.md)
               </div>
             )}
           </div>
