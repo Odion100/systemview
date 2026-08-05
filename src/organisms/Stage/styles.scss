@@ -836,6 +836,10 @@ $pane-max: 72vh;
       font-family: inherit;
       resize: vertical;
       background: var(--sv-surface);
+      // Dark mode: the surface goes dark but a textarea's default text stays near-black — set it.
+      :root.sv-dark & {
+        color: var(--sv-text);
+      }
     }
     &__reply-actions {
       display: flex;

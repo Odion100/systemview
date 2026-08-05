@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useContext, useMemo, useCallback, useRef } from "react";
 import { useHistory, useParams, useLocation } from "react-router-dom";
 import { Client } from "../../systemClient";
 import ServiceContext from "../../ServiceContext";
@@ -134,6 +134,284 @@ function LoadBar({ label, share, value, sub, status }) {
 }
 
 const STATUS_LABEL = { ok: "healthy", watch: "watch", bad: "critical" };
+
+// ---- Topology graph — the "who calls whom" graphic (tab "topology") ----
+// The EDGES are MOCK, but shaped from buAPI's REAL index files (loadService/useService call sites)
+// so the picture reads true: Profiles is the hub every service loads on boot; Basketball, Media and
+// Networking call into it from the modules listed. Real edges await SystemLynx carrying the caller
+// (x-sv-trace / x-sv-caller) — then this same graphic lights up from live data.
+const MOCK_TOPO_EDGES = [
+  {
+    from: "Basketball",
+    to: "Profiles",
+    couplings: [
+      { module: "Games", via: "validateTeamRosters", calls: ["Users.get", "Users.getPage", "Teams.getPage"] },
+      { module: "Games", via: "resolveProxyQuery", calls: ["Users.getPage", "Teams.getPage", "Tournaments.getPage", "Events.getPage"] },
+      { module: "Stats", via: "attachLinkedProfiles", calls: ["Users.get", "Teams.get", "Groups.get", "Events.get", "Tournaments.get"] },
+      { module: "Stats", via: "resolveProxyQuery", calls: ["Users.getPage", "Teams.getPage", "Tournaments.getPage", "Events.getPage"] },
+      { module: "Seasons", via: "registerSeasonWithHost", calls: ["Teams.registerSeason", "Tournaments.registerSeason"] },
+      { module: "Seasons", via: "resolveProxyQuery", calls: ["Teams.getPage", "Tournaments.getPage", "Events.getPage"] },
+    ],
+  },
+  {
+    from: "Media",
+    to: "Profiles",
+    couplings: [{ module: "Posts", via: "entity_host resolution", calls: ["Aggregator.get"] }],
+  },
+  {
+    from: "Media",
+    to: "Basketball",
+    couplings: [{ module: "Posts", via: "entity_host resolution", calls: ["Aggregator.get"] }],
+  },
+  {
+    from: "Networking",
+    to: "Profiles",
+    couplings: [{ module: "Chats", via: "attachChatProfiles", calls: ["Aggregator.get"] }],
+  },
+];
+
+const TOPO_H = 520;
+// Half-extents of a node card, used to trim edge lines at the card's border so arrowheads land
+// ON the box instead of vanishing under it.
+const TOPO_HW = 92;
+const TOPO_HH = 36;
+
+function TopologyGraph({ nodes, edges, projectCode }) {
+  const canvasRef = useRef(null);
+  const storageKey = `sv.topo.${projectCode}`;
+  const [pos, setPos] = useState({}); // serviceId → {x,y} CENTER, px within the canvas
+  const [drag, setDrag] = useState(null);
+  const movedRef = useRef(false);
+  const [sel, setSel] = useState(null); // {type:"edge", i} | {type:"node", id}
+
+  // Seed layout: saved arrangement wins; otherwise hub-and-spoke — the most called-INTO service
+  // (Profiles in buAPI) sits center, the rest ring around it. Drag anywhere; the layout persists.
+  const ids = nodes.map((n) => n.serviceId).join(",");
+  useEffect(() => {
+    const w = (canvasRef.current && canvasRef.current.clientWidth) || 900;
+    let saved = {};
+    try { saved = JSON.parse(localStorage.getItem(storageKey)) || {}; } catch { saved = {}; }
+    const inbound = {};
+    edges.forEach((e) => { inbound[e.to] = (inbound[e.to] || 0) + 1; });
+    const order = [...nodes].sort((a, b) => (inbound[b.serviceId] || 0) - (inbound[a.serviceId] || 0));
+    const hub = order.length > 2 && (inbound[order[0]?.serviceId] || 0) > 1 ? order[0].serviceId : null;
+    const ring = order.filter((n) => n.serviceId !== hub);
+    const next = {};
+    order.forEach((n) => {
+      if (saved[n.serviceId]) { next[n.serviceId] = saved[n.serviceId]; return; }
+      if (n.serviceId === hub) { next[n.serviceId] = { x: w / 2, y: TOPO_H / 2 }; return; }
+      const i = ring.findIndex((r) => r.serviceId === n.serviceId);
+      const a = (i / Math.max(1, ring.length)) * 2 * Math.PI - Math.PI / 2;
+      next[n.serviceId] = {
+        x: w / 2 + Math.cos(a) * w * 0.32,
+        y: TOPO_H / 2 + Math.sin(a) * TOPO_H * 0.34,
+      };
+    });
+    setPos(next);
+  }, [ids, projectCode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!drag) return undefined;
+    const move = (e) => {
+      movedRef.current = true;
+      const rect = canvasRef.current.getBoundingClientRect();
+      const x = Math.min(rect.width - 40, Math.max(40, e.clientX - rect.left + drag.dx));
+      const y = Math.min(TOPO_H - 28, Math.max(28, e.clientY - rect.top + drag.dy));
+      setPos((p) => ({ ...p, [drag.id]: { x, y } }));
+    };
+    const up = () => {
+      setPos((p) => {
+        try { localStorage.setItem(storageKey, JSON.stringify(p)); } catch { /* full/blocked — layout just won't persist */ }
+        return p;
+      });
+      setDrag(null);
+    };
+    window.addEventListener("mousemove", move);
+    window.addEventListener("mouseup", up);
+    return () => {
+      window.removeEventListener("mousemove", move);
+      window.removeEventListener("mouseup", up);
+    };
+  }, [drag, storageKey]);
+
+  const startDrag = (id) => (e) => {
+    e.preventDefault();
+    movedRef.current = false;
+    const rect = canvasRef.current.getBoundingClientRect();
+    const p = pos[id];
+    if (!p) return;
+    setDrag({ id, dx: p.x - (e.clientX - rect.left), dy: p.y - (e.clientY - rect.top) });
+  };
+
+  // Point on the border of the card centered at `c`, along the direction toward `toward`.
+  const borderPoint = (c, toward, pad = 0) => {
+    const dx = toward.x - c.x, dy = toward.y - c.y;
+    const len = Math.max(1, Math.hypot(dx, dy));
+    const ux = dx / len, uy = dy / len;
+    const k = 1 / Math.max(Math.abs(ux) / TOPO_HW, Math.abs(uy) / TOPO_HH, 1e-6);
+    const d = Math.min(k + pad, len / 2);
+    return { x: c.x + ux * d, y: c.y + uy * d };
+  };
+
+  const live = edges
+    .map((e, i) => ({ ...e, i }))
+    .filter((e) => pos[e.from] && pos[e.to]);
+
+  const nodeById = {};
+  nodes.forEach((n) => { nodeById[n.serviceId] = n; });
+  const selEdge = sel?.type === "edge" ? edges[sel.i] : null;
+
+  return (
+    <>
+      <div
+        className="topo-canvas"
+        ref={canvasRef}
+        onMouseDown={(e) => { if (e.target === canvasRef.current) setSel(null); }}
+      >
+        <svg className="topo-svg">
+          <defs>
+            <marker id="topoArrow" markerWidth="9" markerHeight="9" refX="7.5" refY="4.5" orient="auto" markerUnits="userSpaceOnUse">
+              <path d="M0,0 L9,4.5 L0,9 Z" className="topo-arrowhead" />
+            </marker>
+            <marker id="topoArrowSel" markerWidth="9" markerHeight="9" refX="7.5" refY="4.5" orient="auto" markerUnits="userSpaceOnUse">
+              <path d="M0,0 L9,4.5 L0,9 Z" className="topo-arrowhead topo-arrowhead--sel" />
+            </marker>
+          </defs>
+          {live.map((e) => {
+            const a = pos[e.from], b = pos[e.to];
+            const p1 = borderPoint(a, b);
+            const p2 = borderPoint(b, a, 4);
+            const mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
+            const len = Math.max(1, Math.hypot(p2.x - p1.x, p2.y - p1.y));
+            const px = -(p2.y - p1.y) / len, py = (p2.x - p1.x) / len; // perpendicular — bows the line
+            const c = { x: mx + px * 22, y: my + py * 22 };
+            const d = `M${p1.x},${p1.y} Q${c.x},${c.y} ${p2.x},${p2.y}`;
+            const isSel = sel?.type === "edge" && sel.i === e.i;
+            return (
+              <g key={`${e.from}->${e.to}`}>
+                <path className="topo-edge-hit" d={d} onClick={() => setSel({ type: "edge", i: e.i })} />
+                <path
+                  className={`topo-edge${isSel ? " is-sel" : ""}`}
+                  d={d}
+                  markerEnd={`url(#${isSel ? "topoArrowSel" : "topoArrow"})`}
+                />
+              </g>
+            );
+          })}
+        </svg>
+        {live.map((e) => {
+          const a = pos[e.from], b = pos[e.to];
+          const p1 = borderPoint(a, b), p2 = borderPoint(b, a, 4);
+          const mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
+          const len = Math.max(1, Math.hypot(p2.x - p1.x, p2.y - p1.y));
+          const px = -(p2.y - p1.y) / len, py = (p2.x - p1.x) / len;
+          // The chip rides the bezier's actual midpoint (t=0.5): ¼·p1 + ½·control + ¼·p2.
+          const cx = mx + px * 22, cy = my + py * 22;
+          const chipX = 0.25 * p1.x + 0.5 * cx + 0.25 * p2.x;
+          const chipY = 0.25 * p1.y + 0.5 * cy + 0.25 * p2.y;
+          const n = e.couplings.reduce((s, cpl) => s + cpl.calls.length, 0);
+          const isSel = sel?.type === "edge" && sel.i === e.i;
+          return (
+            <span
+              key={`chip-${e.from}->${e.to}`}
+              className={`topo-chip${isSel ? " is-sel" : ""}`}
+              style={{ left: chipX, top: chipY }}
+              onClick={() => setSel({ type: "edge", i: e.i })}
+              title={`${e.from} calls ${e.to} — ${n} couplings`}
+            >
+              {n}
+            </span>
+          );
+        })}
+        {nodes.map((n) => {
+          const p = pos[n.serviceId];
+          if (!p) return null;
+          const isSel = sel?.type === "node" && sel.id === n.serviceId;
+          return (
+            <div
+              key={n.serviceId}
+              className={`topo-gnode topo-gnode--${n.status || "ok"}${isSel ? " is-sel" : ""}`}
+              style={{ left: p.x, top: p.y }}
+              onMouseDown={startDrag(n.serviceId)}
+              onClick={() => { if (!movedRef.current) setSel({ type: "node", id: n.serviceId }); }}
+            >
+              <div className="topo-gnode__name">
+                <span className={`report-dot report-dot--${n.status || "ok"}`} />
+                {n.serviceId}
+              </div>
+              <div className="topo-gnode__sub">
+                {fmtInt(n.count)} calls · p99 {fmtMs(n.p99)}
+              </div>
+            </div>
+          );
+        })}
+        {live.length === 0 && (
+          <div className="topo-canvas__empty">
+            no coupling map for this project yet — the mock edge set covers buAPI
+          </div>
+        )}
+      </div>
+      <div className="topo-detail">
+        {selEdge ? (
+          <>
+            <div className="topo-detail__title">
+              {selEdge.from} → {selEdge.to} <Mock>couplings</Mock>
+            </div>
+            {selEdge.couplings.map((c, i) => (
+              <div className="topo-detail__row" key={i}>
+                <b>{selEdge.from}.{c.module}</b>
+                {" → "}
+                {c.calls.map((call, j) => (
+                  <span key={call}>
+                    {j > 0 && " · "}
+                    <code>{selEdge.to}.{call}</code>
+                  </span>
+                ))}
+                <span className="topo-detail__via">via {c.via}</span>
+              </div>
+            ))}
+          </>
+        ) : sel?.type === "node" ? (
+          (() => {
+            const out = edges.filter((e) => e.from === sel.id);
+            const inn = edges.filter((e) => e.to === sel.id);
+            return (
+              <>
+                <div className="topo-detail__title">
+                  {sel.id} <Mock>couplings</Mock>
+                </div>
+                {out.length === 0 && inn.length === 0 && (
+                  <div className="topo-detail__hint">no cross-service calls on record for this service</div>
+                )}
+                {out.map((e) => (
+                  <div className="topo-detail__row" key={`o-${e.to}`}>
+                    calls <b>{e.to}</b> from{" "}
+                    {[...new Set(e.couplings.map((c) => c.module))].map((m, j) => (
+                      <span key={m}>{j > 0 && ", "}<code>{sel.id}.{m}</code></span>
+                    ))}
+                  </div>
+                ))}
+                {inn.map((e) => (
+                  <div className="topo-detail__row" key={`i-${e.from}`}>
+                    called by <b>{e.from}</b>{" "}
+                    {[...new Set(e.couplings.map((c) => c.module))].map((m, j) => (
+                      <span key={m}>{j > 0 && ", "}<code>{e.from}.{m}</code></span>
+                    ))}
+                  </div>
+                ))}
+              </>
+            );
+          })()
+        ) : (
+          <div className="topo-detail__hint">
+            drag nodes to arrange (the layout is saved) — click a line or its count chip for the
+            module → method couplings behind it, or a node for its connections
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
 
 export default function Reports() {
   const { SystemViewService } = useContext(ServiceContext);
@@ -465,51 +743,15 @@ export default function Reports() {
         ) : report === "topology" ? (
           <>
             <p className="report-lede">
-              Each service is a <b>node</b> — health-colored border, its methods sized by how often they're
-              called (the bar = call volume). The <Mock>connecting lines</Mock> between services — who calls
-              whom — light up once SystemLynx carries the caller (<code>x-sv-trace</code>/<code>x-sv-caller</code>).
+              Each service is a <b>node</b> — drag them anywhere, the layout is saved. Arrows show who
+              CALLS whom; click a line (or its count chip) for the module → method couplings behind it.
+              The <Mock>edges</Mock> are shaped from buAPI's real <code>loadService</code> sites — live
+              edges arrive once SystemLynx carries the caller (<code>x-sv-trace</code>/<code>x-sv-caller</code>).
             </p>
             {serviceHealth.length === 0 ? (
               <p className="report-empty">No services reporting yet.</p>
             ) : (
-              <div className="topo-grid">
-                {serviceHealth.map((svc) => {
-                  const svcMethods = methods
-                    .filter((m) => m.serviceId === svc.serviceId)
-                    .sort((a, b) => b.count - a.count);
-                  const maxCount = Math.max(1, ...svcMethods.map((m) => m.count));
-                  return (
-                    <div key={svc.serviceId} className={`topo-node topo-node--${svc.status}`}>
-                      <div className="topo-node__head">
-                        <span className={`report-dot report-dot--${svc.status}`} />
-                        <span className="topo-node__name">{svc.serviceId}</span>
-                        <span className="topo-node__badge">{STATUS_LABEL[svc.status]}</span>
-                      </div>
-                      <div className="topo-node__meta">
-                        {fmtInt(svc.count)} calls · {fmtPct(svc.serverErrorRate)} err · avg {fmtMs(svc.avgDuration)} · p99 {fmtMs(svc.p99)}
-                      </div>
-                      <div className="topo-node__methods">
-                        {svcMethods.length === 0 ? (
-                          <div className="topo-method__empty">no calls yet</div>
-                        ) : (
-                          svcMethods.slice(0, 10).map((m) => (
-                            <div className="topo-method" key={m.moduleMethod} title={`${m.moduleMethod} — ${fmtInt(m.count)} calls, p99 ${fmtMs(m.p99)}`}>
-                              <span className="topo-method__name">{m.moduleMethod}</span>
-                              <div className="topo-method__track">
-                                <div
-                                  className={`topo-method__bar topo-method__bar--${health(m)}`}
-                                  style={{ width: `${Math.max(5, (m.count / maxCount) * 100)}%` }}
-                                />
-                              </div>
-                              <span className="topo-method__count">{fmtInt(m.count)}</span>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+              <TopologyGraph nodes={serviceHealth} edges={MOCK_TOPO_EDGES} projectCode={projectCode} />
             )}
           </>
         ) : report === "state" ? (
