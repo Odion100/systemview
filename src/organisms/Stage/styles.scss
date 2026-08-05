@@ -13,7 +13,7 @@ $pane-max: 72vh;
 .stage-add {
   padding: 4px 0;
   margin-bottom: 4px;
-  border-bottom: 1px solid #eef0f5;
+  border-bottom: 1px solid var(--sv-inset);
 
   &__current {
     display: flex;
@@ -24,22 +24,22 @@ $pane-max: 72vh;
   }
   &__current-ns {
     font-size: 12px;
-    color: #46506a;
+    color: var(--sv-text);
     font-weight: 600;
-    background: #eef1f8;
+    background: var(--sv-inset);
     padding: 2px 8px;
     border-radius: 4px;
   }
   &__chip {
-    border: 1px solid #6886ba;
-    background: #fff;
-    color: #6886ba;
+    border: 1px solid var(--sv-blue);
+    background: var(--sv-surface);
+    color: var(--sv-blue);
     font-size: 11px;
     padding: 2px 10px;
     border-radius: 12px;
     cursor: pointer;
     &:hover {
-      background: #6886ba;
+      background: var(--sv-blue);
       color: #fff;
     }
   }
@@ -55,15 +55,15 @@ $pane-max: 72vh;
   // Segmented control — the kinds read as ONE rounded block, buttons joined, only the ends round.
   &__kinds {
     display: inline-flex;
-    border: 1px solid #d7dbe6;
+    border: 1px solid var(--sv-border);
     border-radius: 6px;
     overflow: hidden;
   }
   &__kind {
     border: none;
-    border-right: 1px solid #d7dbe6;
-    background: #f4f6fb;
-    color: #8b93a7;
+    border-right: 1px solid var(--sv-border);
+    background: var(--sv-hover);
+    color: var(--sv-text-muted);
     font-size: 11px;
     padding: 4px 12px;
     cursor: pointer;
@@ -71,11 +71,11 @@ $pane-max: 72vh;
       border-right: none;
     }
     &:hover {
-      color: #46506a;
-      background: #eef1f8;
+      color: var(--sv-text);
+      background: var(--sv-inset);
     }
     &--active {
-      background: #6886ba;
+      background: var(--sv-blue);
       color: #fff;
     }
   }
@@ -89,11 +89,11 @@ $pane-max: 72vh;
   &__input {
     flex: 1;
     min-width: 200px;
-    border: 1px solid #d7dbe6;
+    border: 1px solid var(--sv-border);
     border-radius: 4px;
     padding: 4px 10px;
     font-size: 12px;
-    background: #fff;
+    background: var(--sv-surface);
   }
   // Optional markdown note attachable to ANY pane being added.
   &__note-input {
@@ -101,17 +101,17 @@ $pane-max: 72vh;
     width: 100%;
     min-height: 44px;
     margin-top: 8px;
-    border: 1px solid #d7dbe6;
+    border: 1px solid var(--sv-border);
     border-radius: 4px;
     padding: 6px 10px;
     font-size: 12px;
     font-family: inherit;
     resize: vertical;
-    background: #fff;
+    background: var(--sv-surface);
   }
   &__btn {
-    border: 1px solid #6886ba;
-    background: #6886ba;
+    border: 1px solid var(--sv-blue);
+    background: var(--sv-blue);
     color: #fff;
     border-radius: 4px;
     font-size: 12px;
@@ -146,7 +146,7 @@ $pane-max: 72vh;
     font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    color: #97a0b8;
+    color: var(--sv-text-faint);
     font-weight: 600;
     margin-bottom: 4px;
   }
@@ -156,10 +156,10 @@ $pane-max: 72vh;
     gap: 2px;
     max-height: 168px;
     overflow: auto; // many methods scroll instead of spilling/clipping
-    border: 1px solid #eef0f5;
+    border: 1px solid var(--sv-inset);
     border-radius: 6px;
     padding: 4px;
-    background: #fbfcfe;
+    background: var(--sv-hover);
   }
   &__opt {
     flex: none; // don't let many methods smoosh — the list scrolls instead
@@ -167,7 +167,7 @@ $pane-max: 72vh;
     background: transparent;
     text-align: left;
     font-size: 12px;
-    color: #46506a;
+    color: var(--sv-text);
     padding: 4px 8px;
     border-radius: 4px;
     cursor: pointer;
@@ -175,10 +175,10 @@ $pane-max: 72vh;
     overflow: hidden;
     text-overflow: ellipsis;
     &:hover {
-      background: #eef1f8;
+      background: var(--sv-inset);
     }
     &.is-sel {
-      background: #6886ba;
+      background: var(--sv-blue);
       color: #fff;
     }
   }
@@ -189,10 +189,10 @@ $pane-max: 72vh;
     max-height: 132px;
     overflow: auto;
     margin-top: 4px;
-    border: 1px solid #eef0f5;
+    border: 1px solid var(--sv-inset);
     border-radius: 6px;
     padding: 4px;
-    background: #fbfcfe;
+    background: var(--sv-hover);
   }
   &__file {
     flex: none;
@@ -201,22 +201,22 @@ $pane-max: 72vh;
     text-align: left;
     font-family: "SF Mono", Menlo, monospace;
     font-size: 11px;
-    color: #46506a;
+    color: var(--sv-text);
     padding: 3px 8px;
     border-radius: 4px;
     cursor: pointer;
     white-space: nowrap;
     &:hover {
-      background: #eef1f8;
+      background: var(--sv-inset);
     }
     &.is-sel {
-      background: #6886ba;
+      background: var(--sv-blue);
       color: #fff;
     }
   }
   &__empty {
     font-size: 11px;
-    color: #97a0b8;
+    color: var(--sv-text-faint);
     padding: 6px 8px;
   }
 
@@ -259,8 +259,8 @@ $pane-max: 72vh;
   &__confirm-file {
     font-family: "SF Mono", Menlo, monospace;
     font-size: 11px;
-    color: #46506a;
-    background: #eef1f8;
+    color: var(--sv-text);
+    background: var(--sv-inset);
     border-radius: 4px;
     padding: 5px 8px;
     word-break: break-all;
@@ -276,7 +276,7 @@ $pane-max: 72vh;
     font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    color: #97a0b8;
+    color: var(--sv-text-faint);
     font-weight: 600;
     margin-bottom: 4px;
   }
@@ -300,8 +300,8 @@ $pane-max: 72vh;
   }
   &__level {
     font-size: 11px;
-    color: #46608f;
-    background: #eef1f8;
+    color: var(--sv-blue-deep);
+    background: var(--sv-inset);
     border-radius: 4px;
     padding: 3px 10px;
     font-family: "SF Mono", Menlo, monospace;
@@ -317,13 +317,13 @@ $pane-max: 72vh;
   gap: 8px;
   flex-wrap: wrap;
   padding: 6px 0 8px;
-  border-bottom: 1px solid #eef0f5;
+  border-bottom: 1px solid var(--sv-inset);
 
   // One title style for BOTH states (the de-expanded look), and the whole thing is the click target.
   &__title-toggle {
     border: none;
     background: transparent;
-    color: #46608f; // the darker tone as the default (was the hover)
+    color: var(--sv-blue-deep); // the darker tone as the default (was the hover)
     cursor: pointer;
     font-size: 14px;
     font-family: "SF Mono", Menlo, monospace;
@@ -331,20 +331,20 @@ $pane-max: 72vh;
     text-align: left;
     font-weight: bold;
     &:hover {
-      color: #6886ba; // lighter on hover (swapped)
+      color: var(--sv-blue); // lighter on hover (swapped)
     }
   }
   &__add {
     border: 1px dashed #b8c2da;
-    background: #fff;
-    color: #6886ba;
+    background: var(--sv-surface);
+    color: var(--sv-blue);
     font-size: 12px;
     padding: 3px 12px;
     border-radius: 12px;
     cursor: pointer;
     &:hover {
-      border-color: #6886ba;
-      background: #eef1f8;
+      border-color: var(--sv-blue);
+      background: var(--sv-inset);
     }
   }
   &__new {
@@ -353,15 +353,15 @@ $pane-max: 72vh;
     gap: 4px;
   }
   &__new-input {
-    border: 1px solid #6886ba;
+    border: 1px solid var(--sv-blue);
     border-radius: 12px;
     padding: 3px 10px;
     font-size: 12px;
     width: 180px;
   }
   &__new-btn {
-    border: 1px solid #6886ba;
-    background: #6886ba;
+    border: 1px solid var(--sv-blue);
+    background: var(--sv-blue);
     color: #fff;
     border-radius: 12px;
     font-size: 12px;
@@ -375,7 +375,7 @@ $pane-max: 72vh;
   &__new-cancel {
     border: none;
     background: transparent;
-    color: #97a0b8;
+    color: var(--sv-text-faint);
     cursor: pointer;
     font-size: 15px;
     line-height: 1;
@@ -387,14 +387,14 @@ $pane-max: 72vh;
 .stage-story-chip {
   display: inline-flex;
   align-items: center;
-  border: 1px solid #d7dbe6;
-  background: #f4f6fb;
+  border: 1px solid var(--sv-border);
+  background: var(--sv-hover);
   border-radius: 14px;
   overflow: hidden;
 
   &.is-sel {
-    border-color: #6886ba;
-    background: #6886ba;
+    border-color: var(--sv-blue);
+    background: var(--sv-blue);
   }
   &.is-sel .stage-story-chip__name {
     color: #fff;
@@ -403,12 +403,12 @@ $pane-max: 72vh;
   &__name {
     border: none;
     background: transparent;
-    color: #46506a;
+    color: var(--sv-text);
     font-size: 12px;
     padding: 4px 12px;
     cursor: pointer;
     &:hover {
-      color: #6886ba;
+      color: var(--sv-blue);
     }
   }
   &.is-sel .stage-story-chip__name:hover {
@@ -440,9 +440,9 @@ $pane-max: 72vh;
 }
 .stage__editing {
   font-size: 12px;
-  color: #8b93a7;
+  color: var(--sv-text-muted);
   strong {
-    color: #46506a;
+    color: var(--sv-text);
   }
 }
 
@@ -463,7 +463,7 @@ $pane-max: 72vh;
   margin-bottom: 5px;
   &-label {
     font-size: 11px;
-    color: #8b93a7;
+    color: var(--sv-text-muted);
     text-transform: uppercase;
     letter-spacing: 0.5px;
   }
@@ -471,26 +471,26 @@ $pane-max: 72vh;
 .stage__view-chip {
   display: inline-flex;
   align-items: center;
-  background: #eef1f8;
-  border: 1px solid #d7dbe6;
+  background: var(--sv-inset);
+  border: 1px solid var(--sv-border);
   border-radius: 12px;
   overflow: hidden;
 }
 .stage__view-open {
   border: none;
   background: transparent;
-  color: #46506a;
+  color: var(--sv-text);
   font-size: 12px;
   padding: 2px 8px;
   cursor: pointer;
   &:hover {
-    color: #6886ba;
+    color: var(--sv-blue);
   }
 }
 .stage__view-del {
   border: none;
   background: transparent;
-  color: #97a0b8;
+  color: var(--sv-text-faint);
   cursor: pointer;
   padding: 2px 6px 2px 0;
   &:hover {
@@ -503,15 +503,15 @@ $pane-max: 72vh;
   align-items: center;
 }
 .stage__save-input {
-  border: 1px solid #d7dbe6;
+  border: 1px solid var(--sv-border);
   border-radius: 4px;
   padding: 3px 8px;
   font-size: 12px;
   width: 160px;
 }
 .stage__save-btn {
-  border: 1px solid #6886ba;
-  background: #6886ba;
+  border: 1px solid var(--sv-blue);
+  background: var(--sv-blue);
   color: #fff;
   border-radius: 4px;
   font-size: 12px;
@@ -528,7 +528,7 @@ $pane-max: 72vh;
   min-height: 400px;
   overflow: auto;
   box-sizing: border-box;
-  // background: white;
+  // background: var(--sv-surface);
   // WIDE scroll gutter. The KEY invariant: the negative margin and the horizontal padding are EQUAL, so
   // the net offset is ZERO — the panes always land back at the container's content edge, exactly where the
   // header (tabs/title/.stage-stories/.stage-add) sits, in BOTH collapse modes (the container's own inset
@@ -539,14 +539,18 @@ $pane-max: 72vh;
   padding: 8px 24px;
   border: 1px solid gainsboro;
   border-radius: 10px;
+  // Dark mode — the stage frame wears the salmon border (hand-tuned in the UI).
+  :root.sv-dark & {
+    border-color: #ff8e8e;
+  }
 
   // Each pane is self-contained and independently scrollable; no pane grows unbounded (RFC-018 rule).
   .pane {
     display: flex;
     flex-direction: column;
-    border: 1px solid #d7dbe6;
+    border: 1px solid var(--sv-border);
     border-radius: 6px;
-    background: #fff;
+    background: var(--sv-surface);
     overflow: hidden;
     min-height: 0;
     position: relative; // anchor the resize handle
@@ -586,7 +590,7 @@ $pane-max: 72vh;
       top: 0;
       bottom: 0;
       width: 3px;
-      background: #6886ba;
+      background: var(--sv-blue);
       box-shadow: 0 0 7px rgba(104, 134, 186, 0.85);
       z-index: 6;
       pointer-events: none;
@@ -602,19 +606,19 @@ $pane-max: 72vh;
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 5px 10px;
-      background: #f2f4f9;
-      border-bottom: 1px solid #e3e7f0;
+      padding: 6px 10px;
+      background: var(--sv-pane-header); // THE unified header band — same as code + doc pane headers
+      border-bottom: 1px solid var(--sv-border-soft);
       font-size: 12px;
     }
     &__drag {
       cursor: grab;
-      color: #7d88a6; // less subtle — it's the reorder grip
+      color: var(--sv-on-header-muted); // less subtle — it's the reorder grip
       font-size: 15px;
       line-height: 1;
       user-select: none;
       &:hover {
-        color: #6886ba;
+        color: var(--sv-blue);
       }
       &:active {
         cursor: grabbing;
@@ -625,7 +629,7 @@ $pane-max: 72vh;
       font-size: 10px;
       letter-spacing: 0.5px;
       color: #fff;
-      background: #6886ba;
+      background: var(--sv-blue);
       padding: 1px 6px;
       border-radius: 3px;
     }
@@ -649,7 +653,7 @@ $pane-max: 72vh;
       background: #6b8a9c;
     } // slate — legacy source span
     &__label {
-      color: #46506a;
+      color: var(--sv-on-header);
       flex: 1;
       min-width: 0;
       overflow: hidden;
@@ -664,42 +668,42 @@ $pane-max: 72vh;
         padding: 0;
         cursor: pointer;
         &:hover {
-          color: #6886ba;
+          color: var(--sv-blue);
           text-decoration: underline;
         }
       }
     }
     &__action {
       border: 1px solid #c3cade;
-      background: #fff;
-      color: #46506a;
+      background: var(--sv-surface);
+      color: var(--sv-text);
       font-size: 11px;
       padding: 1px 8px;
       border-radius: 3px;
       cursor: pointer;
       &:hover:not(:disabled) {
-        border-color: #6886ba;
-        color: #6886ba;
+        border-color: var(--sv-blue);
+        color: var(--sv-blue);
       }
       &:disabled {
         opacity: 0.5;
         cursor: default;
       }
       &--save {
-        background: #6886ba;
+        background: var(--sv-blue);
         color: #fff;
-        border-color: #6886ba;
+        border-color: var(--sv-blue);
       }
       &--pinned {
         background: #eaf0fb;
-        border-color: #6886ba;
-        color: #6886ba;
+        border-color: var(--sv-blue);
+        color: var(--sv-blue);
       }
     }
     &__remove {
       border: none;
       background: transparent;
-      color: #97a0b8;
+      color: var(--sv-text-faint);
       font-size: 16px;
       line-height: 1;
       cursor: pointer;
@@ -714,6 +718,19 @@ $pane-max: 72vh;
       flex: 1 1 auto;
       min-height: 0;
       overflow: auto;
+      // FULL FIDELITY (dark mode): a themed pane whose document/editor is toggled LIGHT paints its whole
+      // body light — read and edit alike, no dark gutters around the light surface.
+      &--light {
+        background: #fff;
+      }
+    }
+    // A TEST pane's body wears the tests' gray tray, and the tray FILLS the height — a pane dragged
+    // taller than its (collapsed) tests shows gray, never a white void below the cards.
+    &--test .pane__body {
+      background: var(--sv-inset);
+    }
+    &--test .test-pane {
+      min-height: 100%;
     }
     &__markdown {
       padding: 4px 14px;
@@ -725,15 +742,15 @@ $pane-max: 72vh;
       flex: none;
       padding: 6px 12px;
       font-size: 12.5px;
-      color: #46506a;
-      background: #fbfcfe;
-      border-bottom: 1px solid #eef0f5;
+      color: var(--sv-text);
+      background: var(--sv-hover);
+      border-bottom: 1px solid var(--sv-inset);
       overflow: auto;
       max-height: 30vh;
     }
     &__status {
       padding: 16px;
-      color: #8b93a7;
+      color: var(--sv-text-muted);
       font-size: 13px;
       &--error {
         color: #e05757;
@@ -818,7 +835,7 @@ $pane-max: 72vh;
       font-size: 12.5px;
       font-family: inherit;
       resize: vertical;
-      background: #fff;
+      background: var(--sv-surface);
     }
     &__reply-actions {
       display: flex;
@@ -838,9 +855,9 @@ $pane-max: 72vh;
       }
     }
     &__reply-cancel {
-      border: 1px solid #d7dbe6;
-      background: #fff;
-      color: #8b93a7;
+      border: 1px solid var(--sv-border);
+      background: var(--sv-surface);
+      color: var(--sv-text-muted);
       border-radius: 4px;
       font-size: 12px;
       padding: 2px 12px;
@@ -854,8 +871,8 @@ $pane-max: 72vh;
       right: 12px;
       z-index: 5;
       border: 1px solid #cdd4e2;
-      background: #fff;
-      color: #56617f;
+      background: var(--sv-surface);
+      color: var(--sv-text);
       font-size: 12px;
       line-height: 1;
       padding: 4px 9px;
@@ -865,7 +882,7 @@ $pane-max: 72vh;
       box-shadow: 0 1px 4px rgba(0, 0, 0, 0.14);
       transition: opacity 0.12s ease;
       &:hover {
-        border-color: #6886ba;
+        border-color: var(--sv-blue);
       }
     }
     &:hover .pane__reply-fab {
@@ -947,10 +964,10 @@ $pane-max: 72vh;
     gap: 12px;
     margin-bottom: 8px;
     font-size: 12px;
-    color: #46506a;
+    color: var(--sv-text);
     button {
       border: 1px solid #c3cade;
-      background: #fff;
+      background: var(--sv-surface);
       border-radius: 4px;
       width: 26px;
       height: 22px;
@@ -1002,7 +1019,7 @@ $pane-max: 72vh;
     }
     &:hover::after,
     &:active::after {
-      background: #6886ba;
+      background: var(--sv-blue);
     }
   }
   .stage__rail {
@@ -1016,17 +1033,17 @@ $pane-max: 72vh;
   }
   .stage__rail-item {
     flex: none;
-    border: 1px solid #d7dbe6;
+    border: 1px solid var(--sv-border);
     border-radius: 6px;
     overflow: hidden;
-    background: #fff;
+    background: var(--sv-surface);
     cursor: pointer;
     &:hover {
       border-color: #97a7cc;
     }
     // The clearly-selected one (currently in the big view): accent border + ring.
     &.is-sel {
-      border-color: #6886ba;
+      border-color: var(--sv-blue);
       box-shadow: 0 0 0 2px rgba(104, 134, 186, 0.55);
     }
   }
@@ -1035,7 +1052,7 @@ $pane-max: 72vh;
     align-items: center;
     gap: 6px;
     padding: 4px 8px;
-    background: #f2f4f9;
+    background: var(--sv-inset);
     border-bottom: 1px solid #e3e7f0;
     font-size: 11px;
   }
@@ -1048,14 +1065,14 @@ $pane-max: 72vh;
     font-size: 9px;
     letter-spacing: 0.5px;
     color: #fff;
-    background: #6886ba;
+    background: var(--sv-blue);
     padding: 1px 5px;
     border-radius: 3px;
   }
   .stage__rail-name {
     flex: 1;
     min-width: 0;
-    color: #46506a;
+    color: var(--sv-text);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1065,9 +1082,9 @@ $pane-max: 72vh;
     font-size: 9px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    color: #6886ba;
-    background: #fff;
-    border: 1px solid #6886ba;
+    color: var(--sv-blue);
+    background: var(--sv-surface);
+    border: 1px solid var(--sv-blue);
     border-radius: 3px;
     padding: 0 4px;
   }
@@ -1087,15 +1104,12 @@ $pane-max: 72vh;
     .pane__body {
       overflow: hidden;
     }
-    .md-view .edit-box--read {
-      max-height: none;
-    }
   }
 
   // A pinned pane reads as kept.
   .pane--pinned {
-    border-color: #6886ba;
-    box-shadow: 0 0 0 1px #6886ba;
+    border-color: var(--sv-blue);
+    box-shadow: 0 0 0 1px var(--sv-blue);
   }
 
   // Scroll buffer — space under the last pane so it can scroll clear to the top of the view.
@@ -1112,7 +1126,7 @@ $pane-max: 72vh;
     justify-content: center;
     align-items: center;
     text-align: center;
-    color: #8b93a7;
+    color: var(--sv-text-muted);
     padding: 40px 24px;
 
     p {
@@ -1124,25 +1138,25 @@ $pane-max: 72vh;
       line-height: 1.5;
     }
     code {
-      background: #f2f4f9;
+      background: var(--sv-inset);
       padding: 1px 5px;
       border-radius: 3px;
       font-size: 12px;
-      color: #46506a;
+      color: var(--sv-text);
     }
   }
 }
 
 .stage__undo {
-  border: 1px solid #6886ba;
+  border: 1px solid var(--sv-blue);
   background: #eaf0fb;
-  color: #46608f;
+  color: var(--sv-blue-deep);
   font-size: 12px;
   padding: 3px 12px;
   border-radius: 14px;
   cursor: pointer;
   &:hover {
-    background: #6886ba;
+    background: var(--sv-blue);
     color: #fff;
   }
 }
@@ -1153,21 +1167,21 @@ $pane-max: 72vh;
   gap: 2px;
 }
 .stage__layout-btn {
-  border: 1px solid #d7dbe6;
-  background: #f4f6fb;
-  color: #8b93a7;
+  border: 1px solid var(--sv-border);
+  background: var(--sv-hover);
+  color: var(--sv-text-muted);
   font-size: 11px;
   padding: 2px 8px;
   border-radius: 3px;
   cursor: pointer;
   text-transform: capitalize;
   &:hover {
-    color: #46506a;
+    color: var(--sv-text);
   }
   &--active {
-    background: #6886ba;
+    background: var(--sv-blue);
     color: #fff;
-    border-color: #6886ba;
+    border-color: var(--sv-blue);
   }
 }
 
@@ -1186,15 +1200,15 @@ $pane-max: 72vh;
 .stage__col-btn {
   display: inline-flex;
   align-items: center;
-  border: 1px solid #d7dbe6;
-  background: #fff;
-  color: #6886ba;
+  border: 1px solid var(--sv-border);
+  background: var(--sv-surface);
+  color: var(--sv-blue);
   padding: 3px 7px;
   border-radius: 3px;
   cursor: pointer;
   &:hover {
-    background: #eef1f8;
-    border-color: #6886ba;
+    background: var(--sv-inset);
+    border-color: var(--sv-blue);
   }
 }
 // Box icon: N little vertical bars = N panes per row.
@@ -1216,23 +1230,20 @@ $pane-max: 72vh;
 // never drifts. Formatted read with a dashed click-to-edit frame you scroll WITHIN; edit is one smooth
 // dark component (Save/Close on the oneDark editor background, flush with the editor).
 .md-view {
-  .edit-box {
-    border: 2px solid transparent;
-    border-radius: 6px;
-    background: transparent;
-  }
-  .edit-box--read {
-    overflow: auto;
-    max-height: 60vh;
-    &:hover {
-      border: 2px dashed #8b97ba;
-      cursor: pointer;
-    }
-  }
-  .edit-box__main .markdown {
+  // The ONE markdown read look — the code pane's: a flat themed document, no legacy edit-box frame
+  // (no rounded border, no click-to-edit hover dashes, no nested scroll — the pane/doc body scrolls).
+  .markdown {
     padding: 4px 14px;
   }
+  // FULL-FIDELITY light document: when the document toggle says LIGHT, the container (the padding
+  // "ring" around the document) goes light WITH it — even under app-dark, a light doc looks exactly
+  // like it does in light mode. (`--dark` needs no rule: the dark doc sits on the app surface, which
+  // is what you want in both app themes.)
+  &--light {
+    background: #fff;
+  }
 
+  // Doc-pane EDIT chrome (the DescriptionBox flow) still rides the edit-box — read mode never does.
   .edit-box--edit {
     border-color: #21252b;
     overflow: hidden;
@@ -1271,12 +1282,11 @@ $pane-max: 72vh;
   .pane__replies {
     max-height: 40%;
   }
-  .md-view,
-  .md-view .edit-box {
+  .md-view {
     height: 100%;
   }
-  .md-view .edit-box--read {
-    max-height: none; // fill the pane; the read box's own overflow:auto scrolls a long doc
+  .md-view .markdown {
+    min-height: 100%; // the document's canvas fills a stretched pane — no void under a short doc
   }
   .md-view .edit-box--edit,
   .md-view .edit-box__form--visible,

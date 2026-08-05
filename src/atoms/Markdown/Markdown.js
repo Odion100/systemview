@@ -6,9 +6,9 @@ import remarkGfm from "remark-gfm";
 
 import "./styles.scss";
 
-const Markdown = ({ children }) => {
+const Markdown = ({ children, dark = false }) => {
   return (
-    <div className="markdown">
+    <div className={`markdown${dark ? " markdown--dark" : ""}`}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         renderers={{ code: CodeBlock }}

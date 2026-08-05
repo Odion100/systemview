@@ -1,4 +1,5 @@
 import React, { useContext, useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
 import AutoCompleteBox from "../../molecules/AutoCompleteBox/AutoCompleteBox";
 import Args, { Argument } from "../../molecules/Args/Args";
 import ServiceContext from "../../ServiceContext";
@@ -14,7 +15,10 @@ const ScratchPad = ({
   staticArguments = false,
 }) => {
   const placeholder = "service.module.method ";
-  const { projectCode, serviceId, moduleName, methodName } = test.namespace;
+  // The CURRENT PROJECT comes from the page URL — a test namespace never carries a projectCode, so
+  // this is the only scope the step picker can trust.
+  const { projectCode } = useParams();
+  const { serviceId, moduleName, methodName } = test.namespace;
   const [nsp, setNsp] = useState(
     methodName ? `${serviceId}.${moduleName}.${methodName}` : ""
   );
@@ -32,7 +36,12 @@ const ScratchPad = ({
     // `service.module.on()` across ALL services — you may want to assert a side-effect event on a service
     // OTHER than main's. A normal step offers the real methods.
     const isEvent = test.namespace.methodName === "on";
-    connectedServices.forEach((service) => {
+    // Only the CURRENT PROJECT's services — a step targets namespaces within the project, never
+    // another project's (no projectCode on the URL = show everything, e.g. outside /specs routes).
+    const scoped = projectCode
+      ? connectedServices.filter((s) => s.projectCode === projectCode)
+      : connectedServices;
+    scoped.forEach((service) => {
       service.system.connectionData.modules.forEach((mod) => {
         if (isEvent) {
           new_suggestions.push(`${service.serviceId}.${mod.name}.on()`);

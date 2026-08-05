@@ -14,7 +14,7 @@
   // The highlighted line-range (RFC-011 instinct): keep the whole file visible, emphasize the span.
   .cm-sv-highlight {
     background-color: rgba(104, 134, 186, 0.22);
-    box-shadow: inset 3px 0 0 #6886ba;
+    box-shadow: inset 3px 0 0 var(--sv-blue);
   }
 }
 
@@ -22,7 +22,7 @@
 // file-pane edit mode where the read view is oneDark, so edit matches.
 .code-editor {
   width: 100%;
-  border: 1px solid #d7dbe6;
+  border: 1px solid var(--sv-border);
   border-radius: 4px;
   overflow: hidden;
 
@@ -32,4 +32,18 @@
   }
   .cm-scroller { overflow: auto; }
   &--dark .cm-editor { min-height: 100%; }
+}
+
+// The icon-only editor theme toggle (global — one flip themes every editor).
+.editor-theme-toggle {
+  border: none;
+  background: none;
+  color: var(--sv-text-muted);
+  font-size: 13px;
+  line-height: 1;
+  padding: 1px 5px;
+  cursor: pointer;
+  &:hover {
+    color: var(--sv-text);
+  }
 }

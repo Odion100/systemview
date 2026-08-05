@@ -17,7 +17,7 @@
     padding: 6px 7px;
     display: inline-flex;
     cursor: pointer;
-    background: white;
+    background: var(--sv-surface);
     width: calc(300px + 1rem);
     &--active,
     &:hover:not(&--empty) {
@@ -30,6 +30,22 @@
     }
     &--empty {
       justify-content: center;
+    }
+  }
+}
+
+// Dark mode — the dropdown was authored light-only: base text inherited DARK (invisible on the dark
+// surface) and the active/hover chip was a light lavender. Scoped so light mode stays untouched.
+:root.sv-dark .auto-complete {
+  &__suggestions {
+    box-shadow: 1px 3px 4px rgba(0, 0, 0, 0.55);
+  }
+  &__suggestion {
+    color: #b8bfd3;
+    &--active,
+    &:hover:not(.auto-complete__suggestion--empty) {
+      background-color: #394057;
+      color: #d7dce9;
     }
   }
 }

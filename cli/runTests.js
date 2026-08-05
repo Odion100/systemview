@@ -194,7 +194,7 @@ const runAllTests = async (savedTests, url, project_code, json, verbose, opts = 
 
   for (const test of savedTests) {
     // RFC-020 — a test is `{ sections, order }`; the run-order is a list of section names (built-in
-    // before/main/events/after + any named-action sections). We run and report each section in that order.
+    // before/main/events/after + any shared-action sections). We run and report each section in that order.
     const { title, namespace } = test;
     const sections = { ...test.sections };
     let order = [...(test.order || [])];
@@ -301,7 +301,7 @@ function countErrors(tests) {
   return tests.reduce((n, t) => n + (t.errors ? t.errors.length : 0), 0);
 }
 
-// RFC-020 — a section's display label. Built-ins get their capitalized name; a named-action section shows
+// RFC-020 — a section's display label. Built-ins get their capitalized name; a shared-action section shows
 // its own name (so a custom section reads as itself, e.g. "seedSum", not "Before").
 function sectionLabel(name) {
   return { before: "Before", main: "Main", events: "Events", after: "After" }[name] || name;
@@ -352,7 +352,7 @@ async function getTests(connectedServices, Client) {
   return results;
 }
 
-// RFC-020 — pull every permanent named action from the connected services into a name → action map so the
+// RFC-020 — pull every permanent shared action from the connected services into a name → action map so the
 // runner can resolve `{ use }` steps. Tolerant: a service on an older plugin without getActions is skipped.
 async function getActionMap(connectedServices, Client) {
   const map = {};

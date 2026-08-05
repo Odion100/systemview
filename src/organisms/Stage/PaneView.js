@@ -1,15 +1,15 @@
 import React, { useEffect, useState } from "react";
+import { useHistory } from "react-router-dom";
 import Markdown from "../../atoms/Markdown/Markdown";
 import CodeView from "../../atoms/CodeView/CodeView";
 import CodeEditor from "../../atoms/CodeView/CodeEditor";
+import { usePaneDark, EditorThemeToggle } from "../../atoms/CodeView/editorTheme";
 import DiffView from "../../atoms/DiffView/DiffView";
-import EditBox from "../../molecules/EditBox/EditBox";
-import DescriptionBox from "../../atoms/DescriptionBox/DescriptionBox";
 import TestPane from "./TestPane";
 import loadServiceWithHeaders from "../../utils/loadService";
 
-// A `file` pane whose target is a markdown file renders like the Documentation tab — formatted (read)
-// with a click-to-edit box — instead of raw CodeMirror. Same EditBox/Markdown/DescriptionBox trio.
+// A `file` pane whose target is a markdown file renders like the Documentation tab — the formatted
+// document in a static read frame; the header's Edit/Save/Cancel (same as code files) does the editing.
 const isMarkdownPath = (p) => /\.(md|markdown)$/i.test(p || "");
 
 // Grid panes size to their CONTENT (flex) with a default MAX height (the cap lives in CSS). A dragged
@@ -104,38 +104,22 @@ const PaneView = ({ pane, connectedServices, projectCode, onRemove, onPin, onSel
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
   };
-  // Double-click the width grip → fill the REST of the current row (measure the siblings sharing this row).
-  const fillRow = (e) => {
-    if (!onResize) return;
-    const paneEl = e.currentTarget.closest(".pane");
-    const grid = paneEl && paneEl.parentElement;
-    if (!grid || !paneEl) return;
-    const cs = window.getComputedStyle(grid);
-    const contentW = grid.clientWidth - parseFloat(cs.paddingLeft || 0) - parseFloat(cs.paddingRight || 0);
-    const myTop = paneEl.offsetTop;
-    let used = 0;
-    Array.from(grid.children).forEach((el) => {
-      if (el === paneEl || !el.classList || !el.classList.contains("pane")) return;
-      if (Math.abs(el.offsetTop - myTop) < 6) used += el.offsetWidth + 10;
-    });
-    onResize(pane.id, { w: Math.max(20, Math.min(100, Math.round(((contentW - used) / contentW) * 100))), h: storedHeight });
+  // Double-click a grip → RELEASE that axis back to flex. A drag PINS an explicit size (the pane
+  // stops growing with its content); the double-click un-pins it — height back to auto (grows and
+  // shrinks with the content again), width back to the default basis.
+  const resetWidth = () => {
+    if (onResize) onResize(pane.id, { w: 50, h: storedHeight });
   };
-  // Double-click the height grip → match the TALLEST pane sharing this row.
-  const matchRow = (e) => {
-    if (!onResize) return;
-    const paneEl = e.currentTarget.closest(".pane");
-    const grid = paneEl && paneEl.parentElement;
-    if (!grid || !paneEl) return;
-    const myTop = paneEl.offsetTop;
-    let maxH = 0;
-    Array.from(grid.children).forEach((el) => {
-      if (el === paneEl || !el.classList || !el.classList.contains("pane")) return;
-      if (Math.abs(el.offsetTop - myTop) < 6) maxH = Math.max(maxH, el.offsetHeight);
-    });
-    if (maxH > 0) onResize(pane.id, { w: storedWidth, h: Math.round(maxH) });
+  const resetHeight = () => {
+    if (onResize) onResize(pane.id, { w: storedWidth, h: null });
   };
 
   const Plugin = pluginFor(connectedServices, projectCode, target.serviceId);
+  // PER-PANE theme — every themed pane owns its light/dark INDIVIDUALLY (no groups), keyed by its
+  // pane id; a pane with no explicit choice follows the app theme.
+  const paneKey = `pane:${pane.id}`;
+  const [editorDark] = usePaneDark(paneKey);
+  const history = useHistory();
 
   useEffect(() => {
     // These kinds fetch their own content (or need none) — skip the plugin byte-fetch below.
@@ -201,54 +185,45 @@ const PaneView = ({ pane, connectedServices, projectCode, onRemove, onPin, onSel
       setSaving(false);
     }
   };
-  // The markdown EditBox drives its own read/edit toggle and hands us setEditMode on Save.
-  const saveMdEdit = async (setEditMode) => {
-    if (!Plugin) return;
-    try {
-      await Plugin.writeFile({ path: data.path, content: draft });
-      setState((s) => ({ ...s, data: { ...s.data, content: draft, lines: draft.split("\n").length } }));
-      if (setEditMode) setEditMode(false);
-    } catch (err) {
-      setState((s) => ({ ...s, error: err.message }));
-    }
-  };
-
   let body;
   if (kind === "markdown") {
-    body = <div className="pane__markdown"><Markdown>{target.text || ""}</Markdown></div>;
+    // Notes render through the SAME path md files use — the code pane's flat document look (md-view +
+    // themed Markdown), no legacy edit-box frame.
+    body = (
+      <div className={`md-view md-view--${editorDark ? "dark" : "light"}`}>
+        <Markdown dark={editorDark}>{target.text || ""}</Markdown>
+      </div>
+    );
   } else if (kind === "test") {
     body = <TestPane target={target} projectCode={projectCode} />;
   } else if (loading) {
     body = <div className="pane__status">Loading…</div>;
   } else if (error) {
     body = <div className="pane__status pane__status--error">Couldn’t load: {error}</div>;
+  } else if (data && kind === "file" && editing) {
+    // Editing (md included) is the SAME flow code files use: header Edit → editor body → header
+    // Save/Cancel. One editing model everywhere.
+    body = <CodeEditor value={draft} language={data.language} onChange={setDraft} dark={editorDark} />;
   } else if (data && isMdFile) {
-    // Markdown file → formatted read + click-to-edit, exactly like the Documentation tab. The pane
-    // header/frame is unchanged; only the body reads as a doc instead of raw code.
+    // Markdown file read = the rendered document, flat, the code pane's look. The Edit control lives
+    // in the pane HEADER (like code files) — clicking the document never flips to edit.
     body = (
-      <div className="md-view">
-        <EditBox
-          mainObject={<Markdown>{mdReadContent}</Markdown>}
-          hiddenForm={<DescriptionBox text={draft} setValue={setDraft} />}
-          formSubmit={saveMdEdit}
-          onCancel={() => setDraft(data.content)}
-        />
+      <div className={`md-view md-view--${editorDark ? "dark" : "light"}`}>
+        <Markdown dark={editorDark}>{mdReadContent}</Markdown>
       </div>
     );
-  } else if (data && kind === "file" && editing) {
-    body = <CodeEditor value={draft} language={data.language} onChange={setDraft} dark />;
   } else if (data && (kind === "file" || kind === "source")) {
-    body = <CodeView code={data.content} language={data.language} highlight={effectiveHighlight} />;
+    body = <CodeView code={data.content} language={data.language} highlight={effectiveHighlight} dark={editorDark} />;
   } else if (data && kind === "diff") {
-    body = <DiffView base={data.base} head={data.head} language={data.language} />;
+    body = <DiffView base={data.base} head={data.head} language={data.language} dark={editorDark} />;
   } else {
     body = <div className="pane__status">Nothing to show.</div>;
   }
 
   // Edit affordance is file-only (a source pane is a span of a larger file; editing whole files is the
-  // safe unit). Shown once the file's loaded and a writable plugin is reachable. Markdown files edit
-  // through their own EditBox (click the rendered doc), so they don't get the raw-code Edit button.
-  const canEdit = kind === "file" && data && Plugin && !isMdFile;
+  // safe unit). Shown once the file's loaded and a writable plugin is reachable — markdown included:
+  // every file edits through the SAME header Edit/Save/Cancel.
+  const canEdit = kind === "file" && data && Plugin;
 
   return (
     <div
@@ -264,7 +239,9 @@ const PaneView = ({ pane, connectedServices, projectCode, onRemove, onPin, onSel
       } : undefined}
     >
       {dropSide && <div className={`pane__drop pane__drop--${dropSide}`} />}
-      <div className="pane__header">
+      {/* Themed panes (code/md/notes/diffs): a LIGHT document takes the header back to the light band
+          with it (matters in app-dark — full fidelity). Test panes keep the app-theme band. */}
+      <div className={`pane__header ${!editorDark && ["file", "source", "diff", "markdown"].includes(kind) ? "pane__header--light" : ""}`}>
         {onDragStartPane && (
           <span
             className="pane__drag"
@@ -284,12 +261,56 @@ const PaneView = ({ pane, connectedServices, projectCode, onRemove, onPin, onSel
           </span>
         )}
         <span className="pane__kind">{kind === "markdown" ? "note" : kind}</span>
-        {/* Clicking the label posts a selection back to the agent (reverse channel). */}
+        {/* Clicking the label posts a selection back to the agent (reverse channel) — and NAVIGATES:
+            a file label selects the file in the Codebases nav; a test label navigates the page to the
+            test's NAMESPACE and, in the background, selects its spec file in the Codebases nav. */}
         <button
           type="button"
           className="pane__label pane__label--select"
           title="Select — the agent can read this via `systemview selection`"
-          onClick={() => onSelect && onSelect(pane)}
+          onClick={() => {
+            if (kind === "file" && target.path) {
+              window.dispatchEvent(
+                new CustomEvent("sv:openFileInNav", {
+                  detail: {
+                    projectCode,
+                    serviceId: target.serviceId,
+                    path: target.path,
+                    language:
+                      (data && data.language) || (/\.mdx?$/i.test(target.path) ? "markdown" : "text"),
+                  },
+                }),
+              );
+            }
+            if (kind === "test" && target.serviceId) {
+              // A test link does BOTH: retarget the SCRATCHPAD to the test's namespace (URL push —
+              // keeping the query so the center's tab doesn't flip; the open story is sticky and
+              // stays up), AND select the spec file in the Codebases nav exactly like a file label.
+              const segs = [projectCode, target.serviceId, target.moduleName, target.methodName]
+                .filter(Boolean)
+                .join("/");
+              history.push({ pathname: `/specs/${segs}`, search: window.location.search });
+              if (Plugin && Plugin.listFiles && target.moduleName && target.methodName) {
+                Plugin.listFiles({ glob: `**/tests/${target.moduleName}.${target.methodName}.json` })
+                  .then((res) => {
+                    const f = res && res.files && res.files[0];
+                    if (f)
+                      window.dispatchEvent(
+                        new CustomEvent("sv:openFileInNav", {
+                          detail: {
+                            projectCode,
+                            serviceId: target.serviceId,
+                            path: f.path,
+                            language: "json",
+                          },
+                        }),
+                      );
+                  })
+                  .catch(() => {});
+              }
+            }
+            onSelect && onSelect(pane);
+          }}
         >
           {paneLabel(kind, target, data, effectiveHighlight)}
         </button>
@@ -323,11 +344,15 @@ const PaneView = ({ pane, connectedServices, projectCode, onRemove, onPin, onSel
             {pinned ? "Pinned" : "Pin"}
           </button>
         )}
+        {/* Any pane whose body follows the editor theme (code, md, notes, diffs) carries the toggle
+            in READ mode too — not just while editing (matches the code pane's header). */}
+        {["file", "source", "diff", "markdown"].includes(kind) && !editing && <EditorThemeToggle paneKey={paneKey} />}
         {canEdit && !editing && (
           <button type="button" className="pane__action" onClick={startEdit}>Edit</button>
         )}
         {canEdit && editing && (
           <>
+            <EditorThemeToggle paneKey={paneKey} />
             <button type="button" className="pane__action pane__action--save" disabled={saving} onClick={saveEdit}>
               {saving ? "Saving…" : "Save"}
             </button>
@@ -338,7 +363,9 @@ const PaneView = ({ pane, connectedServices, projectCode, onRemove, onPin, onSel
           <button type="button" className="pane__remove" title="Remove from window (the file/test isn't deleted) — undo below" onClick={onRemove}>×</button>
         )}
       </div>
-      <div className="pane__body">{body}</div>
+      {/* Themed kinds: when the document/editor theme is LIGHT, the whole body surface goes light with
+          it (read AND edit) — no dark gutters around a light document/editor under app-dark. */}
+      <div className={`pane__body ${!editorDark && ["file", "source", "diff", "markdown"].includes(kind) ? "pane__body--light" : ""}`}>{body}</div>
       {/* One flat thread per pane. Your replies keep their original look; agent replies get their own. */}
       {onReply && (replies.length > 0 || replying) && (
         <div className="pane__replies">
@@ -379,8 +406,8 @@ const PaneView = ({ pane, connectedServices, projectCode, onRemove, onPin, onSel
       {/* Width from the right edge, height from the bottom edge (double-click to fill the row / match it). */}
       {layout === "grid" && onResize && (
         <>
-          <div className="pane__resize pane__resize--x" title="Drag to resize width · double-click to fill the row" onMouseDown={startResize("right")} onDoubleClick={fillRow} />
-          <div className="pane__resize pane__resize--y" title="Drag to resize height · double-click to match the row" onMouseDown={startResize("bottom")} onDoubleClick={matchRow} />
+          <div className="pane__resize pane__resize--x" title="Drag to resize width · double-click to reset to the default width" onMouseDown={startResize("right")} onDoubleClick={resetWidth} />
+          <div className="pane__resize pane__resize--y" title="Drag to resize height · double-click to release back to flex (grow with content)" onMouseDown={startResize("bottom")} onDoubleClick={resetHeight} />
         </>
       )}
     </div>

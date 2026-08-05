@@ -61,8 +61,17 @@ async function loadManifest() {
     const api = `http://localhost:${DEFAULT_PORT}/systemview/api`;
     const { SystemView } = await Client.loadService(api);
     await Promise.all(
-      services.map(async ({ system, serviceId, specList, projectCode: svcProject }) => {
+      services.map(async ({ system, serviceId, specList, projectCode: svcProject, dynamic }) => {
         if (!system || !system.connectionData) return;
+        // RFC-021 — a DYNAMIC (project-defined/synthesized) service has no live URL to probe: its
+        // manifest was authored (by hand or an agent), not written by a running plugin. Register as-is.
+        if (dynamic) {
+          try {
+            await SystemView.connect({ system, projectCode: svcProject || projectCode, serviceId, specList, dynamic: true });
+          } catch {}
+          log.info(`  ${serviceId} — project-defined (dynamic)`);
+          return;
+        }
         const alive = await appIsRunning(system.connectionData.serviceUrl);
         if (alive) {
           Client.createService(system.connectionData);

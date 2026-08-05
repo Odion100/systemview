@@ -2,6 +2,7 @@ import React, { useRef, useEffect } from "react";
 import { EditorState } from "@codemirror/state";
 import { EditorView, lineNumbers, keymap } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
+import { syntaxHighlighting, defaultHighlightStyle } from "@codemirror/language";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { langExt } from "./languages";
 import "./styles.scss";
@@ -31,7 +32,10 @@ const CodeEditor = ({ value = "", language = "markdown", onChange, dark = false 
     ];
     const lang = langExt(language);
     if (lang) ext.push(lang);
+    // Dark = oneDark (theme + its highlight style). Light = the classic COLORED light highlighting —
+    // never the plain black-on-white CM default (a light editor still colors its syntax).
     if (dark) ext.push(oneDark);
+    else ext.push(syntaxHighlighting(defaultHighlightStyle, { fallback: true }));
 
     const view = new EditorView({
       state: EditorState.create({ doc: value, extensions: ext }),

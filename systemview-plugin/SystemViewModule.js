@@ -103,7 +103,7 @@ module.exports = ({ App, specs, projectCode, serviceId, module = {}, credentials
         pushSpecList();
       }
     };
-    // RFC-020 — named actions. A named action = a name + an ordered list of steps (the same shape as a
+    // RFC-020 — shared actions. A shared action = a name + an ordered list of steps (the same shape as a
     // test's Before/Main/After array). PERMANENT ones live in `specs/actions/<name>.json` (a third sibling
     // to docs/ and tests/), travel with the repo, and are pulled into tests/stories via `{ use: <name> }`.
     // One action per file, keyed by NAME (not Module.method like tests).
@@ -141,7 +141,7 @@ module.exports = ({ App, specs, projectCode, serviceId, module = {}, credentials
     this.saveAction = (action) => {
       ensureDir(`${specs}/actions/`);
       const name = action && action.name;
-      if (!name) return { error: true, message: "A named action needs a name." };
+      if (!name) return { error: true, message: "A shared action needs a name." };
       fs.writeFileSync(`${specs}/actions/${name}.json`, JSON.stringify(action), "utf8");
       pushSpecList();
       return { error: false, name };

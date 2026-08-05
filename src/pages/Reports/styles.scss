@@ -11,7 +11,7 @@ $bad: #c62828;
   box-sizing: border-box;
   // The header is the shared `.page-header` bar (organisms/PageHeader) — identical to every other page,
   // so NO local override here (that override is what made the Stats header look different).
-  background: #fafafb;
+  background: var(--sv-bg);
 }
 
 .reports-toolbar {
@@ -19,42 +19,42 @@ $bad: #c62828;
   align-items: center;
   gap: 10px;
   padding: 10px 20px;
-  background: #fff;
-  border-bottom: 1px solid #f0f0f0;
+  background: var(--sv-surface);
+  border-bottom: 1px solid var(--sv-border-soft);
 
   select {
     padding: 4px 8px;
-    border: 1px solid #ccc;
+    border: 1px solid var(--sv-border);
     border-radius: 4px;
     font-size: 13px;
-    background: #fafafa;
-    color: #333;
+    background: var(--sv-bg);
+    color: var(--sv-text);
   }
 }
 
 .reports-switch {
   display: inline-flex;
-  border: 1px solid #ccc;
+  border: 1px solid var(--sv-border);
   border-radius: 4px;
   overflow: hidden;
   margin-left: 6px;
 
   &__btn {
     padding: 5px 14px;
-    background: #fafafa;
+    background: var(--sv-bg);
     border: none;
-    color: #777;
+    color: var(--sv-text-muted);
     font-size: 13px;
     cursor: pointer;
-    &:not(:last-child) { border-right: 1px solid #ddd; }
-    &:hover { background: #f0f0f8; }
+    &:not(:last-child) { border-right: 1px solid var(--sv-border); }
+    &:hover { background: var(--sv-hover); }
     &--on { background: #3367d6; color: #fff; &:hover { background: #3367d6; } }
   }
 }
 
 .reports-refresh {
   padding: 4px 14px;
-  background: #fff;
+  background: var(--sv-surface);
   border: 1px solid #9494b7;
   color: #9494b7;
   border-radius: 4px;
@@ -73,10 +73,10 @@ $bad: #c62828;
   border-radius: 8px;
   font-size: 15px;
   line-height: 1.4;
-  background: #fff;
-  border: 1px solid #e6e6ee;
+  background: var(--sv-surface);
+  border: 1px solid var(--sv-border-soft);
   border-left: 4px solid #cfcfe0;
-  color: #333;
+  color: var(--sv-text);
 
   &--ok    { border-left-color: $ok; }
   &--watch { border-left-color: $watch; }
@@ -104,15 +104,15 @@ $bad: #c62828;
 .report-tile {
   flex: 1;
   min-width: 130px;
-  background: #fff;
-  border: 1px solid #e6e6ee;
+  background: var(--sv-surface);
+  border: 1px solid var(--sv-border-soft);
   border-radius: 8px;
   padding: 14px 16px;
 
   &__value {
     font-size: 26px;
     font-weight: 700;
-    color: #2a2a40;
+    color: var(--sv-text-strong);
     &--ok  { color: $ok; }
     &--bad { color: $bad; }
   }
@@ -120,7 +120,7 @@ $bad: #c62828;
     font-size: 12px;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    color: #999;
+    color: var(--sv-text-muted);
     margin-top: 2px;
   }
 }
@@ -132,14 +132,14 @@ $bad: #c62828;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    color: #777;
+    color: var(--sv-text-muted);
     margin: 0 0 10px;
   }
   &__hint {
     font-weight: 400;
     text-transform: none;
     letter-spacing: 0;
-    color: #aaa;
+    color: var(--sv-text-faint);
     font-size: 12px;
   }
 }
@@ -151,8 +151,8 @@ $bad: #c62828;
   gap: 12px;
 }
 .report-health-card {
-  background: #fff;
-  border: 1px solid #e6e6ee;
+  background: var(--sv-surface);
+  border: 1px solid var(--sv-border-soft);
   border-radius: 8px;
   padding: 12px 14px;
   border-left: 4px solid #cfcfe0;
@@ -164,11 +164,11 @@ $bad: #c62828;
   &__head { display: flex; align-items: center; gap: 8px; }
   &__dot { width: 9px; height: 9px; border-radius: 50%;
     &--ok { background: $ok; } &--watch { background: $watch; } &--bad { background: $bad; } }
-  &__name { font-weight: 600; color: #333; flex: 1; }
-  &__badge { font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: #999; }
+  &__name { font-weight: 600; color: var(--sv-text); flex: 1; }
+  &__badge { font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--sv-text-muted); }
   &__stats {
     display: flex; gap: 14px; margin-top: 8px;
-    font-size: 12px; font-family: monospace; color: #666;
+    font-size: 12px; font-family: monospace; color: var(--sv-text);
   }
 }
 
@@ -177,18 +177,18 @@ $bad: #c62828;
   margin-bottom: 12px;
   &__head { display: flex; justify-content: space-between; align-items: baseline; }
   &__label {
-    font-family: monospace; font-size: 13px; color: #333; font-weight: 600;
+    font-family: monospace; font-size: 13px; color: var(--sv-text); font-weight: 600;
     &--watch { color: darken($watch, 8%); }
     &--bad { color: $bad; }
   }
-  &__value { font-size: 12px; color: #888; font-family: monospace; }
-  &__track { height: 8px; background: #eeeef4; border-radius: 4px; overflow: hidden; margin: 4px 0 2px; }
+  &__value { font-size: 12px; color: var(--sv-text-muted); font-family: monospace; }
+  &__track { height: 8px; background: var(--sv-inset); border-radius: 4px; overflow: hidden; margin: 4px 0 2px; }
   &__fill {
     height: 100%; border-radius: 4px; background: #3367d6;
     &--watch { background: $watch; }
     &--bad { background: $bad; }
   }
-  &__sub { font-size: 11px; color: #999; font-family: monospace; }
+  &__sub { font-size: 11px; color: var(--sv-text-muted); font-family: monospace; }
 }
 
 // tables
@@ -196,8 +196,8 @@ $bad: #c62828;
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
-  background: #fff;
-  border: 1px solid #e6e6ee;
+  background: var(--sv-surface);
+  border: 1px solid var(--sv-border-soft);
   border-radius: 8px;
   overflow: hidden;
 
@@ -206,19 +206,19 @@ $bad: #c62828;
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    color: #999;
+    color: var(--sv-text-muted);
     padding: 8px 12px;
-    background: #f5f5fa;
-    border-bottom: 1px solid #e6e6ee;
+    background: var(--sv-inset);
+    border-bottom: 1px solid var(--sv-border-soft);
   }
   td {
     padding: 7px 12px;
-    border-bottom: 1px solid #f0f0f4;
-    color: #444;
+    border-bottom: 1px solid var(--sv-border-soft);
+    color: var(--sv-text);
     font-family: monospace;
   }
   tr:last-child td { border-bottom: none; }
-  &__method { color: #2a2a40 !important; font-weight: 600; }
+  &__method { color: var(--sv-text-strong) !important; font-weight: 600; }
 }
 
 .report-cell--bad { color: $bad; font-weight: 700; }
@@ -234,31 +234,31 @@ $bad: #c62828;
   width: 100%;
   height: 90px;
   display: block;
-  background: #fff;
-  border: 1px solid #e6e6ee;
+  background: var(--sv-surface);
+  border: 1px solid var(--sv-border-soft);
   border-radius: 8px;
 }
 .report-chart-empty {
   padding: 24px;
   text-align: center;
-  color: #bbb;
+  color: var(--sv-text-faint);
   font-size: 13px;
-  background: #fff;
-  border: 1px dashed #e0e0e8;
+  background: var(--sv-surface);
+  border: 1px dashed var(--sv-border);
   border-radius: 8px;
 }
 
 .report-empty {
-  color: #aaa;
+  color: var(--sv-text-faint);
   font-size: 13px;
   padding: 8px 0;
 }
 
 .report-lede {
   font-size: 14px;
-  color: #555;
-  background: #f5f7fc;
-  border: 1px solid #e2e8f5;
+  color: var(--sv-text);
+  background: var(--sv-inset);
+  border: 1px solid var(--sv-border-soft);
   border-radius: 8px;
   padding: 10px 14px;
   margin: 0 0 4px;
@@ -267,7 +267,7 @@ $bad: #c62828;
 
 .report-note {
   font-size: 12px;
-  color: #999;
+  color: var(--sv-text-muted);
   font-style: italic;
   margin-top: 14px;
 }
@@ -287,9 +287,9 @@ $bad: #c62828;
   &__title {
     font-size: 12px;
     font-weight: 700;
-    color: #666;
+    color: var(--sv-text);
     margin-bottom: 6px;
-    span { font-weight: 400; color: #aaa; }
+    span { font-weight: 400; color: var(--sv-text-faint); }
   }
   &--danger .report-cov-block__title { color: $bad; span { color: darken(#e0a0a0, 5%); } }
 }
@@ -302,9 +302,9 @@ $bad: #c62828;
 .report-chip {
   font-family: monospace;
   font-size: 12px;
-  color: #888;
-  background: #f2f2f6;
-  border: 1px solid #e4e4ec;
+  color: var(--sv-text-muted);
+  background: var(--sv-inset);
+  border: 1px solid var(--sv-border-soft);
   border-radius: 12px;
   padding: 2px 10px;
 }
@@ -318,7 +318,7 @@ $bad: #c62828;
 // chart help caption
 .report-chart-help {
   font-size: 11px;
-  color: #999;
+  color: var(--sv-text-muted);
   margin-top: 5px;
   line-height: 1.35;
 }
@@ -342,7 +342,7 @@ $bad: #c62828;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  select { padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; background: #f2f2f2; color: #999; }
+  select { padding: 4px 8px; border: 1px solid var(--sv-border); border-radius: 4px; font-size: 13px; background: var(--sv-bg); color: var(--sv-text-muted); }
 }
 
 .report-noreport {
@@ -362,11 +362,11 @@ $bad: #c62828;
   flex-wrap: wrap;
   gap: 6px;
   padding: 0 20px 10px;
-  background: #fff;
-  border-bottom: 1px solid #f0f0f0;
+  background: var(--sv-surface);
+  border-bottom: 1px solid var(--sv-border-soft);
 
   .reports-switch__btn {
-    border: 1px solid #d8d8e4;
+    border: 1px solid var(--sv-border);
     border-radius: 16px;
     display: inline-flex;
     align-items: center;
@@ -376,7 +376,7 @@ $bad: #c62828;
 
 .reports-clear {
   padding: 4px 14px;
-  background: #fff;
+  background: var(--sv-surface);
   border: 1px solid #d9534f;
   color: #d9534f;
   border-radius: 4px;
@@ -400,8 +400,8 @@ $bad: #c62828;
 }
 
 .topo-node {
-  background: #fff;
-  border: 1px solid #e6e6ee;
+  background: var(--sv-surface);
+  border: 1px solid var(--sv-border-soft);
   border-top: 4px solid #cfcfe0;
   border-radius: 8px;
   padding: 12px 14px;
@@ -416,9 +416,9 @@ $bad: #c62828;
     gap: 8px;
     margin-bottom: 3px;
   }
-  &__name { font-weight: 700; color: #2a2a40; font-size: 15px; flex: 1; }
-  &__badge { font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: #999; }
-  &__meta { font-size: 12px; font-family: monospace; color: #888; margin-bottom: 10px; }
+  &__name { font-weight: 700; color: var(--sv-text-strong); font-size: 15px; flex: 1; }
+  &__badge { font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--sv-text-muted); }
+  &__meta { font-size: 12px; font-family: monospace; color: var(--sv-text-muted); margin-bottom: 10px; }
   &__methods { display: flex; flex-direction: column; gap: 5px; }
 }
 
@@ -431,20 +431,57 @@ $bad: #c62828;
 
   &__name {
     flex: 0 0 42%;
-    color: #3a4a72;
+    color: var(--sv-text-strong);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  &__track { flex: 1; height: 9px; background: #f0f0f4; border-radius: 5px; overflow: hidden; }
+  &__track { flex: 1; height: 9px; background: var(--sv-inset); border-radius: 5px; overflow: hidden; }
   &__bar {
     height: 100%;
     border-radius: 5px;
-    background: #6886ba;
-    &--ok    { background: #6886ba; }
+    background: var(--sv-blue);
+    &--ok    { background: var(--sv-blue); }
     &--watch { background: $watch; }
     &--bad   { background: $bad; }
   }
-  &__count { flex: 0 0 46px; text-align: right; color: #666; }
-  &__empty { color: #bbb; font-size: 12px; font-style: italic; }
+  &__count { flex: 0 0 46px; text-align: right; color: var(--sv-text); }
+  &__empty { color: var(--sv-text-faint); font-size: 12px; font-style: italic; }
+}
+
+// Dark mode — the pieces that can't ride the shared tokens: neutral status rails, the amber surfaces
+// (mock marker, no-report box), the coverage track's light-red, and the lede's link blue.
+:root.sv-dark {
+  .reports-verdict,
+  .report-health-card {
+    border-left-color: #4a5160;
+  }
+  .reports-verdict--ok, .report-health-card--ok { border-left-color: $ok; }
+  .reports-verdict--watch, .report-health-card--watch { border-left-color: $watch; }
+  .reports-verdict--bad, .report-health-card--bad { border-left-color: $bad; }
+  .topo-node {
+    border-top-color: #4a5160;
+    &--ok { border-top-color: $ok; }
+    &--watch { border-top-color: $watch; }
+    &--bad { border-top-color: $bad; }
+  }
+  .report-lede b {
+    color: #7ba3f0;
+  }
+  .report-cov-bar {
+    background: rgba(198, 40, 40, 0.3);
+  }
+  .report-mock {
+    color: #e0b849;
+    background: repeating-linear-gradient(45deg, #3a3320, #3a3320 6px, #453c22 6px, #453c22 12px);
+    border-color: #8a733a;
+  }
+  .report-noreport {
+    background: rgba(224, 184, 73, 0.1);
+    border-color: rgba(224, 184, 73, 0.35);
+    color: #e2c887;
+  }
+  .report-health-card--clickable:hover {
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+  }
 }

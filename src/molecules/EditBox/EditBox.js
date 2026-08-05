@@ -1,7 +1,8 @@
 import React, { useState } from "react";
+import { EditorThemeToggle } from "../../atoms/CodeView/editorTheme";
 import "./styles.scss";
 
-const EditBox = ({ formSubmit, mainObject, hiddenForm, onCancel, open = false }) => {
+const EditBox = ({ formSubmit, mainObject, hiddenForm, onCancel, open = false, showThemeToggle = false }) => {
   const [editMode, setEditMode] = useState(open);
   const editBoxClicked = () => setEditMode(true);
   const cancelClicked = () => {
@@ -24,6 +25,8 @@ const EditBox = ({ formSubmit, mainObject, hiddenForm, onCancel, open = false })
         <div className="edit-box__actions">
           <span className="edit-box__link edit-box__link--save" onClick={saveClicked}>Save</span>
           <span className="edit-box__link" onClick={cancelClicked}>Close</span>
+          {/* Editor-backed boxes get the global dark/light icon (opt-in — data forms don't). */}
+          {showThemeToggle && <EditorThemeToggle paneKey="editbox" />}
         </div>
         {hiddenForm}
       </div>

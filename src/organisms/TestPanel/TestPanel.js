@@ -10,7 +10,8 @@ import "./styles.scss";
 import RunTestIcon from "../../atoms/RunTestIcon";
 import SaveIcon from "../../atoms/SaveIcon/SaveIcon";
 import SavedTests from "../SavedTests/SavedTests";
-import { resolveTestActions, resetTest } from "../SavedTests/transformTests";
+import { resolveTestActions, resetTest, getActionMap } from "../SavedTests/transformTests";
+import { remapReferences } from "./components/test-helpers";
 import { Client } from "../../systemClient";
 import loadServiceWithHeaders from "../../utils/loadService";
 import FullTestController from "./components/FullTestController";
@@ -50,7 +51,13 @@ const FullTestInner = ({
 }) => {
   const namespace = { serviceId, moduleName, methodName };
   const { connectedServices } = useContext(ServiceContext);
-  const serviceData = connectedServices.find(
+  // EVERYTHING in the scratchpad is scoped to the CURRENT PROJECT — pickers, step connections, the
+  // save path, saved lists. Two projects can share a serviceId; an unscoped lookup grabs whichever
+  // comes first. (The CLI runner is already project-scoped — resolveServices(project_code) — parity.)
+  const projectServices = connectedServices.filter(
+    (s) => s.projectCode === projectCode,
+  );
+  const serviceData = projectServices.find(
     (service) => service.serviceId === serviceId,
   );
   const { Plugin } = serviceData
@@ -65,8 +72,6 @@ const FullTestInner = ({
   // section "pre" (between Before and Main) or "post" (between Main and After). They load with a saved
   // test's `sections`/`run`, get added at either insertion point, and removed by ×.
   const [named, setNamed] = useState([]);
-  const preNamed = named.filter((e) => e.pos !== "post");
-  const postNamed = named.filter((e) => e.pos === "post");
   // RFC-020 — references walk a **sections object** keyed by name (test.before[0] / test.seedSum[0]). The
   // scratchpad builds the four built-ins plus every named section; each key points at its live state array
   // so results land where refs read them. RUN_ORDER is the run-procedure the engine loops — named sections
@@ -81,13 +86,16 @@ const FullTestInner = ({
   named.forEach(({ name, action }) => {
     namedRefs[name] = action || name;
   });
+  // RFC-023 — the section ORDER is state, not a skeleton. It loads from the saved test's `run` (tests
+  // aren't always built in the UI — any arrangement is possible), renders in that order, and section
+  // drag rearranges it. Main is the anchor: it's in the order but never drags.
+  const DEFAULT_SECTION_ORDER = ["before", "events", "main", "after"];
+  const [sectionOrder, setSectionOrder] = useState(DEFAULT_SECTION_ORDER);
+  // The run-procedure = the visible order, guarded to sections that actually exist (plus any section
+  // the order somehow missed — appended above main as a safety net).
   const RUN_ORDER = [
-    "before",
-    "events",
-    ...preNamed.map((e) => e.name),
-    "main",
-    ...postNamed.map((e) => e.name),
-    "after",
+    ...sectionOrder.filter((k) => FullTest[k]),
+    ...Object.keys(FullTest).filter((k) => !sectionOrder.includes(k)),
   ];
   const [savedTests, setSavedTests] = useState([]);
   const [saveResponse, setMessage] = useState({ message: "", error: false });
@@ -113,12 +121,12 @@ const FullTestInner = ({
     Main.forEach((t) => {
       if (!t.namespace.methodName) {
         t.namespace = { ...ns };
-        t.getConnection(connectedServices);
+        t.getConnection(projectServices);
       }
     });
     setTestMain([...Main]);
   };
-  // The scratchpad has two tabs: build a TEST, or create a named ACTION (RFC-020). Same builder machinery.
+  // The scratchpad has two tabs: build a TEST, or create a shared ACTION (RFC-020). Same builder machinery.
   const [tab, setTab] = useState("test");
   // Expand/collapse EVERY section + step from the top toolbar (bump `signal` so a repeat still fires).
   const [fold, setFold] = useState({ signal: 0, open: true });
@@ -138,14 +146,106 @@ const FullTestInner = ({
       setState,
       section,
       FullTest,
-      connectedServices,
+      connectedServices: projectServices,
     });
   const MainCtrl = testCtrl(Main, setTestMain, 1, FullTest);
   const BeforeCtrl = testCtrl(Before, setTestBefore, 0, FullTest);
   const EventCtrl = testCtrl(Events, setEventTest, 2, FullTest);
   const AfterCtrl = testCtrl(After, setTestAfter, 3, FullTest);
-  const removeNamedSection = (name) =>
+  // RFC-023 — the editable DEFAULT sections' state setters, keyed like FullTest. (Named/action
+  // sections are SEALED blocks — steps never drag in or out of them.)
+  const SECTION_SETTERS = {
+    before: setTestBefore,
+    main: setTestMain,
+    events: setEventTest,
+    after: setTestAfter,
+  };
+  // Move a step (drag-and-drop) within or across the editable sections. References FOLLOW the step:
+  // simulate the move over position tokens to get an exact old→new position map, mutate, then rewrite
+  // every displaced reference in one pass (targetValues + visible input text + evaluation tv()s).
+  const moveStep = (fromKey, fromIdx, toKey, rawToIdx) => {
+    if (!SECTION_SETTERS[fromKey] || !SECTION_SETTERS[toKey]) return;
+    const src = FullTest[fromKey];
+    const dst = FullTest[toKey];
+    if (!src || !dst || !src[fromIdx]) return;
+    let toIdx = rawToIdx;
+    if (fromKey === toKey && fromIdx < rawToIdx) toIdx = rawToIdx - 1; // removal shifts the target
+    if (fromKey === toKey && toIdx === fromIdx) return;
+    if (fromKey === "main" && fromKey !== toKey && src.length === 1) return; // Main never empties
+    // Simulate over {key, i} tokens — the map covers all three shift cases at once.
+    const sim = {};
+    Object.keys(SECTION_SETTERS).forEach((k) => {
+      sim[k] = (FullTest[k] || []).map((_, i) => ({ key: k, i }));
+    });
+    const [movedTok] = sim[fromKey].splice(fromIdx, 1);
+    sim[toKey].splice(toIdx, 0, movedTok);
+    const newPos = new Map();
+    Object.keys(sim).forEach((k) =>
+      sim[k].forEach((tok, ni) => newPos.set(`${tok.key}:${tok.i}`, { key: k, index: ni })),
+    );
+    const mapFn = (key, i) => {
+      const to = newPos.get(`${key}:${i}`);
+      return !to || (to.key === key && to.index === i) ? null : to;
+    };
+    const [moved] = src.splice(fromIdx, 1);
+    dst.splice(toIdx, 0, moved);
+    remapReferences(FullTest, mapFn);
+    SECTION_SETTERS[fromKey]([...FullTest[fromKey]]);
+    if (toKey !== fromKey) SECTION_SETTERS[toKey]([...FullTest[toKey]]);
+  };
+  // Duplicate a step in place — a fresh clone (args/evaluations, no results) lands right below the
+  // original; references below the insertion point shift down one and get rewritten to follow.
+  const duplicateStep = (key, idx) => {
+    const arr = FullTest[key];
+    if (!SECTION_SETTERS[key] || !arr || !arr[idx]) return;
+    const t = arr[idx];
+    const clone = resetTest(
+      {
+        namespace: { ...t.namespace },
+        title: t.title,
+        args: (t.args || []).map((a) => ({
+          name: a.name,
+          input: JSON.parse(JSON.stringify(a.input === undefined ? "" : a.input)),
+          input_type: a.input_type,
+          data_type: a.data_type,
+          targetValues: JSON.parse(JSON.stringify(a.targetValues || [])),
+        })),
+        savedEvaluations: (t.evaluations || [])
+          .filter((e) => e.save)
+          .map(({ namespace: ns, expected_type, validations, save, indexed }) => ({
+            namespace: ns,
+            expected_type,
+            validations: JSON.parse(JSON.stringify(validations || [])),
+            save,
+            indexed,
+          })),
+      },
+      FullTest,
+      projectServices,
+      true,
+    );
+    const at = idx + 1;
+    remapReferences(FullTest, (k, i) => (k === key && i >= at ? { key: k, index: i + 1 } : null));
+    arr.splice(at, 0, clone);
+    SECTION_SETTERS[key]([...arr]);
+  };
+  // Rearrange sections (drag) — pure order change: keys and step indices don't move, so references
+  // need NO rewriting; only the run procedure changes. Main never moves.
+  const moveSection = (fromKey, toKey, side) => {
+    // Main AND Events are anchored — they stay where they've always been; everything else drags.
+    if (fromKey === "main" || fromKey === "events" || fromKey === toKey) return;
+    setSectionOrder((order) => {
+      if (!order.includes(fromKey) || !order.includes(toKey)) return order;
+      const next = order.filter((k) => k !== fromKey);
+      const at = next.indexOf(toKey) + (side === "after" ? 1 : 0);
+      next.splice(at, 0, fromKey);
+      return next;
+    });
+  };
+  const removeNamedSection = (name) => {
     setNamed((ns) => ns.filter((e) => e.name !== name));
+    setSectionOrder((order) => order.filter((k) => k !== name));
+  };
   const addNamedSection = (action, pos = "pre") => {
     // The SAME action can be added as multiple sections — each gets a UNIQUE instance key (seedSum,
     // seedSum_2, …), a valid identifier so references (test.seedSum_2[0].results) resolve; all still point
@@ -154,10 +254,16 @@ const FullTestInner = ({
     let key = action.name;
     for (let i = 2; named.some((e) => e.name === key); i++) key = `${action.name}_${i}`;
     const tests = (action.steps || []).map((s) =>
-      resetTest(s, FullTest, connectedServices, false),
+      resetTest(s, FullTest, projectServices, false),
     );
     FullTest[key] = tests;
     setNamed((ns) => [...ns, { name: key, action: action.name, tests, pos }]);
+    // Land in the ORDER at the chosen insertion point: just above / just below Main.
+    setSectionOrder((order) => {
+      const next = [...order];
+      next.splice(next.indexOf("main") + (pos === "post" ? 1 : 0), 0, key);
+      return next;
+    });
   };
 
   const { runFullTest, saveTests } = new FullTestController({
@@ -168,7 +274,7 @@ const FullTestInner = ({
       title: testTitle,
       namespace: saveNs,
     },
-    connectedServices,
+    connectedServices: projectServices,
   });
 
   const runTest = async () => {
@@ -194,8 +300,9 @@ const FullTestInner = ({
   // Editing a saved test (SavedTests → Edit) loads it into the scratchpad COLLAPSED — every section and
   // step folded, so you expand only what you want to change (not a wall of expanded steps). Its named
   // sections load with it.
-  const loadTestForEdit = (Tests, namedEntries = [], title = "", ns = null) => {
+  const loadTestForEdit = (Tests, namedEntries = [], title = "", ns = null, order = null) => {
     setFullTest(Tests, namedEntries);
+    setSectionOrder(order && order.length ? order : DEFAULT_SECTION_ORDER);
     setTestTitle(title || ""); // the saved test's own top-level title (may equal Main's, may diverge)
     setTestNamespace(ns || null); // the file/namespace the test was saved under
     setFoldAll(false);
@@ -219,14 +326,13 @@ const FullTestInner = ({
     setTimeout(clearMessage, 4000);
   };
 
-  // RFC-020 — build a sync `resolveAction(name)` from a plugin's named actions so `{ use }` steps splice
-  // in as the tests are loaded (the CLI expands inside initializeSavedTests; the browser pre-expands here
-  // so every downstream render path — SavedTests/TestStory — shows the action's steps and runs them).
-  const actionResolver = async (plugin, ns) => {
+  // RFC-020 — build a sync `resolveAction(name)` from the WHOLE PROJECT's shared actions (every
+  // service's, merged — getActionMap, same as the CLI) so `{ use }` steps splice in as the tests are
+  // loaded. Actions store under the service they were saved on, but a test calls across namespaces —
+  // an action saved on one service must resolve in any other's tests.
+  const projectActionResolver = async () => {
     try {
-      const actions = (plugin.getActions && (await plugin.getActions(ns))) || [];
-      const map = {};
-      actions.forEach((a) => a && a.name && (map[a.name] = a));
+      const map = await getActionMap(projectServices);
       return (name) => map[name] || null;
     } catch {
       return () => null;
@@ -237,12 +343,13 @@ const FullTestInner = ({
     try {
       if (Plugin) {
         const results = await Plugin.getTests(namespace);
-        const resolve = await actionResolver(Plugin, namespace);
+        const resolve = await projectActionResolver();
         setSavedTests((results || []).map((ft) => resolveTestActions(ft, resolve)));
       } else if (projectCode && !serviceId) {
         // Project level (project code clicked, no service): aggregate EVERY service's own tests so the
         // "run all" button runs the whole project — the same way running a service runs all its tests.
-        const svcs = connectedServices.filter((s) => s.projectCode === projectCode);
+        const svcs = projectServices;
+        const resolve = await projectActionResolver();
         const all = [];
         for (const s of svcs) {
           try {
@@ -252,7 +359,6 @@ const FullTestInner = ({
               s.credentials,
             );
             const tests = await svc.Plugin.getTests({ serviceId: s.serviceId });
-            const resolve = await actionResolver(svc.Plugin, { serviceId: s.serviceId });
             all.push(...(tests || []).map((ft) => resolveTestActions(ft, resolve)));
           } catch {}
         }
@@ -270,26 +376,28 @@ const FullTestInner = ({
     setTestBefore([]);
     setTestAfter([]);
     setEventTest([]);
-    setNamed([]); // named-action sections clear with the rest of the builder
+    setNamed([]); // shared-action sections clear with the rest of the builder
+    setSectionOrder(DEFAULT_SECTION_ORDER); // back to the default run order
     setTestTitle("");
     setTestNamespace(null); // back to the page's namespace
     setNsEditing(false);
     //get connection for the main test and set state
     const test = new Test({ namespace, shouldValidate: true }).getConnection(
-      connectedServices,
+      projectServices,
     );
     setTestMain([test]);
     // A fresh scratchpad (new test / navigation) is EXPANDED — only Edit-loading a saved test collapses.
     setFoldAll(true);
   };
-  // RFC-020 — the service's saved actions, offered as insertable sections in the builder.
+  // RFC-020 — the PROJECT's saved actions (every service's, merged), offered as insertable sections
+  // in the builder. A signIn action saved on one service is usable in any test — tests already call
+  // across namespaces, and actions are just named steps.
   const [availableActions, setAvailableActions] = useState([]);
   useEffect(() => {
     (async () => {
       try {
-        setAvailableActions(
-          Plugin && Plugin.getActions ? (await Plugin.getActions({})) || [] : [],
-        );
+        const map = await getActionMap(projectServices);
+        setAvailableActions(Object.values(map));
       } catch {
         setAvailableActions([]);
       }
@@ -341,7 +449,7 @@ const FullTestInner = ({
             if (nsEditing) {
               // The app's own picker (same one every step uses) — filtered dropdown, arrow keys,
               // Enter/click selects. Commit only via selection; clicking away cancels.
-              const nsOptions = connectedServices.flatMap((s) =>
+              const nsOptions = projectServices.flatMap((s) =>
                 (((s.system || {}).connectionData || {}).modules || []).flatMap((m) =>
                   (m.methods || []).map((fn) => `${s.serviceId}.${m.name}.${fn.fn}`),
                 ),
@@ -463,64 +571,79 @@ const FullTestInner = ({
             </span>
 
             <FoldContext.Provider value={fold}>
-              <div className="row test-panel__section">
-                <BeforeTest TestController={BeforeCtrl} TestSection={Before} />
-              </div>
-              {/* RFC-020 — the test's named-action sections: real sections, siblings of the built-ins, at
-                BOTH insertion points (before Main and after Main), each with its identity + remove (×). */}
-              {preNamed.map((entry) => (
-                <div className="row test-panel__section" key={entry.name}>
-                  <NamedSectionCard
-                    entry={entry}
-                    onRemove={() => removeNamedSection(entry.name)}
-                  />
-                </div>
-              ))}
-              <AddSectionRow
-                actions={availableActions}
-                onAdd={(a) => addNamedSection(a, "pre")}
-                rightSlot={
-                  <span
-                    className="current-data-section__add btn"
-                    title="Add another main step"
-                    onClick={() => MainCtrl.addTest()}
-                  >
-                    + main
-                  </span>
-                }
-              />
-              <div className="row test-panel__section">
-                <MainTest TestController={MainCtrl} TestSection={Main} />
-              </div>
-              {postNamed.map((entry) => (
-                <div className="row test-panel__section" key={entry.name}>
-                  <NamedSectionCard
-                    entry={entry}
-                    onRemove={() => removeNamedSection(entry.name)}
-                  />
-                </div>
-              ))}
-              <AddSectionRow
-                actions={availableActions}
-                onAdd={(a) => addNamedSection(a, "post")}
-              />
-              <div className="row test-panel__section">
-                <EventsTest
-                  TestController={EventCtrl}
-                  TestSection={Events}
-                  namespace={eventNamespace}
-                  FullTest={FullTest}
-                />
-              </div>
-              <div className="row test-panel__section">
-                <AfterTest TestController={AfterCtrl} TestSection={After} />
-              </div>
+              {/* RFC-023 — sections render IN THE ORDER (the test's run procedure), not a skeleton:
+                  a hand-authored test with an action before Before shows exactly that. Every section
+                  but Main drags (grip in its header); the two + section rows stay pinned to Main. */}
+              {(() => {
+                // Events RUNS in its historical slot (RUN_ORDER keeps it) but always DISPLAYS right
+                // after Main's zone — it never moves around visually, exactly like the old layout.
+                const display = sectionOrder.filter((k) => k !== "events");
+                display.splice(display.indexOf("main") + 1, 0, "events");
+                return display;
+              })()
+                .filter((k) => k === "main" || FullTest[k])
+                .map((key) => {
+                  const entry = named.find((e) => e.name === key);
+                  const section =
+                    key === "main" ? (
+                      <MainTest TestController={MainCtrl} TestSection={Main} sectionKey="main" onStepMove={moveStep} onStepDuplicate={duplicateStep} />
+                    ) : key === "before" ? (
+                      <BeforeTest TestController={BeforeCtrl} TestSection={Before} sectionKey="before" onStepMove={moveStep} onStepDuplicate={duplicateStep} sectionDragKey="before" />
+                    ) : key === "events" ? (
+                      <EventsTest
+                        TestController={EventCtrl}
+                        TestSection={Events}
+                        namespace={eventNamespace}
+                        FullTest={FullTest}
+                        sectionKey="events"
+                        onStepMove={moveStep}
+                        onStepDuplicate={duplicateStep}
+                      />
+                    ) : key === "after" ? (
+                      <AfterTest TestController={AfterCtrl} TestSection={After} sectionKey="after" onStepMove={moveStep} onStepDuplicate={duplicateStep} sectionDragKey="after" />
+                    ) : entry ? (
+                      <NamedSectionCard
+                        entry={entry}
+                        onRemove={() => removeNamedSection(entry.name)}
+                        dragKey={entry.name}
+                      />
+                    ) : null;
+                  if (!section) return null;
+                  return (
+                    <React.Fragment key={key}>
+                      {key === "main" && (
+                        <AddSectionRow
+                          actions={availableActions}
+                          onAdd={(a) => addNamedSection(a, "pre")}
+                          rightSlot={
+                            <span
+                              className="current-data-section__add btn"
+                              title="Add another main step"
+                              onClick={() => MainCtrl.addTest()}
+                            >
+                              + main
+                            </span>
+                          }
+                        />
+                      )}
+                      <SectionRow sectionKey={key} onSectionMove={moveSection}>
+                        {section}
+                      </SectionRow>
+                      {key === "main" && (
+                        <AddSectionRow
+                          actions={availableActions}
+                          onAdd={(a) => addNamedSection(a, "post")}
+                        />
+                      )}
+                    </React.Fragment>
+                  );
+                })}
             </FoldContext.Provider>
 
             <div className="row test-panel__section">
               <SavedTests
                 savedTests={savedTests}
-                connectedServices={connectedServices}
+                connectedServices={projectServices}
                 setFullTest={loadTestForEdit}
                 Plugin={Plugin}
                 fetchTests={fetchTests}
@@ -534,7 +657,7 @@ const FullTestInner = ({
   );
 };
 
-// RFC-020 — an insertion point for a named-action section. Collapsed: one slim "+ section" button.
+// RFC-020 — an insertion point for a shared-action section. Collapsed: one slim "+ section" button.
 // Open: a horizontally scrollable strip of the service's saved actions (there can be many) — click one
 // and it lands as a section right at this spot.
 // `+ section` on the LEFT, an optional `rightSlot` (e.g. `+ main`) on the RIGHT — one shared row so the
@@ -585,11 +708,48 @@ const AddSectionRow = ({ actions, onAdd, rightSlot }) => {
   );
 };
 
-// RFC-020 — a named-action section INSIDE a test is a REFERENCE, not editable steps. It renders read-only
+// RFC-020 — a shared-action section INSIDE a test is a REFERENCE, not editable steps. It renders read-only
 // (the same step cards a saved test / saved action shows), runnable on its own, and removable (×). To
 // change its steps you edit the ACTION itself. `ran` derives from the steps so it reflects BOTH a per-
 // section run here and a whole-test "Run all".
-const NamedSectionCard = ({ entry, onRemove }) => {
+// RFC-023 — one section's row: the drop target for SECTION drag (top half = land above, bottom half
+// = below). Pure order change — references don't move, so no remap here.
+const SECTION_MIME = "application/x-sv-section";
+const SectionRow = ({ sectionKey, onSectionMove, children }) => {
+  const [over, setOver] = React.useState(null);
+  const sideAt = (e) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    return e.clientY > r.top + r.height / 2 ? "after" : "before";
+  };
+  return (
+    <div
+      className={`row test-panel__section${over ? ` test-panel__section--over-${over}` : ""}`}
+      onDragOver={(e) => {
+        if ([...e.dataTransfer.types].includes(SECTION_MIME)) {
+          e.preventDefault();
+          setOver(sideAt(e));
+        }
+      }}
+      onDragLeave={() => setOver(null)}
+      onDrop={(e) => {
+        setOver(null);
+        let d;
+        try {
+          d = JSON.parse(e.dataTransfer.getData(SECTION_MIME));
+        } catch {
+          return;
+        }
+        if (!d || !d.key) return;
+        e.preventDefault();
+        onSectionMove(d.key, sectionKey, sideAt(e));
+      }}
+    >
+      {children}
+    </div>
+  );
+};
+
+const NamedSectionCard = ({ entry, onRemove, dragKey }) => {
   // Collapsed by default — a referenced action is reused everywhere, so adding one shouldn't dump all its
   // steps into the builder; expand it only when you want to recall what it does.
   const [open, setOpen] = React.useState(false);
@@ -650,6 +810,20 @@ const NamedSectionCard = ({ entry, onRemove }) => {
         >
           {running ? "…" : "▶ Run"}
         </button>
+        {dragKey && (
+          <span
+            className="named-section__grip"
+            title="Drag to rearrange this section"
+            draggable
+            onDragStart={(e) => {
+              e.dataTransfer.effectAllowed = "move";
+              e.dataTransfer.setData(SECTION_MIME, JSON.stringify({ key: dragKey }));
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            ⠿
+          </span>
+        )}
       </div>
       {open && (
         <div className="named-section__steps">

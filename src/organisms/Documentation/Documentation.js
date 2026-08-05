@@ -2,8 +2,9 @@ import React, { useState, useContext, useEffect, useCallback } from "react";
 import { useHistory, useLocation } from "react-router-dom";
 import "./styles.scss";
 import DescriptionBox from "../../atoms/DescriptionBox/DescriptionBox";
-import EditBox from "../../molecules/EditBox/EditBox";
+import { EditorThemeToggle, usePaneDark } from "../../atoms/CodeView/editorTheme";
 import Markdown from "../../atoms/Markdown/Markdown";
+import CodePane from "../CodePane/CodePane";
 import ServiceContext from "../../ServiceContext";
 import Stage from "../Stage/Stage";
 import { Client } from "../../systemClient";
@@ -163,7 +164,7 @@ A documentation + testing surface for your **SystemLynx** services — and, incr
 - **Write docs** — click into the Documentation pane and type. It saves to the repo (\`specs/docs/\`) and
   travels with your code.
 - **Build tests** — in the Scratch Pad, assemble Before / Main / Events / After steps, run them, and save.
-  A test is an **ordered list of named sections**: reusable **named actions** (built in the Actions tab)
+  A test is an **ordered list of named sections**: reusable **shared actions** (built in the Actions tab)
   drop in as sections via **+ actions**, stored as \`{use}\` references — edit the action once, every test
   follows. Main holds multiple steps on any namespaces; the header **chip** is the \`service.module.method\`
   the test saves under — click it to retarget with the method picker.
@@ -179,8 +180,19 @@ A documentation + testing surface for your **SystemLynx** services — and, incr
 
 _Select something on the left to dive in._`;
 
-export default function Documentation({ projectCode, serviceId, moduleName, methodName }) {
+export default function Documentation({
+  projectCode,
+  serviceId,
+  moduleName,
+  methodName,
+  // RFC-022 — the page-level lens + the file open from the Codebase nav. In the file lens the center
+  // is CODE (edit-first CodePane) instead of Documentation/Logs; Stories stays.
+  lens = "systemlynx",
+  codeFile = null,
+  onCloseFile = () => {},
+}) {
   const { connectedServices } = useContext(ServiceContext);
+  const fileLens = lens === "files" && !!codeFile;
 
   // Middle-panel scope — what the docs / logs / stories target. It DEFAULTS to the nav selection, but the
   // breadcrumb below can retarget it up or down INDEPENDENTLY of the nav: you can read logs (or stories, or
@@ -264,18 +276,30 @@ export default function Documentation({ projectCode, serviceId, moduleName, meth
             The selected namespace rides at the END of this same row (no separate title row → more vertical
             space for the document / stories / logs below). */}
         <div className="doc-tabs">
-          <button
-            className={`doc-tab ${tab === "docs" ? "doc-tab--active" : ""}`}
-            onClick={() => selectTab("docs")}
-          >
-            Documentation
-          </button>
-          <button
-            className={`doc-tab ${tab === "logs" ? "doc-tab--active" : ""}`}
-            onClick={() => selectTab("logs")}
-          >
-            Logs
-          </button>
+          {fileLens ? (
+            // File lens: the center is CODE (edit-first). Logs stay with the service lens.
+            <button
+              className={`doc-tab ${tab !== "window" ? "doc-tab--active" : ""}`}
+              onClick={() => selectTab("docs")}
+            >
+              Code
+            </button>
+          ) : (
+            <>
+              <button
+                className={`doc-tab ${tab === "docs" ? "doc-tab--active" : ""}`}
+                onClick={() => selectTab("docs")}
+              >
+                Documentation
+              </button>
+              <button
+                className={`doc-tab ${tab === "logs" ? "doc-tab--active" : ""}`}
+                onClick={() => selectTab("logs")}
+              >
+                Logs
+              </button>
+            </>
+          )}
           <button
             className={`doc-tab ${tab === "window" ? "doc-tab--active" : ""}`}
             onClick={() => selectTab("window")}
@@ -286,6 +310,15 @@ export default function Documentation({ projectCode, serviceId, moduleName, meth
               stories) to that level WITHOUT moving the nav or scratchpad. The segment matching the current
               middle scope is highlighted blue; the rest (project included) are grey. Segments come from the
               nav path (its depth is the deepest you can drill), so you can move freely up and down it. */}
+          {fileLens && (
+            <span className="doc-tabs__ns" title="The codebase this file belongs to">
+              <span className="doc-tabs__ns-seg doc-tabs__ns-seg--active">
+                {codeFile.projectCode}
+              </span>
+              <span className="doc-tabs__ns-paren"> codebase</span>
+            </span>
+          )}
+          {!fileLens && (
           <span className="doc-tabs__ns" title="Scope for docs / logs / stories — click a level to retarget it">
             {projectCode && (
               <>
@@ -330,37 +363,40 @@ export default function Documentation({ projectCode, serviceId, moduleName, meth
               </>
             )}
           </span>
+          )}
         </div>
-        {tab === "docs" && (
+        {/* RFC-022 — the Code center: edit-first file pane fed by the Codebase nav's selection. */}
+        {fileLens && tab !== "window" && (
           <div className="documentation-view__data-table">
-            {/* The doc IS a file panel — a framed pane with a header/badge. When nothing is selected it
-                shows SystemView's own help; otherwise the per-namespace doc (getDoc/saveDoc). */}
-            <div className="doc-pane">
-              <div className="doc-pane__header">
-                <span className="doc-pane__kind">doc</span>
-                <span className="doc-pane__label">
-                  {nothingSelected
-                    ? "SystemView"
-                    : sMethod && sModule && sService
-                    ? `${sService}.${sModule}.${sMethod}`
-                    : sModule && sService
-                    ? `${sService}.${sModule}`
-                    : sService || sProject || ""}
-                </span>
-              </div>
-              <div className="doc-pane__body">
-                {nothingSelected ? (
-                  <div className="md-view">
-                    <Markdown>{SYSTEMVIEW_HELP}</Markdown>
-                  </div>
-                ) : (
-                  <DocDescription doc={doc} setDocument={setDocument} Plugin={Plugin} />
-                )}
-              </div>
-            </div>
+            <CodePane file={codeFile} onClose={onCloseFile} />
           </div>
         )}
-        {tab === "logs" && (
+        {!fileLens && tab === "docs" && (
+          <div className="documentation-view__data-table">
+            {/* The doc IS a file panel — a framed pane with a header/badge. When nothing is selected it
+                shows SystemView's own help; otherwise the per-namespace doc (getDoc/saveDoc). The doc's
+                Edit/Save/Close live IN this header, exactly like the Code pane's — the rendered document
+                below is for reading, never click-to-edit. */}
+            <DocDescription
+              key={`${sService}.${sModule}.${sMethod}`}
+              doc={doc}
+              setDocument={setDocument}
+              Plugin={Plugin}
+              readOnly={nothingSelected}
+              label={
+                nothingSelected
+                  ? "SystemView"
+                  : sMethod && sModule && sService
+                  ? `${sService}.${sModule}.${sMethod}`
+                  : sModule && sService
+                  ? `${sService}.${sModule}`
+                  : sService || sProject || ""
+              }
+              helpText={nothingSelected ? SYSTEMVIEW_HELP : null}
+            />
+          </div>
+        )}
+        {!fileLens && tab === "logs" && (
           <InlineLogs
             projectCode={sProject}
             serviceId={sService}
@@ -368,16 +404,18 @@ export default function Documentation({ projectCode, serviceId, moduleName, meth
             methodName={sMethod}
           />
         )}
-        {/* Stage stays mounted (subscription live for auto-focus); tab just toggles visibility. */}
+        {/* Stage stays mounted (subscription live for auto-focus); tab just toggles visibility.
+            In the CODEBASE lens the stories scope is the whole PROJECT — you're looking at the
+            codebase, not the nav's namespace selection, so every story shows regardless. */}
         <div
           className="documentation-view__window"
           style={{ display: tab === "window" ? "block" : "none" }}
         >
           <Stage
-            projectCode={sProject}
-            serviceId={sService}
-            moduleName={sModule}
-            methodName={sMethod}
+            projectCode={lens === "files" && codeFile ? codeFile.projectCode : sProject}
+            serviceId={lens === "files" ? undefined : sService}
+            moduleName={lens === "files" ? undefined : sModule}
+            methodName={lens === "files" ? undefined : sMethod}
             onStageChange={handleStageChange}
           />
         </div>
@@ -386,49 +424,81 @@ export default function Documentation({ projectCode, serviceId, moduleName, meth
   );
 }
 
-const DocDescription = ({ doc, setDocument, Plugin }) => {
-  const { serviceId, methodName, moduleName } = doc;
+// The doc pane, whole: header (badge + namespace label + the Edit/Save/Close controls) and the body
+// (rendered document, or the dark editor while editing). Same shape as the Code pane — the header
+// owns the mode, the document below is for reading.
+const DocDescription = ({ doc, setDocument, Plugin, label, readOnly, helpText }) => {
+  const [editing, setEditing] = useState(false);
   const [text, setText] = useState(doc.documentation);
+  const [editorDark] = usePaneDark(`doc:${label}`);
 
-  const saveDocument = async (setFormDisplay) => {
-    if (Plugin) {
-      try {
-        const results = await Plugin.saveDoc({ ...doc, documentation: text });
-        setDocument(results);
-        setFormDisplay(false);
-      } catch (error) {
-        console.error(error);
-      }
+  const saveDocument = async () => {
+    if (!Plugin) return;
+    try {
+      const results = await Plugin.saveDoc({ ...doc, documentation: text });
+      setDocument(results);
+      setEditing(false);
+    } catch (error) {
+      console.error(error);
     }
   };
-
-  const updateDoc = (documentation) => setText(documentation);
-  const cancel = () => setText(doc.documentation);
+  const cancel = () => {
+    setText(doc.documentation);
+    setEditing(false);
+  };
 
   useEffect(() => {
     setText(doc.documentation);
+    setEditing(false);
   }, [doc]);
 
+  const shown = helpText != null ? helpText : text;
   return (
-    // RFC-018 — the doc renders through the SAME `.md-view` look as a markdown file pane (formatted read +
-    // dark unified editor). Same functionality (getDoc/saveDoc, per-namespace); just the new look.
-    <div className="md-view">
-      <EditBox
-        mainObject={
-          text ? (
-            <Markdown children={text} />
+    <div className="doc-pane">
+      <div className={`doc-pane__header ${!editorDark ? "doc-pane__header--light" : ""}`}>
+        <span className="doc-pane__kind">doc</span>
+        <span className="doc-pane__label">{label}</span>
+        <span className="doc-pane__actions">
+          {/* The document follows the DOCS theme even in READ mode — the toggle rides the ONE
+              corner cluster, right beside Edit (a second auto-margined span floated it to center). */}
+          <EditorThemeToggle paneKey={`doc:${label}`} />
+          {!readOnly &&
+            (!editing ? (
+              <button type="button" className="doc-pane__btn" onClick={() => setEditing(true)}>
+                Edit
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="doc-pane__btn doc-pane__btn--save"
+                  onClick={saveDocument}
+                >
+                  Save
+                </button>
+                <button type="button" className="doc-pane__btn" onClick={cancel}>
+                  Close
+                </button>
+              </>
+            ))}
+        </span>
+      </div>
+      <div className="doc-pane__body">
+        <div className={`md-view md-view--${editorDark ? "dark" : "light"}`}>
+          {editing ? (
+            <div className="edit-box edit-box--edit">
+              <DescriptionBox text={text || ""} setValue={setText} dark={editorDark} />
+            </div>
+          ) : shown ? (
+            <Markdown dark={editorDark} children={shown} />
           ) : (
             <div className="doc-empty">
               <span className="doc-empty__icon">✎</span>
-              No documentation yet — click to write it.
+              No documentation yet — hit Edit to write it.
             </div>
-          )
-        }
-        hiddenForm={<DescriptionBox text={text || ""} setValue={updateDoc} />}
-        formSubmit={saveDocument}
-        stateChange={[serviceId, methodName, moduleName]}
-        onCancel={cancel}
-      />
+          )}
+        </div>
+      </div>
     </div>
   );
 };

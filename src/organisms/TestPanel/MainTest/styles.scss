@@ -3,14 +3,14 @@
   // result — soft green when it passed, soft red when any assertion failed — but subtle, so the per-clause
   // green/red is what actually reads.
   background: #f3faf6;
-  border: 1px solid #e6e9f0;
+  border: 1px solid var(--sv-border-soft);
   border-top: none;
   border-radius: 0 0 6px 6px;
   overflow-wrap: anywhere;
   padding: 10px 14px 12px;
   font-family: "SF Mono", Menlo, monospace;
   font-size: 12.5px;
-  color: #46506a;
+  color: var(--sv-text);
   &--error-true {
     background: #fdf5f5;
   }
@@ -49,10 +49,10 @@
       box-sizing: border-box;
       border: 1px solid #cfd5e6;
       border-radius: 5px;
-      background: #fff;
+      background: var(--sv-surface);
       font-family: inherit;
       font-size: 12.5px;
-      color: #46506a;
+      color: var(--sv-text);
       transition:
         border-color 0.12s,
         box-shadow 0.12s;
@@ -73,7 +73,7 @@
     justify-content: center;
     width: 18px;
     height: 18px;
-    background: #eef0fa;
+    background: var(--sv-hover);
     color: #6a74c4;
     border: 1px solid #d9ddf4;
     border-radius: 50%;

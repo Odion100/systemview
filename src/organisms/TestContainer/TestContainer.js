@@ -61,11 +61,6 @@ const TestContainer = ({
   // Clicking anywhere on a COLLAPSED step expands it. It does NOT collapse the same way — collapsing is
   // the caret only, so clicks while you're editing an expanded step never fold it shut.
   const expandOnClick = !open ? () => setOpen(true) : undefined;
-  const deleteTest = (e) => {
-    if (e) e.stopPropagation();
-    TestController.deleteTest(testIndex);
-  };
-
   const updateTitle = (text) => {
     TestController.updateTitle(testIndex, text);
   };
@@ -82,9 +77,8 @@ const TestContainer = ({
         title={
           <div className={`${className}__title-wrap`} onClick={expandOnClick}>
             <div className={`${className}__title-row`}>
-              {/* The delete × ANCHORS to the input's box — absolutely positioned over its right end,
-                  shaped like the input's end cap (the shared .delete-btn), zero space taken. Hidden
-                  until you hover the input. */}
+              {/* Step deletion moved to the corner tool row (× · ⧉ · ⠿ — RFC-023); the old input
+                  end-cap × is retired. */}
               <span className={`${className}__caption-wrap`}>
                 <TestCaption
                   onChange={updateTitle}
@@ -92,14 +86,6 @@ const TestContainer = ({
                   useInput={true}
                   title={test.title || ""}
                 />
-                {multiTest && (
-                  <span
-                    className={`${className}__delete-btn btn delete-btn`}
-                    onClick={deleteTest}
-                  >
-                    x
-                  </span>
-                )}
               </span>
               {/* Status badge mirrors the saved-test card: spinner while running, PASS/FAIL once run. */}
               {running ? (

@@ -1,6 +1,6 @@
 // RFC-018 — compact test-as-story for the Stories window. Reads like documentation: title → phases →
 // each step's call(args) → returns → the clauses that pin it. Blue to blend, foldable at every level.
-$sv-blue: #6886ba;
+$sv-blue: var(--sv-blue);
 
 // Run-all + Clear live on the RIGHT, same edge as each test's own Run button.
 // Pinned to the top of the scroll — the tests scroll UNDER it, it never scrolls away.
@@ -11,17 +11,42 @@ $sv-blue: #6886ba;
   justify-content: flex-end;
   padding: 6px 8px;
   position: sticky;
-  top: 0;
+  top: 0; // stuck = flush with the top edge
   z-index: 2;
-  background: #fff;
-  border-bottom: 1px solid #eef0f5;
-  // Sits flush in the pane's top corners — round its top corners to match the pane's 6px so it blends.
-  border-radius: 6px 6px 0 0;
+  background: var(--sv-surface);
+  // Inset on the sides/bottom only — NO top gap, so a note above blends straight into the bar and
+  // the sticky bar sits flush against the top when you scroll.
+  margin: 0 8px 6px;
+  border: 1px solid #e3e6ee;
+  border-radius: 6px;
+}
+// Left cluster of the bar: auto-track toggle + the run summary; the buttons keep the right edge.
+.test-pane__bar-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-right: auto;
+  min-width: 0;
+}
+// Auto-track (same behavior as the scratchpad's saved list: auto-scroll to the running test; never
+// auto-expands; gives up the moment you scroll).
+.test-pane__auto {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--sv-text-muted);
+  cursor: pointer;
+  user-select: none;
+  flex: none;
+  input {
+    cursor: pointer;
+  }
 }
 .test-pane__run-all {
   border: 1px solid $sv-blue;
-  background: #eef1f8;
-  color: #46608f;
+  background: var(--sv-inset);
+  color: var(--sv-blue-deep);
   font-size: 11px;
   padding: 3px 12px;
   border-radius: 4px;
@@ -32,16 +57,16 @@ $sv-blue: #6886ba;
   }
 }
 .test-pane__clear {
-  border: 1px solid #d7dbe6;
-  background: #fff;
-  color: #8b93a7;
+  border: 1px solid var(--sv-border);
+  background: var(--sv-surface);
+  color: var(--sv-text-muted);
   font-size: 11px;
   padding: 3px 12px;
   border-radius: 4px;
   cursor: pointer;
   &:hover {
-    border-color: #97a0b8;
-    color: #46506a;
+    border-color: var(--sv-text-faint);
+    color: var(--sv-text);
   }
 }
 // Aggregate run-all result, on the bar next to the buttons.
@@ -97,16 +122,16 @@ $sv-blue: #6886ba;
   max-width: 100%;
   min-width: 0;
   // A gray board the test CARDS sit on (they're white) — reads as a distinct surface, like a tray.
-  // No padding here: the run-all bar sits FLUSH in the top corners (its own top corners are rounded to
-  // match), blending with the component. Only the card grid below gets inset padding. No `overflow:hidden`
-  // — that would make the pane its own scroll box and unstick the sticky bar (see the bar rule below).
-  background: #eceef3;
+  // The run-all bar is INSET (its own margin), so no padding needed here; the card grid below gets its
+  // own inset padding. No `overflow:hidden` — that would make the pane its own scroll box and unstick
+  // the sticky bar (see the bar rule below).
+  background: var(--sv-inset);
   border-radius: 6px;
 }
 // Agent's markdown for a test block — only present when the agent set one (no note ⇒ no element).
 .test-pane__note {
   font-size: 12.5px;
-  color: #46506a;
+  color: var(--sv-text);
   padding: 8px 10px 0;
 }
 
@@ -171,7 +196,7 @@ $sv-blue: #6886ba;
     text-align: left;
   }
   &__caret {
-    color: #97a0b8;
+    color: var(--sv-text-faint);
     font-size: 9px;
   }
   &__title {
@@ -182,7 +207,7 @@ $sv-blue: #6886ba;
     white-space: nowrap;
   }
   &__idx {
-    color: #97a0b8;
+    color: var(--sv-text-faint);
     font-weight: 500;
   }
   &__status {
@@ -200,7 +225,7 @@ $sv-blue: #6886ba;
       color: #e05757;
     }
     &--running {
-      background: #eef1f8;
+      background: var(--sv-inset);
       color: $sv-blue;
       display: inline-flex;
       align-items: center;
@@ -217,16 +242,16 @@ $sv-blue: #6886ba;
     animation: test-story-spin 0.7s linear infinite;
   }
   &__clear1 {
-    border: 1px solid #d7dbe6;
-    background: #fff;
-    color: #8b93a7;
+    border: 1px solid var(--sv-border);
+    background: var(--sv-surface);
+    color: var(--sv-text-muted);
     font-size: 11px;
     padding: 4px 12px;
     border-radius: 4px;
     cursor: pointer;
     &:hover {
-      border-color: #97a0b8;
-      color: #46506a;
+      border-color: var(--sv-text-faint);
+      color: var(--sv-text);
     }
     &:disabled {
       opacity: 0.6;
@@ -265,12 +290,12 @@ $sv-blue: #6886ba;
     letter-spacing: 0.6px;
     color: $sv-blue;
     font-weight: 600;
-    border-bottom: 1px solid #eef0f5;
+    border-bottom: 1px solid var(--sv-inset);
   }
   &__count {
     margin-left: auto;
-    background: #eef1f8;
-    color: #6b7797;
+    background: var(--sv-inset);
+    color: var(--sv-text-muted);
     border-radius: 8px;
     padding: 0 6px;
     font-size: 10px;
@@ -305,7 +330,7 @@ $sv-blue: #6886ba;
     text-align: left;
   }
   &__title {
-    color: #46506a;
+    color: var(--sv-text);
     font-weight: 600;
   }
   // The collapsed-preview method call: never wraps internally — it moves to its own line as one unit.
@@ -330,7 +355,7 @@ $sv-blue: #6886ba;
   &__call {
     font-family: "SF Mono", Menlo, monospace;
     font-size: 12px;
-    color: #2b3350;
+    color: var(--sv-text-strong); // was #2b3350 — must flip light in dark mode
     b {
       color: $sv-blue;
     }
@@ -355,11 +380,11 @@ $sv-blue: #6886ba;
   }
   &__comma {
     font-family: "SF Mono", Menlo, monospace;
-    color: #8b93a7;
+    color: var(--sv-text-muted);
   }
   &__paren {
     font-family: "SF Mono", Menlo, monospace;
-    color: #8b93a7;
+    color: var(--sv-text-muted);
   }
   &__paren--close {
     display: block;
@@ -375,7 +400,7 @@ $sv-blue: #6886ba;
     gap: 6px;
     margin-top: 4px;
     padding: 4px 8px;
-    background: #f6f8fc;
+    background: var(--sv-inset); // themed — the JSON tree inside follows the app theme
     border-radius: 4px;
     max-width: 100%;
     overflow-x: auto;
@@ -395,7 +420,7 @@ $sv-blue: #6886ba;
     font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    color: #97a0b8;
+    color: var(--sv-text-faint);
   }
 
   &__evals {
@@ -412,11 +437,11 @@ $sv-blue: #6886ba;
     font-size: 10.5px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    color: #97a0b8;
+    color: var(--sv-text-faint);
   }
   &__evals-count {
-    background: #eef1f8;
-    color: #6b7797;
+    background: var(--sv-inset);
+    color: var(--sv-text-muted);
     border-radius: 8px;
     padding: 0 6px;
     font-size: 10px;
@@ -434,7 +459,7 @@ $sv-blue: #6886ba;
   gap: 6px;
   font-size: 11.5px;
   padding: 2px 0 2px 14px;
-  color: #6b7797;
+  color: var(--sv-text-muted);
   line-height: 1.5;
 
   &__box {
@@ -457,7 +482,7 @@ $sv-blue: #6886ba;
   }
   &__ns {
     font-family: "SF Mono", Menlo, monospace;
-    color: #46506a;
+    color: var(--sv-text);
     font-weight: 600;
   }
   // The expected token in its own color — a TYPE (purple) vs a concrete VALUE (gold).
@@ -496,7 +521,7 @@ $sv-blue: #6886ba;
   &__resolved {
     font-family: "SF Mono", Menlo, monospace;
     font-weight: 700;
-    color: #46506a;
+    color: var(--sv-text);
     margin-left: -3px;
   }
 }
@@ -544,4 +569,10 @@ $sv-blue: #6886ba;
   padding: 1px 5px;
   margin-right: 6px;
   vertical-align: middle;
+}
+
+// Dark mode — the error returns box: translucent red instead of the light pink (the themed JSON tree
+// inside is light text, which vanished on the light pink).
+:root.sv-dark .test-action__returns.is-error {
+  background: rgba(224, 87, 87, 0.14);
 }

@@ -8,6 +8,8 @@ import DocIcon from "../../atoms/DocsIcon/DocsIcon";
 import Title from "../../atoms/Title/Title";
 import "./styles.scss";
 import { Client, markCredentialed } from "../../systemClient";
+import CodebaseNav from "../CodebaseNav/CodebaseNav";
+import { useAppDark } from "../../atoms/appTheme";
 
 const TrashIcon = () => (
   <svg
@@ -46,19 +48,26 @@ const ArrowIcon = () => (
   </svg>
 );
 
-const SystemNav = ({ projectCode, serviceId, moduleName, methodName, onCollapse }) => {
+const SystemNav = ({
+  projectCode,
+  serviceId,
+  moduleName,
+  methodName,
+  onCollapse,
+  // RFC-022 — the LENS is page-level state now (the center reacts to it): SystemLynx services vs the
+  // Codebase file navigator. Page persists it; this component just renders whichever is active.
+  navTab = "systemlynx",
+  setNavTab = () => {},
+  openFile,
+  onOpenFile = () => {},
+}) => {
   const [serviceStatus, setServiceStatus] = useState({});
   const [adding, setAdding] = useState(false);
   const [connectUrl, setConnectUrl] = useState("");
   const [connecting, setConnecting] = useState(false);
-  // The nav is tabbed like the scratchpad: your connected SERVICES, a SYSTEMLYNX view, and the FILE-SYSTEM
-  // (RFC-022 codebase surface). Persisted so it sticks across refresh.
-  const [navTab, setNavTab] = useState(
-    () => localStorage.getItem("sv.navTab") || "systemlynx",
-  );
-  useEffect(() => {
-    localStorage.setItem("sv.navTab", navTab);
-  }, [navTab]);
+  // Codebase nav dark ⇄ light — follows the ONE app toggle in the page header (its own pill retired).
+  const [appDark] = useAppDark();
+  const cbTheme = appDark ? "dark" : "light";
   const { SystemViewService, setConnectedServices, connectedServices } =
     useContext(ServiceContext);
   const serviceData = connectedServices.find(
@@ -257,7 +266,7 @@ const SystemNav = ({ projectCode, serviceId, moduleName, methodName, onCollapse 
                   className={`system-nav__tab ${navTab === "files" ? "system-nav__tab--active" : ""}`}
                   onClick={() => setNavTab("files")}
                 >
-                  Codebase
+                  Codebases
                 </button>
                 {navTab === "systemlynx" && (
                   <button
@@ -308,7 +317,9 @@ const SystemNav = ({ projectCode, serviceId, moduleName, methodName, onCollapse 
                     </div>
                   )}
                   <NavigationLinks
-                    connectedServices={connectedServices}
+                    // RFC-021 — the SystemLynx tree shows REAL live connections only; project-defined
+                    // (dynamic/synthesized) services home under their codebase in the Codebase tab.
+                    connectedServices={connectedServices.filter((s) => !s.dynamic)}
                     selectedProjectCode={projectCode}
                     selectedServiceId={serviceId}
                     selectedModuleName={moduleName}
@@ -320,9 +331,16 @@ const SystemNav = ({ projectCode, serviceId, moduleName, methodName, onCollapse 
                 </>
               )}
               {navTab === "files" && (
-                <div className="system-nav__placeholder">
-                  File system — coming soon (RFC-022 codebase surface).
-                </div>
+                <CodebaseNav
+                  connectedServices={connectedServices}
+                  projectCode={projectCode}
+                  serviceId={serviceId}
+                  moduleName={moduleName}
+                  methodName={methodName}
+                  openFile={openFile}
+                  onOpenFile={onOpenFile}
+                  theme={cbTheme}
+                />
               )}
             </div>
           </div>

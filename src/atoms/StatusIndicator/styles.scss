@@ -1,25 +1,24 @@
-// The "editing a saved test" chip. Subtle light-indigo token that matches the current scratchpad look —
-// not a heavy dark button. Says which saved test is loaded, with a quiet × to step off it.
+// The scratchpad's save-target namespace — the middle panel's scope-breadcrumb look at a smaller size
+// (and without the project level): grey segments joined by lighter dots, the LAST level highlighted
+// blue, a full namespace depicted as a call — method(…). Same behavior as ever: the name is the
+// click-to-edit picker, a loaded saved test shows its slot (#N) + the × to step off it.
 .status-indicator {
   display: inline-flex;
   align-items: center;
   align-self: center;
   gap: 1px;
   margin: 0 6px;
-  padding: 2px 4px 2px 10px;
-  background: #eef0fa;
-  border: 1px solid #d9ddf4;
-  border-radius: 100px;
-  color: #575fc1;
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 600;
+  padding: 2px 0;
+  font-family: "SF Mono", Menlo, monospace;
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--sv-text-muted);
   white-space: nowrap;
-  // The saved test's own title/name. Can be long — clip with an ellipsis so the chip stays compact (the ×
-  // to step off it always stays visible).
+  // The namespace. Can be long — clip with an ellipsis so the row stays one line (the slot + ×
+  // always stay visible).
   &__title {
     padding: 0;
-    max-width: 220px;
+    max-width: 260px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -30,16 +29,23 @@
       }
     }
   }
+  // Breadcrumb color fidelity: grey levels, blue+bold on the one you're on, the dots and the (…)
+  // in the lightest tone.
+  &__seg-name--active {
+    color: var(--sv-indigo);
+    font-weight: 600;
+  }
+  &__dot {
+    color: #b0b7cc;
+  }
+  &__paren {
+    color: #b0b7cc;
+  }
   &__suffix {
     flex: none;
     padding-left: 4px;
-  }
-  // NEW-test variant: the save-target namespace, neutral gray — visibly "not a loaded saved test".
-  &--neutral {
-    background: #f3f4f7;
-    border-color: #e3e6ee;
-    color: #7c849a;
-    padding-right: 10px; // no × — keep the pill symmetric
+    color: var(--sv-text-muted);
+    font-weight: 600;
   }
   &__clear-button {
     display: flex !important;
@@ -47,7 +53,7 @@
     justify-content: center;
     color: #9aa0d0;
     font-family: system-ui;
-    font-size: 14px;
+    font-size: 15px;
     line-height: 1;
     padding: 0 5px;
     border-radius: 100px;

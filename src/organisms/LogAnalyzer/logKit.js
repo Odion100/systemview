@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import ReactJson from "react-json-view";
 import moment from "moment";
+import { useAppDark, jsonTheme } from "../../atoms/appTheme";
 import "./logKit.scss";
 
 const LEVEL_CLASS = {
@@ -691,6 +692,7 @@ export function LogRow({
   isNew,
   jsonMode,
 }) {
+  const [appDark] = useAppDark();
   const level = entry.level || "info";
   const isTrace = level === "trace";
   const scopeVal = entry.scope || "";
@@ -766,6 +768,7 @@ export function LogRow({
               <ReactJson
                 src={entry}
                 name={false}
+                theme={jsonTheme(appDark)}
                 displayObjectSize={false}
                 displayDataTypes={false}
                 collapsed={1}

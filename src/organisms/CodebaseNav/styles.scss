@@ -1,0 +1,516 @@
+// RFC-022 — the codebase navigation. Its own design language: monospace tree, quiet chevrons, indent
+// left-guides, git-changed dots. Deliberately NOT the service nav's shape.
+.codebase-nav {
+  font-size: 12.5px;
+
+  &__codebase {
+    border: 1px solid #e3e6ee;
+    border-radius: 8px;
+    background: var(--sv-surface);
+    margin-bottom: 8px;
+    overflow: hidden;
+    &--current {
+      border-color: #c9cfe8;
+    }
+  }
+  &__cb-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    border: none;
+    background: #f8f9fc;
+    padding: 7px 10px;
+    cursor: pointer;
+    text-align: left;
+    &:hover {
+      background: #f1f3f9;
+    }
+  }
+  &__cb-badge {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #fff;
+    background: var(--sv-blue-deep);
+    border-radius: 3px;
+    padding: 1px 5px;
+  }
+  &__cb-name {
+    font-weight: 700;
+    color: var(--sv-text-strong);
+    font-size: 13px;
+  }
+  &__cb-count {
+    margin-left: auto;
+    font-size: 10.5px;
+    color: var(--sv-text-muted);
+    font-family: "SF Mono", Menlo, monospace;
+  }
+  &__cb-body {
+    padding: 4px 0 6px;
+  }
+
+  &__section-label {
+    font-size: 9.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--sv-text-muted);
+    padding: 4px 10px 2px;
+  }
+  &__services {
+    border-bottom: 1px solid var(--sv-inset);
+    padding-bottom: 4px;
+    margin-bottom: 4px;
+  }
+  &__service {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    border: none;
+    background: none;
+    padding: 3px 10px;
+    cursor: pointer;
+    text-align: left;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--sv-blue-deep);
+    &:hover {
+      background: var(--sv-hover);
+    }
+  }
+  &__service-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #8e5aa8; // project-defined = the actions' plum family (authored, not discovered)
+    flex: none;
+  }
+
+  // Filter row: the text input (with its inline clear ×) + the composing toggle pills.
+  &__filter-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin: 2px 10px 4px;
+  }
+  &__filter-wrap {
+    position: relative;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  &__filter {
+    display: block;
+    width: 100%;
+    border: 1px solid #e3e6ee;
+    border-radius: 6px;
+    background: var(--sv-hover);
+    font-size: 12px;
+    padding: 3px 24px 3px 8px; // right room for the clear ×
+    &:focus {
+      outline: none;
+      border-color: var(--sv-blue);
+      background: var(--sv-surface);
+    }
+    &::placeholder {
+      color: #b3bacb;
+    }
+  }
+  // The clear × — a small circle INSIDE the input's right end. The ::before pad extends the
+  // invisible hit area so near-misses still clear.
+  &__filter-clear {
+    position: absolute;
+    top: 50%;
+    right: 5px;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background: var(--sv-hover);
+    color: #6a74c4;
+    font-family: system-ui;
+    font-size: 12px;
+    line-height: 1;
+    cursor: pointer;
+    &::before {
+      content: "";
+      position: absolute;
+      top: -6px;
+      right: -6px;
+      bottom: -6px;
+      left: -6px;
+      border-radius: 50%;
+    }
+    &:hover {
+      background: #6a74c4;
+      color: #fff;
+    }
+  }
+  &__filter-pill {
+    flex: none;
+    border: 1px solid #e3e6ee;
+    border-radius: 100px;
+    background: var(--sv-hover);
+    color: var(--sv-text-muted);
+    font-size: 9.5px;
+    font-weight: 600;
+    line-height: 1.4;
+    padding: 0px 3px;
+    cursor: pointer;
+    &:hover {
+      border-color: #c7cede;
+      color: #6b7385;
+    }
+    &--on {
+      background: var(--sv-hover);
+      border-color: var(--sv-blue);
+      color: var(--sv-indigo);
+    }
+    // The changed-count pill — the diff AMBER (same family as the dots/badges), count as the label.
+    // Active flips the amber into a full background.
+    &--changed {
+      background: #fdf3dd;
+      border-color: #f0dcb0;
+      color: #b98a1c;
+      &:hover {
+        border-color: #d9a441;
+        color: #b98a1c;
+      }
+    }
+    &--changed-on {
+      background: #d9a441;
+      border-color: #d9a441;
+      color: #fff;
+      &:hover {
+        border-color: #d9a441;
+        color: #fff;
+      }
+    }
+  }
+
+  &__tree {
+    font-family: "SF Mono", Menlo, monospace;
+    max-height: 55vh;
+    overflow-y: auto;
+  }
+  &__children {
+    border-left: 1px solid var(--sv-inset); // indent guide
+    margin-left: 13px;
+  }
+  &__row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    width: 100%;
+    border: none;
+    background: none;
+    padding: 2px 8px;
+    cursor: pointer;
+    text-align: left;
+    font-family: inherit;
+    font-size: 12px;
+    color: var(--sv-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    &:hover {
+      background: var(--sv-hover);
+    }
+    &--dir {
+      color: var(--sv-text-strong);
+      font-weight: 600;
+    }
+    &--selected {
+      background: var(--sv-hover);
+      color: var(--sv-indigo);
+      font-weight: 600;
+    }
+  }
+  &__chevron {
+    color: var(--sv-text-faint);
+    font-size: 10px;
+    flex: none;
+  }
+  &__file-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  &__changed-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #d9a441; // amber = differs from git HEAD
+    flex: none;
+    margin-left: auto;
+  }
+  // Collapsed-dir badge: how many changed files hide inside — same amber family as the dot.
+  &__dir-badge {
+    flex: none;
+    margin-left: auto;
+    font-size: 9.5px;
+    font-weight: 700;
+    line-height: 1.5;
+    color: #b98a1c;
+    background: #fdf3dd;
+    border-radius: 8px;
+    padding: 0 5px;
+  }
+
+  &__empty {
+    font-size: 11.5px;
+    color: var(--sv-text-muted);
+    font-style: italic;
+    padding: 4px 10px;
+  }
+
+  // Project-defined service namespaces — a mini SystemLynx tree, fully navigable + selectable.
+  &__dyn-caret {
+    display: inline-flex;
+    padding: 0 2px;
+  }
+  &__lynx-tag {
+    font-size: 8.5px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: #8e5aa8;
+    border: 1px solid #e2d3ec;
+    border-radius: 3px;
+    padding: 0 4px;
+    margin-left: 6px;
+    text-transform: none;
+  }
+  &__service--selected {
+    background: var(--sv-hover);
+    color: var(--sv-indigo);
+  }
+  &__dyn-modules {
+    border-left: 1px solid var(--sv-inset);
+    margin-left: 18px;
+    padding: 1px 0 3px;
+  }
+  &__dyn-module {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    border: none;
+    background: none;
+    text-align: left;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--sv-text-strong);
+    padding: 2px 10px 1px;
+    &:hover {
+      background: var(--sv-hover);
+    }
+    &--selected {
+      background: var(--sv-hover);
+      color: var(--sv-indigo);
+    }
+  }
+  &__dyn-method {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    border: none;
+    background: none;
+    text-align: left;
+    cursor: pointer;
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 11.5px;
+    color: var(--sv-blue-deep);
+    padding: 1px 10px 1px 22px;
+    &:hover {
+      background: var(--sv-hover);
+    }
+    &--selected {
+      background: var(--sv-hover);
+      color: var(--sv-indigo);
+      font-weight: 700;
+    }
+  }
+  &__dyn-paren {
+    color: var(--sv-text-faint);
+  }
+  // Saved doc/test indicators — the SystemLynx tab's icons, scaled to this smaller mono tree.
+  // WIDTH ONLY (like the tab does) — height follows the image's own aspect ratio, no distortion.
+  &__dyn-icons {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    flex-shrink: 0;
+    opacity: 0.8;
+    .doc-icon {
+      display: flex;
+      align-items: center;
+    }
+    img {
+      width: 11px !important;
+      height: auto;
+    }
+  }
+
+  // ---- DARK variant — the oneDark family the code panes wear, so nav + editor read as one system.
+  &--dark {
+    .codebase-nav__codebase,
+    &.codebase-nav .codebase-nav__codebase {
+      background: #21252b;
+      border-color: #181a1f;
+    }
+    .codebase-nav__cb-head {
+      background: #282c34;
+      &:hover {
+        background: #2c313a;
+      }
+    }
+    .codebase-nav__cb-name {
+      color: #d7dae0;
+    }
+    .codebase-nav__cb-badge {
+      background: #61afef;
+      color: #1b1f27;
+    }
+    .codebase-nav__cb-count {
+      color: #5c6370;
+    }
+    .codebase-nav__section-label {
+      color: #5c6370;
+    }
+    .codebase-nav__services {
+      border-bottom-color: #181a1f;
+    }
+    .codebase-nav__service {
+      color: #61afef;
+      &:hover {
+        background: #2c313a;
+      }
+      &--selected {
+        background: #2c313a;
+      }
+    }
+    .codebase-nav__lynx-tag {
+      color: #c678dd;
+      border-color: #4b3a55;
+    }
+    .codebase-nav__dyn-modules {
+      border-left-color: #33383f;
+    }
+    .codebase-nav__dyn-module {
+      color: #d7dae0;
+      &:hover {
+        background: #2c313a;
+      }
+      &--selected {
+        background: #2c313a;
+        color: #61afef;
+      }
+    }
+    .codebase-nav__dyn-method {
+      color: #98c379;
+      &:hover {
+        background: #2c313a;
+      }
+      &--selected {
+        background: #2c313a;
+        color: #61afef;
+      }
+    }
+    .codebase-nav__dyn-paren {
+      color: #5c6370;
+    }
+    // The doc/test PNGs are drawn for light backgrounds — invert+hue-rotate lightens the line work
+    // while keeping the saved-state colors roughly true, so they read on the dark canvas.
+    .codebase-nav__dyn-icons img {
+      filter: invert(0.82) hue-rotate(180deg);
+    }
+    .codebase-nav__filter {
+      background: #1b1f27;
+      border-color: #33383f;
+      color: #d7dae0;
+      &:focus {
+        border-color: #61afef;
+        background: #1b1f27;
+      }
+      &::placeholder {
+        color: #5c6370;
+      }
+    }
+    .codebase-nav__filter-clear {
+      background: #2c313a;
+      color: #8f97a8;
+      &:hover {
+        background: #61afef;
+        color: #1b1f27;
+      }
+    }
+    .codebase-nav__filter-pill {
+      background: #1b1f27;
+      border-color: #33383f;
+      color: #8f97a8;
+      &:hover {
+        border-color: #4a5160;
+        color: #abb2bf;
+      }
+      &--on {
+        background: #2c313a;
+        border-color: #61afef;
+        color: #61afef;
+      }
+      &--changed {
+        background: #3a3324;
+        border-color: #4d4127;
+        color: #d9a441;
+        &:hover {
+          border-color: #d9a441;
+          color: #d9a441;
+        }
+      }
+      &--changed-on {
+        background: #d9a441;
+        border-color: #d9a441;
+        color: #1b1f27;
+        &:hover {
+          color: #1b1f27;
+        }
+      }
+    }
+    .codebase-nav__dir-badge {
+      background: #3a3324;
+      color: #d9a441;
+    }
+    .codebase-nav__children {
+      border-left-color: #33383f;
+    }
+    .codebase-nav__row {
+      color: #abb2bf;
+      &:hover {
+        background: #2c313a;
+      }
+      &--dir {
+        color: #d7dae0;
+      }
+      &--selected {
+        background: #2c313a;
+        color: #61afef;
+      }
+    }
+    .codebase-nav__chevron {
+      color: #5c6370;
+    }
+    .codebase-nav__empty {
+      color: #5c6370;
+    }
+    .codebase-nav__theme-btn {
+      background: #282c34;
+      border-color: #33383f;
+      color: #abb2bf;
+    }
+  }
+}

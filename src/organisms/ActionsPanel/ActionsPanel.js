@@ -4,7 +4,8 @@ import { Client } from "../../systemClient";
 import MultiTestSection from "../MultiTestSection/MultiTestSection";
 import TestController from "../TestPanel/components/TestController.class";
 import FullTestController from "../TestPanel/components/FullTestController";
-import { initializeSavedTests } from "../SavedTests/transformTests";
+import { initializeSavedTests, getActionMap } from "../SavedTests/transformTests";
+import loadServiceWithHeaders from "../../utils/loadService";
 import { TestAction } from "../Stage/TestStory";
 import Title from "../../atoms/Title/Title";
 import Count from "../../atoms/Count";
@@ -12,15 +13,20 @@ import { EditIcon, XButton } from "../../atoms/RunTestIcon";
 import FoldContext from "../TestPanel/FoldContext";
 import "./styles.scss";
 
-// RFC-020 — the CREATION surface for named actions. A named action = ONE SECTION of a test — a name + an
+// RFC-020 — the CREATION surface for shared actions. A shared action = ONE SECTION of a test — a name + an
 // ordered list of steps. You build the steps with the SAME machinery a test section uses
 // (MultiTestSection), name it, and Save → the service's plugin writes it to specs/actions/<name>.json.
 // Saved actions render below as ActionCards — their own identity: a SECTION, displayed with the same
 // step-card fidelity a saved test has, runnable on its own.
-const ActionsPanel = ({ serviceId, moduleName, methodName }) => {
+const ActionsPanel = ({ projectCode, serviceId, moduleName, methodName }) => {
   const namespace = { serviceId, moduleName, methodName };
   const { connectedServices } = useContext(ServiceContext);
-  const serviceData = connectedServices.find((s) => s.serviceId === serviceId);
+  // Project-scoped like the Test tab — two projects can share a serviceId, and step connections /
+  // pickers must never cross projects.
+  const projectServices = projectCode
+    ? connectedServices.filter((s) => s.projectCode === projectCode)
+    : connectedServices;
+  const serviceData = projectServices.find((s) => s.serviceId === serviceId);
   const { Plugin } = serviceData
     ? Client.createService(serviceData.system.connectionData)
     : {};
@@ -49,16 +55,39 @@ const ActionsPanel = ({ serviceId, moduleName, methodName }) => {
     setState: setSteps,
     section: 0,
     FullTest,
-    connectedServices,
+    connectedServices: projectServices,
   });
 
+  // The saved list follows the namespace HIERARCHY (like saved tests): project level = EVERY
+  // service's actions merged; service level = that service's; module/method = the plugin narrows
+  // by module. Before, project level had no Plugin and silently showed nothing.
   const fetchActions = async () => {
+    if (!serviceId) {
+      try {
+        const map = await getActionMap(projectServices);
+        return setSaved(Object.values(map));
+      } catch {
+        return setSaved([]);
+      }
+    }
     if (!Plugin || !Plugin.getActions) return setSaved([]);
     try {
       setSaved((await Plugin.getActions(namespace)) || []);
     } catch {
       setSaved([]);
     }
+  };
+
+  // Edit/delete from an AGGREGATED list must talk to the action's OWNING service — the one whose
+  // specs folder holds the file — not whatever the page happens to be on.
+  const ownerPlugin = (a) => {
+    const sid = a && a.namespace && a.namespace.serviceId;
+    const sd = projectServices.find((s) => s.serviceId === sid);
+    if (sd) {
+      const svc = loadServiceWithHeaders(sd.system.connectionData, sd.headers, sd.credentials);
+      if (svc && svc.Plugin) return svc.Plugin;
+    }
+    return Plugin;
   };
   useEffect(() => {
     fetchActions();
@@ -92,6 +121,8 @@ const ActionsPanel = ({ serviceId, moduleName, methodName }) => {
 
   const save = async () => {
     if (!name.trim()) return flash({ error: true, message: "Name the action first." });
+    if (!serviceData)
+      return flash({ error: true, message: "Navigate to a service to save a new action." });
     if (!Plugin || !Plugin.saveAction)
       return flash({ error: true, message: "This service can't save actions yet (update the plugin)." });
     if (!steps.length) return flash({ error: true, message: "Add at least one step." });
@@ -108,10 +139,11 @@ const ActionsPanel = ({ serviceId, moduleName, methodName }) => {
   };
 
   const load = async (a) => {
-    const full = (Plugin && Plugin.getAction && (await Plugin.getAction(a.name))) || a;
+    const owner = ownerPlugin(a);
+    const full = (owner && owner.getAction && (await owner.getAction(a.name))) || a;
     const [ft] = initializeSavedTests(
       [{ Before: full.steps || [], namespace: full.namespace || namespace }],
-      connectedServices
+      projectServices
     );
     setSteps(ft.sections.before);
     setName(full.name);
@@ -122,7 +154,8 @@ const ActionsPanel = ({ serviceId, moduleName, methodName }) => {
   };
 
   const remove = async (a) => {
-    if (Plugin && Plugin.deleteAction) await Plugin.deleteAction(a.name);
+    const owner = ownerPlugin(a);
+    if (owner && owner.deleteAction) await owner.deleteAction(a.name);
     fetchActions();
   };
 
@@ -131,7 +164,7 @@ const ActionsPanel = ({ serviceId, moduleName, methodName }) => {
     // double-padded everything, which is why the Actions tab sat indented vs the Test tab.
     <section className="actions-panel">
       <div className="row actions-panel__head">
-        <Title text="Named Actions" />
+        <Title text="Shared Actions" />
       </div>
       <div className="row actions-panel__namebar">
         <input
@@ -190,7 +223,7 @@ const ActionsPanel = ({ serviceId, moduleName, methodName }) => {
             <ActionCard
               key={a.name}
               action={a}
-              connectedServices={connectedServices}
+              connectedServices={projectServices}
               onEdit={() => load(a)}
               onDelete={() => remove(a)}
             />

@@ -1,6 +1,7 @@
 import React, { useRef, useEffect } from "react";
 import { EditorState } from "@codemirror/state";
 import { EditorView, lineNumbers, Decoration } from "@codemirror/view";
+import { syntaxHighlighting, defaultHighlightStyle } from "@codemirror/language";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { langExt } from "./languages";
 import "./styles.scss";
@@ -37,7 +38,7 @@ function highlightLines(range) {
   });
 }
 
-const CodeView = ({ code = "", language = "text", highlight }) => {
+const CodeView = ({ code = "", language = "text", highlight, dark = true }) => {
   const host = useRef(null);
   // Key the rebuild on the VALUES, not object identity. PaneView hands us a fresh `highlight` object on
   // every render, so depending on it would tear down + recreate the editor on any stage change (pin,
@@ -52,8 +53,10 @@ const CodeView = ({ code = "", language = "text", highlight }) => {
       EditorView.editable.of(false),
       EditorState.readOnly.of(true),
       EditorView.lineWrapping,
-      oneDark,
     ];
+    // Same theme contract as CodeEditor: dark = oneDark, light = the classic colored light highlighting.
+    if (dark) extensions.push(oneDark);
+    else extensions.push(syntaxHighlighting(defaultHighlightStyle, { fallback: true }));
     const lang = langExt(language);
     if (lang) extensions.push(lang);
     if (range) extensions.push(highlightLines(range));
@@ -87,9 +90,9 @@ const CodeView = ({ code = "", language = "text", highlight }) => {
 
     return () => { destroyed = true; view.destroy(); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [code, language, hlKey]);
+  }, [code, language, hlKey, dark]);
 
-  return <div className="code-view" ref={host} />;
+  return <div className={`code-view ${dark ? "" : "code-view--light"}`} ref={host} />;
 };
 
 export default CodeView;

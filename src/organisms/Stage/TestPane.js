@@ -3,7 +3,7 @@ import ServiceContext from "../../ServiceContext";
 import loadServiceWithHeaders from "../../utils/loadService";
 import Markdown from "../../atoms/Markdown/Markdown";
 import { SavedTestItem } from "../SavedTests/SavedTests";
-import { resolveTestActions } from "../SavedTests/transformTests";
+import { resolveTestActions, getActionMap } from "../SavedTests/transformTests";
 
 // RFC-018 — the `test` pane: a saved test rendered as a worked example — setup → call → args →
 // response → the assertions that pin it — with a Run button and inline pass/fail. It reuses the
@@ -22,13 +22,21 @@ const TestPane = ({ target = {}, projectCode }) => {
   // project (a project-wide pane merges each service's own tests). The plugin narrows by module/method
   // and only ever returns its own service's tests, so "all tests under a service / module / method" is
   // just which namespace fields we pass down.
+  const projectServices = connectedServices.filter((s) => s.projectCode === projectCode);
   const targetServices = serviceId
-    ? connectedServices.filter((s) => s.projectCode === projectCode && s.serviceId === serviceId)
-    : connectedServices.filter((s) => s.projectCode === projectCode);
+    ? projectServices.filter((s) => s.serviceId === serviceId)
+    : projectServices;
 
   const fetchTests = useCallback(async () => {
     if (!targetServices.length) { setError("service not connected"); return; }
     try {
+      // RFC-020 — one PROJECT-WIDE action map (every service's actions merged, like the CLI's
+      // getActionMap): a `{ use }` in any test resolves no matter which service the action was saved on.
+      let resolve = () => null;
+      try {
+        const map = await getActionMap(projectServices);
+        resolve = (name) => map[name] || null;
+      } catch {}
       const perService = await Promise.all(
         targetServices.map(async (s) => {
           const svc = loadServiceWithHeaders(s.system.connectionData, s.headers, s.credentials);
@@ -36,14 +44,6 @@ const TestPane = ({ target = {}, projectCode }) => {
           if (!Plugin) return [];
           try {
             const list = (await Plugin.getTests({ moduleName, methodName })) || [];
-            // RFC-020 — resolve named-action sections ({ use } → the stored action's steps).
-            let resolve = () => null;
-            try {
-              const actions = (Plugin.getActions && (await Plugin.getActions({}))) || [];
-              const map = {};
-              actions.forEach((a) => a && a.name && (map[a.name] = a));
-              resolve = (name) => map[name] || null;
-            } catch {}
             return list.map((t) => resolveTestActions(t, resolve));
           } catch { return []; }
         }),
@@ -80,6 +80,22 @@ const TestPane = ({ target = {}, projectCode }) => {
     storyRefs.current.filter(Boolean).forEach((r) => r.clear && r.clear());
     setFilter(null);
   }, []);
+  // Auto-track (persisted): auto-scroll to whichever test is running during a run-all.
+  const [autoTrack, setAutoTrack] = useState(
+    () => localStorage.getItem("sv.paneAutoTrack") === "true",
+  );
+  useEffect(() => {
+    localStorage.setItem("sv.paneAutoTrack", String(autoTrack));
+  }, [autoTrack]);
+  // Expand/collapse EVERY test card in the pane — same affordance the scratchpad toolbar has.
+  const [allOpen, setAllOpen] = useState(false);
+  const toggleExpandAll = useCallback(() => {
+    const next = !allOpen;
+    storyRefs.current
+      .filter(Boolean)
+      .forEach((r) => (next ? r.expand && r.expand() : r.collapse && r.collapse()));
+    setAllOpen(next);
+  }, [allOpen]);
 
   const statuses = Object.values(results);
   const passed = statuses.filter((s) => s === "pass").length;
@@ -97,31 +113,52 @@ const TestPane = ({ target = {}, projectCode }) => {
       {note ? <div className="test-pane__note"><Markdown children={note} /></div> : null}
       {tests.length > 1 && (
         <div className="test-pane__bar">
-          {/* Aggregate of a run-all — what passed / failed across the whole set, right on the bar. */}
-          {(running || passed + failed > 0) && (
-            <span className="test-pane__summary">
-              {running && <span className="test-pane__summary-run">running…</span>}
-              {/* Click a count to filter the list to just those; click again to clear. */}
-              {passed > 0 && (
-                <button
-                  type="button"
-                  className={`test-pane__summary-pass ${filter === "pass" ? "is-active" : ""}`}
-                  onClick={() => setFilter((f) => (f === "pass" ? null : "pass"))}
-                >
-                  ✓ {passed} passed
-                </button>
-              )}
-              {failed > 0 && (
-                <button
-                  type="button"
-                  className={`test-pane__summary-fail ${filter === "fail" ? "is-active" : ""}`}
-                  onClick={() => setFilter((f) => (f === "fail" ? null : "fail"))}
-                >
-                  ✗ {failed} failed
-                </button>
-              )}
-            </span>
-          )}
+          <span className="test-pane__bar-left">
+            <label
+              className="test-pane__auto"
+              title="Auto-track: auto-scroll to the running test. It waits, eases, and gives up the moment you scroll. (It does NOT auto-expand.)"
+            >
+              <input
+                type="checkbox"
+                checked={autoTrack}
+                onChange={(e) => setAutoTrack(e.target.checked)}
+              />
+              auto-track
+            </label>
+            {/* Aggregate of a run-all — what passed / failed across the whole set, right on the bar. */}
+            {(running || passed + failed > 0) && (
+              <span className="test-pane__summary">
+                {running && <span className="test-pane__summary-run">running…</span>}
+                {/* Click a count to filter the list to just those; click again to clear. */}
+                {passed > 0 && (
+                  <button
+                    type="button"
+                    className={`test-pane__summary-pass ${filter === "pass" ? "is-active" : ""}`}
+                    onClick={() => setFilter((f) => (f === "pass" ? null : "pass"))}
+                  >
+                    ✓ {passed} passed
+                  </button>
+                )}
+                {failed > 0 && (
+                  <button
+                    type="button"
+                    className={`test-pane__summary-fail ${filter === "fail" ? "is-active" : ""}`}
+                    onClick={() => setFilter((f) => (f === "fail" ? null : "fail"))}
+                  >
+                    ✗ {failed} failed
+                  </button>
+                )}
+              </span>
+            )}
+          </span>
+          <button
+            type="button"
+            className="test-pane__clear"
+            title={allOpen ? "Collapse all tests" : "Expand all tests"}
+            onClick={toggleExpandAll}
+          >
+            {allOpen ? "⊟" : "⊞"}
+          </button>
           <button type="button" className="test-pane__clear" onClick={clearAllSeq}>
             Clear
           </button>
@@ -142,9 +179,10 @@ const TestPane = ({ target = {}, projectCode }) => {
             index={typeof index === "number" ? index : i}
             status={results[i]}
             hidden={filter && results[i] !== filter}
-            connectedServices={connectedServices}
+            connectedServices={projectServices}
             storyRef={(el) => { storyRefs.current[i] = el; }}
             onResult={(status) => onResult(i, status)}
+            autoTrack={autoTrack}
           />
         ))}
       </div>

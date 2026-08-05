@@ -2,7 +2,7 @@
 
 This document is written **for AI agents** working in a SystemLynx codebase with SystemView installed.
 It explains what SystemView tests are and how to **read, author, and run them** — including the exact
-on-disk JSON, named actions, and the reference system. The human-oriented overview is in the
+on-disk JSON, shared actions, and the reference system. The human-oriented overview is in the
 [README](../README.md#building-a-test); the CLI command reference is in [cli.md](cli.md).
 
 ---
@@ -10,7 +10,7 @@ on-disk JSON, named actions, and the reference system. The human-oriented overvi
 ## What a test is
 
 A test is an **ordered list of named sections**. `before / main / events / after` are just the
-*default* sections — a reusable **named action** inserted into a test becomes its own section, a peer
+*default* sections — a reusable **shared action** (formerly "named action") inserted into a test becomes its own section, a peer
 of the built-ins. The engine loops the order; each section is an array of **steps** (method calls with
 args and evaluations).
 
@@ -18,7 +18,7 @@ args and evaluations).
   method, an **array** with one entry per saved test. A test's **slot** is its index in that array
   (save-over and delete address slots; the UI computes them correctly even in aggregated
   module/service views).
-- Named actions live one-per-file at **`specs/actions/<name>.json`**.
+- Shared actions live one-per-file at **`specs/actions/<name>.json`**.
 - The top-level `namespace` is what the test is *of* — it decides the file. Main steps may call any
   connected method, but **at least one Main step must match the top-level namespace**.
 
@@ -41,9 +41,15 @@ args and evaluations).
   `before, events, main, after`).
 - A named section is either `{ "use": "<actionName>" }` (a **reference** — the stored action's steps
   splice in at load time; one definition, many tests) or an inline steps array (a private **copy**).
+- **The key and the `use` value are different concepts, even when they're the same word.** The KEY is
+  the section's *instance name in this test* — it's what references (`test.seedSum[0].results`) and
+  `run` entries address (the call site). The `use` VALUE names the stored action — which
+  `specs/actions/<name>.json` to pull steps from (the definition). Inserting an action once defaults
+  the key to the action's name, so the common case reads `"seedSum": { "use": "seedSum" }` — that's a
+  defaulted name, not redundancy.
 - The same action can appear as multiple sections under distinct instance keys (`seedSum`,
   `seedSum_2`, …) — each key must be a valid identifier because references address it
-  (`test.seedSum_2[0].results`).
+  (`test.seedSum_2[0].results`). Two instances, two positions in `run`, two result sets, one definition.
 
 ## Step schema
 
@@ -147,7 +153,30 @@ Validation names by type:
 | array | `includes`, `lengthEquals`, `maxLength`, `minLength` |
 | date | `dateEquals`, `maxDate`, `minDate` |
 
-## Named action schema — `specs/actions/<name>.json`
+## Shared actions — purpose, and the procedure
+
+Shared actions exist for **efficiency across the suite**: the repeated multi-step setup blocks that
+tests keep rebuilding (sign in, seed the data, enroll the user, …) get extracted ONCE and referenced
+everywhere. Creating them is a procedure, not a judgment call:
+
+1. **Survey the suite's tests** and list each one's setup sequence. Don't skip this — actions come
+   from what repeats, never from imagination.
+2. **Keep only the blocks that clear the bar: multi-step AND used by multiple tests.** Used once =
+   just a regular Before section. One step = just write the step.
+3. **Extract each surviving block** to `specs/actions/<name>.json`, with `random(n)` in its data so
+   instances never collide.
+4. **Refactor the tests onto them** — `{ "use": "<name>" }` sections, comprehensively, not two at a
+   time.
+
+**Composition is the reference system.** Actions don't nest (`{use}` resolves at the test level) —
+tests COMPOSE actions by stacking sections in `run` and wiring them together with namespace
+references: the action sets up users, the next section reaches into its results by instance key —
+`tv(test.seasonHost[0].results.userId)` (with the matching `targetValues` entry, as always). That's
+what lets each action stay **self-contained on its own** (its internal refs address its own name,
+randomized data via `random(n)` so instances never collide) while still **working together** in any
+test that stacks it — agnostic units, wired at the seams by references.
+
+## Shared action schema — `specs/actions/<name>.json`
 
 ```json
 {
@@ -159,6 +188,15 @@ Validation names by type:
 
 An action's internal references use its own name as the section key — when inserted under an instance
 key (`seedSum_2`), they resolve within that instance.
+
+**Authoring one by hand:** write `specs/actions/<name>.json` in the OWNING service's specs folder —
+`name` matching the filename, `namespace` pointing at a real method (where it was authored), `steps`
+using the step schema above.
+
+**Actions resolve PROJECT-WIDE.** An action stores under one service, but every test in the project
+can `{ "use": ... }` it — the UI and CLI merge all services' actions into one map. Action names are
+therefore project-wide: on a collision the first-registered service's action wins, so keep names
+unique across the project.
 
 ## Rules the UI enforces on save (respect them when writing files by hand)
 

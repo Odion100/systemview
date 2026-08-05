@@ -7,6 +7,7 @@ import TypeSelector from "../../atoms/TypeSelector/TypeSelector";
 import TargetSelector from "../TargetSelector/TargetSelector";
 import Toggle from "../../atoms/Toggle/Toggle";
 import { getType, defaultValue } from "../ValidationInput/validator";
+import { useAppDark, jsonTheme } from "../../atoms/appTheme";
 import "./styles.scss";
 const className = "args";
 // A compact, type-indicative preview of a COLLAPSED argument's value — so a folded arg says what it holds
@@ -167,6 +168,7 @@ const ArgName = ({ isOpen, showData }) => {
   );
 };
 const ArgDataForm = ({ arg, testIndex, i, controller, is12 }) => {
+  const [appDark] = useAppDark();
   const { input, input_type, targetValues } = arg;
   const [jsonBoxVisible, setJsonBoxVisible] = useState(false);
   const showJsonTxb = () => setJsonBoxVisible(true);
@@ -261,6 +263,7 @@ const ArgDataForm = ({ arg, testIndex, i, controller, is12 }) => {
           <ReactJson
             src={input}
             name={false}
+            theme={jsonTheme(appDark)}
             onAdd={jsonObjectSubmit}
             onEdit={jsonObjectSubmit}
             onDelete={jsonObjectSubmit}
@@ -300,6 +303,7 @@ const ArgDataForm = ({ arg, testIndex, i, controller, is12 }) => {
 
 export function Argument({ value }) {
   const data_type = getType(value);
+  const [appDark] = useAppDark();
   return (
     <>
       {data_type === "undefined" || data_type === "null" ? (
@@ -329,6 +333,7 @@ export function Argument({ value }) {
           <ReactJson
             src={value}
             name={false}
+            theme={jsonTheme(appDark)}
             displayObjectSize={false}
             displayDataTypes={false}
             collapsed={true}

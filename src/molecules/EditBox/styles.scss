@@ -1,7 +1,7 @@
 .edit-box {
   width: 100%;
   border-radius: 13px;
-  background: white;
+  background: var(--sv-surface);
   border: 2px solid #f1f1f1;
 
   // Read mode scrolls (long markdown). Edit mode does NOT — the editor manages its own scroll, so the
@@ -13,6 +13,13 @@
       border: 2px dashed #8b97ba;
       cursor: pointer;
     }
+  }
+  // STATIC read frame — the same look as the read box, used WITHOUT the EditBox component when a
+  // document's Edit control lives in its pane HEADER (doc pane, story md panes). No click-to-edit,
+  // no hover dashes: the body is for reading/interacting.
+  &--static:hover {
+    border: 2px solid #f1f1f1;
+    cursor: auto;
   }
   &--edit {
     overflow: visible;
@@ -40,18 +47,18 @@
     justify-content: flex-end;
     gap: 16px;
     padding: 8px 14px;
-    border-bottom: 1px solid #eef0f5;
+    border-bottom: 1px solid var(--sv-inset);
   }
   &__link {
     cursor: pointer;
     font-size: 13px;
-    color: #97a0b8;
+    color: var(--sv-text-faint);
     user-select: none;
     &:hover {
-      color: #46506a;
+      color: var(--sv-text);
     }
     &--save {
-      color: #6886ba;
+      color: var(--sv-blue);
       font-weight: 600;
       &:hover {
         color: #47608f;

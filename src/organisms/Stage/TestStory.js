@@ -1,16 +1,20 @@
 import React, { useState } from "react";
 import ReactJson from "react-json-view";
+import { useAppDark, jsonTheme } from "../../atoms/appTheme";
 import { initializeSavedTests } from "../SavedTests/transformTests";
 import FullTestController from "../TestPanel/components/FullTestController";
 import { resolveTargetValue } from "../TestPanel/components/test-helpers";
 import "./test-story.scss";
 
 // Objects can be arbitrarily large, so args/responses render through react-json-view (expandable) —
-// the same way the existing test panel + logs do. Default (light) theme to sit on the white pane.
-const Json = ({ src }) => (
+// the same way the existing test panel + logs do. Theme follows the APP theme (dark = readable tree).
+const Json = ({ src }) => {
+  const [appDark] = useAppDark();
+  return (
   <ReactJson
     src={src}
     name={false}
+    theme={jsonTheme(appDark)}
     displayObjectSize={false}
     displayDataTypes={false}
     collapsed={1}
@@ -31,7 +35,8 @@ const Json = ({ src }) => (
       }
     }}
   />
-);
+  );
+};
 const isObj = (v) => v !== null && typeof v === "object";
 // An Error instance has non-enumerable message/stack, so ReactJson would show it empty — normalize to
 // a plain object so a thrown error's fields actually render.

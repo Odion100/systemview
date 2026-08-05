@@ -12,8 +12,8 @@ export const isObjectLike = (value) =>
 // one, so every reference that matched before still matches.
 const TV_TAIL = `(?:\\[(?:\\d+)\\]|\\.(?:(?![0-9])[a-zA-Z0-9$_]+(?:\\[(?:\\d+)\\])?))*`;
 const TV_LEGACY = `(?:before|main|after)Test\\.Action\\d+\\.(?:error|results)${TV_TAIL}`;
-// head is any identifier: a section (before|main|events|after) OR a named-action name, so
-// `test.signIn[1].results` (a named action in its own local index space) parses alongside sections.
+// head is any identifier: a section (before|main|events|after) OR a shared-action name, so
+// `test.signIn[1].results` (a shared action in its own local index space) parses alongside sections.
 const TV_NATURAL = `test\\.(?![0-9])[a-zA-Z0-9$_]+(?:\\[\\d+\\]|\\.(?![0-9])[a-zA-Z0-9$_]+)\\.(?:error|results)${TV_TAIL}`;
 const TV_BODY = `(?:${TV_LEGACY}|${TV_NATURAL})`;
 export const isTargetNamespace = (str) => new RegExp(`^${TV_BODY}$`).test(str);
@@ -157,6 +157,70 @@ export const strFn = (str) => {
     return parseArgs(args).map(createMockFile);
   }
   return str;
+};
+
+// RFC-023 — REFERENCES FOLLOW THE STEP. After a drag/duplicate changes step positions, rewrite every
+// reference the move displaced: `mapFn(sectionKey, index)` → `{ key, index }` (new position) or null
+// (unchanged). Rewrites the structured `targetValues` entry, the visible input text (object property
+// strings + embedded `tv(...)`), and evaluation values. Remapped LEGACY refs (beforeTest.ActionN…)
+// upgrade to the natural form. BUILDER-ONLY — the saved file carries the rewritten strings, so the
+// CLI engine needs no counterpart.
+const LEGACY_SECTION_KEYS = { beforeTest: "before", mainTest: "main", afterTest: "after" };
+export const remapNamespace = (ns, mapFn) => {
+  if (typeof ns !== "string") return null;
+  let m = ns.match(/^test\.((?![0-9])[a-zA-Z0-9$_]+)\[(\d+)\](.*)$/);
+  if (m) {
+    const to = mapFn(m[1], parseInt(m[2], 10));
+    return to ? `test.${to.key}[${to.index}]${m[3]}` : null;
+  }
+  m = ns.match(/^(beforeTest|mainTest|afterTest)\.Action(\d+)(.*)$/);
+  if (m) {
+    const to = mapFn(LEGACY_SECTION_KEYS[m[1]], parseInt(m[2], 10) - 1);
+    return to ? `test.${to.key}[${to.index}]${m[3]}` : null;
+  }
+  return null;
+};
+
+// Replace a reference string wherever it appears inside an arg input (a raw string, an embedded
+// occurrence inside a longer string, or any nested object/array property). Prefix overlaps are safe:
+// a longer ref sharing a moved step's head rewrites consistently (same head → same replacement).
+const replaceRefDeep = (value, oldNs, newNs) => {
+  if (typeof value === "string") return value.split(oldNs).join(newNs);
+  if (Array.isArray(value)) return value.map((v) => replaceRefDeep(v, oldNs, newNs));
+  if (value && typeof value === "object") {
+    Object.keys(value).forEach((k) => {
+      value[k] = replaceRefDeep(value[k], oldNs, newNs);
+    });
+    return value;
+  }
+  return value;
+};
+
+export const remapReferences = (FullTest, mapFn) => {
+  Object.values(FullTest || {}).forEach((section) => {
+    (section || []).forEach((t) => {
+      (t.args || []).forEach((argument) => {
+        (argument.targetValues || []).forEach((tv) => {
+          const next = remapNamespace(tv.target_namespace, mapFn);
+          if (next) {
+            argument.input = replaceRefDeep(argument.input, tv.target_namespace, next);
+            tv.target_namespace = next;
+          }
+        });
+      });
+      // Evaluation values may reference sibling steps via tv(...) — rewrite those too.
+      (t.evaluations || []).forEach((ev) => {
+        (ev.validations || []).forEach((v) => {
+          if (typeof v.value === "string") {
+            v.value = v.value.replace(targetValueFnRegex, (match) => {
+              const next = remapNamespace(match.slice(3, -1), mapFn);
+              return next ? `tv(${next})` : match;
+            });
+          }
+        });
+      });
+    });
+  });
 };
 
 // RFC-020 — the ONE resolver for a target-value reference (an arg targetValue OR an evaluation `tv()`).

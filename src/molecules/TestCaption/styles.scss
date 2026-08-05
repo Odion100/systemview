@@ -9,24 +9,24 @@
   align-items: center;
 
   &__title {
-    color: #3f51b5;
+    color: var(--sv-indigo);
   }
   &__description-input {
     flex: 1;
     padding-left: 5px;
     & input {
       width: 100%;
-      border: 1px solid #d7dbe6;
-      color: #46506a;
+      border: 1px solid var(--sv-border);
+      color: var(--sv-text);
       text-overflow: ellipsis;
       font-size: 14px;
       text-indent: 8px;
-      background: #fff;
+      background: var(--sv-surface);
       border-radius: 6px;
       line-height: 22px;
       &:focus {
         outline: none;
-        border-color: #6886ba;
+        border-color: var(--sv-blue);
       }
       &::placeholder {
         font-weight: 400;

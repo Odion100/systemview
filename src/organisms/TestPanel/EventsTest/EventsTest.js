@@ -2,7 +2,7 @@ import React from "react";
 import MultiTestSection from "../../MultiTestSection/MultiTestSection";
 import "./styles.scss";
 
-const EventsTest = ({ TestSection, TestController, namespace, FullTest, connection }) => {
+const EventsTest = ({ TestSection, TestController, namespace, FullTest, sectionKey, onStepMove, onStepDuplicate, sectionDragKey }) => {
   return (
     <MultiTestSection
       dynamic={true}
@@ -12,6 +12,13 @@ const EventsTest = ({ TestSection, TestController, namespace, FullTest, connecti
       arg={{ name: "event_name", input_type: "string", FullTest }}
       caption="Events"
       staticArguments={true}
+      sectionTag="section"
+      tagColor="#6886ba"
+      titleColor="#46608f"
+      sectionKey={sectionKey}
+      onStepMove={onStepMove}
+      onStepDuplicate={onStepDuplicate}
+      sectionDragKey={sectionDragKey}
     />
   );
 };

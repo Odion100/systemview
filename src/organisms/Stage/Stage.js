@@ -104,15 +104,19 @@ const Stage = ({ projectCode, serviceId, moduleName, methodName, onStageChange }
       ),
     [stories, nsKey],
   );
+  // The OPEN story resolves from ALL stories, not the scope's list — navigating the nav (or a story's
+  // test link retargeting the scratchpad) must never yank the story you're reading out from under you.
+  // The chip list stays scoped; the open one is sticky.
   const selected = useMemo(
-    () => nsStories.find((s) => s.id === selectedId) || null,
-    [nsStories, selectedId],
+    () => stories.find((s) => s.id === selectedId) || null,
+    [stories, selectedId],
   );
 
-  // If you navigate away, drop a selection that no longer belongs to this namespace.
+  // Drop the selection only when the story no longer EXISTS (deleted) — not merely out of scope.
   useEffect(() => {
-    if (selectedId && !nsStories.some((s) => s.id === selectedId)) setSelectedId(null);
-  }, [nsStories, selectedId]);
+    if (selectedId && stories.length && !stories.some((s) => s.id === selectedId))
+      setSelectedId(null);
+  }, [stories, selectedId]);
 
   // Remember the open story per namespace and RESTORE it on refresh — so a reload drops you back exactly
   // where you were instead of an empty stage. Persist only a selection that belongs here (no cross-ns

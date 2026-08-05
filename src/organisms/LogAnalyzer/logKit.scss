@@ -7,16 +7,16 @@
   align-items: center;
   gap: 10px;
   padding: 10px 20px;
-  background: #fff;
-  border-bottom: 1px solid #f0f0f0;
+  background: var(--sv-surface);
+  border-bottom: 1px solid var(--sv-border-soft);
 
   select {
     padding: 4px 8px;
-    border: 1px solid #ccc;
+    border: 1px solid var(--sv-border);
     border-radius: 4px;
     font-size: 13px;
-    background: #fafafa;
-    color: #333;
+    background: var(--sv-bg);
+    color: var(--sv-text);
   }
 }
 
@@ -32,7 +32,7 @@
   gap: 5px;
   padding: 3px 10px;
   background: #e8f0fe;
-  border: 1px solid #6886ba;
+  border: 1px solid var(--sv-blue);
   color: #3367d6;
   border-radius: 12px;
   font-size: 12px;
@@ -66,7 +66,7 @@
 
 .logs-reset-btn {
   padding: 4px 14px;
-  background: #fff;
+  background: var(--sv-surface);
   border: 1px solid #9494b7;
   color: #9494b7;
   border-radius: 4px;
@@ -78,7 +78,7 @@
 .logs-clear-btn {
   margin-left: 0;
   padding: 4px 14px;
-  background: #fff;
+  background: var(--sv-surface);
   border: 1px solid #d9534f;
   color: #d9534f;
   border-radius: 4px;
@@ -99,14 +99,14 @@
   .logs-clear-btn--no {
     border-color: #c3c8d4;
     color: #6b7080;
-    &:hover { background: #eceef3; color: #3b4460; }
+    &:hover { background: var(--sv-inset); color: var(--sv-text-strong); }
   }
 }
 
 .dashboard {
   padding: 10px 20px;
   min-height: 180px;
-  background: #fff;
+  background: var(--sv-surface);
 }
 
 .dashboard__panels {
@@ -121,9 +121,9 @@
 .dashboard__add {
   align-self: flex-start;
   padding: 5px 12px;
-  background: #f0f0f8;
+  background: var(--sv-inset);
   border: 1px dashed #9494b7;
-  color: #6886ba;
+  color: var(--sv-blue);
   border-radius: 4px;
   font-size: 12px;
   cursor: pointer;
@@ -138,8 +138,8 @@
   &.dash-panel--wide {
     max-width: 420px;
   }
-  background: #fafafa;
-  border: 1px solid #e0e0e8;
+  background: var(--sv-bg);
+  border: 1px solid var(--sv-border-soft);
   border-radius: 6px;
   overflow: hidden;
   display: flex;
@@ -150,10 +150,10 @@
     justify-content: space-between;
     align-items: center;
     padding: 7px 10px;
-    background: #f0f0f8;
+    background: var(--sv-inset);
     font-size: 12px;
     font-weight: 600;
-    color: #555;
+    color: var(--sv-text);
     gap: 6px;
     flex-shrink: 0;
   }
@@ -201,7 +201,7 @@
 
   &__val {
     padding: 4px 10px;
-    color: #333;
+    color: var(--sv-text);
     max-width: 180px;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -210,7 +210,7 @@
 
   &__count {
     padding: 4px 10px 4px 0;
-    color: #6886ba;
+    color: var(--sv-blue);
     font-weight: 600;
     text-align: right;
     white-space: nowrap;
@@ -236,7 +236,7 @@
 
   &__crumb {
     cursor: pointer;
-    color: #6886ba;
+    color: var(--sv-blue);
     font-weight: 600;
     &:hover { text-decoration: underline; }
     &--leaf {
@@ -258,7 +258,7 @@
     background: transparent;
     font-size: 12px;
     font-family: monospace;
-    color: #333;
+    color: var(--sv-text);
     outline: none;
     padding: 0;
     &::placeholder { color: #bbb; font-style: italic; }
@@ -266,7 +266,7 @@
 
   &__apply {
     cursor: pointer;
-    color: #6886ba;
+    color: var(--sv-blue);
     font-weight: 700;
     &:hover { color: #3367d6; }
   }
@@ -296,9 +296,9 @@
 }
 
 .dash-panel__row--search {
-  background: #f7f7fb;
-  border-bottom: 1px solid #e0e0e8;
-  &:hover td { background: #f0f0f8; }
+  background: var(--sv-bg);
+  border-bottom: 1px solid var(--sv-border-soft);
+  &:hover td { background: var(--sv-inset); }
 }
 
 .dash-panel__row--date {
@@ -316,7 +316,7 @@
       border: 1px solid #d0d0e8;
       border-radius: 3px;
       padding: 2px 4px;
-      background: #f7f7fb;
+      background: var(--sv-bg);
       color: #333;
       width: 100%;
       &:focus { outline: none; border-color: #9494b7; }
@@ -342,14 +342,14 @@
 
 .logs-monitor-btn {
   padding: 4px 12px;
-  background: #fff;
+  background: var(--sv-surface);
   border: 1px solid #9494b7;
   color: #9494b7;
   border-radius: 4px;
   font-size: 13px;
   font-family: monospace;
   cursor: pointer;
-  &:hover { background: #f0f0f8; }
+  &:hover { background: var(--sv-inset); }
   &--on {
     background: #e8f5e9;
     border-color: #4caf50;
@@ -375,12 +375,12 @@
   text-align: center;
   &__title {
     font-size: 18px;
-    color: #46506a;
+    color: var(--sv-text);
     font-weight: 600;
     margin: 0;
   }
   &__hint {
-    color: #8b93a7;
+    color: var(--sv-text-muted);
     font-size: 14px;
     margin: 0 0 8px;
   }
@@ -392,16 +392,16 @@
   }
   &__btn {
     border: 1px solid #b0bed8;
-    background: #f4f6fb;
-    color: #46608f;
+    background: var(--sv-hover);
+    color: var(--sv-blue-deep);
     font-size: 14px;
     padding: 6px 18px;
     border-radius: 20px;
     cursor: pointer;
     &:hover {
-      background: #6886ba;
+      background: var(--sv-blue);
       color: #fff;
-      border-color: #6886ba;
+      border-color: var(--sv-blue);
     }
   }
 }
@@ -421,7 +421,7 @@
   cursor: pointer;
   border: 1px solid currentColor;
   color: #9494b7;
-  background: #f0f0f8;
+  background: var(--sv-inset);
   white-space: nowrap;
   &:hover { opacity: 0.75; }
   &--highlight {
@@ -447,20 +447,20 @@
 // RFC-011 — Table | JSON view-mode toggle
 .logs-viewmode {
   display: inline-flex;
-  border: 1px solid #ccc;
+  border: 1px solid var(--sv-border);
   border-radius: 4px;
   overflow: hidden;
 
   &__btn {
     padding: 4px 12px;
-    background: #fafafa;
+    background: var(--sv-bg);
     border: none;
     color: #777;
     font-size: 13px;
     font-family: monospace;
     cursor: pointer;
     &:not(:last-child) { border-right: 1px solid #ddd; }
-    &:hover { background: #f0f0f8; }
+    &:hover { background: var(--sv-inset); }
     &--on {
       background: #3367d6;
       color: #fff;
@@ -491,7 +491,7 @@
     text-transform: uppercase;
     letter-spacing: 0.05em;
     cursor: pointer;
-    &:hover { color: #6886ba; }
+    &:hover { color: var(--sv-blue); }
   }
 
   &--collapsed &__collapse { margin-bottom: 0; }

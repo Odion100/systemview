@@ -23,7 +23,12 @@ function Argument(name, FullTest, input_type = "undefined", input, targetValues 
   this.targetValues = targetValues;
 
   this.value = () => {
-    return this.targetValues.reduce(
+    // Substitute RIGHT-TO-LEFT (descending source_index): an embedded tv() replacement changes the
+    // string's length, so left-to-right shifts every later entry's recorded offset off its target
+    // and the typed-over guard silently skips it (two tv()s in one string = the second one lost).
+    return [...this.targetValues]
+      .sort((a, b) => (b.source_index || 0) - (a.source_index || 0))
+      .reduce(
       (arg, { source_map, target_namespace: nsp, source_index = 0 }) => {
         const [value, placeholder, key] = obj(arg).parse(source_map);
         // A stale reference must never override a REAL value typed over it (the "reference clobbers

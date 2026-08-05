@@ -3,13 +3,15 @@ import { MergeView } from "@codemirror/merge";
 import { EditorView, lineNumbers } from "@codemirror/view";
 import { EditorState } from "@codemirror/state";
 import { oneDark } from "@codemirror/theme-one-dark";
+import { syntaxHighlighting, defaultHighlightStyle } from "@codemirror/language";
 import { langExt } from "../CodeView/languages";
 import "./styles.scss";
 
 // RFC-018 — before/after a change, side by side. The `diff` pane renderer, built on CodeMirror's merge
 // view. base = the git-HEAD version, head = the working file (both real bytes from the plugin's
 // getDiff). Read-only both sides for now (Phase 2); an editable right side folds in with the editor.
-const DiffView = ({ base = "", head = "", language = "text" }) => {
+// `dark` comes from the OWNING pane (per-pane theme); light mode keeps colored syntax.
+const DiffView = ({ base = "", head = "", language = "text", dark = true }) => {
   const host = useRef(null);
 
   useEffect(() => {
@@ -20,8 +22,9 @@ const DiffView = ({ base = "", head = "", language = "text" }) => {
         EditorView.editable.of(false),
         EditorState.readOnly.of(true),
         EditorView.lineWrapping,
-        oneDark,
       ];
+      if (dark) ext.push(oneDark);
+      else ext.push(syntaxHighlighting(defaultHighlightStyle, { fallback: true }));
       const lang = langExt(language);
       if (lang) ext.push(lang);
       return ext;
@@ -56,7 +59,7 @@ const DiffView = ({ base = "", head = "", language = "text" }) => {
       b.removeEventListener("scroll", syncBA);
       view.destroy();
     };
-  }, [base, head, language]);
+  }, [base, head, language, dark]);
 
   return <div className="diff-view" ref={host} />;
 };

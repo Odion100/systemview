@@ -33,7 +33,7 @@
     font-size: 13px;
     &:focus {
       outline: none;
-      border-color: #6886ba;
+      border-color: var(--sv-blue);
     }
   }
   .actions-panel__save {
@@ -67,7 +67,7 @@
     // Siblings above sit in bootstrap `.row`s (negative gutter margins), so a plain div reads INDENTED.
     // Match them: bleed the container's 15px side padding and use the full panel width.
     margin: 12px -15px 0;
-    border-top: 1px solid #e6e9f0;
+    border-top: 1px solid var(--sv-border-soft);
     padding-top: 8px;
     display: flex;
     flex-direction: column;
@@ -76,7 +76,7 @@
   .actions-panel__saved-title {
     font-size: 12px;
     font-weight: 600;
-    color: #56617f;
+    color: var(--sv-text);
   }
 }
 
@@ -84,15 +84,15 @@
    extra chrome. ONE SECTION with steps — compact (the side panel is tight: no extra padding), the same
    1px border weight as everything else, steps always on display with the saved-test step fidelity. */
 .action-card {
-  background: #fff;
-  border: 1px solid #e6e9f0;
+  background: var(--sv-surface);
+  border: 1px solid var(--sv-border-soft);
   // Resting identity = the named-section color on the left edge (plum — same as the section titles),
   // NOT gray; a run flips it to running/pass/fail like a saved-test card.
   border-left: 3px solid #8e5aa8;
   border-radius: 6px;
   padding: 5px 6px;
   &--running {
-    border-left-color: #6886ba;
+    border-left-color: var(--sv-blue);
   }
   &--pass {
     border-left-color: #2db44f;
@@ -164,20 +164,20 @@
   }
   &__clear {
     border: 1px solid #cdd4e2;
-    background: #fff;
-    color: #56617f;
+    background: var(--sv-surface);
+    color: var(--sv-text);
     font-size: 11px;
     padding: 2px 8px;
     border-radius: 4px;
     cursor: pointer;
     white-space: nowrap;
     &:hover {
-      background: #f4f6fb;
+      background: var(--sv-hover);
     }
   }
   &__run {
-    border: 1px solid #6886ba;
-    background: #6886ba;
+    border: 1px solid var(--sv-blue);
+    background: var(--sv-blue);
     color: #fff;
     font-size: 11px;
     padding: 2px 10px;
@@ -185,7 +185,7 @@
     cursor: pointer;
     white-space: nowrap;
     &:hover {
-      background: #5a76a8;
+      background: var(--sv-blue-hover);
     }
     &:disabled {
       opacity: 0.6;
@@ -215,6 +215,6 @@
     color: #b0413e;
   }
   &__confirm-no {
-    color: #56617f;
+    color: var(--sv-text);
   }
 }

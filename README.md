@@ -115,8 +115,9 @@ sections — a saved **action** you insert becomes its own section, a peer of th
 - **Main** — the method being tested. Holds **multiple steps** if you want, each free to point at any
   `service.module.method` — as long as at least one step matches the namespace the test saves under
 - **Events** — listen for a `service.module.on()` event on **any** connected service
-- **Actions** — reusable named sections. Build and save them in the Scratch Pad's **Actions** tab, then
-  insert one into a test with **+ actions** (before or after Main). The same action can be inserted more
+- **Actions** — reusable **shared** sections. Build and save them in the Scratch Pad's **Actions** tab,
+  then insert one into a test with **+ actions** (before or after Main) — an action saved on ANY of the
+  project's services is usable in ANY test in the project. The same action can be inserted more
   than once (`seedSum`, `seedSum_2`, …). Tests store a `{ "use": "<name>" }` **reference** — edit the
   action once and every test that uses it follows
 
@@ -131,6 +132,11 @@ tv(test.main[0].error.message)       # a thrown error's field
 
 So an **evaluation can assert one step's output against another's** — set the validation's value to a
 `tv(...)` reference and it resolves at run time.
+
+This is also **how shared actions compose**: stack action sections in a test and wire them with
+references — one action signs up the users, the next section reaches into its results
+(`tv(test.seasonHost[0].results.userId)`). Each action stays self-contained on its own (internal refs
++ `random()` data); references at the seams make the units work together.
 
 **`random(n)`** — insert `random(6)` anywhere inside a string argument to get fresh random characters
 on every run (`"user_random(6)@test.com"`) — unique emails/usernames for reusable actions.

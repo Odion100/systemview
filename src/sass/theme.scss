@@ -1,0 +1,97 @@
+// SystemView THEME TOKENS — the runtime palette, as CSS custom properties so a future dark mode is
+// one `:root` override away (flip the values, every component follows). SCSS constants live in
+// _tokens.scss; THESE are the ones components should reference for anything a theme would change.
+//
+// Roles, not shades: pick the token by what the color DOES.
+//   --sv-blue         brand blue — buttons, active borders, running state (#6886ba)
+//   --sv-blue-hover   its pressed/hover step
+//   --sv-blue-deep    heading-weight blue (section titles)
+//   --sv-indigo       selection/active accent (nav selection, chip highlight)
+//   --sv-text         standard dark text
+//   --sv-text-strong  emphasized text (names, values)
+//   --sv-text-muted   secondary text
+//   --sv-text-faint   tertiary text (hints, placeholders, quiet captions)
+//   --sv-surface      panels, cards, inputs — the "white pack"
+//   --sv-bg           the app canvas + quiet inset surfaces (whitesmoke today)
+//   --sv-border       standard control border
+//   --sv-border-soft  hairline card/divider border
+//
+// NOTE: `color: #fff` on colored buttons stays LITERAL on purpose — text on an accent stays white
+// in both themes, so it isn't a token.
+
+:root {
+  // brand blues
+  --sv-blue: #6886ba;
+  --sv-blue-hover: #5a76a8;
+  --sv-blue-deep: #46608f;
+  --sv-indigo: #3f51b5;
+
+  // text
+  --sv-text: #46506a;
+  --sv-text-strong: #3b4460;
+  --sv-text-muted: #8b93a7;
+  --sv-text-faint: #97a0b8;
+
+  // surfaces
+  --sv-surface: #fff;
+  --sv-bg: whitesmoke;
+
+  // borders
+  --sv-border: #d7dbe6;
+  --sv-border-soft: #e6e9f0;
+
+  // tints
+  --sv-inset: #eef1f7; // pale blue-gray inset — section bodies, empty states, story canvas
+  --sv-hover: #f1f3fa; // quiet hover fill — rows, tool buttons, list items
+
+  // THE pane header band — one look for every doc-ish pane header (code, doc, story panes).
+  // LIGHT keeps the original quiet inset band; DARK wears the plum (the override below).
+  --sv-pane-header: #eef1f7;
+  --sv-on-header: #3b4460; // primary text on the header band
+  --sv-on-header-muted: #8b93a7; // secondary text / grips on the band
+}
+
+// DARK MODE — the whole point of the tokens: one override block, every component follows. Toggled by
+// the PageHeader pill, which stamps `sv-dark` on <html>. Canvas family matches the editor's oneDark
+// (#282c34 et al.) so code panes and the app read as one surface.
+:root.sv-dark {
+  --sv-blue: #6886ba;
+  --sv-blue-hover: #7a95c9; // hover LIGHTENS on dark
+  --sv-blue-deep: #8fa8d8;
+  --sv-indigo: #8891e0;
+
+  --sv-text: #b8bfd3;
+  --sv-text-strong: #d7dce9;
+  --sv-text-muted: #98a0b5;
+  --sv-text-faint: #6f7789;
+
+  --sv-surface: #282c34;
+  --sv-bg: #1e2127;
+
+  --sv-border: #3a3f4b;
+  --sv-border-soft: #333845;
+
+  --sv-inset: #21252b;
+  --sv-hover: #313640;
+
+  --sv-pane-header: #5d5464; // the plum header band — DARK MODE only
+  --sv-on-header: #f2eff6;
+  --sv-on-header-muted: #cfc9d8;
+}
+
+// FULL FIDELITY, dark mode only: a pane whose DOCUMENT is toggled LIGHT takes its header back to the
+// light band too — redefining the tokens on the header element re-colors the band, its text, and its
+// buttons in one move. In app-light these are the values already, so the modifier is a no-op there.
+.code-pane__header--light,
+.pane__header--light,
+.doc-pane__header--light {
+  --sv-pane-header: #eef1f7;
+  --sv-on-header: #3b4460;
+  --sv-on-header-muted: #8b93a7;
+  --sv-surface: #fff;
+  --sv-border: #d7dbe6;
+  --sv-border-soft: #e6e9f0;
+  --sv-text: #46506a;
+  --sv-text-muted: #8b93a7;
+  --sv-text-faint: #97a0b8;
+}

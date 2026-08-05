@@ -6,6 +6,11 @@
   gap: 0;
   border-bottom: 2px solid #e0e0e8;
 
+  // Dark mode — the tab underline goes fully WHITE (a crisp rail on the dark surface).
+  :root.sv-dark & {
+    border-bottom-color: #fff;
+  }
+
   // The scope breadcrumb rides at the far end of the tab row — monospace so it names the scope without
   // eating a whole row. Full hierarchy: project » service.module.method(…). Each segment is CLICKABLE to
   // retarget the middle panel; the segment matching the current middle scope is blue, the rest grey.
@@ -14,7 +19,7 @@
     padding: 0 4px 0 12px;
     font-family: "SF Mono", Menlo, monospace;
     font-size: 16px;
-    color: #8b93a7;
+    color: var(--sv-text-muted);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -23,17 +28,17 @@
   // A clickable segment. Grey by default (any level you're NOT scoped to), blue + bold when it IS the
   // current middle scope. Hover hints it's interactive.
   &__ns-seg {
-    color: #8b93a7;
+    color: var(--sv-text-muted);
     cursor: pointer;
     &:hover {
       color: #6b7080;
       text-decoration: underline;
     }
     &--active {
-      color: #3f51b5;
+      color: var(--sv-indigo);
       font-weight: 600;
       &:hover {
-        color: #3f51b5;
+        color: var(--sv-indigo);
       }
     }
   }
@@ -60,8 +65,8 @@
   cursor: pointer;
 
   &--active {
-    color: #6886ba;
-    border-bottom-color: #6886ba;
+    color: var(--sv-blue);
+    border-bottom-color: var(--sv-blue);
     font-weight: 600;
   }
 
@@ -114,7 +119,7 @@
     margin-bottom: 0; // no bottom margin — the doc runs to the bottom
   }
   &__title {
-    color: #3f51b5;
+    color: var(--sv-indigo);
     display: flex;
     align-items: flex-start;
     margin-left: 4px;
@@ -134,9 +139,9 @@
   max-height: calc(
     100vh - 30px
   ); // grows to content BELOW this; caps + scrolls only when genuinely long (extends near the page bottom)
-  border: 1px solid #d7dbe6;
+  border: 1px solid var(--sv-border);
   border-radius: 6px;
-  background: #fff;
+  background: var(--sv-surface);
   overflow: hidden;
 
   &__header {
@@ -144,9 +149,9 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 5px 12px;
-    background: #f2f4f9;
-    border-bottom: 1px solid #e3e7f0;
+    padding: 6px 10px;
+    background: var(--sv-pane-header); // THE unified header band — same as code + story pane headers
+    border-bottom: 1px solid var(--sv-border-soft);
     font-size: 12px;
   }
   &__kind {
@@ -159,9 +164,44 @@
     border-radius: 3px;
   }
   &__label {
-    color: #46506a;
+    color: var(--sv-on-header);
     font-family: "SF Mono", Menlo, monospace;
     font-size: 11.5px;
+  }
+  // The body scrolls (the doc-pane itself caps the height). The old edit-box frame used to own this.
+  &__body {
+    overflow: auto;
+    min-height: 0;
+  }
+  // Edit / Save / Close ride the header's right edge — the SAME control placement the Code pane uses.
+  // The document body below is for reading; the header owns the mode.
+  &__actions {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  &__btn {
+    border: 1px solid var(--sv-border);
+    background: var(--sv-surface);
+    color: var(--sv-text);
+    font-size: 11.5px;
+    padding: 2px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    white-space: nowrap;
+    &:hover {
+      border-color: var(--sv-text-faint);
+    }
+    &--save {
+      border-color: var(--sv-blue);
+      background: var(--sv-blue);
+      color: #fff;
+      &:hover {
+        border-color: #47608f;
+        background: #47608f;
+      }
+    }
   }
   &__body {
     min-height: 0;
@@ -189,7 +229,7 @@
     align-items: center;
     justify-content: center;
     gap: 8px;
-    color: #97a0b8;
+    color: var(--sv-text-faint);
     font-size: 13px;
     min-height: 130px;
     padding: 20px;

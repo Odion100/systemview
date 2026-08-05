@@ -45,7 +45,7 @@
       font-size: 11px;
       font-weight: 600;
       letter-spacing: 0.2px;
-      color: #97a0b8;
+      color: var(--sv-text-faint);
       cursor: pointer;
       &:hover {
         color: #6a74c4;
@@ -63,7 +63,7 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     cursor: pointer;
-    color: #8b93a7;
+    color: var(--sv-text-muted);
     &--string {
       color: #cf5f2e;
     }
@@ -89,7 +89,7 @@
     }
     &--undefined,
     &--null {
-      color: #8b93a7;
+      color: var(--sv-text-muted);
       font-style: italic;
     }
   }
@@ -165,9 +165,9 @@
     align-items: center;
     margin: 2px 5px 2px 0;
     padding: 1px 8px 1px 5px;
-    border: 1px solid #e6e9f0;
+    border: 1px solid var(--sv-border-soft);
     border-radius: 100px;
-    background: #f4f6fb;
+    background: var(--sv-hover);
     vertical-align: middle;
     transition: background 0.12s, border-color 0.12s;
     &:hover {
@@ -216,7 +216,7 @@
       color: #5a5a5a;
     }
     &__object {
-      // background: white;
+      // background: var(--sv-surface);
       padding: 0;
     }
     &__boolean {

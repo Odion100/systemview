@@ -75,13 +75,14 @@ const SavedTests = ({
   const editTest = (rawTest, index) => {
     // RFC-020 — load built-ins AND the test's named-action sections into the scratchpad (one shared
     // sections object so cross-section refs resolve while editing).
-    const { Tests, named } = resetScratchpad(rawTest, connectedServices);
+    const { Tests, named, order } = resetScratchpad(rawTest, connectedServices);
     if (Tests[1] && Tests[1][0]) {
       Tests[1][0].index = index; // mark which saved slot we're editing…
       Tests[1][0].savedNamespace = rawTest.namespace; // …and which FILE that slot belongs to
     }
-    // top-level title → the title input; top-level namespace → the save-target chip
-    setFullTest(Tests, named, rawTest.title, rawTest.namespace);
+    // top-level title → the title input; top-level namespace → the save-target chip; the test's own
+    // RUN ORDER → the builder renders exactly that arrangement (RFC-023).
+    setFullTest(Tests, named, rawTest.title, rawTest.namespace, order);
   };
   const deleteTest = async (index, namespace) => {
     if (Plugin) {
@@ -207,7 +208,19 @@ export function SavedTestItem({ test, index, status, hidden, connectedServices, 
   const failed = status === "fail";
   const ns = test.namespace || {};
 
-  const setRefs = (el) => { localRef.current = el; if (storyRef) storyRef(el); };
+  // The handle the parent gets wraps expand/collapse so the CARD's caret state stays in sync when a
+  // pane-level "expand all" drives the story open/closed (run/clear pass straight through).
+  const setRefs = (el) => {
+    localRef.current = el;
+    if (storyRef)
+      storyRef(
+        el && {
+          ...el,
+          expand: () => { setExpanded(true); el.expand(); },
+          collapse: () => { setExpanded(false); el.collapse(); },
+        },
+      );
+  };
 
   // A failed test does NOT force its whole card open — you see it failed from the badge + red edge and
   // open it yourself. When you DO open it, the failed step(s) inside are already expanded (TestStory's

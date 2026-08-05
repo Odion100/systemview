@@ -41,6 +41,9 @@ function readFolderManifest(dir = manifestDir()) {
         system: entry.system,
         specList: entry.specList,
         credentials: entry.credentials,
+        // RFC-021 — a SYNTHESIZED (project-defined) service: the manifest was written by hand/agent,
+        // not by a plugin. No live URL behind it — registration must skip aliveness probing.
+        dynamic: !!entry.dynamic,
       });
     } catch {
       /* skip a torn/partial file — the next read reconciles */

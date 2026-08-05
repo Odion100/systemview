@@ -25,6 +25,14 @@ function refreshConnections(connections) {
     const recursiveCheckConnection = async (i = 0) => {
       if (i === connections.length) return resolve(newConnections);
 
+      // RFC-021 — a DYNAMIC (project-defined/synthesized) service has no live URL: never probe it,
+      // never rebuild it from a plugin, keep the stored entry verbatim. Without this branch every
+      // server restart silently dropped synthesized services as "dead".
+      if (connections[i].dynamic) {
+        newConnections.push(connections[i]);
+        return recursiveCheckConnection(i + 1);
+      }
+
       const { serviceUrl } = connections[i].system.connectionData;
       try {
         const { Plugin } = await Client.loadService(serviceUrl);
@@ -45,6 +53,19 @@ module.exports = function ConnectedServices() {
   this.refreshConnections = async () => {
     const connections = readConnections();
     const newConnections = await refreshConnections(connections);
+    // The probe loop takes a while (dead URLs time out). Anything registered MEANWHILE — notably
+    // RFC-021 dynamic services connected by the CLI's onReady loadManifest, which races this — is in
+    // the store but not in our stale snapshot; a blind write would clobber it. Merge before writing.
+    const current = readConnections();
+    current.forEach((svc) => {
+      const seen = newConnections.some(
+        (s) => s.projectCode === svc.projectCode && s.serviceId === svc.serviceId,
+      );
+      if (!seen && (svc.dynamic || !connections.some(
+        (s) => s.projectCode === svc.projectCode && s.serviceId === svc.serviceId,
+      )))
+        newConnections.push(svc);
+    });
     if (newConnections.length)
       fs.writeFileSync(LOCAL_STORAGE, JSON.stringify(newConnections), "utf8");
     return newConnections;

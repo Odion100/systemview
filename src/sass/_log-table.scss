@@ -13,7 +13,7 @@
   width: 100%;
   font-size: 13px;
   font-family: monospace;
-  background: white;
+  background: var(--sv-surface);
   .log-row {
     display: flex;
     width: 100%;
@@ -33,7 +33,7 @@
     }
     .log-row--expanded {
       margin-bottom: 8px;
-      border-bottom: 1px solid #e0e0e8;
+      border-bottom: 1px solid var(--sv-border-soft);
     }
   }
 }
@@ -45,9 +45,9 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #888;
-  background: #f5f5fa;
-  border-bottom: 2px solid #e0e0e8;
+  color: var(--sv-text-muted);
+  background: var(--sv-inset);
+  border-bottom: 2px solid var(--sv-border);
   white-space: nowrap;
   overflow: hidden; // clip within the column instead of spilling into the next
   text-overflow: ellipsis;
@@ -96,7 +96,7 @@
 }
 
 .log-row {
-  border-bottom: 1px solid #ebebf0;
+  border-bottom: 1px solid var(--sv-border-soft);
 
   &--dim .log-level {
     opacity: 0.55;
@@ -105,14 +105,14 @@
     cursor: pointer;
   }
   &--clickable:hover .log-cell {
-    background: #e4e4f4;
+    background: var(--sv-hover);
   }
   &--active .log-cell {
     background: #d0d0ec !important;
     opacity: 1 !important;
   }
   &--expanded {
-    background: #ffffff;
+    background: var(--sv-surface);
     cursor: pointer;
   }
   // &--expanded:hover {
@@ -146,7 +146,7 @@
   text-overflow: ellipsis;
 
   &--time {
-    color: #888;
+    color: var(--sv-text-muted);
     min-width: 80px;
   }
   &--project {
@@ -158,14 +158,14 @@
     min-width: 130px;
   }
   &--method {
-    color: #333;
+    color: var(--sv-text-strong);
     min-width: 160px;
   }
   &--level {
     min-width: 70px;
   }
   &--msg {
-    color: #555;
+    color: var(--sv-text);
     max-width: 360px;
     white-space: normal;
   }
@@ -274,6 +274,28 @@
   margin-left: 6px;
 }
 
+// Dark mode — the stateful tints that can't ride the shared tokens (selection, amber highlight, dim
+// chip): translucent accents over the dark surface instead of the light pastels.
+:root.sv-dark {
+  .log-row--active .log-cell {
+    background: #394057 !important;
+  }
+  .log-row--highlight .log-cell {
+    background: rgba(224, 184, 73, 0.13);
+  }
+  .log-row--highlight.log-row--clickable:hover .log-cell {
+    background: rgba(224, 184, 73, 0.22);
+  }
+  .log-cell--highlight {
+    background: #5c4a14 !important;
+    color: #fbe9a8 !important;
+  }
+  .log-level--dim {
+    background: #343944;
+    color: #8b93a7;
+  }
+}
+
 .log-cell--detail {
   padding: 0 !important;
 }
@@ -303,9 +325,9 @@
 // theme on a light box), NOT the old dark terminal look.
 .log-data {
   margin: 11px;
-  background: #f7f8fc;
+  background: var(--sv-inset);
   padding: 10px 14px;
-  border: 1px solid #e3e7f0;
+  border: 1px solid var(--sv-border-soft);
   border-radius: 4px;
   font-size: 12px;
   overflow: auto;

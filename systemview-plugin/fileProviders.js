@@ -94,16 +94,36 @@ function readFile({ path: userPath } = {}) {
   };
 }
 
+// The repo's untracked paths (git ls-files --others), for stamping listFiles entries. null = not a
+// git repo / git unavailable — callers use that to know tracked-ness is UNKNOWN, not "all tracked".
+function untrackedSet() {
+  try {
+    const { execFileSync } = require("child_process");
+    const out = execFileSync("git", ["ls-files", "--others", "--exclude-standard"], {
+      cwd: root(), encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], maxBuffer: 10 * 1024 * 1024,
+    });
+    return new Set(out.split("\n").map((l) => l.trim()).filter(Boolean));
+  } catch { return null; }
+}
+
 // listFiles({ dir?, glob? }) → flat, sorted list of project files (ignoring noise dirs), each with
-// its language. Bounded; `truncated` flags when the cap was hit so the UI can say so.
+// its language. Bounded; `truncated` flags when the cap was hit so the UI can say so. In a git repo,
+// untracked files carry `tracked: false` (tracked ones stay unstamped) and the response is marked
+// `gitAware` — the UI only offers a tracked-only filter when that's true.
 function listFiles({ dir = ".", glob } = {}) {
   const absDir = safeResolve(dir);
   const filterRe = glob ? globToRegExp(glob) : null;
   const files = walkFiles(absDir, { filterRe });
+  const untracked = untrackedSet();
   return {
     dir: relFromRoot(absDir),
-    files: files.map((p) => ({ path: p, language: languageOf(p) })),
+    files: files.map((p) => {
+      const f = { path: p, language: languageOf(p) };
+      if (untracked && untracked.has(p)) f.tracked = false;
+      return f;
+    }),
     truncated: files.length >= 4000,
+    gitAware: !!untracked,
   };
 }
 

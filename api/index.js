@@ -21,7 +21,7 @@ const isUrl = (str) =>
     str,
   );
 
-function connect({ system, projectCode, serviceId, specList, credentials }) {
+function connect({ system, projectCode, serviceId, specList, credentials, dynamic }) {
   const { service, index } = ConnectedServices.findService(
     system.connectionData.serviceUrl,
     projectCode,
@@ -33,6 +33,9 @@ function connect({ system, projectCode, serviceId, specList, credentials }) {
     service.serviceId = serviceId;
     service.specList = specList;
     service.credentials = !!credentials;
+    // RFC-021 — project-defined (synthesized) service: no live URL. The flag must survive every
+    // rewrite of the entry or refreshConnections would treat it as a dead service and drop it.
+    service.dynamic = !!dynamic;
     ConnectedServices.save(service, index);
   } else
     ConnectedServices.save({
@@ -41,6 +44,7 @@ function connect({ system, projectCode, serviceId, specList, credentials }) {
       serviceId,
       specList,
       credentials: !!credentials,
+      dynamic: !!dynamic,
     });
 }
 
@@ -134,7 +138,7 @@ async function refreshConnection(searchText) {
 function getProjects() {
   const connections = ConnectedServices.getAllConnections();
   const projects = {};
-  connections.forEach(({ projectCode, serviceId, system, specList, credentials }) => {
+  connections.forEach(({ projectCode, serviceId, system, specList, credentials, dynamic }) => {
     if (!projects[projectCode]) projects[projectCode] = [];
     projects[projectCode].push({
       serviceId,
@@ -150,6 +154,9 @@ function getProjects() {
       // meaning it authenticates via session cookies (no header profile) — the browser must mark its
       // origin credentialed so withCredentials rides from the very first request.
       credentials: !!credentials,
+      // RFC-021 — project-defined (synthesized) service: rendered under its CODEBASE in the file
+      // lens, not in the SystemLynx services nav.
+      dynamic: !!dynamic,
     });
   });
   return projects;

@@ -1,7 +1,30 @@
 import Argument from "../TestPanel/components/Argument.class";
 import Test from "../TestPanel/components/Test.class";
+import loadServiceWithHeaders from "../../utils/loadService";
 
-// RFC-020 — a named-action section entry resolves to that action's steps: `{ use: <name> }` pulls the
+// RFC-020 — pull every service's permanent shared actions into one name → action map (first name wins),
+// exactly like the CLI's getActionMap. Actions STORE under the service they were saved on, but a test
+// calls across namespaces — so the picker and the `{ use }` resolver must see the whole project's
+// actions, not just the current service's. Tolerant of older plugins without getActions.
+export async function getActionMap(services) {
+  const map = {};
+  for (const s of services) {
+    if (s.dynamic) continue; // project-defined services have no live plugin to ask
+    try {
+      const svc = loadServiceWithHeaders(s.system.connectionData, s.headers, s.credentials);
+      if (!svc.Plugin || !svc.Plugin.getActions) continue;
+      const list = (await svc.Plugin.getActions({})) || [];
+      list.forEach((a) => {
+        if (a && a.name && !map[a.name]) map[a.name] = a;
+      });
+    } catch {
+      /* older plugin / service down — fine */
+    }
+  }
+  return map;
+}
+
+// RFC-020 — a shared-action section entry resolves to that action's steps: `{ use: <name> }` pulls the
 // stored procedure's steps; an inline array is used as-is. Mirrors testing-utilities/transformTests.js.
 export function resolveSteps(val, resolveAction) {
   if (Array.isArray(val)) return val;
@@ -12,7 +35,7 @@ export function resolveSteps(val, resolveAction) {
   return val ? [val] : [];
 }
 
-// Resolve a raw saved test's named-action sections (`{ use }` → the action's steps) so the browser render
+// Resolve a raw saved test's shared-action sections (`{ use }` → the action's steps) so the browser render
 // path (which has no resolver) can show/run them. The CLI resolves inside initializeSavedTests; the
 // browser pre-resolves at fetch time — see TestPanel.
 export function resolveTestActions(ft, resolveAction) {
@@ -99,5 +122,26 @@ export const resetScratchpad = (ft, connectedServices) => {
     return { name, action, tests: sections[name], pos };
   });
 
-  return { Tests: [sections.before, sections.main, sections.events, sections.after], named };
+  // RFC-023 — the FULL section order for the builder. Tests aren't always built in the UI (agents
+  // hand-author), so `run` may put ANY section anywhere — the scratchpad must render THAT order, not
+  // a hardcoded skeleton. Normalize built-in casing, drop unknowns/dupes, then guarantee every
+  // section appears (missing built-ins slot into their default spots; unlisted named sections land
+  // above main — the legacy `pos: pre` behavior).
+  const normalize = (n) => {
+    const l = String(n).toLowerCase();
+    return ["before", "events", "main", "after"].includes(l) ? l : String(n);
+  };
+  const known = new Set(["before", "events", "main", "after", ...namedNames]);
+  let order = (runList.length ? runList : ["before", "events", "main", "after"])
+    .map(normalize)
+    .filter((k, i, a) => known.has(k) && a.indexOf(k) === i);
+  if (!order.includes("main")) order.push("main");
+  if (!order.includes("before")) order.unshift("before");
+  if (!order.includes("events")) order.splice(order.indexOf("before") + 1, 0, "events");
+  if (!order.includes("after")) order.push("after");
+  namedNames.forEach((n) => {
+    if (!order.includes(n)) order.splice(order.indexOf("main"), 0, n);
+  });
+
+  return { Tests: [sections.before, sections.main, sections.events, sections.after], named, order };
 };
