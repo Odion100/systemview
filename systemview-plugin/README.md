@@ -55,6 +55,8 @@ SYSTEMVIEW_HOST=http://localhost:3000/systemview/api node index.js
 | `exclude` | `[]` | Module or `Module.method` names to skip entirely |
 | `useSystemViewLogs` | `true` | Register the local log module + auto-instrumentation |
 | `useSystemViewUI` | `true` | Register with the SystemView UI server |
+| `stats` | `true` | Roll the trace stream into bounded per-method stats (counts, latency histograms → p50/p95/p99, status codes, per-minute buckets w/ per-method rollups, 24h retention) — powers the UI's **Stats** page, incl. its time-range windowing. `false` to disable, or an object of overrides (`{ bucketMs, retention, file }`) |
+| `tentacle` | `null` | A live LoadBalancer `Tentacle` handle — puts the plugin in **LB mode**: it reads cluster state in-process (`getClusterState`) and records `route_assigned` fairness tallies + a join/evict timeline, served via `SystemView.getCluster()` for the Stats page's Load Balancer window. Auto-detected via `App.getModule("Tentacle")` when the plugin is loaded inside an app that registers the Tentacle |
 
 ### `trace`
 
@@ -90,6 +92,9 @@ exclude: ["HealthCheck", "Users.ping"]
 
 1. **Registers with SystemView** — sends connection data to the SystemView server so the service appears in the UI under `projectCode > serviceId`
 2. **Writes `systemview.manifest.json`** — saves connection data and spec file locations to the project root so the SystemView CLI can run tests without the SystemView server running
+3. **Rolls up stats** (when `stats` is on) — bounded per-method rollups from the same trace stream, read live via `SystemView.getStats()`
+4. **Propagates traces across services** (SystemLynx ≥ 3.2) — outbound calls made through `this.useService(...)` are stamped with `x-sv-trace` (the inbound request's trace id) and `x-sv-caller` (`service.Module.method`); the receiving service's plugin adopts the trace and records the caller → the Stats page's **Topology** draws real caller→callee edges with live call volumes
+5. **Observes local module coupling** (SystemLynx ≥ 3.3) — listens for the framework's `use_module` / `use_service` / `event_subscription` signals and records who's wired to whom in-process → the Stats page's **Module Coupling** report
 
 If multiple services in the same project use the plugin, each one merges its own entry into the manifest rather than overwriting it.
 

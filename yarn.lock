@@ -11429,18 +11429,18 @@ symbol-tree@^3.2.4:
   resolved "https://registry.npmjs.org/symbol-tree/-/symbol-tree-3.2.4.tgz"
   integrity sha512-9QNk5KwDF+Bvz+PyObkmSYjI5ksVUYtjW7AU22r2NKcfLJcXp96hkDWU3+XndOsUb+AQ9QhfzfCT2O+CNWT5Tw==
 
-systemlynx-client@^2.0.0:
-  version "2.0.0"
-  resolved "https://registry.npmjs.org/systemlynx-client/-/systemlynx-client-2.0.0.tgz"
-  integrity sha512-xXbDu/xP1G8Wm1sJU4uLYVf3zhEBbEES76MDKnc0kckLwSO29QdnVofXAmSLtU7McinntULRvKz3POcBk6QVBg==
+systemlynx-client@^3.1.1:
+  version "3.1.1"
+  resolved "https://registry.npmjs.org/systemlynx-client/-/systemlynx-client-3.1.1.tgz"
+  integrity sha512-/xP3ueIhxO8IVaFovsvlGFPZg0B0rlhC7Frb45h9pRLhvd3b2F7KPjtGfAKpomji2zV5NPuQKskQq+1oGvSKlw==
   dependencies:
     axios "^1.6.7"
     socket.io-client "^4.8.1"
 
-systemlynx@^2.1.0:
-  version "2.2.0"
-  resolved "https://registry.npmjs.org/systemlynx/-/systemlynx-2.2.0.tgz"
-  integrity sha512-UGjiUHZTI4QUmCDctoPXmHY6+srksR5tnHbeCQdZAPlSBSUlpugu2A9OGXj3DjOTLufeQSqwilKzeMgNz7KVkg==
+systemlynx@^3.3.0:
+  version "3.3.0"
+  resolved "https://registry.npmjs.org/systemlynx/-/systemlynx-3.3.0.tgz"
+  integrity sha512-oxvpnV9+BvEh8JuwcfMxPR2MX5K6eb5m7o0bH2XXldAwE/NKt6MpFgSe2KxCazDlqqyTREC4/R8nlhTEbDfJVw==
   dependencies:
     axios "^1.5.0"
     express "^4.18.2"

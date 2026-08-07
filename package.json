@@ -1,7 +1,7 @@
 {
   "name": "systemview",
   "description": "A documentation and testing suite for SystemLynx",
-  "version": "2.16.1",
+  "version": "2.17.0",
   "license": "UNLICENSED",
   "bin": {
     "systemview": "cli/index.js"
@@ -31,8 +31,8 @@
     "chalk": "^4.1.2",
     "express": "^4.18.2",
     "moment": "^2.29.1",
-    "systemlynx": "^2.1.0",
-    "systemlynx-client": "^2.0.0",
+    "systemlynx": "^3.3.0",
+    "systemlynx-client": "^3.1.1",
     "web-vitals": "^0.2.4"
   },
   "scripts": {

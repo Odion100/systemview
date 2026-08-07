@@ -14,6 +14,15 @@ module.exports = function makeAuth() {
       this.log("sign in succeeded", { email });
       return { success: true };
     },
+    // RFC-008/RFC-015 fixture: a real LOCAL coupling — Auth resolves Math (use_module) and
+    // subscribes to its chainUse event (event_subscription). Guarded: Auth also mounts on services
+    // that have no Math module.
+    watchMath() {
+      const MathMod = this.useModule("Math");
+      if (typeof MathMod.on !== "function") return { watching: false };
+      MathMod.on("chainUse", () => {}, { eventId: "sv-coupling-fixture" });
+      return { watching: true };
+    },
     // Reports the Cookie the SERVICE received on this request (captured by the .before hook that
     // wires this instance). Used both for same-origin session persistence and the cross-service
     // cookie test — the value is whatever actually rode to THIS origin.

@@ -14,6 +14,18 @@ const auth = makeAuth();
 const App = createApp(credentialedServer());
 
 App.startService({ route: "test/api", port: PORT })
+  // RFC-015 Tier-2 fixture: GatedService loads TestService (already listening — this process boots
+  // second) and Bridge.callPeer calls it over the wire, exercising the plugin's outbound
+  // x-sv-trace / x-sv-caller stamping. The edge to expect in TestService's stats:
+  // GatedService.Bridge.callPeer → Math.add.
+  .loadService("TestSvc", "http://localhost:5555/test/api")
+  .module("Bridge", {
+    async callPeer({ a, b }) {
+      const TestSvc = this.useService("TestSvc");
+      const result = await TestSvc.Math.add({ a, b });
+      return { viaPeer: true, ...result };
+    },
+  })
   .module("Auth", auth)
   .module("String", String)
   .before("Auth.signIn", setSessionCookie)

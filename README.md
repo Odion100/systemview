@@ -106,6 +106,10 @@ systemview disconnect myProject MyService
 
 URL pattern: `http://localhost:3000/:projectCode/:serviceId/:moduleName/:methodName`
 
+The header carries an app-wide **dark mode** toggle (documents, code, and diffs keep their own
+independent light/dark toggles), and small **?** icons around the UI open contextual help in the
+center panel.
+
 ### Building a test
 
 A test is an **ordered list of named sections**. `Before / Main / Events / After` are the default
@@ -227,6 +231,29 @@ systemview probe MyService.String.repeat '["ha", 3]'
 ```
 
 ---
+
+## The Stats page
+
+Services running the plugin (with `stats` on, the default) report bounded rollups of every call —
+counts, error rates, latency percentiles, per-minute buckets — and the **Stats** page tells them
+back as reports, per project:
+
+- **State of the System** — a one-line health verdict, tiles, per-service health cards, throughput.
+- **Load & Scaling** — load concentration (vertical columns: who carries the wall-time), the
+  **Load Balancer window** when a SystemLynx LoadBalancer reports (policy, clones, per-clone
+  distribution and heartbeats, join/evict timeline), tail latency, throughput.
+- **Reliability** · **Surface Coverage** (available vs used vs tested — untested hot paths) ·
+  **Change** (recent window vs previous).
+- **Topology** — a live who-calls-whom graph built from real cross-service calls (SystemLynx ≥ 3.2
+  propagates `x-sv-trace`/`x-sv-caller`). Drag the service nodes anywhere (the layout saves), lines
+  are colored per caller with call volumes on the chips; click a card to expand the methods called
+  on it — the line splits into one arrow per method; click a line (or a caller card) to highlight
+  exactly what it calls, across services.
+- **Module Coupling** — the in-process pre-split map (SystemLynx ≥ 3.3): which modules call, load,
+  or **listen to events of** which — the extraction-readiness view.
+
+A **time-range** control (all time / 15m / 1h / 4h / 24h) windows the numbers; charts have a hover
+crosshair showing the value and the moment.
 
 ## Stories
 

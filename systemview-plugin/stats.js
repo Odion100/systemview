@@ -47,12 +47,23 @@ module.exports = function createStats(options = {}) {
     serviceId,
     projectCode,
     bucketMs = 60000, // 1-minute throughput buckets
-    retention = 240, // keep the last N buckets (default 4h at 1m)
+    retention = 1440, // keep the last N buckets (default 24h at 1m — the UI's largest window)
     file,
   } = options;
 
   const methods = {}; // moduleMethod -> emptyMethod()
-  const buckets = new Map(); // bucketTs -> { count, errors, sumDuration }
+  // bucketTs -> { count, errors, sumDuration, methods: { moduleMethod: {count, errors, sumDuration} } }
+  // The per-bucket `methods` map is what makes the UI's TIME-RANGE control real: windowed per-method
+  // count/errors/avg = sum of buckets in range. (Percentiles stay all-time — histograms per bucket
+  // would blow the bounded-memory contract.)
+  const buckets = new Map();
+  // caller -> callee call edges (RFC-015 Tier 2): key `${caller}→${moduleMethod}` where caller is the
+  // x-sv-caller identity (service.Module.method) stamped by the client plugin. Fed via record()'s
+  // info.caller; bounded by the real call-graph size.
+  const edges = {};
+  // LOCAL coupling edges (SystemLynx RFC-008 signals): who calls/loads/listens-to whom IN-PROCESS —
+  // the pre-split extraction-readiness map. kind: "use_module" | "use_service" | "event_subscription".
+  const couplings = {};
   let startedAt = Date.now();
 
   // Restore a persisted snapshot so a restart continues the series rather than resetting it.
@@ -63,6 +74,8 @@ module.exports = function createStats(options = {}) {
         if (saved && saved.methods) Object.assign(methods, saved.methods);
         if (saved && saved.buckets)
           Object.entries(saved.buckets).forEach(([ts, b]) => buckets.set(Number(ts), b));
+        if (saved && saved.edges) Object.assign(edges, saved.edges);
+        if (saved && saved.couplings) Object.assign(couplings, saved.couplings);
         if (saved && saved.startedAt) startedAt = saved.startedAt;
       }
     } catch {
@@ -92,16 +105,47 @@ module.exports = function createStats(options = {}) {
     m.lastSeen = now;
 
     const bTs = Math.floor(now / bucketMs) * bucketMs;
-    const b = buckets.get(bTs) || { count: 0, errors: 0, sumDuration: 0 };
+    const b = buckets.get(bTs) || { count: 0, errors: 0, sumDuration: 0, methods: {} };
     b.count++;
     if (error) b.errors++;
     b.sumDuration += duration;
+    if (!b.methods) b.methods = {}; // tolerate buckets persisted before per-method rollups
+    const bm = b.methods[moduleMethod] || (b.methods[moduleMethod] = { count: 0, errors: 0, sumDuration: 0 });
+    bm.count++;
+    if (error) bm.errors++;
+    bm.sumDuration += duration;
     buckets.set(bTs, b);
+
+    // Cross-service call edge — only when the caller identity arrived (x-sv-caller header).
+    if (info.caller) {
+      const key = `${info.caller}→${moduleMethod}`;
+      const e = edges[key] || (edges[key] = { caller: info.caller, moduleMethod, count: 0, errors: 0 });
+      e.count++;
+      if (error) e.errors++;
+      e.lastSeen = now;
+    }
 
     if (buckets.size > retention) {
       const cutoff = bTs - retention * bucketMs;
       for (const ts of buckets.keys()) if (ts < cutoff) buckets.delete(ts);
     }
+  }
+
+  // One RFC-008 coupling signal observed: {kind, from, to, event?}. Keyed so repeats just count up.
+  function recordCoupling(info = {}) {
+    if (!info.from || !info.to) return;
+    const key = `${info.kind}:${info.from}→${info.to}${info.event ? `:${info.event}` : ""}`;
+    const c =
+      couplings[key] ||
+      (couplings[key] = {
+        kind: info.kind,
+        from: info.from,
+        to: info.to,
+        ...(info.event ? { event: info.event } : {}),
+        count: 0,
+      });
+    c.count++;
+    c.lastSeen = Date.now();
   }
 
   function snapshot() {
@@ -133,8 +177,19 @@ module.exports = function createStats(options = {}) {
         count: b.count,
         errors: b.errors,
         avgDuration: b.count ? b.sumDuration / b.count : 0,
+        methods: b.methods || {},
       }));
-    return { serviceId, projectCode, startedAt, bucketMs, generatedAt: Date.now(), methods: methodList, series };
+    return {
+      serviceId,
+      projectCode,
+      startedAt,
+      bucketMs,
+      generatedAt: Date.now(),
+      methods: methodList,
+      series,
+      edges: Object.values(edges),
+      couplings: Object.values(couplings),
+    };
   }
 
   function flush() {
@@ -142,7 +197,10 @@ module.exports = function createStats(options = {}) {
     try {
       const bucketObj = {};
       buckets.forEach((b, ts) => { bucketObj[ts] = b; });
-      fs.writeFileSync(file, JSON.stringify({ startedAt, methods, buckets: bucketObj }));
+      fs.writeFileSync(
+        file,
+        JSON.stringify({ startedAt, methods, buckets: bucketObj, edges, couplings }),
+      );
     } catch {
       /* best-effort persistence — never throw into the host */
     }
@@ -150,10 +208,12 @@ module.exports = function createStats(options = {}) {
 
   function clear() {
     Object.keys(methods).forEach((k) => delete methods[k]);
+    Object.keys(edges).forEach((k) => delete edges[k]);
+    Object.keys(couplings).forEach((k) => delete couplings[k]);
     buckets.clear();
     startedAt = Date.now();
     flush();
   }
 
-  return { record, snapshot, flush, clear };
+  return { record, recordCoupling, snapshot, flush, clear };
 };

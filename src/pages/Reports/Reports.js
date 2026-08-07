@@ -109,6 +109,52 @@ function LineChart({ series, height = 90, accessor = (d) => d.count, color = "#3
   );
 }
 
+
+const MAP_HUES = ["#6886ba", "#8e5aa8", "#2e8b74", "#b98a1c", "#c25b78", "#4a7fb5", "#7a9b3e", "#5d6c8a"];
+// Deterministic module → hue: alphabetical position over the project's module list, so (a) a module
+// keeps its color across views and refreshes, and (b) neighbors get DIFFERENT hues.
+const buildHueMap = (methods) => {
+  const keys = [...new Set(methods.map((m) => `${m.serviceId}.${m.moduleMethod.split(".")[0]}`))].sort();
+  const map = {};
+  keys.forEach((k, i) => {
+    map[k] = MAP_HUES[i % MAP_HUES.length];
+  });
+  return map;
+};
+
+// Load concentration as VERTICAL columns: height = wall-time share, fill = module hue (grouping),
+// the top CAP = health state (amber watch / red bad) — grouping and state share the bar without
+// fighting over one color channel.
+function LoadColumns({ hotspots, hues = {} }) {
+  const max = Math.max(...hotspots.map((m) => m.share), 0.001);
+  const BAR_AREA = 210;
+  return (
+    <div className="load-cols">
+      {hotspots.map((m) => {
+        const mod = m.moduleMethod.split(".")[0];
+        const hue = hues[`${m.serviceId}.${mod}`] || MAP_HUES[0];
+        return (
+          <div
+            className="load-cols__col"
+            key={`${m.serviceId}.${m.moduleMethod}`}
+            title={`${m.serviceId}.${m.moduleMethod} — ${fmtPct(m.share)} of wall-time · ${fmtInt(m.count)} calls · p99 ${fmtMs(m.p99)}${m.serverErrors ? ` · ${fmtInt(m.serverErrors)} server errors` : ""}`}
+          >
+            <span className={`load-cols__val${m.status === "bad" ? " load-cols__val--bad" : ""}`}>
+              {fmtPct(m.share)}
+            </span>
+            <div
+              className={`load-cols__bar${m.status !== "ok" ? ` load-cols__bar--${m.status}` : ""}`}
+              style={{ height: Math.max(4, (m.share / max) * BAR_AREA), background: hue }}
+            />
+            <span className="load-cols__name">{m.moduleMethod}</span>
+            <span className="load-cols__svc">{m.serviceId}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // RFC-015: explicit "not real yet" marker so mocked/placeholder surfaces are never mistaken for data.
 function Mock({ children }) {
   return (
@@ -176,13 +222,23 @@ const TOPO_H = 520;
 const TOPO_HW = 92;
 const TOPO_HH = 36;
 
-function TopologyGraph({ nodes, edges, projectCode }) {
+function TopologyGraph({ nodes, edges, projectCode, mock = false }) {
   const canvasRef = useRef(null);
   const storageKey = `sv.topo.${projectCode}`;
   const [pos, setPos] = useState({}); // serviceId → {x,y} CENTER, px within the canvas
   const [drag, setDrag] = useState(null);
   const movedRef = useRef(false);
   const [sel, setSel] = useState(null); // {type:"edge", i} | {type:"node", id}
+  // Cards EXPAND DOWN on click, listing the methods other services call on them; edge lines split
+  // near an expanded card into one branch per method.
+  const [expanded, setExpanded] = useState(() => new Set());
+  const toggleExpand = (id) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   // Seed layout: saved arrangement wins; otherwise hub-and-spoke — the most called-INTO service
   // (Profiles in buAPI) sits center, the rest ring around it. Drag anywhere; the layout persists.
@@ -261,6 +317,87 @@ function TopologyGraph({ nodes, edges, projectCode }) {
   nodes.forEach((n) => { nodeById[n.serviceId] = n; });
   const selEdge = sel?.type === "edge" ? edges[sel.i] : null;
 
+  // Every CALLER gets its own line color (stable: alphabetical over the edge sources) so crossing
+  // lines never tangle into one gray web. Health stays on the cards; selection stays blue.
+  const edgeHueIdx = {};
+  [...new Set(live.map((e) => e.from))].sort().forEach((from, i) => {
+    edgeHueIdx[from] = i % MAP_HUES.length;
+  });
+
+  // Selection: one line, or a whole CALLER (clicking a service that reaches out = clicking all its
+  // lines at once — every edge it owns emphasizes, every callee expands, rows highlight in its hue).
+  const isEdgeSelected = (e) =>
+    (sel?.type === "edge" && sel.i === e.i) || (sel?.type === "caller" && e.from === sel.id);
+  const selCaller =
+    sel?.type === "caller" ? sel.id : sel?.type === "edge" ? (edges[sel.i] || {}).from : null;
+  const selHue =
+    selCaller != null && edgeHueIdx[selCaller] != null ? MAP_HUES[edgeHueIdx[selCaller]] : null;
+  const selEdgeIds = new Set(live.filter((e) => isEdgeSelected(e)).map((e) => e.i));
+
+  // EXPANDED cards: rows = the callee's methods that inbound edges actually call, ranked by volume.
+  // Each row remembers which edges feed it, so a specific edge branches only to ITS rows.
+  const ROW_H = 21;
+  const ROW_CAP = 12;
+  const rowsFor = {};
+  nodes.forEach((n) => {
+    if (!expanded.has(n.serviceId)) return;
+    const map = new Map();
+    live.forEach((e) => {
+      if (e.to !== n.serviceId) return;
+      (e.couplings || []).forEach((c) =>
+        (c.calls || []).forEach((call) => {
+          const m = String(call).match(/^(.*?)(?:\s*×\s*([\d,]+))?$/);
+          const name = (m && m[1]) || String(call);
+          const count = m && m[2] ? Number(m[2].replace(/,/g, "")) : 1;
+          const row = map.get(name) || { name, count: 0, edges: new Set() };
+          row.count += count;
+          row.edges.add(e.i);
+          map.set(name, row);
+        }),
+      );
+    });
+    const all = [...map.values()].sort((x, y) => y.count - x.count);
+    rowsFor[n.serviceId] = { rows: all.slice(0, ROW_CAP), more: Math.max(0, all.length - ROW_CAP) };
+  });
+
+  // Per-edge geometry: the usual single bow — or, when the CALLEE is expanded, a TRUNK to a gather
+  // point just off the card edge that SPLITS into one straight arrow per called method row.
+  const geoms = live.map((e) => {
+    const a = pos[e.from], b = pos[e.to];
+    const info = rowsFor[e.to];
+    const listTop = b.y + TOPO_HH + 6;
+    const mine = info
+      ? info.rows
+          .map((r, idx) => ({ ...r, y: listTop + idx * ROW_H + ROW_H / 2 }))
+          .filter((r) => r.edges.has(e.i))
+      : [];
+    if (!mine.length) {
+      const p1 = borderPoint(a, b);
+      const p2 = borderPoint(b, a, 4);
+      const mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
+      const len = Math.max(1, Math.hypot(p2.x - p1.x, p2.y - p1.y));
+      const px = -(p2.y - p1.y) / len, py = (p2.x - p1.x) / len;
+      return { e, type: "simple", p1, p2, c: { x: mx + px * 22, y: my + py * 22 } };
+    }
+    const sign = a.x <= b.x ? -1 : 1; // approach the callee from the caller's side
+    const G = {
+      x: b.x + sign * (TOPO_HW + 38),
+      y: mine.reduce((s, r) => s + r.y, 0) / mine.length,
+    };
+    const p1 = borderPoint(a, G);
+    const mx = (p1.x + G.x) / 2, my = (p1.y + G.y) / 2;
+    const len = Math.max(1, Math.hypot(G.x - p1.x, G.y - p1.y));
+    const px = -(G.y - p1.y) / len, py = (G.x - p1.x) / len;
+    return {
+      e,
+      type: "branched",
+      p1,
+      p2: G,
+      c: { x: mx + px * 18, y: my + py * 18 },
+      targets: mine.map((r) => ({ x: b.x + sign * (TOPO_HW - 2), y: r.y })),
+    };
+  });
+
   return (
     <>
       <div
@@ -276,64 +413,123 @@ function TopologyGraph({ nodes, edges, projectCode }) {
             <marker id="topoArrowSel" markerWidth="9" markerHeight="9" refX="7.5" refY="4.5" orient="auto" markerUnits="userSpaceOnUse">
               <path d="M0,0 L9,4.5 L0,9 Z" className="topo-arrowhead topo-arrowhead--sel" />
             </marker>
+            {/* One arrowhead per palette hue — markers can't inherit their line's stroke. */}
+            {MAP_HUES.map((h, i) => (
+              <marker key={i} id={`topoArrow${i}`} markerWidth="9" markerHeight="9" refX="7.5" refY="4.5" orient="auto" markerUnits="userSpaceOnUse">
+                <path d="M0,0 L9,4.5 L0,9 Z" fill={h} />
+              </marker>
+            ))}
           </defs>
-          {live.map((e) => {
-            const a = pos[e.from], b = pos[e.to];
-            const p1 = borderPoint(a, b);
-            const p2 = borderPoint(b, a, 4);
-            const mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
-            const len = Math.max(1, Math.hypot(p2.x - p1.x, p2.y - p1.y));
-            const px = -(p2.y - p1.y) / len, py = (p2.x - p1.x) / len; // perpendicular — bows the line
-            const c = { x: mx + px * 22, y: my + py * 22 };
-            const d = `M${p1.x},${p1.y} Q${c.x},${c.y} ${p2.x},${p2.y}`;
-            const isSel = sel?.type === "edge" && sel.i === e.i;
+          {geoms.map((g) => {
+            const e = g.e;
+            const d = `M${g.p1.x},${g.p1.y} Q${g.c.x},${g.c.y} ${g.p2.x},${g.p2.y}`;
+            const isSel = isEdgeSelected(e);
+            const hi = edgeHueIdx[e.from] || 0;
+            const hueStyle = { stroke: MAP_HUES[hi] }; // selection thickens, the hue stays
+            const arrow = `url(#topoArrow${hi})`;
+            // Clicking a line SELECTS it and EXPANDS its callee (expand-only — never collapses),
+            // so the highlighted method rows are immediately visible.
+            const pick = () => {
+              setSel({ type: "edge", i: e.i });
+              setExpanded((prev) => {
+                if (prev.has(e.to)) return prev;
+                const next = new Set(prev);
+                next.add(e.to);
+                return next;
+              });
+            };
             return (
               <g key={`${e.from}->${e.to}`}>
-                <path className="topo-edge-hit" d={d} onClick={() => setSel({ type: "edge", i: e.i })} />
+                <path className="topo-edge-hit" d={d} onClick={pick} />
                 <path
                   className={`topo-edge${isSel ? " is-sel" : ""}`}
                   d={d}
-                  markerEnd={`url(#${isSel ? "topoArrowSel" : "topoArrow"})`}
+                  style={hueStyle}
+                  markerEnd={g.type === "simple" ? arrow : undefined}
                 />
+                {g.type === "branched" &&
+                  g.targets.map((t, ti) => (
+                    <path
+                      key={ti}
+                      className={`topo-edge${isSel ? " is-sel" : ""}`}
+                      d={`M${g.p2.x},${g.p2.y} L${t.x},${t.y}`}
+                      style={hueStyle}
+                      markerEnd={arrow}
+                    />
+                  ))}
               </g>
             );
           })}
         </svg>
-        {live.map((e) => {
-          const a = pos[e.from], b = pos[e.to];
-          const p1 = borderPoint(a, b), p2 = borderPoint(b, a, 4);
-          const mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
-          const len = Math.max(1, Math.hypot(p2.x - p1.x, p2.y - p1.y));
-          const px = -(p2.y - p1.y) / len, py = (p2.x - p1.x) / len;
-          // The chip rides the bezier's actual midpoint (t=0.5): ¼·p1 + ½·control + ¼·p2.
-          const cx = mx + px * 22, cy = my + py * 22;
-          const chipX = 0.25 * p1.x + 0.5 * cx + 0.25 * p2.x;
-          const chipY = 0.25 * p1.y + 0.5 * cy + 0.25 * p2.y;
-          const n = e.couplings.reduce((s, cpl) => s + cpl.calls.length, 0);
-          const isSel = sel?.type === "edge" && sel.i === e.i;
+        {geoms.map((g) => {
+          const e = g.e;
+          const { p1, p2, c } = g;
+          // The chip rides the trunk bezier's midpoint (t=0.5): ¼·p1 + ½·control + ¼·p2.
+          const chipX = 0.25 * p1.x + 0.5 * c.x + 0.25 * p2.x;
+          const chipY = 0.25 * p1.y + 0.5 * c.y + 0.25 * p2.y;
+          // Live edges carry real call VOLUME; mock edges fall back to their coupling count.
+          const n = e.volume != null ? e.volume : e.couplings.reduce((s, cpl) => s + cpl.calls.length, 0);
+          const isSel = isEdgeSelected(e);
           return (
             <span
               key={`chip-${e.from}->${e.to}`}
               className={`topo-chip${isSel ? " is-sel" : ""}`}
-              style={{ left: chipX, top: chipY }}
-              onClick={() => setSel({ type: "edge", i: e.i })}
-              title={`${e.from} calls ${e.to} — ${n} couplings`}
+              style={{
+                left: chipX,
+                top: chipY,
+                borderColor: MAP_HUES[edgeHueIdx[e.from] || 0],
+                color: MAP_HUES[edgeHueIdx[e.from] || 0],
+              }}
+              onClick={() => {
+                setSel({ type: "edge", i: e.i });
+                setExpanded((prev) => {
+                  if (prev.has(e.to)) return prev;
+                  const next = new Set(prev);
+                  next.add(e.to);
+                  return next;
+                });
+              }}
+              title={
+                e.volume != null
+                  ? `${e.from} calls ${e.to} — ${fmtInt(e.volume)} calls${e.errors ? `, ${fmtInt(e.errors)} errors` : ""}`
+                  : `${e.from} calls ${e.to} — ${n} couplings`
+              }
             >
-              {n}
+              {fmtInt(n)}
             </span>
           );
         })}
-        {nodes.map((n) => {
+        {(() => {
+          return nodes.map((n) => {
           const p = pos[n.serviceId];
           if (!p) return null;
-          const isSel = sel?.type === "node" && sel.id === n.serviceId;
+          const isOpen = expanded.has(n.serviceId);
+          const info = rowsFor[n.serviceId];
           return (
             <div
               key={n.serviceId}
-              className={`topo-gnode topo-gnode--${n.status || "ok"}${isSel ? " is-sel" : ""}`}
+              className={`topo-gnode topo-gnode--${n.status || "ok"}${isOpen ? " topo-gnode--open" : ""}`}
               style={{ left: p.x, top: p.y }}
               onMouseDown={startDrag(n.serviceId)}
-              onClick={() => { if (!movedRef.current) setSel({ type: "node", id: n.serviceId }); }}
+              onClick={() => {
+                if (movedRef.current) return;
+                const outbound = live.filter((e) => e.from === n.serviceId);
+                if (outbound.length) {
+                  // A CALLER: clicking it = clicking all its lines — select the caller and expand
+                  // every service it reaches (expand-only), plus its own toggle.
+                  setSel({ type: "caller", id: n.serviceId });
+                  setExpanded((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(n.serviceId)) next.delete(n.serviceId);
+                    else next.add(n.serviceId);
+                    outbound.forEach((e) => next.add(e.to));
+                    return next;
+                  });
+                } else {
+                  toggleExpand(n.serviceId);
+                }
+              }}
+              title={isOpen ? "Collapse" : "Expand — the methods other services call here"}
             >
               <div className="topo-gnode__name">
                 <span className={`report-dot report-dot--${n.status || "ok"}`} />
@@ -342,9 +538,52 @@ function TopologyGraph({ nodes, edges, projectCode }) {
               <div className="topo-gnode__sub">
                 {fmtInt(n.count)} calls · p99 {fmtMs(n.p99)}
               </div>
+              {isOpen && info && (
+                <div className="topo-gnode__methods" onClick={(ev) => ev.stopPropagation()}>
+                  {/* Name the CONNECTION when a selection highlights rows here — a floating tag,
+                      NOT a flow row (a row would shift the anchors the branch arrows land on). */}
+                  {selHue &&
+                    selCaller !== n.serviceId &&
+                    info.rows.some((r) => [...r.edges].some((id) => selEdgeIds.has(id))) && (
+                      <div className="topo-gnode__from" style={{ color: selHue, borderColor: selHue }}>
+                        ← {selCaller}
+                      </div>
+                    )}
+                  {info.rows.length === 0 && (
+                    <div className="topo-gnode__mrow topo-gnode__mrow--quiet">no inbound calls</div>
+                  )}
+                  {info.rows.map((r) => {
+                    const hit = selHue && [...r.edges].some((id) => selEdgeIds.has(id));
+                    return (
+                      <div
+                        className="topo-gnode__mrow"
+                        key={r.name}
+                        style={{
+                          height: ROW_H,
+                          ...(hit
+                            ? {
+                                background: `${selHue}1f`,
+                                boxShadow: `inset 3px 0 0 ${selHue}`,
+                                color: selHue,
+                                fontWeight: 700,
+                              }
+                            : {}),
+                        }}
+                      >
+                        <span className="topo-gnode__mname">{r.name}</span>
+                        <span className="topo-gnode__mcount">{fmtInt(r.count)}</span>
+                      </div>
+                    );
+                  })}
+                  {info.more > 0 && (
+                    <div className="topo-gnode__mrow topo-gnode__mrow--quiet">+{info.more} more</div>
+                  )}
+                </div>
+              )}
             </div>
           );
-        })}
+          });
+        })()}
         {live.length === 0 && (
           <div className="topo-canvas__empty">
             no coupling map for this project yet — the mock edge set covers buAPI
@@ -355,7 +594,14 @@ function TopologyGraph({ nodes, edges, projectCode }) {
         {selEdge ? (
           <>
             <div className="topo-detail__title">
-              {selEdge.from} → {selEdge.to} <Mock>couplings</Mock>
+              {selEdge.from} → {selEdge.to}{" "}
+              {mock ? (
+                <Mock>couplings</Mock>
+              ) : (
+                <span className="topo-detail__live">
+                  {fmtInt(selEdge.volume)} calls{selEdge.errors ? ` · ${fmtInt(selEdge.errors)} errors` : ""}
+                </span>
+              )}
             </div>
             {selEdge.couplings.map((c, i) => (
               <div className="topo-detail__row" key={i}>
@@ -378,7 +624,7 @@ function TopologyGraph({ nodes, edges, projectCode }) {
             return (
               <>
                 <div className="topo-detail__title">
-                  {sel.id} <Mock>couplings</Mock>
+                  {sel.id} {mock && <Mock>couplings</Mock>}
                 </div>
                 {out.length === 0 && inn.length === 0 && (
                   <div className="topo-detail__hint">no cross-service calls on record for this service</div>
@@ -425,8 +671,13 @@ export default function Reports() {
   const query = new URLSearchParams(location.search);
   const [connectedProjects, setConnectedProjects] = useState({});
   const [statsByService, setStatsByService] = useState([]); // [{ projectCode, serviceId, snapshot }]
+  const [clusters, setClusters] = useState([]); // LB-mode services' getCluster payloads
   const [filterService, setFilterService] = useState(query.get("service") || "");
   const [report, setReport] = useState(query.get("report") || "state");
+  // Time window over the per-bucket rollups (stats.js keeps per-method counts per minute bucket,
+  // 24h retention). "all" = the all-time rollups. Percentiles/status-mix stay all-time either way —
+  // bounded rollups don't keep per-bucket histograms.
+  const [range, setRange] = useState(query.get("range") || "all");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -449,27 +700,37 @@ export default function Reports() {
     const params = new URLSearchParams();
     if (filterService) params.set("service", filterService);
     if (report && report !== "state") params.set("report", report);
+    if (range && range !== "all") params.set("range", range);
     const qs = params.toString();
     const base = projectCode ? `/reports/${projectCode}` : "/reports";
     window.history.replaceState(null, "", base + (qs ? "?" + qs : ""));
-  }, [projectCode, filterService, report]);
+  }, [projectCode, filterService, report, range]);
 
   const projectServices = (projectCode && connectedProjects[projectCode]) || [];
 
   const loadStats = useCallback(async () => {
     const targets = projectServices.filter((s) => !filterService || s.serviceId === filterService);
     const collected = [];
+    const clusterList = [];
     for (const t of targets) {
       try {
         const { SystemView } = Client.createService(t.connectionData);
         const snap = await SystemView.getStats();
         if (snap && Array.isArray(snap.methods))
           collected.push({ projectCode, serviceId: t.serviceId, snapshot: snap });
+        // RFC-015 §5 — a service running in LB mode answers getCluster with the live cluster state.
+        try {
+          const cluster = await SystemView.getCluster();
+          if (cluster && cluster.lb) clusterList.push(cluster);
+        } catch {
+          /* plugin predates getCluster — fine */
+        }
       } catch {
         /* old plugin without getStats, or unreachable — skip */
       }
     }
     setStatsByService(collected);
+    setClusters(clusterList);
     setLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectCode, JSON.stringify(projectServices.map((s) => s.serviceId)), filterService]);
@@ -496,23 +757,57 @@ export default function Reports() {
   }
 
   // ---- flatten + derive ----
-  const methods = useMemo(
-    () =>
-      statsByService.flatMap((s) =>
-        s.snapshot.methods.map((m) => {
+  const RANGE_MS = { "15m": 15 * 60e3, "1h": 3600e3, "4h": 4 * 3600e3, "24h": 24 * 3600e3 };
+  const methods = useMemo(() => {
+    const win = RANGE_MS[range];
+    const cutoff = win ? Date.now() - win : 0;
+    return statsByService.flatMap((s) => {
+      // Windowed per-method rollup summed from the per-bucket maps (stats.js). Methods silent in
+      // the window drop out — "what happened in the last hour" means exactly that.
+      let windowed = null;
+      if (win) {
+        windowed = {};
+        (s.snapshot.series || []).forEach((pt) => {
+          if (pt.ts < cutoff || !pt.methods) return;
+          Object.entries(pt.methods).forEach(([mm, v]) => {
+            const w = windowed[mm] || (windowed[mm] = { count: 0, errors: 0, sumDuration: 0 });
+            w.count += v.count;
+            w.errors += v.errors;
+            w.sumDuration += v.sumDuration;
+          });
+        });
+      }
+      return s.snapshot.methods
+        .map((m) => {
+          const w = windowed && (windowed[m.moduleMethod] || { count: 0, errors: 0, sumDuration: 0 });
+          const count = w ? w.count : m.count;
+          const errors = w ? w.errors : m.errors;
+          const wall = w ? w.sumDuration : m.totalDuration;
           const { server, client } = splitErrors(m.statusCounts);
+          // statusCounts (and percentiles) are ALL-TIME — per-bucket histograms would break the
+          // bounded-memory contract. In a window, split windowed errors by the all-time server/4xx
+          // ratio — an approximation, but it keeps health's "4xx isn't sickness" semantics.
+          const serverShare = m.errors ? server / m.errors : 1;
+          const serverErrors = w ? Math.round(errors * serverShare) : server;
+          const clientErrors = w ? errors - serverErrors : client;
           return {
             ...m,
+            count,
+            errors,
+            errorRate: count ? errors / count : 0,
+            avgDuration: count ? wall / count : 0,
+            totalDuration: wall,
             projectCode: s.projectCode,
             serviceId: s.serviceId,
-            serverErrors: server,
-            clientErrors: client,
-            serverErrorRate: m.count ? server / m.count : 0,
+            serverErrors,
+            clientErrors,
+            serverErrorRate: count ? serverErrors / count : 0,
           };
-        }),
-      ),
-    [statsByService],
-  );
+        })
+        .filter((m) => !win || m.count > 0);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statsByService, range]);
 
   const totals = useMemo(() => {
     const totalCalls = methods.reduce((a, m) => a + m.count, 0);
@@ -560,7 +855,7 @@ export default function Reports() {
     const totalWall = totals.totalWall || 1;
     return [...methods]
       .sort((a, b) => b.totalDuration - a.totalDuration)
-      .slice(0, 12)
+      .slice(0, 24) // the column chart flexes and scrolls — it can carry more than the bars could
       .map((m) => ({ ...m, share: m.totalDuration / totalWall, status: health(m) }));
   }, [methods, totals.totalWall]);
 
@@ -569,7 +864,10 @@ export default function Reports() {
     [methods],
   );
 
-  // merged throughput series across services (by bucket ts)
+  // One hue per service.Module, shared by the traffic map and the load columns.
+  const hueMap = useMemo(() => buildHueMap(methods), [methods]);
+
+  // merged throughput series across services (by bucket ts), clipped to the active window
   const series = useMemo(() => {
     const merged = new Map();
     statsByService.forEach((s) =>
@@ -580,7 +878,40 @@ export default function Reports() {
         merged.set(pt.ts, cur);
       }),
     );
-    return [...merged.values()].sort((a, b) => a.ts - b.ts);
+    const win = RANGE_MS[range];
+    const cutoff = win ? Date.now() - win : 0;
+    return [...merged.values()]
+      .filter((pt) => !win || pt.ts >= cutoff)
+      .sort((a, b) => a.ts - b.ts);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statsByService, range]);
+
+  // REAL topology edges (RFC-015 Tier 2) — aggregated from every service's stats. Each callee's
+  // snapshot carries {caller: "Service.Module.method", moduleMethod, count, errors} rows fed by the
+  // x-sv-caller header. Grouped service→service; couplings keyed by the calling module.method.
+  const realEdges = useMemo(() => {
+    const byPair = {};
+    statsByService.forEach((s) =>
+      (s.snapshot.edges || []).forEach((e) => {
+        const parts = String(e.caller || "").split(".");
+        const fromService = parts[0];
+        if (!fromService) return;
+        const fromModule = parts[1] || "";
+        const fromMethod = parts.slice(2).join(".");
+        const key = `${fromService}→${s.serviceId}`;
+        const pair =
+          byPair[key] ||
+          (byPair[key] = { from: fromService, to: s.serviceId, volume: 0, errors: 0, couplings: [] });
+        pair.volume += e.count;
+        pair.errors += e.errors;
+        const via = fromMethod || "module-level call";
+        let c = pair.couplings.find((x) => x.module === (fromModule || fromService) && x.via === via);
+        if (!c) pair.couplings.push((c = { module: fromModule || fromService, via, calls: [] }));
+        const call = `${e.moduleMethod} ×${fmtInt(e.count)}`;
+        if (!c.calls.includes(call)) c.calls.push(call);
+      }),
+    );
+    return Object.values(byPair);
   }, [statsByService]);
 
   // ---- Surface Coverage: available (catalog) vs used (traffic) vs tested (specs) ----
@@ -691,13 +1022,17 @@ export default function Reports() {
             <option key={s} value={s}>{s}</option>
           ))}
         </select>
-        <label className="reports-timerange" title="Time-window filtering isn't wired to the per-method rollups yet — they're all-time. Marked so it's not mistaken for real.">
-          <select disabled defaultValue="all">
+        <label
+          className="reports-timerange"
+          title="Window the rollups by time (per-minute buckets, 24h retention). Percentiles and the status-code mix stay all-time — bounded rollups keep no per-bucket histograms."
+        >
+          <select value={range} onChange={(e) => setRange(e.target.value)}>
             <option value="all">all time</option>
+            <option value="15m">last 15m</option>
             <option value="1h">last hour</option>
+            <option value="4h">last 4h</option>
             <option value="24h">last 24h</option>
           </select>
-          <Mock />
         </label>
         <span style={{ flex: 1 }} />
         <button className="reports-clear" onClick={handleClearStats}>Clear stats</button>
@@ -712,6 +1047,7 @@ export default function Reports() {
           ["coverage", "Surface Coverage"],
           ["change", "Change"],
           ["topology", "Topology"],
+          ["coupling", "Module Coupling"],
         ].map(([key, label]) => (
           <button
             key={key}
@@ -719,7 +1055,7 @@ export default function Reports() {
             onClick={() => setReport(key)}
           >
             {label}
-            {key === "topology" && <Mock />}
+            {key === "topology" && !realEdges.length && <Mock />}
           </button>
         ))}
       </div>
@@ -745,13 +1081,82 @@ export default function Reports() {
             <p className="report-lede">
               Each service is a <b>node</b> — drag them anywhere, the layout is saved. Arrows show who
               CALLS whom; click a line (or its count chip) for the module → method couplings behind it.
-              The <Mock>edges</Mock> are shaped from buAPI's real <code>loadService</code> sites — live
-              edges arrive once SystemLynx carries the caller (<code>x-sv-trace</code>/<code>x-sv-caller</code>).
+              {realEdges.length ? (
+                <>
+                  {" "}Edges are <b>live</b> — built from actual cross-service calls
+                  (<code>x-sv-caller</code>), with real call volumes on the chips.
+                </>
+              ) : (
+                <>
+                  {" "}No cross-service calls recorded yet — the <Mock>edges</Mock> shown are shaped
+                  from buAPI's real <code>loadService</code> sites; live edges appear as soon as
+                  services call each other through the upgraded plugin.
+                </>
+              )}
             </p>
             {serviceHealth.length === 0 ? (
               <p className="report-empty">No services reporting yet.</p>
             ) : (
-              <TopologyGraph nodes={serviceHealth} edges={MOCK_TOPO_EDGES} projectCode={projectCode} />
+              <TopologyGraph
+                nodes={serviceHealth}
+                edges={realEdges.length ? realEdges : MOCK_TOPO_EDGES}
+                mock={!realEdges.length}
+                projectCode={projectCode}
+              />
+            )}
+          </>
+        ) : report === "coupling" ? (
+          <>
+            <p className="report-lede">
+              The <b>pre-split map</b> — which modules are wired to which <b>inside</b> each service,
+              from live RFC-008 signals: <code>useModule</code> calls, <code>useService</code> reaches,
+              and <b>event subscriptions</b> (the sneaky channel — a module can look call-independent
+              yet be event-coupled). Loosely coupled = safe to extract; a dense cluster = plan for it.
+            </p>
+            {statsByService.filter((s) => (s.snapshot.couplings || []).length).length === 0 ? (
+              <p className="report-empty">
+                No local couplings observed yet — they record as modules resolve each other
+                (<code>this.useModule</code> / <code>this.useService</code> / <code>.on</code>) on
+                services running the upgraded plugin.
+              </p>
+            ) : (
+              statsByService
+                .filter((s) => (s.snapshot.couplings || []).length)
+                .map((s) => (
+                  <div className="report-section" key={s.serviceId}>
+                    <div className="report-section__title">{s.serviceId}</div>
+                    <table className="report-table">
+                      <thead>
+                        <tr>
+                          <th>from</th>
+                          <th>coupling</th>
+                          <th>to</th>
+                          <th className="report-table__num">seen</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[...s.snapshot.couplings]
+                          .sort((a, b) => b.count - a.count)
+                          .map((c, i) => (
+                            <tr key={i}>
+                              <td className="report-table__method">{c.from}</td>
+                              <td>
+                                <span className={`report-coupling report-coupling--${c.kind}`}>
+                                  {c.kind === "use_module"
+                                    ? "calls module"
+                                    : c.kind === "use_service"
+                                    ? "reaches service"
+                                    : `⚡ listens: ${c.event}`}
+                                </span>
+                              </td>
+                              <td className="report-table__method">{c.to}</td>
+                              <td className="report-table__num">{fmtInt(c.count)}</td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ))
             )}
           </>
         ) : report === "state" ? (
@@ -835,23 +1240,83 @@ export default function Reports() {
         ) : report === "load" ? (
           <>
             <div className="report-section">
-              <h3 className="report-section__title">Load concentration <span className="report-section__hint">— where wall-time goes (who to scale)</span></h3>
+              <h3 className="report-section__title">
+                Load concentration{" "}
+                <span className="report-section__hint">
+                  — where wall-time goes (who to scale) · bar color = module, top cap = state
+                </span>
+              </h3>
               {hotspots.length === 0 ? (
                 <p className="report-empty">No traffic yet.</p>
               ) : (
-                hotspots.map((m) => (
-                  <LoadBar
-                    key={`${m.serviceId}.${m.moduleMethod}`}
-                    label={`${m.moduleMethod}`}
-                    share={m.share}
-                    status={m.status}
-                    value={`${fmtPct(m.share)} · ${fmtMs(m.totalDuration)}`}
-                    sub={`${m.serviceId} · ${fmtInt(m.count)} calls · avg ${fmtMs(m.avgDuration)}`}
-                  />
-                ))
+                <LoadColumns hotspots={hotspots} hues={hueMap} />
               )}
             </div>
-
+            {/* RFC-015 §5 — THE LOAD BALANCER WINDOW: live cluster state read in-process by the
+                plugin riding the LB (policy, clones + heartbeats, route-assignment fairness,
+                join/evict timeline). Renders only when a cluster is actually reporting. */}
+            {clusters.map((c) => {
+              const totalRoutes = Object.values(c.routeCounts || {}).reduce((a, n) => a + n, 0) || 1;
+              const now = c.generatedAt || Date.now();
+              return (
+                <div className="report-section" key={c.serviceId}>
+                  <h3 className="report-section__title">
+                    Load balancer — {c.serviceId}
+                    <span className="report-section__hint">
+                      {" "}— policy <b>{(c.state && c.state.policy) || "?"}</b> · live cluster state
+                    </span>
+                  </h3>
+                  {((c.state && c.state.services) || []).map((svc) => {
+                    const loads = (c.state.loads || []).filter((l) =>
+                      (svc.locations || []).includes(l.location),
+                    );
+                    return (
+                      <div className="report-lb" key={svc.route}>
+                        <div className="report-lb__head">
+                          <b>{svc.name}</b>
+                          <span className="report-lb__meta">
+                            {svc.locations.length} clone{svc.locations.length !== 1 ? "s" : ""} · route{" "}
+                            <code>{svc.route}</code>
+                          </span>
+                        </div>
+                        {(svc.locations || []).map((loc) => {
+                          const assigned = c.routeCounts
+                            ? Object.entries(c.routeCounts)
+                                .filter(([k]) => k.endsWith(`|${loc}`))
+                                .reduce((a, [, n]) => a + n, 0)
+                            : 0;
+                          const l = loads.find((x) => x.location === loc) || {};
+                          const ago = l.seen ? Math.round((now - l.seen) / 1000) : null;
+                          return (
+                            <LoadBar
+                              key={loc}
+                              label={loc}
+                              share={assigned / totalRoutes}
+                              value={`${fmtInt(assigned)} assigned (${fmtPct(assigned / totalRoutes)})`}
+                              sub={`load ${l.load != null ? l.load : "—"} · heartbeat ${ago != null ? `${ago}s ago` : "never"}`}
+                              status={ago != null && ago < 60 ? "ok" : "watch"}
+                            />
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                  {(c.timeline || []).length > 0 && (
+                    <div className="report-lb__timeline">
+                      {c.timeline.slice(-6).reverse().map((ev, i) => (
+                        <div className="report-lb__event" key={i}>
+                          <span className={`report-lb__etype report-lb__etype--${ev.type}`}>
+                            {ev.type === "new_clone" ? "＋ clone" : ev.type === "new_service" ? "＋ service" : "− evicted"}
+                          </span>
+                          <code>{ev.url || (ev.service && ev.service.route) || ""}</code>
+                          <span className="report-lb__ets">{new Date(ev.ts).toLocaleTimeString()}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
             <div className="report-section">
               <h3 className="report-section__title">Latency <span className="report-section__hint">— the tail is what triggers scaling</span></h3>
               <table className="report-table">

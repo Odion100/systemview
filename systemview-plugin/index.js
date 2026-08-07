@@ -49,10 +49,15 @@ module.exports = function ({
   // RFC-015 Reports: roll up the trace stream into bounded per-method + time-bucketed stats.
   // `true` (default) / `false`, or an object of overrides ({ bucketMs, retention, file }).
   stats: statsConfig = true,
+  // RFC-015 §5 LB mode: normally auto-detected (App.getModule("Tentacle")), but the shipped
+  // LoadBalancer is Service()-based with no plugin system yet — so a host that HOLDS the live
+  // Tentacle handle (same process) can pass it explicitly and the plugin observes the cluster
+  // through it. Explicit handle wins over detection.
+  tentacle: tentacleHandle = null,
   redact = [],
   exclude = [],
 }) {
-  return function (App) {
+  return function (App, system) {
     // RFC-017: one folder for everything SystemView writes into the project.
     const SV_DIR = path.resolve(process.cwd(), dir);
     ensureDir(SV_DIR);
@@ -205,6 +210,31 @@ module.exports = function ({
       return true;
     }
 
+    // -- RFC-015 §5: LOAD-BALANCER MODE. Detected on ready (a Tentacle module is present). The
+    //    plugin then reads cluster state in-process and subscribes to the Tentacle's local
+    //    lifecycle/routing events. `lb.routeCounts` = per-location assignment tallies from
+    //    route_assigned (balance fairness); `lb.timeline` = bounded join/evict history. --
+    const lb = { isLB: false, tentacle: null, routeCounts: {}, timeline: [] };
+    const LB_TIMELINE_CAP = 100;
+    const lbEvent = (type, data) => {
+      lb.timeline.push({ type, ...data, ts: Date.now() });
+      if (lb.timeline.length > LB_TIMELINE_CAP) lb.timeline.splice(0, lb.timeline.length - LB_TIMELINE_CAP);
+    };
+
+    function getCluster() {
+      if (!lb.isLB || !lb.tentacle || typeof lb.tentacle.getClusterState !== "function")
+        return { lb: false };
+      return {
+        lb: true,
+        serviceId,
+        projectCode,
+        state: lb.tentacle.getClusterState(),
+        routeCounts: lb.routeCounts,
+        timeline: lb.timeline,
+        generatedAt: Date.now(),
+      };
+    }
+
     function SystemViewLogModule() {
       this.trace = trace;
       this.log = log;
@@ -215,6 +245,7 @@ module.exports = function ({
       this.clearLog = clearLog;
       this.getStats = getStats;
       this.clearStats = clearStats;
+      this.getCluster = getCluster;
     }
 
     const makeLogger = (moduleName, req) => {
@@ -247,7 +278,13 @@ module.exports = function ({
         )
           return next();
         req._svStart = Date.now();
-        req._svTraceId = `${String(req._svStart).slice(-6)}-${Math.random().toString(36).slice(2, 6)}`;
+        // RFC-015 Tier 2: ADOPT an inbound trace (stamped by a calling service's client hook) so a
+        // cross-service call chain shares one traceId; the caller identity feeds the topology edges.
+        const h = req.headers || {};
+        req._svTraceId =
+          h["x-sv-trace"] ||
+          `${String(req._svStart).slice(-6)}-${Math.random().toString(36).slice(2, 6)}`;
+        req._svCaller = h["x-sv-caller"];
 
         if (req.Module) {
           Object.assign(req.Module, makeLogger(req.module_name, req));
@@ -260,6 +297,7 @@ module.exports = function ({
               duration: Date.now() - req._svStart,
               error: true,
               status: (err && err.status) || 500,
+              caller: req._svCaller,
             });
           if (sv && traceConfig !== false) {
             sv.trace(
@@ -308,6 +346,7 @@ module.exports = function ({
         if (statsAgg)
           statsAgg.record(`${req.module_name}.${req.fn}`, {
             duration: Date.now() - req._svStart,
+            caller: req._svCaller,
           });
         if (sv && traceConfig !== false) {
           sv.trace(
@@ -350,7 +389,9 @@ module.exports = function ({
           await SystemViewSvc.connect({ system, projectCode, serviceId, specList, credentials });
           console.log(`[SystemView]: ${projectCode}.${serviceId} connected!\n`);
         } catch (err) {
-          console.log(`[SystemView]: ${projectCode}.${serviceId} connection failed\n`);
+          console.log(
+            `[SystemView]: ${projectCode}.${serviceId} connection failed — ${(err && err.message) || err}\n`,
+          );
         }
       });
     }
@@ -392,6 +433,80 @@ module.exports = function ({
       const flushTimer = setInterval(() => statsAgg.flush(), 30000);
       if (flushTimer.unref) flushTimer.unref();
     }
+
+    // RFC-015 §5 — LB-mode detection + subscriptions. All in-process reads/local events; the LB
+    // reports to SystemView the way every other service does, it just records cluster behavior.
+    App.on("ready", function () {
+      const Tentacle =
+        tentacleHandle ||
+        (typeof App.getModule === "function" && App.getModule("Tentacle"));
+      if (!Tentacle || typeof Tentacle.on !== "function") return;
+      lb.isLB = true;
+      lb.tentacle = Tentacle;
+      Tentacle.on("route_assigned", ({ route, location, policy }) => {
+        const key = `${route}|${location}`;
+        lb.routeCounts[key] = (lb.routeCounts[key] || 0) + 1;
+        lb.lastPolicy = policy;
+      });
+      Tentacle.on("new_service", (d) => lbEvent("new_service", d || {}));
+      Tentacle.on("new_clone", (d) => lbEvent("new_clone", d || {}));
+      Tentacle.on("location_removed", (d) => lbEvent("location_removed", d || {}));
+    });
+
+    // RFC-015 report #7 (Module Coupling) — observe the SystemLynx RFC-008 local coupling signals.
+    // The framework $emits on the CALLER module: use_module / use_service (who resolves whom) and
+    // event_subscription (who listens to whose events, with the event name). Local-only $emits — a
+    // co-loaded listener on each module's dispatcher catches them; nothing crosses the wire.
+    if (statsAgg)
+      App.on("ready", function () {
+        if (typeof App.getModules !== "function") return;
+        Object.entries(App.getModules()).forEach(([name, mod]) => {
+          if (SKIP_MODULES.includes(name) || !mod || typeof mod.on !== "function") return;
+          const sub = (kind) => (d) => {
+            if (d && d.to) statsAgg.recordCoupling({ kind, from: d.from || name, to: d.to, event: d.event });
+          };
+          mod.on("use_module", sub("use_module"));
+          mod.on("use_service", sub("use_service"));
+          mod.on("event_subscription", sub("event_subscription"));
+        });
+      });
+
+    // RFC-015 Tier 2 — OUTBOUND trace stamping (rides SystemLynx RFC-005 client hooks + RFC-007
+    // caller-bound copies). On every call this service makes to a loaded peer, stamp:
+    //   x-sv-trace  — the inbound request's trace when reachable (this.__caller.req), else a fresh id
+    //   x-sv-caller — who is calling: serviceId[.Module[.method]]
+    // The receiving service's plugin adopts the trace and records the caller → the topology edge.
+    // Callers via `this.useService(...)` carry full context; middleware callers (`req.module.use…`)
+    // degrade to module-level identity — still a real edge. Never throws into outbound traffic.
+    if (statsAgg)
+      App.on("ready", function () {
+        if (!system || !Array.isArray(system.services)) return;
+        system.services.forEach(({ name, client }) => {
+          if (name === "SystemViewUI") return; // the hub connection is not system traffic
+          if (!client || typeof client.before !== "function") return;
+          client.before("$all", function (payload, next) {
+            try {
+              const caller = this && this.__caller;
+              const req = caller && caller.req;
+              const trace =
+                (req && req._svTraceId) ||
+                ((req && req.headers) || {})["x-sv-trace"] ||
+                `${String(Date.now()).slice(-6)}-${Math.random().toString(36).slice(2, 6)}`;
+              const from = caller && (caller.__name || (req && req.module_name));
+              const fn = req && req.fn;
+              this.setHeaders({
+                "x-sv-trace": trace,
+                "x-sv-caller": `${serviceId || "unknown"}${from ? `.${from}` : ""}${
+                  from && fn ? `.${fn}` : ""
+                }`,
+              });
+            } catch {
+              /* stamping must never break the call */
+            }
+            next();
+          });
+        });
+      });
     if (useSystemViewLogs)
       App.on("ready", function () {
         sv = this.useModule("SystemView");
