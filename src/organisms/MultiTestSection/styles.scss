@@ -25,6 +25,10 @@
     padding: 10px 12px;
     width: 100%;
     border-radius: 6px;
+    // Dark mode: the surface reads as its own plane — no border (user call).
+    :root.sv-dark & {
+      border: none;
+    }
     &--empty {
       background: var(--sv-inset);
       color: var(

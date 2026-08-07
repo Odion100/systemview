@@ -10,6 +10,7 @@ import "./styles.scss";
 import { Client, markCredentialed } from "../../systemClient";
 import CodebaseNav from "../CodebaseNav/CodebaseNav";
 import { useAppDark } from "../../atoms/appTheme";
+import Help from "../../atoms/Help/Help";
 
 const TrashIcon = () => (
   <svg
@@ -246,6 +247,7 @@ const SystemNav = ({
                 >
                   <span className="panel-title__arrow">‹</span>
                   <Title text="Navigator" />
+                  <Help topic="navigator" />
                 </span>
               </div>
             </div>

@@ -9,6 +9,8 @@ import ServiceContext from "../../ServiceContext";
 import Stage from "../Stage/Stage";
 import { Client } from "../../systemClient";
 import LogAnalyzer from "../LogAnalyzer/LogAnalyzer";
+import { useHelpTopic, setHelpTopic } from "../../atoms/Help/helpStore";
+import HELP_TOPICS from "../../atoms/Help/helpTopics";
 
 function InlineLogs({ projectCode, serviceId, moduleName, methodName }) {
   const { connectedServices } = useContext(ServiceContext);
@@ -214,7 +216,12 @@ export default function Documentation({
   const location = useLocation();
   const urlTab = new URLSearchParams(location.search).get("tab") || "docs";
   const [tab, setTab] = useState(urlTab);
+  // A ? icon anywhere in the app sets a help topic; while one is open it takes the middle panel's
+  // content spot. Picking a tab dismisses it — the tab is an explicit "show me that instead".
+  const helpTopic = useHelpTopic();
+  const helpOpen = !!helpTopic;
   const selectTab = useCallback((t) => {
+    setHelpTopic(null);
     setTab(t);
     const p = new URLSearchParams(window.location.search);
     p.set("tab", t);
@@ -365,13 +372,19 @@ export default function Documentation({
           </span>
           )}
         </div>
+        {/* An open HELP topic takes the content spot — whatever tab was showing waits behind it. */}
+        {helpOpen && (
+          <div className="documentation-view__data-table">
+            <HelpPane topicKey={helpTopic} />
+          </div>
+        )}
         {/* RFC-022 — the Code center: edit-first file pane fed by the Codebase nav's selection. */}
-        {fileLens && tab !== "window" && (
+        {!helpOpen && fileLens && tab !== "window" && (
           <div className="documentation-view__data-table">
             <CodePane file={codeFile} onClose={onCloseFile} />
           </div>
         )}
-        {!fileLens && tab === "docs" && (
+        {!helpOpen && !fileLens && tab === "docs" && (
           <div className="documentation-view__data-table">
             {/* The doc IS a file panel — a framed pane with a header/badge. When nothing is selected it
                 shows SystemView's own help; otherwise the per-namespace doc (getDoc/saveDoc). The doc's
@@ -396,7 +409,7 @@ export default function Documentation({
             />
           </div>
         )}
-        {!fileLens && tab === "logs" && (
+        {!helpOpen && !fileLens && tab === "logs" && (
           <InlineLogs
             projectCode={sProject}
             serviceId={sService}
@@ -409,7 +422,7 @@ export default function Documentation({
             codebase, not the nav's namespace selection, so every story shows regardless. */}
         <div
           className="documentation-view__window"
-          style={{ display: tab === "window" ? "block" : "none" }}
+          style={{ display: !helpOpen && tab === "window" ? "block" : "none" }}
         >
           <Stage
             projectCode={lens === "files" && codeFile ? codeFile.projectCode : sProject}
@@ -423,6 +436,36 @@ export default function Documentation({
     </section>
   );
 }
+
+// A help topic shown in the doc pane's clothes: same header band + md-view read box, its own
+// "help" badge tint, Close returns to whatever tab was showing. Read-only by design — help content
+// lives in src/atoms/Help/helpTopics.js, not in the repo's specs/docs.
+const HelpPane = ({ topicKey }) => {
+  const [editorDark] = useEditorDark("docs");
+  const t = HELP_TOPICS[topicKey] || {
+    title: topicKey,
+    body: "_No help written for this topic yet — add it in `src/atoms/Help/helpTopics.js`._",
+  };
+  return (
+    <div className="doc-pane">
+      <div className={`doc-pane__header ${!editorDark ? "doc-pane__header--light" : ""}`}>
+        <span className="doc-pane__kind doc-pane__kind--help">help</span>
+        <span className="doc-pane__label">{t.title}</span>
+        <span className="doc-pane__actions">
+          <EditorThemeToggle scope="docs" />
+          <button type="button" className="doc-pane__btn" onClick={() => setHelpTopic(null)}>
+            Close
+          </button>
+        </span>
+      </div>
+      <div className="doc-pane__body">
+        <div className={`md-view md-view--${editorDark ? "dark" : "light"}`}>
+          <Markdown dark={editorDark} children={t.body} />
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // The doc pane, whole: header (badge + namespace label + the Edit/Save/Close controls) and the body
 // (rendered document, or the dark editor while editing). Same shape as the Code pane — the header

@@ -7,6 +7,7 @@ import FoldContext from "../TestPanel/FoldContext";
 
 import "./styles.scss";
 import Count from "../../atoms/Count";
+import Help from "../../atoms/Help/Help";
 
 const DRAG_MIME = "application/x-sv-step";
 // EVENT steps are their own species (event_name arg + `.on` listener) — they rearrange within Events
@@ -120,6 +121,7 @@ const MultiTestSection = ({
   onStepMove,
   onStepDuplicate,
   sectionDragKey, // RFC-023 — set = this SECTION is draggable (rearranges the run order; Main never is)
+  helpTopic, // key into helpTopics.js — renders a ? beside the caption that opens it in the middle
 }) => {
   const className = "multi-test-section";
   const [open, setOpen] = useState(false);
@@ -196,6 +198,7 @@ const MultiTestSection = ({
                   )}
                   {caption}{" "}
                   {TestSection.length > 0 && <Count count={TestSection.length} />}
+                  {helpTopic && <Help topic={helpTopic} />}
                   {/* Remove (×) lives WITH the title (badge · name · count) — so the run/+ group below
                       lines up flush with the other sections instead of being pushed in by an × there. */}
                   {onRemove && (

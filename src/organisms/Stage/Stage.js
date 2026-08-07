@@ -9,6 +9,7 @@ import React, {
 import ServiceContext from "../../ServiceContext";
 import PaneView from "./PaneView";
 import { useStageAdd } from "./StageAdd";
+import Help from "../../atoms/Help/Help";
 import "./styles.scss";
 
 // RFC-018 — the Stories TAB. A namespace can hold MANY named stories (like a method holds many tests),
@@ -564,6 +565,7 @@ const Stage = ({ projectCode, serviceId, moduleName, methodName, onStageChange }
       ) : (
         <>
           <div className="stage__toolbar">
+            <Help topic="stories" />
             {/* REPORT story — a quiet read tally (panes marked ✓ read). */}
             {!isApproval && reviewedCount > 0 && (
               <div className="stage__approval">

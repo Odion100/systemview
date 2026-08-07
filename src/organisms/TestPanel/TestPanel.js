@@ -23,6 +23,7 @@ import MultiTestSection from "../MultiTestSection/MultiTestSection";
 import { TestAction } from "../Stage/TestStory";
 import Count from "../../atoms/Count";
 import FoldContext from "./FoldContext";
+import Help from "../../atoms/Help/Help";
 
 export default function FullTest({
   projectCode,
@@ -444,6 +445,7 @@ const FullTestInner = ({
           ) : (
             <Title text="Scratch Pad" />
           )}
+          <Help topic={tab === "actions" ? "actions" : "scratchpad"} />
           {/* Always-on save-target chip: the namespace this test SAVES under (its own field — Main
               steps may point elsewhere). Click it to change the target — essential on a higher
               namespace where nothing points at a method yet. A loaded SAVED test adds its slot (#N)

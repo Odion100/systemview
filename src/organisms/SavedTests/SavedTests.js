@@ -4,6 +4,7 @@ import Count from "../../atoms/Count";
 import { EditIcon, XButton } from "../../atoms/RunTestIcon";
 import { resetScratchpad } from "./transformTests";
 import TestStory from "../Stage/TestStory";
+import Help from "../../atoms/Help/Help";
 import "./styles.scss";
 
 window.Client = Client;
@@ -107,6 +108,7 @@ const SavedTests = ({
         <div className={`${CLASSNAME}__hrow`}>
           <span className={`${CLASSNAME}__label`}>
             Saved tests <Count count={savedTests.length} />
+            <Help topic="saved-tests" />
           </span>
           <div className={`${CLASSNAME}__controls`}>
             <button

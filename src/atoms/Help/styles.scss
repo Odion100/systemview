@@ -1,0 +1,29 @@
+// The ? help icon — quiet until hovered, sized to ride beside titles without moving them.
+.help-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid var(--sv-border);
+  color: var(--sv-text-faint);
+  font-size: 9.5px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+  vertical-align: middle;
+  margin-left: 6px;
+  flex: none;
+  &:hover {
+    color: var(--sv-blue);
+    border-color: var(--sv-blue);
+    background: var(--sv-hover);
+  }
+}
+
+// The help doc's header badge — same slot as the doc pane's "doc" kind badge, its own tint.
+.doc-pane__kind--help {
+  background: var(--sv-indigo);
+}

@@ -1,38 +1,22 @@
 .test-container {
-  // Each test is its OWN bordered card — a COMPLETE object, full 1px border on all four sides.
-  border: 1px solid #d5d9e4;
-  border-radius: 8px;
+  // Each step reads like a saved-action card: flat, LEFT-RAIL identity — no full box, no radius.
+  // The run status is not a second border system: it RECOLORS this same left rail (green pass /
+  // red fail / blue running), so the card never resizes or shifts when a run colors it.
   background: var(--sv-surface);
-  padding: 8px 8px 6px;
+  border-left: 2px solid #d5d9e4;
   margin-bottom: 8px;
+  padding: 8px 8px 6px;
   position: relative;
+  transition: border-color 0.15s;
 
-  // The run status (green pass / red fail / blue running) is an OVERLAY rail hugging the inside of
-  // the left edge — it exists invisibly at zero width impact, so the card NEVER resizes/shifts when
-  // a run colors it, and the card keeps its own left border underneath. Rounded to match the card's
-  // corners (no overflow:hidden — that would clip the step pickers' dropdowns).
-  &::after {
-    content: "";
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 3px;
-    border-radius: 7px 0 0 7px;
-    background: transparent;
-    pointer-events: none;
-    transition: background 0.15s;
+  &--pass {
+    border-left-color: #2db44f;
   }
-  &--pass::after {
-    background: #2db44f;
-  }
-  &--fail::after {
-    background: #e05757;
+  &--fail {
+    border-left-color: #e05757;
   }
   &--running {
-    &::after {
-      background: var(--sv-blue);
-    }
+    border-left-color: var(--sv-blue);
     // An indeterminate stripe across the top makes "in progress" unmistakable — not just color.
     &::before {
       content: "";

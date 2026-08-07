@@ -19,6 +19,7 @@ const EventsTest = ({ TestSection, TestController, namespace, FullTest, sectionK
       onStepMove={onStepMove}
       onStepDuplicate={onStepDuplicate}
       sectionDragKey={sectionDragKey}
+      helpTopic="events"
     />
   );
 };
