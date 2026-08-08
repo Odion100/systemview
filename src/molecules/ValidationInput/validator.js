@@ -125,8 +125,15 @@ export function validateResults() {
 }
 
 export function getErrors({ type, value, validations, expected_type }) {
+  // A type mismatch fails the value validations too — undefined can't equal "Queens". Returning only
+  // the typeError left them un-run, and the display renders an un-run validation as passed.
   if (type !== expected_type && expected_type !== "mixed")
-    return [{ name: "typeError", expected: expected_type, received: type }];
+    return [
+      { name: "typeError", expected: expected_type, received: type },
+      ...(validations || [])
+        .filter((v) => v.name)
+        .map(({ name, value: expected }) => ({ name, expected, received: value })),
+    ];
 
   switch (type) {
     case "number":
