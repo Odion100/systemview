@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect, useCallback } from "react";
+import React, { useState, useContext, useEffect, useCallback, useRef } from "react";
 import { useHistory, useLocation } from "react-router-dom";
 import "./styles.scss";
 import DescriptionBox from "../../atoms/DescriptionBox/DescriptionBox";
@@ -6,10 +6,9 @@ import { EditorThemeToggle, useEditorDark } from "../../atoms/CodeView/editorThe
 import Markdown from "../../atoms/Markdown/Markdown";
 import CodePane from "../CodePane/CodePane";
 import ServiceContext from "../../ServiceContext";
-import Stage from "../Stage/Stage";
 import { Client } from "../../systemClient";
 import InlineLogs from "../InlineLogs/InlineLogs";
-import { useHelpTopic, useHelpDepth, backHelpTopic, setHelpTopic } from "../../atoms/Help/helpStore";
+import { backHelpTopic, setHelpTopic } from "../../atoms/Help/helpStore";
 import HELP_TOPICS from "../../atoms/Help/helpTopics";
 import { raiseError } from "../../atoms/Banner/bannerStore";
 import ReportsTab from "../Reports/ReportsTab";
@@ -138,14 +137,14 @@ export default function Documentation({
   serviceId,
   moduleName,
   methodName,
-  // RFC-022 — the page-level lens + the file open from the Codebase nav. In the file lens the center
-  // is CODE (edit-first CodePane) instead of Documentation/Logs; Stories stays.
-  lens = "systemlynx",
+  // The file open from the Codebase nav. RFC-026: the center is driven by WHAT IS OPEN, never by
+  // which nav lens is showing — an open file means CODE (edit-first CodePane) whichever tab the nav
+  // is on, and flipping the nav's SystemLynx/Codebases tabs changes nothing in the middle.
   codeFile = null,
   onCloseFile = () => {},
 }) {
   const { connectedServices } = useContext(ServiceContext);
-  const fileLens = lens === "files" && !!codeFile;
+  const fileLens = !!codeFile;
 
   // Middle-panel scope — what the docs / logs / stories target. It DEFAULTS to the nav selection, but the
   // breadcrumb below can retarget it up or down INDEPENDENTLY of the nav: you can read logs (or stories, or
@@ -165,24 +164,31 @@ export default function Documentation({
   // deep-linked. selectTab writes it; a back/forward that changes the URL syncs back into state.
   const history = useHistory();
   const location = useLocation();
-  const urlTab = new URLSearchParams(location.search).get("tab") || "docs";
+  // "window" was the retired Stories tab — old URLs land on Stage (its replacement).
+  const rawTab = new URLSearchParams(location.search).get("tab") || "docs";
+  const urlTab = rawTab === "window" ? "reports" : rawTab;
   const [tab, setTab] = useState(urlTab);
-  // A ? icon anywhere in the app sets a help topic; while one is open it takes the middle panel's
-  // content spot. Picking a tab dismisses it — the tab is an explicit "show me that instead".
-  const helpTopic = useHelpTopic();
-  const helpDepth = useHelpDepth();
+  // A ? icon anywhere in the app (or the nav's help section) sets a help topic; while one is open it
+  // takes the middle panel's content spot. It lives in the URL (`?help=`, owned by SystemView.js) —
+  // that's the whole cure for "help locks you in": browser back pops it, and any navigation that
+  // rewrites the search drops it. Picking a tab dismisses it — an explicit "show me that instead".
+  const helpTopic = new URLSearchParams(location.search).get("help");
   const helpOpen = !!helpTopic;
-  // Help must never survive a navigation. It used to: the topic lived in module state with no tie to
-  // the URL, so once you opened help the centre kept showing it no matter what you selected — the
-  // "it locks you in, you have to refresh" bug.
+  // Navigations that DON'T rewrite the URL search still exist (the breadcrumb retargets scope in
+  // state only) — those clear help explicitly. Skip the mount run, or a deep-linked `?help=` would
+  // close itself on arrival.
+  const scopeKey = `${sProject}|${sService}|${sModule}|${sMethod}`;
+  const prevScopeKey = useRef(scopeKey);
   useEffect(() => {
+    if (prevScopeKey.current === scopeKey) return;
+    prevScopeKey.current = scopeKey;
     setHelpTopic(null);
-  }, [projectCode, serviceId, moduleName, methodName]);
+  }, [scopeKey]);
   const selectTab = useCallback((t) => {
-    setHelpTopic(null);
     setTab(t);
     const p = new URLSearchParams(window.location.search);
     p.set("tab", t);
+    p.delete("help");
     history.replace({ search: p.toString() });
   }, [history]);
   useEffect(() => { setTab(urlTab); }, [urlTab]);
@@ -197,14 +203,6 @@ export default function Documentation({
     history.replace({ search: p.toString() });
   }, [history]);
 
-  // Stories (RFC-018) is the third peer tab here — Documentation / Logs / Stories. The Stage stays mounted
-  // (its socket subscription must be live), so we track pane count ONLY to badge the tab with a dot. We do
-  // NOT auto-switch to it: navigating to a namespace that has stories would flip you off the tab you were
-  // on for no reason — jarring. The dot tells you stories exist; you click in when you want them.
-  const [stageCount, setStageCount] = useState(0);
-  const handleStageChange = useCallback((count) => {
-    setStageCount(count);
-  }, []);
 
   // Which service's plugin serves this doc. BUG THIS FIXES: at project level we used to take the
   // FIRST service in the project — but a project can contain services with NO plugin (a codebase
@@ -261,43 +259,26 @@ export default function Documentation({
             The selected namespace rides at the END of this same row (no separate title row → more vertical
             space for the document / stories / logs below). */}
         <div className="doc-tabs">
-          {fileLens ? (
-            // File lens: the center is CODE (edit-first). Logs stay with the service lens.
-            <button
-              className={`doc-tab ${tab !== "window" ? "doc-tab--active" : ""}`}
-              onClick={() => selectTab("docs")}
-            >
-              Code
-            </button>
-          ) : (
-            <>
-              <button
-                className={`doc-tab ${tab === "docs" ? "doc-tab--active" : ""}`}
-                onClick={() => selectTab("docs")}
-              >
-                Documentation
-              </button>
-              <button
-                className={`doc-tab ${tab === "logs" ? "doc-tab--active" : ""}`}
-                onClick={() => selectTab("logs")}
-              >
-                Logs
-              </button>
-            </>
-          )}
-          {!fileLens && (
-            <button
-              className={`doc-tab ${tab === "reports" ? "doc-tab--active" : ""}`}
-              onClick={() => selectTab("reports")}
-            >
-              Report
-            </button>
-          )}
+          {/* RFC-026 — the FULL tab set, always. An open file puts Code in the Documentation slot
+              (the file IS the document you're reading); Logs/Report/Stories stay reachable, scoped
+              to the PROJECT — a file open means you're on the project namespace, not off it. */}
           <button
-            className={`doc-tab ${tab === "window" ? "doc-tab--active" : ""}`}
-            onClick={() => selectTab("window")}
+            className={`doc-tab ${tab === "docs" ? "doc-tab--active" : ""}`}
+            onClick={() => selectTab("docs")}
           >
-            Stories{stageCount > 0 ? <span className="doc-tab__dot" /> : null}
+            {fileLens ? "Code" : "Documentation"}
+          </button>
+          <button
+            className={`doc-tab ${tab === "logs" ? "doc-tab--active" : ""}`}
+            onClick={() => selectTab("logs")}
+          >
+            Logs
+          </button>
+          <button
+            className={`doc-tab ${tab === "reports" ? "doc-tab--active" : ""}`}
+            onClick={() => selectTab("reports")}
+          >
+            Stage
           </button>
           {/* The scope breadcrumb. Each segment is CLICKABLE: it retargets the middle panel (docs/logs/
               stories) to that level WITHOUT moving the nav or scratchpad. The segment matching the current
@@ -361,11 +342,11 @@ export default function Documentation({
         {/* An open HELP topic takes the content spot — whatever tab was showing waits behind it. */}
         {helpOpen && (
           <div className="documentation-view__data-table">
-            <HelpPane topicKey={helpTopic} depth={helpDepth} />
+            <HelpPane topicKey={helpTopic} />
           </div>
         )}
         {/* RFC-022 — the Code center: edit-first file pane fed by the Codebase nav's selection. */}
-        {!helpOpen && fileLens && tab !== "window" && (
+        {!helpOpen && fileLens && tab === "docs" && (
           <div className="documentation-view__data-table">
             <CodePane file={codeFile} onClose={onCloseFile} />
           </div>
@@ -398,40 +379,26 @@ export default function Documentation({
         )}
         {/* REPORTS — one document with the whole panel. The picker shows only until you choose;
             then the document owns the space and an ✕ brings the list back (RFC-025). */}
-        {!helpOpen && !fileLens && tab === "reports" && (
+        {/* With a file open, Logs and Report run at the PROJECT level — same rule as Stories. */}
+        {!helpOpen && tab === "reports" && (
           <ReportsTab
-            key={`${sProject}.${sService}.${sModule}.${sMethod}`}
-            projectCode={sProject}
-            serviceId={sService}
-            moduleName={sModule}
-            methodName={sMethod}
+            key={fileLens ? codeFile.projectCode : `${sProject}.${sService}.${sModule}.${sMethod}`}
+            projectCode={fileLens ? codeFile.projectCode : sProject}
+            serviceId={fileLens ? undefined : sService}
+            moduleName={fileLens ? undefined : sModule}
+            methodName={fileLens ? undefined : sMethod}
             openName={reportPath}
             onOpen={openReport}
           />
         )}
-        {!helpOpen && !fileLens && tab === "logs" && (
+        {!helpOpen && tab === "logs" && (
           <InlineLogs
-            projectCode={sProject}
-            serviceId={sService}
-            moduleName={sModule}
-            methodName={sMethod}
+            projectCode={fileLens ? codeFile.projectCode : sProject}
+            serviceId={fileLens ? undefined : sService}
+            moduleName={fileLens ? undefined : sModule}
+            methodName={fileLens ? undefined : sMethod}
           />
         )}
-        {/* Stage stays mounted (subscription live for auto-focus); tab just toggles visibility.
-            In the CODEBASE lens the stories scope is the whole PROJECT — you're looking at the
-            codebase, not the nav's namespace selection, so every story shows regardless. */}
-        <div
-          className="documentation-view__window"
-          style={{ display: !helpOpen && tab === "window" ? "block" : "none" }}
-        >
-          <Stage
-            projectCode={lens === "files" && codeFile ? codeFile.projectCode : sProject}
-            serviceId={lens === "files" ? undefined : sService}
-            moduleName={lens === "files" ? undefined : sModule}
-            methodName={lens === "files" ? undefined : sMethod}
-            onStageChange={handleStageChange}
-          />
-        </div>
       </div>
     </section>
   );

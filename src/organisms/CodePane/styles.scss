@@ -1,7 +1,7 @@
 // RFC-022 — the Code center pane: framed like the doc pane (header/badge + body), but edit-first.
 .code-pane {
   background: var(--sv-surface);
-  border: 1px solid #e3e6ee;
+  border: 1px solid var(--sv-border);
   border-radius: 8px;
   overflow: hidden;
   display: flex;
@@ -12,7 +12,9 @@
     align-items: center;
     gap: 8px;
     padding: 6px 10px;
-    background: var(--sv-pane-header); // THE unified header band — same as doc + story pane headers
+    background: var(
+      --sv-pane-header
+    ); // THE unified header band — same as doc + story pane headers
     border-bottom: 1px solid var(--sv-border-soft);
     flex-shrink: 0;
   }

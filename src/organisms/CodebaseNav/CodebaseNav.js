@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useHistory } from "react-router-dom";
+import { useHistory, useLocation } from "react-router-dom";
 import loadServiceWithHeaders from "../../utils/loadService";
 import DocIcon from "../../atoms/DocsIcon/DocsIcon";
 import TestsIcon from "../../atoms/TestsIcon/TestsIcon";
+import HELP_TOPICS from "../../atoms/Help/helpTopics";
+import { setHelpTopic } from "../../atoms/Help/helpStore";
 import "./styles.scss";
 
 // RFC-022 — the CODEBASE navigation (the "Codebase" nav tab). Designed fresh for files, NOT a copy of
@@ -32,6 +34,14 @@ function buildTree(files) {
 const Chevron = ({ open }) => (
   <span className={`${CLASSNAME}__chevron`}>{open ? "▾" : "▸"}</span>
 );
+
+// Namespace pushes CARRY the current `?tab=` (same contract as the SystemLynx Link atom) — browsing
+// namespaces while on Reports/Logs/Stories must not snap you back to Documentation. Everything else
+// in the search (help, file params) is deliberately dropped: navigating retires those.
+const withTab = (path) => {
+  const tab = new URLSearchParams(window.location.search).get("tab");
+  return tab ? { pathname: path, search: `?tab=${tab}` } : path;
+};
 
 function DirNode({
   name,
@@ -89,24 +99,71 @@ function DirNode({
   );
 }
 
-// A project-defined (dynamic) service — a MINI SystemLynx tree living under its codebase. Fully
-// navigable like the SystemLynx section: service/module/method all select + route, the current
+// One of the project's services — real OR project-defined — as a MINI SystemLynx tree living under
+// its codebase (RFC-026: this card is the whole nav, so real services render here too, same rows).
+// Fully navigable like the SystemLynx section: service/module/method all select + route, the current
 // namespace highlights, and navigating hands the center back to docs/tests (closes any open file).
-function DynamicService({ service, projectCode, history, selection, onNavigate }) {
+// Modules expand INDIVIDUALLY — a service with many modules must not dump every method on open.
+function ServiceNode({ service, projectCode, history, selection, onNavigate, revealNs, serviceStatus = {}, bulk = null }) {
   const isSelectedService =
     selection.serviceId === service.serviceId && selection.projectCode === projectCode;
+  // Pointed at from a document (`:ns[…]` reveal) — expand down to the target, mark it, select nothing.
+  const isRevealedService = !!revealNs && revealNs.serviceId === service.serviceId;
   const [open, setOpen] = useState(isSelectedService);
+  const [openMods, setOpenMods] = useState(() => new Set());
+  useEffect(() => {
+    if (isRevealedService) setOpen(true);
+  }, [isRevealedService]);
+  // The card head's bulk fold: collapse closes this service AND its modules; expand reopens the
+  // service (modules stay closed — the point is the map, not every method).
+  useEffect(() => {
+    if (!bulk) return;
+    if (bulk.mode === "collapse") {
+      setOpen(false);
+      setOpenMods(new Set());
+    } else setOpen(true);
+  }, [bulk]);
   const modules = ((service.system || {}).connectionData || {}).modules || [];
+  const svcUrl = ((service.system || {}).connectionData || {}).serviceUrl || "";
   const go = (path) => {
     onNavigate(); // close the open code file — namespace navigation shows the namespace center
-    history.push(path);
+    history.push(withTab(path));
   };
+  const toggleMod = (name) =>
+    setOpenMods((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  // Bring the pointed-at (or newly selected) row into view — a reveal that lands off-screen reads
+  // as "nothing happened". Once per target, and only when the row isn't already visible.
+  const scrolledKey = useRef(null);
+  const scrollTo = (key) => (el) => {
+    if (!el || scrolledKey.current === key) return;
+    scrolledKey.current = key;
+    const sc = el.closest(".system-nav__body");
+    if (!sc) return;
+    const r = el.getBoundingClientRect();
+    const b = sc.getBoundingClientRect();
+    if (r.top < b.top || r.bottom > b.bottom) el.scrollIntoView({ block: "center" });
+  };
+  // SELECTED beats REVEALED on any row wearing both — being somewhere outranks being pointed at.
+  const svcSelected = isSelectedService && !selection.moduleName;
+  const svcRevealed = isRevealedService && !revealNs.moduleName && !svcSelected;
   return (
     <div className={`${CLASSNAME}__dyn-service`}>
       <button
         type="button"
-        className={`${CLASSNAME}__service ${isSelectedService && !selection.moduleName ? `${CLASSNAME}__service--selected` : ""}`}
-        title="Open this project-defined service (SystemLynx namespace surface)"
+        ref={
+          svcRevealed
+            ? scrollTo(`r:${service.serviceId}`)
+            : svcSelected
+            ? scrollTo(`s:${service.serviceId}`)
+            : undefined
+        }
+        className={`${CLASSNAME}__service ${svcSelected ? `${CLASSNAME}__service--selected` : ""}${svcRevealed ? ` ${CLASSNAME}__row--revealed` : ""}`}
+        title={`Open ${service.serviceId} (SystemLynx namespace surface)`}
         onClick={() => {
           setOpen(true);
           go(`/specs/${projectCode}/${service.serviceId}`);
@@ -121,54 +178,112 @@ function DynamicService({ service, projectCode, history, selection, onNavigate }
         >
           <Chevron open={open} />
         </span>
-        <span className={`${CLASSNAME}__service-dot`} />
+        {/* Real services wear their LIVE/DOWN probe status (same colors as the SystemLynx tab);
+            project-defined ones keep the plum — a project:// identifier can't be probed. */}
+        <span
+          className={`${CLASSNAME}__service-dot${service.dynamic ? "" : ` ${CLASSNAME}__service-dot--${serviceStatus[svcUrl] || "unknown"}`}`}
+          title={service.dynamic ? "project-defined" : `service ${serviceStatus[svcUrl] || "unknown"}`}
+        />
         {service.serviceId}
+        {/* A span with its own click, not an <a> — the row is a <button> and nesting anchors in
+            buttons is invalid. project:// identifiers aren't addresses, so they stay inert. */}
+        <span
+          className={`${CLASSNAME}__svc-url${/^https?:\/\//.test(svcUrl) ? ` ${CLASSNAME}__svc-url--live` : ""}`}
+          title={/^https?:\/\//.test(svcUrl) ? `${svcUrl} — open in a new tab` : svcUrl || undefined}
+          onClick={(e) => {
+            if (!/^https?:\/\//.test(svcUrl)) return;
+            e.stopPropagation();
+            window.open(svcUrl, "_blank", "noopener");
+          }}
+        >
+          {svcUrl}
+        </span>
+        <span className={`${CLASSNAME}__dyn-icons`}>
+          <DocIcon
+            isSaved={(((service.specList || {}).docs) || []).includes(`${service.serviceId}.md`)}
+          />
+        </span>
       </button>
       {open && (
         <div className={`${CLASSNAME}__dyn-modules`}>
           {modules.map((m) => {
             const isSelectedModule = isSelectedService && selection.moduleName === m.name;
+            const isRevealedModule = isRevealedService && revealNs.moduleName === m.name;
+            // Selection and reveal force a module open — arriving anywhere inside it must show it.
+            const modOpen = openMods.has(m.name) || isSelectedModule || isRevealedModule;
             const specList = service.specList || { tests: [], docs: [] };
+            const modSelected = isSelectedModule && !selection.methodName;
+            const modRevealed = isRevealedModule && !revealNs.methodName && !modSelected;
             return (
               <div key={m.name}>
                 <button
                   type="button"
-                  className={`${CLASSNAME}__dyn-module ${isSelectedModule && !selection.methodName ? `${CLASSNAME}__dyn-module--selected` : ""}`}
-                  onClick={() =>
-                    go(`/specs/${projectCode}/${service.serviceId}/${m.name}`)
+                  ref={
+                    modRevealed
+                      ? scrollTo(`r:${service.serviceId}.${m.name}`)
+                      : modSelected
+                      ? scrollTo(`s:${service.serviceId}.${m.name}`)
+                      : undefined
                   }
+                  className={`${CLASSNAME}__dyn-module ${modSelected ? `${CLASSNAME}__dyn-module--selected` : ""}${modRevealed ? ` ${CLASSNAME}__row--revealed` : ""}`}
+                  onClick={() => {
+                    if (!modOpen) toggleMod(m.name);
+                    go(`/specs/${projectCode}/${service.serviceId}/${m.name}`);
+                  }}
                 >
+                  <span
+                    className={`${CLASSNAME}__dyn-caret`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleMod(m.name);
+                    }}
+                  >
+                    <Chevron open={modOpen} />
+                  </span>
                   {m.name}
                   <span className={`${CLASSNAME}__dyn-icons`}>
                     <DocIcon isSaved={(specList.docs || []).includes(`${m.name}.md`)} />
                   </span>
                 </button>
-                {(m.methods || []).map((fn) => (
-                  <button
-                    key={fn.fn}
-                    type="button"
-                    className={`${CLASSNAME}__dyn-method ${isSelectedModule && selection.methodName === fn.fn ? `${CLASSNAME}__dyn-method--selected` : ""}`}
-                    title={`${service.serviceId}.${m.name}.${fn.fn} — docs, tests, and the scratchpad`}
-                    onClick={() =>
-                      go(`/specs/${projectCode}/${service.serviceId}/${m.name}/${fn.fn}`)
-                    }
-                  >
-                    {fn.fn}
-                    <span className={`${CLASSNAME}__dyn-paren`}>()</span>
-                    {/* Same saved-doc / saved-test indicators the SystemLynx tab wears — this IS a
+                {modOpen &&
+                  (m.methods || []).map((fn) => {
+                    const fnSelected = isSelectedModule && selection.methodName === fn.fn;
+                    const fnRevealed =
+                      isRevealedModule && revealNs.methodName === fn.fn && !fnSelected;
+                    return (
+                    <button
+                      key={fn.fn}
+                      type="button"
+                      ref={
+                        fnRevealed
+                          ? scrollTo(`r:${service.serviceId}.${m.name}.${fn.fn}`)
+                          : fnSelected
+                          ? scrollTo(`s:${service.serviceId}.${m.name}.${fn.fn}`)
+                          : undefined
+                      }
+                      className={`${CLASSNAME}__dyn-method ${fnSelected ? `${CLASSNAME}__dyn-method--selected` : ""}${fnRevealed ? ` ${CLASSNAME}__row--revealed` : ""}`}
+                      title={`${service.serviceId}.${m.name}.${fn.fn} — docs, tests, and the scratchpad`}
+                      onClick={() =>
+                        go(`/specs/${projectCode}/${service.serviceId}/${m.name}/${fn.fn}`)
+                      }
+                    >
+                      {fn.fn}
+                      <span className={`${CLASSNAME}__dyn-paren`}>()</span>
+                      {/* Same saved-doc / saved-test indicators the SystemLynx tab wears — this IS a
                         mini SystemLynx tree, just owned by the codebase. */}
-                    <span className={`${CLASSNAME}__dyn-icons`}>
-                      <DocIcon
-                        isSaved={(specList.docs || []).includes(`${m.name}.${fn.fn}.md`)}
-                      />
-                      <TestsIcon
-                        isSaved={(specList.tests || []).includes(
-                          `${m.name}.${fn.fn}.json`,
-                        )}
-                      />
-                    </span>
-                  </button>
-                ))}
+                      <span className={`${CLASSNAME}__dyn-icons`}>
+                        <DocIcon
+                          isSaved={(specList.docs || []).includes(`${m.name}.${fn.fn}.md`)}
+                        />
+                        <TestsIcon
+                          isSaved={(specList.tests || []).includes(
+                            `${m.name}.${fn.fn}.json`,
+                          )}
+                        />
+                      </span>
+                    </button>
+                    );
+                  })}
               </div>
             );
           })}
@@ -181,14 +296,21 @@ function DynamicService({ service, projectCode, history, selection, onNavigate }
   );
 }
 
-// One connected codebase: header, filter, file tree, and its project-defined services.
-function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigate, revealedPath = null }) {
-  const { projectCode, fileHost, dynamicServices } = entry;
+// One connected codebase: header, ALL the project's services (real + project-defined), and the file
+// tree behind its own fold.
+function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigate, revealFile = null, revealNs = null, serviceStatus = {} }) {
+  const { projectCode, fileHost, services, dynamicServices } = entry;
   const history = useHistory();
-  // The codebase HOLDING the open file starts (and stays) expanded — coming back to this tab with a
-  // file open must land you on its selection, not a collapsed card.
+  // Reveals scoped to THIS card. A file reveal always names its host project; a namespace reveal
+  // matches on projectCode.
+  const myRevealNs = revealNs && revealNs.projectCode === projectCode ? revealNs : null;
+  const revealedPath =
+    revealFile && (!revealFile.projectCode || revealFile.projectCode === projectCode)
+      ? revealFile.path
+      : null;
+  // RFC-026 — the card itself never collapses: it's the project's whole nav, and its header
+  // NAVIGATES (project-level docs/tests) instead of toggling.
   const holdsOpenFile = !!(openFile && openFile.projectCode === projectCode);
-  const [open, setOpen] = useState(isCurrent || holdsOpenFile);
   const [files, setFiles] = useState(null); // null = not loaded; [] = loaded empty
   const [changed, setChanged] = useState(new Set());
   const [truncated, setTruncated] = useState(false);
@@ -212,16 +334,52 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
     set(!value);
     localStorage.setItem(key, String(!value));
   };
+  // RFC-026 — the file region (filter + tree) folds behind its own `code` row. COLLAPSED by
+  // default: selection drives it — it opens itself when a file in this project is opened or
+  // revealed, and expands down to that file.
+  const [codeOpen, setCodeOpen] = useState(holdsOpenFile);
+  const flipCode = () => setCodeOpen(!codeOpen);
+  // Bulk fold on the head: one click closes EVERYTHING inside the card (every service, every
+  // module, the code fold); click again re-opens the services. The card itself never collapses —
+  // this empties it instead.
+  const [bulk, setBulk] = useState(null); // { n, mode: "collapse" | "expand" }
+  const foldAll = (e) => {
+    e.stopPropagation(); // the head navigates — this control must not
+    const mode = bulk && bulk.mode === "collapse" ? "expand" : "collapse";
+    setBulk({ n: (bulk ? bulk.n : 0) + 1, mode });
+    setCodeOpen(mode === "expand" ? codeOpen : false);
+  };
 
   useEffect(() => {
-    if (holdsOpenFile) setOpen(true);
+    if (holdsOpenFile) setCodeOpen(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [holdsOpenFile && openFile.path]);
 
-  // (Re)load the file list on EVERY expand — a fresh tree + fresh changed-dots each time the codebase
-  // opens, so edits/commits made since the last look actually show. Previous list stays while loading.
+  // A file reveal must actually END UP VISIBLE: open the code fold and unselect every active
+  // filter — a filtered-out reveal reads as "nothing happened".
   useEffect(() => {
-    if (!open || !fileHost) return;
+    if (!revealedPath) return;
+    setCodeOpen(true);
+    setFilter("");
+    if (changedOnly) {
+      setChangedOnly(false);
+      localStorage.setItem("sv.cbNav.changedOnly", "false");
+    }
+    if (docsOnly) {
+      setDocsOnly(false);
+      localStorage.setItem("sv.cbNav.docsOnly", "false");
+    }
+    if (trackedOnly) {
+      setTrackedOnly(false);
+      localStorage.setItem("sv.cbNav.trackedOnly", "false");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [revealedPath]);
+
+  // Load the file list as soon as the host is live (the card is always open now) — the count and
+  // the head doc indicator need it even while the code fold is closed.
+  useEffect(() => {
+    if (!fileHost) return;
     let live = true;
     (async () => {
       try {
@@ -247,10 +405,10 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
     return () => {
       live = false;
     };
-    // fileHost identity is a dep: on a refresh the card can mount OPEN before the services have
-    // connected — the list must load when the host ARRIVES, not only on the next expand.
+    // fileHost identity is a dep: on a refresh the card mounts before the services have
+    // connected — the list must load when the host ARRIVES.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, fileHost && fileHost.serviceId]);
+  }, [fileHost && fileHost.serviceId]);
 
   // Auto-expand the folder path DOWN TO the open file (and scroll its row into view once) — the tree
   // shows the selection whenever you arrive with a file already open.
@@ -270,6 +428,23 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [files, holdsOpenFile ? openFile.path : null]);
+
+  // Same expansion for a REVEALED file — the tree must open down to the row being pointed at.
+  useEffect(() => {
+    if (!files || !revealedPath) return;
+    const parts = revealedPath.split("/");
+    parts.pop();
+    if (parts.length)
+      setOpenDirs((prev) => {
+        const next = new Set(prev);
+        let key = "";
+        parts.forEach((seg) => {
+          key = key ? `${key}/${seg}` : seg;
+          next.add(key);
+        });
+        return next;
+      });
+  }, [files, revealedPath]);
 
   const tree = useMemo(() => (files ? buildTree(files) : null), [files]);
   // Rollup: how many changed files live under each directory prefix (for the collapsed-dir badges).
@@ -297,16 +472,17 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
   const renderFile = (f, depth) => {
     const selected =
       openFile && openFile.projectCode === projectCode && openFile.path === f.path;
-    // Pointed at from a document (RFC-025): expanded to and highlighted, but NOT open in the centre.
-    const isRevealed = !!revealedPath && revealedPath === f.path;
+    // Pointed at from a document (RFC-025): expanded to and highlighted, but NOT open in the
+    // centre. SELECTED beats REVEALED — being open outranks being pointed at.
+    const isRevealed = !selected && !!revealedPath && revealedPath === f.path;
     return (
       <button
         key={f.path}
         type="button"
-        // Scroll the selected row into view ONCE per open file — arriving with a file open lands
-        // right on it, without re-scrolling on every unrelated render.
+        // Scroll the selected (or revealed) row into view ONCE per file — arriving lands right on
+        // it, without re-scrolling on every unrelated render.
         ref={
-          selected
+          selected || isRevealed
             ? (el) => {
                 if (el && scrolledTo.current !== f.path) {
                   scrolledTo.current = f.path;
@@ -362,58 +538,95 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
     <div
       className={`${CLASSNAME}__codebase ${isCurrent ? `${CLASSNAME}__codebase--current` : ""}`}
     >
+      {/* The header NAVIGATES — project-level docs/tests — it does not toggle (RFC-026: the card
+          is the project's whole nav and stays open; the `code` fold below owns collapsing). */}
       <button
         type="button"
         className={`${CLASSNAME}__cb-head`}
-        onClick={() => setOpen(!open)}
+        title={`Open ${projectCode} — project documentation and tests`}
+        onClick={() => {
+          onNavigate();
+          history.push(withTab(`/specs/${projectCode}`));
+        }}
       >
-        <Chevron open={open} />
         <span className={`${CLASSNAME}__cb-badge`}>codebase</span>
         <span className={`${CLASSNAME}__cb-name`}>{projectCode}</span>
+        {/* Project doc = `<projectCode>.md` at the repo root — only knowable once the file list is
+            loaded, so the indicator renders only then. */}
+        {files && (
+          <span className={`${CLASSNAME}__dyn-icons`}>
+            <DocIcon isSaved={files.some((f) => f.path === `${projectCode}.md`)} />
+          </span>
+        )}
         {files && (
           <span className={`${CLASSNAME}__cb-count`}>
             {files.length}
             {truncated ? "+" : ""}
           </span>
         )}
+        <span
+          className={`${CLASSNAME}__cb-fold`}
+          role="button"
+          title={
+            bulk && bulk.mode === "collapse"
+              ? "Expand the services"
+              : "Collapse everything in this project"
+          }
+          onClick={foldAll}
+        >
+          {bulk && bulk.mode === "collapse" ? "▸" : "▾"}
+        </span>
       </button>
-      {open && (
-        <div className={`${CLASSNAME}__cb-body`}>
-          {/* Project-defined services (RFC-021) — synthesized namespaces owned by this codebase.
-              Expandable IN PLACE: service → modules → methods, so you SEE the map immediately;
+      <div className={`${CLASSNAME}__cb-body`}>
+          {/* ALL of the project's services (RFC-026) — real ones first, then project-defined
+              (RFC-021 synthesized namespaces). Expandable IN PLACE: service → modules → methods;
               clicking a method points the page (and the scratchpad) at that namespace. */}
           <div className={`${CLASSNAME}__services`}>
             <div className={`${CLASSNAME}__section-label`}>
-              project-testing services
+              project services
               <span className={`${CLASSNAME}__lynx-tag`}>SystemLynx</span>
             </div>
-            {dynamicServices.length ? (
-              dynamicServices.map((s) => (
-                <DynamicService
+            {[...services, ...dynamicServices].length ? (
+              [...services, ...dynamicServices].map((s) => (
+                <ServiceNode
                   key={s.serviceId}
                   service={s}
                   projectCode={projectCode}
                   history={history}
                   selection={selection}
                   onNavigate={onNavigate}
+                  revealNs={myRevealNs}
+                  serviceStatus={serviceStatus}
+                  bulk={bulk}
                 />
               ))
             ) : (
               <div className={`${CLASSNAME}__empty`}>
-                none yet — an agent can define them (docs/agents/namespaces.md)
+                none yet — an agent can define them (agents/namespaces.md)
               </div>
             )}
           </div>
 
-          {!fileHost && (
+          {/* RFC-026 — the whole file region sits behind one `code` fold: root indentation, quiet,
+              same section-label voice as `project services` above it. */}
+          <button
+            type="button"
+            className={`${CLASSNAME}__code-fold`}
+            title={codeOpen ? "Collapse the file tree" : "Expand the file tree"}
+            onClick={flipCode}
+          >
+            <Chevron open={codeOpen} />
+            <span className={`${CLASSNAME}__code-fold-label`}>code</span>
+          </button>
+          {codeOpen && !fileHost && (
             <div className={`${CLASSNAME}__empty`}>no live service with file access</div>
           )}
-          {error && <div className={`${CLASSNAME}__empty`}>{error}</div>}
-          {fileHost && !files && !error && (
+          {codeOpen && error && <div className={`${CLASSNAME}__empty`}>{error}</div>}
+          {codeOpen && fileHost && !files && !error && (
             <div className={`${CLASSNAME}__empty`}>loading files…</div>
           )}
 
-          {files && (
+          {codeOpen && files && (
             <>
               {/* Filter row: text query (substring, or `*.ext`) + composing toggles. The clear ×
                   rides INSIDE the input's right end — one click exits the filter. */}
@@ -508,7 +721,6 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
             </>
           )}
         </div>
-      )}
     </div>
   );
 }
@@ -521,15 +733,20 @@ const CodebaseNav = ({
   methodName,
   openFile,
   onOpenFile,
-  // RFC-025 — a file pointed at from a document: expanded to and highlighted, but not opened.
-  revealedPath = null,
+  // RFC-025/026 — a pointer from a document (`:file[…]` or `:ns[…]`): expanded to and highlighted,
+  // but not opened/selected.
+  reveal = null,
+  // live/down per serviceUrl — probed by SystemNavigator, shared by both lenses.
+  serviceStatus = {},
   theme = "light",
 }) => {
   const selection = { projectCode, serviceId, moduleName, methodName };
   const onNavigate = () => onOpenFile(null); // namespace navigation closes the open code file
+  const revealFile = reveal && reveal.kind === "file" ? reveal : null;
+  const revealNs = reveal && reveal.kind === "namespace" ? reveal : null;
   // A codebase = a project. Its file host = the first LIVE (non-dynamic) service exposing the plugin
-  // file providers (siblings share a cwd, so one host serves the whole project's tree). Its
-  // project-defined services = the RFC-021 dynamic entries registered under the project.
+  // file providers (siblings share a cwd, so one host serves the whole project's tree). It carries
+  // ALL the project's services (RFC-026) plus the RFC-021 project-defined (dynamic) entries.
   const codebases = useMemo(() => {
     const byProject = {};
     connectedServices.forEach((s) => {
@@ -537,40 +754,87 @@ const CodebaseNav = ({
         byProject[s.projectCode] = {
           projectCode: s.projectCode,
           fileHost: null,
+          services: [],
           dynamicServices: [],
         };
       const cb = byProject[s.projectCode];
       if (s.dynamic) cb.dynamicServices.push(s);
-      else if (
-        !cb.fileHost &&
-        (((s.system || {}).connectionData || {}).modules || []).some(
-          (m) => m.name === "Plugin",
+      else {
+        cb.services.push(s);
+        if (
+          !cb.fileHost &&
+          (((s.system || {}).connectionData || {}).modules || []).some(
+            (m) => m.name === "Plugin",
+          )
         )
-      )
-        cb.fileHost = s;
+          cb.fileHost = s;
+      }
     });
     return Object.values(byProject);
   }, [connectedServices]);
 
-  if (!codebases.length)
-    return <div className={`${CLASSNAME}__empty`}>No connected codebases.</div>;
-
   return (
     <div className={`${CLASSNAME} ${theme === "dark" ? `${CLASSNAME}--dark` : ""}`}>
-      {codebases.map((cb) => (
-        <Codebase
-          key={cb.projectCode}
-          entry={cb}
-          isCurrent={cb.projectCode === projectCode}
-          openFile={openFile}
-          onOpenFile={onOpenFile}
-          selection={selection}
-          onNavigate={onNavigate}
-          revealedPath={revealedPath}
-        />
-      ))}
+      {codebases.length ? (
+        codebases.map((cb) => (
+          <Codebase
+            key={cb.projectCode}
+            entry={cb}
+            isCurrent={cb.projectCode === projectCode}
+            openFile={openFile}
+            onOpenFile={onOpenFile}
+            selection={selection}
+            onNavigate={onNavigate}
+            revealFile={revealFile}
+            revealNs={revealNs}
+            serviceStatus={serviceStatus}
+          />
+        ))
+      ) : (
+        <div className={`${CLASSNAME}__empty`}>No connected codebases.</div>
+      )}
+      <HelpSection revealedTopic={reveal && reveal.kind === "help" ? reveal.topic : null} />
     </div>
   );
 };
+
+// RFC-026 — help topics live IN the nav, always at the bottom under every codebase: pick one like
+// you pick anything else, the open topic highlights, and because the topic is just `?help=` in the
+// URL, back and navigation behave — no modal state to get stuck inside. A `:help[…]` chip clicked
+// in a document REVEALS its row here (same contract as `:ns`/`:file`), scrolled into view.
+function HelpSection({ revealedTopic = null }) {
+  const location = useLocation();
+  const active = new URLSearchParams(location.search).get("help");
+  const scrolledTo = useRef(null);
+  return (
+    <div className={`${CLASSNAME}__help`}>
+      <div className={`${CLASSNAME}__section-label`}>help</div>
+      {Object.entries(HELP_TOPICS).map(([key, t]) => {
+        const isRevealed = revealedTopic === key && active !== key;
+        return (
+          <button
+            key={key}
+            type="button"
+            ref={
+              isRevealed
+                ? (el) => {
+                    if (el && scrolledTo.current !== key) {
+                      scrolledTo.current = key;
+                      el.scrollIntoView({ block: "center" });
+                    }
+                  }
+                : undefined
+            }
+            className={`${CLASSNAME}__help-row${active === key ? ` ${CLASSNAME}__help-row--selected` : ""}${isRevealed ? ` ${CLASSNAME}__row--revealed` : ""}`}
+            title={`Open the "${t.title}" help topic`}
+            onClick={() => setHelpTopic(key)}
+          >
+            {t.title}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 export default CodebaseNav;

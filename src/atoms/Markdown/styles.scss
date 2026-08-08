@@ -128,6 +128,9 @@
   table,
   pre {
     margin: 15px 0;
+    // Long unwrapped lines scroll in the block, never the page.
+    max-width: 100%;
+    overflow-x: auto;
   }
 
   & hr {
@@ -239,6 +242,10 @@
   & table {
     padding: 0;
     border-collapse: collapse;
+    // Wide tables scroll INSIDE their own box — the document itself must never scroll sideways.
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
   }
   & table tr {
     border-top: 1px solid #d7dbe6;
@@ -661,11 +668,18 @@
 
   // ── block embeds (::chart …) ──
   .md-embed {
-    margin: 15px 0;
+    // No own margin — it collapses through the .md-block wrapper and stacks on the surface's flow
+    // spacing (.md-commentable's 12px), which is what pushed an embed BELOW the text beside it in
+    // a column. The wrappers own the rhythm; the embed is just a box.
     padding: 9px 11px 11px;
     border: 1px solid #e6e9f0;
     border-radius: 8px;
     background: #fbfcfe;
+    // An embed's internal layout (log table, load columns) scrolls inside the card — the document
+    // itself must never scroll sideways.
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: auto;
 
     &__head {
       display: flex;
@@ -801,12 +815,37 @@
   // ::::columns{split=60} / :::col
   .md-columns {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    // minmax(0, 1fr), NOT 1fr — a bare fr track's auto minimum can't shrink below its content,
+    // so one wide embed/table/code line forces the whole document to scroll sideways.
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 18px;
     margin: 15px 0;
     align-items: start;
+    // The column clamps; anything too wide inside it scrolls IN the column, never the page.
+    &__col { min-width: 0; overflow-x: auto; }
     &__col > *:first-child { margin-top: 0; }
     &__col > *:last-child { margin-bottom: 0; }
+
+    // RFC-026 — the drag boundary between two columns. The 18px track IS the gap (gap drops to 0
+    // on the resizable variant); a slim bar appears only on hover so the look doesn't change.
+    &--resizable { gap: 0; }
+    &__divider {
+      cursor: col-resize;
+      align-self: stretch;
+      position: relative;
+      &::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 8px;
+        width: 2px;
+        border-radius: 2px;
+      }
+      &:hover::before {
+        background: #c9cfe8;
+      }
+    }
   }
   @media (max-width: 900px) {
     .md-columns { grid-template-columns: 1fr; }
@@ -1202,10 +1241,19 @@
   }
 
   // `::file` / `::diff` — a story's file and diff panes, inside a document. Bounded like the logs
-  // embed so one file can't turn a document into a scroll marathon.
+  // embed so one file can't turn a document into a scroll marathon. The cap sits on the EDITOR's
+  // own scroller, not just the wrapper — CodeView only centers on a highlighted range when the
+  // editor owns its scroll, and CodeMirror only decorates lines it renders into that viewport.
   .md-embed--file,
   .md-embed--diff {
     .md-embed__file-body {
+      max-height: 460px;
+      overflow: auto;
+    }
+    .md-embed__file-body .cm-editor {
+      max-height: 460px;
+    }
+    .md-embed__file-body .cm-scroller {
       max-height: 460px;
       overflow: auto;
     }

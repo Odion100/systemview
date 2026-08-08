@@ -261,34 +261,22 @@ const SystemNav = ({
               </div>
             </div>
           )}
-          {/* Tabs sit right under the header — parallel to the scratchpad's Test/Actions tabs. */}
+          {/* RFC-026 — ONE nav. The unified card (services + files + help) took over everything the
+              old SystemLynx tree did, so the tab strip is just the name and the connect button. */}
           <div className="row system-nav__section">
             <div className="col-12">
               <div className="system-nav__tabs">
-                <button
-                  type="button"
-                  className={`system-nav__tab ${navTab === "systemlynx" ? "system-nav__tab--active" : ""}`}
-                  onClick={() => setNavTab("systemlynx")}
-                >
+                <button type="button" className="system-nav__tab system-nav__tab--active">
                   SystemLynx
                 </button>
                 <button
                   type="button"
-                  className={`system-nav__tab ${navTab === "files" ? "system-nav__tab--active" : ""}`}
-                  onClick={() => setNavTab("files")}
+                  className={`system-nav__tab-add ${adding ? "system-nav__tab-add--open" : ""}`}
+                  title={adding ? "Cancel" : "loadService — connect a service"}
+                  onClick={() => (adding ? cancelConnect() : setAdding(true))}
                 >
-                  Codebases
+                  {adding ? "✕" : "+"}
                 </button>
-                {navTab === "systemlynx" && (
-                  <button
-                    type="button"
-                    className={`system-nav__tab-add ${adding ? "system-nav__tab-add--open" : ""}`}
-                    title={adding ? "Cancel" : "loadService — connect a service"}
-                    onClick={() => (adding ? cancelConnect() : setAdding(true))}
-                  >
-                    {adding ? "✕" : "+"}
-                  </button>
-                )}
               </div>
             </div>
           </div>
@@ -296,65 +284,47 @@ const SystemNav = ({
         <div className="container system-nav__body">
           <div className="row system-nav__section">
             <div className="col-12 ">
-              {navTab === "systemlynx" && (
-                <>
-                  {/* loadService input only appears when you click ＋ — otherwise the projects sit right
-                    under the tabs. Cancel is the ＋ toggle (now ✕), so there's no ugly extra button. */}
-                  {adding && (
-                    <div className="system-nav__connect">
-                      <div className="system-nav__connect-form">
-                        <input
-                          className="system-nav__connect-input"
-                          type="text"
-                          autoFocus
-                          placeholder="loadService — https://host/route"
-                          value={connectUrl}
-                          onChange={(e) => setConnectUrl(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") handleConnect();
-                            if (e.key === "Escape") cancelConnect();
-                          }}
-                          disabled={connecting}
-                        />
-                        <button
-                          className="system-nav__connect-arrow system-nav__connect-submit"
-                          title="Connect"
-                          onClick={handleConnect}
-                          disabled={connecting || !connectUrl.trim()}
-                        >
-                          {connecting ? "…" : <ArrowIcon />}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                  <NavigationLinks
-                    // RFC-021 — the SystemLynx tree shows REAL live connections only; project-defined
-                    // (dynamic/synthesized) services home under their codebase in the Codebase tab.
-                    connectedServices={connectedServices.filter((s) => !s.dynamic)}
-                    selectedProjectCode={projectCode}
-                    selectedServiceId={serviceId}
-                    selectedModuleName={moduleName}
-                    selectedMethodName={methodName}
-                    onDeleteService={handleDeleteService}
-                    onDeleteProject={handleDeleteProject}
-                    serviceStatus={serviceStatus}
-                    reveal={reveal}
-                  />
-                </>
+              {/* loadService input only appears when you click ＋ — otherwise the projects sit right
+                  under the tabs. Cancel is the ＋ toggle (now ✕), so there's no ugly extra button. */}
+              {adding && (
+                <div className="system-nav__connect">
+                  <div className="system-nav__connect-form">
+                    <input
+                      className="system-nav__connect-input"
+                      type="text"
+                      autoFocus
+                      placeholder="loadService — https://host/route"
+                      value={connectUrl}
+                      onChange={(e) => setConnectUrl(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleConnect();
+                        if (e.key === "Escape") cancelConnect();
+                      }}
+                      disabled={connecting}
+                    />
+                    <button
+                      className="system-nav__connect-arrow system-nav__connect-submit"
+                      title="Connect"
+                      onClick={handleConnect}
+                      disabled={connecting || !connectUrl.trim()}
+                    >
+                      {connecting ? "…" : <ArrowIcon />}
+                    </button>
+                  </div>
+                </div>
               )}
-              {navTab === "files" && (
-                <CodebaseNav
-                  connectedServices={connectedServices}
-                  projectCode={projectCode}
-                  serviceId={serviceId}
-                  moduleName={moduleName}
-                  methodName={methodName}
-                  openFile={openFile || (reveal && reveal.kind === "file" ? reveal : null)}
-                  onOpenFile={onOpenFile}
-                  revealedPath={reveal && reveal.kind === "file" && !openFile ? reveal.path : null}
-                  theme={cbTheme}
-                />
-              )}
+              <CodebaseNav
+                connectedServices={connectedServices}
+                projectCode={projectCode}
+                serviceId={serviceId}
+                moduleName={moduleName}
+                methodName={methodName}
+                openFile={openFile}
+                onOpenFile={onOpenFile}
+                reveal={reveal}
+                serviceStatus={serviceStatus}
+                theme={cbTheme}
+              />
             </div>
           </div>
           <div className="scroll-buffer"></div>

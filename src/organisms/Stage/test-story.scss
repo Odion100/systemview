@@ -356,6 +356,7 @@ $sv-blue: var(--sv-blue);
     font-family: "SF Mono", Menlo, monospace;
     font-size: 12px;
     color: var(--sv-text-strong); // was #2b3350 — must flip light in dark mode
+    background: none !important;
     b {
       color: $sv-blue;
     }
@@ -393,6 +394,7 @@ $sv-blue: var(--sv-blue);
   &__paren {
     font-family: "SF Mono", Menlo, monospace;
     color: var(--sv-text-muted);
+    background: none !important;
   }
   &__paren--close {
     display: block;

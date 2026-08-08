@@ -128,11 +128,27 @@ const ReportsTab = ({ projectCode, serviceId, moduleName, methodName, openName, 
     onOpen(entry.name);
     read(entry);
   };
+  // An explicit ✕ means "I don't want a report showing" — remember it, or the auto-open below
+  // would reopen the pane the moment it closed. Forgotten when the namespace changes.
+  const closedRef = useRef(false);
+  useEffect(() => {
+    closedRef.current = false;
+  }, [nsKey]);
   const close = () => {
+    closedRef.current = true;
     setDoc(null);
     setEditing(false);
     onOpen(null);
   };
+
+  // Landing on a namespace that HAS reports shows the LATEST one straight away — an empty pane
+  // with a picker while a report exists reads as broken, doubly so when there's exactly one.
+  useEffect(() => {
+    if (doc || openName || closedRef.current || !mine.length) return;
+    const latest = [...mine].sort((a, b) => (b.ts || 0) - (a.ts || 0))[0];
+    open(latest);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index, nsKey, Plugin]);
 
   const create = async (name) => {
     const clean = String(name || "").trim();

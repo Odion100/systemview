@@ -75,6 +75,9 @@ Blocks that take input write back **into the markdown** — there is no second s
 ```markdown
 - [ ] a task list that saves when you tick it
 ::question[Which approach?]{options=a|b}     answer=… is written into the block
+                                             QUOTE values containing spaces: {options="plan a|plan b"}
+                                             — an unquoted space kills the whole directive SILENTLY
+                                             (it renders as literal text, same trap as {Math.chainUse})
 :::approval{ask="Approve the plan?"} … :::   verdict=approved|rejected is written into the block
 ```
 
@@ -149,6 +152,10 @@ and a member going quiet drops out of the window.
   holds replies is `::::thread` with `:::reply` children. The UI widens `:::thread` to `::::` for you
   when it writes the first reply; if you're writing by hand, start with `::::thread`.
 - Removing the thread wrapper keeps everything inside it, replies included.
+- **Don't wrap content in an empty thread.** A thread is a conversation, not decoration — start one
+  only when you're actually saying something (a `:::reply` goes in with it). The human starts their
+  own threads from the right-click menu; pre-wrapping sections "in case" just adds noise they have
+  to delete.
 - **The exception:** surfaces with no file — the hub and help topics are JS constants — keep replies
   in a store at `.systemview/comments.<key>.json` (`{ threadId: [{ text, ts, author }] }`), because
   there is no document to write into. Replies written there before this change still render.

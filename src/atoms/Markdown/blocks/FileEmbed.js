@@ -104,7 +104,9 @@ export const FileEmbed = ({ label, attrs = {} }) => {
         <CodeView
           code={state.data.content || ""}
           language={state.data.language || langOf(path)}
-          highlight={lines ? { from: lines[0], to: lines[1] } : undefined}
+          // CodeView's contract is { lines: [a, b] } — the {from,to} shape silently resolves to
+          // nothing (range shown in the header, no marks, no scroll).
+          highlight={lines ? { lines: [lines[0], lines[1]] } : undefined}
           dark={editorDark}
         />
       )}

@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useMarkdownWrite } from "../context";
 
 // RFC-025 §4.4 — structure blocks. These wrap markdown (container directives), so their children are
 // ordinary rendered markdown — headings, code, tables, other blocks.
@@ -46,13 +47,74 @@ export const Details = ({ attrs = {}, children }) => {
 // A lead sitting NEXT TO the thing it leads into — the same instinct as a lead pane beside its
 // evidence, but inside one document. Note the colon count: the outer block takes one MORE colon than
 // the `col`s inside it (that's how container directives nest).
-export const Columns = ({ attrs = {}, children }) => {
+// RESIZABLE (RFC-026): drag the boundary between the two columns; on release the split writes back
+// into the source as `split=NN` — the document is the state, same as a slider or a question. On a
+// read-only surface the drag still works, it just doesn't persist. Double-click resets to 50/50.
+export const Columns = ({ attrs = {}, line, children }) => {
   const kids = React.Children.toArray(children).filter((k) => React.isValidElement(k));
-  const split = Number(attrs.split);
+  const { editable, setAttr } = useMarkdownWrite();
+  const [split, setSplit] = useState(() => Number(attrs.split) || 50);
+  useEffect(() => {
+    setSplit(Number(attrs.split) || 50);
+  }, [attrs.split]);
+  const ref = useRef(null);
+
+  const clamp = (v) => Math.min(85, Math.max(15, v));
+  const pctAt = (clientX) => {
+    const r = ref.current.getBoundingClientRect();
+    return clamp(((clientX - r.left) / r.width) * 100);
+  };
+  const onDown = (e) => {
+    e.preventDefault();
+    const move = (ev) => ref.current && setSplit(pctAt(ev.clientX));
+    // Commit ON RELEASE, never per-pixel — a drag must not write the file fifty times.
+    const up = (ev) => {
+      window.removeEventListener("mousemove", move);
+      window.removeEventListener("mouseup", up);
+      if (!ref.current) return;
+      const v = Math.round(pctAt(ev.clientX));
+      setSplit(v);
+      if (editable && setAttr) setAttr(line, "split", v === 50 ? null : v);
+    };
+    window.addEventListener("mousemove", move);
+    window.addEventListener("mouseup", up);
+  };
+  const reset = () => {
+    setSplit(50);
+    if (editable && setAttr) setAttr(line, "split", null);
+  };
+
+  // minmax(0, …) everywhere: a bare `Nfr` track has an AUTO minimum and refuses to shrink below
+  // its content, so one wide embed would make the whole document scroll sideways.
+  if (kids.length === 2)
+    return (
+      <div
+        ref={ref}
+        className="md-columns md-columns--resizable"
+        style={{
+          gridTemplateColumns: `minmax(0, ${split}fr) 18px minmax(0, ${100 - split}fr)`,
+        }}
+      >
+        {kids[0]}
+        <div
+          className="md-columns__divider"
+          title="Drag to resize · double-click resets — the split saves into the document"
+          onMouseDown={onDown}
+          onDoubleClick={reset}
+        />
+        {kids[1]}
+      </div>
+    );
+
+  const authored = Number(attrs.split);
   return (
     <div
       className="md-columns"
-      style={split ? { gridTemplateColumns: `${split}fr ${100 - split}fr` } : undefined}
+      style={
+        authored
+          ? { gridTemplateColumns: `minmax(0, ${authored}fr) minmax(0, ${100 - authored}fr)` }
+          : undefined
+      }
     >
       {kids}
     </div>

@@ -4,11 +4,13 @@
   font-size: 12.5px;
 
   &__codebase {
-    border: 1px solid #e3e6ee;
+    border: 1px solid #c9cfe8; // the old --current border — the default was too light to read as an edge
     border-radius: 8px;
     background: var(--sv-surface);
     margin-bottom: 8px;
-    overflow: hidden;
+    // clip, not hidden: same corner clipping, but hidden would make this the sticky containing
+    // block and the filter row must stick against the NAV's scroll, not the card.
+    overflow: clip;
     &--current {
       border-color: #c9cfe8;
     }
@@ -25,6 +27,33 @@
     text-align: left;
     &:hover {
       background: #f1f3f9;
+    }
+    // doc icon rides right, count stays the right-most — one auto margin, not two fighting
+    .codebase-nav__dyn-icons {
+      margin-left: auto;
+    }
+    .codebase-nav__cb-count {
+      margin-left: 6px;
+    }
+  }
+  // Bulk fold at the head's right edge — collapses/expands everything INSIDE the card (the card
+  // itself never collapses). Padded hit area, same quiet chevron voice as the tree.
+  &__cb-fold {
+    color: var(--sv-text-faint);
+    font-size: 10px;
+    padding: 0 2px;
+    position: relative;
+    flex: none;
+    &::before {
+      content: "";
+      position: absolute;
+      top: -8px;
+      right: -6px;
+      bottom: -8px;
+      left: -6px;
+    }
+    &:hover {
+      color: var(--sv-text-muted);
     }
   }
   &__cb-badge {
@@ -81,6 +110,27 @@
     &:hover {
       background: var(--sv-hover);
     }
+    // the url owns the auto margin in this row — the icons just trail it
+    .codebase-nav__dyn-icons {
+      margin-left: 4px;
+    }
+  }
+  // The service's URL rides its row — subtle, right-aligned, squeezed before the doc icon.
+  &__svc-url {
+    margin-left: auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 9.5px;
+    font-weight: 400;
+    color: var(--sv-text-faint);
+    &--live:hover {
+      color: var(--sv-blue-deep);
+      text-decoration: underline;
+      cursor: pointer;
+    }
   }
   &__service-dot {
     width: 7px;
@@ -88,14 +138,54 @@
     border-radius: 50%;
     background: #8e5aa8; // project-defined = the actions' plum family (authored, not discovered)
     flex: none;
+    // Real services wear their probe STATUS — live/down in the SystemLynx tab's colors; not yet
+    // probed = the SystemLynx indigo, the family's default.
+    &--live {
+      background: #4caf50;
+    }
+    &--down {
+      background: #e05757;
+    }
+    &--unknown {
+      background: #8f97e8;
+    }
   }
 
-  // Filter row: the text input (with its inline clear ×) + the composing toggle pills.
+  // RFC-026 — the `code` fold: the whole file region (filter + tree) behind one quiet row, spoken
+  // in the same voice as the section labels. Root indentation, no color.
+  &__code-fold {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    width: 100%;
+    border: none;
+    background: none;
+    cursor: pointer;
+    text-align: left;
+    padding: 4px 10px 2px 8px;
+    &:hover {
+      background: var(--sv-hover);
+    }
+  }
+  &__code-fold-label {
+    font-size: 9.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--sv-text-muted);
+  }
+
+  // Filter row: the text input (with its inline clear ×) + the composing toggle pills. STICKY —
+  // services and files share ONE scroll now, and the search must stay reachable deep in the list.
   &__filter-row {
     display: flex;
     align-items: center;
     gap: 4px;
-    margin: 2px 10px 4px;
+    padding: 2px 10px 4px;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--sv-surface);
   }
   &__filter-wrap {
     position: relative;
@@ -194,10 +284,10 @@
     }
   }
 
+  // One scrollbar for the whole nav (RFC-026) — the tree scrolls WITH the services above it, so no
+  // inner max-height/overflow here.
   &__tree {
     font-family: "SF Mono", Menlo, monospace;
-    max-height: 55vh;
-    overflow-y: auto;
   }
   &__children {
     border-left: 1px solid var(--sv-inset); // indent guide
@@ -269,10 +359,50 @@
     padding: 4px 10px;
   }
 
-  // Project-defined service namespaces — a mini SystemLynx tree, fully navigable + selectable.
+  // RFC-026 — the help section pinned under every codebase card. Same quiet voice as the rest of
+  // the nav; the open topic highlights like any selected row.
+  &__help {
+    margin-top: 2px;
+    padding: 2px 0 8px;
+  }
+  &__help-row {
+    display: block;
+    width: 100%;
+    border: none;
+    background: none;
+    text-align: left;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--sv-text);
+    padding: 2px 10px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    &:hover {
+      background: var(--sv-hover);
+    }
+    &--selected {
+      background: var(--sv-hover);
+      color: var(--sv-indigo);
+      font-weight: 600;
+    }
+  }
+
+  // The project's service namespaces — a mini SystemLynx tree, fully navigable + selectable.
+  // The caret is the ONLY expand control (rows navigate) — it stays small, but an invisible
+  // ::before pad extends its hit area so near-misses expand instead of navigating. No layout change.
   &__dyn-caret {
     display: inline-flex;
     padding: 0 2px;
+    position: relative;
+    &::before {
+      content: "";
+      position: absolute;
+      top: -5px;
+      right: -3px;
+      bottom: -5px;
+      left: -7px;
+    }
   }
   &__lynx-tag {
     font-size: 8.5px;
@@ -387,7 +517,7 @@
       border-bottom-color: #181a1f;
     }
     .codebase-nav__service {
-      color: #61afef;
+      color: #8f97e8; // the SystemLynx tab's project-link indigo — one family across both navs
       &:hover {
         background: #2c313a;
       }
@@ -429,6 +559,20 @@
     // while keeping the saved-state colors roughly true, so they read on the dark canvas.
     .codebase-nav__dyn-icons img {
       filter: invert(0.82) hue-rotate(180deg);
+    }
+    .codebase-nav__filter-row {
+      background: #21252b; // the dark card surface — sticky must not go transparent over rows
+    }
+    .codebase-nav__code-fold {
+      &:hover {
+        background: #2c313a;
+      }
+    }
+    .codebase-nav__code-fold-label {
+      color: #5c6370;
+    }
+    .codebase-nav__svc-url {
+      color: #5c6370;
     }
     .codebase-nav__filter {
       background: #1b1f27;
@@ -506,6 +650,16 @@
     }
     .codebase-nav__empty {
       color: #5c6370;
+    }
+    .codebase-nav__help-row {
+      color: #abb2bf;
+      &:hover {
+        background: #2c313a;
+      }
+      &--selected {
+        background: #2c313a;
+        color: #61afef;
+      }
     }
     .codebase-nav__theme-btn {
       background: #282c34;

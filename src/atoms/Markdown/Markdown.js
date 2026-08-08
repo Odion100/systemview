@@ -390,20 +390,10 @@ export function appendInsideContainer(source, openLine, text) {
   if (closeAt < 0) return null;
 
   const body = [...lines.slice(0, closeAt), ...String(text).split("\n"), ...lines.slice(closeAt)];
-  // A container directive only NESTS when the outer fence is longer than every fence inside it — so
-  // adding a `:::reply` to a `:::thread` has to widen the thread's own fences to `::::`, or the first
-  // inner close would end the thread early and every later reply would land outside it. (That is
-  // exactly what happened the first time: reply one looked fine, reply two escaped the thread.)
-  const inner = String(text).match(/^\s*(:{3,})\s*[a-zA-Z]/m);
-  const innerLen = inner ? inner[1].length : 0;
-  if (innerLen && open[2].length <= innerLen) {
-    const fence = ":".repeat(innerLen + 1);
-    body[i] = `${open[1]}${fence}${open[3]}`;
-    // The close moved down by however many lines the reply added.
-    const newClose = closeAt + String(text).split("\n").length;
-    body[newClose] = body[newClose].replace(/:{3,}/, fence);
-  }
-  return body.join("\n");
+  // normalizeFences settles every width in one pass: the thread widens over its new reply, AND any
+  // container enclosing the thread (a col, a callout) widens over the thread. The old local widening
+  // fixed only the first hop and broke inside columns.
+  return normalizeFences(body.join("\n"));
 }
 
 // Remove a container that STARTS on this line, fence and contents — used to delete one reply.
@@ -427,7 +417,52 @@ export function removeContainerAt(source, openLine) {
 export function insertAfterLine(source, line, text) {
   const lines = String(source).split("\n");
   const i = Math.min(Math.max(line, 0), lines.length);
-  return [...lines.slice(0, i), "", ...String(text).split("\n"), ...lines.slice(i)].join("\n");
+  return normalizeFences(
+    [...lines.slice(0, i), "", ...String(text).split("\n"), ...lines.slice(i)].join("\n"),
+  );
+}
+
+// FENCE NORMALIZER — the one rule of container directives is that an outer fence must be LONGER
+// than every fence inside it. Writers used to enforce this locally (widen a thread when a reply
+// lands) and missed the enclosing containers entirely: starting a thread INSIDE a `:::col` wrote a
+// same-length fence, the parser closed the col early, and raw colons leaked into the render. This
+// pass rebuilds every container's fence bottom-up (children + 1, min 3) over the whole document, so
+// any structurally-sound write comes out consistent no matter how deep it landed. Fences inside
+// code blocks are examples, not structure — untouched. An unbalanced document is returned as-is:
+// guessing at repair could eat someone's writing.
+export function normalizeFences(source) {
+  const lines = String(source).split("\n");
+  let inCode = false;
+  const stack = [];
+  const roots = [];
+  for (let n = 0; n < lines.length; n++) {
+    if (/^\s*(```|~~~)/.test(lines[n])) {
+      inCode = !inCode;
+      continue;
+    }
+    if (inCode) continue;
+    if (/^\s*:{3,}\s*[a-zA-Z]/.test(lines[n])) {
+      const node = { open: n, close: -1, children: [] };
+      (stack.length ? stack[stack.length - 1].children : roots).push(node);
+      stack.push(node);
+    } else if (/^\s*:{3,}\s*$/.test(lines[n])) {
+      if (!stack.length) return source; // unbalanced
+      stack.pop().close = n;
+    }
+  }
+  if (stack.length || inCode) return source; // unbalanced
+  const apply = (node) => {
+    let maxChild = 0;
+    node.children.forEach((c) => {
+      maxChild = Math.max(maxChild, apply(c));
+    });
+    const len = Math.max(3, maxChild + 1);
+    lines[node.open] = lines[node.open].replace(/:{3,}/, ":".repeat(len));
+    lines[node.close] = lines[node.close].replace(/:{3,}/, ":".repeat(len));
+    return len;
+  };
+  roots.forEach(apply);
+  return lines.join("\n");
 }
 
 // Wrap a source LINE RANGE in any container directive — the general form of "start a thread here".
@@ -436,14 +471,16 @@ export function wrapLines(source, startLine, endLine, openLine, closeLine = ":::
   const a = startLine - 1;
   const b = endLine - 1;
   if (a < 0 || b >= lines.length || b < a) return null;
-  return [
-    ...lines.slice(0, a),
-    openLine,
-    ...lines.slice(a, b + 1),
-    closeLine,
-    "",
-    ...lines.slice(b + 1),
-  ].join("\n");
+  return normalizeFences(
+    [
+      ...lines.slice(0, a),
+      openLine,
+      ...lines.slice(a, b + 1),
+      closeLine,
+      "",
+      ...lines.slice(b + 1),
+    ].join("\n"),
+  );
 }
 
 // Wrap a source LINE RANGE in a `:::thread{id=…}` container — this is "start a thread here", the
@@ -460,8 +497,11 @@ export function wrapLinesInThread(source, startLine, endLine) {
   const before = lines.slice(0, a);
   const body = lines.slice(a, b + 1);
   const after = lines.slice(b + 1);
-  // A container directive needs blank lines around it to parse as a block.
-  return [...before, `:::thread{id=t${n}}`, ...body, ":::", "", ...after].join("\n");
+  // A container directive needs blank lines around it to parse as a block. normalizeFences settles
+  // the widths — wrapping inside a columns/col (or any container) widens the enclosing fences.
+  return normalizeFences(
+    [...before, `:::thread{id=t${n}}`, ...body, ":::", "", ...after].join("\n"),
+  );
 }
 
 const Markdown = ({ children, dark = false, scope = null, onSourceChange = null, commentKey = null }) => {

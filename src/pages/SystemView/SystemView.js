@@ -64,7 +64,10 @@ const SystemViewPage = () => {
 
   const closeFile = React.useCallback(() => {
     const p = new URLSearchParams(window.location.search);
-    ["file", "fproj", "fsvc", "flang", "flines", "fnav"].forEach((k) => p.delete(k));
+    // Closing restores the center tab you were on before the file forced Code (ftab, set on open).
+    const ftab = p.get("ftab");
+    ["file", "fproj", "fsvc", "flang", "flines", "fnav", "ftab"].forEach((k) => p.delete(k));
+    if (ftab) p.set("tab", ftab);
     history.push({ pathname: window.location.pathname, search: p.toString() });
   }, [history]);
 
@@ -73,8 +76,15 @@ const SystemViewPage = () => {
       // The codebase nav closes with onOpenFile(null) — same exit as the pane's × button.
       if (!detail) return closeFile();
       const p = new URLSearchParams(window.location.search);
-      // Remember the lens we came FROM so back can restore it (opening a file switches to Files).
-      if (!p.get("file")) p.set("fnav", navTab);
+      // Remember the lens and center tab we came FROM so close/back can restore them. Opening a
+      // file SHOWS the file: the center flips to Code — clicking a file from the Stage tab must
+      // not leave you staring at Stage with the file silently selected behind it.
+      if (!p.get("file")) {
+        p.set("fnav", navTab);
+        p.set("ftab", p.get("tab") || "docs");
+      }
+      p.set("tab", "docs");
+      p.delete("help"); // opening a file is explicit navigation — help must not stay over it
       p.set("file", detail.path);
       if (detail.projectCode) p.set("fproj", detail.projectCode);
       if (detail.serviceId) p.set("fsvc", detail.serviceId);
@@ -112,15 +122,41 @@ const SystemViewPage = () => {
     return () => window.removeEventListener("sv:openFileInNav", onOpen);
   }, [openFile]);
 
+  // HELP rides the URL as `?help=<topic>` (RFC-026). Opening a topic PUSHES — every topic is a
+  // history entry, so the back button walks help→help→document with no special casing. Closing
+  // REPLACES (a close is not a place you go back to). Any real navigation drops the param.
+  useEffect(() => {
+    const onHelp = (e) => {
+      const topic = (e.detail || {}).topic;
+      const p = new URLSearchParams(window.location.search);
+      if (topic) {
+        if (p.get("help") === topic) return;
+        p.set("help", topic);
+        history.push({ pathname: window.location.pathname, search: p.toString() });
+      } else {
+        if (!p.get("help")) return;
+        p.delete("help");
+        history.replace({ pathname: window.location.pathname, search: p.toString() });
+      }
+    };
+    window.addEventListener("sv:help", onHelp);
+    return () => window.removeEventListener("sv:help", onHelp);
+  }, [history]);
+
   // REVEAL (RFC-025) — a `:ns[…]` or `:file[…]` chip clicked inside a document points the NAVIGATOR at
-  // its target without touching the centre: the lens switches, the tree expands to it and highlights
-  // it, and the document you were reading stays exactly where it was. Selecting is then YOUR click.
+  // its target without touching the centre: the tree expands to it and highlights it, and the document
+  // you were reading stays exactly where it was. Selecting is then YOUR click.
   // Deliberately NOT in the URL: this is a pointer, not a location, so it must not push history.
+  // RFC-026 — reveals DON'T flip the lens: the codebase card carries services AND files, so a
+  // namespace reveal resolves wherever you are. The one exception is a file reveal while on the
+  // SystemLynx lens, which has nowhere to show a file.
   const [reveal, setReveal] = useState(null);
   useEffect(() => {
     const onReveal = (e) => {
       const d = e.detail || {};
-      setNavTab(d.kind === "file" ? "files" : "systemlynx");
+      // Files and help rows only exist in the Codebases lens — those reveals flip to it; namespace
+      // reveals resolve wherever you are.
+      if (d.kind === "file" || d.kind === "help") setNavTab("files");
       setReveal(d);
     };
     window.addEventListener("sv:revealInNav", onReveal);
@@ -247,7 +283,6 @@ const SystemViewPage = () => {
             serviceId={serviceId}
             moduleName={moduleName}
             methodName={methodName}
-            lens={navTab}
             codeFile={codeFile}
             onCloseFile={closeFile}
           />
