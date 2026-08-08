@@ -33,7 +33,7 @@ second entry point.**
   **file system**, and its **project-defined services** — the RFC-021 synthesized namespaces, which **may be
   empty at first**. The Services nav stays purely real live connections; synthesized services live HERE,
   under the codebase that owns them. A connected codebase with zero services is the **bootstrap state** —
-  the natural anchor for "study this project and build its namespace map" (`docs/namespaces-for-agents.md`).
+  the natural anchor for "study this project and build its namespace map" (`docs/agents/namespaces.md`).
 - **Tabs persist their state.** Switch to Files, poke around, switch back to Services — each lens remembers
   where you were. (Same discipline as the current URL/localStorage persistence.)
 - **The center says CODE, and it's EDIT-FIRST.** In the file lens the center tab reads **Code** (not
@@ -105,3 +105,10 @@ built on.
 - A full editor/IDE — this is a focused file view + the existing scratchpad/actions, not a code editor
   rewrite.
 - Multi-filesystem on day one — stand up the single-CLI file lens first; multi-CLI is the level after.
+
+---
+
+**Revision note (2026-08-03):** the codebase card's layout is superseded by RFC-021's 2026-08-03
+revision — services (the project's REAL connected services) list at the top in the mini-tree style,
+the codebase(s) below grouped by LOCATION, and the "project-defined services" section moves out to
+the separate, explicitly-created TESTING project. See RFC-021 §Revision 2026-08-03.

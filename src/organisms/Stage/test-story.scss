@@ -17,7 +17,7 @@ $sv-blue: var(--sv-blue);
   // Inset on the sides/bottom only — NO top gap, so a note above blends straight into the bar and
   // the sticky bar sits flush against the top when you scroll.
   margin: 0 8px 6px;
-  border: 1px solid #e3e6ee;
+  border: 1px solid var(--sv-border);
   border-radius: 6px;
 }
 // Left cluster of the bar: auto-track toggle + the run summary; the buttons keep the right edge.

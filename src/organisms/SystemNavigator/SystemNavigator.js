@@ -154,6 +154,20 @@ const SystemNav = ({
     }
   };
 
+  // RFC-027 — a hosted service's configuration hand: rename the service, add/delete/rename modules.
+  // The hub does the file op on the committed folder, re-hosts, and answers with the updated
+  // registration; a full refetch keeps every row honest (a rename changes the serviceId itself).
+  const handleHostedOp = async (pc, op, payload = {}) => {
+    try {
+      await SystemView.hostedOp({ projectCode: pc, op, ...payload });
+      await fetchAllProjects();
+      return null;
+    } catch (error) {
+      console.error(error);
+      return (error && error.message) || String(error);
+    }
+  };
+
   const handleDeleteProject = async (pc) => {
     try {
       await SystemView.deleteProject(pc);
@@ -262,12 +276,14 @@ const SystemNav = ({
             </div>
           )}
           {/* RFC-026 — ONE nav. The unified card (services + files + help) took over everything the
-              old SystemLynx tree did, so the tab strip is just the name and the connect button. */}
+              old SystemLynx tree did, so the tab strip is just the name and the connect button.
+              "Projects" — that's what the cards are; SystemLynx stays as the tag on the services
+              section inside each card. */}
           <div className="row system-nav__section">
             <div className="col-12">
               <div className="system-nav__tabs">
                 <button type="button" className="system-nav__tab system-nav__tab--active">
-                  SystemLynx
+                  Projects
                 </button>
                 <button
                   type="button"
@@ -324,6 +340,9 @@ const SystemNav = ({
                 reveal={reveal}
                 serviceStatus={serviceStatus}
                 theme={cbTheme}
+                onHostedOp={handleHostedOp}
+                onDeleteService={handleDeleteService}
+                onDeleteProject={handleDeleteProject}
               />
             </div>
           </div>

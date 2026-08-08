@@ -9,6 +9,7 @@ when you need it. Nothing is summarised away — the detail lives beside it in t
 
 | File | When you need it |
 | --- | --- |
+| [hosted-services.md](hosted-services.md) | **the repo has NO SystemLynx services** — `systemview init` makes the CLI host a real testing service from a committed folder; start-to-green instructions for agents |
 | [markdown.md](markdown.md) | the FULL interactive-markdown vocabulary — every block, every attribute, what writes back into the document |
 | [tests.md](tests.md) | building, saving and running tests; sections, references, evaluations in depth |
 | [stories.md](stories.md) | the story surface and the whole `systemview story …` CLI grammar |
@@ -28,9 +29,12 @@ Everything in SystemView hangs off a **namespace**: `service / module / method`.
 | **module** | a cohesive surface inside it | ≈ one file, one class/object, one router, one resource (`Users`, `Auth`). |
 | **method** | one callable | one endpoint, one exported function, one command — what a test calls and a doc describes. |
 
-On a **SystemLynx** project these are discovered from the live connection. On any other project they
-are a **saved configuration someone authors** — empty is the normal starting state, not an error.
-Full decomposition methodology: **[namespaces.md](namespaces.md)**.
+On a **SystemLynx** project these are discovered from the live connection. On any other project,
+**run `systemview init`** (RFC-027): the CLI hosts a real testing service from a committed folder —
+one file per module, every exported function a live, testable method. That is the primary path for
+a repo with no services; full start-to-green instructions:
+**[hosted-services.md](hosted-services.md)**. Authoring a namespace map by hand (a `dynamic:true`
+manifest) is only for systems nobody will host — methodology: **[namespaces.md](namespaces.md)**.
 
 **Procedure for decomposing an unfamiliar project:**
 
@@ -229,10 +233,14 @@ against a newer vocabulary degrades honestly.
 ```bash
 systemview                       # start the UI on :3000
 systemview start 4000            # a different port
+systemview init                  # NO framework? host a testing service from a committed folder
+                                 #   (enter = defaults; `< /dev/null` = non-interactive; see hosted-services.md)
+systemview delete <project>      # init's opposite — hosted projects only; removes the folder (y/N, --force)
 systemview open <project> [service/module/method]
 systemview test <project> [filter] [--json] [--verbose]
 systemview probe <Service.Module.method> '<json args>'
 systemview connect [name url]    # register a service
+systemview disconnect <project> [service]   # remove a connection (hosted: keeps the folder)
 systemview story <…>             # drive a story
 systemview shutdown
 ```

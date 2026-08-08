@@ -22,7 +22,7 @@ const isUrl = (str) =>
     str,
   );
 
-function connect({ system, projectCode, serviceId, specList, credentials, dynamic }) {
+function connect({ system, projectCode, serviceId, specList, credentials, dynamic, hosted }) {
   const { service, index } = ConnectedServices.findService(
     system.connectionData.serviceUrl,
     projectCode,
@@ -37,6 +37,8 @@ function connect({ system, projectCode, serviceId, specList, credentials, dynami
     // RFC-021 — project-defined (synthesized) service: no live URL. The flag must survive every
     // rewrite of the entry or refreshConnections would treat it as a dead service and drop it.
     service.dynamic = !!dynamic;
+    // RFC-027 — CLI-hosted service: the value is the committed folder (relative to the repo root).
+    service.hosted = hosted || false;
     ConnectedServices.save(service, index);
   } else
     ConnectedServices.save({
@@ -46,6 +48,7 @@ function connect({ system, projectCode, serviceId, specList, credentials, dynami
       specList,
       credentials: !!credentials,
       dynamic: !!dynamic,
+      hosted: hosted || false,
     });
 }
 
@@ -139,7 +142,7 @@ async function refreshConnection(searchText) {
 function getProjects() {
   const connections = ConnectedServices.getAllConnections();
   const projects = {};
-  connections.forEach(({ projectCode, serviceId, system, specList, credentials, dynamic }) => {
+  connections.forEach(({ projectCode, serviceId, system, specList, credentials, dynamic, hosted }) => {
     if (!projects[projectCode]) projects[projectCode] = [];
     projects[projectCode].push({
       serviceId,
@@ -158,16 +161,26 @@ function getProjects() {
       // RFC-021 — project-defined (synthesized) service: rendered under its CODEBASE in the file
       // lens, not in the SystemLynx services nav.
       dynamic: !!dynamic,
+      // RFC-027 — CLI-hosted (a LIVE service the hub runs from the project's committed folder).
+      // The value is that folder, relative to the repo root — the UI shows where the config lives
+      // and wears the plum indicator off this flag.
+      hosted: hosted || false,
     });
   });
   return projects;
 }
 
-function deleteService(projectCode, serviceId) {
+// RFC-027 — deleting a HOSTED service must actually unhost it (stop the app, remove the manifest
+// registration) or the next boot resurrects it. `hostingUnit` is set when the server launches.
+let hostingUnit = null;
+
+async function deleteService(projectCode, serviceId) {
+  if (hostingUnit) await hostingUnit.unhost(projectCode, serviceId);
   ConnectedServices.deleteService(projectCode, serviceId);
 }
 
-function deleteProject(projectCode) {
+async function deleteProject(projectCode) {
+  if (hostingUnit) await hostingUnit.unhost(projectCode);
   ConnectedServices.deleteProject(projectCode);
 }
 
@@ -376,6 +389,12 @@ module.exports = function launchSystemView(port = 3000) {
   const buildPath = path.resolve(__dirname, "../build");
   const indexPath = path.join(buildPath, "index.html");
 
+  // RFC-027 — the hosting unit, bound to this hub's own URL (hosted services register back through
+  // the same connect() door above, via the plugin, like every real service). hostedOp = the UI's
+  // configuration hand: rename the service, add/delete/rename modules — file ops on the folder.
+  hostingUnit = require("./hostProject")(port);
+  const { hostProject, hostedOp } = hostingUnit;
+
   server.use(express.static(buildPath));
 
   App.startService({
@@ -387,6 +406,8 @@ module.exports = function launchSystemView(port = 3000) {
     .module("SystemView", {
       connect,
       connectUrl,
+      hostProject,
+      hostedOp,
       getServices,
       getProjects,
       updateSpecList,

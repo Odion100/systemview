@@ -13,6 +13,8 @@ const listTests = require("./listTests");
 const appIsRunning = require("./appIsRunning");
 const openBrowser = require("./openBrowser");
 const connectService = require("./connectService");
+const initProject = require("./initProject");
+const hostConfiguredProjects = require("./hostProjects");
 const manifestCommands = require("./manifest");
 const { readFolderManifest } = require("./manifestStore");
 const probe = require("./probe");
@@ -61,7 +63,11 @@ async function loadManifest() {
     const api = `http://localhost:${DEFAULT_PORT}/systemview/api`;
     const { SystemView } = await Client.loadService(api);
     await Promise.all(
-      services.map(async ({ system, serviceId, specList, projectCode: svcProject, dynamic }) => {
+      services.map(async ({ system, serviceId, specList, projectCode: svcProject, dynamic, hosted }) => {
+        // RFC-027 — HOSTED entries belong to the hosting unit (hostProjects.js), which re-hosts and
+        // re-registers them with a fresh URL before this runs. Probing the stored URL here would
+        // only report a stale port as "offline".
+        if (hosted) return;
         if (!system || !system.connectionData) return;
         // RFC-021 — a DYNAMIC (project-defined/synthesized) service has no live URL to probe: its
         // manifest was authored (by hand or an agent), not written by a running plugin. Register as-is.
@@ -88,10 +94,18 @@ async function loadManifest() {
   }
 }
 
+// RFC-027 boot order: HOST configured projects first (read config → validate → host + register,
+// its own unit — see cli/hostProjects.js), THEN discovery (loadManifest). Hosted registrations
+// exist before anything is announced, and discovery never probes what hosting owns.
+async function bootServices() {
+  await hostConfiguredProjects(Client, UI_URL);
+  await loadManifest();
+}
+
 async function startApp() {
   const port = isNaN(input[1]) ? DEFAULT_PORT : Number(input[1]);
   try {
-    await launchApp(port, { interactive: true, connectedUrls, onReady: loadManifest });
+    await launchApp(port, { interactive: true, connectedUrls, onReady: bootServices });
   } catch (error) {
     log.error("Launch failed: " + error.message);
   }
@@ -102,7 +116,7 @@ async function startTest() {
   const namespace = input[2];
   try {
     await launchApp(DEFAULT_PORT);
-    await loadManifest();
+    await bootServices();
     const exitCode = await runTests(UI_URL, project_code, namespace, {
       json: flags.json,
       verbose: flags.verbose,
@@ -204,7 +218,17 @@ async function loadCaseSetting() {
 
   const command = input[0];
 
-  if (command === "open") {
+  if (command === "init") {
+    // RFC-027 — the one command that makes a service-less codebase testable. Interview → config →
+    // committed scaffold → registration; a running hub hosts it immediately.
+    const exitCode = await initProject({ uiUrl: UI_URL, Client });
+    flushAndExit(exitCode || 0);
+  } else if (command === "delete") {
+    // RFC-027 — init's opposite, hosted projects only: unhost + deregister + remove the folder.
+    const deleteHosted = require("./deleteHosted");
+    const exitCode = await deleteHosted(input[1], { uiUrl: UI_URL, Client, force: flags.force });
+    flushAndExit(exitCode || 0);
+  } else if (command === "open") {
     await open();
   } else if (command === "toggle" || ["cs", "ci", "case-sensitive", "case-insensitive"].includes(command)) {
     await launchApp(DEFAULT_PORT);

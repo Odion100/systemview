@@ -1,0 +1,30 @@
+[
+  {
+    "title": "The hub answers about itself",
+    "namespace": { "serviceId": "SystemViewCore", "moduleName": "Api", "methodName": "getProjects" },
+    "Before": [],
+    "Main": [
+      {
+        "title": "getProjects through the hub's own door",
+        "namespace": { "serviceId": "SystemViewCore", "moduleName": "Api", "methodName": "getProjects" },
+        "args": [],
+        "savedEvaluations": [
+          {
+            "namespace": "results.ok",
+            "expected_type": "boolean",
+            "validations": [{ "name": "boolEquals", "value": true }],
+            "save": true
+          },
+          {
+            "namespace": "results.projectCount",
+            "expected_type": "number",
+            "validations": [],
+            "save": true
+          }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": []
+  }
+]

@@ -87,3 +87,27 @@ the RFC prescribes: reach the app however it is reachable (its HTTP API, its exp
 steps themselves. As the transport layer opens up (CLI-as-a-service), steps on synthesized namespaces
 run directly; the namespaces, tests, and docs you author now carry over unchanged — the map outlives
 the transport.
+
+---
+
+## RFC-027 — prefer a HOSTED service over pure depiction
+
+Since RFC-027, a codebase with no services doesn't need a hand-written `dynamic:true` manifest for
+its namespaces to be REAL: run **`systemview init`** (enter accepts every default) and the hub
+hosts an actual service from a committed folder named by the project code:
+
+```
+<projectCode>/
+  service.json            { serviceId, port }   (port 0 = hub picks)
+  methods/<Module>.js     one file per module — the exported object IS the module
+  specs/                  docs + saved tests
+```
+
+Write a function, save the file, and the method is live in the nav — probe-able, testable,
+documented, no framework in the repo. The methods call the system however it really talks (HTTP, a
+spawned process, a DB client) and return a result object for the engine to evaluate. The dogfood
+example is this repo's own `systemview-test/` folder (SystemViewCore: `Cli` spawns the real CLI,
+`Api` calls the hub's own API).
+
+Author a `dynamic:true` manifest (the guide above) only when nobody will host the namespaces — a
+pure map of an external system you can't or shouldn't run.

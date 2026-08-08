@@ -8,8 +8,14 @@ const {
   getFilesByNamespace,
 } = require("./utils");
 const fileProviders = require("./fileProviders");
-module.exports = ({ App, specs, projectCode, serviceId, module = {}, credentials = false, svDir }) => {
-  svDir = svDir || path.resolve(process.cwd(), ".systemview");
+// RFC-027: `root` = the observed project's directory (default cwd — the plugin's own case). A HOSTED
+// service runs inside the hub's process, so its root is the target repo, not the hub's cwd. `hosted`
+// (the committed folder's path relative to root) rides the connection so the flag survives every
+// refresh — same trap as `credentials` below.
+module.exports = ({ App, specs, projectCode, serviceId, module = {}, credentials = false, svDir, root, hosted = false }) => {
+  root = root ? path.resolve(root) : process.cwd();
+  svDir = svDir || path.resolve(root, ".systemview");
+  const providers = fileProviders.createFileProviders(root);
   specs = specs.substr(-1) === "/" ? specs.substr(0, specs.length - 1) : specs;
   const system = {};
   App.on("ready", (_system) => {
@@ -37,7 +43,7 @@ module.exports = ({ App, specs, projectCode, serviceId, module = {}, credentials
       const name = getName(namespace);
       return name
         ? `${specs}/docs/${name}.md`
-        : path.join(process.cwd(), `${projectCode}.md`);
+        : path.join(root, `${projectCode}.md`);
     };
 
     this.saveDoc = ({ documentation, namespace }) => {
@@ -165,9 +171,9 @@ module.exports = ({ App, specs, projectCode, serviceId, module = {}, credentials
     });
     this.getConnection = () => {
       const specList = this.getSpecList();
-      // `credentials` must survive this path — refreshConnections re-pulls getConnection(),
-      // so omitting it here would silently un-credential the service on every refresh (RFC-013).
-      return { projectCode, serviceId, system, specList, credentials };
+      // `credentials` and `hosted` must survive this path — refreshConnections re-pulls
+      // getConnection(), so omitting either would silently strip it on every refresh (RFC-013/027).
+      return { projectCode, serviceId, system, specList, credentials, hosted };
     };
     this.getLog = ({ limit } = {}) => {
       // Per-service file — see index.js: a shared log file duplicated records across sibling services.
@@ -228,15 +234,16 @@ module.exports = ({ App, specs, projectCode, serviceId, module = {}, credentials
     };
 
     // RFC-018 — ground-truth file/code providers. These run inside THIS service and read its own
-    // source from cwd, path-guarded to the repo root. The AI Window's stage carries only locators;
-    // the browser calls these directly (like getDoc) to fetch the real bytes at render time.
-    this.readFile = fileProviders.readFile;
-    this.listFiles = fileProviders.listFiles;
-    this.changedFiles = fileProviders.changedFiles;
-    this.search = fileProviders.search;
-    this.getSource = fileProviders.getSource;
-    this.getDiff = fileProviders.getDiff;
-    this.writeFile = fileProviders.writeFile;
+    // source from `root` (cwd for a plugin-run service, the target repo for a hosted one),
+    // path-guarded to that root. The AI Window's stage carries only locators; the browser calls
+    // these directly (like getDoc) to fetch the real bytes at render time.
+    this.readFile = providers.readFile;
+    this.listFiles = providers.listFiles;
+    this.changedFiles = providers.changedFiles;
+    this.search = providers.search;
+    this.getSource = providers.getSource;
+    this.getDiff = providers.getDiff;
+    this.writeFile = providers.writeFile;
 
     // RFC-018 — saved views (the agent's communications as documents). A view = a stage description
     // {layout, panes}. Stored per-name in `.systemview/views/` so it TRAVELS with the repo (RFC-017):

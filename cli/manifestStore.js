@@ -44,6 +44,9 @@ function readFolderManifest(dir = manifestDir()) {
         // RFC-021 — a SYNTHESIZED (project-defined) service: the manifest was written by hand/agent,
         // not by a plugin. No live URL behind it — registration must skip aliveness probing.
         dynamic: !!entry.dynamic,
+        // RFC-027 — a CLI-HOSTED service: the value is the committed folder (relative to this repo)
+        // the hub hosts it from. The boot hosting unit re-hosts these; loadManifest leaves them alone.
+        hosted: entry.hosted || false,
       });
     } catch {
       /* skip a torn/partial file — the next read reconciles */

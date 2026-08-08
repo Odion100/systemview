@@ -6,6 +6,13 @@ const HELP_TEXT = `
 
   Commands:
     start [port]                           Launch SystemView UI (default port 3000)
+    init                                   Make THIS codebase testable with no framework: interview
+                                           (enter = defaults) → committed <project>/ folder with
+                                           service.json + methods/ (a file per module) + specs/;
+                                           the hub hosts it (immediately if running, else at boot)
+    delete <projectCode>                   init's opposite — hosted projects only: unhost, remove
+                                           the registration AND the committed folder (y/N confirm;
+                                           --force skips). Plain connections: use disconnect
     test [target]                          Run saved tests. target = projectCode OR any namespace
                                            (service / module / method / dotted, e.g. Posts.add) — no
                                            projectCode required; it resolves where it lives

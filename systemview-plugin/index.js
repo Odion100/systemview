@@ -30,6 +30,14 @@ module.exports = function ({
   logs = "./systemview.logs",
   // RFC-017: all SystemView runtime files live under this folder in the observed project's cwd.
   dir = ".systemview",
+  // RFC-027: the observed project's directory. Defaults to cwd (the plugin running inside its own
+  // service). A HOSTED service runs in the hub's process, so the hub passes the target repo here —
+  // every path (runtime dir, file providers, project doc) resolves against it instead of cwd.
+  root = process.cwd(),
+  // RFC-027: truthy = this service is CLI-HOSTED; the value is the committed folder's path relative
+  // to `root` (e.g. "systemview"). Rides the registration, the manifest entry, and getConnection so
+  // the hub can re-host on boot and the UI can mark the service plum.
+  hosted = false,
   limit = 100,
   projectCode,
   serviceId,
@@ -59,7 +67,7 @@ module.exports = function ({
 }) {
   return function (App, system) {
     // RFC-017: one folder for everything SystemView writes into the project.
-    const SV_DIR = path.resolve(process.cwd(), dir);
+    const SV_DIR = path.resolve(root, dir);
     ensureDir(SV_DIR);
     // PER-SERVICE log file (mirrors the per-service stats file below). Sibling services in one project
     // share this cwd; a single shared log file meant every service's getLog returned the WHOLE file, so
@@ -374,7 +382,7 @@ module.exports = function ({
     function registerPluginModule() {
       App.module(
         "Plugin",
-        SystemViewModule({ specs, App, projectCode, serviceId, module, credentials, svDir: SV_DIR }),
+        SystemViewModule({ specs, App, projectCode, serviceId, module, credentials, svDir: SV_DIR, root, hosted }),
       );
     }
 
@@ -386,7 +394,7 @@ module.exports = function ({
         const specList = getSpecList(specs);
         try {
           const { SystemView: SystemViewSvc } = this.useService("SystemViewUI");
-          await SystemViewSvc.connect({ system, projectCode, serviceId, specList, credentials });
+          await SystemViewSvc.connect({ system, projectCode, serviceId, specList, credentials, hosted });
           console.log(`[SystemView]: ${projectCode}.${serviceId} connected!\n`);
         } catch (err) {
           console.log(
@@ -406,6 +414,9 @@ module.exports = function ({
         // Persist ONLY serializable connectionData — never the live `system` (its `modules` are live
         // instances, `services` are socket-backed clients; JSON.stringify walking their getters can block).
         const entry = { projectCode, serviceId, system: { connectionData }, specList, credentials };
+        // RFC-027: a hosted service's manifest entry keeps the folder pointer — this is what the
+        // boot hosting unit reads to know WHAT to re-host (registration, never name-scanning).
+        if (hosted) entry.hosted = hosted;
         // Operator-authored config headers ride as DEFAULTS under this service's own origin; the
         // assembler merges them (captured cookies win at read time).
         if (headers && Object.keys(headers).length) {

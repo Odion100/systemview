@@ -99,12 +99,84 @@ function DirNode({
   );
 }
 
+// RFC-027 — the row context menu: right-click is where connections get removed (any service, any
+// project — the old tree tab's delete buttons live here now) and where a HOSTED service is
+// configured (rename/add/delete modules, delete the project). Destructive items are TWO-STEP: the
+// item arms into an inline confirm — no browser dialogs. One menu instance at the nav root.
+function RowMenu({ menu, onClose }) {
+  const [armed, setArmed] = useState(null);
+  useEffect(() => setArmed(null), [menu]);
+  useEffect(() => {
+    if (!menu) return;
+    const onKey = (e) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [menu, onClose]);
+  if (!menu) return null;
+  return (
+    <>
+      <div
+        className={`${CLASSNAME}__menu-overlay`}
+        onClick={onClose}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          onClose();
+        }}
+      />
+      <div className={`${CLASSNAME}__menu`} style={{ top: menu.y, left: menu.x }}>
+        <div className={`${CLASSNAME}__menu-head`}>{menu.title}</div>
+        {menu.items.map((it, i) =>
+          it.confirm && armed === i ? (
+            <div key={i} className={`${CLASSNAME}__menu-confirm`}>
+              <span className={`${CLASSNAME}__menu-confirm-text`}>{it.confirm}</span>
+              <span
+                className={`${CLASSNAME}__menu-yes`}
+                role="button"
+                onClick={() => {
+                  onClose();
+                  it.action();
+                }}
+              >
+                ✓
+              </span>
+              <span
+                className={`${CLASSNAME}__menu-no`}
+                role="button"
+                onClick={() => setArmed(null)}
+              >
+                ✕
+              </span>
+            </div>
+          ) : (
+            <button
+              key={i}
+              type="button"
+              className={`${CLASSNAME}__menu-item${it.danger ? ` ${CLASSNAME}__menu-item--danger` : ""}`}
+              onClick={() => {
+                if (it.confirm) setArmed(i);
+                else {
+                  onClose();
+                  it.action();
+                }
+              }}
+            >
+              {it.label}
+            </button>
+          ),
+        )}
+      </div>
+    </>
+  );
+}
+
 // One of the project's services — real OR project-defined — as a MINI SystemLynx tree living under
 // its codebase (RFC-026: this card is the whole nav, so real services render here too, same rows).
 // Fully navigable like the SystemLynx section: service/module/method all select + route, the current
 // namespace highlights, and navigating hands the center back to docs/tests (closes any open file).
 // Modules expand INDIVIDUALLY — a service with many modules must not dump every method on open.
-function ServiceNode({ service, projectCode, history, selection, onNavigate, revealNs, serviceStatus = {}, bulk = null }) {
+function ServiceNode({ service, projectCode, history, selection, onNavigate, revealNs, serviceStatus = {}, bulk = null, onOpenFile = null, onHostedOp = null, onDeleteService = null, openRowMenu = null }) {
   const isSelectedService =
     selection.serviceId === service.serviceId && selection.projectCode === projectCode;
   // Pointed at from a document (`:ns[…]` reveal) — expand down to the target, mark it, select nothing.
@@ -151,6 +223,68 @@ function ServiceNode({ service, projectCode, history, selection, onNavigate, rev
   // SELECTED beats REVEALED on any row wearing both — being somewhere outranks being pointed at.
   const svcSelected = isSelectedService && !selection.moduleName;
   const svcRevealed = isRevealedService && !revealNs.moduleName && !svcSelected;
+  // RFC-027 — a CLI-HOSTED service: same rows as any service (plum dot is the only visual
+  // difference), plus the configuration hand — rename the service, add/delete/rename modules —
+  // each a file op on the committed folder the hub re-hosts from.
+  const hosted = service.hosted || null;
+  const canConfigure = !!hosted && !!onHostedOp;
+  const runOp = async (op, payload) => {
+    const err = await onHostedOp(projectCode, op, payload);
+    if (err) window.alert(err);
+  };
+  const addModule = () => {
+    const name = window.prompt("New module name (a namespace for tests):");
+    if (name && name.trim()) runOp("addModule", { name: name.trim() });
+  };
+  const renameService = () => {
+    const to = window.prompt("Rename service:", service.serviceId);
+    if (to && to.trim() && to.trim() !== service.serviceId)
+      runOp("renameService", { to: to.trim() });
+  };
+  const renameModule = (name) => {
+    const to = window.prompt(`Rename module ${name}:`, name);
+    if (to && to.trim() && to.trim() !== name) runOp("renameModule", { name, to: to.trim() });
+  };
+  // Right-click on the service row: remove the connection (ANY service — the old delete button's
+  // job) plus the hosted configuration set. Deletes two-step INSIDE the menu, never a dialog.
+  const serviceMenu = (e) => {
+    if (!openRowMenu) return;
+    const items = [];
+    if (canConfigure) {
+      items.push({ label: "Rename service…", action: renameService });
+      items.push({ label: "Add module…", action: addModule });
+    }
+    // ONE remove option per kind: a connected service gets "Remove connection"; a project made on
+    // the fly gets DELETE (the folder and all) — no keep-folder middle ground in the menu
+    // (`systemview disconnect` still exists on the CLI for that).
+    if (onDeleteService && !hosted)
+      items.push({
+        label: "Remove connection",
+        danger: true,
+        confirm: `Remove ${service.serviceId}?`,
+        action: () => onDeleteService(projectCode, service.serviceId),
+      });
+    if (canConfigure)
+      items.push({
+        label: `Delete project (removes ${hosted}/)`,
+        danger: true,
+        confirm: `Delete ${hosted}/ — folder, methods, specs?`,
+        action: () => runOp("deleteProject", {}),
+      });
+    if (items.length) openRowMenu(e, `${projectCode} › ${service.serviceId}`, items);
+  };
+  const moduleMenu = (e, name) => {
+    if (!openRowMenu || !canConfigure) return;
+    openRowMenu(e, `${service.serviceId} › ${name}`, [
+      { label: "Rename module…", action: () => renameModule(name) },
+      {
+        label: "Delete module",
+        danger: true,
+        confirm: `Delete ${hosted}/methods/${name}.js? specs stay`,
+        action: () => runOp("deleteModule", { name }),
+      },
+    ]);
+  };
   return (
     <div className={`${CLASSNAME}__dyn-service`}>
       <button
@@ -163,11 +297,12 @@ function ServiceNode({ service, projectCode, history, selection, onNavigate, rev
             : undefined
         }
         className={`${CLASSNAME}__service ${svcSelected ? `${CLASSNAME}__service--selected` : ""}${svcRevealed ? ` ${CLASSNAME}__row--revealed` : ""}`}
-        title={`Open ${service.serviceId} (SystemLynx namespace surface)`}
+        title={`Open ${service.serviceId} (SystemLynx namespace surface) — right-click for options`}
         onClick={() => {
           setOpen(true);
           go(`/specs/${projectCode}/${service.serviceId}`);
         }}
+        onContextMenu={serviceMenu}
       >
         <span
           className={`${CLASSNAME}__dyn-caret`}
@@ -179,10 +314,17 @@ function ServiceNode({ service, projectCode, history, selection, onNavigate, rev
           <Chevron open={open} />
         </span>
         {/* Real services wear their LIVE/DOWN probe status (same colors as the SystemLynx tab);
-            project-defined ones keep the plum — a project:// identifier can't be probed. */}
+            project-defined ones keep the plum — a project:// identifier can't be probed. A HOSTED
+            service (RFC-027) wears plum too: it's live, but the plum says "the CLI runs this". */}
         <span
-          className={`${CLASSNAME}__service-dot${service.dynamic ? "" : ` ${CLASSNAME}__service-dot--${serviceStatus[svcUrl] || "unknown"}`}`}
-          title={service.dynamic ? "project-defined" : `service ${serviceStatus[svcUrl] || "unknown"}`}
+          className={`${CLASSNAME}__service-dot${hosted || service.dynamic ? "" : ` ${CLASSNAME}__service-dot--${serviceStatus[svcUrl] || "unknown"}`}`}
+          title={
+            hosted
+              ? `CLI-hosted from ${hosted}/ — ${serviceStatus[svcUrl] || "live"}`
+              : service.dynamic
+              ? "project-defined"
+              : `service ${serviceStatus[svcUrl] || "unknown"}`
+          }
         />
         {service.serviceId}
         {/* A span with its own click, not an <a> — the row is a <button> and nesting anchors in
@@ -204,6 +346,26 @@ function ServiceNode({ service, projectCode, history, selection, onNavigate, rev
           />
         </span>
       </button>
+      {/* RFC-027 §4 — WHERE the hosted service lives, in the same quiet register as the service
+          URL: the config is one click away, the folder paths are simply stated. Never a hunt. */}
+      {hosted && open && (
+        <button
+          type="button"
+          className={`${CLASSNAME}__hosted-paths`}
+          title={`Open ${hosted}/service.json`}
+          onClick={() =>
+            onOpenFile &&
+            onOpenFile({
+              projectCode,
+              serviceId: service.serviceId,
+              path: `${hosted}/service.json`,
+              language: "json",
+            })
+          }
+        >
+          ⚙ {hosted}/service.json <span className={`${CLASSNAME}__hosted-dirs`}>· methods/ · specs/</span>
+        </button>
+      )}
       {open && (
         <div className={`${CLASSNAME}__dyn-modules`}>
           {modules.map((m) => {
@@ -214,6 +376,9 @@ function ServiceNode({ service, projectCode, history, selection, onNavigate, rev
             const specList = service.specList || { tests: [], docs: [] };
             const modSelected = isSelectedModule && !selection.methodName;
             const modRevealed = isRevealedModule && !revealNs.methodName && !modSelected;
+            // The plugin's OWN modules (SystemView logs, Plugin providers) ride every service —
+            // they're SystemView's infrastructure, not the service's surface, and they read as such.
+            const isSvModule = ["Plugin", "SystemView"].includes(m.name);
             return (
               <div key={m.name}>
                 <button
@@ -225,11 +390,12 @@ function ServiceNode({ service, projectCode, history, selection, onNavigate, rev
                       ? scrollTo(`s:${service.serviceId}.${m.name}`)
                       : undefined
                   }
-                  className={`${CLASSNAME}__dyn-module ${modSelected ? `${CLASSNAME}__dyn-module--selected` : ""}${modRevealed ? ` ${CLASSNAME}__row--revealed` : ""}`}
+                  className={`${CLASSNAME}__dyn-module ${modSelected ? `${CLASSNAME}__dyn-module--selected` : ""}${modRevealed ? ` ${CLASSNAME}__row--revealed` : ""}${isSvModule ? ` ${CLASSNAME}__dyn-module--sv` : ""}`}
                   onClick={() => {
                     if (!modOpen) toggleMod(m.name);
                     go(`/specs/${projectCode}/${service.serviceId}/${m.name}`);
                   }}
+                  onContextMenu={!isSvModule ? (e) => moduleMenu(e, m.name) : undefined}
                 >
                   <span
                     className={`${CLASSNAME}__dyn-caret`}
@@ -241,6 +407,7 @@ function ServiceNode({ service, projectCode, history, selection, onNavigate, rev
                     <Chevron open={modOpen} />
                   </span>
                   {m.name}
+                  {isSvModule && <span className={`${CLASSNAME}__sv-tag`}>systemview</span>}
                   <span className={`${CLASSNAME}__dyn-icons`}>
                     <DocIcon isSaved={(specList.docs || []).includes(`${m.name}.md`)} />
                   </span>
@@ -298,7 +465,7 @@ function ServiceNode({ service, projectCode, history, selection, onNavigate, rev
 
 // One connected codebase: header, ALL the project's services (real + project-defined), and the file
 // tree behind its own fold.
-function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigate, revealFile = null, revealNs = null, serviceStatus = {} }) {
+function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigate, revealFile = null, revealNs = null, serviceStatus = {}, onHostedOp = null, onDeleteService = null, onDeleteProject = null, openRowMenu = null }) {
   const { projectCode, fileHost, services, dynamicServices } = entry;
   const history = useHistory();
   // Reveals scoped to THIS card. A file reveal always names its host project; a namespace reveal
@@ -543,10 +710,28 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
       <button
         type="button"
         className={`${CLASSNAME}__cb-head`}
-        title={`Open ${projectCode} — project documentation and tests`}
+        title={`Open ${projectCode} — project documentation and tests — right-click for options`}
         onClick={() => {
           onNavigate();
           history.push(withTab(`/specs/${projectCode}`));
+        }}
+        onContextMenu={(e) => {
+          if (!openRowMenu || !onDeleteProject) return;
+          // Whole-project removal — every connection goes; a HOSTED member is unhosted too, but
+          // its committed folder stays (the user's data; init re-registers it).
+          const hostedFolders = [...services, ...dynamicServices]
+            .filter((s) => s.hosted)
+            .map((s) => s.hosted);
+          openRowMenu(e, projectCode, [
+            {
+              label: "Remove project",
+              danger: true,
+              confirm: hostedFolders.length
+                ? `Remove ${projectCode}? ${[...new Set(hostedFolders)].join(", ")}/ stays`
+                : `Remove ${projectCode} and all its connections?`,
+              action: () => onDeleteProject(projectCode),
+            },
+          ]);
         }}
       >
         <span className={`${CLASSNAME}__cb-badge`}>codebase</span>
@@ -598,6 +783,10 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
                   revealNs={myRevealNs}
                   serviceStatus={serviceStatus}
                   bulk={bulk}
+                  onOpenFile={onOpenFile}
+                  onHostedOp={onHostedOp}
+                  onDeleteService={onDeleteService}
+                  openRowMenu={openRowMenu}
                 />
               ))
             ) : (
@@ -739,7 +928,20 @@ const CodebaseNav = ({
   // live/down per serviceUrl — probed by SystemNavigator, shared by both lenses.
   serviceStatus = {},
   theme = "light",
+  // RFC-027 — configuration hand for HOSTED services (rename service, add/delete/rename modules).
+  // (pc, op, payload) → null on success, an error message on failure.
+  onHostedOp = null,
+  // Right-click removals — the old tree tab's delete buttons live in the row menu now.
+  onDeleteService = null,
+  onDeleteProject = null,
 }) => {
+  // ONE context menu for the whole nav: { x, y, title, items } or null.
+  const [menu, setMenu] = useState(null);
+  const openRowMenu = (e, title, items) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setMenu({ x: e.clientX, y: e.clientY, title, items });
+  };
   const selection = { projectCode, serviceId, moduleName, methodName };
   const onNavigate = () => onOpenFile(null); // namespace navigation closes the open code file
   const revealFile = reveal && reveal.kind === "file" ? reveal : null;
@@ -788,12 +990,17 @@ const CodebaseNav = ({
             revealFile={revealFile}
             revealNs={revealNs}
             serviceStatus={serviceStatus}
+            onHostedOp={onHostedOp}
+            onDeleteService={onDeleteService}
+            onDeleteProject={onDeleteProject}
+            openRowMenu={openRowMenu}
           />
         ))
       ) : (
         <div className={`${CLASSNAME}__empty`}>No connected codebases.</div>
       )}
       <HelpSection revealedTopic={reveal && reveal.kind === "help" ? reveal.topic : null} />
+      <RowMenu menu={menu} onClose={() => setMenu(null)} />
     </div>
   );
 };

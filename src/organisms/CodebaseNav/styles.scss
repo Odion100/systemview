@@ -151,6 +151,132 @@
     }
   }
 
+  // The plugin's own modules (SystemView, Plugin) on EVERY service — infrastructure, not the
+  // service's surface: muted name + a tiny indigo tag, so they never read as the user's modules.
+  &__dyn-module--sv {
+    color: var(--sv-text-muted);
+    font-style: italic;
+  }
+  &__sv-tag {
+    font-size: 8px;
+    font-weight: 700;
+    font-style: normal;
+    letter-spacing: 0.05em;
+    color: #8f97e8;
+    border: 1px solid #dfe2f5;
+    border-radius: 3px;
+    padding: 0 3px;
+    margin-left: 5px;
+    flex: none;
+  }
+
+  // RFC-027 — the row context menu (same dark-panel register as the document's md-menu): remove
+  // any connection, remove a project, configure a hosted service. Destructive items arm into an
+  // inline two-step confirm — no browser dialogs.
+  &__menu-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9400;
+  }
+  &__menu {
+    position: fixed;
+    z-index: 9500;
+    min-width: 196px;
+    padding: 5px;
+    border-radius: 8px;
+    background: #2b3038;
+    border: 1px solid #3a4049;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    color: #e2e6ef;
+    font-size: 12.5px;
+    text-align: left;
+  }
+  &__menu-head {
+    padding: 4px 8px 6px;
+    color: #8b93a7;
+    font-size: 11px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border-bottom: 1px solid #3a4049;
+    margin-bottom: 4px;
+  }
+  &__menu-item {
+    display: block;
+    width: 100%;
+    border: none;
+    background: none;
+    text-align: left;
+    color: inherit;
+    font-size: 12.5px;
+    padding: 5px 8px;
+    border-radius: 5px;
+    cursor: pointer;
+    &:hover {
+      background: #3a4049;
+    }
+    &--danger {
+      color: #e58c8c;
+      &:hover {
+        background: #45333a;
+        color: #ff9d9d;
+      }
+    }
+  }
+  &__menu-confirm {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 8px;
+    border-radius: 5px;
+    background: #45333a;
+  }
+  &__menu-confirm-text {
+    flex: 1;
+    min-width: 0;
+    font-size: 11.5px;
+    color: #ffb3b3;
+  }
+  &__menu-yes,
+  &__menu-no {
+    flex: none;
+    cursor: pointer;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+  }
+  &__menu-yes {
+    background: #e05757;
+    color: #fff;
+  }
+  &__menu-no {
+    background: #3a4049;
+    color: #c9cede;
+  }
+  // WHERE the hosted service lives — config + folders, in the svc-url's quiet monospace register.
+  // One click opens service.json in the Code tab.
+  &__hosted-paths {
+    display: block;
+    width: 100%;
+    border: none;
+    background: none;
+    text-align: left;
+    cursor: pointer;
+    padding: 1px 10px 2px 40px;
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 9.5px;
+    color: var(--sv-text-faint);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    &:hover {
+      color: var(--sv-blue-deep);
+    }
+  }
+  &__hosted-dirs {
+    pointer-events: none;
+  }
+
   // RFC-026 — the `code` fold: the whole file region (filter + tree) behind one quiet row, spoken
   // in the same voice as the section labels. Root indentation, no color.
   &__code-fold {
@@ -573,6 +699,28 @@
     }
     .codebase-nav__svc-url {
       color: #5c6370;
+    }
+    .codebase-nav__dyn-module--sv {
+      color: #8f97a8;
+    }
+    .codebase-nav__sv-tag {
+      color: #8f97e8;
+      border-color: #383e55;
+    }
+    .codebase-nav__svc-op {
+      color: #5c6370;
+      &:hover {
+        color: #61afef;
+      }
+      &--danger:hover {
+        color: #e05757;
+      }
+    }
+    .codebase-nav__hosted-paths {
+      color: #5c6370;
+      &:hover {
+        color: #61afef;
+      }
     }
     .codebase-nav__filter {
       background: #1b1f27;

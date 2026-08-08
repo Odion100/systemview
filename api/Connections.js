@@ -61,7 +61,20 @@ module.exports = function ConnectedServices() {
       const seen = newConnections.some(
         (s) => s.projectCode === svc.projectCode && s.serviceId === svc.serviceId,
       );
-      if (!seen && (svc.dynamic || !connections.some(
+      // RFC-027 — a HOSTED service re-registers with a FRESH port during boot, racing this probe
+      // loop: the stale snapshot holds its old (dead) URL, so it isn't `seen`, and without the
+      // hosted escape the merge reads the new registration as "the dead service we just dropped"
+      // and clobbers it. Keep it only when it isn't the same stale entry we probed dead.
+      const rehosted =
+        svc.hosted &&
+        !connections.some(
+          (s) =>
+            s.projectCode === svc.projectCode &&
+            s.serviceId === svc.serviceId &&
+            s.system && svc.system &&
+            s.system.connectionData.serviceUrl === svc.system.connectionData.serviceUrl,
+        );
+      if (!seen && (svc.dynamic || rehosted || !connections.some(
         (s) => s.projectCode === svc.projectCode && s.serviceId === svc.serviceId,
       )))
         newConnections.push(svc);

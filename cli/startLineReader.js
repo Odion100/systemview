@@ -161,6 +161,21 @@ module.exports = async function startLineReader(url, { connectedUrls = new Set()
         else await stageCmd.stage(positional[0], positional[1], opts);
       } catch (e) { console.error(e.message); }
       lineReader.prompt();
+    } else if (command === "init") {
+      // RFC-027 — init from inside the session: same interview, sharing THIS line reader
+      // (rl.question consumes the answer lines, so they never reach this handler).
+      try {
+        const initProject = require("./initProject");
+        await initProject({ uiUrl: url, Client, rl: lineReader });
+      } catch (e) { console.error(e.message); }
+      lineReader.prompt();
+    } else if (command === "delete") {
+      // RFC-027 — init's opposite (hosted projects only), y/N confirmed on this same reader.
+      try {
+        const deleteHosted = require("./deleteHosted");
+        await deleteHosted(positional[0], { uiUrl: url, Client, rl: lineReader, force: flags.force });
+      } catch (e) { console.error(e.message); }
+      lineReader.prompt();
     } else if (command === "help") {
       cli.showHelp(false);
       lineReader.prompt();
