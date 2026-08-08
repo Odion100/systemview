@@ -110,7 +110,7 @@ const TestPane = ({ target = {}, projectCode }) => {
   return (
     <div className="test-pane">
       {/* Agent-authored markdown that travels WITH this test block. Only renders when present. */}
-      {note ? <div className="test-pane__note"><Markdown children={note} /></div> : null}
+      {note ? <div className="test-pane__note"><Markdown children={note} scope={{ projectCode, serviceId: target.serviceId, moduleName: target.moduleName, methodName: target.methodName }} /></div> : null}
       {tests.length > 1 && (
         <div className="test-pane__bar">
           <span className="test-pane__bar-left">

@@ -1,0 +1,110 @@
+// Message banners — bottom-left, sliding in from the left edge.
+.sv-banner-stack {
+  position: fixed;
+  left: 0;
+  bottom: 14px;
+  z-index: 9000;
+  display: flex;
+  flex-direction: column-reverse; // newest closest to the bottom edge, where the eye lands
+  gap: 8px;
+  pointer-events: none; // the stack is a layer; only the banners themselves take clicks
+  max-width: min(520px, 46vw);
+}
+
+@keyframes sv-banner-in {
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.sv-banner {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 9px 11px 9px 10px;
+  border-radius: 0 8px 8px 0; // flush with the window edge it slides out of
+  border-left: 4px solid #b0b7c9;
+  background: #2b3038;
+  color: #e2e6ef;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.28);
+  font-size: 12.5px;
+  line-height: 1.42;
+  animation: sv-banner-in 0.22s cubic-bezier(0.22, 0.8, 0.3, 1);
+
+  &--error {
+    border-left-color: #e05757;
+    .sv-banner__icon { background: #e05757; }
+  }
+  &--warn {
+    border-left-color: #d19a2e;
+    .sv-banner__icon { background: #d19a2e; }
+  }
+  &--ok {
+    border-left-color: #3f9e6a;
+    .sv-banner__icon { background: #3f9e6a; }
+  }
+  &--info {
+    border-left-color: #6a74c4;
+    .sv-banner__icon { background: #6a74c4; }
+  }
+
+  &__icon {
+    flex: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 16px;
+    text-align: center;
+    margin-top: 1px;
+  }
+  &__body { flex: 1; min-width: 0; }
+  &__text { word-break: break-word; }
+  &__count {
+    margin-left: 6px;
+    font-size: 10.5px;
+    font-weight: 700;
+    color: #aab2c5;
+  }
+  &__more {
+    margin-top: 4px;
+    border: 0;
+    background: transparent;
+    padding: 0;
+    color: #9aa4bf;
+    font-size: 11px;
+    text-decoration: underline;
+    cursor: pointer;
+    &:hover { color: #dfe4f0; }
+  }
+  &__detail {
+    margin: 5px 0 0;
+    padding: 6px 8px;
+    background: #21252b;
+    border-radius: 5px;
+    font-size: 11px;
+    max-height: 160px;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  &__close {
+    flex: none;
+    border: 0;
+    background: transparent;
+    color: #8b93a7;
+    font-size: 15px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 2px;
+    &:hover { color: #fff; }
+  }
+}

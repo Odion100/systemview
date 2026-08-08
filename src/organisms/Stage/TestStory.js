@@ -252,7 +252,11 @@ export function TestAction({ action, ran, phaseSig, phaseCollapsed, autoExpand }
                     ) : (
                       <code className="test-action__lit">{JSON.stringify(a)}</code>
                     )}
-                    {i < args.length - 1 && <code className="test-action__comma">,</code>}
+                    {/* A multi-line object's separator drops to its own line under the closing brace;
+                        a literal keeps it inline, where it reads as `2, 3`. */}
+                    {i < args.length - 1 && (
+                      <code className={`test-action__comma${isObj(a) ? " test-action__comma--own" : ""}`}>,</code>
+                    )}
                   </div>
                 ))}
               </div>

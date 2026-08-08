@@ -201,7 +201,7 @@ const SavedTests = ({
 // and GIVES UP the instant you scroll. Expansion is manual / on-fail only.
 // Reused by the Stories `test` pane (TestPane) — there it's rendered WITHOUT onEdit/onDelete (a story just
 // shows + runs the test; it isn't the builder), so those controls only appear when the handlers are given.
-export function SavedTestItem({ test, index, status, hidden, connectedServices, storyRef, onResult, onEdit, onDelete, autoTrack, autoExpand }) {
+export function SavedTestItem({ test, index, status, hidden, connectedServices, storyRef, onResult, onEdit, onDelete, autoTrack, autoExpand, kindLabel = "test", kindTone = "test", nsLabel, showTitle = true }) {
   const nodeRef = useRef(null);
   const localRef = useRef(null);
   const [expanded, setExpanded] = useState(false); // collapsed by default — just the header
@@ -285,10 +285,18 @@ export function SavedTestItem({ test, index, status, hidden, connectedServices, 
       <div className="test-saved-section__phead">
         <button type="button" className="test-saved-section__fold" onClick={toggleFold}>
           <span className="test-saved-section__caret">{expanded ? "▾" : "▸"}</span>
-          <span className="test-saved-section__kind">test</span>
-          <span className="test-saved-section__ns">
-            {ns.serviceId ? `${ns.serviceId}.` : ""}{ns.moduleName}.<b>{ns.methodName}</b>
-          </span>
+          {/* A saved test is "test <the namespace it saves under>". An AD-HOC RUN is neither — it
+              saves nowhere and belongs to no method, so a caller passes its own words (`kindLabel`)
+              and `nsLabel={null}` to drop the namespace entirely. Showing the first step's method
+              there read as "this run is filed under Math.multiply", which is not a thing. */}
+          <span className={`test-saved-section__kind test-saved-section__kind--${kindTone}`}>{kindLabel}</span>
+          {nsLabel === null ? null : nsLabel ? (
+            <span className="test-saved-section__ns">{nsLabel}</span>
+          ) : (
+            <span className="test-saved-section__ns">
+              {ns.serviceId ? `${ns.serviceId}.` : ""}{ns.moduleName}.<b>{ns.methodName}</b>
+            </span>
+          )}
           {running ? (
             <span className="test-saved-section__badge is-running"><span className="test-story__spinner" />running</span>
           ) : ran ? (
@@ -308,7 +316,9 @@ export function SavedTestItem({ test, index, status, hidden, connectedServices, 
           </button>
         </span>
       </div>
-      {test.title && (
+      {/* A run block already carries its title in its own header — repeating it here read as two
+          different things stacked on each other. `showTitle={false}` drops the duplicate. */}
+      {showTitle && test.title && (
         <button type="button" className="test-saved-section__title-row" onClick={toggleFold}>
           {test.title}
         </button>

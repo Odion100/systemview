@@ -197,12 +197,33 @@ const CodePane = ({ file, onClose }) => {
           <DiffView base={diffData.base} head={content} language={diffData.language} dark={editorDark} onChange={setContent} />
         ) : preview && isMd ? (
           <div className={`md-view md-view--${editorDark ? "dark" : "light"}`}>
-            <Markdown dark={editorDark}>{content}</Markdown>
+            <Markdown
+              dark={editorDark}
+              scope={{ projectCode: file.projectCode, serviceId: file.serviceId }}
+              commentKey={`file-${file.path}`}
+              // A checklist toggled in Preview saves the file — same writeFile the editor uses.
+              onSourceChange={
+                Plugin
+                  ? async (next) => {
+                      setContent(next);
+                      try {
+                        await Plugin.writeFile({ path: file.path, content: next });
+                        setSavedContent(next);
+                      } catch (e) {
+                        setError(e.message || "save failed");
+                      }
+                    }
+                  : null
+              }
+            >
+              {content}
+            </Markdown>
           </div>
         ) : (
           // Every file edits with syntax coloring; the GLOBAL editor theme (default dark) decides the
           // canvas — the rendered md Preview follows it too.
-          <CodeEditor value={content} language={file.language} onChange={setContent} dark={editorDark} />
+          // `file.lines` is set when a :file[path#L40-70] link opened this — select + center it.
+          <CodeEditor value={content} language={file.language} onChange={setContent} dark={editorDark} focusLines={file.lines || null} />
         ))}
       </div>
     </div>

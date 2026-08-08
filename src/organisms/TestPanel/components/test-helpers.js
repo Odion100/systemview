@@ -14,7 +14,10 @@ const TV_TAIL = `(?:\\[(?:\\d+)\\]|\\.(?:(?![0-9])[a-zA-Z0-9$_]+(?:\\[(?:\\d+)\\
 const TV_LEGACY = `(?:before|main|after)Test\\.Action\\d+\\.(?:error|results)${TV_TAIL}`;
 // head is any identifier: a section (before|main|events|after) OR a shared-action name, so
 // `test.signIn[1].results` (a shared action in its own local index space) parses alongside sections.
-const TV_NATURAL = `test\\.(?![0-9])[a-zA-Z0-9$_]+(?:\\[\\d+\\]|\\.(?![0-9])[a-zA-Z0-9$_]+)\\.(?:error|results)${TV_TAIL}`;
+// `args` joins `results`/`error` as a reference ROOT: a step's own INPUT is often the thing you
+// want to compare against later — "the id I sent must come back" — and without this you had to
+// repeat the literal in both places and hope they stayed in sync.
+const TV_NATURAL = `test\\.(?![0-9])[a-zA-Z0-9$_]+(?:\\[\\d+\\]|\\.(?![0-9])[a-zA-Z0-9$_]+)\\.(?:error|results|args)${TV_TAIL}`;
 const TV_BODY = `(?:${TV_LEGACY}|${TV_NATURAL})`;
 export const isTargetNamespace = (str) => new RegExp(`^${TV_BODY}$`).test(str);
 export const targetValueFnRegex = new RegExp(`tv\\(${TV_BODY}\\)`, "g");
@@ -242,6 +245,10 @@ export const resolveTargetValue = (input, FullTest) => {
   const path = input
     .replace(/^test\./, "")
     .replace(/\[(\d+)\]/g, ".$1")
+    // `args.0` IS the argument as far as anyone reading the reference is concerned. `input` is the
+    // Argument class's own field name — internal storage, not part of the map — so it's stepped
+    // through here instead of being spelled out: `args[0].a`, never `args[0].input.a`.
+    .replace(/(^|\.)args\.(\d+)(?!\.input\b)/, "$1args.$2.input")
     .split(".")
     .filter(Boolean)
     .map((p) => (p === "error" ? "results" : p))

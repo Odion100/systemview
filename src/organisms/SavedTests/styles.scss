@@ -329,6 +329,10 @@
     padding: 1px 6px;
     border-radius: 3px;
     flex-shrink: 0;
+    // Distinct from the RUN badge on the block above it — same card, different scope, so the eye
+    // shouldn't read them as one repeated label.
+    &--run { background: #2f8f7a; }
+    &--action { background: #5b7dd6; }
   }
   &__ns {
     font-family: "SF Mono", Menlo, monospace;

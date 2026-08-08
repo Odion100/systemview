@@ -462,3 +462,22 @@
     color: #6b7385 !important;
   }
 }
+
+// RFC-025 — REVEALED, not selected. A `:ns[…]` chip clicked in a document points the tree at its
+// target without navigating. ONE mark on the row — a soft amber wash with a left edge — never a ring
+// stacked on top of the row's own selection styling, which read as two selections at once.
+.is-revealed {
+  border-radius: 4px;
+  background: rgba(201, 168, 90, 0.13);
+  box-shadow: inset 2px 0 0 #b9a05a;
+  animation: sv-reveal-pulse 1s ease-out 1;
+}
+
+@keyframes sv-reveal-pulse {
+  0% {
+    background: rgba(201, 168, 90, 0.34);
+  }
+  100% {
+    background: rgba(201, 168, 90, 0.13);
+  }
+}

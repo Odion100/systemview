@@ -1,0 +1,20 @@
+{
+  "app:hub": {
+    "hub-threads": [
+      {
+        "text": "Agent reply, on the hub. This is the same thread a story pane carries — same { text, ts, author } shape, same two looks — so an agent answers you here exactly the way it does on a pane. Worth knowing: the checklist above this block is read-only because the hub is a built-in with no file on disk, but the thread still saves. Replies live beside it, not inside it.",
+        "ts": 1786146030000,
+        "author": "agent"
+      }
+    ]
+  },
+  "app:help-markdown": {
+    "help-markdown-threads": [
+      {
+        "text": "Agent reply, on a help topic. Same point as the hub: a help topic is a JS constant, so its checklists can't be ticked — there is no file to save. A thread works anyway, because replies go to a store rather than into the document. These two surfaces keep their replies on the hub server itself; a thread on a real document keeps them in that project's repo, where they belong.",
+        "ts": 1786146360000,
+        "author": "agent"
+      }
+    ]
+  }
+}

@@ -283,6 +283,11 @@ function changedFiles() {
 function writeFile({ path: userPath, content } = {}) {
   if (!userPath) throw new Error("writeFile: `path` is required");
   const abs = safeResolve(userPath);
+  // Create the parent folder if it's missing — writing to a path whose directory doesn't exist yet
+  // (a new specs folder, a sidecar) failed with ENOENT and looked like a silent no-op to the caller.
+  try {
+    fs.mkdirSync(require("path").dirname(abs), { recursive: true });
+  } catch {}
   fs.writeFileSync(abs, content == null ? "" : String(content), "utf8");
   return { path: relFromRoot(abs), bytes: Buffer.byteLength(content || "", "utf8") };
 }

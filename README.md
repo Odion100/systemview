@@ -155,8 +155,9 @@ Click **Run** to execute the sequence. Click **Save** to persist the test to the
 `specs/tests/<Module>.<method>.json`; actions live in `specs/actions/<name>.json`.
 
 Agents: the exact spec-file JSON (steps, `targetValues`, evaluations, actions, `{use}`/`run`) is in
-[docs/agents/tests.md](docs/agents/tests.md) — the testing counterpart to
-[docs/agents/stories.md](docs/agents/stories.md).
+[agents/AGENTS.md](agents/AGENTS.md) — the agent entry point, with the depth beside it:
+[markdown.md](agents/markdown.md), [tests.md](agents/tests.md), [stories.md](agents/stories.md),
+[namespaces.md](agents/namespaces.md).
 
 ---
 
@@ -255,6 +256,75 @@ back as reports, per project:
 A **time-range** control (all time / 15m / 1h / 4h / 24h) windows the numbers; charts have a hover
 crosshair showing the value and the moment.
 
+## Interactive markdown
+
+Documents in SystemView are **live** (RFC-025). Every markdown surface — the Documentation tab,
+the Report tab, story markdown and `.md` file panes, agent notes on tests, help topics, the codebase
+preview — renders through one renderer, so these blocks work in all of them.
+
+```markdown
+The chain test lives in :ns[Math.chainUse], the dispatch in :file[src/atoms/Markdown/Markdown.js#L20-46].
+
+::chart{report=throughput range=1h}
+::logs[Math.chainUse]{limit=50}
+::test[Math.chainUse]
+::diff[cli/runTests.js]
+
+:::run{title="Seed and chain"}
+- use: seedSum
+- Math.multiply({ "a": tv(seedSum[0].results.sum), "b": 4 })
+  - results.product = 20
+:::
+
+:::approval{ask="Approve the plan?"}
+What's being proposed.
+:::
+```
+
+**Links reveal, they don't navigate.** `:ns[…]` and `:file[…]` point the navigator at their target
+without moving you off the document (⌘-click navigates for real), and both resolve against the live
+connection tree, so a stale reference renders dashed and says why instead of lying.
+
+**Embeds are the real components**, not screenshots: `::chart` · `::topology` · `::load` · `::logs` ·
+`::test` · `::file` · `::diff`. Page and embed can't drift because they're the same component.
+
+**Runnables are assembled in the document.** `:::run` takes method calls with as many arguments as
+the method really has, with assertions as a nested list under each step, `use:` to pull in a shared
+action, and `tv(…)` to reach an earlier step's results *or arguments*. It never auto-runs.
+
+**The document is the state.** Task lists, `::question` answers and `:::approval` verdicts are written
+back into the markdown itself — so an agent that reads the document reads your decision, with no
+second store to sync.
+
+**Conversation rides along.** `:::thread{id=…}` wraps anything and carries the same reply thread a
+story pane has; replies live in a sidecar, out of your diffs.
+
+**Structure:** `:::callout` · `:::details` · `::::tabs` · `::::columns` (a lead beside its evidence) ·
+`::::carousel`.
+
+**Right-click any document** you can save: start a thread here, wrap the block in an approval, callout
+or fold, or insert a chart / logs / test / run / file / diff — each one asks which target it should
+point at instead of dropping a placeholder. Removing a wrapper keeps its contents.
+
+An unknown block renders a visible chip rather than vanishing, and raw HTML is not enabled — the
+block registry (`src/atoms/Markdown/registry.js`) is the only extension point. Open the **?** help
+icon and pick *Interactive markdown* for the live version of this list; `docs/interactive-markdown.md`
+and the `systemview-test` project doc are worked examples. Agents: [`agents/AGENTS.md`](agents/AGENTS.md).
+
+---
+
+## Reports
+
+A **report** is a document that isn't documentation: a write-up, a plan, a review, an agent's
+findings. Reports are scoped to a namespace like docs are, but several can hang off one namespace,
+and they live in `.systemview/` — git-ignored — so they never mix into the project's own docs.
+
+The **Report** tab is one line of chrome and then the document: pick or name one in the dropdown and
+it fills the panel; ✕ puts the list back. Every interactive block works inside a report, which is what
+makes it a place to *do* the review rather than describe it.
+
+---
+
 ## Stories
 
 A **Story** is a saved, named, namespaced view of a piece of work — an ordered set of panes
@@ -274,7 +344,7 @@ systemview story <projectCode> "<name>" --ns <namespace> --diff <path> --file <p
 systemview stories <projectCode>          # list every saved story
 ```
 
-**→ Agents: read [`docs/agents/stories.md`](docs/agents/stories.md)** for when, why, and how
+**→ Agents: read [`agents/AGENTS.md`](agents/AGENTS.md)** for when, why, and how
 (with worked examples).
 
 ---
@@ -285,7 +355,7 @@ systemview stories <projectCode>          # list every saved story
 |---|---|
 | `systemview [start] [port]` | Start SystemView UI; attach if already running |
 | `systemview test <projectCode> [namespace]` | Run saved tests |
-| `systemview story <projectCode> "<name>" [--ns …] [panes…]` | Create/update a namespaced Story ([agent guide](docs/agents/stories.md)) |
+| `systemview story <projectCode> "<name>" [--ns …] [panes…]` | Create/update a namespaced Story ([agent guide](agents/AGENTS.md)) |
 | `systemview stories <projectCode>` | List saved Stories |
 | `systemview list [projectCode] [namespace]` | List projects, services, or tests |
 | `systemview logs [projectCode] [namespace]` | Stream log entries from connected services |

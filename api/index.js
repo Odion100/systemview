@@ -4,6 +4,7 @@ const { headersFor } = require("../cli/manifestHeaders");
 const ConnectedServices = require("./Connections")();
 const CLIHistory = require("./CLIHistory")();
 const Settings = require("./Settings")();
+const Comments = require("./Comments")();
 const Stage = require("./Stage")();
 // The UI server calls services the same way the CLI does: through the manifest-header client,
 // so operator-authored headers (e.g. an Origin for a gated dev session — see cli/manifestHeaders.js)
@@ -226,7 +227,17 @@ function getSelection(projectCode) {
 // cwd), so views travel with the repo. The API orchestrates: it holds the stage, the plugin the disk.
 function projectPlugin(projectCode) {
   const services = ConnectedServices.findProject(projectCode) || [];
-  const svc = services.find((s) => s.system && s.system.connectionData);
+  // A project can contain services with NO plugin — a codebase entry, or a service that registers
+  // without the SystemView module (SystemViewCore). Taking the FIRST service returns a client with no
+  // `.Plugin`, so every story/view op fails with "no connected service for project" purely on
+  // connection ORDER. Prefer a service that actually exposes the Plugin module.
+  const exposesPlugin = (s) =>
+    ((s.system && s.system.connectionData && s.system.connectionData.modules) || []).some(
+      (m) => m.name === "Plugin",
+    );
+  const svc =
+    services.find((s) => s.system && s.system.connectionData && exposesPlugin(s)) ||
+    services.find((s) => s.system && s.system.connectionData);
   if (!svc) return null;
   const client = Client.createService(svc.system.connectionData);
   return client && client.Plugin ? client.Plugin : null;
@@ -417,6 +428,10 @@ module.exports = function launchSystemView(port = 3000) {
       saveHistory: CLIHistory.saveHistory,
       getSettings: Settings.getSettings,
       saveSettings: Settings.saveSettings,
+      // Threads on SystemView's own surfaces (hub, help topics) — see api/Comments.js for why they
+      // don't ride a project's plugin the way a document's threads do.
+      getComments: Comments.getComments,
+      saveComments: Comments.saveComments,
     })
     .on("ready", () => {
       server.get("*", (req, res) => {

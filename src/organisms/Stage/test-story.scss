@@ -372,6 +372,10 @@ $sv-blue: var(--sv-blue);
   &__arg {
     padding: 1px 0;
     max-width: 100%;
+    // The separating comma used to ride the JSON view's inline-block baseline, which put it beside
+    // the object's FIRST line (and, once bottom-aligned, out past its widest line). For a multi-line
+    // object the comma belongs on its OWN line under the closing brace — the way a real multi-line
+    // call reads. Literal args keep it inline.
     .react-json-view {
       display: inline-block !important;
       vertical-align: top;
@@ -381,6 +385,10 @@ $sv-blue: var(--sv-blue);
   &__comma {
     font-family: "SF Mono", Menlo, monospace;
     color: var(--sv-text-muted);
+    &--own {
+      display: block;
+      line-height: 1.2;
+    }
   }
   &__paren {
     font-family: "SF Mono", Menlo, monospace;

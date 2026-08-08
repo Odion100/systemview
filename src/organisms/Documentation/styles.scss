@@ -136,9 +136,13 @@
 .doc-pane {
   display: flex;
   flex-direction: column;
-  max-height: calc(
-    100vh - 30px
-  ); // grows to content BELOW this; caps + scrolls only when genuinely long (extends near the page bottom)
+  // The pane STARTS ~99px down the page (page header + tabs), so its cap has to subtract that — the
+  // old `100vh - 30px` made it 69px taller than the room it had, pushing its own scroll area below
+  // the viewport where nothing could reach it (the "document is cut off and won't scroll" bug: the
+  // page doesn't scroll either, so those last rows were simply gone). 14px of the subtraction is
+  // breathing room between the document and the bottom of the window.
+  max-height: calc(100vh - 113px);
+  margin-bottom: 14px;
   border: 1px solid var(--sv-border);
   border-radius: 6px;
   background: var(--sv-surface);
@@ -172,6 +176,19 @@
   &__body {
     overflow: auto;
     min-height: 0;
+    // Same reason as the Reports tab: a short document should still own the empty space under it, so
+    // a right-click down there gets the document menu rather than the browser's. Flex rather than a
+    // percentage height — inside a flex item there's no definite parent height to resolve against.
+    display: flex;
+    flex-direction: column;
+    .md-view {
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+    }
+    .markdown {
+      flex: 1 1 auto;
+    }
   }
   // Edit / Save / Close ride the header's right edge — the SAME control placement the Code pane uses.
   // The document body below is for reading; the header owns the mode.

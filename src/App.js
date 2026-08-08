@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import SystemView from "./pages/SystemView/SystemView";
 import Reports from "./pages/Reports/Reports";
 import ServiceContext from "./ServiceContext";
+import BannerStack from "./atoms/Banner/Banner";
+import { installGlobalErrorChannel } from "./atoms/Banner/bannerStore";
 import {
   BrowserRouter as Router,
   Route,
@@ -16,12 +18,17 @@ function DebugRouter({ children }) {
   return children;
 }
 
+// A promise nobody caught used to be console-only; now it reaches the banner stack like everything
+// else. Installed once, outside the component, so a re-render can't re-register it.
+installGlobalErrorChannel();
+
 function App({ SystemViewService }) {
   const [connectedServices, setConnectedServices] = useState([]);
   return (
     <ServiceContext.Provider
       value={{ SystemViewService, connectedServices, setConnectedServices }}
     >
+      <BannerStack />
       <Router>
         <DebugRouter>
           <Switch>

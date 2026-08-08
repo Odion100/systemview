@@ -10,7 +10,7 @@ import "./styles.scss";
 // RFC-018 Phase 4 — the EDITABLE CodeMirror (the editor we always wanted). Powers both the doc editor
 // (replacing the plain textarea) and edit-any-file in a file pane. `value`/`onChange` is the whole
 // contract — display vs edit is just which component (CodeView) you render. `dark` picks oneDark.
-const CodeEditor = ({ value = "", language = "markdown", onChange, dark = false }) => {
+const CodeEditor = ({ value = "", language = "markdown", onChange, dark = false, focusLines = null }) => {
   const host = useRef(null);
   const viewRef = useRef(null);
   const onChangeRef = useRef(onChange);
@@ -53,6 +53,26 @@ const CodeEditor = ({ value = "", language = "markdown", onChange, dark = false 
       view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: value } });
     }
   }, [value]);
+
+  // RFC-025 — `:file[path#L40-70]` opens the file AT a range. Select the lines and center them by
+  // setting the editor's OWN scroller only. Never scrollIntoView: it walks up the DOM and scrolls
+  // every scrollable ancestor, which is what used to yank a whole story to the middle.
+  const focusKey = focusLines ? focusLines.join("-") : "";
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view || !focusLines || !focusLines[0] || !value) return;
+    const total = view.state.doc.lines;
+    const a = Math.min(Math.max(1, focusLines[0]), total);
+    const b = Math.min(Math.max(a, focusLines[1] || a), total);
+    const from = view.state.doc.line(a).from;
+    const to = view.state.doc.line(b).to;
+    view.dispatch({ selection: { anchor: from, head: to } });
+    const top = view.lineBlockAt(from).top;
+    const bottom = view.lineBlockAt(to).bottom;
+    const mid = (top + bottom) / 2;
+    view.scrollDOM.scrollTop = Math.max(0, mid - view.scrollDOM.clientHeight / 2);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusKey, value]);
 
   return <div className={`code-editor ${dark ? "code-editor--dark" : ""}`} ref={host} />;
 };

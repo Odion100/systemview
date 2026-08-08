@@ -1,0 +1,453 @@
+// Status colours travel with the components that use them (moved from pages/Reports/styles.scss).
+$ok: #2e7d32;
+$watch: #d4a017;
+$bad: #c62828;
+
+// Chart styles — MOVED here from pages/Reports/styles.scss with the component (RFC-025 §4.3), so a
+// chart is styled wherever it renders: the Stats page, a story pane, a `::chart` inside a document.
+// Class names are unchanged (`report-chart*`) so nothing on the Stats page had to move with them.
+.report-chart {
+  width: 100%;
+  height: 90px;
+  display: block;
+  background: var(--sv-surface);
+  border: 1px solid var(--sv-border-soft);
+  border-radius: 8px;
+}
+// Hover crosshair overlay — the wrapper is the positioning context; dot + tip ride PERCENT
+// coordinates so they track the stretched svg exactly.
+.report-chart-wrap {
+  position: relative;
+}
+.report-chart-dot {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 2px solid var(--sv-surface);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.report-chart-tip {
+  position: absolute;
+  top: 5px;
+  transform: translateX(9px);
+  background: var(--sv-surface);
+  border: 1px solid var(--sv-border);
+  border-radius: 5px;
+  padding: 2px 8px;
+  font-size: 11px;
+  color: var(--sv-text-muted);
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 1px 4px rgba(31, 36, 48, 0.12);
+  b {
+    color: var(--sv-text-strong);
+    font-weight: 600;
+  }
+  // Past the 60% mark the tip flips to the LEFT of the crosshair so it never clips the edge.
+  &--left {
+    transform: translateX(calc(-100% - 9px));
+  }
+}
+.report-chart-empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--sv-text-faint);
+  font-size: 13px;
+  background: var(--sv-surface);
+  border: 1px dashed var(--sv-border);
+  border-radius: 8px;
+}
+// chart help caption
+.report-chart-help {
+  font-size: 11px;
+  color: var(--sv-text-muted);
+  margin-top: 5px;
+  line-height: 1.35;
+}
+
+
+// ── moved from pages/Reports/styles.scss with their components (RFC-025 §4.3) ─────────────────
+.report-mock {
+  display: inline-block;
+  font-family: monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #8a5a00;
+  background: repeating-linear-gradient(45deg, #fbeccb, #fbeccb 6px, #f7e0ad 6px, #f7e0ad 12px);
+  border: 1px solid #e0b849;
+  border-radius: 4px;
+  padding: 1px 7px;
+  vertical-align: middle;
+}
+
+.topo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.topo-node {
+  background: var(--sv-surface);
+  border: 1px solid var(--sv-border-soft);
+  border-top: 4px solid #cfcfe0;
+  border-radius: 8px;
+  padding: 12px 14px;
+
+  &--ok    { border-top-color: $ok; }
+  &--watch { border-top-color: $watch; }
+  &--bad   { border-top-color: $bad; }
+
+  &__head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 3px;
+  }
+  &__name { font-weight: 700; color: var(--sv-text-strong); font-size: 15px; flex: 1; }
+  &__badge { font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--sv-text-muted); }
+  &__meta { font-size: 12px; font-family: monospace; color: var(--sv-text-muted); margin-bottom: 10px; }
+  &__methods { display: flex; flex-direction: column; gap: 5px; }
+}
+
+.topo-method {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: monospace;
+  font-size: 12px;
+
+  &__name {
+    flex: 0 0 42%;
+    color: var(--sv-text-strong);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  &__track { flex: 1; height: 9px; background: var(--sv-inset); border-radius: 5px; overflow: hidden; }
+  &__bar {
+    height: 100%;
+    border-radius: 5px;
+    background: var(--sv-blue);
+    &--ok    { background: var(--sv-blue); }
+    &--watch { background: $watch; }
+    &--bad   { background: $bad; }
+  }
+  &__count { flex: 0 0 46px; text-align: right; color: var(--sv-text); }
+  &__empty { color: var(--sv-text-faint); font-size: 12px; font-style: italic; }
+}
+
+.load-cols {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  padding: 6px 4px 0;
+  overflow-x: auto;
+
+  &__col {
+    flex: 1 1 0;
+    min-width: 54px;
+    max-width: 110px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+  }
+  &__val {
+    font-size: 10.5px;
+    font-family: "SF Mono", Menlo, monospace;
+    color: var(--sv-text-muted);
+    margin-bottom: 4px;
+    &--bad {
+      color: #c62828;
+      font-weight: 700;
+    }
+  }
+  &__bar {
+    width: 68%;
+    border-radius: 6px 6px 0 0;
+    position: relative;
+    opacity: 0.85;
+    transition: opacity 0.12s;
+    &:hover {
+      opacity: 1;
+    }
+    // The STATE cap — health rides the top of the bar so the fill can stay group-colored.
+    &--watch::after,
+    &--bad::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 5px;
+      border-radius: 6px 6px 0 0;
+    }
+    &--watch::after {
+      background: #d4a017;
+    }
+    &--bad::after {
+      background: #c62828;
+    }
+  }
+  &__name {
+    width: 100%;
+    text-align: center;
+    border-top: 2px solid var(--sv-border);
+    padding-top: 5px;
+    margin-top: 0;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--sv-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  &__svc {
+    font-size: 9.5px;
+    color: var(--sv-text-faint);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+}
+
+.topo-canvas {
+  position: relative;
+  height: 520px;
+  background: var(--sv-surface);
+  background-image: radial-gradient(var(--sv-border-soft) 1px, transparent 1px);
+  background-size: 22px 22px;
+  border: 1px solid var(--sv-border-soft);
+  border-radius: 10px;
+  overflow: hidden;
+
+  &__empty {
+    position: absolute;
+    left: 50%;
+    top: 14px;
+    transform: translateX(-50%);
+    color: var(--sv-text-faint);
+    font-size: 12.5px;
+  }
+}
+
+.topo-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.topo-edge {
+  fill: none;
+  stroke: var(--sv-text-faint);
+  stroke-width: 1.75;
+  pointer-events: none;
+  transition: stroke 0.12s;
+  // Lines carry their CALLER's hue (inline) — selection THICKENS rather than recoloring, so the
+  // hue keeps matching the highlighted method rows.
+  &.is-sel {
+    stroke-width: 3;
+  }
+}
+
+.topo-edge-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 16;
+  cursor: pointer;
+}
+
+.topo-arrowhead {
+  fill: var(--sv-text-faint);
+  &--sel {
+    fill: var(--sv-blue);
+  }
+}
+
+.topo-chip {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  background: var(--sv-surface);
+  border: 1px solid var(--sv-border);
+  border-radius: 100px;
+  padding: 0 7px;
+  font-size: 10.5px;
+  line-height: 17px;
+  color: var(--sv-text-muted);
+  cursor: pointer;
+  user-select: none;
+  &.is-sel {
+    border-color: var(--sv-blue);
+    color: var(--sv-blue);
+  }
+}
+
+.topo-gnode {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  background: var(--sv-surface);
+  border: 1px solid var(--sv-border);
+  border-left: 4px solid #cfcfe0;
+  border-radius: 10px;
+  padding: 8px 14px;
+  min-width: 120px;
+  cursor: grab;
+  user-select: none;
+  box-shadow: 0 1px 6px rgba(31, 36, 48, 0.1);
+  &:active {
+    cursor: grabbing;
+  }
+  &.is-sel {
+    border-color: var(--sv-blue);
+    box-shadow: 0 0 0 2px rgba(104, 134, 186, 0.25);
+  }
+  &--ok { border-left-color: $ok; }
+  &--watch { border-left-color: $watch; }
+  &--bad { border-left-color: $bad; }
+
+  &__name {
+    display: flex;
+    align-items: center;
+    font-weight: 700;
+    font-size: 13.5px;
+    color: var(--sv-text-strong);
+    white-space: nowrap;
+  }
+  &__sub {
+    font-size: 11px;
+    font-family: monospace;
+    color: var(--sv-text-muted);
+    white-space: nowrap;
+    margin-top: 1px;
+  }
+  // Expanded: the card squares its bottom corners and the method list hangs below it (absolutely
+  // positioned so the HEAD stays anchored — the card's center/edges don't move for the edge math).
+  &--open {
+    border-radius: 10px 10px 0 0;
+    z-index: 3; // an open card's method list rides OVER neighboring cards
+  }
+  &__methods {
+    position: absolute;
+    top: 100%;
+    left: -1px;
+    right: -1px;
+    background: var(--sv-surface);
+    border: 1px solid var(--sv-border);
+    border-top: 1px dashed var(--sv-border-soft);
+    border-radius: 0 0 10px 10px;
+    padding: 3px 0;
+    box-shadow: 0 3px 8px rgba(31, 36, 48, 0.1);
+  }
+  &__mrow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 12px;
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 11px;
+    color: var(--sv-text);
+    white-space: nowrap;
+    &--quiet {
+      color: var(--sv-text-faint);
+      font-style: italic;
+      height: 21px;
+    }
+  }
+  &__mname {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  // The connection tag — names WHO the highlighted rows belong to, floating beside the list so it
+  // never shifts the row anchors the branch arrows land on.
+  &__from {
+    position: absolute;
+    left: 100%;
+    top: 3px;
+    margin-left: 8px;
+    background: var(--sv-surface);
+    border: 1px solid;
+    border-radius: 100px;
+    padding: 1px 9px;
+    font-size: 10px;
+    font-weight: 700;
+    white-space: nowrap;
+    box-shadow: 0 1px 4px rgba(31, 36, 48, 0.12);
+  }
+  &__mcount {
+    margin-left: auto;
+    color: var(--sv-text-muted);
+    font-size: 10px;
+  }
+}
+
+.topo-detail {
+  margin-top: 10px;
+  background: var(--sv-surface);
+  border: 1px solid var(--sv-border-soft);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 12.5px;
+  color: var(--sv-text);
+
+  &__title {
+    font-weight: 700;
+    color: var(--sv-text-strong);
+    margin-bottom: 6px;
+    font-size: 13px;
+  }
+  &__row {
+    padding: 2.5px 0;
+    b {
+      color: var(--sv-text-strong);
+    }
+    code {
+      font-size: 11.5px;
+      color: var(--sv-blue-deep);
+      background: var(--sv-inset);
+      border-radius: 4px;
+      padding: 1px 5px;
+    }
+  }
+  &__via {
+    margin-left: 10px;
+    font-size: 11px;
+    color: var(--sv-text-faint);
+    font-style: italic;
+  }
+  &__hint {
+    color: var(--sv-text-faint);
+  }
+  // Live-edge tally beside the title — replaces the MOCK badge once real edges flow.
+  &__live {
+    font-size: 11px;
+    font-weight: 600;
+    color: #2e7d32;
+    margin-left: 6px;
+  }
+}
+
+  .topo-node {
+    border-top-color: #4a5160;
+    &--ok { border-top-color: $ok; }
+    &--watch { border-top-color: $watch; }
+    &--bad { border-top-color: $bad; }
+  }
+
+  .topo-gnode {
+    border-left-color: #4a5160;
+    &--ok { border-left-color: $ok; }
+    &--watch { border-left-color: $watch; }
+    &--bad { border-left-color: $bad; }
+  }
+
+  .report-mock {
+    color: #e0b849;
+    background: repeating-linear-gradient(45deg, #3a3320, #3a3320 6px, #453c22 6px, #453c22 12px);
+    border-color: #8a733a;
+  }

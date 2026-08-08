@@ -61,6 +61,8 @@ const SystemNav = ({
   setNavTab = () => {},
   openFile,
   onOpenFile = () => {},
+  // RFC-025 — a pointer from a document: expand to it and highlight it, but never select it.
+  reveal = null,
 }) => {
   const [serviceStatus, setServiceStatus] = useState({});
   const [adding, setAdding] = useState(false);
@@ -207,6 +209,13 @@ const SystemNav = ({
           (s) => s.serviceId === serviceId && s.projectCode === projectCode,
         );
         if (!serviceData) return prev;
+        // NO-OP GUARD. Every saveDoc/saveTest/saveAction pushes a spec-list update, but most saves
+        // don't change the FILE LIST at all — re-saving an existing doc (or ticking a checkbox in
+        // one) sends the identical list. Replacing the array anyway hands every ServiceContext
+        // consumer a new identity, so the whole app re-renders and the Saved-tests panel visibly
+        // reloads just because a checkbox moved. Only publish when the list actually changed.
+        const same = JSON.stringify(serviceData.specList) === JSON.stringify(specList);
+        if (same) return prev;
         serviceData.specList = specList;
         return [...prev];
       });
@@ -329,6 +338,7 @@ const SystemNav = ({
                     onDeleteService={handleDeleteService}
                     onDeleteProject={handleDeleteProject}
                     serviceStatus={serviceStatus}
+                    reveal={reveal}
                   />
                 </>
               )}
@@ -339,8 +349,9 @@ const SystemNav = ({
                   serviceId={serviceId}
                   moduleName={moduleName}
                   methodName={methodName}
-                  openFile={openFile}
+                  openFile={openFile || (reveal && reveal.kind === "file" ? reveal : null)}
                   onOpenFile={onOpenFile}
+                  revealedPath={reveal && reveal.kind === "file" && !openFile ? reveal.path : null}
                   theme={cbTheme}
                 />
               )}
@@ -361,6 +372,7 @@ const NavigationLinks = ({
   onDeleteService,
   onDeleteProject,
   serviceStatus,
+  reveal = null,
 }) => {
   const projects = connectedServices.reduce((acc, service) => {
     const pc = service.projectCode;
@@ -371,9 +383,11 @@ const NavigationLinks = ({
 
   return Object.entries(projects).map(([pc, services], pi) => {
     const isSelectedProject = pc === selectedProjectCode;
+    const revealNs = reveal && reveal.kind === "namespace" ? reveal : null;
+    const isRevealedProject = !!revealNs && revealNs.projectCode === pc;
     return (
       <ExpandableList
-        open={isSelectedProject}
+        open={isSelectedProject || isRevealedProject}
         key={pc}
         title={
           <span
@@ -401,15 +415,18 @@ const NavigationLinks = ({
           const isSaved =
             specList && specList.docs && specList.docs.includes(`${serviceId}.md`);
           const isSelected = isSelectedProject && selectedServiceId === serviceId;
+          const isRevealedService = isRevealedProject && revealNs.serviceId === serviceId;
           return (
             <ExpandableList
-              open={isSelected}
+              open={isSelected || isRevealedService}
               key={i}
               title={
                 <span
                   className={`system-nav__link system-nav__link--active-${
                     isSelected
-                  } system-nav__link--selected-${!selectedModuleName && isSelected}`}
+                  } system-nav__link--selected-${!selectedModuleName && isSelected}${
+                    isRevealedService && !revealNs.moduleName ? " is-revealed" : ""
+                  }`}
                 >
                   <span className="system-nav__service-info">
                     <Link link={`/specs/${pc}/${serviceId}`} text={serviceId} />
@@ -452,6 +469,7 @@ const NavigationLinks = ({
                 serviceId={serviceId}
                 modules={system.connectionData.modules}
                 specList={specList}
+                reveal={isRevealedService ? revealNs : null}
               />
             </ExpandableList>
           );

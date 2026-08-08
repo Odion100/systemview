@@ -512,3 +512,12 @@
   }
 }
 
+
+// Rows are still rolling out (see InlineLogs: a big log arrives in chunks rather than in one commit).
+.logs-rolling {
+  padding: 4px 8px;
+  font-size: 12px;
+  font-family: monospace;
+  color: #9494b7;
+  opacity: 0.8;
+}

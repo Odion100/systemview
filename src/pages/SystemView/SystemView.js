@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useHistory, useLocation } from "react-router-dom";
 import SystemNavigator from "../../organisms/SystemNavigator/SystemNavigator";
 import Documentation from "../../organisms/Documentation/Documentation";
 import TestPanel from "../../organisms/TestPanel/TestPanel";
@@ -40,16 +40,96 @@ const SystemViewPage = () => {
   useEffect(() => {
     localStorage.setItem("sv.codeFile", JSON.stringify(codeFile));
   }, [codeFile]);
-  // A story pane's file OR test link selects the file in the CODEBASES NAV (tab switch + tree
-  // selection). The CENTER stays where it is — switching it to Code is the user's own click.
-  useEffect(() => {
-    const onOpen = (e) => {
-      setNavTab("files");
-      setCodeFile(e.detail);
+
+  // The open file lives in the URL as well as in state, so the BROWSER BACK BUTTON works: opening a
+  // file (from the codebase tree, a story pane, or a `:file[…]` link in a document) pushes a history
+  // entry, and going back drops the params — which closes the file and puts the nav lens back where
+  // it was. It also makes a file view shareable/deep-linkable, which the localStorage-only version
+  // never was.
+  const history = useHistory();
+  const location = useLocation();
+  const fileFromUrl = React.useMemo(() => {
+    const p = new URLSearchParams(location.search);
+    const path = p.get("file");
+    if (!path) return null;
+    const lines = p.get("flines");
+    return {
+      projectCode: p.get("fproj") || undefined,
+      serviceId: p.get("fsvc") || undefined,
+      path,
+      language: p.get("flang") || "text",
+      lines: lines ? lines.split("-").map((n) => parseInt(n, 10)) : null,
     };
+  }, [location.search]);
+
+  const closeFile = React.useCallback(() => {
+    const p = new URLSearchParams(window.location.search);
+    ["file", "fproj", "fsvc", "flang", "flines", "fnav"].forEach((k) => p.delete(k));
+    history.push({ pathname: window.location.pathname, search: p.toString() });
+  }, [history]);
+
+  const openFile = React.useCallback(
+    (detail) => {
+      // The codebase nav closes with onOpenFile(null) — same exit as the pane's × button.
+      if (!detail) return closeFile();
+      const p = new URLSearchParams(window.location.search);
+      // Remember the lens we came FROM so back can restore it (opening a file switches to Files).
+      if (!p.get("file")) p.set("fnav", navTab);
+      p.set("file", detail.path);
+      if (detail.projectCode) p.set("fproj", detail.projectCode);
+      if (detail.serviceId) p.set("fsvc", detail.serviceId);
+      if (detail.language) p.set("flang", detail.language);
+      if (detail.lines && detail.lines[0]) p.set("flines", detail.lines.join("-"));
+      else p.delete("flines");
+      history.push({ pathname: window.location.pathname, search: p.toString() });
+    },
+    [history, navTab, closeFile],
+  );
+
+  // URL → state. This is the ONLY writer of codeFile/navTab for file opens, so forward and back
+  // both land in a consistent place.
+  useEffect(() => {
+    const p = new URLSearchParams(location.search);
+    if (fileFromUrl) {
+      setNavTab("files");
+      setCodeFile((cur) =>
+        cur && cur.path === fileFromUrl.path && String(cur.lines) === String(fileFromUrl.lines)
+          ? cur
+          : fileFromUrl,
+      );
+    } else {
+      setCodeFile(null);
+      const prev = p.get("fnav");
+      if (prev) setNavTab(prev);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fileFromUrl && fileFromUrl.path, fileFromUrl && String(fileFromUrl.lines), location.search]);
+
+  // A story pane's file link, or a ⌘-click on a `:file[…]` chip, OPENS a file here.
+  useEffect(() => {
+    const onOpen = (e) => openFile(e.detail);
     window.addEventListener("sv:openFileInNav", onOpen);
     return () => window.removeEventListener("sv:openFileInNav", onOpen);
+  }, [openFile]);
+
+  // REVEAL (RFC-025) — a `:ns[…]` or `:file[…]` chip clicked inside a document points the NAVIGATOR at
+  // its target without touching the centre: the lens switches, the tree expands to it and highlights
+  // it, and the document you were reading stays exactly where it was. Selecting is then YOUR click.
+  // Deliberately NOT in the URL: this is a pointer, not a location, so it must not push history.
+  const [reveal, setReveal] = useState(null);
+  useEffect(() => {
+    const onReveal = (e) => {
+      const d = e.detail || {};
+      setNavTab(d.kind === "file" ? "files" : "systemlynx");
+      setReveal(d);
+    };
+    window.addEventListener("sv:revealInNav", onReveal);
+    return () => window.removeEventListener("sv:revealInNav", onReveal);
   }, []);
+  // An explicit selection (navigating for real) retires the pointer — it has been acted on.
+  useEffect(() => {
+    setReveal(null);
+  }, [projectCode, serviceId, moduleName, methodName]);
   // RESIZABLE PANELS — drag the divider between nav|center and center|scratchpad. Widths are % of the
   // row, clamped so nothing can be dragged to death, persisted so the layout comes back.
   const clampNav = (v) => Math.min(45, Math.max(12, v));
@@ -140,7 +220,8 @@ const SystemViewPage = () => {
               navTab={navTab}
               setNavTab={setNavTab}
               openFile={codeFile}
-              onOpenFile={setCodeFile}
+              onOpenFile={openFile}
+              reveal={reveal}
             />
           </div>
         </div>
@@ -168,7 +249,7 @@ const SystemViewPage = () => {
             methodName={methodName}
             lens={navTab}
             codeFile={codeFile}
-            onCloseFile={() => setCodeFile(null)}
+            onCloseFile={closeFile}
           />
         </div>
 

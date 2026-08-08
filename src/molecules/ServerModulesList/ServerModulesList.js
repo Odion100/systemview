@@ -13,6 +13,8 @@ const ServerModulesList = ({
   selectedModuleName,
   selectedMethodName,
   specList,
+  // RFC-025 — { moduleName, methodName } pointed at from a document: expand and highlight, no select.
+  reveal = null,
 }) => {
   const className = "server-module";
   // A module/method is only "selected" when it belongs to the selected SERVICE — otherwise a module
@@ -23,10 +25,11 @@ const ServerModulesList = ({
     <React.Fragment>
       {modules.map(({ name, methods }, i) => {
         const isSelected = serviceSelected && selectedModuleName === name;
+        const isRevealedModule = !!reveal && reveal.moduleName === name;
         const isSaved = specList.docs.includes(`${name}.md`);
         return (
           <ExpandableList
-            open={serviceSelected && selectedModuleName === name}
+            open={(serviceSelected && selectedModuleName === name) || isRevealedModule}
             key={i}
             title={
               <span
@@ -34,7 +37,7 @@ const ServerModulesList = ({
                   isSelected
                 } system-nav__link--selected-${
                   !selectedMethodName && isSelected
-                } ${(name === "Plugin" || name === "SystemView") && className + "__name--plugin"}`}
+                }${isRevealedModule && !reveal.methodName ? " is-revealed" : ""} ${(name === "Plugin" || name === "SystemView") && className + "__name--plugin"}`}
               >
                 <MyLink link={`/specs/${projectCode}/${serviceId}/${name}`} text={name} />
                 <span className={`${className}__docs-icon`}>
@@ -51,7 +54,7 @@ const ServerModulesList = ({
                   key={i}
                   className={`${className}__methods system-nav__link--selected-${
                     fn === selectedMethodName && isSelected
-                  }`}
+                  }${isRevealedModule && reveal.methodName === fn ? " is-revealed" : ""}`}
                 >
                   <MyLink
                     key={i}

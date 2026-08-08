@@ -182,7 +182,7 @@ function DynamicService({ service, projectCode, history, selection, onNavigate }
 }
 
 // One connected codebase: header, filter, file tree, and its project-defined services.
-function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigate }) {
+function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigate, revealedPath = null }) {
   const { projectCode, fileHost, dynamicServices } = entry;
   const history = useHistory();
   // The codebase HOLDING the open file starts (and stays) expanded — coming back to this tab with a
@@ -297,6 +297,8 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
   const renderFile = (f, depth) => {
     const selected =
       openFile && openFile.projectCode === projectCode && openFile.path === f.path;
+    // Pointed at from a document (RFC-025): expanded to and highlighted, but NOT open in the centre.
+    const isRevealed = !!revealedPath && revealedPath === f.path;
     return (
       <button
         key={f.path}
@@ -313,7 +315,7 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
               }
             : undefined
         }
-        className={`${CLASSNAME}__row ${CLASSNAME}__row--file ${selected ? `${CLASSNAME}__row--selected` : ""}`}
+        className={`${CLASSNAME}__row ${CLASSNAME}__row--file ${selected ? `${CLASSNAME}__row--selected` : ""}${isRevealed ? ` ${CLASSNAME}__row--revealed` : ""}`}
         style={{ paddingLeft: 8 + depth * 14 }}
         title={f.path}
         onClick={() =>
@@ -519,6 +521,8 @@ const CodebaseNav = ({
   methodName,
   openFile,
   onOpenFile,
+  // RFC-025 — a file pointed at from a document: expanded to and highlighted, but not opened.
+  revealedPath = null,
   theme = "light",
 }) => {
   const selection = { projectCode, serviceId, moduleName, methodName };
@@ -562,6 +566,7 @@ const CodebaseNav = ({
           onOpenFile={onOpenFile}
           selection={selection}
           onNavigate={onNavigate}
+          revealedPath={revealedPath}
         />
       ))}
     </div>

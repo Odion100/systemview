@@ -219,7 +219,7 @@ const PaneView = ({ pane, connectedServices, projectCode, onRemove, onPin, onSel
     // themed Markdown), no legacy edit-box frame.
     body = (
       <div className={`md-view md-view--${editorDark ? "dark" : "light"}`}>
-        <Markdown dark={editorDark}>{target.text || ""}</Markdown>
+        <Markdown dark={editorDark} scope={{ projectCode, serviceId: target.serviceId }}>{target.text || ""}</Markdown>
       </div>
     );
   } else if (kind === "test") {
@@ -237,7 +237,28 @@ const PaneView = ({ pane, connectedServices, projectCode, onRemove, onPin, onSel
     // in the pane HEADER (like code files) — clicking the document never flips to edit.
     body = (
       <div className={`md-view md-view--${editorDark ? "dark" : "light"}`}>
-        <Markdown dark={editorDark}>{mdReadContent}</Markdown>
+        <Markdown
+          dark={editorDark}
+          scope={{ projectCode, serviceId: target.serviceId }}
+          commentKey={`file-${(data && data.path) || target.path}`}
+          // RFC-025 §4.6 — an interactive block (a checklist) edits the document it came from, down
+          // the SAME writeFile path the pane's Edit/Save uses. Only when a plugin is reachable.
+          onSourceChange={
+            Plugin
+              ? async (next) => {
+                  setState((st) => ({ ...st, data: { ...st.data, content: next } }));
+                  setDraft(next);
+                  try {
+                    await Plugin.writeFile({ path: data.path || target.path, content: next });
+                  } catch (err) {
+                    setState((st) => ({ ...st, error: err.message }));
+                  }
+                }
+              : null
+          }
+        >
+          {mdReadContent}
+        </Markdown>
       </div>
     );
   } else if (data && (kind === "file" || kind === "source")) {

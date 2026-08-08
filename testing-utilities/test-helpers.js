@@ -12,7 +12,10 @@ const TV_LEGACY = `(?:before|main|after)Test\\.Action\\d+\\.(?:error|results)${T
 // natural: a `test.` root, then a section (before|main|events|after) OR a named-action name, then a step by
 // [index] OR .name, then the field. The head token is any identifier so `test.signIn[1].results` — a named
 // action addressed in its OWN local index space — parses alongside `test.before[0].results`.
-const TV_NATURAL = `test\\.(?![0-9])[a-zA-Z0-9$_]+(?:\\[\\d+\\]|\\.(?![0-9])[a-zA-Z0-9$_]+)\\.(?:error|results)${TV_TAIL}`;
+// `args` joins `results`/`error` as a reference ROOT: a step's own INPUT is often the thing you
+// want to compare against later — "the id I sent must come back" — and without this you had to
+// repeat the literal in both places and hope they stayed in sync.
+const TV_NATURAL = `test\\.(?![0-9])[a-zA-Z0-9$_]+(?:\\[\\d+\\]|\\.(?![0-9])[a-zA-Z0-9$_]+)\\.(?:error|results|args)${TV_TAIL}`;
 const TV_BODY = `(?:${TV_LEGACY}|${TV_NATURAL})`;
 const isTargetNamespace = (str) => new RegExp(`^${TV_BODY}$`).test(str);
 const targetValueFnRegex = new RegExp(`tv\\(${TV_BODY}\\)`, "g");
@@ -190,6 +193,10 @@ const resolveTargetValue = (input, FullTest) => {
   const path = input
     .replace(/^test\./, "")
     .replace(/\[(\d+)\]/g, ".$1")
+    // `args.0` IS the argument to anyone reading the reference; `input` is the Argument class's own
+    // storage field, so it's stepped through rather than spelled out (`args[0].a`, not
+    // `args[0].input.a`). Mirrors src/organisms/TestPanel/components/test-helpers.js.
+    .replace(/(^|\.)args\.(\d+)(?!\.input\b)/, "$1args.$2.input")
     .split(".")
     .filter(Boolean)
     .map((p) => (p === "error" ? "results" : p))

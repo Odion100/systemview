@@ -514,3 +514,12 @@
     }
   }
 }
+
+// RFC-025 — a file POINTED AT from a document (a `:file[…]` chip click). The tree expands to it and
+// marks it, but it is not open in the centre — a dashed ring rather than the selection fill, so the
+// two states can't be confused. ⌘-click on the chip opens it for real.
+.codebase-nav__row--revealed {
+  box-shadow: 0 0 0 1px #b9a05a inset;
+  background: rgba(201, 168, 90, 0.1);
+  border-radius: 5px;
+}
