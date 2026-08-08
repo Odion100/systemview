@@ -1,6 +1,6 @@
 {
   "name": "systemview-plugin",
-  "version": "2.11.0",
+  "version": "2.11.1",
   "description": "Connects your SystemLynx project to the SystemView UI",
   "main": "index.js",
   "scripts": {
