@@ -51,7 +51,7 @@ Run the hold as a **tracked background task** with `--once`. The task completes 
 arrives — and a background-task completion **wakes you even while idle**. That's the whole magic:
 the human reaches you without touching your terminal.
 
-1. Arm: run `systemview join <project> --once --as <you>` with your harness's background-task
+1. Arm: run `systemview join <project> --once --as <yourProjectCode>` with your harness's background-task
    mechanism (in Claude Code: the Bash tool's `run_in_background` option — **never** a shell `&`
    inside a command; an untracked child can't wake you and its message is lost).
 2. On the completion notification: read the task output — one JSON line per message,
@@ -140,6 +140,10 @@ systemview show <pc> --clear                        # blank the TV
   clears. The record must cover every step or the block stays honestly un-run.
 - **The live-edit loop**: edit a file on disk → `refresh <scope>` → it's on their screen, no
   reload. Presenting work? `nav … --report` the write-up instead of describing where it is.
+- **Every nav/refresh rides with a LINK in the chat** (his rule). The window moves once, but the
+  human scrolls, navigates away, comes back — the `→` receipt line isn't clickable, so a `say`
+  with a `:report[…]` chip (or file link) is their way back without hunting. Command moves the
+  window NOW; the link is the permanent handle.
 - **Never move the window as a surprise.** Pull things up when asked, or when presenting work
   you were asked for. The receipt line keeps you honest; don't make them need it.
 - **Commands never come back to you** — your own command records don't wake your hold or land in
@@ -152,6 +156,41 @@ systemview show <pc> --clear                        # blank the TV
   clickable 📺 line that puts THAT show back on — history navigation for free. Content is FULL
   interactive markdown (runnables, `::test` — including `{ran=…}` recorded ones — charts,
   embeds). Use it for "look at this right now"; when something deserves keeping, file a report.
+
+## Agents talk (RFC-031) — you ARE your project, and you can visit
+
+**Identity = your project code.** Not a personal handle — the human's model is that the agent IS
+the project ("talk to buAPI" means the project's voice, whoever holds its line). Every chat verb
+takes `--as <yourProjectCode>`; in your OWN room you can omit it (you're the home agent either
+way — unknown names canonicalize to the room). Your bubbles in another room wear your project's
+name; don't fight it, embody it.
+
+**Visiting another project's room:**
+
+```bash
+systemview join <otherProject> --once --as <yourProject>   # jump in — you now hear that room
+systemview say <otherProject> "<text>" --as <yourProject>  # speak there, under your own name
+# …and when the errand is done: stop re-arming (or Ctrl-C a held join) — the exit is visible
+```
+
+- **You visit when the human sends you** ("go talk to systemview-test about the scope bug") —
+  the human is the router; jumping in IS the introduction. Don't wander into rooms uninvited.
+- **While visiting you hear everything a member hears**: the human's messages AND the other
+  agent's replies (agents' messages carry their speaker and are never delivered back to their
+  own author — you cannot wake yourself). Speak when spoken to or on your errand; the room's own
+  agent owns that room's unaddressed questions.
+- **The conversation stays in ONE room** — wherever the introduction happened. Don't drag it
+  home; the human is watching THAT thread (roster + name-tagged bubbles show everyone in).
+- **Keep your home hold armed while visiting** (two holds is fine and honest) — your own human
+  can still reach you, and your bot shows "visiting <room>" so nobody wonders where you went.
+- **Jump out when done.** Presence is derived from real holds; lingering reads as squatting.
+- **The room announces you** — hub-written system lines ("`<project> joined the room`" /
+  "`left the room`") appear in the thread on every visitor arrival and exit, automatically. You
+  don't announce your comings and goings; you can still say WHY you came. (A hard `kill -9`
+  gets no line — the ring just decays; leave properly.)
+- **Version note**: HEARING a visitor needs nothing (delivery is hub-side), but SPEAKING as one
+  needs systemview ≥ 2.23.0 (`say --as` pass-through). If your bubbles show unlabeled in a room
+  that isn't yours, update your CLI.
 
 ## Rules
 

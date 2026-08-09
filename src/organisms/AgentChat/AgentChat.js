@@ -599,10 +599,18 @@ function BotBubble({ projectCode, index }) {
     } catch {}
   };
 
-  const ring = p.live ? "live" : p.listener ? "listener" : "none";
-  const mode = p.live ? "LIVE" : p.listener ? "FILE" : "OFFLINE";
+  // RFC-031 — the roster: who's in this room besides its own agent, and where this project's
+  // own agent is off visiting (both derived hub-side from real holds, so they can't lie).
+  const visitors = p.visitors || [];
+  const visiting = p.visiting || [];
+  const ring = p.live ? "live" : visiting.length ? "visiting" : p.listener ? "listener" : "none";
+  const mode = p.live ? "LIVE" : visiting.length ? "AWAY" : p.listener ? "FILE" : "OFFLINE";
   const modeText = p.live
-    ? "joined — answers now"
+    ? visitors.length
+      ? `joined — ${visitors.join(" + ")} in the room too`
+      : "joined — answers now"
+    : visiting.length
+    ? `visiting ${visiting.join(", ")}`
     : p.listener
     ? "listening by file — hears you at its next turn"
     : "no agent connected";
@@ -722,6 +730,18 @@ function BotBubble({ projectCode, index }) {
               ✕
             </button>
           </div>
+          {/* RFC-031 — the roster: every identity currently holding a line in THIS room. */}
+          {visitors.length > 0 && (
+            <div className={`${CLASSNAME}__roster`}>
+              in the room:{" "}
+              <span className={`${CLASSNAME}__roster-name ${CLASSNAME}__roster-name--home`}>{projectCode}</span>
+              {visitors.map((v) => (
+                <span key={v} className={`${CLASSNAME}__roster-name`}>
+                  {v}
+                </span>
+              ))}
+            </div>
+          )}
           <div className={`${CLASSNAME}__list`} ref={listRef}>
             {messages.length === 0 && (
               <div className={`${CLASSNAME}__empty`}>
@@ -753,11 +773,25 @@ function BotBubble({ projectCode, index }) {
                     {m.label || `${m.cmd} ${JSON.stringify(m.args || {})}`}
                   </div>
                 )
+              ) : m.kind === "system" ? (
+                // RFC-031 — the room announces comings and goings itself: a subtle centered line,
+                // no bubble, no unread. "He just said he's leaving, cool — what if someone just
+                // leaves? You need to SEE it."
+                <div key={m.id} className={`${CLASSNAME}__sys`}>
+                  {m.text}
+                </div>
               ) : (
+                // RFC-031 — a VISITOR's bubble wears its project's name; the room's own agent
+                // stays unlabeled (records without `as` are the room's agent from before identities).
                 <div
                   key={m.id}
-                  className={`${CLASSNAME}__msg ${m.from === "agent" ? `${CLASSNAME}__msg--agent` : `${CLASSNAME}__msg--you`}`}
+                  className={`${CLASSNAME}__msg ${
+                    m.from === "agent" ? `${CLASSNAME}__msg--agent` : `${CLASSNAME}__msg--you`
+                  }${m.from === "agent" && m.as && m.as !== projectCode ? ` ${CLASSNAME}__msg--visitor` : ""}`}
                 >
+                  {m.from === "agent" && m.as && m.as !== projectCode && (
+                    <span className={`${CLASSNAME}__visitor-tag`}>{m.as}</span>
+                  )}
                   {renderChatText(String(m.text || ""))}
                 </div>
               ),

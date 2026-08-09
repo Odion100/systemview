@@ -15,8 +15,12 @@ const HELP_TEXT = `
                                            --force skips). Plain connections: use disconnect
     join <project> [--once]                Agent presence (RFC-028): hold the line — each message
                                            sent from the UI chat streams out as one JSON line
-                                           ({text, view}); the hold IS the "he's in" indicator
-    say <project> "<text>"                 Reply into the UI chat (repeat calls = streamed chunks)
+                                           ({text, view}); the hold IS the "he's in" indicator.
+                                           VISITING (RFC-031): join ANOTHER project's room with
+                                           --as <yourProject> — you hear it like a member, your
+                                           bubbles wear your project's name, the roster shows you
+    say <project> "<text>"                 Reply into the UI chat (repeat calls = streamed chunks).
+                                           In someone else's room: --as <yourProject>
     status <project> "<text>"              The cooking line shown while the agent works ("" clears)
     inbox <project>                        File mode: drain pending UI messages as JSON + ack them
                                            (call from your hooks; registers the outlined-bubble
@@ -101,7 +105,9 @@ const HELP_TEXT = `
     --tab <docs|reports|logs>              nav: the center tab to switch to
     --topic <name>                         nav: the help topic to open
     --chat <name>                          chat verbs: a named chat (default "main")
-    --as <name>                            chat verbs: the agent identity on records ("claude")
+    --as <projectCode>                     chat verbs: the PROJECT you speak as (RFC-031 — the
+                                           agent IS the project; omitted or unknown = the room's
+                                           own agent; another live project's code = visiting)
     --once                                 join: exit after the first message (one wake per message)
 
   Examples:

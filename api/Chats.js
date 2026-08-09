@@ -15,10 +15,14 @@ const DEFAULT_CHAT = "main";
 
 const safe = (s) => String(s || "").replace(/[^a-zA-Z0-9._-]/g, "_");
 
-// What reaches the AGENT: the human's messages, nothing else. Commands are agent-authored
-// (any `--as` name) and must never wake the agent that sent them — found live: a join hold took
-// delivery of its own `kind:"command"` records because they weren't from "agent" verbatim.
-const forAgent = (m) => m && m.kind !== "command" && m.from === "you";
+// RFC-031 — what reaches an agent IDENTITY: the human's messages (always), plus other agents'
+// messages when they carry a speaker (`as`, stamped server-side) that isn't you. Legacy agent
+// records have NO `as` and deliver to no agent — that's the self-loop guard: an old CLI's `say`
+// can never wake its own author's hold, so the upgrade can't create echo storms in rooms still
+// running old holds. Commands never reach any agent (found live in RFC-029: a hold once took
+// delivery of its own `kind:"command"` records).
+const deliverable = (m, me) =>
+  m && m.kind !== "command" && (m.from === "you" || (m.from === "agent" && m.as && m.as !== me));
 const chatFile = (pc, chat) => path.join(CHATS_DIR, `${safe(pc)}.${safe(chat)}.jsonl`);
 const ackFile = (pc, chat) => path.join(CHATS_DIR, `${safe(pc)}.${safe(chat)}.ack.json`);
 
@@ -35,8 +39,8 @@ module.exports = function Chats() {
 
   // key `${pc}|${chat}` for everything in-memory
   const key = (pc, chat) => `${pc}|${chat || DEFAULT_CHAT}`;
-  const waiters = new Map(); // key → [{resolve, timer}] — held join polls
-  const liveSeen = new Map(); // key → { agent, ts } — last join arm
+  const waiters = new Map(); // key → [{identity, resolve, timer}] — held join polls
+  const liveSeen = new Map(); // key → Map(identity → ts) — last join arm PER IDENTITY (RFC-031)
   const listenerSeen = new Map(); // key → { listener, ts } — last inbox drain
   const statusMap = new Map(); // key → { text, ts } — the cooking line
 
@@ -62,33 +66,38 @@ module.exports = function Chats() {
     return record;
   }
 
-  // Resolve every held join poll for this chat with the new user message. Returns how many polls
-  // took delivery — a live handoff, which the sender deserves to SEE ("received…" in the panel).
+  // Resolve the held join polls this record is DELIVERABLE to (per identity — a speaker's own
+  // hold stays parked). Returns how many polls took delivery — a live handoff, which the sender
+  // deserves to SEE ("received…" in the panel).
   function push(pc, chat, record) {
     const k = key(pc, chat);
     const held = waiters.get(k) || [];
-    waiters.delete(k);
-    held.forEach(({ resolve, timer }) => {
+    const take = held.filter((w) => deliverable(record, w.identity));
+    waiters.set(k, held.filter((w) => !take.includes(w)));
+    take.forEach(({ resolve, timer }) => {
       clearTimeout(timer);
       resolve({ messages: [record] });
     });
-    return held.length;
+    return take.length;
   }
 
   return {
     DEFAULT_CHAT,
 
-    // A message from either side. `from` = "you" (UI) | "agent" (CLI say). User messages wake the
-    // held join polls; agent messages just land + broadcast (the UI subscribes). When a LIVE agent
-    // takes delivery, the status flips to "received…" immediately — the sender sees the handoff
-    // happen; the agent's own status/reply then replaces/clears it.
-    send(pc, chat, { from, text, view }) {
-      const record = append(pc, chat, { from, text, ...(view ? { view } : {}) });
-      let delivered = false;
-      if (from !== "agent") {
-        delivered = push(pc, chat, record) > 0;
-        if (delivered) statusMap.set(key(pc, chat), { text: "received", ts: Date.now() });
-      }
+    // A message from either side. `from` = "you" (UI) | "agent" (CLI say). `as` = the speaking
+    // IDENTITY on agent messages (canonicalized to a project code by the api layer — RFC-031).
+    // User messages wake every held join poll; agent messages wake the OTHER identities' polls
+    // (never the speaker's own — the deliverable rule). When a LIVE agent takes delivery of the
+    // human's message, the status flips to "received…" immediately.
+    send(pc, chat, { from, text, view, as }) {
+      const record = append(pc, chat, {
+        from,
+        text,
+        ...(from === "agent" && as ? { as } : {}),
+        ...(view ? { view } : {}),
+      });
+      const delivered = push(pc, chat, record) > 0;
+      if (from !== "agent" && delivered) statusMap.set(key(pc, chat), { text: "received", ts: Date.now() });
       if (from === "agent") statusMap.delete(key(pc, chat)); // a reply ends the cooking line
       return { record, delivered };
     },
@@ -117,15 +126,43 @@ module.exports = function Chats() {
       }
     },
 
-    // JOIN — the held long-poll. Returns immediately with any user messages newer than `since`;
-    // otherwise holds until one arrives or the poll times out ({ timeout: true }, CLI re-arms).
-    join(pc, chat, { agent = "agent", since = 0 } = {}) {
+    // RFC-031 — the room announces its own comings and goings (his ask: "you need to SEE
+    // systemview-logtest left"). A system record: rides the file like everything else, renders
+    // as a subtle centered line, and — because `from` is neither "you" nor "agent" — is never
+    // delivered to any agent's hold or inbox.
+    system(pc, chat, { event, who }) {
+      const text = `${who} ${event === "joined" ? "joined the room" : "left the room"}`;
+      return append(pc, chat, { kind: "system", from: "system", event, who, text });
+    },
+
+    // Arrival detection for the door above: true when this identity was NOT freshly live (first
+    // join, or back after grace decay). Read-only — join() still does the writing.
+    isArrival(pc, chat, identity) {
+      const seen = liveSeen.get(key(pc, chat));
+      const ts = seen && seen.get(identity);
+      return !(ts && Date.now() - ts < LIVE_GRACE);
+    },
+
+    // Departure detection for leave(): only announce someone who was actually here.
+    isPresent(pc, chat, identity) {
+      const seen = liveSeen.get(key(pc, chat));
+      const ts = seen && seen.get(identity);
+      return !!(ts && Date.now() - ts < LIVE_GRACE);
+    },
+
+    // JOIN — the held long-poll. `identity` = the project this hold speaks AS (canonicalized by
+    // the api layer; identity ≠ pc means a VISITOR — RFC-031). Returns immediately with anything
+    // deliverable newer than `since`; otherwise holds until delivery or poll timeout (CLI re-arms).
+    join(pc, chat, { identity, since = 0 } = {}) {
       const k = key(pc, chat);
-      liveSeen.set(k, { agent, ts: Date.now() });
-      const pending = readAll(pc, chat).filter((m) => forAgent(m) && m.ts > since);
+      const me = identity || pc;
+      const seen = liveSeen.get(k) || new Map();
+      seen.set(me, Date.now());
+      liveSeen.set(k, seen);
+      const pending = readAll(pc, chat).filter((m) => deliverable(m, me) && m.ts > since);
       if (pending.length) return Promise.resolve({ messages: pending });
       return new Promise((resolve) => {
-        const entry = { resolve, timer: null };
+        const entry = { identity: me, resolve, timer: null };
         entry.timer = setTimeout(() => {
           const held = waiters.get(k) || [];
           waiters.set(k, held.filter((w) => w !== entry));
@@ -137,10 +174,17 @@ module.exports = function Chats() {
 
     // An explicit goodbye — the CLI sends this on SIGINT/SIGTERM so a deliberate disconnect shows
     // in the UI within one presence poll instead of waiting out the grace window. (An abrupt kill
-    // still decays by silence — the grace window is the honest fallback.)
-    leave(pc, chat) {
-      liveSeen.delete(key(pc, chat));
-      statusMap.delete(key(pc, chat));
+    // still decays by silence — the grace window is the honest fallback.) Per-identity: a visitor
+    // jumping out must not take the home agent's presence with it (RFC-031).
+    leave(pc, chat, { identity } = {}) {
+      const k = key(pc, chat);
+      const me = identity || pc;
+      const seen = liveSeen.get(k);
+      if (seen) {
+        seen.delete(me);
+        if (!seen.size) liveSeen.delete(k);
+      }
+      if (me === pc) statusMap.delete(k); // only the home agent's exit ends the cooking line
       return { ok: true };
     },
 
@@ -152,14 +196,17 @@ module.exports = function Chats() {
       return { ok: true };
     },
 
-    // FILE MODE — drain the SAME file from the acked offset; drainng registers the listener.
-    drain(pc, chat, { listener = "hooks" } = {}) {
+    // FILE MODE — drain the SAME file from the acked offset; draining registers the listener.
+    // `identity` filters delivery (RFC-031: a file-mode agent hears visitors too, never itself);
+    // the ack cursor stays keyed by `listener` so existing hook cursors survive the upgrade.
+    drain(pc, chat, { listener = "hooks", identity } = {}) {
       const k = key(pc, chat);
+      const me = identity || pc;
       listenerSeen.set(k, { listener, ts: Date.now() });
       let acks = {};
       try { acks = JSON.parse(fs.readFileSync(ackFile(pc, chat), "utf8")); } catch {}
       const sinceTs = acks[listener] || 0;
-      const pending = readAll(pc, chat).filter((m) => forAgent(m) && m.ts > sinceTs);
+      const pending = readAll(pc, chat).filter((m) => deliverable(m, me) && m.ts > sinceTs);
       if (pending.length) {
         acks[listener] = pending[pending.length - 1].ts;
         fs.mkdirSync(CHATS_DIR, { recursive: true });
@@ -168,26 +215,40 @@ module.exports = function Chats() {
       return { messages: pending };
     },
 
-    // The bubble's truth: live/listener flags decay by silence, never by declaration.
+    // The bubble's truth: live/listener flags decay by silence, never by declaration. RFC-031:
+    // `live` = the room's OWN agent holds the line; `agents` = the full roster of identities
+    // currently in (home + visitors); `visiting` = rooms this project's agent is off in.
     presence(pc) {
       const now = Date.now();
       const out = {};
-      const collect = (map, flag, grace) => {
-        for (const [k, v] of map) {
-          const [kpc, chat] = k.split("|");
-          if (kpc !== pc) continue;
-          if (now - v.ts > grace) continue;
-          out[chat] = out[chat] || { live: false, listener: false, status: null };
-          out[chat][flag] = true;
+      const entry = (chat) =>
+        (out[chat] = out[chat] || { live: false, listener: false, status: null, agents: [], visitors: [], visiting: [] });
+      for (const [k, seen] of liveSeen) {
+        const [kpc, chat] = k.split("|");
+        for (const [identity, ts] of seen) {
+          if (now - ts > LIVE_GRACE) continue;
+          if (kpc === pc) {
+            const e = entry(chat);
+            if (!e.agents.includes(identity)) e.agents.push(identity);
+            if (identity === pc) e.live = true;
+            else if (!e.visitors.includes(identity)) e.visitors.push(identity);
+          } else if (identity === pc) {
+            // This project's agent is live in ANOTHER room — its own bot should show it.
+            const e = entry(DEFAULT_CHAT);
+            if (!e.visiting.includes(kpc)) e.visiting.push(kpc);
+          }
         }
-      };
-      collect(liveSeen, "live", LIVE_GRACE);
-      collect(listenerSeen, "listener", LISTENER_GRACE);
+      }
+      for (const [k, v] of listenerSeen) {
+        const [kpc, chat] = k.split("|");
+        if (kpc !== pc) continue;
+        if (now - v.ts > LISTENER_GRACE) continue;
+        entry(chat).listener = true;
+      }
       for (const [k, v] of statusMap) {
         const [kpc, chat] = k.split("|");
         if (kpc !== pc) continue;
-        out[chat] = out[chat] || { live: false, listener: false, status: null };
-        out[chat].status = v.text;
+        entry(chat).status = v.text;
       }
       return out;
     },

@@ -27,7 +27,7 @@ module.exports.join = async function join(projectCode, { uiUrl, Client, chat, ag
   let since = Date.now();
   // Drain anything said before joining so "I said it right before you joined" isn't lost.
   try {
-    const pending = await SystemView.chatDrain(projectCode, { chat, listener: `join:${agent || "agent"}` });
+    const pending = await SystemView.chatDrain(projectCode, { chat, listener: `join:${agent || "agent"}`, as: agent });
     (pending.messages || []).forEach((m) => {
       console.log(JSON.stringify(m));
       since = Math.max(since, m.ts);
@@ -39,7 +39,7 @@ module.exports.join = async function join(projectCode, { uiUrl, Client, chat, ag
   // presence poll instead of waiting out the grace window. Best-effort, then exit.
   const goodbye = () => {
     Promise.race([
-      SystemView.chatLeave(projectCode, { chat }),
+      SystemView.chatLeave(projectCode, { chat, agent }),
       new Promise((r) => setTimeout(r, 800)),
     ]).finally(() => process.exit(0));
   };
@@ -48,7 +48,7 @@ module.exports.join = async function join(projectCode, { uiUrl, Client, chat, ag
   // Messages delivered THROUGH the hold must also advance this listener's drain cursor —
   // otherwise the next arm-time drain re-serves them (the "--once replays the last message" bug).
   const ackDelivered = async () => {
-    try { await SystemView.chatDrain(projectCode, { chat, listener: `join:${agent || "agent"}` }); } catch {}
+    try { await SystemView.chatDrain(projectCode, { chat, listener: `join:${agent || "agent"}`, as: agent }); } catch {}
   };
   // The hold: each chatJoin call parks server-side ~25s; timeouts re-arm silently. Ctrl-C leaves.
   for (;;) {
@@ -71,13 +71,15 @@ module.exports.join = async function join(projectCode, { uiUrl, Client, chat, ag
   }
 };
 
-module.exports.say = async function say(projectCode, text, { uiUrl, Client, chat } = {}) {
+module.exports.say = async function say(projectCode, text, { uiUrl, Client, chat, agent } = {}) {
   if (!projectCode || !text) {
-    log.warn('Usage: systemview say <projectCode> "<text>" [--chat name]');
+    log.warn('Usage: systemview say <projectCode> "<text>" [--chat name] [--as <yourProjectCode>]');
     return 1;
   }
   const SystemView = await loadHub(Client, uiUrl);
-  await SystemView.chatSend(projectCode, { chat, from: "agent", text });
+  // RFC-031 — `--as` is the project you speak AS (a VISITOR names its own project; omitted =
+  // the room's own agent). The hub canonicalizes: unknown names collapse to the room.
+  await SystemView.chatSend(projectCode, { chat, from: "agent", text, as: agent });
   return 0;
 };
 
@@ -91,13 +93,15 @@ module.exports.status = async function status(projectCode, text, { uiUrl, Client
   return 0;
 };
 
-module.exports.inbox = async function inbox(projectCode, { uiUrl, Client, chat, json = true } = {}) {
+module.exports.inbox = async function inbox(projectCode, { uiUrl, Client, chat, agent, json = true } = {}) {
   if (!projectCode) {
-    log.warn("Usage: systemview inbox <projectCode> [--chat name]");
+    log.warn("Usage: systemview inbox <projectCode> [--chat name] [--as <yourProjectCode>]");
     return 1;
   }
   const SystemView = await loadHub(Client, uiUrl);
-  const res = await SystemView.chatDrain(projectCode, { chat, listener: "hooks" });
+  // RFC-031 — a visiting identity gets its own ack cursor; the bare default keeps the "hooks"
+  // cursor so existing hook installs never replay history after an upgrade.
+  const res = await SystemView.chatDrain(projectCode, { chat, listener: agent ? `hooks:${agent}` : "hooks", as: agent });
   const messages = res.messages || [];
   if (json) console.log(JSON.stringify(messages));
   else messages.forEach((m) => console.log(`[${new Date(m.ts).toISOString()}] ${m.text}`));

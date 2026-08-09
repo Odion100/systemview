@@ -246,6 +246,10 @@ systemview shutdown
 # The chat — being present in the UI (chat.md has the full playbook + the join loop)
 systemview join <project> --once # hold the line; each UI message streams as JSON (the hold IS presence)
 systemview say <project> "…"     # reply into the chat        systemview status <project> "…"  # the cooking line
+# Agents talk (RFC-031): you ARE your project. Visit another project's room with --as <yourPc>:
+systemview join <otherProject> --once --as <yourProject>   # hear that room like a member
+systemview say <otherProject> "…" --as <yourProject>       # speak there under your own name
+# The human routes ("go talk to X"); the room announces arrivals/exits itself; jump out when done.
 systemview inbox <project>       # hook-driven file mode: drain pending messages + ack
 
 # Agent control (RFC-029) — drive the open window; every command = a "→ …" receipt in the chat

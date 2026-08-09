@@ -1,6 +1,7 @@
 import React, { useRef, useState } from "react";
 import { useCommentsContext, InThreadProvider, useMarkdownWrite } from "../context";
 import { claimThread } from "../threadFocus";
+import useDictation from "../../../utils/useDictation";
 
 // RFC-025 §12 — `:::thread{id=extraction}` wraps anything (prose, a table, a code block, an embed)
 // and gives it the SAME reply thread a story pane has: the 💬 corner button, your replies and agent
@@ -40,12 +41,16 @@ const Thread = ({ attrs = {}, line, src, children }) => {
   const fresh = useRef(claimThread(id));
   const [open, setOpen] = useState(fresh.current);
   const [text, setText] = useState("");
+  // Same mic the chat input has — replies are spoken as much as typed, so the box you reply in
+  // must listen too. Finals append to the draft; posting or cancelling stops the recognition.
+  const mic = useDictation((fin) => setText((cur) => (cur ? `${cur} ` : "") + fin));
 
   // A document we can write to gets the reply IN the document; anything else falls back to the store.
   const canWrite = editable || storeWritable;
   const post = () => {
     const body = text.trim();
     if (!body) return;
+    mic.stop();
     if (editable && appendInside) appendInside(line, `:::reply{author=you ts=${Date.now()}}\n${body}\n:::`);
     else addReply(id, body);
     setText("");
@@ -87,6 +92,14 @@ const Thread = ({ attrs = {}, line, src, children }) => {
           ))}
           {open && canWrite && (
             <div className="md-thread__form">
+              {/* While the mic listens the words appear HERE as you speak, then commit into the
+                  box as they finalize — the line itself is the recording indicator. */}
+              {mic.listening && (
+                <div className="md-thread__interim">
+                  <span className="md-thread__interim-dot" />
+                  {mic.interim || "listening…"}
+                </div>
+              )}
               <textarea
                 className="md-thread__input"
                 rows={2}
@@ -104,9 +117,19 @@ const Thread = ({ attrs = {}, line, src, children }) => {
                 <button type="button" className="md-thread__post" disabled={!text.trim()} onClick={post}>
                   Post
                 </button>
-                <button type="button" className="md-thread__cancel" onClick={() => { setOpen(false); setText(""); }}>
+                <button type="button" className="md-thread__cancel" onClick={() => { mic.stop(); setOpen(false); setText(""); }}>
                   Cancel
                 </button>
+                {mic.supported && (
+                  <button
+                    type="button"
+                    className={`md-thread__mic${mic.listening ? " md-thread__mic--on" : ""}`}
+                    title={mic.listening ? "Stop listening" : "Dictate — speech goes into the reply"}
+                    onClick={mic.toggle}
+                  >
+                    🎙
+                  </button>
+                )}
               </div>
             </div>
           )}

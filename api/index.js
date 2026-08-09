@@ -387,8 +387,22 @@ async function setStoryPaneSpan(projectCode, id, paneId, span) {
 // (join = pushed live down a held poll, file = drained at turn boundaries); presence is derived
 // from the real connections. Every append broadcasts so the open UI's bubble/panel stays live —
 // the same push pattern as the stage above.
-function chatSend(projectCode, { chat, from = "you", text, view } = {}) {
-  const { record, delivered } = Chats.send(projectCode, chat || Chats.DEFAULT_CHAT, { from, text, view });
+// RFC-031 — identities ARE project codes. An `--as` that names another LIVE project is a
+// VISITOR speaking as that project; anything else (legacy "claude", no --as at all) canonicalizes
+// to the room's own project — you're its home agent. This one function is also the self-loop
+// guard's other half: made-up handles can never mint a deliverable third identity.
+function canonIdentity(projectCode, as) {
+  if (!as || as === projectCode) return projectCode;
+  try {
+    const known = ConnectedServices.getAllConnections().some((c) => c.projectCode === as);
+    return known ? as : projectCode;
+  } catch {
+    return projectCode;
+  }
+}
+function chatSend(projectCode, { chat, from = "you", text, view, as } = {}) {
+  const identity = from === "agent" ? canonIdentity(projectCode, as) : undefined;
+  const { record, delivered } = Chats.send(projectCode, chat || Chats.DEFAULT_CHAT, { from, text, view, as: identity });
   this.emit(`chat-updated:${projectCode}`, { chat: chat || Chats.DEFAULT_CHAT, record });
   // Live handoff → the sender SEES it was received, before the agent even wakes.
   if (delivered)
@@ -414,8 +428,18 @@ function chatList(projectCode) {
 function chatJoin(projectCode, { chat, agent, since } = {}) {
   // join() registers the live presence synchronously before parking the hold — push the ring flip
   // to every open panel NOW (the poll only exists to catch silent decay).
-  const held = Chats.join(projectCode, chat || Chats.DEFAULT_CHAT, { agent, since });
+  const identity = canonIdentity(projectCode, agent);
+  const chatName = chat || Chats.DEFAULT_CHAT;
+  // RFC-031 — a VISITOR's arrival gets a system line in the thread (the room announces it; the
+  // home agent's ring already tells its own story). Checked BEFORE join() stamps the timestamp.
+  if (identity !== projectCode && Chats.isArrival(projectCode, chatName, identity)) {
+    const sys = Chats.system(projectCode, chatName, { event: "joined", who: identity });
+    this.emit(`chat-updated:${projectCode}`, { chat: chatName, record: sys });
+  }
+  const held = Chats.join(projectCode, chatName, { identity, since });
   this.emit(`chat-presence:${projectCode}`, Chats.presence(projectCode));
+  // A visitor's arrival also changes ITS OWN bot's story ("visiting <room>") — tell that room too.
+  if (identity !== projectCode) this.emit(`chat-presence:${identity}`, Chats.presence(identity));
   return held;
 }
 function chatStatus(projectCode, { chat, text } = {}) {
@@ -423,14 +447,23 @@ function chatStatus(projectCode, { chat, text } = {}) {
   this.emit(`chat-status:${projectCode}`, { chat: chat || Chats.DEFAULT_CHAT, text: text || null });
   return r;
 }
-function chatDrain(projectCode, { chat, listener } = {}) {
-  const res = Chats.drain(projectCode, chat || Chats.DEFAULT_CHAT, { listener });
+function chatDrain(projectCode, { chat, listener, as } = {}) {
+  const identity = canonIdentity(projectCode, as);
+  const res = Chats.drain(projectCode, chat || Chats.DEFAULT_CHAT, { listener, identity });
   this.emit(`chat-presence:${projectCode}`, Chats.presence(projectCode));
   return res;
 }
-function chatLeave(projectCode, { chat } = {}) {
-  const res = Chats.leave(projectCode, chat || Chats.DEFAULT_CHAT);
+function chatLeave(projectCode, { chat, agent } = {}) {
+  const identity = canonIdentity(projectCode, agent);
+  const chatName = chat || Chats.DEFAULT_CHAT;
+  // The departure line — only for a visitor who was actually here (checked before leave() wipes it).
+  if (identity !== projectCode && Chats.isPresent(projectCode, chatName, identity)) {
+    const sys = Chats.system(projectCode, chatName, { event: "left", who: identity });
+    this.emit(`chat-updated:${projectCode}`, { chat: chatName, record: sys });
+  }
+  const res = Chats.leave(projectCode, chatName, { identity });
   this.emit(`chat-presence:${projectCode}`, Chats.presence(projectCode));
+  if (identity !== projectCode) this.emit(`chat-presence:${identity}`, Chats.presence(identity));
   return res;
 }
 function chatPresence(projectCode) {
