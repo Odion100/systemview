@@ -1,281 +1,907 @@
 [
-  {
-    "title": "CLI meta: --version prints a version and exits 0",
-    "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "run" },
-    "Before": [],
-    "Main": [
-      {
-        "title": "run `systemview --version`",
-        "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "run" },
-        "args": [
-          { "name": "argument:", "input": { "args": ["--version"] }, "input_type": "object", "data_type": "", "targetValues": [] }
-        ],
-        "savedEvaluations": [
-          { "namespace": "results.exitCode", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 0 }], "save": true }
-        ]
-      }
-    ],
-    "Events": [],
-    "After": []
+ {
+  "title": "CLI meta: --version prints a version and exits 0",
+  "namespace": {
+   "serviceId": "TestService",
+   "moduleName": "CLI",
+   "methodName": "run"
   },
-  {
-    "title": "CLI meta: help prints usage and exits 0",
-    "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "run" },
-    "Before": [],
-    "Main": [
-      {
-        "title": "run `systemview help`",
-        "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "run" },
-        "args": [
-          { "name": "argument:", "input": { "args": ["help"] }, "input_type": "object", "data_type": "", "targetValues": [] }
-        ],
-        "savedEvaluations": [
-          { "namespace": "results.exitCode", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 0 }], "save": true },
-          { "namespace": "results.stdout", "expected_type": "string", "validations": [{ "name": "isLike", "value": "SystemView" }], "save": true }
-        ]
-      }
-    ],
-    "Events": [],
-    "After": []
-  },
-  {
-    "title": "CLI error: unknown method on a real service → error + exit 1",
-    "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "run" },
-    "Before": [],
-    "Main": [
-      {
-        "title": "run `systemview probe TestService.Math.nope {} --json`",
-        "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "run" },
-        "args": [
-          { "name": "argument:", "input": { "args": ["probe", "TestService.Math.nope", "{}", "--json"] }, "input_type": "object", "data_type": "", "targetValues": [] }
-        ],
-        "savedEvaluations": [
-          { "namespace": "results.exitCode", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 1 }], "save": true },
-          { "namespace": "results.stdout", "expected_type": "string", "validations": [{ "name": "isLike", "value": "error" }], "save": true }
-        ]
-      }
-    ],
-    "Events": [],
-    "After": []
-  },
-  {
-    "title": "CLI connect: --manifest pulls the remote plugin manifest and connects under the real projectCode",
-    "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "run" },
-    "Before": [],
-    "Main": [
-      {
-        "title": "run `systemview connect http://localhost:5555/test/api --manifest` → finds systemview-test, connects TestService",
-        "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "run" },
-        "args": [
-          { "name": "argument:", "input": { "args": ["connect", "http://localhost:5555/test/api", "--manifest"] }, "input_type": "object", "data_type": "", "targetValues": [] }
-        ],
-        "savedEvaluations": [
-          { "namespace": "results.exitCode", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 0 }], "save": true },
-          { "namespace": "results.stdout", "expected_type": "string", "validations": [{ "name": "isLike", "value": "Plugin manifest found: systemview-test" }], "save": true },
-          { "namespace": "results.stdout", "expected_type": "string", "validations": [{ "name": "isLike", "value": "systemview-test" }], "save": true }
-        ]
-      }
-    ],
-    "Events": [],
-    "After": []
-  },
-  {
-    "title": "CLI connect cycle: connect a url then disconnect it (self-cleaning throwaway entry)",
-    "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "run" },
-    "Before": [],
-    "Main": [
-      {
-        "title": "connect http://localhost:5555/test/api (no --manifest) → registers connected-services › test",
-        "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "run" },
-        "args": [
-          { "name": "argument:", "input": { "args": ["connect", "http://localhost:5555/test/api"] }, "input_type": "object", "data_type": "", "targetValues": [] }
-        ],
-        "savedEvaluations": [
-          { "namespace": "results.exitCode", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 0 }], "save": true },
-          { "namespace": "results.stdout", "expected_type": "string", "validations": [{ "name": "isLike", "value": "connected-services" }], "save": true }
-        ]
+  "Before": [],
+  "Main": [
+   {
+    "title": "run `systemview --version`",
+    "namespace": {
+     "serviceId": "TestService",
+     "moduleName": "CLI",
+     "methodName": "run"
+    },
+    "args": [
+     {
+      "name": "argument:",
+      "input": {
+       "args": [
+        "--version"
+       ]
       },
-      {
-        "title": "disconnect connected-services test → removes it",
-        "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "run" },
-        "args": [
-          { "name": "argument:", "input": { "args": ["disconnect", "connected-services", "test"] }, "input_type": "object", "data_type": "", "targetValues": [] }
-        ],
-        "savedEvaluations": [
-          { "namespace": "results.exitCode", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 0 }], "save": true },
-          { "namespace": "results.stdout", "expected_type": "string", "validations": [{ "name": "isLike", "value": "Disconnected: connected-services" }], "save": true }
-        ]
-      }
+      "input_type": "object",
+      "data_type": "",
+      "targetValues": []
+     }
     ],
-    "Events": [],
-    "After": []
-  },
-  {
-    "title": "CLI manifest clean: re-probes and keeps the live service",
-    "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "run" },
-    "Before": [],
-    "Main": [
-      {
-        "title": "run `systemview manifest clean` → cleaned, TestService alive/kept",
-        "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "run" },
-        "args": [
-          { "name": "argument:", "input": { "args": ["manifest", "clean"] }, "input_type": "object", "data_type": "", "targetValues": [] }
-        ],
-        "savedEvaluations": [
-          { "namespace": "results.exitCode", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 0 }], "save": true },
-          { "namespace": "results.stdout", "expected_type": "string", "validations": [{ "name": "isLike", "value": "Manifest cleaned" }], "save": true },
-          { "namespace": "results.stdout", "expected_type": "string", "validations": [{ "name": "isLike", "value": "TestService" }], "save": true }
-        ]
-      }
-    ],
-    "Events": [],
-    "After": []
-  },
-  {
-    "title": "CLI connect --manifest --save: save the connection — headers + captured session cookie tag along (RFC-010 gap closure)",
-    "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "run" },
-    "Before": [],
-    "Main": [
-      {
-        "title": "run `systemview connect http://localhost:5556/test/api --manifest --save` → connected + manifest persisted with headers and cookie",
-        "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "run" },
-        "args": [
-          { "name": "argument:", "input": { "args": ["connect", "http://localhost:5556/test/api", "--manifest", "--save"] }, "input_type": "object", "data_type": "", "targetValues": [] }
-        ],
-        "savedEvaluations": [
-          { "namespace": "results.exitCode", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 0 }], "save": true },
-          { "namespace": "results.stdout", "expected_type": "string", "validations": [{ "name": "isLike", "value": "Plugin manifest found: systemview-test" }], "save": true },
-          { "namespace": "results.stdout", "expected_type": "string", "validations": [{ "name": "isLike", "value": "Manifest saved" }], "save": true },
-          { "namespace": "results.stdout", "expected_type": "string", "validations": [{ "name": "isLike", "value": "cookies for 2 origin" }], "save": true }
-        ]
-      },
-      {
-        "title": "cold reuse: `probe GatedService.Auth.echo --json` (no --header) sends the persisted session cookie",
-        "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "run" },
-        "args": [
-          { "name": "argument:", "input": { "args": ["probe", "GatedService.Auth.echo", "--json"] }, "input_type": "object", "data_type": "", "targetValues": [] }
-        ],
-        "savedEvaluations": [
-          { "namespace": "results.exitCode", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 0 }], "save": true },
-          { "namespace": "results.stdout", "expected_type": "string", "validations": [{ "name": "isLike", "value": "session=test-session-value" }], "save": true },
-          { "namespace": "results.stdout", "expected_type": "string", "validations": [{ "name": "isLike", "value": "SEEKRIT-FILE-TOKEN" }], "save": true },
-          { "namespace": "results.stdout", "expected_type": "string", "validations": [{ "name": "isLike", "value": "http://localhost:3000" }], "save": true }
-        ]
-      }
-    ],
-    "Events": [],
-    "After": []
-  },
-  {
-    "title": "RFC-018 AI Window — `show --source` drives a single source pane onto the stage (fuzzy-resolved to the owning service)",
-    "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "run" },
-    "Before": [],
-    "Main": [
-      {
-        "title": "run `systemview show systemview-test --source Math.add --json` → a single source pane on TestService",
-        "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "run" },
-        "args": [
-          { "name": "argument:", "input": { "args": ["show", "systemview-test", "--source", "Math.add", "--json"] }, "input_type": "object", "data_type": "", "targetValues": [] }
-        ],
-        "savedEvaluations": [
-          { "namespace": "results.exitCode", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 0 }], "save": true },
-          { "namespace": "results.stdout", "expected_type": "string", "validations": [{ "name": "isLike", "value": "\"layout\": \"single\"" }], "save": true },
-          { "namespace": "results.stdout", "expected_type": "string", "validations": [{ "name": "isLike", "value": "\"kind\": \"source\"" }], "save": true },
-          { "namespace": "results.stdout", "expected_type": "string", "validations": [{ "name": "isLike", "value": "\"method\": \"add\"" }], "save": true },
-          { "namespace": "results.stdout", "expected_type": "string", "validations": [{ "name": "isLike", "value": "\"serviceId\": \"TestService\"" }], "save": true }
-        ]
-      }
-    ],
-    "Events": [],
-    "After": []
-  },
-  {
-    "title": "RFC-018 AI Window — `assemble` fills the stage with several panes at once (grid), and the plugin's getSource returns real file:line",
-    "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "run" },
-    "Before": [
-      {
-        "title": "getSource(Math.add) via the plugin returns the method's real span in its source file",
-        "namespace": { "serviceId": "TestService", "moduleName": "Plugin", "methodName": "getSource" },
-        "args": [
-          { "name": "argument:", "input": { "module": "Math", "method": "add" }, "input_type": "object", "data_type": "", "targetValues": [] }
-        ],
-        "savedEvaluations": [
-          { "namespace": "results.path", "expected_type": "string", "validations": [{ "name": "isLike", "value": "Math" }], "save": true },
-          { "namespace": "results.startLine", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 2 }], "save": true },
-          { "namespace": "results.endLine", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 6 }], "save": true }
-        ]
-      }
-    ],
-    "Main": [
-      {
-        "title": "run `systemview assemble systemview-test --text … --source Math.add --file package.json --json` → 3-pane grid",
-        "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "run" },
-        "args": [
-          { "name": "argument:", "input": { "args": ["assemble", "systemview-test", "--text", "Add flow", "--source", "Math.add", "--file", "package.json", "--json"] }, "input_type": "object", "data_type": "", "targetValues": [] }
-        ],
-        "savedEvaluations": [
-          { "namespace": "results.exitCode", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 0 }], "save": true },
-          { "namespace": "results.stdout", "expected_type": "string", "validations": [{ "name": "isLike", "value": "\"layout\": \"grid\"" }], "save": true },
-          { "namespace": "results.stdout", "expected_type": "string", "validations": [{ "name": "isLike", "value": "\"kind\": \"markdown\"" }], "save": true },
-          { "namespace": "results.stdout", "expected_type": "string", "validations": [{ "name": "isLike", "value": "\"kind\": \"file\"" }], "save": true },
-          { "namespace": "results.stdout", "expected_type": "string", "validations": [{ "name": "isLike", "value": "package.json" }], "save": true }
-        ]
-      }
-    ],
-    "Events": [],
-    "After": []
-  },
-  {
-    "title": "RFC-018 AI Window — saved-view round trip: assemble → view save → view list persists it (stored in .systemview/views/)",
-    "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "run" },
-    "Before": [
-      {
-        "title": "assemble a stage to save",
-        "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "run" },
-        "args": [
-          { "name": "argument:", "input": { "args": ["assemble", "systemview-test", "--source", "Math.add"] }, "input_type": "object", "data_type": "", "targetValues": [] }
-        ],
-        "savedEvaluations": [
-          { "namespace": "results.exitCode", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 0 }], "save": true }
-        ]
-      }
-    ],
-    "Main": [
-      {
-        "title": "run `systemview view save systemview-test dogfood-view` → persisted",
-        "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "run" },
-        "args": [
-          { "name": "argument:", "input": { "args": ["view", "save", "systemview-test", "dogfood-view"] }, "input_type": "object", "data_type": "", "targetValues": [] }
-        ],
-        "savedEvaluations": [
-          { "namespace": "results.exitCode", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 0 }], "save": true },
-          { "namespace": "results.stdout", "expected_type": "string", "validations": [{ "name": "isLike", "value": "saved view" }], "save": true }
-        ]
-      },
-      {
-        "title": "run `systemview view list systemview-test --json` → the saved view is listed",
-        "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "run" },
-        "args": [
-          { "name": "argument:", "input": { "args": ["view", "list", "systemview-test", "--json"] }, "input_type": "object", "data_type": "", "targetValues": [] }
-        ],
-        "savedEvaluations": [
-          { "namespace": "results.exitCode", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 0 }], "save": true },
-          { "namespace": "results.stdout", "expected_type": "string", "validations": [{ "name": "isLike", "value": "dogfood-view" }], "save": true }
-        ]
-      }
-    ],
-    "Events": [],
-    "After": [
-      {
-        "title": "cleanup: delete the dogfood view",
-        "namespace": { "serviceId": "TestService", "moduleName": "CLI", "methodName": "run" },
-        "args": [
-          { "name": "argument:", "input": { "args": ["view", "delete", "systemview-test", "dogfood-view"] }, "input_type": "object", "data_type": "", "targetValues": [] }
-        ],
-        "savedEvaluations": [
-          { "namespace": "results.exitCode", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 0 }], "save": true }
-        ]
-      }
+    "savedEvaluations": [
+     {
+      "namespace": "results.exitCode",
+      "expected_type": "number",
+      "validations": [
+       {
+        "name": "numEquals",
+        "value": 0
+       }
+      ],
+      "save": true
+     }
     ]
-  }
+   }
+  ],
+  "Events": [],
+  "After": []
+ },
+ {
+  "title": "CLI meta: help prints usage and exits 0",
+  "namespace": {
+   "serviceId": "TestService",
+   "moduleName": "CLI",
+   "methodName": "run"
+  },
+  "Before": [],
+  "Main": [
+   {
+    "title": "run `systemview help`",
+    "namespace": {
+     "serviceId": "TestService",
+     "moduleName": "CLI",
+     "methodName": "run"
+    },
+    "args": [
+     {
+      "name": "argument:",
+      "input": {
+       "args": [
+        "help"
+       ]
+      },
+      "input_type": "object",
+      "data_type": "",
+      "targetValues": []
+     }
+    ],
+    "savedEvaluations": [
+     {
+      "namespace": "results.exitCode",
+      "expected_type": "number",
+      "validations": [
+       {
+        "name": "numEquals",
+        "value": 0
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.stdout",
+      "expected_type": "string",
+      "validations": [
+       {
+        "name": "isLike",
+        "value": "SystemView"
+       }
+      ],
+      "save": true
+     }
+    ]
+   }
+  ],
+  "Events": [],
+  "After": []
+ },
+ {
+  "title": "CLI error: unknown method on a real service → error + exit 1",
+  "namespace": {
+   "serviceId": "TestService",
+   "moduleName": "CLI",
+   "methodName": "run"
+  },
+  "Before": [],
+  "Main": [
+   {
+    "title": "run `systemview probe TestService.Math.nope {} --json`",
+    "namespace": {
+     "serviceId": "TestService",
+     "moduleName": "CLI",
+     "methodName": "run"
+    },
+    "args": [
+     {
+      "name": "argument:",
+      "input": {
+       "args": [
+        "probe",
+        "TestService.Math.nope",
+        "{}",
+        "--json"
+       ]
+      },
+      "input_type": "object",
+      "data_type": "",
+      "targetValues": []
+     }
+    ],
+    "savedEvaluations": [
+     {
+      "namespace": "results.exitCode",
+      "expected_type": "number",
+      "validations": [
+       {
+        "name": "numEquals",
+        "value": 1
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.stdout",
+      "expected_type": "string",
+      "validations": [
+       {
+        "name": "isLike",
+        "value": "error"
+       }
+      ],
+      "save": true
+     }
+    ]
+   }
+  ],
+  "Events": [],
+  "After": []
+ },
+ {
+  "title": "CLI connect: --manifest pulls the remote plugin manifest and connects under the real projectCode",
+  "namespace": {
+   "serviceId": "TestService",
+   "moduleName": "CLI",
+   "methodName": "run"
+  },
+  "Before": [],
+  "Main": [
+   {
+    "title": "run `systemview connect http://localhost:5555/test/api --manifest` → finds systemview-test, connects TestService",
+    "namespace": {
+     "serviceId": "TestService",
+     "moduleName": "CLI",
+     "methodName": "run"
+    },
+    "args": [
+     {
+      "name": "argument:",
+      "input": {
+       "args": [
+        "connect",
+        "http://localhost:5555/test/api",
+        "--manifest"
+       ]
+      },
+      "input_type": "object",
+      "data_type": "",
+      "targetValues": []
+     }
+    ],
+    "savedEvaluations": [
+     {
+      "namespace": "results.exitCode",
+      "expected_type": "number",
+      "validations": [
+       {
+        "name": "numEquals",
+        "value": 0
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.stdout",
+      "expected_type": "string",
+      "validations": [
+       {
+        "name": "isLike",
+        "value": "Plugin manifest found: systemview-test"
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.stdout",
+      "expected_type": "string",
+      "validations": [
+       {
+        "name": "isLike",
+        "value": "systemview-test"
+       }
+      ],
+      "save": true
+     }
+    ]
+   }
+  ],
+  "Events": [],
+  "After": []
+ },
+ {
+  "title": "CLI connect cycle: connect a url then disconnect it (self-cleaning throwaway entry)",
+  "namespace": {
+   "serviceId": "TestService",
+   "moduleName": "CLI",
+   "methodName": "run"
+  },
+  "Before": [],
+  "Main": [
+   {
+    "title": "connect http://localhost:5555/test/api (no --manifest) → registers connected-services › test",
+    "namespace": {
+     "serviceId": "TestService",
+     "moduleName": "CLI",
+     "methodName": "run"
+    },
+    "args": [
+     {
+      "name": "argument:",
+      "input": {
+       "args": [
+        "connect",
+        "http://localhost:5555/test/api"
+       ]
+      },
+      "input_type": "object",
+      "data_type": "",
+      "targetValues": []
+     }
+    ],
+    "savedEvaluations": [
+     {
+      "namespace": "results.exitCode",
+      "expected_type": "number",
+      "validations": [
+       {
+        "name": "numEquals",
+        "value": 0
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.stdout",
+      "expected_type": "string",
+      "validations": [
+       {
+        "name": "isLike",
+        "value": "connected-services"
+       }
+      ],
+      "save": true
+     }
+    ]
+   },
+   {
+    "title": "disconnect connected-services test → removes it",
+    "namespace": {
+     "serviceId": "TestService",
+     "moduleName": "CLI",
+     "methodName": "run"
+    },
+    "args": [
+     {
+      "name": "argument:",
+      "input": {
+       "args": [
+        "disconnect",
+        "connected-services",
+        "test"
+       ]
+      },
+      "input_type": "object",
+      "data_type": "",
+      "targetValues": []
+     }
+    ],
+    "savedEvaluations": [
+     {
+      "namespace": "results.exitCode",
+      "expected_type": "number",
+      "validations": [
+       {
+        "name": "numEquals",
+        "value": 0
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.stdout",
+      "expected_type": "string",
+      "validations": [
+       {
+        "name": "isLike",
+        "value": "Disconnected: connected-services"
+       }
+      ],
+      "save": true
+     }
+    ]
+   }
+  ],
+  "Events": [],
+  "After": []
+ },
+ {
+  "title": "CLI manifest clean: re-probes and keeps the live service",
+  "namespace": {
+   "serviceId": "TestService",
+   "moduleName": "CLI",
+   "methodName": "run"
+  },
+  "Before": [],
+  "Main": [
+   {
+    "title": "run `systemview manifest clean` → cleaned, TestService alive/kept",
+    "namespace": {
+     "serviceId": "TestService",
+     "moduleName": "CLI",
+     "methodName": "run"
+    },
+    "args": [
+     {
+      "name": "argument:",
+      "input": {
+       "args": [
+        "manifest",
+        "clean"
+       ]
+      },
+      "input_type": "object",
+      "data_type": "",
+      "targetValues": []
+     }
+    ],
+    "savedEvaluations": [
+     {
+      "namespace": "results.exitCode",
+      "expected_type": "number",
+      "validations": [
+       {
+        "name": "numEquals",
+        "value": 0
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.stdout",
+      "expected_type": "string",
+      "validations": [
+       {
+        "name": "isLike",
+        "value": "Manifest cleaned"
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.stdout",
+      "expected_type": "string",
+      "validations": [
+       {
+        "name": "isLike",
+        "value": "TestService"
+       }
+      ],
+      "save": true
+     }
+    ]
+   }
+  ],
+  "Events": [],
+  "After": []
+ },
+ {
+  "title": "CLI connect --manifest --save: save the connection — headers + captured session cookie tag along (RFC-010 gap closure)",
+  "namespace": {
+   "serviceId": "TestService",
+   "moduleName": "CLI",
+   "methodName": "run"
+  },
+  "Before": [],
+  "Main": [
+   {
+    "title": "run `systemview connect http://localhost:5556/test/api --manifest --save` → connected + manifest persisted with headers and cookie",
+    "namespace": {
+     "serviceId": "TestService",
+     "moduleName": "CLI",
+     "methodName": "run"
+    },
+    "args": [
+     {
+      "name": "argument:",
+      "input": {
+       "args": [
+        "connect",
+        "http://localhost:5556/test/api",
+        "--manifest",
+        "--save"
+       ]
+      },
+      "input_type": "object",
+      "data_type": "",
+      "targetValues": []
+     }
+    ],
+    "savedEvaluations": [
+     {
+      "namespace": "results.exitCode",
+      "expected_type": "number",
+      "validations": [
+       {
+        "name": "numEquals",
+        "value": 0
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.stdout",
+      "expected_type": "string",
+      "validations": [
+       {
+        "name": "isLike",
+        "value": "Plugin manifest found: systemview-test"
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.stdout",
+      "expected_type": "string",
+      "validations": [
+       {
+        "name": "isLike",
+        "value": "Manifest saved"
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.stdout",
+      "expected_type": "string",
+      "validations": [
+       {
+        "name": "isLike",
+        "value": "cookies for 2 origin"
+       }
+      ],
+      "save": true
+     }
+    ]
+   },
+   {
+    "title": "cold reuse: `probe GatedService.Auth.echo --json` (no --header) sends the persisted session cookie",
+    "namespace": {
+     "serviceId": "TestService",
+     "moduleName": "CLI",
+     "methodName": "run"
+    },
+    "args": [
+     {
+      "name": "argument:",
+      "input": {
+       "args": [
+        "probe",
+        "GatedService.Auth.echo",
+        "--json"
+       ]
+      },
+      "input_type": "object",
+      "data_type": "",
+      "targetValues": []
+     }
+    ],
+    "savedEvaluations": [
+     {
+      "namespace": "results.exitCode",
+      "expected_type": "number",
+      "validations": [
+       {
+        "name": "numEquals",
+        "value": 0
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.stdout",
+      "expected_type": "string",
+      "validations": [
+       {
+        "name": "isLike",
+        "value": "session=test-session-value"
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.stdout",
+      "expected_type": "string",
+      "validations": [
+       {
+        "name": "isLike",
+        "value": "SEEKRIT-FILE-TOKEN"
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.stdout",
+      "expected_type": "string",
+      "validations": [
+       {
+        "name": "isLike",
+        "value": "http://localhost:3000"
+       }
+      ],
+      "save": true
+     }
+    ]
+   }
+  ],
+  "Events": [],
+  "After": []
+ },
+ {
+  "title": "RFC-018 AI Window — `assemble` fills the stage with several panes at once (grid), and the plugin's getSource returns real file:line",
+  "namespace": {
+   "serviceId": "TestService",
+   "moduleName": "CLI",
+   "methodName": "run"
+  },
+  "Before": [
+   {
+    "title": "getSource(Math.add) via the plugin returns the method's real span in its source file",
+    "namespace": {
+     "serviceId": "TestService",
+     "moduleName": "Plugin",
+     "methodName": "getSource"
+    },
+    "args": [
+     {
+      "name": "argument:",
+      "input": {
+       "module": "Math",
+       "method": "add"
+      },
+      "input_type": "object",
+      "data_type": "",
+      "targetValues": []
+     }
+    ],
+    "savedEvaluations": [
+     {
+      "namespace": "results.path",
+      "expected_type": "string",
+      "validations": [
+       {
+        "name": "isLike",
+        "value": "Math"
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.startLine",
+      "expected_type": "number",
+      "validations": [
+       {
+        "name": "numEquals",
+        "value": 2
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.endLine",
+      "expected_type": "number",
+      "validations": [
+       {
+        "name": "numEquals",
+        "value": 6
+       }
+      ],
+      "save": true
+     }
+    ]
+   }
+  ],
+  "Main": [
+   {
+    "title": "run `systemview assemble systemview-test --text … --source Math.add --file package.json --json` → 3-pane grid",
+    "namespace": {
+     "serviceId": "TestService",
+     "moduleName": "CLI",
+     "methodName": "run"
+    },
+    "args": [
+     {
+      "name": "argument:",
+      "input": {
+       "args": [
+        "assemble",
+        "systemview-test",
+        "--text",
+        "Add flow",
+        "--source",
+        "Math.add",
+        "--file",
+        "package.json",
+        "--json"
+       ]
+      },
+      "input_type": "object",
+      "data_type": "",
+      "targetValues": []
+     }
+    ],
+    "savedEvaluations": [
+     {
+      "namespace": "results.exitCode",
+      "expected_type": "number",
+      "validations": [
+       {
+        "name": "numEquals",
+        "value": 0
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.stdout",
+      "expected_type": "string",
+      "validations": [
+       {
+        "name": "isLike",
+        "value": "\"layout\": \"grid\""
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.stdout",
+      "expected_type": "string",
+      "validations": [
+       {
+        "name": "isLike",
+        "value": "\"kind\": \"markdown\""
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.stdout",
+      "expected_type": "string",
+      "validations": [
+       {
+        "name": "isLike",
+        "value": "\"kind\": \"file\""
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.stdout",
+      "expected_type": "string",
+      "validations": [
+       {
+        "name": "isLike",
+        "value": "package.json"
+       }
+      ],
+      "save": true
+     }
+    ]
+   }
+  ],
+  "Events": [],
+  "After": []
+ },
+ {
+  "title": "RFC-018 AI Window — saved-view round trip: assemble → view save → view list persists it (stored in .systemview/views/)",
+  "namespace": {
+   "serviceId": "TestService",
+   "moduleName": "CLI",
+   "methodName": "run"
+  },
+  "Before": [
+   {
+    "title": "assemble a stage to save",
+    "namespace": {
+     "serviceId": "TestService",
+     "moduleName": "CLI",
+     "methodName": "run"
+    },
+    "args": [
+     {
+      "name": "argument:",
+      "input": {
+       "args": [
+        "assemble",
+        "systemview-test",
+        "--source",
+        "Math.add"
+       ]
+      },
+      "input_type": "object",
+      "data_type": "",
+      "targetValues": []
+     }
+    ],
+    "savedEvaluations": [
+     {
+      "namespace": "results.exitCode",
+      "expected_type": "number",
+      "validations": [
+       {
+        "name": "numEquals",
+        "value": 0
+       }
+      ],
+      "save": true
+     }
+    ]
+   }
+  ],
+  "Main": [
+   {
+    "title": "run `systemview view save systemview-test dogfood-view` → persisted",
+    "namespace": {
+     "serviceId": "TestService",
+     "moduleName": "CLI",
+     "methodName": "run"
+    },
+    "args": [
+     {
+      "name": "argument:",
+      "input": {
+       "args": [
+        "view",
+        "save",
+        "systemview-test",
+        "dogfood-view"
+       ]
+      },
+      "input_type": "object",
+      "data_type": "",
+      "targetValues": []
+     }
+    ],
+    "savedEvaluations": [
+     {
+      "namespace": "results.exitCode",
+      "expected_type": "number",
+      "validations": [
+       {
+        "name": "numEquals",
+        "value": 0
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.stdout",
+      "expected_type": "string",
+      "validations": [
+       {
+        "name": "isLike",
+        "value": "saved view"
+       }
+      ],
+      "save": true
+     }
+    ]
+   },
+   {
+    "title": "run `systemview view list systemview-test --json` → the saved view is listed",
+    "namespace": {
+     "serviceId": "TestService",
+     "moduleName": "CLI",
+     "methodName": "run"
+    },
+    "args": [
+     {
+      "name": "argument:",
+      "input": {
+       "args": [
+        "view",
+        "list",
+        "systemview-test",
+        "--json"
+       ]
+      },
+      "input_type": "object",
+      "data_type": "",
+      "targetValues": []
+     }
+    ],
+    "savedEvaluations": [
+     {
+      "namespace": "results.exitCode",
+      "expected_type": "number",
+      "validations": [
+       {
+        "name": "numEquals",
+        "value": 0
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.stdout",
+      "expected_type": "string",
+      "validations": [
+       {
+        "name": "isLike",
+        "value": "dogfood-view"
+       }
+      ],
+      "save": true
+     }
+    ]
+   }
+  ],
+  "Events": [],
+  "After": [
+   {
+    "title": "cleanup: delete the dogfood view",
+    "namespace": {
+     "serviceId": "TestService",
+     "moduleName": "CLI",
+     "methodName": "run"
+    },
+    "args": [
+     {
+      "name": "argument:",
+      "input": {
+       "args": [
+        "view",
+        "delete",
+        "systemview-test",
+        "dogfood-view"
+       ]
+      },
+      "input_type": "object",
+      "data_type": "",
+      "targetValues": []
+     }
+    ],
+    "savedEvaluations": [
+     {
+      "namespace": "results.exitCode",
+      "expected_type": "number",
+      "validations": [
+       {
+        "name": "numEquals",
+        "value": 0
+       }
+      ],
+      "save": true
+     }
+    ]
+   }
+  ]
+ }
 ]

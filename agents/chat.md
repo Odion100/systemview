@@ -118,6 +118,9 @@ systemview act <pc> test Math.add                   # run a saved test where the
 systemview act <pc> test "Wrong expected value (failure demo)"   # by TITLE — a method can hold several tests
 systemview act <pc> test all                        # every saved test in the saved-tests area, in sequence
 systemview act <pc> run "Prove it works"            # press a :::run block's play in the OPEN document, by title
+systemview show <pc> --text "## Look\n::chart{report=throughput}"   # THE TV: interactive markdown beside the chat
+systemview show <pc> --file scratch/demo.md         # a file's content onto the TV
+systemview show <pc> --clear                        # blank the TV
 ```
 
 - **Highlight and navigate are DIFFERENT commands** (his rule). Highlight points — use it for
@@ -144,6 +147,11 @@ systemview act <pc> run "Prove it works"            # press a :::run block's pla
 - **Their view stamp + the open doc = your eyes.** The stamp names the page, tab, open report,
   namespace; the report/doc is a file you can read to know exactly which blocks are on their
   screen. Use both before acting on "this"/"that".
+- **The TV is for show-and-tell, not filing** (the Canvas model): one show at a time, it
+  auto-opens on a live show, the human can close it, and every show stays in the thread as a
+  clickable 📺 line that puts THAT show back on — history navigation for free. Content is FULL
+  interactive markdown (runnables, `::test` — including `{ran=…}` recorded ones — charts,
+  embeds). Use it for "look at this right now"; when something deserves keeping, file a report.
 
 ## Rules
 
@@ -158,3 +166,23 @@ systemview act <pc> run "Prove it works"            # press a :::run block's pla
 - **Don't fake presence.** Join only when actually holding the line; the indicator is derived
   from your real connection and the human trusts it.
 - One chat per project for now (`main`); `--chat <name>` exists for when named chats arrive.
+
+## Compacting a chat (an instruction, not a feature)
+
+When the human asks you to compact a chat (or it's grown unwieldy), do it by hand — the store is
+built so this is safe:
+
+1. Pick a QUIET moment (no messages in flight — the rewrite isn't atomic against an append).
+2. Read `.systemview/chats/<pc>.<chat>.jsonl` (hub-local, plain JSONL).
+3. Move everything except the recent tail (last ~50 records) to
+   `.systemview/chats/archive/<pc>.<chat>.<YYYY-MM-DD>.jsonl` — the archive is the same greppable
+   JSONL; nothing is deleted.
+4. Rewrite the live file as ONE summary record + the tail. The summary is a normal agent record:
+   `{"id":"m_<unique>","ts":<now>,"from":"agent","text":"⟪compacted <date> — earlier: <a few
+   sentences covering what the archived span was about>. Full history: .systemview/chats/archive/…⟫"}`
+5. Say nothing else — the summary bubble at the top of the thread IS the receipt.
+
+Why it's safe: the hub reads the file fresh on every call (no in-memory copy), and every cursor
+(join drains, inbox acks) is TIMESTAMP-based — a shorter file with the same recent timestamps is
+indistinguishable from the long one. Commands in the archived span are just history (they never
+re-execute anyway).

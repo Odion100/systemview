@@ -196,32 +196,67 @@
     }
   }
 
-  // The resize hotzone — the panel's FREE corner (diagonally opposite the bubble anchor); no
-  // visible chrome, the diagonal cursor IS the handle. Which corner is free flips with the
-  // anchor: default = top-left; --left → top-right; --top → bottom-left; both → bottom-right.
-  &__resize {
+  // FULL-BORDER resize — eight invisible zones around the panel/TV; sides drag one axis,
+  // corners both; the cursor is the only chrome. (The single-corner hotzone died here — it was
+  // missed three times running.)
+  &__rz {
     position: absolute;
-    z-index: 3;
-    width: 16px;
-    height: 16px;
+    z-index: 4;
+  }
+  &__rz--n { top: -4px; left: 10px; right: 10px; height: 9px; cursor: ns-resize; }
+  &__rz--s { bottom: -4px; left: 10px; right: 10px; height: 9px; cursor: ns-resize; }
+  &__rz--e { right: -4px; top: 10px; bottom: 10px; width: 9px; cursor: ew-resize; }
+  &__rz--w { left: -4px; top: 10px; bottom: 10px; width: 9px; cursor: ew-resize; }
+  &__rz--ne { top: -4px; right: -4px; width: 14px; height: 14px; cursor: nesw-resize; }
+  &__rz--nw { top: -4px; left: -4px; width: 14px; height: 14px; cursor: nwse-resize; }
+  &__rz--se { bottom: -4px; right: -4px; width: 14px; height: 14px; cursor: nwse-resize; }
+  &__rz--sw { bottom: -4px; left: -4px; width: 14px; height: 14px; cursor: nesw-resize; }
+
+  // THE TV — the show-and-tell surface, docked beside the panel (left by default, flipped when
+  // the bubble lives on the left half). Interactive markdown inside; scrolls; its own size.
+  &__tv {
+    position: absolute;
     top: 0;
-    left: 0;
-    cursor: nwse-resize;
+    right: calc(100% + 10px);
+    display: flex;
+    flex-direction: column;
+    background: var(--sv-surface);
+    border: 1px solid var(--sv-border);
+    border-radius: 10px;
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.22);
   }
-  &--left &__resize {
-    left: auto;
-    right: 0;
-    cursor: nesw-resize;
+  &--left &__tv {
+    right: auto;
+    left: calc(100% + 10px);
   }
-  &--top &__resize {
-    top: auto;
-    bottom: 0;
-    cursor: nesw-resize;
+  &__tv-head {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--sv-border);
+    font-size: 12px;
+    flex: none;
   }
-  &--top#{&}--left &__resize {
-    left: auto;
-    right: 0;
-    cursor: nwse-resize;
+  &__tv-badge {
+    font-size: 13px;
+  }
+  &__tv-title {
+    font-weight: 700;
+    color: var(--sv-text);
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  &__tv-body {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+    .markdown {
+      padding: 10px 12px 10px 26px;
+      font-size: 14px;
+    }
   }
 
   &__panel {
@@ -407,6 +442,7 @@
 
   &__inputrow {
     display: flex;
+    align-items: flex-start; // buttons ride the TOP as the input grows (his call)
     gap: 6px;
     padding: 8px;
     border-top: 1px solid var(--sv-border);
@@ -419,22 +455,96 @@
     background: var(--sv-inset);
     color: var(--sv-text);
     font-size: 12.5px;
+    font-family: inherit;
+    line-height: 1.4;
     padding: 6px 9px;
     outline: none;
+    // A textarea now: wraps, autogrows via JS to ~6 lines, then scrolls. No manual grabber —
+    // growth is automatic.
+    resize: none;
+    max-height: 110px;
+    overflow-y: auto;
     &:focus {
       border-color: var(--sv-blue);
     }
   }
-  &__send {
-    border: none;
+  // The live transcription line — words appear here AS you speak; the red dot says recording.
+  &__interim {
+    display: flex;
+    align-items: baseline;
+    gap: 7px;
+    padding: 5px 10px 0;
+    font-size: 12px;
+    font-style: italic;
+    color: var(--sv-text-muted, #8b93a7);
+    min-height: 20px;
+  }
+  &__interim-dot {
+    flex: none;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #e05252;
+    align-self: center;
+    animation: sv-mic-pulse 1.4s ease-in-out infinite;
+  }
+  &__mic {
     border-radius: 7px;
-    background: var(--sv-blue);
-    color: #fff;
-    width: 34px;
-    cursor: pointer;
     font-size: 14px;
+    line-height: 1;
+    &--on {
+      border-color: #e05252;
+      background: color-mix(in srgb, #e05252 14%, transparent);
+      animation: sv-mic-pulse 1.4s ease-in-out infinite;
+    }
+  }
+  @keyframes sv-mic-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(224, 82, 82, 0.35); }
+    50% { box-shadow: 0 0 0 5px rgba(224, 82, 82, 0); }
+  }
+  // A show line — clickable: puts that show (back) on the TV. The live one glows.
+  &__cmd--show {
+    cursor: pointer;
+    border: none;
+    text-align: left;
+    font-weight: 600;
+    color: var(--sv-text);
+    &:hover {
+      background: color-mix(in srgb, #9a7cb8 18%, transparent);
+    }
+  }
+  &__cmd--live {
+    border-left-color: #4caf50;
+    background: color-mix(in srgb, #4caf50 10%, transparent);
+  }
+  // The icon IS the button — no wrapper, no background. Send and mic share the SAME box
+  // (height/padding/margin) so their tops actually line up next to the growing input.
+  &__send,
+  &__mic {
+    flex: none;
+    border: none;
+    background: none;
+    height: 26px;
+    margin-top: 2px;
+    padding: 0 3px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0.85;
+    &:hover {
+      opacity: 1;
+    }
+  }
+  &__send {
+    line-height: 0;
+    img {
+      width: 18px;
+      height: auto;
+      display: block;
+    }
     &:disabled {
-      opacity: 0.4;
+      opacity: 0.3;
       cursor: default;
     }
   }

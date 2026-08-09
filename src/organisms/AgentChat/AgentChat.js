@@ -2,6 +2,9 @@ import React, { useState, useEffect, useRef, useContext, useMemo } from "react";
 import { useHistory, useLocation, useParams } from "react-router-dom";
 import ServiceContext from "../../ServiceContext";
 import ReportLink from "../../atoms/Markdown/blocks/ReportLink";
+import Markdown from "../../atoms/Markdown/Markdown";
+import { useAppDark } from "../../atoms/appTheme";
+import SEND_ICON from "../../assets/send.png";
 import "./styles.scss";
 
 // RFC-028 — agent presence. SEVERAL bots, not one: every connected project has its own bot,
@@ -77,6 +80,31 @@ function renderChatText(text) {
   if (last < text.length) out.push(text.slice(last));
   return out;
 }
+
+// The eight resize zones — sides drag one axis, corners both. mw/mh multiply dx/dy into the
+// width/height delta; the cursor on each zone is the only handle chrome.
+const RESIZE_ZONES = [
+  { k: "n", mw: 0, mh: -1 }, { k: "s", mw: 0, mh: 1 },
+  { k: "e", mw: 1, mh: 0 }, { k: "w", mw: -1, mh: 0 },
+  { k: "ne", mw: 1, mh: -1 }, { k: "nw", mw: -1, mh: -1 },
+  { k: "se", mw: 1, mh: 1 }, { k: "sw", mw: -1, mh: 1 },
+];
+const ResizeBorder = ({ start, onReset }) =>
+  RESIZE_ZONES.map((z) => (
+    <div
+      key={z.k}
+      className={`${CLASSNAME}__rz ${CLASSNAME}__rz--${z.k}`}
+      title="Drag to resize · double-click to reset"
+      onPointerDown={start(z.mw, z.mh)}
+      onDoubleClick={onReset}
+    />
+  ));
+
+// The input textarea grows with its content up to ~6 lines, then scrolls.
+const autogrow = (el) => {
+  el.style.height = "auto";
+  el.style.height = `${Math.min(el.scrollHeight, 110)}px`;
+};
 
 // The cooking line. A SPECIFIC status from the agent shows verbatim — truth wins over theater.
 // Only the generic "received" state earns the show: after a beat it cycles through cooking words,
@@ -199,6 +227,66 @@ function BotBubble({ projectCode, index }) {
   const [open, setOpen] = useState(false);
   const [ctxMenu, setCtxMenu] = useState(false);
   const [messages, setMessages] = useState([]);
+  const inputRef = useRef(null);
+
+  // VOICE — the mic (browser-native speech recognition). Press to listen, transcripts land in
+  // the input (editable before send), press again to stop. Input only — no TTS, no duplex.
+  const recRef = useRef(null);
+  const [listening, setListening] = useState(false);
+  // The live wire: INTERIM transcripts stream into a visible line while you talk (his catch —
+  // "no indication, the words just pop up"); finals commit into the input.
+  const [interim, setInterim] = useState("");
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const micSupported = !!SR;
+  const toggleMic = () => {
+    if (listening) {
+      try { if (recRef.current) recRef.current.stop(); } catch {}
+      return;
+    }
+    try {
+      const rec = new SR();
+      rec.lang = navigator.language || "en-US";
+      rec.interimResults = true;
+      rec.continuous = true;
+      rec.onresult = (e) => {
+        let fin = "";
+        let inter = "";
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          if (e.results[i].isFinal) fin += e.results[i][0].transcript;
+          else inter += e.results[i][0].transcript;
+        }
+        if (fin) {
+          setInput((cur) => (cur ? `${cur} ` : "") + fin.trim());
+          setInterim("");
+          setTimeout(() => inputRef.current && autogrow(inputRef.current), 0);
+        } else {
+          setInterim(inter);
+        }
+      };
+      rec.onend = () => {
+        setListening(false);
+        setInterim("");
+      };
+      rec.onerror = () => {
+        setListening(false);
+        setInterim("");
+      };
+      recRef.current = rec;
+      rec.start();
+      setListening(true);
+    } catch {
+      setListening(false);
+    }
+  };
+
+  // THE TV — the show-and-tell surface beside the panel (his Canvas model): one show at a time,
+  // auto-populates on a live `show` command, closable, and every show in the chat is a clickable
+  // line that puts THAT show back on. Content rides IN the command record, so history is free.
+  const [tv, setTv] = useState(null); // { id, text, label } — the show on screen
+  const [tvOpen, setTvOpen] = useState(false);
+  // The TV follows the APP theme — the Markdown atom is deliberately theme-blind (a document
+  // picks its own light/dark), so the app's state must be passed down explicitly.
+  const [appDark] = useAppDark();
   const [presence, setPresence] = useState({});
   const [input, setInput] = useState("");
   // Unread = agent replies that arrived while the panel was closed (green count on the bubble).
@@ -298,6 +386,16 @@ function BotBubble({ projectCode, index }) {
             }),
           );
         }
+      } else if (cmd === "show") {
+        // THE TV: auto-populates on a live show (his call), clears on --clear. Content is in the
+        // record, so this needs nothing but state.
+        if (args.clear) {
+          setTv(null);
+          setTvOpen(false);
+        } else if (args.text) {
+          setTv({ id: record.id, text: args.text, label: record.label || "show" });
+          setTvOpen(true);
+        }
       } else if (cmd === "refresh") {
         window.dispatchEvent(
           new CustomEvent("sv:refresh", { detail: { scope: args.scope || "all" } }),
@@ -356,6 +454,13 @@ function BotBubble({ projectCode, index }) {
         if (dead) return;
         setMessages(history || []);
         setPresence(pres || {});
+        // The TV restores its LAST show from history (content rides in the record) — rendering
+        // is passive, so replay is safe here, unlike nav. Open-state is the user's, persisted.
+        const lastShow = [...(history || [])]
+          .reverse()
+          .find((m) => m.kind === "command" && m.cmd === "show" && m.args && m.args.text);
+        if (lastShow)
+          setTv({ id: lastShow.id, text: lastShow.args.text, label: lastShow.label || "show" });
         // Replies that landed since the last time this panel was open → the green count.
         let seen = 0;
         try { seen = Number(localStorage.getItem(`sv.chatSeen.${projectCode}`)) || 0; } catch {}
@@ -451,7 +556,14 @@ function BotBubble({ projectCode, index }) {
   const send = async () => {
     const text = input.trim();
     if (!text) return;
+    // Sending ends the dictation — you said what you had to say (his call).
+    if (listening) {
+      try { if (recRef.current) recRef.current.stop(); } catch {}
+    }
     setInput("");
+    // Shrink the grown textarea back to one line — HERE, so every send path (Enter, the send
+    // button, mic flows) resets it, not just the keyboard one.
+    if (inputRef.current) inputRef.current.style.height = "auto";
     // The vantage point, stamped NOW — the reader arrives later, after you've moved on.
     // RFC-029: the THREE-SECTION breakdown (nav / center / scratchpad), mostly a URL decode —
     // "on stage" says WHICH report, "in the scratchpad" says which namespace it's pointed at.
@@ -497,8 +609,9 @@ function BotBubble({ projectCode, index }) {
   const leftHalf = pos ? pos.x < window.innerWidth / 2 : false;
   const topHalf = pos ? pos.y < window.innerHeight / 2 : false;
 
-  // RESIZABLE PANEL — drag the free corner (the one diagonally opposite the bubble anchor); the
-  // cursor is the handle, same as bot dragging. Size persists per project.
+  // RESIZABLE — the WHOLE border drags (his call after the corner hotzone failed him three
+  // times): sides resize one axis, corners both, the cursor is the handle everywhere. One
+  // generic resizer serves the chat panel AND the TV; sizes persist per project.
   const [size, setSize] = useState(() => {
     try {
       const s = JSON.parse(localStorage.getItem(`sv.chatSize.${projectCode}`));
@@ -506,38 +619,45 @@ function BotBubble({ projectCode, index }) {
     } catch {}
     return { w: 340, h: 480 };
   });
-  const resizeRef = useRef(null);
-  const onResizeStart = (e) => {
+  const [tvSize, setTvSize] = useState(() => {
+    try {
+      const s = JSON.parse(localStorage.getItem(`sv.tvSize.${projectCode}`));
+      if (s && s.w && s.h) return s;
+    } catch {}
+    return { w: 430, h: 480 };
+  });
+  const makeResize = (getStart, apply, persistKey) => (mw, mh) => (e) => {
     e.preventDefault();
     e.stopPropagation();
-    resizeRef.current = { x: e.clientX, y: e.clientY, w: size.w, h: size.h };
+    const start = { x: e.clientX, y: e.clientY, ...getStart() };
+    let latest = null;
     const move = (ev) => {
-      const r = resizeRef.current;
-      if (!r) return;
-      const dx = ev.clientX - r.x;
-      const dy = ev.clientY - r.y;
-      // The panel grows AWAY from its anchor: anchored right → dragging left widens, and so on.
-      const next = {
-        w: Math.min(680, Math.max(260, r.w + (leftHalf ? dx : -dx))),
-        h: Math.min(window.innerHeight - 90, Math.max(220, r.h + (topHalf ? dy : -dy))),
+      latest = {
+        w: Math.min(820, Math.max(240, start.w + mw * (ev.clientX - start.x))),
+        h: Math.min(window.innerHeight - 90, Math.max(200, start.h + mh * (ev.clientY - start.y))),
       };
-      setSize(next);
-      resizeRef.current = { ...r, latest: next };
+      apply(latest);
     };
     const up = () => {
-      const r = resizeRef.current;
-      if (r && r.latest) {
-        try {
-          localStorage.setItem(`sv.chatSize.${projectCode}`, JSON.stringify(r.latest));
-        } catch {}
+      if (latest) {
+        try { localStorage.setItem(persistKey, JSON.stringify(latest)); } catch {}
       }
-      resizeRef.current = null;
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
   };
+  const panelResize = makeResize(() => size, setSize, `sv.chatSize.${projectCode}`);
+  const tvResize = makeResize(() => tvSize, setTvSize, `sv.tvSize.${projectCode}`);
+  // Double-click any border → back to the original size (the same convention the page's panel
+  // dividers use).
+  const resetSize = (setter, def, key) => () => {
+    setter(def);
+    try { localStorage.setItem(key, JSON.stringify(def)); } catch {}
+  };
+  const panelReset = resetSize(setSize, { w: 340, h: 480 }, `sv.chatSize.${projectCode}`);
+  const tvReset = resetSize(setTvSize, { w: 430, h: 480 }, `sv.tvSize.${projectCode}`);
   const style = pos
     ? { left: pos.x, top: pos.y, right: "auto", bottom: "auto" }
     : { bottom: EDGE + index * STACK };
@@ -549,6 +669,28 @@ function BotBubble({ projectCode, index }) {
     >
       {open && (
         <div className={`${CLASSNAME}__panel-anchor`}>
+        {/* THE TV — the show-and-tell surface beside the panel: one show at a time (the Canvas
+            model), interactive markdown through the one renderer, full-border resizable. */}
+        {tvOpen && tv && (
+          <div className={`${CLASSNAME}__tv`} style={{ width: tvSize.w, height: tvSize.h }}>
+            <ResizeBorder start={tvResize} onReset={tvReset} />
+            <div className={`${CLASSNAME}__tv-head`}>
+              <span className={`${CLASSNAME}__tv-badge`}>📺</span>
+              <span className={`${CLASSNAME}__tv-title`}>{tv.label || "show"}</span>
+              <button
+                type="button"
+                className={`${CLASSNAME}__close`}
+                title="Close the TV — any show line in the chat brings it back"
+                onClick={() => setTvOpen(false)}
+              >
+                ✕
+              </button>
+            </div>
+            <div className={`${CLASSNAME}__tv-body`}>
+              <Markdown dark={appDark} scope={{ projectCode }}>{tv.text}</Markdown>
+            </div>
+          </div>
+        )}
         <div
           className={`${CLASSNAME}__panel`}
           // A free-parked bubble may not have the panel's height of room on its open side — cap
@@ -564,11 +706,7 @@ function BotBubble({ projectCode, index }) {
               : undefined,
           }}
         >
-          <div
-            className={`${CLASSNAME}__resize`}
-            title="Drag to resize"
-            onPointerDown={onResizeStart}
-          />
+          <ResizeBorder start={panelResize} onReset={panelReset} />
           <div className={`${CLASSNAME}__head`}>
             <span className={`${CLASSNAME}__mode ${CLASSNAME}__mode--${ring}`}>{mode}</span>
             <span className={`${CLASSNAME}__title`}>{projectCode}</span>
@@ -592,12 +730,29 @@ function BotBubble({ projectCode, index }) {
             )}
             {messages.map((m) =>
               m.kind === "command" ? (
-                // A command shows AS a command — the window moved because the agent moved it,
-                // and this line is the receipt.
-                <div key={m.id} className={`${CLASSNAME}__cmd`} title={m.cmd}>
-                  <span className={`${CLASSNAME}__cmd-arrow`}>→</span>{" "}
-                  {m.label || `${m.cmd} ${JSON.stringify(m.args || {})}`}
-                </div>
+                m.cmd === "show" && m.args && m.args.text ? (
+                  // A SHOW is a clickable line — the Canvas model: click any show in history and
+                  // THAT show goes (back) on the TV.
+                  <button
+                    type="button"
+                    key={m.id}
+                    className={`${CLASSNAME}__cmd ${CLASSNAME}__cmd--show ${tv && tv.id === m.id && tvOpen ? `${CLASSNAME}__cmd--live` : ""}`}
+                    title="Put this show on the TV"
+                    onClick={() => {
+                      setTv({ id: m.id, text: m.args.text, label: m.label || "show" });
+                      setTvOpen(true);
+                    }}
+                  >
+                    <span className={`${CLASSNAME}__cmd-arrow`}>📺</span> {m.label || "show"}
+                  </button>
+                ) : (
+                  // A command shows AS a command — the window moved because the agent moved it,
+                  // and this line is the receipt.
+                  <div key={m.id} className={`${CLASSNAME}__cmd`} title={m.cmd}>
+                    <span className={`${CLASSNAME}__cmd-arrow`}>→</span>{" "}
+                    {m.label || `${m.cmd} ${JSON.stringify(m.args || {})}`}
+                  </div>
+                )
               ) : (
                 <div
                   key={m.id}
@@ -609,18 +764,46 @@ function BotBubble({ projectCode, index }) {
             )}
             {p.status && <StatusLine status={p.status} />}
           </div>
+          {/* While the mic listens: the words appear HERE as you speak (interim), then commit
+              into the input as they finalize. The line itself is the recording indicator. */}
+          {listening && (
+            <div className={`${CLASSNAME}__interim`}>
+              <span className={`${CLASSNAME}__interim-dot`} />
+              {interim || "listening…"}
+            </div>
+          )}
           <div className={`${CLASSNAME}__inputrow`}>
-            <input
+            {/* A textarea that WRAPS and GROWS (to ~6 lines, then scrolls). Enter sends,
+                Shift+Enter breaks a line — chat conventions. */}
+            <textarea
+              ref={inputRef}
               className={`${CLASSNAME}__input`}
+              rows={1}
               value={input}
               placeholder={p.live ? "the agent is in — talk" : "message (delivered at the agent's next turn)"}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={(e) => {
+                setInput(e.target.value);
+                autogrow(e.target);
+              }}
               onKeyDown={(e) => {
-                if (e.key === "Enter") send();
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  send();
+                }
               }}
             />
-            <button type="button" className={`${CLASSNAME}__send`} onClick={send} disabled={!input.trim()}>
-              ↑
+            {micSupported && (
+              <button
+                type="button"
+                className={`${CLASSNAME}__mic ${listening ? `${CLASSNAME}__mic--on` : ""}`}
+                title={listening ? "Stop listening" : "Dictate — speech goes into the input"}
+                onClick={toggleMic}
+              >
+                🎙
+              </button>
+            )}
+            <button type="button" className={`${CLASSNAME}__send`} onClick={send} disabled={!input.trim()} title="Send">
+              <img src={SEND_ICON} alt="send" />
             </button>
           </div>
         </div>

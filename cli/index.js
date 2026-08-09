@@ -228,7 +228,7 @@ async function loadCaseSetting() {
     const deleteHosted = require("./deleteHosted");
     const exitCode = await deleteHosted(input[1], { uiUrl: UI_URL, Client, force: flags.force });
     flushAndExit(exitCode || 0);
-  } else if (["join", "say", "inbox", "nav", "refresh", "act", "highlight"].includes(command) || (command === "status" && input[1])) {
+  } else if (["join", "say", "inbox", "nav", "refresh", "act", "highlight", "show"].includes(command) || (command === "status" && input[1])) {
     // RFC-028 — the chat front door; RFC-029 — agent control rides the same door (a command is a
     // chat record the open UI executes). join HANGS on purpose (the hold IS presence); the others
     // are one-shots. All need the hub up.
@@ -244,6 +244,8 @@ async function loadCaseSetting() {
     else if (command === "status") exitCode = await chatCmd.status(input[1], input[2], opts);
     else if (command === "nav") exitCode = await chatCmd.nav(input[1], input[2], input[3], opts);
     else if (command === "highlight") exitCode = await chatCmd.highlight(input[1], input[2], opts);
+    else if (command === "show")
+      exitCode = await chatCmd.show(input[1], { ...opts, text: flags.text && flags.text[0], clear: flags.clear });
     else if (command === "refresh") exitCode = await chatCmd.refresh(input[1], input[2], opts);
     else if (command === "act") exitCode = await chatCmd.act(input[1], input[2], input[3], opts);
     else exitCode = await chatCmd.inbox(input[1], { ...opts, json: true });
@@ -340,7 +342,9 @@ async function loadCaseSetting() {
       ".systemview/reports.index.json, rendered on the Stage tab. See agents/AGENTS.md §3 and agents/markdown.md.",
     );
     flushAndExit(1);
-  } else if (["show", "assemble", "stage", "highlight", "view", "selection"].includes(command)) {
+  } else if (["assemble", "stage", "view", "selection"].includes(command)) {
+    // (`show` and `highlight` were repurposed by RFC-029/030 — they route through the chat
+    // command group above; this legacy AI-window group keeps only its unclaimed verbs.)
     // RFC-018 AI Window — drive the open UI's stage. Needs the UI up (that's what renders the stage).
     await launchApp(DEFAULT_PORT);
     const opts = {

@@ -259,3 +259,30 @@ module.exports.highlight = async function highlight(projectCode, target, opts = 
   }
   return sendCommand(projectCode, { ...opts, cmd: "highlight", args, label });
 };
+
+// RFC-030-ish — THE TV. `show` pushes interactive markdown onto the chat's TV surface (the
+// Canvas model: one show at a time, every show stays clickable in the thread). Content rides IN
+// the command record — that's what makes history/replay free.
+module.exports.show = async function show(projectCode, { uiUrl, Client, chat, agent, text, file, clear } = {}) {
+  if (!projectCode || (!text && !file && !clear)) {
+    log.warn('Usage: systemview show <projectCode> --text "<markdown>" | --file <path.md> | --clear');
+    return 1;
+  }
+  if (clear) {
+    return sendCommand(projectCode, { uiUrl, Client, chat, agent, cmd: "show", args: { clear: true }, label: "cleared the TV" });
+  }
+  let content = text || "";
+  let label = "";
+  if (file) {
+    try {
+      content = require("fs").readFileSync(file, "utf8");
+    } catch (e) {
+      log.error(`show: couldn't read ${file} — ${e.message}`);
+      return 1;
+    }
+  }
+  // Label = the first heading if there is one, else the file name, else a text snippet.
+  const heading = (content.match(/^#{1,6}\s+(.+)$/m) || [])[1];
+  label = heading || (file ? String(file).split("/").pop() : content.trim().slice(0, 48));
+  return sendCommand(projectCode, { uiUrl, Client, chat, agent, cmd: "show", args: { text: content }, label });
+};
