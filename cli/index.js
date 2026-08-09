@@ -237,6 +237,7 @@ async function loadCaseSetting() {
     const opts = {
       uiUrl: UI_URL, Client, chat: flags.chat, agent: flags.as, once: flags.once,
       report: flags.report, file: flags.file && flags.file[0], tab: flags.tab, topic: flags.topic,
+      range: flags.range, service: flags.service,
     };
     let exitCode = 0;
     if (command === "join") exitCode = await chatCmd.join(input[1], opts);
@@ -312,6 +313,16 @@ async function loadCaseSetting() {
       uiUrl: UI_URL,
       saveSession: flags.saveSession,
       global: flags.global,
+    });
+    flushAndExit(exitCode || 0);
+  } else if (command === "stats") {
+    // RFC-032 — the agent's eyes on the Stats page's numbers: same getStats(), same windowing math.
+    await launchApp(DEFAULT_PORT);
+    const statsCommand = require("./stats");
+    const exitCode = await statsCommand(input[1], input[2], {
+      uiUrl: UI_URL,
+      range: flags.range,
+      json: flags.json,
     });
     flushAndExit(exitCode || 0);
   } else if (command === "logs" || command === "log") {

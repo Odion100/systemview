@@ -481,6 +481,21 @@ function BotBubble({ projectCode, index }) {
     const { cmd, args = {} } = record || {};
     try {
       if (cmd === "nav") {
+        if (args.stats) {
+          // RFC-032 — walk the human to the Stats page. The URL push covers a fresh mount (Reports
+          // reads its query on init); the event covers the already-standing-there case, where a
+          // same-route push doesn't remount and the query init never re-runs.
+          const s = args.stats;
+          const sp = new URLSearchParams();
+          if (s.service) sp.set("service", s.service);
+          if (s.report && s.report !== "state") sp.set("report", s.report);
+          if (s.range && s.range !== "all") sp.set("range", s.range);
+          history.push({ pathname: `/reports/${projectCode}`, search: sp.toString() ? `?${sp}` : "" });
+          window.dispatchEvent(
+            new CustomEvent("sv:navStats", { detail: { projectCode, ...s } }),
+          );
+          return;
+        }
         if (args.file) {
           // Open the file by URL DIRECTLY — the same params SystemView.openFile writes (the
           // event-based open silently didn't land; the URL door is the proven one). Mirrors
@@ -784,7 +799,20 @@ function BotBubble({ projectCode, index }) {
     // "on stage" says WHICH report, "in the scratchpad" says which namespace it's pointed at.
     const params = new URLSearchParams(location.search);
     const nsSelected = [serviceId, moduleName, methodName].filter(Boolean).join("/") || null;
-    const view = {
+    // RFC-032 — standing on the Stats page stamps a stats-shaped view: which project's stats,
+    // which tab, what time window, which service is focused. Agents read view.page first.
+    const onStats = location.pathname.startsWith("/reports");
+    const view = onStats ? {
+      path: location.pathname + location.search,
+      page: "stats",
+      projectCode,
+      stats: {
+        project: decodeURIComponent(location.pathname.split("/")[2] || "") || null,
+        report: params.get("report") || "state",
+        range: params.get("range") || "all",
+        service: params.get("service") || null,
+      },
+    } : {
       path: location.pathname + location.search,
       page: "specs",
       projectCode,

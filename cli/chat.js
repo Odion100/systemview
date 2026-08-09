@@ -140,7 +140,10 @@ module.exports.inbox = async function inbox(projectCode, { uiUrl, Client, chat, 
 //   nav <pc> center --file <path[#La-b]>      pull up a file in the Code tab
 //   nav <pc> center --tab <docs|reports|logs> switch the center tab
 //   nav <pc> center --topic <help-topic>      open a help topic over the page
-//   refresh <pc> [docs|reports|nav|all]       panes re-read their data — never a page reload
+//   nav <pc> stats [tab] [--range <r>] [--service <s>]   walk the human to the Stats page
+//                                             (tab: state|load|reliability|coverage|change|topology|coupling,
+//                                              range: 15m|1h|4h|24h|all)
+//   refresh <pc> [docs|reports|nav|stats|all] panes re-read their data — never a page reload
 //   act <pc> test <Module.method>             run a saved test IN the UI, watchably
 async function sendCommand(projectCode, { uiUrl, Client, chat, agent, cmd, args, label }) {
   const SystemView = await loadHub(Client, uiUrl);
@@ -177,14 +180,47 @@ async function resolveLiveNs(SystemView, projectCode, nsInput) {
 
 module.exports.nav = async function nav(projectCode, section, target, opts = {}) {
   if (!projectCode) {
-    log.warn("Usage: systemview nav <projectCode> <Service.Module.method> | center --report <path> | center --file <path[#La-b]> | center --tab <t> | center --topic <help>");
+    log.warn("Usage: systemview nav <projectCode> <Service.Module.method> | stats [tab] [--range <r>] [--service <s>] | center --report <path> | center --file <path[#La-b]> | center --tab <t> | center --topic <help>");
     return 1;
   }
   const args = {};
   let label = "";
   // Shorthand: a namespace right after the project (`nav <pc> TestService.Math.add`).
-  const nsTarget = section && !["center", "nav", "scratchpad", "page"].includes(section) ? section : target;
-  if (opts.report) {
+  const nsTarget = section && !["center", "nav", "scratchpad", "page", "stats"].includes(section) ? section : target;
+  if (section === "stats") {
+    // RFC-032 — walk the human to the Stats page (a specific tab / time range / service focus).
+    const STATS_TABS = ["state", "load", "reliability", "coverage", "change", "topology", "coupling"];
+    const RANGES = ["15m", "1h", "4h", "24h", "all"];
+    const stats = {};
+    if (target) {
+      if (!STATS_TABS.includes(target)) {
+        log.error(`no stats tab "${target}" — tabs: ${STATS_TABS.join(", ")}`);
+        return 1;
+      }
+      stats.report = target;
+    }
+    if (opts.range) {
+      if (!RANGES.includes(opts.range)) {
+        log.error(`no range "${opts.range}" — ranges: ${RANGES.join(", ")}`);
+        return 1;
+      }
+      stats.range = opts.range;
+    }
+    if (opts.service) {
+      // Same validation principle as namespaces: never send the human to a service that isn't there.
+      const SystemView = await loadHub(opts.Client, opts.uiUrl);
+      const projects = await SystemView.getProjects();
+      const svcIds = (projects[projectCode] || []).map((s) => s.serviceId);
+      const hit = svcIds.find((s) => s.toLowerCase() === String(opts.service).toLowerCase());
+      if (!hit) {
+        log.error(`no service "${opts.service}" in ${projectCode} — services: ${svcIds.join(", ") || "(none)"}`);
+        return 1;
+      }
+      stats.service = hit;
+    }
+    args.stats = stats;
+    label = `opened stats${stats.report ? ` — ${stats.report}` : ""}${stats.range ? `, last ${stats.range === "all" ? "everything" : stats.range}` : ""}${stats.service ? `, focused on ${stats.service}` : ""}`;
+  } else if (opts.report) {
     args.report = opts.report;
     label = `opened report ${opts.report.split("/").pop()}`;
   } else if (opts.file) {
@@ -212,7 +248,7 @@ module.exports.nav = async function nav(projectCode, section, target, opts = {})
     args.namespace = hits[0];
     label = `navigated to ${hits[0]}`;
   } else {
-    log.warn("nav: nothing to navigate to — give a namespace or --report/--file/--tab/--topic");
+    log.warn("nav: nothing to navigate to — give a namespace, `stats [tab]`, or --report/--file/--tab/--topic");
     return 1;
   }
   return sendCommand(projectCode, { ...opts, cmd: "nav", args, label });
@@ -220,10 +256,10 @@ module.exports.nav = async function nav(projectCode, section, target, opts = {})
 
 module.exports.refresh = async function refresh(projectCode, scope, opts = {}) {
   if (!projectCode) {
-    log.warn("Usage: systemview refresh <projectCode> [docs|reports|nav|all]");
+    log.warn("Usage: systemview refresh <projectCode> [docs|reports|nav|stats|all]");
     return 1;
   }
-  const s = ["docs", "reports", "nav", "all"].includes(scope) ? scope : "all";
+  const s = ["docs", "reports", "nav", "stats", "all"].includes(scope) ? scope : "all";
   return sendCommand(projectCode, {
     ...opts,
     cmd: "refresh",

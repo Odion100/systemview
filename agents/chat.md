@@ -20,6 +20,18 @@ Every message carries the human's words **plus their vantage point at the moment
 **Use the view.** "That", "this", "here" refer to what the view shows — the open report, the
 selected namespace, the file on screen. Never ask "which report?" when the view already says.
 
+From the **Stats page** the view is stats-shaped — check `view.page` first:
+
+```json
+{ "view": { "path": "/reports/systemview-test?report=load&range=1h", "page": "stats",
+            "projectCode": "systemview-test",
+            "stats": { "project": "systemview-test", "report": "load",
+                       "range": "1h", "service": null } } }
+```
+
+"This spike", "that error rate" refer to the tab (`stats.report`), window (`stats.range`) and
+service focus they're looking at.
+
 ## Mode 1 — JOIN (live, in the room)
 
 Run this and STAY on it — the hold itself is the "agent is in" indicator (solid bubble):
@@ -122,9 +134,11 @@ systemview nav <pc> center --report <path>          # open a report on the Stage
 systemview nav <pc> center --file cli/index.js#L40-80   # open a file in the Code tab (tree selection follows)
 systemview nav <pc> center --tab docs|reports|logs  # switch the center tab
 systemview nav <pc> center --topic chat             # open a help topic over the page
+systemview nav <pc> stats                           # walk the human to the Stats page (their tab/range/filter untouched)
+systemview nav <pc> stats load --range 1h --service TestService   # a specific stats view: tab (state|load|reliability|coverage|change|topology|coupling), window, service focus
 systemview highlight <pc> Math.add                  # POINT, don't navigate: tree expands + marks + scrolls, nothing else moves
 systemview highlight <pc> --file api/Chats.js       # same, for a file in the tree
-systemview refresh <pc> docs|reports|nav|all        # panes re-read their data — never a page reload
+systemview refresh <pc> docs|reports|nav|stats|all  # panes re-read their data — never a page reload
 systemview act <pc> test Math.add                   # run a saved test where the human is LOOKING (see routing below)
 systemview act <pc> test "Wrong expected value (failure demo)"   # by TITLE — a method can hold several tests
 systemview act <pc> test all                        # every saved test in the saved-tests area, in sequence

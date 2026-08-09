@@ -39,6 +39,9 @@ const HELP_TEXT = `
     manifest save                          Persist session manifest — services, auth headers, cookies  [interactive]
     manifest clean                        Re-probe manifest entries, remove stale ones
     probe <ServiceId.Module.method> [args] Call a service method ad-hoc
+    stats <project> [service] [--range <r>] [--json]   Read live stats — the Stats page's numbers
+                                           in a digest (top load, error hotspots, deltas); --json
+                                           for the full structured read; range: 15m|1h|4h|24h|all
     toggle cs | ci                         Toggle namespace case-sensitivity (sticky; default insensitive)
                                            [also: bare cs / ci; works in interactive mode]
     open [projectCode] [namespace]         Open the browser UI
@@ -51,9 +54,12 @@ const HELP_TEXT = `
     nav <project> center --file <p[#La-b]> Open a file in the Code tab (tree selection follows)
     nav <project> center --tab <t>         Switch the center tab (docs | reports | logs)
     nav <project> center --topic <help>    Open a help topic over the page
+    nav <project> stats [tab] [--range <r>] [--service <s>]   Walk the human to the Stats page —
+                                           tab: state|load|reliability|coverage|change|topology|coupling,
+                                           range: 15m|1h|4h|24h|all; service focuses one service
     highlight <project> <ns> | --file <p>  POINT, don't navigate: the tree expands to the target,
                                            marks it, scrolls it into view — nothing else moves
-    refresh <project> [docs|reports|nav|all]  Panes re-read their data in place — never a page reload
+    refresh <project> [docs|reports|nav|stats|all]  Panes re-read their data in place — never a page reload
     act <project> test <Mod.method|title|all>  Run a saved test where the human is LOOKING: a doc
                                            block showing it claims the run; else the saved-tests
                                            area; "all" = the whole saved list, in sequence
@@ -143,7 +149,7 @@ const HELP_TEXT = `
     systemview highlight buAPI --match "await hash"
 `;
 
-const flagValueArgs = ["--manifest", "--header", "--skip", "--phase", "--index", "--level", "--limit", "--follow", "--filter", "--or", "--include", "--highlight", "--save", "--save-limit", "--file", "--source", "--text", "--lines", "--match", "--layout", "--diff", "--test", "--ns", "--note", "--at", "--from", "--to", "--chat", "--as", "--report", "--tab", "--topic"];
+const flagValueArgs = ["--manifest", "--header", "--skip", "--phase", "--index", "--level", "--limit", "--follow", "--filter", "--or", "--include", "--highlight", "--save", "--save-limit", "--file", "--source", "--text", "--lines", "--match", "--layout", "--diff", "--test", "--ns", "--note", "--at", "--from", "--to", "--chat", "--as", "--report", "--tab", "--topic", "--range", "--service"];
 
 // Quote-aware tokenizer: a single/double-quoted arg (e.g. a JSON payload with spaces) stays ONE token,
 // surrounding quotes stripped. Turns an interactive REPL line into the same argv shape the shell hands
@@ -236,6 +242,9 @@ function parseArgs(rawArgs) {
     report: valOf("--report"),
     tab: valOf("--tab"),
     topic: valOf("--topic"),
+    // RFC-032 — nav <pc> stats [tab] [--range] [--service]
+    range: valOf("--range"),
+    service: valOf("--service"),
     // ORDERED pane sequence for `assemble` — walk the raw args left→right so panes render in the
     // order given (markdown can sit BETWEEN code/diff/test to tell a story). Grouping by kind would
     // clump all the prose at the top and kill the narrative.

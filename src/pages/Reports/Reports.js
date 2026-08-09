@@ -3,6 +3,7 @@ import { useHistory, useParams, useLocation } from "react-router-dom";
 import { Client } from "../../systemClient";
 import ServiceContext from "../../ServiceContext";
 import PageHeader from "../../organisms/PageHeader/PageHeader";
+import AgentChat from "../../organisms/AgentChat/AgentChat";
 import LineChart from "../../organisms/Charts/LineChart";
 import LoadColumns from "../../organisms/Charts/LoadColumns";
 import TopologyGraph from "../../organisms/Charts/TopologyGraph";
@@ -183,6 +184,29 @@ export default function Reports() {
 
   useEffect(() => {
     loadStats();
+  }, [loadStats]);
+
+  // RFC-032 — agent control reaches Stats. `nav <pc> stats …` pushes the URL (covers a fresh
+  // mount) AND fires this event (covers already-standing-here — a same-route push never remounts,
+  // so the query-string init doesn't re-run). Only explicitly-sent fields apply; a bare
+  // `nav stats` walks you over without touching your tab/range/filter.
+  useEffect(() => {
+    const onNavStats = (e) => {
+      const d = e.detail || {};
+      if (d.report) setReport(d.report);
+      if (d.range) setRange(d.range);
+      if (d.service !== undefined) setFilterService(d.service || "");
+    };
+    const onRefresh = (e) => {
+      const scope = (e.detail && e.detail.scope) || "all";
+      if (scope === "all" || scope === "stats") loadStats();
+    };
+    window.addEventListener("sv:navStats", onNavStats);
+    window.addEventListener("sv:refresh", onRefresh);
+    return () => {
+      window.removeEventListener("sv:navStats", onNavStats);
+      window.removeEventListener("sv:refresh", onRefresh);
+    };
   }, [loadStats]);
 
   const services = projectServices.map((s) => s.serviceId);
@@ -918,6 +942,8 @@ export default function Reports() {
           </>
         )}
       </div>
+      {/* RFC-032 — the bots ride the Stats page too: same dock line, same peeks, same TV. */}
+      <AgentChat />
     </section>
   );
 }
