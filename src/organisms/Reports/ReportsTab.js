@@ -217,18 +217,69 @@ const ReportsTab = ({ projectCode, serviceId, moduleName, methodName, openName, 
     // writing, and `.systemview` is ignored anyway.
   };
 
+  // Stale-tab guard: `base` = the content this pane loaded. A conflict answer means someone else
+  // saved meanwhile — surface it and let a deliberate second Save overwrite (their version is in
+  // the snapshot ring either way).
+  const conflictRef = useRef(false);
   const save = useCallback(
     async (next) => {
       if (!doc) return;
+      const base = doc.content;
       setDoc((d) => (d ? { ...d, content: next } : d));
       try {
-        await Plugin.writeFile({ path: doc.path, content: next });
+        const res = await Plugin.writeFile(
+          conflictRef.current
+            ? { path: doc.path, content: next }
+            : { path: doc.path, content: next, base },
+        );
+        if (res && res.conflict) {
+          conflictRef.current = true;
+          raiseError(
+            "Save held — this report changed elsewhere",
+            "Another tab or an agent saved it after you loaded it, so your save was held instead of wiping theirs. Their version is on disk (and yours can go in over it: Save again to overwrite — every version stays in ⏱ history).",
+          );
+          return;
+        }
+        conflictRef.current = false;
       } catch (e) {
         raiseError("Couldn't save the report", e && (e.message || String(e)));
       }
     },
     [Plugin, doc]
   );
+
+  // DOC UNDO — the report's saved versions (the snapshot ring writeFile feeds). Click restores;
+  // the current version is snapshotted first, so a restore is always reversible.
+  const [hist, setHist] = useState(null);
+  const toggleHistory = async () => {
+    if (hist) return setHist(null);
+    setHist({ loading: true, snaps: [] });
+    try {
+      const h = await Plugin.fileHistory({ path: doc.path });
+      setHist({ loading: false, snaps: h.snaps || [] });
+    } catch (e) {
+      setHist(null);
+      raiseError("No history here", "This service's plugin predates doc history — update systemview-plugin to get the snapshot ring.");
+    }
+  };
+  const restoreSnap = async (ts) => {
+    try {
+      const snap = await Plugin.readSnapshot({ path: doc.path, ts });
+      await Plugin.writeFile({ path: doc.path, content: snap.content });
+      setDoc((d) => (d ? { ...d, content: snap.content } : d));
+      setHist(null);
+      conflictRef.current = false;
+    } catch (e) {
+      raiseError("Couldn't restore that version", e && (e.message || String(e)));
+    }
+  };
+  const ago = (ts) => {
+    const s = Math.max(1, Math.round((Date.now() - ts) / 1000));
+    if (s < 60) return `${s}s ago`;
+    if (s < 3600) return `${Math.round(s / 60)}m ago`;
+    if (s < 86400) return `${Math.round(s / 3600)}h ago`;
+    return `${Math.round(s / 86400)}d ago`;
+  };
 
   if (!host)
     return <div className="reports-tab__empty">No connected service in this project can read files.</div>;
@@ -252,17 +303,27 @@ const ReportsTab = ({ projectCode, serviceId, moduleName, methodName, openName, 
       <span className="reports-tab__bar-actions">
         <EditorThemeToggle scope="docs" />
         {doc && !editing ? (
-          <button
-            type="button"
-            className="reports-tab__x"
-            title="Edit this report"
-            onClick={() => {
-              setDraft(doc.content);
-              setEditing(true);
-            }}
-          >
-            Edit
-          </button>
+          <>
+            <button
+              type="button"
+              className={`reports-tab__x ${hist ? "reports-tab__x--on" : ""}`}
+              title="Saved versions of this report — click one to restore it"
+              onClick={toggleHistory}
+            >
+              ⏱
+            </button>
+            <button
+              type="button"
+              className="reports-tab__x"
+              title="Edit this report"
+              onClick={() => {
+                setDraft(doc.content);
+                setEditing(true);
+              }}
+            >
+              Edit
+            </button>
+          </>
         ) : null}
         {doc && editing ? (
           <>
@@ -333,6 +394,27 @@ const ReportsTab = ({ projectCode, serviceId, moduleName, methodName, openName, 
   return (
     <div className="reports-tab" onClick={() => picking && setPicking(false)}>
       {bar}
+      {hist && doc ? (
+        <div className="reports-tab__history">
+          {hist.loading ? (
+            <span className="reports-tab__history-note">loading…</span>
+          ) : !hist.snaps.length ? (
+            <span className="reports-tab__history-note">no saved versions yet — history starts with the next save</span>
+          ) : (
+            hist.snaps.map((s) => (
+              <button
+                key={s.ts}
+                type="button"
+                className="reports-tab__history-item"
+                title={new Date(s.ts).toLocaleString()}
+                onClick={() => restoreSnap(s.ts)}
+              >
+                {ago(s.ts)}
+              </button>
+            ))
+          )}
+        </div>
+      ) : null}
       <div className="reports-tab__body">
         {doc && editing ? (
           <div className={`md-view md-view--${editorDark ? "dark" : "light"}`}>

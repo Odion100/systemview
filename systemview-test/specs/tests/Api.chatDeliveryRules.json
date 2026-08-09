@@ -1,0 +1,60 @@
+[
+  {
+    "title": "RFC-031 delivery rules hold at the hub's door",
+    "namespace": { "serviceId": "SystemViewCore", "moduleName": "Api", "methodName": "chatDeliveryRules" },
+    "Before": [],
+    "Main": [
+      {
+        "title": "who hears what in a room with a home agent and a visitor",
+        "namespace": { "serviceId": "SystemViewCore", "moduleName": "Api", "methodName": "chatDeliveryRules" },
+        "args": [],
+        "savedEvaluations": [
+          {
+            "namespace": "results.homeHearsHuman",
+            "expected_type": "boolean",
+            "validations": [{ "name": "boolEquals", "value": true }],
+            "save": true
+          },
+          {
+            "namespace": "results.homeNeverHearsItself",
+            "expected_type": "boolean",
+            "validations": [{ "name": "boolEquals", "value": true }],
+            "save": true
+          },
+          {
+            "namespace": "results.homeHearsVisitor",
+            "expected_type": "boolean",
+            "validations": [{ "name": "boolEquals", "value": true }],
+            "save": true
+          },
+          {
+            "namespace": "results.visitorHearsHuman",
+            "expected_type": "boolean",
+            "validations": [{ "name": "boolEquals", "value": true }],
+            "save": true
+          },
+          {
+            "namespace": "results.visitorHearsHome",
+            "expected_type": "boolean",
+            "validations": [{ "name": "boolEquals", "value": true }],
+            "save": true
+          },
+          {
+            "namespace": "results.visitorNeverHearsItself",
+            "expected_type": "boolean",
+            "validations": [{ "name": "boolEquals", "value": true }],
+            "save": true
+          },
+          {
+            "namespace": "results.nobodyHearsCommands",
+            "expected_type": "boolean",
+            "validations": [{ "name": "boolEquals", "value": true }],
+            "save": true
+          }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": []
+  }
+]

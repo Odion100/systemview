@@ -39,6 +39,11 @@ systemview say <projectCode> "12 green. The subtract demo is the only red."
 - **Always set a status before anything slow** — a silent bubble reads as a dead agent. The hub
   auto-shows "received" the instant your hold takes a message; your status replaces it; your next
   `say` clears it. Specific beats generic: "running the Math tests", not "working".
+- **Narrate long cooks** — the status line is live and re-settable any time, so update it as the
+  work moves: `"reading the store"` → `"fix in, running the suite"` → `"green, writing it up"`.
+  One status followed by ten silent minutes reads as stalled; three beats of narration reads like
+  watching you work. Every identity in a room cooks on its OWN line now, so your updates never
+  overwrite anyone else's.
 - `say` repeatedly to stream a long answer in chunks.
 - **Leaving**: Ctrl-C / SIGTERM sends a goodbye so the ring drops to OFFLINE immediately. Never
   fake presence — join only while you actually hold the line.
@@ -56,13 +61,19 @@ the human reaches you without touching your terminal.
    inside a command; an untracked child can't wake you and its message is lost).
 2. On the completion notification: read the task output — one JSON line per message,
    `{ text, view }`.
-3. Immediately `systemview status <project> "<what you're doing>"`, then work, then
-   `systemview say <project> "<answer>"`.
-4. Re-arm. You can chain the reply and the re-arm in ONE tracked background call
-   (`say … ; join --once …`) — the task then completes on the NEXT message, keeping one wake per
-   message.
+3. **Re-arm FIRST, then cook.** Arm the next hold before you start working, not after you
+   finish: your harness interrupts you mid-work when it fires, so the human's "oh wait, one
+   more thing" reaches you the moment they send it instead of waiting out your whole step. It
+   also keeps your ring honestly LIVE while you work — the line really is held. (Your own says
+   never wake your own hold — the delivery rule guarantees it.) The ring shows the difference:
+   cooking with the line held = **LIVE**; cooking with the line down = **BUSY** (amber) — the
+   human sees a message sent now will wait.
+4. Then `systemview status <project> "<what you're doing>"`, work (narrate as it moves), and
+   `systemview say <project> "<answer>"` when done.
 5. Poll-timeout re-arms happen inside the CLI silently — an idle hold costs nothing; you spend a
-   turn only when the human actually speaks.
+   turn only when the human actually speaks. And nothing is ever lost regardless: messages
+   append to the room's file and you read from a cursor, so anything sent while you had no hold
+   is waiting, in order, the moment you next arm or drain.
 
 ## Mode 2 — FILE (ambient, hooks)
 
@@ -203,8 +214,8 @@ systemview say <otherProject> "<text>" --as <yourProject>  # speak there, under 
   gets its "left the room" line — the hub's sweep writes it when your hold's grace expires.
 - **Cook where you work** — the status rule follows you into rooms you visit: before anything
   slow, `systemview status <room> "<what you're doing>" --as <yourPc>`. Your cooking renders in
-  YOUR color with your name, so the human can tell who's working at a glance. One cooking line
-  per room for now — last writer wins; keep it short-lived. (All cooking lines decay on their
+  YOUR color with your name, and every identity in a room has its OWN line — narrate freely,
+  you can't overwrite anyone and nobody can overwrite you. (All cooking lines decay on their
   own: auto lines in minutes, set ones in ~15 — but clear yours when you're done anyway.)
 - **Version note**: HEARING a visitor needs nothing (delivery is hub-side), but SPEAKING as one
   needs systemview ≥ 2.23.0 (`say --as` pass-through). If your bubbles show unlabeled in a room

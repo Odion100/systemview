@@ -89,14 +89,17 @@ const RESIZE_ZONES = [
   { k: "ne", mw: 1, mh: -1 }, { k: "nw", mw: -1, mh: -1 },
   { k: "se", mw: 1, mh: 1 }, { k: "sw", mw: -1, mh: 1 },
 ];
+// Double-click resets THE AXIS you clicked (his call: "one side at a time") — a side edge
+// hands back its own dimension, a corner both. The reset callback receives (mw, mh) so the
+// surface can flex just that axis.
 const ResizeBorder = ({ start, onReset }) =>
   RESIZE_ZONES.map((z) => (
     <div
       key={z.k}
       className={`${CLASSNAME}__rz ${CLASSNAME}__rz--${z.k}`}
-      title="Drag to resize · double-click to reset"
+      title="Drag to resize · double-click for natural size"
       onPointerDown={start(z.mw, z.mh)}
-      onDoubleClick={onReset}
+      onDoubleClick={() => onReset(z.mw, z.mh)}
     />
   ));
 
@@ -109,25 +112,79 @@ const autogrow = (el) => {
 // The cooking line. A SPECIFIC status from the agent shows verbatim — truth wins over theater.
 // Only the generic "received" state earns the show: after a beat it cycles through cooking words,
 // each with the animated ellipsis, so a working agent never reads as a dead one.
-const COOKING = ["thinking", "cooking", "working on it", "chewing on it", "still at it"];
+const COOKING = [
+  "thinking",
+  "cooking",
+  "in the lab",
+  "stirring the pot",
+  "working on it",
+  "chewing on it",
+  "letting it simmer",
+  "crunching",
+  "putting it together",
+  "still at it",
+  "almost plated",
+];
 // Where the fullness meter points: agents self-compact their room around this record count
 // (agents/chat.md); the meter exists because "aren't going to always remember" is true.
 const COMPACT_MARK = 300;
 // Focus order across ALL bots — clicking any bot's window brings it above the others; the
 // counter only ever climbs, so the last-touched bot is always on top.
 let topZ = 8500;
-// THE DOCK LINE (his ask): double-click a bot and it snaps into a neat row top-left, right
-// after the version chip — first double-click takes slot 0, the next lines up beside it.
-// Dragging a docked bot away gives its slot up.
-const dockOrder = [];
-// Wide enough that bubbles, labels, AND their hanging peeks keep clear margin (his rule:
-// "even if they're cooking... they don't end up going over each other").
-const DOCK_SPACING = 100;
-function dockSlotPos(slot) {
+// THE DOCK LINE (his ask, v2): double-click a bot and it joins a neat row along the header —
+// anchored after the version chip, stopping short of the right-side buttons. The docked bots
+// SPLIT the available width evenly ("space all across evenly, but have as much space as they
+// want"): two docked sit wide apart, four tighten up, and every dock/undock re-spaces the whole
+// line. The order survives reload (localStorage) — positions recompute for the window you have.
+const dockOrder = (() => {
+  try {
+    const a = JSON.parse(localStorage.getItem("sv.dockOrder"));
+    return Array.isArray(a) ? a : [];
+  } catch {
+    return [];
+  }
+})();
+const saveDockOrder = () => {
+  try { localStorage.setItem("sv.dockOrder", JSON.stringify(dockOrder)); } catch {}
+};
+// Only bots actually ON SCREEN count toward the spread — a parked or removed project keeps its
+// remembered place in dockOrder but never skews the spacing.
+const mountedBots = new Set();
+const dockedBots = () => dockOrder.filter((pc) => mountedBots.has(pc));
+// The floor keeps bubbles, labels, AND hanging peeks clear of each other (his rule: "even if
+// they're cooking... they don't end up going over each other") — sized for the 150px docked
+// peek pill; the right margin keeps the line off the header's buttons.
+const DOCK_MIN_SPACING = 160;
+const DOCK_RIGHT_MARGIN = 260;
+function dockSlotPos(slot, count) {
   const v = document.querySelector(".page-header__version");
   const startX = v ? v.getBoundingClientRect().right + 14 : 150;
-  return { x: startX + slot * DOCK_SPACING, y: 6 };
+  const span = Math.max(window.innerWidth - DOCK_RIGHT_MARGIN - startX, DOCK_MIN_SPACING);
+  const gap = count > 1 ? Math.max(span / (count - 1), DOCK_MIN_SPACING) : 0;
+  return { x: startX + slot * gap, y: 6 };
 }
+const relayoutDock = () => window.dispatchEvent(new Event("sv:dockLine"));
+// The hub's one-hit button: every on-screen bot files into the line at once.
+const dockAllBots = () => {
+  window.dispatchEvent(new Event("sv:dockAll"));
+  relayoutDock();
+};
+// Every visitor project gets ITS OWN color (his call: "everyone who's a visitor has the same
+// color, so them cooking both is not as helpful") — a stable hash of the project code to a hue,
+// steered off the home-agent green so a visitor never reads as the house. Same name = same color
+// everywhere: bubbles, name tags, cooking lines, roster chips, system pills.
+const visColor = (pc) => {
+  let h = 0;
+  for (const c of String(pc || "")) h = (h * 31 + c.charCodeAt(0)) % 360;
+  if (Math.abs(h - 122) < 30) h = (h + 60) % 360; // keep clear of the cooking green
+  return `hsl(${h}, 55%, 52%)`;
+};
+const visStyle = (pc) => (pc ? { "--vis": visColor(pc) } : undefined);
+
+// Message-bubble time (his ask: "we need to see the time") — compact clock, full date on hover.
+const msgTime = (ts) =>
+  new Date(ts).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+
 function StatusLine({ status, visitor }) {
   const [i, setI] = useState(0);
   const generic = status === "received";
@@ -147,7 +204,10 @@ function StatusLine({ status, visitor }) {
   // RFC-031 — a VISITOR cooking wears its plum and its name (his rule: you must be able to
   // tell WHO is cooking at a glance).
   return (
-    <div className={`agent-chat__status${visitor ? " agent-chat__status--visitor" : ""}`}>
+    <div
+      className={`agent-chat__status${visitor ? " agent-chat__status--visitor" : ""}`}
+      style={visStyle(visitor)}
+    >
       {visitor ? `${visitor}: ${text}` : text}
       <span className="agent-chat__dots">
         <i />
@@ -243,6 +303,19 @@ export function BotHub() {
         <>
           <div className="bot-hub__overlay" onClick={() => setOpen(false)} />
           <div className="bot-hub__menu">
+            {/* One hit, everyone files into the dock line (his ask: "hit them all at once"). */}
+            <button
+              type="button"
+              className="bot-hub__row bot-hub__row--dock-all"
+              title="Send every on-screen bot to the dock line, evenly spaced"
+              onClick={() => {
+                dockAllBots();
+                setOpen(false);
+              }}
+            >
+              <span className="bot-hub__pc">line them up</span>
+              <span className="bot-hub__verb">dock all</span>
+            </button>
             {projects.map((pc) => {
               const parked = isParked(pc);
               return (
@@ -280,17 +353,43 @@ function BotBubble({ projectCode, index }) {
   // Click-to-front: this bot's place in the focus order (see topZ above).
   const [z, setZ] = useState(8500);
   const bringToFront = () => setZ(++topZ);
-  // Double-click the bot → snap into the dock line (next free slot, or the one it already has).
+  // Double-click the bot → join the dock line (keeps an existing slot). The relayout broadcast
+  // re-spaces EVERYONE — the whole line shifts to share the width evenly (dock v2).
   const dockHere = () => {
-    let slot = dockOrder.indexOf(projectCode);
-    if (slot < 0) {
-      dockOrder.push(projectCode);
-      slot = dockOrder.length - 1;
-    }
-    const p = dockSlotPos(slot);
-    setPos(p);
-    try { localStorage.setItem(`sv.chatPos.${projectCode}`, JSON.stringify(p)); } catch {}
+    if (!dockOrder.includes(projectCode)) dockOrder.push(projectCode);
+    saveDockOrder();
+    relayoutDock();
   };
+  // Dock-line membership: every relayout broadcast (a dock, an undock, dock-all, a window
+  // resize, a reload) snaps this bot to its CURRENT slot in the CURRENT window width. Runs
+  // once on mount too — that's what makes the line survive a reload.
+  useEffect(() => {
+    mountedBots.add(projectCode);
+    const relayout = () => {
+      const order = dockedBots();
+      const slot = order.indexOf(projectCode);
+      if (slot < 0) return;
+      const p = dockSlotPos(slot, order.length);
+      setPos(p);
+      try { localStorage.setItem(`sv.chatPos.${projectCode}`, JSON.stringify(p)); } catch {}
+    };
+    const dockAll = () => {
+      if (!dockOrder.includes(projectCode)) dockOrder.push(projectCode);
+      saveDockOrder();
+    };
+    window.addEventListener("sv:dockLine", relayout);
+    window.addEventListener("sv:dockAll", dockAll);
+    window.addEventListener("resize", relayout);
+    relayout();
+    return () => {
+      mountedBots.delete(projectCode);
+      window.removeEventListener("sv:dockLine", relayout);
+      window.removeEventListener("sv:dockAll", dockAll);
+      window.removeEventListener("resize", relayout);
+      setTimeout(relayoutDock, 0); // a parked bot frees its width for the rest of the line
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectCode]);
   const inputRef = useRef(null);
 
   // VOICE — the mic (browser-native speech recognition). Press to listen, transcripts land in
@@ -557,8 +656,14 @@ function BotBubble({ projectCode, index }) {
       }
       setTimeout(scrollToEnd, 50);
     });
-    const unsubStatus = SystemView.on(`chat-status:${projectCode}`, ({ text, as }) => {
-      setPresence((prev) => ({ ...prev, [chat]: { ...(prev[chat] || {}), status: text, statusAs: as || null } }));
+    const unsubStatus = SystemView.on(`chat-status:${projectCode}`, ({ statuses, text, as }) => {
+      // Per-identity cooking: the emit carries the room's FULL set of lines. Legacy single-line
+      // payloads (older hub) still work through the fallback.
+      const lines = statuses || (text ? [{ as: as || null, text }] : []);
+      setPresence((prev) => ({
+        ...prev,
+        [chat]: { ...(prev[chat] || {}), statuses: lines, status: text, statusAs: as || null },
+      }));
     });
     // Presence PUSHES on join/leave/drain — the ring flips the moment it happens, no refresh.
     const unsubPresence = SystemView.on(`chat-presence:${projectCode}`, (pres) => {
@@ -602,9 +707,14 @@ function BotBubble({ projectCode, index }) {
       if (!d || !d.moved) return;
       suppressClickRef.current = true;
       setTimeout(() => { suppressClickRef.current = false; }, 0);
-      // Dragging a docked bot away gives up its dock-line slot.
+      // Dragging a docked bot away gives up its dock-line slot — and the rest of the line
+      // re-spaces into the freed width.
       const di = dockOrder.indexOf(projectCode);
-      if (di >= 0) dockOrder.splice(di, 1);
+      if (di >= 0) {
+        dockOrder.splice(di, 1);
+        saveDockOrder();
+        relayoutDock();
+      }
       // DOCK: snap flush to any edge released near; clamp inside the viewport; remember the spot.
       setPos((cur) => {
         if (!cur) return cur;
@@ -676,14 +786,22 @@ function BotBubble({ projectCode, index }) {
   const visiting = p.visiting || [];
   // Visiting counts as LIVE (his rule: "if you're visiting other people then you're actually
   // live") — a real hold somewhere is a live agent, just not in this room right now.
-  const ring = p.live ? "live" : visiting.length ? "visiting" : p.listener ? "listener" : "none";
-  const mode = p.live ? "LIVE" : visiting.length ? "VISITING" : p.listener ? "FILE" : "OFFLINE";
+  // BUSY (his design: the ring answers "if I send this right now, when does it land?"): the
+  // home agent's cooking line is fresh but NO line is held — really working, head down, and a
+  // message will WAIT until it checks back. Derived (status ts + hold flag), so it can't lie —
+  // and it's the tell for an agent that didn't re-arm before cooking (agents/chat.md step 3).
+  const busy =
+    !p.live && (p.statuses || []).some((s) => !s.as) && !visiting.length;
+  const ring = p.live ? "live" : visiting.length ? "visiting" : busy ? "busy" : p.listener ? "listener" : "none";
+  const mode = p.live ? "LIVE" : visiting.length ? "VISITING" : busy ? "BUSY" : p.listener ? "FILE" : "OFFLINE";
   const modeText = p.live
     ? visitors.length
       ? `joined — ${visitors.join(" + ")} in the room too`
       : "joined — answers now"
     : visiting.length
     ? `live — visiting ${visiting.join(", ")}`
+    : busy
+    ? "head down — working with the line down; messages wait until it checks back"
     : p.listener
     ? "listening by file — hears you at its next turn"
     : "no agent connected";
@@ -738,13 +856,25 @@ function BotBubble({ projectCode, index }) {
     try { localStorage.setItem(key, JSON.stringify(def)); } catch {}
   };
   const panelReset = resetSize(setSize, { w: 340, h: 480 }, `sv.chatSize.${projectCode}`);
-  const tvReset = resetSize(setTvSize, { w: 430, h: 480 }, `sv.tvSize.${projectCode}`);
+  // The TV's double-click means "give me my natural FLEX size" (his call, matching the story
+  // panes) — PER AXIS: the edge you double-click hands back its own dimension (side = width,
+  // top/bottom = height, corner = both), and the TV header flexes the whole thing at once.
+  const tvReset = (mw = 1, mh = 1) => {
+    const nat = {
+      w: mw ? Math.max(280, Math.min(window.innerWidth - size.w - 140, 1280)) : tvSize.w,
+      h: mh ? Math.max(360, window.innerHeight - 120) : tvSize.h,
+    };
+    setTvSize(nat);
+    try { localStorage.setItem(`sv.tvSize.${projectCode}`, JSON.stringify(nat)); } catch {}
+  };
   const style = pos
     ? { left: pos.x, top: pos.y, right: "auto", bottom: "auto", zIndex: z }
     : { bottom: EDGE + index * STACK, zIndex: z };
   // In the dock line, the bot switches to compact mode: peeks hang BELOW in a slot-width pill
-  // instead of sticking out sideways over the neighbor.
-  const docked = !!pos && pos.y < 60;
+  // instead of sticking out sideways over the neighbor. MEMBERSHIP decides, not altitude — a
+  // bot merely dragged near the top keeps its full-size peek (his catch: "close to the top, it
+  // shrinks — it probably was good before").
+  const docked = dockOrder.includes(projectCode) && !!pos && pos.y < 60;
   return (
     <div
       ref={rootRef}
@@ -761,7 +891,12 @@ function BotBubble({ projectCode, index }) {
         {tvOpen && tv && (
           <div className={`${CLASSNAME}__tv`} style={{ width: tvSize.w, height: tvSize.h }}>
             <ResizeBorder start={tvResize} onReset={tvReset} />
-            <div className={`${CLASSNAME}__tv-head`}>
+            {/* Double-click the header → the whole TV takes its natural flex size (his call). */}
+            <div
+              className={`${CLASSNAME}__tv-head`}
+              title="Double-click for natural size"
+              onDoubleClick={() => tvReset(1, 1)}
+            >
               <span className={`${CLASSNAME}__tv-badge`}>📺</span>
               <span className={`${CLASSNAME}__tv-title`}>{tv.label || "show"}</span>
               <button
@@ -803,7 +938,8 @@ function BotBubble({ projectCode, index }) {
               onBotPointerDown(e);
             }}
           >
-            <span className={`${CLASSNAME}__mode ${CLASSNAME}__mode--${ring}`}>{mode}</span>
+            {/* the state chip explains itself on hover (his ask: help text next to it) */}
+            <span className={`${CLASSNAME}__mode ${CLASSNAME}__mode--${ring}`} title={modeText}>{mode}</span>
             <span className={`${CLASSNAME}__title`}>{projectCode}</span>
             <span className={`${CLASSNAME}__presence`}>{modeText}</span>
             <button
@@ -853,6 +989,7 @@ function BotBubble({ projectCode, index }) {
                 <span
                   key={v}
                   className={`${CLASSNAME}__roster-name`}
+                  style={visStyle(v)}
                   title="Right-click to kick out"
                   onContextMenu={(e) => {
                     e.preventDefault();
@@ -930,7 +1067,7 @@ function BotBubble({ projectCode, index }) {
                 // RFC-031 — the room announces comings and goings itself: a subtle centered line,
                 // no bubble, no unread. "He just said he's leaving, cool — what if someone just
                 // leaves? You need to SEE it."
-                <div key={m.id} className={`${CLASSNAME}__sys`}>
+                <div key={m.id} className={`${CLASSNAME}__sys`} style={visStyle(m.who)} title={new Date(m.ts).toLocaleString()}>
                   {m.text}
                 </div>
               ) : (
@@ -941,17 +1078,28 @@ function BotBubble({ projectCode, index }) {
                   className={`${CLASSNAME}__msg ${
                     m.from === "agent" ? `${CLASSNAME}__msg--agent` : `${CLASSNAME}__msg--you`
                   }${m.from === "agent" && m.as && m.as !== projectCode ? ` ${CLASSNAME}__msg--visitor` : ""}`}
+                  style={m.from === "agent" && m.as && m.as !== projectCode ? visStyle(m.as) : undefined}
                 >
                   {m.from === "agent" && m.as && m.as !== projectCode && (
                     <span className={`${CLASSNAME}__visitor-tag`}>{m.as}</span>
                   )}
                   {renderChatText(String(m.text || ""))}
+                  {/* the time, quietly in the corner — hover for the full date */}
+                  <span className={`${CLASSNAME}__msg-time`} title={new Date(m.ts).toLocaleString()}>
+                    {msgTime(m.ts)}
+                  </span>
                 </div>
               ),
             )}
-            {p.status && (
-              <StatusLine status={p.status} visitor={p.statusAs && p.statusAs !== projectCode ? p.statusAs : null} />
-            )}
+            {/* Every identity cooking gets its OWN line (his catch: one shared line meant
+                simultaneous cooks erased each other) — home first, visitors in plum below. */}
+            {(p.statuses || (p.status ? [{ as: p.statusAs, text: p.status }] : [])).map((s) => (
+              <StatusLine
+                key={s.as || "home"}
+                status={s.text}
+                visitor={s.as && s.as !== projectCode ? s.as : null}
+              />
+            ))}
           </div>
           {/* While the mic listens: the words appear HERE as you speak (interim), then commit
               into the input as they finalize. The line itself is the recording indicator. */}
@@ -1011,7 +1159,16 @@ function BotBubble({ projectCode, index }) {
           }}
         >
           {p.status ? (
-            <StatusLine status={p.status} visitor={p.statusAs && p.statusAs !== projectCode ? p.statusAs : null} />
+            // Closed ≠ blind (his ask: the peek shows MORE): every live cooking line stacks
+            // here — home first, visitors named in plum — so a closed chat still tells you
+            // who's cooking on what.
+            (p.statuses && p.statuses.length ? p.statuses : [{ as: p.statusAs, text: p.status }]).map((s) => (
+              <StatusLine
+                key={s.as || "home"}
+                status={s.text}
+                visitor={s.as && s.as !== projectCode ? s.as : null}
+              />
+            ))
           ) : (
             <span className={`${CLASSNAME}__peek-msg`}>
               {[...messages].reverse().find((m) => m.from === "agent")?.text || "new reply"}

@@ -45,6 +45,22 @@ module.exports.join = async function join(projectCode, { uiUrl, Client, chat, ag
   };
   process.on("SIGINT", goodbye);
   process.on("SIGTERM", goodbye);
+  // ZOMBIE GUARD — a STREAMING join left behind by a dead session re-arms forever: the room
+  // shows a live ring and swallows messages with nobody home (found live: a `systemview join
+  // systemlynx` from a closed agent session lied for an hour). A streaming join with a NON-TTY
+  // stdin is harness-spawned — when that stdin ends (the session behind it is gone), say goodbye
+  // and exit honestly. A real terminal (TTY) is never watched, and `--once` wake-holds with
+  // piped/null stdin exit on their message anyway — both stay untouched.
+  if (!once && !process.stdin.isTTY) {
+    try {
+      process.stdin.resume();
+      process.stdin.on("end", () => {
+        log.info("stdin closed — the session behind this join is gone; leaving the room honestly");
+        goodbye();
+      });
+      process.stdin.on("error", () => {});
+    } catch {}
+  }
   // Messages delivered THROUGH the hold must also advance this listener's drain cursor —
   // otherwise the next arm-time drain re-serves them (the "--once replays the last message" bug).
   const ackDelivered = async () => {

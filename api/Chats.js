@@ -51,7 +51,10 @@ module.exports = function Chats() {
   const liveSeen = new Map(); // key → Map(identity → ts) — last join arm PER IDENTITY (RFC-031)
   const kicked = new Map(); // key → Map(identity → ts) — the human bounced them; joins refused for KICK_TTL
   const listenerSeen = new Map(); // key → { listener, ts } — last inbox drain
-  const statusMap = new Map(); // key → { text, ts } — the cooking line
+  // key → Map(identity → { text, ts }) — cooking lines PER IDENTITY (his catch: one shared line
+  // was last-writer-wins, so simultaneous cooks erased each other; now every agent in the room
+  // narrates on its own line). Home's identity is the pc itself.
+  const statusMap = new Map();
 
   function readAll(pc, chat) {
     try {
@@ -76,8 +79,8 @@ module.exports = function Chats() {
   }
 
   // Resolve the held join polls this record is DELIVERABLE to (per identity — a speaker's own
-  // hold stays parked). Returns how many polls took delivery — a live handoff, which the sender
-  // deserves to SEE ("received…" in the panel).
+  // hold stays parked). Returns WHICH identities took delivery — each one earns its own
+  // "received" cooking line, so the human sees everyone the message landed on.
   function push(pc, chat, record) {
     const k = key(pc, chat);
     const held = waiters.get(k) || [];
@@ -87,7 +90,23 @@ module.exports = function Chats() {
       clearTimeout(timer);
       resolve({ messages: [record] });
     });
-    return take.length;
+    return take.map((w) => w.identity);
+  }
+
+  // Per-identity cooking-line accessors.
+  function statusOf(k) {
+    return statusMap.get(k) || new Map();
+  }
+  function setLine(k, identity, text) {
+    const lines = statusOf(k);
+    lines.set(identity, { text, ts: Date.now() });
+    statusMap.set(k, lines);
+  }
+  function clearLine(k, identity) {
+    const lines = statusMap.get(k);
+    if (!lines) return;
+    lines.delete(identity);
+    if (!lines.size) statusMap.delete(k);
   }
 
   return {
@@ -105,18 +124,20 @@ module.exports = function Chats() {
         ...(from === "agent" && as ? { as } : {}),
         ...(view ? { view } : {}),
       });
-      const delivered = push(pc, chat, record) > 0;
+      const takers = push(pc, chat, record);
+      const delivered = takers.length > 0;
       const k = key(pc, chat);
-      const isHomeAgent = from === "agent" && (!as || as === pc);
-      // "Received" flips for anything that lands on a live hold and means WORK INCOMING — the
-      // human's messages AND a visitor's (his catch: a visitor spoke and nothing cooked). The
-      // home agent's own say is the opposite — it's the reply, so it ENDS the cooking line.
-      // A visitor message with NOBODY live still cooks honestly: "waiting on <pc>" until the
-      // agent's next wake picks it up (his rule: "I need to see the other people cooking off
-      // your message").
-      if (isHomeAgent) statusMap.delete(k);
-      else if (delivered) statusMap.set(k, { text: "received", ts: Date.now() });
-      else if (from === "agent") statusMap.set(k, { text: `waiting on ${pc}`, ts: Date.now() });
+      // Per-identity cooking (his catch: one shared line meant simultaneous cooks erased each
+      // other). An agent's say ends the SPEAKER's own line — the reply is what the cooking
+      // promised. Every identity that took live delivery flips ITS line to "received" (work
+      // incoming for each of them, visitors included). An agent message nobody-live picks up
+      // still cooks honestly on the home line: "waiting on <pc>" until the next wake drains it.
+      if (from === "agent") clearLine(k, as || pc);
+      takers.forEach((t) => setLine(k, t, "received"));
+      // "Waiting on" is a VISITOR's message sitting in an empty room — never the home agent's
+      // own reply, and never a clobber of a home line that's already narrating a cook.
+      if (from === "agent" && as && as !== pc && !delivered && !statusOf(k).has(pc))
+        setLine(k, pc, `waiting on ${pc}`);
       return { record, delivered };
     },
 
@@ -190,6 +211,7 @@ module.exports = function Chats() {
         clearTimeout(timer);
         resolve({ kicked: true });
       });
+      clearLine(k, identity); // a kicked identity's cooking line goes with it
       const record = this.system(pc, chat, { event: "kicked", who: identity });
       return { record, hadHold: bounced.length > 0 };
     },
@@ -230,16 +252,18 @@ module.exports = function Chats() {
         seen.delete(me);
         if (!seen.size) liveSeen.delete(k);
       }
-      if (me === pc) statusMap.delete(k); // only the home agent's exit ends the cooking line
+      clearLine(k, me); // a deliberate exit ends that identity's own cooking line
       return { ok: true };
     },
 
-    // The cooking line — set by the agent while it works; cleared by its next reply. `as` = the
-    // identity cooking (RFC-031: a VISITOR's cooking renders in its plum, with its name).
+    // The cooking line — set by the agent while it works, RE-SET as the work moves (narrated
+    // cooking), cleared by its next reply. `as` = the identity cooking; each identity owns its
+    // own line (RFC-031: a VISITOR's cooking renders in its plum, with its name).
     setStatus(pc, chat, text, as) {
       const k = key(pc, chat);
-      if (text) statusMap.set(k, { text, ts: Date.now(), as });
-      else statusMap.delete(k);
+      const identity = as || pc;
+      if (text) setLine(k, identity, text);
+      else clearLine(k, identity);
       return { ok: true };
     },
 
@@ -257,8 +281,8 @@ module.exports = function Chats() {
       // The home agent's turn-boundary pickup: a "waiting on <pc>" line flips to "received" the
       // moment its drain collects the queue — the human watches the handoff happen.
       if (pending.length && me === pc) {
-        const st = statusMap.get(k);
-        if (st && st.text === `waiting on ${pc}`) statusMap.set(k, { text: "received", ts: Date.now() });
+        const st = statusOf(k).get(pc);
+        if (st && st.text === `waiting on ${pc}`) setLine(k, pc, "received");
       }
       if (pending.length) {
         acks[listener] = pending[pending.length - 1].ts;
@@ -282,17 +306,24 @@ module.exports = function Chats() {
           seen.delete(identity);
           const record =
             identity !== pc ? this.system(pc, chat, { event: "left", who: identity }) : null;
-          events.push({ pc, chat, identity, record });
+          // A visitor the room just announced as GONE can't keep cooking (his catch: a lingering
+          // line for someone the roster shows absent reads as a ghost). Home lines stay — a home
+          // agent narrates with its hold down mid-work all the time.
+          if (identity !== pc) clearLine(key(pc, chat), identity);
+          events.push({ pc, chat, identity, record, statusCleared: identity !== pc });
         }
         if (!seen.size) liveSeen.delete(k);
       }
-      for (const [k, v] of statusMap) {
-        const auto = v.text === "received" || v.text.startsWith("waiting on ");
-        if (now - v.ts > (auto ? AUTO_STATUS_TTL : STATUS_TTL)) {
-          statusMap.delete(k);
-          const [pc, chat] = k.split("|");
-          events.push({ pc, chat, identity: pc, record: null, statusCleared: true });
+      for (const [k, lines] of statusMap) {
+        for (const [identity, v] of lines) {
+          const auto = v.text === "received" || v.text.startsWith("waiting on ");
+          if (now - v.ts > (auto ? AUTO_STATUS_TTL : STATUS_TTL)) {
+            lines.delete(identity);
+            const [pc, chat] = k.split("|");
+            events.push({ pc, chat, identity, record: null, statusCleared: true });
+          }
         }
+        if (!lines.size) statusMap.delete(k);
       }
       return events;
     },
@@ -327,12 +358,19 @@ module.exports = function Chats() {
         if (now - v.ts > LISTENER_GRACE) continue;
         entry(chat).listener = true;
       }
-      for (const [k, v] of statusMap) {
+      for (const [k, lines] of statusMap) {
         const [kpc, chat] = k.split("|");
         if (kpc !== pc) continue;
         const e = entry(chat);
-        e.status = v.text;
-        e.statusAs = v.as || null;
+        // `statuses` = every identity's live cooking line (home first, then visitors by recency).
+        // Legacy `status`/`statusAs` mirror the home line — or the first visitor's — so older
+        // bundles and the peek keep a single-line story.
+        e.statuses = [...lines.entries()]
+          .map(([identity, v]) => ({ as: identity === pc ? null : identity, text: v.text, ts: v.ts }))
+          .sort((a, b) => (a.as === null ? -1 : b.as === null ? 1 : a.ts - b.ts));
+        const first = e.statuses[0];
+        e.status = first ? first.text : null;
+        e.statusAs = first ? first.as : null;
       }
       // The fullness meter's feed (his rule: "you guys aren't going to always remember [to
       // compact] so I need to be able to SEE it"): true record count per chat — history loads

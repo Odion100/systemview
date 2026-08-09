@@ -98,18 +98,66 @@ const CodePane = ({ file, onClose }) => {
 
   const dirty = content !== null && content !== savedContent;
 
-  const save = useCallback(async () => {
+  // Doc undo: `conflict` = someone else saved since this tab loaded (the write was refused, their
+  // version is in conflict.current); `hist` = the History dropdown ({loading, snaps}) or null.
+  const [conflict, setConflict] = useState(null);
+  const [hist, setHist] = useState(null);
+
+  const save = useCallback(async (force) => {
     if (!Plugin || content === null) return;
     setSaving(true);
     try {
-      await Plugin.writeFile({ path: file.path, content });
-      setSavedContent(content);
-      setError("");
+      // `base` = what this tab loaded — the plugin refuses the write if the disk moved meanwhile
+      // (stale-tab guard). `force` resends without base after the human chose to overwrite.
+      const res = await Plugin.writeFile(
+        force ? { path: file.path, content } : { path: file.path, content, base: savedContent },
+      );
+      if (res && res.conflict) {
+        setConflict(res);
+      } else {
+        setSavedContent(content);
+        setConflict(null);
+        setError("");
+      }
     } catch (e) {
       setError(e.message || "save failed");
     }
     setSaving(false);
-  }, [Plugin, content, file.path]);
+  }, [Plugin, content, file.path, savedContent]);
+
+  const openHistory = async () => {
+    if (hist) return setHist(null);
+    setHist({ loading: true, snaps: [] });
+    try {
+      const h = await Plugin.fileHistory({ path: file.path });
+      setHist({ loading: false, snaps: h.snaps || [] });
+    } catch (e) {
+      setHist(null);
+      setError(e.message || "could not load history");
+    }
+  };
+  // Restoring is a normal write of the snapshot's content — the current version gets snapshotted
+  // first (server-side), so undoing an undo is just another restore.
+  const restoreSnap = async (ts) => {
+    try {
+      const snap = await Plugin.readSnapshot({ path: file.path, ts });
+      await Plugin.writeFile({ path: file.path, content: snap.content });
+      setContent(snap.content);
+      setSavedContent(snap.content);
+      setConflict(null);
+      setHist(null);
+      setError("");
+    } catch (e) {
+      setError(e.message || "restore failed");
+    }
+  };
+  const ago = (ts) => {
+    const s = Math.max(1, Math.round((Date.now() - ts) / 1000));
+    if (s < 60) return `${s}s ago`;
+    if (s < 3600) return `${Math.round(s / 60)}m ago`;
+    if (s < 86400) return `${Math.round(s / 3600)}h ago`;
+    return `${Math.round(s / 86400)}d ago`;
+  };
 
   // ⌘S / Ctrl+S saves while the pane is mounted.
   useEffect(() => {
@@ -170,8 +218,16 @@ const CodePane = ({ file, onClose }) => {
           )}
           <button
             type="button"
+            className={`${CLASSNAME}__btn ${hist ? `${CLASSNAME}__btn--pinned` : ""}`}
+            title="Saved versions of this file — click one to restore it (the current version is kept in history too)"
+            onClick={openHistory}
+          >
+            ⏱
+          </button>
+          <button
+            type="button"
             className={`${CLASSNAME}__btn ${CLASSNAME}__btn--save`}
-            onClick={save}
+            onClick={() => save()}
             disabled={!dirty || saving}
           >
             {saving ? "Saving…" : "Save"}
@@ -188,6 +244,53 @@ const CodePane = ({ file, onClose }) => {
           )}
         </span>
       </div>
+      {/* HISTORY — the snapshot ring: every save filed the previous version; click restores. */}
+      {hist && (
+        <div className={`${CLASSNAME}__history`}>
+          {hist.loading ? (
+            <span className={`${CLASSNAME}__history-note`}>loading…</span>
+          ) : !hist.snaps.length ? (
+            <span className={`${CLASSNAME}__history-note`}>
+              no saved versions yet — history starts with the next save
+            </span>
+          ) : (
+            hist.snaps.map((s) => (
+              <button
+                key={s.ts}
+                type="button"
+                className={`${CLASSNAME}__history-item`}
+                title={new Date(s.ts).toLocaleString()}
+                onClick={() => restoreSnap(s.ts)}
+              >
+                {ago(s.ts)} <span className={`${CLASSNAME}__history-bytes`}>{s.bytes}b</span>
+              </button>
+            ))
+          )}
+        </div>
+      )}
+      {/* CONFLICT — the stale-tab guard refused the save: someone else's version is on disk. */}
+      {conflict && (
+        <div className={`${CLASSNAME}__conflict`}>
+          <span>
+            Someone else saved this file after you loaded it — your save was held so it wouldn't
+            wipe theirs.
+          </span>
+          <button type="button" className={`${CLASSNAME}__btn`} onClick={() => save(true)}>
+            Save mine anyway
+          </button>
+          <button
+            type="button"
+            className={`${CLASSNAME}__btn`}
+            onClick={() => {
+              setContent(conflict.current);
+              setSavedContent(conflict.current);
+              setConflict(null);
+            }}
+          >
+            Take theirs
+          </button>
+        </div>
+      )}
       <div className={`${CLASSNAME}__body ${!diffMode && editorDark ? `${CLASSNAME}__body--dark` : ""} ${!editorDark ? `${CLASSNAME}__body--light` : ""}`}>
         {error && <div className={`${CLASSNAME}__error`}>{error}</div>}
         {!error && content === null && <div className={`${CLASSNAME}__loading`}>loading…</div>}
@@ -207,8 +310,9 @@ const CodePane = ({ file, onClose }) => {
                   ? async (next) => {
                       setContent(next);
                       try {
-                        await Plugin.writeFile({ path: file.path, content: next });
-                        setSavedContent(next);
+                        const res = await Plugin.writeFile({ path: file.path, content: next, base: savedContent });
+                        if (res && res.conflict) setConflict(res);
+                        else setSavedContent(next);
                       } catch (e) {
                         setError(e.message || "save failed");
                       }

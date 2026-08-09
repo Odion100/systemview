@@ -46,8 +46,18 @@ module.exports = ({ App, specs, projectCode, serviceId, module = {}, credentials
         : path.join(root, `${projectCode}.md`);
     };
 
-    this.saveDoc = ({ documentation, namespace }) => {
+    this.saveDoc = ({ documentation, namespace, base }) => {
       const fileName = docPath(namespace);
+      // Same two guards the editor's writeFile has (doc undo): `base` = what this tab loaded —
+      // a mismatch on disk means someone else saved meanwhile, so answer { conflict } instead of
+      // clobbering; and every overwrite/delete files the previous version in the snapshot ring
+      // first, so a destroyed doc is one restore away.
+      if (base !== undefined && base !== null) {
+        const onDisk = getFile(fileName);
+        if (onDisk && onDisk !== String(base) && onDisk !== String(documentation))
+          return { conflict: true, current: onDisk, namespace };
+      }
+      providers.snapshot(path.resolve(root, fileName));
       if (getName(namespace)) ensureDir(`${specs}/docs/`);
       if (documentation) {
         fs.writeFileSync(fileName, documentation, "utf8");
@@ -244,6 +254,11 @@ module.exports = ({ App, specs, projectCode, serviceId, module = {}, credentials
     this.getSource = providers.getSource;
     this.getDiff = providers.getDiff;
     this.writeFile = providers.writeFile;
+    // Doc undo — the snapshot ring writeFile/saveDoc feed: list a file's saved versions, read one
+    // back. Restore = a normal writeFile with the snapshot's content (which snapshots the current
+    // version first, so undo always has an undo).
+    this.fileHistory = providers.fileHistory;
+    this.readSnapshot = providers.readSnapshot;
 
     // RFC-018 — saved views (the agent's communications as documents). A view = a stage description
     // {layout, panes}. Stored per-name in `.systemview/views/` so it TRAVELS with the repo (RFC-017):

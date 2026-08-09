@@ -290,10 +290,76 @@ function createFileProviders(rootDir) {
     return { files };
   }
 
-  // writeFile({ path, content }) → save (the editor's write path, guarded). Phase 4.
-  function writeFile({ path: userPath, content } = {}) {
+  // --- DOC UNDO: the snapshot ring. Every whole-file write (and delete) files the PREVIOUS
+  // version under `.systemview/history/<path-key>/<ts>.snap` before the new bytes land — so
+  // "undo" is always one restore away, no matter which tab or agent did the damage. Ring-kept:
+  // newest HISTORY_KEEP per file.
+  const HISTORY_KEEP = 20;
+  const historyRoot = () => path.join(root(), ".systemview", "history");
+  const histKey = (rel) => rel.replace(/[/\\]/g, "__");
+  function snapshot(abs) {
+    let prev;
+    try { prev = fs.readFileSync(abs, "utf8"); } catch { return null; } // new file — nothing to keep
+    const rel = relFromRoot(abs);
+    if (rel.startsWith(path.join(".systemview", "history"))) return null; // never snapshot snapshots
+    const dir = path.join(historyRoot(), histKey(rel));
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+      // Two saves in the same millisecond must not share a filename — bump until free so every
+      // snapshot keeps its own unique ts (readSnapshot addresses by exact ts).
+      let ts = Date.now();
+      while (fs.existsSync(path.join(dir, `${ts}.snap`))) ts++;
+      fs.writeFileSync(path.join(dir, `${ts}.snap`), prev, "utf8");
+      const snaps = fs.readdirSync(dir).filter((f) => f.endsWith(".snap")).sort((a, b) => parseInt(a) - parseInt(b));
+      while (snaps.length > HISTORY_KEEP) fs.unlinkSync(path.join(dir, snaps.shift()));
+    } catch {}
+    return prev;
+  }
+
+  // fileHistory({ path }) → { path, snaps: [{ ts, bytes }] } newest first — the History drawer's feed.
+  function fileHistory({ path: userPath } = {}) {
+    if (!userPath) throw new Error("fileHistory: `path` is required");
+    const rel = relFromRoot(safeResolve(userPath));
+    const dir = path.join(historyRoot(), histKey(rel));
+    let snaps = [];
+    try {
+      snaps = fs
+        .readdirSync(dir)
+        .filter((f) => f.endsWith(".snap"))
+        .map((f) => ({ ts: parseInt(f), bytes: fs.statSync(path.join(dir, f)).size }))
+        .filter((s) => Number.isFinite(s.ts))
+        .sort((a, b) => b.ts - a.ts);
+    } catch {}
+    return { path: rel, snaps };
+  }
+
+  // readSnapshot({ path, ts }) → { path, ts, content } — one saved version's bytes. Restoring is a
+  // normal writeFile with this content: the current version gets snapshotted first, so undo has undo.
+  function readSnapshot({ path: userPath, ts } = {}) {
+    if (!userPath || !ts) throw new Error("readSnapshot: `path` and `ts` are required");
+    const rel = relFromRoot(safeResolve(userPath));
+    const file = path.join(historyRoot(), histKey(rel), `${ts}.snap`);
+    return { path: rel, ts, content: fs.readFileSync(file, "utf8") };
+  }
+
+  // writeFile({ path, content, base }) → save (the editor's write path, guarded). Phase 4.
+  // `base` (optional) = the content this tab LOADED: when the file on disk no longer matches it,
+  // someone else saved meanwhile — return { conflict, current } instead of clobbering their work.
+  // The caller decides (reload / overwrite by resending without base).
+  function writeFile({ path: userPath, content, base } = {}) {
     if (!userPath) throw new Error("writeFile: `path` is required");
     const abs = safeResolve(userPath);
+    let onDisk = null;
+    try { onDisk = fs.readFileSync(abs, "utf8"); } catch {}
+    // Saving what's already on disk is a no-op — no write, no snapshot (history holds real
+    // versions, not duplicates from repeated saves).
+    if (onDisk !== null && onDisk === String(content == null ? "" : content))
+      return { path: relFromRoot(abs), bytes: Buffer.byteLength(onDisk, "utf8"), unchanged: true };
+    if (base !== undefined && base !== null) {
+      if (onDisk !== null && onDisk !== String(base))
+        return { path: relFromRoot(abs), conflict: true, current: onDisk };
+    }
+    snapshot(abs);
     // Create the parent folder if it's missing — writing to a path whose directory doesn't exist yet
     // (a new specs folder, a sidecar) failed with ENOENT and looked like a silent no-op to the caller.
     try {
@@ -303,7 +369,7 @@ function createFileProviders(rootDir) {
     return { path: relFromRoot(abs), bytes: Buffer.byteLength(content || "", "utf8") };
   }
 
-  return { readFile, listFiles, changedFiles, search, getSource, getDiff, writeFile, languageOf, safeResolve };
+  return { readFile, listFiles, changedFiles, search, getSource, getDiff, writeFile, fileHistory, readSnapshot, snapshot, languageOf, safeResolve };
 }
 
 // Default set bound (lazily) to process.cwd() — the plugin running inside an observed service.

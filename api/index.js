@@ -413,26 +413,32 @@ function armChatSweep(ctx) {
     try { events = Chats.sweep(); } catch { return; }
     for (const ev of events) {
       if (ev.record) ctx.emit(`chat-updated:${ev.pc}`, { chat: ev.chat, record: ev.record });
-      if (ev.statusCleared) ctx.emit(`chat-status:${ev.pc}`, { chat: ev.chat, text: null });
+      if (ev.statusCleared) emitStatuses(ctx, ev.pc, ev.chat);
       ctx.emit(`chat-presence:${ev.pc}`, Chats.presence(ev.pc));
       if (ev.identity !== ev.pc) ctx.emit(`chat-presence:${ev.identity}`, Chats.presence(ev.identity));
     }
   }, 20000);
+}
+// Cooking lines are per-identity now — every status change pushes the room's FULL set of lines
+// (plus the legacy single text/as fields so an older bundle's peek keeps working).
+function emitStatuses(ctx, projectCode, chat) {
+  const chatName = chat || Chats.DEFAULT_CHAT;
+  const p = Chats.presence(projectCode)[chatName] || {};
+  ctx.emit(`chat-status:${projectCode}`, {
+    chat: chatName,
+    statuses: p.statuses || [],
+    text: p.status || null,
+    as: p.statusAs || null,
+  });
 }
 function chatSend(projectCode, { chat, from = "you", text, view, as } = {}) {
   armChatSweep(this);
   const identity = from === "agent" ? canonIdentity(projectCode, as) : undefined;
   const { record, delivered } = Chats.send(projectCode, chat || Chats.DEFAULT_CHAT, { from, text, view, as: identity });
   this.emit(`chat-updated:${projectCode}`, { chat: chat || Chats.DEFAULT_CHAT, record });
-  // Mirror of the store's cooking-line rule: the HOME agent's say ends the line; anything else
-  // that landed on a live hold flips "received" (a visitor's message means work incoming too).
-  const isHomeAgent = from === "agent" && (!identity || identity === projectCode);
-  if (isHomeAgent)
-    this.emit(`chat-status:${projectCode}`, { chat: chat || Chats.DEFAULT_CHAT, text: null });
-  else if (delivered)
-    this.emit(`chat-status:${projectCode}`, { chat: chat || Chats.DEFAULT_CHAT, text: "received" });
-  else if (from === "agent")
-    this.emit(`chat-status:${projectCode}`, { chat: chat || Chats.DEFAULT_CHAT, text: `waiting on ${projectCode}` });
+  // The store just moved cooking lines around (speaker's line cleared, takers' lines flipped
+  // "received", maybe a "waiting on" appeared) — push the whole per-identity set.
+  emitStatuses(this, projectCode, chat);
   return record;
 }
 // RFC-029 — agent control: a command is a chat record; the push IS the execution channel. The
@@ -467,9 +473,8 @@ function chatJoin(projectCode, { chat, agent, since } = {}) {
 }
 function chatStatus(projectCode, { chat, text, as } = {}) {
   const identity = canonIdentity(projectCode, as);
-  const statusAs = identity !== projectCode ? identity : null;
-  const r = Chats.setStatus(projectCode, chat || Chats.DEFAULT_CHAT, text, statusAs);
-  this.emit(`chat-status:${projectCode}`, { chat: chat || Chats.DEFAULT_CHAT, text: text || null, as: statusAs });
+  const r = Chats.setStatus(projectCode, chat || Chats.DEFAULT_CHAT, text, identity);
+  emitStatuses(this, projectCode, chat);
   return r;
 }
 function chatDrain(projectCode, { chat, listener, as } = {}) {
@@ -477,12 +482,9 @@ function chatDrain(projectCode, { chat, listener, as } = {}) {
   const res = Chats.drain(projectCode, chat || Chats.DEFAULT_CHAT, { listener, identity });
   this.emit(`chat-presence:${projectCode}`, Chats.presence(projectCode));
   // A "waiting on <pc>" line may have just flipped to "received" (turn-boundary pickup) —
-  // push the current status so the human sees the handoff.
-  if ((res.messages || []).length && identity === projectCode) {
-    const p = Chats.presence(projectCode)[chat || Chats.DEFAULT_CHAT];
-    if (p && p.status)
-      this.emit(`chat-status:${projectCode}`, { chat: chat || Chats.DEFAULT_CHAT, text: p.status });
-  }
+  // push the current lines so the human sees the handoff.
+  if ((res.messages || []).length && identity === projectCode)
+    emitStatuses(this, projectCode, chat);
   return res;
 }
 function chatLeave(projectCode, { chat, agent } = {}) {
@@ -494,6 +496,7 @@ function chatLeave(projectCode, { chat, agent } = {}) {
     this.emit(`chat-updated:${projectCode}`, { chat: chatName, record: sys });
   }
   const res = Chats.leave(projectCode, chatName, { identity });
+  emitStatuses(this, projectCode, chatName); // the leaver's cooking line just ended
   this.emit(`chat-presence:${projectCode}`, Chats.presence(projectCode));
   if (identity !== projectCode) this.emit(`chat-presence:${identity}`, Chats.presence(identity));
   return res;
@@ -509,6 +512,7 @@ function chatKick(projectCode, { chat, identity } = {}) {
   if (!identity) throw new Error("chatKick: identity required");
   const chatName = chat || Chats.DEFAULT_CHAT;
   const res = Chats.kick(projectCode, chatName, { identity });
+  emitStatuses(this, projectCode, chatName); // the kicked identity's cooking line goes too
   this.emit(`chat-updated:${projectCode}`, { chat: chatName, record: res.record });
   this.emit(`chat-presence:${projectCode}`, Chats.presence(projectCode));
   if (identity !== projectCode) this.emit(`chat-presence:${identity}`, Chats.presence(identity));

@@ -182,4 +182,36 @@
     color: var(--sv-text-faint);
     font-size: 12.5px;
   }
+
+  // DOC UNDO — saved versions of the open report (the snapshot ring); click restores.
+  &__history {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--sv-border);
+    background: color-mix(in srgb, var(--sv-surface) 60%, transparent);
+  }
+  &__history-item {
+    border: 1px solid var(--sv-border);
+    background: none;
+    color: var(--sv-text);
+    font-size: 11.5px;
+    border-radius: 999px;
+    padding: 2px 9px;
+    cursor: pointer;
+    &:hover {
+      border-color: #9a7cb8;
+      background: color-mix(in srgb, #9a7cb8 10%, transparent);
+    }
+  }
+  &__history-note {
+    color: var(--sv-text-muted);
+    font-size: 11.5px;
+    font-style: italic;
+  }
+  &__x--on {
+    border-color: #9a7cb8;
+  }
 }

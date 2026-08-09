@@ -464,10 +464,27 @@ const DocDescription = ({ doc, setDocument, Plugin, label, readOnly, helpText, s
   const [text, setText] = useState(doc.documentation);
   const [editorDark] = useEditorDark("docs");
 
+  // Stale-tab guard: `base` = the doc as loaded; a conflict answer means another tab/agent saved
+  // meanwhile — the save is held, and a deliberate second Save overwrites (the previous version
+  // is in the snapshot ring either way).
+  const conflictRef = useRef(false);
   const saveDocument = async () => {
     if (!Plugin) return;
     try {
-      const results = await Plugin.saveDoc({ ...doc, documentation: text });
+      const results = await Plugin.saveDoc(
+        conflictRef.current
+          ? { ...doc, documentation: text }
+          : { ...doc, documentation: text, base: doc.documentation },
+      );
+      if (results && results.conflict) {
+        conflictRef.current = true;
+        raiseError(
+          "Save held — this document changed elsewhere",
+          "Another tab or an agent saved it after you loaded it, so your save was held instead of wiping theirs. Save again to overwrite with yours — every version is kept in history.",
+        );
+        return;
+      }
+      conflictRef.current = false;
       setDocument(results);
       setEditing(false);
     } catch (error) {
