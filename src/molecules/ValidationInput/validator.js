@@ -160,7 +160,8 @@ export function getType(value) {
       else if (Array.isArray(value)) return "array";
       else return "object";
     case typeof value === "string":
-      if (moment(value).isValid()) return "date";
+      // Strict ISO only — lenient moment calls ordinary strings ("message 1", URLs) dates.
+      if (moment(value, moment.ISO_8601, true).isValid()) return "date";
       else return "string";
     case typeof value === "number":
       return "number";

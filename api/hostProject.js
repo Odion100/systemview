@@ -144,6 +144,7 @@ module.exports = function createHostProject(hubPort = 3000) {
         // retries a folder that isn't coming back. A broken module file (folder still there) only
         // unhosts — fix the file and re-host by saving.
         if (!fs.existsSync(entry.live.dir)) {
+          deregisterHosted(entry.projectDir, entry.folder);
           try {
             fs.unlinkSync(
               path.join(entry.projectDir, ".systemview", `${entry.live.serviceId}.manifest.json`),
@@ -189,7 +190,56 @@ module.exports = function createHostProject(hubPort = 3000) {
 
   // The module method: SystemView.hostProject({ projectDir, folder }). Idempotent — an already-
   // hosted folder answers with its live registration (init and every boot can call it blindly).
-  async function hostProject({ projectDir, folder } = {}) {
+  // The hub's OWN memory of what it hosts (his bug: "the entire project is gone" — hosted
+  // services die WITH the hub, and re-hosting only ever came from a CLI booting in the project's
+  // repo; until that CLI reran, the project stayed dead). The store can't drive this — hosted/root
+  // don't survive a probe refresh — so hostProject keeps its own registry file and boot replays it.
+  const REGISTRY = path.join(__dirname, "hosted.json");
+  const readRegistry = () => {
+    try {
+      const r = JSON.parse(fs.readFileSync(REGISTRY, "utf8"));
+      return Array.isArray(r) ? r : [];
+    } catch {
+      return [];
+    }
+  };
+  const writeRegistry = (list) => fs.writeFileSync(REGISTRY, JSON.stringify(list, null, 1));
+  const registerHosted = (projectDir, folder) => {
+    const list = readRegistry();
+    if (!list.some((e) => e.projectDir === projectDir && e.folder === folder))
+      writeRegistry([...list, { projectDir, folder }]);
+  };
+  const deregisterHosted = (projectDir, folder) =>
+    writeRegistry(readRegistry().filter((e) => !(e.projectDir === projectDir && e.folder === folder)));
+
+  // Boot replay: stand every registered folder back up. Folder gone = project deleted (the
+  // folder-is-the-state contract) — drop it from the registry instead of retrying forever.
+  async function rehostAll() {
+    for (const e of readRegistry()) {
+      try {
+        await hostProject({ projectDir: e.projectDir, folder: e.folder });
+      } catch (err) {
+        const msg = (err && err.message) || String(err);
+        if (/hosted folder not found/.test(msg)) deregisterHosted(e.projectDir, e.folder);
+        else console.log(`[SystemView]: boot re-host failed for ${e.folder}: ${msg}\n`);
+      }
+    }
+  }
+
+  // Serialized per folder — the boot replay (rehostAll) and the CLI's own boot hosting run
+  // CONCURRENTLY, and the naive check-then-act double-hosted the same folder (two live apps,
+  // one orphaned but listening — seen as duplicate SystemViewCore rows). One in-flight host per
+  // key; latecomers await the same promise and get the idempotent answer.
+  const inflight = new Map();
+  function hostProject(args = {}) {
+    const key = `${path.resolve(args.projectDir || ".")}|${args.folder}`;
+    if (inflight.has(key)) return inflight.get(key);
+    const p = doHostProject(args).finally(() => inflight.delete(key));
+    inflight.set(key, p);
+    return p;
+  }
+
+  async function doHostProject({ projectDir, folder } = {}) {
     if (!projectDir || !folder) throw new Error("hostProject: projectDir and folder are required");
     const key = `${path.resolve(projectDir)}|${folder}`;
     const existing = hosting.get(key);
@@ -214,6 +264,7 @@ module.exports = function createHostProject(hubPort = 3000) {
     }
     const entry = { projectDir: path.resolve(projectDir), folder, live, watchers: [] };
     hosting.set(key, entry);
+    registerHosted(entry.projectDir, folder);
     watch(key, entry);
     return {
       projectCode: live.projectCode,
@@ -314,6 +365,7 @@ module.exports = {
     );
     for (const [key, entry] of matches) {
       hosting.delete(key);
+      deregisterHosted(entry.projectDir, entry.folder);
       entry.watchers.forEach((w) => { try { w.close(); } catch {} });
       try {
         await new Promise((r) => entry.live.app.close(r));
@@ -327,5 +379,5 @@ module.exports = {
     return matches.length > 0;
   }
 
-  return { hostProject, hostedOp, unhost };
+  return { hostProject, hostedOp, unhost, rehostAll };
 };

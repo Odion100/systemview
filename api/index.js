@@ -400,16 +400,39 @@ function canonIdentity(projectCode, as) {
     return projectCode;
   }
 }
+// The presence reaper — decay never pushed to open panels before (his catch: "still says you're
+// visiting" long after the hold died). The module context is only reachable from method calls,
+// so the first chat call arms the interval; UI presence polls guarantee that's within seconds
+// of boot. Each sweep event pushes the departure line / ring drop / status clear live.
+let chatSweepArmed = false;
+function armChatSweep(ctx) {
+  if (chatSweepArmed) return;
+  chatSweepArmed = true;
+  setInterval(() => {
+    let events = [];
+    try { events = Chats.sweep(); } catch { return; }
+    for (const ev of events) {
+      if (ev.record) ctx.emit(`chat-updated:${ev.pc}`, { chat: ev.chat, record: ev.record });
+      if (ev.statusCleared) ctx.emit(`chat-status:${ev.pc}`, { chat: ev.chat, text: null });
+      ctx.emit(`chat-presence:${ev.pc}`, Chats.presence(ev.pc));
+      if (ev.identity !== ev.pc) ctx.emit(`chat-presence:${ev.identity}`, Chats.presence(ev.identity));
+    }
+  }, 20000);
+}
 function chatSend(projectCode, { chat, from = "you", text, view, as } = {}) {
+  armChatSweep(this);
   const identity = from === "agent" ? canonIdentity(projectCode, as) : undefined;
   const { record, delivered } = Chats.send(projectCode, chat || Chats.DEFAULT_CHAT, { from, text, view, as: identity });
   this.emit(`chat-updated:${projectCode}`, { chat: chat || Chats.DEFAULT_CHAT, record });
-  // Live handoff → the sender SEES it was received, before the agent even wakes.
-  if (delivered)
-    this.emit(`chat-status:${projectCode}`, { chat: chat || Chats.DEFAULT_CHAT, text: "received" });
-  // An agent reply ends the cooking line — tell the open panels now, not at the next poll.
-  if (from === "agent")
+  // Mirror of the store's cooking-line rule: the HOME agent's say ends the line; anything else
+  // that landed on a live hold flips "received" (a visitor's message means work incoming too).
+  const isHomeAgent = from === "agent" && (!identity || identity === projectCode);
+  if (isHomeAgent)
     this.emit(`chat-status:${projectCode}`, { chat: chat || Chats.DEFAULT_CHAT, text: null });
+  else if (delivered)
+    this.emit(`chat-status:${projectCode}`, { chat: chat || Chats.DEFAULT_CHAT, text: "received" });
+  else if (from === "agent")
+    this.emit(`chat-status:${projectCode}`, { chat: chat || Chats.DEFAULT_CHAT, text: `waiting on ${projectCode}` });
   return record;
 }
 // RFC-029 — agent control: a command is a chat record; the push IS the execution channel. The
@@ -442,15 +465,24 @@ function chatJoin(projectCode, { chat, agent, since } = {}) {
   if (identity !== projectCode) this.emit(`chat-presence:${identity}`, Chats.presence(identity));
   return held;
 }
-function chatStatus(projectCode, { chat, text } = {}) {
-  const r = Chats.setStatus(projectCode, chat || Chats.DEFAULT_CHAT, text);
-  this.emit(`chat-status:${projectCode}`, { chat: chat || Chats.DEFAULT_CHAT, text: text || null });
+function chatStatus(projectCode, { chat, text, as } = {}) {
+  const identity = canonIdentity(projectCode, as);
+  const statusAs = identity !== projectCode ? identity : null;
+  const r = Chats.setStatus(projectCode, chat || Chats.DEFAULT_CHAT, text, statusAs);
+  this.emit(`chat-status:${projectCode}`, { chat: chat || Chats.DEFAULT_CHAT, text: text || null, as: statusAs });
   return r;
 }
 function chatDrain(projectCode, { chat, listener, as } = {}) {
   const identity = canonIdentity(projectCode, as);
   const res = Chats.drain(projectCode, chat || Chats.DEFAULT_CHAT, { listener, identity });
   this.emit(`chat-presence:${projectCode}`, Chats.presence(projectCode));
+  // A "waiting on <pc>" line may have just flipped to "received" (turn-boundary pickup) —
+  // push the current status so the human sees the handoff.
+  if ((res.messages || []).length && identity === projectCode) {
+    const p = Chats.presence(projectCode)[chat || Chats.DEFAULT_CHAT];
+    if (p && p.status)
+      this.emit(`chat-status:${projectCode}`, { chat: chat || Chats.DEFAULT_CHAT, text: p.status });
+  }
   return res;
 }
 function chatLeave(projectCode, { chat, agent } = {}) {
@@ -467,7 +499,20 @@ function chatLeave(projectCode, { chat, agent } = {}) {
   return res;
 }
 function chatPresence(projectCode) {
+  armChatSweep(this);
   return Chats.presence(projectCode);
+}
+// The bouncer — the human kicks an identity out of a room (right-click a roster name). The
+// kicked hold answers {kicked} immediately, the room gets its system line, rejoin refused for
+// the cooldown.
+function chatKick(projectCode, { chat, identity } = {}) {
+  if (!identity) throw new Error("chatKick: identity required");
+  const chatName = chat || Chats.DEFAULT_CHAT;
+  const res = Chats.kick(projectCode, chatName, { identity });
+  this.emit(`chat-updated:${projectCode}`, { chat: chatName, record: res.record });
+  this.emit(`chat-presence:${projectCode}`, Chats.presence(projectCode));
+  if (identity !== projectCode) this.emit(`chat-presence:${identity}`, Chats.presence(identity));
+  return res;
 }
 
 const shutdown = () => process.exit(0);
@@ -539,6 +584,7 @@ module.exports = function launchSystemView(port = 3000) {
       chatStatus,
       chatDrain,
       chatLeave,
+      chatKick,
       chatPresence,
     })
     .module("CLI", {
@@ -556,7 +602,13 @@ module.exports = function launchSystemView(port = 3000) {
         res.sendFile(indexPath);
       });
 
-      ConnectedServices.refreshConnections();
+      // Hosted projects live IN this process — replay the hub's own hosted registry BEFORE the
+      // connection probe, so a hub restart resurrects them no matter which repo's CLI hosted
+      // them originally (his bug: BUApp vanished on every restart until its CLI reran).
+      hostingUnit
+        .rehostAll()
+        .catch(() => {})
+        .finally(() => ConnectedServices.refreshConnections());
     });
 
   return new Promise((resolve) => App.on("ready", resolve));

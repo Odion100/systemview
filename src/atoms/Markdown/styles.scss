@@ -100,12 +100,9 @@
   font-size: 15px;
   line-height: 1.6;
   color: #46506a;
-  padding-top: 10px;
-  padding-bottom: 10px;
   background-color: #fff;
-  // Left padding is a GUTTER: the start-a-thread 💬 sits in it, outside the text column, so it never
-  // reflows a paragraph when it appears on hover.
-  padding: 10px 10px 10px 30px;
+  // Symmetric — the old 30px left gutter existed for the hover-💬 margin button, which is gone.
+  padding: 10px;
 
   & > *:first-child {
     margin-top: 0 !important;
@@ -1384,29 +1381,13 @@
     }
   }
 
-  // START A THREAD — a quiet 💬 in the left margin of any top-level block, on hover. Absent until you
-  // hover, so a document reads as a document; one click wraps that block in a thread.
+  // Block wrapper carrying the source line-range as data for the right-click menu ("start a
+  // thread here"). Purely structural — the old hover-💬 margin button is gone (his call).
   .md-commentable {
     position: relative;
     > * { margin-top: 0; margin-bottom: 0; }
     margin: 12px 0;
 
-    &__add {
-      position: absolute;
-      left: -26px;
-      top: 1px;
-      border: 0;
-      background: transparent;
-      font-size: 12px;
-      line-height: 1;
-      padding: 2px 3px;
-      border-radius: 5px;
-      cursor: pointer;
-      opacity: 0;
-      transition: opacity 0.12s, background 0.12s;
-    }
-    &:hover &__add { opacity: 0.45; }
-    &__add:hover { opacity: 1 !important; background: rgba(63, 81, 181, 0.1); }
   }
 
   // A ```markdown fence, shown verbatim (see Markdown.js) — same frame as a highlighted block.

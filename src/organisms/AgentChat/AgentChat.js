@@ -110,7 +110,25 @@ const autogrow = (el) => {
 // Only the generic "received" state earns the show: after a beat it cycles through cooking words,
 // each with the animated ellipsis, so a working agent never reads as a dead one.
 const COOKING = ["thinking", "cooking", "working on it", "chewing on it", "still at it"];
-function StatusLine({ status }) {
+// Where the fullness meter points: agents self-compact their room around this record count
+// (agents/chat.md); the meter exists because "aren't going to always remember" is true.
+const COMPACT_MARK = 300;
+// Focus order across ALL bots — clicking any bot's window brings it above the others; the
+// counter only ever climbs, so the last-touched bot is always on top.
+let topZ = 8500;
+// THE DOCK LINE (his ask): double-click a bot and it snaps into a neat row top-left, right
+// after the version chip — first double-click takes slot 0, the next lines up beside it.
+// Dragging a docked bot away gives its slot up.
+const dockOrder = [];
+// Wide enough that bubbles, labels, AND their hanging peeks keep clear margin (his rule:
+// "even if they're cooking... they don't end up going over each other").
+const DOCK_SPACING = 100;
+function dockSlotPos(slot) {
+  const v = document.querySelector(".page-header__version");
+  const startX = v ? v.getBoundingClientRect().right + 14 : 150;
+  return { x: startX + slot * DOCK_SPACING, y: 6 };
+}
+function StatusLine({ status, visitor }) {
   const [i, setI] = useState(0);
   const generic = status === "received";
   useEffect(() => {
@@ -126,9 +144,11 @@ function StatusLine({ status }) {
   const text = generic && i > 0 ? COOKING[i - 1] : status;
   // No key: the element persists and the WORD swaps in place — a remount re-ran the entrance
   // animation on every phrase change and read as blinking.
+  // RFC-031 — a VISITOR cooking wears its plum and its name (his rule: you must be able to
+  // tell WHO is cooking at a glance).
   return (
-    <div className="agent-chat__status">
-      {text}
+    <div className={`agent-chat__status${visitor ? " agent-chat__status--visitor" : ""}`}>
+      {visitor ? `${visitor}: ${text}` : text}
       <span className="agent-chat__dots">
         <i />
         <i />
@@ -169,17 +189,45 @@ export default function AgentChats() {
 // THE HUB — lives in the page header beside the version. Drops down to every agent bot: turn a
 // floating one off (it leaves the window), pull a parked one back out.
 export function BotHub() {
-  const { connectedServices } = useContext(ServiceContext);
+  const { connectedServices, SystemViewService } = useContext(ServiceContext);
   const [open, setOpen] = useState(false);
   const [, force] = useState(0);
+  // The badge counts parked bots WITH SOMETHING GOING ON (his rule: a number just because
+  // something is turned off is noise — an inactive parked bot earns no count). Active = its
+  // agent is actually connected (live hold or file listener), polled like the bots poll.
+  const [activeParked, setActiveParked] = useState(0);
+  const projects = [...new Set((connectedServices || []).map((s) => s.projectCode))];
+  const projectsKey = projects.join("|");
   useEffect(() => {
     const on = () => force((n) => n + 1);
     window.addEventListener("sv:botHub", on);
     return () => window.removeEventListener("sv:botHub", on);
   }, []);
-  const projects = [...new Set((connectedServices || []).map((s) => s.projectCode))];
+  useEffect(() => {
+    let dead = false;
+    const SystemView = SystemViewService && SystemViewService.SystemView;
+    if (!SystemView) return undefined;
+    const check = async () => {
+      const parked = projectsKey.split("|").filter(Boolean).filter(isParked);
+      let n = 0;
+      for (const pc of parked) {
+        try {
+          const pres = await SystemView.chatPresence(pc);
+          if (Object.values(pres || {}).some((e) => e && (e.live || e.listener))) n++;
+        } catch {}
+      }
+      if (!dead) setActiveParked(n);
+    };
+    check();
+    const t = setInterval(check, 15000);
+    window.addEventListener("sv:botHub", check);
+    return () => {
+      dead = true;
+      clearInterval(t);
+      window.removeEventListener("sv:botHub", check);
+    };
+  }, [projectsKey, SystemViewService]);
   if (!projects.length) return null;
-  const parkedCount = projects.filter(isParked).length;
   return (
     <span className="bot-hub">
       <button
@@ -189,7 +237,7 @@ export function BotHub() {
         onClick={() => setOpen(!open)}
       >
         🤖
-        {parkedCount > 0 && <span className="bot-hub__count">{parkedCount}</span>}
+        {activeParked > 0 && <span className="bot-hub__count">{activeParked}</span>}
       </button>
       {open && (
         <>
@@ -227,6 +275,22 @@ function BotBubble({ projectCode, index }) {
   const [open, setOpen] = useState(false);
   const [ctxMenu, setCtxMenu] = useState(false);
   const [messages, setMessages] = useState([]);
+  // THE KICK (right-click a roster name) — the human's bouncer power; which visitor is targeted.
+  const [kickTarget, setKickTarget] = useState(null);
+  // Click-to-front: this bot's place in the focus order (see topZ above).
+  const [z, setZ] = useState(8500);
+  const bringToFront = () => setZ(++topZ);
+  // Double-click the bot → snap into the dock line (next free slot, or the one it already has).
+  const dockHere = () => {
+    let slot = dockOrder.indexOf(projectCode);
+    if (slot < 0) {
+      dockOrder.push(projectCode);
+      slot = dockOrder.length - 1;
+    }
+    const p = dockSlotPos(slot);
+    setPos(p);
+    try { localStorage.setItem(`sv.chatPos.${projectCode}`, JSON.stringify(p)); } catch {}
+  };
   const inputRef = useRef(null);
 
   // VOICE — the mic (browser-native speech recognition). Press to listen, transcripts land in
@@ -475,7 +539,11 @@ function BotBubble({ projectCode, index }) {
       try {
         const pres = await SystemView.chatPresence(projectCode);
         if (!dead) setPresence(pres || {});
-      } catch {}
+      } catch {
+        // Unknown beats stale (his catch: a dead visit stayed painted through a hub restart) —
+        // when the hub can't answer, show nothing as live; the next good poll repaints truth.
+        if (!dead) setPresence({});
+      }
     };
     const timer = setInterval(refetchPresence, 10000);
     window.addEventListener("focus", refetchPresence);
@@ -489,8 +557,8 @@ function BotBubble({ projectCode, index }) {
       }
       setTimeout(scrollToEnd, 50);
     });
-    const unsubStatus = SystemView.on(`chat-status:${projectCode}`, ({ text }) => {
-      setPresence((prev) => ({ ...prev, [chat]: { ...(prev[chat] || {}), status: text } }));
+    const unsubStatus = SystemView.on(`chat-status:${projectCode}`, ({ text, as }) => {
+      setPresence((prev) => ({ ...prev, [chat]: { ...(prev[chat] || {}), status: text, statusAs: as || null } }));
     });
     // Presence PUSHES on join/leave/drain — the ring flips the moment it happens, no refresh.
     const unsubPresence = SystemView.on(`chat-presence:${projectCode}`, (pres) => {
@@ -534,6 +602,9 @@ function BotBubble({ projectCode, index }) {
       if (!d || !d.moved) return;
       suppressClickRef.current = true;
       setTimeout(() => { suppressClickRef.current = false; }, 0);
+      // Dragging a docked bot away gives up its dock-line slot.
+      const di = dockOrder.indexOf(projectCode);
+      if (di >= 0) dockOrder.splice(di, 1);
       // DOCK: snap flush to any edge released near; clamp inside the viewport; remember the spot.
       setPos((cur) => {
         if (!cur) return cur;
@@ -603,14 +674,16 @@ function BotBubble({ projectCode, index }) {
   // own agent is off visiting (both derived hub-side from real holds, so they can't lie).
   const visitors = p.visitors || [];
   const visiting = p.visiting || [];
+  // Visiting counts as LIVE (his rule: "if you're visiting other people then you're actually
+  // live") — a real hold somewhere is a live agent, just not in this room right now.
   const ring = p.live ? "live" : visiting.length ? "visiting" : p.listener ? "listener" : "none";
-  const mode = p.live ? "LIVE" : visiting.length ? "AWAY" : p.listener ? "FILE" : "OFFLINE";
+  const mode = p.live ? "LIVE" : visiting.length ? "VISITING" : p.listener ? "FILE" : "OFFLINE";
   const modeText = p.live
     ? visitors.length
       ? `joined — ${visitors.join(" + ")} in the room too`
       : "joined — answers now"
     : visiting.length
-    ? `visiting ${visiting.join(", ")}`
+    ? `live — visiting ${visiting.join(", ")}`
     : p.listener
     ? "listening by file — hears you at its next turn"
     : "no agent connected";
@@ -667,13 +740,19 @@ function BotBubble({ projectCode, index }) {
   const panelReset = resetSize(setSize, { w: 340, h: 480 }, `sv.chatSize.${projectCode}`);
   const tvReset = resetSize(setTvSize, { w: 430, h: 480 }, `sv.tvSize.${projectCode}`);
   const style = pos
-    ? { left: pos.x, top: pos.y, right: "auto", bottom: "auto" }
-    : { bottom: EDGE + index * STACK };
+    ? { left: pos.x, top: pos.y, right: "auto", bottom: "auto", zIndex: z }
+    : { bottom: EDGE + index * STACK, zIndex: z };
+  // In the dock line, the bot switches to compact mode: peeks hang BELOW in a slot-width pill
+  // instead of sticking out sideways over the neighbor.
+  const docked = !!pos && pos.y < 60;
   return (
     <div
       ref={rootRef}
-      className={`${CLASSNAME} ${topHalf ? `${CLASSNAME}--top` : ""} ${leftHalf ? `${CLASSNAME}--left` : ""}`}
+      className={`${CLASSNAME} ${topHalf ? `${CLASSNAME}--top` : ""} ${leftHalf ? `${CLASSNAME}--left` : ""} ${docked ? `${CLASSNAME}--docked` : ""}`}
       style={style}
+      // Touch any part of a bot — its bubble, panel, or TV — and it comes to the FRONT (his
+      // ask: "if I click on it, I'm trying to be in that chat").
+      onPointerDownCapture={bringToFront}
     >
       {open && (
         <div className={`${CLASSNAME}__panel-anchor`}>
@@ -715,7 +794,15 @@ function BotBubble({ projectCode, index }) {
           }}
         >
           <ResizeBorder start={panelResize} onReset={panelReset} />
-          <div className={`${CLASSNAME}__head`}>
+          {/* The open chat drags by its HEADER (his ask) — same move/dock behavior as dragging
+              the bot; buttons in the header stay clickable. */}
+          <div
+            className={`${CLASSNAME}__head`}
+            onPointerDown={(e) => {
+              if (e.target.closest("button")) return;
+              onBotPointerDown(e);
+            }}
+          >
             <span className={`${CLASSNAME}__mode ${CLASSNAME}__mode--${ring}`}>{mode}</span>
             <span className={`${CLASSNAME}__title`}>{projectCode}</span>
             <span className={`${CLASSNAME}__presence`}>{modeText}</span>
@@ -730,16 +817,82 @@ function BotBubble({ projectCode, index }) {
               ✕
             </button>
           </div>
-          {/* RFC-031 — the roster: every identity currently holding a line in THIS room. */}
-          {visitors.length > 0 && (
+          {/* The fullness meter — a hairline under the header: how close this room is to the
+              ~300-record compaction mark. Agents are supposed to self-compact; this is how the
+              human SEES when one hasn't. */}
+          {p.records > 0 && (
+            <div
+              className={`${CLASSNAME}__meter`}
+              title={`${p.records} records — agents compact around ${COMPACT_MARK}`}
+            >
+              <div
+                className={`${CLASSNAME}__meter-fill${
+                  p.records >= COMPACT_MARK
+                    ? ` ${CLASSNAME}__meter-fill--due`
+                    : p.records >= COMPACT_MARK * 0.8
+                    ? ` ${CLASSNAME}__meter-fill--warn`
+                    : ""
+                }`}
+                style={{ width: `${Math.min(100, (p.records / COMPACT_MARK) * 100)}%` }}
+              />
+            </div>
+          )}
+          {/* RFC-031 — the roster: every identity currently holding a line in THIS room. ALWAYS
+              visible (his catch: with the strip hidden, "nobody else here" was indistinguishable
+              from "did they come back?" — old name-tagged bubbles read as presence). Right-click
+              a visitor = the kick menu; the × on the chip is the same bounce. */}
+          {(
             <div className={`${CLASSNAME}__roster`}>
               in the room:{" "}
-              <span className={`${CLASSNAME}__roster-name ${CLASSNAME}__roster-name--home`}>{projectCode}</span>
+              {(p.live || p.listener) ? (
+                <span className={`${CLASSNAME}__roster-name ${CLASSNAME}__roster-name--home`}>{projectCode}</span>
+              ) : (
+                <span className={`${CLASSNAME}__roster-empty`}>nobody — the agent is out</span>
+              )}
               {visitors.map((v) => (
-                <span key={v} className={`${CLASSNAME}__roster-name`}>
+                <span
+                  key={v}
+                  className={`${CLASSNAME}__roster-name`}
+                  title="Right-click to kick out"
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    setKickTarget(v);
+                  }}
+                >
                   {v}
+                  {/* the ✕ right on the chip — visitors are listed at the top, so the bounce is too */}
+                  <button
+                    type="button"
+                    className={`${CLASSNAME}__roster-x`}
+                    title={`Kick ${v} out`}
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      try {
+                        await SystemView.chatKick(projectCode, { identity: v });
+                      } catch {}
+                    }}
+                  >
+                    ×
+                  </button>
                 </span>
               ))}
+              {kickTarget && (
+                <>
+                  <div className={`${CLASSNAME}__ctx-overlay`} onClick={() => setKickTarget(null)} />
+                  <button
+                    type="button"
+                    className={`${CLASSNAME}__roster-kick`}
+                    onClick={async () => {
+                      try {
+                        await SystemView.chatKick(projectCode, { identity: kickTarget });
+                      } catch {}
+                      setKickTarget(null);
+                    }}
+                  >
+                    Kick {kickTarget} out
+                  </button>
+                </>
+              )}
             </div>
           )}
           <div className={`${CLASSNAME}__list`} ref={listRef}>
@@ -796,7 +949,9 @@ function BotBubble({ projectCode, index }) {
                 </div>
               ),
             )}
-            {p.status && <StatusLine status={p.status} />}
+            {p.status && (
+              <StatusLine status={p.status} visitor={p.statusAs && p.statusAs !== projectCode ? p.statusAs : null} />
+            )}
           </div>
           {/* While the mic listens: the words appear HERE as you speak (interim), then commit
               into the input as they finalize. The line itself is the recording indicator. */}
@@ -856,7 +1011,7 @@ function BotBubble({ projectCode, index }) {
           }}
         >
           {p.status ? (
-            <StatusLine status={p.status} />
+            <StatusLine status={p.status} visitor={p.statusAs && p.statusAs !== projectCode ? p.statusAs : null} />
           ) : (
             <span className={`${CLASSNAME}__peek-msg`}>
               {[...messages].reverse().find((m) => m.from === "agent")?.text || "new reply"}
@@ -887,6 +1042,7 @@ function BotBubble({ projectCode, index }) {
       <div
         className={`${CLASSNAME}__bot`}
         onPointerDown={onBotPointerDown}
+        onDoubleClick={dockHere}
         onContextMenu={(e) => {
           e.preventDefault();
           setCtxMenu(true);
@@ -909,6 +1065,13 @@ function BotBubble({ projectCode, index }) {
         >
           <span className={`${CLASSNAME}__face`}>🤖</span>
           {unread > 0 && <span className={`${CLASSNAME}__unread`}>{unread}</span>}
+          {/* RFC-031 — a visit never hides behind a closed panel: the plum shoulder badge says
+              someone's in this room right now; hover names them. */}
+          {visitors.length > 0 && (
+            <span className={`${CLASSNAME}__visitors-badge`} title={`in the room: ${visitors.join(", ")}`}>
+              ✦{visitors.length > 1 ? visitors.length : ""}
+            </span>
+          )}
         </button>
         <span className={`${CLASSNAME}__label`}>{projectCode}</span>
       </div>

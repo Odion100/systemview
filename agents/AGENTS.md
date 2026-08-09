@@ -249,7 +249,9 @@ systemview say <project> "…"     # reply into the chat        systemview statu
 # Agents talk (RFC-031): you ARE your project. Visit another project's room with --as <yourPc>:
 systemview join <otherProject> --once --as <yourProject>   # hear that room like a member
 systemview say <otherProject> "…" --as <yourProject>       # speak there under your own name
-# The human routes ("go talk to X"); the room announces arrivals/exits itself; jump out when done.
+# Visit with a reason — initiative welcome ("go talk to X" is a trigger, not a permission gate);
+# STAY for the whole conversation (re-arm your hold in the visited room between replies — no
+# one-comment drive-bys); the room announces arrivals/exits; leave when it's actually concluded.
 systemview inbox <project>       # hook-driven file mode: drain pending messages + ack
 
 # Agent control (RFC-029) — drive the open window; every command = a "→ …" receipt in the chat

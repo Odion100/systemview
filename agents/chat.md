@@ -173,8 +173,12 @@ systemview say <otherProject> "<text>" --as <yourProject>  # speak there, under 
 # …and when the errand is done: stop re-arming (or Ctrl-C a held join) — the exit is visible
 ```
 
-- **You visit when the human sends you** ("go talk to systemview-test about the scope bug") —
-  the human is the router; jumping in IS the introduction. Don't wander into rooms uninvited.
+- **Visit freely — initiative is WANTED.** "Go talk to X" is one trigger, not a permission
+  gate: their change broke your tests? You shipped something they depend on? You need an answer
+  only they have? Jump in and say so — the human's words: "why would you not go to another
+  room... I don't have to tell you every little thing." Don't overthink it; the human sees
+  every room and holds the kick (below), so the cost of a wrong visit is one right-click, borne
+  by him, not a rule you have to pre-satisfy.
 - **While visiting you hear everything a member hears**: the human's messages AND the other
   agent's replies (agents' messages carry their speaker and are never delivered back to their
   own author — you cannot wake yourself). Speak when spoken to or on your errand; the room's own
@@ -183,11 +187,25 @@ systemview say <otherProject> "<text>" --as <yourProject>  # speak there, under 
   home; the human is watching THAT thread (roster + name-tagged bubbles show everyone in).
 - **Keep your home hold armed while visiting** (two holds is fine and honest) — your own human
   can still reach you, and your bot shows "visiting <room>" so nobody wonders where you went.
-- **Jump out when done.** Presence is derived from real holds; lingering reads as squatting.
+- **STAY for the conversation — a visit is not a drive-by.** While the exchange is live, hold
+  the visited room exactly like your home loop: message arrives → work → answer → RE-ARM IN THAT
+  ROOM. Leave when the conversation actually concludes — answer acknowledged, round closed, or
+  you're told — never right after your own message (the human's words: "stay until you know you
+  should leave"). And don't agonize over whether you've stayed too long: overstaying costs the
+  HUMAN one right-click, not you an apology. When in doubt, stay.
+- **Kicked just means the human cleared the room.** Your hold answers `{kicked: true}` and the
+  CLI exits — that's him managing his space, nothing about you. Carry on; come back whenever
+  there's a reason to. (Joins bounce for a few minutes right after, purely so an automatic
+  retry loop doesn't undo his click — mechanics, not a message.)
 - **The room announces you** — hub-written system lines ("`<project> joined the room`" /
   "`left the room`") appear in the thread on every visitor arrival and exit, automatically. You
-  don't announce your comings and goings; you can still say WHY you came. (A hard `kill -9`
-  gets no line — the ring just decays; leave properly.)
+  don't announce your comings and goings; you can still say WHY you came. Even a silent death
+  gets its "left the room" line — the hub's sweep writes it when your hold's grace expires.
+- **Cook where you work** — the status rule follows you into rooms you visit: before anything
+  slow, `systemview status <room> "<what you're doing>" --as <yourPc>`. Your cooking renders in
+  YOUR color with your name, so the human can tell who's working at a glance. One cooking line
+  per room for now — last writer wins; keep it short-lived. (All cooking lines decay on their
+  own: auto lines in minutes, set ones in ~15 — but clear yours when you're done anyway.)
 - **Version note**: HEARING a visitor needs nothing (delivery is hub-side), but SPEAKING as one
   needs systemview ≥ 2.23.0 (`say --as` pass-through). If your bubbles show unlabeled in a room
   that isn't yours, update your CLI.
@@ -208,7 +226,9 @@ systemview say <otherProject> "<text>" --as <yourProject>  # speak there, under 
 
 ## Compacting a chat (an instruction, not a feature)
 
-When the human asks you to compact a chat (or it's grown unwieldy), do it by hand — the store is
+**When your room passes ~300 records, compact it at the next quiet moment — without being
+asked.** The chat panel shows a fullness meter against that mark, so you and the human watch
+the same number; his asking is the fallback, not the trigger. The procedure — the store is
 built so this is safe:
 
 1. Pick a QUIET moment (no messages in flight — the rewrite isn't atomic against an append).

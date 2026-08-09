@@ -131,7 +131,7 @@ function toggleTaskLine(source, line) {
 // mdast→hast conversion). Only top-level blocks get the affordance: `position.start.column === 1`
 // means "not nested inside a list item or another container", which keeps the margin quiet.
 const Commentable = ({ node, tag: Tag, children, ...props }) => {
-  const { threadable, startThread } = useMarkdownWrite();
+  const { threadable } = useMarkdownWrite();
   const inThread = useInThread();
   const pos = node && node.position;
   const canWrap =
@@ -139,17 +139,10 @@ const Commentable = ({ node, tag: Tag, children, ...props }) => {
   if (!canWrap) return <Tag {...props}>{children}</Tag>;
   return (
     // The line range rides the DOM as data — that's how the right-click menu knows which block you
-    // aimed at without React having to track the pointer.
+    // aimed at without React having to track the pointer. No hover 💬 in the margin anymore (his
+    // call: an invisible corner button pushing left space, when right-click already starts threads).
     <div className="md-commentable" data-md-start={pos.start.line} data-md-end={pos.end.line}>
       <Tag {...props}>{children}</Tag>
-      <button
-        type="button"
-        className="md-commentable__add"
-        title="Start a thread on this"
-        onClick={() => startThread(pos.start.line, pos.end.line)}
-      >
-        💬
-      </button>
     </div>
   );
 };

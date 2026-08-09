@@ -60,6 +60,12 @@ module.exports.join = async function join(projectCode, { uiUrl, Client, chat, ag
       await new Promise((r) => setTimeout(r, 3000));
       continue;
     }
+    if (res && res.kicked) {
+      // The human cleared the room — an answer, not an error, and not a judgment. The hold ends
+      // here (joins bounce for a few minutes purely so retry loops don't undo his click).
+      log.info(`kicked from ${projectCode} — the human cleared the room; carry on, come back when there's a reason`);
+      return 0;
+    }
     if (res && res.messages && res.messages.length) {
       res.messages.forEach((m) => {
         console.log(JSON.stringify(m));
@@ -83,13 +89,14 @@ module.exports.say = async function say(projectCode, text, { uiUrl, Client, chat
   return 0;
 };
 
-module.exports.status = async function status(projectCode, text, { uiUrl, Client, chat } = {}) {
+module.exports.status = async function status(projectCode, text, { uiUrl, Client, chat, agent } = {}) {
   if (!projectCode) {
-    log.warn('Usage: systemview status <projectCode> "<text>" [--chat name]   (empty text clears)');
+    log.warn('Usage: systemview status <projectCode> "<text>" [--chat name] [--as <yourPc>]   (empty text clears)');
     return 1;
   }
   const SystemView = await loadHub(Client, uiUrl);
-  await SystemView.chatStatus(projectCode, { chat, text: text || null });
+  // RFC-031 — a visiting identity's cooking renders in its own color, under its name.
+  await SystemView.chatStatus(projectCode, { chat, text: text || null, as: agent });
   return 0;
 };
 
