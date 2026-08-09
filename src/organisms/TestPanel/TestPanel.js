@@ -317,6 +317,9 @@ const FullTestInner = ({
     setFoldAll(false);
     if (bodyRef.current) bodyRef.current.scrollTop = 0; // jump the scratchpad back up to the builder
   };
+  // (RFC-029 `act` runs saved tests in the SavedTests area below — his call: results belong in
+  // the rows where tests live, not loaded into the builder.)
+
   const clearMessage = () => setMessage({ error: false, message: "" });
   const save = async () => {
     // NOTHING fails silently — an unexpected throw surfaces in the save note like any validation error.

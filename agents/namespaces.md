@@ -3,8 +3,8 @@
 This document is written **for AI agents** working in a codebase with SystemView installed — especially
 a codebase that does **not** run SystemLynx. It teaches the one skill RFC-021 asks of you: **study an
 arbitrary project and decompose it into the namespace model**, so SystemView's whole surface (tests,
-docs, stories, shared actions) works on it. Siblings: [tests.md](tests.md),
-[stories.md](stories.md).
+docs, reports, shared actions) works on it. Siblings: [tests.md](tests.md),
+[AGENTS.md](AGENTS.md).
 
 ---
 
@@ -33,7 +33,7 @@ The decomposition, learned from how well-organized SystemLynx systems (like buAP
    the project, not inventing a taxonomy.
 3. **Write the manifest** (the saved configuration — next section).
 4. **File specs on it.** Tests ([tests.md](tests.md)) whose steps wrap the
-   interface (sign in, call the endpoint, assert), docs, stories, shared actions for the multi-step setup blocks that repeat across tests (see tests.md — an action must EARN extraction: multi-step + multi-test).
+   interface (sign in, call the endpoint, assert), docs, shared actions for the multi-step setup blocks that repeat across tests (see tests.md — an action must EARN extraction: multi-step + multi-test).
 5. **Grow it as you go.** The map is incremental — add a module when you study a new area. It's
    versioned with the repo, so a PR reviews your decomposition like any other change.
 
@@ -77,7 +77,7 @@ plus `"dynamic": true` (which tells SystemView: nothing live to probe — regist
   appears there (purple dot = authored, not discovered). The SystemLynx tab shows only real live
   connections.
 - Navigating to the service (`/specs/<projectCode>/<ServiceId>`) gives it the full namespace surface:
-  docs, stories, and the scratchpad against its modules/methods.
+  docs, reports, and the scratchpad against its modules/methods.
 
 ## Wrapping the interface
 

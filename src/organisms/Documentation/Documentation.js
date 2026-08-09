@@ -25,14 +25,14 @@ A documentation + testing surface for your **SystemLynx** services — and, incr
 This page is the **hub**: what each panel does, and what the app can currently do. Pick a topic chip
 to go deeper, or select something on the left to start working.
 
-:help[navigator] :help[scratchpad] :help[actions] :help[stories] :help[markdown] :help[events]
+:help[navigator] :help[scratchpad] :help[actions] :help[chat] :help[markdown] :help[events]
 
 ## The three panels
 
 | Panel | What it's for |
 |---|---|
 | **Navigator** (left) | Two lenses: **SystemLynx** (projects → services → modules → methods) and **Codebases** (your files). |
-| **Center** | **Documentation** · **Logs** · **Stories** for whatever is selected — or a file, in the Codebases lens. |
+| **Center** | **Documentation** · **Logs** · **Stage** (reports) for whatever is selected — or a file, in the Codebases lens. |
 | **Scratch Pad** (right) | Build, run and save tests; the **Actions** tab holds reusable shared setups. |
 
 ## What's here — by area
@@ -95,13 +95,11 @@ A test is an **ordered list of named sections** — Before / Main / Events / Aft
 :help[scratchpad] · :help[actions] · :help[events]
 :::
 
-:::tab{label="Stories"}
-A **story** is a saved, namespaced arrangement of panes — notes, files, diffs, runnable tests — that
-answers "what changed, and how do I know it works?". They persist in \`.systemview/stories/\` and
-travel with the repo.
-
-Open them from the **Stories** tab on any namespace. Agents can drive them from the CLI
-(\`systemview story …\`). :help[stories]
+:::tab{label="Stage"}
+The **Stage** tab holds **reports** — full markdown documents in \`.systemview/\`, scoped to a
+namespace: write-ups, plans, reviews, findings. Every interactive block works in them (embedded
+files, diffs, runnable tests), so a report answers "what changed, and how do I know it works?"
+live. :help[markdown]
 :::
 
 :::tab{label="Stats"}
@@ -248,6 +246,18 @@ export default function Documentation({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sMethod, sModule, sService, Plugin]);
 
+  // RFC-029 refresh scope `docs` — the agent edited the file on disk; re-read it in place, no
+  // page reload (the sv:refresh event is fanned out by the chat command executor).
+  useEffect(() => {
+    const on = (e) => {
+      const s = ((e && e.detail) || {}).scope || "all";
+      if (s === "all" || s === "docs") fetchDocument(Plugin);
+    };
+    window.addEventListener("sv:refresh", on);
+    return () => window.removeEventListener("sv:refresh", on);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [Plugin, sMethod, sModule, sService]);
+
   useEffect(() => {
     // if (Plugin) Plugin.on(`reconnect`, fetchDocument.bind({}, Plugin));
   }, [Plugin]);
@@ -260,7 +270,7 @@ export default function Documentation({
             space for the document / stories / logs below). */}
         <div className="doc-tabs">
           {/* RFC-026 — the FULL tab set, always. An open file puts Code in the Documentation slot
-              (the file IS the document you're reading); Logs/Report/Stories stay reachable, scoped
+              (the file IS the document you're reading); Logs/Stage stay reachable, scoped
               to the PROJECT — a file open means you're on the project namespace, not off it. */}
           <button
             className={`doc-tab ${tab === "docs" ? "doc-tab--active" : ""}`}

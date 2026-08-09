@@ -52,8 +52,8 @@ const ReportsTab = ({ projectCode, serviceId, moduleName, methodName, openName, 
     [host]
   );
 
-  // `.systemview` is deliberately excluded from the plugin's file walk, so reports can't be found by
-  // listing — they're tracked in one small index file instead.
+  // Reports are tracked in one small index file — the list here is the index, not a directory
+  // walk (`.systemview` shows in the file tree now, but the index is what names a report).
   useEffect(() => {
     let dead = false;
     (async () => {
@@ -113,14 +113,56 @@ const ReportsTab = ({ projectCode, serviceId, moduleName, methodName, openName, 
     [Plugin]
   );
 
-  // The open report rides the URL, so a refresh keeps you where you were.
+  // The open report rides the URL, so a refresh keeps you where you were. RFC-029: `?rdoc=` may
+  // carry the entry NAME (a click here) or the file PATH (a `:report[…]` chip, a nav command) —
+  // resolve either, across EVERY namespace of the project, because a report link must open the
+  // report no matter where you're standing ("you gotta select the report" was the bug).
   useEffect(() => {
     if (!openName) return setDoc(null);
-    if (doc && doc.name === openName) return;
-    const entry = mine.find((r) => r.name === openName);
+    if (doc && (doc.name === openName || doc.path === openName)) return;
+    let entry = mine.find((r) => r.name === openName || r.path === openName);
+    if (!entry && index) {
+      for (const list of Object.values(index)) {
+        const hit = (list || []).find((r) => r.name === openName || r.path === openName);
+        if (hit) {
+          entry = hit;
+          break;
+        }
+      }
+    }
+    // Not indexed but it's a markdown path — a report is just a file; open it anyway.
+    if (!entry && /\.md$/i.test(openName))
+      entry = { name: (openName.split("/").pop() || openName).replace(/\.md$/i, ""), path: openName };
     if (entry) read(entry);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openName, index, nsKey, Plugin]);
+
+  // RFC-029 refresh scope `reports` — re-read the index AND the open document in place.
+  const [refreshTick, setRefreshTick] = useState(0);
+  useEffect(() => {
+    const on = (e) => {
+      const s = ((e && e.detail) || {}).scope || "all";
+      if (s === "all" || s === "reports") setRefreshTick((n) => n + 1);
+    };
+    window.addEventListener("sv:refresh", on);
+    return () => window.removeEventListener("sv:refresh", on);
+  }, []);
+  useEffect(() => {
+    if (!refreshTick || !Plugin) return;
+    (async () => {
+      try {
+        const res = await Plugin.readFile({ path: INDEX });
+        setIndex(JSON.parse(res.content || "{}"));
+      } catch {}
+      if (doc) {
+        try {
+          const data = await Plugin.readFile({ path: doc.path });
+          setDoc((cur) => (cur ? { ...cur, content: data.content || "" } : cur));
+        } catch {}
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshTick]);
 
   const open = (entry) => {
     setPicking(false);

@@ -485,17 +485,14 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
   const [filter, setFilter] = useState("");
   const [openDirs, setOpenDirs] = useState(new Set());
   const scrolledTo = useRef(null);
-  // Filter toggles — Δ (changed vs HEAD), .md (docs), tracked (git-tracked only). They COMPOSE with
-  // the text query, persist like the rest of the nav state, and are shared across codebases.
-  const [gitAware, setGitAware] = useState(false);
+  // Filter toggles — Δ (changed vs HEAD), .md (docs). They COMPOSE with the text query, persist
+  // like the rest of the nav state, and are shared across codebases. (A tracked-only pill existed
+  // briefly — it silently hid every NEW file behind a persisted toggle and is gone for good.)
   const [changedOnly, setChangedOnly] = useState(
     () => localStorage.getItem("sv.cbNav.changedOnly") === "true",
   );
   const [docsOnly, setDocsOnly] = useState(
     () => localStorage.getItem("sv.cbNav.docsOnly") === "true",
-  );
-  const [trackedOnly, setTrackedOnly] = useState(
-    () => localStorage.getItem("sv.cbNav.trackedOnly") === "true",
   );
   const flipToggle = (key, value, set) => () => {
     set(!value);
@@ -536,12 +533,19 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
       setDocsOnly(false);
       localStorage.setItem("sv.cbNav.docsOnly", "false");
     }
-    if (trackedOnly) {
-      setTrackedOnly(false);
-      localStorage.setItem("sv.cbNav.trackedOnly", "false");
-    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [revealedPath]);
+
+  // RFC-029 refresh scope `nav` — re-walk the tree + changed set in place when the agent says so.
+  const [refreshTick, setRefreshTick] = useState(0);
+  useEffect(() => {
+    const on = (e) => {
+      const s = ((e && e.detail) || {}).scope || "all";
+      if (s === "all" || s === "nav") setRefreshTick((n) => n + 1);
+    };
+    window.addEventListener("sv:refresh", on);
+    return () => window.removeEventListener("sv:refresh", on);
+  }, []);
 
   // Load the file list as soon as the host is live (the card is always open now) — the count and
   // the head doc indicator need it even while the code fold is closed.
@@ -559,7 +563,6 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
         if (!live) return;
         setFiles(res.files || []);
         setTruncated(!!res.truncated);
-        setGitAware(!!res.gitAware); // older plugins don't stamp tracked-ness — hide that toggle
         setError("");
         try {
           const ch = svc.Plugin.changedFiles ? await svc.Plugin.changedFiles() : null;
@@ -573,9 +576,10 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
       live = false;
     };
     // fileHost identity is a dep: on a refresh the card mounts before the services have
-    // connected — the list must load when the host ARRIVES.
+    // connected — the list must load when the host ARRIVES. refreshTick re-runs it on a
+    // `sv:refresh` nav-scope command.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fileHost && fileHost.serviceId]);
+  }, [fileHost && fileHost.serviceId, refreshTick]);
 
   // Auto-expand the folder path DOWN TO the open file (and scroll its row into view once) — the tree
   // shows the selection whenever you arrive with a file already open.
@@ -687,7 +691,7 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
     (query.startsWith("*.")
       ? p.toLowerCase().endsWith(query.slice(1))
       : p.toLowerCase().includes(query));
-  const filterActive = !!query || changedOnly || docsOnly || trackedOnly;
+  const filterActive = !!query || changedOnly || docsOnly;
   const filtered =
     files && filterActive
       ? files
@@ -695,8 +699,7 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
             (f) =>
               matchText(f.path) &&
               (!changedOnly || changed.has(f.path)) &&
-              (!docsOnly || /\.mdx?$/i.test(f.path)) &&
-              (!trackedOnly || f.tracked !== false),
+              (!docsOnly || /\.mdx?$/i.test(f.path)),
           )
           .slice(0, 200)
       : null;
@@ -863,21 +866,12 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
                 >
                   .md
                 </button>
-                {gitAware && (
-                  <button
-                    type="button"
-                    className={`${CLASSNAME}__filter-pill ${trackedOnly ? `${CLASSNAME}__filter-pill--on` : ""}`}
-                    title="Only git-tracked files"
-                    onClick={flipToggle(
-                      "sv.cbNav.trackedOnly",
-                      trackedOnly,
-                      setTrackedOnly,
-                    )}
-                  >
-                    tracked
-                  </button>
-                )}
               </div>
+              {truncated && (
+                <div className={`${CLASSNAME}__truncated`}>
+                  ⚠ big repo — the file list is capped; the alphabetical tail is cut off
+                </div>
+              )}
               <div className={`${CLASSNAME}__tree`}>
                 {filtered ? (
                   filtered.map((f) =>

@@ -1,3 +1,97 @@
+// ── inline chips (:ns/:file/:report/:help) — TOP LEVEL on purpose: a chip is a chip
+// ANYWHERE it renders, including OUTSIDE .markdown (the agent chat linkifies messages
+// with the same chips). Colors are hard-coded hex, no .markdown vars needed.
+// ── inline chips: :ns[…] and :file[…] ──
+.md-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 1px 7px 1px 4px;
+  margin: 0 1px;
+  border: 1px solid #d7dbe6;
+  border-radius: 5px;
+  background: #f4f6fb;
+  font-family: Monaco, Consolas, monospace;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: #3f51b5;
+  text-decoration: none;
+  white-space: nowrap;
+  vertical-align: baseline;
+  cursor: pointer;
+
+  &:hover {
+    background: #e9edfa;
+    border-color: #b9c2e8;
+    text-decoration: none;
+  }
+
+  &__kind {
+    font-size: 9px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: #fff;
+    background: #7b86c9;
+    border-radius: 3px;
+    padding: 1px 4px;
+    font-family: inherit;
+  }
+  &__range {
+    color: #8b93a7;
+  }
+
+  &--file {
+    color: #2e6f9e;
+    .md-chip__kind {
+      background: #5a94bd;
+    }
+    &:hover {
+      background: #e6f0f7;
+      border-color: #a9c9de;
+    }
+  }
+
+  &--report {
+    color: #6d4f86;
+    .md-chip__kind {
+      background: #9a7cb8;
+    }
+    &:hover {
+      background: #f2ecf7;
+      border-color: #cdb8de;
+    }
+  }
+
+  // A reference that doesn't resolve says so instead of lying (RFC-025 §4.1).
+  &--dead {
+    color: #a2503f;
+    background: #fbf0ee;
+    border-color: #e6c4bd;
+    border-style: dashed;
+    cursor: default;
+    .md-chip__kind {
+      background: #c07a6b;
+    }
+    &:hover {
+      background: #fbf0ee;
+      border-color: #e6c4bd;
+    }
+  }
+
+  &--unknown {
+    color: #7c6f52;
+    background: #faf6ec;
+    border-color: #e3d8bd;
+    border-style: dashed;
+    cursor: help;
+    .md-chip__kind {
+      background: #bda861;
+    }
+  }
+}
+
+
 .markdown {
   // DELIBERATELY NO theme tokens in here: a document is explicitly light (this block) or explicitly
   // dark (`--dark` below), driven by the `dark` prop. Tokens would let the APP theme bleed in and
@@ -506,84 +600,7 @@
     --sv-text-faint: #6f7789;
   }
 
-  // ── inline chips: :ns[…] and :file[…] ──
-  .md-chip {
-    display: inline-flex;
-    align-items: baseline;
-    gap: 5px;
-    padding: 1px 7px 1px 4px;
-    margin: 0 1px;
-    border: 1px solid #d7dbe6;
-    border-radius: 5px;
-    background: #f4f6fb;
-    font-family: Monaco, Consolas, monospace;
-    font-size: 12.5px;
-    line-height: 1.5;
-    color: #3f51b5;
-    text-decoration: none;
-    white-space: nowrap;
-    vertical-align: baseline;
-    cursor: pointer;
-
-    &:hover {
-      background: #e9edfa;
-      border-color: #b9c2e8;
-      text-decoration: none;
-    }
-
-    &__kind {
-      font-size: 9px;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      font-weight: 700;
-      color: #fff;
-      background: #7b86c9;
-      border-radius: 3px;
-      padding: 1px 4px;
-      font-family: inherit;
-    }
-    &__range {
-      color: #8b93a7;
-    }
-
-    &--file {
-      color: #2e6f9e;
-      .md-chip__kind {
-        background: #5a94bd;
-      }
-      &:hover {
-        background: #e6f0f7;
-        border-color: #a9c9de;
-      }
-    }
-
-    // A reference that doesn't resolve says so instead of lying (RFC-025 §4.1).
-    &--dead {
-      color: #a2503f;
-      background: #fbf0ee;
-      border-color: #e6c4bd;
-      border-style: dashed;
-      cursor: default;
-      .md-chip__kind {
-        background: #c07a6b;
-      }
-      &:hover {
-        background: #fbf0ee;
-        border-color: #e6c4bd;
-      }
-    }
-
-    &--unknown {
-      color: #7c6f52;
-      background: #faf6ec;
-      border-color: #e3d8bd;
-      border-style: dashed;
-      cursor: help;
-      .md-chip__kind {
-        background: #bda861;
-      }
-    }
-  }
+  // (the .md-chip block moved to TOP LEVEL — chips render outside .markdown too, e.g. chat)
 
   // ── :::callout{type=…} ──
   .md-callout {
@@ -707,6 +724,17 @@
       color: #8b93a7;
       font-family: Monaco, Consolas, monospace;
       font-size: 11px;
+    }
+    // RFC-029 already-ran — honest label: these results were inserted from a recorded run.
+    &__ran {
+      font-size: 9px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: #fff;
+      background: #9a7cb8;
+      border-radius: 3px;
+      padding: 1px 5px;
     }
     &--dead {
       color: #a2503f;

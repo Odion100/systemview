@@ -13,7 +13,6 @@ when you need it. Nothing is summarised away — the detail lives beside it in t
 | [chat.md](chat.md) | **being present in the UI** — the chat bubble: `join` (live, solid bubble) or hook-drained `inbox` (ambient); messages arrive with the human's vantage point |
 | [markdown.md](markdown.md) | the FULL interactive-markdown vocabulary — every block, every attribute, what writes back into the document |
 | [tests.md](tests.md) | building, saving and running tests; sections, references, evaluations in depth |
-| [stories.md](stories.md) | the story surface and the whole `systemview story …` CLI grammar |
 | [namespaces.md](namespaces.md) | decomposing an unfamiliar project into service / module / method |
 
 `agents/` is the top-level home for these; they used to live under `docs/agents/`.
@@ -95,19 +94,19 @@ depth: **[tests.md](tests.md)**.
 
 ---
 
-## 3 · Documents, reports and stories — where writing goes
+## 3 · Documents and reports — where writing goes
 
-Three surfaces, three different jobs. Pick deliberately:
+Two surfaces, two different jobs. Pick deliberately:
 
 | Surface | Lives in | Use it for |
 | --- | --- | --- |
 | **Documentation** tab | the repo (`specs/docs/`, `<projectCode>.md` at the root) | documenting the SYSTEM. Committed, one per namespace. |
-| **Report** tab | `.systemview/` (git-ignored) | write-ups, plans, reviews, findings. Several per namespace, temporary. |
-| **Stories** tab | `.systemview/stories/` | an ARRANGEMENT of panes — notes beside files beside diffs beside tests. |
+| **Stage (reports)** tab | `.systemview/` | write-ups, plans, reviews, findings. Several per namespace. |
 
-If you are reporting work, a **report** is usually right: it is a full document with every
-interactive block available, it is scoped to a namespace, and it does not pollute the project's docs.
-The story surface and its complete CLI grammar: **[stories.md](stories.md)**.
+If you are reporting work, a **report** is right: it is a full document with every interactive
+block available (embedded files, diffs, runnable tests — see [markdown.md](markdown.md)), it is
+scoped to a namespace, and it does not pollute the project's docs. **Stories are retired** — if
+you find `systemview story …` anywhere, do not use it; write a report.
 
 ---
 
@@ -116,7 +115,7 @@ The story surface and its complete CLI grammar: **[stories.md](stories.md)**.
 **This is the important part**, and the summary below is deliberately partial — the complete
 reference (every attribute, the write-back rules, thread storage, the right-click menu, nesting) is
 **[markdown.md](markdown.md)**. Every markdown surface in SystemView renders through one renderer:
-the Documentation tab, reports, story markdown panes, `.md` file panes, notes on tests, help topics.
+the Documentation tab, reports, `.md` file panes, notes on tests, help topics.
 A block written in any of them works in all of them.
 
 The syntax is **directives**, not HTML (raw HTML is disabled):
@@ -242,8 +241,19 @@ systemview test <project> [filter] [--json] [--verbose]
 systemview probe <Service.Module.method> '<json args>'
 systemview connect [name url]    # register a service
 systemview disconnect <project> [service]   # remove a connection (hosted: keeps the folder)
-systemview story <…>             # drive a story
 systemview shutdown
+
+# The chat — being present in the UI (chat.md has the full playbook + the join loop)
+systemview join <project> --once # hold the line; each UI message streams as JSON (the hold IS presence)
+systemview say <project> "…"     # reply into the chat        systemview status <project> "…"  # the cooking line
+systemview inbox <project>       # hook-driven file mode: drain pending messages + ack
+
+# Agent control (RFC-029) — drive the open window; every command = a "→ …" receipt in the chat
+systemview nav <project> <ns> | center --report <path> | --file <p#La-b> | --tab <t> | --topic <h>
+systemview highlight <project> <ns> | --file <p>   # point the tree; nothing else moves
+systemview refresh <project> docs|reports|nav|all  # panes re-read in place, never a page reload
+systemview act <project> test <ns|title|all>       # run a saved test where the human is looking
+systemview act <project> run "<block title>"       # press a :::run block's play in the open doc
 ```
 
 Server-side logging: `systemview.log(msg)` inside a service, then read `systemview.logs` — or the

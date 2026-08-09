@@ -119,6 +119,9 @@
     position: absolute;
     top: 8px;
     right: calc(100% + 8px);
+    // Abs-positioned off the 46px bubble, the box would shrink-to-fit ITS width and wrap every
+    // word — max-content sizing hugs short text and only wraps once the cap is hit.
+    width: max-content;
     max-width: 250px;
     cursor: pointer;
     background: color-mix(in srgb, var(--sv-surface) 78%, transparent);
@@ -134,12 +137,16 @@
     }
     .agent-chat__status {
       padding: 0;
-      white-space: nowrap;
+      white-space: normal; // long statuses wrap inside the box instead of sticking out of it
+      .agent-chat__dots {
+        align-self: flex-end;
+        padding-bottom: 3px; // dots ride the last line when the status wraps
+      }
     }
   }
   &__peek-msg {
     display: -webkit-box;
-    -webkit-line-clamp: 2;
+    -webkit-line-clamp: 5;
     -webkit-box-orient: vertical;
     overflow: hidden;
     background: #4caf50;
@@ -152,7 +159,73 @@
     margin: -4px -8px; // the green bubble IS the peek body for messages
   }
 
+  // Right-click menu on the bot — one quiet item; "turn off" parks the bot in the header hub.
+  &__ctx-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9;
+  }
+  &__ctx {
+    position: absolute;
+    bottom: calc(100% + 6px);
+    right: 0;
+    z-index: 10;
+    background: var(--sv-surface);
+    border: 1px solid var(--sv-border);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    overflow: hidden;
+    &--below {
+      bottom: auto;
+      top: calc(100% + 6px);
+    }
+  }
+  &__ctx-item {
+    display: block;
+    width: 100%;
+    border: none;
+    background: none;
+    text-align: left;
+    padding: 7px 12px;
+    font-size: 12px;
+    color: var(--sv-text);
+    cursor: pointer;
+    white-space: nowrap;
+    &:hover {
+      background: color-mix(in srgb, #9a7cb8 14%, transparent);
+    }
+  }
+
+  // The resize hotzone — the panel's FREE corner (diagonally opposite the bubble anchor); no
+  // visible chrome, the diagonal cursor IS the handle. Which corner is free flips with the
+  // anchor: default = top-left; --left → top-right; --top → bottom-left; both → bottom-right.
+  &__resize {
+    position: absolute;
+    z-index: 3;
+    width: 16px;
+    height: 16px;
+    top: 0;
+    left: 0;
+    cursor: nwse-resize;
+  }
+  &--left &__resize {
+    left: auto;
+    right: 0;
+    cursor: nesw-resize;
+  }
+  &--top &__resize {
+    top: auto;
+    bottom: 0;
+    cursor: nesw-resize;
+  }
+  &--top#{&}--left &__resize {
+    left: auto;
+    right: 0;
+    cursor: nwse-resize;
+  }
+
   &__panel {
+    position: relative;
     width: 340px;
     max-height: 480px;
     display: flex;
@@ -220,6 +293,23 @@
     flex-direction: column;
     gap: 6px;
   }
+  // RFC-029 — a COMMAND in the thread: not a bubble, a quiet mono receipt line ("→ opened …").
+  &__cmd {
+    align-self: center;
+    max-width: 95%;
+    font-family: "SF Mono", Menlo, "Courier New", monospace;
+    font-size: 11px;
+    color: var(--sv-text-muted, #8b93a7);
+    padding: 1px 6px;
+    border-left: 2px solid #9a7cb8;
+    background: color-mix(in srgb, #9a7cb8 8%, transparent);
+    border-radius: 3px;
+    word-break: break-word;
+  }
+  &__cmd-arrow {
+    color: #9a7cb8;
+    font-weight: 700;
+  }
   &__empty {
     color: var(--sv-text-faint);
     font-size: 11.5px;
@@ -233,11 +323,20 @@
     line-height: 1.4;
     white-space: pre-wrap;
     word-break: break-word;
+    // Chips ride inside narrow bubbles — let a long title wrap instead of overflowing.
+    .md-chip {
+      white-space: normal;
+      max-width: 100%;
+    }
     &--you {
       align-self: flex-end;
       background: var(--sv-blue);
       color: #fff;
       border-bottom-right-radius: 3px;
+      a {
+        color: #fff; // markdown links inside the blue bubble — default link blue vanishes here
+        text-decoration: underline;
+      }
     }
     &--agent {
       align-self: flex-start;
@@ -338,5 +437,103 @@
       opacity: 0.4;
       cursor: default;
     }
+  }
+}
+
+// THE AGENT HUB — in the page header beside the version. Every bot listed; parked ones wait
+// here; a row toggles floating ⇄ parked (RFC-029 refinement, his design).
+.bot-hub {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+
+  &__btn {
+    position: relative;
+    border: 1px solid var(--sv-border);
+    background: color-mix(in srgb, var(--sv-surface) 40%, transparent);
+    border-radius: 14px;
+    font-size: 13px;
+    line-height: 1;
+    padding: 3px 8px;
+    cursor: pointer;
+    &:hover {
+      border-color: #9a7cb8;
+    }
+  }
+  &__count {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    min-width: 15px;
+    height: 15px;
+    border-radius: 8px;
+    background: #9a7cb8;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 3px;
+  }
+  &__overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 39;
+  }
+  &__menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0; // the hub lives near the window's right edge now — drop the menu leftward
+    z-index: 40;
+    min-width: 190px;
+    background: var(--sv-surface);
+    border: 1px solid var(--sv-border);
+    border-radius: 9px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
+    overflow: hidden;
+    padding: 4px;
+  }
+  &__row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    border: none;
+    background: none;
+    text-align: left;
+    padding: 6px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--sv-text);
+    &:hover {
+      background: color-mix(in srgb, #9a7cb8 12%, transparent);
+    }
+  }
+  &__state {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex: none;
+    &--on {
+      background: #4caf50;
+    }
+    &--off {
+      background: var(--sv-text-faint, #97a0b8);
+    }
+  }
+  &__pc {
+    font-family: "SF Mono", Menlo, monospace;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  &__verb {
+    font-size: 10px;
+    color: var(--sv-text-muted, #8b93a7);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
   }
 }

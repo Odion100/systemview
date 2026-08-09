@@ -63,10 +63,13 @@ const TestEmbed = ({ label, attrs = {} }) => {
             the two saying the same word was the same mistake the run block had. */}
         <span className="md-embed__kind">saved test</span>
         <span className="md-embed__title">{nsLabel}</span>
+        {/* RFC-029 already-ran: `{ran=<run-file>}` hydrates the test with a recorded run — shown
+            AS ran, honestly labelled as recorded; play re-runs fresh. */}
+        {attrs.ran && <span className="md-embed__ran">recorded run</span>}
         <span className="md-embed__scope">{projectCode}</span>
       </div>
       <Suspense fallback={<div className="report-chart-empty">loading test…</div>}>
-        <TestPane target={{ ...target, serviceId }} projectCode={projectCode} />
+        <TestPane target={{ ...target, serviceId }} projectCode={projectCode} ranFile={attrs.ran || null} />
       </Suspense>
     </div>
   );

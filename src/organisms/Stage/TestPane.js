@@ -9,11 +9,14 @@ import { resolveTestActions, getActionMap } from "../SavedTests/transformTests";
 // response → the assertions that pin it — with a Run button and inline pass/fail. It reuses the
 // existing SavedTests organism (which already does story-render + run + validation), scoped to the
 // one (or few) tests the pane's target names. The test IS the example: how the method is really used.
-const TestPane = ({ target = {}, projectCode }) => {
+const TestPane = ({ target = {}, projectCode, ranFile = null }) => {
   const { connectedServices } = useContext(ServiceContext);
   const { serviceId, moduleName, methodName, index, title, note } = target;
   const [tests, setTests] = useState([]);
   const [error, setError] = useState(null);
+  // RFC-029 already-ran: a run file (written by an agent from a CLI run) whose recorded results
+  // hydrate each matching test below — displayed as ran, without running.
+  const [runData, setRunData] = useState(null);
   const [results, setResults] = useState({});
   const [filter, setFilter] = useState(null); // null | "pass" | "fail" — click the summary to filter
   const storyRefs = useRef([]);
@@ -65,6 +68,44 @@ const TestPane = ({ target = {}, projectCode }) => {
 
   useEffect(() => { fetchTests(); }, [fetchTests]);
 
+  useEffect(() => {
+    if (!ranFile || !targetServices.length) return;
+    let live = true;
+    (async () => {
+      try {
+        const svc = loadServiceWithHeaders(
+          targetServices[0].system.connectionData,
+          targetServices[0].headers,
+          targetServices[0].credentials,
+        );
+        const res = await svc.Plugin.readFile({ path: ranFile });
+        if (live) setRunData(JSON.parse(res.content));
+      } catch {
+        if (live) setRunData(null); // a missing/bad run file just means: not pre-ran
+      }
+    })();
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ranFile, targetServices.length]);
+
+  // The recorded entry per test — matched by namespace (+ title when both sides have one).
+  // MEMOIZED as a list: a fresh object identity every render would re-trigger hydration and make
+  // a cleared test spring back to recorded.
+  const recordedList = React.useMemo(() => {
+    if (!runData) return [];
+    return tests.map((t) => {
+      const ns = t.namespace || {};
+      const hit = (runData.tests || []).find(
+        (r) =>
+          r.serviceId === ns.serviceId &&
+          r.moduleName === ns.moduleName &&
+          r.methodName === ns.methodName &&
+          (!t.title || !r.title || r.title === t.title),
+      );
+      return hit ? { ...hit, ranAt: runData.ranAt } : null;
+    });
+  }, [runData, tests]);
+
   // Each test reports its status up so the Run-all bar can show the aggregate — what passed, what failed.
   const onResult = useCallback((i, status) => setResults((r) => ({ ...r, [i]: status })), []);
 
@@ -96,6 +137,31 @@ const TestPane = ({ target = {}, projectCode }) => {
       .forEach((r) => (next ? r.expand && r.expand() : r.collapse && r.collapse()));
     setAllOpen(next);
   }, [allOpen]);
+
+  // RFC-029 `act` — a doc pane CLAIMS a matching test act synchronously (detail.claimed), so the
+  // run happens HERE, in the document the human is looking at; the scratchpad's saved area defers
+  // a beat and yields to any claim. "all" runs this pane's whole list in sequence.
+  useEffect(() => {
+    const onAct = (e) => {
+      const d = (e && e.detail) || {};
+      if (d.kind !== "test" || !d.target) return;
+      // "all" is NOT a pane's to claim — it means the saved-tests area runs the whole project's
+      // list; a doc pane only answers for tests it actually shows.
+      if (d.target === "all") return;
+      const i = tests.findIndex((t) => {
+        const ns = t.namespace || {};
+        const full = [ns.serviceId, ns.moduleName, ns.methodName].filter(Boolean).join(".");
+        return full === d.target || full.endsWith(`.${d.target}`) || t.title === d.target;
+      });
+      const ref = i > -1 && storyRefs.current[i];
+      if (!ref) return;
+      d.claimed = true;
+      if (ref.expand) ref.expand();
+      if (ref.run) ref.run();
+    };
+    window.addEventListener("sv:act", onAct);
+    return () => window.removeEventListener("sv:act", onAct);
+  }, [tests, runAllSeq]);
 
   const statuses = Object.values(results);
   const passed = statuses.filter((s) => s === "pass").length;
@@ -183,6 +249,7 @@ const TestPane = ({ target = {}, projectCode }) => {
             storyRef={(el) => { storyRefs.current[i] = el; }}
             onResult={(status) => onResult(i, status)}
             autoTrack={autoTrack}
+            recorded={recordedList[i] || null}
           />
         ))}
       </div>

@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useMemo, useState } from "react";
+import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
 import loadServiceWithHeaders from "../../../utils/loadService";
 import ServiceContext from "../../../ServiceContext";
 import { SavedTestItem } from "../../../organisms/SavedTests/SavedTests";
@@ -332,6 +332,24 @@ const RunBlock = ({ kind, label, attrs = {}, src }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inline, src, savedName, actions, scope, projectCode, services.map((s) => s.serviceId).join(",")]);
 
+  // RFC-029 `act` — the agent can press THIS block's play by its title (`systemview act <pc> run
+  // "<title>"`): same run, same visible stepping, pressed remotely.
+  const actRef = useRef(null);
+  useEffect(() => {
+    const myTitle = attrs.title || (inline ? "steps" : savedName);
+    const onAct = (e) => {
+      const d = (e && e.detail) || {};
+      if (d.kind !== "run" || !d.target) return;
+      if (String(d.target).toLowerCase() !== String(myTitle || "").toLowerCase()) return;
+      if (actRef.current) {
+        if (actRef.current.expand) actRef.current.expand();
+        if (actRef.current.run) actRef.current.run();
+      }
+    };
+    window.addEventListener("sv:act", onAct);
+    return () => window.removeEventListener("sv:act", onAct);
+  }, [attrs.title, inline, savedName]);
+
   if (!projectCode) return <div className="md-embed md-embed--dead">::run — no project in scope</div>;
 
   const title = attrs.title || (inline ? "steps" : savedName);
@@ -380,6 +398,7 @@ const RunBlock = ({ kind, label, attrs = {}, src }) => {
         <SavedTestItem
           test={test}
           index={0}
+          storyRef={(el) => (actRef.current = el)}
           // The card inside the block — the slot where a saved test says "test". It holds the
           // sections (`steps`, plus any shared action by name), so it's badged ACTIONS, in its own
           // colour, and carries NO namespace: a run is filed nowhere.

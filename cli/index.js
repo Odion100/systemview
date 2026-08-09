@@ -228,16 +228,24 @@ async function loadCaseSetting() {
     const deleteHosted = require("./deleteHosted");
     const exitCode = await deleteHosted(input[1], { uiUrl: UI_URL, Client, force: flags.force });
     flushAndExit(exitCode || 0);
-  } else if (["join", "say", "inbox"].includes(command) || (command === "status" && input[1])) {
-    // RFC-028 — the chat front door. join HANGS on purpose (the hold IS presence); the others are
-    // one-shots. All need the hub up.
+  } else if (["join", "say", "inbox", "nav", "refresh", "act", "highlight"].includes(command) || (command === "status" && input[1])) {
+    // RFC-028 — the chat front door; RFC-029 — agent control rides the same door (a command is a
+    // chat record the open UI executes). join HANGS on purpose (the hold IS presence); the others
+    // are one-shots. All need the hub up.
     await launchApp(DEFAULT_PORT);
     const chatCmd = require("./chat");
-    const opts = { uiUrl: UI_URL, Client, chat: flags.chat, agent: flags.as, once: flags.once };
+    const opts = {
+      uiUrl: UI_URL, Client, chat: flags.chat, agent: flags.as, once: flags.once,
+      report: flags.report, file: flags.file && flags.file[0], tab: flags.tab, topic: flags.topic,
+    };
     let exitCode = 0;
     if (command === "join") exitCode = await chatCmd.join(input[1], opts);
     else if (command === "say") exitCode = await chatCmd.say(input[1], input[2], opts);
     else if (command === "status") exitCode = await chatCmd.status(input[1], input[2], opts);
+    else if (command === "nav") exitCode = await chatCmd.nav(input[1], input[2], input[3], opts);
+    else if (command === "highlight") exitCode = await chatCmd.highlight(input[1], input[2], opts);
+    else if (command === "refresh") exitCode = await chatCmd.refresh(input[1], input[2], opts);
+    else if (command === "act") exitCode = await chatCmd.act(input[1], input[2], input[3], opts);
     else exitCode = await chatCmd.inbox(input[1], { ...opts, json: true });
     flushAndExit(exitCode || 0);
   } else if (command === "open") {
@@ -324,7 +332,15 @@ async function loadCaseSetting() {
       saveLimit: flags.saveLimit,
     });
     if (!flags.follow) flushAndExit(0);
-  } else if (["show", "assemble", "stage", "highlight", "view", "selection", "story", "stories"].includes(command) || STORY_OPS[command]) {
+  } else if (["story", "stories"].includes(command) || STORY_OPS[command]) {
+    // Stories are RETIRED — the Stage tab renders REPORTS (full markdown documents) now. A hard
+    // stop here, or agents keep writing story files nothing renders.
+    console.error(
+      "stories are retired — write a REPORT instead: a markdown document in .systemview/ indexed in\n" +
+      ".systemview/reports.index.json, rendered on the Stage tab. See agents/AGENTS.md §3 and agents/markdown.md.",
+    );
+    flushAndExit(1);
+  } else if (["show", "assemble", "stage", "highlight", "view", "selection"].includes(command)) {
     // RFC-018 AI Window — drive the open UI's stage. Needs the UI up (that's what renders the stage).
     await launchApp(DEFAULT_PORT);
     const opts = {
@@ -336,14 +352,11 @@ async function loadCaseSetting() {
       at: flags.at, from: flags.from, to: flags.to,
     };
     let exitCode = 0;
-    if (STORY_OPS[command]) exitCode = await stageCmd.storyOp(STORY_OPS[command], input[1], input[2], opts); // story-add/rm/move/edit/layout/rename/delete <target> <name>
-    else if (command === "show") exitCode = await stageCmd.show(input[1], opts);
+    if (command === "show") exitCode = await stageCmd.show(input[1], opts);
     else if (command === "assemble") exitCode = await stageCmd.assemble(input[1], opts);
     else if (command === "highlight") exitCode = await stageCmd.highlight(input[1], opts);
     else if (command === "view") exitCode = await stageCmd.view(input[1], input[2], input[3], opts); // view <sub> <target> <name>
     else if (command === "selection") exitCode = await stageCmd.selection(input[1], opts);
-    else if (command === "story") exitCode = await stageCmd.story(input[1], input[2], opts); // story <target> <name>
-    else if (command === "stories") exitCode = await stageCmd.stories(input[1], opts); // stories <target>
     else exitCode = await stageCmd.stage(input[1], input[2], opts); // stage <add|clear> <target>
     flushAndExit(exitCode || 0);
   } else {

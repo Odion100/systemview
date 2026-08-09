@@ -410,6 +410,16 @@
     }
   }
 
+  // Loud, not subtle: a capped file list means whole folders are missing from the tree.
+  &__truncated {
+    margin: 2px 8px 4px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    color: #e6a23c;
+    background: color-mix(in srgb, #e6a23c 12%, transparent);
+  }
+
   // One scrollbar for the whole nav (RFC-026) — the tree scrolls WITH the services above it, so no
   // inner max-height/overflow here.
   &__tree {

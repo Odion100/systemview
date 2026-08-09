@@ -2,6 +2,7 @@ import React from "react";
 import NavLinks from "../NavLinks/NavLinks";
 import LOGO from "../../assets/sysly.png";
 import { useAppDark } from "../../atoms/appTheme";
+import { BotHub } from "../AgentChat/AgentChat";
 import "./styles.scss";
 
 const { version: VERSION } = require("../../../package.json");
@@ -21,6 +22,9 @@ const PageHeader = ({ current, projectCode }) => {
       <img className="page-header__logo" src={LOGO} alt="logo" />
       {/* Right cluster — the theme pill sits immediately LEFT of the Specs/Stats control. */}
       <span className="page-header__right">
+        {/* The agent hub — every bot lives here; parked ones wait here. Sits right before the
+            theme pill (his spot). */}
+        <BotHub />
         <button
           className={`page-header__theme ${dark ? "page-header__theme--dark" : ""}`}
           title={dark ? "Switch to light" : "Switch to dark"}

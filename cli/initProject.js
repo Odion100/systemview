@@ -161,6 +161,49 @@ process, a database client), return an object, and assert on it. The saved examp
 ::test[Tests.example]
 `;
 
+// The scaffold's example REPORT — reports are the write-up surface (Stage tab), and the first
+// thing an agent fumbles is the directive syntax. This gives them a working document to copy:
+// every block in it RENDERS (a live embedded file, a runnable call), with the markdown source
+// shown above the live block, the same way the service doc teaches :::run.
+const reportTemplate = (projectCode, serviceId) => `# Example report — how reports work
+
+> A report is a full markdown document on the **Stage** tab: write-ups, plans, reviews, findings.
+> It lives in \`.systemview/\` and is listed in \`.systemview/reports.index.json\`. This one is the
+> scaffold's example — copy its shapes, then delete it.
+
+## Embed the code you're talking about
+
+\`::file[path#La-b]\` renders the real file, live — not a copy:
+
+::file[${projectCode}/methods/Tests.js]
+
+## Make your claims runnable
+
+This is the markdown that writes a live call — a step is a method call, the nested list under it
+is the assertions:
+
+\`\`\`markdown
+:::run{title="Prove it works"}
+- Tests.example({ "name": "reader" })
+  - results.ok = true
+:::
+\`\`\`
+
+…and here is that same block live — press play:
+
+:::run{title="Prove it works"}
+- Tests.example({ "name": "reader" })
+  - results.ok = true
+:::
+
+## Adding a report
+
+Write a markdown file at \`.systemview/report.${projectCode}.<Name>.md\`, then add
+\`{ "name", "path", "ts" }\` to the \`"${projectCode}"\` list in \`.systemview/reports.index.json\`
+(read-modify-write — never clobber other entries). The full block vocabulary is in the UI help
+(the ? next to any title) — saved tests (\`::test[Tests.example]\`), diffs, columns, threads.
+`;
+
 // `rl` is optional: the interactive REPL passes ITS OWN line reader (two readline interfaces on
 // one stdin fight over lines — rl.question consumes answers before the REPL's line handler runs,
 // which is exactly what we want). One-shot mode creates and closes its own.
@@ -201,6 +244,30 @@ module.exports = async function initProject({ uiUrl, Client, rl: sharedRl = null
     wrote.push(`${projectCode}/specs/docs/${serviceId}.md`);
   if (writeIfMissing(path.join(dir, "specs", "docs", "Tests.example.md"), methodDocTemplate(projectCode)))
     wrote.push(`${projectCode}/specs/docs/Tests.example.md`);
+
+  // The example report — written into .systemview/ and indexed, so the Stage tab starts with a
+  // working document agents can copy the shapes from. Read-modify-write on the index (the index
+  // rule the report itself teaches).
+  {
+    const svDirEarly = manifestDir();
+    fs.mkdirSync(svDirEarly, { recursive: true });
+    const reportPath = path.join(svDirEarly, `report.${projectCode}.Example-report-how-reports-work.md`);
+    if (writeIfMissing(reportPath, reportTemplate(projectCode, serviceId))) {
+      wrote.push(path.relative(process.cwd(), reportPath));
+      const indexPath = path.join(svDirEarly, "reports.index.json");
+      let index = {};
+      try {
+        index = JSON.parse(fs.readFileSync(indexPath, "utf8")) || {};
+      } catch {}
+      const list = Array.isArray(index[projectCode]) ? index[projectCode] : [];
+      const relReport = path.relative(process.cwd(), reportPath);
+      if (!list.some((r) => r && r.path === relReport)) {
+        list.push({ name: "Example report — how reports work", path: relReport, ts: Date.now() });
+        index[projectCode] = list;
+        fs.writeFileSync(indexPath, JSON.stringify(index, null, 1), "utf8");
+      }
+    }
+  }
 
   // REGISTRATION — the manifest entry is how the hub finds the folder (discovery is by
   // registration, never by scanning for a name). The hosted plugin fills in the live system data

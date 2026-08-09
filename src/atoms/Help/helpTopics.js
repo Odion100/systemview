@@ -163,47 +163,6 @@ screenshot — it's the test.
 :::`,
   },
 
-  stories: {
-    title: "Stories — the review & conversation surface",
-    body: `# Stories
-
-A story is a named, persisted arrangement of **panes** — markdown, files, diffs, tests, sources —
-that shows something: a change to review, a plan to approve, a report to read. Stories are the
-medium agents and you converse through.
-
-## Story types — the purpose, declared
-
-- **report** (default) — read it; each pane has a single ✓ **mark-as-read** (indigo when read).
-- **approval** — each pane gets **✓ / ✗** verdicts + an optional story-level APPROVE/REJECT; the
-  toolbar tallies. Use it when the story is a decision.
-
-## Replies
-
-Every pane has a reply thread (the 💬 corner button) — your notes ride the pane; agent answers
-appear with their own indigo look. Comments are independent of verdicts — reply whenever you want.
-
-## Layouts
-
-Grid (spans: full/½/⅓) or gallery (filmstrip). Panes edge-resize; double-click an edge to fill or
-match. Diff panes are LIVE — the right side is editable, Save writes the file.
-
-:::callout{type=info}
-A markdown pane renders through the same atom as this page, so **every block works inside a story** —
-a pane can carry a live chart, a runnable test, or a fold. See :help[markdown].
-:::
-
-:::details{summary="Driving stories from the CLI — click me"}
-\`\`\`bash
-systemview story <project> "<name>" --ns <namespace> \\
-  --text "notes" --file path#L40-70 --diff path --test Math.add
-systemview stories <project>
-\`\`\`
-
-Agent guide: :file[docs/agents/stories.md]. Stories persist in \`.systemview/stories/\` and travel
-with the repo.
-:::`,
-  },
-
   navigator: {
     title: "Navigator — services & codebases",
     body: `# Navigator
@@ -211,7 +170,7 @@ with the repo.
 The left panel has two lenses:
 
 - **SystemLynx** — your connected projects → services → modules → methods. Click to navigate; the
-  middle panel follows (docs / logs / stories), the Scratch Pad targets it. Click a selected item
+  middle panel follows (docs / logs / reports), the Scratch Pad targets it. Click a selected item
   again to **deselect** and come back to the hub.
 - **Codebases** — your files. Edit-first, with a rendered **Preview** for markdown, a git **Diff**
   toggle for anything that differs from HEAD, and ⌘S to save.

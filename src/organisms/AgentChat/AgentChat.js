@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useContext, useMemo } from "react";
-import { useLocation, useParams } from "react-router-dom";
+import { useHistory, useLocation, useParams } from "react-router-dom";
 import ServiceContext from "../../ServiceContext";
+import ReportLink from "../../atoms/Markdown/blocks/ReportLink";
 import "./styles.scss";
 
 // RFC-028 — agent presence. SEVERAL bots, not one: every connected project has its own bot,
@@ -13,6 +14,69 @@ const CLASSNAME = "agent-chat";
 const EDGE = 18; // docked margin
 const SNAP = 72; // release within this of an edge → dock to it
 const STACK = 78; // default vertical spacing per undragged bot
+
+// Chat messages are PLAIN TEXT — bubbles stay bubbles (full markdown in bubbles was tried and
+// looked wrong; his call). The ONE enrichment is links: a `:report[path]{title="…"}` chip,
+// `[text](url)` links, and bare URLs render clickable; everything else is verbatim pre-wrap text.
+const LINKISH =
+  /:report\[([^\]]+)\](?:\{([^}]*)\})?|\[([^\]]+)\]\((\/[^)\s]+|https?:\/\/[^)\s]+)\)|(https?:\/\/[^\s]+)/g;
+
+// Internal links (`/specs/…`) PUSH through the router — a chat link must never reload the page
+// unless it genuinely leaves the app (http…), and those open a new tab.
+function ChatLink({ href, children }) {
+  const history = useHistory();
+  const external = /^https?:\/\//i.test(href);
+  const onClick = (e) => {
+    e.stopPropagation();
+    if (external) return;
+    e.preventDefault();
+    history.push(href);
+  };
+  return (
+    <a
+      className="md-chip md-chip--link"
+      href={href}
+      target={external ? "_blank" : undefined}
+      rel="noreferrer"
+      onClick={onClick}
+    >
+      <span className="md-chip__kind">link</span>
+      {children}
+    </a>
+  );
+}
+function renderChatText(text) {
+  const out = [];
+  let last = 0;
+  let k = 0;
+  let m;
+  LINKISH.lastIndex = 0;
+  while ((m = LINKISH.exec(text))) {
+    if (m.index > last) out.push(text.slice(last, m.index));
+    if (m[1] !== undefined) {
+      const attrs = {};
+      const t = (m[2] || "").match(/title=(?:"([^"]*)"|'([^']*)'|([^\s}]+))/);
+      if (t) attrs.title = t[1] || t[2] || t[3];
+      out.push(<ReportLink key={k++} label={m[1]} attrs={attrs} />);
+    } else if (m[3] !== undefined) {
+      out.push(
+        <ChatLink key={k++} href={m[4]}>
+          {m[3]}
+        </ChatLink>,
+      );
+    } else {
+      const short = m[5].replace(/^https?:\/\//, "").replace(/\/$/, "");
+      out.push(
+        <ChatLink key={k++} href={m[5]}>
+          {short.length > 42 ? `${short.slice(0, 40)}…` : short}
+        </ChatLink>,
+      );
+    }
+    last = LINKISH.lastIndex;
+  }
+  if (last < text.length) out.push(text.slice(last));
+  return out;
+}
 
 // The cooking line. A SPECIFIC status from the agent shows verbatim — truth wins over theater.
 // Only the generic "received" state earns the show: after a beat it cycles through cooking words,
@@ -46,21 +110,94 @@ function StatusLine({ status }) {
   );
 }
 
+// A bot is FLOATING or PARKED in the hub (his call: "go to different windows knowing this agent
+// is not in this window"). Parked = `sv.chatHidden.<pc>` — the bubble unmounts entirely; the hub
+// (in the page header, next to the version) lists every bot and pulls parked ones back out.
+const isParked = (pc) => {
+  try { return localStorage.getItem(`sv.chatHidden.${pc}`) === "true"; } catch { return false; }
+};
+const setParked = (pc, parked) => {
+  try { localStorage.setItem(`sv.chatHidden.${pc}`, String(parked)); } catch {}
+  window.dispatchEvent(new CustomEvent("sv:botHub"));
+};
+
 export default function AgentChats() {
   const { connectedServices } = useContext(ServiceContext);
+  const [, force] = useState(0);
+  useEffect(() => {
+    const on = () => force((n) => n + 1);
+    window.addEventListener("sv:botHub", on);
+    return () => window.removeEventListener("sv:botHub", on);
+  }, []);
   const projects = useMemo(
     () => [...new Set((connectedServices || []).map((s) => s.projectCode))],
     [connectedServices],
   );
-  return projects.map((pc, i) => <BotBubble key={pc} projectCode={pc} index={i} />);
+  return projects
+    .filter((pc) => !isParked(pc))
+    .map((pc, i) => <BotBubble key={pc} projectCode={pc} index={i} />);
+}
+
+// THE HUB — lives in the page header beside the version. Drops down to every agent bot: turn a
+// floating one off (it leaves the window), pull a parked one back out.
+export function BotHub() {
+  const { connectedServices } = useContext(ServiceContext);
+  const [open, setOpen] = useState(false);
+  const [, force] = useState(0);
+  useEffect(() => {
+    const on = () => force((n) => n + 1);
+    window.addEventListener("sv:botHub", on);
+    return () => window.removeEventListener("sv:botHub", on);
+  }, []);
+  const projects = [...new Set((connectedServices || []).map((s) => s.projectCode))];
+  if (!projects.length) return null;
+  const parkedCount = projects.filter(isParked).length;
+  return (
+    <span className="bot-hub">
+      <button
+        type="button"
+        className="bot-hub__btn"
+        title="The agent hub — every bot lives here; parked ones wait here"
+        onClick={() => setOpen(!open)}
+      >
+        🤖
+        {parkedCount > 0 && <span className="bot-hub__count">{parkedCount}</span>}
+      </button>
+      {open && (
+        <>
+          <div className="bot-hub__overlay" onClick={() => setOpen(false)} />
+          <div className="bot-hub__menu">
+            {projects.map((pc) => {
+              const parked = isParked(pc);
+              return (
+                <button
+                  type="button"
+                  key={pc}
+                  className="bot-hub__row"
+                  title={parked ? "Pull this bot back out" : "Turn this bot off — it parks here"}
+                  onClick={() => setParked(pc, !parked)}
+                >
+                  <span className={`bot-hub__state ${parked ? "bot-hub__state--off" : "bot-hub__state--on"}`} />
+                  <span className="bot-hub__pc">{pc}</span>
+                  <span className="bot-hub__verb">{parked ? "pull out" : "turn off"}</span>
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </span>
+  );
 }
 
 function BotBubble({ projectCode, index }) {
   const location = useLocation();
+  const history = useHistory();
   const { serviceId, moduleName, methodName } = useParams();
   const { SystemViewService } = useContext(ServiceContext);
   const { SystemView } = SystemViewService;
   const [open, setOpen] = useState(false);
+  const [ctxMenu, setCtxMenu] = useState(false);
   const [messages, setMessages] = useState([]);
   const [presence, setPresence] = useState({});
   const [input, setInput] = useState("");
@@ -84,6 +221,118 @@ function BotBubble({ projectCode, index }) {
   const dragRef = useRef(null);
   const chat = "main";
   const p = (presence && presence[chat]) || { live: false, listener: false, status: null };
+
+  // RFC-029 — THE EXECUTOR. Commands execute ONLY here, off the live push; loading history
+  // renders old command lines but never re-executes them (the replay rule — a refresh must not
+  // replay every place the agent ever sent you). Reads window.location, not the hook — a command
+  // can arrive long after this closure was made.
+  const execCommand = (record) => {
+    const { cmd, args = {} } = record || {};
+    try {
+      if (cmd === "nav") {
+        if (args.file) {
+          // Open the file by URL DIRECTLY — the same params SystemView.openFile writes (the
+          // event-based open silently didn't land; the URL door is the proven one). Mirrors
+          // openFile: remember the lens/tab we came from, flip the center to Code.
+          const p = new URLSearchParams(window.location.search);
+          if (!p.get("file")) {
+            p.set("fnav", "files");
+            p.set("ftab", p.get("tab") || "docs");
+          }
+          p.set("tab", "docs");
+          p.delete("help");
+          p.set("file", args.file);
+          p.set("fproj", projectCode);
+          if (args.lines && args.lines[0]) p.set("flines", args.lines.join("-"));
+          else p.delete("flines");
+          const pathname = window.location.pathname.startsWith(`/specs/${projectCode}`)
+            ? window.location.pathname
+            : `/specs/${projectCode}`;
+          history.push({ pathname, search: `?${p.toString()}` });
+          // …and point the TREE at it too — expands to and highlights the file (the part he
+          // called out as "very cool, keep").
+          window.dispatchEvent(
+            new CustomEvent("sv:revealInNav", {
+              detail: { kind: "file", path: args.file, projectCode },
+            }),
+          );
+          return;
+        }
+        const params = new URLSearchParams(window.location.search);
+        let pathname = window.location.pathname;
+        // A command is scoped to THIS bot's project. If the human is standing on another
+        // project's page, jump there first — found live: `nav --report` set rdoc while he stood
+        // on BUApp, so a systemview-test report "opened" into a project that doesn't have it,
+        // and nothing visibly happened.
+        const inProject = pathname.startsWith(`/specs/${projectCode}`);
+        if (args.namespace)
+          pathname = `/specs/${projectCode}/${String(args.namespace).replace(/[./]+/g, "/")}`;
+        else if (!inProject) pathname = `/specs/${projectCode}`;
+        if (args.report) {
+          params.set("tab", "reports");
+          params.set("rdoc", args.report);
+        }
+        if (args.tab) params.set("tab", args.tab);
+        if (args.help) params.set("help", args.help);
+        history.push({ pathname, search: `?${params.toString()}` });
+      } else if (cmd === "highlight") {
+        // POINT, don't navigate — his rule: highlight and selection are two different commands.
+        // The tree expands to the target, marks it, scrolls it into view; the center is untouched.
+        if (args.file) {
+          window.dispatchEvent(
+            new CustomEvent("sv:revealInNav", {
+              detail: { kind: "file", path: args.file, projectCode },
+            }),
+          );
+        } else if (args.namespace) {
+          const segs = String(args.namespace).split(/[./]+/).filter(Boolean);
+          window.dispatchEvent(
+            new CustomEvent("sv:revealInNav", {
+              detail: {
+                kind: "namespace",
+                projectCode,
+                serviceId: segs[0],
+                moduleName: segs[1],
+                methodName: segs[2],
+              },
+            }),
+          );
+        }
+      } else if (cmd === "refresh") {
+        window.dispatchEvent(
+          new CustomEvent("sv:refresh", { detail: { scope: args.scope || "all" } }),
+        );
+      } else if (cmd === "act") {
+        if (args.run) {
+          // Press a :::run block's play in whatever document is open — no navigation; the block
+          // matches by title and runs in place.
+          window.dispatchEvent(
+            new CustomEvent("sv:act", { detail: { kind: "run", target: args.run, projectCode } }),
+          );
+        } else if (args.test) {
+          // The pending act survives a remount (the panel may need to navigate/refetch first);
+          // TestPanel consumes it when it can see the matching saved test. 60s shelf life.
+          try {
+            sessionStorage.setItem(
+              "sv.pendingAct",
+              JSON.stringify({ target: args.test, projectCode, ts: Date.now() }),
+            );
+          } catch {}
+          // The saved test lives in THIS bot's project — if the human is standing elsewhere,
+          // walk them over (project level aggregates every saved test); the remounted panel
+          // then consumes the pending act from its savedTests load.
+          if (!window.location.pathname.startsWith(`/specs/${projectCode}`))
+            history.push({ pathname: `/specs/${projectCode}`, search: window.location.search });
+          window.dispatchEvent(new CustomEvent("sv:openScratchpad"));
+          window.dispatchEvent(
+            new CustomEvent("sv:act", {
+              detail: { kind: "test", target: args.test, projectCode },
+            }),
+          );
+        }
+      }
+    } catch {}
+  };
 
   const scrollToEnd = () => {
     const el = listRef.current;
@@ -127,7 +376,9 @@ function BotBubble({ projectCode, index }) {
     window.addEventListener("focus", refetchPresence);
     const unsubMsg = SystemView.on(`chat-updated:${projectCode}`, ({ record }) => {
       setMessages((prev) => (prev.some((m) => m.id === record.id) ? prev : [...prev, record]));
-      if (record.from === "agent" && !openRef.current) setUnread((n) => n + 1);
+      // A command MOVES the screen — that's its own notification; no unread count for it.
+      if (record.kind === "command") execCommand(record);
+      else if (record.from === "agent" && !openRef.current) setUnread((n) => n + 1);
       if (openRef.current) {
         try { localStorage.setItem(`sv.chatSeen.${projectCode}`, String(record.ts)); } catch {}
       }
@@ -202,10 +453,30 @@ function BotBubble({ projectCode, index }) {
     if (!text) return;
     setInput("");
     // The vantage point, stamped NOW — the reader arrives later, after you've moved on.
+    // RFC-029: the THREE-SECTION breakdown (nav / center / scratchpad), mostly a URL decode —
+    // "on stage" says WHICH report, "in the scratchpad" says which namespace it's pointed at.
     const params = new URLSearchParams(location.search);
+    const nsSelected = [serviceId, moduleName, methodName].filter(Boolean).join("/") || null;
     const view = {
       path: location.pathname + location.search,
+      page: "specs",
       projectCode,
+      nav: {
+        lens: localStorage.getItem("sv.navTab") || "systemlynx",
+        selected: nsSelected,
+        open: localStorage.getItem("sv.navOpen") !== "false",
+      },
+      center: {
+        tab: params.get("tab") || "docs",
+        rdoc: params.get("rdoc") || null,
+        openFile: params.get("file") || null,
+        help: params.get("help") || null,
+      },
+      scratchpad: {
+        open: localStorage.getItem("sv.scratchOpen") !== "false",
+        namespace: nsSelected || projectCode,
+      },
+      // Legacy flat fields — existing hooks/agents already parse these; keep them true.
       namespace: { serviceId, moduleName, methodName },
       tab: params.get("tab") || "docs",
       openFile: params.get("file") || undefined,
@@ -225,6 +496,48 @@ function BotBubble({ projectCode, index }) {
     : "no agent connected";
   const leftHalf = pos ? pos.x < window.innerWidth / 2 : false;
   const topHalf = pos ? pos.y < window.innerHeight / 2 : false;
+
+  // RESIZABLE PANEL — drag the free corner (the one diagonally opposite the bubble anchor); the
+  // cursor is the handle, same as bot dragging. Size persists per project.
+  const [size, setSize] = useState(() => {
+    try {
+      const s = JSON.parse(localStorage.getItem(`sv.chatSize.${projectCode}`));
+      if (s && s.w && s.h) return s;
+    } catch {}
+    return { w: 340, h: 480 };
+  });
+  const resizeRef = useRef(null);
+  const onResizeStart = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    resizeRef.current = { x: e.clientX, y: e.clientY, w: size.w, h: size.h };
+    const move = (ev) => {
+      const r = resizeRef.current;
+      if (!r) return;
+      const dx = ev.clientX - r.x;
+      const dy = ev.clientY - r.y;
+      // The panel grows AWAY from its anchor: anchored right → dragging left widens, and so on.
+      const next = {
+        w: Math.min(680, Math.max(260, r.w + (leftHalf ? dx : -dx))),
+        h: Math.min(window.innerHeight - 90, Math.max(220, r.h + (topHalf ? dy : -dy))),
+      };
+      setSize(next);
+      resizeRef.current = { ...r, latest: next };
+    };
+    const up = () => {
+      const r = resizeRef.current;
+      if (r && r.latest) {
+        try {
+          localStorage.setItem(`sv.chatSize.${projectCode}`, JSON.stringify(r.latest));
+        } catch {}
+      }
+      resizeRef.current = null;
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
   const style = pos
     ? { left: pos.x, top: pos.y, right: "auto", bottom: "auto" }
     : { bottom: EDGE + index * STACK };
@@ -238,19 +551,24 @@ function BotBubble({ projectCode, index }) {
         <div className={`${CLASSNAME}__panel-anchor`}>
         <div
           className={`${CLASSNAME}__panel`}
-          // A free-parked bubble may not have 480px of room on its open side — cap the panel to
-          // the space that actually exists so it never runs off the top or bottom.
-          style={
-            pos
-              ? {
-                  maxHeight: Math.min(
-                    480,
-                    Math.max(200, topHalf ? window.innerHeight - pos.y - 100 : pos.y - 16),
-                  ),
-                }
-              : undefined
-          }
+          // A free-parked bubble may not have the panel's height of room on its open side — cap
+          // to the space that actually exists so it never runs off the top or bottom.
+          style={{
+            width: size.w,
+            height: size.h,
+            maxHeight: pos
+              ? Math.min(
+                  size.h,
+                  Math.max(200, topHalf ? window.innerHeight - pos.y - 100 : pos.y - 16),
+                )
+              : undefined,
+          }}
         >
+          <div
+            className={`${CLASSNAME}__resize`}
+            title="Drag to resize"
+            onPointerDown={onResizeStart}
+          />
           <div className={`${CLASSNAME}__head`}>
             <span className={`${CLASSNAME}__mode ${CLASSNAME}__mode--${ring}`}>{mode}</span>
             <span className={`${CLASSNAME}__title`}>{projectCode}</span>
@@ -272,14 +590,23 @@ function BotBubble({ projectCode, index }) {
                 Say something — it arrives with where you're standing (page, tab, namespace).
               </div>
             )}
-            {messages.map((m) => (
-              <div
-                key={m.id}
-                className={`${CLASSNAME}__msg ${m.from === "agent" ? `${CLASSNAME}__msg--agent` : `${CLASSNAME}__msg--you`}`}
-              >
-                {m.text}
-              </div>
-            ))}
+            {messages.map((m) =>
+              m.kind === "command" ? (
+                // A command shows AS a command — the window moved because the agent moved it,
+                // and this line is the receipt.
+                <div key={m.id} className={`${CLASSNAME}__cmd`} title={m.cmd}>
+                  <span className={`${CLASSNAME}__cmd-arrow`}>→</span>{" "}
+                  {m.label || `${m.cmd} ${JSON.stringify(m.args || {})}`}
+                </div>
+              ) : (
+                <div
+                  key={m.id}
+                  className={`${CLASSNAME}__msg ${m.from === "agent" ? `${CLASSNAME}__msg--agent` : `${CLASSNAME}__msg--you`}`}
+                >
+                  {renderChatText(String(m.text || ""))}
+                </div>
+              ),
+            )}
             {p.status && <StatusLine status={p.status} />}
           </div>
           <div className={`${CLASSNAME}__inputrow`}>
@@ -320,7 +647,34 @@ function BotBubble({ projectCode, index }) {
           )}
         </div>
       )}
-      <div className={`${CLASSNAME}__bot`} onPointerDown={onBotPointerDown}>
+      {/* Right-click the bot → the little menu; "turn off" parks it in the header hub. */}
+      {ctxMenu && (
+        <>
+          <div className={`${CLASSNAME}__ctx-overlay`} onClick={() => setCtxMenu(false)} onContextMenu={(e) => { e.preventDefault(); setCtxMenu(false); }} />
+          <div className={`${CLASSNAME}__ctx ${topHalf ? `${CLASSNAME}__ctx--below` : ""}`}>
+            <button
+              type="button"
+              className={`${CLASSNAME}__ctx-item`}
+              onClick={() => {
+                setCtxMenu(false);
+                openRef.current = false;
+                setOpen(false);
+                setParked(projectCode, true);
+              }}
+            >
+              Turn off — park in the hub
+            </button>
+          </div>
+        </>
+      )}
+      <div
+        className={`${CLASSNAME}__bot`}
+        onPointerDown={onBotPointerDown}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          setCtxMenu(true);
+        }}
+      >
         <button
           type="button"
           className={`${CLASSNAME}__fab ${CLASSNAME}__fab--${ring}`}

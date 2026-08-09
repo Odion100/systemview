@@ -38,15 +38,23 @@ const HELP_TEXT = `
     toggle cs | ci                         Toggle namespace case-sensitivity (sticky; default insensitive)
                                            [also: bare cs / ci; works in interactive mode]
     open [projectCode] [namespace]         Open the browser UI
-    story <target> "<name>" [--ns ns] [--text|--source|--file|--diff|--test]… [--note md]  Create/update a saved, namespaced Story (see docs/agents/stories.md)
-    stories <target>                       List saved Stories (name · namespace · pane count)
-    story-add|rm|move|edit <target> "<name>" [--ns ns] …  Edit an existing story's panes: insert (--at i), remove (--at i), reorder (--from i --to j), replace/annotate (--at i)
-    story-layout|rename|delete <target> "<name>" [--ns ns]  Set --layout, --to "<new name>", or delete the story
-    show <target> [--file|--source|--text] Drive the live Window to one thing (a file, a method's source, or prose)
-    assemble <target> [--text|--source|--file]…  Fill the live Window with several panes at once
-    stage add <target> [--file|--source|--text]  Append a pane to the live Window   stage clear <target>  Empty it
-    highlight <target> --lines A-B|--match s      Emphasize a region of the last pane on the stage
-    view save|open|list|delete <target> [name]   Save the live Window as a reopenable view, or reopen one
+
+  Agent control (RFC-029) — drive the OPEN window; every command shows in the chat as a "→ …" receipt:
+    nav <project> <namespace>              NAVIGATE (select for real): route to a live namespace —
+                                           validated + fuzzily resolved against the live tree
+                                           ("Math.add" works); a bad name is refused, never a ghost
+    nav <project> center --report <path>   Open a report on the Stage tab (path or indexed name)
+    nav <project> center --file <p[#La-b]> Open a file in the Code tab (tree selection follows)
+    nav <project> center --tab <t>         Switch the center tab (docs | reports | logs)
+    nav <project> center --topic <help>    Open a help topic over the page
+    highlight <project> <ns> | --file <p>  POINT, don't navigate: the tree expands to the target,
+                                           marks it, scrolls it into view — nothing else moves
+    refresh <project> [docs|reports|nav|all]  Panes re-read their data in place — never a page reload
+    act <project> test <Mod.method|title|all>  Run a saved test where the human is LOOKING: a doc
+                                           block showing it claims the run; else the saved-tests
+                                           area; "all" = the whole saved list, in sequence
+    act <project> run "<block title>"      Press a :::run block's play in the open document
+
     shutdown [port]                        Stop a running SystemView instance  [aliases: exit, stop, q]
 
   Flags:
@@ -84,16 +92,14 @@ const HELP_TEXT = `
     --saved                                logs: read from local snapshot instead of live service
     --save-limit <n>                       logs: max entries to keep in snapshot (default 500)
     --force                                connect: re-probe even if already connected
-    --file <path[#L a-b]>                  story/show/assemble/stage: a project file to display; optional inline line range e.g. src/x.js#L40-70 (repeatable)
-    --source <Mod.method>                  (legacy — prefer --file + #L) a method's source span by convention (repeatable)
-    --diff <path>                          show/assemble/stage: a file's before/after vs git HEAD (repeatable)
-    --test <target>                        story/show/assemble/stage: saved tests as runnable examples — any level: * | Service | Module | Mod.method | Mod.method:N (repeatable)
-    --text "…"                             story/show/assemble/stage: inline markdown/prose pane (repeatable)
-    --ns <path>                            story: namespace to file it under (project | project/Service | …/Module | …/method)
-    --note "<md>"                          story: markdown attached to a test pane, rendered with the block
-    --lines A-B                            show/highlight: emphasize a line range on the pane
-    --match <string>                       show/highlight: emphasize the first match on the pane
-    --layout <grid|gallery>                story/assemble: how to frame multiple panes (grid default)
+    --file <path[#La-b]>                   nav/highlight: the file to open (nav, with an optional
+                                             line range to scroll+mark) or to point the tree at
+    --report <path|name>                   nav: the report to open on the Stage tab
+    --tab <docs|reports|logs>              nav: the center tab to switch to
+    --topic <name>                         nav: the help topic to open
+    --chat <name>                          chat verbs: a named chat (default "main")
+    --as <name>                            chat verbs: the agent identity on records ("claude")
+    --once                                 join: exit after the first message (one wake per message)
 
   Examples:
     systemview start
@@ -128,7 +134,7 @@ const HELP_TEXT = `
     systemview highlight buAPI --match "await hash"
 `;
 
-const flagValueArgs = ["--manifest", "--header", "--skip", "--phase", "--index", "--level", "--limit", "--follow", "--filter", "--or", "--include", "--highlight", "--save", "--save-limit", "--file", "--source", "--text", "--lines", "--match", "--layout", "--diff", "--test", "--ns", "--note", "--at", "--from", "--to", "--chat", "--as"];
+const flagValueArgs = ["--manifest", "--header", "--skip", "--phase", "--index", "--level", "--limit", "--follow", "--filter", "--or", "--include", "--highlight", "--save", "--save-limit", "--file", "--source", "--text", "--lines", "--match", "--layout", "--diff", "--test", "--ns", "--note", "--at", "--from", "--to", "--chat", "--as", "--report", "--tab", "--topic"];
 
 // Quote-aware tokenizer: a single/double-quoted arg (e.g. a JSON payload with spaces) stays ONE token,
 // surrounding quotes stripped. Turns an interactive REPL line into the same argv shape the shell hands
@@ -217,6 +223,10 @@ function parseArgs(rawArgs) {
     chat: valOf("--chat"),
     as: valOf("--as"),
     once: rawArgs.includes("--once"),
+    // RFC-029 agent control (nav/refresh/act)
+    report: valOf("--report"),
+    tab: valOf("--tab"),
+    topic: valOf("--topic"),
     // ORDERED pane sequence for `assemble` — walk the raw args left→right so panes render in the
     // order given (markdown can sit BETWEEN code/diff/test to tell a story). Grouping by kind would
     // clump all the prose at the top and kill the narrative.

@@ -50,6 +50,53 @@ const SavedTests = ({
     storyRefs.current.filter(Boolean).forEach((r) => r.clear && r.clear());
     setFilter(null);
   }, []);
+
+  // RFC-029 `act` — the agent presses the same play you would, HERE where tests live: one test
+  // (matched by namespace or title) or `all`, results landing in the rows in front of you. The
+  // sessionStorage pending survives a navigation the command itself caused — consumed the moment
+  // this list can actually see the target.
+  const actOn = useCallback(
+    async (target) => {
+      if (target === "all") {
+        runAllSeq();
+        return true;
+      }
+      const i = savedTests.findIndex((t) => {
+        const ns = t.namespace || {};
+        const full = [ns.serviceId, ns.moduleName, ns.methodName].filter(Boolean).join(".");
+        return full === target || full.endsWith(`.${target}`) || t.title === target;
+      });
+      const ref = i > -1 && storyRefs.current[i];
+      if (!ref) return false;
+      if (ref.expand) ref.expand();
+      if (ref.run) await ref.run();
+      return true;
+    },
+    [savedTests, runAllSeq],
+  );
+  useEffect(() => {
+    let pending = null;
+    try { pending = JSON.parse(sessionStorage.getItem("sv.pendingAct")); } catch {}
+    if (pending && pending.target && Date.now() - (pending.ts || 0) < 60000 && savedTests.length) {
+      // Refs attach on render — give them a beat, then consume only if the target is here.
+      setTimeout(async () => {
+        if (await actOn(pending.target)) sessionStorage.removeItem("sv.pendingAct");
+      }, 150);
+    }
+    const onAct = (e) => {
+      const d = (e && e.detail) || {};
+      if (d.kind !== "test" || !d.target) return;
+      sessionStorage.removeItem("sv.pendingAct");
+      // Defer a beat: a DOC pane showing this test claims the act synchronously during dispatch —
+      // the run belongs where the human is looking; this area is the fallback home.
+      setTimeout(() => {
+        if (!d.claimed) actOn(d.target);
+      }, 0);
+    };
+    window.addEventListener("sv:act", onAct);
+    return () => window.removeEventListener("sv:act", onAct);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [savedTests, actOn]);
   const [allExpanded, setAllExpanded] = useState(false);
   const toggleExpandAll = useCallback(() => {
     const next = !allExpanded;
@@ -201,7 +248,7 @@ const SavedTests = ({
 // and GIVES UP the instant you scroll. Expansion is manual / on-fail only.
 // Reused by the Stories `test` pane (TestPane) — there it's rendered WITHOUT onEdit/onDelete (a story just
 // shows + runs the test; it isn't the builder), so those controls only appear when the handlers are given.
-export function SavedTestItem({ test, index, status, hidden, connectedServices, storyRef, onResult, onEdit, onDelete, autoTrack, autoExpand, kindLabel = "test", kindTone = "test", nsLabel, showTitle = true }) {
+export function SavedTestItem({ test, index, status, hidden, connectedServices, storyRef, onResult, onEdit, onDelete, autoTrack, autoExpand, kindLabel = "test", kindTone = "test", nsLabel, showTitle = true, recorded = null }) {
   const nodeRef = useRef(null);
   const localRef = useRef(null);
   const [expanded, setExpanded] = useState(false); // collapsed by default — just the header
@@ -328,6 +375,7 @@ export function SavedTestItem({ test, index, status, hidden, connectedServices, 
         chromeless
         test={test}
         connectedServices={connectedServices}
+        recorded={recorded}
         index={index}
         onResult={onResult}
         autoExpand={autoExpand}

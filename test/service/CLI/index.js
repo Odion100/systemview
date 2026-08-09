@@ -64,107 +64,10 @@ function parseJson(stdout) {
   return null;
 }
 
-// Flatten a saved-story JSON (what `story`/`story-*` print with --json) into primitives the fixtures can
-// assert on directly — the eval engine matches numbers/strings/booleans, not nested arrays.
-function describeStory(result) {
-  const s = result || {};
-  const panes = Array.isArray(s.panes) ? s.panes : [];
-  const p0 = panes[0] || {};
-  const p1 = panes[1] || {};
-  const hl0 = (p0.highlight && p0.highlight.lines) || [];
-  return {
-    ok: !!s.id,
-    id: s.id || "",
-    name: s.name || "",
-    namespace: s.namespace || "",
-    layout: s.layout || "",
-    paneCount: panes.length,
-    kindsJoined: panes.map((p) => p.kind).join(","), // pane ORDER, so move/rm/add are assertable
-    pane0Kind: p0.kind || "",
-    pane0Path: (p0.target && p0.target.path) || "",
-    pane0HlFrom: hl0[0] || 0,
-    pane0HlTo: hl0[1] || 0,
-    pane1Kind: p1.kind || "",
-    pane1Module: (p1.target && p1.target.moduleName) || "",
-    pane1Method: (p1.target && p1.target.methodName) || "",
-    pane1Note: (p1.target && p1.target.note) || "",
-  };
-}
-
 const CLI = {
   // generic escape hatch — run any command, get raw output + exit code
   async run({ args = [] } = {}) {
     return runCli(args);
-  },
-
-  // --- RFC-018 story lifecycle dogfood. Drives the REAL `story` / `story-*` CLI verbs end-to-end, each
-  //     in its OWN child process — so re-listing after a write proves it actually persisted to disk via
-  //     the plugin (not just held in memory). One orchestrator so the fixture asserts every checkpoint of
-  //     a single, self-contained, idempotent run (it cleans up leftovers first and deletes at the end).
-  //     The test runner dispatches ONE method per fixture, so the whole lifecycle lives here, not across
-  //     fixture steps. ---
-  async storyLifecycle() {
-    const target = "systemview-test";
-    const ns = "systemview-test/__dogfood__";
-    const nm = "cli-dogfood";
-    const nm2 = "cli-dogfood-renamed";
-    const mathFile = "test/service/Math/index.js";
-    const J = (args) => runCli([...args, "--json"]);
-    const shape = (r) => describeStory(parseJson(r.stdout));
-    const namesOf = (r) => (parseJson(r.stdout) || []).map((s) => s && s.name).filter(Boolean);
-
-    // Idempotency: clear any story left behind by an earlier interrupted run.
-    await J(["story-delete", target, nm, "--ns", ns]);
-    await J(["story-delete", target, nm2, "--ns", ns]);
-
-    // 1. create — a file#L1-20 pane + a test pane carrying an agent --note. Upsert by name+ns.
-    const c = await J(["story", target, nm, "--ns", ns, "--file", `${mathFile}#L1-20`, "--test", "Math.add", "--note", "adds two numbers"]);
-    const create = shape(c);
-    // 2. story-add — insert a markdown pane at index 0 (proves --at positional insert).
-    const add = shape(await J(["story-add", target, nm, "--ns", ns, "--text", "intro", "--at", "0"]));
-    // 3. story-move — 0 → 2 sends the markdown to the end.
-    const move = shape(await J(["story-move", target, nm, "--ns", ns, "--from", "0", "--to", "2"]));
-    // 4. story-edit — rebuild pane 0 with a new file range (proves #L re-parse on edit).
-    const edit = shape(await J(["story-edit", target, nm, "--ns", ns, "--at", "0", "--file", `${mathFile}#L5-9`]));
-    // 5. story-rm — drop the trailing markdown.
-    const rm = shape(await J(["story-rm", target, nm, "--ns", ns, "--at", "2"]));
-    // 6. story-layout — switch column → grid.
-    const layout = shape(await J(["story-layout", target, nm, "--ns", ns, "--layout", "grid"]));
-    // 7. story-rename — new slug (new file) + delete of the old.
-    const rn = await J(["story-rename", target, nm, "--ns", ns, "--to", nm2]);
-    // 8. stories — the renamed one is on disk, the old name is gone.
-    const names1 = namesOf(await J(["stories", target]));
-    // 9. story-delete — remove it.
-    const d = await J(["story-delete", target, nm2, "--ns", ns]);
-    // 10. stories — gone.
-    const names2 = namesOf(await J(["stories", target]));
-
-    return {
-      createExit: c.exitCode,
-      createPanes: create.paneCount,
-      createNs: create.namespace,
-      createPane0Kind: create.pane0Kind,
-      createHlFrom: create.pane0HlFrom,
-      createHlTo: create.pane0HlTo,
-      createPane1Kind: create.pane1Kind,
-      createPane1Module: create.pane1Module,
-      createPane1Method: create.pane1Method,
-      createPane1Note: create.pane1Note,
-      addPanes: add.paneCount,
-      addKinds: add.kindsJoined,
-      moveKinds: move.kindsJoined,
-      editPane0Kind: edit.pane0Kind,
-      editHlFrom: edit.pane0HlFrom,
-      editHlTo: edit.pane0HlTo,
-      rmPanes: rm.paneCount,
-      rmKinds: rm.kindsJoined,
-      layout: layout.layout,
-      renameExit: rn.exitCode,
-      listHasRenamed: names1.includes(nm2),
-      listStillHasOld: names1.includes(nm),
-      deleteExit: d.exitCode,
-      listHasAfterDelete: names2.includes(nm2),
-    };
   },
 
   // `systemview probe <namespace> [args] --json [flags]` → parsed result.

@@ -12,6 +12,7 @@ import Thread, { Reply } from "./blocks/Thread";
 import Approval from "./blocks/Approval";
 import LogsEmbed from "./blocks/LogsEmbed";
 import { FileEmbed, DiffEmbed } from "./blocks/FileEmbed";
+import ReportLink from "./blocks/ReportLink";
 
 // `file` is TWO things depending on how it's written — the same split `run` has. Inline is a
 // reference (`:file[path]` → a chip that points at it); block is the thing itself (`::file[path]` →
@@ -32,6 +33,7 @@ export const BLOCKS = {
   file: { Component: FileBlock },
   diff: { Component: DiffEmbed },
   help: { Component: HelpLink },
+  report: { Component: ReportLink },
   // embeds — live things inside prose
   chart: { Component: ChartEmbed },
   test: { Component: TestEmbed },

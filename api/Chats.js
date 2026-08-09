@@ -14,6 +14,11 @@ const CHATS_DIR = path.join(process.cwd(), ".systemview", "chats");
 const DEFAULT_CHAT = "main";
 
 const safe = (s) => String(s || "").replace(/[^a-zA-Z0-9._-]/g, "_");
+
+// What reaches the AGENT: the human's messages, nothing else. Commands are agent-authored
+// (any `--as` name) and must never wake the agent that sent them — found live: a join hold took
+// delivery of its own `kind:"command"` records because they weren't from "agent" verbatim.
+const forAgent = (m) => m && m.kind !== "command" && m.from === "you";
 const chatFile = (pc, chat) => path.join(CHATS_DIR, `${safe(pc)}.${safe(chat)}.jsonl`);
 const ackFile = (pc, chat) => path.join(CHATS_DIR, `${safe(pc)}.${safe(chat)}.ack.json`);
 
@@ -88,6 +93,13 @@ module.exports = function Chats() {
       return { record, delivered };
     },
 
+    // RFC-029 — a COMMAND from the agent rides the same file (`kind: "command"`). It renders in
+    // the thread as a command line; the open UI EXECUTES it only when it arrives on the live push
+    // (loading history renders old command lines but never re-executes them — the replay rule).
+    command(pc, chat, { from = "agent", cmd, args, label }) {
+      return append(pc, chat, { kind: "command", from, cmd, args: args || {}, label: label || "" });
+    },
+
     history(pc, chat, { limit = 200 } = {}) {
       const all = readAll(pc, chat);
       return limit ? all.slice(-limit) : all;
@@ -110,7 +122,7 @@ module.exports = function Chats() {
     join(pc, chat, { agent = "agent", since = 0 } = {}) {
       const k = key(pc, chat);
       liveSeen.set(k, { agent, ts: Date.now() });
-      const pending = readAll(pc, chat).filter((m) => m.from !== "agent" && m.ts > since);
+      const pending = readAll(pc, chat).filter((m) => forAgent(m) && m.ts > since);
       if (pending.length) return Promise.resolve({ messages: pending });
       return new Promise((resolve) => {
         const entry = { resolve, timer: null };
@@ -147,7 +159,7 @@ module.exports = function Chats() {
       let acks = {};
       try { acks = JSON.parse(fs.readFileSync(ackFile(pc, chat), "utf8")); } catch {}
       const sinceTs = acks[listener] || 0;
-      const pending = readAll(pc, chat).filter((m) => m.from !== "agent" && m.ts > sinceTs);
+      const pending = readAll(pc, chat).filter((m) => forAgent(m) && m.ts > sinceTs);
       if (pending.length) {
         acks[listener] = pending[pending.length - 1].ts;
         fs.mkdirSync(CHATS_DIR, { recursive: true });

@@ -24,9 +24,10 @@ const LANG_BY_EXT = {
 };
 const languageOf = (p) => LANG_BY_EXT[path.extname(p).toLowerCase()] || "text";
 
-// Directories never worth walking for a source view — noise, huge, or SystemView's own runtime.
+// Directories never worth walking for a source view — noise or huge. NOTE: `.systemview` is NOT
+// here — it's the user's own data (docs, tests, reports, chats) and belongs in the tree.
 const IGNORE_DIRS = new Set([
-  "node_modules", ".git", ".systemview", "build", "dist", "coverage",
+  "node_modules", ".git", "build", "dist", "coverage",
   ".next", ".nuxt", ".cache", "tmp", ".DS_Store",
 ]);
 
@@ -93,24 +94,29 @@ function createFileProviders(rootDir) {
 
   // Walk the tree from `absDir`, skipping IGNORE_DIRS, collecting files (bounded so a giant repo can't
   // blow up a response). `filterRe` (optional) matches the path relative to repo root.
-  function walkFiles(absDir, { filterRe, max = 4000 } = {}) {
+  // The walk is DETERMINISTIC (alphabetical, depth-first): if the cap is ever hit, what's missing is
+  // the alphabetical tail — not arbitrary folders. The old LIFO-stack walk truncated RANDOM folders
+  // in big repos, which read as "whole directories silently don't exist".
+  const MAX_FILES = 20000;
+  function walkFiles(absDir, { filterRe, max = MAX_FILES } = {}) {
     const out = [];
-    const stack = [absDir];
-    while (stack.length && out.length < max) {
-      const dir = stack.pop();
+    const walk = (dir) => {
+      if (out.length >= max) return;
       let entries;
-      try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { continue; }
+      try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+      entries.sort((a, b) => a.name.localeCompare(b.name));
       for (const ent of entries) {
+        if (out.length >= max) return;
         const abs = path.join(dir, ent.name);
         if (ent.isDirectory()) {
-          if (!IGNORE_DIRS.has(ent.name)) stack.push(abs);
+          if (!IGNORE_DIRS.has(ent.name)) walk(abs);
         } else if (ent.isFile()) {
           const rel = relFromRoot(abs);
           if (!filterRe || filterRe.test(rel)) out.push(rel);
-          if (out.length >= max) break;
         }
       }
-    }
+    };
+    walk(absDir);
     return out.sort();
   }
 
@@ -157,7 +163,7 @@ function createFileProviders(rootDir) {
         if (untracked && untracked.has(p)) f.tracked = false;
         return f;
       }),
-      truncated: files.length >= 4000,
+      truncated: files.length >= MAX_FILES,
       gitAware: !!untracked,
     };
   }

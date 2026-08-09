@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import ReactJson from "react-json-view";
 import { useAppDark, jsonTheme } from "../../atoms/appTheme";
 import { initializeSavedTests } from "../SavedTests/transformTests";
@@ -360,10 +360,66 @@ const freshTest = (test, connectedServices) => {
 };
 
 const TestStory = React.forwardRef(
-  ({ test, connectedServices, index, onResult, autoExpand, chromeless }, ref) => {
+  ({ test, connectedServices, index, onResult, autoExpand, chromeless, recorded }, ref) => {
     const [ft, setFt] = useState(() => freshTest(test, connectedServices));
     const [running, setRunning] = useState(false);
     const [ran, setRan] = useState(false);
+
+    // RFC-029 — ALREADY-RAN. `recorded` carries a completed run's per-step results (from a run
+    // file an agent wrote): the instances hydrate with those responses and re-validate against
+    // them, so the test displays exactly as if it had just run in this window — statuses,
+    // responses, verdicts — without executing anything. Play still re-runs fresh (run() always
+    // rebuilds from the saved definition). Hydration happens ONCE per mount — otherwise Clear
+    // can never clear (un-run state would just re-hydrate on the next render, his catch).
+    const hydratedRef = React.useRef(false);
+    useEffect(() => {
+      if (!recorded || ran || hydratedRef.current) return;
+      const fresh = freshTest(test, connectedServices);
+      if (!fresh) return; // services not landed yet — keep the flag clean so a later render can hydrate
+      const recSections = {
+        before: recorded.Before,
+        main: recorded.Main,
+        events: recorded.Events,
+        after: recorded.After,
+      };
+      // NAMED sections ride the record as their own keys (`seedSum: [...]` — the CLI reports each
+      // section under its own label), so any array-valued key that isn't meta is a section.
+      const META = new Set(["title", "serviceId", "moduleName", "methodName", "status", "Before", "Main", "Events", "After", "ranAt", "by"]);
+      Object.entries(recorded).forEach(([k, v]) => {
+        if (!META.has(k) && Array.isArray(v)) recSections[k] = v;
+      });
+      // Hydrate ONLY when the record covers every step — a half-hydrated test would re-validate
+      // steps whose references point at un-hydrated ones and show false failures. No record for
+      // some section (e.g. a run file that didn't capture named sections) → stay un-run, honest.
+      const covered = (fresh.order || []).every(
+        (name) => (fresh.sections[name] || []).length === (recSections[name] || []).length,
+      );
+      if (!covered) return;
+      try {
+        (fresh.order || []).forEach((name) => {
+          const insts = fresh.sections[name] || [];
+          const recs = recSections[name] || [];
+          insts.forEach((inst, i) => {
+            const rec = recs[i];
+            if (!rec || !("response" in rec)) return;
+            inst.results = rec.response;
+            inst.response_type = "results";
+            inst.test_start = recorded.ranAt || null;
+            inst.test_end = recorded.ranAt || null;
+            if (inst.shouldValidate) {
+              try { inst.validate(); } catch {}
+            }
+          });
+        });
+        setFt({ ...fresh });
+        setRan(true);
+        hydratedRef.current = true; // flag ONLY on real hydration — Clear stays cleared, but a
+        // not-ready block (no services / uncovered record) may still hydrate on a later render
+        const all = (fresh.order || []).reduce((a, n) => a.concat(fresh.sections[n] || []), []);
+        if (onResult) onResult(all.some((a) => errsOf(a).length) ? "fail" : "pass");
+      } catch {}
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [recorded, test, connectedServices]);
     const [collapsed, setCollapsed] = useState({});
     const [phaseSig, setPhaseSig] = useState({});
     // Chromeless (scratchpad) tests start COLLAPSED — just the header. Story panes keep their open default.

@@ -66,10 +66,10 @@ A file chip with nothing that can read it says so: :file[nowhere/at/all.js]
 ## 3 · Help links — `:help[…]`
 
 ```markdown
-:help[markdown] :help[scratchpad] :help[stories]
+:help[markdown] :help[scratchpad] 
 ```
 
-:help[markdown] :help[scratchpad] :help[actions] :help[stories] :help[events] :help[navigator]
+:help[markdown] :help[scratchpad] :help[actions] :help[events] :help[navigator]
 
 **Click one** — that help topic opens in the centre panel, the same channel every **?** icon uses.
 

@@ -7,7 +7,7 @@ extension point, and `src/atoms/Markdown/registry.js` is the complete list of wh
 
 Live worked examples you can open in the UI: `docs/interactive-markdown.md` (the playground, every
 block rendered) and `systemview-test.md` (the dogfood project doc). Siblings: [AGENTS.md](AGENTS.md),
-[tests.md](tests.md), [stories.md](stories.md), [namespaces.md](namespaces.md).
+[tests.md](tests.md), [namespaces.md](namespaces.md).
 
 ---
 
@@ -41,6 +41,10 @@ renders dashed and says why instead of lying.
 ::load{limit=8}                        load concentration
 ::logs[Math.chainUse]{limit=50}        the Logs viewer, scoped by the block
 ::test[Math.chainUse]                  a SAVED test, runnable in place
+::test[Math.add]{ran=".systemview/runs/r1.json"}  the same block ALREADY RAN — hydrated from a
+                                       recorded run file (CLI --json output + ranAt), steps
+                                       colored, responses real, "recorded run" badge; play
+                                       re-runs fresh (see agents/chat.md, the already-ran block)
 ::file[cli/stage.js#L43-52]            the file itself, in the document
 ::diff[cli/runTests.js]                working copy vs git HEAD (read-only here)
 ```

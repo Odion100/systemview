@@ -398,6 +398,13 @@ function chatSend(projectCode, { chat, from = "you", text, view } = {}) {
     this.emit(`chat-status:${projectCode}`, { chat: chat || Chats.DEFAULT_CHAT, text: null });
   return record;
 }
+// RFC-029 — agent control: a command is a chat record; the push IS the execution channel. The
+// UI executes commands only off this live emit — chatHistory renders them as lines, nothing more.
+function chatCommand(projectCode, { chat, from, cmd, args, label } = {}) {
+  const record = Chats.command(projectCode, chat || Chats.DEFAULT_CHAT, { from, cmd, args, label });
+  this.emit(`chat-updated:${projectCode}`, { chat: chat || Chats.DEFAULT_CHAT, record });
+  return record;
+}
 function chatHistory(projectCode, chat, limit) {
   return Chats.history(projectCode, chat || Chats.DEFAULT_CHAT, { limit });
 }
@@ -492,6 +499,7 @@ module.exports = function launchSystemView(port = 3000) {
       reorderStoryPanes,
       setStoryPaneSpan,
       chatSend,
+      chatCommand,
       chatHistory,
       chatList,
       chatJoin,

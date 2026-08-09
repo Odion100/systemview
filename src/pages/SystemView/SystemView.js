@@ -123,6 +123,13 @@ const SystemViewPage = () => {
     return () => window.removeEventListener("sv:openFileInNav", onOpen);
   }, [openFile]);
 
+  // RFC-029 `act` — a watchable run needs the scratchpad VISIBLE; the executor asks for it.
+  useEffect(() => {
+    const onOpenScratch = () => setScratchOpen(true);
+    window.addEventListener("sv:openScratchpad", onOpenScratch);
+    return () => window.removeEventListener("sv:openScratchpad", onOpenScratch);
+  }, []);
+
   // HELP rides the URL as `?help=<topic>` (RFC-026). Opening a topic PUSHES — every topic is a
   // history entry, so the back button walks help→help→document with no special casing. Closing
   // REPLACES (a close is not a place you go back to). Any real navigation drops the param.
