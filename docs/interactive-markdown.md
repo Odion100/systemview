@@ -136,26 +136,27 @@ Hit **Run** on an embedded test.
 ::::
 ```
 
-::::tabs
-:::tab{label="CLI"}
+:::::tabs
+::::tab{label="CLI"}
 Run the whole suite from the terminal:
+
 
 ```bash
 node cli/index.js test systemview-test
 ```
-:::
+::::
 :::tab{label="UI"}
 Or hit **Run** on the embedded test in section 8 — same specs, same engine, either way.
 :::
-:::tab{label="Nesting"}
+::::tab{label="Nesting"}
 The outer container takes one **more** colon than its children — `::::tabs` around `:::tab`. Any
 markdown goes inside, including other blocks:
 
 :::callout{type=info}
 A callout inside a tab.
 :::
-:::
 ::::
+:::::
 
 ---
 

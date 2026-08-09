@@ -10,6 +10,7 @@ when you need it. Nothing is summarised away — the detail lives beside it in t
 | File | When you need it |
 | --- | --- |
 | [hosted-services.md](hosted-services.md) | **the repo has NO SystemLynx services** — `systemview init` makes the CLI host a real testing service from a committed folder; start-to-green instructions for agents |
+| [chat.md](chat.md) | **being present in the UI** — the chat bubble: `join` (live, solid bubble) or hook-drained `inbox` (ambient); messages arrive with the human's vantage point |
 | [markdown.md](markdown.md) | the FULL interactive-markdown vocabulary — every block, every attribute, what writes back into the document |
 | [tests.md](tests.md) | building, saving and running tests; sections, references, evaluations in depth |
 | [stories.md](stories.md) | the story surface and the whole `systemview story …` CLI grammar |

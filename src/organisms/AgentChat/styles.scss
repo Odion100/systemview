@@ -1,0 +1,342 @@
+// RFC-028 — the BOT bubble + chat panel. The bubble is an identity (several will coexist): a
+// translucent circle with the bot face centered and its project label under it. It floats free —
+// drag anywhere, dock to edges — and the ring tells the truth: solid green = joined live, dashed
+// indigo = file listener (turn-boundary delivery), muted = nobody.
+.agent-chat {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 8500;
+  width: fit-content;
+
+  // The panel is ANCHORED to the bubble, out of the layout flow — opening it must NEVER move the
+  // bubble (in-flow it widened the container and shoved a docked bubble off-screen). Default:
+  // opens above, right-aligned to the bubble; the half-screen flags flip the side.
+  &__panel-anchor {
+    position: absolute;
+    bottom: calc(100% + 10px);
+    right: 0;
+  }
+  &--top &__panel-anchor {
+    bottom: auto;
+    top: calc(100% + 10px);
+  }
+  &--left &__panel-anchor {
+    right: auto;
+    left: 0;
+  }
+
+  // Drag anywhere on the bot — the cursor is the handle: grab on hover, grabbing while dragging.
+  &__bot {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    user-select: none;
+    position: relative;
+    cursor: grab;
+    touch-action: none;
+    &:active {
+      cursor: grabbing;
+    }
+  }
+  // TRULY transparent — the ring and the face carry the identity, the page shows through.
+  &__fab {
+    position: relative;
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    border: 2px solid var(--sv-border);
+    background: color-mix(in srgb, var(--sv-surface) 18%, transparent);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.14);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    &--live {
+      border-color: #4caf50;
+      border-style: solid;
+    }
+    &--listener {
+      border-color: #8f97e8;
+      border-style: dashed;
+    }
+    &--none {
+      opacity: 0.85;
+    }
+    &:hover {
+      opacity: 1;
+      background: color-mix(in srgb, var(--sv-surface) 45%, transparent);
+    }
+  }
+  &__face {
+    font-size: 21px;
+    line-height: 1;
+    pointer-events: none;
+  }
+  // A reply is waiting — the green count on the bot's shoulder. Cleared when the panel opens.
+  &__unread {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 17px;
+    height: 17px;
+    border-radius: 9px;
+    background: #4caf50;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  }
+  // The identity — which bot this is. Several bubbles will coexist; the label tells them apart.
+  &__label {
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 8.5px;
+    color: var(--sv-text-faint);
+    background: color-mix(in srgb, var(--sv-surface) 70%, transparent);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    border: 1px solid var(--sv-border);
+    border-radius: 6px;
+    padding: 0 5px;
+    max-width: 90px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+
+  // PEEK — the closed bubble's voice: cooking status or an unseen reply preview, sticking out
+  // beside the bot on whichever side has room. Click opens the panel.
+  &__peek {
+    position: absolute;
+    top: 8px;
+    right: calc(100% + 8px);
+    max-width: 250px;
+    cursor: pointer;
+    background: color-mix(in srgb, var(--sv-surface) 78%, transparent);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    border-radius: 9px;
+    padding: 4px 8px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16);
+    animation: sv-status-fade 0.3s ease;
+    &--right {
+      right: auto;
+      left: calc(100% + 8px);
+    }
+    .agent-chat__status {
+      padding: 0;
+      white-space: nowrap;
+    }
+  }
+  &__peek-msg {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    background: #4caf50;
+    color: #fff;
+    font-size: 12px;
+    line-height: 1.35;
+    border-radius: 8px;
+    border-bottom-right-radius: 3px;
+    padding: 6px 9px;
+    margin: -4px -8px; // the green bubble IS the peek body for messages
+  }
+
+  &__panel {
+    width: 340px;
+    max-height: 480px;
+    display: flex;
+    flex-direction: column;
+    background: var(--sv-surface);
+    border: 1px solid var(--sv-border);
+    border-radius: 10px;
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.22);
+    overflow: hidden;
+  }
+  &__head {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--sv-border);
+    font-size: 12px;
+  }
+  // The connection type, in words AND color — you always know which contract you're under.
+  &__mode {
+    flex: none;
+    font-size: 8.5px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    border-radius: 4px;
+    padding: 1px 5px;
+    color: #fff;
+    background: var(--sv-text-faint);
+    &--live {
+      background: #4caf50;
+    }
+    &--listener {
+      background: #8f97e8;
+    }
+  }
+  &__title {
+    font-weight: 700;
+    color: var(--sv-text);
+  }
+  &__presence {
+    color: var(--sv-text-faint);
+    font-size: 10.5px;
+    margin-right: auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  &__close {
+    border: none;
+    background: none;
+    color: var(--sv-text-faint);
+    cursor: pointer;
+    font-size: 12px;
+    &:hover {
+      color: var(--sv-text);
+    }
+  }
+
+  &__list {
+    flex: 1;
+    min-height: 120px;
+    overflow-y: auto;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  &__empty {
+    color: var(--sv-text-faint);
+    font-size: 11.5px;
+    padding: 12px 6px;
+  }
+  &__msg {
+    max-width: 85%;
+    padding: 6px 9px;
+    border-radius: 9px;
+    font-size: 12.5px;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    word-break: break-word;
+    &--you {
+      align-self: flex-end;
+      background: var(--sv-blue);
+      color: #fff;
+      border-bottom-right-radius: 3px;
+    }
+    &--agent {
+      align-self: flex-start;
+      background: var(--sv-inset);
+      color: var(--sv-text);
+      border: 1px solid var(--sv-border);
+      border-bottom-left-radius: 3px;
+    }
+  }
+  // The cooking line — bold green words with bouncing dots, nothing else. No bubble, no
+  // background; the entrance fades once, then phrases swap IN PLACE (no re-animation = no blink).
+  &__status {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 2px 4px;
+    font-family: "SF Mono", Menlo, "Courier New", monospace;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    color: #4caf50;
+    animation: sv-status-fade 0.4s ease;
+  }
+  &__dots {
+    display: inline-flex;
+    gap: 3px;
+    align-items: flex-end;
+    i {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: #4caf50;
+      animation: sv-bounce 1.15s ease-in-out infinite;
+      &:nth-child(2) {
+        animation-delay: 0.15s;
+      }
+      &:nth-child(3) {
+        animation-delay: 0.3s;
+      }
+    }
+  }
+}
+
+@keyframes sv-status-fade {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes sv-bounce {
+  0%,
+  60%,
+  100% {
+    transform: none;
+    opacity: 0.55;
+  }
+  30% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+.agent-chat {
+
+  &__inputrow {
+    display: flex;
+    gap: 6px;
+    padding: 8px;
+    border-top: 1px solid var(--sv-border);
+  }
+  &__input {
+    flex: 1;
+    min-width: 0;
+    border: 1px solid var(--sv-border);
+    border-radius: 7px;
+    background: var(--sv-inset);
+    color: var(--sv-text);
+    font-size: 12.5px;
+    padding: 6px 9px;
+    outline: none;
+    &:focus {
+      border-color: var(--sv-blue);
+    }
+  }
+  &__send {
+    border: none;
+    border-radius: 7px;
+    background: var(--sv-blue);
+    color: #fff;
+    width: 34px;
+    cursor: pointer;
+    font-size: 14px;
+    &:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+  }
+}

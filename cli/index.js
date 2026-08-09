@@ -228,6 +228,18 @@ async function loadCaseSetting() {
     const deleteHosted = require("./deleteHosted");
     const exitCode = await deleteHosted(input[1], { uiUrl: UI_URL, Client, force: flags.force });
     flushAndExit(exitCode || 0);
+  } else if (["join", "say", "inbox"].includes(command) || (command === "status" && input[1])) {
+    // RFC-028 — the chat front door. join HANGS on purpose (the hold IS presence); the others are
+    // one-shots. All need the hub up.
+    await launchApp(DEFAULT_PORT);
+    const chatCmd = require("./chat");
+    const opts = { uiUrl: UI_URL, Client, chat: flags.chat, agent: flags.as, once: flags.once };
+    let exitCode = 0;
+    if (command === "join") exitCode = await chatCmd.join(input[1], opts);
+    else if (command === "say") exitCode = await chatCmd.say(input[1], input[2], opts);
+    else if (command === "status") exitCode = await chatCmd.status(input[1], input[2], opts);
+    else exitCode = await chatCmd.inbox(input[1], { ...opts, json: true });
+    flushAndExit(exitCode || 0);
   } else if (command === "open") {
     await open();
   } else if (command === "toggle" || ["cs", "ci", "case-sensitive", "case-insensitive"].includes(command)) {

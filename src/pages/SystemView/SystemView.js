@@ -4,6 +4,7 @@ import SystemNavigator from "../../organisms/SystemNavigator/SystemNavigator";
 import Documentation from "../../organisms/Documentation/Documentation";
 import TestPanel from "../../organisms/TestPanel/TestPanel";
 import PageHeader from "../../organisms/PageHeader/PageHeader";
+import AgentChat from "../../organisms/AgentChat/AgentChat";
 import "./styles.scss";
 
 const SystemViewPage = () => {
@@ -327,6 +328,9 @@ const SystemViewPage = () => {
           </div>
         </div>
       </div>
+      {/* RFC-028 — the agent bots: one per connected project, visible at ALL times (never tied to
+          the namespace you're standing on); presence-true rings, view-stamped messages. */}
+      <AgentChat />
     </section>
   );
 };

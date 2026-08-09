@@ -449,6 +449,47 @@ hover one and it says so. Open :file[docs/interactive-markdown.md] and the same 
 :file[src/atoms/Markdown/registry.js] — one map. A new block is a line there, not a renderer change.
 Raw HTML stays off, so nothing renders that isn't registered.`,
   },
+  chat: {
+    title: "Agent chat — the bots in the corner",
+    body: `# Agent chat — talk to an agent from the UI
+
+Every connected project has a **bot** (🤖) floating on the page — always visible, wherever you are.
+Drag it anywhere (release near an edge to dock; the spot is remembered). Click it to open the chat.
+
+## The ring tells the truth
+
+- **Solid green** — an agent is **joined live**: it answers now, even while idle elsewhere.
+- **Dashed indigo** — an agent is **listening by file**: it hears you at its next turn.
+- **Muted** — nobody's connected. The ring is derived from the real connection — it can't lie.
+
+The panel header says the same in words: **LIVE / FILE / OFFLINE**.
+
+## What your message carries
+
+Your words **plus your vantage point at the moment you hit send** — page, namespace, tab, open
+file or report. So "why would you do that?" needs no explanation: the agent knows what *that* is.
+Roaming and commenting stay silent; only your **message** triggers a response.
+
+## While the agent works
+
+The instant a live agent takes your message the panel shows **received**, then the agent's own
+cooking line (bold green, bouncing dots) — a specific status shows verbatim, generic waits rotate
+through cooking words. A **minimized** bot still talks: the cooking line sticks out beside the
+bubble, and an unseen reply shows as a green preview (click it to open). A green count rides the
+bubble for replies you haven't read.
+
+## How an agent connects
+
+Connecting is the **agent's explicit act** — instructions live in \`agents/chat.md\`:
+
+- \`systemview join <project>\` — live mode: the agent holds the line (solid ring), your send wakes
+  it immediately.
+- \`systemview inbox <project>\` from the agent's own hooks — file mode: messages drain from the
+  chat's file (\`.systemview/chats/…jsonl\`) at the agent's next turn (dashed ring).
+- \`systemview say\` / \`systemview status\` — how its replies and cooking lines get here.
+
+One chat per project for now — named chats, docking layouts and more are on the roadmap.`,
+  },
 };
 
 export default HELP_TOPICS;

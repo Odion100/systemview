@@ -6,6 +6,7 @@ const CLIHistory = require("./CLIHistory")();
 const Settings = require("./Settings")();
 const Comments = require("./Comments")();
 const Stage = require("./Stage")();
+const Chats = require("./Chats")();
 // The UI server calls services the same way the CLI does: through the manifest-header client,
 // so operator-authored headers (e.g. an Origin for a gated dev session — see cli/manifestHeaders.js)
 // are attached to every outbound call and every probe. One resolver, shared with the CLI; the UI is
@@ -382,6 +383,53 @@ async function setStoryPaneSpan(projectCode, id, paneId, span) {
   return saveStory.call(this, projectCode, story);
 }
 
+// RFC-028 — agent presence: the chat front door. One JSONL file per chat serves BOTH transports
+// (join = pushed live down a held poll, file = drained at turn boundaries); presence is derived
+// from the real connections. Every append broadcasts so the open UI's bubble/panel stays live —
+// the same push pattern as the stage above.
+function chatSend(projectCode, { chat, from = "you", text, view } = {}) {
+  const { record, delivered } = Chats.send(projectCode, chat || Chats.DEFAULT_CHAT, { from, text, view });
+  this.emit(`chat-updated:${projectCode}`, { chat: chat || Chats.DEFAULT_CHAT, record });
+  // Live handoff → the sender SEES it was received, before the agent even wakes.
+  if (delivered)
+    this.emit(`chat-status:${projectCode}`, { chat: chat || Chats.DEFAULT_CHAT, text: "received" });
+  // An agent reply ends the cooking line — tell the open panels now, not at the next poll.
+  if (from === "agent")
+    this.emit(`chat-status:${projectCode}`, { chat: chat || Chats.DEFAULT_CHAT, text: null });
+  return record;
+}
+function chatHistory(projectCode, chat, limit) {
+  return Chats.history(projectCode, chat || Chats.DEFAULT_CHAT, { limit });
+}
+function chatList(projectCode) {
+  return Chats.chats(projectCode);
+}
+function chatJoin(projectCode, { chat, agent, since } = {}) {
+  // join() registers the live presence synchronously before parking the hold — push the ring flip
+  // to every open panel NOW (the poll only exists to catch silent decay).
+  const held = Chats.join(projectCode, chat || Chats.DEFAULT_CHAT, { agent, since });
+  this.emit(`chat-presence:${projectCode}`, Chats.presence(projectCode));
+  return held;
+}
+function chatStatus(projectCode, { chat, text } = {}) {
+  const r = Chats.setStatus(projectCode, chat || Chats.DEFAULT_CHAT, text);
+  this.emit(`chat-status:${projectCode}`, { chat: chat || Chats.DEFAULT_CHAT, text: text || null });
+  return r;
+}
+function chatDrain(projectCode, { chat, listener } = {}) {
+  const res = Chats.drain(projectCode, chat || Chats.DEFAULT_CHAT, { listener });
+  this.emit(`chat-presence:${projectCode}`, Chats.presence(projectCode));
+  return res;
+}
+function chatLeave(projectCode, { chat } = {}) {
+  const res = Chats.leave(projectCode, chat || Chats.DEFAULT_CHAT);
+  this.emit(`chat-presence:${projectCode}`, Chats.presence(projectCode));
+  return res;
+}
+function chatPresence(projectCode) {
+  return Chats.presence(projectCode);
+}
+
 const shutdown = () => process.exit(0);
 
 module.exports = function launchSystemView(port = 3000) {
@@ -443,6 +491,14 @@ module.exports = function launchSystemView(port = 3000) {
       renameStory,
       reorderStoryPanes,
       setStoryPaneSpan,
+      chatSend,
+      chatHistory,
+      chatList,
+      chatJoin,
+      chatStatus,
+      chatDrain,
+      chatLeave,
+      chatPresence,
     })
     .module("CLI", {
       getHistory: CLIHistory.getHistory,

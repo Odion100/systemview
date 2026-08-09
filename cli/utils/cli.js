@@ -13,6 +13,14 @@ const HELP_TEXT = `
     delete <projectCode>                   init's opposite — hosted projects only: unhost, remove
                                            the registration AND the committed folder (y/N confirm;
                                            --force skips). Plain connections: use disconnect
+    join <project> [--once]                Agent presence (RFC-028): hold the line — each message
+                                           sent from the UI chat streams out as one JSON line
+                                           ({text, view}); the hold IS the "he's in" indicator
+    say <project> "<text>"                 Reply into the UI chat (repeat calls = streamed chunks)
+    status <project> "<text>"              The cooking line shown while the agent works ("" clears)
+    inbox <project>                        File mode: drain pending UI messages as JSON + ack them
+                                           (call from your hooks; registers the outlined-bubble
+                                           listener). See agents/chat.md
     test [target]                          Run saved tests. target = projectCode OR any namespace
                                            (service / module / method / dotted, e.g. Posts.add) — no
                                            projectCode required; it resolves where it lives
@@ -120,7 +128,7 @@ const HELP_TEXT = `
     systemview highlight buAPI --match "await hash"
 `;
 
-const flagValueArgs = ["--manifest", "--header", "--skip", "--phase", "--index", "--level", "--limit", "--follow", "--filter", "--or", "--include", "--highlight", "--save", "--save-limit", "--file", "--source", "--text", "--lines", "--match", "--layout", "--diff", "--test", "--ns", "--note", "--at", "--from", "--to"];
+const flagValueArgs = ["--manifest", "--header", "--skip", "--phase", "--index", "--level", "--limit", "--follow", "--filter", "--or", "--include", "--highlight", "--save", "--save-limit", "--file", "--source", "--text", "--lines", "--match", "--layout", "--diff", "--test", "--ns", "--note", "--at", "--from", "--to", "--chat", "--as"];
 
 // Quote-aware tokenizer: a single/double-quoted arg (e.g. a JSON payload with spaces) stays ONE token,
 // surrounding quotes stripped. Turns an interactive REPL line into the same argv shape the shell hands
@@ -205,6 +213,10 @@ function parseArgs(rawArgs) {
     at: valOf("--at"),
     from: valOf("--from"),
     to: valOf("--to"),
+    // RFC-028 chat verbs
+    chat: valOf("--chat"),
+    as: valOf("--as"),
+    once: rawArgs.includes("--once"),
     // ORDERED pane sequence for `assemble` — walk the raw args left→right so panes render in the
     // order given (markdown can sit BETWEEN code/diff/test to tell a story). Grouping by kind would
     // clump all the prose at the top and kill the narrative.
