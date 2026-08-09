@@ -1631,3 +1631,70 @@
     }
   }
 }
+
+// ::image — a repo image as a first-class block: fit-to-pane, click-to-zoom lightbox, caption,
+// honest broken state. Bytes ride /sv-raw from the project's own plugin.
+.md-image {
+  margin: 10px 0;
+  .md-embed__head {
+    margin-bottom: 6px;
+  }
+  &__row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: flex-start;
+  }
+  &__img {
+    display: block;
+    max-width: 100%;
+    // Resolution never dictates layout (his catch: a big file rendered big): the DISPLAY is
+    // bounded — a 4K screenshot sits inside this cap, and the zoom carries the full detail.
+    // A {width=} attr still overrides.
+    max-height: 420px;
+    object-fit: contain;
+    border: 1px solid var(--sv-border);
+    border-radius: 8px;
+    cursor: zoom-in;
+  }
+  // GALLERY — uniform TILES regardless of each file's native size ("they go across flex"):
+  // fixed row height, cover-cropped, every tile its own zoom for the real thing.
+  &--gallery .md-image__img {
+    flex: 0 1 auto;
+    height: 150px;
+    width: auto;
+    min-width: 90px;
+    max-width: 320px;
+    object-fit: cover;
+  }
+  &__caption {
+    margin-top: 5px;
+    font-size: 12px;
+    font-style: italic;
+    color: var(--sv-text-muted);
+  }
+  &__dead {
+    border: 1px dashed var(--sv-border);
+    border-radius: 8px;
+    padding: 14px;
+    font-size: 12.5px;
+    color: var(--sv-text-muted);
+    font-style: italic;
+  }
+  &__lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(0, 0, 0, 0.78);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: zoom-out;
+    img {
+      max-width: 92vw;
+      max-height: 92vh;
+      border-radius: 8px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    }
+  }
+}

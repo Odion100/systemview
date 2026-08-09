@@ -248,6 +248,7 @@ module.exports = ({ App, specs, projectCode, serviceId, module = {}, credentials
     // path-guarded to that root. The AI Window's stage carries only locators; the browser calls
     // these directly (like getDoc) to fetch the real bytes at render time.
     this.readFile = providers.readFile;
+    this.readFileRaw = providers.readFileRaw;
     this.listFiles = providers.listFiles;
     this.changedFiles = providers.changedFiles;
     this.search = providers.search;

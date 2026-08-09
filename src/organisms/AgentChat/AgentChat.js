@@ -622,8 +622,16 @@ function BotBubble({ projectCode, index }) {
         const lastShow = [...(history || [])]
           .reverse()
           .find((m) => m.kind === "command" && m.cmd === "show" && m.args && m.args.text);
-        if (lastShow)
-          setTv({ id: lastShow.id, text: lastShow.args.text, label: lastShow.label || "show" });
+        if (lastShow) {
+          // Prefer the CLICKED-UP state (silent TV interactions persist hub-side) — his
+          // verdicts and answers must survive a reload, not reset to the pristine show.
+          let text = lastShow.args.text;
+          try {
+            const saved = await SystemView.chatGetTv(projectCode, { chat });
+            if (saved && saved.id === lastShow.id && saved.text) text = saved.text;
+          } catch {}
+          if (!dead) setTv({ id: lastShow.id, text, label: lastShow.label || "show" });
+        }
         // Replies that landed since the last time this panel was open → the green count.
         let seen = 0;
         try { seen = Number(localStorage.getItem(`sv.chatSeen.${projectCode}`)) || 0; } catch {}
@@ -644,8 +652,34 @@ function BotBubble({ projectCode, index }) {
         if (!dead) setPresence({});
       }
     };
-    const timer = setInterval(refetchPresence, 10000);
-    window.addEventListener("focus", refetchPresence);
+    // The thread must survive a lost socket (his catch: "I send a message and it doesn't show
+    // until I refresh" — every hub restart drops the event subscriptions while the presence
+    // POLL keeps painting, so the room looked half-alive). The same poll now also resyncs the
+    // MESSAGE tail and merges by id — pushed events stay the fast path, the poll is the net.
+    const resyncMessages = async () => {
+      try {
+        const hist = await SystemView.chatHistory(projectCode, chat, 200);
+        if (dead || !Array.isArray(hist)) return;
+        setMessages((prev) => {
+          if (
+            prev.length &&
+            hist.length &&
+            prev[prev.length - 1].id === hist[hist.length - 1].id &&
+            prev.length >= hist.length
+          )
+            return prev; // tail matches — no churn
+          const seen = new Set(hist.map((m) => m.id));
+          const extra = prev.filter((m) => !seen.has(m.id));
+          return [...hist, ...extra].sort((a, b) => a.ts - b.ts);
+        });
+      } catch {}
+    };
+    const tick = () => {
+      refetchPresence();
+      resyncMessages();
+    };
+    const timer = setInterval(tick, 10000);
+    window.addEventListener("focus", tick);
     const unsubMsg = SystemView.on(`chat-updated:${projectCode}`, ({ record }) => {
       setMessages((prev) => (prev.some((m) => m.id === record.id) ? prev : [...prev, record]));
       // A command MOVES the screen — that's its own notification; no unread count for it.
@@ -672,7 +706,7 @@ function BotBubble({ projectCode, index }) {
     return () => {
       dead = true;
       clearInterval(timer);
-      window.removeEventListener("focus", refetchPresence);
+      window.removeEventListener("focus", tick);
       if (unsubMsg) unsubMsg();
       if (unsubStatus) unsubStatus();
       if (unsubPresence) unsubPresence();
@@ -776,7 +810,12 @@ function BotBubble({ projectCode, index }) {
       help: params.get("help") || undefined,
     };
     try {
-      await SystemView.chatSend(projectCode, { chat, from: "you", text, view });
+      // OPTIMISTIC: the returned record goes straight into the thread — your own message must
+      // never depend on the push channel to become visible (his catch: send → nothing → refresh).
+      const rec = await SystemView.chatSend(projectCode, { chat, from: "you", text, view });
+      if (rec && rec.id)
+        setMessages((prev) => (prev.some((m) => m.id === rec.id) ? prev : [...prev, rec]));
+      setTimeout(scrollToEnd, 50);
     } catch {}
   };
 
@@ -801,12 +840,52 @@ function BotBubble({ projectCode, index }) {
     : visiting.length
     ? `live — visiting ${visiting.join(", ")}`
     : busy
-    ? "head down — working with the line down; messages wait until it checks back"
+    ? `head down cooking — ${p.pending ? `${p.pending} message${p.pending === 1 ? "" : "s"} waiting` : "has your messages"}; replies when it surfaces`
     : p.listener
-    ? "listening by file — hears you at its next turn"
-    : "no agent connected";
+    ? `hears you at its next turn — send freely, nothing is ever lost${p.pending ? ` · ${p.pending} waiting` : ""}`
+    : `out right now — your message waits in the room for its next wake${p.pending ? ` · ${p.pending} waiting` : ""}`;
   const leftHalf = pos ? pos.x < window.innerWidth / 2 : false;
   const topHalf = pos ? pos.y < window.innerHeight / 2 : false;
+
+  // THE COLLECTOR — every link/show in the room, resurfaceable (his ask). Opening it fetches
+  // the WHOLE file (the thread itself caps at 200), then it's a pure lens over those records.
+  const [linksOpen, setLinksOpen] = useState(false);
+  const [linkQ, setLinkQ] = useState("");
+  const [fullHist, setFullHist] = useState(null);
+  useEffect(() => {
+    if (!linksOpen || !SystemView) return;
+    let dead = false;
+    (async () => {
+      try {
+        const all = await SystemView.chatHistory(projectCode, chat, 0);
+        if (!dead) setFullHist(all || []);
+      } catch {
+        if (!dead) setFullHist([]);
+      }
+    })();
+    return () => { dead = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linksOpen, messages.length]);
+  const collected = React.useMemo(() => {
+    const src = fullHist || messages;
+    const q = linkQ.trim().toLowerCase();
+    const out = [];
+    for (const m of src) {
+      if (m.kind === "command") {
+        if (m.cmd === "show" && m.args && m.args.text) {
+          if (!q || String(m.label || "show").toLowerCase().includes(q) || String(m.args.text).toLowerCase().includes(q))
+            out.push({ kind: "show", m });
+        }
+        continue;
+      }
+      if (m.kind === "system") continue;
+      if (q && !String(m.text || "").toLowerCase().includes(q)) continue;
+      // Chips only — renderChatText returns strings for prose and elements for links/reports.
+      const parts = renderChatText(String(m.text || "")).filter((p) => typeof p !== "string");
+      if (parts.length) out.push({ kind: "links", m, parts });
+    }
+    return out.reverse(); // newest first — "I want that link again" is usually a recent one
+  }, [fullHist, messages, linkQ]);
 
   // RESIZABLE — the WHOLE border drags (his call after the corner hotzone failed him three
   // times): sides resize one axis, corners both, the cursor is the handle everywhere. One
@@ -909,7 +988,91 @@ function BotBubble({ projectCode, index }) {
               </button>
             </div>
             <div className={`${CLASSNAME}__tv-body`}>
-              <Markdown dark={appDark} scope={{ projectCode }}>{tv.text}</Markdown>
+              {/* The TV is INTERACTIVE-COMPLETE — and clicks are SILENT (his flow: "when I'm
+                  done I'll jump back in the chat and say I responded"). Every interaction
+                  writes the clicked-up show to the hub's TV-state file quietly — no chat echo
+                  per click — and the agent reads the answers from there when he announces.
+                  A writable surface also means right-click works here. */}
+              <Markdown
+                dark={appDark}
+                scope={{ projectCode }}
+                commentKey={`tv-${projectCode}`}
+                onSourceChange={(next) => {
+                  setTv((cur) => (cur ? { ...cur, text: next } : cur));
+                  SystemView.chatSetTv(projectCode, {
+                    chat,
+                    state: { id: tv.id, label: tv.label || "show", text: next },
+                  }).catch(() => {});
+                }}
+              >
+                {tv.text}
+              </Markdown>
+            </div>
+          </div>
+        )}
+        {/* THE COLLECTOR (his ask: "I want that link again") — a side panel like the TV: every
+            link chip and 📺 show ever sent in this room, newest first, still clickable. A lens
+            over the room's file — no new storage. Slides beside the TV when both are open. */}
+        {linksOpen && (
+          <div
+            className={`${CLASSNAME}__tv ${CLASSNAME}__links`}
+            style={{
+              width: 300,
+              height: Math.min(480, window.innerHeight - 120),
+              ...(tvOpen && tv
+                ? leftHalf
+                  ? { left: `calc(100% + ${tvSize.w + 20}px)` }
+                  : { right: `calc(100% + ${tvSize.w + 20}px)` }
+                : {}),
+            }}
+          >
+            <div className={`${CLASSNAME}__tv-head`}>
+              <span className={`${CLASSNAME}__tv-badge`}>🔗</span>
+              <span className={`${CLASSNAME}__tv-title`}>links & shows</span>
+              <button
+                type="button"
+                className={`${CLASSNAME}__close`}
+                title="Close"
+                onClick={() => setLinksOpen(false)}
+              >
+                ✕
+              </button>
+            </div>
+            <input
+              className={`${CLASSNAME}__links-filter`}
+              placeholder="filter…"
+              value={linkQ}
+              onChange={(e) => setLinkQ(e.target.value)}
+            />
+            <div className={`${CLASSNAME}__links-body`}>
+              {collected.length === 0 ? (
+                <div className={`${CLASSNAME}__links-empty`}>
+                  {linkQ ? "nothing matches" : "no links or shows in this room yet"}
+                </div>
+              ) : (
+                collected.map((e) =>
+                  e.kind === "show" ? (
+                    <button
+                      type="button"
+                      key={e.m.id}
+                      className={`${CLASSNAME}__links-item ${CLASSNAME}__links-item--show`}
+                      title="Put this show back on the TV"
+                      onClick={() => {
+                        setTv({ id: e.m.id, text: e.m.args.text, label: e.m.label || "show" });
+                        setTvOpen(true);
+                      }}
+                    >
+                      <span>📺 {e.m.label || "show"}</span>
+                      <span className={`${CLASSNAME}__links-time`}>{msgTime(e.m.ts)}</span>
+                    </button>
+                  ) : (
+                    <div key={e.m.id} className={`${CLASSNAME}__links-item`}>
+                      <span className={`${CLASSNAME}__links-chips`}>{e.parts}</span>
+                      <span className={`${CLASSNAME}__links-time`}>{msgTime(e.m.ts)}</span>
+                    </div>
+                  ),
+                )
+              )}
             </div>
           </div>
         )}
@@ -942,6 +1105,15 @@ function BotBubble({ projectCode, index }) {
             <span className={`${CLASSNAME}__mode ${CLASSNAME}__mode--${ring}`} title={modeText}>{mode}</span>
             <span className={`${CLASSNAME}__title`}>{projectCode}</span>
             <span className={`${CLASSNAME}__presence`}>{modeText}</span>
+            {/* the collector — every link & show from this room, in a side panel like the TV */}
+            <button
+              type="button"
+              className={`${CLASSNAME}__close ${CLASSNAME}__links-btn${linksOpen ? ` ${CLASSNAME}__links-btn--on` : ""}`}
+              title="All links & shows sent in this room"
+              onClick={() => setLinksOpen((v) => !v)}
+            >
+              🔗
+            </button>
             <button
               type="button"
               className={`${CLASSNAME}__close`}
@@ -1084,8 +1256,16 @@ function BotBubble({ projectCode, index }) {
                     <span className={`${CLASSNAME}__visitor-tag`}>{m.as}</span>
                   )}
                   {renderChatText(String(m.text || ""))}
-                  {/* the time, quietly in the corner — hover for the full date */}
+                  {/* the time, quietly in the corner — hover for the full date. Your bubbles
+                      also carry a READ receipt (his ask): ✓✓ once the agent has actually
+                      DRAINED past this message; a dot while it's still queued. */}
                   <span className={`${CLASSNAME}__msg-time`} title={new Date(m.ts).toLocaleString()}>
+                    {m.from === "you" &&
+                      ((p.agentSeen || 0) >= m.ts ? (
+                        <span className={`${CLASSNAME}__read`} title="seen — the agent has collected this">✓✓ </span>
+                      ) : (
+                        <span className={`${CLASSNAME}__read ${CLASSNAME}__read--queued`} title="sent — waiting for the agent to collect it">✓ </span>
+                      ))}
                     {msgTime(m.ts)}
                   </span>
                 </div>

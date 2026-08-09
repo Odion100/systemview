@@ -26,10 +26,16 @@ const deliverable = (m, me) =>
 const chatFile = (pc, chat) => path.join(CHATS_DIR, `${safe(pc)}.${safe(chat)}.jsonl`);
 const ackFile = (pc, chat) => path.join(CHATS_DIR, `${safe(pc)}.${safe(chat)}.ack.json`);
 
-// Long-poll grace: the CLI re-arms immediately after each 25s server-side timeout, so a live agent
-// is never unseen for more than a few seconds; 75s of silence = it's gone.
-const POLL_TIMEOUT = 25000;
-const LIVE_GRACE = 75000;
+// Long-poll heartbeat + grace. The CLI re-arms immediately after every server-side timeout, so
+// the poll length IS the idle heartbeat — and the grace must exceed one beat or healthy idle
+// agents flicker. His push ("why 35 seconds — more like 5 or none") is right that the old
+// numbers were pinned to a lazy 25s beat, so the beat itself came down: 5s polls make a 10s
+// grace flicker-free. Why not ZERO: the instant a message delivers, the hold completes — with
+// no grace every exchange would flash amber during the second or two even a prompt agent needs
+// to re-arm, and amber would stop meaning anything. 10s = amber means "took the work and did
+// NOT come back promptly", which is exactly the diagnostic he wants.
+const POLL_TIMEOUT = 5000;
+const LIVE_GRACE = 10000;
 // File listeners check in at turn boundaries — human-paced. Seen within 20min = still listening.
 const LISTENER_GRACE = 20 * 60 * 1000;
 // Cooking lines DECAY (his catch: "it still says you're cooking" hours after the fact). Auto
@@ -315,11 +321,21 @@ module.exports = function Chats() {
         if (!seen.size) liveSeen.delete(k);
       }
       for (const [k, lines] of statusMap) {
+        const [pc, chat] = k.split("|");
         for (const [identity, v] of lines) {
           const auto = v.text === "received" || v.text.startsWith("waiting on ");
-          if (now - v.ts > (auto ? AUTO_STATUS_TTL : STATUS_TTL)) {
+          // A cooking claim needs a living cook (his catch: an idle agent "still cooking"):
+          // an identity with NO fresh presence signal — no live stamp, and for the home agent
+          // no recent drain either — gets the short TTL even on a self-set line. A present
+          // agent's narration keeps the full 15 minutes.
+          const seen = liveSeen.get(k);
+          const liveFresh = !!(seen && seen.get(identity) && now - seen.get(identity) < LIVE_GRACE);
+          const listenerFresh =
+            identity === pc &&
+            !!(listenerSeen.get(k) && now - listenerSeen.get(k).ts < LISTENER_GRACE);
+          const ttl = auto || !(liveFresh || listenerFresh) ? AUTO_STATUS_TTL : STATUS_TTL;
+          if (now - v.ts > ttl) {
             lines.delete(identity);
-            const [pc, chat] = k.split("|");
             events.push({ pc, chat, identity, record: null, statusCleared: true });
           }
         }
@@ -331,7 +347,7 @@ module.exports = function Chats() {
     // The bubble's truth: live/listener flags decay by silence, never by declaration. RFC-031:
     // `live` = the room's OWN agent holds the line; `agents` = the full roster of identities
     // currently in (home + visitors); `visiting` = rooms this project's agent is off in.
-    presence(pc) {
+    presence(pc, opts = {}) {
       const now = Date.now();
       const out = {};
       const entry = (chat) =>
@@ -375,8 +391,27 @@ module.exports = function Chats() {
       // The fullness meter's feed (his rule: "you guys aren't going to always remember [to
       // compact] so I need to be able to SEE it"): true record count per chat — history loads
       // are capped, so the count must come from the file itself.
+      // `pending` (his ask: "how many unread messages you have" while heads-down): deliverable-
+      // to-home records newer than the HOME agent's freshest ack cursor — "hooks" is home's,
+      // and a `join:<name>` cursor counts as home when opts.isHome says the name canons to it.
       entry(DEFAULT_CHAT);
-      for (const chat of Object.keys(out)) out[chat].records = readAll(pc, chat).length;
+      const isHome = opts.isHome || ((name) => name === pc);
+      for (const chat of Object.keys(out)) {
+        const all = readAll(pc, chat);
+        out[chat].records = all.length;
+        let acks = {};
+        try { acks = JSON.parse(fs.readFileSync(ackFile(pc, chat), "utf8")); } catch {}
+        let maxTs = 0;
+        for (const [lk, ts] of Object.entries(acks)) {
+          const name = lk === "hooks" ? pc : lk.startsWith("join:") ? lk.slice(5) : null;
+          if (name && isHome(name) && ts > maxTs) maxTs = ts;
+        }
+        out[chat].pending = all.filter((m) => deliverable(m, pc) && m.ts > maxTs).length;
+        // Read receipts (his ask: "messages can say read once they're read"): everything at or
+        // before this ts has actually been DRAINED by the home agent — not delivered-to-a-hold,
+        // collected. The UI marks the human's bubbles off it.
+        out[chat].agentSeen = maxTs;
+      }
       return out;
     },
   };

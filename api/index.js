@@ -400,6 +400,12 @@ function canonIdentity(projectCode, as) {
     return projectCode;
   }
 }
+// Presence with the identity-canon predicate — a "join:claude" cursor is the HOME agent's
+// (canonIdentity collapses unknown/self names to the room), so `pending` counts against the
+// right cursor everywhere presence is computed.
+function presenceFor(pc) {
+  return Chats.presence(pc, { isHome: (name) => canonIdentity(pc, name) === pc });
+}
 // The presence reaper — decay never pushed to open panels before (his catch: "still says you're
 // visiting" long after the hold died). The module context is only reachable from method calls,
 // so the first chat call arms the interval; UI presence polls guarantee that's within seconds
@@ -414,8 +420,8 @@ function armChatSweep(ctx) {
     for (const ev of events) {
       if (ev.record) ctx.emit(`chat-updated:${ev.pc}`, { chat: ev.chat, record: ev.record });
       if (ev.statusCleared) emitStatuses(ctx, ev.pc, ev.chat);
-      ctx.emit(`chat-presence:${ev.pc}`, Chats.presence(ev.pc));
-      if (ev.identity !== ev.pc) ctx.emit(`chat-presence:${ev.identity}`, Chats.presence(ev.identity));
+      ctx.emit(`chat-presence:${ev.pc}`, presenceFor(ev.pc));
+      if (ev.identity !== ev.pc) ctx.emit(`chat-presence:${ev.identity}`, presenceFor(ev.identity));
     }
   }, 20000);
 }
@@ -423,7 +429,7 @@ function armChatSweep(ctx) {
 // (plus the legacy single text/as fields so an older bundle's peek keeps working).
 function emitStatuses(ctx, projectCode, chat) {
   const chatName = chat || Chats.DEFAULT_CHAT;
-  const p = Chats.presence(projectCode)[chatName] || {};
+  const p = presenceFor(projectCode)[chatName] || {};
   ctx.emit(`chat-status:${projectCode}`, {
     chat: chatName,
     statuses: p.statuses || [],
@@ -439,6 +445,10 @@ function chatSend(projectCode, { chat, from = "you", text, view, as } = {}) {
   // The store just moved cooking lines around (speaker's line cleared, takers' lines flipped
   // "received", maybe a "waiting on" appeared) — push the whole per-identity set.
   emitStatuses(this, projectCode, chat);
+  // …and the queue math changed too (his rule: "there's a queue adding up — I should know"):
+  // push presence so the waiting count and read receipts move the moment a message lands,
+  // in every mode — not at the next poll.
+  this.emit(`chat-presence:${projectCode}`, presenceFor(projectCode));
   return record;
 }
 // RFC-029 — agent control: a command is a chat record; the push IS the execution channel. The
@@ -466,9 +476,9 @@ function chatJoin(projectCode, { chat, agent, since } = {}) {
     this.emit(`chat-updated:${projectCode}`, { chat: chatName, record: sys });
   }
   const held = Chats.join(projectCode, chatName, { identity, since });
-  this.emit(`chat-presence:${projectCode}`, Chats.presence(projectCode));
+  this.emit(`chat-presence:${projectCode}`, presenceFor(projectCode));
   // A visitor's arrival also changes ITS OWN bot's story ("visiting <room>") — tell that room too.
-  if (identity !== projectCode) this.emit(`chat-presence:${identity}`, Chats.presence(identity));
+  if (identity !== projectCode) this.emit(`chat-presence:${identity}`, presenceFor(identity));
   return held;
 }
 function chatStatus(projectCode, { chat, text, as } = {}) {
@@ -480,7 +490,7 @@ function chatStatus(projectCode, { chat, text, as } = {}) {
 function chatDrain(projectCode, { chat, listener, as } = {}) {
   const identity = canonIdentity(projectCode, as);
   const res = Chats.drain(projectCode, chat || Chats.DEFAULT_CHAT, { listener, identity });
-  this.emit(`chat-presence:${projectCode}`, Chats.presence(projectCode));
+  this.emit(`chat-presence:${projectCode}`, presenceFor(projectCode));
   // A "waiting on <pc>" line may have just flipped to "received" (turn-boundary pickup) —
   // push the current lines so the human sees the handoff.
   if ((res.messages || []).length && identity === projectCode)
@@ -497,13 +507,31 @@ function chatLeave(projectCode, { chat, agent } = {}) {
   }
   const res = Chats.leave(projectCode, chatName, { identity });
   emitStatuses(this, projectCode, chatName); // the leaver's cooking line just ended
-  this.emit(`chat-presence:${projectCode}`, Chats.presence(projectCode));
-  if (identity !== projectCode) this.emit(`chat-presence:${identity}`, Chats.presence(identity));
+  this.emit(`chat-presence:${projectCode}`, presenceFor(projectCode));
+  if (identity !== projectCode) this.emit(`chat-presence:${identity}`, presenceFor(identity));
   return res;
 }
 function chatPresence(projectCode) {
   armChatSweep(this);
-  return Chats.presence(projectCode);
+  return presenceFor(projectCode);
+}
+// THE TV's persistent state (his flow: clicks are SILENT — no chat echo per interaction — and
+// he announces when he's done; so the clicked-up show text must live somewhere an agent can
+// read). One JSON per room beside the chat file; survives hub restarts and reloads.
+const tvStateFile = (pc, chat) =>
+  path.join(process.cwd(), ".systemview", "chats", `${String(pc).replace(/[^a-zA-Z0-9._-]/g, "_")}.${String(chat || Chats.DEFAULT_CHAT).replace(/[^a-zA-Z0-9._-]/g, "_")}.tv.json`);
+function chatSetTv(projectCode, { chat, state } = {}) {
+  const fs = require("fs");
+  fs.mkdirSync(path.dirname(tvStateFile(projectCode, chat)), { recursive: true });
+  fs.writeFileSync(tvStateFile(projectCode, chat), JSON.stringify({ ...state, ts: Date.now() }, null, 2));
+  return { ok: true };
+}
+function chatGetTv(projectCode, { chat } = {}) {
+  try {
+    return JSON.parse(require("fs").readFileSync(tvStateFile(projectCode, chat), "utf8"));
+  } catch {
+    return null;
+  }
 }
 // The bouncer — the human kicks an identity out of a room (right-click a roster name). The
 // kicked hold answers {kicked} immediately, the room gets its system line, rejoin refused for
@@ -514,8 +542,8 @@ function chatKick(projectCode, { chat, identity } = {}) {
   const res = Chats.kick(projectCode, chatName, { identity });
   emitStatuses(this, projectCode, chatName); // the kicked identity's cooking line goes too
   this.emit(`chat-updated:${projectCode}`, { chat: chatName, record: res.record });
-  this.emit(`chat-presence:${projectCode}`, Chats.presence(projectCode));
-  if (identity !== projectCode) this.emit(`chat-presence:${identity}`, Chats.presence(identity));
+  this.emit(`chat-presence:${projectCode}`, presenceFor(projectCode));
+  if (identity !== projectCode) this.emit(`chat-presence:${identity}`, presenceFor(identity));
   return res;
 }
 
@@ -531,6 +559,39 @@ module.exports = function launchSystemView(port = 3000) {
   // configuration hand: rename the service, add/delete/rename modules — file ops on the folder.
   hostingUnit = require("./hostProject")(port);
   const { hostProject, hostedOp } = hostingUnit;
+
+  // Self-updating tabs (his rule: "never suggest page reload to me again") — the client polls
+  // this and swaps itself the moment the served bundle changes. Read fresh per request: the hub
+  // outlives many builds.
+  server.get("/sv-bundle", (req, res) => {
+    try {
+      const html = require("fs").readFileSync(indexPath, "utf8");
+      const m = html.match(/main\.[a-z0-9]+\.js/);
+      res.json({ bundle: m ? m[0] : null });
+    } catch {
+      res.json({ bundle: null });
+    }
+  });
+
+  // ::image's byte pipe — the hub proxies raw file bytes from the project's OWN plugin (the
+  // image lives in the repo; the document carries a locator, same rule as ::file). Approved via
+  // a TV verdict, fittingly.
+  server.get("/sv-raw/:pc/:sid", async (req, res) => {
+    try {
+      const { service } = ConnectedServices.findService(null, req.params.pc, req.params.sid);
+      if (!service) return res.status(404).send("service not connected");
+      // A FRESH client per request — the shared Client caches each service's method stubs at
+      // first load, so a service that gained readFileRaw after a restart kept 404ing through
+      // the stale stub map (found live: rebooted fixtures still "not a function" via the cache).
+      const { Plugin } = await createClient(httpClient).loadService(service.system.connectionData.serviceUrl);
+      const file = await Plugin.readFileRaw({ path: String(req.query.path || "") });
+      res.set("Content-Type", file.mime || "application/octet-stream");
+      res.set("Cache-Control", "private, max-age=30");
+      res.send(Buffer.from(file.base64, "base64"));
+    } catch (e) {
+      res.status(404).send(String((e && e.message) || "not found"));
+    }
+  });
 
   server.use(express.static(buildPath));
 
@@ -589,6 +650,8 @@ module.exports = function launchSystemView(port = 3000) {
       chatDrain,
       chatLeave,
       chatKick,
+      chatSetTv,
+      chatGetTv,
       chatPresence,
     })
     .module("CLI", {

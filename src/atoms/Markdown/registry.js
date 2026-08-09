@@ -13,11 +13,18 @@ import Approval from "./blocks/Approval";
 import LogsEmbed from "./blocks/LogsEmbed";
 import { FileEmbed, DiffEmbed } from "./blocks/FileEmbed";
 import ReportLink from "./blocks/ReportLink";
+import ImageEmbed from "./blocks/ImageEmbed";
 
 // `file` is TWO things depending on how it's written — the same split `run` has. Inline is a
 // reference (`:file[path]` → a chip that points at it); block is the thing itself (`::file[path]` →
 // the file, in the document). One name, because it's one concept at two weights.
-const FileBlock = (props) => (props.kind === "inline" ? <FileLink {...props} /> : <FileEmbed {...props} />);
+// An image is just another file kind: a block-form ::file pointed at one renders the image viewer.
+const IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg|avif|bmp|ico)(\s|$)/i;
+const FileBlock = (props) => {
+  if (props.kind !== "inline" && IMAGE_EXT.test(String(props.label || "").trim()))
+    return <ImageEmbed {...props} />;
+  return props.kind === "inline" ? <FileLink {...props} /> : <FileEmbed {...props} />;
+};
 
 // RFC-025 §3 — THE REGISTRY. Adding a feature to every markdown surface in the app is adding a line
 // here; the renderer never changes. Nothing renders that isn't in this map (see directives.js on why
@@ -37,6 +44,7 @@ export const BLOCKS = {
   // embeds — live things inside prose
   chart: { Component: ChartEmbed },
   test: { Component: TestEmbed },
+  image: { Component: ImageEmbed },
   run: { Component: RunBlock },
   load: { Component: LoadEmbed },
   topology: { Component: TopologyEmbed },

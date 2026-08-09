@@ -342,6 +342,71 @@
     right: auto;
     left: calc(100% + 10px);
   }
+  // THE COLLECTOR — links & shows lens, a side panel in the TV's family.
+  &__links-btn {
+    font-size: 11px;
+    &--on {
+      border-color: #9a7cb8;
+    }
+  }
+  &__links-filter {
+    margin: 6px 8px 0;
+    border: 1px solid var(--sv-border);
+    border-radius: 6px;
+    background: none;
+    color: var(--sv-text);
+    font-size: 12px;
+    padding: 4px 8px;
+    outline: none;
+    &:focus {
+      border-color: #9a7cb8;
+    }
+  }
+  &__links-body {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: 6px 8px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  &__links-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    border: 1px solid var(--sv-border);
+    border-radius: 8px;
+    padding: 5px 8px;
+    font-size: 12px;
+    color: var(--sv-text);
+    background: none;
+    text-align: left;
+    &--show {
+      cursor: pointer;
+      &:hover {
+        border-color: #9a7cb8;
+        background: color-mix(in srgb, #9a7cb8 8%, transparent);
+      }
+    }
+  }
+  &__links-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    min-width: 0;
+  }
+  &__links-time {
+    flex: none;
+    font-size: 9.5px;
+    color: var(--sv-text-muted);
+  }
+  &__links-empty {
+    color: var(--sv-text-faint);
+    font-size: 12px;
+    font-style: italic;
+    padding: 10px 4px;
+  }
   &__tv-head {
     display: flex;
     align-items: center;
@@ -569,7 +634,9 @@
     }
     &--you {
       align-self: flex-end;
-      background: var(--sv-blue);
+      // HIS devtools pick — this exact purple-blue, not var(--sv-blue) (the pair he handed
+      // over: #575fc1 bubble + #00ff0a checks).
+      background: #575fc1;
       color: #fff;
       border-bottom-right-radius: 3px;
       a {
@@ -587,6 +654,17 @@
     // RFC-031 — a VISITOR's bubble: another project speaking in this room, wearing its name.
     &--visitor {
       border-left: 3px solid var(--vis, #b06ab3);
+    }
+  }
+  // Read receipt on your bubbles — ✓✓ the moment the agent has drained past it. HIS colors,
+  // picked in devtools against the #575fc1 bubble: bright green, bolder.
+  &__read {
+    color: #00ff0a;
+    font-weight: bolder;
+    // SENT-not-seen must STAND OUT (his call): a full single white check, not a faint dot —
+    // one ✓ white = sent/waiting, two ✓✓ green = the agent collected it.
+    &--queued {
+      color: #fff;
     }
   }
   // The time, tucked in the bubble's corner (his ask: "we need to see the time").

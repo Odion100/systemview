@@ -136,13 +136,15 @@ const Commentable = ({ node, tag: Tag, children, ...props }) => {
   const pos = node && node.position;
   const canWrap =
     threadable && !inThread && pos && pos.start && pos.end && pos.start.column === 1 && pos.start.line;
-  if (!canWrap) return <Tag {...props}>{children}</Tag>;
+  // Void elements (hr) must not receive children — React hard-errors on it.
+  const el = Tag === "hr" ? <Tag {...props} /> : <Tag {...props}>{children}</Tag>;
+  if (!canWrap) return el;
   return (
     // The line range rides the DOM as data — that's how the right-click menu knows which block you
     // aimed at without React having to track the pointer. No hover 💬 in the margin anymore (his
     // call: an invisible corner button pushing left space, when right-click already starts threads).
     <div className="md-commentable" data-md-start={pos.start.line} data-md-end={pos.end.line}>
-      <Tag {...props}>{children}</Tag>
+      {el}
     </div>
   );
 };
@@ -564,10 +566,16 @@ const Markdown = ({ children, dark = false, scope = null, onSourceChange = null,
       h2: (p) => <Commentable tag="h2" {...p} />,
       h3: (p) => <Commentable tag="h3" {...p} />,
       h4: (p) => <Commentable tag="h4" {...p} />,
+      h5: (p) => <Commentable tag="h5" {...p} />,
+      h6: (p) => <Commentable tag="h6" {...p} />,
       table: (p) => <Commentable tag="table" {...p} />,
       blockquote: (p) => <Commentable tag="blockquote" {...p} />,
       ul: (p) => <Commentable tag="ul" {...p} />,
       ol: (p) => <Commentable tag="ol" {...p} />,
+      // CODE FENCES and dividers are blocks too (his catch: "I can't wrap code blocks — it
+      // says document") — the fence's pre carries the full source range like any paragraph.
+      pre: (p) => <Commentable tag="pre" {...p} />,
+      hr: (p) => <Commentable tag="hr" {...p} />,
       // A task-list item. GOTCHA: the `node` here is the HAST node, not mdast — remark-gfm has
       // already turned `- [ ]` into `<li class="task-list-item"><input type=checkbox disabled>`, so
       // `node.checked` does NOT exist. Read the state off that input child, and drop react-markdown's

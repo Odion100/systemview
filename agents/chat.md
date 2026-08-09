@@ -162,11 +162,15 @@ systemview show <pc> --clear                        # blank the TV
 - **Their view stamp + the open doc = your eyes.** The stamp names the page, tab, open report,
   namespace; the report/doc is a file you can read to know exactly which blocks are on their
   screen. Use both before acting on "this"/"that".
-- **The TV is for show-and-tell, not filing** (the Canvas model): one show at a time, it
-  auto-opens on a live show, the human can close it, and every show stays in the thread as a
-  clickable 📺 line that puts THAT show back on — history navigation for free. Content is FULL
-  interactive markdown (runnables, `::test` — including `{ran=…}` recorded ones — charts,
-  embeds). Use it for "look at this right now"; when something deserves keeping, file a report.
+- **TV FIRST — reports only when the human asks for one.** (His standing rule.) The TV carries
+  the full interactive vocabulary now — runnables, `::test` (including `{ran=…}` recorded ones),
+  charts, `::image`/galleries, questions, approvals — and the human can answer/approve RIGHT ON
+  IT: his clicks save silently to the room's TV state (no chat noise), and he'll tell you in the
+  chat when he's responded. Read his answers with `systemview` (the hub's `chatGetTv`) or ask him
+  to paste — the clicked-up show text IS the record of his decisions. Shows are disposable by
+  design: one at a time, every show stays in the thread as a clickable 📺 line. Proposals, demos,
+  status boards, walkthroughs → TV. A report is for when HE says "make it a report" or the thing
+  must live as a document in the repo.
 
 ## Agents talk (RFC-031) — you ARE your project, and you can visit
 

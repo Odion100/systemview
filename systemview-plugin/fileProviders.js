@@ -342,6 +342,27 @@ function createFileProviders(rootDir) {
     return { path: rel, ts, content: fs.readFileSync(file, "utf8") };
   }
 
+  // readFileRaw({ path }) → { base64, mime, bytes } — binary-safe bytes for the hub's /sv-raw
+  // route (::image renders repo screenshots straight from the project — locators, not copies).
+  const MIME_BY_EXT = {
+    ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif",
+    ".webp": "image/webp", ".svg": "image/svg+xml", ".ico": "image/x-icon",
+    ".bmp": "image/bmp", ".avif": "image/avif",
+  };
+  function readFileRaw({ path: userPath } = {}) {
+    if (!userPath) throw new Error("readFileRaw: `path` is required");
+    const abs = safeResolve(userPath);
+    const stat = fs.statSync(abs);
+    if (stat.size > 15 * 1024 * 1024) throw new Error("file too large to serve raw (15MB cap)");
+    const buf = fs.readFileSync(abs);
+    return {
+      path: relFromRoot(abs),
+      base64: buf.toString("base64"),
+      mime: MIME_BY_EXT[path.extname(abs).toLowerCase()] || "application/octet-stream",
+      bytes: stat.size,
+    };
+  }
+
   // writeFile({ path, content, base }) → save (the editor's write path, guarded). Phase 4.
   // `base` (optional) = the content this tab LOADED: when the file on disk no longer matches it,
   // someone else saved meanwhile — return { conflict, current } instead of clobbering their work.
@@ -369,7 +390,7 @@ function createFileProviders(rootDir) {
     return { path: relFromRoot(abs), bytes: Buffer.byteLength(content || "", "utf8") };
   }
 
-  return { readFile, listFiles, changedFiles, search, getSource, getDiff, writeFile, fileHistory, readSnapshot, snapshot, languageOf, safeResolve };
+  return { readFile, readFileRaw, listFiles, changedFiles, search, getSource, getDiff, writeFile, fileHistory, readSnapshot, snapshot, languageOf, safeResolve };
 }
 
 // Default set bound (lazily) to process.cwd() — the plugin running inside an observed service.
