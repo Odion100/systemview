@@ -284,6 +284,8 @@ systemview shutdown 4000
 
 SystemView keeps its runtime state in a `.systemview/` folder in the root of your SystemLynx service project. Add `.systemview/` to `.gitignore` — it's local, per-machine, and holds live session cookies.
 
+What lands there: per-service manifest files (below), the `headers`/`session` store, reports and namespace docs, saved views, recorded runs — and **`chats/`**, the project's own chat rooms (see [Where a chat is stored](#where-a-chat-is-stored)).
+
 **Per-service manifest files** — on startup each service's plugin writes **only its own** `.systemview/<serviceId>.manifest.json` (its connection data + spec list). Because no two services ever write the same file, the services in a project can all start at once with no clobbering — this is what a project's manifest is *made of*. Assembled — by the plugin's `getManifest()` (which globs the folder) or by the CLI — they read as one project manifest:
 
 ```json
@@ -355,6 +357,80 @@ A session **never** auto-crosses services otherwise. (An earlier build borrowed 
 The `.systemview/` folder is gitignored by default — it's local, per-machine, changes each time a service starts, and holds live session cookies.
 
 When multiple services in the same project start (e.g., buAPI's services), each plugin writes its **own** `.systemview/<serviceId>.manifest.json` — no shared file and no read-modify-write, so nothing clobbers even when they all start at once. The `headers`/`session` cookie store described above is the CLI's own `systemview.manifest.json` (a single-writer file), kept separate from those per-service registration files.
+
+---
+
+## Chat, the TV, and driving the window
+
+The UI has a chat panel per project. An agent working in that project is reachable through it, and
+can drive the human's open window. Full playbook for agents: `agents/chat.md`.
+
+### Talking
+
+```bash
+systemview join <projectCode>            # live: hold the line (the hold IS the presence indicator)
+systemview join <projectCode> --once     # exit after one message — the loop an agent harness uses
+systemview join <other> --once --as <yourProjectCode>   # visit another project's room
+systemview say <projectCode> "text"      # reply into the chat        (--as for a room you visit)
+systemview status <projectCode> "text"   # the cooking line; empty string clears it
+systemview inbox <projectCode>           # file mode: drain pending messages as JSON + ack them
+```
+
+Identity is the **project code** — an agent speaks as its project, not as a personal handle. You
+must be **in** a room to speak in it: a `say`/`status` into a room you never joined is refused, as
+is an `--as` that isn't a connected project. A `join` or an `inbox` drain counts as entering, and
+it holds for 15 minutes.
+
+Bubbles render light markdown — bold/italic/strike, inline code, lists, quotes, fenced blocks and
+tables. Underscores are never italic, so identifiers stay literal.
+
+### The TV — the interactive surface beside the chat
+
+```bash
+systemview show <projectCode> --text "## Look\n::chart{report=throughput}"
+systemview show <projectCode> --file scratch/demo.md
+systemview show <projectCode> --clear
+systemview tv <projectCode> [--json]     # read the TV back, including what the human clicked
+```
+
+The human's clicks on the TV are silent — approvals, question answers and typed replies are saved
+to the room's TV state rather than echoed into the chat. `systemview tv` is how an agent reads
+them.
+
+### Driving the window
+
+```bash
+systemview nav <pc> <namespace>                    # navigate: route + center + scratchpad follow
+systemview nav <pc> center --report <path>|--file <p#L1-20>|--tab <t>|--topic <h>
+systemview nav <pc> stats [tab] [--range 1h] [--service <id>]
+systemview highlight <pc> <namespace>|--file <p>   # point at it; nothing else moves
+systemview refresh <pc> docs|reports|nav|stats|all # panes re-read in place — never a page reload
+systemview act <pc> test <namespace|title|all>     # run a saved test where the human is looking
+systemview act <pc> run "<block title>"            # press a :::run block's play in the open doc
+systemview stats <pc> [--range 1h|24h|7d] [--service <id>] [--json]
+```
+
+Namespaces are validated against the **live** tree before anything moves — a file existing in the
+repo does not mean its module is mounted.
+
+### Where a chat is stored
+
+**In the project's own repo**, beside its reports and manifests:
+
+```
+<project root>/.systemview/chats/<projectCode>.<chat>.jsonl     # the room, plain JSONL
+<project root>/.systemview/chats/<projectCode>.<chat>.ack.json  # per-listener drain cursors
+```
+
+The project's own service owns that file, through the plugin's `SystemViewChat` module — the hub
+never writes there. It keeps connections, presence, delivery and the long-poll, plus an in-memory
+mirror so the panel stays instant. A project whose services predate the module keeps its room in
+the hub until they restart; the hub then hands over everything it buffered, deduplicated by record
+id, so nothing is lost or doubled in the gap.
+
+Because the room is a normal file in your own repo, an agent can grep it, quote it and **compact**
+it — rewrite the file as a summary plus a recent tail. The hub notices a room that got shorter and
+re-reads it on its next sweep.
 
 ---
 

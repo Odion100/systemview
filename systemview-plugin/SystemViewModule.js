@@ -183,7 +183,11 @@ module.exports = ({ App, specs, projectCode, serviceId, module = {}, credentials
       const specList = this.getSpecList();
       // `credentials` and `hosted` must survive this path — refreshConnections re-pulls
       // getConnection(), so omitting either would silently strip it on every refresh (RFC-013/027).
-      return { projectCode, serviceId, system, specList, credentials, hosted };
+      // `root` = where this project actually lives on disk. The hub cannot know it any other way,
+      // and it needs it to keep a project's data WITH that project (chat rooms, TV state) instead
+      // of piling every project's conversation into the hub. Rides getConnection() because
+      // refreshConnections re-pulls it, so it lands without a separate registration step.
+      return { projectCode, serviceId, system, specList, credentials, hosted, root };
     };
     this.getLog = ({ limit } = {}) => {
       // Per-service file — see index.js: a shared log file duplicated records across sibling services.

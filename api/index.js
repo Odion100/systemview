@@ -6,7 +6,176 @@ const CLIHistory = require("./CLIHistory")();
 const Settings = require("./Settings")();
 const Comments = require("./Comments")();
 const Stage = require("./Stage")();
-const Chats = require("./Chats")();
+// WHERE A PROJECT LIVES ON DISK — one resolver, one precedence, used by everything that needs to
+// put a project's data with that project. Order matters: a HOSTED project's directory is known for
+// certain from the registry that stood it up; otherwise we take the root its own plugin reports on
+// the connection (systemview-plugin ≥ 2.16 — `getConnection()` carries it, and refreshConnections
+// re-pulls that, so it arrives on its own). Unknown root = null, and the caller falls back to the
+// hub rather than guessing a path.
+function projectRoot(projectCode) {
+  if (!projectCode) return null;
+  // `fs` is not in this module's scope (only `path` is) — and a bare reference here would throw a
+  // ReferenceError straight into the catch below, silently answering "root unknown" forever. That
+  // exact trap already cost us once on the /sv-bundle route.
+  const fs = require("fs");
+  try {
+    const registry = JSON.parse(fs.readFileSync(path.join(__dirname, "hosted.json"), "utf8"));
+    const hit = (Array.isArray(registry) ? registry : []).find((e) => e && e.folder === projectCode);
+    if (hit && hit.projectDir) return hit.projectDir;
+  } catch {}
+  try {
+    const conn = ConnectedServices.getAllConnections().find(
+      (c) => c.projectCode === projectCode && c.root,
+    );
+    if (conn) return conn.root;
+  } catch {}
+  return null;
+}
+// THE PROJECT SERVES ITS OWN ROOM. `SystemViewChat` lives in the project's process and owns the
+// file; the hub holds a warm client per project plus a subscription to its `chat` event. Kept in a
+// cache because the store's paths are synchronous: `projectChat()` answers instantly with whatever
+// is warm, and warming happens off to the side. A project with no entry (old plugin, unreachable,
+// not yet warmed) simply falls back to the hub holding its room — nothing breaks, it just does not
+// migrate yet.
+const chatClients = new Map(); // projectCode → { Chat, url }
+const chatWarming = new Set();
+function projectChat(projectCode) {
+  const entry = chatClients.get(projectCode);
+  return entry ? entry.Chat : null;
+}
+// WHICH SERVICE SERVES THE ROOM — a project is not one process. It can have four services, and in
+// a MIXED project only some of them carry `SystemViewChat` (mid-rollout: one restarted on the new
+// plugin, three still running the old one). Taking whichever candidate happened to be first in the
+// connections file made the room's location depend on connection order — restart in another order
+// and the room appears somewhere else, i.e. history "vanishes". So the pick is deterministic and
+// root-anchored: a service whose own root is the project's root wins (its `.systemview/` is the one
+// the reports and manifests already use), and ties break on serviceId so the answer is stable
+// across restarts. Same project, same room, every time.
+function chatServiceFor(projectCode) {
+  let candidates = [];
+  try {
+    candidates = ConnectedServices.getAllConnections().filter(
+      (c) =>
+        c.projectCode === projectCode &&
+        ((c.system && c.system.connectionData && c.system.connectionData.modules) || []).some(
+          (m) => m.name === "SystemViewChat",
+        ),
+    );
+  } catch {}
+  if (!candidates.length) return null;
+  const root = projectRoot(projectCode);
+  const byId = (a, b) => String(a.serviceId || "").localeCompare(String(b.serviceId || ""));
+  const atRoot = candidates.filter((c) => c.root && root && c.root === root).sort(byId);
+  return (atRoot.length ? atRoot : candidates.slice().sort(byId))[0];
+}
+// Hand the project everything the hub buffered for it while it could not serve its own room, then
+// retire the hub's file. Deduped by id, so a half-finished flush just retries next tick — and a
+// room the hub buffered that the project has never heard of still moves, because the rooms come
+// from the HUB's directory, not the project's list.
+async function flushOutbox(ctx, projectCode, Chat) {
+  let moved = 0;
+  // SAME-DIRECTORY GUARD. SystemView's own hub runs from the repo that is ALSO the `systemview-test`
+  // project, so `.systemview/chats/` is one directory wearing two hats: the hub's fallback and that
+  // project's own room. Flushing there would diff a file against itself, move nothing, and then
+  // retire the live room to `.flushed` — the conversation would come back empty. The owner states
+  // its directory (`chatDir`); if it matches ours there is nothing to hand over.
+  try {
+    const theirs = await Chat.chatDir();
+    if (theirs && theirs.dir && path.resolve(theirs.dir) === path.resolve(Chats.dirFor(projectCode)))
+      return 0;
+  } catch {
+    return 0; // an older plugin can't tell us where it keeps things — don't touch its files
+  }
+  for (const room of Chats.outboxRooms(projectCode)) {
+    try {
+      const buffered = Chats.outbox(projectCode, room);
+      const theirs = (await Chat.chatRead({ chat: room })) || [];
+      const have = new Set(theirs.map((r) => r && r.id));
+      const missing = buffered
+        .filter((r) => r && r.id && !have.has(r.id))
+        .sort((a, b) => a.ts - b.ts);
+      for (const record of missing) await Chat.chatAppend({ chat: room, record });
+      Chats.retireOutbox(projectCode, room); // only after every record is safely across
+      moved += missing.length;
+    } catch {
+      /* the project blinked mid-flush — the hub file stays put and the next tick retries */
+    }
+  }
+  if (moved) ctx.emit(`chat-presence:${projectCode}`, presenceFor(projectCode));
+  return moved;
+}
+// Warm every connected project's chat, at BOOT. This is the fix for how records got stranded in
+// the first place: warming used to start only when something first touched chat (the sweep arms on
+// the first send/presence call), so the very first message after a hub restart was always written
+// to the hub's fallback file — a fresh outbox created by the restart itself. Warming before anyone
+// speaks means the project is already serving its own room by the time the first word arrives.
+// Retried on a short ramp because services reconnect asynchronously after the connection probe:
+// at ready almost nothing is back yet.
+// At boot there is no module context yet — that only arrives when a UI or CLI first calls a chat
+// method. So warming emits through a forwarder: no-op until someone shows up, the real module the
+// moment one does. (A stub that captured nothing would silently drop the presence push that lands
+// right as the first panel opens.)
+let chatCtx = null;
+const bootCtx = { emit: (...a) => { if (chatCtx) chatCtx.emit(...a); } };
+function warmAllChats(ctx) {
+  const pass = () => {
+    let codes = [];
+    try {
+      codes = [...new Set(ConnectedServices.getAllConnections().map((c) => c.projectCode))];
+    } catch {}
+    for (const pc of codes)
+      warmProjectChat(ctx, pc)
+        .then(() => reconcileProjectChat(ctx, pc))
+        .catch(() => {});
+  };
+  [0, 3000, 10000, 25000].forEach((ms) => setTimeout(pass, ms));
+}
+// Warm (and re-warm) a project's chat client. Idempotent, and re-runs when the service URL changes
+// — a restarted service gets a new port, and a client pinned to the old one is a silent dead end.
+async function warmProjectChat(ctx, projectCode) {
+  if (chatWarming.has(projectCode)) return;
+  const service = chatServiceFor(projectCode);
+  if (!service) return; // this project's plugin predates the module — the hub keeps its room
+  const url = service.system.connectionData.serviceUrl;
+  const current = chatClients.get(projectCode);
+  if (current && current.url === url) return;
+  chatWarming.add(projectCode);
+  try {
+    const client = await createClient(httpClient).loadService(url);
+    const Chat = client.SystemViewChat;
+    if (!Chat) return;
+    // The event is the FAST path; `Chats.absorb` also reconciles by reading since its last known
+    // record, so a dropped subscription makes a record late rather than lost.
+    Chat.on("chat", ({ chat, record }) => {
+      try {
+        Chats.absorb(projectCode, chat, record);
+        ctx.emit(`chat-updated:${projectCode}`, { chat, record });
+        ctx.emit(`chat-presence:${projectCode}`, presenceFor(projectCode));
+      } catch {}
+    });
+    chatClients.set(projectCode, { Chat, url });
+    // FLUSH FIRST, then hydrate. Order matters: hydrating first would fill the mirror from a file
+    // that is still missing whatever the hub buffered, and the next append would write on top of a
+    // short room. Flushing first means the read below is already the whole conversation.
+    try {
+      await flushOutbox(ctx, projectCode, Chat);
+    } catch {}
+    // Hydrate the hub's mirror from the project — the file is the truth, so this can only correct
+    // the hub. Every room the project holds, not just `main`.
+    try {
+      const rooms = (await Chat.chatList()) || [Chats.DEFAULT_CHAT];
+      for (const room of rooms.length ? rooms : [Chats.DEFAULT_CHAT]) {
+        Chats.hydrate(projectCode, room, await Chat.chatRead({ chat: room }));
+      }
+      ctx.emit(`chat-presence:${projectCode}`, presenceFor(projectCode));
+    } catch {}
+  } catch {
+    /* unreachable right now — the hub keeps holding the room and we try again next tick */
+  } finally {
+    chatWarming.delete(projectCode);
+  }
+}
+const Chats = require("./Chats")({ chatFor: projectChat });
 // The UI server calls services the same way the CLI does: through the manifest-header client,
 // so operator-authored headers (e.g. an Origin for a gated dev session — see cli/manifestHeaders.js)
 // are attached to every outbound call and every probe. One resolver, shared with the CLI; the UI is
@@ -400,6 +569,29 @@ function canonIdentity(projectCode, as) {
     return projectCode;
   }
 }
+// SPEAKING is gated where READING is open (his catch, 2026-08-09). Two silent failures lived
+// here, and the second is the one that bit: (1) a visitor could fire into a room it had never
+// entered — the drive-by; (2) an unrecognized `--as` (a legacy handle, a typo) silently BECAME
+// the room's own agent, so the message was recorded as the room talking to itself, the self-loop
+// guard correctly delivered it to NOBODY, and it still looked sent. Both refuse now, and the
+// refusal carries the fix. Reading (join/inbox/presence) keeps canonIdentity's forgiving collapse
+// — a bad name there costs nothing but its own cursor.
+function resolveSpeaker(projectCode, chat, as) {
+  if (!as || as === projectCode) return projectCode; // the room's own agent — file-mode included
+  let known = false;
+  try {
+    known = ConnectedServices.getAllConnections().some((c) => c.projectCode === as);
+  } catch {}
+  if (!known)
+    throw new Error(
+      `"${as}" is not a connected project — identities ARE project codes (RFC-031). Speak as your own project (--as <yourProjectCode>), or drop --as to speak as ${projectCode}'s own agent.`,
+    );
+  if (!Chats.hasEntered(projectCode, chat || Chats.DEFAULT_CHAT, as))
+    throw new Error(
+      `${as} is not in ${projectCode}'s room — enter before you speak: systemview join ${projectCode} --once --as ${as}`,
+    );
+  return as;
+}
 // Presence with the identity-canon predicate — a "join:claude" cursor is the HOME agent's
 // (canonIdentity collapses unknown/self names to the room), so `pending` counts against the
 // right cursor everywhere presence is computed.
@@ -412,6 +604,7 @@ function presenceFor(pc) {
 // of boot. Each sweep event pushes the departure line / ring drop / status clear live.
 let chatSweepArmed = false;
 function armChatSweep(ctx) {
+  chatCtx = ctx; // hand the boot forwarder a real emitter the first time anyone touches chat
   if (chatSweepArmed) return;
   chatSweepArmed = true;
   setInterval(() => {
@@ -423,7 +616,70 @@ function armChatSweep(ctx) {
       ctx.emit(`chat-presence:${ev.pc}`, presenceFor(ev.pc));
       if (ev.identity !== ev.pc) ctx.emit(`chat-presence:${ev.identity}`, presenceFor(ev.identity));
     }
+    // Same tick: keep every project's chat client warm, and RECONCILE. A subscription is a fast
+    // path, never a guarantee — a service restart or a dropped socket kills it silently, and the
+    // symptom is the worst kind (everything looks connected, nothing arrives). Re-reading from the
+    // last record we hold turns a missed event into a late one instead of a lost one.
+    let codes = [];
+    try {
+      codes = [...new Set(ConnectedServices.getAllConnections().map((c) => c.projectCode))];
+    } catch {}
+    for (const pc of codes) {
+      warmProjectChat(ctx, pc)
+        .then(() => reconcileProjectChat(ctx, pc))
+        .catch(() => {});
+    }
   }, 20000);
+}
+// Pull anything the event channel missed. Cheap: it asks only for records newer than the newest
+// one the hub already holds, and `absorb` drops ids it has seen.
+async function reconcileProjectChat(ctx, projectCode) {
+  const Chat = projectChat(projectCode);
+  if (!Chat) return;
+  // Every room, not just `main` — a side room is exactly where a dropped event goes unnoticed
+  // longest, because nobody is watching it.
+  for (const chat of Chats.chats(projectCode)) {
+    if (!Chats.isMirrored(projectCode, chat)) continue;
+    try {
+      // Push before pulling: anything the project failed to take is still only in the hub's
+      // memory, and a hub restart would take it with it.
+      const stuck = Chats.unsent(projectCode, chat);
+      if (stuck.length) {
+        const landed = [];
+        for (const record of stuck) {
+          await Chat.chatAppend({ chat, record });
+          landed.push(record.id);
+        }
+        Chats.clearUnsent(projectCode, chat, landed);
+      }
+      const known = Chats.history(projectCode, chat, { limit: 1 });
+      const since = known.length ? known[known.length - 1].ts : 0;
+      const missed = (await Chat.chatRead({ chat, since })) || [];
+      for (const record of missed) {
+        if (Chats.absorb(projectCode, chat, record))
+          ctx.emit(`chat-updated:${projectCode}`, { chat, record });
+      }
+      if (missed.length) ctx.emit(`chat-presence:${projectCode}`, presenceFor(projectCode));
+      // THE ROOM CAN GET SHORTER. Compaction is something we ASK agents to do — rewrite the room
+      // as a summary plus a tail — and it happens by editing the file, not through any method the
+      // hub can see. The mirror would have kept serving the pre-compaction length forever (a
+      // `since` read finds nothing new, so nothing ever corrected it). A count that dropped below
+      // what we hold is the tell; cheap to ask for (`chatStat` ships numbers, not the room).
+      const stat = await Chat.chatStat({ chat });
+      const held = Chats.count(projectCode, chat);
+      if (stat && typeof stat.count === "number" && stat.count < held) {
+        Chats.hydrate(projectCode, chat, (await Chat.chatRead({ chat })) || []);
+        ctx.emit(`chat-presence:${projectCode}`, presenceFor(projectCode));
+      }
+    } catch {
+      /* still unreachable — everything stays parked and the next tick tries again */
+    }
+  }
+  // A warm project can still acquire an outbox: the hub buffers into its fallback file whenever
+  // `chatFor` comes back empty, which includes the whole window before this project first warms.
+  try {
+    if (Chats.outboxRooms(projectCode).length) await flushOutbox(ctx, projectCode, Chat);
+  } catch {}
 }
 // Cooking lines are per-identity now — every status change pushes the room's FULL set of lines
 // (plus the legacy single text/as fields so an older bundle's peek keeps working).
@@ -439,7 +695,7 @@ function emitStatuses(ctx, projectCode, chat) {
 }
 function chatSend(projectCode, { chat, from = "you", text, view, as } = {}) {
   armChatSweep(this);
-  const identity = from === "agent" ? canonIdentity(projectCode, as) : undefined;
+  const identity = from === "agent" ? resolveSpeaker(projectCode, chat, as) : undefined;
   const { record, delivered } = Chats.send(projectCode, chat || Chats.DEFAULT_CHAT, { from, text, view, as: identity });
   this.emit(`chat-updated:${projectCode}`, { chat: chat || Chats.DEFAULT_CHAT, record });
   // The store just moved cooking lines around (speaker's line cleared, takers' lines flipped
@@ -457,6 +713,19 @@ function chatCommand(projectCode, { chat, from, cmd, args, label } = {}) {
   const record = Chats.command(projectCode, chat || Chats.DEFAULT_CHAT, { from, cmd, args, label });
   this.emit(`chat-updated:${projectCode}`, { chat: chat || Chats.DEFAULT_CHAT, record });
   return record;
+}
+// FORCE THE HANDOVER. The flush otherwise happens on its own — at boot, and on the 20s sweep — but
+// "otherwise" is not a thing a test can assert on, and an operator who can see stranded records has
+// no reason to wait 20 seconds for them. Returns how many records crossed; 0 when there was nothing
+// to move, when the project isn't serving its own room yet, or when its directory IS the hub's.
+async function chatFlush(projectCode) {
+  const Chat = projectChat(projectCode);
+  if (!Chat) {
+    await warmProjectChat(this, projectCode);
+    if (!projectChat(projectCode)) return { moved: 0, served: false };
+  }
+  const moved = await flushOutbox(this, projectCode, projectChat(projectCode));
+  return { moved, served: true };
 }
 function chatHistory(projectCode, chat, limit) {
   return Chats.history(projectCode, chat || Chats.DEFAULT_CHAT, { limit });
@@ -482,7 +751,8 @@ function chatJoin(projectCode, { chat, agent, since } = {}) {
   return held;
 }
 function chatStatus(projectCode, { chat, text, as } = {}) {
-  const identity = canonIdentity(projectCode, as);
+  // A cooking line is speech too — his catch that logtest "was cooking" in a room it wasn't in.
+  const identity = resolveSpeaker(projectCode, chat, as);
   const r = Chats.setStatus(projectCode, chat || Chats.DEFAULT_CHAT, text, identity);
   emitStatuses(this, projectCode, chat);
   return r;
@@ -518,8 +788,13 @@ function chatPresence(projectCode) {
 // THE TV's persistent state (his flow: clicks are SILENT — no chat echo per interaction — and
 // he announces when he's done; so the clicked-up show text must live somewhere an agent can
 // read). One JSON per room beside the chat file; survives hub restarts and reloads.
+// It rides the SAME directory as the room (Chats.dirFor) — so when a project's chat moves into the
+// project, its TV state moves with it instead of being orphaned in the hub.
 const tvStateFile = (pc, chat) =>
-  path.join(process.cwd(), ".systemview", "chats", `${String(pc).replace(/[^a-zA-Z0-9._-]/g, "_")}.${String(chat || Chats.DEFAULT_CHAT).replace(/[^a-zA-Z0-9._-]/g, "_")}.tv.json`);
+  path.join(
+    Chats.dirFor(pc),
+    `${String(pc).replace(/[^a-zA-Z0-9._-]/g, "_")}.${String(chat || Chats.DEFAULT_CHAT).replace(/[^a-zA-Z0-9._-]/g, "_")}.tv.json`,
+  );
 function chatSetTv(projectCode, { chat, state } = {}) {
   const fs = require("fs");
   fs.mkdirSync(path.dirname(tvStateFile(projectCode, chat)), { recursive: true });
@@ -645,6 +920,7 @@ module.exports = function launchSystemView(port = 3000) {
       chatCommand,
       chatHistory,
       chatList,
+      chatFlush,
       chatJoin,
       chatStatus,
       chatDrain,
@@ -675,7 +951,11 @@ module.exports = function launchSystemView(port = 3000) {
       hostingUnit
         .rehostAll()
         .catch(() => {})
-        .finally(() => ConnectedServices.refreshConnections());
+        .finally(() => {
+          ConnectedServices.refreshConnections();
+          // Projects serve their own rooms before anyone speaks — see warmAllChats.
+          warmAllChats(bootCtx);
+        });
     });
 
   return new Promise((resolve) => App.on("ready", resolve));

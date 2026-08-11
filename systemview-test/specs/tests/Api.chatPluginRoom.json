@@ -1,58 +1,58 @@
 [
   {
-    "title": "RFC-031 delivery rules hold at the hub's door",
-    "namespace": { "serviceId": "SystemViewCore", "moduleName": "Api", "methodName": "chatDeliveryRules" },
+    "title": "The project serves its own chat room",
+    "namespace": { "serviceId": "SystemViewCore", "moduleName": "Api", "methodName": "chatPluginRoom" },
     "Before": [],
     "Main": [
       {
-        "title": "who hears what in a room with a home agent and a visitor",
-        "namespace": { "serviceId": "SystemViewCore", "moduleName": "Api", "methodName": "chatDeliveryRules" },
+        "title": "append · read · since-filter · cursor · room naming, all through the service door",
+        "namespace": { "serviceId": "SystemViewCore", "moduleName": "Api", "methodName": "chatPluginRoom" },
         "args": [],
         "savedEvaluations": [
           {
-            "namespace": "results.homeHearsHuman",
+            "namespace": "results.moduleReachable",
             "expected_type": "boolean",
             "validations": [{ "name": "boolEquals", "value": true }],
             "save": true
           },
           {
-            "namespace": "results.homeNeverHearsItself",
+            "namespace": "results.startsEmpty",
             "expected_type": "boolean",
             "validations": [{ "name": "boolEquals", "value": true }],
             "save": true
           },
           {
-            "namespace": "results.homeHearsVisitor",
+            "namespace": "results.appendsLand",
             "expected_type": "boolean",
             "validations": [{ "name": "boolEquals", "value": true }],
             "save": true
           },
           {
-            "namespace": "results.visitorHearsHuman",
+            "namespace": "results.readsBackInOrder",
             "expected_type": "boolean",
             "validations": [{ "name": "boolEquals", "value": true }],
             "save": true
           },
           {
-            "namespace": "results.visitorHearsHome",
+            "namespace": "results.sinceFilters",
             "expected_type": "boolean",
             "validations": [{ "name": "boolEquals", "value": true }],
             "save": true
           },
           {
-            "namespace": "results.visitorNeverHearsItself",
+            "namespace": "results.cursorStartsAtZero",
             "expected_type": "boolean",
             "validations": [{ "name": "boolEquals", "value": true }],
             "save": true
           },
           {
-            "namespace": "results.nobodyHearsCommands",
+            "namespace": "results.cursorPersists",
             "expected_type": "boolean",
             "validations": [{ "name": "boolEquals", "value": true }],
             "save": true
           },
           {
-            "namespace": "results.nobodyHearsArrivals",
+            "namespace": "results.roomIsListed",
             "expected_type": "boolean",
             "validations": [{ "name": "boolEquals", "value": true }],
             "save": true

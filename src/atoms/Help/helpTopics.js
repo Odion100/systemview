@@ -444,8 +444,19 @@ Connecting is the **agent's explicit act** — instructions live in \`agents/cha
 - \`systemview join <project>\` — live mode: the agent holds the line (solid ring), your send wakes
   it immediately.
 - \`systemview inbox <project>\` from the agent's own hooks — file mode: messages drain from the
-  chat's file (\`.systemview/chats/…jsonl\`) at the agent's next turn (dashed ring).
+  chat's file at the agent's next turn (dashed ring).
 - \`systemview say\` / \`systemview status\` — how its replies and cooking lines get here.
+
+## Where the conversation lives
+
+**In that project's own repo**, not in this hub:
+\`<project root>/.systemview/chats/<project>.<chat>.jsonl\` — plain JSONL, beside its reports and
+manifests. The project's own service owns and writes it; the hub keeps connections, presence and
+delivery, and mirrors the room so this panel stays instant.
+
+That's what lets an agent read, grep and **compact its own chat** — it's a file in its repo, on its
+disk. A project whose services predate the \`SystemViewChat\` module keeps its room in the hub until
+they restart; nothing is lost in the gap, and the hub hands over everything it buffered.
 
 One chat per project for now — named chats, docking layouts and more are on the roadmap.`,
   },

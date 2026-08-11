@@ -1,4 +1,5 @@
 import loadServiceWithHeaders from "../../utils/loadService";
+import { isSystemModule } from "../../systemModules";
 
 // What the document menu's DRAWERS offer. Inserting `::logs` and getting every log in the project,
 // or `:::run` with a `Module.method` that doesn't exist, is not inserting — it's leaving you a
@@ -17,7 +18,7 @@ export function namespaceOptions(services, { methods = true } = {}) {
   services.forEach((s) => {
     out.push({ label: s.serviceId, value: s.serviceId, kind: "service" });
     modulesOf(s).forEach((m) => {
-      if (m.name === "Plugin" || m.name === "SystemView") return;
+      if (isSystemModule(m.name)) return;
       out.push({ label: `${s.serviceId}.${m.name}`, value: `${s.serviceId}.${m.name}`, kind: "module" });
       if (!methods) return;
       (m.methods || []).forEach((fn) => {

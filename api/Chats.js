@@ -10,7 +10,12 @@ const path = require("path");
 // Presence is DERIVED, never declared: "live" = a join long-poll is currently held (or was re-armed
 // within its grace window); "listener" = an inbox drain happened recently. The bubble can't lie.
 
-const CHATS_DIR = path.join(process.cwd(), ".systemview", "chats");
+// A room's files belong to ITS OWN project — the same place that project's reports and manifests
+// already live. The hub only ever owned connection data; keeping every project's conversation here
+// was the mistake (found live: an agent could not compact its own room, or read its own TV answers,
+// because both sat in a repo that was not its own). The hub directory stays as the FALLBACK for
+// projects whose root we cannot resolve yet, so nothing breaks while they update.
+const HUB_CHATS = path.join(process.cwd(), ".systemview", "chats");
 const DEFAULT_CHAT = "main";
 
 const safe = (s) => String(s || "").replace(/[^a-zA-Z0-9._-]/g, "_");
@@ -23,8 +28,12 @@ const safe = (s) => String(s || "").replace(/[^a-zA-Z0-9._-]/g, "_");
 // delivery of its own `kind:"command"` records).
 const deliverable = (m, me) =>
   m && m.kind !== "command" && (m.from === "you" || (m.from === "agent" && m.as && m.as !== me));
-const chatFile = (pc, chat) => path.join(CHATS_DIR, `${safe(pc)}.${safe(chat)}.jsonl`);
-const ackFile = (pc, chat) => path.join(CHATS_DIR, `${safe(pc)}.${safe(chat)}.ack.json`);
+// Filenames keep the `<projectCode>.` prefix even inside a project: two projects can legitimately
+// share one working directory (systemview-test and systemview-logtest both run from this repo), so
+// dropping the prefix would collide their rooms. Only the DIRECTORY moves — which also makes the
+// migration a plain file move, with no renaming to get wrong.
+const chatFile = (dir, pc, chat) => path.join(dir, `${safe(pc)}.${safe(chat)}.jsonl`);
+const ackFile = (dir, pc, chat) => path.join(dir, `${safe(pc)}.${safe(chat)}.ack.json`);
 
 // Long-poll heartbeat + grace. The CLI re-arms immediately after every server-side timeout, so
 // the poll length IS the idle heartbeat — and the grace must exceed one beat or healthy idle
@@ -46,15 +55,39 @@ const STATUS_TTL = 15 * 60 * 1000;
 // The KICK cooldown — a kicked identity's joins are refused this long (the human's bouncer
 // power; it's what lets the etiquette say "stay freely" instead of hedging).
 const KICK_TTL = 15 * 60 * 1000;
+// SPEAKING into someone else's room requires having ENTERED it (his catch, 2026-08-09: says fired
+// at three rooms nobody had joined looked delivered and reached no one). A visit is held with
+// re-armed `--once` joins, so this window must survive the gaps BETWEEN arms and short work
+// pauses — a live-grace check would refuse honest visitors mid-cycle. 15min = "you're plausibly
+// still in the room"; wander off longer and you announce yourself again by rejoining.
+const VISIT_TTL = 15 * 60 * 1000;
 
-module.exports = function Chats() {
+// `chatFor(projectCode)` → that project's live `SystemViewChat` module, or null when the project
+// is unreachable or predates it. Injected rather than looked up here: the store must not know
+// about connections. When it returns null the hub falls back to holding the room itself.
+module.exports = function Chats({ chatFor } = {}) {
   let seq = 0;
   const genId = () => `m_${Date.now().toString(36)}_${(++seq).toString(36)}`;
+
+  // THE HUB NEVER WRITES INTO A PROJECT. An earlier pass had this function resolve each project's
+  // directory and write there directly — that is the hub reaching past the plugin into a filesystem
+  // it does not own, and it was rejected for exactly that reason. A project's room is served by
+  // that project's own process (`SystemViewChat`); what the hub keeps here is the FALLBACK for a
+  // project it cannot reach — a buffer, never an owner.
+  function dirFor() {
+    return HUB_CHATS;
+  }
 
   // key `${pc}|${chat}` for everything in-memory
   const key = (pc, chat) => `${pc}|${chat || DEFAULT_CHAT}`;
   const waiters = new Map(); // key → [{identity, resolve, timer}] — held join polls
   const liveSeen = new Map(); // key → Map(identity → ts) — last join arm PER IDENTITY (RFC-031)
+  // key → Map(identity → ts) — last time this identity OPENED THIS ROOM'S DOOR, in either mode
+  // (a held join OR a file-mode drain). Deliberately separate from liveSeen: liveSeen drives the
+  // green ring and must keep meaning "holding RIGHT NOW", while the speaking gate asks the softer
+  // question "are you in this room at all". Keeping them apart is what lets a first arm whose
+  // backlog dumps (drain path, exits before ever parking a hold) still count as having entered.
+  const entered = new Map();
   const kicked = new Map(); // key → Map(identity → ts) — the human bounced them; joins refused for KICK_TTL
   const listenerSeen = new Map(); // key → { listener, ts } — last inbox drain
   // key → Map(identity → { text, ts }) — cooking lines PER IDENTITY (his catch: one shared line
@@ -62,10 +95,22 @@ module.exports = function Chats() {
   // narrates on its own line). Home's identity is the pc itself.
   const statusMap = new Map();
 
-  function readAll(pc, chat) {
+  // THE MIRROR — the hub's in-memory copy of a room the PROJECT owns. Hydrated once from the
+  // project, then kept current by its `chat` events. It exists so every synchronous path in this
+  // file (presence, delivery, the roster, the gate) keeps working while the file itself lives in
+  // the project. It is a cache and never the truth: the file wins, and a hub restart re-hydrates.
+  const mirror = new Map(); // key → records[]
+  // key → records[] the project was handed but never took (it blinked mid-call). Retried by the
+  // reconcile sweep; empty in the normal case.
+  const unsent = new Map();
+
+  // Read the hub's OWN file for a room, bypassing the mirror. Two callers: readAll below when the
+  // project isn't serving the room, and the outbox flush, whose entire job is to compare what the
+  // hub buffered against what the project holds.
+  function hubRecords(pc, chat) {
     try {
       return fs
-        .readFileSync(chatFile(pc, chat), "utf8")
+        .readFileSync(chatFile(dirFor(pc), pc, chat), "utf8")
         .split("\n")
         .filter(Boolean)
         .map((l) => {
@@ -77,10 +122,50 @@ module.exports = function Chats() {
     }
   }
 
+  function readAll(pc, chat) {
+    const m = mirror.get(key(pc, chat));
+    if (m) return m; // project-owned room — the hub does not open its file
+    return hubRecords(pc, chat);
+  }
+
+  // Every room the HUB has a file for. Distinct from the project's own `chatList()` — the flush
+  // needs rooms that exist only hub-side (buffered before the project could ever serve them).
+  function hubRooms(pc) {
+    try {
+      const prefix = `${safe(pc)}.`;
+      return fs
+        .readdirSync(dirFor(pc))
+        .filter((f) => f.startsWith(prefix) && f.endsWith(".jsonl") && !f.startsWith("moved-"))
+        .map((f) => f.slice(prefix.length, -".jsonl".length));
+    } catch {
+      return [];
+    }
+  }
+
   function append(pc, chat, msg) {
-    fs.mkdirSync(CHATS_DIR, { recursive: true });
     const record = { id: genId(), ts: Date.now(), ...msg };
-    fs.appendFileSync(chatFile(pc, chat), JSON.stringify(record) + "\n");
+    // The project owns its room — hand it the record and let its own process append. The mirror
+    // takes it immediately so everything synchronous downstream sees it; the echo back through the
+    // `chat` event is deduped by id.
+    const Chat = chatFor && chatFor(pc);
+    if (Chat) {
+      const k = key(pc, chat);
+      mirror.set(k, [...(mirror.get(k) || []), record]);
+      Promise.resolve()
+        .then(() => Chat.chatAppend({ chat: chat || DEFAULT_CHAT, record }))
+        .catch(() => {
+          // The project blinked between "warm client" and "call landed" — restarting, mid-deploy,
+          // socket dropped. The record is in the mirror, so the room still READS right, but the
+          // project's file does not have it and nothing pulls the other way: reconcile only ever
+          // reads FROM the project. So park it, and let the reconcile sweep push it across.
+          unsent.set(k, [...(unsent.get(k) || []), record]);
+        });
+      return record;
+    }
+    // FALLBACK — no project to hand it to (old plugin, or unreachable). The hub holds the room.
+    const dir = dirFor(pc);
+    fs.mkdirSync(dir, { recursive: true });
+    fs.appendFileSync(chatFile(dir, pc, chat), JSON.stringify(record) + "\n");
     return record;
   }
 
@@ -114,9 +199,94 @@ module.exports = function Chats() {
     lines.delete(identity);
     if (!lines.size) statusMap.delete(k);
   }
+  function markEntered(k, identity) {
+    const e = entered.get(k) || new Map();
+    e.set(identity, Date.now());
+    entered.set(k, e);
+  }
 
   return {
     DEFAULT_CHAT,
+
+    // Fill the mirror from the project that owns the room — called once when the hub warms that
+    // project's chat client, and again on reconnect. Replaces wholesale: the project's file is the
+    // truth, so a hydrate can only ever correct the hub, never the other way round.
+    // Sorted by ts on the way in. The project's file is append-only, so a flushed outbox lands at
+    // the end of it even when its records are older than what was already there; sorting here means
+    // the room READS in the order it was actually spoken, whatever order the lines got written.
+    hydrate(pc, chat, records) {
+      const rows = (Array.isArray(records) ? records : []).slice().sort((a, b) => a.ts - b.ts);
+      mirror.set(key(pc, chat), rows);
+      return { count: rows.length };
+    },
+    // Is this room served by its project? (The UI meter and the migration both need to know.)
+    isMirrored(pc, chat) {
+      return mirror.has(key(pc, chat));
+    },
+    // How many records the hub believes this room has — uncapped, unlike history(), which takes a
+    // limit. The divergence check compares this against the project's own count.
+    count(pc, chat) {
+      return readAll(pc, chat).length;
+    },
+    // A record that arrived FROM the project — either its `chat` event or the reconcile sweep.
+    // Deduped by id, because our own appends echo back through the same event.
+    absorb(pc, chat, record) {
+      if (!record || !record.id) return null;
+      const k = key(pc, chat);
+      const records = mirror.get(k) || [];
+      if (records.some((r) => r.id === record.id)) return null; // our own echo
+      mirror.set(k, [...records, record]);
+      push(pc, chat, record); // wake whoever is holding this room
+      return record;
+    },
+    // Exposed so the api layer can put the TV state file in the SAME place as the room it belongs
+    // to — one answer to "where does this project's chat live", not two.
+    dirFor,
+
+    // ---- THE OUTBOX -------------------------------------------------------------------------
+    // Every message sent while the hub was holding a room itself lands in the hub's fallback file.
+    // The moment that project's own process can serve the room, those records are in the WRONG
+    // repo — not lost, but stranded, and invisible to the agent whose room it is. So the handover
+    // is a flush, not a cutover: the hub hands the project what it buffered, then retires its file.
+    // (Found live: 3 BUApp messages sent in the window between the file move and the client
+    // warming — the room read fine in the UI off the mirror, and the project's own file was short.)
+    outboxRooms(pc) {
+      return hubRooms(pc);
+    },
+    outbox(pc, chat) {
+      return hubRecords(pc, chat);
+    },
+    // Records a warm project failed to take. Same flush shape as the outbox, different cause.
+    unsent(pc, chat) {
+      return unsent.get(key(pc, chat)) || [];
+    },
+    clearUnsent(pc, chat, ids) {
+      const k = key(pc, chat);
+      const done = new Set(ids || []);
+      const left = (unsent.get(k) || []).filter((r) => !done.has(r.id));
+      if (left.length) unsent.set(k, left);
+      else unsent.delete(k);
+      return left.length;
+    },
+    // Retire, never delete. The flushed file stays on disk under a `.flushed` name so a bad flush
+    // is recoverable by hand — chat is the one thing in here we can't regenerate.
+    // The suffix goes AFTER `.jsonl`, deliberately: `<stem>.flushed.jsonl` would still match the
+    // room scan, so the retired file was picked up as a room named `main.flushed` and flushed
+    // again, every pass — six junk rooms in the project and a `.flushed.flushed.flushed…` chain
+    // hub-side before it was caught. A retired file must not look like a room.
+    retireOutbox(pc, chat) {
+      const dir = dirFor(pc);
+      const from = chatFile(dir, pc, chat);
+      const to = `${from}.flushed`;
+      try {
+        fs.renameSync(from, to);
+      } catch {
+        return { retired: false };
+      }
+      // The ack cursors go with it: they point at hub-file offsets, and the project keeps its own.
+      try { fs.renameSync(ackFile(dir, pc, chat), `${ackFile(dir, pc, chat)}.flushed`); } catch {}
+      return { retired: true, to };
+    },
 
     // A message from either side. `from` = "you" (UI) | "agent" (CLI say). `as` = the speaking
     // IDENTITY on agent messages (canonicalized to a project code by the api layer — RFC-031).
@@ -159,16 +329,15 @@ module.exports = function Chats() {
       return limit ? all.slice(-limit) : all;
     },
 
+    // Rooms this project has, from BOTH sides: the mirror (rooms its own process serves) and the
+    // hub's directory (rooms still in fallback, or not yet flushed). Listing only the hub dir was
+    // wrong the moment a project started serving itself — its rooms have no hub file to find.
     chats(pc) {
-      try {
-        const prefix = `${safe(pc)}.`;
-        return fs
-          .readdirSync(CHATS_DIR)
-          .filter((f) => f.startsWith(prefix) && f.endsWith(".jsonl"))
-          .map((f) => f.slice(prefix.length, -".jsonl".length));
-      } catch {
-        return [];
-      }
+      const prefix = `${pc}|`;
+      const mirrored = [...mirror.keys()]
+        .filter((k) => k.startsWith(prefix))
+        .map((k) => k.slice(prefix.length));
+      return [...new Set([...mirrored, ...hubRooms(pc)])];
     },
 
     // RFC-031 — the room announces its own comings and goings (his ask: "you need to SEE
@@ -188,6 +357,15 @@ module.exports = function Chats() {
       const seen = liveSeen.get(key(pc, chat));
       const ts = seen && seen.get(identity);
       return !(ts && Date.now() - ts < LIVE_GRACE);
+    },
+
+    // "Did this identity ENTER this room?" — the speaking gate's half of presence. isPresent()
+    // answers "is it live RIGHT NOW" (one heartbeat); this answers "is it in the room at all",
+    // which is what a visitor's right to speak turns on.
+    hasEntered(pc, chat, identity) {
+      const e = entered.get(key(pc, chat));
+      const ts = e && e.get(identity);
+      return !!(ts && Date.now() - ts < VISIT_TTL);
     },
 
     // Departure detection for leave(): only announce someone who was actually here.
@@ -218,6 +396,15 @@ module.exports = function Chats() {
         resolve({ kicked: true });
       });
       clearLine(k, identity); // a kicked identity's cooking line goes with it
+      // …and its right to speak. The bouncer has to actually silence, or a kicked visitor keeps
+      // talking for the rest of VISIT_TTL. (leave() deliberately does NOT clear this: goodbye()
+      // fires on SIGTERM and would race an arm-first re-arm, and someone who just said goodbye
+      // adding one more line isn't the drive-by this gate exists to stop.)
+      const ent = entered.get(k);
+      if (ent) {
+        ent.delete(identity);
+        if (!ent.size) entered.delete(k);
+      }
       const record = this.system(pc, chat, { event: "kicked", who: identity });
       return { record, hadHold: bounced.length > 0 };
     },
@@ -233,6 +420,7 @@ module.exports = function Chats() {
       const seen = liveSeen.get(k) || new Map();
       seen.set(me, Date.now());
       liveSeen.set(k, seen);
+      markEntered(k, me);
       const pending = readAll(pc, chat).filter((m) => deliverable(m, me) && m.ts > since);
       if (pending.length) return Promise.resolve({ messages: pending });
       return new Promise((resolve) => {
@@ -280,8 +468,9 @@ module.exports = function Chats() {
       const k = key(pc, chat);
       const me = identity || pc;
       listenerSeen.set(k, { listener, ts: Date.now() });
+      markEntered(k, me); // draining a room is entering it — file-mode agents speak too
       let acks = {};
-      try { acks = JSON.parse(fs.readFileSync(ackFile(pc, chat), "utf8")); } catch {}
+      try { acks = JSON.parse(fs.readFileSync(ackFile(dirFor(pc), pc, chat), "utf8")); } catch {}
       const sinceTs = acks[listener] || 0;
       const pending = readAll(pc, chat).filter((m) => deliverable(m, me) && m.ts > sinceTs);
       // The home agent's turn-boundary pickup: a "waiting on <pc>" line flips to "received" the
@@ -292,8 +481,9 @@ module.exports = function Chats() {
       }
       if (pending.length) {
         acks[listener] = pending[pending.length - 1].ts;
-        fs.mkdirSync(CHATS_DIR, { recursive: true });
-        fs.writeFileSync(ackFile(pc, chat), JSON.stringify(acks, null, 2));
+        const dir = dirFor(pc);
+        fs.mkdirSync(dir, { recursive: true });
+        fs.writeFileSync(ackFile(dir, pc, chat), JSON.stringify(acks, null, 2));
       }
       return { messages: pending };
     },
@@ -400,7 +590,7 @@ module.exports = function Chats() {
         const all = readAll(pc, chat);
         out[chat].records = all.length;
         let acks = {};
-        try { acks = JSON.parse(fs.readFileSync(ackFile(pc, chat), "utf8")); } catch {}
+        try { acks = JSON.parse(fs.readFileSync(ackFile(dirFor(pc), pc, chat), "utf8")); } catch {}
         let maxTs = 0;
         for (const [lk, ts] of Object.entries(acks)) {
           const name = lk === "hooks" ? pc : lk.startsWith("join:") ? lk.slice(5) : null;

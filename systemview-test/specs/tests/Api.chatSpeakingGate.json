@@ -1,0 +1,48 @@
+[
+  {
+    "title": "The speaking gate: you must be in a room to talk in it",
+    "namespace": { "serviceId": "SystemViewCore", "moduleName": "Api", "methodName": "chatSpeakingGate" },
+    "Before": [],
+    "Main": [
+      {
+        "title": "unknown identities and drive-bys are refused; home agents and entered visitors speak",
+        "namespace": { "serviceId": "SystemViewCore", "moduleName": "Api", "methodName": "chatSpeakingGate" },
+        "args": [],
+        "savedEvaluations": [
+          {
+            "namespace": "results.unknownIdentityRefused",
+            "expected_type": "boolean",
+            "validations": [{ "name": "boolEquals", "value": true }],
+            "save": true
+          },
+          {
+            "namespace": "results.driveByRefused",
+            "expected_type": "boolean",
+            "validations": [{ "name": "boolEquals", "value": true }],
+            "save": true
+          },
+          {
+            "namespace": "results.cookingDriveByRefused",
+            "expected_type": "boolean",
+            "validations": [{ "name": "boolEquals", "value": true }],
+            "save": true
+          },
+          {
+            "namespace": "results.homeAgentAllowed",
+            "expected_type": "boolean",
+            "validations": [{ "name": "boolEquals", "value": true }],
+            "save": true
+          },
+          {
+            "namespace": "results.enteredVisitorAllowed",
+            "expected_type": "boolean",
+            "validations": [{ "name": "boolEquals", "value": true }],
+            "save": true
+          }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": []
+  }
+]

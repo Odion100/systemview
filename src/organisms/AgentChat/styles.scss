@@ -627,6 +627,107 @@
     line-height: 1.4;
     white-space: pre-wrap;
     word-break: break-word;
+    // Chat markdown paints ONLY with these two — a fill and a line, both translucent. Set per
+    // bubble kind (dark ink on light agent bubbles, light ink on his purple), so one set of
+    // markdown rules lands correctly on every bubble color including per-visitor ones.
+    --md-ink: #5e6ade52;
+    --md-line: rgba(0, 0, 0, 0.18);
+    .chat-md__p {
+      display: inline;
+    }
+    // HIS colors, per mode: the lavender wash reads on LIGHT bubbles, the translucent ink is
+    // right on DARK — so light is the default and `.sv-dark` hands the ink back.
+    .chat-md__code {
+      background: rgba(216, 219, 255, 0.32); // #d8dbff52 — as rgba because the build drops 8-digit hex
+      border: 1px solid var(--md-line);
+      border-radius: 4px;
+      padding: 0 3px;
+      font-family: "SF Mono", Menlo, Consolas, monospace;
+      font-size: 0.9em;
+    }
+    // A pasted stack trace must not eat the thread — the fence scrolls inside its own box.
+    .chat-md__fence {
+      display: block;
+      margin: 4px 0;
+      padding: 6px 8px;
+      background: rgba(216, 219, 255, 0.32); // #d8dbff52 — as rgba because the build drops 8-digit hex
+      border: 1px solid var(--md-line);
+      border-radius: 6px;
+      font-family: "SF Mono", Menlo, Consolas, monospace;
+      font-size: 0.87em;
+      line-height: 1.35;
+      white-space: pre;
+      overflow: auto;
+      max-height: 180px;
+    }
+    .chat-md__h {
+      display: block;
+      font-weight: 700;
+      margin: 4px 0 2px;
+    }
+    .chat-md__list {
+      display: block;
+      margin: 3px 0;
+      padding-left: 18px;
+      li {
+        margin: 1px 0;
+      }
+    }
+    .chat-md__quote {
+      display: block;
+      margin: 3px 0;
+      padding-left: 7px;
+      border-left: 2px solid var(--md-line);
+      opacity: 0.85;
+    }
+    .chat-md__rule {
+      display: block;
+      margin: 5px 0;
+      border-top: 1px solid var(--md-line);
+    }
+    // Tables sized for a BUBBLE, not a page: compact, no heavy grid, and the wrapper takes the
+    // horizontal scroll so a wide table never widens the bubble or spills out of it.
+    .chat-md__tablewrap {
+      display: block;
+      margin: 4px 0;
+      max-width: 100%;
+      overflow-x: auto;
+    }
+    .chat-md__table {
+      border-collapse: collapse;
+      font-size: 0.92em;
+      // Cells decide their own width; `pre-wrap` on the bubble would otherwise stretch them.
+      white-space: nowrap;
+      th,
+      td {
+        padding: 3px 8px 3px 0;
+        text-align: left;
+        vertical-align: top;
+      }
+      th {
+        font-weight: 700;
+        border-bottom: 1px solid var(--md-line);
+        padding-bottom: 4px;
+      }
+      tbody tr + tr td {
+        border-top: 1px solid var(--md-ink);
+      }
+      // Last column keeps no trailing gap, so a two-column table reads tight in a narrow bubble.
+      th:last-child,
+      td:last-child {
+        padding-right: 0;
+      }
+    }
+    del {
+      opacity: 0.7;
+    }
+    // DARK: the translucent ink comes back — the lavender wash is a light-mode color.
+    :root.sv-dark & {
+      .chat-md__code,
+      .chat-md__fence {
+        background: var(--md-ink);
+      }
+    }
     // Chips ride inside narrow bubbles — let a long title wrap instead of overflowing.
     .md-chip {
       white-space: normal;
@@ -639,6 +740,9 @@
       background: #575fc1;
       color: #fff;
       border-bottom-right-radius: 3px;
+      // Light ink on the purple — a dark overlay would read as a hole here.
+      --md-ink: rgba(255, 255, 255, 0.16);
+      --md-line: rgba(255, 255, 255, 0.32);
       a {
         color: #fff; // markdown links inside the blue bubble — default link blue vanishes here
         text-decoration: underline;
@@ -650,6 +754,10 @@
       color: var(--sv-text);
       border: 1px solid var(--sv-border);
       border-bottom-left-radius: 3px;
+      // On dark the body text lifts — but stops SHORT of #fff, which he found too hard.
+      :root.sv-dark & {
+        color: #e6e9f2;
+      }
     }
     // RFC-031 — a VISITOR's bubble: another project speaking in this room, wearing its name.
     &--visitor {
@@ -749,8 +857,15 @@
 }
 
 @keyframes sv-busy-pulse {
-  0%, 100% { box-shadow: 0 4px 14px rgba(0, 0, 0, 0.14); }
-  50% { box-shadow: 0 4px 14px rgba(0, 0, 0, 0.14), 0 0 0 4px color-mix(in srgb, #e2a03f 22%, transparent); }
+  0%,
+  100% {
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.14);
+  }
+  50% {
+    box-shadow:
+      0 4px 14px rgba(0, 0, 0, 0.14),
+      0 0 0 4px color-mix(in srgb, #e2a03f 22%, transparent);
+  }
 }
 @keyframes sv-status-fade {
   from {

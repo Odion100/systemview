@@ -4,6 +4,7 @@ import { Client } from "../../systemClient";
 import ServiceContext from "../../ServiceContext";
 import PageHeader from "../../organisms/PageHeader/PageHeader";
 import AgentChat from "../../organisms/AgentChat/AgentChat";
+import { isSystemModule } from "../../systemModules";
 import LineChart from "../../organisms/Charts/LineChart";
 import LoadColumns from "../../organisms/Charts/LoadColumns";
 import TopologyGraph from "../../organisms/Charts/TopologyGraph";
@@ -390,7 +391,7 @@ export default function Reports() {
     return svcs.map((s) => {
       const available = new Set();
       ((s.connectionData && s.connectionData.modules) || []).forEach(({ name, methods: fns }) => {
-        if (name === "Plugin" || name === "SystemView") return;
+        if (isSystemModule(name)) return; // our plumbing is not this project's surface
         (fns || []).forEach(({ fn }) => available.add(`${name}.${fn}`));
       });
       const tested = new Set(((s.specList && s.specList.tests) || []).map((f) => f.replace(/\.json$/, "")));

@@ -1,6 +1,7 @@
 import React from "react";
 import "./styles.scss";
 import ExpandableList from "../ExpandableList/ExpandableList";
+import { isSystemModule } from "../../systemModules";
 import MyLink from "../../atoms/Link/Link";
 import DocIcon from "../../atoms/DocsIcon/DocsIcon";
 import TestsIcon from "../../atoms/TestsIcon/TestsIcon";
@@ -37,7 +38,7 @@ const ServerModulesList = ({
                   isSelected
                 } system-nav__link--selected-${
                   !selectedMethodName && isSelected
-                }${isRevealedModule && !reveal.methodName ? " is-revealed" : ""} ${(name === "Plugin" || name === "SystemView") && className + "__name--plugin"}`}
+                }${isRevealedModule && !reveal.methodName ? " is-revealed" : ""} ${isSystemModule(name) && className + "__name--plugin"}`}
               >
                 <MyLink link={`/specs/${projectCode}/${serviceId}/${name}`} text={name} />
                 <span className={`${className}__docs-icon`}>

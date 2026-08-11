@@ -18,6 +18,20 @@ async function loadHub(Client, uiUrl) {
   return SystemView;
 }
 
+// A refused say/status must READ like a refusal. A service error arrives in several shapes
+// depending on how far it got (thrown message, error payload, raw string) — dig out the sentence
+// the hub wrote, because that sentence carries the fix.
+function cleanErr(err) {
+  if (!err) return "unknown error";
+  if (typeof err === "string") return err;
+  const nested = err.error || err.data || err.body;
+  return (
+    err.message ||
+    (nested && (nested.message || (typeof nested === "string" ? nested : null))) ||
+    JSON.stringify(err)
+  );
+}
+
 module.exports.join = async function join(projectCode, { uiUrl, Client, chat, agent, once = false } = {}) {
   if (!projectCode) {
     log.warn("Usage: systemview join <projectCode> [--chat name] [--once]");
@@ -100,8 +114,14 @@ module.exports.say = async function say(projectCode, text, { uiUrl, Client, chat
   }
   const SystemView = await loadHub(Client, uiUrl);
   // RFC-031 — `--as` is the project you speak AS (a VISITOR names its own project; omitted =
-  // the room's own agent). The hub canonicalizes: unknown names collapse to the room.
-  await SystemView.chatSend(projectCode, { chat, from: "agent", text, as: agent });
+  // the room's own agent). The hub REFUSES an unknown name or a room you haven't entered, and
+  // that refusal has to be loud here: a swallowed say looks identical to a delivered one.
+  try {
+    await SystemView.chatSend(projectCode, { chat, from: "agent", text, as: agent });
+  } catch (err) {
+    log.error(cleanErr(err));
+    return 1;
+  }
   return 0;
 };
 
@@ -111,8 +131,49 @@ module.exports.status = async function status(projectCode, text, { uiUrl, Client
     return 1;
   }
   const SystemView = await loadHub(Client, uiUrl);
-  // RFC-031 — a visiting identity's cooking renders in its own color, under its name.
-  await SystemView.chatStatus(projectCode, { chat, text: text || null, as: agent });
+  // RFC-031 — a visiting identity's cooking renders in its own color, under its name. Same
+  // speaking gate as `say`: you can't cook in a room you haven't entered.
+  try {
+    await SystemView.chatStatus(projectCode, { chat, text: text || null, as: agent });
+  } catch (err) {
+    log.error(cleanErr(err));
+    return 1;
+  }
+  return 0;
+};
+
+// THE TV, READ SIDE. The human answers questions/approvals/threads right on the show and his
+// clicks save silently to the room's TV state — which is worthless if the agent can't read them
+// back. This was the missing half of that loop (agents/chat.md promised "the hub's chatGetTv"
+// with no command behind it, so agents correctly reported they could not see his answers).
+module.exports.tv = async function tv(projectCode, { uiUrl, Client, chat, json = false } = {}) {
+  if (!projectCode) {
+    log.warn("Usage: systemview tv <projectCode> [--chat name] [--json]");
+    return 1;
+  }
+  const SystemView = await loadHub(Client, uiUrl);
+  let state = null;
+  try {
+    state = await SystemView.chatGetTv(projectCode, { chat });
+  } catch (err) {
+    log.error(cleanErr(err));
+    return 1;
+  }
+  if (!state || !state.text) {
+    log.warn(`nothing on ${projectCode}'s TV${chat ? ` (${chat})` : ""} — put a show up with: systemview show ${projectCode} --text "<markdown>"`);
+    return 1;
+  }
+  if (json) {
+    console.log(JSON.stringify(state));
+    return 0;
+  }
+  // The clicked-up text IS the record of his decisions — print it verbatim so answers
+  // (answer=…, verdict=…, thread replies) read exactly as they sit in the show.
+  console.log("");
+  console.log(`  ${state.label || "show"}${state.ts ? `   (last touched ${new Date(state.ts).toLocaleString()})` : ""}`);
+  console.log("");
+  console.log(state.text);
+  console.log("");
   return 0;
 };
 

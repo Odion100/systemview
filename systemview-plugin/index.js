@@ -1,10 +1,14 @@
 const fs = require("fs");
 const path = require("path");
 const SystemViewModule = require("./SystemViewModule");
+const ChatModule = require("./ChatModule");
 const createStats = require("./stats");
 const { getSpecList, ensureDir } = require("./utils");
 
-const SKIP_MODULES = ["Plugin", "SystemView"];
+// Our own modules — never traced, never counted in the project's stats. A module added to the
+// plugin MUST be added here in the same change, or our plumbing shows up as the project's traffic
+// (a chat append would have been logged and counted as one of their calls).
+const SKIP_MODULES = ["Plugin", "SystemView", "SystemViewChat"];
 
 function redactClone(data, paths) {
   if (!paths.length || data == null) return data;
@@ -435,6 +439,11 @@ module.exports = function ({
 
     if (useSystemViewLogs) registerSystemViewLogs();
     registerPluginModule(); // ALWAYS — the plugin's methods must be reachable with or without a hub
+    // The room belongs to this project, so this project's process serves it — ALWAYS registered,
+    // like Plugin: an agent must be able to read and append its own room whether or not a hub is
+    // up. Its own module (not Plugin, not SystemView) and an unmistakable name, because the plugin
+    // mounts into every service and a project can legitimately own a module called `Chats`.
+    App.module("SystemViewChat", ChatModule({ root, projectCode }));
     if (useSystemViewUI) connectToUI();
     if (writeManifest)
       App.on("ready", function ({ connectionData, modules, routing, services }) {

@@ -1,58 +1,46 @@
 [
   {
-    "title": "RFC-031 delivery rules hold at the hub's door",
-    "namespace": { "serviceId": "SystemViewCore", "moduleName": "Api", "methodName": "chatDeliveryRules" },
+    "title": "Stranded records are handed to the project — and a shared directory is refused",
+    "namespace": { "serviceId": "SystemViewCore", "moduleName": "Api", "methodName": "chatOutboxFlush" },
     "Before": [],
     "Main": [
       {
-        "title": "who hears what in a room with a home agent and a visitor",
-        "namespace": { "serviceId": "SystemViewCore", "moduleName": "Api", "methodName": "chatDeliveryRules" },
+        "title": "the hub hands over what it buffered, retires its copy, and never flushes into itself",
+        "namespace": { "serviceId": "SystemViewCore", "moduleName": "Api", "methodName": "chatOutboxFlush" },
         "args": [],
         "savedEvaluations": [
           {
-            "namespace": "results.homeHearsHuman",
+            "namespace": "results.peerServesChat",
             "expected_type": "boolean",
             "validations": [{ "name": "boolEquals", "value": true }],
             "save": true
           },
           {
-            "namespace": "results.homeNeverHearsItself",
+            "namespace": "results.recordsCrossed",
             "expected_type": "boolean",
             "validations": [{ "name": "boolEquals", "value": true }],
             "save": true
           },
           {
-            "namespace": "results.homeHearsVisitor",
+            "namespace": "results.movedCountReported",
             "expected_type": "boolean",
             "validations": [{ "name": "boolEquals", "value": true }],
             "save": true
           },
           {
-            "namespace": "results.visitorHearsHuman",
+            "namespace": "results.hubFileRetired",
             "expected_type": "boolean",
             "validations": [{ "name": "boolEquals", "value": true }],
             "save": true
           },
           {
-            "namespace": "results.visitorHearsHome",
+            "namespace": "results.sameDirRefused",
             "expected_type": "boolean",
             "validations": [{ "name": "boolEquals", "value": true }],
             "save": true
           },
           {
-            "namespace": "results.visitorNeverHearsItself",
-            "expected_type": "boolean",
-            "validations": [{ "name": "boolEquals", "value": true }],
-            "save": true
-          },
-          {
-            "namespace": "results.nobodyHearsCommands",
-            "expected_type": "boolean",
-            "validations": [{ "name": "boolEquals", "value": true }],
-            "save": true
-          },
-          {
-            "namespace": "results.nobodyHearsArrivals",
+            "namespace": "results.ownRoomUntouched",
             "expected_type": "boolean",
             "validations": [{ "name": "boolEquals", "value": true }],
             "save": true

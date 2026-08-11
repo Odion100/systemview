@@ -64,6 +64,8 @@ const HELP_TEXT = `
                                            block showing it claims the run; else the saved-tests
                                            area; "all" = the whole saved list, in sequence
     act <project> run "<block title>"      Press a :::run block's play in the open document
+    tv <project> [--json]                  READ THE TV BACK: the clicked-up show — his picked
+                                           answers, approval verdicts and typed thread replies
     show <project> --text "<md>"|--file <p.md>|--clear   THE TV: push interactive markdown onto the
                                            chat's show surface (runnables, tests, charts — all live);
                                            one show at a time, every show stays clickable in the thread

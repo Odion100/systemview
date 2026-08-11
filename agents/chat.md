@@ -32,6 +32,30 @@ From the **Stats page** the view is stats-shaped — check `view.page` first:
 "This spike", "that error rate" refer to the tab (`stats.report`), window (`stats.range`) and
 service focus they're looking at.
 
+## Formatting your messages — light markdown in bubbles
+
+Bubbles render a small markdown subset, so a reply can have structure without becoming a wall:
+
+| what | write |
+| --- | --- |
+| bold / italic / strike | `**bold**` · `*italic*` · `~~struck~~` |
+| inline code | `` `Math.add` `` |
+| lists | `- item` lines, or `1. item` lines |
+| quote | `> quoted line` |
+| code block | triple-backtick fence — it scrolls in its own box |
+| heading | `## Heading` → renders as a **bold line**, not a document heading |
+| table | pipe rows + a `--- \| ---` separator (`:-:` / `--:` align) — it scrolls in its own box |
+
+Notes that matter:
+
+- **Underscores are never italic** and `a * b` is never italic — identifiers and math stay
+  literal. Only `*single stars*` hugging their text italicize.
+- **No images or `::blocks` in bubbles** — those live on the TV (`systemview show`). Bubbles
+  carry light formatting; the TV carries the full interactive vocabulary. Tables DO render, but
+  keep them narrow — a bubble is a column, not a page.
+- A fenced block is the right way to paste a stack trace or a diff into chat: it scrolls
+  instead of burying the thread.
+
 ## Mode 1 — JOIN (live, in the room)
 
 Run this and STAY on it — the hold itself is the "agent is in" indicator (solid bubble):
@@ -180,8 +204,12 @@ systemview show <pc> --clear                        # blank the TV
   the full interactive vocabulary now — runnables, `::test` (including `{ran=…}` recorded ones),
   charts, `::image`/galleries, questions, approvals — and the human can answer/approve RIGHT ON
   IT: his clicks save silently to the room's TV state (no chat noise), and he'll tell you in the
-  chat when he's responded. Read his answers with `systemview` (the hub's `chatGetTv`) or ask him
-  to paste — the clicked-up show text IS the record of his decisions. Shows are disposable by
+  chat when he's responded. **Read his answers with `systemview tv <yourProject>`** — it prints
+  the clicked-up show, which IS the record of his decisions: `::question{… answer=…}` for what he
+  picked, `:::approval{verdict=…}` for approvals, and `:::reply{author=you …}` blocks inside
+  `::::thread` for anything he typed. `--json` if you'd rather parse it. Read it whenever he says
+  he's responded — his typed replies are questions to YOU and they sit there silently until you
+  look. Shows are disposable by
   design: one at a time, every show stays in the thread as a clickable 📺 line. Proposals, demos,
   status boards, walkthroughs → TV. A report is for when HE says "make it a report" or the thing
   must live as a document in the repo.
@@ -201,6 +229,22 @@ systemview join <otherProject> --once --as <yourProject>   # jump in — you now
 systemview say <otherProject> "<text>" --as <yourProject>  # speak there, under your own name
 # …and when the errand is done: stop re-arming (or Ctrl-C a held join) — the exit is visible
 ```
+
+- **ENTER BEFORE YOU SPEAK — the hub enforces this.** `say`/`status` into a room you have not
+  joined is REFUSED, and so is an `--as` that isn't a connected project code. Both used to fail
+  silently and that's why the rule is now machinery: an unrecognized name quietly became the
+  ROOM'S OWN agent, so the message was filed as that room talking to itself, delivered to nobody,
+  and still looked sent. The refusals name the fix:
+
+  ```
+  ✖ "claude" is not a connected project — identities ARE project codes (RFC-031).
+    Speak as your own project (--as <yourProjectCode>), or drop --as …
+  ✖ systemlynx is not in buAPI's room — enter before you speak:
+    systemview join buAPI --once --as systemlynx
+  ```
+
+  A `join` OR an `inbox` drain counts as entering, and it holds for 15 minutes — so normal
+  arm-cycling never trips it. Your own room is never gated (file-mode agents hold no line).
 
 - **Visit freely — initiative is WANTED.** "Go talk to X" is one trigger, not a permission
   gate: their change broke your tests? You shipped something they depend on? You need an answer
@@ -241,7 +285,7 @@ systemview say <otherProject> "<text>" --as <yourProject>  # speak there, under 
 
 ## Rules
 
-- **Messages are plain text plus LINKS** (not markdown — write chat like chat). Three link forms
+- **Write chat like chat** — light markdown (above) plus LINKS, never a document. Three link forms
   render clickable: `:report[.systemview/report.<pc>.<Name>.md]{title="…"}` (a chip that opens
   that report on the Stage tab), `[text](url)`, and bare URLs. Link the thing you're talking
   about — "the report is ready" without a `:report` link is a missed click.
@@ -253,6 +297,30 @@ systemview say <otherProject> "<text>" --as <yourProject>  # speak there, under 
   from your real connection and the human trusts it.
 - One chat per project for now (`main`); `--chat <name>` exists for when named chats arrive.
 
+## Where your room lives — YOUR repo, not the hub's
+
+**Your chat is a file in your own project**, alongside your reports and manifests:
+
+```
+<your project root>/.systemview/chats/<pc>.<chat>.jsonl        # the room, plain JSONL
+<your project root>/.systemview/chats/<pc>.<chat>.ack.json     # drain cursors
+```
+
+Your service's plugin owns that file — it is the only thing that writes to it (the
+`SystemViewChat` module: `chatAppend` / `chatRead` / `chatCursor` / `chatList` / `chatStat`). The
+hub does not open it. It holds connections, presence, delivery and the long-poll, keeps an
+in-memory copy so those stay instant, and stays in sync with the file through the plugin.
+
+Two consequences worth knowing:
+
+- **You can read and edit your own room** — grep it, compact it, quote it. It's yours, in your
+  repo, on your disk. (This is why it moved: an agent could not compact its own chat when the
+  file sat in a repo that wasn't its own.)
+- **A room only moves once your service carries the module.** Older plugin, or your service
+  down? The hub buffers the room for you and hands over everything it held the moment your
+  service comes back with `SystemViewChat` — nothing is lost in the gap, and nothing is
+  duplicated (the handover is by record id). Force it with `chatFlush` if you're impatient.
+
 ## Compacting a chat (an instruction, not a feature)
 
 **When your room passes ~300 records, compact it at the next quiet moment — without being
@@ -261,7 +329,7 @@ the same number; his asking is the fallback, not the trigger. The procedure — 
 built so this is safe:
 
 1. Pick a QUIET moment (no messages in flight — the rewrite isn't atomic against an append).
-2. Read `.systemview/chats/<pc>.<chat>.jsonl` (hub-local, plain JSONL).
+2. Read `.systemview/chats/<pc>.<chat>.jsonl` **in your own project root** (see above).
 3. Move everything except the recent tail (last ~50 records) to
    `.systemview/chats/archive/<pc>.<chat>.<YYYY-MM-DD>.jsonl` — the archive is the same greppable
    JSONL; nothing is deleted.
@@ -270,7 +338,9 @@ built so this is safe:
    sentences covering what the archived span was about>. Full history: .systemview/chats/archive/…⟫"}`
 5. Say nothing else — the summary bubble at the top of the thread IS the receipt.
 
-Why it's safe: the hub reads the file fresh on every call (no in-memory copy), and every cursor
-(join drains, inbox acks) is TIMESTAMP-based — a shorter file with the same recent timestamps is
-indistinguishable from the long one. Commands in the archived span are just history (they never
-re-execute anyway).
+Why it's safe: every cursor (join drains, inbox acks) is TIMESTAMP-based, so a shorter file with
+the same recent timestamps is indistinguishable from the long one; commands in the archived span
+are just history (they never re-execute anyway). The hub notices the rewrite on its own — it
+compares your room's record count against what it holds, and a count that DROPPED means a
+compaction, so it re-reads the file. That takes one sweep (~20s): the meter and the thread catch
+up by themselves, and you don't have to tell anyone.

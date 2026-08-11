@@ -18,9 +18,17 @@ const EDGE = 18; // docked margin
 const SNAP = 72; // release within this of an edge → dock to it
 const STACK = 78; // default vertical spacing per undragged bot
 
-// Chat messages are PLAIN TEXT — bubbles stay bubbles (full markdown in bubbles was tried and
-// looked wrong; his call). The ONE enrichment is links: a `:report[path]{title="…"}` chip,
-// `[text](url)` links, and bare URLs render clickable; everything else is verbatim pre-wrap text.
+// CHAT MARKDOWN (his ask, 2026-08-09) — bubbles get LIGHT formatting: bold, italic, inline code,
+// strikethrough, links, tight lists, quotes and fenced code. Deliberately NOT `atoms/Markdown`:
+// that renderer is built for a PAGE — document-sized headings, block margins, its own code
+// background, tables, the right-click Commentable wrapper — and every one of those fights a small
+// colored bubble (which is why the first attempt at full markdown here looked wrong). Headings
+// render as bold lines; tables, images and `::blocks` stay on the TV. That split is the point:
+// bubbles carry light formatting, the TV carries the full vocabulary.
+//
+// Everything the markdown paints (code fills, quote bars, rules) uses `--md-ink`/`--md-line`,
+// set per bubble kind in styles.scss — so the SAME styling sits correctly on his purple bubble,
+// on agent bubbles, and on every per-visitor color without hand-tuning each one.
 const LINKISH =
   /:report\[([^\]]+)\](?:\{([^}]*)\})?|\[([^\]]+)\]\((\/[^)\s]+|https?:\/\/[^)\s]+)\)|(https?:\/\/[^\s]+)/g;
 
@@ -48,7 +56,10 @@ function ChatLink({ href, children }) {
     </a>
   );
 }
-function renderChatText(text) {
+// The link scanner — a FLAT array of strings and chip elements. The links collector depends on
+// exactly this shape (it keeps the elements and drops the prose), so it stays its own function
+// rather than getting folded into the markdown pass.
+function renderChatText(text, kp = "l") {
   const out = [];
   let last = 0;
   let k = 0;
@@ -60,17 +71,17 @@ function renderChatText(text) {
       const attrs = {};
       const t = (m[2] || "").match(/title=(?:"([^"]*)"|'([^']*)'|([^\s}]+))/);
       if (t) attrs.title = t[1] || t[2] || t[3];
-      out.push(<ReportLink key={k++} label={m[1]} attrs={attrs} />);
+      out.push(<ReportLink key={`${kp}${k++}`} label={m[1]} attrs={attrs} />);
     } else if (m[3] !== undefined) {
       out.push(
-        <ChatLink key={k++} href={m[4]}>
+        <ChatLink key={`${kp}${k++}`} href={m[4]}>
           {m[3]}
         </ChatLink>,
       );
     } else {
       const short = m[5].replace(/^https?:\/\//, "").replace(/\/$/, "");
       out.push(
-        <ChatLink key={k++} href={m[5]}>
+        <ChatLink key={`${kp}${k++}`} href={m[5]}>
           {short.length > 42 ? `${short.slice(0, 40)}…` : short}
         </ChatLink>,
       );
@@ -78,6 +89,196 @@ function renderChatText(text) {
     last = LINKISH.lastIndex;
   }
   if (last < text.length) out.push(text.slice(last));
+  return out;
+}
+
+// INLINE marks. Conservative on purpose (his risk: old messages re-render through this, and a
+// stray asterisk turning half a bubble bold is worse than no italics): `code` first so its
+// contents are never re-parsed, **bold** with doubled stars only, ~~strike~~, and *italic* that
+// refuses to match across whitespace edges. `_underscores_` are NOT italic — they're too common
+// in identifiers and paths to gamble on.
+const INLINE = /`([^`\n]+)`|\*\*([^*\n]+)\*\*|~~([^~\n]+)~~|\*([^\s*][^*\n]*[^\s*]|[^\s*])\*/g;
+
+function renderInline(text, kp) {
+  const out = [];
+  let last = 0;
+  let k = 0;
+  let m;
+  INLINE.lastIndex = 0;
+  while ((m = INLINE.exec(text))) {
+    if (m.index > last) out.push(...renderChatText(text.slice(last, m.index), `${kp}t${k++}-`));
+    const key = `${kp}m${k++}`;
+    if (m[1] !== undefined) out.push(<code key={key} className="chat-md__code">{m[1]}</code>);
+    else if (m[2] !== undefined) out.push(<strong key={key}>{m[2]}</strong>);
+    else if (m[3] !== undefined) out.push(<del key={key}>{m[3]}</del>);
+    else out.push(<em key={key}>{m[4]}</em>);
+    last = INLINE.lastIndex;
+  }
+  if (last < text.length) out.push(...renderChatText(text.slice(last), `${kp}t${k++}-`));
+  return out;
+}
+
+const H_RE = /^(#{1,6})\s+(.*)$/;
+const UL_RE = /^\s*[-*+]\s+(.*)$/;
+const OL_RE = /^\s*(\d+)[.)]\s+(.*)$/;
+const QUOTE_RE = /^\s*>\s?(.*)$/;
+
+// TABLES (his call: "I do not think tables are too hard to do in these bubbles, just render it
+// the right format for this section"). A table is only a table when a separator row PROVES it —
+// otherwise a sentence with a pipe in it would turn into a one-cell grid. Alignment markers are
+// honored because a stats column reads wrong left-aligned.
+const splitRow = (line) => {
+  let s = line.trim();
+  if (s.startsWith("|")) s = s.slice(1);
+  if (s.endsWith("|")) s = s.slice(0, -1);
+  return s.split("|").map((c) => c.trim());
+};
+// ONE dash is a legal separator cell — `:-:` is the shortest way to write a centered column, and
+// demanding two silently degraded the ENTIRE table to raw pipes (found live: every table with a
+// centered column). A colon alone still isn't a separator; a dash must be present.
+const isTableSep = (line) =>
+  !!line && line.indexOf("|") !== -1 && splitRow(line).every((c) => /^:?-+:?$/.test(c));
+const alignOf = (c) => (/^:.*:$/.test(c) ? "center" : /:$/.test(c) ? "right" : undefined);
+
+// Block pass: fenced code, headings (as bold lines — an h1 inside a bubble is absurd), tight
+// lists, quotes, rules. Anything else is prose, and prose keeps its own newlines because the
+// bubble is `white-space: pre-wrap`; blank lines become block spacing instead of dead height.
+function renderChatMessage(text) {
+  const lines = String(text || "").split("\n");
+  const out = [];
+  let para = [];
+  let list = null; // { ordered, items: [] }
+  let fence = null; // { lines: [] }
+  let k = 0;
+  const flushPara = () => {
+    if (!para.length) return;
+    out.push(
+      <span key={`p${k++}`} className="chat-md__p">
+        {renderInline(para.join("\n"), `p${k}-`)}
+      </span>,
+    );
+    para = [];
+  };
+  const flushList = () => {
+    if (!list) return;
+    const Tag = list.ordered ? "ol" : "ul";
+    out.push(
+      <Tag key={`l${k++}`} className="chat-md__list">
+        {list.items.map((it, i) => (
+          <li key={i}>{renderInline(it, `l${k}i${i}-`)}</li>
+        ))}
+      </Tag>,
+    );
+    list = null;
+  };
+  const flushAll = () => {
+    flushPara();
+    flushList();
+  };
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (fence) {
+      if (/^\s*```/.test(line)) {
+        out.push(
+          <pre key={`f${k++}`} className="chat-md__fence">
+            {fence.lines.join("\n")}
+          </pre>,
+        );
+        fence = null;
+      } else fence.lines.push(line);
+      continue;
+    }
+    if (/^\s*```/.test(line)) {
+      flushAll();
+      fence = { lines: [] };
+      continue;
+    }
+    // A table claims its own lines, so it is checked before the single-line block matchers.
+    if (line.indexOf("|") !== -1 && isTableSep(lines[i + 1])) {
+      flushAll();
+      const head = splitRow(line);
+      const aligns = splitRow(lines[i + 1]).map(alignOf);
+      const rows = [];
+      i += 2;
+      while (i < lines.length && lines[i].trim() && lines[i].indexOf("|") !== -1) {
+        rows.push(splitRow(lines[i]));
+        i++;
+      }
+      i--; // the loop's own increment lands on the line that ended the table
+      const tk = k++;
+      out.push(
+        // A div, not a span: `<table>` is flow content and has no business inside phrasing.
+        <div key={`tw${tk}`} className="chat-md__tablewrap">
+          <table className="chat-md__table">
+            <thead>
+              <tr>
+                {head.map((c, ci) => (
+                  <th key={ci} style={aligns[ci] ? { textAlign: aligns[ci] } : undefined}>
+                    {renderInline(c, `t${tk}h${ci}-`)}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r, ri) => (
+                <tr key={ri}>
+                  {r.map((c, ci) => (
+                    <td key={ci} style={aligns[ci] ? { textAlign: aligns[ci] } : undefined}>
+                      {renderInline(c, `t${tk}r${ri}c${ci}-`)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>,
+      );
+      continue;
+    }
+    const h = line.match(H_RE);
+    const ul = line.match(UL_RE);
+    const ol = line.match(OL_RE);
+    const q = line.match(QUOTE_RE);
+    if (ul || ol) {
+      flushPara();
+      const ordered = !!ol;
+      if (list && list.ordered !== ordered) flushList();
+      if (!list) list = { ordered, items: [] };
+      list.items.push(ul ? ul[1] : ol[2]);
+      continue;
+    }
+    flushList();
+    if (h) {
+      flushPara();
+      out.push(
+        <span key={`h${k++}`} className="chat-md__h">
+          {renderInline(h[2], `h${k}-`)}
+        </span>,
+      );
+    } else if (q) {
+      flushPara();
+      out.push(
+        <span key={`q${k++}`} className="chat-md__quote">
+          {renderInline(q[1], `q${k}-`)}
+        </span>,
+      );
+    } else if (/^\s*(-{3,}|\*{3,}|_{3,})\s*$/.test(line)) {
+      flushPara();
+      out.push(<span key={`r${k++}`} className="chat-md__rule" />);
+    } else if (!line.trim()) {
+      flushPara(); // a blank line ENDS a paragraph; spacing comes from CSS, not empty lines
+    } else {
+      para.push(line);
+    }
+  }
+  // An unterminated fence still shows its content — a half-typed message shouldn't vanish.
+  if (fence)
+    out.push(
+      <pre key={`f${k++}`} className="chat-md__fence">
+        {fence.lines.join("\n")}
+      </pre>,
+    );
+  flushAll();
   return out;
 }
 
@@ -1283,7 +1484,7 @@ function BotBubble({ projectCode, index }) {
                   {m.from === "agent" && m.as && m.as !== projectCode && (
                     <span className={`${CLASSNAME}__visitor-tag`}>{m.as}</span>
                   )}
-                  {renderChatText(String(m.text || ""))}
+                  {renderChatMessage(String(m.text || ""))}
                   {/* the time, quietly in the corner — hover for the full date. Your bubbles
                       also carry a READ receipt (his ask): ✓✓ once the agent has actually
                       DRAINED past this message; a dot while it's still queued. */}

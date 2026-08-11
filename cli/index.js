@@ -228,7 +228,7 @@ async function loadCaseSetting() {
     const deleteHosted = require("./deleteHosted");
     const exitCode = await deleteHosted(input[1], { uiUrl: UI_URL, Client, force: flags.force });
     flushAndExit(exitCode || 0);
-  } else if (["join", "say", "inbox", "nav", "refresh", "act", "highlight", "show"].includes(command) || (command === "status" && input[1])) {
+  } else if (["join", "say", "inbox", "nav", "refresh", "act", "highlight", "show", "tv"].includes(command) || (command === "status" && input[1])) {
     // RFC-028 — the chat front door; RFC-029 — agent control rides the same door (a command is a
     // chat record the open UI executes). join HANGS on purpose (the hold IS presence); the others
     // are one-shots. All need the hub up.
@@ -247,6 +247,7 @@ async function loadCaseSetting() {
     else if (command === "highlight") exitCode = await chatCmd.highlight(input[1], input[2], opts);
     else if (command === "show")
       exitCode = await chatCmd.show(input[1], { ...opts, text: flags.text && flags.text[0], clear: flags.clear });
+    else if (command === "tv") exitCode = await chatCmd.tv(input[1], { ...opts, json: flags.json });
     else if (command === "refresh") exitCode = await chatCmd.refresh(input[1], input[2], opts);
     else if (command === "act") exitCode = await chatCmd.act(input[1], input[2], input[3], opts);
     else exitCode = await chatCmd.inbox(input[1], { ...opts, json: true });

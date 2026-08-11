@@ -253,6 +253,10 @@ systemview say <otherProject> "…" --as <yourProject>       # speak there under
 # STAY for the whole conversation (re-arm your hold in the visited room between replies — no
 # one-comment drive-bys); the room announces arrivals/exits; leave when it's actually concluded.
 systemview inbox <project>       # hook-driven file mode: drain pending messages + ack
+# ENTER BEFORE YOU SPEAK — the hub refuses a say/status into a room you have not joined, and
+# refuses an --as that is not a connected project code. A join OR an inbox drain counts, 15min.
+# YOUR ROOM IS A FILE IN YOUR OWN REPO: <your root>/.systemview/chats/<pc>.<chat>.jsonl — served
+# by your own service (the SystemViewChat plugin module), so you can grep and compact it yourself.
 
 # Agent control (RFC-029) — drive the open window; every command = a "→ …" receipt in the chat
 systemview nav <project> <ns> | center --report <path> | --file <p#La-b> | --tab <t> | --topic <h>
@@ -260,6 +264,19 @@ systemview highlight <project> <ns> | --file <p>   # point the tree; nothing els
 systemview refresh <project> docs|reports|nav|all  # panes re-read in place, never a page reload
 systemview act <project> test <ns|title|all>       # run a saved test where the human is looking
 systemview act <project> run "<block title>"       # press a :::run block's play in the open doc
+
+# THE TV — the interactive surface beside the chat. Proposals, demos, status boards, walkthroughs
+# go HERE, not into a report (his standing rule: a report is for when he asks for one).
+systemview show <project> --text "## Look\n::chart{report=throughput}"   # put a show on the TV
+systemview show <project> --file scratch/demo.md   # …or a file's content    --clear  # blank it
+systemview tv <project> [--json]                   # READ it back — his clicks are SILENT, so this
+                                                   # is where his answers, verdicts and typed
+                                                   # replies live. Read it whenever he says he
+                                                   # responded; nothing tells you otherwise.
+
+# Stats — the /reports page, and the same numbers from the terminal
+systemview stats <project> [--range 1h|24h|7d] [--service <id>] [--json]
+systemview nav <project> stats [tab] [--range …] [--service …]   # walk him to a stats view
 ```
 
 Server-side logging: `systemview.log(msg)` inside a service, then read `systemview.logs` — or the
