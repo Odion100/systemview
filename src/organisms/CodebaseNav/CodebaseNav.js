@@ -656,9 +656,14 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
     };
     onFocus();
     window.addEventListener("focus", onFocus);
+    // ONE SURFACE MOVING GIT MUST TELL THE OTHERS. Staging in the open file's stripes left this nav
+    // showing the old state until something else forced a re-read — his report: "I had to unstage
+    // and stage it just for it to kick in".
+    window.addEventListener("sv:git", onFocus);
     const tick = vcLens ? setInterval(onFocus, 5000) : null;
     return () => {
       window.removeEventListener("focus", onFocus);
+      window.removeEventListener("sv:git", onFocus);
       if (tick) clearInterval(tick);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -752,6 +757,7 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
         fileHost.credentials,
       );
       const res = await svc.Plugin.stageFiles({ paths, unstage });
+      window.dispatchEvent(new CustomEvent("sv:git"));
       if (res && res.files)
         setChanged(
           new Map(
@@ -763,6 +769,37 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
         (e && e.message) ||
           "staging unavailable — this project's plugin may predate it",
       );
+    } finally {
+      setVcBusy(null);
+    }
+  };
+
+  // DISCARD — a tracked file goes back to HEAD, an untracked one is deleted. The plugin snapshots
+  // each into the history ring first, so ⏱ can undo it; that is the only reason this is offered at
+  // all rather than left to a terminal.
+  const discard = async (paths) => {
+    if (!fileHost) return;
+    setVcBusy(paths[0]);
+    setVcError("");
+    try {
+      const svc = loadServiceWithHeaders(
+        fileHost.system.connectionData,
+        fileHost.headers,
+        fileHost.credentials,
+      );
+      if (!svc.Plugin.discardFiles)
+        throw new Error("this project's plugin predates discard — restart the service");
+      const res = await svc.Plugin.discardFiles({ paths });
+      window.dispatchEvent(new CustomEvent("sv:git"));
+      if (res && res.changed && res.changed.files)
+        setChanged(
+          new Map(
+            res.changed.files.map((f) => [f.path, f.status ? f : { ...f, status: "modified" }]),
+          ),
+        );
+      loadGitState.current();
+    } catch (e) {
+      setVcError((e && e.message) || "could not discard");
     } finally {
       setVcBusy(null);
     }
@@ -807,6 +844,7 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
       );
       if (what === "commit") {
         const res = await svc.Plugin.commit({ message: message.trim() });
+        window.dispatchEvent(new CustomEvent("sv:git"));
         setMessage("");
         setGitState(res.state);
         setGitOut(res.output || `${res.sha} ${res.subject}`);
@@ -818,6 +856,7 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
           );
       } else {
         const res = await svc.Plugin.push();
+        window.dispatchEvent(new CustomEvent("sv:git"));
         setGitState(res.state);
         setGitOut(res.pushed ? res.output : res.reason || "nothing to push");
         if (!res.pushed) setVcError(res.reason || "nothing to push");
@@ -859,23 +898,59 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
   const fileMenu = (e, f) => {
     if (!openRowMenu) return;
     const g = changed.get(f.path);
-    const items = [
-      {
-        label: "Open",
-        action: () =>
-          onOpenFile({
-            projectCode,
-            serviceId: fileHost.serviceId,
-            path: f.path,
-            language: f.language,
-          }),
-      },
-    ];
+    const gone = g && g.status === "deleted";
+    const name = f.path.split("/").pop();
+    // A DELETED file has nothing to open — offering it only produces an ENOENT pane.
+    const items = gone
+      ? []
+      : [
+          {
+            label: "Open",
+            action: () =>
+              onOpenFile({
+                projectCode,
+                serviceId: fileHost.serviceId,
+                path: f.path,
+                language: f.language,
+              }),
+          },
+        ];
     // Staged AND edited since gets BOTH verbs — that file has something on either side.
     if (g && (!g.staged || g.partial))
       items.push({ label: "Stage", action: () => stage([f.path], false) });
     if (g && g.staged)
       items.push({ label: "Unstage", action: () => stage([f.path], true) });
+    // THROWING WORK AWAY — two-step, and the only destructive pair in this menu. Every discarded
+    // file is snapshotted into the history ring first, so ⏱ can bring it back.
+    // ONE VERB PER STATE, named for what it actually does to THIS file. "Discard changes" on a file
+    // you deleted is backwards — the change being discarded is the deletion, so the honest word is
+    // restore. Same call underneath; only the label and the question change.
+    // YOU CANNOT DISCARD WHAT YOU HAVE STAGED — you unstage it first. So discard/restore only
+    // appear when there is an UNSTAGED difference to throw away, and they only ever touch the
+    // working tree. A fully-staged file offers Unstage and nothing else; that is the real order of
+    // operations, and it's what stops one click from destroying staged work.
+    const unstagedPart = !!g && (!g.staged || g.partial);
+    if (g && g.status === "untracked")
+      items.push({
+        label: "Delete file",
+        danger: true,
+        confirm: `Delete ${name}? (kept in history)`,
+        action: () => discard([f.path]),
+      });
+    else if (gone && unstagedPart)
+      items.push({
+        label: "Restore file",
+        // Bringing a file BACK isn't destruction — it still confirms, but it isn't red.
+        confirm: `Bring back ${name}?`,
+        action: () => discard([f.path]),
+      });
+    else if (g && unstagedPart)
+      items.push({
+        label: "Discard changes",
+        danger: true,
+        confirm: `Throw away the unstaged changes to ${name}? (kept in history)`,
+        action: () => discard([f.path]),
+      });
     items.push({
       label: "Copy path",
       action: () => navigator.clipboard && navigator.clipboard.writeText(f.path),
@@ -886,7 +961,19 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
         navigator.clipboard &&
         navigator.clipboard.writeText(f.path.split("/").pop()),
     });
-    openRowMenu(e, f.path, items);
+    // THE MENU SAYS WHAT STATE THE FILE IS IN. The row's letter is `M` for a staged file AND for a
+    // staged one edited again since — same letter, different options — so "why does this M offer
+    // discard?" was unanswerable from the screen. Now the menu's own header answers it.
+    const state = !g
+      ? ""
+      : g.status === "untracked"
+        ? " · untracked"
+        : g.staged && g.partial
+          ? " · staged, edited since"
+          : g.staged
+            ? " · staged"
+            : " · not staged";
+    openRowMenu(e, `${f.path}${state}`, items);
   };
 
   // Folders get their own menu — the same verbs read at folder scale. `git add <dir>` would work

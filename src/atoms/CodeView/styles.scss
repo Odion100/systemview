@@ -30,6 +30,122 @@
     background-color: rgba(104, 134, 186, 0.22);
     box-shadow: inset 3px 0 0 var(--sv-blue);
   }
+  // WHAT CHANGED, WHILE YOU READ. The thin stripe on the line is the one that carries the
+  // information (his call — I removed it once and that was the wrong one to remove). It is PER LINE:
+  // this line was added, changed, or has a deletion under it. The thick gutter bar beside it is the
+  // same fact made clickable, and both are now coloured from the SAME per-line verdict — they used
+  // to disagree because the gutter took its colour from the whole hunk.
+  //
+  // STAGED vs NOT is the second axis: solid means the line is already in the index, hollow means it
+  // is still only in your working tree. Colour never moves — it always means add / change / delete.
+  // COLOUR = what happened. WIDTH = whether it's staged. Thin (2px) is work still only in your
+  // working tree; thick (6px) is already in the index. One stripe carrying both, which is what the
+  // thick one was always meant to be.
+  .cm-sv-change {
+    box-shadow: inset 2px 0 0 currentColor;
+    &--added { color: #3f9e6a; }
+    &--changed { color: #d9a441; }
+    // A deletion has no line of its own: it hangs UNDER the surviving line above the gap.
+    &--removed {
+      color: #d9534f;
+      box-shadow: inset 2px 0 0 currentColor, inset 0 -1px 0 currentColor;
+    }
+    // STAGED ADDS A SECOND, THICKER BAND beside the thin one — it does not replace it. The thin
+    // stripe always means the same thing (this line differs from HEAD); the thick band next to it
+    // is the extra fact that the line is already in the index.
+    &::after {
+      content: "";
+      position: absolute;
+      left: 2px;
+      top: 0;
+      bottom: 0;
+      width: 6px;
+      background: currentColor;
+      opacity: 0;
+      pointer-events: none;
+    }
+    &--staged::after {
+      opacity: 0.32;
+    }
+  }
+
+  // THE STRIPE IS THE BUTTON — there is no second bar. A wider invisible hit zone sits over the
+  // line's left edge so a 2px mark is still easy to hit; the mark itself stays 2px.
+  .cm-sv-change {
+    position: relative;
+    &::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 10px;
+      cursor: pointer;
+    }
+    &:hover::before {
+      background: currentColor;
+      opacity: 0.16;
+    }
+  }
+  // "What was here at HEAD" — the old lines, in place, without leaving the file.
+  .cm-sv-was {
+    margin: 2px 0 2px 6px;
+    border-left: 2px solid #d9534f;
+    background: rgba(217, 83, 79, 0.08);
+    border-radius: 0 3px 3px 0;
+    padding: 3px 0;
+    font-size: 0.92em;
+    &__head {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 0 8px 2px;
+      font-size: 9.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      opacity: 0.75;
+    }
+    // Staged vs not lives HERE — on the panel, not on the stripe.
+    &__state {
+      font-weight: 700;
+      opacity: 0.8;
+      &.is-staged { color: #3f9e6a; opacity: 1; }
+    }
+    // The action sits on its OWN row, above the label, and reads as a button.
+    &__bar {
+      display: flex;
+      padding: 4px 8px 3px;
+    }
+    // Stage ONLY this run. The rest of the file stays exactly where it is.
+    &__stage {
+      border: 1px solid #3f9e6a;
+      border-radius: 5px;
+      background: rgba(63, 158, 106, 0.12);
+      color: #2f7f4f;
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 12px;
+      cursor: pointer;
+      &:hover { background: rgba(63, 158, 106, 0.22); }
+      // Unstaging is the reverse move, and it reads as the reverse — same shape, the amber family.
+      &.is-unstage {
+        border-color: #d9a441;
+        background: rgba(217, 164, 65, 0.14);
+        color: #8f6a10;
+        &:hover { background: rgba(217, 164, 65, 0.26); }
+      }
+    }
+    &__line {
+      padding: 0 8px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      opacity: 0.85;
+      text-decoration: line-through;
+      text-decoration-color: rgba(217, 83, 79, 0.45);
+    }
+  }
   border: 1px solid var(--sv-border);
   border-radius: 4px;
   overflow: hidden;

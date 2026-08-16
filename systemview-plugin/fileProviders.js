@@ -265,7 +265,21 @@ function createFileProviders(rootDir) {
         cwd: root(), encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], maxBuffer: 10 * 1024 * 1024,
       });
     } catch { base = ""; } // untracked / no git → treat as fully new
-    return { path: rel, base, head, language: languageOf(abs) };
+    // THE INDEX, as its own version. HEAD-vs-working cannot say which side of the index a line sits
+    // on, so "changed" and "staged" were indistinguishable in the file view. `git show :path` is the
+    // staged copy: HEAD→index is what you already staged, index→working is what you haven't.
+    let index = null;
+    try {
+      const { execFileSync } = require("child_process");
+      index = execFileSync("git", ["show", `:${rel}`], {
+        cwd: root(), encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], maxBuffer: 10 * 1024 * 1024,
+      });
+    } catch {
+      // Not in the index at all (untracked, or staged as a deletion) — null, not "", so the UI can
+      // tell "the index holds an empty file" from "there is no index entry".
+      index = null;
+    }
+    return { path: rel, base, index, head, language: languageOf(abs) };
   }
 
   // changedFiles() → { files: [{ path, language }] } — only the files that DIFFER from HEAD (tracked
@@ -355,6 +369,80 @@ function createFileProviders(rootDir) {
       );
     }
     return changedFiles();
+  }
+
+  // stageHunk({ path, index, working }) → the FRESH changedFiles(). Stages a RUN OF LINES rather
+  // than a whole file: `index` is what the staged copy should become, `working` is what it is now,
+  // and the caller has already decided which run moves. Written by hashing the new blob and
+  // pointing the index entry at it — exact, and nothing like patch fuzz can misplace a line.
+  // The WORKING TREE IS NEVER TOUCHED. This only moves the index.
+  function stageHunk({ path: userPath, content } = {}) {
+    const abs = safeResolve(userPath);
+    const rel = relFromRoot(abs);
+    if (typeof content !== "string")
+      throw new Error("stageHunk: `content` (the new staged copy) is required");
+    const { execFileSync, spawnSync } = require("child_process");
+    // Write the blob, then point the index entry at it. `--stdin` keeps the content off the
+    // command line, so a file of any size and any bytes is fine.
+    const w = spawnSync("git", ["hash-object", "-w", "--stdin"], {
+      cwd: root(), input: content, encoding: "utf8", maxBuffer: 20 * 1024 * 1024,
+    });
+    if (w.status !== 0)
+      throw new Error(`stageHunk: git hash-object failed: ${(w.stderr || "").trim()}`);
+    const sha = String(w.stdout || "").trim();
+    // Keep the mode the index already has (an executable file must not lose its bit).
+    let mode = "100644";
+    try {
+      const ls = execFileSync("git", ["ls-files", "--stage", "--", rel], {
+        cwd: root(), encoding: "utf8", stdio: ["ignore", "pipe", "ignore"],
+      }).trim();
+      if (ls) mode = ls.split(/\s+/)[0] || mode;
+    } catch {}
+    const u = spawnSync("git", ["update-index", "--add", "--cacheinfo", `${mode},${sha},${rel}`], {
+      cwd: root(), encoding: "utf8",
+    });
+    if (u.status !== 0)
+      throw new Error(`stageHunk: git update-index failed: ${(u.stderr || "").trim()}`);
+    return changedFiles();
+  }
+
+  // discardFiles({ paths }) → the FRESH changedFiles(). THROWS WORK AWAY: a tracked file goes back
+  // to HEAD (index and working tree both), an untracked file is deleted from disk. Human-triggered
+  // only, two-step in the UI.
+  //
+  // EVERY FILE IS SNAPSHOTTED FIRST, into the same `.systemview/history` ring the ⏱ button reads —
+  // so a discard someone regrets is one restore away rather than gone. That is the difference
+  // between this and running the git command yourself, and it is the only reason it's safe to offer.
+  function discardFiles({ paths } = {}) {
+    const list = (Array.isArray(paths) ? paths : [paths]).filter(Boolean).map(String);
+    if (!list.length) throw new Error("discardFiles: at least one path is required");
+    const { execFileSync } = require("child_process");
+    const status = changedFiles().files;
+    const done = [];
+    list.forEach((p) => {
+      const abs = safeResolve(p); // throws if it escapes the root
+      const rel = p.replace(/^\.?\//, "");
+      const entry = status.find((f) => f.path === rel);
+      try { snapshot(abs); } catch {}
+      if (entry && entry.status === "untracked") {
+        try { fs.unlinkSync(abs); done.push({ path: rel, action: "deleted" }); } catch {}
+        return;
+      }
+      try {
+        // WORKING TREE ONLY — restored FROM THE INDEX, never from HEAD. Discard used to pass
+        // `--staged --worktree`, so one click threw away staged work too; you cannot discard what
+        // you have staged without unstaging it first, and the UI now makes that the actual order.
+        execFileSync("git", ["restore", "--worktree", "--", rel], {
+          cwd: root(), encoding: "utf8", stdio: ["ignore", "pipe", "pipe"],
+        });
+        done.push({ path: rel, action: "restored" });
+      } catch (e) {
+        throw new Error(
+          `git restore failed for ${rel}: ${String((e && e.stderr) || (e && e.message) || e).trim()}`,
+        );
+      }
+    });
+    return { done, changed: changedFiles() };
   }
 
   // --- RFC-033 — COMMIT FROM THE DOCUMENT. These serve a CLICK: a human presses a button in the
@@ -574,7 +662,7 @@ function createFileProviders(rootDir) {
     return { path: relFromRoot(abs), bytes: Buffer.byteLength(content || "", "utf8") };
   }
 
-  return { readFile, readFileRaw, listFiles, changedFiles, stageFiles, gitState, commit, push, search, getSource, getDiff, writeFile, fileHistory, readSnapshot, snapshot, languageOf, safeResolve };
+  return { readFile, readFileRaw, listFiles, changedFiles, stageFiles, stageHunk, discardFiles, gitState, commit, push, search, getSource, getDiff, writeFile, fileHistory, readSnapshot, snapshot, languageOf, safeResolve };
 }
 
 // Default set bound (lazily) to process.cwd() — the plugin running inside an observed service.

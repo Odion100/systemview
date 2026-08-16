@@ -1,7 +1,8 @@
-import React, { useCallback, useContext, useEffect, useState } from "react";
+import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import ServiceContext from "../../ServiceContext";
 import loadServiceWithHeaders from "../../utils/loadService";
 import CodeEditor from "../../atoms/CodeView/CodeEditor";
+import { lineDiff, lineHunks } from "../../atoms/CodeView/lineDiff";
 import DiffView from "../../atoms/DiffView/DiffView";
 import { useEditorDark, EditorThemeToggle } from "../../atoms/CodeView/editorTheme";
 import Markdown from "../../atoms/Markdown/Markdown";
@@ -39,8 +40,18 @@ const CodePane = ({ file, onClose }) => {
   // Git diff: `hasDiff` = the file differs from HEAD (the nav's orange dot, answered here);
   // `diffMode` flips the body to the side-by-side DiffView; `diffData` is fetched on entry.
   const [hasDiff, setHasDiff] = useState(false);
-  const [diffMode, setDiffMode] = useState(false);
+  // DIFF IS A MODE, NOT A PER-FILE CHOICE. Flip it once and the next file you open comes up as a
+  // diff too — when it has one. It used to reset on every file, so a pass through five changed
+  // files was five identical clicks.
+  const [diffMode, setDiffMode] = useState(
+    () => localStorage.getItem("sv.diffMode") === "true",
+  );
   const [diffData, setDiffData] = useState(null);
+  // base = the file at HEAD. Fetched for any changed file, not just on entering diff, because the
+  // PLAIN view now marks its changed lines too.
+  const [base, setBase] = useState(null);
+  // The STAGED copy (git show :path). null = no index entry at all (untracked).
+  const [index, setIndex] = useState(null);
   // The pane's EFFECTIVE theme + which family its header toggle flips.
   const themeScope = diffMode ? "diff" : isMd ? "docs" : "code";
   const editorDark = diffMode ? diffDark : isMd ? docsDark : codeDark;
@@ -63,9 +74,11 @@ const CodePane = ({ file, onClose }) => {
     setSavedContent(null);
     setError("");
     setPreview(isMd && localStorage.getItem(`sv.mdPreview.${file.path}`) !== "false");
-    setDiffMode(false);
+    // The MODE survives the file change (that's the point of it); its DATA does not.
     setDiffData(null);
     setHasDiff(false);
+    setBase(null);
+    setIndex(null);
     // No host yet ≠ no access: on a refresh this effect fires before the services have connected.
     // Stay in the loading state — `!!host` in the deps re-runs the load the moment the host arrives
     // (and the auto-close effect above handles a host that's genuinely gone).
@@ -85,7 +98,18 @@ const CodePane = ({ file, onClose }) => {
         setSavedContent(res.content);
         try {
           const ch = Plugin.changedFiles ? await Plugin.changedFiles() : null;
-          if (live && ch && ch.files) setHasDiff(ch.files.some((f) => f.path === file.path));
+          const changed = !!(ch && ch.files && ch.files.some((f) => f.path === file.path));
+          if (!live) return;
+          setHasDiff(changed);
+          // One extra call, only for a file that actually differs: it feeds BOTH the edge marks in
+          // the plain view and the diff view if the mode is on, so nothing is fetched twice.
+          if (changed) {
+            const d = await Plugin.getDiff({ path: file.path });
+            if (!live) return;
+            setBase(d.base);
+            setIndex(d.index == null ? null : d.index);
+            setDiffData(d);
+          }
         } catch {}
       } catch (e) {
         if (live) setError(e.message || "could not read file");
@@ -95,13 +119,116 @@ const CodePane = ({ file, onClose }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [file.projectCode, file.serviceId, file.path, !!host]);
 
+  // Which lines differ from HEAD, recomputed against what's on screen — so a line you just typed
+  // marks itself without saving first. Cheap: trimmed prefix/suffix, then LCS on what's left.
+  // TWO QUESTIONS PER LINE, not one. `base` is HEAD and answers WHAT changed (added / changed /
+  // a deletion below). `index` is the staged copy and answers WHETHER it's staged: a line that
+  // still differs from the index is work you haven't staged yet.
+  const changeMarks = useMemo(() => {
+    if (base == null || content == null) return null;
+    const kinds = lineDiff(base, content);
+    // No index entry (untracked) → nothing about this file is staged.
+    const vsIndex = index == null ? kinds : lineDiff(index, content);
+    const out = new Map();
+    kinds.forEach((kind, line) => out.set(line, { kind, staged: !vsIndex.has(line) }));
+    return out;
+  }, [base, index, content]);
+  // The same runs, grouped, each carrying what it replaced — so clicking a stripe can show it.
+  // Each also knows whether it's ALREADY STAGED: a run with nothing left between the index and the
+  // working copy is in. That is what lets one hunk be staged on its own.
+  const hunks = useMemo(() => {
+    if (base == null || content == null) return null;
+    const all = lineHunks(base, content);
+    const pending = index == null ? all : lineHunks(index, content);
+    return all.map((h) => ({
+      ...h,
+      staged: !pending.some((p) => p.to >= h.from && p.from <= h.to),
+    }));
+  }, [base, index, content]);
+
+  // STAGE JUST THIS RUN, not the whole file. Rebuild the staged copy with only this hunk's edits
+  // applied (right to left, so earlier line numbers stay valid) and hand git the result. The
+  // WORKING TREE IS NEVER TOUCHED — only the index moves.
+  const stageHunkAt = async (h, unstage) => {
+    // SAY WHY when nothing happens. Every one of these used to be a silent return, which is how a
+    // button that did nothing looked identical to a button that was broken.
+    if (!Plugin) return setError("no file host for this project");
+    if (!Plugin.stageHunk)
+      return setError("this project's plugin predates line-level staging — restart the service");
+    if (content == null) return;
+    const idx = index == null ? "" : index;
+    // BOTH DIRECTIONS EDIT THE INDEX, and only the index — the working tree is never written.
+    //   stage   : index ← the working lines for this run   (hunks are index→working, working coords,
+    //             the same coordinates `h` is in, so the overlap test is exact)
+    //   unstage : index ← HEAD's lines for this run        (hunks are HEAD→index, INDEX coords, which
+    //             don't line up with `h` — so the run is found by its CONTENT instead of its number)
+    let edits;
+    let out = idx;
+    if (unstage) {
+      const want = h.head.join("\n");
+      edits = lineHunks(base, idx).filter((p) => p.head.join("\n") === want);
+      if (!edits.length) return setError("those lines aren't staged");
+      [...edits]
+        .sort((a, b) => b.from - a.from)
+        .forEach((p) => {
+          const A = out.split("\n");
+          out = [...A.slice(0, p.from - 1), ...p.base, ...A.slice(p.to)].join("\n");
+        });
+    } else {
+      edits = lineHunks(idx, content).filter((p) => p.to >= h.from && p.from <= h.to);
+      if (!edits.length) return setError("those lines are already staged");
+      [...edits]
+        .sort((a, b) => b.baseFrom - a.baseFrom)
+        .forEach((p) => {
+          const A = out.split("\n");
+          out = [...A.slice(0, p.baseFrom - 1), ...p.head, ...A.slice(p.baseTo)].join("\n");
+        });
+    }
+    setError("");
+    try {
+      await Plugin.stageHunk({ path: file.path, content: out });
+      // Re-read rather than assume: the index is git's now, not ours.
+      const d = await Plugin.getDiff({ path: file.path });
+      setBase(d.base);
+      setIndex(d.index == null ? null : d.index);
+      // Tell the rest of the window. Staging here used to leave the nav on the old state until
+      // something forced it — his report: "I had to unstage and stage it just for it to kick in".
+      window.dispatchEvent(new CustomEvent("sv:git"));
+    } catch (e) {
+      setError(e.message || "could not stage those lines");
+    }
+  };
+
+  // …and listen for everyone else's. Staging from the nav has to move these stripes too.
+  useEffect(() => {
+    const onGit = async () => {
+      if (!Plugin || !hasDiff) return;
+      try {
+        const d = await Plugin.getDiff({ path: file.path });
+        setBase(d.base);
+        setIndex(d.index == null ? null : d.index);
+      } catch {}
+    };
+    window.addEventListener("sv:git", onGit);
+    return () => window.removeEventListener("sv:git", onGit);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [file.path, hasDiff, !!host]);
+
   // Entering diff mode fetches a FRESH base/head (edits + saves since the last look must show).
+  // The choice is a MODE and it sticks — leaving it off for the next file is what made this five
+  // clicks for five files.
   const toggleDiff = async () => {
-    if (diffMode) return setDiffMode(false);
+    if (diffMode) {
+      localStorage.setItem("sv.diffMode", "false");
+      return setDiffMode(false);
+    }
     try {
       const d = await Plugin.getDiff({ path: file.path });
       setDiffData(d);
+      setBase(d.base);
+      setIndex(d.index == null ? null : d.index);
       setDiffMode(true);
+      localStorage.setItem("sv.diffMode", "true");
     } catch (e) {
       setError(e.message || "could not load diff");
     }
@@ -212,17 +339,25 @@ const CodePane = ({ file, onClose }) => {
         {dirty && <span className={`${CLASSNAME}__dirty`} title="unsaved changes" />}
         <span className={`${CLASSNAME}__actions`}>
           <EditorThemeToggle scope={themeScope} />
-          {hasDiff && (
+          {/* Shown while the MODE is on even where this file has no diff — otherwise opening an
+              unchanged file takes away the only control that turns the mode back off. */}
+          {(hasDiff || diffMode) && (
             <button
               type="button"
               className={`${CLASSNAME}__btn ${diffMode ? `${CLASSNAME}__btn--pinned` : ""}`}
-              title="This file differs from git HEAD — toggle the diff view"
+              title={
+                diffMode
+                  ? hasDiff
+                    ? "Diff mode is on — every changed file opens like this. Click to leave it."
+                    : "Diff mode is on, but this file matches HEAD. Click to leave it."
+                  : "This file differs from git HEAD — show the diff, and keep showing diffs"
+              }
               onClick={toggleDiff}
             >
               Diff
             </button>
           )}
-          {isMd && !diffMode && (
+          {isMd && !(diffMode && hasDiff) && (
             <button type="button" className={`${CLASSNAME}__btn`} onClick={togglePreview}>
               {preview ? "Edit" : "Preview"}
             </button>
@@ -349,7 +484,16 @@ const CodePane = ({ file, onClose }) => {
           // Every file edits with syntax coloring; the GLOBAL editor theme (default dark) decides the
           // canvas — the rendered md Preview follows it too.
           // `file.lines` is set when a :file[path#L40-70] link opened this — select + center it.
-          <CodeEditor value={content} language={file.language} onChange={setContent} dark={editorDark} focusLines={file.lines || null} />
+          <CodeEditor
+            value={content}
+            language={file.language}
+            onChange={setContent}
+            dark={editorDark}
+            focusLines={file.lines || null}
+            changeMarks={changeMarks}
+            hunks={hunks}
+            onStageHunk={stageHunkAt}
+          />
         ))}
       </div>
     </div>
