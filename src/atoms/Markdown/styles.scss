@@ -735,6 +735,28 @@
       font-family: Monaco, Consolas, monospace;
       font-size: 11px;
     }
+    // The same Diff switch the codebase panel puts on an open file — `::file` and `::diff` only
+    // choose which side it starts on. Kept at the plain `.md-embed` level so the dark rules below
+    // (one class deep) can still beat it.
+    &__view {
+      flex: none;
+      margin-left: 8px;
+      padding: 1px 7px;
+      border: 1px solid #d5dbe8;
+      border-radius: 4px;
+      background: #fff;
+      color: #6b7590;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      &:hover { border-color: #b8c2d8; color: #3b4460; }
+      &--on {
+        background: #6886ba;
+        border-color: #6886ba;
+        color: #fff;
+        &:hover { color: #fff; }
+      }
+    }
     // RFC-029 already-ran — honest label: these results were inserted from a recorded run.
     &__ran {
       font-size: 9px;
@@ -801,6 +823,17 @@
       border-color: #3a3f4b;
       background: #24282f;
       &__title { color: #d7dce9; }
+      &__view {
+        background: #2c313a;
+        border-color: #3f4552;
+        color: #99a2b8;
+        &:hover { border-color: #56607a; color: #d7dce9; }
+        &--on {
+          background: #6886ba;
+          border-color: #6886ba;
+          color: #fff;
+        }
+      }
       &--dead {
         background: #33292a;
         border-color: #5a4340;

@@ -418,12 +418,15 @@ it land here:
 
 ::logs[Math]{limit=25}
 
-A file, at a line range. The header path reveals it in the codebase tree; ⌘-click opens it:
+A file, at a line range. The header path reveals it in the codebase tree; ⌘-click opens it. **Press
+Diff** in the corner for what changed against HEAD, and press it again for the file back — the same
+switch the codebase panel puts on an open file:
 
 ::file[src/atoms/Markdown/registry.js#L20-46]
 
-A diff against git HEAD — read-only here, because scrolling past one shouldn't be a chance to edit a
-file by accident:
+`::diff` is the *same block*, opened on the other side. Whichever one is written only decides what
+you land on; you can always get to the other. Read-only either way, because scrolling past a diff
+shouldn't be a chance to edit a file by accident:
 
 ::diff[cli/runTests.js]
 

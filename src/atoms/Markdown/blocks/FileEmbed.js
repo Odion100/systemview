@@ -15,6 +15,12 @@ import { useEditorDark } from "../../CodeView/editorTheme";
 // Same distinction `run` uses: the INLINE form (`:file[…]`) is a chip that points at the file, the
 // BLOCK form (`::file[…]`) brings the file into the document. Same atoms the story panes render
 // (CodeView / DiffView), so a document and a story show a file identically.
+//
+// ONE EMBED, TWO VIEWS. `::file` and `::diff` are the same block — the name only picks which view
+// it OPENS in. Whoever is reading gets the Diff toggle out of the header, exactly like a file open
+// in the codebase panel, so a diff someone embedded is never a dead end when you want the whole
+// file (or the other way round). Nothing changes for whoever WRITES the document: both directives
+// stay, both mean what they always meant.
 
 const EXT_LANG = {
   js: "javascript", jsx: "javascript", mjs: "javascript", cjs: "javascript",
@@ -46,28 +52,29 @@ function useFileHost(attrs, scope) {
   return connectedServices.find(hasPlugin) || null;
 }
 
-const Frame = ({ kind, path, range, host, children, onOpen }) => (
-  <div className={`md-embed md-embed--${kind}`}>
-    <div className="md-embed__head">
-      <span className="md-embed__kind">{kind}</span>
-      <button type="button" className="md-embed__title md-embed__title--link" onClick={onOpen} title="Show it in the codebase tree — ⌘-click to open it">
-        {path}
-        {range}
-      </button>
-      <span className="md-embed__scope">{host ? host.projectCode : ""}</span>
-    </div>
-    <div className="md-embed__file-body">{children}</div>
-  </div>
-);
-
-export const FileEmbed = ({ label, attrs = {} }) => {
+const Embed = ({ label, attrs = {}, opens }) => {
   const scope = useMarkdownScope();
   const projectCode = attrs.project || scope.projectCode;
   const host = useFileHost(attrs, scope);
   const [editorDark] = useEditorDark("docs");
   const raw = label || attrs.path || "";
   const { path, lines } = parseFileSpec(raw);
-  const [state, setState] = useState({ loading: true });
+  const [view, setView] = useState(opens);
+  // Both versions are kept once fetched, so flipping back and forth costs one call each way —
+  // and stamped with the file they belong to, so a changed path is treated as absent rather than
+  // showing the previous file's body for a frame.
+  const key = `${path}@${host ? host.serviceId : ""}`;
+  const [file, setFile] = useState(null);
+  const [diff, setDiff] = useState(null);
+  const [err, setErr] = useState({});
+
+  const diffData = diff && diff.key === key ? diff : null;
+  // A diff already carries the working copy, so toggling diff → file needs no second read.
+  const fileData =
+    (file && file.key === key && file) ||
+    (diffData && diffData.head != null ? { key, content: diffData.head, language: diffData.language } : null);
+  const data = view === "diff" ? diffData : fileData;
+  const error = err.key === key ? err[view] : null;
 
   useEffect(() => {
     let dead = false;
@@ -75,25 +82,37 @@ export const FileEmbed = ({ label, attrs = {} }) => {
       // Name the project AND the way out. Every block takes `{project=…}`, which is exactly what
       // you want when the file lives in another repo — and not knowing that is what makes people
       // copy files into their own project just to get them on screen.
-      if (!path || !host)
-        return setState({
-          error: projectCode
-            ? `no connected service in ${projectCode} can read files — name another with {project=…}`
-            : "no file host",
-        });
+      if (!path || !host) {
+        if (error) return;
+        const noHost = projectCode
+          ? `no connected service in ${projectCode} can read files — name another with {project=…}`
+          : "no file host";
+        return setErr({ key, file: noHost, diff: noHost });
+      }
+      if (data || error) return;
       try {
         const { Plugin } = loadServiceWithHeaders(host.system.connectionData, host.headers, host.credentials);
-        const data = await Plugin.readFile({ path });
-        if (!dead) setState({ data });
+        if (view === "diff") {
+          const d = await Plugin.getDiff({ path });
+          if (!dead) setDiff({ key, ...d });
+        } else {
+          const d = await Plugin.readFile({ path });
+          if (!dead) setFile({ key, ...d });
+        }
       } catch (e) {
-        if (!dead) setState({ error: (e && e.message) || "could not read the file" });
+        const message = (e && e.message) || (view === "diff" ? "could not read the diff" : "could not read the file");
+        // Per view: a file with no git history reads fine and diffs badly, and the reader should
+        // still be one click away from the version that works.
+        if (!dead) setErr((prev) => ({ ...(prev.key === key ? prev : {}), key, [view]: message }));
       }
     })();
     return () => {
       dead = true;
     };
+    // Primitives only: `data` is derived and gets a fresh identity every render, which would spin
+    // the effect on each paint even though it has nothing left to fetch.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [path, host && host.serviceId]);
+  }, [key, view, !!data, !!error]);
 
   const open = (e) => {
     if (!host) return;
@@ -105,93 +124,64 @@ export const FileEmbed = ({ label, attrs = {} }) => {
     );
   };
 
-  if (!path) return <div className="md-embed md-embed--dead">::file — name a path</div>;
+  if (!path) return <div className="md-embed md-embed--dead">::{opens} — name a path</div>;
   const range = lines ? `:${lines[0]}${lines[1] !== lines[0] ? `-${lines[1]}` : ""}` : "";
+  const diffOn = view === "diff";
+
   return (
-    <Frame kind="file" path={path} range={range} host={host} onOpen={open}>
-      {state.loading ? (
-        <div className="report-chart-empty">loading…</div>
-      ) : state.error ? (
-        <div className="report-chart-empty">{state.error}</div>
-      ) : (
-        <CodeView
-          code={state.data.content || ""}
-          language={state.data.language || langOf(path)}
-          // CodeView's contract is { lines: [a, b] } — the {from,to} shape silently resolves to
-          // nothing (range shown in the header, no marks, no scroll).
-          highlight={lines ? { lines: [lines[0], lines[1]] } : undefined}
-          dark={editorDark}
-        />
-      )}
-    </Frame>
+    <div className={`md-embed md-embed--${view}`}>
+      <div className="md-embed__head">
+        {/* ONE KIND: code. The badge names the pane, not which side of it you're looking at —
+            outside, a file open in the panel doesn't rename itself when you press Diff either. */}
+        <span className="md-embed__kind">code</span>
+        <button type="button" className="md-embed__title md-embed__title--link" onClick={open} title="Show it in the codebase tree — ⌘-click to open it">
+          {path}
+          {range}
+        </button>
+        <span className="md-embed__scope">{host ? host.projectCode : ""}</span>
+        <button
+          type="button"
+          className={`md-embed__view ${diffOn ? "md-embed__view--on" : ""}`}
+          title={diffOn ? "Showing the diff against HEAD — click for the file" : "Show what changed against HEAD"}
+          onClick={() => setView(diffOn ? "file" : "diff")}
+        >
+          Diff
+        </button>
+      </div>
+      <div className="md-embed__file-body">
+        {error ? (
+          <div className="report-chart-empty">{error}</div>
+        ) : !data ? (
+          <div className="report-chart-empty">loading…</div>
+        ) : diffOn ? (
+          data.base === data.head ? (
+            <div className="report-chart-empty">no change against HEAD</div>
+          ) : (
+            // `base` is the git-HEAD version, `head` the working file — the same fields a story's
+            // diff pane passes. READ-ONLY here, unlike that pane: a document is something you read,
+            // and editing a file by accident while scrolling past a diff is nobody's intent. Click
+            // the path to open it properly if you mean to change it.
+            <DiffView
+              base={data.base || ""}
+              head={data.head || ""}
+              language={data.language || langOf(path)}
+              dark={editorDark}
+            />
+          )
+        ) : (
+          <CodeView
+            code={data.content || ""}
+            language={data.language || langOf(path)}
+            // CodeView's contract is { lines: [a, b] } — the {from,to} shape silently resolves to
+            // nothing (range shown in the header, no marks, no scroll).
+            highlight={lines ? { lines: [lines[0], lines[1]] } : undefined}
+            dark={editorDark}
+          />
+        )}
+      </div>
+    </div>
   );
 };
 
-export const DiffEmbed = ({ label, attrs = {} }) => {
-  const scope = useMarkdownScope();
-  const projectCode = attrs.project || scope.projectCode;
-  const host = useFileHost(attrs, scope);
-  const [editorDark] = useEditorDark("docs");
-  const path = (label || attrs.path || "").trim();
-  const [state, setState] = useState({ loading: true });
-
-  useEffect(() => {
-    let dead = false;
-    (async () => {
-      // Name the project AND the way out. Every block takes `{project=…}`, which is exactly what
-      // you want when the file lives in another repo — and not knowing that is what makes people
-      // copy files into their own project just to get them on screen.
-      if (!path || !host)
-        return setState({
-          error: projectCode
-            ? `no connected service in ${projectCode} can read files — name another with {project=…}`
-            : "no file host",
-        });
-      try {
-        const { Plugin } = loadServiceWithHeaders(host.system.connectionData, host.headers, host.credentials);
-        const data = await Plugin.getDiff({ path });
-        if (!dead) setState({ data });
-      } catch (e) {
-        if (!dead) setState({ error: (e && e.message) || "could not read the diff" });
-      }
-    })();
-    return () => {
-      dead = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [path, host && host.serviceId]);
-
-  const open = (e) => {
-    if (!host) return;
-    const detail = { projectCode: host.projectCode, serviceId: host.serviceId, path, language: langOf(path) };
-    window.dispatchEvent(
-      new CustomEvent(e.metaKey || e.ctrlKey ? "sv:openFileInNav" : "sv:revealInNav", {
-        detail: e.metaKey || e.ctrlKey ? detail : { kind: "file", ...detail },
-      })
-    );
-  };
-
-  if (!path) return <div className="md-embed md-embed--dead">::diff — name a path</div>;
-  return (
-    <Frame kind="diff" path={path} range="" host={host} onOpen={open}>
-      {state.loading ? (
-        <div className="report-chart-empty">loading…</div>
-      ) : state.error ? (
-        <div className="report-chart-empty">{state.error}</div>
-      ) : state.data.base === state.data.head ? (
-        <div className="report-chart-empty">no change against HEAD</div>
-      ) : (
-        // `base` is the git-HEAD version, `head` the working file — the same fields a story's diff
-        // pane passes. READ-ONLY here, unlike that pane: a document is something you read, and
-        // editing a file by accident while scrolling past a diff is nobody's intent. Click the path
-        // to open it properly if you mean to change it.
-        <DiffView
-          base={state.data.base || ""}
-          head={state.data.head || ""}
-          language={state.data.language || langOf(path)}
-          dark={editorDark}
-        />
-      )}
-    </Frame>
-  );
-};
+export const FileEmbed = (props) => <Embed {...props} opens="file" />;
+export const DiffEmbed = (props) => <Embed {...props} opens="diff" />;
