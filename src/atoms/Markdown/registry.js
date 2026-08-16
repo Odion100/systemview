@@ -15,6 +15,7 @@ import LogsEmbed from "./blocks/LogsEmbed";
 import { FileEmbed, DiffEmbed } from "./blocks/FileEmbed";
 import ReportLink from "./blocks/ReportLink";
 import ImageEmbed from "./blocks/ImageEmbed";
+import CommitBlock from "./blocks/CommitBlock";
 
 // `file` is TWO things depending on how it's written — the same split `run` has. Inline is a
 // reference (`:file[path]` → a chip that points at it); block is the thing itself (`::file[path]` →
@@ -62,6 +63,9 @@ export const BLOCKS = {
   reply: { Component: Reply },
   // decision — a story's approve/reject verdict, wrapped around whatever is being proposed
   approval: { Component: Approval },
+  // RFC-033 — a commit message you press instead of copy. An agent writes it, a human clicks it;
+  // the sha lands back in the document like any other input block's answer.
+  commit: { Component: CommitBlock },
   // structure
   callout: { Component: Callout },
   details: { Component: Details },

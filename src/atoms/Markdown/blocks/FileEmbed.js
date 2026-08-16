@@ -62,6 +62,7 @@ const Frame = ({ kind, path, range, host, children, onOpen }) => (
 
 export const FileEmbed = ({ label, attrs = {} }) => {
   const scope = useMarkdownScope();
+  const projectCode = attrs.project || scope.projectCode;
   const host = useFileHost(attrs, scope);
   const [editorDark] = useEditorDark("docs");
   const raw = label || attrs.path || "";
@@ -71,12 +72,13 @@ export const FileEmbed = ({ label, attrs = {} }) => {
   useEffect(() => {
     let dead = false;
     (async () => {
-      // Name the project. "no file host" told the reader nothing about WHY — and the reason is
-      // always the same: that project has no connected service that can read files right now.
+      // Name the project AND the way out. Every block takes `{project=…}`, which is exactly what
+      // you want when the file lives in another repo — and not knowing that is what makes people
+      // copy files into their own project just to get them on screen.
       if (!path || !host)
         return setState({
-          error: scope.projectCode
-            ? `no connected service in ${scope.projectCode} can read files`
+          error: projectCode
+            ? `no connected service in ${projectCode} can read files — name another with {project=…}`
             : "no file host",
         });
       try {
@@ -127,6 +129,7 @@ export const FileEmbed = ({ label, attrs = {} }) => {
 
 export const DiffEmbed = ({ label, attrs = {} }) => {
   const scope = useMarkdownScope();
+  const projectCode = attrs.project || scope.projectCode;
   const host = useFileHost(attrs, scope);
   const [editorDark] = useEditorDark("docs");
   const path = (label || attrs.path || "").trim();
@@ -135,12 +138,13 @@ export const DiffEmbed = ({ label, attrs = {} }) => {
   useEffect(() => {
     let dead = false;
     (async () => {
-      // Name the project. "no file host" told the reader nothing about WHY — and the reason is
-      // always the same: that project has no connected service that can read files right now.
+      // Name the project AND the way out. Every block takes `{project=…}`, which is exactly what
+      // you want when the file lives in another repo — and not knowing that is what makes people
+      // copy files into their own project just to get them on screen.
       if (!path || !host)
         return setState({
-          error: scope.projectCode
-            ? `no connected service in ${scope.projectCode} can read files`
+          error: projectCode
+            ? `no connected service in ${projectCode} can read files — name another with {project=…}`
             : "no file host",
         });
       try {

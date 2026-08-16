@@ -281,13 +281,197 @@ function createFileProviders(rootDir) {
         });
       } catch { return ""; }
     };
-    const set = new Set();
-    run(["diff", "--name-only", "--relative", "HEAD"]).split("\n").forEach((l) => { if (l.trim()) set.add(l.trim()); });
-    run(["ls-files", "--others", "--exclude-standard"]).split("\n").forEach((l) => { if (l.trim()) set.add(l.trim()); });
-    const files = [...set]
-      .filter((rel) => !rel.split("/").some((seg) => IGNORE_DIRS.has(seg)))
-      .map((rel) => ({ path: rel, language: languageOf(rel) }));
+    // WHAT KIND OF CHANGE, not just "changed". Two queries used to be merged into one flat set of
+    // paths, which threw away the only interesting part — modified, added, deleted, untracked and
+    // STAGED all arrived looking identical, so the tree could only ever draw one dot. Porcelain
+    // gives all of it in a single call: XY where X is the index and Y is the working tree.
+    const out = run(["status", "--porcelain", "--untracked-files=all", "--"]);
+    const files = [];
+    out.split("\n").forEach((line) => {
+      if (!line.trim()) return;
+      const x = line[0];
+      const y = line[1];
+      let rel = line.slice(3).trim();
+      // A rename reads "R  old -> new" — the new name is the one that exists on disk.
+      const arrow = rel.indexOf(" -> ");
+      if (arrow !== -1) rel = rel.slice(arrow + 4).trim();
+      rel = rel.replace(/^"|"$/g, "");
+      // IGNORE_DIRS is a BROWSING rule (don't list build output in the file tree) and applying it
+      // here was wrong: git already honours .gitignore, so anything status reports is something the
+      // repo genuinely tracks. Filtering `build/` out hid 11 of this repo's 22 changes — and a
+      // "stage all" that only ever saw half of them could only ever stage half. Only `.git` and
+      // `node_modules` stay out: if either shows up, it is noise no repo means to commit.
+      if (!rel || rel.split("/").some((seg) => seg === ".git" || seg === "node_modules")) return;
+      const untracked = x === "?" || y === "?";
+      const staged = !untracked && x !== " " && x !== "";
+      const dirty = !untracked && y !== " " && y !== "";
+      files.push({
+        path: rel,
+        language: languageOf(rel),
+        x,
+        y,
+        staged,
+        // `status` is the ONE word a UI needs to pick a symbol; x/y are there for anything finer.
+        status: untracked
+          ? "untracked"
+          : (staged ? x : y) === "D"
+            ? "deleted"
+            : (staged ? x : y) === "A"
+              ? "added"
+              : (staged ? x : y) === "R"
+                ? "renamed"
+                : "modified",
+        // Staged AND edited again since — worth its own tell, it's the state people lose work in.
+        partial: staged && dirty,
+      });
+    });
     return { files };
+  }
+
+  // stageFiles({ paths, unstage }) → the FRESH changedFiles() result. `git add` / `git restore
+  // --staged` on paths inside this root — the same operation the version-control panel offers,
+  // done where the repo actually is. Deliberately the only two verbs: nothing here commits,
+  // discards, or touches history. Every path is safeResolve'd, so nothing outside the root moves.
+  function stageFiles({ paths, unstage = false } = {}) {
+    const { execFileSync } = require("child_process");
+    const list = (Array.isArray(paths) ? paths : [paths]).filter(Boolean).map(String);
+    if (!list.length) throw new Error("stageFiles: at least one path is required");
+    const rels = list.map((p) => {
+      safeResolve(p); // throws if it escapes the root
+      return p.replace(/^\.?\//, "");
+    });
+    try {
+      execFileSync(
+        "git",
+        // `git add` covers a deletion too (it stages the removal); `restore --staged` is the
+        // exact inverse and never touches the working tree.
+        unstage ? ["restore", "--staged", "--", ...rels] : ["add", "--", ...rels],
+        { cwd: root(), encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
+      );
+    } catch (e) {
+      // A repo with no commits yet has no HEAD to restore against — say so plainly.
+      throw new Error(
+        `git ${unstage ? "restore --staged" : "add"} failed: ${String((e && e.stderr) || (e && e.message) || e).trim()}`,
+      );
+    }
+    return changedFiles();
+  }
+
+  // --- RFC-033 — COMMIT FROM THE DOCUMENT. These serve a CLICK: a human presses a button in the
+  // version-control panel or a `::commit` block. Nothing here is reachable from the CLI, and no
+  // agent calls them. The verbs stop at commit and push — no amend, no force, no discard, no branch
+  // switching. If those ever arrive they arrive named, in their own RFC.
+  const git = (args) => {
+    const { execFileSync } = require("child_process");
+    return execFileSync("git", args, {
+      cwd: root(), encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 10 * 1024 * 1024,
+    });
+  };
+  const gitQuiet = (args) => {
+    try { return git(args).trim(); } catch { return ""; }
+  };
+  // `git push` narrates on STDERR even when it succeeds ("To github.com… main -> main"), and that
+  // narration IS the thing worth showing. execFileSync hands back stdout only, so anything whose
+  // output matters runs through spawnSync and keeps both streams.
+  const gitBoth = (args) => {
+    const { spawnSync } = require("child_process");
+    const r = spawnSync("git", args, { cwd: root(), encoding: "utf8", maxBuffer: 10 * 1024 * 1024 });
+    const output = [r.stdout || "", r.stderr || ""].join("\n").trim();
+    return { ok: r.status === 0, output };
+  };
+
+  // gitState() → READ ONLY. Everything the commit UI needs to draw itself honestly: which branch,
+  // whether it tracks anything, how far ahead/behind, and whether there is a staged tree at all.
+  // A directory that isn.t a repo answers { repo: false } rather than throwing — the panel just
+  // doesn.t offer the buttons.
+  function gitState() {
+    const inside = gitQuiet(["rev-parse", "--is-inside-work-tree"]) === "true";
+    if (!inside) return { repo: false };
+    const branch = gitQuiet(["rev-parse", "--abbrev-ref", "HEAD"]);
+    const upstream = gitQuiet(["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"]);
+    let ahead = 0;
+    let behind = 0;
+    if (upstream) {
+      // "<behind>\t<ahead>" from git itself — no arithmetic of our own to get backwards.
+      const counts = gitQuiet(["rev-list", "--left-right", "--count", `${upstream}...HEAD`]);
+      const [b, a] = counts.split(/\s+/).map((n) => Number(n) || 0);
+      behind = b || 0;
+      ahead = a || 0;
+    }
+    const all = changedFiles().files;
+    const staged = all.filter((f) => f.staged);
+    const slim = (f) => ({ path: f.path, status: f.status, partial: f.partial, staged: f.staged });
+    const hasCommits = !!gitQuiet(["rev-parse", "--verify", "HEAD"]);
+    // The log rides along: he commits, flips to the log to watch it land, and comes back — that
+    // only works if the history is already here rather than a second round trip away.
+    const log = hasCommits
+      ? gitQuiet(["log", "-15", "--pretty=%h%s%ar%an"])
+          .split("\n")
+          .filter(Boolean)
+          .map((l) => {
+            const [sha, subject, when, who] = l.split("");
+            return { sha, subject, when, who };
+          })
+      : [];
+    return {
+      repo: true,
+      branch,
+      upstream: upstream || null,
+      hasRemote: !!gitQuiet(["remote"]),
+      ahead,
+      behind,
+      // No HEAD yet = a repo with no commits. The first commit is still legal; the DIFF isn.t.
+      hasCommits,
+      staged: staged.map(slim),
+      stagedCount: staged.length,
+      // Everything else that CHANGED, so a commit box can offer staging instead of sending you
+      // somewhere else to do it first.
+      unstaged: all.filter((f) => !f.staged || f.partial).map(slim),
+      log,
+    };
+  }
+
+  // commit({ message }) → { sha, subject, state }. Commits WHAT IS ALREADY STAGED — it never stages
+  // for you. Staging is its own decision, made one click earlier; a commit that quietly staged
+  // would be committing something nobody looked at.
+  function commit({ message } = {}) {
+    const msg = String(message || "").trim();
+    if (!msg) throw new Error("commit: a message is required");
+    const state = gitState();
+    if (!state.repo) throw new Error("commit: not a git repository");
+    if (!state.stagedCount) throw new Error("commit: nothing is staged");
+    // A pre-commit hook that ABORTS says why — on stdout as often as stderr. Both come back
+    // verbatim: "commit failed" without git's own words is the least useful thing we could say.
+    const { ok, output } = gitBoth(["commit", "-m", msg]);
+    if (!ok) throw new Error(`git commit failed: ${output || "git said nothing"}`);
+    return {
+      sha: gitQuiet(["rev-parse", "--short", "HEAD"]),
+      subject: gitQuiet(["log", "-1", "--pretty=%s"]),
+      // git's own words, kept — the "3 files changed, 40 insertions(+)" line is the receipt.
+      output: String(output || "").trim(),
+      state: gitState(),
+      changed: changedFiles(),
+    };
+  }
+
+  // push() → { pushed, state }. Current branch to the upstream it already tracks. Refuses when
+  // there is no upstream rather than inventing one — guessing a remote is how work lands somewhere
+  // nobody meant to send it.
+  function push() {
+    const state = gitState();
+    if (!state.repo) throw new Error("push: not a git repository");
+    if (!state.upstream)
+      throw new Error(
+        `push: ${state.branch || "this branch"} has no upstream — set one with \`git push -u\` once, then this works`,
+      );
+    if (!state.ahead) return { pushed: false, reason: "nothing to push", state };
+    const { ok, output } = gitBoth(["push"]);
+    if (!ok) throw new Error(`git push failed: ${output || "git said nothing"}`);
+    return {
+      pushed: true,
+      output: output || `${state.branch} → ${state.upstream}`,
+      state: gitState(),
+    };
   }
 
   // --- DOC UNDO: the snapshot ring. Every whole-file write (and delete) files the PREVIOUS
@@ -390,7 +574,7 @@ function createFileProviders(rootDir) {
     return { path: relFromRoot(abs), bytes: Buffer.byteLength(content || "", "utf8") };
   }
 
-  return { readFile, readFileRaw, listFiles, changedFiles, search, getSource, getDiff, writeFile, fileHistory, readSnapshot, snapshot, languageOf, safeResolve };
+  return { readFile, readFileRaw, listFiles, changedFiles, stageFiles, gitState, commit, push, search, getSource, getDiff, writeFile, fileHistory, readSnapshot, snapshot, languageOf, safeResolve };
 }
 
 // Default set bound (lazily) to process.cwd() — the plugin running inside an observed service.

@@ -5,6 +5,7 @@ import DocIcon from "../../atoms/DocsIcon/DocsIcon";
 import TestsIcon from "../../atoms/TestsIcon/TestsIcon";
 import HELP_TOPICS from "../../atoms/Help/helpTopics";
 import { setHelpTopic } from "../../atoms/Help/helpStore";
+import imageFileIcon from "../../assets/image-file.png";
 import "./styles.scss";
 
 // RFC-022 — the CODEBASE navigation (the "Codebase" nav tab). Designed fresh for files, NOT a copy of
@@ -14,6 +15,37 @@ import "./styles.scss";
 // services (RFC-021 synthesized namespaces; empty on a fresh project — that's the bootstrap state).
 
 const CLASSNAME = "codebase-nav";
+
+// FILE TYPE AT A GLANCE. A monospace tree of forty identical names is read one line at a time; a
+// glyph in front of each is read by shape. Deliberately a small set — the point is telling KINDS
+// apart (code / style / data / doc / image / config), not decorating every extension.
+const FILE_ICONS = [
+  [/\.(jsx?|mjs|cjs)$/i, "JS", "js"],
+  [/\.tsx?$/i, "TS", "ts"],
+  [/\.(json|jsonc)$/i, "{}", "data"],
+  [/\.(s?css|less)$/i, "#", "style"],
+  [/\.(md|markdown|txt)$/i, "¶", "doc"],
+  // Images get the real icon Odion picked, not a glyph — `img` renders as an <img> below.
+  [/\.(png|jpe?g|gif|svg|webp|ico|avif|bmp)$/i, imageFileIcon, "img"],
+  [/\.(ya?ml|toml|ini|env|conf)$/i, "⚙", "config"],
+  [/\.(sh|bash|zsh)$/i, "$", "shell"],
+  [/\.(html?|xml)$/i, "<>", "markup"],
+];
+const iconFor = (name) => {
+  for (const [re, glyph, kind] of FILE_ICONS) if (re.test(name)) return { glyph, kind };
+  return { glyph: "·", kind: "other" };
+};
+
+// WHICH change, not just "changed". Everything used to be one amber dot, so a new file, a deleted
+// one and something already staged all read the same. These are git's own letters — the ones anyone
+// who has run `git status` already knows — so there's nothing new to learn.
+const GIT_MARK = {
+  modified: { mark: "M", title: "modified" },
+  added: { mark: "A", title: "added" },
+  deleted: { mark: "D", title: "deleted" },
+  renamed: { mark: "R", title: "renamed" },
+  untracked: { mark: "U", title: "untracked — not in git yet" },
+};
 
 // Build a nested tree from the flat path list listFiles returns: { dirs: {name: node}, files: [{name, path, language}] }
 function buildTree(files) {
@@ -35,6 +67,22 @@ const Chevron = ({ open }) => (
   <span className={`${CLASSNAME}__chevron`}>{open ? "▾" : "▸"}</span>
 );
 
+// The version-control mark everyone already reads as "git": a branch splitting off a trunk. Drawn
+// rather than borrowed so it inherits the row's colour and never arrives as a missing glyph.
+const BranchIcon = () => (
+  <svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true" focusable="false">
+    <g fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+      <path d="M4.5 4.6v7" />
+      <path d="M4.5 8.2h4a3 3 0 0 0 3-3v-.6" />
+    </g>
+    <g fill="currentColor">
+      <circle cx="4.5" cy="3.2" r="1.7" />
+      <circle cx="4.5" cy="12.8" r="1.7" />
+      <circle cx="11.5" cy="3.2" r="1.7" />
+    </g>
+  </svg>
+);
+
 // Namespace pushes CARRY the current `?tab=` (same contract as the SystemLynx Link atom) — browsing
 // namespaces while on Reports/Logs/Stories must not snap you back to Documentation. Everything else
 // in the search (help, file params) is deliberately dropped: navigating retires those.
@@ -52,6 +100,7 @@ function DirNode({
   toggleDir,
   renderFile,
   changedCounts,
+  dirMenu,
 }) {
   const key = `${prefix}${name}`;
   const open = openDirs.has(key);
@@ -65,6 +114,7 @@ function DirNode({
         className={`${CLASSNAME}__row ${CLASSNAME}__row--dir`}
         style={{ paddingLeft: 8 + depth * 14 }}
         onClick={() => toggleDir(key)}
+        onContextMenu={(e) => dirMenu && dirMenu(e, key, changedInside)}
       >
         <Chevron open={open} />
         <span className={`${CLASSNAME}__dir-name`}>{name}</span>
@@ -73,6 +123,9 @@ function DirNode({
             className={`${CLASSNAME}__dir-badge`}
             title={`${changedInside} changed file${changedInside > 1 ? "s" : ""} inside`}
           >
+            <span className={`${CLASSNAME}__dir-badge-git`} aria-hidden="true">
+              ⑂
+            </span>
             {changedInside}
           </span>
         )}
@@ -90,6 +143,7 @@ function DirNode({
               toggleDir={toggleDir}
               renderFile={renderFile}
               changedCounts={changedCounts}
+              dirMenu={dirMenu}
             />
           ))}
           {node.files.map((f) => renderFile(f, depth + 1))}
@@ -479,17 +533,18 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
   // NAVIGATES (project-level docs/tests) instead of toggling.
   const holdsOpenFile = !!(openFile && openFile.projectCode === projectCode);
   const [files, setFiles] = useState(null); // null = not loaded; [] = loaded empty
-  const [changed, setChanged] = useState(new Set());
+  const [changed, setChanged] = useState(new Map()); // path → { status, staged, partial }
   const [truncated, setTruncated] = useState(false);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState("");
   const [openDirs, setOpenDirs] = useState(new Set());
   const scrolledTo = useRef(null);
-  // Filter toggles — Δ (changed vs HEAD), .md (docs). They COMPOSE with the text query, persist
-  // like the rest of the nav state, and are shared across codebases. (A tracked-only pill existed
-  // briefly — it silently hid every NEW file behind a persisted toggle and is gone for good.)
-  const [changedOnly, setChangedOnly] = useState(
-    () => localStorage.getItem("sv.cbNav.changedOnly") === "true",
+  // VERSION CONTROL is a LENS, not a filter. The changed count used to be a pill that hid every
+  // unchanged file — which answered "what changed" and nothing else. Flipping the lens replaces the
+  // tree with git's own three groups (staged / changes / untracked) and puts stage-unstage on each
+  // row, because "what's staged" was the question the whole thing existed to answer.
+  const [vcLens, setVcLens] = useState(
+    () => localStorage.getItem("sv.cbNav.vcLens") === "true",
   );
   const [docsOnly, setDocsOnly] = useState(
     () => localStorage.getItem("sv.cbNav.docsOnly") === "true",
@@ -503,6 +558,18 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
   // revealed, and expands down to that file.
   const [codeOpen, setCodeOpen] = useState(holdsOpenFile);
   const flipCode = () => setCodeOpen(!codeOpen);
+  // The services region folds the same way — OPEN by default (it's the project's primary content),
+  // and the choice sticks per project.
+  const [servicesOpen, setServicesOpen] = useState(
+    localStorage.getItem(`sv.cbNav.services.${projectCode}`) !== "false",
+  );
+  const flipServices = () => {
+    setServicesOpen(!servicesOpen);
+    localStorage.setItem(
+      `sv.cbNav.services.${projectCode}`,
+      String(!servicesOpen),
+    );
+  };
   // Bulk fold on the head: one click closes EVERYTHING inside the card (every service, every
   // module, the code fold); click again re-opens the services. The card itself never collapses —
   // this empties it instead.
@@ -511,7 +578,10 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
     e.stopPropagation(); // the head navigates — this control must not
     const mode = bulk && bulk.mode === "collapse" ? "expand" : "collapse";
     setBulk({ n: (bulk ? bulk.n : 0) + 1, mode });
+    // "Minimize the project" means the SECTIONS go down too — services and code both — not just
+    // what is inside them.
     setCodeOpen(mode === "expand" ? codeOpen : false);
+    setServicesOpen(mode === "expand");
   };
 
   useEffect(() => {
@@ -519,15 +589,22 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [holdsOpenFile && openFile.path]);
 
+  // Same rule the file reveal follows: a namespace reveal has to end up VISIBLE, so it opens the
+  // services fold if it was closed.
+  useEffect(() => {
+    if (myRevealNs) setServicesOpen(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [myRevealNs && myRevealNs.serviceId, myRevealNs && myRevealNs.methodName]);
+
   // A file reveal must actually END UP VISIBLE: open the code fold and unselect every active
   // filter — a filtered-out reveal reads as "nothing happened".
   useEffect(() => {
     if (!revealedPath) return;
     setCodeOpen(true);
     setFilter("");
-    if (changedOnly) {
-      setChangedOnly(false);
-      localStorage.setItem("sv.cbNav.changedOnly", "false");
+    if (vcLens) {
+      setVcLens(false);
+      localStorage.setItem("sv.cbNav.vcLens", "false");
     }
     if (docsOnly) {
       setDocsOnly(false);
@@ -546,6 +623,46 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
     window.addEventListener("sv:refresh", on);
     return () => window.removeEventListener("sv:refresh", on);
   }, []);
+
+  // GIT MOVES WITHOUT US. Staging happens in a terminal, another editor, another window — so the
+  // status is re-read on its own: whenever this tab regains focus, and on a slow tick while the
+  // version-control lens is actually open. Status only, never the whole file list — it's one git
+  // call, and the tree isn't what went stale.
+  const reloadChanged = useRef(() => {});
+  reloadChanged.current = async () => {
+    if (!fileHost) return;
+    try {
+      const svc = loadServiceWithHeaders(
+        fileHost.system.connectionData,
+        fileHost.headers,
+        fileHost.credentials,
+      );
+      if (!svc.Plugin.changedFiles) return;
+      const ch = await svc.Plugin.changedFiles();
+      if (ch && ch.files)
+        setChanged(
+          new Map(
+            ch.files.map((f) => [f.path, f.status ? f : { ...f, status: "modified" }]),
+          ),
+        );
+    } catch {}
+  };
+  useEffect(() => {
+    const onFocus = () => {
+      reloadChanged.current();
+      // The branch and the ahead count go stale the same way the status does — a commit or a push
+      // from a terminal has to show up here without being asked.
+      loadGitState.current();
+    };
+    onFocus();
+    window.addEventListener("focus", onFocus);
+    const tick = vcLens ? setInterval(onFocus, 5000) : null;
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      if (tick) clearInterval(tick);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vcLens, fileHost && fileHost.serviceId]);
 
   // Load the file list as soon as the host is live (the card is always open now) — the count and
   // the head doc indicator need it even while the code fold is closed.
@@ -566,7 +683,10 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
         setError("");
         try {
           const ch = svc.Plugin.changedFiles ? await svc.Plugin.changedFiles() : null;
-          if (live && ch && ch.files) setChanged(new Set(ch.files.map((f) => f.path)));
+          // A MAP now, not a set — the tree draws WHICH change, and a plugin too old to report a
+          // status still lands here as plain "modified", so nothing regresses to blank.
+          if (live && ch && ch.files)
+            setChanged(new Map(ch.files.map((f) => [f.path, f.status ? f : { ...f, status: "modified" }])));
         } catch {}
       } catch (e) {
         if (live) setError("file access unavailable");
@@ -617,11 +737,105 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
       });
   }, [files, revealedPath]);
 
+  // STAGE / UNSTAGE. Runs `git add` / `git restore --staged` inside the service's own repo and
+  // redraws from the FRESH status it returns — no optimistic guessing about what git did.
+  const [vcBusy, setVcBusy] = useState(null); // the path (or group key) currently in flight
+  const [vcError, setVcError] = useState("");
+  const stage = async (paths, unstage, busyKey) => {
+    if (!fileHost) return;
+    setVcBusy(busyKey || paths[0]);
+    setVcError("");
+    try {
+      const svc = loadServiceWithHeaders(
+        fileHost.system.connectionData,
+        fileHost.headers,
+        fileHost.credentials,
+      );
+      const res = await svc.Plugin.stageFiles({ paths, unstage });
+      if (res && res.files)
+        setChanged(
+          new Map(
+            res.files.map((f) => [f.path, f.status ? f : { ...f, status: "modified" }]),
+          ),
+        );
+    } catch (e) {
+      setVcError(
+        (e && e.message) ||
+          "staging unavailable — this project's plugin may predate it",
+      );
+    } finally {
+      setVcBusy(null);
+    }
+  };
+
+  // RFC-033 — COMMIT / PUSH, in the place he already stages from. Two-step, his call: the first
+  // click arms, the second runs. Nothing here is reachable except by that click.
+  const [gitState, setGitState] = useState(null);
+  const [message, setMessage] = useState("");
+  const [typing, setTyping] = useState(false);
+  const [armed, setArmed] = useState("");
+  // changes | log — the same switch the ::commit block has, so the panel can show history too.
+  const [vcTab, setVcTab] = useState("changes");
+  // git's own words from the last commit/push — including the sentence an aborting hook prints.
+  const [gitOut, setGitOut] = useState("");
+  const loadGitState = useRef(() => {});
+  loadGitState.current = async () => {
+    if (!fileHost) return;
+    try {
+      const svc = loadServiceWithHeaders(
+        fileHost.system.connectionData,
+        fileHost.headers,
+        fileHost.credentials,
+      );
+      // An older plugin has neither — leave the box off entirely rather than draw dead buttons.
+      if (!svc.Plugin.gitState) return setGitState(null);
+      setGitState(await svc.Plugin.gitState());
+    } catch {
+      setGitState(null);
+    }
+  };
+  const runGit = async (what) => {
+    if (armed !== what) return setArmed(what);
+    setArmed("");
+    setVcBusy(what);
+    setVcError("");
+    try {
+      const svc = loadServiceWithHeaders(
+        fileHost.system.connectionData,
+        fileHost.headers,
+        fileHost.credentials,
+      );
+      if (what === "commit") {
+        const res = await svc.Plugin.commit({ message: message.trim() });
+        setMessage("");
+        setGitState(res.state);
+        setGitOut(res.output || `${res.sha} ${res.subject}`);
+        if (res.changed && res.changed.files)
+          setChanged(
+            new Map(
+              res.changed.files.map((f) => [f.path, f.status ? f : { ...f, status: "modified" }]),
+            ),
+          );
+      } else {
+        const res = await svc.Plugin.push();
+        setGitState(res.state);
+        setGitOut(res.pushed ? res.output : res.reason || "nothing to push");
+        if (!res.pushed) setVcError(res.reason || "nothing to push");
+      }
+    } catch (e) {
+      // git's own sentence, not ours — a hook that aborts explains itself.
+      setVcError((e && e.message) || `${what} failed`);
+      setGitOut((e && e.message) || `${what} failed`);
+    } finally {
+      setVcBusy(null);
+    }
+  };
+
   const tree = useMemo(() => (files ? buildTree(files) : null), [files]);
   // Rollup: how many changed files live under each directory prefix (for the collapsed-dir badges).
   const changedCounts = useMemo(() => {
     const counts = {};
-    changed.forEach((p) => {
+    changed.forEach((_v, p) => {
       const parts = p.split("/");
       parts.pop();
       let key = "";
@@ -639,6 +853,107 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
       else next.add(key);
       return next;
     });
+
+  // The file row menu — the same one the services already had, now over the codebase. Deliberately
+  // basic: open it, move it in or out of the index, take its path. Nothing here deletes.
+  const fileMenu = (e, f) => {
+    if (!openRowMenu) return;
+    const g = changed.get(f.path);
+    const items = [
+      {
+        label: "Open",
+        action: () =>
+          onOpenFile({
+            projectCode,
+            serviceId: fileHost.serviceId,
+            path: f.path,
+            language: f.language,
+          }),
+      },
+    ];
+    // Staged AND edited since gets BOTH verbs — that file has something on either side.
+    if (g && (!g.staged || g.partial))
+      items.push({ label: "Stage", action: () => stage([f.path], false) });
+    if (g && g.staged)
+      items.push({ label: "Unstage", action: () => stage([f.path], true) });
+    items.push({
+      label: "Copy path",
+      action: () => navigator.clipboard && navigator.clipboard.writeText(f.path),
+    });
+    items.push({
+      label: "Copy name",
+      action: () =>
+        navigator.clipboard &&
+        navigator.clipboard.writeText(f.path.split("/").pop()),
+    });
+    openRowMenu(e, f.path, items);
+  };
+
+  // Folders get their own menu — the same verbs read at folder scale. `git add <dir>` would work
+  // directly, but the explicit path list is what keeps the ignore rules the tree already applies
+  // (node_modules and friends) in force.
+  const dirMenu = (e, key, changedInside) => {
+    if (!openRowMenu) return;
+    const inside = [...changed.keys()].filter((p) => p.startsWith(`${key}/`));
+    const stagedInside = inside.filter((p) => changed.get(p).staged);
+    const openInside = inside.filter((p) => !changed.get(p).staged || changed.get(p).partial);
+    const items = [
+      {
+        label: openDirs.has(key) ? "Collapse" : "Expand",
+        action: () => toggleDir(key),
+      },
+      {
+        label: "Expand everything inside",
+        action: () =>
+          setOpenDirs((prev) => {
+            const next = new Set(prev);
+            next.add(key);
+            // Every ancestor path of a file under this folder — that IS the set of subfolders.
+            files.forEach((f) => {
+              if (!f.path.startsWith(`${key}/`)) return;
+              const parts = f.path.split("/");
+              parts.pop();
+              let k = "";
+              parts.forEach((seg) => {
+                k = k ? `${k}/${seg}` : seg;
+                next.add(k);
+              });
+            });
+            return next;
+          }),
+      },
+      {
+        label: "Collapse everything inside",
+        action: () =>
+          setOpenDirs((prev) => {
+            const next = new Set(prev);
+            [...next].forEach((k) => {
+              if (k === key || k.startsWith(`${key}/`)) next.delete(k);
+            });
+            return next;
+          }),
+      },
+    ];
+    if (openInside.length)
+      items.push({
+        label: `Stage ${openInside.length} inside`,
+        action: () => stage(openInside, false, key),
+      });
+    if (stagedInside.length)
+      items.push({
+        label: `Unstage ${stagedInside.length} inside`,
+        action: () => stage(stagedInside, true, key),
+      });
+    items.push({
+      label: "Copy path",
+      action: () => navigator.clipboard && navigator.clipboard.writeText(key),
+    });
+    openRowMenu(
+      e,
+      `${key}${changedInside ? ` · ${changedInside} changed` : ""}`,
+      items,
+    );
+  };
 
   const renderFile = (f, depth) => {
     const selected =
@@ -673,12 +988,118 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
             language: f.language,
           })
         }
+        onContextMenu={(e) => fileMenu(e, f)}
       >
+        {(() => {
+          const { glyph, kind } = iconFor(f.name || f.path);
+          return (
+            <span className={`${CLASSNAME}__file-icon ${CLASSNAME}__file-icon--${kind}`} aria-hidden="true">
+              {kind === "img" ? <img src={glyph} alt="" /> : glyph}
+            </span>
+          );
+        })()}
         <span className={`${CLASSNAME}__file-name`}>{f.name || f.path}</span>
-        {changed.has(f.path) && (
-          <span className={`${CLASSNAME}__changed-dot`} title="changed vs git HEAD" />
-        )}
+        {(() => {
+          const g = changed.get(f.path);
+          if (!g) return null;
+          const { mark, title } = GIT_MARK[g.status] || GIT_MARK.modified;
+          return (
+            <span
+              className={`${CLASSNAME}__git-mark ${CLASSNAME}__git-mark--${g.status}${
+                g.staged ? ` ${CLASSNAME}__git-mark--staged` : ""
+              }`}
+              title={`${title}${g.staged ? " · staged" : ""}${
+                g.partial ? " · with unstaged edits on top" : ""
+              }`}
+            >
+              {mark}
+              {g.partial && <i className={`${CLASSNAME}__git-partial`} />}
+            </span>
+          );
+        })()}
       </button>
+    );
+  };
+
+  // A version-control group: git's own heading, the count, one bulk action, then the rows. Each row
+  // opens the file like any other row; the +/− on the right is the only thing that touches git.
+  const renderVcGroup = (key, label, rows) => {
+    if (!rows.length) return null;
+    const unstage = key === "staged";
+    const paths = rows.map((r) => r.path);
+    return (
+      <div className={`${CLASSNAME}__vc-group`} key={key}>
+        <div className={`${CLASSNAME}__vc-head`}>
+          <span className={`${CLASSNAME}__vc-head-label`}>{label}</span>
+          <span className={`${CLASSNAME}__vc-head-n`}>{rows.length}</span>
+          <button
+            type="button"
+            className={`${CLASSNAME}__vc-all`}
+            title={unstage ? `Unstage all ${rows.length}` : `Stage all ${rows.length}`}
+            disabled={vcBusy === key}
+            onClick={() => stage(paths, unstage, key)}
+          >
+            {unstage ? "unstage all" : "stage all"}
+          </button>
+        </div>
+        {rows.map((r) => {
+          const { glyph, kind } = iconFor(r.name);
+          const { mark, title } = GIT_MARK[r.status] || GIT_MARK.modified;
+          const selected =
+            openFile && openFile.projectCode === projectCode && openFile.path === r.path;
+          const dir = r.path.includes("/") ? r.path.slice(0, r.path.lastIndexOf("/")) : "";
+          return (
+            <div
+              key={`${key}:${r.path}`}
+              className={`${CLASSNAME}__vc-row ${selected ? `${CLASSNAME}__row--selected` : ""}`}
+              onContextMenu={(e) => fileMenu(e, r)}
+            >
+              <button
+                type="button"
+                // A deleted file has nothing to open — clicking it would only ever produce an
+                // ENOENT pane. It still stages and unstages like anything else.
+                className={`${CLASSNAME}__vc-open${r.status === "deleted" ? ` ${CLASSNAME}__vc-open--gone` : ""}`}
+                disabled={r.status === "deleted"}
+                title={r.status === "deleted" ? `${r.path} — deleted from disk` : r.path}
+                onClick={() =>
+                  onOpenFile({
+                    projectCode,
+                    serviceId: fileHost.serviceId,
+                    path: r.path,
+                    language: r.language,
+                  })
+                }
+              >
+                <span
+                  className={`${CLASSNAME}__file-icon ${CLASSNAME}__file-icon--${kind}`}
+                  aria-hidden="true"
+                >
+                  {kind === "img" ? <img src={glyph} alt="" /> : glyph}
+                </span>
+                <span className={`${CLASSNAME}__file-name`}>{r.name}</span>
+                {dir && <span className={`${CLASSNAME}__vc-dir`}>{dir}</span>}
+                <span
+                  className={`${CLASSNAME}__git-mark ${CLASSNAME}__git-mark--${r.status}${
+                    unstage ? ` ${CLASSNAME}__git-mark--staged` : ""
+                  }`}
+                  title={title}
+                >
+                  {mark}
+                </span>
+              </button>
+              <button
+                type="button"
+                className={`${CLASSNAME}__vc-act`}
+                title={unstage ? `Unstage ${r.name}` : `Stage ${r.name}`}
+                disabled={vcBusy === r.path}
+                onClick={() => stage([r.path], unstage)}
+              >
+                {unstage ? "−" : "+"}
+              </button>
+            </div>
+          );
+        })}
+      </div>
     );
   };
 
@@ -691,18 +1112,37 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
     (query.startsWith("*.")
       ? p.toLowerCase().endsWith(query.slice(1))
       : p.toLowerCase().includes(query));
-  const filterActive = !!query || changedOnly || docsOnly;
+  const filterActive = !!query || docsOnly;
   const filtered =
     files && filterActive
       ? files
           .filter(
-            (f) =>
-              matchText(f.path) &&
-              (!changedOnly || changed.has(f.path)) &&
-              (!docsOnly || /\.mdx?$/i.test(f.path)),
+            (f) => matchText(f.path) && (!docsOnly || /\.mdx?$/i.test(f.path)),
           )
           .slice(0, 200)
       : null;
+
+  // The three groups git itself uses. A file that is staged AND edited again since appears in
+  // BOTH — that is the honest picture, and it's the state worth seeing twice.
+  const vcGroups = useMemo(() => {
+    const staged = [];
+    const unstaged = [];
+    const untracked = [];
+    changed.forEach((g, p) => {
+      const row = { ...g, path: p, name: p.split("/").pop() };
+      if (g.status === "untracked") untracked.push(row);
+      else {
+        if (g.staged) staged.push(row);
+        if (!g.staged || g.partial) unstaged.push(row);
+      }
+    });
+    const byName = (a, b) => a.path.localeCompare(b.path);
+    return {
+      staged: staged.sort(byName),
+      unstaged: unstaged.sort(byName),
+      untracked: untracked.sort(byName),
+    };
+  }, [changed]);
 
   return (
     <div
@@ -770,11 +1210,17 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
               (RFC-021 synthesized namespaces). Expandable IN PLACE: service → modules → methods;
               clicking a method points the page (and the scratchpad) at that namespace. */}
           <div className={`${CLASSNAME}__services`}>
-            <div className={`${CLASSNAME}__section-label`}>
-              project services
+            <button
+              type="button"
+              className={`${CLASSNAME}__code-fold`}
+              title={servicesOpen ? "Collapse the services" : "Expand the services"}
+              onClick={flipServices}
+            >
+              <Chevron open={servicesOpen} />
+              <span className={`${CLASSNAME}__code-fold-label`}>services</span>
               <span className={`${CLASSNAME}__lynx-tag`}>SystemLynx</span>
-            </div>
-            {[...services, ...dynamicServices].length ? (
+            </button>
+            {!servicesOpen ? null : [...services, ...dynamicServices].length ? (
               [...services, ...dynamicServices].map((s) => (
                 <ServiceNode
                   key={s.serviceId}
@@ -842,20 +1288,21 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
                     </span>
                   )}
                 </span>
-                {/* The changed-files pill IS the count, in the same amber the dots wear — click it
-                    to see only those files (active = the amber as a full background). */}
+                {/* VERSION CONTROL — the branch icon IS the control, with the count riding on it.
+                    Click to swap the tree for git's groups; click again to come back. */}
                 {changed.size > 0 && (
                   <button
                     type="button"
-                    className={`${CLASSNAME}__filter-pill ${CLASSNAME}__filter-pill--changed ${changedOnly ? `${CLASSNAME}__filter-pill--changed-on` : ""}`}
-                    title={`${changed.size} file${changed.size > 1 ? "s" : ""} changed vs git HEAD — show only those`}
-                    onClick={flipToggle(
-                      "sv.cbNav.changedOnly",
-                      changedOnly,
-                      setChangedOnly,
-                    )}
+                    className={`${CLASSNAME}__filter-pill ${CLASSNAME}__filter-pill--vc ${vcLens ? `${CLASSNAME}__filter-pill--vc-on` : ""}`}
+                    title={
+                      vcLens
+                        ? "Back to the file tree"
+                        : `Version control — ${changed.size} file${changed.size > 1 ? "s" : ""} changed vs git HEAD, staged and unstaged`
+                    }
+                    onClick={flipToggle("sv.cbNav.vcLens", vcLens, setVcLens)}
                   >
-                    {changed.size}
+                    <BranchIcon />
+                    <span className={`${CLASSNAME}__filter-pill-n`}>{changed.size}</span>
                   </button>
                 )}
                 <button
@@ -872,6 +1319,141 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
                   ⚠ big repo — the file list is capped; the alphabetical tail is cut off
                 </div>
               )}
+              {vcError && <div className={`${CLASSNAME}__vc-error`}>{vcError}</div>}
+              {/* RFC-033 — commit and push where the staging happens. Only drawn when the plugin
+                  actually has the verbs, so an older project shows the lens without dead buttons. */}
+              {vcLens && gitState && gitState.repo && (
+                <div className={`${CLASSNAME}__commit`}>
+                  <div className={`${CLASSNAME}__commit-head`}>
+                    <span className={`${CLASSNAME}__commit-branch`}>{gitState.branch}</span>
+                    {gitState.ahead > 0 && (
+                      <span className={`${CLASSNAME}__commit-ahead`}>↑{gitState.ahead}</span>
+                    )}
+                    {gitState.behind > 0 && (
+                      <span className={`${CLASSNAME}__commit-behind`}>↓{gitState.behind}</span>
+                    )}
+                    {/* Same switch the block has — commit, flip to the log to watch it, come back. */}
+                    <span className={`${CLASSNAME}__commit-tabs`}>
+                      <button
+                        type="button"
+                        className={`${CLASSNAME}__commit-tab${vcTab === "changes" ? ` ${CLASSNAME}__commit-tab--on` : ""}`}
+                        onClick={() => setVcTab("changes")}
+                      >
+                        {gitState.stagedCount} staged
+                      </button>
+                      <button
+                        type="button"
+                        className={`${CLASSNAME}__commit-tab${vcTab === "log" ? ` ${CLASSNAME}__commit-tab--on` : ""}`}
+                        onClick={() => setVcTab("log")}
+                      >
+                        log
+                      </button>
+                    </span>
+                  </div>
+                  {/* Reads as TEXT until you click into it — his note: it shouldn't announce
+                      itself as a form field before you touch it. */}
+                  {/* The button rides WITH the message — no separate row underneath — and a long
+                      message wraps rather than running off the side. */}
+                  <div className={`${CLASSNAME}__commit-row`}>
+                    {typing ? (
+                      <textarea
+                        className={`${CLASSNAME}__commit-msg`}
+                        placeholder="commit message"
+                        value={message}
+                        rows={Math.min(5, Math.max(1, Math.ceil(message.length / 34)))}
+                        autoFocus
+                        onChange={(e) => setMessage(e.target.value)}
+                        onBlur={() => setTyping(false)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Escape") {
+                            setArmed("");
+                            setTyping(false);
+                          }
+                        }}
+                      />
+                    ) : (
+                      <div
+                        className={`${CLASSNAME}__commit-msg${message ? "" : ` ${CLASSNAME}__commit-msg--empty`}`}
+                        role="button"
+                        title="Click to write the commit message"
+                        onClick={() => setTyping(true)}
+                      >
+                        {message || "commit message"}
+                      </div>
+                    )}
+                    <span className={`${CLASSNAME}__commit-acts`}>
+                      <button
+                        type="button"
+                        className={`${CLASSNAME}__commit-btn${armed === "commit" ? ` ${CLASSNAME}__commit-btn--armed` : ""}`}
+                        disabled={!gitState.stagedCount || !message.trim() || vcBusy === "commit"}
+                        title={
+                          !gitState.stagedCount
+                            ? "Nothing is staged"
+                            : !message.trim()
+                              ? "A commit needs a message"
+                              : "Commits what is staged — click twice"
+                        }
+                        onClick={() => runGit("commit")}
+                      >
+                        {vcBusy === "commit"
+                          ? "…"
+                          : armed === "commit"
+                            ? "again"
+                            : "Commit"}
+                      </button>
+                      {gitState.ahead > 0 && (
+                        <button
+                          type="button"
+                          className={`${CLASSNAME}__commit-btn${armed === "push" ? ` ${CLASSNAME}__commit-btn--armed` : ""}`}
+                          disabled={vcBusy === "push"}
+                          title={`${gitState.branch} → ${gitState.upstream || "its upstream"}`}
+                          onClick={() => runGit("push")}
+                        >
+                          {vcBusy === "push"
+                            ? "…"
+                            : armed === "push"
+                              ? "again"
+                              : `Push ↑${gitState.ahead}`}
+                        </button>
+                      )}
+                      {armed && (
+                        <button
+                          type="button"
+                          className={`${CLASSNAME}__commit-cancel`}
+                          onClick={() => setArmed("")}
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </span>
+                  </div>
+                  {/* What git actually said — the "3 files changed" line, or why a hook stopped it. */}
+                  {gitOut && <pre className={`${CLASSNAME}__commit-out`}>{gitOut}</pre>}
+                </div>
+              )}
+              {/* The log, in the panel: same switch, same history the block shows. */}
+              {vcLens && vcTab === "log" && gitState && gitState.repo && (
+                <div className={`${CLASSNAME}__tree`}>
+                  {gitState.log && gitState.log.length ? (
+                    gitState.log.map((c) => (
+                      <div key={c.sha} className={`${CLASSNAME}__logrow`} title={`${c.subject} — ${c.who}`}>
+                        <code className={`${CLASSNAME}__logsha`}>{c.sha}</code>
+                        <span className={`${CLASSNAME}__logsubj`}>{c.subject}</span>
+                        <span className={`${CLASSNAME}__logwhen`}>{c.when}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className={`${CLASSNAME}__empty`}>no commits yet</div>
+                  )}
+                </div>
+              )}
+              {vcLens ? (
+                <div className={`${CLASSNAME}__tree`} hidden={vcTab === "log"}>
+                  {renderVcGroup("staged", "staged", vcGroups.staged)}
+                  {renderVcGroup("unstaged", "changes", vcGroups.unstaged)}
+                  {renderVcGroup("untracked", "untracked", vcGroups.untracked)}
+                </div>
+              ) : (
               <div className={`${CLASSNAME}__tree`}>
                 {filtered ? (
                   filtered.map((f) =>
@@ -892,6 +1474,7 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
                           toggleDir={toggleDir}
                           renderFile={renderFile}
                           changedCounts={changedCounts}
+                          dirMenu={dirMenu}
                         />
                       ))}
                     {tree.files.map((f) => renderFile(f, 0))}
@@ -901,6 +1484,7 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
                   <div className={`${CLASSNAME}__empty`}>no match</div>
                 )}
               </div>
+              )}
             </>
           )}
         </div>

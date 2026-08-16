@@ -21,6 +21,11 @@ const CodePane = ({ file, onClose }) => {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const isMd = file.language === "markdown";
+  // AN IMAGE IS NOT TEXT. Opening a .png from the tree read its bytes as a string and printed them
+  // into the editor. The bytes never had to travel that way: the hub already serves repo files raw
+  // at /sv-raw for the ::image block, so the pane just points an <img> at the same route — no read,
+  // no base64, no megabyte of mangled binary through the service call.
+  const isImage = /\.(png|jpe?g|gif|webp|svg|avif|bmp|ico)$/i.test(file.path || "");
   // Markdown opens in PREVIEW by default (the rendered document) — the per-file memory now stores
   // the opt-OUT, so only an explicit flip to Edit sticks.
   const [preview, setPreview] = useState(
@@ -65,6 +70,12 @@ const CodePane = ({ file, onClose }) => {
     // Stay in the loading state — `!!host` in the deps re-runs the load the moment the host arrives
     // (and the auto-close effect above handles a host that's genuinely gone).
     if (!host) return undefined;
+    // An image is fetched by the <img> tag, not read into state — don't pull the bytes twice.
+    if (isImage) {
+      setContent("");
+      setSavedContent("");
+      return undefined;
+    }
     let live = true;
     (async () => {
       try {
@@ -294,7 +305,18 @@ const CodePane = ({ file, onClose }) => {
       <div className={`${CLASSNAME}__body ${!diffMode && editorDark ? `${CLASSNAME}__body--dark` : ""} ${!editorDark ? `${CLASSNAME}__body--light` : ""}`}>
         {error && <div className={`${CLASSNAME}__error`}>{error}</div>}
         {!error && content === null && <div className={`${CLASSNAME}__loading`}>loading…</div>}
-        {!error && content !== null && (diffMode && diffData ? (
+        {!error && isImage && (
+          <div className={`${CLASSNAME}__image`}>
+            <img
+              className={`${CLASSNAME}__image-img`}
+              src={`/sv-raw/${encodeURIComponent(file.projectCode)}/${encodeURIComponent(
+                file.serviceId,
+              )}?path=${encodeURIComponent(file.path)}`}
+              alt={file.path}
+            />
+          </div>
+        )}
+        {!error && !isImage && content !== null && (diffMode && diffData ? (
           // The diff EDITS the working file: head = the editor's live content (unsaved edits show),
           // typing in the right side feeds the same dirty/Save/⌘S machinery as the plain editor.
           <DiffView base={diffData.base} head={content} language={diffData.language} dark={editorDark} onChange={setContent} />

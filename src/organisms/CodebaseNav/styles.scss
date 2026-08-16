@@ -388,26 +388,41 @@
       border-color: var(--sv-blue);
       color: var(--sv-indigo);
     }
-    // The changed-count pill — the diff AMBER (same family as the dots/badges), count as the label.
-    // Active flips the amber into a full background.
-    &--changed {
+    // VERSION CONTROL — built to match the collapsed-FOLDER badge, which reads better: no border,
+    // the amber as a soft fill, the branch icon leading the count. The icon is the loud part here,
+    // sized ABOVE the text rather than under it.
+    &--vc {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      border: none;
+      border-radius: 8px;
       background: #fdf3dd;
-      border-color: #f0dcb0;
       color: #b98a1c;
+      line-height: 1.5;
+      padding: 0 5px;
+      svg {
+        display: block;
+        width: 13px;
+        height: 13px;
+      }
       &:hover {
-        border-color: #d9a441;
-        color: #b98a1c;
+        background: #f7e7c2;
+        color: #8f6a10;
       }
     }
-    &--changed-on {
+    &--vc-on {
       background: #d9a441;
-      border-color: #d9a441;
       color: #fff;
       &:hover {
-        border-color: #d9a441;
+        background: #c9942f;
         color: #fff;
       }
     }
+  }
+  &__filter-pill-n {
+    font-size: 9.5px;
+    font-weight: 700;
   }
 
   // Loud, not subtle: a capped file list means whole folders are missing from the tree.
@@ -463,22 +478,87 @@
     font-size: 10px;
     flex: none;
   }
+  // The type glyph. Fixed width so the names still line up — an icon that shifts the column costs
+  // more scanning than it saves. Colour carries the KIND; the glyph is the confirmation.
+  &__file-icon {
+    flex: none;
+    width: 14px;
+    text-align: center;
+    font-size: 10px;
+    line-height: 0.9; // tighter than the row so a bigger glyph doesn.t push the rows apart
+    font-weight: 700;
+    opacity: 0.85;
+    &--js { color: #d9a441; }
+    &--ts { color: #4a90d9; }
+    &--data { color: #9a7cb8; }
+    &--style { color: #d97fb8; }
+    // Markdown reads BLUE, deeper than the TS sky so the two don.t blur together in a long list.
+    &--doc { color: #2f6fdc; }
+    // Images wear a real icon rather than a glyph — sized to the column, never taller than the row.
+    &--img {
+      color: #d97f6f;
+      img {
+        display: block;
+        margin: 0 auto;
+        width: 11px;
+        height: 11px;
+        object-fit: contain;
+      }
+    }
+    // The cog needs its own size — at the row size it is a smudge, which is what he said the first
+    // time and I raised everything instead.
+    &--config {
+      color: #7a8699;
+      font-size: 14px;
+    }
+    &--shell { color: #5aa39a; }
+    &--markup { color: #c07a4a; }
+    &--other { color: var(--sv-text-faint); }
+  }
   &__file-name {
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  &__changed-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: #d9a441; // amber = differs from git HEAD
+  // WHICH change, in git.s own letters. One amber dot said "something moved" and nothing else —
+  // a new file, a deletion and something already staged were indistinguishable. Colour carries the
+  // kind, GREEN carries staged, and the little dot on the corner means "staged, then edited again".
+  &__git-mark {
+    position: relative;
     flex: none;
     margin-left: auto;
+    font-family: "SF Mono", Menlo, monospace;
+    // Bigger than the type glyph and held OFF the corner — a letter jammed against the edge of the
+    // panel reads as a rendering accident.
+    font-size: 11.5px;
+    font-weight: 700;
+    line-height: 1;
+    padding-left: 6px;
+    margin-right: 4px;
+    color: #d9a441;
+    &--added { color: #4a9d5a; }
+    &--deleted { color: #d9534f; }
+    &--renamed { color: #4a90d9; }
+    &--untracked { color: #8e5aa8; }
+    &--staged { color: #2f9e4f; }
+  }
+  &__git-partial {
+    position: absolute;
+    top: -1px;
+    right: -3px;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: #d9a441;
   }
   // Collapsed-dir badge: how many changed files hide inside — same amber family as the dot.
+  // The collapsed-folder badge wears the branch glyph as well as the count, so it reads as "version
+  // control says N things in here" rather than an unexplained number.
   &__dir-badge {
     flex: none;
     margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
     font-size: 9.5px;
     font-weight: 700;
     line-height: 1.5;
@@ -486,6 +566,295 @@
     background: #fdf3dd;
     border-radius: 8px;
     padding: 0 5px;
+  }
+  &__dir-badge-git {
+    font-size: 11px;
+    line-height: 1;
+    opacity: 0.85;
+  }
+
+  // RFC-033 — commit / push, at the top of the lens, where the staging already happens.
+  &__commit {
+    margin: 4px 8px 6px;
+    border: 1px solid var(--sv-inset);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  &__commit-head {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 8px;
+    background: var(--sv-hover);
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 10.5px;
+    color: var(--sv-text-muted);
+  }
+  &__commit-branch { font-weight: 700; }
+  &__commit-ahead { color: #3f9e6a; font-weight: 700; }
+  &__commit-behind { color: #d9a441; font-weight: 700; }
+  &__commit-n {
+    margin-left: auto;
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  // changes | log, in the panel head — the same switch the ::commit block carries.
+  &__commit-tabs {
+    margin-left: auto;
+    display: inline-flex;
+    gap: 2px;
+  }
+  &__commit-tab {
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--sv-text-faint);
+    padding: 1px 5px;
+    border-radius: 4px;
+    &:hover { color: var(--sv-indigo); }
+    &--on {
+      background: var(--sv-bg);
+      color: var(--sv-indigo);
+      box-shadow: inset 0 0 0 1px var(--sv-inset);
+    }
+  }
+  // The button rides WITH the message, and a long message wraps instead of running off.
+  &__commit-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    border-top: 1px solid var(--sv-inset);
+    padding: 5px 6px 5px 8px;
+  }
+  &__commit-acts {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  &__commit-msg {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: block;
+    border: none;
+    background: none;
+    padding: 1px 0;
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 11.5px;
+    line-height: 1.45;
+    color: var(--sv-text);
+    text-align: left;
+    cursor: text;
+    white-space: pre-wrap;
+    word-break: break-word;
+    resize: none;
+    overflow: hidden;
+    &--empty {
+      color: var(--sv-text-faint);
+      font-style: italic;
+    }
+    &:focus { outline: none; }
+  }
+  // The panel's log rows — same three columns the block uses.
+  &__logrow {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    padding: 2px 10px;
+    font-size: 11px;
+    &:hover { background: var(--sv-hover); }
+  }
+  &__logsha {
+    flex: none;
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 10px;
+    color: var(--sv-indigo);
+  }
+  &__logsubj {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--sv-text);
+  }
+  &__logwhen {
+    flex: none;
+    font-size: 9.5px;
+    color: var(--sv-text-faint);
+  }
+  // git's own words after a commit or a push — including the sentence an aborting hook prints.
+  &__commit-out {
+    margin: 0;
+    border-top: 1px solid var(--sv-inset);
+    padding: 5px 8px;
+    max-height: 84px;
+    overflow-y: auto;
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 10px;
+    line-height: 1.45;
+    color: var(--sv-text-muted);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  &__commit-btn {
+    border: 1px solid var(--sv-inset);
+    border-radius: 5px;
+    background: none;
+    color: var(--sv-text-muted);
+    font-size: 10.5px;
+    font-weight: 600;
+    padding: 2px 8px;
+    cursor: pointer;
+    &:hover { background: var(--sv-hover); color: var(--sv-indigo); }
+    &:disabled { opacity: 0.45; cursor: default; }
+    // ARMED — the first of two clicks has to read as its own state, or the second click is a
+    // surprise rather than a decision.
+    &--armed {
+      border-color: #d9a441;
+      background: #fdf3dd;
+      color: #8f6a10;
+      font-weight: 700;
+    }
+  }
+  &__commit-cancel {
+    border: none;
+    background: none;
+    color: var(--sv-text-faint);
+    font-size: 10.5px;
+    cursor: pointer;
+    &:hover { color: var(--sv-indigo); }
+  }
+
+  // THE VERSION CONTROL LENS — git's own three groups instead of the folder tree. Each row still
+  // opens the file; the +/− on the right is the only thing that touches git.
+  &__vc-group {
+    padding-bottom: 4px;
+  }
+  &__vc-head {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 10px 2px 8px;
+  }
+  &__vc-head-label {
+    font-size: 9.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--sv-text-muted);
+  }
+  &__vc-head-n {
+    font-size: 9.5px;
+    font-weight: 700;
+    line-height: 1.5;
+    color: #b98a1c;
+    background: #fdf3dd;
+    border-radius: 8px;
+    padding: 0 5px;
+  }
+  // The bulk action stays quiet until the group is hovered — it is the one control here that moves
+  // every file at once.
+  &__vc-all {
+    margin-left: auto;
+    border: none;
+    background: none;
+    padding: 0;
+    font-size: 9.5px;
+    font-weight: 600;
+    color: var(--sv-text-faint);
+    cursor: pointer;
+    opacity: 0;
+    &:hover {
+      color: var(--sv-indigo);
+    }
+    &:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+  }
+  &__vc-group:hover &__vc-all {
+    opacity: 1;
+  }
+  &__vc-row {
+    display: flex;
+    align-items: center;
+    &:hover {
+      background: var(--sv-hover);
+    }
+  }
+  &__vc-open {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1 1 auto;
+    min-width: 0;
+    border: none;
+    background: none;
+    cursor: pointer;
+    text-align: left;
+    padding: 3px 0 3px 8px;
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 12px;
+    color: var(--sv-text);
+  }
+  // Deleted: struck through and dimmed, and not clickable — the file is gone, there is nothing to
+  // open. It still stages like anything else.
+  &__vc-open--gone {
+    cursor: default;
+    .codebase-nav__file-name {
+      text-decoration: line-through;
+      opacity: 0.6;
+    }
+  }
+  // The folder the file lives in, trailing the name — the lens is flat, so without it two files
+  // called index.js are the same row.
+  &__vc-dir {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    direction: rtl; // keep the DEEPEST folder visible when it truncates
+    text-align: left;
+    font-size: 10px;
+    color: var(--sv-text-faint);
+  }
+  &__vc-act {
+    flex: none;
+    width: 20px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1;
+    padding: 2px 0;
+    color: var(--sv-text-faint);
+    opacity: 0;
+    &:hover {
+      color: var(--sv-indigo);
+    }
+    &:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+  }
+  &__vc-row:hover &__vc-act {
+    opacity: 1;
+  }
+  &__vc-error {
+    margin: 2px 8px 4px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    color: #d9534f;
+    background: color-mix(in srgb, #d9534f 12%, transparent);
   }
 
   &__empty {
@@ -765,25 +1134,26 @@
         border-color: #61afef;
         color: #61afef;
       }
-      &--changed {
+      &--vc {
         background: #3a3324;
-        border-color: #4d4127;
+        border: none;
         color: #d9a441;
         &:hover {
-          border-color: #d9a441;
-          color: #d9a441;
+          background: #4a4029;
+          color: #e8bc5f;
         }
       }
-      &--changed-on {
+      &--vc-on {
         background: #d9a441;
-        border-color: #d9a441;
         color: #1b1f27;
         &:hover {
+          background: #e8bc5f;
           color: #1b1f27;
         }
       }
     }
-    .codebase-nav__dir-badge {
+    .codebase-nav__dir-badge,
+    .codebase-nav__vc-head-n {
       background: #3a3324;
       color: #d9a441;
     }

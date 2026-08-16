@@ -1883,9 +1883,9 @@ function BotBubble({ projectCode, index }) {
     const start = { x: e.clientX, y: e.clientY, ...getStart() };
     let latest = null;
     const move = (ev) => {
-      // NO CEILING. A DEFAULT size is what it opens at; a MAX is a wall you can't drag past however
-      // much you want to — and 820px wide was a wall nobody asked for. The only bound left is the
-      // screen itself, and the minimums stay so a panel can't be dragged out of existence.
+      // TWO DIFFERENT THINGS, and I've now confused them in both directions. FLEXING is the box
+      // sizing itself to its content — that is height-only. DRAGGING is you choosing, and it has no
+      // ceiling on either axis; 820 was a wall you could feel and never asked for.
       latest = {
         w: Math.min(window.innerWidth - 40, Math.max(240, start.w + mw * (ev.clientX - start.x))),
         h: Math.min(window.innerHeight - 40, Math.max(200, start.h + mh * (ev.clientY - start.y))),
@@ -1965,9 +1965,8 @@ function BotBubble({ projectCode, index }) {
     // edge swings the other way: fit, fill, fit. Per axis, so a side toggles width and the top or
     // bottom toggles height, exactly like a single drag would.
     const room = Math.max(240, window.innerHeight - ((pos && pos.y) || 0) - 40);
-    // These are DEFAULTS the double-click lands on, not limits — the drag has no ceiling.
     const fitW = Math.max(280, Math.min(window.innerWidth - size.w - 140, 1280));
-    const fillW = Math.max(fitW, window.innerWidth - size.w - 80);
+    const fillW = Math.max(fitW, window.innerWidth - size.w - 80); // fill means fill
     const fitH = Math.min(size.h, room);
     const fillH = Math.max(fitH, room);
     const at = (a, b) => Math.abs(a - b) < 8;
@@ -1996,6 +1995,11 @@ function BotBubble({ projectCode, index }) {
   // bot merely dragged near the top keeps its full-size peek (his catch: "close to the top, it
   // shrinks — it probably was good before").
   const docked = dockSlots[projectCode] !== undefined && !!pos && pos.y < 60;
+  // THE ICONS LIVE ON THE RIGHT. They move out of the way only when something is actually in the
+  // way — the message display or the live transcript, hanging on that same side. Flipping them by
+  // screen half would move them for no reason half the time.
+  const peekShowing = !open && (listening || (!animating && (p.status || unread > 0)));
+  const iconsLeft = peekShowing && leftHalf;
   // The docked pill is 150px centred under a 46px bubble, so near either edge half of it lands off
   // screen — which is what you saw as the cooking line "going under the agent" in the corner.
   // Nudge it back inside. It still hangs under the bot, just not dead centre.
@@ -2012,7 +2016,7 @@ function BotBubble({ projectCode, index }) {
   return (
     <div
       ref={rootRef}
-      className={`${CLASSNAME} ${topHalf ? `${CLASSNAME}--top` : ""} ${leftHalf ? `${CLASSNAME}--left` : ""} ${flip ? `${CLASSNAME}--flipx` : ""} ${docked ? `${CLASSNAME}--docked` : ""}${saying ? ` ${CLASSNAME}--errand` : ""}`}
+      className={`${CLASSNAME} ${topHalf ? `${CLASSNAME}--top` : ""} ${leftHalf ? `${CLASSNAME}--left` : ""} ${flip ? `${CLASSNAME}--flipx` : ""} ${docked ? `${CLASSNAME}--docked` : ""}${saying ? ` ${CLASSNAME}--errand` : ""}${iconsLeft ? ` ${CLASSNAME}--iconsleft` : ""}`}
       style={style}
       // Touch any part of a bot — its bubble, panel, or TV — and it comes to the FRONT (his
       // ask: "if I click on it, I'm trying to be in that chat").
@@ -2685,6 +2689,17 @@ function BotBubble({ projectCode, index }) {
           title={`${projectCode} — ${modeText}${unread ? ` — ${unread} waiting` : ""} — drag to move, release near an edge to dock`}
           onClick={() => {
             if (suppressClickRef.current) return; // a drag is not a click
+            // THE BOT IS THE MASTER SWITCH. Anything open — chat, TV, collector — and one click on
+            // the bot puts all of it away. Closing three panels with three clicks isn't closing,
+            // it's tidying. The icons beside the name tag are how you toggle one on its own.
+            if (open || tvOpen || linksOpen) {
+              openRef.current = false;
+              setOpen(false);
+              setTvOpen(false);
+              setLinksOpen(false);
+              if (endErrandRef.current) endErrandRef.current(true);
+              return;
+            }
             const next = !open;
             openRef.current = next;
             setOpen(next);
@@ -2711,6 +2726,24 @@ function BotBubble({ projectCode, index }) {
             themselves (a gesture ends, a show is dismissed), so there has to be one fixed place to
             open them again, and it can't be inside the chat that you may not have open. This is
             also why the chat header no longer carries a links button: same door, two handles. */}
+        <button
+          type="button"
+          className={`${CLASSNAME}__minichat${open ? ` ${CLASSNAME}__minichat--on` : ""}`}
+          title={open ? "Close the chat" : "Open the chat"}
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            const next = !open;
+            openRef.current = next;
+            setOpen(next);
+            if (next) {
+              setUnread(0);
+              try { localStorage.setItem(`sv.chatSeen.${projectCode}`, String(Date.now())); } catch {}
+            }
+          }}
+        >
+          💬
+        </button>
         <button
           type="button"
           className={`${CLASSNAME}__minitv${tvOpen ? ` ${CLASSNAME}__minitv--on` : ""}`}

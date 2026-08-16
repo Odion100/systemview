@@ -114,6 +114,34 @@ They live in a sidecar (`.systemview/comments.<key>.json`), not in the document.
 `::::columns` is the one to remember for layout — a claim on the left, the thing that proves it on
 the right, in one document.
 
+### Any block can name another project
+
+**The hub is the middle of every project, not a window onto one.** By default a block resolves
+against the project whose room the document is in — but `project=` overrides that, on every block
+that reaches for data:
+
+```markdown
+::file[src/Pages/ResourcesPage.js#L101-L125]{project=BUApp}
+::diff[api/index.js]{project=systemview-test}
+::logs{project=buAPI service=Profiles limit=20}
+::chart{project=buAPI report=throughput}
+:file[cli/chat.js#L290-300]{project=systemview}     ← the inline chip, same attribute
+```
+
+This is what to reach for when you want to show someone a file that lives in another repo — point at
+it where it is, no copy needed.
+
+Two things worth knowing:
+
+- **The path is relative to THAT project's root**, because that project's own service reads it.
+- **A file host must be connected for the project you name.** If it isn't, the panel says so and
+  names the project. It will never quietly read the same path out of a different repo — that made a
+  correct path look like an author's mistake, with a stranger's `/Users/…` in the error.
+
+A path that belongs to no project at all — something under `/tmp`, a file outside every repo — is
+not an embed. Put its content in the show itself (`systemview show <pc> --file <path>` inlines what
+it reads) or paste it in a fenced block.
+
 ### Unknown blocks
 
 A block this version doesn't know renders as a visible chip rather than vanishing. A document written

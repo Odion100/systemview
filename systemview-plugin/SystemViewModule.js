@@ -255,6 +255,13 @@ module.exports = ({ App, specs, projectCode, serviceId, module = {}, credentials
     this.readFileRaw = providers.readFileRaw;
     this.listFiles = providers.listFiles;
     this.changedFiles = providers.changedFiles;
+    this.stageFiles = providers.stageFiles;
+    // RFC-033 — these exist to serve a CLICK (the version-control panel, a `::commit` block in a
+    // document). Deliberately absent from the CLI: an agent can write the block, only a human
+    // presses it.
+    this.gitState = providers.gitState;
+    this.commit = providers.commit;
+    this.push = providers.push;
     this.search = providers.search;
     this.getSource = providers.getSource;
     this.getDiff = providers.getDiff;
