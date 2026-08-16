@@ -2,7 +2,7 @@ import React, { useCallback, useContext, useEffect, useMemo, useState } from "re
 import ServiceContext from "../../ServiceContext";
 import loadServiceWithHeaders from "../../utils/loadService";
 import CodeEditor from "../../atoms/CodeView/CodeEditor";
-import { lineDiff, lineHunks } from "../../atoms/CodeView/lineDiff";
+import { changeMarksOf, hunksOf, stagedContentFor } from "../../atoms/CodeView/gitLines";
 import DiffView from "../../atoms/DiffView/DiffView";
 import { useEditorDark, EditorThemeToggle } from "../../atoms/CodeView/editorTheme";
 import Markdown from "../../atoms/Markdown/Markdown";
@@ -121,34 +121,11 @@ const CodePane = ({ file, onClose }) => {
 
   // Which lines differ from HEAD, recomputed against what's on screen — so a line you just typed
   // marks itself without saving first. Cheap: trimmed prefix/suffix, then LCS on what's left.
-  // TWO QUESTIONS PER LINE, not one. `base` is HEAD and answers WHAT changed (added / changed /
-  // a deletion below). `index` is the staged copy and answers WHETHER it's staged: a line that
-  // still differs from the index is work you haven't staged yet.
-  const changeMarks = useMemo(() => {
-    if (base == null || content == null) return null;
-    const kinds = lineDiff(base, content);
-    // No index entry (untracked) → nothing about this file is staged.
-    const vsIndex = index == null ? kinds : lineDiff(index, content);
-    const out = new Map();
-    kinds.forEach((kind, line) => out.set(line, { kind, staged: !vsIndex.has(line) }));
-    return out;
-  }, [base, index, content]);
-  // The same runs, grouped, each carrying what it replaced — so clicking a stripe can show it.
-  // Each also knows whether it's ALREADY STAGED: a run with nothing left between the index and the
-  // working copy is in. That is what lets one hunk be staged on its own.
-  const hunks = useMemo(() => {
-    if (base == null || content == null) return null;
-    const all = lineHunks(base, content);
-    const pending = index == null ? all : lineHunks(index, content);
-    return all.map((h) => ({
-      ...h,
-      staged: !pending.some((p) => p.to >= h.from && p.from <= h.to),
-    }));
-  }, [base, index, content]);
+  // The arithmetic itself lives in gitLines.js, shared with the file embeds in a document.
+  const changeMarks = useMemo(() => changeMarksOf(base, index, content), [base, index, content]);
+  const hunks = useMemo(() => hunksOf(base, index, content), [base, index, content]);
 
-  // STAGE JUST THIS RUN, not the whole file. Rebuild the staged copy with only this hunk's edits
-  // applied (right to left, so earlier line numbers stay valid) and hand git the result. The
-  // WORKING TREE IS NEVER TOUCHED — only the index moves.
+  // STAGE JUST THIS RUN, not the whole file.
   const stageHunkAt = async (h, unstage) => {
     // SAY WHY when nothing happens. Every one of these used to be a silent return, which is how a
     // button that did nothing looked identical to a button that was broken.
@@ -156,34 +133,9 @@ const CodePane = ({ file, onClose }) => {
     if (!Plugin.stageHunk)
       return setError("this project's plugin predates line-level staging — restart the service");
     if (content == null) return;
-    const idx = index == null ? "" : index;
-    // BOTH DIRECTIONS EDIT THE INDEX, and only the index — the working tree is never written.
-    //   stage   : index ← the working lines for this run   (hunks are index→working, working coords,
-    //             the same coordinates `h` is in, so the overlap test is exact)
-    //   unstage : index ← HEAD's lines for this run        (hunks are HEAD→index, INDEX coords, which
-    //             don't line up with `h` — so the run is found by its CONTENT instead of its number)
-    let edits;
-    let out = idx;
-    if (unstage) {
-      const want = h.head.join("\n");
-      edits = lineHunks(base, idx).filter((p) => p.head.join("\n") === want);
-      if (!edits.length) return setError("those lines aren't staged");
-      [...edits]
-        .sort((a, b) => b.from - a.from)
-        .forEach((p) => {
-          const A = out.split("\n");
-          out = [...A.slice(0, p.from - 1), ...p.base, ...A.slice(p.to)].join("\n");
-        });
-    } else {
-      edits = lineHunks(idx, content).filter((p) => p.to >= h.from && p.from <= h.to);
-      if (!edits.length) return setError("those lines are already staged");
-      [...edits]
-        .sort((a, b) => b.baseFrom - a.baseFrom)
-        .forEach((p) => {
-          const A = out.split("\n");
-          out = [...A.slice(0, p.baseFrom - 1), ...p.head, ...A.slice(p.baseTo)].join("\n");
-        });
-    }
+    const built = stagedContentFor(h, { base, index, content, unstage });
+    if (built.error) return setError(built.error);
+    const out = built.content;
     setError("");
     try {
       await Plugin.stageHunk({ path: file.path, content: out });

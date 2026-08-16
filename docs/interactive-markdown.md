@@ -418,9 +418,15 @@ it land here:
 
 ::logs[Math]{limit=25}
 
-A file, at a line range. The header path reveals it in the codebase tree; ⌘-click opens it. **Press
-Diff** in the corner for what changed against HEAD, and press it again for the file back — the same
-switch the codebase panel puts on an open file:
+A file, at a line range — and it's the real pane, not a picture of one. The header path reveals it
+in the codebase tree (⌘-click opens it). **Press Diff** in the corner for what changed against HEAD,
+and press it again for the file back. Lines that differ from HEAD wear the **change stripe** down
+the edge: click one to see what was there and stage that run on its own, exactly as you would in the
+panel. An amber dot in the header means the file differs from HEAD at all.
+
+**Right-click the header bar** for the file's own menu — open, stage, unstage, discard, copy path.
+Right-click the *code* and you get the document's menu as always, so a file embed is still a block
+you can wrap, thread or remove. Chrome is the file; body is the document.
 
 ::file[src/atoms/Markdown/registry.js#L20-46]
 

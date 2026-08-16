@@ -5,6 +5,7 @@ import DocIcon from "../../atoms/DocsIcon/DocsIcon";
 import TestsIcon from "../../atoms/TestsIcon/TestsIcon";
 import HELP_TOPICS from "../../atoms/Help/helpTopics";
 import { setHelpTopic } from "../../atoms/Help/helpStore";
+import RowMenu from "../../atoms/RowMenu/RowMenu";
 import imageFileIcon from "../../assets/image-file.png";
 import "./styles.scss";
 
@@ -153,77 +154,8 @@ function DirNode({
   );
 }
 
-// RFC-027 — the row context menu: right-click is where connections get removed (any service, any
-// project — the old tree tab's delete buttons live here now) and where a HOSTED service is
-// configured (rename/add/delete modules, delete the project). Destructive items are TWO-STEP: the
-// item arms into an inline confirm — no browser dialogs. One menu instance at the nav root.
-function RowMenu({ menu, onClose }) {
-  const [armed, setArmed] = useState(null);
-  useEffect(() => setArmed(null), [menu]);
-  useEffect(() => {
-    if (!menu) return;
-    const onKey = (e) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [menu, onClose]);
-  if (!menu) return null;
-  return (
-    <>
-      <div
-        className={`${CLASSNAME}__menu-overlay`}
-        onClick={onClose}
-        onContextMenu={(e) => {
-          e.preventDefault();
-          onClose();
-        }}
-      />
-      <div className={`${CLASSNAME}__menu`} style={{ top: menu.y, left: menu.x }}>
-        <div className={`${CLASSNAME}__menu-head`}>{menu.title}</div>
-        {menu.items.map((it, i) =>
-          it.confirm && armed === i ? (
-            <div key={i} className={`${CLASSNAME}__menu-confirm`}>
-              <span className={`${CLASSNAME}__menu-confirm-text`}>{it.confirm}</span>
-              <span
-                className={`${CLASSNAME}__menu-yes`}
-                role="button"
-                onClick={() => {
-                  onClose();
-                  it.action();
-                }}
-              >
-                ✓
-              </span>
-              <span
-                className={`${CLASSNAME}__menu-no`}
-                role="button"
-                onClick={() => setArmed(null)}
-              >
-                ✕
-              </span>
-            </div>
-          ) : (
-            <button
-              key={i}
-              type="button"
-              className={`${CLASSNAME}__menu-item${it.danger ? ` ${CLASSNAME}__menu-item--danger` : ""}`}
-              onClick={() => {
-                if (it.confirm) setArmed(i);
-                else {
-                  onClose();
-                  it.action();
-                }
-              }}
-            >
-              {it.label}
-            </button>
-          ),
-        )}
-      </div>
-    </>
-  );
-}
+// The row context menu now lives in src/atoms/RowMenu — same markup, same `codebase-nav__menu…`
+// classes, same two-step confirms — because a file embedded in a document gets the same right-click.
 
 // One of the project's services — real OR project-defined — as a MINI SystemLynx tree living under
 // its codebase (RFC-026: this card is the whole nav, so real services render here too, same rows).

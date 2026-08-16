@@ -307,7 +307,11 @@ const changeGutter = gutter({
   },
 });
 
-const CodeEditor = ({ value = "", language = "markdown", onChange, dark = false, focusLines = null, changeMarks = null, hunks = null, onStageHunk = null }) => {
+// `readOnly` is for the file EMBEDDED in a document: the stripes, the panel a stripe opens and the
+// per-run staging all still work — those are git moves, not edits — but the text can't be typed
+// into, because scrolling past a file in something you're reading shouldn't be a chance to change
+// it by accident.
+const CodeEditor = ({ value = "", language = "markdown", onChange, dark = false, focusLines = null, changeMarks = null, hunks = null, onStageHunk = null, readOnly = false }) => {
   const host = useRef(null);
   const viewRef = useRef(null);
   const onChangeRef = useRef(onChange);
@@ -331,6 +335,7 @@ const CodeEditor = ({ value = "", language = "markdown", onChange, dark = false,
       stripeClicks, // the stripe itself is the click target — no second gutter
       listener,
     ];
+    if (readOnly) ext.push(EditorView.editable.of(false), EditorState.readOnly.of(true));
     const lang = langExt(language);
     if (lang) ext.push(lang);
     // Dark = oneDark (theme + its highlight style). Light = the classic COLORED light highlighting —
@@ -346,7 +351,7 @@ const CodeEditor = ({ value = "", language = "markdown", onChange, dark = false,
     return () => { view.destroy(); viewRef.current = null; };
   // value intentionally excluded — synced below without a rebuild
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [language, dark]);
+  }, [language, dark, readOnly]);
 
   useEffect(() => {
     const view = viewRef.current;
