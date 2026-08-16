@@ -1485,7 +1485,7 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
                         {vcBusy === "commit"
                           ? "…"
                           : armed === "commit"
-                            ? "again"
+                            ? "confirm"
                             : "Commit"}
                       </button>
                       {gitState.ahead > 0 && (
@@ -1499,7 +1499,7 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
                           {vcBusy === "push"
                             ? "…"
                             : armed === "push"
-                              ? "again"
+                              ? "confirm"
                               : `Push ↑${gitState.ahead}`}
                         </button>
                       )}

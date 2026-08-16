@@ -148,7 +148,14 @@ renders dashed and says why instead of lying.
 ::test[Math.chainUse]                  a SAVED test, runnable in place
 ::file[cli/stage.js#L43-52]            the file itself, in the document
 ::diff[cli/runTests.js]                working copy vs git HEAD (read-only here)
+::commit{message="feat(nav): the lens"}  a commit message he PRESSES instead of copying
 ```
+
+`::commit` shows the branch, what would go in (staged / changes / untracked, with `+` and `−` on
+each), and a two-step Commit — plus Push when the branch is ahead, and a log tab carrying git's own
+output. The sha is written back into the block when it runs, so the report becomes the receipt.
+**You write it; only he presses it** — there is no `systemview commit` or `systemview push`, and
+that absence is the design. Full rules in [markdown.md](markdown.md).
 
 ### Runnables — steps written on the fly
 

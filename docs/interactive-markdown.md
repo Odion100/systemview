@@ -462,7 +462,42 @@ names itself, the sidecar is a plain `id → replies` map.
 
 ---
 
-## 17 · Still to come
+## 17 · Commit — `::commit{message=…}`
+
+The commit message at the end of a report used to be a line you copied into a terminal. Now it's a
+button.
+
+```markdown
+::commit{message="feat(git): line-level staging"}
+```
+
+The block renders your branch, the message (click it to edit — it's your commit), and two tabs:
+
+- **changes** — `staged` / `changes` / `untracked`, the same three groups the codebase panel shows,
+  with `+` and `−` per file and per group. You stage from inside the block; nothing sends you away.
+- **log** — git's own output from whatever just ran, then the last fifteen commits. Committing flips
+  you to this tab so the result gets read rather than just produced.
+
+**Commit** and **Push** are two-step: the first click arms the button (it reads `confirm`), the
+second runs it. Push shows only when the branch is ahead of its upstream. Drag either edge of the
+list to resize it; the height is written back into the block as `height=`, the same way `::::columns`
+remembers `split=`.
+
+When it runs, the sha lands in the block itself:
+
+```markdown
+::commit{message="feat(git): line-level staging" sha=a4f81c2 ts=1786883000000}
+```
+
+So the report that describes the work becomes the receipt for the commit it caused, and a week later
+the same line still tells you which commit this turned into.
+
+**An agent can write this block. Only you can press it.** There is no `systemview commit` and no
+`systemview push` on the CLI — that absence is deliberate, and it's what keeps the decision yours.
+
+---
+
+## 18 · Still to come
 
 Sketches only — these don't exist yet:
 

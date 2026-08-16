@@ -324,7 +324,7 @@ const CommitBlock = ({ label, attrs = {}, line }) => {
               {busy === "commit"
                 ? "committing…"
                 : armed === "commit"
-                  ? "again to commit"
+                  ? "confirm"
                   : "Commit"}
             </button>
           )}
@@ -336,7 +336,7 @@ const CommitBlock = ({ label, attrs = {}, line }) => {
               onClick={() => run("push")}
               title={`${state.branch} → ${state.upstream || "its upstream"}`}
             >
-              {busy === "push" ? "pushing…" : armed === "push" ? "again to push" : `Push ↑${state.ahead}`}
+              {busy === "push" ? "pushing…" : armed === "push" ? "confirm" : `Push ↑${state.ahead}`}
             </button>
           )}
           {armed && (

@@ -47,7 +47,41 @@ renders dashed and says why instead of lying.
                                        re-runs fresh (see agents/chat.md, the already-ran block)
 ::file[cli/stage.js#L43-52]            the file itself, in the document
 ::diff[cli/runTests.js]                working copy vs git HEAD (read-only here)
+::commit{message="feat(nav): the lens"}  a commit message he PRESSES instead of copying
 ```
+
+### `::commit` — the commit message as a button
+
+A commit message written at the end of a report is a line someone has to copy into a terminal. This
+makes it a button. **Write it when he asked for a commit message, or when the work in front of him
+is genuinely ready to land — it is not a report footer, and stapling one to every report is noise.**
+
+```markdown
+::commit{message="feat(git): line-level staging"}
+```
+
+It renders the message (editable in place — it is HIS commit), two tabs, and the branch:
+
+- **changes** — `staged` / `changes` / `untracked`, the same three groups the codebase panel shows,
+  with `+` / `−` per file and per group. Staging happens in the block; you do not send him elsewhere.
+- **log** — git's own output from what just ran, then the last fifteen commits. Committing flips to
+  this tab by itself, so the result gets read.
+
+Commit and Push are **two-step**: the first click arms (the button reads `confirm`), the second runs.
+Push appears only when the branch is ahead. Both edges of the list drag to resize, and the height
+lands back in the block as `height=` — same contract as `::::columns` and `split=`.
+
+When it runs, the sha is written INTO the block, the way `::question` writes `answer=`:
+
+```markdown
+::commit{message="feat(git): line-level staging" sha=a4f81c2 ts=1786883000000}
+```
+
+The report that describes the work becomes the receipt for the commit it caused.
+
+**THE RULE THIS BLOCK EXISTS UNDER: you can WRITE it, you cannot PRESS it.** There is deliberately no
+`systemview commit` and no `systemview push` — the absence is the design, not an oversight. If you
+want work committed, put the block in a document and let him decide.
 
 ### Runnables — steps written on the fly
 
