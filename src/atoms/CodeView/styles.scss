@@ -22,6 +22,14 @@
 // file-pane edit mode where the read view is oneDark, so edit matches.
 .code-editor {
   width: 100%;
+
+  // Same line-range mark the read-only view draws. An agent pointing at `path#L40-70` has to leave
+  // something you can SEE — an unfocused text selection is nearly invisible, which is exactly how
+  // this read as broken.
+  .cm-sv-highlight {
+    background-color: rgba(104, 134, 186, 0.22);
+    box-shadow: inset 3px 0 0 var(--sv-blue);
+  }
   border: 1px solid var(--sv-border);
   border-radius: 4px;
   overflow: hidden;

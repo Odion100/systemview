@@ -42,7 +42,9 @@ const markdownPane = (text) => ({ kind: "markdown", target: { text } });
 // (removed) `source` pane: point at the real file AND the exact lines.
 function parseFileSpec(value) {
   const s = String(value);
-  const m = s.match(/#L(\d+)(?:-(\d+))?$/i) || s.match(/:(\d+)(?:-(\d+))?$/);
+  // `#L40-L70` as well as `#L40-70` — the L on the second number used to make the whole thing miss,
+  // leaving the range stuck to the path. Same grammar as the markdown `:file` spec, deliberately.
+  const m = s.match(/#L(\d+)(?:-L?(\d+))?$/i) || s.match(/:(\d+)(?:-(\d+))?$/);
   if (m) {
     const a = parseInt(m[1], 10);
     const b = m[2] ? parseInt(m[2], 10) : a;

@@ -66,6 +66,32 @@ module.exports = ({ root, projectCode }) => {
       return record;
     };
 
+    // EDIT ONE RECORD IN PLACE (his call, 2026-08-11: "why can't you find a reference to the exact
+    // place and edit it"). A TV report is a record in this room, so his answers on it belong IN that
+    // record — not in a second file holding a duplicate copy of the report's text.
+    //
+    // Append stays the normal path; this is the narrow exception, and it is deliberately a merge of
+    // named fields on ONE id rather than a general file rewrite. Written to a temp file and renamed
+    // so a crash mid-write cannot leave a half-room behind: the rename is atomic, the reader either
+    // sees the old file or the new one.
+    this.chatUpdate = function ({ chat, id, patch } = {}) {
+      if (!id || !patch) throw new Error("chatUpdate needs an id and a patch");
+      const all = readRecords(chat);
+      let hit = null;
+      const next = all.map((r) => {
+        if (r.id !== id) return r;
+        hit = { ...r, ...patch, args: patch.args ? { ...(r.args || {}), ...patch.args } : r.args };
+        return hit;
+      });
+      if (!hit) return { updated: false };
+      const file = roomFile(chat);
+      const tmp = `${file}.tmp`;
+      fs.mkdirSync(chatsDir(), { recursive: true });
+      fs.writeFileSync(tmp, next.map((r) => JSON.stringify(r)).join("\n") + "\n");
+      fs.renameSync(tmp, file);
+      return { updated: true, record: hit };
+    };
+
     // Records newer than `since` (a timestamp, so it survives compaction — ids don't).
     this.chatRead = function ({ chat, since = 0, limit } = {}) {
       const all = readRecords(chat).filter((r) => !since || r.ts > since);

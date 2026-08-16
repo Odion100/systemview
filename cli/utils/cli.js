@@ -107,6 +107,8 @@ const HELP_TEXT = `
     --saved                                logs: read from local snapshot instead of live service
     --save-limit <n>                       logs: max entries to keep in snapshot (default 500)
     --force                                connect: re-probe even if already connected
+    --say "<text>"                         any command: the sentence the bot says while the window
+                                             moves — what you are showing them, not what you did
     --file <path[#La-b]>                   nav/highlight: the file to open (nav, with an optional
                                              line range to scroll+mark) or to point the tree at
     --report <path|name>                   nav: the report to open on the Stage tab
@@ -151,7 +153,7 @@ const HELP_TEXT = `
     systemview highlight buAPI --match "await hash"
 `;
 
-const flagValueArgs = ["--manifest", "--header", "--skip", "--phase", "--index", "--level", "--limit", "--follow", "--filter", "--or", "--include", "--highlight", "--save", "--save-limit", "--file", "--source", "--text", "--lines", "--match", "--layout", "--diff", "--test", "--ns", "--note", "--at", "--from", "--to", "--chat", "--as", "--report", "--tab", "--topic", "--range", "--service"];
+const flagValueArgs = ["--manifest", "--header", "--skip", "--phase", "--index", "--level", "--limit", "--follow", "--filter", "--or", "--include", "--highlight", "--save", "--save-limit", "--file", "--source", "--text", "--lines", "--match", "--layout", "--diff", "--test", "--ns", "--note", "--at", "--from", "--to", "--chat", "--as", "--report", "--tab", "--topic", "--range", "--service", "--say"];
 
 // Quote-aware tokenizer: a single/double-quoted arg (e.g. a JSON payload with spaces) stays ONE token,
 // surrounding quotes stripped. Turns an interactive REPL line into the same argv shape the shell hands
@@ -226,6 +228,7 @@ function parseArgs(rawArgs) {
     file: listOf("--file"),
     source: listOf("--source"),
     text: listOf("--text"),
+    say: listOf("--say"),
     diff: listOf("--diff"),
     test: listOf("--test"),
     lines: valOf("--lines"),

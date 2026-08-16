@@ -74,9 +74,17 @@ const Thread = ({ attrs = {}, line, src, children }) => {
       </button>
       {(open || stored.length > 0) && (
         <div className="md-thread__replies">
+          {/* A NAMED agent wears its own name here too, so a stored reply and an inline `:::reply`
+              from the same author read as the same person. But this path does NOT fail closed the
+              way the inline one does, and the difference is deliberate: this store is written only
+              by the human's own reply box, so a reply with NO author is legacy data of his — fail
+              closed here and his old comments would silently relabel themselves as an agent. Agents
+              write inline blocks, and that is where an unknown value must not become him. */}
           {stored.map((r, i) => (
-            <div className={`md-thread__reply${r.author === "agent" ? " md-thread__reply--agent" : ""}`} key={i}>
-              <span className="md-thread__badge">{r.author === "agent" ? "agent" : "reply"}</span>
+            <div className={`md-thread__reply${r.author && r.author !== "you" ? " md-thread__reply--agent" : ""}`} key={i}>
+              <span className="md-thread__badge">
+                {!r.author || r.author === "you" ? "reply" : r.author === "agent" ? "agent" : r.author}
+              </span>
               <span className="md-thread__text">{r.text}</span>
               {storeWritable && (
                 <button
@@ -143,15 +151,30 @@ const Thread = ({ attrs = {}, line, src, children }) => {
   );
 };
 
-// `:::reply{author=you|agent ts=…}` — one reply, written in the document. It renders the same row a
-// stored reply does, so inline and legacy replies are indistinguishable to read. An agent writes one
-// by adding this block inside the thread; nothing else is needed.
+// `:::reply{author=you|<projectCode>|agent ts=…}` — one reply, written in the document. It renders
+// the same row a stored reply does, so inline and legacy replies are indistinguishable to read. An
+// agent writes one by adding this block inside the thread; nothing else is needed.
+//
+// FAIL CLOSED — this test used to be `attrs.author === "agent"`, so anything that was NOT that exact
+// string fell through to the HUMAN look. The fallback pointed the wrong way: a typo, a missing
+// attribute, or an agent naming itself (`author=systemlynx`) rendered as the human's own reply,
+// wearing his badge, in his own document. It happened live twice in one evening — buAPI reached for
+// its project name and systemlynx did the same.
+//
+// Now only the literal `you` is the human. Everything else is an agent, and the value IS the badge —
+// so `author=BUApp` reads "BUApp", which is what identity-is-your-project means everywhere else in
+// the system. An unknown or garbled value still cannot impersonate him; the worst it can do is wear
+// a strange name. Impersonation is structurally impossible instead of a convention to remember.
 export const Reply = ({ attrs = {}, line, children }) => {
   const { editable, removeBlock } = useMarkdownWrite();
-  const agent = attrs.author === "agent";
+  const author = String(attrs.author || "").trim();
+  const human = author === "you";
+  const agent = !human;
+  // A named agent wears its own name; a bare `author=agent` (or nothing at all) stays generic.
+  const badge = human ? "reply" : author && author !== "agent" ? author : "agent";
   return (
     <div className={`md-thread__reply md-thread__reply--inline${agent ? " md-thread__reply--agent" : ""}`}>
-      <span className="md-thread__badge">{agent ? "agent" : "reply"}</span>
+      <span className="md-thread__badge">{badge}</span>
       <span className="md-thread__text">{children}</span>
       {editable && removeBlock ? (
         <button type="button" className="md-thread__del" title="Delete reply" onClick={() => removeBlock(line)}>

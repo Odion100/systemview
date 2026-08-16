@@ -146,15 +146,15 @@ module.exports.status = async function status(projectCode, text, { uiUrl, Client
 // clicks save silently to the room's TV state — which is worthless if the agent can't read them
 // back. This was the missing half of that loop (agents/chat.md promised "the hub's chatGetTv"
 // with no command behind it, so agents correctly reported they could not see his answers).
-module.exports.tv = async function tv(projectCode, { uiUrl, Client, chat, json = false } = {}) {
+module.exports.tv = async function tv(projectCode, { uiUrl, Client, chat, json = false, show } = {}) {
   if (!projectCode) {
-    log.warn("Usage: systemview tv <projectCode> [--chat name] [--json]");
+    log.warn("Usage: systemview tv <projectCode> [<report title>] [--chat name] [--json]");
     return 1;
   }
   const SystemView = await loadHub(Client, uiUrl);
   let state = null;
   try {
-    state = await SystemView.chatGetTv(projectCode, { chat });
+    state = await SystemView.chatGetTv(projectCode, { chat, show });
   } catch (err) {
     log.error(cleanErr(err));
     return 1;
@@ -171,6 +171,11 @@ module.exports.tv = async function tv(projectCode, { uiUrl, Client, chat, json =
   // (answer=…, verdict=…, thread replies) read exactly as they sit in the show.
   console.log("");
   console.log(`  ${state.label || "show"}${state.ts ? `   (last touched ${new Date(state.ts).toLocaleString()})` : ""}`);
+  // Say plainly whether these are his answers or just the show as pushed. Silence here is how an
+  // agent reads "no verdict yet" as "he hasn't looked" when in fact it re-pushed over his answers.
+  if (state.supersededAnswers)
+    log.warn("  this show was re-pushed since he last answered — his earlier answers were on the previous version");
+  else if (state.pristine) console.log("  (as pushed — nothing clicked on this one yet)");
   console.log("");
   console.log(state.text);
   console.log("");
@@ -197,8 +202,9 @@ module.exports.inbox = async function inbox(projectCode, { uiUrl, Client, chat, 
 // the UI is broken into sections, so the command names what it controls.
 //
 //   nav <pc> <Service.Module.method>          navigate to a namespace (nav + center + scratchpad follow)
-//   nav <pc> center --report <path|name>      open a report on the Stage tab
+//   nav <pc> center --report <path|name[#La-b]>   open a report, optionally AT a range of its lines
 //   nav <pc> center --file <path[#La-b]>      pull up a file in the Code tab
+//   any command  --say "…"                    the sentence the bot says while the window moves
 //   nav <pc> center --tab <docs|reports|logs> switch the center tab
 //   nav <pc> center --topic <help-topic>      open a help topic over the page
 //   nav <pc> stats [tab] [--range <r>] [--service <s>]   walk the human to the Stats page
@@ -206,9 +212,9 @@ module.exports.inbox = async function inbox(projectCode, { uiUrl, Client, chat, 
 //                                              range: 15m|1h|4h|24h|all)
 //   refresh <pc> [docs|reports|nav|stats|all] panes re-read their data — never a page reload
 //   act <pc> test <Module.method>             run a saved test IN the UI, watchably
-async function sendCommand(projectCode, { uiUrl, Client, chat, agent, cmd, args, label }) {
+async function sendCommand(projectCode, { uiUrl, Client, chat, agent, cmd, args, label, say }) {
   const SystemView = await loadHub(Client, uiUrl);
-  await SystemView.chatCommand(projectCode, { chat, from: agent || "agent", cmd, args, label });
+  await SystemView.chatCommand(projectCode, { chat, from: agent || "agent", cmd, args, label, say });
   return 0;
 }
 
@@ -241,7 +247,7 @@ async function resolveLiveNs(SystemView, projectCode, nsInput) {
 
 module.exports.nav = async function nav(projectCode, section, target, opts = {}) {
   if (!projectCode) {
-    log.warn("Usage: systemview nav <projectCode> <Service.Module.method> | stats [tab] [--range <r>] [--service <s>] | center --report <path> | center --file <path[#La-b]> | center --tab <t> | center --topic <help>");
+    log.warn("Usage: systemview nav <projectCode> <Service.Module.method> | stats [tab] [--range <r>] [--service <s>] | center --report <path> | center --file <path[#La-b]> | center --tab <t> | center --topic <help>   [--say \"what you are showing them\"]");
     return 1;
   }
   const args = {};
@@ -282,12 +288,24 @@ module.exports.nav = async function nav(projectCode, section, target, opts = {})
     args.stats = stats;
     label = `opened stats${stats.report ? ` — ${stats.report}` : ""}${stats.range ? `, last ${stats.range === "all" ? "everything" : stats.range}` : ""}${stats.service ? `, focused on ${stats.service}` : ""}`;
   } else if (opts.report) {
-    args.report = opts.report;
-    label = `opened report ${opts.report.split("/").pop()}`;
+    // A REPORT OPENS AT A RANGE TOO. Rendered markdown has no lines, but every block carries the
+    // source range it came from, so the same `#L10-20` address works on a document you are only
+    // reading — the window points at the blocks the range covers.
+    // `#L274-378` and `#L274-L378` both mean the same thing — a split on "#L" left the second L
+    // stuck to the number and parsed it as NaN, so the range silently became half a range.
+    const rm = String(opts.report).match(/^(.*?)#L(\d+)(?:-L?(\d+))?$/i);
+    const rp = rm ? rm[1] : String(opts.report);
+    const rl = rm ? `${rm[2]}${rm[3] ? `-${rm[3]}` : ""}` : "";
+    args.report = rp;
+    if (rm) args.lines = [Number(rm[2]), Number(rm[3] || rm[2])];
+    label = `opened report ${rp.split("/").pop()}${rl ? `#L${rl}` : ""}`;
   } else if (opts.file) {
-    const [p, l] = String(opts.file).split("#L");
+    // Same tolerance as --report: `#L40-70` and `#L40-L70` are the same address.
+    const fm = String(opts.file).match(/^(.*?)#L(\d+)(?:-L?(\d+))?$/i);
+    const p = fm ? fm[1] : String(opts.file);
+    const l = fm ? `${fm[2]}${fm[3] ? `-${fm[3]}` : ""}` : "";
     args.file = p;
-    if (l) args.lines = l.split("-").map((n) => parseInt(n, 10));
+    if (fm) args.lines = [Number(fm[2]), Number(fm[3] || fm[2])];
     label = `pulled up ${p}${l ? `#L${l}` : ""}`;
   } else if (opts.tab) {
     args.tab = opts.tab;

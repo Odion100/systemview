@@ -63,6 +63,19 @@
     }
   }
 
+  // `:ui[scratchpad]` — a region of the window. Its own colour because it points at the FURNITURE
+  // rather than at content: hovering one is how an agent teaches the layout without a tour.
+  &--ui {
+    color: #3f6b74;
+    .md-chip__kind {
+      background: #5d99a4;
+    }
+    &:hover {
+      background: #ecf5f7;
+      border-color: #b8d6dd;
+    }
+  }
+
   // A reference that doesn't resolve says so instead of lying (RFC-025 §4.1).
   &--dead {
     color: #a2503f;

@@ -101,7 +101,17 @@ const SvBlock = ({ dname, dtype, dattrs, dlabel, dline, dend, dsrc, children }) 
   // the document menu can target the block itself: "remove this thread", "insert after this chart".
   if (dtype === "inline" || !dline) return block;
   return (
-    <div className="md-block" data-md-start={dline} data-md-end={dend || dline} data-md-name={dname} data-md-kind={dtype}>
+    // `data-md-id` is the block's OWN id (`::question{id=pick}`) — the only stable address for one
+    // block among several of the same kind, and the one thing a namespace or a file line-range
+    // genuinely cannot express. It's what lets an agent point INSIDE an open document.
+    <div
+      className="md-block"
+      data-md-start={dline}
+      data-md-end={dend || dline}
+      data-md-name={dname}
+      data-md-kind={dtype}
+      data-md-id={attrs.id || undefined}
+    >
       {block}
     </div>
   );
@@ -136,8 +146,16 @@ const Commentable = ({ node, tag: Tag, children, ...props }) => {
   const pos = node && node.position;
   const canWrap =
     threadable && !inThread && pos && pos.start && pos.end && pos.start.column === 1 && pos.start.line;
+  // THE LINE RANGE IS AN ADDRESS, NOT AN AFFORDANCE. The wrapper below is what makes a block
+  // threadable; the range is what lets anything POINT at it — pointing at lines in a document has
+  // to work on one you are only reading, which is most of them. So an unwrapped block carries the
+  // range on the element itself.
+  const addressable = pos && pos.start && pos.end && pos.start.column === 1 && pos.start.line;
+  const lineAttrs =
+    addressable && !canWrap ? { "data-md-start": pos.start.line, "data-md-end": pos.end.line } : {};
   // Void elements (hr) must not receive children — React hard-errors on it.
-  const el = Tag === "hr" ? <Tag {...props} /> : <Tag {...props}>{children}</Tag>;
+  const el =
+    Tag === "hr" ? <Tag {...props} {...lineAttrs} /> : <Tag {...props} {...lineAttrs}>{children}</Tag>;
   if (!canWrap) return el;
   return (
     // The line range rides the DOM as data — that's how the right-click menu knows which block you

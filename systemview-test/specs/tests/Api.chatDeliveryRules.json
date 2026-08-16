@@ -10,6 +10,18 @@
         "args": [],
         "savedEvaluations": [
           {
+            "namespace": "results.drainAnnouncesArrival",
+            "expected_type": "boolean",
+            "validations": [{ "name": "boolEquals", "value": true }],
+            "save": true
+          },
+          {
+            "namespace": "results.arrivalWakesNobody",
+            "expected_type": "boolean",
+            "validations": [{ "name": "boolEquals", "value": true }],
+            "save": true
+          },
+          {
             "namespace": "results.homeHearsHuman",
             "expected_type": "boolean",
             "validations": [{ "name": "boolEquals", "value": true }],

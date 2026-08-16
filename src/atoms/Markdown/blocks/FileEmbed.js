@@ -34,12 +34,16 @@ function useFileHost(attrs, scope) {
   const { connectedServices = [] } = useContext(ServiceContext);
   const projectCode = attrs.project || scope.projectCode;
   const inProject = connectedServices.filter((s) => s.projectCode === projectCode && hasPlugin(s));
-  return (
-    inProject.find((s) => s.serviceId === (attrs.service || scope.serviceId)) ||
-    inProject[0] ||
-    connectedServices.find(hasPlugin) ||
-    null
-  );
+  const mine =
+    inProject.find((s) => s.serviceId === (attrs.service || scope.serviceId)) || inProject[0] || null;
+  if (mine) return mine;
+  // NEVER BORROW ANOTHER PROJECT'S ROOT. This used to fall through to "any connected service with a
+  // Plugin" — so when the document's own project happened to be disconnected, every embed resolved
+  // against a DIFFERENT repo and came back "no such file" with a full path from somewhere the
+  // reader had never heard of. Silently reading the wrong repo is worse than reading nothing.
+  // The fallback only makes sense where there IS no project — a help topic, the hub itself.
+  if (projectCode) return null;
+  return connectedServices.find(hasPlugin) || null;
 }
 
 const Frame = ({ kind, path, range, host, children, onOpen }) => (
@@ -67,7 +71,14 @@ export const FileEmbed = ({ label, attrs = {} }) => {
   useEffect(() => {
     let dead = false;
     (async () => {
-      if (!path || !host) return setState({ error: "no file host" });
+      // Name the project. "no file host" told the reader nothing about WHY — and the reason is
+      // always the same: that project has no connected service that can read files right now.
+      if (!path || !host)
+        return setState({
+          error: scope.projectCode
+            ? `no connected service in ${scope.projectCode} can read files`
+            : "no file host",
+        });
       try {
         const { Plugin } = loadServiceWithHeaders(host.system.connectionData, host.headers, host.credentials);
         const data = await Plugin.readFile({ path });
@@ -124,7 +135,14 @@ export const DiffEmbed = ({ label, attrs = {} }) => {
   useEffect(() => {
     let dead = false;
     (async () => {
-      if (!path || !host) return setState({ error: "no file host" });
+      // Name the project. "no file host" told the reader nothing about WHY — and the reason is
+      // always the same: that project has no connected service that can read files right now.
+      if (!path || !host)
+        return setState({
+          error: scope.projectCode
+            ? `no connected service in ${scope.projectCode} can read files`
+            : "no file host",
+        });
       try {
         const { Plugin } = loadServiceWithHeaders(host.system.connectionData, host.headers, host.credentials);
         const data = await Plugin.getDiff({ path });

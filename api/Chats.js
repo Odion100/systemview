@@ -243,6 +243,42 @@ module.exports = function Chats({ chatFor } = {}) {
     // to — one answer to "where does this project's chat live", not two.
     dirFor,
 
+    // EDIT ONE RECORD IN PLACE. His answers on a TV report belong in the report's own record, not
+    // in a second file holding a duplicate of its text. Returns false when the project's plugin
+    // predates `chatUpdate` — the caller then keeps the old side-file, so an un-upgraded project
+    // still saves his answers rather than dropping them.
+    update(pc, chat, id, patch) {
+      const k = key(pc, chat);
+      const records = mirror.get(k);
+      const apply = (r) =>
+        r.id === id ? { ...r, ...patch, args: patch.args ? { ...(r.args || {}), ...patch.args } : r.args } : r;
+      if (records) {
+        if (!records.some((r) => r.id === id)) return { updated: false, reason: "no such record" };
+        mirror.set(k, records.map(apply));
+        const Chat = chatFor && chatFor(pc);
+        if (!Chat || typeof Chat.chatUpdate !== "function")
+          return { updated: false, reason: "plugin too old" };
+        Promise.resolve()
+          .then(() => Chat.chatUpdate({ chat: chat || DEFAULT_CHAT, id, patch }))
+          .catch(() => {});
+        return { updated: true };
+      }
+      // FALLBACK — the hub holds this room, so it does the rewrite itself. Temp file + rename, so a
+      // crash mid-write can never leave a half-room on disk.
+      const dir = dirFor(pc);
+      const file = chatFile(dir, pc, chat);
+      const all = hubRecords(pc, chat);
+      if (!all.some((r) => r.id === id)) return { updated: false, reason: "no such record" };
+      try {
+        fs.mkdirSync(dir, { recursive: true });
+        fs.writeFileSync(`${file}.tmp`, all.map(apply).map((r) => JSON.stringify(r)).join("\n") + "\n");
+        fs.renameSync(`${file}.tmp`, file);
+        return { updated: true };
+      } catch {
+        return { updated: false, reason: "write failed" };
+      }
+    },
+
     // ---- THE OUTBOX -------------------------------------------------------------------------
     // Every message sent while the hub was holding a room itself lands in the hub's fallback file.
     // The moment that project's own process can serve the room, those records are in the WRONG
@@ -283,8 +319,18 @@ module.exports = function Chats({ chatFor } = {}) {
       } catch {
         return { retired: false };
       }
-      // The ack cursors go with it: they point at hub-file offsets, and the project keeps its own.
-      try { fs.renameSync(ackFile(dir, pc, chat), `${ackFile(dir, pc, chat)}.flushed`); } catch {}
+      // ONLY THE ROOM MOVES — the ack cursors STAY. An earlier version retired them alongside the
+      // room, on the reasoning that "the project keeps its own". It does not: drain() below still
+      // keys every cursor to THIS directory, because it is synchronous and the plugin's chatCursor
+      // is a call over the wire. So retiring the ack file did not hand the cursors over, it deleted
+      // them — and a cursor that comes back empty means the next drain replays the ENTIRE room.
+      //
+      // Cursors are TIMESTAMPS, not offsets into the file (which is exactly why compaction is safe),
+      // so the move never invalidated them in the first place. There was nothing to migrate.
+      //
+      // Cost of getting this wrong, in systemlynx's words after it hit them: a full replay of old
+      // instructions "is indistinguishable from new ones unless you check timestamps". They checked
+      // and did not re-execute. A less careful agent would have re-run the whole night.
       return { retired: true, to };
     },
 
@@ -320,8 +366,10 @@ module.exports = function Chats({ chatFor } = {}) {
     // RFC-029 — a COMMAND from the agent rides the same file (`kind: "command"`). It renders in
     // the thread as a command line; the open UI EXECUTES it only when it arrives on the live push
     // (loading history renders old command lines but never re-executes them — the replay rule).
-    command(pc, chat, { from = "agent", cmd, args, label }) {
-      return append(pc, chat, { kind: "command", from, cmd, args: args || {}, label: label || "" });
+    // `say` is the agent's OWN sentence for the trip — what it wants said while the window moves.
+    // `label` is what the command did, generated; `say` is what the agent meant by doing it.
+    command(pc, chat, { from = "agent", cmd, args, label, say }) {
+      return append(pc, chat, { kind: "command", from, cmd, args: args || {}, label: label || "", say: say || "" });
     },
 
     history(pc, chat, { limit = 200 } = {}) {

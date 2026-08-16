@@ -2,6 +2,7 @@ import React from "react";
 import NsLink from "./blocks/NsLink";
 import FileLink from "./blocks/FileLink";
 import { Callout, Details, Columns, Col, Tabs, Tab, Carousel, Slide } from "./blocks/Structure";
+import UiLink from "./blocks/UiLink";
 import ChartEmbed from "./blocks/ChartEmbed";
 import TestEmbed from "./blocks/TestEmbed";
 import RunBlock from "./blocks/RunBlock";
@@ -37,6 +38,10 @@ const FileBlock = (props) => {
 export const BLOCKS = {
   // links — navigate, don't describe
   ns: { Component: NsLink },
+  // `:ui[scratchpad]` — a reference to a REGION of the window. Same weight as :ns and :file, and it
+  // is what lets an agent teach the layout on the fly ("this is the story, this is the scratch pad")
+  // without a built-in tour. Clicking points at it; nothing is written anywhere.
+  ui: { Component: UiLink },
   file: { Component: FileBlock },
   diff: { Component: DiffEmbed },
   help: { Component: HelpLink },

@@ -401,8 +401,10 @@ them.
 
 ```bash
 systemview nav <pc> <namespace>                    # navigate: route + center + scratchpad follow
-systemview nav <pc> center --report <path>|--file <p#L1-20>|--tab <t>|--topic <h>
+systemview nav <pc> center --report <name[#L1-20]>|--file <p#L1-20>|--tab <t>|--topic <h>
+#   #L on a REPORT points at those source lines in the RENDERED document (works while reading)
 systemview nav <pc> stats [tab] [--range 1h] [--service <id>]
+systemview nav <pc> ... --say "…"                  # what the bot says while it walks there (any command)
 systemview highlight <pc> <namespace>|--file <p>   # point at it; nothing else moves
 systemview refresh <pc> docs|reports|nav|stats|all # panes re-read in place — never a page reload
 systemview act <pc> test <namespace|title|all>     # run a saved test where the human is looking

@@ -67,6 +67,9 @@ function TopologyGraph({ nodes, edges, projectCode, mock = false, variant = "" }
   // Cards EXPAND DOWN on click, listing the methods other services call on them; edge lines split
   // near an expanded card into one branch per method.
   const [expanded, setExpanded] = useState(() => new Set());
+  // Per-node tab: "in" (who calls me) or "out" (who I call). Per node, not global — you're usually
+  // asking the question about one service while reading the rest normally.
+  const [dirs, setDirs] = useState({});
   const toggleExpand = (id) =>
     setExpanded((prev) => {
       const next = new Set(prev);
@@ -193,21 +196,31 @@ function TopologyGraph({ nodes, edges, projectCode, mock = false, variant = "" }
     selCaller != null && edgeHueIdx[selCaller] != null ? MAP_HUES[edgeHueIdx[selCaller]] : null;
   const selEdgeIds = new Set(live.filter((e) => isEdgeSelected(e)).map((e) => e.i));
 
-  // EXPANDED cards: rows = the callee's methods that inbound edges actually call, ranked by volume.
-  // Each row remembers which edges feed it, so a specific edge branches only to ITS rows.
+  // EXPANDED cards, TWO DIRECTIONS (his ask). **in** = the methods other services call HERE, which
+  // is all this used to show. **out** = one row per call this service MAKES, named by who it lands
+  // on. The caller identity was in the edge store the whole time (`x-sv-caller`, split by
+  // `edgesFrom`); the in-view just threw it away and kept the callee's method.
+  const dirOf = (id) => dirs[id] || "in";
   const ROW_H = 21;
+  // The in/out tab strip sits at the top of the hanging list, so every row anchor moves down by it
+  // — miss this and the branch arrows land one row off what they point at.
+  const TAB_H = 22;
   const ROW_CAP = 12;
   const rowsFor = {};
   nodes.forEach((n) => {
     if (!expanded.has(n.serviceId)) return;
+    const out = dirOf(n.serviceId) === "out";
     const map = new Map();
     live.forEach((e) => {
-      if (e.to !== n.serviceId) return;
+      if (out ? e.from !== n.serviceId : e.to !== n.serviceId) return;
       (e.couplings || []).forEach((c) =>
         (c.calls || []).forEach((call) => {
           const m = String(call).match(/^(.*?)(?:\s*×\s*([\d,]+))?$/);
-          const name = (m && m[1]) || String(call);
+          const raw = (m && m[1]) || String(call);
           const count = m && m[2] ? Number(m[2].replace(/,/g, "")) : 1;
+          // Outbound rows name the DESTINATION — "Profiles.Users.get" — because the method alone
+          // says nothing about where the call went, which is the whole question here.
+          const name = out ? `${e.to}.${raw}` : raw;
           const row = map.get(name) || { name, count: 0, edges: new Set() };
           row.count += count;
           row.edges.add(e.i);
@@ -216,20 +229,45 @@ function TopologyGraph({ nodes, edges, projectCode, mock = false, variant = "" }
       );
     });
     const all = [...map.values()].sort((x, y) => y.count - x.count);
-    rowsFor[n.serviceId] = { rows: all.slice(0, ROW_CAP), more: Math.max(0, all.length - ROW_CAP) };
+    rowsFor[n.serviceId] = { rows: all.slice(0, ROW_CAP), more: Math.max(0, all.length - ROW_CAP), out };
   });
 
   // Per-edge geometry: the usual single bow — or, when the CALLEE is expanded, a TRUNK to a gather
   // point just off the card edge that SPLITS into one straight arrow per called method row.
   const geoms = live.map((e) => {
     const a = pos[e.from], b = pos[e.to];
+    // OUT MODE — the CALLER is opened up, so each of its rows gets its own line straight to the
+    // service it lands on. His shape: "one caller will show multiple lines going out instead of
+    // the one line that then expands."
+    const src = rowsFor[e.from];
+    if (src && src.out) {
+      const srcTop = a.y + TOPO_HH + 6 + TAB_H;
+      const rows = src.rows
+        .map((r, idx) => ({ ...r, y: srcTop + idx * ROW_H + ROW_H / 2 }))
+        .filter((r) => r.edges.has(e.i));
+      if (rows.length) {
+        const sign = a.x <= b.x ? 1 : -1;
+        const p2 = borderPoint(b, a, 4);
+        const lines = rows.map((r) => {
+          const p1 = { x: a.x + sign * (TOPO_HW - 2), y: r.y };
+          const mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
+          const len = Math.max(1, Math.hypot(p2.x - p1.x, p2.y - p1.y));
+          const px = -(p2.y - p1.y) / len, py = (p2.x - p1.x) / len;
+          return { p1, p2, c: { x: mx + px * 14, y: my + py * 14 } };
+        });
+        return { e, type: "fanout", lines, p1: lines[0].p1, p2, c: lines[0].c };
+      }
+    }
     const info = rowsFor[e.to];
-    const listTop = b.y + TOPO_HH + 6;
-    const mine = info
-      ? info.rows
-          .map((r, idx) => ({ ...r, y: listTop + idx * ROW_H + ROW_H / 2 }))
-          .filter((r) => r.edges.has(e.i))
-      : [];
+    const listTop = b.y + TOPO_HH + 6 + TAB_H;
+    // Only branch into the callee's rows when those rows ARE the inbound methods — a callee showing
+    // its own outbound tab has rows about somewhere else entirely.
+    const mine =
+      info && !info.out
+        ? info.rows
+            .map((r, idx) => ({ ...r, y: listTop + idx * ROW_H + ROW_H / 2 }))
+            .filter((r) => r.edges.has(e.i))
+        : [];
     if (!mine.length) {
       const p1 = borderPoint(a, b);
       const p2 = borderPoint(b, a, 4);
@@ -297,6 +335,26 @@ function TopologyGraph({ nodes, edges, projectCode, mock = false, variant = "" }
                 return next;
               });
             };
+            // OUT MODE: one whole line per row, each with its own arrowhead, rather than a trunk.
+            if (g.type === "fanout")
+              return (
+                <g key={`${e.from}->${e.to}`}>
+                  {g.lines.map((l, li) => {
+                    const ld = `M${l.p1.x},${l.p1.y} Q${l.c.x},${l.c.y} ${l.p2.x},${l.p2.y}`;
+                    return (
+                      <g key={li}>
+                        <path className="topo-edge-hit" d={ld} onClick={pick} />
+                        <path
+                          className={`topo-edge${isSel ? " is-sel" : ""}`}
+                          d={ld}
+                          style={hueStyle}
+                          markerEnd={arrow}
+                        />
+                      </g>
+                    );
+                  })}
+                </g>
+              );
             return (
               <g key={`${e.from}->${e.to}`}>
                 <path className="topo-edge-hit" d={d} onClick={pick} />
@@ -399,6 +457,20 @@ function TopologyGraph({ nodes, edges, projectCode, mock = false, variant = "" }
               </div>
               {isOpen && info && (
                 <div className="topo-gnode__methods" onClick={(ev) => ev.stopPropagation()}>
+                  {/* IN / OUT. Same card, two questions: who reaches me, and who do I reach. */}
+                  <div className="topo-gnode__tabs" style={{ height: TAB_H }}>
+                    {["in", "out"].map((d) => (
+                      <button
+                        type="button"
+                        key={d}
+                        className={`topo-gnode__tab${dirOf(n.serviceId) === d ? " is-on" : ""}`}
+                        title={d === "in" ? "Methods other services call here" : "Calls this service makes"}
+                        onClick={() => setDirs((cur) => ({ ...cur, [n.serviceId]: d }))}
+                      >
+                        {d === "in" ? "← in" : "out →"}
+                      </button>
+                    ))}
+                  </div>
                   {/* Name the CONNECTION when a selection highlights rows here — a floating tag,
                       NOT a flow row (a row would shift the anchors the branch arrows land on). */}
                   {selHue &&
@@ -409,7 +481,9 @@ function TopologyGraph({ nodes, edges, projectCode, mock = false, variant = "" }
                       </div>
                     )}
                   {info.rows.length === 0 && (
-                    <div className="topo-gnode__mrow topo-gnode__mrow--quiet">no inbound calls</div>
+                    <div className="topo-gnode__mrow topo-gnode__mrow--quiet">
+                      {info.out ? "makes no cross-service calls" : "no inbound calls"}
+                    </div>
                   )}
                   {info.rows.map((r) => {
                     const hit = selHue && [...r.edges].some((id) => selEdgeIds.has(id));

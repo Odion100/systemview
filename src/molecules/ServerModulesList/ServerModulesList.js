@@ -34,6 +34,7 @@ const ServerModulesList = ({
             key={i}
             title={
               <span
+                data-sv-ns={`${serviceId}.${name}`}
                 className={`system-nav__link system-nav__link--active-${
                   isSelected
                 } system-nav__link--selected-${
@@ -53,6 +54,7 @@ const ServerModulesList = ({
               return (
                 <div
                   key={i}
+                  data-sv-ns={`${serviceId}.${name}.${fn}`}
                   className={`${className}__methods system-nav__link--selected-${
                     fn === selectedMethodName && isSelected
                   }${isRevealedModule && reveal.methodName === fn ? " is-revealed" : ""}`}

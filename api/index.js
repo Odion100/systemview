@@ -51,7 +51,12 @@ function projectChat(projectCode) {
 // root-anchored: a service whose own root is the project's root wins (its `.systemview/` is the one
 // the reports and manifests already use), and ties break on serviceId so the answer is stable
 // across restarts. Same project, same room, every time.
-function chatServiceFor(projectCode) {
+// EVERY candidate, best first — not just one. A project can carry the module on several services,
+// and picking the alphabetically-first one made the whole room hostage to that service being healthy:
+// buAPI advertises SystemViewChat on five, `Basketball` sorts first, and every call into it 500s in
+// their own auth middleware — so the hub could never read buAPI's room, never completed the handover,
+// and fell back to its own stale copy. The room a human sees should not depend on an alphabet.
+function chatServicesFor(projectCode) {
   let candidates = [];
   try {
     candidates = ConnectedServices.getAllConnections().filter(
@@ -62,11 +67,12 @@ function chatServiceFor(projectCode) {
         ),
     );
   } catch {}
-  if (!candidates.length) return null;
+  if (!candidates.length) return [];
   const root = projectRoot(projectCode);
   const byId = (a, b) => String(a.serviceId || "").localeCompare(String(b.serviceId || ""));
   const atRoot = candidates.filter((c) => c.root && root && c.root === root).sort(byId);
-  return (atRoot.length ? atRoot : candidates.slice().sort(byId))[0];
+  const rest = candidates.filter((c) => !atRoot.includes(c)).sort(byId);
+  return [...atRoot, ...rest];
 }
 // Hand the project everything the hub buffered for it while it could not serve its own room, then
 // retire the hub's file. Deduped by id, so a half-finished flush just retries next tick — and a
@@ -134,47 +140,60 @@ function warmAllChats(ctx) {
 // — a restarted service gets a new port, and a client pinned to the old one is a silent dead end.
 async function warmProjectChat(ctx, projectCode) {
   if (chatWarming.has(projectCode)) return;
-  const service = chatServiceFor(projectCode);
-  if (!service) return; // this project's plugin predates the module — the hub keeps its room
-  const url = service.system.connectionData.serviceUrl;
+  const services = chatServicesFor(projectCode);
+  if (!services.length) return; // this project's plugin predates the module — the hub keeps its room
   const current = chatClients.get(projectCode);
-  if (current && current.url === url) return;
+  // Keep a working client as long as its service is still connected; only re-warm when the one we
+  // are on has gone (a restarted service comes back on a new port).
+  if (current && services.some((c) => c.system.connectionData.serviceUrl === current.url)) return;
   chatWarming.add(projectCode);
   try {
-    const client = await createClient(httpClient).loadService(url);
-    const Chat = client.SystemViewChat;
-    if (!Chat) return;
-    // The event is the FAST path; `Chats.absorb` also reconciles by reading since its last known
-    // record, so a dropped subscription makes a record late rather than lost.
-    Chat.on("chat", ({ chat, record }) => {
+    for (const service of services) {
+      const url = service.system.connectionData.serviceUrl;
+      let Chat = null;
       try {
-        Chats.absorb(projectCode, chat, record);
-        ctx.emit(`chat-updated:${projectCode}`, { chat, record });
+        const client = await createClient(httpClient).loadService(url);
+        Chat = client.SystemViewChat;
+        if (!Chat) continue;
+        // ADVERTISING THE MODULE IS NOT THE SAME AS ANSWERING. Prove it can actually serve before
+        // committing the whole project's room to it — a service whose own middleware throws on every
+        // call will happily list SystemViewChat and then 500 on everything.
+        await Chat.chatDir();
+      } catch {
+        continue; // this one can't serve — try the next service that carries the module
+      }
+      // The event is the FAST path; `Chats.absorb` also reconciles by reading since its last known
+      // record, so a dropped subscription makes a record late rather than lost.
+      Chat.on("chat", ({ chat, record }) => {
+        try {
+          Chats.absorb(projectCode, chat, record);
+          ctx.emit(`chat-updated:${projectCode}`, { chat, record });
+          ctx.emit(`chat-presence:${projectCode}`, presenceFor(projectCode));
+        } catch {}
+      });
+      chatClients.set(projectCode, { Chat, url });
+      // FLUSH FIRST, then hydrate. Order matters: hydrating first would fill the mirror from a file
+      // that is still missing whatever the hub buffered, and the next append would write on top of a
+      // short room. Flushing first means the read below is already the whole conversation.
+      try {
+        await flushOutbox(ctx, projectCode, Chat);
+      } catch {}
+      // Hydrate the hub's mirror from the project — the file is the truth, so this can only correct
+      // the hub. Every room the project holds, not just `main`.
+      try {
+        const rooms = (await Chat.chatList()) || [Chats.DEFAULT_CHAT];
+        for (const room of rooms.length ? rooms : [Chats.DEFAULT_CHAT]) {
+          Chats.hydrate(projectCode, room, await Chat.chatRead({ chat: room }));
+        }
         ctx.emit(`chat-presence:${projectCode}`, presenceFor(projectCode));
       } catch {}
-    });
-    chatClients.set(projectCode, { Chat, url });
-    // FLUSH FIRST, then hydrate. Order matters: hydrating first would fill the mirror from a file
-    // that is still missing whatever the hub buffered, and the next append would write on top of a
-    // short room. Flushing first means the read below is already the whole conversation.
-    try {
-      await flushOutbox(ctx, projectCode, Chat);
-    } catch {}
-    // Hydrate the hub's mirror from the project — the file is the truth, so this can only correct
-    // the hub. Every room the project holds, not just `main`.
-    try {
-      const rooms = (await Chat.chatList()) || [Chats.DEFAULT_CHAT];
-      for (const room of rooms.length ? rooms : [Chats.DEFAULT_CHAT]) {
-        Chats.hydrate(projectCode, room, await Chat.chatRead({ chat: room }));
-      }
-      ctx.emit(`chat-presence:${projectCode}`, presenceFor(projectCode));
-    } catch {}
-  } catch {
-    /* unreachable right now — the hub keeps holding the room and we try again next tick */
+      return; // warmed
+    }
   } finally {
     chatWarming.delete(projectCode);
   }
 }
+
 const Chats = require("./Chats")({ chatFor: projectChat });
 // The UI server calls services the same way the CLI does: through the manifest-header client,
 // so operator-authored headers (e.g. an Origin for a gated dev session — see cli/manifestHeaders.js)
@@ -709,8 +728,8 @@ function chatSend(projectCode, { chat, from = "you", text, view, as } = {}) {
 }
 // RFC-029 — agent control: a command is a chat record; the push IS the execution channel. The
 // UI executes commands only off this live emit — chatHistory renders them as lines, nothing more.
-function chatCommand(projectCode, { chat, from, cmd, args, label } = {}) {
-  const record = Chats.command(projectCode, chat || Chats.DEFAULT_CHAT, { from, cmd, args, label });
+function chatCommand(projectCode, { chat, from, cmd, args, label, say } = {}) {
+  const record = Chats.command(projectCode, chat || Chats.DEFAULT_CHAT, { from, cmd, args, label, say });
   this.emit(`chat-updated:${projectCode}`, { chat: chat || Chats.DEFAULT_CHAT, record });
   return record;
 }
@@ -759,7 +778,23 @@ function chatStatus(projectCode, { chat, text, as } = {}) {
 }
 function chatDrain(projectCode, { chat, listener, as } = {}) {
   const identity = canonIdentity(projectCode, as);
-  const res = Chats.drain(projectCode, chat || Chats.DEFAULT_CHAT, { listener, identity });
+  const chatName = chat || Chats.DEFAULT_CHAT;
+  // GETTING A HANDLE ON A ROOM IS ARRIVING IN IT (his rule). Draining is how a file-mode agent
+  // takes the conversation — it reads the history and can then speak — so it is an arrival exactly
+  // like a join, and it gets the same line. Without this a visitor could read the whole room and
+  // the first thing he ever saw was its message: "sometimes I see you jump inside the chat but it
+  // doesn't show that you jumped in, it just shows your message."
+  //
+  // NOT join()'s arrival test. That one asks liveSeen ("holding the line right now"), which a drain
+  // never stamps — so it would answer "new arrival" on EVERY drain and turn a file-mode agent's
+  // normal loop into a stream of joined-lines. The right question for a drain is the entered ledger:
+  // has this identity opened this room's door recently. Each drain re-stamps it, so a loop that
+  // keeps draining announces once and then stays quiet. Checked BEFORE drain() stamps it.
+  if (identity !== projectCode && !Chats.hasEntered(projectCode, chatName, identity)) {
+    const sys = Chats.system(projectCode, chatName, { event: "joined", who: identity });
+    this.emit(`chat-updated:${projectCode}`, { chat: chatName, record: sys });
+  }
+  const res = Chats.drain(projectCode, chatName, { listener, identity });
   this.emit(`chat-presence:${projectCode}`, presenceFor(projectCode));
   // A "waiting on <pc>" line may have just flipped to "received" (turn-boundary pickup) —
   // push the current lines so the human sees the handoff.
@@ -795,18 +830,139 @@ const tvStateFile = (pc, chat) =>
     Chats.dirFor(pc),
     `${String(pc).replace(/[^a-zA-Z0-9._-]/g, "_")}.${String(chat || Chats.DEFAULT_CHAT).replace(/[^a-zA-Z0-9._-]/g, "_")}.tv.json`,
   );
-function chatSetTv(projectCode, { chat, state } = {}) {
-  const fs = require("fs");
-  fs.mkdirSync(path.dirname(tvStateFile(projectCode, chat)), { recursive: true });
-  fs.writeFileSync(tvStateFile(projectCode, chat), JSON.stringify({ ...state, ts: Date.now() }, null, 2));
-  return { ok: true };
-}
-function chatGetTv(projectCode, { chat } = {}) {
+// ONE ENTRY PER SHOW, not one per room. This file used to hold a single clicked-up show, so
+// answering on one report and then opening another OVERWROTE the first — his answers on the earlier
+// report were simply gone, silently, and the only tell was that the report looked unanswered. He
+// hit it within minutes of having two reports up: "I've responded on both TV reports", and only one
+// set of responses still existed. Reports are reachable forever from the links panel, so answers on
+// any of them have to survive opening another.
+function readTvStore(projectCode, chat) {
+  let raw = null;
   try {
-    return JSON.parse(require("fs").readFileSync(tvStateFile(projectCode, chat), "utf8"));
+    raw = JSON.parse(require("fs").readFileSync(tvStateFile(projectCode, chat), "utf8"));
   } catch {
-    return null;
+    return { byShow: {} };
   }
+  if (raw && raw.byShow) return raw;
+  // Legacy single-show file — keep whatever it held rather than dropping his answers on upgrade.
+  return raw && raw.id ? { byShow: { [raw.id]: raw } } : { byShow: {} };
+}
+// HIS ANSWERS GO INTO THE REPORT'S OWN RECORD (his call). A TV report is a record in the room, so
+// clicking an answer edits that record — one place, no second copy of the text. The side-file only
+// survives as the fallback for a project whose plugin predates `chatUpdate`; dropping his answers
+// on those is not an option, so they keep the old behaviour until they upgrade.
+function chatSetTv(projectCode, { chat, state } = {}) {
+  if (!state || !state.id) return { ok: false };
+  const inPlace = Chats.update(projectCode, chat || Chats.DEFAULT_CHAT, state.id, {
+    args: { text: state.text },
+  });
+  if (inPlace.updated) {
+    // The record is the truth now, so any leftover side-file entry for it is a stale duplicate.
+    // Removing it also makes the side-file's meaning unambiguous for readers: an entry exists ONLY
+    // when that project could not store in place.
+    try {
+      const fs = require("fs");
+      const store = readTvStore(projectCode, chat);
+      if (store.byShow[state.id]) {
+        delete store.byShow[state.id];
+        fs.writeFileSync(tvStateFile(projectCode, chat), JSON.stringify(store, null, 2));
+      }
+    } catch {}
+    this.emit(`chat-updated:${projectCode}`, { chat: chat || Chats.DEFAULT_CHAT, tvEdit: state.id });
+    return { ok: true, inPlace: true };
+  }
+  const fs = require("fs");
+  const store = readTvStore(projectCode, chat);
+  store.byShow[state.id] = { ...state, ts: Date.now() };
+  fs.mkdirSync(path.dirname(tvStateFile(projectCode, chat)), { recursive: true });
+  fs.writeFileSync(tvStateFile(projectCode, chat), JSON.stringify(store, null, 2));
+  return { ok: true, inPlace: false, why: inPlace.reason };
+}
+// READ THE TV. The stored state is only written when the human CLICKS something, so reading it
+// alone answers "the last show he touched" — not "what is on the TV". An agent that pushed a new
+// show and then read it back got the PREVIOUS one, unchanged timestamp and all (found live by
+// systemlynx). That is worse than cosmetic: the co-editing rule is read-before-write, so an agent
+// doing the right thing merges onto stale text and silently wipes his edit.
+//
+// So the current show wins, and the stored state is an OVERLAY that only applies to that same show
+// — exactly the rule the UI already follows when it restores the TV.
+// `show` names which report to read; omitted means whatever is on the TV right now. Answers on an
+// older report stay readable — the links panel keeps every report reachable, so an agent has to be
+// able to go back and collect a decision he made on one two reports ago.
+function chatGetTv(projectCode, { chat, show } = {}) {
+  const store = readTvStore(projectCode, chat);
+  const current = currentShow(projectCode, chat);
+  const target = show
+    ? findShow(projectCode, chat, show)
+    : current;
+  if (!target) {
+    // Nothing on the TV (or no such report) — hand back the most recently touched thing we hold.
+    const all = Object.values(store.byShow).sort((a, b) => (b.ts || 0) - (a.ts || 0));
+    return all[0] || null;
+  }
+  // The record IS his copy now — answers are written into it. A side-file entry exists only for a
+  // project that could not store in place, so it wins only when it's there at all.
+  const stored = store.byShow[target.id];
+  if (stored) return stored;
+  // "Pristine" means nothing has been marked on it — read that off the text itself rather than off
+  // a bookkeeping flag, so it stays true no matter which path saved the answers.
+  const marked = /\banswer=|\bverdict=|:::reply\{author=you/.test(target.text);
+  // An EARLIER version of the same title carrying marks means a re-push landed on top of answers.
+  // Say so — silence reads as "he hasn't looked" when in fact we pushed over him.
+  const superseded =
+    !marked &&
+    (Object.values(store.byShow).some((s) => s.label === target.label) ||
+      answeredOlderVersion(projectCode, chat, target));
+  return {
+    id: target.id,
+    label: target.label,
+    text: target.text,
+    ts: target.ts,
+    ...(marked ? {} : { pristine: true }),
+    ...(superseded ? { supersededAnswers: true } : {}),
+  };
+}
+// Did an earlier record with this same title carry his marks? With answers stored in the record,
+// that is the only way to know a re-push landed on top of them.
+function answeredOlderVersion(projectCode, chat, target) {
+  const rows = Chats.history(projectCode, chat || Chats.DEFAULT_CHAT, { limit: 0 });
+  return rows.some(
+    (r) =>
+      r &&
+      r.kind === "command" &&
+      r.cmd === "show" &&
+      r.id !== target.id &&
+      (r.label || "show") === target.label &&
+      /\banswer=|\bverdict=|:::reply\{author=you/.test((r.args && r.args.text) || ""),
+  );
+}
+// Find a report by title (or id) anywhere in the room — newest match wins.
+function findShow(projectCode, chat, needle) {
+  const rows = Chats.history(projectCode, chat || Chats.DEFAULT_CHAT, { limit: 0 });
+  const want = String(needle).toLowerCase();
+  for (let i = rows.length - 1; i >= 0; i--) {
+    const r = rows[i];
+    if (!r || r.kind !== "command" || r.cmd !== "show") continue;
+    const text = (r.args && r.args.text) || "";
+    if (!text) continue;
+    if (r.id === needle || String(r.label || "").toLowerCase().includes(want))
+      return { id: r.id, label: r.label || "show", text, ts: r.ts };
+  }
+  return null;
+}
+// The newest show in the room. A show rides the room as a `kind:"command"` record (`cmd:"show"`,
+// text in `args.text`), so "what is on the TV" is always answerable from the room itself.
+function currentShow(projectCode, chat) {
+  const rows = Chats.history(projectCode, chat || Chats.DEFAULT_CHAT, { limit: 0 });
+  for (let i = rows.length - 1; i >= 0; i--) {
+    const r = rows[i];
+    if (r && r.kind === "command" && r.cmd === "show") {
+      const text = (r.args && r.args.text) || "";
+      if (!text) return null; // a `--clear` blanks the TV
+      return { id: r.id, label: r.label || "show", text, ts: r.ts };
+    }
+  }
+  return null;
 }
 // The bouncer — the human kicks an identity out of a room (right-click a roster name). The
 // kicked hold answers {kicked} immediately, the room gets its system line, rejoin refused for

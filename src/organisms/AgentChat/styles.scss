@@ -12,18 +12,21 @@
   // The panel is ANCHORED to the bubble, out of the layout flow — opening it must NEVER move the
   // bubble (in-flow it widened the container and shoved a docked bubble off-screen). Default:
   // opens above, right-aligned to the bubble; the half-screen flags flip the side.
+  // THE BOT IS THE PANEL'S TOP CORNER (his call). Everything opens DOWNWARD off it — that never
+  // mirrors. Which SIDE does: past the middle of the screen the row opens leftward instead, so a
+  // bot parked on the right still has somewhere to put its panel.
   &__panel-anchor {
     position: absolute;
-    bottom: calc(100% + 10px);
+    top: calc(100% + 10px);
+    left: 0;
+  }
+  &--flipx &__panel-anchor {
+    left: auto;
     right: 0;
   }
-  &--top &__panel-anchor {
-    bottom: auto;
-    top: calc(100% + 10px);
-  }
-  &--left &__panel-anchor {
-    right: auto;
-    left: 0;
+  &--flipx &__tv {
+    left: auto;
+    right: calc(100% + 10px);
   }
 
   // Drag anywhere on the bot — the cursor is the handle: grab on hover, grabbing while dragging.
@@ -127,12 +130,95 @@
     padding: 0 4px;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
   }
+  // RECORD WITHOUT OPENING — the mic beside the name tag on a closed bot. Small and quiet until
+  // it's live, then it's the loudest thing on the bubble so you can't leave it running by accident.
+  &__minimic {
+    position: absolute;
+    top: 46px;
+    left: calc(100% + 48px); // last in the row — 📺 🔗 🎙, mic on the end
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border: 1px solid var(--sv-border);
+    border-radius: 9px;
+    background: color-mix(in srgb, var(--sv-surface) 90%, transparent);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    font-size: 10px;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0.6;
+    &:hover {
+      opacity: 1;
+    }
+    &--on {
+      opacity: 1;
+      border-color: #e05252;
+      box-shadow: 0 0 0 3px rgba(224, 82, 82, 0.22);
+      animation: sv-mic-pulse 1.4s ease-in-out infinite;
+    }
+  }
+  // The collector, reachable from a closed bot — sits just inside the mic so the mic keeps the end.
+  // One row beside the name tag: 📺 🔗 🎙. Permanent — panels close themselves, so the way back
+  // has to be somewhere fixed, and it can't be inside the chat you may not have open.
+  &__minitv {
+    position: absolute;
+    top: 46px;
+    left: calc(100% + 4px);
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border: 1px solid var(--sv-border);
+    border-radius: 9px;
+    background: color-mix(in srgb, var(--sv-surface) 90%, transparent);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    font-size: 10px;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0.6;
+    &:hover {
+      opacity: 1;
+    }
+    &--on {
+      opacity: 1;
+      border-color: var(--sv-blue);
+      box-shadow: 0 0 0 3px rgba(104, 134, 186, 0.22);
+    }
+  }
+  &__minilink {
+    position: absolute;
+    top: 46px;
+    left: calc(100% + 26px);
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border: 1px solid var(--sv-border);
+    border-radius: 9px;
+    background: color-mix(in srgb, var(--sv-surface) 90%, transparent);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    font-size: 10px;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0.6;
+    &:hover {
+      opacity: 1;
+    }
+    &--on {
+      opacity: 1;
+      border-color: var(--sv-blue);
+      box-shadow: 0 0 0 3px rgba(104, 134, 186, 0.22);
+    }
+  }
   // The identity — which bot this is. Several bubbles will coexist; the label tells them apart.
   &__label {
     font-family: "SF Mono", Menlo, monospace;
-    font-size: 8.5px;
-    color: var(--sv-text-faint);
-    background: color-mix(in srgb, var(--sv-surface) 70%, transparent);
+    font-size: 9.5px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    color: var(--sv-text);
+    background: color-mix(in srgb, var(--sv-surface) 90%, transparent);
     backdrop-filter: blur(5px);
     -webkit-backdrop-filter: blur(5px);
     border: 1px solid var(--sv-border);
@@ -169,6 +255,22 @@
       right: auto;
       left: calc(100% + 8px);
     }
+    // NEW MESSAGES, DISPLAYED. Wider and taller than the old teaser because the point is to READ
+    // what came in without going anywhere. Clicking still takes you into the chat — that part was
+    // never the problem.
+    &--thread {
+      width: 300px;
+      max-width: 300px;
+      background: color-mix(in srgb, var(--sv-surface) 94%, transparent);
+      border: 1px solid #4caf50;
+      cursor: pointer; // it takes you into the chat, so it should say so
+      padding: 6px;
+    }
+    // The live transcript while the mic is on — no buttons, it's a readout, not a panel.
+    &--mic {
+      border: 1px solid rgba(224, 82, 82, 0.55);
+      background: color-mix(in srgb, var(--sv-surface) 62%, transparent);
+    }
     .agent-chat__status {
       padding: 0;
       white-space: normal; // long statuses wrap inside the box instead of sticking out of it
@@ -181,7 +283,7 @@
   // DOCKED compact mode — in the dock line the peek hangs BELOW the bot in a slot-width pill,
   // never sideways over the neighbor (his rule). Truncated hard; the click opens the full chat.
   &--docked &__peek {
-    top: calc(100% + 4px);
+    top: calc(100% + 12px); // clear of the name tag, not crowding it
     right: auto;
     left: 50%;
     transform: translateX(-50%);
@@ -190,12 +292,13 @@
     width: 150px;
     max-width: 150px;
     .agent-chat__status {
-      // A long status WRAPS to a second line instead of vanishing behind an ellipsis (his call:
-      // "if it needs to wrap, it can go to two lines") — clamped there so the pill stays a pill.
+      // A long status WRAPS instead of vanishing behind an ellipsis. The pill is only 150px wide,
+      // so two lines is barely a sentence — it read as cut off, which it was. Height costs nothing
+      // here: nothing sits under a docked bot, and the width is what keeps neighbours apart.
       max-width: 100%;
       display: -webkit-box;
-      -webkit-line-clamp: 2;
-      line-clamp: 2;
+      -webkit-line-clamp: 5;
+      line-clamp: 5;
       -webkit-box-orient: vertical;
       overflow: hidden;
       white-space: normal;
@@ -206,8 +309,104 @@
     }
   }
   &--docked &__peek-msg {
-    -webkit-line-clamp: 2;
+    -webkit-line-clamp: 6; // same as the free-floating preview — docking shouldn't cost you the message
     font-size: 11px;
+  }
+  // The reading thread keeps its full width in the line too. The 150px slot pill is for a one-line
+  // cooking status; squeezing a conversation into it is the truncation he was complaining about.
+  &--docked &__peek--thread {
+    width: 300px;
+    max-width: 300px;
+  }
+  // The dictated words: committed solid, still-being-heard faded, so you watch the sentence form.
+  &__mic-text {
+    font-size: 12px;
+    line-height: 1.35;
+    color: var(--sv-text);
+    white-space: pre-wrap;
+    max-height: 128px;
+    overflow-y: auto;
+    i {
+      opacity: 0.5;
+      font-style: italic;
+    }
+  }
+  &__mic-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+    margin-top: 6px;
+  }
+  &__mic-btn {
+    border: 1px solid var(--sv-border);
+    background: var(--sv-surface);
+    color: var(--sv-text);
+    border-radius: 7px;
+    padding: 2px 8px;
+    font-size: 11px;
+    cursor: pointer;
+    &:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+    &--send {
+      background: #4caf50;
+      border-color: #4caf50;
+      color: #fff;
+    }
+  }
+  // The new messages themselves — real rows, chat colours, scrollable. Not a clamped teaser line.
+  &__peek-thread {
+    max-height: 260px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 2px 2px 0;
+  }
+  &__peek-row {
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--sv-text);
+    white-space: pre-wrap;
+    word-break: break-word;
+    border-radius: 8px;
+    padding: 4px 7px;
+    background: var(--sv-surface-soft, rgba(127, 127, 127, 0.1));
+  }
+  // Close it without opening anything. Sits in the corner OVER the messages rather than in a bar
+  // above them — a whole row of chrome for one button is more furniture than the thing it serves.
+  &__peek-x {
+    position: absolute;
+    top: 2px;
+    right: 3px;
+    z-index: 1;
+    border: none;
+    background: transparent;
+    color: var(--sv-text-faint);
+    font-size: 12px;
+    line-height: 1;
+    padding: 2px 4px;
+    cursor: pointer;
+    &:hover {
+      color: var(--sv-text);
+    }
+  }
+  // A command receipt in the minimised display — same reading as in the panel: a line about
+  // something that HAPPENED, not a message someone said.
+  &__peek-cmd {
+    font-family: "SF Mono", Menlo, "Courier New", monospace;
+    font-size: 11px;
+    color: var(--sv-text-muted, #8b93a7);
+    padding: 2px 6px;
+    border-left: 2px solid #9a7cb8;
+    background: color-mix(in srgb, #9a7cb8 8%, transparent);
+    border-radius: 3px;
+    word-break: break-word;
+    &--show {
+      border-left-color: #4a90d9;
+      background: color-mix(in srgb, #4a90d9 8%, transparent);
+    }
   }
   &__peek-msg {
     display: -webkit-box;
@@ -259,6 +458,85 @@
     &:hover {
       background: color-mix(in srgb, #9a7cb8 14%, transparent);
     }
+  }
+
+  // ON AN ERRAND — the bot has travelled to something it's pointing at. The whole bot glides
+  // rather than teleporting, because the TRIP is the point: his example was seeing it navigate to
+  // the stats tab instead of the tab just being there. Only while pointing, so dragging stays
+  // instant and never fights an animation.
+  &--errand {
+    transition:
+      left 0.5s cubic-bezier(0.22, 0.61, 0.36, 1),
+      top 0.5s cubic-bezier(0.22, 0.61, 0.36, 1);
+  }
+
+  // THE DIALOGUE BOX — what the bot is saying about the thing it just travelled to. Its own
+  // element, not the peek: the peek is status and unread replies; this is speech about a target.
+  &__say {
+    position: absolute;
+    top: 50%;
+    right: calc(100% + 10px);
+    transform: translateY(-50%);
+    width: max-content;
+    max-width: 280px;
+    background: #6a74c4;
+    color: #fff;
+    font-size: 12px;
+    line-height: 1.4;
+    border-radius: 11px;
+    border-bottom-right-radius: 3px;
+    padding: 7px 10px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+    animation: sv-status-fade 0.25s ease;
+    // It carries its own ✕ now, so it HAS to take clicks — but only on the ✕ itself; the bubble
+    // body stays transparent to the page underneath.
+    pointer-events: none;
+    padding-right: 26px;
+    z-index: 2;
+
+    &-x {
+      pointer-events: auto;
+      position: absolute;
+      top: 4px;
+      right: 6px;
+      border: none;
+      background: none;
+      padding: 0 2px;
+      cursor: pointer;
+      color: rgba(255, 255, 255, 0.65);
+      font-size: 11px;
+      line-height: 1;
+      &:hover {
+        color: #fff;
+      }
+    }
+
+    // Flipped when the bot is on the left half, same rule the peek follows.
+    &--right {
+      right: auto;
+      left: calc(100% + 10px);
+      border-bottom-right-radius: 11px;
+      border-bottom-left-radius: 3px;
+    }
+  }
+
+  // The animation dial lives in this same menu: a section label, and a tick on the setting that's
+  // on. Animation is the human's dial — the agent says what it means and is never told how loud
+  // that gets — so which one is active has to be legible at a glance.
+  &__ctx-sep {
+    padding: 8px 12px 3px;
+    font-size: 9.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--sv-text-faint);
+    border-top: 1px solid var(--sv-border);
+    margin-top: 4px;
+  }
+
+  &__ctx-item--on::after {
+    content: "✓";
+    margin-left: 8px;
+    opacity: 0.75;
   }
 
   // FULL-BORDER resize — eight invisible zones around the panel/TV; sides drag one axis,
@@ -330,7 +608,7 @@
   &__tv {
     position: absolute;
     top: 0;
-    right: calc(100% + 10px);
+    left: calc(100% + 10px);
     display: flex;
     flex-direction: column;
     background: var(--sv-surface);
@@ -338,10 +616,7 @@
     border-radius: 10px;
     box-shadow: 0 14px 40px rgba(0, 0, 0, 0.22);
   }
-  &--left &__tv {
-    right: auto;
-    left: calc(100% + 10px);
-  }
+
   // THE COLLECTOR — links & shows lens, a side panel in the TV's family.
   &__links-btn {
     font-size: 11px;
@@ -416,6 +691,22 @@
     font-size: 12px;
     flex: none;
   }
+
+  // The header IS the handle — same idea as the bot itself, where the cursor is the only affordance.
+  // `user-select: none` so a drag never paints a text selection across the title.
+  &__tv-head--grab {
+    cursor: grab;
+    user-select: none;
+
+    &:active {
+      cursor: grabbing;
+    }
+
+    // …but the close button is a button, not a handle.
+    button {
+      cursor: pointer;
+    }
+  }
   &__tv-badge {
     font-size: 13px;
   }
@@ -426,6 +717,72 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    // The title IS the picker — but only as wide as the TITLE. Inheriting flex:1 made the button
+    // fill the whole header, so the entire bar answered a click and you had to aim to drag. The
+    // auto margin keeps the ✕ on the end; the empty space between belongs to the header again.
+    &--pick {
+      flex: 0 1 auto;
+      margin-right: auto;
+      max-width: 70%;
+      border: none;
+      background: transparent;
+      font: inherit;
+      text-align: left;
+      cursor: pointer;
+      padding: 0;
+      &:hover {
+        color: var(--sv-blue);
+      }
+    }
+  }
+  &__tv-caret {
+    margin-left: 5px;
+    font-size: 9px;
+    opacity: 0.6;
+  }
+  // The list of shows, hanging under the header like the reports picker.
+  &__tv-picker {
+    max-height: 240px;
+    overflow-y: auto;
+    border-bottom: 1px solid var(--sv-border);
+    background: var(--sv-surface);
+  }
+  &__tv-pick-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+    border: none;
+    background: transparent;
+    color: var(--sv-text);
+    text-align: left;
+    font-size: 12px;
+    padding: 6px 12px;
+    cursor: pointer;
+    &:hover {
+      background: color-mix(in srgb, var(--sv-blue) 12%, transparent);
+    }
+    &.is-on {
+      font-weight: 700;
+      color: var(--sv-blue);
+    }
+  }
+  &__tv-pick-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  &__tv-pick-time {
+    font-size: 10.5px;
+    color: var(--sv-text-faint);
+    white-space: nowrap;
+  }
+  &__tv-pick-empty {
+    padding: 10px 12px;
+    font-size: 12px;
+    color: var(--sv-text-faint);
+    font-style: italic;
   }
   &__tv-body {
     flex: 1;
@@ -448,6 +805,27 @@
     border-radius: 10px;
     box-shadow: 0 14px 40px rgba(0, 0, 0, 0.22);
     overflow: hidden;
+  }
+  // The dock line made visible, only while something is being dragged.
+  &__dockline {
+    position: fixed;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: rgba(76, 175, 80, 0.9);
+    pointer-events: none;
+    z-index: 8499;
+  }
+  // Where each bot will land if you drop it on the line — the dock math, drawn.
+  &__dockslot {
+    position: fixed;
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    background: rgba(76, 175, 80, 0.16);
+    border: 1px solid rgba(76, 175, 80, 0.5);
+    pointer-events: none;
+    z-index: 8499;
   }
   &__head {
     display: flex;
@@ -638,7 +1016,12 @@
     // HIS colors, per mode: the lavender wash reads on LIGHT bubbles, the translucent ink is
     // right on DARK — so light is the default and `.sv-dark` hands the ink back.
     .chat-md__code {
-      background: rgba(216, 219, 255, 0.32); // #d8dbff52 — as rgba because the build drops 8-digit hex
+      background: rgba(
+        216,
+        219,
+        255,
+        0.32
+      ); // #d8dbff52 — as rgba because the build drops 8-digit hex
       border: 1px solid var(--md-line);
       border-radius: 4px;
       padding: 0 3px;
@@ -650,7 +1033,12 @@
       display: block;
       margin: 4px 0;
       padding: 6px 8px;
-      background: rgba(216, 219, 255, 0.32); // #d8dbff52 — as rgba because the build drops 8-digit hex
+      background: rgba(
+        216,
+        219,
+        255,
+        0.32
+      ); // #d8dbff52 — as rgba because the build drops 8-digit hex
       border: 1px solid var(--md-line);
       border-radius: 6px;
       font-family: "SF Mono", Menlo, Consolas, monospace;
@@ -867,6 +1255,15 @@
       0 0 0 4px color-mix(in srgb, #e2a03f 22%, transparent);
   }
 }
+@keyframes sv-mic-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 3px rgba(224, 82, 82, 0.22);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(224, 82, 82, 0.08);
+  }
+}
 @keyframes sv-status-fade {
   from {
     opacity: 0;
@@ -971,6 +1368,30 @@
   &__cmd--live {
     border-left-color: #4caf50;
     background: color-mix(in srgb, #4caf50 10%, transparent);
+  }
+  // A receipt you can press. It has to still READ as a receipt — same size, same muted colour —
+  // so the thread doesn't turn into a row of buttons; the ↻ only shows up under the cursor.
+  &__cmd--replay {
+    cursor: pointer;
+    border: none;
+    border-left: 2px solid #9a7cb8;
+    text-align: left;
+    font: inherit;
+    font-family: "SF Mono", Menlo, "Courier New", monospace;
+    font-size: 11px;
+    &:hover {
+      background: color-mix(in srgb, #9a7cb8 18%, transparent);
+      color: var(--sv-text);
+    }
+    &:hover .agent-chat__cmd-replay {
+      opacity: 1;
+    }
+  }
+  &__cmd-replay {
+    margin-left: 6px;
+    opacity: 0;
+    color: #9a7cb8;
+    transition: opacity 0.12s ease;
   }
   // The icon IS the button — no wrapper, no background. Send and mic share the SAME box
   // (height/padding/margin) so their tops actually line up next to the growing input.
@@ -1078,6 +1499,47 @@
     }
   }
   // The one-hit dock-all row sits above the per-bot rows, separated by a hairline.
+  // The animation dial — a section label and three small buttons, in the hub rather than in one
+  // bot's menu, because it is a property of every agent on the screen.
+  &__sep {
+    padding: 8px 12px 3px;
+    font-size: 9.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--sv-text-faint);
+    border-top: 1px solid var(--sv-border);
+    margin-top: 4px;
+  }
+
+  &__modes {
+    display: flex;
+    gap: 5px;
+    padding: 0 12px 8px;
+  }
+
+  &__mode {
+    flex: 1;
+    border: 1px solid var(--sv-border);
+    background: none;
+    border-radius: 7px;
+    padding: 4px 0;
+    font-size: 11px;
+    color: var(--sv-text-faint);
+    cursor: pointer;
+    text-transform: capitalize;
+
+    &:hover {
+      border-color: #9a7cb8;
+      color: var(--sv-text);
+    }
+
+    &--on {
+      background: #6a74c4;
+      border-color: #6a74c4;
+      color: #fff;
+    }
+  }
+
   &__row--dock-all {
     border-bottom: 1px solid var(--sv-border);
     border-radius: 6px 6px 0 0;

@@ -344,6 +344,37 @@ $bad: #c62828;
     padding: 3px 0;
     box-shadow: 0 3px 8px rgba(31, 36, 48, 0.1);
   }
+  // IN / OUT. Its height is a CONSTANT the edge math also uses (TAB_H) — every method row anchor
+  // sits below it, so anything that changes this box's height moves the arrows off their rows.
+  &__tabs {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0 10px 3px;
+    border-bottom: 1px dashed var(--sv-border-soft);
+  }
+  &__tab {
+    flex: 1;
+    border: 1px solid var(--sv-border);
+    background: transparent;
+    color: var(--sv-text-muted);
+    border-radius: 6px;
+    padding: 1px 0;
+    font-size: 10px;
+    font-weight: 700;
+    font-family: "SF Mono", Menlo, monospace;
+    cursor: pointer;
+    &:hover {
+      color: var(--sv-text);
+    }
+    &.is-on {
+      background: var(--sv-blue);
+      border-color: var(--sv-blue);
+      color: #fff;
+    }
+  }
   &__mrow {
     display: flex;
     align-items: center;

@@ -9,7 +9,11 @@ import { useMarkdownScope } from "../context";
 // cli/stage.js — `path#L40-70`, `path#L40`, `path:40-70`. One syntax, two consumers.
 export function parseFileSpec(value) {
   const s = String(value || "");
-  const m = s.match(/#L(\d+)(?:-(\d+))?$/i) || s.match(/:(\d+)(?:-(\d+))?$/);
+  // `#L101-L125` IS A RANGE. It only accepted `#L101-125`, so the L on the second number made the
+  // whole pattern miss — and a miss means the range stays glued to the path and gets handed to the
+  // filesystem, which then reports ENOENT on a filename with "#L101-L125" in it. The right root,
+  // the right host, and a path nobody could ever open. Both spellings, both separators.
+  const m = s.match(/#L(\d+)(?:-L?(\d+))?$/i) || s.match(/:(\d+)(?:-(\d+))?$/);
   if (m) {
     const a = parseInt(m[1], 10);
     const b = m[2] ? parseInt(m[2], 10) : a;
@@ -43,10 +47,12 @@ const FileLink = ({ label, attrs = {} }) => {
     );
   const projectCode = attrs.project || scope.projectCode;
   const inProject = connectedServices.filter((s) => s.projectCode === projectCode && hasPlugin(s));
+  // Same rule as the embeds: a chip belonging to a project resolves against THAT project or not at
+  // all. Borrowing another project's file host made a chip point into the wrong repo.
   const host =
     inProject.find((s) => s.serviceId === (attrs.service || scope.serviceId)) ||
     inProject[0] ||
-    connectedServices.find(hasPlugin) ||
+    (projectCode ? null : connectedServices.find(hasPlugin)) ||
     null;
 
   const range = lines ? `:${lines[0]}${lines[1] !== lines[0] ? `-${lines[1]}` : ""}` : "";

@@ -91,7 +91,8 @@ const SystemViewPage = () => {
       if (detail.serviceId) p.set("fsvc", detail.serviceId);
       if (detail.language) p.set("flang", detail.language);
       if (detail.lines && detail.lines[0]) p.set("flines", detail.lines.join("-"));
-      else p.delete("flines");
+      else if (p.get("file") !== detail.path) p.delete("flines"); // a DIFFERENT file drops the range
+      // …same file, no lines given: leave whatever range is already there alone.
       history.push({ pathname: window.location.pathname, search: p.toString() });
     },
     [history, navTab, closeFile],
@@ -125,9 +126,22 @@ const SystemViewPage = () => {
 
   // RFC-029 `act` — a watchable run needs the scratchpad VISIBLE; the executor asks for it.
   useEffect(() => {
+    // POINTING AT A CLOSED PANEL OPENS IT (his correction: "it didn't correctly do nothing — it was
+    // supposed to open it"). Silence was the right answer for something that doesn't exist; a panel
+    // that's merely collapsed is a different case, and the agent naming it is reason enough to show
+    // it. The pointer retries once the panel is up.
+    const onOpenRegion = (e) => {
+      const r = ((e && e.detail) || {}).region;
+      if (r === "nav") setNavOpen(true);
+      else if (r === "scratchpad" || r === "tests") setScratchOpen(true);
+    };
+    window.addEventListener("sv:openRegion", onOpenRegion);
     const onOpenScratch = () => setScratchOpen(true);
     window.addEventListener("sv:openScratchpad", onOpenScratch);
-    return () => window.removeEventListener("sv:openScratchpad", onOpenScratch);
+    return () => {
+      window.removeEventListener("sv:openRegion", onOpenRegion);
+      window.removeEventListener("sv:openScratchpad", onOpenScratch);
+    };
   }, []);
 
   // HELP rides the URL as `?help=<topic>` (RFC-026). Opening a topic PUSHES — every topic is a
@@ -233,11 +247,12 @@ const SystemViewPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return (
-    <section className="system-viewer">
+    <section className="system-viewer" data-sv="page">
       <PageHeader projectCode={projectCode} current="specs" />
       <div className="row" ref={rowRef}>
         {/* Left navigator — collapses into the LEFT corner (its handle sits by "Load Service"). */}
         <div
+          data-sv="nav"
           className={`nav-panel ${navOpen ? "col-3 nav-panel--open" : "nav-panel--collapsed"}`}
           style={navOpen ? { flex: `0 0 ${navW}%`, maxWidth: `${navW}%` } : undefined}
         >
@@ -283,6 +298,7 @@ const SystemViewPage = () => {
         {/* Middle fills whatever the two side panels give back. Margin only when a side is collapsed,
             so its corner tab doesn't hover over the center. */}
         <div
+          data-sv="center"
           className={`center-panel col-${12 - (navOpen ? 3 : 0) - (scratchOpen ? 3 : 0)} ${!navOpen ? "center-panel--nav-collapsed" : ""} ${!scratchOpen ? "center-panel--scratch-collapsed" : ""}`}
           style={{ flex: "1 1 0%", maxWidth: "none", width: "auto", minWidth: 0 }}
         >
@@ -308,6 +324,7 @@ const SystemViewPage = () => {
 
         {/* Right scratchpad — collapses into the RIGHT corner (its handle sits by "Scratch Pad"). */}
         <div
+          data-sv="scratchpad"
           className={`scratchpad ${scratchOpen ? "col-3 scratchpad--open" : "scratchpad--collapsed"}`}
           style={scratchOpen ? { flex: `0 0 ${scratchW}%`, maxWidth: `${scratchW}%` } : undefined}
         >

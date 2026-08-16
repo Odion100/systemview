@@ -51,7 +51,17 @@ module.exports = {
     const allDrained = [...(home.messages || []), ...(visitor.messages || [])];
     const homeTexts = (home.messages || []).map((m) => m.text);
     const visitorTexts = (visitor.messages || []).map((m) => m.text);
+    // A DRAIN IS AN ARRIVAL (his rule, 2026-08-11): getting a handle on a room is entering it, so
+    // the room says so even when the visitor never speaks. Before this, a file-mode agent could read
+    // the whole room and the first thing he saw was its message. The arrival must still wake nobody.
+    const arrivals = allDrained.filter((m) => m.kind === "system");
+    const roomAll = await SystemView.chatHistory(pc, chat, 0);
+    const visitorArrival = roomAll.some(
+      (m) => m.kind === "system" && m.event === "joined" && m.who === "systemview-logtest",
+    );
     return {
+      drainAnnouncesArrival: visitorArrival,
+      arrivalWakesNobody: arrivals.length === 0,
       homeHearsHuman: homeTexts.includes(`human ${stamp}`),
       homeNeverHearsItself: !homeTexts.includes(`home ${stamp}`),
       homeHearsVisitor: homeTexts.includes(`visitor ${stamp}`),
@@ -98,6 +108,18 @@ module.exports = {
     // writing into the same room.
     const rooms = await Chat.chatList();
 
+    // CLEAN UP AFTER YOURSELF. Every run of this test used to leave a `plugin-room-<ts>` pair on
+    // disk forever — a dozen runs and the chats directory is unreadable, which is exactly how he
+    // found it ("I'm over here looking at all these saved files over and over"). A test that
+    // creates a room owns deleting it.
+    try {
+      const dir = (await Chat.chatDir()).dir;
+      const fs = require("fs");
+      const path = require("path");
+      fs.unlinkSync(path.join(dir, `${pc}.${chat}.jsonl`));
+      try { fs.unlinkSync(path.join(dir, `${pc}.${chat}.ack.json`)); } catch {}
+    } catch {}
+
     return {
       moduleReachable: true,
       startsEmpty: before.count === 0,
@@ -143,7 +165,16 @@ module.exports = {
     if (!other) return { peerServesChat: false };
     const room = `flushtest-${stamp}`;
     const hubFile = write("BUApp", room, [rec(1), rec(2)]);
+    // THE CURSORS MUST SURVIVE THE HANDOVER. Retiring them alongside the room looked tidy and was
+    // data loss: the hub still keys every drain cursor to its own directory, so a retired ack file
+    // is a DELETED cursor, and an empty cursor replays the whole room at the next drain. It hit
+    // systemlynx live — 58 records re-served, a full replay of old instructions that reads exactly
+    // like new ones. Cursors are timestamps, not file offsets, so the move never invalidated them.
+    const ackPath = path.join(hubDir, `BUApp.${room}.ack.json`);
+    fs.writeFileSync(ackPath, JSON.stringify({ hooks: stamp }, null, 2));
     const flushed = await SystemView.chatFlush("BUApp");
+    const ackSurvived =
+      fs.existsSync(ackPath) && JSON.parse(fs.readFileSync(ackPath, "utf8")).hooks === stamp;
     const peer = await createClient().loadService(other.system.connectionData.serviceUrl);
     const landed = await peer.SystemViewChat.chatRead({ chat: room });
     const peerDir = (await peer.SystemViewChat.chatDir()).dir;
@@ -162,10 +193,13 @@ module.exports = {
     // Scratch rooms on both sides go away — a test must not leave rooms behind.
     try { fs.unlinkSync(`${hubFile}.flushed`); } catch {}
     try { fs.unlinkSync(ownFile); } catch {}
+    try { fs.unlinkSync(ackPath); } catch {}
     try { fs.unlinkSync(path.join(peerDir, `BUApp.${room}.jsonl`)); } catch {}
 
     return {
       peerServesChat: true,
+      // The handover moves the ROOM and nothing else — an untouched cursor means no replay.
+      cursorsSurviveFlush: ackSurvived,
       // Records the hub buffered are now in the PROJECT's room, intact and in order.
       recordsCrossed: landed.length === 2 && landed[0].text === "flush 1" && landed[1].text === "flush 2",
       movedCountReported: flushed.moved === 2,
@@ -174,6 +208,59 @@ module.exports = {
       // The guard: hub dir === project dir, so nothing moves and nothing is renamed.
       sameDirRefused: guarded.moved === 0,
       ownRoomUntouched: ownFileIntact && ownFileNotRetired,
+    };
+  },
+  // THE TV READ-BACK (2026-08-10) — `chatGetTv` used to return the stored click-state and nothing
+  // else. State is only written when the human CLICKS, so an agent that pushed a new show and read
+  // it back got the PREVIOUS one, unchanged timestamp and all (found live by systemlynx). The
+  // co-editing rule is read-before-write, so a stale read means an agent merges onto old text and
+  // silently wipes his edit. The current show must always win.
+  async chatTvReadsCurrent() {
+    const SystemView = await hub();
+    const pc = "systemview-test";
+    const chat = `tv-${Date.now()}`; // its own room per run — never touches the real TV
+    const stamp = Date.now();
+
+    // A REAL mark, not a made-up sentinel. "Has he answered this?" is now read off the text itself
+    // (`answer=` / `verdict=` / a `:::reply{author=you`), which is what the UI actually writes — so
+    // a fixture that invents its own marker would pass while proving nothing about real answers.
+    const pushed = `# one ${stamp}\n\n::question[Pick]{id=q options="a|b"}`;
+    const answered = `# one ${stamp}\n\n::question[Pick]{id=q options="a|b" answer=a}`;
+
+    const empty = await SystemView.chatGetTv(pc, { chat });
+    await SystemView.chatCommand(pc, { chat, cmd: "show", args: { text: pushed }, label: `board ${stamp}` });
+    const afterFirst = await SystemView.chatGetTv(pc, { chat });
+
+    // He clicks an answer — it is written into the report's own record, and the read reflects it.
+    await SystemView.chatSetTv(pc, {
+      chat,
+      state: { id: afterFirst.id, label: afterFirst.label, text: answered },
+    });
+    const afterClick = await SystemView.chatGetTv(pc, { chat });
+
+    // The agent re-pushes an edit of the SAME board. The new text must win over his old answers,
+    // and he must be TOLD his answers were on the previous version rather than silently losing them.
+    await SystemView.chatCommand(pc, { chat, cmd: "show", args: { text: `# two ${stamp}` }, label: `board ${stamp}` });
+    const afterRepush = await SystemView.chatGetTv(pc, { chat });
+
+    // Same rule — this test's scratch room and its TV state go away with it.
+    try {
+      const fs = require("fs");
+      const path = require("path");
+      const dir = path.join(process.cwd(), ".systemview", "chats");
+      for (const suffix of [".jsonl", ".ack.json", ".tv.json"]) {
+        try { fs.unlinkSync(path.join(dir, `${pc}.${chat}${suffix}`)); } catch {}
+      }
+    } catch {}
+
+    return {
+      startsEmpty: empty === null,
+      readsPushedShow: !!afterFirst && afterFirst.text === pushed && afterFirst.pristine === true,
+      // His answer is IN the record now — no second copy of the text anywhere.
+      clickedCopyWins: !!afterClick && /answer=a/.test(afterClick.text) && !afterClick.pristine,
+      // The actual bug: this used to come back as the CLICKED version of the OLD text.
+      repushWinsOverStaleState: !!afterRepush && afterRepush.text === `# two ${stamp}`,
+      supersededAnswersFlagged: !!afterRepush && afterRepush.supersededAnswers === true,
     };
   },
   // THE SPEAKING GATE (2026-08-09) — reading a room is open, speaking into one is not. Two silent

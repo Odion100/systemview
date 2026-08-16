@@ -78,7 +78,9 @@ Blocks that take input write back **into the markdown** — there is no second s
 
 ```markdown
 - [ ] a task list that saves when you tick it
+:ui[scratchpad]                             a REGION of the window — clicking points at it
 ::question[Which approach?]{options=a|b}     answer=… is written into the block
+::question[Which?]{options="close the hole|show who is caught up"}   ← QUOTE multi-word values
                                              QUOTE values containing spaces: {options="plan a|plan b"}
                                              — an unquoted space kills the whole directive SILENTLY
                                              (it renders as literal text, same trap as {Math.chainUse})
@@ -175,8 +177,20 @@ and a member going quiet drops out of the window.
 
 ## Rendering rules worth knowing before you write a document
 
+- **A reference POINTS, and the pointing is not saved.** Clicking `:ns[…]`, `:file[…]` or `:ui[…]`
+  reveals the thing and draws a box on it for a moment. That highlight lives in the UI only — it
+  never edits the document and it's gone on refresh. Answers, verdicts and replies are decisions and
+  do get written in; pointing is a gesture and never does. Don't reach for a block to "highlight"
+  something permanently — there isn't one, on purpose.
+- **Give a block an `id` when you might point at it.** `::question{id=pick}` can be targeted; an
+  anonymous block among three of the same kind cannot be told apart.
 - **Colon count**: a container nests by giving the OUTER block one more colon (`::::tabs` around
   `:::tab`).
+- **QUOTE any attribute value containing a space** — `{options="close the hole|show who is caught up"}`,
+  not `{options=close the hole|…}`. This is the sharpest trap in the whole syntax: an unquoted space
+  does not merely drop that attribute, it makes the **entire directive fail to parse**, so the block
+  renders as raw text in the middle of your document and looks like the feature is broken. Caught
+  live — a question with multi-word options came out as literal `::question[…]` on the TV.
 - A `\`\`\`markdown` fence renders verbatim, so showing source and the rendered result side by side
   is safe.
 - Blocks nest freely — a chart inside a slide inside a tab inside a thread is fine.

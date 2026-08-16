@@ -71,7 +71,7 @@ module.exports = async function probe(namespace, argsStr, { json = false, manife
   // Fuzzy-match nsInput against every Service.Module.method in the (project-scoped) pool, KEEPING the
   // matched service so we can call it. Must resolve to exactly one method — ambiguity is reported, not guessed.
   const pool = scope ? candidates.filter((s) => nsEquals(s.projectCode, scope)) : candidates;
-  const hits = [];
+  let hits = [];
   for (const svc of pool) {
     const modules = (svc.system && svc.system.connectionData && svc.system.connectionData.modules) || [];
     for (const { name: mod, methods = [] } of modules) {
@@ -81,6 +81,19 @@ module.exports = async function probe(namespace, argsStr, { json = false, manife
         }
       }
     }
+  }
+
+  // EXACT BEATS SUBSTRING. The match is a substring test, so `Test.Plugin.readFile` also "matched"
+  // `Test.Plugin.readFileRaw` and asking for a method by its own full name came back ambiguous
+  // against its longer sibling — with no spelling that could get you out of it. When something
+  // matches exactly, the fuzzy neighbours aren't candidates at all.
+  if (hits.length > 1) {
+    const want = String(nsInput);
+    const exact = hits.filter((h) => {
+      const full = `${h.serviceId}.${h.moduleName}.${h.methodName}`;
+      return nsEquals(full, want) || nsEquals(full.slice(-(want.length + 1)), `.${want}`);
+    });
+    if (exact.length) hits = exact;
   }
 
   if (hits.length === 0) {

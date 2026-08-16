@@ -238,6 +238,9 @@ async function loadCaseSetting() {
       uiUrl: UI_URL, Client, chat: flags.chat, agent: flags.as, once: flags.once,
       report: flags.report, file: flags.file && flags.file[0], tab: flags.tab, topic: flags.topic,
       range: flags.range, service: flags.service,
+      // --say "…" — the sentence the agent wants said while the window moves (RFC-030). Optional on
+      // every command; without it the trip is silent apart from the generated label.
+      say: flags.say && flags.say[0],
     };
     let exitCode = 0;
     if (command === "join") exitCode = await chatCmd.join(input[1], opts);
@@ -247,7 +250,10 @@ async function loadCaseSetting() {
     else if (command === "highlight") exitCode = await chatCmd.highlight(input[1], input[2], opts);
     else if (command === "show")
       exitCode = await chatCmd.show(input[1], { ...opts, text: flags.text && flags.text[0], clear: flags.clear });
-    else if (command === "tv") exitCode = await chatCmd.tv(input[1], { ...opts, json: flags.json });
+    // `--show <title>` reads an OLDER report's answers — every report stays reachable from the
+    // links panel, so a decision made two reports ago must still be collectable.
+    else if (command === "tv")
+      exitCode = await chatCmd.tv(input[1], { ...opts, json: flags.json, show: flags.show || input[2] });
     else if (command === "refresh") exitCode = await chatCmd.refresh(input[1], input[2], opts);
     else if (command === "act") exitCode = await chatCmd.act(input[1], input[2], input[3], opts);
     else exitCode = await chatCmd.inbox(input[1], { ...opts, json: true });

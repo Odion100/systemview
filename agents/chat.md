@@ -172,6 +172,68 @@ systemview show <pc> --file scratch/demo.md         # a file's content onto the 
 systemview show <pc> --clear                        # blank the TV
 ```
 
+**`--say "…"` works on every one of these, and you should use it.** The window animates what you
+do — the bot walks to whatever the command pointed at and stands there. `--say` is what it says
+while it stands there, in a dialogue box beside it:
+
+```bash
+systemview nav <pc> center --file api/Chats.js#L320-334 --say "this is the guard that stopped a flush eating your room"
+systemview highlight <pc> Math.add --say "the one that has been failing since Tuesday"
+```
+
+Without it the trip is silent apart from a generated receipt ("pulled up api/Chats.js#L320-334"),
+which says WHAT happened and never WHY. The command already moves their window; one sentence is
+the difference between the window moving and you showing them something.
+
+### "Show me…" is a command
+
+When the human asks to be shown something — lines in a document, a passage in a report, a function
+in a file — **send the command.** They are looking at the window, so put it on the window; a path in
+the chat leaves them to go and find it themselves.
+
+```bash
+systemview nav <pc> center --report "Chat belongs to the project#L46-51" --say "this table is the whole argument"
+systemview nav <pc> center --file api/Chats.js#L320-334 --say "the guard that stopped a flush eating your room"
+```
+
+`#L<a>-<b>` works on **both**. In a file it is the lines. In a rendered report or markdown document
+it is still the source lines — every block carries the range it came from, so the range lands on
+whatever block it covers: a table, a code fence, a heading, a paragraph. It works while they are
+only READING the document; nothing has to be in edit mode.
+
+**You can drive any room you are in** — that is what collaborating in the hub means. Address the
+command to the project that OWNS the thing and speak as yourself:
+
+```bash
+systemview join buAPI --once --as <yourProjectCode>     # enter first, as always
+systemview nav buAPI center --file Media/Broadcasts/methods.js#L285-298 \
+  --say "from <yourProjectCode> — the part I wanted you to see"
+```
+
+The thing to get right is WHICH room, not whether you are allowed: a name is resolved inside the
+project you addressed, so buAPI's report opens from a buAPI command. Aim it at your own room and it
+looks for a report you do not have.
+
+### What they actually see when you send one
+
+Your bot **walks across their screen** to whatever the command named, stands next to it, and says
+your `--say` line in a dialogue box. It stays there until they close it with the ✕ — not on a timer,
+and clicking, typing and scrolling all leave it standing, so they can work while it's pointing.
+
+You never write any of that. You name a thing; the UI owns where it is, how the bot gets there, and
+what it looks like. Three consequences worth holding on to:
+
+- **You send WHAT; the UI decides WHERE.** There is no vocabulary for coordinates or timings, by
+  design — the same command has to animate correctly at any window size.
+- **A thing that isn't on screen gets no gesture at all** — silence, not a box around nowhere. If it
+  matters that they see it, navigate to it rather than hoping.
+- **You are never told which animation mode they're on.** It's their dial (off · subtle · full), in
+  the agent hub icon's options. Write the same way regardless.
+
+You can also point by **mentioning** something in an ordinary message — `:file[path#L10-20]`,
+`:ns[Math.add]`, `:ui[nav]`. The bot walks the things you named, in the order you named them, as the
+message lands. Up to three per message; a paragraph naming eight things is not a slideshow.
+
 - **Highlight and navigate are DIFFERENT commands** (his rule). Highlight points — use it for
   "look at this"; nav selects — use it for "go here". Don't conflate them.
 - **Namespaces are VALIDATED against the live tree** before anything moves: fuzzy suffix
@@ -282,6 +344,44 @@ systemview say <otherProject> "<text>" --as <yourProject>  # speak there, under 
 - **Version note**: HEARING a visitor needs nothing (delivery is hub-side), but SPEAKING as one
   needs systemview ≥ 2.23.0 (`say --as` pass-through). If your bubbles show unlabeled in a room
   that isn't yours, update your CLI.
+
+## Pointing at things — references in your sentence
+
+The window animates. You do **not** author the animation: you say WHAT you mean and the UI decides
+where that is and how it moves. Two ways it happens, and you only have to think about the second.
+
+**1 · Passive — free, you already do it.** Every command you send already carries intent, so the UI
+animates it: `nav … stats` walks there instead of snapping, `highlight <ns>` boxes the node,
+`act test` sits on the test while it runs, `show` taps the TV. Nothing to learn, nothing to send.
+
+**2 · Deliberate — put a reference in your sentence.** A reference in a message points at the thing:
+
+```bash
+systemview say <pc> "the guard is :file[api/Chats.js#L40-60] — it asks the owner instead of guessing"
+systemview say <pc> "run :ns[Math.add] and watch the second assertion"
+systemview say <pc> "your saved tests live in :ui[scratchpad], the tree is :ui[nav]"
+```
+
+| reference | points at |
+| --- | --- |
+| `:file[path]` / `:file[path#L40-60]` | a file, or those lines |
+| `:ns[Service.Module.method]` | a node in the tree (fuzzy — `add` works) |
+| `:report[.systemview/report.…md]` | a document |
+| `:ui[<region>]` | a REGION of the window — `nav` `center` `scratchpad` `story` `stage` `tv` `links` `chat` `bot` `reports` `docs` `code` `logs` `tests` `header` |
+
+`:ui[…]` is how you teach the layout without a tour: *"this is :ui[nav], your tests are in
+:ui[scratchpad]"* is an ordinary sentence that lights each one up as it's read.
+
+Rules that matter:
+
+- **Never send coordinates.** There is no way to, deliberately. You name a thing; where it is on
+  screen is not your business and changes with every window size.
+- **Pointing is a gesture, not a decision.** It is drawn in the UI, never written to the document,
+  and it is gone on refresh. Your answers and verdicts persist; your pointing does not.
+- **Off-screen means no gesture.** A reference to something not visible does nothing rather than
+  drawing a box around nowhere. That is correct — don't compensate for it.
+- **The human owns the volume.** Animation is off / subtle / full per project, set in the bot's
+  right-click menu, and you are never told which is on. Write the same way regardless.
 
 ## Rules
 

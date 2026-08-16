@@ -70,14 +70,54 @@ const ReportsTab = ({ projectCode, serviceId, moduleName, methodName, openName, 
     };
   }, [Plugin]);
 
-  const mine = (index && index[nsKey]) || [];
+  // THE FOLDER IS THE TRUTH; THE INDEX IS JUST A LIST. A report written straight to disk — by an
+  // agent, by hand — opened fine from a link but could not be CHOSEN, because the picker only ever
+  // showed what the index knew about (his catch: buAPI linked him a report he then couldn't find in
+  // the options). Anything named like a report of this namespace shows up now, registered or not.
+  const [found, setFound] = useState([]);
+  const svcIds = useMemo(
+    () => connectedServices.filter((s) => s.projectCode === projectCode).map((s) => s.serviceId),
+    [connectedServices, projectCode]
+  );
+  useEffect(() => {
+    let dead = false;
+    (async () => {
+      if (!Plugin) return setFound([]);
+      const prefix = `.systemview/report.${slug(nsKey)}.`;
+      try {
+        const res = await Plugin.listFiles({ glob: `${prefix}*.md` });
+        const hits = ((res && (res.files || res)) || [])
+          .map((f) => ({ path: (f && f.path) || f, ts: (f && (f.mtime || f.ts)) || 0 }))
+          .filter((f) => f.path && f.path.startsWith(prefix) && /\.md$/i.test(f.path))
+          .map((f) => ({ ...f, name: f.path.slice(prefix.length).replace(/\.md$/i, "") }))
+          // A deeper namespace's reports live under the same prefix (`report.buAPI.Profiles.x.md`
+          // starts with `report.buAPI.`) — they belong to that namespace's picker, not this one.
+          .filter((e) => !svcIds.some((id) => id && e.name.startsWith(`${id}.`)));
+        if (!dead) setFound(hits);
+      } catch {
+        if (!dead) setFound([]); // no file access is the old behaviour, not an error
+      }
+    })();
+    return () => {
+      dead = true;
+    };
+  }, [Plugin, nsKey, svcIds]);
+
+  // Removing a report drops it from the list without destroying the writing — so the discovered
+  // list has to remember what you dropped, or the scan would just put it straight back.
+  const hidden = useMemo(() => new Set(((index && index.__hidden) || [])), [index]);
+  const mine = useMemo(() => {
+    const listed = (index && index[nsKey]) || [];
+    const known = new Set(listed.map((r) => r.path));
+    return [...listed, ...found.filter((f) => !known.has(f.path) && !hidden.has(f.path))];
+  }, [index, nsKey, found, hidden]);
 
   // READ-MODIFY-WRITE, never blind write. The index holds EVERY namespace's reports, so writing the
   // copy this component loaded on mount would erase anything another tab (or another window, or an
   // agent) added since — one stale write and someone's reports vanish from the list. Only the
   // namespace being edited is replaced; everything else is carried over from what's on disk now.
   const saveIndex = useCallback(
-    async (nsList) => {
+    async (nsList, hide) => {
       let onDisk = {};
       try {
         const res = await Plugin.readFile({ path: INDEX });
@@ -86,6 +126,7 @@ const ReportsTab = ({ projectCode, serviceId, moduleName, methodName, openName, 
         onDisk = {};
       }
       const next = { ...onDisk };
+      if (hide) next.__hidden = [...new Set([...(onDisk.__hidden || []), hide])];
       if (nsList && nsList.length) next[nsKey] = nsList;
       else delete next[nsKey];
       setIndex(next);
@@ -104,10 +145,12 @@ const ReportsTab = ({ projectCode, serviceId, moduleName, methodName, openName, 
       try {
         const data = await Plugin.readFile({ path: entry.path });
         setDoc({ ...entry, content: data.content || "" });
-      } catch {
-        // The index knows about it but the file is gone — show it as empty rather than an error the
-        // reader can't act on.
-        setDoc({ ...entry, content: "" });
+      } catch (e) {
+        // AN UNREADABLE REPORT MUST NOT LOOK LIKE AN EMPTY ONE. This used to fall back to blank
+        // content, so a wrong path — a report from another project, a typo in a command, a deleted
+        // file — opened a document with the right-looking title and nothing in it, and there was no
+        // way to tell that from a report someone genuinely hadn't written yet.
+        setDoc({ ...entry, content: "", failed: (e && (e.message || String(e))) || "could not be read" });
       }
     },
     [Plugin]
@@ -211,7 +254,7 @@ const ReportsTab = ({ projectCode, serviceId, moduleName, methodName, openName, 
   };
 
   const remove = async (entry) => {
-    await saveIndex(mine.filter((r) => r.name !== entry.name));
+    await saveIndex(mine.filter((r) => r.name !== entry.name), entry.path);
     if (doc && doc.name === entry.name) close();
     // The .md itself is left on disk — dropping it from the list is not the same as destroying the
     // writing, and `.systemview` is ignored anyway.
@@ -416,7 +459,17 @@ const ReportsTab = ({ projectCode, serviceId, moduleName, methodName, openName, 
         </div>
       ) : null}
       <div className="reports-tab__body">
-        {doc && editing ? (
+        {doc && doc.failed && !editing ? (
+          // Say what went wrong and name the path. A blank page here sent him hunting for a report
+          // that was never there — the command had simply asked for a path this project can't read.
+          <div className="reports-tab__failed">
+            <b>Couldn't read this report.</b>
+            <div className="reports-tab__failed-path">{doc.path}</div>
+            <div className="reports-tab__failed-why">
+              {nsLabel ? `${nsLabel} ` : ""}has no such file — check the path, or the project it belongs to.
+            </div>
+          </div>
+        ) : doc && editing ? (
           <div className={`md-view md-view--${editorDark ? "dark" : "light"}`}>
             <div className="edit-box edit-box--edit">
               <DescriptionBox text={draft} setValue={setDraft} dark={editorDark} />

@@ -34,6 +34,12 @@
             "save": true
           },
           {
+            "namespace": "results.cursorsSurviveFlush",
+            "expected_type": "boolean",
+            "validations": [{ "name": "boolEquals", "value": true }],
+            "save": true
+          },
+          {
             "namespace": "results.sameDirRefused",
             "expected_type": "boolean",
             "validations": [{ "name": "boolEquals", "value": true }],
