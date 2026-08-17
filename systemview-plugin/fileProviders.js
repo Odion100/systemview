@@ -685,7 +685,36 @@ function createFileProviders(rootDir) {
     return { path: relFromRoot(abs), gone: true };
   }
 
-  return { readFile, readFileRaw, listFiles, changedFiles, stageFiles, stageHunk, discardFiles, gitState, commit, push, search, getSource, getDiff, writeFile, deleteFile, fileHistory, readSnapshot, snapshot, languageOf, safeResolve };
+  // MOVE / RENAME. A real rename, not read-write-delete: that would mangle a binary and lose the
+  // file's identity (git detects a rename by content, and the inode/permissions survive this way).
+  // REFUSES TO OVERWRITE — a move that silently ate an existing file would be the one mistake you
+  // can't see happening. The source is snapshotted first, so the history ring can bring it back.
+  function moveFile({ from, to } = {}) {
+    if (!from || !to) throw new Error("moveFile: `from` and `to` are required");
+    const src = safeResolve(from);
+    const dst = safeResolve(to);
+    if (!fs.existsSync(src)) throw new Error(`moveFile: ${relFromRoot(src)} does not exist`);
+    if (fs.existsSync(dst)) throw new Error(`${relFromRoot(dst)} already exists`);
+    snapshot(src);
+    fs.mkdirSync(path.dirname(dst), { recursive: true });
+    fs.renameSync(src, dst);
+    return { from: relFromRoot(src), to: relFromRoot(dst) };
+  }
+
+  // COPY, same rules. Server-side so the BYTES are copied — doing it as readFile+writeFile in the
+  // browser turns every image and every binary into mojibake.
+  function copyFile({ from, to } = {}) {
+    if (!from || !to) throw new Error("copyFile: `from` and `to` are required");
+    const src = safeResolve(from);
+    const dst = safeResolve(to);
+    if (!fs.existsSync(src)) throw new Error(`copyFile: ${relFromRoot(src)} does not exist`);
+    if (fs.existsSync(dst)) throw new Error(`${relFromRoot(dst)} already exists`);
+    fs.mkdirSync(path.dirname(dst), { recursive: true });
+    fs.copyFileSync(src, dst);
+    return { from: relFromRoot(src), to: relFromRoot(dst) };
+  }
+
+  return { readFile, readFileRaw, listFiles, changedFiles, stageFiles, stageHunk, discardFiles, gitState, commit, push, search, getSource, getDiff, writeFile, deleteFile, moveFile, copyFile, fileHistory, readSnapshot, snapshot, languageOf, safeResolve };
 }
 
 // Default set bound (lazily) to process.cwd() — the plugin running inside an observed service.

@@ -332,6 +332,12 @@ async function loadCaseSetting() {
       json: flags.json,
     });
     flushAndExit(exitCode || 0);
+  } else if (command === "comments") {
+    // RFC-034 — his code comments, by a verb rather than a folder path anyone has to remember.
+    await launchApp(DEFAULT_PORT);
+    const commentsCommand = require("./comments");
+    const exitCode = await commentsCommand(input[1], input[2], { uiUrl: UI_URL, json: flags.json });
+    flushAndExit(exitCode || 0);
   } else if (command === "logs" || command === "log") {
     await launchApp(DEFAULT_PORT);
     await logsCommand(input[1], input[2], {

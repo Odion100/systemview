@@ -17,6 +17,9 @@ import "./styles.scss";
 // services (RFC-021 synthesized namespaces; empty on a fresh project — that's the bootstrap state).
 
 const CLASSNAME = "codebase-nav";
+// A private type, so only this tree answers a file drag (the test panel's section drag uses the
+// same trick for the same reason).
+const FILE_MIME = "application/x-systemview-file";
 
 // FILE TYPE AT A GLANCE. A monospace tree of forty identical names is read one line at a time; a
 // glyph in front of each is read by shape. Deliberately a small set — the point is telling KINDS
@@ -103,6 +106,9 @@ function DirNode({
   renderFile,
   changedCounts,
   dirMenu,
+  onDropFile,
+  dropDir,
+  setDropDir,
 }) {
   const key = `${prefix}${name}`;
   const open = openDirs.has(key);
@@ -113,10 +119,27 @@ function DirNode({
     <div className={`${CLASSNAME}__dir`}>
       <button
         type="button"
-        className={`${CLASSNAME}__row ${CLASSNAME}__row--dir`}
+        className={`${CLASSNAME}__row ${CLASSNAME}__row--dir${dropDir === key ? ` ${CLASSNAME}__row--drop` : ""}`}
         style={{ paddingLeft: 8 + depth * 14 }}
         onClick={() => toggleDir(key)}
         onContextMenu={(e) => dirMenu && dirMenu(e, key, changedInside)}
+        // A FOLDER IS THE ONLY DROP TARGET. Dropping onto a file would have to guess whether you
+        // meant "into its folder" or "replace it", and one of those answers destroys something.
+        onDragOver={(e) => {
+          if (!onDropFile || ![...e.dataTransfer.types].includes(FILE_MIME)) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = e.altKey ? "copy" : "move";
+          if (dropDir !== key) setDropDir(key);
+        }}
+        onDragLeave={() => dropDir === key && setDropDir(null)}
+        onDrop={(e) => {
+          if (!onDropFile || ![...e.dataTransfer.types].includes(FILE_MIME)) return;
+          e.preventDefault();
+          setDropDir(null);
+          try {
+            onDropFile(JSON.parse(e.dataTransfer.getData(FILE_MIME)), key, e.altKey);
+          } catch {}
+        }}
       >
         <Chevron open={open} />
         <span className={`${CLASSNAME}__dir-name`}>{name}</span>
@@ -146,6 +169,9 @@ function DirNode({
               renderFile={renderFile}
               changedCounts={changedCounts}
               dirMenu={dirMenu}
+              onDropFile={onDropFile}
+              dropDir={dropDir}
+              setDropDir={setDropDir}
             />
           ))}
           {node.files.map((f) => renderFile(f, depth + 1))}
@@ -689,6 +715,53 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
   // redraws from the FRESH status it returns — no optimistic guessing about what git did.
   const [vcBusy, setVcBusy] = useState(null); // the path (or group key) currently in flight
   const [vcError, setVcError] = useState("");
+  // RFC-035 — MOVING FILES AROUND. One helper for every verb: it names what failed rather than
+  // failing quietly, and the tree re-walks itself afterwards so what you see is what is on disk.
+  // `prompt` is deliberate: the row menus are two-step confirms, not text inputs, and inventing an
+  // inline rename field is a bigger change than the verb itself.
+  const [fileBusy, setFileBusy] = useState("");
+  const fileOp = async (verb, args, sayWhat) => {
+    if (!fileHost) return;
+    setFileBusy(sayWhat);
+    setVcError("");
+    try {
+      const svc = loadServiceWithHeaders(
+        fileHost.system.connectionData,
+        fileHost.headers,
+        fileHost.credentials,
+      );
+      if (!svc.Plugin[verb])
+        throw new Error(`this project's plugin has no ${verb} — npm i systemview-plugin@latest and restart`);
+      await svc.Plugin[verb](args);
+      setRefreshTick((n) => n + 1);
+      window.dispatchEvent(new CustomEvent("sv:git"));
+    } catch (err) {
+      setVcError((err && err.message) || `${sayWhat} failed`);
+    } finally {
+      setFileBusy("");
+    }
+  };
+  // DRAG A FILE ONTO A FOLDER. Same shape the test panel's section drag uses: a private MIME type
+  // carrying JSON, so nothing else on the page thinks a file row is for it. ⌥ (alt) while you drop
+  // COPIES instead of moving — Finder's gesture, because that is the one already in his hands.
+  const [dropDir, setDropDir] = useState(null);
+  const dirOf = (p) => (p.includes("/") ? p.slice(0, p.lastIndexOf("/")) : "");
+  const onDropFile = (payload, dir, copy) => {
+    if (!payload || !payload.path) return;
+    // Only within one codebase: a cross-project move would be a copy plus a delete in two different
+    // repos, which is not one gesture and should not pretend to be.
+    if (payload.project && payload.project !== projectCode)
+      return setVcError("that file belongs to another codebase");
+    const name = payload.path.split("/").pop();
+    if (dirOf(payload.path) === dir) return; // dropped where it already lives
+    fileOp(
+      copy ? "copyFile" : "moveFile",
+      { from: payload.path, to: joinPath(dir, name) },
+      `${copy ? "copying" : "moving"} ${name}`,
+    );
+  };
+  const joinPath = (dir, name) => (dir ? `${dir}/${name}` : name);
+
   const stage = async (paths, unstage, busyKey) => {
     if (!fileHost) return;
     setVcBusy(busyKey || paths[0]);
@@ -960,6 +1033,34 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
         confirm: `Throw away the unstaged changes to ${name}? (kept in history)`,
         action: () => discard([f.path]),
       });
+    // RFC-035 — what you can do TO the file, as opposed to what git can do with it.
+    items.push({
+      label: "Rename…",
+      action: () => {
+        const next = window.prompt(`Rename ${name} to:`, name);
+        if (!next || next === name) return;
+        fileOp("moveFile", { from: f.path, to: joinPath(dirOf(f.path), next) }, `renaming ${name}`);
+      },
+    });
+    items.push({
+      label: "Duplicate",
+      action: () => {
+        const dot = name.lastIndexOf(".");
+        const suggested = dot > 0 ? `${name.slice(0, dot)}-copy${name.slice(dot)}` : `${name}-copy`;
+        const next = window.prompt(`Copy ${name} to:`, suggested);
+        if (!next) return;
+        fileOp("copyFile", { from: f.path, to: joinPath(dirOf(f.path), next) }, `copying ${name}`);
+      },
+    });
+    // DELETE, for any file — not just an untracked one. `discardFiles` was git's verb for throwing
+    // away a NEW file; this is the plain one, and the snapshot ring holds what it removed.
+    if (!gone)
+      items.push({
+        label: "Delete file",
+        danger: true,
+        confirm: `Delete ${name}? (kept in history)`,
+        action: () => fileOp("deleteFile", { path: f.path }, `deleting ${name}`),
+      });
     items.push({
       label: "Copy path",
       action: () => navigator.clipboard && navigator.clipboard.writeText(f.path),
@@ -997,6 +1098,17 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
       {
         label: openDirs.has(key) ? "Collapse" : "Expand",
         action: () => toggleDir(key),
+      },
+      // A NEW FILE lands here. writeFile creates any missing folder on the way, so a name with
+      // slashes in it makes the folders too — which is also the only way to make an empty folder
+      // worth having (git doesn't keep one).
+      {
+        label: "New file…",
+        action: () => {
+          const name = window.prompt(`New file in ${key}/`, "");
+          if (!name) return;
+          fileOp("writeFile", { path: joinPath(key, name), content: "" }, `creating ${name}`);
+        },
       },
       {
         label: "Expand everything inside",
@@ -1075,6 +1187,11 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
         }
         className={`${CLASSNAME}__row ${CLASSNAME}__row--file ${selected ? `${CLASSNAME}__row--selected` : ""}${isRevealed ? ` ${CLASSNAME}__row--revealed` : ""}`}
         style={{ paddingLeft: 8 + depth * 14 }}
+        draggable
+        onDragStart={(e) => {
+          e.dataTransfer.effectAllowed = "copyMove";
+          e.dataTransfer.setData(FILE_MIME, JSON.stringify({ path: f.path, project: projectCode }));
+        }}
         title={f.path}
         onClick={() =>
           onOpenFile({
@@ -1645,6 +1762,9 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
                           renderFile={renderFile}
                           changedCounts={changedCounts}
                           dirMenu={dirMenu}
+                          onDropFile={onDropFile}
+                          dropDir={dropDir}
+                          setDropDir={setDropDir}
                         />
                       ))}
                     {tree.files.map((f) => renderFile(f, 0))}

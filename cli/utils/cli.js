@@ -39,6 +39,8 @@ const HELP_TEXT = `
     manifest save                          Persist session manifest — services, auth headers, cookies  [interactive]
     manifest clean                        Re-probe manifest entries, remove stale ones
     probe <ServiceId.Module.method> [args] Call a service method ad-hoc
+    comments <project> [path] [--json]     His comments on the code — every file that has them,
+                                           or one file's, with the lines they sit on
     stats <project> [service] [--range <r>] [--json]   Read live stats — the Stats page's numbers
                                            in a digest (top load, error hotspots, deltas); --json
                                            for the full structured read; range: 15m|1h|4h|24h|all
