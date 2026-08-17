@@ -293,6 +293,32 @@
       background: var(--sv-hover);
     }
   }
+  // The git signal on the COLLAPSED code fold: branch and how many files are changed, and pressing
+  // it opens the fold straight into version control. Same idea as the badge a collapsed folder wears.
+  &__code-git {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: auto;
+    padding: 1px 7px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    color: #b07d2b;
+    background: color-mix(in srgb, #d9a441 16%, transparent);
+    cursor: pointer;
+    &:hover {
+      background: color-mix(in srgb, #d9a441 28%, transparent);
+    }
+  }
+  &__code-git-branch {
+    font-weight: 600;
+    opacity: 0.85;
+    max-width: 90px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   &__code-fold-label {
     font-size: 9.5px;
     font-weight: 700;
@@ -617,6 +643,17 @@
       box-shadow: 0 0 0 3px rgba(63, 81, 181, 0.16);
       transition: box-shadow 0.5s ease, border-color 0.5s ease;
     }
+    // Holding the box's place while git answers, or saying why it never will. Dashed, because it is
+    // the outline of something rather than the thing.
+    &--waiting {
+      border-style: dashed;
+      padding: 7px 10px;
+    }
+  }
+  &__commit-wait {
+    font-size: 11px;
+    color: var(--sv-text-muted);
+    font-style: italic;
   }
   &__commit-head {
     display: flex;
@@ -706,6 +743,25 @@
     padding: 2px 10px;
     font-size: 11px;
     &:hover { background: var(--sv-hover); }
+    // NOT PUSHED — the same amber that means "changed" everywhere else in this nav, carried by a
+    // bar down the left so a glance at the column tells you where the remote stops.
+    &--unpushed {
+      border-left: 2px solid #d9a441;
+      padding-left: 8px;
+      background: color-mix(in srgb, #d9a441 7%, transparent);
+      .codebase-nav__logsha {
+        color: #b07d2b;
+      }
+    }
+  }
+  // The heading over them: how many, and the reason if the branch tracks nothing at all.
+  &__logmark {
+    padding: 4px 10px 2px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #b07d2b;
   }
   &__logsha {
     flex: none;

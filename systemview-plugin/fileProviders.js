@@ -499,13 +499,22 @@ function createFileProviders(rootDir) {
     const hasCommits = !!gitQuiet(["rev-parse", "--verify", "HEAD"]);
     // The log rides along: he commits, flips to the log to watch it land, and comes back — that
     // only works if the history is already here rather than a second round trip away.
+    // WHICH COMMITS ARE NOT PUSHED — asked of git, not inferred. `upstream..HEAD` IS the set the
+    // remote does not have; counting down from the top would be a guess the moment the history is
+    // not linear. NO UPSTREAM AT ALL means the branch tracks nothing, so nothing is pushed — which
+    // reads as "all clean" unless it is said out loud.
+    const unpushed = new Set(
+      hasCommits && upstream
+        ? gitQuiet(["rev-list", "--abbrev-commit", `${upstream}..HEAD`]).split("\n").filter(Boolean)
+        : [],
+    );
     const log = hasCommits
       ? gitQuiet(["log", "-15", "--pretty=%h%s%ar%an"])
           .split("\n")
           .filter(Boolean)
           .map((l) => {
             const [sha, subject, when, who] = l.split("");
-            return { sha, subject, when, who };
+            return { sha, subject, when, who, pushed: upstream ? !unpushed.has(sha) : false };
           })
       : [];
     return {

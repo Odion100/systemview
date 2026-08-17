@@ -958,6 +958,10 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
   // RFC-033 — COMMIT / PUSH, in the place he already stages from. Two-step, his call: the first
   // click arms, the second runs. Nothing here is reachable except by that click.
   const [gitState, setGitState] = useState(null);
+  // WHY there is no box, when there is no box. Drawing nothing until git answered meant the lens
+  // could sit there with no sign the feature exists at all — "you don't even know the feature is
+  // existing, you're wondering, like, hold on". loading | old | notrepo | error.
+  const [gitProbe, setGitProbe] = useState("loading");
   const [message, setMessage] = useState("");
   const [typing, setTyping] = useState(false);
   const [armed, setArmed] = useState("");
@@ -978,11 +982,17 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
         fileHost.headers,
         fileHost.credentials,
       );
-      // An older plugin has neither — leave the box off entirely rather than draw dead buttons.
-      if (!svc.Plugin.gitState) return setGitState(null);
-      setGitState(await svc.Plugin.gitState());
+      // An older plugin has neither — the box says so instead of drawing dead buttons.
+      if (!svc.Plugin.gitState) {
+        setGitState(null);
+        return setGitProbe("old");
+      }
+      const s = await svc.Plugin.gitState();
+      setGitState(s);
+      setGitProbe(s && s.repo ? "ok" : "notrepo");
     } catch {
       setGitState(null);
+      setGitProbe("error");
     }
   };
   const runGit = async (what) => {
@@ -1063,13 +1073,22 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
       if (d.message != null) setMessage(d.message);
       setTyping(false);
       loadGitState.current();
-      // The box mounts on the next flush, and a hand-off that lands off-screen reads as nothing
-      // happening — same rule a file reveal follows.
+      // THE HAND-OFF LANDS WHEN THE BOX DOES. The box only exists once git state comes back from the
+      // plugin — a network round-trip — so a fixed 140ms timer was scrolling to something that
+      // wasn't there yet, and the glow expired before it appeared: "I swear it just popped up out of
+      // nowhere". Wait for the box instead, up to a couple of seconds, then scroll and glow.
       setTook(true);
-      setTimeout(() => {
-        if (commitBoxRef.current) commitBoxRef.current.scrollIntoView({ block: "center", behavior: "smooth" });
-      }, 140);
-      setTimeout(() => setTook(false), 1600);
+      const started = Date.now();
+      const land = () => {
+        if (commitBoxRef.current) {
+          commitBoxRef.current.scrollIntoView({ block: "center", behavior: "smooth" });
+          setTimeout(() => setTook(false), 1600);
+          return;
+        }
+        if (Date.now() - started < 4000) return setTimeout(land, 80);
+        setTook(false); // no box after four seconds: an old plugin with no gitState, not a slow one
+      };
+      setTimeout(land, 60);
     };
     window.addEventListener("sv:commitInNav", onTake);
     return () => window.removeEventListener("sv:commitInNav", onTake);
@@ -1640,6 +1659,34 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
           >
             <Chevron open={codeOpen} />
             <span className={`${CLASSNAME}__code-fold-label`}>code</span>
+            {/* GIT SURVIVES THE FOLD. Everything about committing — the lens, the groups, the box —
+                lives inside this fold, so with it closed the panel said nothing at all: no changes,
+                no branch, no hint that a commit happens here ("why wouldn't it show something
+                indicating, rather than you don't even know the feature is existing"). The same
+                badge a collapsed FOLDER already wears, doing the same job one level up: press it
+                and the fold opens straight into version control. */}
+            {!codeOpen && changed.size > 0 && (
+              <span
+                className={`${CLASSNAME}__code-git`}
+                role="button"
+                tabIndex={0}
+                title={`${changed.size} changed file${changed.size === 1 ? "" : "s"}${
+                  gitState && gitState.branch ? ` on ${gitState.branch}` : ""
+                } — open version control`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCodeOpen(true);
+                  setVcLens(true);
+                  localStorage.setItem("sv.cbNav.vcLens", "true");
+                }}
+              >
+                <BranchIcon />
+                {gitState && gitState.branch && (
+                  <span className={`${CLASSNAME}__code-git-branch`}>{gitState.branch}</span>
+                )}
+                {changed.size}
+              </span>
+            )}
           </button>
           {codeOpen && !fileHost && (
             <div className={`${CLASSNAME}__empty`}>no live service with file access</div>
@@ -1731,8 +1778,26 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
                 </div>
               )}
               {vcError && <div className={`${CLASSNAME}__vc-error`}>{vcError}</div>}
-              {/* RFC-033 — commit and push where the staging happens. Only drawn when the plugin
-                  actually has the verbs, so an older project shows the lens without dead buttons. */}
+              {/* THE LENS ALWAYS SAYS WHERE THE COMMIT GOES. It used to draw nothing at all until
+                  git answered, so the panel could sit there with no sign the feature existed — you
+                  can't wait for something you don't know is coming. Now the box's place is always
+                  taken: reading git…, or the reason there will never be one. */}
+              {vcLens && !(gitState && gitState.repo) && (
+                <div
+                  ref={commitBoxRef}
+                  className={`${CLASSNAME}__commit ${CLASSNAME}__commit--waiting${took ? ` ${CLASSNAME}__commit--took` : ""}`}
+                >
+                  <span className={`${CLASSNAME}__commit-wait`}>
+                    {gitProbe === "loading"
+                      ? "reading git…"
+                      : gitProbe === "old"
+                        ? "commits need systemview-plugin@2.18.0 or newer — update and restart"
+                        : gitProbe === "notrepo"
+                          ? "not a git repo — nothing to commit to"
+                          : "git isn't answering — the box comes back when it does"}
+                  </span>
+                </div>
+              )}
               {vcLens && gitState && gitState.repo && (
                 <div
                   ref={commitBoxRef}
@@ -1848,14 +1913,39 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
               {/* The log, in the panel: same switch, same history the block shows. */}
               {vcLens && vcTab === "log" && gitState && gitState.repo && (
                 <div className={`${CLASSNAME}__tree`}>
+                  {/* THE LOG SAYS WHAT IS NOT PUSHED. A history where a committed line and a pushed
+                      one look identical is a history you have to check somewhere else. The plugin
+                      marks each commit (`upstream..HEAD`, git's own answer); on an older plugin the
+                      top `ahead` rows are the unpushed ones, which is the same answer for a linear
+                      history and is the most we can honestly say without it. */}
                   {gitState.log && gitState.log.length ? (
-                    gitState.log.map((c) => (
-                      <div key={c.sha} className={`${CLASSNAME}__logrow`} title={`${c.subject} — ${c.who}`}>
-                        <code className={`${CLASSNAME}__logsha`}>{c.sha}</code>
-                        <span className={`${CLASSNAME}__logsubj`}>{c.subject}</span>
-                        <span className={`${CLASSNAME}__logwhen`}>{c.when}</span>
-                      </div>
-                    ))
+                    (() => {
+                      const knows = gitState.log.some((c) => typeof c.pushed === "boolean");
+                      const isUnpushed = (c, i) =>
+                        knows ? !c.pushed : !gitState.upstream || i < (gitState.ahead || 0);
+                      const n = gitState.log.filter(isUnpushed).length;
+                      return (
+                        <>
+                          {n > 0 && (
+                            <div className={`${CLASSNAME}__logmark`}>
+                              ↑ {n} not pushed
+                              {!gitState.upstream && " — this branch tracks nothing"}
+                            </div>
+                          )}
+                          {gitState.log.map((c, i) => (
+                            <div
+                              key={c.sha}
+                              className={`${CLASSNAME}__logrow${isUnpushed(c, i) ? ` ${CLASSNAME}__logrow--unpushed` : ""}`}
+                              title={`${c.subject} — ${c.who}${isUnpushed(c, i) ? " · not pushed" : ""}`}
+                            >
+                              <code className={`${CLASSNAME}__logsha`}>{c.sha}</code>
+                              <span className={`${CLASSNAME}__logsubj`}>{c.subject}</span>
+                              <span className={`${CLASSNAME}__logwhen`}>{c.when}</span>
+                            </div>
+                          ))}
+                        </>
+                      );
+                    })()
                   ) : (
                     <div className={`${CLASSNAME}__empty`}>no commits yet</div>
                   )}

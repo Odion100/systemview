@@ -414,13 +414,25 @@ const CommitBlock = ({ label, attrs = {}, line }) => {
             <pre className="md-commit__out">{output.map((o) => o.text).join("\n\n")}</pre>
           )}
           {state && state.log && state.log.length ? (
-            state.log.map((c) => (
-              <div key={c.sha} className="md-commit__logrow">
-                <code className="md-commit__logsha">{c.sha}</code>
-                <span className="md-commit__logsubj">{c.subject}</span>
-                <span className="md-commit__logwhen">{c.when}</span>
-              </div>
-            ))
+            // NOT PUSHED, said here too — the block's log and the panel's log are the same history,
+            // and it would be the same question in both. `pushed` is git's own answer where the
+            // plugin sends it; without it the top `ahead` rows are the unpushed ones.
+            (() => {
+              const knows = state.log.some((c) => typeof c.pushed === "boolean");
+              const isUnpushed = (c, i) =>
+                knows ? !c.pushed : !state.upstream || i < (state.ahead || 0);
+              return state.log.map((c, i) => (
+                <div
+                  key={c.sha}
+                  className={`md-commit__logrow${isUnpushed(c, i) ? " md-commit__logrow--unpushed" : ""}`}
+                  title={isUnpushed(c, i) ? `${c.subject} — not pushed` : c.subject}
+                >
+                  <code className="md-commit__logsha">{c.sha}</code>
+                  <span className="md-commit__logsubj">{c.subject}</span>
+                  <span className="md-commit__logwhen">{c.when}</span>
+                </div>
+              ));
+            })()
           ) : output.length ? null : (
             <div className="md-commit__none">no commits yet</div>
           )}
