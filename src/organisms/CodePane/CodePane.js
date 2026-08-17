@@ -288,6 +288,14 @@ const CodePane = ({ file, onClose }) => {
     [],
   );
   const [clearArmed, setClearArmed] = useState(false);
+  // RFC-034 — THE 💬 IN THE HEADER IS A LIST, not a switch. "you can click on them and go straight to
+  // those lines, you can delete them on the side, you can clear all of them": one row per comment,
+  // the row takes you there, the × on it deletes that one, clear-all sits at the bottom instead of
+  // being its own control up in the corner.
+  const [listOpen, setListOpen] = useState(false);
+  // The range a list row asked for. It carries a counter so clicking the SAME row twice jumps twice
+  // — the editor keys its centring on the range, and a repeat of the same two numbers is not a change.
+  const [jump, setJump] = useState(null);
   const [codeMenu, setCodeMenu] = useState(null);
   const { threads, error: commentError, addThread, addReply, removeReply, removeThread, removeAll } =
     useCodeComments(Plugin, file.path);
@@ -297,6 +305,8 @@ const CodePane = ({ file, onClose }) => {
     setCompose(null);
     setOpenComments([]);
     setClearArmed(false);
+    setListOpen(false);
+    setJump(null);
   }, [file.path]);
 
   const onComment = useMemo(
@@ -428,38 +438,14 @@ const CodePane = ({ file, onClose }) => {
           {!isImage && !diffMode && threads.length > 0 && (
             <button
               type="button"
-              className={`${CLASSNAME}__btn`}
-              title={
-                commentsOn
-                  ? `Hide the ${threads.length} comment${threads.length === 1 ? "" : "s"} on this file`
-                  : `Show the ${threads.length} comment${threads.length === 1 ? "" : "s"} on this file`
-              }
+              className={`${CLASSNAME}__btn ${listOpen ? `${CLASSNAME}__btn--pinned` : ""}`}
+              title={`${threads.length} comment${threads.length === 1 ? "" : "s"} on this file — open the list`}
               onClick={() => {
-                // Flipping the file's default clears the per-comment exceptions: "hide them" that
-                // left three showing would not be hiding them.
-                setOpenComments([]);
-                setCommentsOn(!commentsOn);
-                if (commentsOn) setDraft(null);
+                setListOpen(!listOpen);
+                setClearArmed(false);
               }}
             >
               💬{threads.length ? ` ${threads.length}` : ""}
-            </button>
-          )}
-          {/* Clearing every comment on the file — two-step. THE REAL JOB OF THIS CORNER: showing them
-              is the default, so what's left up here is getting rid of them. */}
-          {threads.length > 0 && (
-            <button
-              type="button"
-              className={`${CLASSNAME}__btn ${clearArmed ? `${CLASSNAME}__btn--pinned` : ""}`}
-              title="Delete every comment on this file — the sidecar goes with them"
-              onClick={() => {
-                if (!clearArmed) return setClearArmed(true);
-                setClearArmed(false);
-                removeAll();
-              }}
-              onBlur={() => setClearArmed(false)}
-            >
-              {clearArmed ? "confirm" : "clear"}
             </button>
           )}
           {isMd && !(diffMode && hasDiff) && (
@@ -495,6 +481,77 @@ const CodePane = ({ file, onClose }) => {
           )}
         </span>
       </div>
+      {/* THE COMMENT LIST — what the 💬 opens. Every comment on this file: where it is, what it says,
+          and an × to take it off. Clicking one goes to the lines and leaves the list. */}
+      {listOpen && threads.length > 0 && (
+        <div className={`${CLASSNAME}__clist`}>
+          {threads.map((t) => {
+            const range = t.from === t.to ? `${t.from}` : `${t.from}–${t.to}`;
+            const first = ((t.replies || [])[0] || {}).text || "";
+            return (
+              <div key={t.id} className={`${CLASSNAME}__clist-row`}>
+                <button
+                  type="button"
+                  className={`${CLASSNAME}__clist-go`}
+                  title={`Go to line${t.from === t.to ? "" : "s"} ${range}`}
+                  onClick={() => {
+                    // Going TO a comment shows it — landing on a line whose comment is folded away
+                    // would be arriving at nothing. `openComments` holds the flips AGAINST the
+                    // file's default, so "shown" is a different list depending on that default.
+                    setOpenComments((cur) =>
+                      commentsOn ? cur.filter((x) => x !== t.id) : cur.includes(t.id) ? cur : [...cur, t.id],
+                    );
+                    setJump([t.from, t.to, Date.now()]);
+                    setListOpen(false);
+                  }}
+                >
+                  <span className={`${CLASSNAME}__clist-line`}>L{range}</span>
+                  <span className={`${CLASSNAME}__clist-text`}>{first}</span>
+                  {(t.replies || []).length > 1 && (
+                    <span className={`${CLASSNAME}__clist-n`}>{t.replies.length}</span>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  className={`${CLASSNAME}__clist-x`}
+                  title={`Delete the comment on ${range}`}
+                  onClick={() => removeThread(t.id)}
+                >
+                  ×
+                </button>
+              </div>
+            );
+          })}
+          <div className={`${CLASSNAME}__clist-foot`}>
+            <button
+              type="button"
+              className={`${CLASSNAME}__clist-act`}
+              title={commentsOn ? "Fold every comment away" : "Show every comment"}
+              onClick={() => {
+                setOpenComments([]);
+                setCommentsOn(!commentsOn);
+                if (commentsOn) setDraft(null);
+              }}
+            >
+              {commentsOn ? "hide all" : "show all"}
+            </button>
+            <button
+              type="button"
+              className={`${CLASSNAME}__clist-act ${CLASSNAME}__clist-act--danger`}
+              title="Delete every comment on this file — the sidecar goes with them"
+              onClick={() => {
+                if (!clearArmed) return setClearArmed(true);
+                setClearArmed(false);
+                removeAll();
+                setListOpen(false);
+              }}
+              onBlur={() => setClearArmed(false)}
+            >
+              {clearArmed ? "delete them all?" : "clear all"}
+            </button>
+          </div>
+        </div>
+      )}
       {/* HISTORY — the snapshot ring: every save filed the previous version; click restores. */}
       {hist && (
         <div className={`${CLASSNAME}__history`}>
@@ -594,7 +651,7 @@ const CodePane = ({ file, onClose }) => {
             language={file.language}
             onChange={setContent}
             dark={editorDark}
-            focusLines={file.lines || null}
+            focusLines={jump || file.lines || null}
             changeMarks={changeMarks}
             hunks={hunks}
             onStageHunk={stageHunkAt}

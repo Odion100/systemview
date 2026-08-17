@@ -172,6 +172,97 @@
     padding: 10px 14px;
   }
 
+  // RFC-034 — THE COMMENT LIST the 💬 opens. Rows in line order: where it is, what it says, an × to
+  // take it off. Quiet, because it sits over the file — it is a list, not a panel with a life of
+  // its own.
+  &__clist {
+    border-bottom: 1px solid var(--sv-border);
+    background: color-mix(in srgb, var(--sv-surface) 70%, transparent);
+    max-height: 200px;
+    overflow-y: auto;
+  }
+  &__clist-row {
+    display: flex;
+    align-items: stretch;
+    &:hover {
+      background: color-mix(in srgb, var(--sv-blue, #2f6fdc) 8%, transparent);
+    }
+  }
+  &__clist-go {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    flex: 1 1 auto;
+    min-width: 0;
+    border: none;
+    background: none;
+    cursor: pointer;
+    text-align: left;
+    padding: 4px 4px 4px 14px;
+    font-family: inherit;
+    color: var(--sv-text);
+  }
+  // The line range is the address — monospace, so ranges line up down the list.
+  &__clist-line {
+    flex: none;
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--sv-blue, #2f6fdc);
+  }
+  &__clist-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 11.5px;
+    color: var(--sv-text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  // A thread with replies says how many — the row shows the first line, not the conversation.
+  &__clist-n {
+    flex: none;
+    font-size: 10px;
+    color: var(--sv-text-faint);
+    border: 1px solid var(--sv-border);
+    border-radius: 999px;
+    padding: 0 5px;
+  }
+  &__clist-x {
+    flex: none;
+    border: none;
+    background: none;
+    cursor: pointer;
+    padding: 0 12px;
+    font-size: 14px;
+    line-height: 1;
+    color: var(--sv-text-faint);
+    &:hover {
+      color: #d9534f;
+    }
+  }
+  &__clist-foot {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 4px 12px 6px;
+    border-top: 1px solid var(--sv-border);
+  }
+  &__clist-act {
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 11px;
+    color: var(--sv-text-muted);
+    &:hover {
+      color: var(--sv-text-strong);
+    }
+    &--danger:hover {
+      color: #d9534f;
+    }
+  }
+
   // DOC UNDO — the history strip (saved versions, newest first; click restores) and the
   // stale-tab conflict bar (the save was held; the human picks a side).
   &__history {
