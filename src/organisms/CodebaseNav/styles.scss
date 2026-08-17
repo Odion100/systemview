@@ -579,6 +579,13 @@
     border: 1px solid var(--sv-inset);
     border-radius: 6px;
     overflow: hidden;
+    // A message just arrived from a document's `::commit` block. It fades on its own — a hand-off
+    // that lands silently reads as nothing having happened.
+    &--took {
+      border-color: var(--sv-blue);
+      box-shadow: 0 0 0 3px rgba(63, 81, 181, 0.16);
+      transition: box-shadow 0.5s ease, border-color 0.5s ease;
+    }
   }
   &__commit-head {
     display: flex;
@@ -1204,4 +1211,19 @@
   box-shadow: 0 0 0 1px #b9a05a inset;
   background: rgba(201, 168, 90, 0.1);
   border-radius: 5px;
+}
+
+// RFC-034 — this file has comments on it. Quiet, and to the left of the git mark: the git letter is
+// about the file's state, this is about whether anyone has said anything.
+.codebase-nav__comment-mark {
+  margin-left: 4px;
+  font-size: 9px;
+  opacity: 0.65;
+  flex: none;
+}
+
+// RFC-034 — the comments filter pill: the same icon the files wear, with how many of them there are.
+.codebase-nav__filter-pill--comments {
+  font-size: 9px;
+  line-height: 1;
 }

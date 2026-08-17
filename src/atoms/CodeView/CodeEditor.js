@@ -1,11 +1,12 @@
 import React, { useRef, useEffect } from "react";
 import { EditorState } from "@codemirror/state";
-import { EditorView, lineNumbers, keymap, Decoration, gutter, GutterMarker, WidgetType } from "@codemirror/view";
-import { StateField, StateEffect } from "@codemirror/state";
+import { EditorView, lineNumbers, keymap, Decoration, gutter, gutterLineClass, GutterMarker, WidgetType } from "@codemirror/view";
+import { StateField, StateEffect, RangeSet } from "@codemirror/state";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { syntaxHighlighting, defaultHighlightStyle } from "@codemirror/language";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { langExt } from "./languages";
+import { dictateInto, dictationSupported } from "./codeComments";
 import "./styles.scss";
 
 // RFC-018 Phase 4 — the EDITABLE CodeMirror (the editor we always wanted). Powers both the doc editor
@@ -307,15 +308,414 @@ const changeGutter = gutter({
   },
 });
 
+// THE NUMBERS HAVE TO LOOK SELECTABLE, AND LOOK SELECTED. Dragging them picks a run (below), but
+// with nothing marking them it was a feature only I could see — his words: "I don't see how I can
+// select lines… I probably need to see a point or a cue over the lines." So every line in the
+// selection lights its NUMBER, which is also what makes the right-click's `57-64` believable before
+// you open the menu.
+const selectedLineMarker = new (class extends GutterMarker {
+  constructor() {
+    super();
+    this.elementClass = "cm-sv-selline";
+  }
+})();
+
+// ── RFC-034 · COMMENTS ON CODE ─────────────────────────────────────────────────────────────────
+// A thread hangs UNDER the run it's about, on the same block-widget machinery the "what was here"
+// panel uses. Nothing is written into the file: the store is a sidecar (see codeComments.js), and
+// the anchor is a line range and only a line range — his call, and the reason is that a range says
+// exactly where the thread goes while a function name doesn't.
+const setComments = StateEffect.define(); // { threads, on }
+const setCommentHandlers = StateEffect.define(); // { addThread, addReply, removeThread }
+const toggleThread = StateEffect.define(); // thread id
+const composeIn = StateEffect.define(); // { id, record } | null — which thread has the reply box open
+const setDraft = StateEffect.define(); // { from, to } | null
+
+const when = (ts) => {
+  const d = new Date(ts || 0);
+  return isNaN(d.getTime()) ? "" : d.toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+};
+const rangeLabel = (from, to) => (from === to ? `${from}` : `${from}-${to}`);
+
+// The reply FORM — the same shape a document thread's is (textarea, Post, Cancel, mic), because it
+// is the same feature and should not need to be told apart. It is not part of a thread's resting
+// state: you open it when you have something to say.
+function replyForm({ placeholder, label, onPost, onCancel, record }) {
+  const form = document.createElement("div");
+  form.className = "cm-sv-thread__form";
+  const ta = document.createElement("textarea");
+  ta.className = "cm-sv-thread__input";
+  ta.placeholder = placeholder;
+  ta.rows = 2;
+  let rec = null;
+  const stopRec = () => {
+    if (rec) {
+      try { rec.stop(); } catch {}
+      rec = null;
+    }
+  };
+  const post = () => {
+    const text = ta.value.trim();
+    if (!text) return;
+    stopRec();
+    onPost(text);
+  };
+  ta.addEventListener("keydown", (e) => {
+    e.stopPropagation();
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      post();
+    }
+  });
+  ta.addEventListener("mousedown", (e) => e.stopPropagation());
+  form.appendChild(ta);
+
+  const row = document.createElement("div");
+  row.className = "cm-sv-thread__actions";
+  const mk = (cls, text, fn) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = cls;
+    b.textContent = text;
+    b.addEventListener("mousedown", (e) => e.stopPropagation());
+    b.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      fn();
+    });
+    return b;
+  };
+  row.appendChild(mk("cm-sv-thread__post", label, post));
+  row.appendChild(mk("cm-sv-thread__cancel", "Cancel", () => { stopRec(); onCancel(); }));
+  if (dictationSupported()) {
+    const mic = mk("cm-sv-thread__mic", "🎙", () => {
+      if (rec) {
+        stopRec();
+        mic.classList.remove("is-on");
+        return;
+      }
+      rec = dictateInto(ta, (on) => {
+        mic.classList.toggle("is-on", on);
+        if (!on) rec = null;
+      });
+    });
+    mic.title = "Dictate — press again to stop";
+    row.appendChild(mic);
+    // RECORD STRAIGHT AWAY when the menu said "record". His ask: "the recorder in the right-click
+    // option. Boom. You click it, it starts recording your next comment."
+    if (record)
+      setTimeout(() => {
+        rec = dictateInto(ta, (on) => {
+          mic.classList.toggle("is-on", on);
+          if (!on) rec = null;
+        });
+      }, 0);
+  }
+  form.appendChild(row);
+  setTimeout(() => ta.focus(), 0);
+  return form;
+}
+
+// A thread on a run of code. SUBTLE, and shaped like a document thread: what was said, and nothing
+// else. No badge repeating the line numbers (they're the lines it's sitting under), no Reply button,
+// no delete button — right-click is where all of that lives, the same as everywhere else here.
+class ThreadWidget extends WidgetType {
+  constructor(thread, handlers, composing, record) {
+    super();
+    this.thread = thread;
+    this.handlers = handlers;
+    this.composing = composing;
+    this.record = record;
+  }
+  eq(other) {
+    // Data only — the handlers are fresh closures every render.
+    return (
+      other.composing === this.composing &&
+      other.record === this.record &&
+      JSON.stringify(other.thread) === JSON.stringify(this.thread)
+    );
+  }
+  // `view` is handed to toDOM — so closing the box is dispatched straight into editor state, with
+  // no round trip through React to get back here.
+  toDOM(view) {
+    const t = this.thread;
+    const h = this.handlers || {};
+    const wrap = document.createElement("div");
+    wrap.className = "cm-sv-thread";
+    // RIGHT-CLICK THE COMMENT ITSELF — reply, record a reply, delete it. Without this the thread was
+    // the one thing on the page with no menu on it.
+    wrap.addEventListener("contextmenu", (e) => {
+      if (!h.threadMenu) return;
+      e.preventDefault();
+      e.stopPropagation();
+      h.threadMenu(e, t.id);
+    });
+    (t.replies || []).forEach((r, i) => {
+      const row = document.createElement("div");
+      const agent = r.author && r.author !== "you";
+      row.className = `cm-sv-thread__reply${agent ? " cm-sv-thread__reply--agent" : ""}`;
+      // NO BADGE. A comment is a note on some lines, not a threaded conversation with roles — the
+      // word "reply" and a coloured chip were me copying a document thread's LOOK when he was
+      // talking about how it behaves. Who wrote it and when live on the hover.
+      const body = document.createElement("span");
+      body.title = `${agent ? r.author : "you"} · ${when(r.ts)}`;
+      body.className = "cm-sv-thread__text";
+      // textContent, never innerHTML — this is text someone typed.
+      body.textContent = r.text || "";
+      row.appendChild(body);
+      const del = document.createElement("button");
+      del.type = "button";
+      del.className = "cm-sv-thread__del";
+      del.textContent = "×";
+      del.title = "Delete this reply";
+      del.addEventListener("mousedown", (e) => e.stopPropagation());
+      del.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (h.removeReply) h.removeReply(t.id, i);
+      });
+      row.appendChild(del);
+      wrap.appendChild(row);
+    });
+    if (this.composing)
+      wrap.appendChild(
+        replyForm({
+          placeholder: "add to this comment…",
+          label: "Save",
+          record: this.record,
+          onPost: (text) => h.addReply && h.addReply(t.id, text),
+          onCancel: () => view.dispatch({ effects: composeIn.of(null) }),
+        }),
+      );
+    return wrap;
+  }
+  ignoreEvent() {
+    // TRUE = the editor keeps its hands off. A textarea inside a widget needs its own keystrokes,
+    // and the "what was here" panel (which is never typed into) is why that one differs.
+    return true;
+  }
+}
+
+// A comment being written on a run that has none yet — the form, and only the form.
+class DraftWidget extends WidgetType {
+  constructor(from, to, handlers, record) {
+    super();
+    this.from = from;
+    this.to = to;
+    this.handlers = handlers;
+    this.record = record;
+  }
+  eq(other) {
+    return other.from === this.from && other.to === this.to && other.record === this.record;
+  }
+  toDOM() {
+    const h = this.handlers || {};
+    const wrap = document.createElement("div");
+    wrap.className = "cm-sv-thread cm-sv-thread--draft";
+    wrap.appendChild(
+      replyForm({
+        placeholder: `comment on ${rangeLabel(this.from, this.to)}…`,
+        label: "Comment",
+        record: this.record,
+        onPost: (text) => h.addThread && h.addThread(this.from, this.to, text),
+        onCancel: () => h.cancelDraft && h.cancelDraft(),
+      }),
+    );
+    return wrap;
+  }
+  ignoreEvent() {
+    return true;
+  }
+}
+
+// Threads the pane loaded, which of them are open, and the one being written. Same shape as
+// hunkField above so the two read alike.
+const commentField = StateField.define({
+  create: () => ({ threads: [], on: false, openIds: [], composing: null, draft: null, handlers: null, deco: Decoration.none }),
+  update(value, tr) {
+    let { threads, on, openIds, composing, draft, handlers } = value;
+    let touched = false;
+    for (const e of tr.effects) {
+      if (e.is(setCommentHandlers)) {
+        handlers = e.value || null;
+        touched = true;
+      }
+      if (e.is(setComments)) {
+        const next = (e.value && e.value.threads) || [];
+        // Snapshot the ids first: closing over `threads` itself (which this block reassigns) is the
+        // loop-capture the hunk field above still trips the linter with.
+        // WHICH ARE OPEN IS THE PANE'S, not ours: it arrives with the comments, so rebuilding the
+        // editor (a dark/light flip does exactly that) can't quietly close them.
+        openIds = (e.value && e.value.openIds) || [];
+        // Posting closes the box it was posted from — you said your piece.
+        composing = null;
+        threads = next;
+        on = !!(e.value && e.value.on);
+        touched = true;
+      }
+      if (e.is(composeIn)) {
+        composing = e.value || null;
+        touched = true;
+      }
+      if (e.is(setDraft)) {
+        draft = e.value || null;
+        touched = true;
+      }
+    }
+    if (!touched && !tr.docChanged) return value;
+    const widgets = [];
+    const at = (line) => Math.max(1, Math.min(line, tr.state.doc.lines));
+    // ONE SET, MEANING "AGAINST THE DEFAULT". The file's default is showing (or hidden, if you used
+    // the control at the top) and the 💬 on a line flips THAT comment the other way — so the icon
+    // still toggles in both directions. It used to hold "open" ids, which meant that once the
+    // default became showing, the icon had nowhere to move to and stopped doing anything.
+    threads.forEach((t) => {
+      const flipped = openIds.includes(t.id);
+      if (on === flipped) return;
+      widgets.push(
+          Decoration.widget({
+            widget: new ThreadWidget(
+              t,
+              handlers,
+              !!composing && composing.id === t.id,
+              !!composing && composing.id === t.id && !!composing.record,
+            ),
+            block: true,
+            side: 1,
+        }).range(tr.state.doc.line(at(t.to)).to),
+      );
+    });
+    if (draft)
+      widgets.push(
+        Decoration.widget({
+          widget: new DraftWidget(draft.from, draft.to, handlers, !!draft.record),
+          block: true,
+          side: 2,
+        }).range(tr.state.doc.line(at(draft.to)).to),
+      );
+    return { threads, on, openIds, composing, draft, handlers, deco: Decoration.set(widgets, true) };
+  },
+  provide: (f) => EditorView.decorations.from(f, (v) => v.deco),
+});
+
+const commentedLineMarker = new (class extends GutterMarker {
+  constructor() {
+    super();
+    this.elementClass = "cm-sv-hascomment";
+  }
+})();
+// Both marks in one computed set, and it is deliberately computed OFF `commentField`: a gutter only
+// redraws when the doc, the viewport, or a marker set it reads has changed — so with the 💬 baked
+// into the line-number TEXT it appeared only if something else happened to force a redraw after the
+// comments loaded. (Same family as the `lineMarkerChange` trap the change gutter hit.) A class on
+// the number also keeps the icon out of the number's own width.
+const selectedLineNumbers = gutterLineClass.compute(["selection", "doc", commentField], (state) => {
+  const marks = [];
+  const st = state.field(commentField, false);
+  if (st)
+    st.threads.forEach((t) => {
+      if (t.from >= 1 && t.from <= state.doc.lines) marks.push(commentedLineMarker.range(state.doc.line(t.from).from));
+    });
+  const sel = state.selection.main;
+  if (!sel.empty) {
+    const a = state.doc.lineAt(sel.from).number;
+    const b = state.doc.lineAt(sel.to).number;
+    for (let n = a; n <= b; n++) marks.push(selectedLineMarker.range(state.doc.line(n).from));
+  }
+  // Decoration/marker sets want document order.
+  marks.sort((x, y) => x.from - y.from);
+  return RangeSet.of(marks, true);
+});
+
+class CommentMarker extends GutterMarker {
+  constructor(count, isOpen, range) {
+    super();
+    this.count = count;
+    this.isOpen = isOpen;
+    this.range = range;
+  }
+  eq(other) {
+    return other.count === this.count && other.isOpen === this.isOpen && other.range === this.range;
+  }
+  toDOM() {
+    const el = document.createElement("div");
+    el.className = `cm-sv-cmark${this.isOpen ? " is-open" : ""}`;
+    el.textContent = this.count > 1 ? `💬${this.count}` : "💬";
+    el.title = `${this.count} comment${this.count === 1 ? "" : "s"} on ${this.range} — click to read`;
+    return el;
+  }
+}
+
+// The 💬 column. Only ever drawn when comments are ON, so a file you're just reading is just a file.
+const commentGutter = gutter({
+  class: "cm-sv-cgutter",
+  lineMarker(view, block) {
+    const st = view.state.field(commentField, false);
+    if (!st || !st.on || !st.threads.length) return null;
+    const n = view.state.doc.lineAt(block.from).number;
+    // On the run's FIRST line — one mark per thread, not one per line of it.
+    const mine = st.threads.filter((t) => t.from === n);
+    if (!mine.length) return null;
+    const count = mine.reduce((k, t) => k + (t.replies || []).length, 0);
+    const open = mine.some((t) => st.open.has(t.id));
+    return new CommentMarker(count, open, rangeLabel(mine[0].from, mine[0].to));
+  },
+  // The same cache rule the change gutter learned the hard way: without this it renders its spacer
+  // and nothing else, forever.
+  lineMarkerChange: (update) =>
+    update.startState.field(commentField, false) !== update.state.field(commentField, false),
+  initialSpacer: () => new CommentMarker(1, false, "1"),
+  domEventHandlers: {
+    mousedown(view, block, e) {
+      const st = view.state.field(commentField, false);
+      if (!st || !st.on) return false;
+      const n = view.state.doc.lineAt(block.from).number;
+      const mine = st.threads.filter((t) => t.from === n);
+      if (!mine.length) return false;
+      e.preventDefault();
+      view.dispatch({ effects: mine.map((t) => toggleThread.of(t.id)) });
+      return true;
+    },
+  },
+});
+
 // `readOnly` is for the file EMBEDDED in a document: the stripes, the panel a stripe opens and the
 // per-run staging all still work — those are git moves, not edits — but the text can't be typed
 // into, because scrolling past a file in something you're reading shouldn't be a chance to change
 // it by accident.
-const CodeEditor = ({ value = "", language = "markdown", onChange, dark = false, focusLines = null, changeMarks = null, hunks = null, onStageHunk = null, readOnly = false }) => {
+const CodeEditor = ({
+  value = "",
+  language = "markdown",
+  onChange,
+  dark = false,
+  focusLines = null,
+  changeMarks = null,
+  hunks = null,
+  onStageHunk = null,
+  readOnly = false,
+  // RFC-034 — the file's threads, whether they're showing, and what to do when one is written.
+  comments = null,
+  commentsOn = false,
+  onComment = null,
+  commentDraft = null,
+  commentCompose = null,
+  // WHICH comments are open, held by the pane — editor state is rebuilt on a theme change and this
+  // must not be what a dark/light flip throws away.
+  commentOpen = null,
+  onToggleComment = null,
+  // The pane's own right-click over the code: it gets the selected line range, because "comment on
+  // 57-64" is a thing only the pane can offer (it owns the menu and the store).
+  onCodeMenu = null,
+}) => {
   const host = useRef(null);
   const viewRef = useRef(null);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
+  // The menu handler goes in a ref for the same reason the stage handler went into editor STATE:
+  // the extension is built once and would otherwise close over the first render's callback.
+  const onCodeMenuRef = useRef(onCodeMenu);
+  onCodeMenuRef.current = onCodeMenu;
+  const onToggleCommentRef = useRef(onToggleComment);
+  onToggleCommentRef.current = onToggleComment;
 
   // Build the editor once per (language, theme); external value changes sync via a separate effect so
   // typing never tears down the view (which would drop the cursor).
@@ -324,8 +724,69 @@ const CodeEditor = ({ value = "", language = "markdown", onChange, dark = false,
     const listener = EditorView.updateListener.of((v) => {
       if (v.docChanged && onChangeRef.current) onChangeRef.current(v.state.doc.toString());
     });
+    // DRAG THE NUMBERS TO PICK A RUN — his ask, and it does NOT come for free: CodeMirror's line
+    // number gutter has no drag-select, so dragging it only made the BROWSER select the gutter's own
+    // digits. That looked like a selection and was worth nothing to the menu, which is why picking a
+    // range appeared broken while selecting the code worked.
+    // The range the pointer means: the SELECTION when the pointer is inside it, otherwise the one
+    // line under the pointer. Shared by both right-click paths so the numbers and the code can't
+    // disagree about what you just picked.
+    const rangeFor = (view, lineNo) => {
+      const sel = view.state.selection.main;
+      const from = view.state.doc.lineAt(sel.from).number;
+      const to = view.state.doc.lineAt(sel.to).number;
+      return sel.empty || lineNo < from || lineNo > to ? { from: lineNo, to: lineNo } : { from, to };
+    };
+    const numberDrag = lineNumbers({
+      domEventHandlers: {
+        mousedown(view, block, e) {
+          // Same rule as in the content: a right-click must not collapse the run you just picked.
+          if (e.button === 2) {
+            e.preventDefault();
+            return true;
+          }
+          if (e.button !== 0) return false;
+          const start = view.state.doc.lineAt(block.from).number;
+          // THE 💬 IS A BUTTON. It's drawn into the number itself, so its hit area is the left end of
+          // that cell — click it and this line's comment opens or closes. (The top button opens all
+          // of them; it was never supposed to be the only way in, and it never hides these.)
+          const st = view.state.field(commentField, false);
+          const mine = st && st.threads.filter((t) => t.from === start);
+          if (mine && mine.length && onToggleCommentRef.current) {
+            const box = e.currentTarget ? e.currentTarget.getBoundingClientRect() : block;
+            const iconZone = box.left != null ? e.clientX - box.left < 16 : true;
+            if (iconZone) {
+              e.preventDefault();
+              mine.forEach((t) => onToggleCommentRef.current(t.id));
+              return true;
+            }
+          }
+          const select = (a, b) => {
+            const doc = view.state.doc;
+            const lo = Math.max(1, Math.min(a, b));
+            const hi = Math.min(doc.lines, Math.max(a, b));
+            view.dispatch({ selection: { anchor: doc.line(lo).from, head: doc.line(hi).to } });
+          };
+          select(start, start);
+          const left = view.contentDOM.getBoundingClientRect().left + 4;
+          const move = (ev) => {
+            const pos = view.posAtCoords({ x: left, y: ev.clientY });
+            if (pos != null) select(start, view.state.doc.lineAt(pos).number);
+          };
+          const up = () => {
+            window.removeEventListener("mousemove", move);
+            window.removeEventListener("mouseup", up);
+          };
+          window.addEventListener("mousemove", move);
+          window.addEventListener("mouseup", up);
+          e.preventDefault();
+          return true;
+        },
+      },
+    });
     const ext = [
-      lineNumbers(),
+      numberDrag,
+      selectedLineNumbers,
       history(),
       keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
       EditorView.lineWrapping,
@@ -333,6 +794,20 @@ const CodeEditor = ({ value = "", language = "markdown", onChange, dark = false,
       changeMarkField, // the vs-HEAD stripe down the edge
       hunkField, // what each stripe replaced, and which are open
       stripeClicks, // the stripe itself is the click target — no second gutter
+      commentField, // RFC-034 — the file's comments and the one being written
+      EditorView.domEventHandlers({
+        // A RIGHT-CLICK MUST NOT EAT THE SELECTION. CodeMirror moves the cursor on mousedown for any
+        // button, so selecting 57-64 and right-clicking it collapsed the range a frame before the
+        // menu asked what was selected — and the menu could only ever offer one line. His report:
+        // "I thought I was supposed to be able to choose a range."
+        mousedown(e) {
+          if (e.button === 2) {
+            e.preventDefault();
+            return true;
+          }
+          return false;
+        },
+      }),
       listener,
     ];
     if (readOnly) ext.push(EditorView.editable.of(false), EditorState.readOnly.of(true));
@@ -348,7 +823,25 @@ const CodeEditor = ({ value = "", language = "markdown", onChange, dark = false,
       parent: host.current,
     });
     viewRef.current = view;
-    return () => { view.destroy(); viewRef.current = null; };
+    // ONE MENU, AND IT OPENS ANYWHERE IN THE FILE. `EditorView.domEventHandlers` only ever sees the
+    // content, and a gutter handler only its own column — which left dead zones (the gap beside the
+    // numbers, the stripe edge) where right-clicking did nothing at all. This sits on the editor
+    // root, resolves the line from Y alone, and is the only context menu in here.
+    const onMenu = (e) => {
+      if (!onCodeMenuRef.current) return;
+      const left = view.contentDOM.getBoundingClientRect().left + 4;
+      const pos = view.posAtCoords({ x: left, y: e.clientY });
+      if (pos == null) return;
+      e.preventDefault();
+      e.stopPropagation();
+      onCodeMenuRef.current(e, rangeFor(view, view.state.doc.lineAt(pos).number));
+    };
+    view.dom.addEventListener("contextmenu", onMenu);
+    return () => {
+      view.dom.removeEventListener("contextmenu", onMenu);
+      view.destroy();
+      viewRef.current = null;
+    };
   // value intentionally excluded — synced below without a rebuild
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [language, dark, readOnly]);
@@ -376,6 +869,40 @@ const CodeEditor = ({ value = "", language = "markdown", onChange, dark = false,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [markKey, language, dark, onStageHunk]);
+
+  // The threads, on the same terms: keyed on their CONTENT, so a reply lands without the pane
+  // having to hand back a new array identity for every keystroke elsewhere.
+  const commentKey = JSON.stringify([comments || [], commentOpen || []]);
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    view.dispatch({
+      effects: [
+        setComments.of({ threads: comments || [], on: !!commentsOn, openIds: commentOpen || [] }),
+        setCommentHandlers.of(onComment || null),
+      ],
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [commentKey, commentsOn, language, dark, onComment]);
+
+  // Opening the composer is the PANE's move (a menu item, a button) but the widget lives in here —
+  // so it's a PROP, like everything else, rather than an imperative handle reaching in.
+  const draftKey = commentDraft ? `${commentDraft.from}-${commentDraft.to}-${commentDraft.record ? 1 : 0}` : "";
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    view.dispatch({ effects: setDraft.of(commentDraft || null) });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftKey, language, dark]);
+
+  // …and which thread is being replied to, by the same route.
+  const composeKey = commentCompose ? `${commentCompose.id}-${commentCompose.record ? 1 : 0}` : "";
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    view.dispatch({ effects: composeIn.of(commentCompose || null) });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [composeKey, language, dark]);
 
   // RFC-025 — `:file[path#L40-70]` opens the file AT a range. Select the lines and center them by
   // setting the editor's OWN scroller only. Never scrollIntoView: it walks up the DOM and scrolls

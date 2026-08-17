@@ -7,6 +7,7 @@ import CodeEditor from "../../CodeView/CodeEditor";
 import DiffView from "../../DiffView/DiffView";
 import RowMenu from "../../RowMenu/RowMenu";
 import { changeMarksOf, hunksOf, stagedContentFor, fileGitState } from "../../CodeView/gitLines";
+import { useCodeComments } from "../../CodeView/codeComments";
 import { useEditorDark } from "../../CodeView/editorTheme";
 
 // RFC-025 — the two story-pane kinds a document was still missing: a FILE pane and a DIFF pane.
@@ -125,6 +126,13 @@ const Embed = ({ label, attrs = {}, opens }) => {
     return () => window.removeEventListener("sv:git", onGit);
   }, [load]);
 
+  // RFC-034 — the same threads the pane shows, from the same sidecar. Reading and replying only:
+  // starting one needs a right-click on the code, and in a document that right-click is the
+  // document's.
+  const { threads, addReply, removeThread } = useCodeComments(Plugin, path);
+  const [commentsOn, setCommentsOn] = useState(false);
+  const onComment = useMemo(() => ({ addReply, removeThread }), [addReply, removeThread]);
+
   const changeMarks = useMemo(() => changeMarksOf(base, index, content), [base, index, content]);
   const hunks = useMemo(() => hunksOf(base, index, content), [base, index, content]);
   const state = useMemo(() => fileGitState(base, index, content), [base, index, content]);
@@ -226,6 +234,17 @@ const Embed = ({ label, attrs = {}, opens }) => {
         {/* The nav's changed dot, on the embed: this file differs from HEAD, and the menu says how. */}
         {changed && <span className="md-embed__dot" title={`This file is${state.label.replace(" · ", " ")}`} />}
         <span className="md-embed__scope">{host ? host.projectCode : ""}</span>
+        {/* Only when there IS a conversation — an embed with nothing on it stays a plain embed. */}
+        {threads.length > 0 && !diffOn && (
+          <button
+            type="button"
+            className={`md-embed__view ${commentsOn ? "md-embed__view--on" : ""}`}
+            title={`${threads.length} comment thread${threads.length === 1 ? "" : "s"} on this file`}
+            onClick={() => setCommentsOn(!commentsOn)}
+          >
+            💬 {threads.length}
+          </button>
+        )}
         <button
           type="button"
           className={`md-embed__view ${diffOn ? "md-embed__view--on" : ""}`}
@@ -269,6 +288,13 @@ const Embed = ({ label, attrs = {}, opens }) => {
             changeMarks={changeMarks}
             hunks={hunks}
             onStageHunk={stageHunkAt}
+            // RFC-034 — the file's threads, read and replied to from inside the document. Same
+            // sidecar the pane writes, so a conversation started in one is the same conversation in
+            // the other. Writing a NEW one stays in the pane: the body's right-click belongs to the
+            // document here, and that's the only way in.
+            comments={threads}
+            commentsOn={commentsOn}
+            onComment={onComment}
           />
         )}
       </div>

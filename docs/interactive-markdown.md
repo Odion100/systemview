@@ -492,6 +492,10 @@ second runs it. Push shows only when the branch is ahead of its upstream. Drag e
 list to resize it; the height is written back into the block as `height=`, the same way `::::columns`
 remembers `split=`.
 
+**to the panel ⇢** hands the message to the codebase panel's commit box instead — the version-control
+lens opens with the message already in it, and you finish there. Nothing is committed by the
+hand-off; the two clicks are still yours, just on the other surface.
+
 When it runs, the sha lands in the block itself:
 
 ```markdown

@@ -6,6 +6,7 @@ import TestsIcon from "../../atoms/TestsIcon/TestsIcon";
 import HELP_TOPICS from "../../atoms/Help/helpTopics";
 import { setHelpTopic } from "../../atoms/Help/helpStore";
 import RowMenu from "../../atoms/RowMenu/RowMenu";
+import { commentedPathSet } from "../../atoms/CodeView/codeComments";
 import imageFileIcon from "../../assets/image-file.png";
 import "./styles.scss";
 
@@ -481,6 +482,12 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
   const [docsOnly, setDocsOnly] = useState(
     () => localStorage.getItem("sv.cbNav.docsOnly") === "true",
   );
+  // RFC-034 — only the files someone has said something about. Same shape as the `.md` pill beside
+  // it; the count rides on it, because "how many files have comments" is half of what you're asking
+  // when you reach for this.
+  const [commentsOnly, setCommentsOnly] = useState(
+    () => localStorage.getItem("sv.cbNav.commentsOnly") === "true",
+  );
   const flipToggle = (key, value, set) => () => {
     set(!value);
     localStorage.setItem(key, String(!value));
@@ -541,6 +548,10 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
     if (docsOnly) {
       setDocsOnly(false);
       localStorage.setItem("sv.cbNav.docsOnly", "false");
+    }
+    if (commentsOnly) {
+      setCommentsOnly(false);
+      localStorage.setItem("sv.cbNav.commentsOnly", "false");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [revealedPath]);
@@ -745,6 +756,10 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
   const [armed, setArmed] = useState("");
   // changes | log — the same switch the ::commit block has, so the panel can show history too.
   const [vcTab, setVcTab] = useState("changes");
+  // A message just arrived from a document's `::commit` block — the box glows briefly so the
+  // hand-off is visible, then goes back to looking like the box it always was.
+  const [took, setTook] = useState(false);
+  const commitBoxRef = useRef(null);
   // git's own words from the last commit/push — including the sentence an aborting hook prints.
   const [gitOut, setGitOut] = useState("");
   const loadGitState = useRef(() => {});
@@ -801,6 +816,68 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
       setVcBusy(null);
     }
   };
+
+  // THE `</>` BUTTON, ARRIVING. Opening the panel was not enough — it was usually open already, so
+  // pressing it did nothing you could see. The card you pressed it from OPENS ITS FILES and scrolls
+  // to itself; every other codebase folds away, so what you asked for is the thing in front of you.
+  const cardRef = useRef(null);
+  useEffect(() => {
+    const onCodebase = (e) => {
+      const target = ((e && e.detail) || {}).projectCode;
+      if (target && target !== projectCode) {
+        setServicesOpen(false);
+        setCodeOpen(false);
+        return;
+      }
+      setCodeOpen(true);
+      setTimeout(() => {
+        if (cardRef.current) cardRef.current.scrollIntoView({ block: "start", behavior: "smooth" });
+      }, 120);
+    };
+    window.addEventListener("sv:codebase", onCodebase);
+    return () => window.removeEventListener("sv:codebase", onCodebase);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectCode]);
+
+  // HAND THE MESSAGE OVER FROM A DOCUMENT. A `::commit` block can pass its message here instead of
+  // running the commit itself — "sometimes I want to switch to the nav and make my commit". It only
+  // ever SETS UP the box: the lens opens, the message lands in it, and the two clicks are still his.
+  // Everything it flips is something the box needs to be visible at all (the code fold, the lens,
+  // and git state, which is only fetched while the lens is on).
+  useEffect(() => {
+    const onTake = (e) => {
+      const d = (e && e.detail) || {};
+      if (d.projectCode && d.projectCode !== projectCode) return;
+      setCodeOpen(true);
+      setVcLens(true);
+      localStorage.setItem("sv.cbNav.vcLens", "true");
+      setVcTab("changes");
+      setArmed("");
+      if (d.message != null) setMessage(d.message);
+      setTyping(false);
+      loadGitState.current();
+      // The box mounts on the next flush, and a hand-off that lands off-screen reads as nothing
+      // happening — same rule a file reveal follows.
+      setTook(true);
+      setTimeout(() => {
+        if (commitBoxRef.current) commitBoxRef.current.scrollIntoView({ block: "center", behavior: "smooth" });
+      }, 140);
+      setTimeout(() => setTook(false), 1600);
+    };
+    window.addEventListener("sv:commitInNav", onTake);
+    return () => window.removeEventListener("sv:commitInNav", onTake);
+  }, [projectCode]);
+
+  // Which files have comments — derived from the file list the tree ALREADY has, because a comment
+  // sidecar is itself a file in `.systemview/`. No new plugin method and no extra call; the FIRST
+  // thread on a file creates that sidecar, so the list has to be re-walked when one is written —
+  // the same tick a `sv:refresh` uses.
+  useEffect(() => {
+    const bump = () => setRefreshTick((n) => n + 1);
+    window.addEventListener("sv:comments", bump);
+    return () => window.removeEventListener("sv:comments", bump);
+  }, []);
+  const commented = useMemo(() => commentedPathSet(files), [files]);
 
   const tree = useMemo(() => (files ? buildTree(files) : null), [files]);
   // Rollup: how many changed files live under each directory prefix (for the collapsed-dir badges).
@@ -1018,6 +1095,14 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
           );
         })()}
         <span className={`${CLASSNAME}__file-name`}>{f.name || f.path}</span>
+        {/* RFC-034 — this file has comments on it. "They'd be a good thing to know where they are":
+            without a mark, a thread only exists for whoever remembers writing it. Free to compute —
+            the sidecars are files in this same tree. */}
+        {commented.has(f.path) && (
+          <span className={`${CLASSNAME}__comment-mark`} title="This file has comments">
+            💬
+          </span>
+        )}
         {(() => {
           const g = changed.get(f.path);
           if (!g) return null;
@@ -1131,12 +1216,15 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
     (query.startsWith("*.")
       ? p.toLowerCase().endsWith(query.slice(1))
       : p.toLowerCase().includes(query));
-  const filterActive = !!query || docsOnly;
+  const filterActive = !!query || docsOnly || commentsOnly;
   const filtered =
     files && filterActive
       ? files
           .filter(
-            (f) => matchText(f.path) && (!docsOnly || /\.mdx?$/i.test(f.path)),
+            (f) =>
+              matchText(f.path) &&
+              (!docsOnly || /\.mdx?$/i.test(f.path)) &&
+              (!commentsOnly || commented.has(f.path)),
           )
           .slice(0, 200)
       : null;
@@ -1165,6 +1253,7 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
 
   return (
     <div
+      ref={cardRef}
       className={`${CLASSNAME}__codebase ${isCurrent ? `${CLASSNAME}__codebase--current` : ""}`}
     >
       {/* The header NAVIGATES — project-level docs/tests — it does not toggle (RFC-026: the card
@@ -1324,6 +1413,25 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
                     <span className={`${CLASSNAME}__filter-pill-n`}>{changed.size}</span>
                   </button>
                 )}
+                {/* Only files that have comments on them — the same icon they wear in the tree, and
+                    the count of them. Drawn only when there ARE any: a 0 pill is a dead control. */}
+                {commented.size > 0 && (
+                  <button
+                    type="button"
+                    className={`${CLASSNAME}__filter-pill ${CLASSNAME}__filter-pill--comments ${
+                      commentsOnly ? `${CLASSNAME}__filter-pill--on` : ""
+                    }`}
+                    title={
+                      commentsOnly
+                        ? "Back to every file"
+                        : `Only the ${commented.size} file${commented.size > 1 ? "s" : ""} with comments`
+                    }
+                    onClick={flipToggle("sv.cbNav.commentsOnly", commentsOnly, setCommentsOnly)}
+                  >
+                    💬
+                    <span className={`${CLASSNAME}__filter-pill-n`}>{commented.size}</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   className={`${CLASSNAME}__filter-pill ${docsOnly ? `${CLASSNAME}__filter-pill--on` : ""}`}
@@ -1342,7 +1450,10 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
               {/* RFC-033 — commit and push where the staging happens. Only drawn when the plugin
                   actually has the verbs, so an older project shows the lens without dead buttons. */}
               {vcLens && gitState && gitState.repo && (
-                <div className={`${CLASSNAME}__commit`}>
+                <div
+                  ref={commitBoxRef}
+                  className={`${CLASSNAME}__commit${took ? ` ${CLASSNAME}__commit--took` : ""}`}
+                >
                   <div className={`${CLASSNAME}__commit-head`}>
                     <span className={`${CLASSNAME}__commit-branch`}>{gitState.branch}</span>
                     {gitState.ahead > 0 && (

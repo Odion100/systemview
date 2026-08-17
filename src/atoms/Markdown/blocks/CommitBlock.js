@@ -268,6 +268,26 @@ const CommitBlock = ({ label, attrs = {}, line }) => {
           </button>
         </span>
         <span className="md-commit__scope">{host ? host.projectCode : projectCode || ""}</span>
+        {/* HAND IT TO THE PANEL. The block can run the commit itself, but sometimes the panel is
+            where you want to finish it — stage a few more things, read the log, then commit there.
+            This carries the message over and opens the box; it never commits anything. */}
+        {!sha && (
+          <button
+            type="button"
+            className="md-commit__tonav"
+            title="Send this message to the codebase panel's commit box"
+            onClick={() => {
+              window.dispatchEvent(new CustomEvent("sv:openRegion", { detail: { region: "nav" } }));
+              window.dispatchEvent(
+                new CustomEvent("sv:commitInNav", {
+                  detail: { projectCode: host ? host.projectCode : projectCode, message },
+                }),
+              );
+            }}
+          >
+            to the panel ⇢
+          </button>
+        )}
       </div>
 
       {/* THE MESSAGE ROW — the button sits WITH the message, not on a row of its own underneath.

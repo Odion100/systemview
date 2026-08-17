@@ -3,6 +3,8 @@ import ServiceContext from "../../ServiceContext";
 import loadServiceWithHeaders from "../../utils/loadService";
 import CodeEditor from "../../atoms/CodeView/CodeEditor";
 import { changeMarksOf, hunksOf, stagedContentFor } from "../../atoms/CodeView/gitLines";
+import { useCodeComments } from "../../atoms/CodeView/codeComments";
+import RowMenu from "../../atoms/RowMenu/RowMenu";
 import DiffView from "../../atoms/DiffView/DiffView";
 import { useEditorDark, EditorThemeToggle } from "../../atoms/CodeView/editorTheme";
 import Markdown from "../../atoms/Markdown/Markdown";
@@ -65,9 +67,14 @@ const CodePane = ({ file, onClose }) => {
     if (!host && connectedServices.length && onClose) onClose();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [host, connectedServices.length]);
-  const Plugin = host
-    ? loadServiceWithHeaders(host.system.connectionData, host.headers, host.credentials).Plugin
-    : null;
+  // Memoized because the comment store keys its load on it — an identity that changed every render
+  // would re-read the sidecar every render.
+  const Plugin = useMemo(
+    () =>
+      host ? loadServiceWithHeaders(host.system.connectionData, host.headers, host.credentials).Plugin : null,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [host && host.serviceId, host && host.projectCode],
+  );
 
   useEffect(() => {
     setContent(null);
@@ -267,6 +274,111 @@ const CodePane = ({ file, onClose }) => {
     localStorage.setItem(`sv.mdPreview.${file.path}`, String(next));
   };
 
+  // RFC-034 — COMMENTS SHOW BY DEFAULT. They were hidden until you asked, and the cost of that was
+  // writing one, refreshing, and finding it closed — "I hate the fucking refreshing it closed if I
+  // just made a comment". They're his notes on his file; they should be on the page.
+  const [commentsOn, setCommentsOn] = useState(true);
+  const [draft, setDraft] = useState(null); // the range being written about
+  const [compose, setCompose] = useState(null); // { id, record } — the comment being added to
+  // Which comments are flipped AGAINST the file's default — held here, not in the editor, because
+  // the editor is rebuilt whenever the theme changes and that used to close them all on a flip.
+  const [openComments, setOpenComments] = useState([]);
+  const toggleComment = useCallback(
+    (id) => setOpenComments((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id])),
+    [],
+  );
+  const [clearArmed, setClearArmed] = useState(false);
+  const [codeMenu, setCodeMenu] = useState(null);
+  const { threads, error: commentError, addThread, addReply, removeReply, removeThread, removeAll } =
+    useCodeComments(Plugin, file.path);
+  useEffect(() => {
+    // A different file starts clean — its own comments, nothing half-written carried over.
+    setDraft(null);
+    setCompose(null);
+    setOpenComments([]);
+    setClearArmed(false);
+  }, [file.path]);
+
+  const onComment = useMemo(
+    () => ({
+      addThread: (from, to, text) => {
+        const id = addThread(from, to, text);
+        setDraft(null);
+        // The one you just wrote is SHOWN — it inherits the default, and any flip against it is
+        // stale the moment the comment is new.
+        if (id) setOpenComments((cur) => cur.filter((x) => x !== id));
+      },
+      addReply,
+      removeReply,
+      removeThread,
+      cancelDraft: () => setDraft(null),
+      // The right-click ON a comment. Everything you can do to one lives here — reply, reply by
+      // voice, delete it — because that is where this app keeps its verbs.
+      threadMenu: (e, id) => {
+        const t = threads.find((x) => x.id === id);
+        if (!t) return;
+        const tl = t.from === t.to ? `${t.from}` : `${t.from}-${t.to}`;
+        setCodeMenu({
+          x: e.clientX,
+          y: e.clientY,
+          title: `comment on ${tl}`,
+          items: [
+            { label: "Reply", action: () => setCompose({ id, record: false }) },
+            { label: "🎙 Reply by voice", action: () => setCompose({ id, record: true }) },
+            {
+              label: "Delete this comment",
+              danger: true,
+              confirm: `Delete the comment on ${tl}?`,
+              action: () => removeThread(id),
+            },
+          ],
+        });
+      },
+    }),
+    [addThread, addReply, removeReply, removeThread, threads],
+  );
+
+  // The code's own right-click. The pane owns it because only the pane knows about the store; the
+  // editor just reports which lines the pointer (or the selection) is on.
+  const onCodeMenu = (e, range) => {
+    const label = range.from === range.to ? `${range.from}` : `${range.from}-${range.to}`;
+    const items = [
+      {
+        label: `Comment on ${label}`,
+        action: () => {
+          setCommentsOn(true);
+          setDraft({ ...range, record: false });
+        },
+      },
+      // START RECORDING ON THE CLICK — his ask, verbatim: "the recorder in the right-click option.
+      // Boom. You click it, it starts recording your next comment."
+      {
+        label: `🎙 Comment on ${label} by voice`,
+        action: () => {
+          setCommentsOn(true);
+          setDraft({ ...range, record: true });
+        },
+      },
+    ];
+    // DELETING A COMMENT LIVES HERE — "who needs a delete thing anyway, you just right click". Any
+    // thread overlapping the lines you clicked is offered, named by its range so two on top of each
+    // other stay tellable apart.
+    threads
+      .filter((t) => t.to >= range.from && t.from <= range.to)
+      .forEach((t) => {
+        const tl = t.from === t.to ? `${t.from}` : `${t.from}-${t.to}`;
+        items.push({ label: `Reply to the comment on ${tl}`, action: () => setCompose({ id: t.id, record: false }) });
+        items.push({ label: `🎙 Reply to ${tl} by voice`, action: () => setCompose({ id: t.id, record: true }) });
+        items.push({
+          label: `Delete the comment on ${tl}`,
+          danger: true,
+          confirm: `Delete the comment on ${tl}?`,
+          action: () => removeThread(t.id),
+        });
+      });
+    setCodeMenu({ x: e.clientX, y: e.clientY, title: `${file.path.split("/").pop()} · ${label}`, items });
+  };
+
   const segments = file.path.split("/");
 
   return (
@@ -307,6 +419,47 @@ const CodePane = ({ file, onClose }) => {
               onClick={toggleDiff}
             >
               Diff
+            </button>
+          )}
+          {/* RFC-034 — one control for ALL of this file's comments, off by default. The count is on
+              it so you can tell there's a conversation here without turning it on. */}
+          {/* NOT PINNED. It was wearing the amber "this mode is on" look, which shouted at you about
+              the normal state of the file — comments showing is not a mode you're in. */}
+          {!isImage && !diffMode && threads.length > 0 && (
+            <button
+              type="button"
+              className={`${CLASSNAME}__btn`}
+              title={
+                commentsOn
+                  ? `Hide the ${threads.length} comment${threads.length === 1 ? "" : "s"} on this file`
+                  : `Show the ${threads.length} comment${threads.length === 1 ? "" : "s"} on this file`
+              }
+              onClick={() => {
+                // Flipping the file's default clears the per-comment exceptions: "hide them" that
+                // left three showing would not be hiding them.
+                setOpenComments([]);
+                setCommentsOn(!commentsOn);
+                if (commentsOn) setDraft(null);
+              }}
+            >
+              💬{threads.length ? ` ${threads.length}` : ""}
+            </button>
+          )}
+          {/* Clearing every comment on the file — two-step. THE REAL JOB OF THIS CORNER: showing them
+              is the default, so what's left up here is getting rid of them. */}
+          {threads.length > 0 && (
+            <button
+              type="button"
+              className={`${CLASSNAME}__btn ${clearArmed ? `${CLASSNAME}__btn--pinned` : ""}`}
+              title="Delete every comment on this file — the sidecar goes with them"
+              onClick={() => {
+                if (!clearArmed) return setClearArmed(true);
+                setClearArmed(false);
+                removeAll();
+              }}
+              onBlur={() => setClearArmed(false)}
+            >
+              {clearArmed ? "confirm" : "clear"}
             </button>
           )}
           {isMd && !(diffMode && hasDiff) && (
@@ -445,9 +598,20 @@ const CodePane = ({ file, onClose }) => {
             changeMarks={changeMarks}
             hunks={hunks}
             onStageHunk={stageHunkAt}
+            comments={threads}
+            commentsOn={commentsOn}
+            onComment={onComment}
+            commentDraft={draft}
+            commentCompose={compose}
+            commentOpen={openComments}
+            onToggleComment={toggleComment}
+            onCodeMenu={onCodeMenu}
           />
         ))}
       </div>
+      {commentError && <div className={`${CLASSNAME}__error`}>{commentError}</div>}
+      {/* The same two-step context menu the codebase tree uses — one menu, two surfaces. */}
+      <RowMenu menu={codeMenu} onClose={() => setCodeMenu(null)} />
     </div>
   );
 };

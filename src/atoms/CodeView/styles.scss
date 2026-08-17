@@ -171,3 +171,177 @@
     color: var(--sv-text);
   }
 }
+
+// ── RFC-034 · comments on code ─────────────────────────────────────────────────────────────────
+// A thread hangs under the run it's about. Deliberately unlike the "what was here" panel beside it:
+// that one is git's voice about the file, this one is people talking, so it reads as a note pinned
+// on rather than a slice of the file.
+.cm-editor {
+  .cm-sv-cgutter {
+    min-width: 18px;
+    padding: 0 1px;
+    cursor: pointer;
+    text-align: center;
+  }
+  .cm-sv-cmark {
+    font-size: 10px;
+    line-height: 1.4;
+    opacity: 0.75;
+    white-space: nowrap;
+    &:hover { opacity: 1; }
+    &.is-open { opacity: 1; }
+  }
+
+  // A comment on a run of code. SUBTLE — it is the conversation and nothing else: no badge repeating
+  // the line numbers it is already sitting under, no buttons in a corner. Same shapes a document
+  // thread uses (badge + text + ×, then a form only while you're writing), because it is the same
+  // feature and shouldn't need to be told apart.
+  // A comment on a run of code. THE ORIGINAL LOOK, restored: a blue edge with a faint blue wash —
+  // blended into the file but still tellable from it — and green while one is being written. It got
+  // repainted with a document thread's amber badges when he said "like threads"; he meant how they
+  // behave. Put back the way it was.
+  // LIGHT IS UNTOUCHED — it was never what was being tuned. Every value he handed over was picked
+  // standing in a DARK editor, so all of it lives in the dark rules below and none of it reaches
+  // here.
+  .cm-sv-thread {
+    margin: 3px 0 4px 6px;
+    border-left: 2px solid #6a74c4;
+    background: rgba(106, 116, 196, 0.09);
+    border-radius: 0 4px 4px 0;
+    padding: 4px 8px 6px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 12px;
+    // Not part of the code — a comment has nothing to say about indentation.
+    white-space: normal;
+
+    &--draft { border-left-color: #3f9e6a; background: rgba(63, 158, 106, 0.09); }
+
+    // The card the text sits on — back, but TUNED PER THEME. One translucency for both was the
+    // problem: what reads as a card on a dark editor is a smudge on a light one. Light gets barely
+    // any; dark gets a lift instead of a wash (below).
+    &__reply {
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+      margin: 2px 0;
+      padding: 3px 6px;
+      border-radius: 4px;
+      background: #5a64820f;
+      // An agent's is marked by an edge — no chip, no second colour scheme.
+      &--agent {
+        border-left: 2px solid rgba(106, 116, 196, 0.5);
+        padding-left: 6px;
+      }
+    }
+    &__text { flex: 1 1 auto; white-space: pre-wrap; }
+    // × DELETES — the same × a document thread's reply carries, meaning the same thing.
+    &__del {
+      flex: none;
+      border: 0;
+      background: transparent;
+      color: #b6bccb;
+      cursor: pointer;
+      font-size: 14px;
+      line-height: 1;
+      padding: 0 2px;
+      opacity: 0.6;
+      &:hover { opacity: 1; color: #c0392b; }
+    }
+
+    &__form { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 2px; }
+    &__input {
+      width: 100%;
+      border: 1px solid rgba(106, 116, 196, 0.35);
+      border-radius: 4px;
+      padding: 4px 6px;
+      font: inherit;
+      color: inherit;
+      background: rgba(127, 127, 127, 0.12);
+      resize: vertical;
+      &:focus { outline: none; border-color: #6a74c4; }
+    }
+    &__actions { display: flex; gap: 6px; align-items: center; }
+    &__post,
+    &__cancel {
+      border: 1px solid #6a74c4;
+      border-radius: 5px;
+      background: #6a74c4;
+      color: #fff;
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 14px;
+      cursor: pointer;
+      &:hover { filter: brightness(1.08); }
+    }
+    &__cancel {
+      background: transparent;
+      border-color: rgba(127, 127, 127, 0.4);
+      color: inherit;
+      font-weight: 600;
+      &:hover { background: rgba(127, 127, 127, 0.14); filter: none; }
+    }
+    // The recorder sits with the buttons.
+    &__mic {
+      border: none;
+      background: none;
+      padding: 0 2px;
+      font-size: 13px;
+      line-height: 1;
+      cursor: pointer;
+      opacity: 0.65;
+      &:hover { opacity: 1; }
+      &.is-on {
+        opacity: 1;
+        filter: drop-shadow(0 0 4px rgba(224, 82, 82, 0.9));
+      }
+    }
+  }
+}
+
+// A dark editor sits on ~#282c34, where a translucent grey just disappears — so the card LIFTS off
+// the ground here instead of washing over it, and the comment's own blue comes up with it.
+.code-editor--dark .cm-editor {
+  // HIS VALUES, tuned in the window on a dark editor — which is the only place they apply, because
+  // that is where he was standing when he picked them: his wash, square corners, and the green edge
+  // he asked for here (the one the light editor already uses on a draft).
+  .cm-sv-thread {
+    background: #6a74c417;
+    border-left-color: #3f9e6a;
+    border-radius: 0;
+    &__reply { background: #00000012; border-radius: 0; }
+    &__input { background: rgba(0, 0, 0, 0.25); }
+  }
+}
+
+// THE NUMBER COLUMN IS A CONTROL. Drag it to pick a run (for a comment, and for whatever else wants
+// a range later) — so it has to say so: the pointer changes, the number under the cursor lights up,
+// and every number in the selection stays lit. Without this the whole thing was invisible.
+.cm-editor .cm-gutter.cm-lineNumbers {
+  cursor: pointer;
+  .cm-gutterElement:hover {
+    background: rgba(127, 127, 127, 0.22);
+  }
+  .cm-sv-selline {
+    background: rgba(106, 116, 196, 0.32);
+    font-weight: 700;
+  }
+  // THIS LINE HAS A COMMENT — a small mark on the number itself, and the number is the click target
+  // that opens it. Subtle on purpose: it sits in a column you read past all day.
+  .cm-sv-hascomment {
+    position: relative;
+    padding-left: 11px;
+    cursor: pointer;
+    &::before {
+      content: "💬";
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 7.5px;
+      line-height: 1;
+      opacity: 0.75;
+    }
+    &:hover::before { opacity: 1; }
+  }
+}

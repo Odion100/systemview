@@ -236,6 +236,33 @@
       box-shadow: 0 0 0 3px rgba(104, 134, 186, 0.22);
     }
   }
+  // `</>` — the codebase, from the name tag, after the recorder. The only one of these that opens
+  // something outside the bot, so it wears the codebase's own indigo instead of an emoji.
+  &__minicode {
+    position: absolute;
+    top: 46px;
+    left: calc(100% + 92px); // after the mic — 💬 📺 🔗 🎙 </>
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border: 1px solid var(--sv-border);
+    border-radius: 9px;
+    background: color-mix(in srgb, var(--sv-surface) 90%, transparent);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 8.5px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: var(--sv-blue-deep);
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0.72;
+    &:hover {
+      opacity: 1;
+      border-color: var(--sv-blue);
+    }
+  }
   // The icons live on the RIGHT and stay there. They step aside only when the message display or
   // the live transcript is actually hanging on that side — otherwise four buttons sit on top of
   // the thing you are reading. Moving them by screen half would relocate them for no reason.
@@ -243,6 +270,7 @@
   &--iconsleft &__minitv { left: auto; right: calc(100% + 26px); }
   &--iconsleft &__minilink { left: auto; right: calc(100% + 48px); }
   &--iconsleft &__minimic { left: auto; right: calc(100% + 70px); }
+  &--iconsleft &__minicode { left: auto; right: calc(100% + 92px); }
   // The identity — which bot this is. Several bubbles will coexist; the label tells them apart.
   &__label {
     font-family: "SF Mono", Menlo, monospace;
@@ -1428,7 +1456,8 @@
   // The icon IS the button — no wrapper, no background. Send and mic share the SAME box
   // (height/padding/margin) so their tops actually line up next to the growing input.
   &__send,
-  &__mic {
+  &__mic,
+  &__code {
     flex: none;
     border: none;
     background: none;
@@ -1443,6 +1472,15 @@
     &:hover {
       opacity: 1;
     }
+  }
+  // `</>` — the codebase, one button to bring it up and put it away. Coloured on purpose: it's the
+  // only thing in this row that isn't about the message you're writing.
+  &__code {
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--sv-blue-deep);
+    letter-spacing: -0.5px;
   }
   &__send {
     line-height: 0;

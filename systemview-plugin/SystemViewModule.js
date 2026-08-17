@@ -268,6 +268,9 @@ module.exports = ({ App, specs, projectCode, serviceId, module = {}, credentials
     this.getSource = providers.getSource;
     this.getDiff = providers.getDiff;
     this.writeFile = providers.writeFile;
+    // RFC-034 — a file can be removed now, snapshotted first. The comment sidecars need it: the last
+    // thread leaving takes its file with it.
+    this.deleteFile = providers.deleteFile;
     // Doc undo — the snapshot ring writeFile/saveDoc feed: list a file's saved versions, read one
     // back. Restore = a normal writeFile with the snapshot's content (which snapshots the current
     // version first, so undo always has an undo).

@@ -135,10 +135,18 @@ const SystemViewPage = () => {
       if (r === "nav") setNavOpen(true);
       else if (r === "scratchpad" || r === "tests") setScratchOpen(true);
     };
+    // The `</>` in the bot's name-tag row: BRING THE CODEBASE UP. That's all it does — it was a
+    // toggle for a moment and closing the nav is not what "bring up the codebase" means.
+    const onCodebase = () => {
+      setNavOpen(true);
+      setNavTab("files");
+    };
+    window.addEventListener("sv:codebase", onCodebase);
     window.addEventListener("sv:openRegion", onOpenRegion);
     const onOpenScratch = () => setScratchOpen(true);
     window.addEventListener("sv:openScratchpad", onOpenScratch);
     return () => {
+      window.removeEventListener("sv:codebase", onCodebase);
       window.removeEventListener("sv:openRegion", onOpenRegion);
       window.removeEventListener("sv:openScratchpad", onOpenScratch);
     };
@@ -182,7 +190,14 @@ const SystemViewPage = () => {
       setReveal(d);
     };
     window.addEventListener("sv:revealInNav", onReveal);
-    return () => window.removeEventListener("sv:revealInNav", onReveal);
+    // A `::commit` block handing its message to the panel — the box only exists on the Codebases
+    // lens, so arriving there is part of the hand-off. The nav card itself does the rest.
+    const onCommitInNav = () => setNavTab("files");
+    window.addEventListener("sv:commitInNav", onCommitInNav);
+    return () => {
+      window.removeEventListener("sv:revealInNav", onReveal);
+      window.removeEventListener("sv:commitInNav", onCommitInNav);
+    };
   }, []);
   // An explicit selection (navigating for real) retires the pointer — it has been acted on.
   useEffect(() => {

@@ -662,7 +662,23 @@ function createFileProviders(rootDir) {
     return { path: relFromRoot(abs), bytes: Buffer.byteLength(content || "", "utf8") };
   }
 
-  return { readFile, readFileRaw, listFiles, changedFiles, stageFiles, stageHunk, discardFiles, gitState, commit, push, search, getSource, getDiff, writeFile, fileHistory, readSnapshot, snapshot, languageOf, safeResolve };
+  // RFC-034 — DELETE a file, snapshotted first so ⏱ can bring it back. There was no way to remove a
+  // file at all: `discardFiles` deletes an UNTRACKED one, but only as git's "throw away this new
+  // file", which is the wrong verb (and the wrong outcome) for anything git already tracks. The
+  // caller that needed it is the comment sidecar — the last thread leaving has to take the file with
+  // it, or `.systemview/` silts up with empty ones and the tree keeps marking a file that has
+  // nothing to say.
+  function deleteFile({ path: userPath } = {}) {
+    if (!userPath) throw new Error("deleteFile: `path` is required");
+    const abs = safeResolve(userPath);
+    if (!fs.existsSync(abs)) return { path: relFromRoot(abs), gone: true };
+    if (fs.statSync(abs).isDirectory()) throw new Error("deleteFile: that's a directory");
+    snapshot(abs);
+    fs.unlinkSync(abs);
+    return { path: relFromRoot(abs), gone: true };
+  }
+
+  return { readFile, readFileRaw, listFiles, changedFiles, stageFiles, stageHunk, discardFiles, gitState, commit, push, search, getSource, getDiff, writeFile, deleteFile, fileHistory, readSnapshot, snapshot, languageOf, safeResolve };
 }
 
 // Default set bound (lazily) to process.cwd() — the plugin running inside an observed service.

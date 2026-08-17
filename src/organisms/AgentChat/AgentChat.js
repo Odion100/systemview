@@ -2775,11 +2775,14 @@ function BotBubble({ projectCode, index }) {
         >
           🔗
         </button>
-        {!open && micSupported && (
+        {/* ALWAYS THERE. It used to disappear the moment the chat opened — on the grounds that the
+            input row has its own mic — but this is the row he reaches for, and a control that moves
+            depending on what else is open is a control you have to look for. */}
+        {micSupported && (
           <button
             type="button"
             className={`${CLASSNAME}__minimic${listening ? ` ${CLASSNAME}__minimic--on` : ""}`}
-            title={listening ? "Stop recording" : "Record a message without opening the chat"}
+            title={listening ? "Stop recording" : "Record a message"}
             onPointerDown={(e) => e.stopPropagation()} // the bot drags; this button does not
             onClick={(e) => {
               e.stopPropagation();
@@ -2789,6 +2792,23 @@ function BotBubble({ projectCode, index }) {
             🎙
           </button>
         )}
+        {/* THE CODEBASE, from the name tag — his ask, after the recorder. `</>` because that's what
+            code looks like, and it's the one button here that opens something outside the bot: one
+            click brings the tree up, the next puts it away. */}
+        <button
+          type="button"
+          className={`${CLASSNAME}__minicode`}
+          title="The codebase — open it, click again to put it away"
+          onPointerDown={(e) => e.stopPropagation()} // the bot drags; this button does not
+          onClick={(e) => {
+            e.stopPropagation();
+            // WHICH codebase — this bot's project. Without it the nav had nothing to focus, which
+            // is why pressing it looked like nothing happening at all.
+            window.dispatchEvent(new CustomEvent("sv:codebase", { detail: { projectCode } }));
+          }}
+        >
+          &lt;/&gt;
+        </button>
       </div>
     </div>
   );
