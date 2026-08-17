@@ -281,6 +281,12 @@ systemview tv <project> [--json]                   # READ it back — his clicks
                                                    # replies live. Read it whenever he says he
                                                    # responded; nothing tells you otherwise.
 
+# His comments ON THE CODE (RFC-034) — notes he writes on a line range in a file. They live beside
+# the repo, never in the file: .systemview/code-comments/<the file's path>.json. Read them by verb:
+systemview comments <project>                 # every file that has comments, and the lines
+systemview comments <project> <path>          # one file's comments, his and agents' apart
+systemview comments <project> <path> --json   # the same, structured
+
 # Stats — the /reports page, and the same numbers from the terminal
 systemview stats <project> [--range 1h|24h|7d] [--service <id>] [--json]
 systemview nav <project> stats [tab] [--range …] [--service …]   # walk him to a stats view

@@ -88,6 +88,68 @@ const BranchIcon = () => (
   </svg>
 );
 
+const fileIcon = (name) => {
+  const { glyph, kind } = iconFor(name);
+  return (
+    <span className={`${CLASSNAME}__file-icon ${CLASSNAME}__file-icon--${kind}`} aria-hidden="true">
+      {kind === "img" ? <img src={glyph} alt="" /> : glyph}
+    </span>
+  );
+};
+
+// RFC-035 — YOU NAME IT ON THE ROW. `window.prompt` is the browser's own box: it wears the OS's
+// chrome instead of this app's, it blocks the page, and it covers the very row it is asking about.
+// So the name becomes an input WHERE IT ALREADY SITS — the icon stays, the indent stays, only the
+// text turns editable. Enter commits, Escape cancels, and clicking away cancels too: nothing is
+// written to disk unless you press Enter, which is the difference between losing a keystroke and
+// silently renaming a file you looked away from.
+//
+// Used for all three: renaming a file in place, and naming a new file or a copy on a GHOST row —
+// one that only exists while you're typing, sitting where the file will land.
+const RowEdit = ({ name, icon, depth = 0, value, onCommit, onCancel, className = "" }) => {
+  const [text, setText] = useState(value);
+  const ref = useRef(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.focus();
+    // THE STEM, NOT THE EXTENSION. Renaming `Foo.test.js` is about `Foo.test`; selecting the whole
+    // thing would make you retype `.js` every time.
+    const dot = value.lastIndexOf(".");
+    el.setSelectionRange(0, dot > 0 ? dot : value.length);
+  }, [value]);
+  return (
+    <div
+      className={`${CLASSNAME}__row ${CLASSNAME}__row--edit${className ? ` ${className}` : ""}`}
+      style={{ paddingLeft: 8 + depth * 14 }}
+    >
+      {/* Whatever the row already wore in that first column — a file's type glyph, a service's
+          status dot — so the edit sits in the row instead of replacing it. */}
+      {icon !== undefined ? icon : fileIcon(name || text || "x")}
+      <input
+        ref={ref}
+        className={`${CLASSNAME}__row-input`}
+        value={text}
+        spellCheck={false}
+        autoComplete="off"
+        onChange={(e) => setText(e.target.value)}
+        // The tree row underneath is a button and the nav has its own key handling — the edit owns
+        // every keystroke while it is open.
+        onKeyDown={(e) => {
+          e.stopPropagation();
+          if (e.key === "Enter") {
+            const v = text.trim();
+            if (v) onCommit(v);
+            else onCancel();
+          } else if (e.key === "Escape") onCancel();
+        }}
+        onBlur={onCancel}
+        onClick={(e) => e.stopPropagation()}
+      />
+    </div>
+  );
+};
+
 // Namespace pushes CARRY the current `?tab=` (same contract as the SystemLynx Link atom) — browsing
 // namespaces while on Reports/Logs/Stories must not snap you back to Documentation. Everything else
 // in the search (help, file params) is deliberately dropped: navigating retires those.
@@ -104,6 +166,7 @@ function DirNode({
   openDirs,
   toggleDir,
   renderFile,
+  renderNewIn,
   changedCounts,
   dirMenu,
   onDropFile,
@@ -167,6 +230,7 @@ function DirNode({
               openDirs={openDirs}
               toggleDir={toggleDir}
               renderFile={renderFile}
+              renderNewIn={renderNewIn}
               changedCounts={changedCounts}
               dirMenu={dirMenu}
               onDropFile={onDropFile}
@@ -175,6 +239,8 @@ function DirNode({
             />
           ))}
           {node.files.map((f) => renderFile(f, depth + 1))}
+          {/* A new file is named where it will live — last in its folder, indented with the rest. */}
+          {renderNewIn && renderNewIn(key, depth + 1)}
         </div>
       )}
     </div>
@@ -241,22 +307,27 @@ function ServiceNode({ service, projectCode, history, selection, onNavigate, rev
   // each a file op on the committed folder the hub re-hosts from.
   const hosted = service.hosted || null;
   const canConfigure = !!hosted && !!onHostedOp;
+  // A failed op says so ON the card, in the same quiet red the codebase uses for a file op — an
+  // alert() is the browser's box over the top of the thing it is talking about.
+  const [opErr, setOpErr] = useState("");
   const runOp = async (op, payload) => {
+    setOpErr("");
     const err = await onHostedOp(projectCode, op, payload);
-    if (err) window.alert(err);
+    if (err) setOpErr(err);
   };
-  const addModule = () => {
-    const name = window.prompt("New module name (a namespace for tests):");
-    if (name && name.trim()) runOp("addModule", { name: name.trim() });
-  };
-  const renameService = () => {
-    const to = window.prompt("Rename service:", service.serviceId);
-    if (to && to.trim() && to.trim() !== service.serviceId)
-      runOp("renameService", { to: to.trim() });
-  };
-  const renameModule = (name) => {
-    const to = window.prompt(`Rename module ${name}:`, name);
-    if (to && to.trim() && to.trim() !== name) runOp("renameModule", { name, to: to.trim() });
+  // Naming a service or a module happens on its row too — same RowEdit as the files.
+  // { kind: "service" | "module" | "newModule", name?, value }
+  const [edit, setEdit] = useState(null);
+  const commitEdit = (raw) => {
+    const e = edit;
+    setEdit(null);
+    const to = (raw || "").trim();
+    if (!e || !to) return;
+    if (e.kind === "service") {
+      if (to !== service.serviceId) runOp("renameService", { to });
+    } else if (e.kind === "module") {
+      if (to !== e.name) runOp("renameModule", { name: e.name, to });
+    } else runOp("addModule", { name: to });
   };
   // Right-click on the service row: remove the connection (ANY service — the old delete button's
   // job) plus the hosted configuration set. Deletes two-step INSIDE the menu, never a dialog.
@@ -264,8 +335,17 @@ function ServiceNode({ service, projectCode, history, selection, onNavigate, rev
     if (!openRowMenu) return;
     const items = [];
     if (canConfigure) {
-      items.push({ label: "Rename service…", action: renameService });
-      items.push({ label: "Add module…", action: addModule });
+      items.push({
+        label: "Rename service…",
+        action: () => setEdit({ kind: "service", value: service.serviceId }),
+      });
+      items.push({
+        label: "Add module…",
+        action: () => {
+          setOpen(true); // you name it on a row inside the service, so the service has to be open
+          setEdit({ kind: "newModule", value: "" });
+        },
+      });
     }
     // ONE remove option per kind: a connected service gets "Remove connection"; a project made on
     // the fly gets DELETE (the folder and all) — no keep-folder middle ground in the menu
@@ -289,7 +369,7 @@ function ServiceNode({ service, projectCode, history, selection, onNavigate, rev
   const moduleMenu = (e, name) => {
     if (!openRowMenu || !canConfigure) return;
     openRowMenu(e, `${service.serviceId} › ${name}`, [
-      { label: "Rename module…", action: () => renameModule(name) },
+      { label: "Rename module…", action: () => setEdit({ kind: "module", name, value: name }) },
       {
         label: "Delete module",
         danger: true,
@@ -298,8 +378,21 @@ function ServiceNode({ service, projectCode, history, selection, onNavigate, rev
       },
     ]);
   };
+  const nameEdit = (kind, value, icon) => (
+    <RowEdit
+      key={`edit:${kind}:${value}`}
+      icon={icon}
+      value={value}
+      className={`${CLASSNAME}__row--ns`}
+      onCommit={commitEdit}
+      onCancel={() => setEdit(null)}
+    />
+  );
   return (
     <div className={`${CLASSNAME}__dyn-service`}>
+      {edit && edit.kind === "service" ? (
+        nameEdit("service", edit.value, <span className={`${CLASSNAME}__service-dot`} />)
+      ) : (
       <button
         type="button"
         ref={
@@ -359,6 +452,9 @@ function ServiceNode({ service, projectCode, history, selection, onNavigate, rev
           />
         </span>
       </button>
+      )}
+      {/* A hosted op that failed says so here, under the service it belongs to. */}
+      {opErr && <div className={`${CLASSNAME}__op-error`}>{opErr}</div>}
       {/* RFC-027 §4 — WHERE the hosted service lives, in the same quiet register as the service
           URL: the config is one click away, the folder paths are simply stated. Never a hunt. */}
       {hosted && open && (
@@ -392,6 +488,8 @@ function ServiceNode({ service, projectCode, history, selection, onNavigate, rev
             // The plugin's OWN modules (SystemView logs, Plugin providers) ride every service —
             // they're SystemView's infrastructure, not the service's surface, and they read as such.
             const isSvModule = ["Plugin", "SystemView"].includes(m.name);
+            if (edit && edit.kind === "module" && edit.name === m.name)
+              return <div key={m.name}>{nameEdit("module", edit.value, <Chevron open={false} />)}</div>;
             return (
               <div key={m.name}>
                 <button
@@ -467,7 +565,9 @@ function ServiceNode({ service, projectCode, history, selection, onNavigate, rev
               </div>
             );
           })}
-          {!modules.length && (
+          {/* A NEW module is named at the end of the list, where it will appear. */}
+          {edit && edit.kind === "newModule" && nameEdit("newModule", edit.value, <Chevron open={false} />)}
+          {!modules.length && !edit && (
             <div className={`${CLASSNAME}__empty`}>no modules defined</div>
           )}
         </div>
@@ -717,8 +817,6 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
   const [vcError, setVcError] = useState("");
   // RFC-035 — MOVING FILES AROUND. One helper for every verb: it names what failed rather than
   // failing quietly, and the tree re-walks itself afterwards so what you see is what is on disk.
-  // `prompt` is deliberate: the row menus are two-step confirms, not text inputs, and inventing an
-  // inline rename field is a bigger change than the verb itself.
   const [fileBusy, setFileBusy] = useState("");
   const fileOp = async (verb, args, sayWhat) => {
     if (!fileHost) return;
@@ -746,6 +844,42 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
   // COPIES instead of moving — Finder's gesture, because that is the one already in his hands.
   const [dropDir, setDropDir] = useState(null);
   const dirOf = (p) => (p.includes("/") ? p.slice(0, p.lastIndexOf("/")) : "");
+  // NAMING HAPPENS ON THE ROW (see RowEdit). One piece of state for all three, because only one row
+  // can be under the cursor at a time:
+  //   { kind: "rename",    path, value }        the file's own row turns into an input
+  //   { kind: "duplicate", path, dir, value }   a ghost row under it, holding the copy's name
+  //   { kind: "new",       dir,  value }        a ghost row inside the folder
+  const [editing, setEditing] = useState(null);
+  const commitEdit = (raw) => {
+    const e = editing;
+    setEditing(null);
+    const name = (raw || "").trim();
+    if (!e || !name) return;
+    // A name with slashes in it is allowed everywhere — `writeFile`, `moveFile` and `copyFile` all
+    // make the folders on the way, so typing a path is how you move something while renaming it.
+    if (e.kind === "rename") {
+      if (name === e.value) return;
+      fileOp("moveFile", { from: e.path, to: joinPath(dirOf(e.path), name) }, `renaming ${e.value}`);
+    } else if (e.kind === "duplicate")
+      fileOp("copyFile", { from: e.path, to: joinPath(e.dir, name) }, `copying ${e.path.split("/").pop()}`);
+    else fileOp("writeFile", { path: joinPath(e.dir, name), content: "" }, `creating ${name}`);
+  };
+  // The ghost row for a NEW file, drawn inside the folder it belongs to (dir "" is the root).
+  const renderNewIn = (dirKey, depth) =>
+    editing && editing.kind === "new" && editing.dir === dirKey
+      ? rowEdit(depth, `${CLASSNAME}__row--file`)
+      : null;
+  const rowEdit = (depth, className) => (
+    <RowEdit
+      key={`edit:${editing.kind}:${editing.path || editing.dir}`}
+      name={editing.value}
+      depth={depth}
+      value={editing.value}
+      className={className}
+      onCommit={commitEdit}
+      onCancel={() => setEditing(null)}
+    />
+  );
   const onDropFile = (payload, dir, copy) => {
     if (!payload || !payload.path) return;
     // Only within one codebase: a cross-project move would be a copy plus a delete in two different
@@ -1012,21 +1146,18 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
     // working tree. A fully-staged file offers Unstage and nothing else; that is the real order of
     // operations, and it's what stops one click from destroying staged work.
     const unstagedPart = !!g && (!g.staged || g.partial);
-    if (g && g.status === "untracked")
-      items.push({
-        label: "Delete file",
-        danger: true,
-        confirm: `Delete ${name}? (kept in history)`,
-        action: () => discard([f.path]),
-      });
-    else if (gone && unstagedPart)
+    // NOT an untracked branch here: "Delete file" below deletes ANY file and snapshots it first, so
+    // git's throw-away-the-new-file verb was the same words twice in one menu.
+    // ...and an UNTRACKED file has no "changes" to discard either — throwing it away IS deleting it,
+    // which the Delete item below says in the right words.
+    if (gone && unstagedPart)
       items.push({
         label: "Restore file",
         // Bringing a file BACK isn't destruction — it still confirms, but it isn't red.
         confirm: `Bring back ${name}?`,
         action: () => discard([f.path]),
       });
-    else if (g && unstagedPart)
+    else if (g && unstagedPart && g.status !== "untracked")
       items.push({
         label: "Discard changes",
         danger: true,
@@ -1034,22 +1165,18 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
         action: () => discard([f.path]),
       });
     // RFC-035 — what you can do TO the file, as opposed to what git can do with it.
+    // Both of these name the file ON THE ROW — the menu closes and an input opens where the file
+    // is, rather than a browser dialog over the top of it.
     items.push({
       label: "Rename…",
-      action: () => {
-        const next = window.prompt(`Rename ${name} to:`, name);
-        if (!next || next === name) return;
-        fileOp("moveFile", { from: f.path, to: joinPath(dirOf(f.path), next) }, `renaming ${name}`);
-      },
+      action: () => setEditing({ kind: "rename", path: f.path, value: name }),
     });
     items.push({
       label: "Duplicate",
       action: () => {
         const dot = name.lastIndexOf(".");
         const suggested = dot > 0 ? `${name.slice(0, dot)}-copy${name.slice(dot)}` : `${name}-copy`;
-        const next = window.prompt(`Copy ${name} to:`, suggested);
-        if (!next) return;
-        fileOp("copyFile", { from: f.path, to: joinPath(dirOf(f.path), next) }, `copying ${name}`);
+        setEditing({ kind: "duplicate", path: f.path, dir: dirOf(f.path), value: suggested });
       },
     });
     // DELETE, for any file — not just an untracked one. `discardFiles` was git's verb for throwing
@@ -1105,9 +1232,9 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
       {
         label: "New file…",
         action: () => {
-          const name = window.prompt(`New file in ${key}/`, "");
-          if (!name) return;
-          fileOp("writeFile", { path: joinPath(key, name), content: "" }, `creating ${name}`);
+          // The folder has to be OPEN for you to type in it — the ghost row lives inside it.
+          setOpenDirs((prev) => (prev.has(key) ? prev : new Set(prev).add(key)));
+          setEditing({ kind: "new", dir: key, value: "" });
         },
       },
       {
@@ -1164,12 +1291,16 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
   };
 
   const renderFile = (f, depth) => {
+    // Renaming: this row IS the input. Duplicating: the row stays and the copy's name is typed on a
+    // ghost row right under it, where the copy will appear.
+    const editingHere = editing && editing.path === f.path;
+    if (editingHere && editing.kind === "rename") return rowEdit(depth, `${CLASSNAME}__row--file`);
     const selected =
       openFile && openFile.projectCode === projectCode && openFile.path === f.path;
     // Pointed at from a document (RFC-025): expanded to and highlighted, but NOT open in the
     // centre. SELECTED beats REVEALED — being open outranks being pointed at.
     const isRevealed = !selected && !!revealedPath && revealedPath === f.path;
-    return (
+    const row = (
       <button
         key={f.path}
         type="button"
@@ -1240,6 +1371,13 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
         })()}
       </button>
     );
+    if (!(editingHere && editing.kind === "duplicate")) return row;
+    return (
+      <React.Fragment key={`${f.path}:dup`}>
+        {row}
+        {rowEdit(depth, `${CLASSNAME}__row--file`)}
+      </React.Fragment>
+    );
   };
 
   // A version-control group: git's own heading, the count, one bulk action, then the rows. Each row
@@ -1264,6 +1402,10 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
           </button>
         </div>
         {rows.map((r) => {
+          // Rename works from HERE too — the version-control lens is where he spends the time, and
+          // a menu item that only worked in the tree would be a menu item that sometimes did nothing.
+          if (editing && editing.kind === "rename" && editing.path === r.path)
+            return <div key={`${key}:${r.path}`}>{rowEdit(0, `${CLASSNAME}__row--vc`)}</div>;
           const { glyph, kind } = iconFor(r.name);
           const { mark, title } = GIT_MARK[r.status] || GIT_MARK.modified;
           // A file that is staged AND edited since is legitimately in TWO groups, so the selection
@@ -1760,6 +1902,7 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
                           openDirs={openDirs}
                           toggleDir={toggleDir}
                           renderFile={renderFile}
+                          renderNewIn={renderNewIn}
                           changedCounts={changedCounts}
                           dirMenu={dirMenu}
                           onDropFile={onDropFile}
@@ -1768,6 +1911,7 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
                         />
                       ))}
                     {tree.files.map((f) => renderFile(f, 0))}
+                    {renderNewIn("", 0)}
                   </>
                 )}
                 {filtered && !filtered.length && (

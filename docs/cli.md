@@ -257,6 +257,33 @@ systemview selection buAPI
 
 ---
 
+### `systemview comments <projectCode> [path] [--json]`
+
+His **comments on the code** (RFC-034) — notes anchored to a line range in a file, written in the UI
+by right-clicking the lines. They are never written into the source file: a comment about code is not
+code. They live beside the repo, one sidecar per file, mirroring the tree:
+
+```
+.systemview/code-comments/<the file's path>.json
+```
+
+This command is the way to read them — a verb rather than a folder path anyone has to remember:
+
+```bash
+systemview comments buAPI                             # every file that has comments, and the lines
+systemview comments buAPI Basketball/Seasons/index.js # that file's, his and agents' apart
+systemview comments buAPI Basketball/Seasons/index.js --json
+```
+
+It reads through the project's own plugin, so it works from anywhere that can reach the hub. A file
+with no comments prints "no comments" rather than an error, and the last comment on a file takes the
+sidecar with it — a file with nothing on it never shows up as commented.
+
+The reply shape is the same one document threads use — `{ text, ts, author }` — so a reply written by
+an agent renders in the UI with the agent look, and his with his.
+
+---
+
 ### `systemview open [projectCode] [namespace]`
 
 Opens the SystemView browser UI. Starts the server if needed.

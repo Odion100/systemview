@@ -195,6 +195,35 @@ Opening a file is a real **history entry**, so the browser back button returns y
 and a file view can be linked to directly.
 :::
 
+## The codebase panel, in full
+
+**Filters** sit above the tree and **compose** — text (or \`*.js\`), the markdown filter, the 💬
+comments filter, and the ⑂ version-control lens all narrow the same list.
+
+- **⑂ version control** — the tree becomes **staged / changes / untracked**, with the commit box on
+  top: branch, ahead-count, message, **Commit**, **Push**. Staging is per file, per group, or per run
+  of lines from inside the file itself. Both pills stay on screen while their filter is on, so
+  committing everything can't strand you in a lens with no way out.
+- **💬 comments** — the files carrying comments on their code. Right-click a line or a selection in
+  an open file to write one; the sidecar is created with the first and deleted with the last.
+- **Change marks** — a changed file wears git's own letter (\`M A D R U\`), and inside the file a thin
+  stripe marks each changed line. Click a stripe for what was there at HEAD, and stage or unstage
+  that run without leaving the file.
+
+**Right-click anything** — a file, a folder, a service, a module, or a version-control row:
+
+- **Files** — Open, Stage / Unstage, Discard changes (or Restore), **Rename…**, **Duplicate**,
+  **Delete file**, Copy path / name.
+- **Folders** — Expand / Collapse (and everything inside), **New file…**, Stage everything inside.
+- **Drag a file onto a folder** to move it; hold **⌥** while you drop to copy. A move that would
+  overwrite something is refused and says so on the panel.
+
+:::callout{type=success}
+**Naming happens on the row.** Rename, Duplicate and New file turn the row itself into an input —
+**Enter** commits, **Escape** cancels, and clicking away cancels too. Nothing is written unless you
+press Enter. Type a name with slashes in it and the folders are made on the way.
+:::
+
 Add a connection with **＋**: paste a \`loadService\` URL for a SystemLynx service, or attach a
 codebase folder.`,
   },

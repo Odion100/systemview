@@ -472,6 +472,37 @@
       color: var(--sv-indigo);
       font-weight: 600;
     }
+    // RFC-035 — the row while you are naming it. Same height, same indent, same icon column as the
+    // row it replaces, so nothing jumps when the name turns editable.
+    &--edit {
+      cursor: default;
+      padding-right: 6px;
+      &:hover {
+        background: none;
+      }
+    }
+    // The same edit on a SERVICE or MODULE row — those rows sit at the card's own indent (10px),
+    // not the tree's.
+    &--ns {
+      padding-left: 10px !important;
+      padding-right: 10px;
+      gap: 6px;
+    }
+  }
+  // The name, editable in place. It borrows the row's own type so the text does not change shape
+  // when it becomes an input — only the indigo ring says you can type.
+  &__row-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-family: inherit;
+    font-size: 12px;
+    color: var(--sv-text-strong);
+    background: var(--sv-surface);
+    border: 1px solid var(--sv-indigo);
+    border-radius: 3px;
+    padding: 1px 4px;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(90, 103, 216, 0.16);
   }
   &__chevron {
     color: var(--sv-text-faint);
@@ -855,6 +886,17 @@
   &__vc-row:hover &__vc-act {
     opacity: 1;
   }
+  // A hosted-service op that failed — the same red as the version-control line, said on the card
+  // instead of in a browser alert.
+  &__op-error {
+    margin: 2px 10px 4px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    color: #d9534f;
+    background: color-mix(in srgb, #d9534f 12%, transparent);
+  }
+
   &__vc-error {
     margin: 2px 8px 4px;
     padding: 4px 8px;
