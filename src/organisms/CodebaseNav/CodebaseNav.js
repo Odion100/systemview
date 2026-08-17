@@ -1398,7 +1398,12 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
                 </span>
                 {/* VERSION CONTROL — the branch icon IS the control, with the count riding on it.
                     Click to swap the tree for git's groups; click again to come back. */}
-                {changed.size > 0 && (
+                {/* A CONTROL THAT IS ON MUST STAY ON SCREEN. Gated on `changed.size` alone, committing
+                    everything removed the only way OUT of the lens — the tree was replaced by three
+                    empty groups with nothing left to click. His words: "there's no way to get out of
+                    it… there's nothing to unfilter". True of any toggle whose visibility depends on
+                    the content it filters. */}
+                {(changed.size > 0 || vcLens) && (
                   <button
                     type="button"
                     className={`${CLASSNAME}__filter-pill ${CLASSNAME}__filter-pill--vc ${vcLens ? `${CLASSNAME}__filter-pill--vc-on` : ""}`}
@@ -1415,7 +1420,9 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
                 )}
                 {/* Only files that have comments on them — the same icon they wear in the tree, and
                     the count of them. Drawn only when there ARE any: a 0 pill is a dead control. */}
-                {commented.size > 0 && (
+                {/* Same rule — and I had just rebuilt the same trap here: delete the last comment
+                    while filtered to comments and the pill would vanish with the filter still on. */}
+                {(commented.size > 0 || commentsOnly) && (
                   <button
                     type="button"
                     className={`${CLASSNAME}__filter-pill ${CLASSNAME}__filter-pill--comments ${
@@ -1579,6 +1586,13 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
               )}
               {vcLens ? (
                 <div className={`${CLASSNAME}__tree`} hidden={vcTab === "log"}>
+                  {/* SAY IT when there's nothing left, instead of drawing three empty headings that
+                      read as a broken panel — this is what you see right after committing. */}
+                  {changed.size === 0 && (
+                    <div className={`${CLASSNAME}__empty`}>
+                      nothing to commit — the branch is clean
+                    </div>
+                  )}
                   {renderVcGroup("staged", "staged", vcGroups.staged)}
                   {renderVcGroup("unstaged", "changes", vcGroups.unstaged)}
                   {renderVcGroup("untracked", "untracked", vcGroups.untracked)}
