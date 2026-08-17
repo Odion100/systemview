@@ -743,14 +743,15 @@
     padding: 2px 10px;
     font-size: 11px;
     &:hover { background: var(--sv-hover); }
-    // NOT PUSHED — the same amber that means "changed" everywhere else in this nav, carried by a
-    // bar down the left so a glance at the column tells you where the remote stops.
+    // NOT PUSHED — GREEN, his call after watching a commit land: amber in this nav means "changed,
+    // do something about it", and a commit you made is done work sitting in front of you, not a
+    // warning. Same green `staged` wears.
     &--unpushed {
-      border-left: 2px solid #d9a441;
+      border-left: 2px solid #2f9e4f;
       padding-left: 8px;
-      background: color-mix(in srgb, #d9a441 7%, transparent);
+      background: color-mix(in srgb, #2f9e4f 8%, transparent);
       .codebase-nav__logsha {
-        color: #b07d2b;
+        color: #2f9e4f;
       }
     }
   }
@@ -761,7 +762,7 @@
     font-weight: 700;
     letter-spacing: 0.04em;
     text-transform: uppercase;
-    color: #b07d2b;
+    color: #2f9e4f;
   }
   &__logsha {
     flex: none;

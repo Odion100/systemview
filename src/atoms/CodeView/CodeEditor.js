@@ -904,6 +904,142 @@ const CodeEditor = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [composeKey, language, dark]);
 
+  // GETTING TO THE CHANGES — a tick per changed run down the right edge, and ‹ n/m › to walk them
+  // in order. His ask, and his pick out of four: "the ruler + arrows". It lives HERE rather than in
+  // the pane's header because a file embedded in a document is this same editor, so both surfaces
+  // get it without a second implementation to keep in step.
+  //
+  // Built as plain DOM appended beside CodeMirror's own element: React renders an empty host and CM
+  // owns the subtree it creates, so a sibling node is the one place a React child can't go.
+  const hunkKey = hunks ? hunks.map((h) => `${h.from}-${h.to}${h.kind || ""}${h.staged ? "s" : ""}`).join(",") : "";
+  useEffect(() => {
+    const view = viewRef.current;
+    const el = host.current;
+    if (!view || !el) return;
+    const runs = (hunks || []).slice().sort((a, b) => a.from - b.from);
+    const ruler = document.createElement("div");
+    ruler.className = "cm-sv-ruler";
+    const steps = document.createElement("div");
+    steps.className = "cm-sv-steps";
+    if (!runs.length) return; // nothing changed: no strip, no counter, no furniture
+    let at = -1; // which run we're standing on — -1 until you use it
+
+    const centre = (a, b) => {
+      const total = view.state.doc.lines;
+      const from = view.state.doc.line(Math.min(Math.max(1, a), total)).from;
+      const to = view.state.doc.line(Math.min(Math.max(1, b), total)).to;
+      view.dispatch({ selection: { anchor: from, head: to }, effects: setFocusRange.of([a, b]) });
+      // Same multi-pass centring the `#L40-70` jump uses — one pass lands short while CodeMirror is
+      // still estimating the heights of lines it hasn't drawn.
+      let passes = 0;
+      const pass = () => {
+        const h = view.scrollDOM.clientHeight;
+        if (h) {
+          const mid = (view.lineBlockAt(from).top + view.lineBlockAt(to).bottom) / 2;
+          const max = Math.max(0, view.scrollDOM.scrollHeight - h);
+          view.scrollDOM.scrollTop = Math.max(0, Math.min(max, mid - h / 2));
+        }
+        if (++passes < 6) requestAnimationFrame(pass);
+      };
+      pass();
+    };
+
+    const ticks = [];
+    const draw = () => {
+      ticks.forEach((t, i) => t.classList.toggle("cm-sv-tick--on", i === at));
+      steps.firstChild.textContent = `${at < 0 ? "–" : at + 1}/${runs.length}`;
+    };
+    const go = (i) => {
+      at = (i + runs.length) % runs.length; // wraps, so the arrows never dead-end
+      centre(runs[at].from, runs[at].to);
+      draw();
+    };
+    // LETTING GO OF ONE. The selected tick stays wide, and a mark you can turn on but not off is a
+    // mark that ends up permanently on — his catch. Two ways out, both the obvious ones: press the
+    // same tick again, or click back into the file.
+    const clear = () => {
+      if (at < 0) return;
+      at = -1;
+      draw();
+    };
+
+    const total = Math.max(1, view.state.doc.lines);
+    runs.forEach((h, i) => {
+      const t = document.createElement("i");
+      // Colour says WHAT happened, exactly as the stripe on the line does — a tick is that stripe
+      // seen from across the file, so it cannot speak a different language.
+      const kind = h.kind === "added" || h.kind === "removed" ? h.kind : "changed";
+      t.className = `cm-sv-tick cm-sv-tick--${kind}${h.staged ? " cm-sv-tick--staged" : ""}`;
+      // Position AND SIZE by LINE, not by pixels: pixel heights aren't known for lines CodeMirror
+      // hasn't drawn yet, and a ruler that shifts as you scroll is worse than no ruler. The height
+      // is the run's share of the file, so a long block looks long ("is it sizing to the number of
+      // lines?" — it is now).
+      const span = Math.max(1, h.to - h.from + 1);
+      t.style.top = `${((h.from - 1) / total) * 100}%`;
+      t.style.height = `${(span / total) * 100}%`;
+      const where = h.from === h.to ? `line ${h.from}` : `lines ${h.from}-${h.to} (${span})`;
+      t.title = `${kind} — ${where}${h.staged ? " · staged" : ""}`;
+      t.addEventListener("mousedown", (e) => {
+        e.preventDefault(); // keep the editor's own selection out of it
+        e.stopPropagation();
+        if (at === i) clear();
+        else go(i);
+      });
+      ticks.push(t);
+      ruler.appendChild(t);
+    });
+
+    const label = document.createElement("span");
+    label.textContent = `–/${runs.length}`;
+    const prev = document.createElement("button");
+    prev.type = "button";
+    prev.textContent = "‹";
+    prev.title = "Previous change (⌥↑)";
+    const next = document.createElement("button");
+    next.type = "button";
+    next.textContent = "›";
+    next.title = "Next change (⌥↓)";
+    prev.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      go(at < 0 ? runs.length - 1 : at - 1);
+    });
+    next.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      go(at < 0 ? 0 : at + 1);
+    });
+    steps.append(label, prev, next);
+
+    // ⌥↓ / ⌥↑ — the keyboard half, on the editor's own dom so it only fires while you're in the file.
+    const onKey = (e) => {
+      if (!e.altKey || (e.key !== "ArrowDown" && e.key !== "ArrowUp")) return;
+      e.preventDefault();
+      if (e.key === "ArrowDown") go(at < 0 ? 0 : at + 1);
+      else go(at < 0 ? runs.length - 1 : at - 1);
+    };
+    view.dom.addEventListener("keydown", onKey);
+    // Clicking back into the file lets go of the tick too — you are reading the code again, not
+    // standing on a change. Bound on the HOST, capture phase, above CodeMirror entirely: listeners
+    // put on the content or the scroller never ran, because CodeMirror gets those events first and
+    // does not pass them on. The ruler is a child of the host too, so its own clicks are excluded
+    // rather than the tick clearing itself the instant it selects.
+    const clickAway = (e) => {
+      if (ruler.contains(e.target) || steps.contains(e.target)) return;
+      clear();
+    };
+    el.addEventListener("mousedown", clickAway, true);
+
+    el.appendChild(ruler);
+    el.appendChild(steps);
+    return () => {
+      view.dom.removeEventListener("keydown", onKey);
+      el.removeEventListener("mousedown", clickAway, true);
+      ruler.remove();
+      steps.remove();
+    };
+    // Rebuilt when the runs change (a save, a stage) or the editor itself is rebuilt (theme/language).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hunkKey, language, dark, readOnly]);
+
   // RFC-025 — `:file[path#L40-70]` opens the file AT a range. Select the lines and center them by
   // setting the editor's OWN scroller only. Never scrollIntoView: it walks up the DOM and scrolls
   // every scrollable ancestor, which is what used to yank a whole story to the middle.

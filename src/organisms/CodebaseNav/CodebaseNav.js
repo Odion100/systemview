@@ -1469,6 +1469,14 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
                   {kind === "img" ? <img src={glyph} alt="" /> : glyph}
                 </span>
                 <span className={`${CLASSNAME}__file-name`}>{r.name}</span>
+                {/* THE 💬 SURVIVES THE LENS. It marks a commented file in the tree and vanished the
+                    moment version control was on — the same file, the same fact, one of the two
+                    views silently dropping it. Said twice before I heard it. */}
+                {commented.has(r.path) && (
+                  <span className={`${CLASSNAME}__comment-mark`} title="This file has comments">
+                    💬
+                  </span>
+                )}
                 {dir && <span className={`${CLASSNAME}__vc-dir`}>{dir}</span>}
                 <span
                   className={`${CLASSNAME}__git-mark ${CLASSNAME}__git-mark--${r.status}${

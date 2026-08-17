@@ -22,6 +22,107 @@
 // file-pane edit mode where the read view is oneDark, so edit matches.
 .code-editor {
   width: 100%;
+  // The change ruler hangs off this box, so this box has to be the frame it hangs from.
+  position: relative;
+
+  // GETTING TO THE CHANGES (his ask: "a way to easily navigate to the changes throughout the
+  // document"). A strip down the right edge with one tick per changed run, at its real position in
+  // the file — where they are and how many, without scrolling a 2000-line file. The ticks are
+  // buttons: click one and it centres that run.
+  .cm-sv-ruler {
+    position: absolute;
+    // Starts BELOW the counter: a change on line 1 would otherwise sit under the ‹ n/m › pill,
+    // which is the one tick you can't click.
+    top: 22px;
+    right: 0;
+    bottom: 0;
+    width: 14px;
+    pointer-events: none; // the strip is a frame; only its ticks take clicks
+    z-index: 4;
+  }
+  // A TICK IS THE RUN, TO SCALE. Its height is the run's share of the file, so a forty-line block
+  // reads as a block and a one-line fix reads as a nick — how much changed, not just where. Colour
+  // is the stripe's colour on the same lines: green added, amber changed, red a deletion. Never a
+  // different vocabulary for the same fact.
+  .cm-sv-tick {
+    position: absolute;
+    right: 3px;
+    // HIS WIDTH, picked in devtools: 3px at rest. It only needs to be a mark until you reach for it
+    // — the hover and the selected states are where it grows into something to aim at.
+    width: 3px;
+    // A one-line change still has to be a real target — 9px is the floor, so the smallest tick is
+    // about a fingertip and only bigger runs grow from there.
+    min-height: 9px;
+    border-radius: 2px;
+    background: #d9a441;
+    pointer-events: auto;
+    cursor: pointer;
+    &--added { background: #3f9e6a; }
+    &--changed { background: #d9a441; }
+    &--removed { background: #d9534f; }
+    // Already staged reads quieter — the same distinction the stripes make on the line itself.
+    // Opacity, not another colour: the colour is carrying WHAT CHANGED and must not be overloaded.
+    &--staged { opacity: 0.45; }
+    // THE HIT TARGET IS BIGGER THAN THE MARK — "I've got to be really precise about where I put the
+    // mouse". The tick stays thin; an invisible pad around it takes the pointer, the same trick the
+    // 2px line stripe uses to be clickable.
+    // SIDEWAYS ONLY. A pad that reached above and below would cover the neighbouring tick — with
+    // two changes a few lines apart, the lower one's pad sat on the upper one's middle and ate the
+    // click. Width is free; height belongs to the run.
+    &::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      right: -3px;
+      bottom: 0;
+      left: -8px;
+    }
+    &:hover {
+      width: 11px;
+      right: 2px;
+    }
+    // The run you are standing on — a ring, so the colour keeps meaning what it means.
+    &--on {
+      width: 11px;
+      right: 2px;
+      box-shadow: 0 0 0 1.5px var(--sv-blue);
+    }
+  }
+  // ‹ 3/7 › — walking the changes in order, for when you do not want to aim at anything. It rides
+  // at the top of the strip so the ruler and the counter are one control, and it lives in the
+  // EDITOR rather than a pane header so an embedded file gets it too.
+  .cm-sv-steps {
+    position: absolute;
+    top: 4px;
+    right: 12px;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 1px 3px;
+    border-radius: 999px;
+    background: color-mix(in srgb, #d9a441 14%, transparent);
+    font-size: 9.5px;
+    font-family: "SF Mono", Menlo, monospace;
+    color: #8a6520;
+    z-index: 5;
+    opacity: 0.55;
+    transition: opacity 0.15s ease;
+    &:hover {
+      opacity: 1;
+    }
+    button {
+      border: none;
+      background: none;
+      cursor: pointer;
+      color: inherit;
+      font-size: 11px;
+      line-height: 1;
+      padding: 0 2px;
+      &:hover {
+        color: #5c430f;
+      }
+    }
+  }
 
   // Same line-range mark the read-only view draws. An agent pointing at `path#L40-70` has to leave
   // something you can SEE — an unfocused text selection is nearly invisible, which is exactly how
@@ -301,6 +402,18 @@
 
 // A dark editor sits on ~#282c34, where a translucent grey just disappears — so the card LIFTS off
 // the ground here instead of washing over it, and the comment's own blue comes up with it.
+// Dark editor: the counter's ink has to lift off the dark canvas — the ticks keep their amber,
+// which reads on both. Nothing else about the ruler changes with the theme.
+.code-editor--dark {
+  .cm-sv-steps {
+    background: #d9a4411f;
+    color: #d9a441;
+    button:hover {
+      color: #f0c268;
+    }
+  }
+}
+
 .code-editor--dark .cm-editor {
   // HIS VALUES, tuned in the window on a dark editor — which is the only place they apply, because
   // that is where he was standing when he picked them: his wash, square corners, and the green edge

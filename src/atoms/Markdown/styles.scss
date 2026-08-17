@@ -1703,14 +1703,14 @@
       gap: 7px;
       padding: 2px 0;
       font-size: 11px;
-      // NOT PUSHED — the amber bar the nav's log uses, so the same fact reads the same way in a
+      // NOT PUSHED — the green bar the nav's log uses, so the same fact reads the same way in a
       // document as it does in the panel.
       &--unpushed {
-        border-left: 2px solid #d9a441;
+        border-left: 2px solid #2f9e4f;
         padding-left: 7px;
         margin-left: -9px;
         .md-commit__logsha {
-          color: #b07d2b;
+          color: #2f9e4f;
         }
       }
     }
