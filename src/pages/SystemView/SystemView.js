@@ -60,6 +60,9 @@ const SystemViewPage = () => {
       path,
       language: p.get("flang") || "text",
       lines: lines ? lines.split("-").map((n) => parseInt(n, 10)) : null,
+      // Which side of the index you opened from (the version-control lens) — in the URL like
+      // everything else, so a refresh keeps showing what you asked for.
+      side: p.get("fside") || undefined,
     };
   }, [location.search]);
 
@@ -67,7 +70,7 @@ const SystemViewPage = () => {
     const p = new URLSearchParams(window.location.search);
     // Closing restores the center tab you were on before the file forced Code (ftab, set on open).
     const ftab = p.get("ftab");
-    ["file", "fproj", "fsvc", "flang", "flines", "fnav", "ftab"].forEach((k) => p.delete(k));
+    ["file", "fproj", "fsvc", "flang", "flines", "fnav", "ftab", "fside"].forEach((k) => p.delete(k));
     if (ftab) p.set("tab", ftab);
     history.push({ pathname: window.location.pathname, search: p.toString() });
   }, [history]);
@@ -92,6 +95,8 @@ const SystemViewPage = () => {
       if (detail.language) p.set("flang", detail.language);
       if (detail.lines && detail.lines[0]) p.set("flines", detail.lines.join("-"));
       else if (p.get("file") !== detail.path) p.delete("flines"); // a DIFFERENT file drops the range
+      if (detail.side) p.set("fside", detail.side);
+      else p.delete("fside"); // opened from the tree, not from a side of the index
       // …same file, no lines given: leave whatever range is already there alone.
       history.push({ pathname: window.location.pathname, search: p.toString() });
     },
@@ -105,7 +110,10 @@ const SystemViewPage = () => {
     if (fileFromUrl) {
       setNavTab("files");
       setCodeFile((cur) =>
-        cur && cur.path === fileFromUrl.path && String(cur.lines) === String(fileFromUrl.lines)
+        cur &&
+        cur.path === fileFromUrl.path &&
+        String(cur.lines) === String(fileFromUrl.lines) &&
+        cur.side === fileFromUrl.side
           ? cur
           : fileFromUrl,
       );
@@ -115,7 +123,7 @@ const SystemViewPage = () => {
       if (prev) setNavTab(prev);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fileFromUrl && fileFromUrl.path, fileFromUrl && String(fileFromUrl.lines), location.search]);
+  }, [fileFromUrl && fileFromUrl.path, fileFromUrl && String(fileFromUrl.lines), fileFromUrl && fileFromUrl.side, location.search]);
 
   // A story pane's file link, or a ⌘-click on a `:file[…]` chip, OPENS a file here.
   useEffect(() => {

@@ -1149,8 +1149,14 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
         {rows.map((r) => {
           const { glyph, kind } = iconFor(r.name);
           const { mark, title } = GIT_MARK[r.status] || GIT_MARK.modified;
+          // A file that is staged AND edited since is legitimately in TWO groups, so the selection
+          // has to know WHICH row you clicked — keyed on the path alone, both lit up at once.
+          const side = key === "staged" ? "staged" : "unstaged";
           const selected =
-            openFile && openFile.projectCode === projectCode && openFile.path === r.path;
+            openFile &&
+            openFile.projectCode === projectCode &&
+            openFile.path === r.path &&
+            (openFile.side || "unstaged") === side;
           const dir = r.path.includes("/") ? r.path.slice(0, r.path.lastIndexOf("/")) : "";
           return (
             <div
@@ -1171,6 +1177,10 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
                     serviceId: fileHost.serviceId,
                     path: r.path,
                     language: r.language,
+                    // WHICH SIDE you asked for: from `staged` you want HEAD→index (what you would
+                    // be committing), from `changes` you want index→working (what you haven't
+                    // staged). Opening the same file from either row used to give the same view.
+                    side,
                   })
                 }
               >
@@ -1231,11 +1241,18 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
 
   // The three groups git itself uses. A file that is staged AND edited again since appears in
   // BOTH — that is the honest picture, and it's the state worth seeing twice.
+  //
+  // THE OTHER FILTERS NARROW THESE TOO. The lens is a VIEW, not a mode that swallows everything
+  // else: picking `.md` or comments or typing in the box while version control is on used to do
+  // nothing at all, so the two halves of the row looked like they belonged to different panels.
   const vcGroups = useMemo(() => {
+    const keep = (path) =>
+      matchText(path) && (!docsOnly || /\.mdx?$/i.test(path)) && (!commentsOnly || commented.has(path));
     const staged = [];
     const unstaged = [];
     const untracked = [];
     changed.forEach((g, p) => {
+      if (!keep(p)) return;
       const row = { ...g, path: p, name: p.split("/").pop() };
       if (g.status === "untracked") untracked.push(row);
       else {
@@ -1249,7 +1266,8 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
       unstaged: unstaged.sort(byName),
       untracked: untracked.sort(byName),
     };
-  }, [changed]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [changed, query, docsOnly, commentsOnly, commented]);
 
   return (
     <div
@@ -1588,10 +1606,18 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
                 <div className={`${CLASSNAME}__tree`} hidden={vcTab === "log"}>
                   {/* SAY IT when there's nothing left, instead of drawing three empty headings that
                       read as a broken panel — this is what you see right after committing. */}
-                  {changed.size === 0 && (
+                  {changed.size === 0 ? (
                     <div className={`${CLASSNAME}__empty`}>
                       nothing to commit — the branch is clean
                     </div>
+                  ) : (
+                    !vcGroups.staged.length &&
+                    !vcGroups.unstaged.length &&
+                    !vcGroups.untracked.length && (
+                      <div className={`${CLASSNAME}__empty`}>
+                        {changed.size} changed file{changed.size === 1 ? "" : "s"} — none match the filter
+                      </div>
+                    )
                   )}
                   {renderVcGroup("staged", "staged", vcGroups.staged)}
                   {renderVcGroup("unstaged", "changes", vcGroups.unstaged)}

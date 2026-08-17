@@ -37,11 +37,20 @@ export const codeCommentsPath = (path) => `${ROOT}/${path}.json`;
 // The tree already lists `.systemview/`, so "which files have comments" is answerable from the file
 // list the nav ALREADY has — no new plugin method, no extra call.
 export const isCodeCommentFile = (p) => String(p || "").startsWith(`${ROOT}/`) && /\.json$/.test(p);
+// An EMPTY sidecar does not count. `{"threads":[]}` is 20 bytes and any real comment is far bigger,
+// so the file list's size settles it without reading anything. This matters because a plugin too old
+// to delete files leaves the empty file behind — and by NAME alone the tree then marked, and this
+// filter then matched, files with nothing on them at all. No size reported (an older plugin) → fall
+// back to counting it, which is the behaviour that was already there.
+const EMPTY_SIDECAR = 40;
 export const commentedPathSet = (files) => {
   const out = new Set();
   (files || []).forEach((f) => {
     const p = typeof f === "string" ? f : f.path;
-    if (isCodeCommentFile(p)) out.add(p.slice(ROOT.length + 1).replace(/\.json$/, ""));
+    if (!isCodeCommentFile(p)) return;
+    const size = typeof f === "object" && f ? f.size : undefined;
+    if (typeof size === "number" && size < EMPTY_SIDECAR) return;
+    out.add(p.slice(ROOT.length + 1).replace(/\.json$/, ""));
   });
   return out;
 };
@@ -96,8 +105,15 @@ export function useCodeComments(Plugin, path) {
       setError("");
       if (!Plugin) return;
       try {
-        if (!next.length && Plugin.deleteFile) await Plugin.deleteFile({ path: codeCommentsPath(path) });
-        else
+        // THE LAST COMMENT TAKES ITS FILE WITH IT — on any plugin. `deleteFile` is the direct verb
+        // (2.20.0+); on an older one `discardFiles` already removes an UNTRACKED file, and a sidecar
+        // in `.systemview/` is untracked in every project that doesn't commit that folder. Treating
+        // the old plugin as "can only empty the file" was me accepting a limitation that wasn't
+        // there — and an emptied file is exactly what made the tree mark files with nothing on them.
+        if (!next.length && (Plugin.deleteFile || Plugin.discardFiles)) {
+          if (Plugin.deleteFile) await Plugin.deleteFile({ path: codeCommentsPath(path) });
+          else await Plugin.discardFiles({ paths: [codeCommentsPath(path)] });
+        } else
           await Plugin.writeFile({
             path: codeCommentsPath(path),
             content: `${JSON.stringify({ threads: next }, null, 2)}\n`,

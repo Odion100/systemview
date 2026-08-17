@@ -161,6 +161,13 @@ function createFileProviders(rootDir) {
       files: files.map((p) => {
         const f = { path: p, language: languageOf(p) };
         if (untracked && untracked.has(p)) f.tracked = false;
+        // SIZE, for the sidecars. A comment sidecar that has been emptied (which is what happens on
+        // a plugin too old to delete files) is indistinguishable from a full one by NAME alone — so
+        // the tree marked, and the filter matched, files with nothing on them. One stat per file we
+        // are already walking.
+        try {
+          f.size = fs.statSync(path.join(root(), p)).size;
+        } catch {}
         return f;
       }),
       truncated: files.length >= MAX_FILES,
