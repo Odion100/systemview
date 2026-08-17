@@ -81,6 +81,18 @@
       width: 11px;
       right: 2px;
     }
+    // A SEARCH HIT on the strip: inset from the change ticks, plum, and the definition is the loud
+    // one. One tick per line — four uses on a line is still one place to go.
+    &--hit {
+      background: rgba(142, 90, 168, 0.55);
+      right: 8px;
+      width: 3px;
+    }
+    &--hitdef {
+      background: #8e5aa8;
+      width: 5px;
+      right: 7px;
+    }
     // The run you are standing on — a ring, so the colour keeps meaning what it means.
     &--on {
       width: 11px;
@@ -121,6 +133,40 @@
       &:hover {
         color: #5c430f;
       }
+    }
+  }
+
+  // ⌘ (or ⌥) HELD — every name is a link right now, and the cursor says so before you click.
+  .cm-sv-cmd .cm-content {
+    cursor: pointer;
+  }
+
+  // A SEARCH HIT, and the one that looks like the DEFINITION. Plum, because green/amber/red already
+  // mean git in this pane and blue means a pointed-at range — the search needs a colour of its own.
+  .cm-sv-hit {
+    background: rgba(142, 90, 168, 0.18);
+    border-radius: 2px;
+  }
+  .cm-sv-hit--def {
+    background: rgba(142, 90, 168, 0.38);
+    box-shadow: inset 0 -2px 0 #8e5aa8;
+  }
+  // The same word inside a STRING — a path like "./utils/mcp.mjs" contains the name you searched
+  // for. It is a real hit and it stays visible, but it is not a definition and it should not shout.
+  .cm-sv-hit--str {
+    background: rgba(142, 90, 168, 0.1);
+    box-shadow: none;
+  }
+
+  // AN IMPORT PATH IS A LINK. Quiet until you go for it — a file full of permanently underlined
+  // strings reads as noise; the underline arrives on hover, the way a link does.
+  .cm-sv-import {
+    cursor: pointer;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-decoration-color: transparent;
+    &:hover {
+      text-decoration-color: currentColor;
     }
   }
 

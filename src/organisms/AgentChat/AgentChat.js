@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useContext, useMemo } from "react";
+import moment from "moment";
 import { useHistory, useLocation, useParams } from "react-router-dom";
 import ServiceContext from "../../ServiceContext";
 import ReportLink from "../../atoms/Markdown/blocks/ReportLink";
@@ -306,6 +307,10 @@ function renderChatMessage(text) {
   return out;
 }
 
+// How much of the screen a filled TV leaves under itself. Small on purpose — "fill" should reach
+// the bottom, just not touch it.
+const TV_BOTTOM_GAP = 12;
+
 // The eight resize zones — sides drag one axis, corners both. mw/mh multiply dx/dy into the
 // width/height delta; the cursor on each zone is the only handle chrome.
 const RESIZE_ZONES = [
@@ -448,6 +453,23 @@ const visStyle = (pc) => (pc ? { "--vis": visColor(pc) } : undefined);
 // Message-bubble time (his ask: "we need to see the time") — compact clock, full date on hover.
 const msgTime = (ts) =>
   new Date(ts).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+
+// WHEN THIS SHOW WENT UP, beside the TV's title — in the language you actually think in about a
+// show ("2 hours ago"), his call, and moment is already a dependency here. The absolute stamp stays
+// on the hover, because "5 days ago" stops being useful the moment you need to match it to a commit.
+const showWhen = (ts) => {
+  if (!ts) return "";
+  const m = moment(ts);
+  return m.isValid() ? m.fromNow() : "";
+};
+// ...and the same moment as a real clock. BOTH ARE WANTED, at different times: "an hour ago" is how
+// you think about a show, the actual time is how you match one to a commit — so the stamp switches
+// instead of picking a side, and which side you left it on is remembered.
+const showWhenAbs = (ts) => {
+  if (!ts) return "";
+  const m = moment(ts);
+  return m.isValid() ? m.format("MMM D · h:mm A") : "";
+};
 
 function StatusLine({ status, visitor }) {
   const [i, setI] = useState(0);
@@ -986,7 +1008,7 @@ function BotBubble({ projectCode, index }) {
           setTv(null);
           setTvOpen(false);
         } else if (args.text) {
-          setTv({ id: record.id, text: args.text, label: record.label || "show" });
+          setTv({ id: record.id, text: args.text, label: record.label || "show", ts: record.ts });
           setTvOpen(true);
         }
       } else if (cmd === "refresh") {
@@ -1060,7 +1082,7 @@ function BotBubble({ projectCode, index }) {
             const saved = await SystemView.chatGetTv(projectCode, { chat });
             if (saved && saved.id === lastShow.id && saved.text) text = saved.text;
           } catch {}
-          if (!dead) setTv({ id: lastShow.id, text, label: lastShow.label || "show" });
+          if (!dead) setTv({ id: lastShow.id, text, label: lastShow.label || "show", ts: lastShow.ts });
         }
         // Replies that landed since the last time this panel was open → the green count.
         let seen = 0;
@@ -1389,7 +1411,7 @@ function BotBubble({ projectCode, index }) {
   // live, minutes after per-report state shipped: "I don't see my options that I just chose and
   // neither one anymore.") The mount-restore path already did this correctly; these two didn't.
   const openShow = React.useCallback(
-    async (id, label, pristineText) => {
+    async (id, label, pristineText, ts) => {
       let text = pristineText;
       try {
         const saved = await SystemView.chatGetTv(projectCode, { chat, show: id });
@@ -1397,7 +1419,7 @@ function BotBubble({ projectCode, index }) {
       } catch {
         /* hub unreachable — the pristine copy is still the right thing to show */
       }
-      setTv({ id, text, label: label || "show" });
+      setTv({ id, text, label: label || "show", ts });
       setTvOpen(true);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1944,6 +1966,25 @@ function BotBubble({ projectCode, index }) {
     },
     `sv.tvSize.${projectCode}`,
   );
+  // The TV's own box, so "fill the room below" can be measured from where the TV ACTUALLY starts.
+  const tvElRef = useRef(null);
+  // "2 minutes ago" has to AGE. Without a heartbeat it keeps saying whatever it said when the show
+  // arrived until something unrelated re-renders — a relative time that never moves is worse than a
+  // clock. Only while the TV is actually on screen.
+  const [, ageTick] = useState(0);
+  // Which face the stamp is showing — his, and it survives a reload.
+  const [whenAbs, setWhenAbs] = useState(() => {
+    try {
+      return localStorage.getItem("sv.tvWhenAbs") === "true";
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    if (!tvOpen || !tv) return undefined;
+    const t = setInterval(() => ageTick((n) => n + 1), 60000);
+    return () => clearInterval(t);
+  }, [tvOpen, tv]);
   // Double-click any border → back to the original size (the same convention the page's panel
   // dividers use).
   const resetSize = (setter, def, key) => () => {
@@ -1964,7 +2005,14 @@ function BotBubble({ projectCode, index }) {
     // it isn't what you wanted, and there's nothing to undo it with but the mouse. Now the same
     // edge swings the other way: fit, fill, fit. Per axis, so a side toggles width and the top or
     // bottom toggles height, exactly like a single drag would.
-    const room = Math.max(240, window.innerHeight - ((pos && pos.y) || 0) - 40);
+    // MEASURED FROM THE TV, NOT FROM THE BOT. The room below was computed from the bot's own y with
+    // a 40px allowance — but the TV hangs about 70px lower than that, so "fill" always overshot the
+    // bottom of the screen by the difference and he dragged it back every single time. The element
+    // knows where it starts; nothing else has to be kept in step with it.
+    const tvTop = tvElRef.current
+      ? tvElRef.current.getBoundingClientRect().top
+      : ((pos && pos.y) || 0) + 72;
+    const room = Math.max(240, Math.floor(window.innerHeight - tvTop - TV_BOTTOM_GAP));
     const fitW = Math.max(280, Math.min(window.innerWidth - size.w - 140, 1280));
     const fillW = Math.max(fitW, window.innerWidth - size.w - 80); // fill means fill
     const fitH = Math.min(size.h, room);
@@ -2033,6 +2081,7 @@ function BotBubble({ projectCode, index }) {
         {tvOpen && tv && (
           <div
             data-sv="tv"
+            ref={tvElRef}
             className={`${CLASSNAME}__tv`}
             style={{
               width: tvSize.w,
@@ -2076,6 +2125,29 @@ function BotBubble({ projectCode, index }) {
                 {tv.label || "show"}
                 <span className={`${CLASSNAME}__tv-caret`}>▾</span>
               </button>
+              {showWhen(tv.ts) && (
+                <button
+                  type="button"
+                  className={`${CLASSNAME}__tv-when`}
+                  title={`${new Date(tv.ts).toLocaleString()} — click to switch`}
+                  onPointerDown={(e) => e.stopPropagation()} // the header drags; this doesn't
+                  // ...and two quick flips must not reach the header's double-click, which resets
+                  // the TV's size and position. Switching a stamp back and forth is exactly the
+                  // gesture that would trigger it.
+                  onDoubleClick={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setWhenAbs((v) => {
+                      try {
+                        localStorage.setItem("sv.tvWhenAbs", String(!v));
+                      } catch {}
+                      return !v;
+                    });
+                  }}
+                >
+                  {whenAbs ? showWhenAbs(tv.ts) : showWhen(tv.ts)}
+                </button>
+              )}
               <button
                 type="button"
                 className={`${CLASSNAME}__close`}
@@ -2103,7 +2175,7 @@ function BotBubble({ projectCode, index }) {
                       className={`${CLASSNAME}__tv-pick-item${tv && tv.id === s.id ? " is-on" : ""}`}
                       onClick={() => {
                         setTvPick(false);
-                        openShow(s.id, s.label, s.args.text);
+                        openShow(s.id, s.label, s.args.text, s.ts);
                       }}
                     >
                       <span className={`${CLASSNAME}__tv-pick-name`}>{s.label || "show"}</span>
@@ -2195,7 +2267,7 @@ function BotBubble({ projectCode, index }) {
                       key={e.m.id}
                       className={`${CLASSNAME}__links-item ${CLASSNAME}__links-item--show`}
                       title="Put this show back on the TV"
-                      onClick={() => openShow(e.m.id, e.m.label, e.m.args.text)}
+                      onClick={() => openShow(e.m.id, e.m.label, e.m.args.text, e.m.ts)}
                     >
                       <span>📺 {e.m.label || "show"}</span>
                       <span className={`${CLASSNAME}__links-time`}>{msgTime(e.m.ts)}</span>
@@ -2348,7 +2420,7 @@ function BotBubble({ projectCode, index }) {
                     key={m.id}
                     className={`${CLASSNAME}__cmd ${CLASSNAME}__cmd--show ${tv && tv.id === m.id && tvOpen ? `${CLASSNAME}__cmd--live` : ""}`}
                     title="Put this show on the TV"
-                    onClick={() => openShow(m.id, m.label, m.args.text)}
+                    onClick={() => openShow(m.id, m.label, m.args.text, m.ts)}
                   >
                     <span className={`${CLASSNAME}__cmd-arrow`}>📺</span> {m.label || "show"}
                   </button>
@@ -2757,7 +2829,7 @@ function BotBubble({ projectCode, index }) {
               return;
             }
             // Nothing on it yet — put the latest show up rather than opening an empty box.
-            if (!tv && shows.length) openShow(shows[0].id, shows[0].label, shows[0].args.text);
+            if (!tv && shows.length) openShow(shows[0].id, shows[0].label, shows[0].args.text, shows[0].ts);
             else setTvOpen(true);
           }}
         >

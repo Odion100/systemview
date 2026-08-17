@@ -4,6 +4,7 @@ import loadServiceWithHeaders from "../../utils/loadService";
 import CodeEditor from "../../atoms/CodeView/CodeEditor";
 import { changeMarksOf, hunksOf, stagedContentFor } from "../../atoms/CodeView/gitLines";
 import { useCodeComments } from "../../atoms/CodeView/codeComments";
+import { importBlocks, kindOfLine, originalName } from "../../atoms/CodeView/codeNav";
 import RowMenu from "../../atoms/RowMenu/RowMenu";
 import DiffView from "../../atoms/DiffView/DiffView";
 import { useEditorDark, EditorThemeToggle } from "../../atoms/CodeView/editorTheme";
@@ -288,6 +289,115 @@ const CodePane = ({ file, onClose }) => {
     [],
   );
   const [clearArmed, setClearArmed] = useState(false);
+  // ONE SEARCH THAT ALSO TRACES CODE. The term is the pane's, not the editor's, because it has to
+  // SURVIVE THE FILE — his ask: "the search follows you if you navigate to another file". Kept per
+  // project, so opening the next file already has it running.
+  const [term, setTerm] = useState(() => {
+    try {
+      return localStorage.getItem(`sv.codeSearch.${file.projectCode}`) || "";
+    } catch {
+      return "";
+    }
+  });
+  const [hits, setHits] = useState([]);
+  // WHICH definition you are on. "1 def" is not a label, it is the way to it — press it and you are
+  // there; press it again and you are on the next one, when there is more than one.
+  const [defAt, setDefAt] = useState(0);
+  // ...and a walker over EVERY instance, which is the other half of reading a search: ‹ › steps
+  // through them in order and wraps, the same gesture the changes already have.
+  const [hitAt, setHitAt] = useState(-1);
+  useEffect(() => {
+    setDefAt(0);
+    setHitAt(-1);
+  }, [term, file.path]);
+  const stepHit = useCallback(
+    (d) => {
+      if (!hits.length) return;
+      const next = (hitAt + d + hits.length + (hitAt < 0 && d < 0 ? 1 : 0)) % hits.length;
+      const i = hitAt < 0 && d > 0 ? 0 : next;
+      setHitAt(i);
+      setJump([hits[i].line, hits[i].line, Date.now()]);
+    },
+    [hits, hitAt],
+  );
+  // THE GLOBAL HALF. Never automatic: a search across every file on every keystroke is a service
+  // call per letter. One press, and what comes back is grouped by file with the definition-looking
+  // lines on top — the same heuristic the in-file marks use, so the two halves agree.
+  const [wide, setWide] = useState(null); // null = never asked · "loading" · { groups, truncated }
+  // Across the project a line is judged on its own (search returns lines, not files), so the shared
+  // line rule is the right one here — the multi-line import case is what the OPEN file is for.
+  const KIND = (t, text) => kindOfLine(t, text);
+  const searchProject = useCallback(async () => {
+    if (!Plugin || !Plugin.search || !term) return;
+    setWide("loading");
+    try {
+      const res = await Plugin.search({ query: term, max: 400 });
+      const word = new RegExp(`\\b${term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`);
+      const byFile = new Map();
+      (res.hits || []).forEach((h) => {
+        // The plugin matches a SUBSTRING (it is the same search the whole app uses); the whole-word
+        // filter belongs here, where we know we are chasing a name and not a phrase.
+        if (!word.test(h.text)) return;
+        if (!byFile.has(h.path)) byFile.set(h.path, []);
+        const kind = KIND(term, h.text);
+        byFile.get(h.path).push({ ...h, kind, def: kind === "decl" });
+      });
+      const score = (rows) => (rows.some((r) => r.kind === "decl") ? 2 : rows.some((r) => r.kind === "import") ? 1 : 0);
+      const groups = [...byFile.entries()]
+        .map(([path, rows]) => ({
+          path,
+          // Inside a file too: the declaration is the line you were looking for.
+          rows: rows.slice().sort((a, b) => (b.def ? 1 : 0) - (a.def ? 1 : 0) || a.line - b.line),
+          defs: rows.filter((r) => r.def).length,
+          rank: score(rows),
+        }))
+        // The file that DECLARES it first, then the ones that merely import it, then plain users.
+        .sort((a, b) => b.rank - a.rank || b.defs - a.defs || a.path.localeCompare(b.path));
+      setWide({ groups, truncated: !!res.truncated });
+    } catch (e) {
+      setWide({ groups: [], error: (e && e.message) || "search failed" });
+    }
+  }, [Plugin, term]);
+  // THE TRACE HOP. When the name is bound HERE by an import, the box can carry you into the file it
+  // came from — the chain his design is built on: click the name, see it here, keep going. It reads
+  // the import line for the specifier, and the ALIAS matters: `import { a as b }` means the other
+  // file calls it `a`, so that is the name to chase over there.
+  const trace = useMemo(() => {
+    if (!term || content == null) return null;
+    const text = String(content);
+    const q = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const word = new RegExp(`\\b${q}\\b`);
+    // A DESTRUCTURED IMPORT SPANNING LINES is the common case and the one a line-by-line reader
+    // misses entirely — his catch. Ask the blocks first, by position, not by line.
+    for (const b of importBlocks(text)) {
+      if (word.test(b.members) && /^[./]/.test(b.spec))
+        return { spec: b.spec, name: originalName(b.members, term) };
+    }
+    // Then the single-line forms: `import X from "y"`, `const X = require("y")`.
+    for (const line of text.split("\n")) {
+      if (!word.test(line)) continue;
+      const from = line.match(/\bfrom\s*['"]([^'"]+)['"]/) || line.match(/\brequire\s*\(\s*['"]([^'"]+)['"]/);
+      if (!from || !/^[./]/.test(from[1])) continue;
+      const alias = line.match(new RegExp(`\\b([A-Za-z_$][\\w$]*)\\s+as\\s+${q}\\b`));
+      return { spec: from[1], name: alias ? alias[1] : term };
+    }
+    return null;
+  }, [term, content]);
+
+  // A new term retires the old results rather than leaving last question's answer on screen.
+  useEffect(() => {
+    setWide(null);
+  }, [term]);
+  const setSearchTerm = useCallback(
+    (t) => {
+      setTerm(t);
+      try {
+        localStorage.setItem(`sv.codeSearch.${file.projectCode}`, t || "");
+      } catch {}
+    },
+    [file.projectCode],
+  );
+
   // RFC-034 — THE 💬 IN THE HEADER IS A LIST, not a switch. "you can click on them and go straight to
   // those lines, you can delete them on the side, you can clear all of them": one row per comment,
   // the row takes you there, the × on it deletes that one, clear-all sits at the bottom instead of
@@ -308,6 +418,76 @@ const CodePane = ({ file, onClose }) => {
     setListOpen(false);
     setJump(null);
   }, [file.path]);
+
+  // CLICK AN IMPORT, OPEN THAT FILE (the editor marks the paths; resolving one is this pane's job,
+  // because it owns the file host). Node's own resolution order, minus node_modules: the exact path,
+  // then the usual extensions, then the folder's index. Each candidate is simply READ — the first
+  // one that answers exists, and nothing needs an index or a parser.
+  const EXTS = ["", ".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs", ".json", ".scss", ".css", ".md"];
+  const EXT_LANG = {
+    js: "javascript", jsx: "javascript", mjs: "javascript", cjs: "javascript",
+    ts: "typescript", tsx: "typescript", json: "json", md: "markdown", markdown: "markdown",
+    scss: "scss", css: "css", html: "html", yml: "yaml", yaml: "yaml", sh: "shell", py: "python", sql: "sql",
+  };
+  const langFor = (p) => EXT_LANG[(String(p).split(".").pop() || "").toLowerCase()] || "text";
+  const openImport = useCallback(
+    async (spec, focusName) => {
+      if (!Plugin || !spec) return;
+      const dir = file.path.includes("/") ? file.path.slice(0, file.path.lastIndexOf("/")) : "";
+      // Resolve `./x`, `../x` and `/x` against this file's own folder, flattening the dots by hand —
+      // there is no path module in a browser and the answer has to be a repo-relative path anyway.
+      const parts = (spec.startsWith("/") ? spec.slice(1) : `${dir}/${spec}`).split("/");
+      const out = [];
+      parts.forEach((seg) => {
+        if (!seg || seg === ".") return;
+        if (seg === "..") out.pop();
+        else out.push(seg);
+      });
+      const base = out.join("/");
+      const tries = [...EXTS.map((e) => `${base}${e}`), ...EXTS.slice(1).map((e) => `${base}/index${e}`)];
+      for (const candidate of tries) {
+        try {
+          const res = await Plugin.readFile({ path: candidate });
+          // LAND ON THE NAME, not at the top. We already have the bytes from the existence check, so
+          // finding where the other file declares it costs nothing — and arriving at line 1 and
+          // scrolling is the exact thing this whole feature exists to stop.
+          let lines = null;
+          if (focusName && res && res.content) {
+            const rows = String(res.content).split("\n");
+            const word = new RegExp(`\\b${focusName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`);
+            let firstHit = -1;
+            for (let i = 0; i < rows.length; i += 1) {
+              if (!word.test(rows[i])) continue;
+              if (firstHit < 0) firstHit = i + 1;
+              if (KIND(focusName, rows[i]) === "decl") {
+                lines = [i + 1, i + 1];
+                break;
+              }
+            }
+            if (!lines && firstHit > 0) lines = [firstHit, firstHit];
+          }
+          window.dispatchEvent(
+            new CustomEvent("sv:openFileInNav", {
+              detail: {
+                projectCode: file.projectCode,
+                serviceId: file.serviceId,
+                path: candidate,
+                language: langFor(candidate),
+                ...(lines ? { lines } : {}),
+              },
+            }),
+          );
+          return;
+        } catch {
+          /* not this one — try the next */
+        }
+      }
+      // SAY SO. A link that quietly does nothing is the thing that makes you doubt the whole feature.
+      setError(`can't find ${spec} from ${file.path}`);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [Plugin, file.path, file.projectCode, file.serviceId],
+  );
 
   const onComment = useMemo(
     () => ({
@@ -481,6 +661,148 @@ const CodePane = ({ file, onClose }) => {
           )}
         </span>
       </div>
+      {/* THE SEARCH BAR. One box: type in it, or ⌘-click a name in the code and it fills itself.
+          It says how many hits are in this file and how many of them look like a definition, and it
+          carries across files — the whole point is that it follows you. */}
+      {!isImage && (
+        <div className={`${CLASSNAME}__find`}>
+          <input
+            className={`${CLASSNAME}__find-input`}
+            value={term}
+            placeholder="find in file — or ⌘-click a name"
+            spellCheck={false}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") setSearchTerm("");
+            }}
+          />
+          {term && hits.length > 0 && (
+            <span className={`${CLASSNAME}__find-walk`}>
+              <button type="button" title="Previous instance" onClick={() => stepHit(-1)}>
+                ‹
+              </button>
+              <span className={`${CLASSNAME}__find-at`}>
+                {hitAt < 0 ? "–" : hitAt + 1}
+              </span>
+              <button type="button" title="Next instance" onClick={() => stepHit(1)}>
+                ›
+              </button>
+            </span>
+          )}
+          {term && (
+            <span className={`${CLASSNAME}__find-count`}>
+              {`${hits.length} here`}
+              {hits.some((h) => h.def) && (
+                <button
+                  type="button"
+                  className={`${CLASSNAME}__find-def`}
+                  title={(() => {
+                    const defs = hits.filter((h) => h.def);
+                    const what = defs.find((d) => d.word);
+                    const kind = what ? what.word : defs.some((d) => d.kind === "import") ? "import" : "definition";
+                    return defs.length > 1
+                      ? `Go to the ${kind} — press again for the next one`
+                      : `Go to the ${kind}`;
+                  })()}
+                  onClick={() => {
+                    const defs = hits.filter((h) => h.def);
+                    if (!defs.length) return;
+                    const d = defs[defAt % defs.length];
+                    setDefAt((n) => n + 1);
+                    setJump([d.line, d.line, Date.now()]);
+                  }}
+                >
+                  {` · ${hits.filter((h) => h.def).length} def`}
+                </button>
+              )}
+            </span>
+          )}
+          {trace && (
+            <button
+              type="button"
+              className={`${CLASSNAME}__find-trace`}
+              title={`Open ${trace.spec} and land on ${trace.name}`}
+              onClick={() => openImport(trace.spec, trace.name)}
+            >
+              {`→ ${trace.spec}`}
+            </button>
+          )}
+          {term && (
+            <button
+              type="button"
+              className={`${CLASSNAME}__find-wide`}
+              title={`Search every file in ${file.projectCode}`}
+              disabled={wide === "loading"}
+              onClick={searchProject}
+            >
+              {wide === "loading" ? "searching…" : "project"}
+            </button>
+          )}
+          {term && (
+            <button
+              type="button"
+              className={`${CLASSNAME}__find-x`}
+              title="Clear the search"
+              onClick={() => setSearchTerm("")}
+            >
+              ×
+            </button>
+          )}
+        </div>
+      )}
+      {/* THE PROJECT RESULTS. Files that DEFINE the name first, then the rest — and every row is the
+          line itself, so you can usually answer the question without opening anything. */}
+      {wide && wide !== "loading" && (
+        <div className={`${CLASSNAME}__wide`}>
+          {wide.error ? (
+            <div className={`${CLASSNAME}__wide-note`}>{wide.error}</div>
+          ) : !wide.groups.length ? (
+            <div className={`${CLASSNAME}__wide-note`}>
+              {`no other file in ${file.projectCode} has “${term}”`}
+            </div>
+          ) : (
+            <>
+              <div className={`${CLASSNAME}__wide-note`}>
+                {`${wide.groups.reduce((n, g) => n + g.rows.length, 0)} in ${wide.groups.length} file${wide.groups.length === 1 ? "" : "s"}`}
+                {wide.truncated ? " · capped" : ""}
+              </div>
+              {wide.groups.map((g) => (
+                <div key={g.path} className={`${CLASSNAME}__wide-group`}>
+                  <div className={`${CLASSNAME}__wide-file`}>
+                    {g.path}
+                    <span className={`${CLASSNAME}__wide-n`}>{g.rows.length}</span>
+                    {g.defs > 0 && <span className={`${CLASSNAME}__find-def`}>{`${g.defs} def`}</span>}
+                  </div>
+                  {g.rows.map((r) => (
+                    <button
+                      key={`${r.path}:${r.line}`}
+                      type="button"
+                      className={`${CLASSNAME}__wide-row${r.def ? ` ${CLASSNAME}__wide-row--def` : ""}`}
+                      title={`${r.path}:${r.line}`}
+                      onClick={() =>
+                        window.dispatchEvent(
+                          new CustomEvent("sv:openFileInNav", {
+                            detail: {
+                              projectCode: file.projectCode,
+                              serviceId: file.serviceId,
+                              path: r.path,
+                              language: langFor(r.path),
+                              lines: [r.line, r.line],
+                            },
+                          }),
+                        )
+                      }
+                    >
+                      <span className={`${CLASSNAME}__wide-line`}>{r.line}</span>
+                      <span className={`${CLASSNAME}__wide-text`}>{r.text}</span>
+                    </button>
+                  ))}
+                </div>
+              ))}
+            </>
+          )}
+        </div>
+      )}
       {/* THE COMMENT LIST — what the 💬 opens. Every comment on this file: where it is, what it says,
           and an × to take it off. Clicking one goes to the lines and leaves the list. */}
       {listOpen && threads.length > 0 && (
@@ -663,6 +985,10 @@ const CodePane = ({ file, onClose }) => {
             commentOpen={openComments}
             onToggleComment={toggleComment}
             onCodeMenu={onCodeMenu}
+            onOpenPath={openImport}
+            search={term}
+            onSearchHits={setHits}
+            onWordClick={setSearchTerm}
           />
         ))}
       </div>

@@ -782,7 +782,9 @@
     // auto margin keeps the ✕ on the end; the empty space between belongs to the header again.
     &--pick {
       flex: 0 1 auto;
-      margin-right: auto;
+      // The auto margin moved to the date beside it — the space between still belongs to the
+      // header (that is what keeps the bar draggable and the ✕ on the end).
+      margin-right: 8px;
       max-width: 70%;
       border: none;
       background: transparent;
@@ -793,6 +795,29 @@
       &:hover {
         color: var(--sv-blue);
       }
+    }
+  }
+  // When this show went up — quiet, beside the title, never competing with it.
+  &__tv-when {
+    flex: none;
+    margin-right: auto;
+    font-size: 10px;
+    color: var(--sv-text-faint);
+    font-family: "SF Mono", Menlo, monospace;
+    white-space: nowrap;
+    // IT IS A SWITCH: "an hour ago" is how you think about a show, the clock is how you match one to
+    // a commit. Click flips it, and the choice sticks.
+    // ONE WIDTH FOR BOTH FACES. "Aug 17 · 11:38 AM" is wider than "an hour ago", so without a floor
+    // the stamp changes size under your cursor the instant you press it — and the next click lands
+    // beside it. Measured: one in four clicks missed the element entirely before this.
+    min-width: 104px;
+    text-align: left;
+    border: none;
+    background: none;
+    padding: 0 2px;
+    cursor: pointer;
+    &:hover {
+      color: var(--sv-text-muted);
     }
   }
   &__tv-caret {

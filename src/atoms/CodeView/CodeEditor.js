@@ -1,12 +1,13 @@
 import React, { useRef, useEffect } from "react";
 import { EditorState } from "@codemirror/state";
-import { EditorView, lineNumbers, keymap, Decoration, gutter, gutterLineClass, GutterMarker, WidgetType } from "@codemirror/view";
+import { EditorView, lineNumbers, keymap, Decoration, gutter, gutterLineClass, GutterMarker, WidgetType, MatchDecorator, ViewPlugin } from "@codemirror/view";
 import { StateField, StateEffect, RangeSet } from "@codemirror/state";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { syntaxHighlighting, defaultHighlightStyle } from "@codemirror/language";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { langExt } from "./languages";
 import { dictateInto, dictationSupported } from "./codeComments";
+import { importBlocks, classifyHit, escapeRe } from "./codeNav";
 import "./styles.scss";
 
 // RFC-018 Phase 4 — the EDITABLE CodeMirror (the editor we always wanted). Powers both the doc editor
@@ -682,6 +683,86 @@ const commentGutter = gutter({
 // per-run staging all still work — those are git moves, not edits — but the text can't be typed
 // into, because scrolling past a file in something you're reading shouldn't be a chance to change
 // it by accident.
+// SEARCH THAT ALSO TRACES CODE (his design, and the point of it is that it is ONE thing). The term
+// lives in the pane; the editor marks every hit in the document and tells the ruler where they are.
+// A hit that LOOKS LIKE A DEFINITION is marked differently and is what the jump aims at — no index,
+// no parser, nothing to go stale: when the guess is wrong the honest list of hits is still right.
+const setSearch = StateEffect.define();
+// Where the hits are, and what each one IS — declaration, import (including a destructured one that
+// spans lines), a plain use, or a word inside a string. The judging lives in codeNav.js so the pane's
+// trace button and these marks can't drift apart.
+const searchField = StateField.define({
+  create: () => ({ term: "", hits: [], deco: Decoration.none }),
+  update(cur, tr) {
+    let term = cur.term;
+    for (const e of tr.effects) if (e.is(setSearch)) term = e.value || "";
+    if (!tr.docChanged && term === cur.term) return cur;
+    if (!term) return { term: "", hits: [], deco: Decoration.none };
+    const text = tr.state.doc.toString();
+    const blocks = importBlocks(text);
+    const re = new RegExp(`\\b${escapeRe(term)}\\b`, "g");
+    const marks = [];
+    const hits = [];
+    let m;
+    while ((m = re.exec(text))) {
+      const line = tr.state.doc.lineAt(m.index);
+      const info = classifyHit(text, blocks, term, m.index, line.text, m.index - line.from);
+      const def = info.kind === "decl" || info.kind === "import";
+      hits.push({
+        from: m.index,
+        to: m.index + m[0].length,
+        line: line.number,
+        def,
+        kind: info.kind,
+        spec: info.spec,
+        name: info.name,
+        word: info.word,
+        str: !!info.str,
+      });
+      marks.push(
+        Decoration.mark({
+          class: `cm-sv-hit${def ? " cm-sv-hit--def" : ""}${info.str ? " cm-sv-hit--str" : ""}`,
+        }).range(m.index, m.index + m[0].length),
+      );
+      if (m.index === re.lastIndex) re.lastIndex += 1; // paranoia against a zero-width match
+    }
+    return { term, hits, deco: Decoration.set(marks, true) };
+  },
+  provide: (f) => EditorView.decorations.from(f, (v) => v.deco),
+});
+
+// CLICK AN IMPORT, OPEN THAT FILE — the first of the three "navigate like an editor" jobs and the
+// only cheap one: the path is already a string in the source, and this app already opens a file by
+// path. No parser, no index. RELATIVE PATHS ONLY: a bare package name means node_modules, which the
+// tree deliberately doesn't carry, and a link that opens nothing is worse than no link.
+// `from "x"`, `require("x")`, `import("x")` — and the bare side-effect form `import "./styles.scss"`,
+// which has no `from` and is exactly the line you click most in this codebase.
+const IMPORT_RE = /(?:\bfrom\s*|\brequire\s*\(\s*|\bimport\s*\(\s*|\bimport\s+)(['"])([^'"\n]+)\1/g;
+const importMarks = new MatchDecorator({
+  regexp: IMPORT_RE,
+  decorate: (add, from, _to, m) => {
+    const spec = m[2];
+    if (!/^[./]/.test(spec)) return; // bare specifier — nothing to open
+    const at = from + m[0].indexOf(`${m[1]}${spec}${m[1]}`) + 1;
+    add(
+      at,
+      at + spec.length,
+      Decoration.mark({ class: "cm-sv-import", attributes: { title: `Open ${spec}` } }),
+    );
+  },
+});
+const importLinks = ViewPlugin.fromClass(
+  class {
+    constructor(view) {
+      this.decorations = importMarks.createDeco(view);
+    }
+    update(u) {
+      this.decorations = importMarks.updateDeco(u, this.decorations);
+    }
+  },
+  { decorations: (v) => v.decorations },
+);
+
 const CodeEditor = ({
   value = "",
   language = "markdown",
@@ -705,6 +786,14 @@ const CodeEditor = ({
   // The pane's own right-click over the code: it gets the selected line range, because "comment on
   // 57-64" is a thing only the pane can offer (it owns the menu and the store).
   onCodeMenu = null,
+  // Clicking an import path hands the SPECIFIER up — resolving it against the file's own folder and
+  // opening it belongs to whoever owns the files, not to the editor.
+  onOpenPath = null,
+  // The live search term, the tally handed back (so the pane can say "14 here"), and the word you
+  // clicked — the pane owns the box, the editor owns the document.
+  search = "",
+  onSearchHits = null,
+  onWordClick = null,
 }) => {
   const host = useRef(null);
   const viewRef = useRef(null);
@@ -713,6 +802,12 @@ const CodeEditor = ({
   // The menu handler goes in a ref for the same reason the stage handler went into editor STATE:
   // the extension is built once and would otherwise close over the first render's callback.
   const onCodeMenuRef = useRef(onCodeMenu);
+  const onOpenPathRef = useRef(onOpenPath);
+  onOpenPathRef.current = onOpenPath;
+  const onWordClickRef = useRef(onWordClick);
+  onWordClickRef.current = onWordClick;
+  const onSearchHitsRef = useRef(onSearchHits);
+  onSearchHitsRef.current = onSearchHits;
   onCodeMenuRef.current = onCodeMenu;
   const onToggleCommentRef = useRef(onToggleComment);
   onToggleCommentRef.current = onToggleComment;
@@ -795,6 +890,43 @@ const CodeEditor = ({
       hunkField, // what each stripe replaced, and which are open
       stripeClicks, // the stripe itself is the click target — no second gutter
       commentField, // RFC-034 — the file's comments and the one being written
+      importLinks, // the import paths, marked as the links they already are
+      searchField, // the term's hits, and which of them look like the definition
+      EditorView.domEventHandlers({
+        // OPEN WHAT THE PATH POINTS AT. On the mark itself, so ordinary clicking still puts the
+        // cursor where you clicked everywhere else in the file.
+        mousedown(e, view) {
+          // ⌘/⌥-CLICK A NAME hands the word up: the pane puts it in the search box and the strip
+          // fills with every place it lives. A plain click still just puts the cursor down — this is
+          // the gesture your hands already have from an editor.
+          if ((e.metaKey || e.altKey) && onWordClickRef.current && !e.target.closest(".cm-sv-import")) {
+            const pos = view.posAtCoords({ x: e.clientX, y: e.clientY });
+            if (pos != null) {
+              const line = view.state.doc.lineAt(pos);
+              const col = pos - line.from;
+              const before = line.text.slice(0, col).match(/[\w$]*$/)[0];
+              const after = line.text.slice(col).match(/^[\w$]*/)[0];
+              const word = `${before}${after}`;
+              if (word && !/^\d/.test(word)) {
+                e.preventDefault();
+                e.stopPropagation();
+                onWordClickRef.current(word);
+                return true;
+              }
+            }
+          }
+          // CLOSEST, NOT THE TARGET ITSELF. The syntax highlighter wraps its own span INSIDE the
+          // mark, so the thing under the pointer is the colour span and a `classList.contains` on
+          // the target matches nothing — the click silently did nothing at all.
+          const el = e.target && e.target.closest && e.target.closest(".cm-sv-import");
+          if (!el) return false;
+          if (!onOpenPathRef.current) return false;
+          e.preventDefault();
+          e.stopPropagation();
+          onOpenPathRef.current(el.textContent);
+          return true;
+        },
+      }),
       EditorView.domEventHandlers({
         // A RIGHT-CLICK MUST NOT EAT THE SELECTION. CodeMirror moves the cursor on mousedown for any
         // button, so selecting 57-64 and right-clicking it collapsed the range a frame before the
@@ -904,6 +1036,41 @@ const CodeEditor = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [composeKey, language, dark]);
 
+  // HOLD ⌘ AND THE CODE SAYS IT IS CLICKABLE. Without it the gesture is invisible — you have to
+  // already know it exists. Whole content, not just the word under the pointer: the promise is
+  // "clicking a name navigates now", and that is true of every name on screen.
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return undefined;
+    const on = (e) => {
+      if (e.metaKey || e.altKey) view.dom.classList.add("cm-sv-cmd");
+      else view.dom.classList.remove("cm-sv-cmd");
+    };
+    const off = () => view.dom.classList.remove("cm-sv-cmd");
+    window.addEventListener("keydown", on);
+    window.addEventListener("keyup", on);
+    // Leaving the window while holding it would strand the cursor as a pointer forever.
+    window.addEventListener("blur", off);
+    return () => {
+      window.removeEventListener("keydown", on);
+      window.removeEventListener("keyup", on);
+      window.removeEventListener("blur", off);
+      off();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [language, dark, readOnly]);
+
+  // The term goes IN as an effect; the tally comes back OUT so the pane's box can say how many are
+  // in this file without counting them a second time.
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    view.dispatch({ effects: setSearch.of(search || "") });
+    const st = view.state.field(searchField, false);
+    if (onSearchHitsRef.current) onSearchHitsRef.current(st ? st.hits : []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, value, language, dark, readOnly]);
+
   // GETTING TO THE CHANGES — a tick per changed run down the right edge, and ‹ n/m › to walk them
   // in order. His ask, and his pick out of four: "the ruler + arrows". It lives HERE rather than in
   // the pane's header because a file embedded in a document is this same editor, so both surfaces
@@ -917,11 +1084,21 @@ const CodeEditor = ({
     const el = host.current;
     if (!view || !el) return;
     const runs = (hunks || []).slice().sort((a, b) => a.from - b.from);
+    // The search rides the SAME strip — his ask, and the reason the strip earns its place: one
+    // column that says where everything worth looking at is. One tick per line, not per hit, or a
+    // word used four times on one line draws four marks on top of each other.
+    const st = view.state.field(searchField, false);
+    const byLine = new Map();
+    ((st && st.hits) || []).forEach((h) => {
+      const cur = byLine.get(h.line);
+      if (!cur || (h.def && !cur.def)) byLine.set(h.line, h);
+    });
+    const found = [...byLine.values()].sort((a, b) => a.line - b.line);
     const ruler = document.createElement("div");
     ruler.className = "cm-sv-ruler";
     const steps = document.createElement("div");
     steps.className = "cm-sv-steps";
-    if (!runs.length) return; // nothing changed: no strip, no counter, no furniture
+    if (!runs.length && !found.length) return; // nothing to point at: no strip, no furniture
     let at = -1; // which run we're standing on — -1 until you use it
 
     const centre = (a, b) => {
@@ -947,7 +1124,7 @@ const CodeEditor = ({
     const ticks = [];
     const draw = () => {
       ticks.forEach((t, i) => t.classList.toggle("cm-sv-tick--on", i === at));
-      steps.firstChild.textContent = `${at < 0 ? "–" : at + 1}/${runs.length}`;
+      if (steps.firstChild) steps.firstChild.textContent = `${at < 0 ? "–" : at + 1}/${runs.length}`;
     };
     const go = (i) => {
       at = (i + runs.length) % runs.length; // wraps, so the arrows never dead-end
@@ -989,6 +1166,20 @@ const CodeEditor = ({
       ruler.appendChild(t);
     });
 
+    // The hits, on the inside edge of the strip so they never sit on top of a change.
+    found.forEach((h) => {
+      const t = document.createElement("i");
+      t.className = `cm-sv-tick cm-sv-tick--hit${h.def ? " cm-sv-tick--hitdef" : ""}`;
+      t.style.top = `${((h.line - 1) / total) * 100}%`;
+      t.title = `${h.def ? "defined" : "used"} on line ${h.line}`;
+      t.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        centre(h.line, h.line);
+      });
+      ruler.appendChild(t);
+    });
+
     const label = document.createElement("span");
     label.textContent = `–/${runs.length}`;
     const prev = document.createElement("button");
@@ -1007,10 +1198,11 @@ const CodeEditor = ({
       e.preventDefault();
       go(at < 0 ? 0 : at + 1);
     });
-    steps.append(label, prev, next);
+    if (runs.length) steps.append(label, prev, next);
 
     // ⌥↓ / ⌥↑ — the keyboard half, on the editor's own dom so it only fires while you're in the file.
     const onKey = (e) => {
+      if (!runs.length) return;
       if (!e.altKey || (e.key !== "ArrowDown" && e.key !== "ArrowUp")) return;
       e.preventDefault();
       if (e.key === "ArrowDown") go(at < 0 ? 0 : at + 1);
@@ -1038,7 +1230,7 @@ const CodeEditor = ({
     };
     // Rebuilt when the runs change (a save, a stage) or the editor itself is rebuilt (theme/language).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hunkKey, language, dark, readOnly]);
+  }, [hunkKey, search, value, language, dark, readOnly]);
 
   // RFC-025 — `:file[path#L40-70]` opens the file AT a range. Select the lines and center them by
   // setting the editor's OWN scroller only. Never scrollIntoView: it walks up the DOM and scrolls
