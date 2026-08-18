@@ -234,6 +234,12 @@ against a newer vocabulary degrades honestly.
   decision.
 - **Reference, don't repeat.** `tv(…)` a value rather than restating a literal in two places.
 - **Say what's unproven.** A block you couldn't run, a claim you couldn't verify — mark it.
+- **A plugin is a version, and a running process is a snapshot of it.** If your codebase card shows
+  no branch name, or staging fails with `Plugin.stageFiles is not a function`, your SERVICE has been
+  up since before that feature shipped — it is holding old plugin code in memory. Upgrading the
+  package changes nothing until the process restarts. Restart the service; that is the whole fix.
+  (A project connected by `systemview init` has no process of its own — the hub runs its service, so
+  it only refreshes when the hub restarts.)
 
 ## 6 · The CLI, in full
 
@@ -286,6 +292,14 @@ systemview tv <project> [--json]                   # READ it back — his clicks
 systemview comments <project>                 # every file that has comments, and the lines
 systemview comments <project> <path>          # one file's comments, his and agents' apart
 systemview comments <project> <path> --json   # the same, structured
+
+# HIS BOARD — the notes he leaves for you between sessions: reminders, things to hand you later, a
+# running list of what's wrong with something he was looking at. His surface, read when he points at
+# it. `.systemview/boards/board.md`, one per project, optional title at the top.
+systemview board <project> [--json]
+# You may answer ONE note — one reply per card, under the note it answers, replacing any earlier
+# one. It shows in the UI beneath his card. Not a thread; an answer.
+systemview board <project> --reply "…" --at <n>
 
 # Stats — the /reports page, and the same numbers from the terminal
 systemview stats <project> [--range 1h|24h|7d] [--service <id>] [--json]

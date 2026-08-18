@@ -206,6 +206,9 @@ comments filter, and the ⑂ version-control lens all narrow the same list.
   committing everything can't strand you in a lens with no way out.
 - **💬 comments** — the files carrying comments on their code. Right-click a line or a selection in
   an open file to write one; the sidecar is created with the first and deleted with the last.
+- **The branch, folded away** — with the \`code\` fold closed, the badge on it says which branch and
+  how many files have changed. It stays there when nothing has changed: branch and a quiet \`0\`, so
+  "am I on the right branch" never needs the fold opened. Press it to open straight into the lens.
 - **Change marks** — a changed file wears git's own letter (\`M A D R U\`), and inside the file a thin
   stripe marks each changed line. Click a stripe for what was there at HEAD, and stage or unstage
   that run without leaving the file.
@@ -217,6 +220,19 @@ comments filter, and the ⑂ version-control lens all narrow the same list.
 - **Folders** — Expand / Collapse (and everything inside), **New file…**, Stage everything inside.
 - **Drag a file onto a folder** to move it; hold **⌥** while you drop to copy. A move that would
   overwrite something is refused and says so on the panel.
+
+## Finding your way around code
+
+- **One search box** under the file header: type in it, or **⌘-click a name** in the code and it
+  fills itself. Hits are marked in the text and on the change ruler; **\`1 def\`** is a button that
+  goes to the definition, **\`‹ 3 ›\`** walks the instances, and the term **follows you into the next
+  file**.
+- **\`project\`** searches every file — results grouped, the file that *declares* the name first.
+- **Import paths are links.** Click one to open that file; when a name is bound here by an import,
+  **\`→ ../utils/x\`** takes you there and lands on the declaration.
+- **A ruler down the right edge** of every file: one tick per changed run, sized to the run and
+  coloured like the stripes, with \`‹ n ›\` and ⌥↓ / ⌥↑ to walk them.
+- **‹ and ›** in the file header walk the files you opened — it's a trail, not the browser's history.
 
 :::callout{type=success}
 **Naming happens on the row.** Rename, Duplicate and New file turn the row itself into an input —
@@ -487,7 +503,23 @@ That's what lets an agent read, grep and **compact its own chat** — it's a fil
 disk. A project whose services predate the \`SystemViewChat\` module keeps its room in the hub until
 they restart; nothing is lost in the gap, and the hub hands over everything it buffered.
 
-One chat per project for now — named chats, docking layouts and more are on the roadmap.`,
+One chat per project for now — named chats, docking layouts and more are on the roadmap.
+
+## Your board
+
+📋 in the bot's name-tag row. Notes to yourself, things to hand an agent later, a running list of
+what's wrong with whatever you're looking at — **cards**, newest first, with the recorder and the box
+pinned at the top. Speak one with 🎙, type one, drag them into the order you want. Click the title
+where it says \`board\` to name it — it's text until you click it.
+
+Long notes fold; click one to read it whole, and 📋 on a card copies it. Drag the board's header to
+move the whole agent, drag any edge to resize, double-click an edge to put it back.
+
+The panels open side by side in one row — chat, then links & shows, then the TV, then the board —
+and one click on the agent's face puts all of them away.
+
+It's yours: nothing watches it. When you want an agent to read it, point them at it —
+\`systemview board <project>\`. An agent may answer ONE note, and the answer shows under the card.`,
   },
 };
 

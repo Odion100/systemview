@@ -7,6 +7,7 @@ import HELP_TOPICS from "../../atoms/Help/helpTopics";
 import { setHelpTopic } from "../../atoms/Help/helpStore";
 import RowMenu from "../../atoms/RowMenu/RowMenu";
 import { commentedPathSet } from "../../atoms/CodeView/codeComments";
+import { pickHost, pluginFns } from "../../utils/pluginHost";
 import imageFileIcon from "../../assets/image-file.png";
 import "./styles.scss";
 
@@ -898,6 +899,11 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
 
   const stage = async (paths, unstage, busyKey) => {
     if (!fileHost) return;
+    // Say it in English BEFORE the call. A plugin that predates staging fails as
+    // `Plugin.stageFiles is not a function`, which reads like this app is broken rather than like
+    // the service is a version behind.
+    if (!pluginFns(fileHost).includes("stageFiles"))
+      return setVcError(`${projectCode}'s plugin predates staging — upgrade systemview-plugin there`);
     setVcBusy(busyKey || paths[0]);
     setVcError("");
     try {
@@ -1687,13 +1693,17 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
                 indicating, rather than you don't even know the feature is existing"). The same
                 badge a collapsed FOLDER already wears, doing the same job one level up: press it
                 and the fold opens straight into version control. */}
-            {!codeOpen && changed.size > 0 && (
+            {/* A CLEAN REPO STILL SAYS WHICH BRANCH. It used to appear only once something had
+                changed, so the one moment you most want to be sure — nothing outstanding, am I even
+                on the right branch? — was the moment the panel went silent. Branch and a 0 now, the
+                count just reads quiet when there's nothing in it. */}
+            {!codeOpen && gitProbe === "ok" && gitState && gitState.branch && (
               <span
-                className={`${CLASSNAME}__code-git`}
+                className={`${CLASSNAME}__code-git${changed.size ? "" : ` ${CLASSNAME}__code-git--clean`}`}
                 role="button"
                 tabIndex={0}
-                title={`${changed.size} changed file${changed.size === 1 ? "" : "s"}${
-                  gitState && gitState.branch ? ` on ${gitState.branch}` : ""
+                title={`${changed.size || "no"} changed file${changed.size === 1 ? "" : "s"} on ${
+                  gitState.branch
                 } — open version control`}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -1703,9 +1713,7 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
                 }}
               >
                 <BranchIcon />
-                {gitState && gitState.branch && (
-                  <span className={`${CLASSNAME}__code-git-branch`}>{gitState.branch}</span>
-                )}
+                <span className={`${CLASSNAME}__code-git-branch`}>{gitState.branch}</span>
                 {changed.size}
               </span>
             )}
@@ -2070,9 +2078,11 @@ const CodebaseNav = ({
   const onNavigate = () => onOpenFile(null); // namespace navigation closes the open code file
   const revealFile = reveal && reveal.kind === "file" ? reveal : null;
   const revealNs = reveal && reveal.kind === "namespace" ? reveal : null;
-  // A codebase = a project. Its file host = the first LIVE (non-dynamic) service exposing the plugin
-  // file providers (siblings share a cwd, so one host serves the whole project's tree). It carries
-  // ALL the project's services (RFC-026) plus the RFC-021 project-defined (dynamic) entries.
+  // A codebase = a project. Its file host is a LIVE (non-dynamic) service exposing the plugin file
+  // providers — siblings share a cwd, so one host serves the whole project's tree. It is chosen by
+  // CAPABILITY, not by order: a sibling still on a plugin that predates version control can list the
+  // changes and then fail on stage, so a git-capable sibling wins the job when there is one. The
+  // card carries ALL the project's services (RFC-026) plus the RFC-021 project-defined (dynamic) ones.
   const codebases = useMemo(() => {
     const byProject = {};
     connectedServices.forEach((s) => {
@@ -2085,18 +2095,9 @@ const CodebaseNav = ({
         };
       const cb = byProject[s.projectCode];
       if (s.dynamic) cb.dynamicServices.push(s);
-      else {
-        cb.services.push(s);
-        if (
-          !cb.fileHost &&
-          (((s.system || {}).connectionData || {}).modules || []).some(
-            (m) => m.name === "Plugin",
-          )
-        )
-          cb.fileHost = s;
-      }
+      else cb.services.push(s);
     });
-    return Object.values(byProject);
+    return Object.values(byProject).map((cb) => ({ ...cb, fileHost: pickHost(cb.services) }));
   }, [connectedServices]);
 
   return (

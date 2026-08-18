@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useRef, useState } from "react";
 import ServiceContext from "../../../ServiceContext";
 import loadServiceWithHeaders from "../../../utils/loadService";
 import { useMarkdownScope, useMarkdownWrite } from "../context";
+import { canGit, hasPlugin, pickHost } from "../../../utils/pluginHost";
 
 // RFC-033 — `::commit{message="…"}`. A commit message in a report is a line to copy into a
 // terminal; this makes it a button.
@@ -14,11 +15,6 @@ import { useMarkdownScope, useMarkdownWrite } from "../context";
 // right here rather than somewhere else first, the commit, the push, and a LOG tab so you can flip
 // over and watch it land, then come back. Like every input block the result lands back in the
 // markdown — `::question` writes `answer=`, `:::approval` writes `verdict=`, this writes `sha=`.
-
-const hasPlugin = (s) =>
-  ((s.system && s.system.connectionData && s.system.connectionData.modules) || []).some(
-    (m) => m.name === "Plugin",
-  );
 
 const MARK = {
   modified: "M",
@@ -35,15 +31,13 @@ const CommitBlock = ({ label, attrs = {}, line }) => {
   const projectCode = attrs.project || scope.projectCode;
   // Same host rule as the file embeds: this project's plugin, never a stranger's repo. Committing
   // into the wrong repository is not a mistake worth being clever about.
-  const host =
-    connectedServices.find(
-      (s) =>
-        s.projectCode === projectCode &&
-        hasPlugin(s) &&
-        s.serviceId === (attrs.service || scope.serviceId),
-    ) ||
-    connectedServices.find((s) => s.projectCode === projectCode && hasPlugin(s)) ||
-    null;
+  //
+  // WITHIN the project though, the named service only gets the job if its plugin can actually do
+  // git — siblings share a working directory, so a sibling on a newer plugin commits the same repo.
+  // Otherwise the block draws fine and dies on the button with `stageFiles is not a function`.
+  const mine = connectedServices.filter((s) => s.projectCode === projectCode && hasPlugin(s));
+  const named = mine.find((s) => s.serviceId === (attrs.service || scope.serviceId));
+  const host = (named && canGit(named) && named) || pickHost(mine) || named || null;
 
   const [message, setMessage] = useState(label || attrs.message || "");
   // The message reads as TEXT until you click into it — his note: "editable but doesn't look

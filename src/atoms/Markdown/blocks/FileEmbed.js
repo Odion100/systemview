@@ -9,6 +9,7 @@ import RowMenu from "../../RowMenu/RowMenu";
 import { changeMarksOf, hunksOf, stagedContentFor, fileGitState } from "../../CodeView/gitLines";
 import { useCodeComments } from "../../CodeView/codeComments";
 import { useEditorDark } from "../../CodeView/editorTheme";
+import { canGit, hasPlugin, pickHost } from "../../../utils/pluginHost";
 
 // RFC-025 — the two story-pane kinds a document was still missing: a FILE pane and a DIFF pane.
 //
@@ -34,17 +35,17 @@ const EXT_LANG = {
 };
 const langOf = (p) => EXT_LANG[(String(p).split(".").pop() || "").toLowerCase()] || "text";
 
-const hasPlugin = (s) =>
-  ((s.system && s.system.connectionData && s.system.connectionData.modules) || []).some((m) => m.name === "Plugin");
-
 // Same host rule as the file CHIP: the document's own service, then its project, then any connected
 // file host — a help topic has no project of its own and should still be able to show a file.
 function useFileHost(attrs, scope) {
   const { connectedServices = [] } = useContext(ServiceContext);
   const projectCode = attrs.project || scope.projectCode;
   const inProject = connectedServices.filter((s) => s.projectCode === projectCode && hasPlugin(s));
-  const mine =
-    inProject.find((s) => s.serviceId === (attrs.service || scope.serviceId)) || inProject[0] || null;
+  // Within the project, a git-capable sibling outranks the named service: they read the same working
+  // directory, so preferring it costs nothing and is the difference between the row menu offering
+  // Stage and the menu quietly not having it.
+  const named = inProject.find((s) => s.serviceId === (attrs.service || scope.serviceId));
+  const mine = (named && canGit(named) && named) || pickHost(inProject) || named || null;
   if (mine) return mine;
   // NEVER BORROW ANOTHER PROJECT'S ROOT. This used to fall through to "any connected service with a
   // Plugin" — so when the document's own project happened to be disconnected, every embed resolved

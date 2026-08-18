@@ -338,6 +338,17 @@ async function loadCaseSetting() {
     const commentsCommand = require("./comments");
     const exitCode = await commentsCommand(input[1], input[2], { uiUrl: UI_URL, json: flags.json });
     flushAndExit(exitCode || 0);
+  } else if (command === "board") {
+    // HIS BOARD, by a verb — the notes he accumulates for you between sessions.
+    await launchApp(DEFAULT_PORT);
+    const boardCommand = require("./board");
+    const exitCode = await boardCommand(input[1], input[2], {
+      uiUrl: UI_URL,
+      json: flags.json,
+      reply: flags.reply,
+      at: flags.at,
+    });
+    flushAndExit(exitCode || 0);
   } else if (command === "logs" || command === "log") {
     await launchApp(DEFAULT_PORT);
     await logsCommand(input[1], input[2], {

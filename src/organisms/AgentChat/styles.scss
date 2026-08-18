@@ -298,6 +298,9 @@
     position: absolute;
     top: 8px;
     right: calc(100% + 8px);
+    // A NEW MESSAGE IS OVER EVERYTHING. It's the one thing here that arrives on its own, so it
+    // cannot be the thing that ends up underneath — the board (z 2) was covering it.
+    z-index: 12;
     // Abs-positioned off the 46px bubble, the box would shrink-to-fit ITS width and wrap every
     // word — max-content sizing hugs short text and only wraps once the cap is hit.
     // Modestly bigger than the original 250 (his call after the shrink bug turned out to be the
@@ -672,8 +675,9 @@
     position: absolute;
     top: 0;
     left: calc(100% + 10px);
-    width: 380px;
-    height: 420px;
+    // Width and height come from state now — resizable from every edge, double-click to reset.
+    min-width: 240px;
+    min-height: 200px;
     display: flex;
     flex-direction: column;
     background: var(--sv-surface);
@@ -691,10 +695,9 @@
     border-bottom: 1px solid var(--sv-border);
     background: var(--sv-pane-header);
   }
-  // The title is a field that doesn't look like one until you go for it — with nothing in it, it
-  // just reads `board`.
+  // The title is TEXT — it takes only the room its own words need, and there is no field there to
+  // hover until you click it. With nothing in it, it just reads `board`.
   &__board-title {
-    flex: 1 1 auto;
     min-width: 0;
     border: 1px solid transparent;
     border-radius: 5px;
@@ -702,19 +705,32 @@
     font-family: inherit;
     font-weight: 700;
     font-size: 12.5px;
+    line-height: 18px;
     color: var(--sv-on-header, var(--sv-text));
     padding: 1px 5px;
     outline: none;
-    &::placeholder {
-      color: var(--sv-on-header-muted, var(--sv-text-muted));
-      font-weight: 700;
-    }
+  }
+  &__board-title--read {
+    flex: 0 1 auto;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 62%;
     &:hover {
       border-color: var(--sv-border);
     }
-    &:focus {
-      border-color: var(--sv-blue);
-      background: var(--sv-surface);
+  }
+  &__board-title--unnamed {
+    color: var(--sv-on-header-muted, var(--sv-text-muted));
+  }
+  &__board-title--edit {
+    flex: 1 1 auto;
+    border-color: var(--sv-blue);
+    background: var(--sv-surface);
+    &::placeholder {
+      color: var(--sv-on-header-muted, var(--sv-text-muted));
+      font-weight: 700;
     }
   }
   &__board-state {
@@ -826,6 +842,7 @@
     box-shadow: inset 0 2px 0 var(--sv-blue);
   }
   &__board-when {
+    margin-right: auto;
     font-size: 9.5px;
     font-family: "SF Mono", Menlo, monospace;
     color: var(--sv-text-faint);
@@ -841,6 +858,69 @@
     font-size: 12px;
     line-height: 1.5;
     padding: 0;
+    // Clamped by default so ten notes are still a list you can scan; ▸ opens the one you want.
+    overflow: hidden;
+    &--open {
+      overflow: auto;
+    }
+  }
+  // "3 more lines — show it all": the clamp says so, and saying so is the way in.
+  &__board-more {
+    display: block;
+    width: 100%;
+    text-align: left;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 10px;
+    color: var(--sv-blue);
+    padding: 2px 0 0;
+    &:hover { text-decoration: underline; }
+  }
+  // ONE answer from the agent, under the note it answers — visibly not his own words.
+  &__board-reply {
+    margin-top: 5px;
+    padding: 4px 7px;
+    border-left: 2px solid var(--sv-blue);
+    background: color-mix(in srgb, var(--sv-blue) 8%, transparent);
+    border-radius: 0 5px 5px 0;
+    font-size: 11.5px;
+    line-height: 1.5;
+    color: var(--sv-text);
+    white-space: pre-wrap;
+  }
+  &__board-reply-text {
+    display: block;
+    max-height: 4.5em;
+    overflow: hidden;
+    &--open {
+      max-height: none;
+      overflow: auto;
+    }
+  }
+  &__board-reply-who {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--sv-blue);
+    margin-bottom: 2px;
+  }
+  // The card's small verbs: open it, copy it, hand it to the chat.
+  &__board-act {
+    flex: none;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 9.5px;
+    color: var(--sv-text-faint);
+    padding: 0 3px;
+    &:hover { color: var(--sv-blue); }
   }
   &__board-empty {
     font-size: 11.5px;
@@ -856,19 +936,33 @@
   // The clipboard is the SIXTH icon in the row, and the row is not a flex row — every icon in it is
   // absolutely positioned with its own offset off the bot. Leaving this one in the bot's column flow
   // is what dropped it under the name tag.
+  // DRESSED EXACTLY LIKE ITS NEIGHBOURS — same 18px circle, same border, same blur, same opacities,
+  // and the same --on ring the chat and TV icons wear when their panel is up. It was my own styling
+  // before, which is why it sat a shade off the row and never looked selected.
   &__miniboard {
     position: absolute;
     top: 46px;
-    left: calc(100% + 4px); // FIRST after the title — his call, upgraded from "two spaces left"
-    border: none;
-    background: none;
-    cursor: pointer;
-    font-size: 12px;
-    line-height: 1;
+    left: calc(100% + 4px); // FIRST after the title — his call
+    width: 18px;
+    height: 18px;
     padding: 0;
-    opacity: 0.75;
-    &:hover { opacity: 1; }
-    &--on { opacity: 1; }
+    border: 1px solid var(--sv-border);
+    border-radius: 9px;
+    background: color-mix(in srgb, var(--sv-surface) 90%, transparent);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    font-size: 10px;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0.6;
+    &:hover {
+      opacity: 1;
+    }
+    &--on {
+      opacity: 1;
+      border-color: var(--sv-blue);
+      box-shadow: 0 0 0 3px rgba(104, 134, 186, 0.22);
+    }
   }
 
   &__tv {

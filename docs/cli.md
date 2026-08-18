@@ -284,6 +284,37 @@ an agent renders in the UI with the agent look, and his with his.
 
 ---
 
+### `systemview board <projectCode> [--json]`
+
+**His board** — the notes he keeps between sessions: reminders, things to hand an agent later, a
+running list of what's wrong with whatever he's looking at. Written in the UI from 📋 in the bot's
+name-tag row (cards, newest first, voice or typing, drag to reorder), stored as one markdown file per
+project:
+
+```
+.systemview/boards/board.md
+```
+
+An optional `# title` sits above the cards; each card is stamped with when it landed.
+
+```bash
+systemview board buAPI
+systemview board buAPI --json
+```
+
+The board is HIS surface — nothing watches it and nothing writes to it but him. This verb exists so
+that "go look at my board" has an answer that doesn't depend on remembering a path.
+
+**Answering one note.** A card may carry ONE reply, written under the note it answers and shown
+there in the UI. Writing again replaces it — an answer, not a thread. `--at` is the note's number as
+`systemview board` prints it (1 = the top card, which is the newest).
+
+```bash
+systemview board buAPI --reply "did it — the resolver is namespaced now" --at 1
+```
+
+---
+
 ### `systemview open [projectCode] [namespace]`
 
 Opens the SystemView browser UI. Starts the server if needed.

@@ -311,6 +311,15 @@
       background: color-mix(in srgb, #d9a441 28%, transparent);
     }
   }
+  // Nothing outstanding — the badge is still there saying which branch, it just stops being amber
+  // about it. Amber means "there is work here"; a clean tree has none.
+  &__code-git--clean {
+    color: var(--sv-text-muted);
+    background: var(--sv-hover, rgba(127, 127, 127, 0.1));
+    &:hover {
+      background: var(--sv-hover-strong, rgba(127, 127, 127, 0.18));
+    }
+  }
   &__code-git-branch {
     font-weight: 600;
     opacity: 0.85;

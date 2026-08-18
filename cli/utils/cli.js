@@ -41,6 +41,8 @@ const HELP_TEXT = `
     probe <ServiceId.Module.method> [args] Call a service method ad-hoc
     comments <project> [path] [--json]     His comments on the code — every file that has them,
                                            or one file's, with the lines they sit on
+    board <project> [--json]               His board — the notes he leaves for you between sessions
+    board <project> --reply "…" --at <n>   Answer ONE note (n from the listing); replaces that answer
     stats <project> [service] [--range <r>] [--json]   Read live stats — the Stats page's numbers
                                            in a digest (top load, error hotspots, deltas); --json
                                            for the full structured read; range: 15m|1h|4h|24h|all
@@ -155,7 +157,7 @@ const HELP_TEXT = `
     systemview highlight buAPI --match "await hash"
 `;
 
-const flagValueArgs = ["--manifest", "--header", "--skip", "--phase", "--index", "--level", "--limit", "--follow", "--filter", "--or", "--include", "--highlight", "--save", "--save-limit", "--file", "--source", "--text", "--lines", "--match", "--layout", "--diff", "--test", "--ns", "--note", "--at", "--from", "--to", "--chat", "--as", "--report", "--tab", "--topic", "--range", "--service", "--say"];
+const flagValueArgs = ["--manifest", "--header", "--skip", "--phase", "--index", "--level", "--limit", "--follow", "--filter", "--or", "--include", "--highlight", "--save", "--save-limit", "--file", "--source", "--text", "--lines", "--match", "--layout", "--diff", "--test", "--ns", "--note", "--at", "--from", "--to", "--chat", "--as", "--report", "--tab", "--topic", "--range", "--service", "--say", "--reply"];
 
 // Quote-aware tokenizer: a single/double-quoted arg (e.g. a JSON payload with spaces) stays ONE token,
 // surrounding quotes stripped. Turns an interactive REPL line into the same argv shape the shell hands
@@ -239,6 +241,7 @@ function parseArgs(rawArgs) {
     ns: valOf("--ns"),
     note: valOf("--note"),
     at: valOf("--at"),
+    reply: valOf("--reply"),
     from: valOf("--from"),
     to: valOf("--to"),
     // RFC-028 chat verbs

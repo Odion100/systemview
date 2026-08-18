@@ -32,21 +32,28 @@ args and evaluations).
   "Main":   [ /* one or more steps */ ],
   "Events": [ /* steps whose methodName is "on" — event listeners, any connected service */ ],
   "After":  [ /* steps */ ],
-  "sections": { "seedSum": { "use": "seedSum" } },
+  "sections": { "seedSum": { "use": "TestService.seedSum" } },
   "run": ["before", "events", "seedSum", "main", "after"]
 }
 ```
 
 - `sections` + `run` are **optional** — omit both for the classic four-section shape (default order
   `before, events, main, after`).
-- A named section is either `{ "use": "<actionName>" }` (a **reference** — the stored action's steps
-  splice in at load time; one definition, many tests) or an inline steps array (a private **copy**).
+- A named section is either `{ "use": "<Service>.<actionName>" }` (a **reference** — the stored
+  action's steps splice in at load time; one definition, many tests) or an inline steps array (a
+  private **copy**).
+- **A REFERENCE CARRIES THE SERVICE THAT STORES IT** (changed 2026-08-18). Actions live under the
+  service they were saved on (`specs/actions/<name>.json`), and the name alone never said which one —
+  so every surface used to sweep every service in the project before it could show you a test.
+  `{ "use": "TestService.seedSum" }` is answered by one service. A bare `{ "use": "seedSum" }` still
+  resolves, but **only against the test's own service** — there is no fallback sweep, so a reference
+  to another service's action must be qualified or it will not resolve.
 - **The key and the `use` value are different concepts, even when they're the same word.** The KEY is
   the section's *instance name in this test* — it's what references (`test.seedSum[0].results`) and
   `run` entries address (the call site). The `use` VALUE names the stored action — which
   `specs/actions/<name>.json` to pull steps from (the definition). Inserting an action once defaults
-  the key to the action's name, so the common case reads `"seedSum": { "use": "seedSum" }` — that's a
-  defaulted name, not redundancy.
+  the key to the action's name, so the common case reads `"seedSum": { "use": "TestService.seedSum" }`
+  — a defaulted key, a qualified definition.
 - The same action can appear as multiple sections under distinct instance keys (`seedSum`,
   `seedSum_2`, …) — each key must be a valid identifier because references address it
   (`test.seedSum_2[0].results`). Two instances, two positions in `run`, two result sets, one definition.
@@ -165,7 +172,7 @@ everywhere. Creating them is a procedure, not a judgment call:
    just a regular Before section. One step = just write the step.
 3. **Extract each surviving block** to `specs/actions/<name>.json`, with `random(n)` in its data so
    instances never collide.
-4. **Refactor the tests onto them** — `{ "use": "<name>" }` sections, comprehensively, not two at a
+4. **Refactor the tests onto them** — `{ "use": "<Service>.<name>" }` sections, comprehensively, not two at a
    time.
 
 **Composition is the reference system.** Actions don't nest (`{use}` resolves at the test level) —

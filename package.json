@@ -1,7 +1,7 @@
 {
   "name": "systemview",
   "description": "A documentation and testing suite for SystemLynx",
-  "version": "2.35.0",
+  "version": "2.36.0",
   "license": "UNLICENSED",
   "bin": {
     "systemview": "cli/index.js"

@@ -1950,7 +1950,13 @@ function BotBubble({ projectCode, index }) {
   // bot gets held back from the edge it is actually free to sit against.
   extentRef.current = () => {
     if (!open) return { right: 0, left: 0, down: 0 };
-    const wide = size.w + (tvOpen && tv ? tvSize.w + 20 : 0) + (linksOpen ? 320 : 0) - 46;
+    // The row is as wide as everything that's up: chat, links, TV, board.
+    const wide =
+      size.w +
+      (tvOpen && tv ? tvSize.w + 20 : 0) +
+      (linksOpen ? 320 : 0) +
+      (boardOpen ? boardSize.w + 10 : 0) -
+      46;
     return {
       right: flip ? 0 : wide,
       left: flip ? wide : 0,
@@ -1974,6 +1980,15 @@ function BotBubble({ projectCode, index }) {
   // NOTES ARE CARDS, newest on top, and the recorder stays at the top with them coming down under
   // it — his shape: "the recorder stays closer to the top, the previous ones get pushed down".
   const [boardOpen, setBoardOpen] = useState(false);
+  // Resizable and double-click-to-reset, like every other panel here — his call: "just like the
+  // other components".
+  const [boardSize, setBoardSize] = useState(() => {
+    try {
+      const v = JSON.parse(localStorage.getItem(`sv.boardSize.${projectCode}`));
+      if (v && v.w && v.h) return v;
+    } catch {}
+    return { w: 380, h: 420 };
+  });
   const [board, setBoard] = useState(null); // null = not read yet · else [{ ts, text }]
   const [boardSaved, setBoardSaved] = useState(true);
   const [boardDraft, setBoardDraft] = useState("");
@@ -1981,6 +1996,7 @@ function BotBubble({ projectCode, index }) {
   // accumulates thoughts for an agent to be pointed at later, and a word at the top is the cheapest
   // context there is. Subtle and skippable: with none it just says `board`.
   const [boardTitle, setBoardTitle] = useState("");
+  const [titling, setTitling] = useState(false); // the title is a word until it is clicked
   const [boardRec, setBoardRec] = useState(false);
   const boardRecRef = useRef(null);
   const boardDraftRef = useRef(null);
@@ -2000,12 +2016,18 @@ function BotBubble({ projectCode, index }) {
   // ON DISK IT IS STILL ONE MARKDOWN FILE — cards are separated by an HTML comment carrying the
   // time. Invisible in any renderer, so the file reads like notes rather than like a database, and
   // every block this app has still works inside a card.
+  // A card, and OPTIONALLY one answer from the agent under it — his ask: "you could make one
+  // response to a note". It lives in the same file, right under the note it answers, so reading the
+  // file is reading the conversation.
   const parseBoard = (text) => {
     const out = [];
     String(text || "")
       .split(/<!--card (\d+)-->/)
       .forEach((part, i, arr) => {
-        if (i % 2 === 1) out.push({ ts: Number(part), text: (arr[i + 1] || "").trim() });
+        if (i % 2 !== 1) return;
+        const body = arr[i + 1] || "";
+        const [note, ...rest] = body.split(/<!--reply-->/);
+        out.push({ ts: Number(part), text: note.trim(), reply: rest.join("").trim() || "" });
       });
     return out;
   };
@@ -2018,10 +2040,14 @@ function BotBubble({ projectCode, index }) {
     return m ? m[1].trim() : "";
   };
   const serializeBoard = (cards, title) =>
-    `${title ? `# ${title}\n\n` : ""}${cards.map((c) => `<!--card ${c.ts}-->\n${c.text}\n`).join("\n")}`;
+    `${title ? `# ${title}\n\n` : ""}${cards
+      .map((c) => `<!--card ${c.ts}-->\n${c.text}\n${c.reply ? `<!--reply-->\n${c.reply}\n` : ""}`)
+      .join("\n")}`;
 
+  // EVERY TIME IT OPENS, not just the first — a reply written while the board was shut was invisible
+  // until he reloaded the whole page, which is not a thing anyone should have to do to read an answer.
   useEffect(() => {
-    if (!boardOpen || board !== null || !boardPlugin) return;
+    if (!boardOpen || !boardPlugin) return undefined;
     let dead = false;
     (async () => {
       try {
@@ -2037,13 +2063,27 @@ function BotBubble({ projectCode, index }) {
     return () => {
       dead = true;
     };
-  }, [boardOpen, board, boardPlugin]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [boardOpen, boardPlugin]);
 
   const saveBoard = async (cards, title = boardTitle) => {
     setBoard(cards);
     setBoardSaved(false);
     if (!boardPlugin) return;
     try {
+      // AN AGENT'S REPLY MUST SURVIVE HIS NEXT KEYSTROKE. The panel holds the whole board in memory
+      // and writes the whole file, so a reply written by `systemview board --reply` between the
+      // panel reading and the panel saving would simply vanish — which is exactly what happened the
+      // first time I tried it. Replies are the agent's half and the UI never edits them, so re-read
+      // and carry them over rather than trusting what was in memory.
+      let keep = {};
+      try {
+        const fresh = await boardPlugin.readFile({ path: boardPath });
+        parseBoard(fresh.content).forEach((c) => {
+          if (c.reply) keep[c.ts] = c.reply;
+        });
+      } catch {}
+      cards = cards.map((c) => (keep[c.ts] && !c.reply ? { ...c, reply: keep[c.ts] } : c));
       // AN EMPTY BOARD TAKES ITS FILE WITH IT — the same rule the comment sidecars follow, so an
       // emptied board doesn't sit in `.systemview/` pretending to be something. A title alone still
       // counts as something on the board.
@@ -2082,6 +2122,11 @@ function BotBubble({ projectCode, index }) {
   // tree's drag uses, so nothing else on the page answers a card drag.
   const CARD_MIME = "application/x-systemview-card";
   const [dropCard, setDropCard] = useState(null);
+  // A LONG NOTE IS CLAMPED UNTIL YOU SAY OTHERWISE — his rule, and the important half is the second
+  // one: "I don't care that I can't see the whole thing, but I can't see it BY CHOICE."
+  const [openCards, setOpenCards] = useState([]);
+  const [openReplies, setOpenReplies] = useState([]);
+  const [copied, setCopied] = useState(0);
   const moveCard = (fromTs, toTs) => {
     if (!board || fromTs === toTs) return;
     const from = board.findIndex((c) => c.ts === fromTs);
@@ -2093,7 +2138,13 @@ function BotBubble({ projectCode, index }) {
     saveBoard(next);
   };
   useEffect(() => {
-    if (!boardOpen) setBoardArmed(false);
+    if (boardOpen) return;
+    setBoardArmed(false);
+    // Unfolded notes are a READING state, not a saved one — closing the board puts them back, so it
+    // always opens the same way instead of remembering a shape you can no longer see to undo.
+    setOpenCards([]);
+    setOpenReplies([]);
+    setTitling(false);
   }, [boardOpen]);
   const toggleBoardRec = () => {
     if (boardRecRef.current) {
@@ -2160,6 +2211,8 @@ function BotBubble({ projectCode, index }) {
     try { localStorage.setItem(key, JSON.stringify(def)); } catch {}
   };
   const panelReset = resetSize(setSize, { w: 340, h: 480 }, `sv.chatSize.${projectCode}`);
+  const boardResize = makeResize(() => boardSize, setBoardSize, `sv.boardSize.${projectCode}`);
+  const boardReset = resetSize(setBoardSize, { w: 380, h: 420 }, `sv.boardSize.${projectCode}`);
   // The TV's double-click means "give me my natural FLEX size" (his call, matching the story
   // panes) — PER AXIS: the edge you double-click hands back its own dimension (side = width,
   // top/bottom = height, corner = both), and the TV header flexes the whole thing at once.
@@ -2229,6 +2282,14 @@ function BotBubble({ projectCode, index }) {
     if (right > window.innerWidth - DOCK_EDGE) return window.innerWidth - DOCK_EDGE - right;
     return 0;
   })();
+  // ONE ROW, IN HIS ORDER: chat, links, TV, board. Each side panel starts after whatever is ahead of
+  // it, so opening all four reads left to right instead of piling on the same spot — which is why
+  // the board looked like it couldn't be up at the same time as the TV: it was, directly on top of it.
+  const LINKS_W = 300;
+  const after = (px) =>
+    flip ? { left: "auto", right: `calc(100% + ${10 + px}px)` } : { left: `calc(100% + ${10 + px}px)` };
+  const linksAhead = linksOpen ? LINKS_W + 10 : 0;
+  const boardAhead = linksAhead + (tvOpen && tv ? tvSize.w + 10 : 0);
   return (
     <div
       ref={rootRef}
@@ -2246,18 +2307,49 @@ function BotBubble({ projectCode, index }) {
             so anything he pastes or writes can be a real block later — but nothing here renders it,
             because a notepad that reformats what you typed while you type is not a notepad. */}
         {boardOpen && (
-          <div className={`${CLASSNAME}__board`}>
-            <div className={`${CLASSNAME}__board-head`}>
+          <div
+            className={`${CLASSNAME}__board`}
+            style={{ width: boardSize.w, height: boardSize.h, ...after(boardAhead) }}
+          >
+            <ResizeBorder start={boardResize} onReset={boardReset} />
+            {/* THE HEADER IS THE HANDLE, like every other header here: dragging it moves the bot and
+                everything hanging off it, so the board travels with the rest instead of being the
+                one panel you cannot move. */}
+            <div
+              className={`${CLASSNAME}__board-head ${CLASSNAME}__tv-head--grab`}
+              title="Drag to move"
+              onPointerDown={onBotPointerDown}
+            >
               <span className={`${CLASSNAME}__tv-badge`}>📋</span>
-              <input
-                className={`${CLASSNAME}__board-title`}
-                value={boardTitle}
-                placeholder="board"
-                spellCheck={false}
-                title="Give this board a name — optional, and it's the first thing an agent reads"
-                disabled={board === null}
-                onChange={(e) => writeTitle(e.target.value)}
-              />
+              {/* THE TITLE IS TEXT UNTIL YOU GO FOR IT. No field sitting there catching the eye and
+                  no I-beam under the pointer — you click the words and only then is there an input,
+                  already carrying what it said. */}
+              {titling ? (
+                <input
+                  className={`${CLASSNAME}__board-title ${CLASSNAME}__board-title--edit`}
+                  value={boardTitle}
+                  placeholder="board"
+                  spellCheck={false}
+                  autoFocus
+                  onPointerDown={(e) => e.stopPropagation()} // typing in it is not dragging the bot
+                  onChange={(e) => writeTitle(e.target.value)}
+                  onBlur={() => setTitling(false)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === "Escape") {
+                      e.preventDefault();
+                      setTitling(false);
+                    }
+                  }}
+                />
+              ) : (
+                <span
+                  className={`${CLASSNAME}__board-title ${CLASSNAME}__board-title--read${boardTitle ? "" : ` ${CLASSNAME}__board-title--unnamed`}`}
+                  title="Click to name this board — optional, and it's the first thing an agent reads"
+                  onClick={() => board !== null && setTitling(true)}
+                >
+                  {boardTitle || "board"}
+                </span>
+              )}
               <span className={`${CLASSNAME}__board-state`}>
                 {board === null ? "opening…" : boardSaved ? "saved" : "saving…"}
               </span>
@@ -2367,6 +2459,41 @@ function BotBubble({ projectCode, index }) {
                       onDragEnd={() => setDropCard(null)}
                     >
                       <span className={`${CLASSNAME}__board-when`}>{moment(c.ts).fromNow()}</span>
+                      {/* SEE IT ALL, COPY IT, OR HAND IT TO ME — the three things he reached for the
+                          moment he actually used the board. */}
+                      <button
+                        type="button"
+                        className={`${CLASSNAME}__board-act`}
+                        title="Copy this note"
+                        onClick={() => {
+                          // SAY "copied" ONLY IF IT COPIED. The clipboard can refuse (an unfocused
+                          // window, a permission), and a button that claims success either way is
+                          // how you find out at the paste.
+                          const done = (ok) => {
+                            setCopied(ok ? c.ts : -c.ts);
+                            setTimeout(() => setCopied(0), 1400);
+                          };
+                          try {
+                            navigator.clipboard.writeText(c.text).then(() => done(true), () => done(false));
+                          } catch {
+                            done(false);
+                          }
+                        }}
+                      >
+                        {copied === c.ts ? "copied" : copied === -c.ts ? "can't copy" : "copy"}
+                      </button>
+                      <button
+                        type="button"
+                        className={`${CLASSNAME}__board-act`}
+                        title="Put it in the chat box — you still press send"
+                        onClick={() => {
+                          setInput((cur) => (cur ? `${cur}\n${c.text}` : c.text));
+                          setOpen(true);
+                          openRef.current = true;
+                        }}
+                      >
+                        💬
+                      </button>
                       <button
                         type="button"
                         className={`${CLASSNAME}__board-x`}
@@ -2377,15 +2504,80 @@ function BotBubble({ projectCode, index }) {
                       </button>
                     </div>
                     {/* Editable in place — a note you cannot fix is a note you rewrite somewhere else. */}
-                    <textarea
-                      className={`${CLASSNAME}__board-card-text`}
-                      value={c.text}
-                      spellCheck={false}
-                      rows={Math.min(8, Math.max(1, c.text.split("\n").length))}
-                      onChange={(e) =>
-                        saveBoard(board.map((x) => (x.ts === c.ts ? { ...x, text: e.target.value } : x)))
-                      }
-                    />
+                    {(() => {
+                      const open = openCards.includes(c.ts);
+                      // How many lines this note really needs at the card's width — a long single
+                      // line wraps, so counting newlines alone would call it one line and hide the
+                      // rest with nothing to say so.
+                      const needed = c.text
+                        .split("\n")
+                        .reduce((n, l) => n + Math.max(1, Math.ceil(l.length / 44)), 0);
+                      const hidden = Math.max(0, needed - 2);
+                      return (
+                        <>
+                          <textarea
+                            className={`${CLASSNAME}__board-card-text${open ? ` ${CLASSNAME}__board-card-text--open` : ""}`}
+                            value={c.text}
+                            spellCheck={false}
+                            rows={open ? Math.max(2, needed) : 2}
+                            onChange={(e) =>
+                              saveBoard(board.map((x) => (x.ts === c.ts ? { ...x, text: e.target.value } : x)))
+                            }
+                          />
+                          {/* SAY THAT THERE IS MORE. A clamp with no sign of it is just a note you
+                              think you have read. The line itself opens it — the ▸ is not the only
+                              way in. */}
+                          {hidden > 0 && (
+                            <button
+                              type="button"
+                              className={`${CLASSNAME}__board-more`}
+                              onClick={() =>
+                                setOpenCards((cur) =>
+                                  cur.includes(c.ts) ? cur.filter((x) => x !== c.ts) : [...cur, c.ts],
+                                )
+                              }
+                            >
+                              {open ? "show less" : `${hidden} more line${hidden === 1 ? "" : "s"} — show it all`}
+                            </button>
+                          )}
+                          {c.reply &&
+                            (() => {
+                              const rOpen = openReplies.includes(c.ts);
+                              const rNeeded = c.reply
+                                .split("\n")
+                                .reduce((n, l) => n + Math.max(1, Math.ceil(l.length / 44)), 0);
+                              const rHidden = Math.max(0, rNeeded - 3);
+                              return (
+                                <div className={`${CLASSNAME}__board-reply`}>
+                                  {/* WHO SAID IT — the project's own name, not the word "agent".
+                                      And a long answer folds like anything else here. */}
+                                  <span className={`${CLASSNAME}__board-reply-who`}>{projectCode}</span>
+                                  <span
+                                    className={`${CLASSNAME}__board-reply-text${rOpen ? ` ${CLASSNAME}__board-reply-text--open` : ""}`}
+                                  >
+                                    {c.reply}
+                                  </span>
+                                  {rHidden > 0 && (
+                                    <button
+                                      type="button"
+                                      className={`${CLASSNAME}__board-more`}
+                                      onClick={() =>
+                                        setOpenReplies((cur) =>
+                                          cur.includes(c.ts)
+                                            ? cur.filter((x) => x !== c.ts)
+                                            : [...cur, c.ts],
+                                        )
+                                      }
+                                    >
+                                      {rOpen ? "show less" : `${rHidden} more line${rHidden === 1 ? "" : "s"} — show it all`}
+                                    </button>
+                                  )}
+                                </div>
+                              );
+                            })()}
+                        </>
+                      );
+                    })()}
                   </div>
                 ))
               )}
@@ -2408,6 +2600,7 @@ function BotBubble({ projectCode, index }) {
             className={`${CLASSNAME}__tv`}
             style={{
               width: tvSize.w,
+              ...after(linksAhead), // after the links list when that is up
               // FLEX BY DEFAULT, WITH A MAX — NOT A FIXED BOX. Until you size it yourself the height
               // is whatever the show needs: a two-line show is a two-line box. It grows with the
               // content up to the chat's height and scrolls inside past that. The cap governs the
@@ -2539,13 +2732,10 @@ function BotBubble({ projectCode, index }) {
             data-sv="links"
             className={`${CLASSNAME}__tv ${CLASSNAME}__links`}
             style={{
-              width: 300,
+              width: LINKS_W,
               height: Math.min(480, window.innerHeight - 120),
-              ...(tvOpen && tv
-                ? flip
-                  ? { left: "auto", right: `calc(100% + ${tvSize.w + 20}px)` }
-                  : { left: `calc(100% + ${tvSize.w + 20}px)` }
-                : {}),
+              // First out of the chat — the TV and the board start after it.
+              ...after(0),
               ...(linksDrag.off.x || linksDrag.off.y
                 ? { transform: `translate(${linksDrag.off.x}px, ${linksDrag.off.y}px)` }
                 : {}),
@@ -3072,7 +3262,6 @@ function BotBubble({ projectCode, index }) {
         data-sv-pc={projectCode}
         className={`${CLASSNAME}__bot`}
         onPointerDown={onBotPointerDown}
-        onDoubleClick={dockHere}
         onContextMenu={(e) => {
           e.preventDefault();
           setCtxMenu(true);
@@ -3082,16 +3271,21 @@ function BotBubble({ projectCode, index }) {
           type="button"
           className={`${CLASSNAME}__fab ${CLASSNAME}__fab--${ring}`}
           title={`${projectCode} — ${modeText}${unread ? ` — ${unread} waiting` : ""} — drag to move, release near an edge to dock`}
+          // DOCKING BELONGS TO THE FACE, not to the whole bot. It used to sit on the container, so
+          // a double-click that landed on the name tag or on one of the icons beside it docked the
+          // agent as if you'd hit the icon itself.
+          onDoubleClick={dockHere}
           onClick={() => {
             if (suppressClickRef.current) return; // a drag is not a click
             // THE BOT IS THE MASTER SWITCH. Anything open — chat, TV, collector — and one click on
             // the bot puts all of it away. Closing three panels with three clicks isn't closing,
             // it's tidying. The icons beside the name tag are how you toggle one on its own.
-            if (open || tvOpen || linksOpen) {
+            if (open || tvOpen || linksOpen || boardOpen) {
               openRef.current = false;
               setOpen(false);
               setTvOpen(false);
               setLinksOpen(false);
+              setBoardOpen(false);
               if (endErrandRef.current) endErrandRef.current(true);
               return;
             }
