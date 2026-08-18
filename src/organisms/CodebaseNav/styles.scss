@@ -1343,3 +1343,11 @@
   box-shadow: inset 0 0 0 1px var(--sv-blue);
   border-radius: 4px;
 }
+
+// RFC-038 — the docked agent's home. The card lends it a strip and stays out of the way; what lands
+// in here is the bot itself, portaled in, so nothing about it is styled from this side.
+.codebase-nav__agent {
+  border-bottom: 1px solid var(--sv-inset);
+  padding: 2px 0 4px;
+  margin-bottom: 4px;
+}

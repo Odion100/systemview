@@ -458,7 +458,16 @@ Raw HTML stays off, so nothing renders that isn't registered.`,
     body: `# Agent chat — talk to an agent from the UI
 
 Every connected project has a **bot** (🤖) floating on the page — always visible, wherever you are.
-Drag it anywhere (release near an edge to dock; the spot is remembered). Click it to open the chat.
+Drag it anywhere; the spot is remembered. Click it to open the chat.
+
+## Docking — an agent goes home
+
+**Double-click the face** and the agent goes back into its own **codebase card** in the navigator, as
+a section above \`services\` and \`code\`. There it's a row: the icon, the unread count, the visitor ✦.
+The four icons become **tabs** — 📋 💬 🔗 📺 switch one surface instead of opening four panels, which
+is all a 280px column has room for. Opening one scrolls the panel to it.
+
+The **↗** on the row pulls it back out to floating, exactly where it was.
 
 ## The ring tells the truth
 

@@ -1968,3 +1968,113 @@
     letter-spacing: 0.05em;
   }
 }
+
+// ═══ RFC-038 — THE AGENT, DOCKED INTO ITS CODEBASE ══════════════════════════════════════════════
+//
+// Same bot, portaled into a slot in the nav's project card. Everything that made it a floating
+// window — fixed position, the anchored panel row, the drag, its own resize — is switched off here,
+// because in a 280px column those are all fights with the column rather than features.
+.agent-chat--innav {
+  position: static;
+  z-index: auto;
+  width: auto;
+  display: flex;
+  // The row of icons sits ABOVE the surface it switches. In the DOM the panels come first (they
+  // anchor off the bot when floating), so the column reads in reverse here.
+  flex-direction: column-reverse;
+  align-items: stretch;
+
+  .agent-chat__bot {
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 8px 3px 10px;
+    cursor: default; // it doesn't travel any more — it's home
+  }
+  // No name: the project card overhead already said it (his call).
+  .agent-chat__label {
+    display: none;
+  }
+  .agent-chat__fab {
+    width: 22px;
+    height: 22px;
+    font-size: 13px;
+  }
+  // Floating, each icon is placed individually off the bubble (top: 46px; left: 100% + n). Docked
+  // they are a plain row that the flex container spaces — same look, no absolute maths.
+  .agent-chat__miniboard,
+  .agent-chat__minichat,
+  .agent-chat__minitv,
+  .agent-chat__minilink,
+  .agent-chat__minimic,
+  .agent-chat__minicode {
+    position: static;
+    top: auto;
+    left: auto;
+    right: auto;
+    margin: 0;
+  }
+  // Same order he set for the floating row — 📋 first — done with flex order instead of the
+  // per-icon offsets, which is all those offsets were doing.
+  .agent-chat__miniboard {
+    order: 1;
+    margin-left: auto; // the icons ride the right end of the row
+  }
+  .agent-chat__minichat { order: 2; }
+  .agent-chat__minitv { order: 3; }
+  .agent-chat__minilink { order: 4; }
+  .agent-chat__minimic { order: 5; }
+  .agent-chat__minicode { order: 6; }
+  .agent-chat__pullout { order: 7; }
+  // The tab that is up wears the same selected ring it wears floating — that already reads as "this
+  // one is showing", and a docked row is exactly where that has to be legible.
+  .agent-chat__tv,
+  .agent-chat__links,
+  .agent-chat__board,
+  .agent-chat__panel {
+    width: auto !important;
+  }
+  // One surface at a time, filling the column.
+  .agent-chat__panel-anchor {
+    position: static;
+  }
+  .agent-chat__panel,
+  .agent-chat__tv,
+  .agent-chat__links,
+  .agent-chat__board {
+    position: static;
+    width: auto;
+    max-width: none;
+    height: auto;
+    max-height: 420px;
+    margin: 0 6px 6px;
+    box-shadow: none;
+    transform: none;
+  }
+  // Every resize edge belongs to the side panel out here — a resizable thing inside a resizable
+  // thing is two handles arguing (his words, and he's right).
+  .agent-chat__rz {
+    display: none;
+  }
+  // Nothing floats over the column: the peek, the status bubble and the errand line are all for a
+  // bot standing in the window.
+  .agent-chat__peek,
+  .agent-chat__status {
+    display: none;
+  }
+}
+// The way back out, said out loud rather than left as a gesture you'd have to already know.
+.agent-chat {
+  &__pullout {
+    border: none;
+    background: none;
+    color: var(--sv-text-faint);
+    font-size: 12px;
+    line-height: 1;
+    padding: 2px 3px;
+    cursor: pointer;
+    &:hover {
+      color: var(--sv-text);
+    }
+  }
+}

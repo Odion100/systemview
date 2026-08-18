@@ -8,6 +8,7 @@ import { setHelpTopic } from "../../atoms/Help/helpStore";
 import RowMenu from "../../atoms/RowMenu/RowMenu";
 import { commentedPathSet } from "../../atoms/CodeView/codeComments";
 import { pickHost, pluginFns } from "../../utils/pluginHost";
+import { slotId, useNavDock } from "../AgentChat/navDock";
 import imageFileIcon from "../../assets/image-file.png";
 import "./styles.scss";
 
@@ -1575,6 +1576,9 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [changed, query, docsOnly, commentsOnly, commented]);
 
+  // RFC-038 — is this project's agent docked in here right now?
+  const agentDocked = useNavDock(projectCode);
+
   return (
     <div
       ref={cardRef}
@@ -1638,6 +1642,12 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
         </span>
       </button>
       <div className={`${CLASSNAME}__cb-body`}>
+          {/* RFC-038 — WHERE A DOCKED AGENT LIVES. An empty slot, first thing in the card: the bot
+              portals itself in here and this side knows nothing about what lands. First rather than
+              last on purpose — under an expanded file tree it would be buried. */}
+          {agentDocked && (
+            <div className={`${CLASSNAME}__agent`} id={slotId(projectCode)} />
+          )}
           {/* ALL of the project's services (RFC-026) — real ones first, then project-defined
               (RFC-021 synthesized namespaces). Expandable IN PLACE: service → modules → methods;
               clicking a method points the page (and the scratchpad) at that namespace. */}

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useContext, useMemo } from "react";
+import { createPortal } from "react-dom";
 import moment from "moment";
 import { useHistory, useLocation, useParams } from "react-router-dom";
 import ServiceContext from "../../ServiceContext";
@@ -9,6 +10,7 @@ import UiLink from "../../atoms/Markdown/blocks/UiLink";
 import Markdown from "../../atoms/Markdown/Markdown";
 import { spotlight, clearSpotlight, animationMode, setAnimationMode, MODES } from "../../spotlight";
 import { resolveTarget, docRectOf, revealDocLines } from "../../spotlightTargets";
+import { slotId, setNavDocked, useNavDock } from "./navDock";
 import { useAppDark } from "../../atoms/appTheme";
 import loadServiceWithHeaders from "../../utils/loadService";
 import SEND_ICON from "../../assets/send.png";
@@ -673,13 +675,27 @@ function BotBubble({ projectCode, index }) {
   const [z, setZ] = useState(8500);
   const bringToFront = () => setZ(++topZ);
   // Double-click the bot → take the lowest free slot and go there. Only THIS bot moves.
-  const dockHere = () => {
-    if (dockSlots[projectCode] === undefined) dockSlots[projectCode] = freeSlot();
-    saveDockSlots();
-    const p = dockSlotPos(dockSlots[projectCode]);
-    setPos(p);
-    try { localStorage.setItem(`sv.chatPos.${projectCode}`, JSON.stringify(p)); } catch {}
-  };
+  // RFC-038 — DOCKING MEANS GOING HOME NOW, not parking at the edge of the window. Double-clicking
+  // the face sends the agent back into its own codebase card; the arrow on the docked row (or
+  // dragging it out) brings it back to floating. The header lane keeps configuration and loses
+  // docking, which is his call: two docks was one too many.
+  const dockHere = () => setNavDocked(projectCode, true);
+  const navDocked = useNavDock(projectCode);
+  // The slot is a DOM node owned by the nav, which mounts and unmounts on its own (the panel opens,
+  // a filter hides the card, the page changes). So it is looked for on a slow tick rather than once
+  // — and dropped the moment it leaves the document, which is what puts the bot back on the screen
+  // instead of leaving it rendered into a detached node.
+  const [slotEl, setSlotEl] = useState(null);
+  useEffect(() => {
+    if (!navDocked) return setSlotEl(null) || undefined;
+    const look = () => {
+      const el = document.getElementById(slotId(projectCode));
+      setSlotEl((cur) => (cur === el ? cur : el || null));
+    };
+    look();
+    const t = setInterval(look, 400);
+    return () => clearInterval(t);
+  }, [navDocked, projectCode]);
   // Dock-line membership: every relayout broadcast (a dock, an undock, dock-all, a window
   // resize, a reload) snaps this bot to its CURRENT slot in the CURRENT window width. Runs
   // once on mount too — that's what makes the line survive a reload.
@@ -2106,6 +2122,15 @@ function BotBubble({ projectCode, index }) {
   const addCard = () => {
     const text = (boardDraft || "").trim();
     if (!text) return;
+    // ADDING THE NOTE ENDS THE DICTATION — the same rule sending has in the chat: you said what you
+    // had to say. Left running, the next thing spoken landed in an empty box behind a note that was
+    // already on the board. The flag drops HERE rather than waiting for `onend`, which arrives a
+    // beat late and leaves the transcript line hanging over a box you just emptied.
+    if (boardRec) {
+      setBoardRec(false);
+      setBoardInterim("");
+      try { if (boardRecRef.current) boardRecRef.current.stop(); } catch {}
+    }
     setBoardDraft("");
     saveBoard([{ ts: Date.now(), text }, ...(board || [])]); // newest on top
   };
@@ -2264,6 +2289,42 @@ function BotBubble({ projectCode, index }) {
   // bot merely dragged near the top keeps its full-size peek (his catch: "close to the top, it
   // shrinks — it probably was good before").
   const docked = dockSlots[projectCode] !== undefined && !!pos && pos.y < 60;
+  // RFC-038 — IN THE NAV. `navDocked` is the intent; `inNav` is the fact, because the slot only
+  // exists while that codebase card is on screen. If the panel is closed or the card unmounts, the
+  // bot has nowhere to be and floats again rather than disappearing.
+  const inNav = navDocked && !!slotEl;
+  // Docked, the four icons are TABS over one surface — a 280px column cannot hold four boxes side
+  // by side, and switching is a tab bar's whole job (his call, and better than what I proposed).
+  // OPENING HAS TO SCROLL THE PANEL TO IT (his catch): several projects are stacked in that column,
+  // so an agent expanding below the fold reads as nothing having happened. It lives HERE, not up by
+  // the slot lookup, because it reads the four open-flags — declared further down, and reading one
+  // above its declaration is a TDZ crash that takes the whole surface with it.
+  const navShowing = navDocked && (open || boardOpen || linksOpen || tvOpen);
+  useEffect(() => {
+    if (!navShowing || !slotEl) return undefined;
+    const t = setTimeout(() => {
+      try { slotEl.scrollIntoView({ block: "nearest", behavior: "smooth" }); } catch {}
+    }, 60);
+    return () => clearTimeout(t);
+  }, [navShowing, slotEl]);
+  const navPick = (which) => {
+    const already =
+      (which === "chat" && open) ||
+      (which === "board" && boardOpen) ||
+      (which === "links" && linksOpen) ||
+      (which === "tv" && tvOpen);
+    setOpen(which === "chat" && !already);
+    openRef.current = which === "chat" && !already;
+    setBoardOpen(which === "board" && !already);
+    setLinksOpen(which === "links" && !already);
+    if (which === "tv" && !already && !tv && shows.length)
+      openShow(shows[0].id, shows[0].label, shows[0].args.text, shows[0].ts);
+    else setTvOpen(which === "tv" && !already);
+    if (which === "chat" && !already) {
+      setUnread(0);
+      try { localStorage.setItem(`sv.chatSeen.${projectCode}`, String(Date.now())); } catch {}
+    }
+  };
   // THE ICONS LIVE ON THE RIGHT. They move out of the way only when something is actually in the
   // way — the message display or the live transcript, hanging on that same side. Flipping them by
   // screen half would move them for no reason half the time.
@@ -2287,14 +2348,18 @@ function BotBubble({ projectCode, index }) {
   // the board looked like it couldn't be up at the same time as the TV: it was, directly on top of it.
   const LINKS_W = 300;
   const after = (px) =>
-    flip ? { left: "auto", right: `calc(100% + ${10 + px}px)` } : { left: `calc(100% + ${10 + px}px)` };
+    inNav
+      ? {}
+      : flip
+        ? { left: "auto", right: `calc(100% + ${10 + px}px)` }
+        : { left: `calc(100% + ${10 + px}px)` };
   const linksAhead = linksOpen ? LINKS_W + 10 : 0;
   const boardAhead = linksAhead + (tvOpen && tv ? tvSize.w + 10 : 0);
-  return (
+  const body = (
     <div
       ref={rootRef}
-      className={`${CLASSNAME} ${topHalf ? `${CLASSNAME}--top` : ""} ${leftHalf ? `${CLASSNAME}--left` : ""} ${flip ? `${CLASSNAME}--flipx` : ""} ${docked ? `${CLASSNAME}--docked` : ""}${saying ? ` ${CLASSNAME}--errand` : ""}${iconsLeft ? ` ${CLASSNAME}--iconsleft` : ""}`}
-      style={style}
+      className={`${CLASSNAME} ${topHalf ? `${CLASSNAME}--top` : ""} ${leftHalf ? `${CLASSNAME}--left` : ""} ${flip ? `${CLASSNAME}--flipx` : ""} ${docked ? `${CLASSNAME}--docked` : ""}${saying ? ` ${CLASSNAME}--errand` : ""}${iconsLeft ? ` ${CLASSNAME}--iconsleft` : ""}${inNav ? ` ${CLASSNAME}--innav` : ""}`}
+      style={inNav ? undefined : style}
       // Touch any part of a bot — its bubble, panel, or TV — and it comes to the FRONT (his
       // ask: "if I click on it, I'm trying to be in that chat").
       onPointerDownCapture={bringToFront}
@@ -2309,7 +2374,11 @@ function BotBubble({ projectCode, index }) {
         {boardOpen && (
           <div
             className={`${CLASSNAME}__board`}
-            style={{ width: boardSize.w, height: boardSize.h, ...after(boardAhead) }}
+            style={
+              inNav
+                ? { width: "auto", height: Math.min(boardSize.h, 420) }
+                : { width: boardSize.w, height: boardSize.h, ...after(boardAhead) }
+            }
           >
             <ResizeBorder start={boardResize} onReset={boardReset} />
             {/* THE HEADER IS THE HANDLE, like every other header here: dragging it moves the bot and
@@ -2599,7 +2668,7 @@ function BotBubble({ projectCode, index }) {
             ref={tvElRef}
             className={`${CLASSNAME}__tv`}
             style={{
-              width: tvSize.w,
+              width: inNav ? "auto" : tvSize.w,
               ...after(linksAhead), // after the links list when that is up
               // FLEX BY DEFAULT, WITH A MAX — NOT A FIXED BOX. Until you size it yourself the height
               // is whatever the show needs: a two-line show is a two-line box. It grows with the
@@ -2732,8 +2801,8 @@ function BotBubble({ projectCode, index }) {
             data-sv="links"
             className={`${CLASSNAME}__tv ${CLASSNAME}__links`}
             style={{
-              width: LINKS_W,
-              height: Math.min(480, window.innerHeight - 120),
+              width: inNav ? "auto" : LINKS_W,
+              height: Math.min(inNav ? 420 : 480, window.innerHeight - 120),
               // First out of the chat — the TV and the board start after it.
               ...after(0),
               ...(linksDrag.off.x || linksDrag.off.y
@@ -2802,13 +2871,18 @@ function BotBubble({ projectCode, index }) {
           className={`${CLASSNAME}__panel`}
           // A free-parked bubble may not have the panel's height of room on its open side — cap
           // to the space that actually exists so it never runs off the top or bottom.
-          style={{
-            width: size.w,
-            height: size.h,
-            // It keeps the height you gave it. Tying the cap to how close the bot was to an edge is
-            // what squeezed the panel as you moved down and cut its bottom off.
-            maxHeight: window.innerHeight - 40,
-          }}
+          // Docked, the COLUMN decides the width — a stored 340 would hang out over the nav's edge.
+          style={
+            inNav
+              ? { width: "auto", height: Math.min(size.h, 420) }
+              : {
+                  width: size.w,
+                  height: size.h,
+                  // It keeps the height you gave it. Tying the cap to how close the bot was to an
+                  // edge is what squeezed the panel as you moved down and cut its bottom off.
+                  maxHeight: window.innerHeight - 40,
+                }
+          }
         >
           <ResizeBorder start={panelResize} onReset={panelReset} />
           {/* The open chat drags by its HEADER (his ask) — same move/dock behavior as dragging
@@ -3322,6 +3396,7 @@ function BotBubble({ projectCode, index }) {
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => {
             e.stopPropagation();
+            if (inNav) return navPick("chat"); // docked, the icons are tabs
             const next = !open;
             openRef.current = next;
             setOpen(next);
@@ -3340,6 +3415,7 @@ function BotBubble({ projectCode, index }) {
           onPointerDown={(e) => e.stopPropagation()} // the bot drags; this button does not
           onClick={(e) => {
             e.stopPropagation();
+            if (inNav) return navPick("tv"); // docked, the icons are tabs
             if (tvOpen) {
               setTvOpen(false);
               if (endErrandRef.current) endErrandRef.current(true);
@@ -3359,6 +3435,7 @@ function BotBubble({ projectCode, index }) {
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => {
             e.stopPropagation();
+            if (inNav) return navPick("links"); // docked, the icons are tabs
             setLinksOpen((v) => !v);
           }}
         >
@@ -3406,12 +3483,33 @@ function BotBubble({ projectCode, index }) {
           onPointerDown={(e) => e.stopPropagation()} // the bot drags; this button does not
           onClick={(e) => {
             e.stopPropagation();
+            if (inNav) return navPick("board"); // docked, the icons are tabs
             setBoardOpen((v) => !v);
           }}
         >
           📋
         </button>
+        {/* PULL IT BACK OUT. Dragging the row works too, but a gesture you have to already know is
+            not a way out — the arrow says there is one. */}
+        {inNav && (
+          <button
+            type="button"
+            className={`${CLASSNAME}__pullout`}
+            title="Pull the agent out of the codebase"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              setNavDocked(projectCode, false);
+            }}
+          >
+            ↗
+          </button>
+        )}
       </div>
     </div>
   );
+  // RFC-038 — the same bot, rendered somewhere else. A portal rather than a second component, so
+  // nothing about its state (the chat, the board, the TV, presence, the roster) is rebuilt or lost
+  // by going home.
+  return inNav ? createPortal(body, slotEl) : body;
 }
