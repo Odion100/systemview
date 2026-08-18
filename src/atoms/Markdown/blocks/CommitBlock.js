@@ -191,29 +191,40 @@ const CommitBlock = ({ label, attrs = {}, line }) => {
 
   // A group heading that MOVES ITS WHOLE GROUP — the per-file +/− without a stage-all is the panel's
   // controls with a piece missing.
-  const groupHead = (label, rows, isStaged) => (
-    <div className="md-commit__group">
-      <span className="md-commit__group-label">
-        {label}
-        {rows.length ? ` · ${rows.length}` : ""}
-      </span>
-      {rows.length > 0 && (
-        <button
-          type="button"
-          className="md-commit__all"
-          disabled={busy === label}
-          title={
-            isStaged
-              ? `Unstage all ${rows.length}`
-              : `Stage all ${rows.length} — they go into the commit`
-          }
-          onClick={() => stage(rows.map((f) => f.path), isStaged, label)}
-        >
-          {isStaged ? "unstage all" : "stage all"}
-        </button>
-      )}
-    </div>
-  );
+  //
+  // ONE STAGE-ALL FOR BOTH UNSTAGED GROUPS, exactly as in the nav (his call, and he had to say it
+  // twice because I fixed the panel and left this one alone — the block and the panel are the same
+  // controls and must not disagree). Changed and untracked stay SEPARATE to look at; nobody stages
+  // one without the other, and two buttons that each say "stage all" while staging half are lying.
+  const unstagedAll = [...changes, ...untracked].map((f) => f.path);
+  const groupHead = (label, rows, isStaged) => {
+    // It rides the first unstaged group that is on screen, so it never disappears when one half is
+    // empty.
+    const showsAll = isStaged ? rows.length > 0 : label === (changes.length ? "changes" : "untracked");
+    return (
+      <div className="md-commit__group">
+        <span className="md-commit__group-label">
+          {label}
+          {rows.length ? ` · ${rows.length}` : ""}
+        </span>
+        {showsAll && (
+          <button
+            type="button"
+            className="md-commit__all"
+            disabled={busy === label}
+            title={
+              isStaged
+                ? `Unstage all ${rows.length}`
+                : `Stage everything not staged — ${unstagedAll.length} file${unstagedAll.length === 1 ? "" : "s"}, changed and untracked`
+            }
+            onClick={() => stage(isStaged ? rows.map((f) => f.path) : unstagedAll, isStaged, label)}
+          >
+            {isStaged ? "unstage all" : "stage all"}
+          </button>
+        )}
+      </div>
+    );
+  };
 
   const fileRow = (f, isStaged) => (
     <div key={`${isStaged ? "s" : "u"}:${f.path}`} className="md-commit__row">

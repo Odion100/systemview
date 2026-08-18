@@ -135,7 +135,7 @@
   &__minimic {
     position: absolute;
     top: 46px;
-    left: calc(100% + 70px); // last in the row — 💬 📺 🔗 🎙, mic on the end
+    left: calc(100% + 92px); // the row is 📋 💬 📺 🔗 🎙 </> — clipboard first, his call
     width: 18px;
     height: 18px;
     padding: 0;
@@ -164,7 +164,7 @@
   &__minichat {
     position: absolute;
     top: 46px;
-    left: calc(100% + 4px);
+    left: calc(100% + 26px);
     width: 18px;
     height: 18px;
     padding: 0;
@@ -189,7 +189,7 @@
   &__minitv {
     position: absolute;
     top: 46px;
-    left: calc(100% + 26px);
+    left: calc(100% + 48px);
     width: 18px;
     height: 18px;
     padding: 0;
@@ -214,7 +214,7 @@
   &__minilink {
     position: absolute;
     top: 46px;
-    left: calc(100% + 48px);
+    left: calc(100% + 70px);
     width: 18px;
     height: 18px;
     padding: 0;
@@ -241,7 +241,7 @@
   &__minicode {
     position: absolute;
     top: 46px;
-    left: calc(100% + 92px); // after the mic — 💬 📺 🔗 🎙 </>
+    left: calc(100% + 114px); // last in the row
     width: 18px;
     height: 18px;
     padding: 0;
@@ -266,11 +266,12 @@
   // The icons live on the RIGHT and stay there. They step aside only when the message display or
   // the live transcript is actually hanging on that side — otherwise four buttons sit on top of
   // the thing you are reading. Moving them by screen half would relocate them for no reason.
-  &--iconsleft &__minichat { left: auto; right: calc(100% + 4px); }
-  &--iconsleft &__minitv { left: auto; right: calc(100% + 26px); }
-  &--iconsleft &__minilink { left: auto; right: calc(100% + 48px); }
-  &--iconsleft &__minimic { left: auto; right: calc(100% + 70px); }
-  &--iconsleft &__minicode { left: auto; right: calc(100% + 92px); }
+  &--iconsleft &__minichat { left: auto; right: calc(100% + 26px); }
+  &--iconsleft &__minitv { left: auto; right: calc(100% + 48px); }
+  &--iconsleft &__minilink { left: auto; right: calc(100% + 70px); }
+  &--iconsleft &__minimic { left: auto; right: calc(100% + 92px); }
+  &--iconsleft &__minicode { left: auto; right: calc(100% + 114px); }
+  &--iconsleft &__miniboard { left: auto; right: calc(100% + 4px); }
   // The identity — which bot this is. Several bubbles will coexist; the label tells them apart.
   &__label {
     font-family: "SF Mono", Menlo, monospace;
@@ -665,6 +666,211 @@
 
   // THE TV — the show-and-tell surface, docked beside the panel (left by default, flipped when
   // the bubble lives on the left half). Interactive markdown inside; scrolls; its own size.
+  // THE BOARD — his own surface: a plain writing box that saves itself. Same family as the TV, one
+  // step quieter, because nothing here is for anybody else to look at.
+  &__board {
+    position: absolute;
+    top: 0;
+    left: calc(100% + 10px);
+    width: 380px;
+    height: 420px;
+    display: flex;
+    flex-direction: column;
+    background: var(--sv-surface);
+    border: 1px solid var(--sv-border);
+    border-radius: 10px;
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.22);
+    overflow: hidden;
+    z-index: 2;
+  }
+  &__board-head {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--sv-border);
+    background: var(--sv-pane-header);
+  }
+  // The title is a field that doesn't look like one until you go for it — with nothing in it, it
+  // just reads `board`.
+  &__board-title {
+    flex: 1 1 auto;
+    min-width: 0;
+    border: 1px solid transparent;
+    border-radius: 5px;
+    background: none;
+    font-family: inherit;
+    font-weight: 700;
+    font-size: 12.5px;
+    color: var(--sv-on-header, var(--sv-text));
+    padding: 1px 5px;
+    outline: none;
+    &::placeholder {
+      color: var(--sv-on-header-muted, var(--sv-text-muted));
+      font-weight: 700;
+    }
+    &:hover {
+      border-color: var(--sv-border);
+    }
+    &:focus {
+      border-color: var(--sv-blue);
+      background: var(--sv-surface);
+    }
+  }
+  &__board-state {
+    margin-left: auto;
+    font-size: 10px;
+    font-family: "SF Mono", Menlo, monospace;
+    color: var(--sv-text-faint);
+  }
+  // Clear the board — two-step, and it says what it is about to do before it does it.
+  &__board-clear {
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 10px;
+    color: var(--sv-text-faint);
+    padding: 0 4px;
+    &:hover { color: #d9534f; }
+    &--armed {
+      color: #d9534f;
+      font-weight: 700;
+    }
+  }
+  &__board-x {
+    margin-left: auto;
+    border: none;
+    background: none;
+    cursor: pointer;
+    color: var(--sv-text-faint);
+    font-size: 13px;
+    padding: 0 2px;
+    &:hover { color: #e05757; }
+  }
+  // The composer stays put at the top; the cards scroll underneath it.
+  &__board-new {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--sv-border);
+  }
+  &__board-draft {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 46px;
+    resize: none;
+    border: 1px solid var(--sv-border);
+    border-radius: 6px;
+    background: var(--sv-surface);
+    color: var(--sv-text);
+    font-family: inherit;
+    font-size: 12px;
+    line-height: 1.5;
+    padding: 6px 8px;
+    outline: none;
+    &:focus { border-color: var(--sv-blue); }
+  }
+  &__board-tools {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  &__board-mic {
+    border: 1px solid var(--sv-border);
+    border-radius: 6px;
+    background: none;
+    cursor: pointer;
+    font-size: 12px;
+    padding: 3px 7px;
+    &--on {
+      border-color: #e05757;
+      background: rgba(224, 87, 87, 0.12);
+    }
+  }
+  &__board-add {
+    border: 1px solid var(--sv-blue);
+    border-radius: 6px;
+    background: var(--sv-blue);
+    color: #fff;
+    font-family: inherit;
+    font-size: 11px;
+    padding: 3px 9px;
+    cursor: pointer;
+    &:disabled { opacity: 0.4; cursor: default; }
+  }
+  &__board-cards {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 6px 10px 10px;
+  }
+  // A note. Newest first, so the last thing you said is the first thing you see.
+  &__board-card {
+    border: 1px solid var(--sv-border);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--sv-surface) 70%, transparent);
+    padding: 4px 8px 6px;
+    margin-top: 6px;
+  }
+  &__board-card-head {
+    display: flex;
+    align-items: center;
+    cursor: grab;
+    &:active { cursor: grabbing; }
+  }
+  // Where it will land.
+  &__board-card--drop {
+    border-color: var(--sv-blue);
+    box-shadow: inset 0 2px 0 var(--sv-blue);
+  }
+  &__board-when {
+    font-size: 9.5px;
+    font-family: "SF Mono", Menlo, monospace;
+    color: var(--sv-text-faint);
+  }
+  &__board-card-text {
+    width: 100%;
+    resize: none;
+    border: none;
+    outline: none;
+    background: none;
+    color: var(--sv-text);
+    font-family: inherit;
+    font-size: 12px;
+    line-height: 1.5;
+    padding: 0;
+  }
+  &__board-empty {
+    font-size: 11.5px;
+    font-style: italic;
+    color: var(--sv-text-muted);
+    padding: 10px 2px;
+  }
+  &__board-note {
+    padding: 4px 12px 8px;
+    font-size: 10.5px;
+    color: #d9534f;
+  }
+  // The clipboard is the SIXTH icon in the row, and the row is not a flex row — every icon in it is
+  // absolutely positioned with its own offset off the bot. Leaving this one in the bot's column flow
+  // is what dropped it under the name tag.
+  &__miniboard {
+    position: absolute;
+    top: 46px;
+    left: calc(100% + 4px); // FIRST after the title — his call, upgraded from "two spaces left"
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 12px;
+    line-height: 1;
+    padding: 0;
+    opacity: 0.75;
+    &:hover { opacity: 1; }
+    &--on { opacity: 1; }
+  }
+
   &__tv {
     position: absolute;
     top: 0;

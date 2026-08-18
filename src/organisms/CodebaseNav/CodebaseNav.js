@@ -1405,20 +1405,34 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
     if (!rows.length) return null;
     const unstage = key === "staged";
     const paths = rows.map((r) => r.path);
+    // ONE STAGE-ALL FOR BOTH UNSTAGED GROUPS. Changed and untracked are worth SEEING apart — that's
+    // the whole point of the split — but nobody stages one and not the other, and two buttons that
+    // each say "stage all" while staging half is a lie about what they do (his call). The staged
+    // group keeps its own unstage-all: that one really is about only those rows.
+    const bothUnstaged = [...vcGroups.unstaged, ...vcGroups.untracked].map((r) => r.path);
+    // It rides the FIRST unstaged group on screen, so it is there whether or not either half is empty.
+    const showsAll = unstage || (key === "unstaged" ? true : !vcGroups.unstaged.length);
+    const allPaths = unstage ? paths : bothUnstaged;
     return (
       <div className={`${CLASSNAME}__vc-group`} key={key}>
         <div className={`${CLASSNAME}__vc-head`}>
           <span className={`${CLASSNAME}__vc-head-label`}>{label}</span>
           <span className={`${CLASSNAME}__vc-head-n`}>{rows.length}</span>
-          <button
-            type="button"
-            className={`${CLASSNAME}__vc-all`}
-            title={unstage ? `Unstage all ${rows.length}` : `Stage all ${rows.length}`}
-            disabled={vcBusy === key}
-            onClick={() => stage(paths, unstage, key)}
-          >
-            {unstage ? "unstage all" : "stage all"}
-          </button>
+          {showsAll && (
+            <button
+              type="button"
+              className={`${CLASSNAME}__vc-all`}
+              title={
+                unstage
+                  ? `Unstage all ${rows.length}`
+                  : `Stage everything not staged — ${allPaths.length} file${allPaths.length === 1 ? "" : "s"}, changed and untracked`
+              }
+              disabled={vcBusy === key}
+              onClick={() => stage(allPaths, unstage, key)}
+            >
+              {unstage ? "unstage all" : "stage all"}
+            </button>
+          )}
         </div>
         {rows.map((r) => {
           // Rename works from HERE too — the version-control lens is where he spends the time, and

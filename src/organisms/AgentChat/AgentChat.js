@@ -10,6 +10,7 @@ import Markdown from "../../atoms/Markdown/Markdown";
 import { spotlight, clearSpotlight, animationMode, setAnimationMode, MODES } from "../../spotlight";
 import { resolveTarget, docRectOf, revealDocLines } from "../../spotlightTargets";
 import { useAppDark } from "../../atoms/appTheme";
+import loadServiceWithHeaders from "../../utils/loadService";
 import SEND_ICON from "../../assets/send.png";
 import "./styles.scss";
 
@@ -1966,6 +1967,173 @@ function BotBubble({ projectCode, index }) {
     },
     `sv.tvSize.${projectCode}`,
   );
+  // THE BOARD — his, not the app's. Notes to himself, things to tell an agent later, a running list
+  // of what is wrong with something while he looks at it. One board per project, no naming
+  // ceremony; it is a markdown document beside the project like everything else, so every block
+  // already in this app works inside it.
+  // NOTES ARE CARDS, newest on top, and the recorder stays at the top with them coming down under
+  // it — his shape: "the recorder stays closer to the top, the previous ones get pushed down".
+  const [boardOpen, setBoardOpen] = useState(false);
+  const [board, setBoard] = useState(null); // null = not read yet · else [{ ts, text }]
+  const [boardSaved, setBoardSaved] = useState(true);
+  const [boardDraft, setBoardDraft] = useState("");
+  // AN OPTIONAL TITLE. His: "sometimes I want a title so you know something" — the board is where he
+  // accumulates thoughts for an agent to be pointed at later, and a word at the top is the cheapest
+  // context there is. Subtle and skippable: with none it just says `board`.
+  const [boardTitle, setBoardTitle] = useState("");
+  const [boardRec, setBoardRec] = useState(false);
+  const boardRecRef = useRef(null);
+  const boardDraftRef = useRef(null);
+  const boardPath = ".systemview/boards/board.md";
+  const boardHost = useMemo(
+    () => (connectedServices || []).find((s) => s.projectCode === projectCode && s.system),
+    [connectedServices, projectCode],
+  );
+  const boardPlugin = useMemo(() => {
+    if (!boardHost) return null;
+    try {
+      return loadServiceWithHeaders(boardHost.system.connectionData, boardHost.headers, boardHost.credentials).Plugin;
+    } catch {
+      return null;
+    }
+  }, [boardHost]);
+  // ON DISK IT IS STILL ONE MARKDOWN FILE — cards are separated by an HTML comment carrying the
+  // time. Invisible in any renderer, so the file reads like notes rather than like a database, and
+  // every block this app has still works inside a card.
+  const parseBoard = (text) => {
+    const out = [];
+    String(text || "")
+      .split(/<!--card (\d+)-->/)
+      .forEach((part, i, arr) => {
+        if (i % 2 === 1) out.push({ ts: Number(part), text: (arr[i + 1] || "").trim() });
+      });
+    return out;
+  };
+  // The title rides at the top as a plain `# heading`, before the first card — so the file opens as
+  // a titled note anywhere else that reads markdown, and an untitled board has no heading at all
+  // rather than an empty one.
+  const parseTitle = (text) => {
+    const head = String(text || "").split(/<!--card /)[0];
+    const m = head.match(/^\s*#\s+(.+)\s*$/m);
+    return m ? m[1].trim() : "";
+  };
+  const serializeBoard = (cards, title) =>
+    `${title ? `# ${title}\n\n` : ""}${cards.map((c) => `<!--card ${c.ts}-->\n${c.text}\n`).join("\n")}`;
+
+  useEffect(() => {
+    if (!boardOpen || board !== null || !boardPlugin) return;
+    let dead = false;
+    (async () => {
+      try {
+        const res = await boardPlugin.readFile({ path: boardPath });
+        if (!dead) {
+          setBoard(parseBoard(res.content));
+          setBoardTitle(parseTitle(res.content));
+        }
+      } catch {
+        if (!dead) setBoard([]); // no board yet is the normal case, not an error
+      }
+    })();
+    return () => {
+      dead = true;
+    };
+  }, [boardOpen, board, boardPlugin]);
+
+  const saveBoard = async (cards, title = boardTitle) => {
+    setBoard(cards);
+    setBoardSaved(false);
+    if (!boardPlugin) return;
+    try {
+      // AN EMPTY BOARD TAKES ITS FILE WITH IT — the same rule the comment sidecars follow, so an
+      // emptied board doesn't sit in `.systemview/` pretending to be something. A title alone still
+      // counts as something on the board.
+      if (!cards.length && !title && boardPlugin.deleteFile)
+        await boardPlugin.deleteFile({ path: boardPath });
+      else await boardPlugin.writeFile({ path: boardPath, content: serializeBoard(cards, title) });
+      setBoardSaved(true);
+    } catch {
+      setBoardSaved(false);
+    }
+  };
+  // The title saves itself a beat after you stop typing, like the notes do.
+  const titleTimer = useRef(null);
+  const writeTitle = (t) => {
+    setBoardTitle(t);
+    setBoardSaved(false);
+    if (titleTimer.current) clearTimeout(titleTimer.current);
+    titleTimer.current = setTimeout(() => saveBoard(board || [], t), 600);
+  };
+  const addCard = () => {
+    const text = (boardDraft || "").trim();
+    if (!text) return;
+    setBoardDraft("");
+    saveBoard([{ ts: Date.now(), text }, ...(board || [])]); // newest on top
+  };
+  // THE SAME MIC THE CHAT HAS, not a second kind. The first version wrote straight into the
+  // textarea's DOM value — which is a CONTROLLED React input, so every render put the old value
+  // back and the words appeared and then vanished. His report, and he was right that we have done
+  // this before: interim words show ABOVE the box on their own line, finals commit INTO it.
+  const [boardInterim, setBoardInterim] = useState("");
+  // Clearing the whole board is two-step, the same as every other destructive thing in this app.
+  const [boardArmed, setBoardArmed] = useState(false);
+  // ORDER IS HIS. Cards arrive newest-first, but a board is a thing you arrange — so the stamp bar
+  // on each card is a drag handle and dropping one on another puts it there. The saved file IS the
+  // order, so what you arrange is what you come back to. A private MIME, the same trick the file
+  // tree's drag uses, so nothing else on the page answers a card drag.
+  const CARD_MIME = "application/x-systemview-card";
+  const [dropCard, setDropCard] = useState(null);
+  const moveCard = (fromTs, toTs) => {
+    if (!board || fromTs === toTs) return;
+    const from = board.findIndex((c) => c.ts === fromTs);
+    const to = board.findIndex((c) => c.ts === toTs);
+    if (from < 0 || to < 0) return;
+    const next = board.slice();
+    const [card] = next.splice(from, 1);
+    next.splice(to, 0, card);
+    saveBoard(next);
+  };
+  useEffect(() => {
+    if (!boardOpen) setBoardArmed(false);
+  }, [boardOpen]);
+  const toggleBoardRec = () => {
+    if (boardRecRef.current) {
+      try { boardRecRef.current.stop(); } catch {}
+      return;
+    }
+    const SRB = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SRB) return;
+    try {
+      const rec = new SRB();
+      rec.lang = navigator.language || "en-US";
+      rec.interimResults = true;
+      rec.continuous = true;
+      rec.onresult = (e) => {
+        let fin = "";
+        let inter = "";
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          if (e.results[i].isFinal) fin += e.results[i][0].transcript;
+          else inter += e.results[i][0].transcript;
+        }
+        if (fin) {
+          setBoardDraft((cur) => (cur ? `${cur} ` : "") + fin.trim());
+          setBoardInterim("");
+        } else setBoardInterim(inter);
+      };
+      const done = () => {
+        boardRecRef.current = null;
+        setBoardRec(false);
+        setBoardInterim("");
+      };
+      rec.onend = done;
+      rec.onerror = done;
+      boardRecRef.current = rec;
+      rec.start();
+      setBoardRec(true);
+    } catch {
+      setBoardRec(false);
+    }
+  };
+
   // The TV's own box, so "fill the room below" can be measured from where the TV ACTUALLY starts.
   const tvElRef = useRef(null);
   // "2 minutes ago" has to AGE. Without a heartbeat it keeps saying whatever it said when the show
@@ -2072,8 +2240,163 @@ function BotBubble({ projectCode, index }) {
     >
       {/* The anchor also stands up for the COLLECTOR alone — the links table opens from the closed
           bot now, so it can't live behind the panel being open. */}
-      {(open || linksOpen || (tvOpen && tv)) && (
+      {(open || linksOpen || boardOpen || (tvOpen && tv)) && (
         <div className={`${CLASSNAME}__panel-anchor`}>
+        {/* THE BOARD. Plain and his: type, it saves itself, it is still there tomorrow. Markdown,
+            so anything he pastes or writes can be a real block later — but nothing here renders it,
+            because a notepad that reformats what you typed while you type is not a notepad. */}
+        {boardOpen && (
+          <div className={`${CLASSNAME}__board`}>
+            <div className={`${CLASSNAME}__board-head`}>
+              <span className={`${CLASSNAME}__tv-badge`}>📋</span>
+              <input
+                className={`${CLASSNAME}__board-title`}
+                value={boardTitle}
+                placeholder="board"
+                spellCheck={false}
+                title="Give this board a name — optional, and it's the first thing an agent reads"
+                disabled={board === null}
+                onChange={(e) => writeTitle(e.target.value)}
+              />
+              <span className={`${CLASSNAME}__board-state`}>
+                {board === null ? "opening…" : boardSaved ? "saved" : "saving…"}
+              </span>
+              {!!(board && board.length) && (
+                <button
+                  type="button"
+                  className={`${CLASSNAME}__board-clear${boardArmed ? ` ${CLASSNAME}__board-clear--armed` : ""}`}
+                  title="Take everything off the board"
+                  onClick={() => {
+                    if (!boardArmed) return setBoardArmed(true);
+                    setBoardArmed(false);
+                    saveBoard([]);
+                  }}
+                  onBlur={() => setBoardArmed(false)}
+                >
+                  {boardArmed ? "clear it all?" : "clear"}
+                </button>
+              )}
+              <button
+                type="button"
+                className={`${CLASSNAME}__board-x`}
+                title="Put the board away"
+                onClick={() => setBoardOpen(false)}
+              >
+                ✕
+              </button>
+            </div>
+            {/* THE RECORDER STAYS AT THE TOP and the notes come down under it. */}
+            {boardRec && (
+              <div className={`${CLASSNAME}__interim ${CLASSNAME}__board-interim`}>
+                <span className={`${CLASSNAME}__interim-dot`} />
+                {boardInterim || "listening…"}
+              </div>
+            )}
+            <div className={`${CLASSNAME}__board-new`}>
+              <textarea
+                ref={boardDraftRef}
+                className={`${CLASSNAME}__board-draft`}
+                value={boardDraft}
+                placeholder="a note to yourself · something to hand me later"
+                spellCheck={false}
+                disabled={board === null}
+                onChange={(e) => setBoardDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                    e.preventDefault();
+                    addCard();
+                  }
+                }}
+              />
+              <span className={`${CLASSNAME}__board-tools`}>
+                {micSupported && (
+                  <button
+                    type="button"
+                    className={`${CLASSNAME}__board-mic${boardRec ? ` ${CLASSNAME}__board-mic--on` : ""}`}
+                    title={boardRec ? "Stop — the words stay in the box" : "Speak a note"}
+                    onClick={toggleBoardRec}
+                  >
+                    🎙
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className={`${CLASSNAME}__board-add`}
+                  title="Put it on the board (⌘↵)"
+                  disabled={!boardDraft.trim()}
+                  onClick={addCard}
+                >
+                  add
+                </button>
+              </span>
+            </div>
+            <div className={`${CLASSNAME}__board-cards`}>
+              {board === null ? (
+                <div className={`${CLASSNAME}__board-note`}>opening…</div>
+              ) : !board.length ? (
+                <div className={`${CLASSNAME}__board-empty`}>
+                  nothing on the board yet — speak one or type one
+                </div>
+              ) : (
+                board.map((c) => (
+                  <div
+                    key={c.ts}
+                    className={`${CLASSNAME}__board-card${dropCard === c.ts ? ` ${CLASSNAME}__board-card--drop` : ""}`}
+                    onDragOver={(e) => {
+                      if (![...e.dataTransfer.types].includes(CARD_MIME)) return;
+                      e.preventDefault();
+                      if (dropCard !== c.ts) setDropCard(c.ts);
+                    }}
+                    onDragLeave={() => dropCard === c.ts && setDropCard(null)}
+                    onDrop={(e) => {
+                      if (![...e.dataTransfer.types].includes(CARD_MIME)) return;
+                      e.preventDefault();
+                      setDropCard(null);
+                      moveCard(Number(e.dataTransfer.getData(CARD_MIME)), c.ts);
+                    }}
+                  >
+                    {/* The stamp bar is the handle — the body is a textarea, and dragging from it
+                        would be selecting text, which is what you actually want there. */}
+                    <div
+                      className={`${CLASSNAME}__board-card-head`}
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.effectAllowed = "move";
+                        e.dataTransfer.setData(CARD_MIME, String(c.ts));
+                      }}
+                      onDragEnd={() => setDropCard(null)}
+                    >
+                      <span className={`${CLASSNAME}__board-when`}>{moment(c.ts).fromNow()}</span>
+                      <button
+                        type="button"
+                        className={`${CLASSNAME}__board-x`}
+                        title="Take this note off the board"
+                        onClick={() => saveBoard(board.filter((x) => x.ts !== c.ts))}
+                      >
+                        ×
+                      </button>
+                    </div>
+                    {/* Editable in place — a note you cannot fix is a note you rewrite somewhere else. */}
+                    <textarea
+                      className={`${CLASSNAME}__board-card-text`}
+                      value={c.text}
+                      spellCheck={false}
+                      rows={Math.min(8, Math.max(1, c.text.split("\n").length))}
+                      onChange={(e) =>
+                        saveBoard(board.map((x) => (x.ts === c.ts ? { ...x, text: e.target.value } : x)))
+                      }
+                    />
+                  </div>
+                ))
+              )}
+            </div>
+            {!boardPlugin && (
+              <div className={`${CLASSNAME}__board-note`}>
+                no live service for this project — the board can't be saved from here
+              </div>
+            )}
+          </div>
+        )}
         {/* THE TV — the show-and-tell surface beside the panel: one show at a time (the Canvas
             model), interactive markdown through the one renderer, full-border resizable.
             It stands on its own too: picking a show out of the links table with the chat closed
@@ -2880,6 +3203,19 @@ function BotBubble({ projectCode, index }) {
           }}
         >
           &lt;/&gt;
+        </button>
+        {/* THE BOARD — 📋, his ask, next to the rest. One press opens it, one puts it away. */}
+        <button
+          type="button"
+          className={`${CLASSNAME}__miniboard${boardOpen ? ` ${CLASSNAME}__miniboard--on` : ""}`}
+          title={boardOpen ? "Close the board" : "Your board — notes, reminders, things to hand me later"}
+          onPointerDown={(e) => e.stopPropagation()} // the bot drags; this button does not
+          onClick={(e) => {
+            e.stopPropagation();
+            setBoardOpen((v) => !v);
+          }}
+        >
+          📋
         </button>
       </div>
     </div>
