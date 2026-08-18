@@ -3,7 +3,7 @@ import ServiceContext from "../../ServiceContext";
 import loadServiceWithHeaders from "../../utils/loadService";
 import Markdown from "../../atoms/Markdown/Markdown";
 import { SavedTestItem } from "../SavedTests/SavedTests";
-import { resolveTestActions, getActionMap } from "../SavedTests/transformTests";
+import { resolveTestActions, actionMapForTests } from "../SavedTests/transformTests";
 
 // RFC-018 — the `test` pane: a saved test rendered as a worked example — setup → call → args →
 // response → the assertions that pin it — with a Run button and inline pass/fail. It reuses the
@@ -13,6 +13,11 @@ const TestPane = ({ target = {}, projectCode, ranFile = null }) => {
   const { connectedServices } = useContext(ServiceContext);
   const { serviceId, moduleName, methodName, index, title, note } = target;
   const [tests, setTests] = useState([]);
+  // LOADING IS NOT EMPTY. `tests` starts as [] and the pane rendered "No matching saved test."
+  // immediately — so a slow service (or several, since a project-wide pane asks every one of them)
+  // showed a confident WRONG answer and then quietly corrected itself. His report: "it just says no
+  // test on that namespace and after a while it comes."
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   // RFC-029 already-ran: a run file (written by an agent from a CLI run) whose recorded results
   // hydrate each matching test below — displayed as ran, without running.
@@ -31,27 +36,30 @@ const TestPane = ({ target = {}, projectCode, ranFile = null }) => {
     : projectServices;
 
   const fetchTests = useCallback(async () => {
-    if (!targetServices.length) { setError("service not connected"); return; }
+    if (!targetServices.length) { setError("service not connected"); setLoading(false); return; }
+    setLoading(true);
     try {
-      // RFC-020 — one PROJECT-WIDE action map (every service's actions merged, like the CLI's
-      // getActionMap): a `{ use }` in any test resolves no matter which service the action was saved on.
-      let resolve = () => null;
-      try {
-        const map = await getActionMap(projectServices);
-        resolve = (name) => map[name] || null;
-      } catch {}
+      // THE TESTS FIRST. The action map used to be fetched before them, from every service in the
+      // project, one at a time — so a pane waited on services it had no business asking. Now the
+      // tests come first and only the actions they actually NAME are fetched, from the ONE service
+      // each reference points at (RFC-020, namespaced references).
       const perService = await Promise.all(
         targetServices.map(async (s) => {
           const svc = loadServiceWithHeaders(s.system.connectionData, s.headers, s.credentials);
           const Plugin = svc && svc.Plugin;
           if (!Plugin) return [];
           try {
-            const list = (await Plugin.getTests({ moduleName, methodName })) || [];
-            return list.map((t) => resolveTestActions(t, resolve));
+            return (await Plugin.getTests({ moduleName, methodName })) || [];
           } catch { return []; }
         }),
       );
-      let list = perService.flat();
+      const raw = perService.flat();
+      let resolve = () => null;
+      try {
+        const map = await actionMapForTests(raw, projectServices, serviceId || (targetServices[0] || {}).serviceId);
+        resolve = (name) => map[name] || null;
+      } catch {}
+      let list = raw.map((t) => resolveTestActions(t, resolve));
       // Narrow to the pane's target: an explicit index, else a title match, else the whole namespace.
       if (typeof index === "number") list = list.filter((_, i) => i === index);
       else if (title) list = list.filter((t) => t.title === title);
@@ -62,6 +70,8 @@ const TestPane = ({ target = {}, projectCode, ranFile = null }) => {
       setTests(list);
     } catch (e) {
       setError(e.message);
+    } finally {
+      setLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectCode, serviceId, moduleName, methodName, index, title, connectedServices]);
@@ -169,6 +179,9 @@ const TestPane = ({ target = {}, projectCode, ranFile = null }) => {
   const running = statuses.some((s) => s === "running");
 
   if (error) return <div className="pane__status pane__status--error">Couldn’t load test: {error}</div>;
+  // Only while there is nothing to show yet: a re-fetch after a save must not blank a pane you are
+  // reading.
+  if (loading && !tests.length) return <div className="pane__status">loading the test…</div>;
   if (!tests.length) return <div className="pane__status">No matching saved test.</div>;
 
   // If the pane pinned a specific index, that test IS at position 0 of the filtered list — label it

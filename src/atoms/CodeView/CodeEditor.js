@@ -1238,6 +1238,13 @@ const CodeEditor = ({
   const focusKey = focusLines ? focusLines.join("-") : "";
   useEffect(() => {
     const view = viewRef.current;
+    // LETTING GO IS ALSO A STATE. Setting a range marked the lines; clearing it did nothing at all,
+    // because this effect only ever ran when there WAS a range — so the marks he was trying to
+    // dismiss stayed on screen after the chip had gone.
+    if (view && (!focusLines || !focusLines[0])) {
+      view.dispatch({ effects: setFocusRange.of(null) });
+      return;
+    }
     if (!view || !focusLines || !focusLines[0] || !value) return;
     const total = view.state.doc.lines;
     const a = Math.min(Math.max(1, focusLines[0]), total);

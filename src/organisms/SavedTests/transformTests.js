@@ -6,22 +6,57 @@ import loadServiceWithHeaders from "../../utils/loadService";
 // exactly like the CLI's getActionMap. Actions STORE under the service they were saved on, but a test
 // calls across namespaces — so the picker and the `{ use }` resolver must see the whole project's
 // actions, not just the current service's. Tolerant of older plugins without getActions.
-export async function getActionMap(services) {
-  const map = {};
-  for (const s of services) {
-    if (s.dynamic) continue; // project-defined services have no live plugin to ask
-    try {
-      const svc = loadServiceWithHeaders(s.system.connectionData, s.headers, s.credentials);
-      if (!svc.Plugin || !svc.Plugin.getActions) continue;
-      const list = (await svc.Plugin.getActions({})) || [];
-      list.forEach((a) => {
-        if (a && a.name && !map[a.name]) map[a.name] = a;
-      });
-    } catch {
-      /* older plugin / service down — fine */
-    }
+// One service's actions, keyed BOTH ways: qualified (`TestService.seedSum`, what a reference stores
+// now) and bare under that service, so a lookup never needs to know which form it is holding.
+async function actionsOf(service) {
+  const out = {};
+  if (!service || service.dynamic) return out; // project-defined services have no live plugin to ask
+  try {
+    const svc = loadServiceWithHeaders(service.system.connectionData, service.headers, service.credentials);
+    if (!svc.Plugin || !svc.Plugin.getActions) return out;
+    const list = (await svc.Plugin.getActions({})) || [];
+    list.forEach((a) => {
+      if (!a || !a.name) return;
+      out[`${service.serviceId}.${a.name}`] = a;
+      if (!out[a.name]) out[a.name] = a;
+    });
+  } catch {
+    /* older plugin / service down — fine */
   }
-  return map;
+  return out;
+}
+
+// A REFERENCE CARRIES ITS NAMESPACE (RFC-020, revised 2026-08-17 on his call). `{ use: "Svc.name" }`
+// is answered by ONE service — the one that stores it. Nothing scans the project any more: a bare
+// name is resolved against the test's OWN service and nowhere else, so a test that was quietly
+// relying on some other service answering breaks visibly instead of costing every pane a round trip
+// to every service in the project. His words: "it's inefficient and unnecessary and doesn't follow
+// the system."
+export async function actionMapForTests(tests, services, defaultServiceId) {
+  const wanted = new Set();
+  (tests || []).forEach((t) => {
+    Object.values((t && t.sections) || {}).forEach((v) => {
+      if (v && v.use) wanted.add(String(v.use));
+    });
+  });
+  // NOTHING TO RESOLVE, NOBODY TO ASK. Most tests have no named sections at all, and those panes
+  // used to pay for a project-wide sweep before they could show you anything.
+  if (!wanted.size) return {};
+  const needed = new Set();
+  wanted.forEach((ref) => {
+    const dot = ref.indexOf(".");
+    needed.add(dot > 0 ? ref.slice(0, dot) : defaultServiceId);
+  });
+  const chosen = (services || []).filter((s) => needed.has(s.serviceId));
+  const maps = await Promise.all(chosen.map(actionsOf)); // all at once — never one at a time
+  return Object.assign({}, ...maps);
+}
+
+// The whole project's actions — for the surface that MANAGES them, where "every action there is" is
+// the actual question. In parallel, unlike the sequential loop this replaced.
+export async function getActionMap(services) {
+  const maps = await Promise.all((services || []).map(actionsOf));
+  return Object.assign({}, ...maps);
 }
 
 // RFC-020 — a shared-action section entry resolves to that action's steps: `{ use: <name> }` pulls the

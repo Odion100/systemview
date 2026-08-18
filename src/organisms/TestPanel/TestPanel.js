@@ -10,7 +10,7 @@ import "./styles.scss";
 import RunTestIcon from "../../atoms/RunTestIcon";
 import SaveIcon from "../../atoms/SaveIcon/SaveIcon";
 import SavedTests from "../SavedTests/SavedTests";
-import { resolveTestActions, resetTest, getActionMap } from "../SavedTests/transformTests";
+import { resolveTestActions, resetTest, getActionMap, actionMapForTests } from "../SavedTests/transformTests";
 import { remapReferences } from "./components/test-helpers";
 import { Client } from "../../systemClient";
 import loadServiceWithHeaders from "../../utils/loadService";
@@ -338,13 +338,12 @@ const FullTestInner = ({
     setTimeout(clearMessage, 4000);
   };
 
-  // RFC-020 — build a sync `resolveAction(name)` from the WHOLE PROJECT's shared actions (every
-  // service's, merged — getActionMap, same as the CLI) so `{ use }` steps splice in as the tests are
-  // loaded. Actions store under the service they were saved on, but a test calls across namespaces —
-  // an action saved on one service must resolve in any other's tests.
-  const projectActionResolver = async () => {
+  // RFC-020 (revised) — a `{ use }` reference CARRIES the service that stores it, so resolving a
+  // test's named sections asks that one service and no others. Nothing is fetched at all for the
+  // tests that have no named sections, which is most of them.
+  const resolverFor = async (tests) => {
     try {
-      const map = await getActionMap(projectServices);
+      const map = await actionMapForTests(tests, projectServices, serviceId);
       return (name) => map[name] || null;
     } catch {
       return () => null;
@@ -355,25 +354,28 @@ const FullTestInner = ({
     try {
       if (Plugin) {
         const results = await Plugin.getTests(namespace);
-        const resolve = await projectActionResolver();
+        const resolve = await resolverFor(results || []);
         setSavedTests((results || []).map((ft) => resolveTestActions(ft, resolve)));
       } else if (projectCode && !serviceId) {
         // Project level (project code clicked, no service): aggregate EVERY service's own tests so the
         // "run all" button runs the whole project — the same way running a service runs all its tests.
         const svcs = projectServices;
-        const resolve = await projectActionResolver();
+        // Every service's tests, all at once, THEN one resolver for whatever they actually name —
+        // this loop used to await each service in turn and had already paid for a project-wide
+        // action sweep before it started.
+        const lists = await Promise.all(
+          svcs.map(async (s) => {
+            try {
+              const svc = loadServiceWithHeaders(s.system.connectionData, s.headers, s.credentials);
+              return { s, tests: (await svc.Plugin.getTests({ serviceId: s.serviceId })) || [] };
+            } catch {
+              return { s, tests: [] };
+            }
+          }),
+        );
+        const resolve = await resolverFor(lists.flatMap((l) => l.tests));
         const all = [];
-        for (const s of svcs) {
-          try {
-            const svc = loadServiceWithHeaders(
-              s.system.connectionData,
-              s.headers,
-              s.credentials,
-            );
-            const tests = await svc.Plugin.getTests({ serviceId: s.serviceId });
-            all.push(...(tests || []).map((ft) => resolveTestActions(ft, resolve)));
-          } catch {}
-        }
+        lists.forEach(({ tests }) => all.push(...tests.map((ft) => resolveTestActions(ft, resolve))));
         setSavedTests(all);
       }
     } catch (error) {
@@ -409,7 +411,14 @@ const FullTestInner = ({
     (async () => {
       try {
         const map = await getActionMap(projectServices);
-        setAvailableActions(Object.values(map));
+        // The map is keyed twice per action (qualified and bare) so lookups never guess — the PICKER
+        // has to fold those back to one row each.
+        const uniq = new Map();
+        Object.values(map).forEach((a) => {
+          const svc = (a.namespace && a.namespace.serviceId) || "";
+          uniq.set(`${svc}.${a.name}`, a);
+        });
+        setAvailableActions([...uniq.values()]);
       } catch {
         setAvailableActions([]);
       }

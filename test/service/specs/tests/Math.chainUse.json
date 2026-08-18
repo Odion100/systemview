@@ -1,6 +1,6 @@
 [
   {
-    "title": "main: chainUse(base ← before[0], seeded ← seedSum[0], product ← seedSum[1]) echoes them chained",
+    "title": "main: chainUse(base \u2190 before[0], seeded \u2190 seedSum[0], product \u2190 seedSum[1]) echoes them chained",
     "namespace": {
       "serviceId": "TestService",
       "moduleName": "Math",
@@ -11,7 +11,10 @@
         "args": [
           {
             "name": "argument:",
-            "input": { "a": 1, "b": 1 },
+            "input": {
+              "a": 1,
+              "b": 1
+            },
             "input_type": "object",
             "data_type": "",
             "targetValues": []
@@ -41,17 +44,26 @@
             "targetValues": [
               {
                 "target_namespace": "test.before[0].results.sum",
-                "source_map": ["input", "base"],
+                "source_map": [
+                  "input",
+                  "base"
+                ],
                 "source_index": 0
               },
               {
                 "target_namespace": "test.seedSum[0].results.sum",
-                "source_map": ["input", "seeded"],
+                "source_map": [
+                  "input",
+                  "seeded"
+                ],
                 "source_index": 0
               },
               {
                 "target_namespace": "test.seedSum[1].results.product",
-                "source_map": ["input", "product"],
+                "source_map": [
+                  "input",
+                  "product"
+                ],
                 "source_index": 0
               }
             ]
@@ -62,33 +74,49 @@
           "moduleName": "Math",
           "methodName": "chainUse"
         },
-        "title": "main: chainUse(base ← before[0], seeded ← seedSum[0], product ← seedSum[1]) echoes them chained",
+        "title": "main: chainUse(base \u2190 before[0], seeded \u2190 seedSum[0], product \u2190 seedSum[1]) echoes them chained",
         "savedEvaluations": [
           {
             "namespace": "results.base",
             "expected_type": "number",
             "validations": [
-              { "name": "numEquals", "value": "tv(test.before[0].results.sum)" }
+              {
+                "name": "numEquals",
+                "value": "tv(test.before[0].results.sum)"
+              }
             ],
             "save": true
           },
           {
             "namespace": "results.chained",
             "expected_type": "boolean",
-            "validations": [{ "name": "boolEquals", "value": true }],
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
             "save": true
           },
           {
             "namespace": "results.product",
             "expected_type": "number",
-            "validations": [{ "name": "numEquals", "value": 20 }],
+            "validations": [
+              {
+                "name": "numEquals",
+                "value": 20
+              }
+            ],
             "save": true
           },
           {
             "namespace": "results.seeded",
             "expected_type": "number",
             "validations": [
-              { "name": "numEquals", "value": "tv(test.seedSum[0].results.sum)" }
+              {
+                "name": "numEquals",
+                "value": "tv(test.seedSum[0].results.sum)"
+              }
             ],
             "save": true
           }
@@ -101,13 +129,19 @@
         "args": [
           {
             "name": "argument:",
-            "input": { "a": "test.main[0].results.seeded", "b": 5 },
+            "input": {
+              "a": "test.main[0].results.seeded",
+              "b": 5
+            },
             "input_type": "object",
             "data_type": "",
             "targetValues": [
               {
                 "target_namespace": "test.main[0].results.seeded",
-                "source_map": ["input", "a"],
+                "source_map": [
+                  "input",
+                  "a"
+                ],
                 "source_index": 0
               }
             ]
@@ -123,13 +157,28 @@
           {
             "namespace": "results.difference",
             "expected_type": "number",
-            "validations": [{ "name": "numEquals", "value": 0 }],
+            "validations": [
+              {
+                "name": "numEquals",
+                "value": 0
+              }
+            ],
             "save": true
           }
         ]
       }
     ],
-    "sections": { "seedSum": { "use": "seedSum" } },
-    "run": ["before", "events", "seedSum", "main", "after"]
+    "sections": {
+      "seedSum": {
+        "use": "TestService.seedSum"
+      }
+    },
+    "run": [
+      "before",
+      "events",
+      "seedSum",
+      "main",
+      "after"
+    ]
   }
 ]

@@ -18,6 +18,19 @@
     border-bottom: 1px solid var(--sv-border-soft);
     flex-shrink: 0;
   }
+  // BACK — where the pane came from. Only drawn when there IS somewhere to go, so it is never a
+  // dead button, and its hover names the file.
+  &__back {
+    flex: none;
+    border: none;
+    background: none;
+    cursor: pointer;
+    color: var(--sv-on-header-muted);
+    font-size: 16px;
+    line-height: 1;
+    padding: 0 2px;
+    &:hover { color: var(--sv-on-header); }
+  }
   &__kind {
     font-size: 9px;
     font-weight: 700;
@@ -180,6 +193,27 @@
     gap: 8px;
     padding: 4px 14px 5px;
     border-bottom: 1px solid var(--sv-border);
+  }
+  // THE RANGE SOMEONE POINTED AT — it says which lines and it is the way out of them.
+  &__range {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border: 1px solid var(--sv-blue);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--sv-blue) 10%, transparent);
+    color: var(--sv-blue);
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 10.5px;
+    padding: 1px 8px;
+    cursor: pointer;
+    &:hover { background: color-mix(in srgb, var(--sv-blue) 20%, transparent); }
+  }
+  &__range-x {
+    font-size: 12px;
+    line-height: 1;
+    opacity: 0.8;
   }
   &__find-input {
     flex: 1 1 auto;

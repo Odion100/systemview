@@ -18,6 +18,18 @@ import "./styles.scss";
 
 const CLASSNAME = "code-pane";
 
+// WHERE YOU CAME FROM. Following an import, a search result or a trace hop is now one click, so
+// coming BACK has to be one click too — and "reach for the browser's button at the top of the
+// screen" is not that (his words). This is a trail of the files THIS PANE opened, kept outside the
+// component because the pane is remounted for every file; it never leaves the app, and the button
+// can say the name of the file it will take you to.
+const stack = [];
+let at = -1;
+// Which button caused the next arrival, so the effect knows it is a MOVE along the stack rather than
+// a new place to remember. Without it, pressing back would push where you came from all over again.
+let moving = null;
+const sameFile = (a, b) => a && b && a.path === b.path && a.projectCode === b.projectCode;
+
 const CodePane = ({ file, onClose }) => {
   const { connectedServices } = useContext(ServiceContext);
   const [content, setContent] = useState(null); // null = loading
@@ -300,6 +312,66 @@ const CodePane = ({ file, onClose }) => {
     }
   });
   const [hits, setHits] = useState([]);
+  // RFC-034 — THE 💬 IN THE HEADER IS A LIST, not a switch. "you can click on them and go straight to
+  // those lines, you can delete them on the side, you can clear all of them": one row per comment,
+  // the row takes you there, the × on it deletes that one, clear-all sits at the bottom instead of
+  // being its own control up in the corner.
+  const [listOpen, setListOpen] = useState(false);
+  // The range a list row asked for. It carries a counter so clicking the SAME row twice jumps twice
+  // — the editor keys its centring on the range, and a repeat of the same two numbers is not a change.
+  const [jump, setJump] = useState(null);
+  // THE POINTED-AT RANGE HAS TO BE DISMISSABLE. `#L17-40` (or an agent pointing you somewhere) marks
+  // those lines and they stayed marked with nothing to press — "you can't unselect". So the range
+  // says what it is and carries its own ×, and clearing it also takes `flines` out of the address so
+  // the URL matches what you are looking at.
+  // Every file the pane shows is pushed once; opening the SAME file again (a new line range, say)
+  // is not a step in the trail.
+  const here = { path: file.path, projectCode: file.projectCode, serviceId: file.serviceId, language: file.language };
+  const [nav, setNav] = useState(0); // just to re-render the two buttons when the stack moves
+  useEffect(() => {
+    if (sameFile(stack[at], here)) return; // same file again (a new line range) is not a step
+    if (moving) {
+      moving = null; // the cursor was already moved by the button that sent us here
+    } else {
+      // A NEW PLACE retires whatever was ahead — the same rule every back/forward pair has ever had.
+      stack.splice(at + 1);
+      stack.push(here);
+      at = stack.length - 1;
+    }
+    setNav((n) => n + 1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [file.path, file.projectCode]);
+  const backTo = at > 0 ? stack[at - 1] : null;
+  const fwdTo = at >= 0 && at < stack.length - 1 ? stack[at + 1] : null;
+  const step = useCallback((d) => {
+    const to = stack[at + d];
+    if (!to) return;
+    at += d;
+    moving = true;
+    window.dispatchEvent(new CustomEvent("sv:openFileInNav", { detail: to }));
+  }, []);
+
+  const [rangeOff, setRangeOff] = useState(false);
+  useEffect(() => {
+    setRangeOff(false);
+  }, [file.path, String(file.lines)]);
+  const shownRange = !rangeOff && !jump && file.lines && file.lines[0] ? file.lines : null;
+  const clearRange = useCallback(() => {
+    setRangeOff(true);
+    setJump(null);
+    try {
+      const u = new URL(window.location.href);
+      if (u.searchParams.has("flines")) {
+        u.searchParams.delete("flines");
+        window.history.replaceState(window.history.state, "", u.toString());
+      }
+    } catch {}
+  }, []);
+  // THE BAR BELONGS TO THE EDITOR. A markdown file opens RENDERED and a changed file can be showing
+  // the side-by-side diff — in both, the box was drawn over a surface it cannot search, which is a
+  // box that does nothing (his catch: "the search shows over markdown documents and it doesn't
+  // work"). Flip that .md to Edit and it comes back, because then there is something to search.
+  const editorShowing = !isImage && !error && content !== null && !(diffMode && diffData) && !(preview && isMd);
   // WHICH definition you are on. "1 def" is not a label, it is the way to it — press it and you are
   // there; press it again and you are on the next one, when there is more than one.
   const [defAt, setDefAt] = useState(0);
@@ -398,14 +470,6 @@ const CodePane = ({ file, onClose }) => {
     [file.projectCode],
   );
 
-  // RFC-034 — THE 💬 IN THE HEADER IS A LIST, not a switch. "you can click on them and go straight to
-  // those lines, you can delete them on the side, you can clear all of them": one row per comment,
-  // the row takes you there, the × on it deletes that one, clear-all sits at the bottom instead of
-  // being its own control up in the corner.
-  const [listOpen, setListOpen] = useState(false);
-  // The range a list row asked for. It carries a counter so clicking the SAME row twice jumps twice
-  // — the editor keys its centring on the range, and a repeat of the same two numbers is not a change.
-  const [jump, setJump] = useState(null);
   const [codeMenu, setCodeMenu] = useState(null);
   const { threads, error: commentError, addThread, addReply, removeReply, removeThread, removeAll } =
     useCodeComments(Plugin, file.path);
@@ -574,6 +638,16 @@ const CodePane = ({ file, onClose }) => {
   return (
     <div className={CLASSNAME}>
       <div className={`${CLASSNAME}__header ${!editorDark ? `${CLASSNAME}__header--light` : ""}`}>
+        {backTo && (
+          <button
+            type="button"
+            className={`${CLASSNAME}__back`}
+            title={`Back to ${backTo.path}`}
+            onClick={() => step(-1)}
+          >
+            ‹
+          </button>
+        )}
         <span className={`${CLASSNAME}__kind`}>code</span>
         {/* Breadcrumb — the path, its file name emphasized. */}
         <span className={`${CLASSNAME}__crumb`} title={file.path}>
@@ -592,6 +666,16 @@ const CodePane = ({ file, onClose }) => {
         </span>
         {dirty && <span className={`${CLASSNAME}__dirty`} title="unsaved changes" />}
         <span className={`${CLASSNAME}__actions`}>
+          {fwdTo && (
+            <button
+              type="button"
+              className={`${CLASSNAME}__back`}
+              title={`Forward to ${fwdTo.path}`}
+              onClick={() => step(1)}
+            >
+              ›
+            </button>
+          )}
           <EditorThemeToggle scope={themeScope} />
           {/* Shown while the MODE is on even where this file has no diff — otherwise opening an
               unchanged file takes away the only control that turns the mode back off. */}
@@ -664,8 +748,19 @@ const CodePane = ({ file, onClose }) => {
       {/* THE SEARCH BAR. One box: type in it, or ⌘-click a name in the code and it fills itself.
           It says how many hits are in this file and how many of them look like a definition, and it
           carries across files — the whole point is that it follows you. */}
-      {!isImage && (
+      {editorShowing && (
         <div className={`${CLASSNAME}__find`}>
+          {shownRange && (
+            <button
+              type="button"
+              className={`${CLASSNAME}__range`}
+              title="These lines were pointed at — click to let go of them"
+              onClick={clearRange}
+            >
+              {`L${shownRange[0]}${shownRange[1] && shownRange[1] !== shownRange[0] ? `–${shownRange[1]}` : ""}`}
+              <span className={`${CLASSNAME}__range-x`}>×</span>
+            </button>
+          )}
           <input
             className={`${CLASSNAME}__find-input`}
             value={term}
@@ -752,7 +847,7 @@ const CodePane = ({ file, onClose }) => {
       )}
       {/* THE PROJECT RESULTS. Files that DEFINE the name first, then the rest — and every row is the
           line itself, so you can usually answer the question without opening anything. */}
-      {wide && wide !== "loading" && (
+      {editorShowing && wide && wide !== "loading" && (
         <div className={`${CLASSNAME}__wide`}>
           {wide.error ? (
             <div className={`${CLASSNAME}__wide-note`}>{wide.error}</div>
@@ -973,7 +1068,7 @@ const CodePane = ({ file, onClose }) => {
             language={file.language}
             onChange={setContent}
             dark={editorDark}
-            focusLines={jump || file.lines || null}
+            focusLines={jump || (rangeOff ? null : file.lines) || null}
             changeMarks={changeMarks}
             hunks={hunks}
             onStageHunk={stageHunkAt}

@@ -141,7 +141,23 @@ export default function FullTestController({ FullTest, connectedServices } = {})
     if (namedNames.length) {
       payload.sections = {};
       // The section KEY is the instance (seedSum_2); the reference points at the underlying action.
-      namedNames.forEach((n) => (payload.sections[n] = { use: namedRefs[n] || n }));
+      // A REFERENCE CARRIES ITS NAMESPACE. `{ use: "TestService.seedSum" }` — so loading this test
+      // asks the ONE service that stores the action instead of every service in the project. The
+      // service comes from the action's own steps when they are here, else from this test's
+      // namespace; an already-qualified ref (re-saving a loaded test) is left alone.
+      namedNames.forEach((n) => {
+        const ref = namedRefs[n] || n;
+        if (String(ref).includes(".")) {
+          payload.sections[n] = { use: ref };
+          return;
+        }
+        const step = (sections[n] || [])[0];
+        const svc =
+          (step && step.namespace && step.namespace.serviceId) ||
+          (namespace && namespace.serviceId) ||
+          "";
+        payload.sections[n] = { use: svc ? `${svc}.${ref}` : ref };
+      });
       payload.run = order;
     }
     const testIndex = await Plugin.saveTest(payload, saveIndex);

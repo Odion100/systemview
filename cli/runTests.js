@@ -85,8 +85,8 @@ module.exports = async function runTests(
   }
 
   const allTestLists = await getTests(connectedServices, Client);
-  // Resolver for `{ use }` steps — permanent actions pulled from the services (RFC-020).
-  const actionMap = await getActionMap(connectedServices, Client);
+  // Resolver for `{ use }` steps — only the actions these tests actually name (RFC-020, namespaced).
+  const actionMap = await getActionMap(connectedServices, Client, allTestLists);
   const resolveAction = (name) => actionMap[name] || null;
   const testToRun = allTestLists
     .map((list) =>
@@ -352,24 +352,49 @@ async function getTests(connectedServices, Client) {
   return results;
 }
 
-// RFC-020 — pull every permanent shared action from the connected services into a name → action map so the
-// runner can resolve `{ use }` steps. Tolerant: a service on an older plugin without getActions is skipped.
-async function getActionMap(connectedServices, Client) {
-  const map = {};
-  for (const { system } of connectedServices) {
-    const { connectionData } = system;
-    try {
-      const svc = Client.createService(connectionData);
-      if (!svc.Plugin || !svc.Plugin.getActions) continue;
-      const list = (await svc.Plugin.getActions()) || [];
-      list.forEach((a) => {
-        if (a && a.name && !map[a.name]) map[a.name] = a;
-      });
-    } catch (error) {
-      /* older plugin / no actions — fine */
-    }
+// RFC-020 (revised 2026-08-17) — a `{ use }` reference CARRIES the service that stores it
+// (`TestService.seedSum`), so only the services a test actually names are asked, and they are asked
+// AT ONCE. The runner and the window have to agree about the same file, so this rule is the same one
+// `src/organisms/SavedTests/transformTests.js` applies.
+async function actionsOfService(service, Client) {
+  const out = {};
+  try {
+    const svc = Client.createService(service.system.connectionData);
+    if (!svc.Plugin || !svc.Plugin.getActions) return out;
+    const list = (await svc.Plugin.getActions()) || [];
+    const id = service.serviceId || (service.system.connectionData || {}).serviceId;
+    list.forEach((a) => {
+      if (!a || !a.name) return;
+      out[`${id}.${a.name}`] = a;
+      if (!out[a.name]) out[a.name] = a;
+    });
+  } catch (error) {
+    /* older plugin / no actions — fine */
   }
-  return map;
+  return out;
+}
+
+async function getActionMap(connectedServices, Client, testLists) {
+  const wanted = new Set();
+  (testLists || []).flat().forEach((t) => {
+    Object.values((t && t.sections) || {}).forEach((v) => {
+      if (v && v.use) wanted.add(String(v.use));
+    });
+  });
+  if (!wanted.size) return {}; // no named sections anywhere — nobody gets asked
+  const needed = new Set();
+  wanted.forEach((ref) => {
+    const dot = ref.indexOf(".");
+    if (dot > 0) needed.add(ref.slice(0, dot));
+  });
+  // A BARE reference belongs to the test's own service, so when one shows up every service that has
+  // tests in this run is a candidate — still only the ones in play, never the whole project blindly.
+  const bare = [...wanted].some((r) => !r.includes("."));
+  const chosen = connectedServices.filter(
+    (s) => bare || needed.has(s.serviceId || (s.system.connectionData || {}).serviceId),
+  );
+  const maps = await Promise.all(chosen.map((s) => actionsOfService(s, Client)));
+  return Object.assign({}, ...maps);
 }
 
 async function resolveServices(api, project_code) {
