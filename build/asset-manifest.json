@@ -1,8 +1,8 @@
 {
   "files": {
-    "main.css": "/static/css/main.88b0522a.css",
-    "main.js": "/static/js/main.ea9713fa.js",
-    "static/js/49.76adaae7.chunk.js": "/static/js/49.76adaae7.chunk.js",
+    "main.css": "/static/css/main.7d5790a7.css",
+    "main.js": "/static/js/main.a2223825.js",
+    "static/js/49.33d3f166.chunk.js": "/static/js/49.33d3f166.chunk.js",
     "static/js/422.05c538a9.chunk.js": "/static/js/422.05c538a9.chunk.js",
     "static/media/FontsFree-Net-SFMono-Regular.ttf": "/static/media/FontsFree-Net-SFMono-Regular.9647425ef282c28529df.ttf",
     "static/media/Malkor-Regular.ttf": "/static/media/Malkor-Regular.f55d6a829566789554a5.ttf",
@@ -10,13 +10,13 @@
     "static/media/eval-icon.svg": "/static/media/eval-icon.c95744a8bbde20641e4a13f19f9f5ae6.svg",
     "index.html": "/index.html",
     "static/media/x.svg": "/static/media/x.f680188c9bc9ed62e3647ad587e1bea0.svg",
-    "main.88b0522a.css.map": "/static/css/main.88b0522a.css.map",
-    "main.ea9713fa.js.map": "/static/js/main.ea9713fa.js.map",
-    "49.76adaae7.chunk.js.map": "/static/js/49.76adaae7.chunk.js.map",
+    "main.7d5790a7.css.map": "/static/css/main.7d5790a7.css.map",
+    "main.a2223825.js.map": "/static/js/main.a2223825.js.map",
+    "49.33d3f166.chunk.js.map": "/static/js/49.33d3f166.chunk.js.map",
     "422.05c538a9.chunk.js.map": "/static/js/422.05c538a9.chunk.js.map"
   },
   "entrypoints": [
-    "static/css/main.88b0522a.css",
-    "static/js/main.ea9713fa.js"
+    "static/css/main.7d5790a7.css",
+    "static/js/main.a2223825.js"
   ]
 }

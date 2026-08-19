@@ -228,7 +228,7 @@ async function loadCaseSetting() {
     const deleteHosted = require("./deleteHosted");
     const exitCode = await deleteHosted(input[1], { uiUrl: UI_URL, Client, force: flags.force });
     flushAndExit(exitCode || 0);
-  } else if (["join", "say", "inbox", "nav", "refresh", "act", "highlight", "show", "tv"].includes(command) || (command === "status" && input[1])) {
+  } else if (["join", "say", "reply", "inbox", "nav", "refresh", "act", "highlight", "show", "tv"].includes(command) || (command === "status" && input[1])) {
     // RFC-028 — the chat front door; RFC-029 — agent control rides the same door (a command is a
     // chat record the open UI executes). join HANGS on purpose (the hold IS presence); the others
     // are one-shots. All need the hub up.
@@ -238,13 +238,22 @@ async function loadCaseSetting() {
       uiUrl: UI_URL, Client, chat: flags.chat, agent: flags.as, once: flags.once,
       report: flags.report, file: flags.file && flags.file[0], tab: flags.tab, topic: flags.topic,
       range: flags.range, service: flags.service,
+      // RFC-039 — `--history` on inbox asks for the back-catalog on purpose; without it a cursor
+      // that has never been used starts at NOW instead of replaying the whole room.
+      history: flags.history,
       // --say "…" — the sentence the agent wants said while the window moves (RFC-030). Optional on
       // every command; without it the trip is silent apart from the generated label.
       say: flags.say && flags.say[0],
+      // RFC-039 — `--pin` keeps that sentence: it also lands in the chat instead of evaporating
+      // with the animation. Opt-in, because most pointing lines should stay ephemeral.
+      pin: !!flags.pin,
     };
     let exitCode = 0;
     if (command === "join") exitCode = await chatCmd.join(input[1], opts);
     else if (command === "say") exitCode = await chatCmd.say(input[1], input[2], opts);
+    // RFC-039 — answer a report's thread in one command instead of a whole-document round-trip.
+    else if (command === "reply")
+      exitCode = await chatCmd.reply(input[1], input[2], input[3], { ...opts, show: flags.show && flags.show[0] });
     else if (command === "status") exitCode = await chatCmd.status(input[1], input[2], opts);
     else if (command === "nav") exitCode = await chatCmd.nav(input[1], input[2], input[3], opts);
     else if (command === "highlight") exitCode = await chatCmd.highlight(input[1], input[2], opts);
@@ -256,7 +265,7 @@ async function loadCaseSetting() {
       exitCode = await chatCmd.tv(input[1], { ...opts, json: flags.json, show: flags.show || input[2] });
     else if (command === "refresh") exitCode = await chatCmd.refresh(input[1], input[2], opts);
     else if (command === "act") exitCode = await chatCmd.act(input[1], input[2], input[3], opts);
-    else exitCode = await chatCmd.inbox(input[1], { ...opts, json: true });
+    else exitCode = await chatCmd.inbox(input[1], { ...opts, json: true, history: !!flags.history });
     flushAndExit(exitCode || 0);
   } else if (command === "open") {
     await open();
@@ -338,6 +347,16 @@ async function loadCaseSetting() {
     const commentsCommand = require("./comments");
     const exitCode = await commentsCommand(input[1], input[2], { uiUrl: UI_URL, json: flags.json });
     flushAndExit(exitCode || 0);
+  } else if (command === "skill") {
+    // RFC-039 — SystemView ships the skill instead of every project hand-writing one.
+    await launchApp(DEFAULT_PORT);
+    const skillCommand = require("./skill");
+    const exitCode = await skillCommand(input[1], {
+      uiUrl: UI_URL,
+      print: !!flags.print,
+      force: !!flags.force,
+    });
+    flushAndExit(exitCode || 0);
   } else if (command === "board") {
     // HIS BOARD, by a verb — the notes he accumulates for you between sessions.
     await launchApp(DEFAULT_PORT);
@@ -347,6 +366,8 @@ async function loadCaseSetting() {
       json: flags.json,
       reply: flags.reply,
       at: flags.at,
+      // RFC-039 — a reply is stamped with WHO wrote it, so a note can hold a conversation.
+      as: flags.as,
     });
     flushAndExit(exitCode || 0);
   } else if (command === "logs" || command === "log") {

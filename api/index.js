@@ -776,7 +776,7 @@ function chatStatus(projectCode, { chat, text, as } = {}) {
   emitStatuses(this, projectCode, chat);
   return r;
 }
-function chatDrain(projectCode, { chat, listener, as } = {}) {
+function chatDrain(projectCode, { chat, listener, as, history } = {}) {
   const identity = canonIdentity(projectCode, as);
   const chatName = chat || Chats.DEFAULT_CHAT;
   // GETTING A HANDLE ON A ROOM IS ARRIVING IN IT (his rule). Draining is how a file-mode agent
@@ -794,7 +794,7 @@ function chatDrain(projectCode, { chat, listener, as } = {}) {
     const sys = Chats.system(projectCode, chatName, { event: "joined", who: identity });
     this.emit(`chat-updated:${projectCode}`, { chat: chatName, record: sys });
   }
-  const res = Chats.drain(projectCode, chatName, { listener, identity });
+  const res = Chats.drain(projectCode, chatName, { listener, identity, history });
   this.emit(`chat-presence:${projectCode}`, presenceFor(projectCode));
   // A "waiting on <pc>" line may have just flipped to "received" (turn-boundary pickup) —
   // push the current lines so the human sees the handoff.

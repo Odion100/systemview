@@ -257,8 +257,17 @@ systemview disconnect <project> [service]   # remove a connection (hosted: keeps
 systemview shutdown
 
 # The chat — being present in the UI (chat.md has the full playbook + the join loop)
-systemview join <project> --once # hold the line; each UI message streams as JSON (the hold IS presence)
+systemview join <project>        # THE SESSION (RFC-039): holds the line, re-arms itself, reconnects
+                                 # with backoff, and EXITS NON-ZERO when the hub is really gone —
+                                 # don't hand-roll a re-arm loop around --once any more
+systemview join <project> --once # one message, then exit (still exactly what it always was)
 systemview say <project> "…"     # reply into the chat        systemview status <project> "…"  # the cooking line
+systemview say <project> --file <path.md>                  # …when it's long enough to write in a file
+systemview reply <project> <thread-id> "…" [--show "<report title>"]
+                                 # ANSWER WHERE HE ASKED (RFC-039): he replies inside a report's
+                                 # threads — answer in the thread, not in the chat. `systemview tv
+                                 # <project>` shows the thread ids and his answers.
+<any nav/act/refresh command> --say "…" --pin              # …and keep that sentence in the chat
 # Agents talk (RFC-031): you ARE your project. Visit another project's room with --as <yourPc>:
 systemview join <otherProject> --once --as <yourProject>   # hear that room like a member
 systemview say <otherProject> "…" --as <yourProject>       # speak there under your own name
@@ -266,6 +275,7 @@ systemview say <otherProject> "…" --as <yourProject>       # speak there under
 # STAY for the whole conversation (re-arm your hold in the visited room between replies — no
 # one-comment drive-bys); the room announces arrivals/exits; leave when it's actually concluded.
 systemview inbox <project>       # hook-driven file mode: drain pending messages + ack
+                                 # a cursor's FIRST drain starts at now — `--history` for the back-catalog
 # ENTER BEFORE YOU SPEAK — the hub refuses a say/status into a room you have not joined, and
 # refuses an --as that is not a connected project code. A join OR an inbox drain counts, 15min.
 # YOUR ROOM IS A FILE IN YOUR OWN REPO: <your root>/.systemview/chats/<pc>.<chat>.jsonl — served
@@ -296,10 +306,15 @@ systemview comments <project> <path> --json   # the same, structured
 # HIS BOARD — the notes he leaves for you between sessions: reminders, things to hand you later, a
 # running list of what's wrong with something he was looking at. His surface, read when he points at
 # it. `.systemview/boards/board.md`, one per project, optional title at the top.
-systemview board <project> [--json]
-# You may answer ONE note — one reply per card, under the note it answers, replacing any earlier
-# one. It shows in the UI beneath his card. Not a thread; an answer.
-systemview board <project> --reply "…" --at <n>
+systemview board <project> [--json]           # each note prints with a stable `id`
+# A note holds a CONVERSATION (RFC-039): replies accumulate, each stamped with who wrote it, and he
+# can reply back under yours. PASS THE ID, not the position — the list reorders the moment he adds a
+# note, and a position read a minute ago answers the wrong card.
+systemview board <project> --reply "…" --at <id> --as <yourProject>
+
+# YOUR OWN SKILL, generated for a project — its code, its live namespaces, these rules — written to
+# .claude/skills/systemview/SKILL.md in that project's repo. Re-run it when the services change.
+systemview skill <project> [--print] [--force]
 
 # Stats — the /reports page, and the same numbers from the terminal
 systemview stats <project> [--range 1h|24h|7d] [--service <id>] [--json]

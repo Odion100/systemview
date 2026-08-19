@@ -80,14 +80,54 @@ module.exports.join = async function join(projectCode, { uiUrl, Client, chat, ag
   const ackDelivered = async () => {
     try { await SystemView.chatDrain(projectCode, { chat, listener: `join:${agent || "agent"}`, as: agent }); } catch {}
   };
-  // The hold: each chatJoin call parks server-side ~25s; timeouts re-arm silently. Ctrl-C leaves.
+  // RFC-039 — THE HOLD SURVIVES A HUB THAT BLINKS, AND DIES LOUDLY WHEN IT DOESN'T COME BACK.
+  //
+  // Each chatJoin parks server-side ~25s; timeouts re-arm silently. What used to happen when the hub
+  // RESTARTED, though, was worse than a crash: the call failed, we slept 3s, and retried forever with
+  // one warning line — so an agent could sit "in the room" against a hub that had moved on, alive and
+  // deaf, while the human thought it was ignoring them. It happened twice in one evening.
+  //
+  // An agent that is deaf cannot be TOLD it is deaf — only its own process noticing saves it. So the
+  // failures are counted, the wait backs off instead of hammering, and once the hub has been gone for
+  // GONE_AFTER the hold gives up, says goodbye if it can, and exits NON-ZERO. A wrapper that re-runs
+  // it gets a fresh line; a wrapper that doesn't at least stops lying about being present.
+  const BACKOFF = [1000, 2000, 4000, 8000, 15000];
+  const GONE_AFTER = 90000; // the hub is not blinking any more, it's gone
+  let downSince = 0;
+  let fails = 0;
   for (;;) {
     let res;
     try {
       res = await SystemView.chatJoin(projectCode, { chat, agent, since });
+      if (fails) {
+        // Say it out loud: the transcript should show the gap, not skip over it.
+        log.info(`line back to ${projectCode} after ${Math.round((Date.now() - downSince) / 1000)}s down`);
+        fails = 0;
+        downSince = 0;
+      }
     } catch (err) {
-      log.warn(`join interrupted (${(err && err.message) || err}) — retrying in 3s`);
-      await new Promise((r) => setTimeout(r, 3000));
+      if (!downSince) downSince = Date.now();
+      const gone = Date.now() - downSince;
+      if (gone >= GONE_AFTER) {
+        log.error(
+          `the hub is gone — ${projectCode}'s line has been down ${Math.round(gone / 1000)}s ` +
+            `(${(err && err.message) || err}). Leaving rather than holding a dead line.`,
+        );
+        try {
+          await Promise.race([
+            SystemView.chatLeave(projectCode, { chat, agent }),
+            new Promise((r) => setTimeout(r, 800)),
+          ]);
+        } catch {}
+        return 2; // not 1 — "the hub went away" is a different answer than "you called it wrong"
+      }
+      const wait = BACKOFF[Math.min(fails, BACKOFF.length - 1)];
+      fails += 1;
+      log.warn(
+        `join interrupted (${(err && err.message) || err}) — retrying in ${wait / 1000}s ` +
+          `[down ${Math.round(gone / 1000)}s of ${GONE_AFTER / 1000}s]`,
+      );
+      await new Promise((r) => setTimeout(r, wait));
       continue;
     }
     if (res && res.kicked) {
@@ -107,10 +147,21 @@ module.exports.join = async function join(projectCode, { uiUrl, Client, chat, ag
   }
 };
 
-module.exports.say = async function say(projectCode, text, { uiUrl, Client, chat, agent } = {}) {
-  if (!projectCode || !text) {
-    log.warn('Usage: systemview say <projectCode> "<text>" [--chat name] [--as <yourProjectCode>]');
+module.exports.say = async function say(projectCode, text, { uiUrl, Client, chat, agent, file } = {}) {
+  if (!projectCode || (!text && !file)) {
+    log.warn('Usage: systemview say <projectCode> "<text>" | --file <path.md> [--chat name] [--as <yourProjectCode>]');
     return 1;
+  }
+  // RFC-039 — `--file`, because every message is otherwise a giant double-quoted shell string:
+  // backticks are command substitution, apostrophes fight the quoting, and the safe move is to
+  // flatten what you write. `show` has taken a file since RFC-030; there was no reason `say` didn't.
+  if (file) {
+    try {
+      text = require("fs").readFileSync(file, "utf8");
+    } catch (e) {
+      log.error(`say: couldn't read ${file} — ${e.message}`);
+      return 1;
+    }
   }
   const SystemView = await loadHub(Client, uiUrl);
   // RFC-031 — `--as` is the project you speak AS (a VISITOR names its own project; omitted =
@@ -122,6 +173,83 @@ module.exports.say = async function say(projectCode, text, { uiUrl, Client, chat
     log.error(cleanErr(err));
     return 1;
   }
+  return 0;
+};
+
+// RFC-039 — ANSWER WHERE YOU WERE ASKED.
+//
+//   systemview reply <pc> <thread-id> "…" [--show "<title>"] [--file <path.md>] [--as <pc>]
+//
+// He replies INSIDE a report's threads. Until now, answering there meant a three-step document
+// round-trip — read the show as JSON, splice `:::reply` blocks into the right places, push the whole
+// thing back — while answering in the chat was one command. That gap is not a detail: a report he had
+// replied in sat unanswered twice in one day, not because anyone decided to ignore it but because the
+// wrong surface was four times cheaper. This makes the right one a one-liner.
+//
+// Read-modify-write of the CURRENT text, so his replies are carried, never overwritten.
+module.exports.reply = async function reply(projectCode, threadId, text, { uiUrl, Client, chat, agent, show, file } = {}) {
+  if (!projectCode || !threadId || (!text && !file)) {
+    log.warn('Usage: systemview reply <projectCode> <thread-id> "<markdown>" | --file <path.md> [--show "<report title>"] [--as <yourPc>]');
+    return 1;
+  }
+  let body = text || "";
+  if (file) {
+    try {
+      body = require("fs").readFileSync(file, "utf8");
+    } catch (e) {
+      log.error(`reply: couldn't read ${file} — ${e.message}`);
+      return 1;
+    }
+  }
+  const SystemView = await loadHub(Client, uiUrl);
+  let state = null;
+  try {
+    state = await SystemView.chatGetTv(projectCode, { chat, show });
+  } catch (err) {
+    log.error(cleanErr(err));
+    return 1;
+  }
+  if (!state || !state.text) {
+    log.warn(
+      `nothing on ${projectCode}'s TV${show ? ` matching "${show}"` : ""} — put a show up first:\n` +
+        `    systemview show ${projectCode} --file <report.md>`,
+    );
+    return 1;
+  }
+  const lines = String(state.text).split("\n");
+  const open = lines.findIndex((l) => l.trim() === `::::thread{id=${threadId}}`);
+  if (open === -1) {
+    // An error that TEACHES: the ids that do exist, not just the one that doesn't.
+    const ids = [...String(state.text).matchAll(/::::thread\{id=([^}]+)\}/g)].map((m) => m[1]);
+    log.error(
+      `no thread "${threadId}" in "${state.label || "the show"}".` +
+        (ids.length ? `\n   threads here: ${ids.join(", ")}` : "\n   this show has no threads to answer in."),
+    );
+    return 1;
+  }
+  // The thread closes at the first line that is EXACTLY four colons — a reply block inside it ends
+  // with three, so this can't be fooled by the replies already there.
+  let close = -1;
+  for (let i = open + 1; i < lines.length; i++) {
+    if (lines[i].trim() === "::::") {
+      close = i;
+      break;
+    }
+  }
+  if (close === -1) {
+    log.error(`thread "${threadId}" is never closed in that show — fix the document before replying into it`);
+    return 1;
+  }
+  const me = agent || projectCode;
+  const block = [`:::reply{author=${me} ts=${Date.now()}}`, ...String(body).trim().split("\n"), ":::"];
+  const next = [...lines.slice(0, close), ...block, ...lines.slice(close)].join("\n");
+  try {
+    await SystemView.chatSetTv(projectCode, { chat, state: { ...state, text: next } });
+  } catch (err) {
+    log.error(cleanErr(err));
+    return 1;
+  }
+  log.info(`replied in ${threadId} on "${state.label || "the show"}"`);
   return 0;
 };
 
@@ -182,15 +310,17 @@ module.exports.tv = async function tv(projectCode, { uiUrl, Client, chat, json =
   return 0;
 };
 
-module.exports.inbox = async function inbox(projectCode, { uiUrl, Client, chat, agent, json = true } = {}) {
+module.exports.inbox = async function inbox(projectCode, { uiUrl, Client, chat, agent, json = true, history = false } = {}) {
   if (!projectCode) {
-    log.warn("Usage: systemview inbox <projectCode> [--chat name] [--as <yourProjectCode>]");
+    log.warn("Usage: systemview inbox <projectCode> [--chat name] [--as <yourProjectCode>] [--history]");
     return 1;
   }
   const SystemView = await loadHub(Client, uiUrl);
   // RFC-031 — a visiting identity gets its own ack cursor; the bare default keeps the "hooks"
   // cursor so existing hook installs never replay history after an upgrade.
-  const res = await SystemView.chatDrain(projectCode, { chat, listener: agent ? `hooks:${agent}` : "hooks", as: agent });
+  // RFC-039 — a cursor that has never been used starts at NOW, so first contact is quiet instead of
+  // a replay of the whole room; `--history` is how you ask for the back-catalog on purpose.
+  const res = await SystemView.chatDrain(projectCode, { chat, listener: agent ? `hooks:${agent}` : "hooks", as: agent, history });
   const messages = res.messages || [];
   if (json) console.log(JSON.stringify(messages));
   else messages.forEach((m) => console.log(`[${new Date(m.ts).toISOString()}] ${m.text}`));
@@ -212,9 +342,21 @@ module.exports.inbox = async function inbox(projectCode, { uiUrl, Client, chat, 
 //                                              range: 15m|1h|4h|24h|all)
 //   refresh <pc> [docs|reports|nav|stats|all] panes re-read their data — never a page reload
 //   act <pc> test <Module.method>             run a saved test IN the UI, watchably
-async function sendCommand(projectCode, { uiUrl, Client, chat, agent, cmd, args, label, say }) {
+async function sendCommand(projectCode, { uiUrl, Client, chat, agent, cmd, args, label, say, pin }) {
   const SystemView = await loadHub(Client, uiUrl);
   await SystemView.chatCommand(projectCode, { chat, from: agent || "agent", cmd, args, label, say });
+  // RFC-039 — `--pin`. The `--say` sentence is EPHEMERAL by design: it rides the trip, it is spoken
+  // while the window moves, and then it is gone. That is right for a pointing line ("look here") and
+  // a trap the moment real content lands in it — an agent explains something worth keeping and it
+  // evaporates with the animation. `--pin` also drops the same sentence into the chat, where it
+  // survives. Opt-in: the default stays ephemeral, because most of them should be.
+  if (pin && say) {
+    try {
+      await SystemView.chatSend(projectCode, { chat, from: "agent", text: say, as: agent });
+    } catch (err) {
+      log.warn(`the trip was sent, but pinning it to the chat failed — ${cleanErr(err)}`);
+    }
+  }
   return 0;
 }
 

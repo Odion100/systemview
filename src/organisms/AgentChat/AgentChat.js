@@ -2035,15 +2035,29 @@ function BotBubble({ projectCode, index }) {
   // A card, and OPTIONALLY one answer from the agent under it — his ask: "you could make one
   // response to a note". It lives in the same file, right under the note it answers, so reading the
   // file is reading the conversation.
+  // RFC-039 — A NOTE HOLDS A CONVERSATION. One reply that got REPLACED on the next write meant
+  // nothing said back and forth survived ("I reply to you and then my reply goes on the note").
+  // Replies are a list now, each stamped with who wrote it. `<!--reply-->` with no author is the
+  // old single-reply form and still reads — as the agent's, which is the only thing it ever was.
   const parseBoard = (text) => {
     const out = [];
     String(text || "")
       .split(/<!--card (\d+)-->/)
       .forEach((part, i, arr) => {
         if (i % 2 !== 1) return;
-        const body = arr[i + 1] || "";
-        const [note, ...rest] = body.split(/<!--reply-->/);
-        out.push({ ts: Number(part), text: note.trim(), reply: rest.join("").trim() || "" });
+        const bits = String(arr[i + 1] || "").split(/<!--reply(?: ([^>]*?))?-->/);
+        const replies = [];
+        for (let b = 1; b < bits.length; b += 2) {
+          const attrs = String(bits[b] || "");
+          const body = String(bits[b + 1] || "").trim();
+          if (!body) continue;
+          replies.push({
+            by: (attrs.match(/by=([^\s]+)/) || [])[1] || "",
+            ts: Number((attrs.match(/ts=(\d+)/) || [])[1]) || 0,
+            text: body,
+          });
+        }
+        out.push({ ts: Number(part), text: bits[0].trim(), replies });
       });
     return out;
   };
@@ -2057,7 +2071,13 @@ function BotBubble({ projectCode, index }) {
   };
   const serializeBoard = (cards, title) =>
     `${title ? `# ${title}\n\n` : ""}${cards
-      .map((c) => `<!--card ${c.ts}-->\n${c.text}\n${c.reply ? `<!--reply-->\n${c.reply}\n` : ""}`)
+      .map(
+        (c) =>
+          `<!--card ${c.ts}-->\n${c.text}\n` +
+          (c.replies || [])
+            .map((r) => `<!--reply${r.by ? ` by=${r.by}` : ""}${r.ts ? ` ts=${r.ts}` : ""}-->\n${r.text}\n`)
+            .join(""),
+      )
       .join("\n")}`;
 
   // EVERY TIME IT OPENS, not just the first — a reply written while the board was shut was invisible
@@ -2096,10 +2116,21 @@ function BotBubble({ projectCode, index }) {
       try {
         const fresh = await boardPlugin.readFile({ path: boardPath });
         parseBoard(fresh.content).forEach((c) => {
-          if (c.reply) keep[c.ts] = c.reply;
+          if ((c.replies || []).length) keep[c.ts] = c.replies;
         });
       } catch {}
-      cards = cards.map((c) => (keep[c.ts] && !c.reply ? { ...c, reply: keep[c.ts] } : c));
+      // Union by (ts, text): an agent may have appended a reply since this panel read the file, and
+      // he may have just written one that isn't on disk yet. Neither half gets to erase the other.
+      cards = cards.map((c) => {
+        const disk = keep[c.ts] || [];
+        const mine = c.replies || [];
+        if (!disk.length) return c;
+        const seen = new Set(mine.map((r) => `${r.ts}|${r.text}`));
+        const merged = [...disk.filter((r) => !seen.has(`${r.ts}|${r.text}`)), ...mine].sort(
+          (a, b) => (a.ts || 0) - (b.ts || 0),
+        );
+        return { ...c, replies: merged };
+      });
       // AN EMPTY BOARD TAKES ITS FILE WITH IT — the same rule the comment sidecars follow, so an
       // emptied board doesn't sit in `.systemview/` pretending to be something. A title alone still
       // counts as something on the board.
@@ -2118,6 +2149,19 @@ function BotBubble({ projectCode, index }) {
     setBoardSaved(false);
     if (titleTimer.current) clearTimeout(titleTimer.current);
     titleTimer.current = setTimeout(() => saveBoard(board || [], t), 600);
+  };
+  // HIS REPLY, appended to the note's thread. Same save path as everything else here, so it merges
+  // with whatever an agent wrote in the meantime rather than overwriting it.
+  const addReply = (ts) => {
+    const text = (replyDraft || "").trim();
+    setReplying(0);
+    setReplyDraft("");
+    if (!text) return;
+    saveBoard(
+      (board || []).map((c) =>
+        c.ts === ts ? { ...c, replies: [...(c.replies || []), { by: "you", ts: Date.now(), text }] } : c,
+      ),
+    );
   };
   const addCard = () => {
     const text = (boardDraft || "").trim();
@@ -2150,6 +2194,9 @@ function BotBubble({ projectCode, index }) {
   // A LONG NOTE IS CLAMPED UNTIL YOU SAY OTHERWISE — his rule, and the important half is the second
   // one: "I don't care that I can't see the whole thing, but I can't see it BY CHOICE."
   const [openCards, setOpenCards] = useState([]);
+  // RFC-039 — his half of a note's thread: which card is being replied to, and the draft.
+  const [replying, setReplying] = useState(0);
+  const [replyDraft, setReplyDraft] = useState("");
   const [openReplies, setOpenReplies] = useState([]);
   const [copied, setCopied] = useState(0);
   const moveCard = (fromTs, toTs) => {
@@ -2170,14 +2217,27 @@ function BotBubble({ projectCode, index }) {
     setOpenCards([]);
     setOpenReplies([]);
     setTitling(false);
+    setReplying(0);
+    setReplyDraft("");
   }, [boardOpen]);
-  const toggleBoardRec = () => {
+  // ONE RECORDER, WHICHEVER BOX IS ASKING. Every input in this app takes voice — a new box without a
+  // mic is a broken box, which is exactly what the note-reply box shipped as for about ten minutes.
+  // `into` names the target ("note" = a new card, or a card's ts = a reply on that note), so the
+  // finals land in the right draft and the mic can only be lit in one place at a time.
+  const toggleBoardRec = (into = "note") => {
     if (boardRecRef.current) {
+      const wasFor = boardRec;
       try { boardRecRef.current.stop(); } catch {}
-      return;
+      // Pressing the OTHER box's mic while this one is live moves the recorder there rather than
+      // just switching it off — that reads as the button not working.
+      if (wasFor === into) return;
     }
     const SRB = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SRB) return;
+    const write = (txt) =>
+      into === "note"
+        ? setBoardDraft((cur) => (cur ? `${cur} ` : "") + txt)
+        : setReplyDraft((cur) => (cur ? `${cur} ` : "") + txt);
     try {
       const rec = new SRB();
       rec.lang = navigator.language || "en-US";
@@ -2191,7 +2251,7 @@ function BotBubble({ projectCode, index }) {
           else inter += e.results[i][0].transcript;
         }
         if (fin) {
-          setBoardDraft((cur) => (cur ? `${cur} ` : "") + fin.trim());
+          write(fin.trim());
           setBoardInterim("");
         } else setBoardInterim(inter);
       };
@@ -2204,7 +2264,7 @@ function BotBubble({ projectCode, index }) {
       rec.onerror = done;
       boardRecRef.current = rec;
       rec.start();
-      setBoardRec(true);
+      setBoardRec(into);
     } catch {
       setBoardRec(false);
     }
@@ -2446,8 +2506,9 @@ function BotBubble({ projectCode, index }) {
                 ✕
               </button>
             </div>
-            {/* THE RECORDER STAYS AT THE TOP and the notes come down under it. */}
-            {boardRec && (
+            {/* THE RECORDER STAYS AT THE TOP and the notes come down under it — but only when it is
+                the NOTE box being spoken into; a reply shows its transcript beside the reply. */}
+            {boardRec === "note" && (
               <div className={`${CLASSNAME}__interim ${CLASSNAME}__board-interim`}>
                 <span className={`${CLASSNAME}__interim-dot`} />
                 {boardInterim || "listening…"}
@@ -2473,9 +2534,9 @@ function BotBubble({ projectCode, index }) {
                 {micSupported && (
                   <button
                     type="button"
-                    className={`${CLASSNAME}__board-mic${boardRec ? ` ${CLASSNAME}__board-mic--on` : ""}`}
-                    title={boardRec ? "Stop — the words stay in the box" : "Speak a note"}
-                    onClick={toggleBoardRec}
+                    className={`${CLASSNAME}__board-mic${boardRec === "note" ? ` ${CLASSNAME}__board-mic--on` : ""}`}
+                    title={boardRec === "note" ? "Stop — the words stay in the box" : "Speak a note"}
+                    onClick={() => toggleBoardRec("note")}
                   >
                     🎙
                   </button>
@@ -2556,7 +2617,15 @@ function BotBubble({ projectCode, index }) {
                         className={`${CLASSNAME}__board-act`}
                         title="Put it in the chat box — you still press send"
                         onClick={() => {
-                          setInput((cur) => (cur ? `${cur}\n${c.text}` : c.text));
+                          // RFC-039 — A HANDED-OVER NOTE SAYS SO. It used to arrive as bare text,
+                          // indistinguishable from something he'd just typed, so an agent read a
+                          // three-week-old reminder as a live instruction. The marker is part of the
+                          // message (it survives into the room's file, which is what an agent
+                          // actually reads) and it carries WHEN the note was written, because a note
+                          // from the board is a thing he wrote THEN and is handing over NOW.
+                          const stamp = moment(c.ts).format("MMM D, h:mm A");
+                          const handed = `[from my board — written ${stamp}]\n${c.text}`;
+                          setInput((cur) => (cur ? `${cur}\n${handed}` : handed));
                           setOpen(true);
                           openRef.current = true;
                         }}
@@ -2609,41 +2678,138 @@ function BotBubble({ projectCode, index }) {
                               {open ? "show less" : `${hidden} more line${hidden === 1 ? "" : "s"} — show it all`}
                             </button>
                           )}
-                          {c.reply &&
-                            (() => {
-                              const rOpen = openReplies.includes(c.ts);
-                              const rNeeded = c.reply
-                                .split("\n")
-                                .reduce((n, l) => n + Math.max(1, Math.ceil(l.length / 44)), 0);
-                              const rHidden = Math.max(0, rNeeded - 3);
-                              return (
-                                <div className={`${CLASSNAME}__board-reply`}>
-                                  {/* WHO SAID IT — the project's own name, not the word "agent".
-                                      And a long answer folds like anything else here. */}
-                                  <span className={`${CLASSNAME}__board-reply-who`}>{projectCode}</span>
-                                  <span
-                                    className={`${CLASSNAME}__board-reply-text${rOpen ? ` ${CLASSNAME}__board-reply-text--open` : ""}`}
+                          {/* THE EXCHANGE. Every reply in the order it was written, his and the
+                              agent's told apart by who wrote it, each folding on its own. */}
+                          {(c.replies || []).map((r, ri) => {
+                            const rKey = `${c.ts}:${r.ts || ri}`;
+                            const rOpen = openReplies.includes(rKey);
+                            const rNeeded = String(r.text)
+                              .split("\n")
+                              .reduce((n, l) => n + Math.max(1, Math.ceil(l.length / 44)), 0);
+                            const rHidden = Math.max(0, rNeeded - 3);
+                            const mine = r.by === "you";
+                            return (
+                              <div
+                                key={rKey}
+                                className={`${CLASSNAME}__board-reply${mine ? ` ${CLASSNAME}__board-reply--mine` : ""}`}
+                              >
+                                {/* WHO SAID IT — the project's own name, never the word "agent". */}
+                                <span className={`${CLASSNAME}__board-reply-who`}>
+                                  {mine ? "you" : r.by || projectCode}
+                                </span>
+                                <span
+                                  className={`${CLASSNAME}__board-reply-text${rOpen ? ` ${CLASSNAME}__board-reply-text--open` : ""}`}
+                                >
+                                  {r.text}
+                                </span>
+                                {rHidden > 0 && (
+                                  <button
+                                    type="button"
+                                    className={`${CLASSNAME}__board-more`}
+                                    onClick={() =>
+                                      setOpenReplies((cur) =>
+                                        cur.includes(rKey) ? cur.filter((x) => x !== rKey) : [...cur, rKey],
+                                      )
+                                    }
                                   >
-                                    {c.reply}
-                                  </span>
-                                  {rHidden > 0 && (
+                                    {rOpen ? "show less" : `${rHidden} more line${rHidden === 1 ? "" : "s"} — show it all`}
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })}
+                          {/* HIS HALF OF THE THREAD — reply to your own note, or to the answer under
+                              it. Enter sends, Escape puts it away; it stays out of sight until asked
+                              for, because most notes never need one. */}
+                          {replying === c.ts ? (
+                            <>
+                              {boardRec === c.ts && (
+                                <div className={`${CLASSNAME}__interim ${CLASSNAME}__board-interim`}>
+                                  <span className={`${CLASSNAME}__interim-dot`} />
+                                  {boardInterim || "listening…"}
+                                </div>
+                              )}
+                              {/* THE SAME COMPOSER THE BOARD ALREADY HAS — box, mic, button, one row,
+                                  same classes. A reply is not a different kind of writing, so it does
+                                  not get a different kind of input. */}
+                              {/* A REPLY COMPOSER THAT LOOKS LIKE ONE: the box takes the width, the
+                                  controls sit under it on one line — mic on the left, the way out and
+                                  the send on the right where a send belongs. */}
+                              <div className={`${CLASSNAME}__board-replybox`}>
+                                <textarea
+                                  className={`${CLASSNAME}__board-draft`}
+                                  autoFocus
+                                  rows={2}
+                                  value={replyDraft}
+                                  placeholder="reply…"
+                                  spellCheck={false}
+                                  onChange={(e) => setReplyDraft(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Escape") {
+                                      e.preventDefault();
+                                      if (boardRecRef.current) {
+                                        try { boardRecRef.current.stop(); } catch {}
+                                      }
+                                      setReplying(0);
+                                      setReplyDraft("");
+                                    } else if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                                      e.preventDefault();
+                                      addReply(c.ts);
+                                    }
+                                  }}
+                                />
+                                <div className={`${CLASSNAME}__board-replybar`}>
+                                  <span className={`${CLASSNAME}__board-replybar-end`}>
                                     <button
                                       type="button"
-                                      className={`${CLASSNAME}__board-more`}
-                                      onClick={() =>
-                                        setOpenReplies((cur) =>
-                                          cur.includes(c.ts)
-                                            ? cur.filter((x) => x !== c.ts)
-                                            : [...cur, c.ts],
-                                        )
-                                      }
+                                      className={`${CLASSNAME}__board-act`}
+                                      title="Never mind (esc)"
+                                      onClick={() => {
+                                        if (boardRecRef.current) {
+                                          try { boardRecRef.current.stop(); } catch {}
+                                        }
+                                        setReplying(0);
+                                        setReplyDraft("");
+                                      }}
                                     >
-                                      {rOpen ? "show less" : `${rHidden} more line${rHidden === 1 ? "" : "s"} — show it all`}
+                                      cancel
                                     </button>
-                                  )}
-                                </div>
-                              );
-                            })()}
+                                    <button
+                                      type="button"
+                                      className={`${CLASSNAME}__board-send`}
+                                      title="Put it under the note (⌘↵)"
+                                      disabled={!replyDraft.trim()}
+                                      onClick={() => addReply(c.ts)}
+                                    >
+                                      reply
+                                    </button>
+                                    {/* The recorder rides the far right end of the row — his call. */}
+                                    {micSupported && (
+                                      <button
+                                        type="button"
+                                        className={`${CLASSNAME}__board-mic${boardRec === c.ts ? ` ${CLASSNAME}__board-mic--on` : ""}`}
+                                        title={boardRec === c.ts ? "Stop — the words stay in the box" : "Speak the reply"}
+                                        onClick={() => toggleBoardRec(c.ts)}
+                                      >
+                                        🎙
+                                      </button>
+                                    )}
+                                  </span>
+                              </div>
+                              </div>
+                            </>
+                          ) : (
+                            <button
+                              type="button"
+                              className={`${CLASSNAME}__board-more`}
+                              onClick={() => {
+                                setReplyDraft("");
+                                setReplying(c.ts);
+                              }}
+                            >
+                              reply
+                            </button>
+                          )}
                         </>
                       );
                     })()}

@@ -217,6 +217,11 @@ function parseArgs(rawArgs) {
     highlight: listOf("--highlight"),
     clear: rawArgs.includes("--clear"),
     force: rawArgs.includes("--force"),
+    // RFC-039 — `skill --print` (show it without writing), `inbox --history` (ask for the
+    // back-catalog on purpose), `nav … --pin` (keep the --say line in the chat).
+    print: rawArgs.includes("--print"),
+    history: rawArgs.includes("--history"),
+    pin: rawArgs.includes("--pin"),
     save: (() => {
       const i = rawArgs.indexOf("--save");
       if (i === -1) return false;

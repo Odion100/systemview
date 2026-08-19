@@ -793,6 +793,42 @@
     flex-direction: column;
     gap: 4px;
   }
+  // The reply composer: box on top taking the full width, one line of controls under it — mic left,
+  // cancel and reply right, the way a send row reads everywhere else.
+  &__board-replybox {
+    margin-top: 5px;
+    .agent-chat__board-draft {
+      width: 100%;
+      min-height: 44px;
+    }
+  }
+  &__board-replybar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+  }
+  &__board-replybar-end {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  // The reply button is a WORD, not a filled button: the note composer's blue `add` is the loud one
+  // because it is the board's main act; answering a note is a quiet thing next to it.
+  &__board-send {
+    border: none;
+    background: none;
+    padding: 0 2px;
+    line-height: 18px;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--sv-blue);
+    cursor: pointer;
+    &:hover { text-decoration: underline; }
+    &:disabled { color: var(--sv-text-faint); cursor: default; text-decoration: none; }
+  }
   &__board-mic {
     border: 1px solid var(--sv-border);
     border-radius: 6px;
@@ -2075,6 +2111,21 @@
     cursor: pointer;
     &:hover {
       color: var(--sv-text);
+    }
+  }
+}
+
+// RFC-039 — a note holds a conversation now: his replies and the agent's, told apart by who wrote
+// them. The agent's keep the original quiet indent; his sit against the blue the rest of his own
+// writing uses in this app, so a thread reads as two voices without a single label being loud.
+.agent-chat {
+  &__board-reply--mine {
+    // His own voice wears the same green his messages wear everywhere else in this app; the agent's
+    // keeps the blue it already had. Two voices, no labels needed to tell them apart at a glance.
+    border-left-color: #4caf50;
+    background: color-mix(in srgb, #4caf50 9%, transparent);
+    .agent-chat__board-reply-who {
+      color: #3d8b40;
     }
   }
 }

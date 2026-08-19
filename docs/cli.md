@@ -284,6 +284,40 @@ an agent renders in the UI with the agent look, and his with his.
 
 ---
 
+### `systemview skill <projectCode> [--print] [--force]`
+
+Writes **that project's** SystemView skill to `.claude/skills/systemview/SKILL.md` in its own repo —
+generated, not copied: the project code, its live services and their real modules, the verbs that
+matter, and the rules that are not optional. A skill is picked up by an agent's harness on its own,
+which is the whole difference from documentation somebody has to be told to read.
+
+```bash
+systemview skill buAPI            # write it
+systemview skill buAPI --print    # look at it first, write nothing
+systemview skill buAPI --force    # overwrite a hand-written one (read it first)
+```
+
+Re-run it when the services change; it rewrites its own generated file, and refuses to clobber a
+hand-written one without `--force`.
+
+---
+
+### `systemview reply <projectCode> <thread-id> "<markdown>"`
+
+Answers **one thread** in the report on the TV — where he actually replied. Reads the current show,
+appends the reply inside that thread, writes it back; his replies are carried, never overwritten.
+
+```bash
+systemview tv buAPI                                  # read the show + his answers, and the thread ids
+systemview reply buAPI t3 "agreed — building it"     # answer that thread
+systemview reply buAPI t3 --file answer.md           # …from a file
+systemview reply buAPI t3 "…" --show "Docking"       # answer a thread on an OLDER report
+```
+
+An unknown id lists the ids that do exist rather than failing blankly.
+
+---
+
 ### `systemview board <projectCode> [--json]`
 
 **His board** — the notes he keeps between sessions: reminders, things to hand an agent later, a
@@ -302,15 +336,18 @@ systemview board buAPI
 systemview board buAPI --json
 ```
 
+Each note prints with a stable **id**. Pass the id to `--at`, not the position — the list reorders
+the moment he adds a note, so a position read a minute ago answers a different card.
+
 The board is HIS surface — nothing watches it and nothing writes to it but him. This verb exists so
 that "go look at my board" has an answer that doesn't depend on remembering a path.
 
-**Answering one note.** A card may carry ONE reply, written under the note it answers and shown
-there in the UI. Writing again replaces it — an answer, not a thread. `--at` is the note's number as
-`systemview board` prints it (1 = the top card, which is the newest).
+**A note holds a conversation.** Replies accumulate under the note they answer, each stamped with who
+wrote it, and he can reply back under yours in the panel. `--at` takes the note's **id** (or its
+position, which is only safe if nothing has been added since you read it).
 
 ```bash
-systemview board buAPI --reply "did it — the resolver is namespaced now" --at 1
+systemview board buAPI --reply "did it — the resolver is namespaced now" --at 1787087865140 --as buAPI
 ```
 
 ---
@@ -426,9 +463,14 @@ can drive the human's open window. Full playbook for agents: `agents/chat.md`.
 ### Talking
 
 ```bash
-systemview join <projectCode>            # live: hold the line (the hold IS the presence indicator)
-systemview join <projectCode> --once     # exit after one message — the loop an agent harness uses
+systemview join <projectCode>            # THE SESSION: holds the line, re-arms itself, reconnects
+                                         # with backoff, and exits NON-ZERO when the hub is gone
+systemview join <projectCode> --once     # exit after one message
 systemview join <other> --once --as <yourProjectCode>   # visit another project's room
+systemview say <projectCode> --file <path.md>          # a message too long to quote in a shell
+<any nav/act/refresh> --say "…" --pin                  # keep that sentence in the chat, not just the trip
+systemview inbox <projectCode> --history               # file mode: ask for the back-catalog on purpose
+                                                       # (without it, a NEW cursor starts at now)
 systemview say <projectCode> "text"      # reply into the chat        (--as for a room you visit)
 systemview status <projectCode> "text"   # the cooking line; empty string clears it
 systemview inbox <projectCode>           # file mode: drain pending messages as JSON + ack them

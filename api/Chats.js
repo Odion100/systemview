@@ -512,13 +512,29 @@ module.exports = function Chats({ chatFor } = {}) {
     // FILE MODE — drain the SAME file from the acked offset; draining registers the listener.
     // `identity` filters delivery (RFC-031: a file-mode agent hears visitors too, never itself);
     // the ack cursor stays keyed by `listener` so existing hook cursors survive the upgrade.
-    drain(pc, chat, { listener = "hooks", identity } = {}) {
+    drain(pc, chat, { listener = "hooks", identity, history = false } = {}) {
       const k = key(pc, chat);
       const me = identity || pc;
       listenerSeen.set(k, { listener, ts: Date.now() });
       markEntered(k, me); // draining a room is entering it — file-mode agents speak too
       let acks = {};
       try { acks = JSON.parse(fs.readFileSync(ackFile(dirFor(pc), pc, chat), "utf8")); } catch {}
+      // RFC-039 — A NEW CURSOR IS BORN AT NOW, not at zero. An identity that has never drained used
+      // to start from the beginning of the room, so FIRST CONTACT served the entire history as if it
+      // were unread traffic — an agent's first act in a room was timestamp-filtering hundreds of
+      // stale records to discover that nothing had happened. (Both of the "full replay" reports we
+      // chased were first joins under a fresh identity, not a lost cursor.) `history: true` opts into
+      // the back-catalog for anyone who actually wants it.
+      const firstContact = !(listener in acks);
+      if (firstContact && !history) {
+        acks[listener] = Date.now();
+        try {
+          const dir = dirFor(pc);
+          fs.mkdirSync(dir, { recursive: true });
+          fs.writeFileSync(ackFile(dir, pc, chat), JSON.stringify(acks, null, 2));
+        } catch {}
+        return { messages: [], firstContact: true };
+      }
       const sinceTs = acks[listener] || 0;
       const pending = readAll(pc, chat).filter((m) => deliverable(m, me) && m.ts > sinceTs);
       // The home agent's turn-boundary pickup: a "waiting on <pc>" line flips to "received" the
