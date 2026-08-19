@@ -940,6 +940,9 @@ function chatGetTv(projectCode, { chat, show } = {}) {
     id: target.id,
     label: target.label,
     text: target.text,
+    // RFC-040 — carry the pointer through. Without this the caller gets a show with no text and no
+    // way to find the document, which reads as "nothing on the TV".
+    ...(target.args && target.args.report ? { args: target.args } : {}),
     ts: target.ts,
     ...(marked ? {} : { pristine: true }),
     ...(superseded ? { supersededAnswers: true } : {}),
@@ -967,9 +970,10 @@ function findShow(projectCode, chat, needle) {
     const r = rows[i];
     if (!r || r.kind !== "command" || r.cmd !== "show") continue;
     const text = (r.args && r.args.text) || "";
-    if (!text) continue;
+    const pointer = !text && r.args && r.args.report;
+    if (!text && !pointer) continue;
     if (r.id === needle || String(r.label || "").toLowerCase().includes(want))
-      return { id: r.id, label: r.label || "show", text, ts: r.ts };
+      return { id: r.id, label: r.label || "show", text, args: r.args, ts: r.ts };
   }
   return null;
 }
@@ -981,6 +985,12 @@ function currentShow(projectCode, chat) {
     const r = rows[i];
     if (r && r.kind === "command" && r.cmd === "show") {
       const text = (r.args && r.args.text) || "";
+      // RFC-040 — a POINTER record names a document instead of carrying one. The hub does not read
+      // project files, so it hands the pointer back and the caller (UI or CLI) reads the document
+      // through that project's own plugin, which is the thing that owns its filesystem. A pointer
+      // may ALSO carry an inline copy for bundles that predate this — the pointer still wins.
+      if (r.args && r.args.report)
+        return { id: r.id, label: r.label || "show", text, args: r.args, ts: r.ts };
       if (!text) return null; // a `--clear` blanks the TV
       return { id: r.id, label: r.label || "show", text, ts: r.ts };
     }

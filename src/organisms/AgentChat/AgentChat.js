@@ -1334,16 +1334,38 @@ function BotBubble({ projectCode, index }) {
   // showed it blank — his picks looked lost even though the hub still held every one of them. (Found
   // live, minutes after per-report state shipped: "I don't see my options that I just chose and
   // neither one anymore.") The mount-restore path already did this correctly; these two didn't.
+  // RFC-040 — the project's plugin, reachable from openShow. A ref rather than the memo directly:
+  // the memo is declared hundreds of lines below, and naming it in a dependency array up here is a
+  // TDZ crash (the same shape that took every bot off the page once already).
+  const projPluginRef = useRef(null);
+  // Same naming the CLI and the Reports tab use — one rule for where a report lives.
+  const reportPathFor = (name) =>
+    `.systemview/report.${String(projectCode).replace(/[^a-zA-Z0-9._-]+/g, "-")}.${String(name)
+      .replace(/[^a-zA-Z0-9._-]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 80)}.md`;
   const openShow = React.useCallback(
-    async (id, label, pristineText, ts) => {
+    async (id, label, pristineText, ts, report) => {
       let text = pristineText;
-      try {
-        const saved = await SystemView.chatGetTv(projectCode, { chat, show: id });
-        if (saved && saved.id === id && saved.text) text = saved.text;
-      } catch {
-        /* hub unreachable — the pristine copy is still the right thing to show */
+      let path = report && report.path;
+      // A POINTER SHOW LIVES IN A FILE. Read the document, and remember where it came from so that
+      // answering in it writes back to the document rather than into a chat record.
+      if (report && projPluginRef.current) {
+        try {
+          const res = await projPluginRef.current.readFile({ path: report.path });
+          text = res.content;
+        } catch {
+          text = `> This report points at \`${report.path}\` and the document could not be read.`;
+        }
+      } else {
+        try {
+          const saved = await SystemView.chatGetTv(projectCode, { chat, show: id });
+          if (saved && saved.id === id && saved.text) text = saved.text;
+        } catch {
+          /* hub unreachable — the pristine copy is still the right thing to show */
+        }
       }
-      setTv({ id, text, label: label || "show", ts });
+      setTv({ id, text, label: label || "show", ts, path });
       setTvOpen(true);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1964,6 +1986,9 @@ function BotBubble({ projectCode, index }) {
       return null;
     }
   }, [boardHost]);
+  useEffect(() => {
+    projPluginRef.current = boardPlugin;
+  }, [boardPlugin]);
   // ON DISK IT IS STILL ONE MARKDOWN FILE — cards are separated by an HTML comment carrying the
   // time. Invisible in any renderer, so the file reads like notes rather than like a database, and
   // every block this app has still works inside a card.
@@ -1977,10 +2002,11 @@ function BotBubble({ projectCode, index }) {
   const parseBoard = (text) => {
     const out = [];
     String(text || "")
-      .split(/<!--card (\d+)-->/)
+      .split(/<!--card (\d+)(?: by=([^\s>]+))?-->/)
       .forEach((part, i, arr) => {
-        if (i % 2 !== 1) return;
-        const bits = String(arr[i + 1] || "").split(/<!--reply(?: ([^>]*?))?-->/);
+        if (i % 3 !== 1) return;
+        const by = arr[i + 1] || "";
+        const bits = String(arr[i + 2] || "").split(/<!--reply(?: ([^>]*?))?-->/);
         const replies = [];
         for (let b = 1; b < bits.length; b += 2) {
           const attrs = String(bits[b] || "");
@@ -1992,7 +2018,7 @@ function BotBubble({ projectCode, index }) {
             text: body,
           });
         }
-        out.push({ ts: Number(part), text: bits[0].trim(), replies });
+        out.push({ ts: Number(part), by, text: bits[0].trim(), replies });
       });
     return out;
   };
@@ -2008,7 +2034,7 @@ function BotBubble({ projectCode, index }) {
     `${title ? `# ${title}\n\n` : ""}${cards
       .map(
         (c) =>
-          `<!--card ${c.ts}-->\n${c.text}\n` +
+          `<!--card ${c.ts}${c.by ? ` by=${c.by}` : ""}-->\n${c.text}\n` +
           (c.replies || [])
             .map((r) => `<!--reply${r.by ? ` by=${r.by}` : ""}${r.ts ? ` ts=${r.ts}` : ""}-->\n${r.text}\n`)
             .join(""),
@@ -2302,6 +2328,38 @@ function BotBubble({ projectCode, index }) {
     }, 60);
     return () => clearTimeout(t);
   }, [navShowing, slotEl]);
+  // HANDING OFF PUTS THE TV AWAY. Opening the file from inside a report is switching location, not
+  // opening a second copy of the same thing — his call: "you're switching from one place to the
+  // next". So a file chip pressed on the TV closes the TV behind it, and the report stays one press
+  // away in the picker. Only when the TV is what you pressed it from.
+  useEffect(() => {
+    if (!tvOpen) return undefined;
+    const handOff = () => setTvOpen(false);
+    window.addEventListener("sv:openFileInNav", handOff);
+    return () => window.removeEventListener("sv:openFileInNav", handOff);
+  }, [tvOpen]);
+  // The card's minimize/expand reaches the agent too — his catch: "it doesn't affect the new agent
+  // section, everything was just showing each section minimized". Collapsing closes whatever tab is
+  // up; expanding puts the chat back, which is what a section opening should look like.
+  useEffect(() => {
+    const onFold = (e) => {
+      const d = (e && e.detail) || {};
+      if (d.projectCode !== projectCode || !navDocked) return;
+      if (d.collapse) {
+        setOpen(false);
+        openRef.current = false;
+        setBoardOpen(false);
+        setLinksOpen(false);
+        setTvOpen(false);
+      } else {
+        setOpen(true);
+        openRef.current = true;
+      }
+    };
+    window.addEventListener("sv:navFold", onFold);
+    return () => window.removeEventListener("sv:navFold", onFold);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectCode, navDocked]);
   const navPick = (which) => {
     const already =
       (which === "chat" && open) ||
@@ -2313,7 +2371,7 @@ function BotBubble({ projectCode, index }) {
     setBoardOpen(which === "board" && !already);
     setLinksOpen(which === "links" && !already);
     if (which === "tv" && !already && !tv && shows.length)
-      openShow(shows[0].id, shows[0].label, shows[0].args.text, shows[0].ts);
+      openShow(shows[0].id, shows[0].label, shows[0].args.text, shows[0].ts, shows[0].args.report ? shows[0].args : null);
     else setTvOpen(which === "tv" && !already);
     if (which === "chat" && !already) {
       setUnread(0);
@@ -2524,6 +2582,13 @@ function BotBubble({ projectCode, index }) {
                       onDragEnd={() => setDropCard(null)}
                     >
                       <span className={`${CLASSNAME}__board-when`}>{moment(c.ts).fromNow()}</span>
+                      {/* An agent can leave a note now, so a note has to say whose it is. His own
+                          carry no author at all — the board is his by default. */}
+                      {c.by && (
+                        <span className={`${CLASSNAME}__board-by`} title={`left by ${c.by}`}>
+                          {c.by}
+                        </span>
+                      )}
                       {/* SEE IT ALL, COPY IT, OR HAND IT TO ME — the three things he reached for the
                           moment he actually used the board. */}
                       <button
@@ -2861,7 +2926,7 @@ function BotBubble({ projectCode, index }) {
                       className={`${CLASSNAME}__tv-pick-item${tv && tv.id === s.id ? " is-on" : ""}`}
                       onClick={() => {
                         setTvPick(false);
-                        openShow(s.id, s.label, s.args.text, s.ts);
+                        openShow(s.id, s.label, s.args.text, s.ts, s.args.report ? s.args : null);
                       }}
                     >
                       <span className={`${CLASSNAME}__tv-pick-name`}>{s.label || "show"}</span>
@@ -2883,6 +2948,26 @@ function BotBubble({ projectCode, index }) {
                 commentKey={`tv-${projectCode}`}
                 onSourceChange={(next) => {
                   setTv((cur) => (cur ? { ...cur, text: next } : cur));
+                  // RFC-040 — a document-backed report saves to the DOCUMENT. His answers then
+                  // outlive the room: compaction, a hidden record, a re-push, none of them can
+                  // reach them. Records that predate this still write through the hub.
+                  //
+                  // THE PATH IS LOOKED UP, NOT ONLY REMEMBERED. Relying on what openShow stored
+                  // meant a TV opened before this shipped (or restored by any other route) had no
+                  // path, so his answers went to the record and the DOCUMENT stayed behind — he
+                  // opened the file and found four of his replies missing. Ask the show record.
+                  const rec = shows.find((m) => m.id === tv.id);
+                  const docPath = tv.path || (rec && rec.args && (rec.args.path || (rec.args.report && reportPathFor(rec.args.report))));
+                  if (docPath && projPluginRef.current) {
+                    projPluginRef.current.writeFile({ path: docPath, content: next }).catch(() => {});
+                    // The record's fallback copy tracks the document while it still exists, so the
+                    // two can never show different versions of the same report again.
+                    SystemView.chatSetTv(projectCode, {
+                      chat,
+                      state: { id: tv.id, label: tv.label || "show", text: next },
+                    }).catch(() => {});
+                    return;
+                  }
                   SystemView.chatSetTv(projectCode, {
                     chat,
                     state: { id: tv.id, label: tv.label || "show", text: next },
@@ -2950,7 +3035,7 @@ function BotBubble({ projectCode, index }) {
                         type="button"
                         className={`${CLASSNAME}__links-open`}
                         title="Put this show back on the TV"
-                        onClick={() => openShow(e.m.id, e.m.label, e.m.args.text, e.m.ts)}
+                        onClick={() => openShow(e.m.id, e.m.label, e.m.args.text, e.m.ts, e.m.args.report ? e.m.args : null)}
                       >
                         <span>📺 {e.m.label || "show"}</span>
                       </button>
@@ -3132,7 +3217,7 @@ function BotBubble({ projectCode, index }) {
                     key={m.id}
                     className={`${CLASSNAME}__cmd ${CLASSNAME}__cmd--show ${tv && tv.id === m.id && tvOpen ? `${CLASSNAME}__cmd--live` : ""}`}
                     title="Put this show on the TV"
-                    onClick={() => openShow(m.id, m.label, m.args.text, m.ts)}
+                    onClick={() => openShow(m.id, m.label, m.args.text, m.ts, m.args.report ? m.args : null)}
                   >
                     <span className={`${CLASSNAME}__cmd-arrow`}>📺</span> {m.label || "show"}
                   </button>
@@ -3445,6 +3530,29 @@ function BotBubble({ projectCode, index }) {
           setCtxMenu(true);
         }}
       >
+        {/* THE SECTION'S OWN CHEVRON, docked — `services` and `code` each have one and the agent
+            did not, so its row read as a different kind of thing than the sections around it. Same
+            open/closed meaning: it shows whether a surface is up. */}
+        {inNav && (
+          <span
+            className={`${CLASSNAME}__navchev`}
+            role="button"
+            title={navShowing ? "Collapse the agent" : "Expand the agent"}
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (navShowing) {
+                setOpen(false);
+                openRef.current = false;
+                setBoardOpen(false);
+                setLinksOpen(false);
+                setTvOpen(false);
+              } else navPick("chat");
+            }}
+          >
+            {navShowing ? "▾" : "▸"}
+          </span>
+        )}
         <button
           type="button"
           className={`${CLASSNAME}__fab ${CLASSNAME}__fab--${ring}`}
@@ -3526,7 +3634,8 @@ function BotBubble({ projectCode, index }) {
               return;
             }
             // Nothing on it yet — put the latest show up rather than opening an empty box.
-            if (!tv && shows.length) openShow(shows[0].id, shows[0].label, shows[0].args.text, shows[0].ts);
+            if (!tv && shows.length)
+              openShow(shows[0].id, shows[0].label, shows[0].args.text, shows[0].ts, shows[0].args.report ? shows[0].args : null);
             else setTvOpen(true);
           }}
         >

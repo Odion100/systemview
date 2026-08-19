@@ -228,7 +228,7 @@ async function loadCaseSetting() {
     const deleteHosted = require("./deleteHosted");
     const exitCode = await deleteHosted(input[1], { uiUrl: UI_URL, Client, force: flags.force });
     flushAndExit(exitCode || 0);
-  } else if (["join", "say", "reply", "inbox", "nav", "refresh", "act", "highlight", "show", "tv"].includes(command) || (command === "status" && input[1])) {
+  } else if (["join", "say", "reply", "thread", "inbox", "nav", "refresh", "act", "highlight", "show", "tv"].includes(command) || (command === "status" && input[1])) {
     // RFC-028 — the chat front door; RFC-029 — agent control rides the same door (a command is a
     // chat record the open UI executes). join HANGS on purpose (the hold IS presence); the others
     // are one-shots. All need the hub up.
@@ -252,8 +252,10 @@ async function loadCaseSetting() {
     if (command === "join") exitCode = await chatCmd.join(input[1], opts);
     else if (command === "say") exitCode = await chatCmd.say(input[1], input[2], opts);
     // RFC-039 — answer a report's thread in one command instead of a whole-document round-trip.
+    else if (command === "thread")
+      exitCode = await chatCmd.thread(input[1], input[2], input[3], { ...opts, json: flags.json });
     else if (command === "reply")
-      exitCode = await chatCmd.reply(input[1], input[2], input[3], { ...opts, show: flags.show && flags.show[0] });
+      exitCode = await chatCmd.reply(input[1], input[2], input[3], input[4], opts);
     else if (command === "status") exitCode = await chatCmd.status(input[1], input[2], opts);
     else if (command === "nav") exitCode = await chatCmd.nav(input[1], input[2], input[3], opts);
     else if (command === "highlight") exitCode = await chatCmd.highlight(input[1], input[2], opts);
@@ -366,6 +368,9 @@ async function loadCaseSetting() {
       json: flags.json,
       reply: flags.reply,
       at: flags.at,
+      // RFC-039 — agents leave notes too, not just him.
+      add: flags.add,
+      file: flags.file && flags.file[0],
       // RFC-039 — a reply is stamped with WHO wrote it, so a note can hold a conversation.
       as: flags.as,
     });
@@ -419,6 +424,27 @@ async function loadCaseSetting() {
     else if (command === "selection") exitCode = await stageCmd.selection(input[1], opts);
     else exitCode = await stageCmd.stage(input[1], input[2], opts); // stage <add|clear> <target>
     flushAndExit(exitCode || 0);
+  } else if (command && !/^\d+$/.test(command)) {
+    // AN UNKNOWN VERB MUST SAY SO. Anything unrecognised used to fall through to `start`, so a
+    // command from a newer version — or a typo — printed the boot banner and looked like it had
+    // done something. systemlynx hit this on the published build: `systemview thread …` did not
+    // exist there yet, so instead of "no such command" they got silence with a server behind it.
+    // The nearest names come with it, because a verb you half-remember is the common case.
+    const VERBS = [
+      "start", "test", "list", "open", "probe", "connect", "disconnect", "manifest", "logs", "log",
+      "stats", "comments", "board", "skill", "init", "delete", "shutdown", "toggle", "help",
+      "join", "say", "reply", "thread", "inbox", "status", "nav", "refresh", "act", "highlight",
+      "show", "tv", "assemble", "stage", "view", "selection",
+    ];
+    const near = VERBS.filter((v) => v.startsWith(command.slice(0, 2)) || command.startsWith(v.slice(0, 2)));
+    log.error(
+      `no such command: ${command}` +
+        (near.length ? `\n   did you mean: ${near.slice(0, 6).join(", ")}?` : "") +
+        `\n   systemview help   for all of them` +
+        `\n   (a verb that exists here may not exist in the version another project has installed —` +
+        ` check with: systemview --version)`,
+    );
+    flushAndExit(1);
   } else {
     await startApp();
   }

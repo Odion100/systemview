@@ -2120,3 +2120,29 @@
     }
   }
 }
+
+// Whose note it is — only shown when it ISN'T his, because the board is his by default.
+.agent-chat__board-by {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #8e5aa8;
+  border: 1px solid color-mix(in srgb, #8e5aa8 40%, transparent);
+  border-radius: 3px;
+  padding: 0 4px;
+  margin-left: 4px;
+  flex: none;
+}
+
+// The docked agent's own chevron — `services` and `code` each have one, so the agent's row is not a
+// different kind of thing. Same quiet register as the nav's.
+.agent-chat--innav .agent-chat__navchev {
+  flex: none;
+  color: var(--sv-text-faint);
+  font-size: 10px;
+  padding: 0 2px;
+  cursor: pointer;
+  &:hover {
+    color: var(--sv-text-muted);
+  }
+}

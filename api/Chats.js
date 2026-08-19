@@ -44,6 +44,9 @@ const ackFile = (dir, pc, chat) => path.join(dir, `${safe(pc)}.${safe(chat)}.ack
 // to re-arm, and amber would stop meaning anything. 10s = amber means "took the work and did
 // NOT come back promptly", which is exactly the diagnostic he wants.
 const POLL_TIMEOUT = 5000;
+// How much of a room a NEVER-SEEN listener is served: enough to catch what was said moments before
+// it arrived, far short of the back-catalog it never needed.
+const FIRST_CONTACT_WINDOW = 15 * 60 * 1000;
 const LIVE_GRACE = 10000;
 // File listeners check in at turn boundaries — human-paced. Seen within 20min = still listening.
 const LISTENER_GRACE = 20 * 60 * 1000;
@@ -525,17 +528,17 @@ module.exports = function Chats({ chatFor } = {}) {
       // stale records to discover that nothing had happened. (Both of the "full replay" reports we
       // chased were first joins under a fresh identity, not a lost cursor.) `history: true` opts into
       // the back-catalog for anyone who actually wants it.
+      // RFC-039, corrected by its own test suite. First contact used to start at ZERO — an identity
+      // that had never drained was served the entire room as if it were unread, so an agent's first
+      // act was timestamp-filtering hundreds of stale records. My first fix started it at NOW, and
+      // the suite immediately caught what that costs: "I said it right before you joined" is a real
+      // case this system deliberately protects (see join()'s pre-drain), and a brand-new identity
+      // heard nothing at all.
+      //
+      // So first contact starts at WHAT IS STILL WARM: the recent window, not the whole history and
+      // not silence. `history: true` still asks for the back-catalog on purpose.
       const firstContact = !(listener in acks);
-      if (firstContact && !history) {
-        acks[listener] = Date.now();
-        try {
-          const dir = dirFor(pc);
-          fs.mkdirSync(dir, { recursive: true });
-          fs.writeFileSync(ackFile(dir, pc, chat), JSON.stringify(acks, null, 2));
-        } catch {}
-        return { messages: [], firstContact: true };
-      }
-      const sinceTs = acks[listener] || 0;
+      const sinceTs = history ? 0 : firstContact ? Date.now() - FIRST_CONTACT_WINDOW : acks[listener] || 0;
       const pending = readAll(pc, chat).filter((m) => deliverable(m, me) && m.ts > sinceTs);
       // The home agent's turn-boundary pickup: a "waiting on <pc>" line flips to "received" the
       // moment its drain collects the queue — the human watches the handoff happen.

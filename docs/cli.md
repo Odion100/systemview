@@ -302,23 +302,56 @@ hand-written one without `--force`.
 
 ---
 
-### `systemview reply <projectCode> <thread-id> "<markdown>"`
+### `systemview thread <projectCode> <report name|path> <thread-id>`
+
+Reads **one thread with what wraps it** — the section heading it sits under, any checklist rows in
+that section, the question, and every reply with **who** wrote it. Answering one comment no longer
+means holding the whole report in your head.
+
+```bash
+systemview thread buAPI "Docking into the codebase" t3          # by report name
+systemview thread buAPI .systemview/report.buAPI.Docking.md t3  # or by path
+systemview thread buAPI "Docking into the codebase" t3 --json   # structured
+```
+
+**It is a document verb.** Threads live in interactive markdown, not in a room — so the report is
+named, always, and nothing here consults the chat. A report that was never shown answers exactly the
+same way. Omit it and the error lists the reports that exist.
+
+An unknown id lists the ids that exist.
+
+---
+
+### `systemview reply <projectCode> <report name|path> <thread-id> "<markdown>"`
 
 Answers **one thread** in the report on the TV — where he actually replied. Reads the current show,
 appends the reply inside that thread, writes it back; his replies are carried, never overwritten.
 
 ```bash
-systemview tv buAPI                                  # read the show + his answers, and the thread ids
-systemview reply buAPI t3 "agreed — building it"     # answer that thread
-systemview reply buAPI t3 --file answer.md           # …from a file
-systemview reply buAPI t3 "…" --show "Docking"       # answer a thread on an OLDER report
+systemview reply buAPI "Docking into the codebase" t3 "agreed — building it"
+systemview reply buAPI "Docking into the codebase" t3 --file answer.md
 ```
+
+Read-modify-write of the document, so other replies are carried, never overwritten. If a show in the
+room points at that report, its copy is updated too — the TV can't end up displaying a different
+version of the same file.
 
 An unknown id lists the ids that do exist rather than failing blankly.
 
 ---
 
 ### `systemview board <projectCode> [--json]`
+
+**An unknown verb fails loudly.** A command this build doesn't have used to fall through to `start`
+and print the boot banner, which reads as silence — a newer verb looked like it had worked. It now
+names the closest match and says the version may differ from another project's install.
+
+**Reports are documents** (RFC-040). `systemview show` writes
+`.systemview/report.<project>.<slug>.md`, adds it to the reports index, and the chat record carries
+only a pointer — so re-pushing the same title is a SAVE (no duplicate entries), deleting is deleting
+a file, and his answers live in the document rather than in a chat record.
+
+---
 
 **His board** — the notes he keeps between sessions: reminders, things to hand an agent later, a
 running list of what's wrong with whatever he's looking at. Written in the UI from 📋 in the bot's

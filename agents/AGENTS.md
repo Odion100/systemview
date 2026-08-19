@@ -263,7 +263,11 @@ systemview join <project>        # THE SESSION (RFC-039): holds the line, re-arm
 systemview join <project> --once # one message, then exit (still exactly what it always was)
 systemview say <project> "…"     # reply into the chat        systemview status <project> "…"  # the cooking line
 systemview say <project> --file <path.md>                  # …when it's long enough to write in a file
-systemview reply <project> <thread-id> "…" [--show "<report title>"]
+systemview thread <project> <report name|path> <thread-id> [--json]
+                                 # READ one thread WITH ITS WRAPPER — the section it lives under,
+                                 # the checklist rows around it, and every reply with who wrote it.
+                                 # Answering a comment no longer means re-reading the report.
+systemview reply <project> <report name|path> <thread-id> "…" 
                                  # ANSWER WHERE HE ASKED (RFC-039): he replies inside a report's
                                  # threads — answer in the thread, not in the chat. `systemview tv
                                  # <project>` shows the thread ids and his answers.
@@ -303,10 +307,21 @@ systemview comments <project>                 # every file that has comments, an
 systemview comments <project> <path>          # one file's comments, his and agents' apart
 systemview comments <project> <path> --json   # the same, structured
 
+# An unknown verb ERRORS now (it used to print the boot banner and look like it worked) — and a verb
+# that exists here may not exist in another project's install: check `systemview --version`.
+# A cursor that has never drained starts at what's still WARM (the last 15 min), not at zero and not
+# at silence — so first contact catches "I said it right before you joined" without replaying a room.
+
+# A REPORT IS A DOCUMENT (RFC-040): `show` writes .systemview/report.<project>.<slug>.md and the
+# chat record only points at it. Re-pushing the same title SAVES over it; his answers live in the
+# file. Read one with `systemview tv <project>`, answer with `reply`, inspect one thread with
+# `thread`.
+
 # HIS BOARD — the notes he leaves for you between sessions: reminders, things to hand you later, a
 # running list of what's wrong with something he was looking at. His surface, read when he points at
 # it. `.systemview/boards/board.md`, one per project, optional title at the top.
 systemview board <project> [--json]           # each note prints with a stable `id`
+systemview board <project> --add "…" --as <you>   # leave HIM a note (agents write here too)
 # A note holds a CONVERSATION (RFC-039): replies accumulate, each stamped with who wrote it, and he
 # can reply back under yours. PASS THE ID, not the position — the list reorders the moment he adds a
 # note, and a position read a minute ago answers the wrong card.

@@ -82,6 +82,14 @@ const FileLink = ({ label, attrs = {} }) => {
       window.dispatchEvent(new CustomEvent("sv:openFileInNav", { detail }));
       return;
     }
+    // ON THE TV, A FILE CHIP IS A HAND-OFF. A report is read in a panel that floats over the page,
+    // so revealing the file in the tree behind it leaves you looking at the report you were trying
+    // to leave. From the TV the chip OPENS the file (and the TV puts itself away); everywhere else
+    // reveal stays the default, because there the document you are reading is the page itself.
+    if (e.target && e.target.closest && e.target.closest(".agent-chat__tv")) {
+      window.dispatchEvent(new CustomEvent("sv:openFileInNav", { detail }));
+      return;
+    }
     window.dispatchEvent(new CustomEvent("sv:revealInNav", { detail: { kind: "file", ...detail } }));
   };
 

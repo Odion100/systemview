@@ -468,7 +468,19 @@ The four icons become **tabs** — 📋 💬 🔗 📺 switch one surface instea
 is all a 280px column has room for. Opening one scrolls the panel to it.
 
 The **↗** on the row pulls it back out — and it lands **beside that codebase card**, not wherever it
-was floating before. **dock them all** in the 🤖 hub sends every agent home at once.
+was floating before. **dock them all** in the 🤖 hub sends every agent home at once. The row has its
+own chevron, like \`services\` and \`code\`: ▾ when a surface is up, ▸ when it isn't.
+
+## A report is a document
+
+A report you're sent lands in the repo as \`.systemview/report.<project>.<name>.md\` — the same store
+the **Reports** tab reads. So a report on the TV and a report in that tab are one file: pushing the
+same title again **saves over it** (no duplicate entries), deleting one is deleting a document, and
+the answers you write into it live in the file rather than inside the chat.
+
+Every report carries a **file chip** at the bottom. Press it and you're handed to the document in the
+code view — with its history and its diff — and the TV closes behind you, because that's switching
+place, not opening a second copy.
 
 ## The ring tells the truth
 

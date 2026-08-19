@@ -247,6 +247,14 @@ function parseArgs(rawArgs) {
     note: valOf("--note"),
     at: valOf("--at"),
     reply: valOf("--reply"),
+    // RFC-039 — `board --add "…"`, or `--add --file <path.md>` when it's long enough to write in a
+    // file. Bare `--add` with a file is why this can't just be valOf: the value may be absent.
+    add: (() => {
+      const i = rawArgs.indexOf("--add");
+      if (i === -1) return undefined;
+      const next = rawArgs[i + 1];
+      return next && !next.startsWith("--") ? next : "";
+    })(),
     from: valOf("--from"),
     to: valOf("--to"),
     // RFC-028 chat verbs

@@ -37,9 +37,10 @@ function parseBoard(text) {
   const head = src.split(/<!--card /)[0];
   const t = head.match(/^\s*#\s+(.+)\s*$/m);
   const cards = [];
-  src.split(/<!--card (\d+)-->/).forEach((part, i, arr) => {
-    if (i % 2 !== 1) return;
-    const chunk = String(arr[i + 1] || "");
+  src.split(/<!--card (\d+)(?: by=([^\s>]+))?-->/).forEach((part, i, arr) => {
+    if (i % 3 !== 1) return;
+    const who0 = arr[i + 1] || "";
+    const chunk = String(arr[i + 2] || "");
     const bits = chunk.split(/<!--reply(?: ([^>]*?))?-->/);
     const note = bits[0];
     const replies = [];
@@ -51,7 +52,7 @@ function parseBoard(text) {
       const ts = Number((attrs.match(/ts=(\d+)/) || [])[1]) || 0;
       replies.push({ by: who, ts, text: body });
     }
-    cards.push({ ts: Number(part), text: note.trim(), replies });
+    cards.push({ ts: Number(part), by: who0, text: note.trim(), replies });
   });
   return { title: t ? t[1].trim() : "", cards };
 }
@@ -60,7 +61,7 @@ function serializeBoard({ title, cards }) {
   return `${title ? `# ${title}\n\n` : ""}${cards
     .map(
       (c) =>
-        `<!--card ${c.ts}-->\n${c.text}\n` +
+        `<!--card ${c.ts}${c.by ? ` by=${c.by}` : ""}-->\n${c.text}\n` +
         (c.replies || [])
           .map((r) => `<!--reply${r.by ? ` by=${r.by}` : ""}${r.ts ? ` ts=${r.ts}` : ""}-->\n${r.text}\n`)
           .join(""),
@@ -68,9 +69,13 @@ function serializeBoard({ title, cards }) {
     .join("\n")}`;
 }
 
-module.exports = async function boardCommand(projectCode, name, { uiUrl, json, reply, at, as } = {}) {
+module.exports = async function boardCommand(projectCode, name, { uiUrl, json, reply, at, as, add, file } = {}) {
   if (!projectCode) {
-    log.warn('Usage: systemview board <projectCode> [name] [--json] [--reply "…" --at <id|n>] [--as <yourPc>]');
+    log.warn(
+      'Usage: systemview board <projectCode> [name] [--json]\n' +
+        '                        --reply "…" --at <id|n> [--as <yourPc>]   answer a note\n' +
+        '                        --add "…" | --add --file <path.md>        leave a note',
+    );
     return 1;
   }
 
@@ -110,6 +115,36 @@ module.exports = async function boardCommand(projectCode, name, { uiUrl, json, r
     board = parseBoard(res.content);
   } catch {
     // No board yet is the normal case, not an error.
+  }
+
+  // LEAVING A NOTE. His ask: agents write to the board too, not only him — "sometimes we're in the
+  // middle of a conversation and they jump in". A note from an agent is stamped with who left it so
+  // the board never blurs into one voice, and it lands newest-first exactly like one of his.
+  if (add != null) {
+    let text = typeof add === "string" ? add : "";
+    if (file) {
+      try {
+        text = require("fs").readFileSync(file, "utf8");
+      } catch (e) {
+        log.error(`board --add: couldn't read ${file} — ${e.message}`);
+        return 1;
+      }
+    }
+    text = String(text).trim();
+    if (!text) {
+      log.warn('board --add needs something to say: --add "…" or --add --file <path.md>');
+      return 1;
+    }
+    const who = as || projectCode;
+    board.cards = [{ ts: Date.now(), by: who, text }, ...board.cards];
+    try {
+      await Plugin.writeFile({ path: boardPath(name), content: serializeBoard(board) });
+    } catch (err) {
+      log.error(`could not write the board: ${err.message}`);
+      return 1;
+    }
+    log.info(`left a note on ${projectCode}'s board as ${who}`);
+    return 0;
   }
 
   // ANSWERING A NOTE, in the same file, so he sees it answered without a second room. Replies
@@ -154,7 +189,7 @@ module.exports = async function boardCommand(projectCode, name, { uiUrl, json, r
   board.cards.forEach((c, i) => {
     // The ID is printed, not just the position — it is what `--at` should be given back, and the
     // position is only safe until the next note lands.
-    console.log(chalk.dim(`\n  ${i + 1}. ${when(c.ts)}   id ${c.ts}`));
+    console.log(chalk.dim(`\n  ${i + 1}. ${when(c.ts)}   id ${c.ts}${c.by ? `   — ${c.by}` : ""}`));
     String(c.text)
       .split("\n")
       .forEach((line) => console.log(`  ${line}`));

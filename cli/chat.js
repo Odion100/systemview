@@ -1,4 +1,5 @@
 const log = require("./logger");
+const chalk = require("chalk");
 
 // RFC-028 — the agent's side of the chat front door. Four verbs, all one-shot friendly:
 //
@@ -12,6 +13,66 @@ const log = require("./logger");
 //                             them + register the listener that draws the outlined bubble.
 //
 // The agent instructions (agents/chat.md) are the intended reader of every output here.
+
+// RFC-040 — A REPORT IS A DOCUMENT. A show used to be a chat record carrying its whole text, and
+// that one fact caused four separate symptoms: the picker listed the same report three times (three
+// pushes, three records), delete had to mean "hide" (you cannot remove a record from a transcript),
+// compaction had to special-case shows or his reports vanished, and the room file was mostly report
+// text. Now the document lands where reports already live and the record carries a POINTER.
+const projectPlugin = require("./projectPlugin");
+const slug = (v) => String(v || "").replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80);
+const reportPath = (pc, name) => `.systemview/report.${slug(pc)}.${slug(name)}.md`;
+const REPORT_INDEX = ".systemview/reports.index.json";
+
+// Written through the project's own plugin, and INDEXED — the Reports tab lists the index, not a
+// directory walk, so a report that skips it exists on disk and nowhere a human looks.
+async function writeReport(uiUrl, projectCode, name, content) {
+  const Plugin = await projectPlugin(uiUrl, projectCode);
+  const path = reportPath(projectCode, name);
+  await Plugin.writeFile({ path, content });
+  let index = {};
+  try {
+    const res = await Plugin.readFile({ path: REPORT_INDEX });
+    index = JSON.parse(res.content) || {};
+  } catch {} // no index yet is the normal case
+  const rows = (index[projectCode] || []).filter((r) => r.name !== name);
+  index[projectCode] = [{ name, path, ts: Date.now() }, ...rows];
+  try {
+    await Plugin.writeFile({ path: REPORT_INDEX, content: JSON.stringify(index, null, 2) });
+  } catch {} // the document is the thing; a failed index entry must not lose it
+  return path;
+}
+
+// Read a project's report by NAME or PATH. One place, so `thread` and `reply` can never disagree
+// about where a document lives.
+async function readReport(uiUrl, projectCode, report) {
+  const Plugin = await projectPlugin(uiUrl, projectCode).catch((e) => {
+    log.error(cleanErr(e));
+    return null;
+  });
+  if (!Plugin) return null;
+  const path = /\.md$/i.test(report) ? report : reportPath(projectCode, report);
+  try {
+    const res = await Plugin.readFile({ path });
+    const name = /\.md$/i.test(report) ? path.split("/").pop().replace(/\.md$/i, "") : report;
+    return { Plugin, path, name, text: res.content };
+  } catch {
+    log.error(`no report "${report}" in ${projectCode} (looked for ${path})`);
+    await listReports(uiUrl, projectCode);
+    return null;
+  }
+}
+
+// An error that teaches: the reports that DO exist.
+async function listReports(uiUrl, projectCode) {
+  try {
+    const Plugin = await projectPlugin(uiUrl, projectCode);
+    const res = await Plugin.readFile({ path: REPORT_INDEX });
+    const rows = (JSON.parse(res.content) || {})[projectCode] || [];
+    if (rows.length)
+      console.log(`   reports here: ${rows.slice(0, 8).map((r) => `"${r.name}"`).join(", ")}${rows.length > 8 ? " …" : ""}`);
+  } catch {}
+}
 
 async function loadHub(Client, uiUrl) {
   const { SystemView } = await Client.loadService(`${uiUrl}/systemview/api`);
@@ -187,10 +248,15 @@ module.exports.say = async function say(projectCode, text, { uiUrl, Client, chat
 // wrong surface was four times cheaper. This makes the right one a one-liner.
 //
 // Read-modify-write of the CURRENT text, so his replies are carried, never overwritten.
-module.exports.reply = async function reply(projectCode, threadId, text, { uiUrl, Client, chat, agent, show, file } = {}) {
-  if (!projectCode || !threadId || (!text && !file)) {
-    log.warn('Usage: systemview reply <projectCode> <thread-id> "<markdown>" | --file <path.md> [--show "<report title>"] [--as <yourPc>]');
-    return 1;
+module.exports.reply = async function reply(projectCode, report, threadId, text, { uiUrl, Client, chat, agent, file } = {}) {
+  // THREADS ARE A DOCUMENT FEATURE. This verb used to fall back to "whatever is on the TV" when no
+  // report was named, which put the ROOM in the middle of something that has nothing to do with it —
+  // his words: "the issue is simply commenting on interactive markdown threads, what does a TV report
+  // have to do with the document when you can pull the document up in any location". So the document
+  // is named, always, by name or by path. A report that was never shown answers exactly the same way.
+  if (projectCode && report && threadId && text === undefined) {
+    text = threadId;
+    threadId = null;
   }
   let body = text || "";
   if (file) {
@@ -201,55 +267,140 @@ module.exports.reply = async function reply(projectCode, threadId, text, { uiUrl
       return 1;
     }
   }
-  const SystemView = await loadHub(Client, uiUrl);
-  let state = null;
-  try {
-    state = await SystemView.chatGetTv(projectCode, { chat, show });
-  } catch (err) {
-    log.error(cleanErr(err));
+  if (!projectCode || !report || !threadId || !body) {
+    log.warn('Usage: systemview reply <projectCode> <report name|path> <thread-id> "<markdown>" | --file <path.md>');
+    if (projectCode) await listReports(uiUrl, projectCode);
     return 1;
   }
-  if (!state || !state.text) {
-    log.warn(
-      `nothing on ${projectCode}'s TV${show ? ` matching "${show}"` : ""} — put a show up first:\n` +
-        `    systemview show ${projectCode} --file <report.md>`,
-    );
-    return 1;
+  const doc = await readReport(uiUrl, projectCode, report);
+  if (!doc) return 1;
+  const lines = doc.text.split("\n");
+  // A CONTAINER NESTS BY GAINING COLONS. A thread wrapping a `::::columns` block is opened with
+  // FIVE, and matching exactly four missed precisely the threads on well-built reports — where the
+  // content worth discussing is code beside its explanation. (Found by systemlynx.)
+  const openRe = /^(:{4,})thread\{id=([^}]+)\}\s*$/;
+  let open = -1;
+  let fence = "::::";
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i].trim().match(openRe);
+    if (m && m[2] === threadId) { open = i; fence = m[1]; break; }
   }
-  const lines = String(state.text).split("\n");
-  const open = lines.findIndex((l) => l.trim() === `::::thread{id=${threadId}}`);
   if (open === -1) {
-    // An error that TEACHES: the ids that do exist, not just the one that doesn't.
-    const ids = [...String(state.text).matchAll(/::::thread\{id=([^}]+)\}/g)].map((m) => m[1]);
+    const ids = [...doc.text.matchAll(/(:{4,})thread\{id=([^}]+)\}/g)].map((m) => m[2]);
     log.error(
-      `no thread "${threadId}" in "${state.label || "the show"}".` +
-        (ids.length ? `\n   threads here: ${ids.join(", ")}` : "\n   this show has no threads to answer in."),
+      `no thread "${threadId}" in ${doc.path}.` +
+        (ids.length ? `\n   threads here: ${ids.join(", ")}` : "\n   this document has no threads to answer in."),
     );
     return 1;
   }
-  // The thread closes at the first line that is EXACTLY four colons — a reply block inside it ends
-  // with three, so this can't be fooled by the replies already there.
+  // It closes on a line of the SAME fence — a fixed four would stop at the inner block's close and
+  // splice the reply into the middle of the content.
   let close = -1;
-  for (let i = open + 1; i < lines.length; i++) {
-    if (lines[i].trim() === "::::") {
-      close = i;
-      break;
-    }
-  }
+  for (let i = open + 1; i < lines.length; i++) if (lines[i].trim() === fence) { close = i; break; }
   if (close === -1) {
-    log.error(`thread "${threadId}" is never closed in that show — fix the document before replying into it`);
+    log.error(`thread "${threadId}" is never closed in ${doc.path} — fix the document before replying into it`);
     return 1;
   }
   const me = agent || projectCode;
   const block = [`:::reply{author=${me} ts=${Date.now()}}`, ...String(body).trim().split("\n"), ":::"];
   const next = [...lines.slice(0, close), ...block, ...lines.slice(close)].join("\n");
   try {
-    await SystemView.chatSetTv(projectCode, { chat, state: { ...state, text: next } });
+    await doc.Plugin.writeFile({ path: doc.path, content: next });
   } catch (err) {
     log.error(cleanErr(err));
     return 1;
   }
-  log.info(`replied in ${threadId} on "${state.label || "the show"}"`);
+  // If a show in the room points at this document, its fallback copy tracks it — otherwise the TV
+  // and the file end up showing different versions of the same report, which is how four of his
+  // answers ended up somewhere he could not see them.
+  try {
+    const SystemView = await loadHub(Client, uiUrl);
+    const state = await SystemView.chatGetTv(projectCode, { chat, show: doc.name });
+    if (state && state.args && state.args.report === doc.name)
+      await SystemView.chatSetTv(projectCode, { chat, state: { id: state.id, label: state.label, text: next } });
+  } catch {}
+  log.info(`replied in ${threadId} — ${doc.path}`);
+  return 0;
+};
+
+// RFC-041 — READ ONE THREAD, WITH WHAT WRAPS IT.
+//
+//   systemview thread <projectCode> <report name|path> <thread-id> [--json]
+//
+// Answering one comment used to mean holding the whole report: read it all, find the thread by eye,
+// re-derive what section it sits under. This is a DOCUMENT verb — threads live in interactive
+// markdown, not in a room, so nothing here asks the chat anything.
+module.exports.thread = async function thread(projectCode, report, threadId, { uiUrl, json = false } = {}) {
+  if (!projectCode || !report || !threadId) {
+    log.warn("Usage: systemview thread <projectCode> <report name|path> <thread-id> [--json]");
+    if (projectCode) await listReports(uiUrl, projectCode);
+    return 1;
+  }
+  const doc = await readReport(uiUrl, projectCode, report);
+  if (!doc) return 1;
+  const lines = doc.text.split("\n");
+  // Same colon-depth rule as `reply`: a thread wrapping a container is opened with more colons.
+  const openRe = /^(:{4,})thread\{id=([^}]+)\}\s*$/;
+  let open = -1;
+  let fence = "::::";
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i].trim().match(openRe);
+    if (m && m[2] === threadId) { open = i; fence = m[1]; break; }
+  }
+  if (open === -1) {
+    const ids = [...doc.text.matchAll(/(:{4,})thread\{id=([^}]+)\}/g)].map((m) => m[2]);
+    log.error(
+      `no thread "${threadId}" in ${doc.path}.` +
+        (ids.length ? `\n   threads here: ${ids.join(", ")}` : "\n   this document has no threads."),
+    );
+    return 1;
+  }
+  let close = -1;
+  for (let i = open + 1; i < lines.length; i++) if (lines[i].trim() === fence) { close = i; break; }
+  if (close === -1) close = lines.length - 1;
+  // THE WRAPPER: the nearest heading above it, and the checklist rows in that same section — what
+  // "where does this question live" actually means when you arrive cold.
+  let headIdx = -1;
+  for (let i = open - 1; i >= 0; i--) if (/^#{1,6}\s+/.test(lines[i])) { headIdx = i; break; }
+  const checks = [];
+  for (let i = headIdx + 1; i < open; i++) if (/^\s*[-*]\s*\[[ xX]\]/.test(lines[i])) checks.push(lines[i].trim());
+  const body = lines.slice(open + 1, close);
+  // Each reply, and WHO wrote it — his and an agent's are different things to read.
+  const replies = [];
+  let cur = null;
+  body.forEach((l) => {
+    const m = l.match(/^:::reply\{author=([^\s}]+)(?:\s+ts=(\d+))?\}/);
+    if (m) { cur = { author: m[1], ts: Number(m[2]) || 0, text: [] }; replies.push(cur); return; }
+    if (l.trim() === ":::") { cur = null; return; }
+    if (cur) cur.text.push(l);
+  });
+  const asked = body.filter((l) => !/^:::/.test(l) && !replies.some((r) => r.text.includes(l)));
+  const out = {
+    report: doc.name,
+    path: doc.path,
+    thread: threadId,
+    section: headIdx >= 0 ? lines[headIdx].replace(/^#{1,6}\s+/, "").trim() : null,
+    checklist: checks,
+    asked: asked.join("\n").trim(),
+    replies: replies.map((r) => ({ author: r.author, ts: r.ts, text: r.text.join("\n").trim() })),
+  };
+  if (json) {
+    console.log(JSON.stringify(out, null, 2));
+    return 0;
+  }
+  console.log("");
+  console.log(`  ${chalk.bold(out.report)}   thread ${threadId}`);
+  console.log(chalk.dim(`  ${out.path}`));
+  if (out.section) console.log(chalk.dim(`  under: ${out.section}`));
+  out.checklist.forEach((c) => console.log(chalk.dim(`  ${c}`)));
+  console.log("");
+  out.asked.split("\n").forEach((l) => console.log(`  ${l}`));
+  out.replies.forEach((r) => {
+    console.log("");
+    console.log(chalk.cyan(`  ↳ ${r.author}${r.ts ? chalk.dim(`  ${new Date(r.ts).toLocaleString()}`) : ""}`));
+    r.text.split("\n").forEach((l) => console.log(chalk.cyan(`    ${l}`)));
+  });
+  console.log("");
   return 0;
 };
 
@@ -286,6 +437,18 @@ module.exports.tv = async function tv(projectCode, { uiUrl, Client, chat, json =
   } catch (err) {
     log.error(cleanErr(err));
     return 1;
+  }
+  // RFC-040 — a pointer record names a document; read THAT, because his answers are written into
+  // the file now, not into the record.
+  if (state && !state.text && state.args && state.args.report) {
+    try {
+      const Plugin = await projectPlugin(uiUrl, projectCode);
+      const res = await Plugin.readFile({ path: state.args.path || reportPath(projectCode, state.args.report) });
+      state = { ...state, text: res.content, report: state.args.report };
+    } catch (err) {
+      log.error(`the show points at "${state.args.report}" and the document could not be read — ${cleanErr(err)}`);
+      return 1;
+    }
   }
   if (!state || !state.text) {
     log.warn(`nothing on ${projectCode}'s TV${chat ? ` (${chat})` : ""} — put a show up with: systemview show ${projectCode} --text "<markdown>"`);
@@ -568,5 +731,23 @@ module.exports.show = async function show(projectCode, { uiUrl, Client, chat, ag
   // Label = the first heading if there is one, else the file name, else a text snippet.
   const heading = (content.match(/^#{1,6}\s+(.+)$/m) || [])[1];
   label = heading || (file ? String(file).split("/").pop() : content.trim().slice(0, 48));
-  return sendCommand(projectCode, { uiUrl, Client, chat, agent, cmd: "show", args: { text: content }, label });
+  // The document first, then the pointer. If the write fails the show still goes up carrying its
+  // text — a report that cannot be filed is better than a report that does not arrive.
+  let path = null;
+  try {
+    path = await writeReport(uiUrl, projectCode, label, content);
+  } catch (err) {
+    log.warn(`couldn't file the report (${cleanErr(err)}) — sending it inline instead`);
+  }
+  // THE POINTER CARRIES THE TEXT TOO, for now. A UI running a bundle from before RFC-040 reads
+  // `args.text` and knows nothing about `args.report` — so the day pointers started shipping, every
+  // new report rendered as nothing in any tab that had not picked up the new code yet. ("Something's
+  // wrong, the report doesn't exist.") The FILE is the source of truth: a current UI reads the
+  // document and writes his answers there. The inline copy is a fallback for older bundles and comes
+  // out once nothing is reading it.
+  return sendCommand(projectCode, {
+    uiUrl, Client, chat, agent, cmd: "show",
+    args: path ? { report: label, path, text: content } : { text: content },
+    label,
+  });
 };

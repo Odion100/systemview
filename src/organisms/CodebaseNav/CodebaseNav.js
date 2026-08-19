@@ -649,6 +649,12 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
     // what is inside them.
     setCodeOpen(mode === "expand" ? codeOpen : false);
     setServicesOpen(mode === "expand");
+    // …and the AGENT is a section of this card now (RFC-038), so it minimizes with the rest. It
+    // owns its own open state inside the bot, so the card asks rather than reaches in — the bot is
+    // portaled in here but it is still the bot, not a child component.
+    window.dispatchEvent(
+      new CustomEvent("sv:navFold", { detail: { projectCode, collapse: mode === "collapse" } }),
+    );
   };
 
   useEffect(() => {
