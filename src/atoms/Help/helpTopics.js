@@ -467,7 +467,8 @@ a section above \`services\` and \`code\`. There it's a row: the icon, the unrea
 The four icons become **tabs** — 📋 💬 🔗 📺 switch one surface instead of opening four panels, which
 is all a 280px column has room for. Opening one scrolls the panel to it.
 
-The **↗** on the row pulls it back out to floating, exactly where it was.
+The **↗** on the row pulls it back out — and it lands **beside that codebase card**, not wherever it
+was floating before. **dock them all** in the 🤖 hub sends every agent home at once.
 
 ## The ring tells the truth
 

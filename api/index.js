@@ -729,9 +729,32 @@ function chatSend(projectCode, { chat, from = "you", text, view, as } = {}) {
 // RFC-029 — agent control: a command is a chat record; the push IS the execution channel. The
 // UI executes commands only off this live emit — chatHistory renders them as lines, nothing more.
 function chatCommand(projectCode, { chat, from, cmd, args, label, say } = {}) {
-  const record = Chats.command(projectCode, chat || Chats.DEFAULT_CHAT, { from, cmd, args, label, say });
-  this.emit(`chat-updated:${projectCode}`, { chat: chat || Chats.DEFAULT_CHAT, record });
+  const chatName = chat || Chats.DEFAULT_CHAT;
+  // RFC-039 — RE-PUSHING A SHOW REPLACES IT, it doesn't stack. Pushing the same report three times
+  // left three identical-looking snapshots in the picker with no way to tell which one he had been
+  // answering in — and each snapshot carries its OWN click state, so a re-push silently reset his
+  // check-offs. Marking the older ones hidden keeps the transcript honest (nothing is deleted from
+  // the room) while the picker shows one entry per report, the live one.
+  if (cmd === "show" && label) {
+    try {
+      Chats.history(projectCode, chatName, { limit: 400 })
+        .filter((r) => r.cmd === "show" && r.label === label && !r.hidden)
+        .forEach((r) => Chats.update(projectCode, chatName, r.id, { hidden: true }));
+    } catch {}
+  }
+  const record = Chats.command(projectCode, chatName, { from, cmd, args, label, say });
+  this.emit(`chat-updated:${projectCode}`, { chat: chatName, record });
   return record;
+}
+// RFC-039 — TAKE ONE OFF THE LIST. His words: "I need to be able to delete shit." A show he is done
+// with clutters the picker and, worse, makes the real one ambiguous. This hides the RECORD from the
+// collector; it does not remove it from the room, because the transcript is the account of what
+// happened and being tired of a show is not a reason to rewrite it. Reversible: `hidden: false`.
+function chatHide(projectCode, { chat, id, hidden = true } = {}) {
+  const chatName = chat || Chats.DEFAULT_CHAT;
+  const res = Chats.update(projectCode, chatName, id, { hidden: !!hidden });
+  if (res && res.updated) this.emit(`chat-updated:${projectCode}`, { chat: chatName, tvEdit: id });
+  return res;
 }
 // FORCE THE HANDOVER. The flush otherwise happens on its own — at boot, and on the 20s sweep — but
 // "otherwise" is not a thing a test can assert on, and an operator who can see stranded records has
@@ -1080,6 +1103,7 @@ module.exports = function launchSystemView(port = 3000) {
       chatJoin,
       chatStatus,
       chatDrain,
+      chatHide,
       chatLeave,
       chatKick,
       chatSetTv,

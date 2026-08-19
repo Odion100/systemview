@@ -373,73 +373,12 @@ let topZ = 8500;
 // taking THAT one, and nobody else moves. Keeping an ordered array meant claiming a spot spliced
 // everyone along it — drop into the middle and the whole line slid left, which is not what a line
 // of slots does.
-const dockSlots = (() => {
-  try {
-    const o = JSON.parse(localStorage.getItem("sv.dockSlots"));
-    return o && typeof o === "object" ? o : {};
-  } catch {
-    return {};
-  }
-})();
-const saveDockSlots = () => {
-  try { localStorage.setItem("sv.dockSlots", JSON.stringify(dockSlots)); } catch {}
-};
-// Only bots actually ON SCREEN count — a parked or removed project keeps its remembered slot but
-// never holds one against anyone.
+// Only bots actually ON SCREEN count.
 const mountedBots = new Set();
-const dockedBots = () =>
-  Object.keys(dockSlots)
-    .filter((pc) => mountedBots.has(pc))
-    .sort((a, b) => dockSlots[a] - dockSlots[b]);
-// The lowest slot nobody is standing in — left to right, from what's free.
-const freeSlot = (from = 0) => {
-  const taken = new Set(dockedBots().map((pc) => dockSlots[pc]));
-  for (let i = from; i < dockSlotCount(); i += 1) if (!taken.has(i)) return i;
-  for (let i = 0; i < dockSlotCount(); i += 1) if (!taken.has(i)) return i;
-  return from;
-};
-// The floor keeps bubbles, labels, AND hanging peeks clear of each other (his rule: "even if
-// they're cooking... they don't end up going over each other") — sized for the 150px docked
-// peek pill; the right margin keeps the line off the header's buttons.
-const DOCK_MIN_SPACING = 160;
-// Just enough to clear the header's right-hand buttons — it used to reserve 260, which is why the
-// line stopped well short of the end and the bots never looked evenly spread across it.
-const DOCK_RIGHT_MARGIN = 120;
-// THEY PACK, THEY DO NOT SPREAD (his call). Sharing the full width out between however many
-// bots are docked meant two bots sat at opposite ends of the screen — double-clicking one sent it
-// "all the way across the room". They file in from the left at a fixed pitch instead, and the
-// slot is just how many are already on the line. The pitch only tightens if the line runs out of
-// room, so a full line still fits rather than walking off the edge.
+// The margin a floating bot is clamped to, so it can never be dragged off the edge.
 const DOCK_EDGE = 6; // he asked for five to seven
-// WHERE THE LINE STARTS. Not the corner: the docked peek pill is 150px centred under a 46px bot,
-// so in the corner half of it hung off the left edge and the rest sat under the bubble. The line
-// begins far enough in that the first bot's pill has room. This is only the SLOTS — the drag clamp
-// still lets you put a bot at DOCK_EDGE by hand, so the two paddings stay the same as before.
-const DOCK_START = 64;
-// THE SLOTS ARE FIXED, WORKED OUT UP FRONT. There are N bots on screen, so the line has N places:
-// the usable width divided by N, from the corner. Slot 2 is slot 2 whether or not anyone is
-// standing in slot 1 — the first bot does NOT sit in the middle and then shuffle when a second
-// arrives. Nothing here depends on how many are currently docked.
-function dockSlotCount() {
-  return Math.max(1, mountedBots.size);
-}
-function dockPitch() {
-  // They span the WHOLE line: first in the corner, last at the far end, the rest equally spaced
-  // between them — so the gap is the length divided by (N - 1), not by N, which left a quarter of
-  // the line empty on the right.
-  const n = dockSlotCount();
-  const room = Math.max(window.innerWidth - DOCK_RIGHT_MARGIN - DOCK_START, DOCK_MIN_SPACING);
-  return n > 1 ? Math.max(room / (n - 1), DOCK_MIN_SPACING) : 0;
-}
-function dockSlotPos(slot) {
-  return { x: DOCK_START + slot * dockPitch(), y: DOCK_EDGE };
-}
-// Where the line sits, for the guide drawn while dragging.
-function dockLineY() {
-  return DOCK_EDGE + 23;
-}
-// The hub's one-hit button: every on-screen bot files into the line at once. This is the ONLY
-// thing that moves bots you did not touch, and it moves them because you asked it to.
+// The hub's one-hit button: every on-screen bot goes home to its own codebase card (RFC-038). The
+// old meaning — file into a lane across the top of the window — is gone with the lane.
 const dockAllBots = () => window.dispatchEvent(new Event("sv:dockAll"));
 // Every visitor project gets ITS OWN color (his call: "everyone who's a visitor has the same
 // color, so them cooking both is not as helpful") — a stable hash of the project code to a hue,
@@ -597,17 +536,18 @@ export function BotHub() {
         <>
           <div className="bot-hub__overlay" onClick={() => setOpen(false)} />
           <div className="bot-hub__menu">
-            {/* One hit, everyone files into the dock line (his ask: "hit them all at once"). */}
+            {/* One hit, everyone goes home to their own codebase card (RFC-038). It used to line
+                them up across the top of the window; that lane is gone. */}
             <button
               type="button"
               className="bot-hub__row bot-hub__row--dock-all"
-              title="Send every on-screen bot to the dock line, evenly spaced"
+              title="Send every agent home — into its own codebase card in the navigator"
               onClick={() => {
                 dockAllBots();
                 setOpen(false);
               }}
             >
-              <span className="bot-hub__pc">line them up</span>
+              <span className="bot-hub__pc">dock them all</span>
               <span className="bot-hub__verb">dock all</span>
             </button>
             {/* ANIMATION LIVES HERE — his call: the on/off for animation belongs in the agent hub
@@ -707,13 +647,7 @@ function BotBubble({ projectCode, index }) {
     // undocked or the window resized, so bots you had not touched kept sliding to new positions.
     // Where each one sits already survives a reload through `sv.chatPos`; it does not need to be
     // recomputed to be remembered.
-    const dockAll = () => {
-      if (dockSlots[projectCode] === undefined) dockSlots[projectCode] = freeSlot();
-      saveDockSlots();
-      const p = dockSlotPos(dockSlots[projectCode]);
-      setPos(p);
-      try { localStorage.setItem(`sv.chatPos.${projectCode}`, JSON.stringify(p)); } catch {}
-    };
+    const dockAll = () => setNavDocked(projectCode, true);
     window.addEventListener("sv:dockAll", dockAll);
     return () => {
       mountedBots.delete(projectCode);
@@ -1252,11 +1186,6 @@ function BotBubble({ projectCode, index }) {
         x: clamp(d.origX + dx, DOCK_EDGE, Math.max(DOCK_EDGE, window.innerWidth - d.w - DOCK_EDGE)),
         y: clamp(d.origY + dy, DOCK_EDGE, Math.max(DOCK_EDGE, window.innerHeight - d.h - DOCK_EDGE)),
       });
-      // The line appears when you REACH it, not when you head that way — measured off the bot's own
-      // top edge, so it shows exactly when the bot is standing on the line. A wide band around the
-      // pointer had it lighting up halfway up the screen.
-      d.overLine = clamp(d.origY + dy, DOCK_EDGE, window.innerHeight) <= dockLineY() + 12;
-      setDragging(d.overLine);
     };
     const up = () => {
       window.removeEventListener("pointermove", move);
@@ -1269,31 +1198,9 @@ function BotBubble({ projectCode, index }) {
       if (!d || !d.moved) return;
       suppressClickRef.current = true;
       setTimeout(() => { suppressClickRef.current = false; }, 0);
-      // NOTHING GRAVITATES. A drag lands where you let go — on the line, next to the line, in the
-      // corner, anywhere. Dropping over the line used to pull the bot to the nearest slot, and the
-      // corner IS slot 0's place, so the top strip was un-droppable: you were always pulled
-      // somewhere, and if that slot was taken you got flung off to another one entirely.
-      // The rings say where the places ARE. Putting yourself in one is your hand, not the app's.
-      // Double-click (and the hub's dock-all) is the deliberate gesture that still moves a bot.
-      const p0 = posRef.current;
-      let claimed;
-      if (d.overLine && p0) {
-        // Landed ON a slot without being moved there → register it, so a later double-click
-        // doesn't hand the same place to someone else. Registering only; no movement.
-        for (let i = 0; i < dockSlotCount(); i += 1) {
-          if (Math.abs(dockSlotPos(i).x - p0.x) <= 23) { claimed = i; break; }
-        }
-      }
-      const taken = new Set(dockedBots().filter((pc) => pc !== projectCode).map((pc) => dockSlots[pc]));
-      if (claimed !== undefined && !taken.has(claimed)) {
-        dockSlots[projectCode] = claimed;
-        saveDockSlots();
-      } else if (dockSlots[projectCode] !== undefined) {
-        // Dragging a docked bot away gives its slot back. Nobody else shifts to fill it — a free
-        // slot just stays free until someone drops into it.
-        delete dockSlots[projectCode];
-        saveDockSlots();
-      }
+      // NOTHING GRAVITATES. A drag lands where you let go — there is no lane to fall into any more:
+      // docking is going home to the codebase card, which is a deliberate gesture (double-click the
+      // face, the ↗ to come back out, or the hub's dock-all), never something a drag does to you.
       // Keep it on screen and remember where it is. No snapping of any kind.
       setPos((cur) => {
         if (!cur) return cur;
@@ -1841,16 +1748,44 @@ function BotBubble({ projectCode, index }) {
   // the collector's search box, because that box belongs to the collector.
   const shows = React.useMemo(() => {
     const src = fullHist || messages;
+    // ONE ENTRY PER REPORT. A push writes a record, so pushing the same report three times wrote
+    // three — and the picker listed records, so he opened a dropdown with three identical titles and
+    // no way to tell which document he had been answering in. That was never a feature and nobody
+    // asked for versions: THE NEWEST PUSH OF A TITLE IS THAT REPORT. The collector has worked this
+    // way for a while; the picker was simply never taught the same rule.
+    //
+    // Deduped HERE, in the list, so it is true immediately for every record already in the room —
+    // not only for pushes that happen after some hub restarts.
+    const seen = new Set();
     return src
-      .filter((m) => m.kind === "command" && m.cmd === "show" && m.args && m.args.text)
+      .filter((m) => m.kind === "command" && m.cmd === "show" && m.args && m.args.text && !m.hidden)
       .slice()
-      .reverse();
+      .reverse()
+      .filter((m) => {
+        const title = String(m.label || "show");
+        if (seen.has(title)) return false;
+        seen.add(title);
+        return true;
+      });
   }, [fullHist, messages]);
+  // RFC-039 — take a show off the list. Optimistic locally so the row goes at once, then the hub
+  // patches the record (hidden: true) and every open panel re-reads it.
+  const [dropShow, setDropShow] = useState(0);
+  // The verb lives on the hub, so a hub that hasn't restarted since this shipped doesn't have it —
+  // and hiding a row locally that comes back on the next refresh is a lie. Say so instead.
+  const canHide = !!(SystemView && SystemView.chatHide);
+  const hideRecord = (id) => {
+    setFullHist((cur) => (cur ? cur.map((m) => (m.id === id ? { ...m, hidden: true } : m)) : cur));
+    setMessages((cur) => cur.map((m) => (m.id === id ? { ...m, hidden: true } : m)));
+    if (SystemView && SystemView.chatHide)
+      SystemView.chatHide(projectCode, { chat, id }).catch(() => {});
+  };
   const collected = React.useMemo(() => {
     const src = fullHist || messages;
     const q = linkQ.trim().toLowerCase();
     const out = [];
     for (const m of src) {
+      if (m.hidden) continue; // taken off the list by hand, or superseded by a re-push
       if (m.kind === "command") {
         if (m.cmd === "show" && m.args && m.args.text) {
           if (!q || String(m.label || "show").toLowerCase().includes(q) || String(m.args.text).toLowerCase().includes(q))
@@ -2348,7 +2283,7 @@ function BotBubble({ projectCode, index }) {
   // instead of sticking out sideways over the neighbor. MEMBERSHIP decides, not altitude — a
   // bot merely dragged near the top keeps its full-size peek (his catch: "close to the top, it
   // shrinks — it probably was good before").
-  const docked = dockSlots[projectCode] !== undefined && !!pos && pos.y < 60;
+  const docked = false; // the old top-of-window lane is gone — docking means the codebase card now
   // RFC-038 — IN THE NAV. `navDocked` is the intent; `inNav` is the fact, because the slot only
   // exists while that codebase card is on screen. If the panel is closed or the card unmounts, the
   // bot has nowhere to be and floats again rather than disappearing.
@@ -3010,16 +2945,40 @@ function BotBubble({ projectCode, index }) {
               ) : (
                 collected.map((e) =>
                   e.kind === "show" ? (
-                    <button
-                      type="button"
-                      key={e.m.id}
-                      className={`${CLASSNAME}__links-item ${CLASSNAME}__links-item--show`}
-                      title="Put this show back on the TV"
-                      onClick={() => openShow(e.m.id, e.m.label, e.m.args.text, e.m.ts)}
-                    >
-                      <span>📺 {e.m.label || "show"}</span>
+                    <div key={e.m.id} className={`${CLASSNAME}__links-item ${CLASSNAME}__links-item--show`}>
+                      <button
+                        type="button"
+                        className={`${CLASSNAME}__links-open`}
+                        title="Put this show back on the TV"
+                        onClick={() => openShow(e.m.id, e.m.label, e.m.args.text, e.m.ts)}
+                      >
+                        <span>📺 {e.m.label || "show"}</span>
+                      </button>
                       <span className={`${CLASSNAME}__links-time`}>{msgTime(e.m.ts)}</span>
-                    </button>
+                      {/* HIS ASK, in his words: "I need to be able to delete shit." Two-step, and it
+                          takes it off the LIST — the record stays in the room, because the
+                          transcript is the account of what happened. */}
+                      <button
+                        type="button"
+                        className={`${CLASSNAME}__links-x${dropShow === e.m.id ? ` ${CLASSNAME}__links-x--armed` : ""}`}
+                        disabled={!canHide}
+                        title={
+                          !canHide
+                            ? "this hub predates the verb — restart it and this works"
+                            : dropShow === e.m.id
+                              ? "Take it off the list?"
+                              : "Take this off the list"
+                        }
+                        onBlur={() => setDropShow(0)}
+                        onClick={() => {
+                          if (dropShow !== e.m.id) return setDropShow(e.m.id);
+                          setDropShow(0);
+                          hideRecord(e.m.id);
+                        }}
+                      >
+                        {dropShow === e.m.id ? "remove?" : "✕"}
+                      </button>
+                    </div>
                   ) : (
                     <div key={e.m.id} className={`${CLASSNAME}__links-item`}>
                       <span className={`${CLASSNAME}__links-chips`}>{e.parts}</span>
@@ -3473,27 +3432,6 @@ function BotBubble({ projectCode, index }) {
           </div>
         </>
       )}
-      {/* THE DOCK LINE while you drag near it, and EVERY SLOT ON IT. All of them, up front: there
-          are N bots on screen so the line has N places, and they don't move as bots arrive. You can
-          see the whole line and pick a spot instead of dropping one and finding out. */}
-      {dragging && (
-        <>
-          <div className={`${CLASSNAME}__dockline`} style={{ top: dockLineY() }} aria-hidden="true" />
-          {Array.from({ length: dockSlotCount() }).map(
-            (_, i) => {
-              const sp = dockSlotPos(i);
-              return (
-                <div
-                  key={i}
-                  className={`${CLASSNAME}__dockslot`}
-                  style={{ left: sp.x, top: sp.y }}
-                  aria-hidden="true"
-                />
-              );
-            },
-          )}
-        </>
-      )}
       {/* WHICH bot. Several projects are open at once, each with its own icon in the DOM, and a bare
           [data-sv="bot"] lookup finds whichever mounted first — so the line came out of buAPI's icon
           while systemview-test was the one talking. */}
@@ -3665,6 +3603,21 @@ function BotBubble({ projectCode, index }) {
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation();
+              // COME OUT WHERE YOU WENT IN (his ask). Undocking used to drop the bot back at whatever
+              // corner it was floating in before, which is usually nowhere near the codebase you were
+              // just reading — so pulling it out looked like it had vanished. It lands beside its own
+              // card instead, and that position is remembered like any other.
+              try {
+                const r = slotEl && slotEl.getBoundingClientRect();
+                if (r) {
+                  const p2 = {
+                    x: Math.min(Math.max(12, r.right + 14), window.innerWidth - 70),
+                    y: Math.min(Math.max(12, r.top - 6), window.innerHeight - 90),
+                  };
+                  setPos(p2);
+                  try { localStorage.setItem(`sv.chatPos.${projectCode}`, JSON.stringify(p2)); } catch {}
+                }
+              } catch {}
               setNavDocked(projectCode, false);
             }}
           >

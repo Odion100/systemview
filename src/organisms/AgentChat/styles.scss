@@ -344,44 +344,6 @@
       }
     }
   }
-  // DOCKED compact mode — in the dock line the peek hangs BELOW the bot in a slot-width pill,
-  // never sideways over the neighbor (his rule). Truncated hard; the click opens the full chat.
-  &--docked &__peek {
-    top: calc(100% + 12px); // clear of the name tag, not crowding it
-    right: auto;
-    left: 50%;
-    transform: translateX(-50%);
-    // At least the bot's own footprint wide (his call: "use at least the length of the chat") —
-    // dock spacing guarantees this much room, so neighbors still never overlap.
-    width: 150px;
-    max-width: 150px;
-    .agent-chat__status {
-      // A long status WRAPS instead of vanishing behind an ellipsis. The pill is only 150px wide,
-      // so two lines is barely a sentence — it read as cut off, which it was. Height costs nothing
-      // here: nothing sits under a docked bot, and the width is what keeps neighbours apart.
-      max-width: 100%;
-      display: -webkit-box;
-      -webkit-line-clamp: 5;
-      line-clamp: 5;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-      white-space: normal;
-      font-size: 10.5px;
-      .agent-chat__dots {
-        display: inline-flex; // dots ride the text inline once it wraps
-      }
-    }
-  }
-  &--docked &__peek-msg {
-    -webkit-line-clamp: 6; // same as the free-floating preview — docking shouldn't cost you the message
-    font-size: 11px;
-  }
-  // The reading thread keeps its full width in the line too. The 150px slot pill is for a one-line
-  // cooking status; squeezing a conversation into it is the truncation he was complaining about.
-  &--docked &__peek--thread {
-    width: 300px;
-    max-width: 300px;
-  }
   // The dictated words: committed solid, still-being-heard faded, so you watch the sentence form.
   &__mic-text {
     font-size: 12px;
@@ -1227,27 +1189,6 @@
     box-shadow: 0 14px 40px rgba(0, 0, 0, 0.22);
     overflow: hidden;
   }
-  // The dock line made visible, only while something is being dragged.
-  &__dockline {
-    position: fixed;
-    left: 0;
-    right: 0;
-    height: 1px;
-    background: rgba(76, 175, 80, 0.9);
-    pointer-events: none;
-    z-index: 8499;
-  }
-  // Where each bot will land if you drop it on the line — the dock math, drawn.
-  &__dockslot {
-    position: fixed;
-    width: 46px;
-    height: 46px;
-    border-radius: 50%;
-    background: rgba(76, 175, 80, 0.16);
-    border: 1px solid rgba(76, 175, 80, 0.5);
-    pointer-events: none;
-    z-index: 8499;
-  }
   &__head {
     display: flex;
     align-items: center;
@@ -2092,11 +2033,25 @@
   .agent-chat__rz {
     display: none;
   }
-  // Nothing floats over the column: the peek, the status bubble and the errand line are all for a
-  // bot standing in the window.
-  .agent-chat__peek,
+  // NOT HIDDEN — FITTED. The first version of this switched the peek and the status line off, which
+  // quietly deleted the two things that tell him something is happening: a visit, and a message
+  // waiting. Docked they stop floating beside the bubble and become rows in the column, full width,
+  // under the agent's own row. Same components, same content, same behaviour — different shape.
+  .agent-chat__peek {
+    position: static;
+    width: auto;
+    max-width: none;
+    margin: 4px 6px 0;
+    transform: none;
+    box-shadow: none;
+    border: 1px solid var(--sv-border);
+  }
   .agent-chat__status {
-    display: none;
+    position: static;
+    max-width: none;
+    margin: 4px 6px 0;
+    transform: none;
+    box-shadow: none;
   }
 }
 // The way back out, said out loud rather than left as a gesture you'd have to already know.
@@ -2126,6 +2081,42 @@
     background: color-mix(in srgb, #4caf50 9%, transparent);
     .agent-chat__board-reply-who {
       color: #3d8b40;
+    }
+  }
+}
+
+// RFC-039 — a show's row in the collector: open it on the left, take it off the list on the right.
+// Two-step, like everything else here that removes something.
+.agent-chat {
+  &__links-open {
+    flex: 1 1 auto;
+    min-width: 0;
+    border: none;
+    background: none;
+    padding: 0;
+    text-align: left;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  &__links-x {
+    flex: none;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 10px;
+    color: var(--sv-text-faint);
+    padding: 0 2px;
+    &:hover {
+      color: #e05757;
+    }
+    &--armed {
+      color: #e05757;
+      font-weight: 700;
     }
   }
 }
