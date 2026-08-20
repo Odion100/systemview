@@ -2157,3 +2157,18 @@
     }
   }
 }
+
+// A question written with an unquoted multi-word option — the block says so instead of rendering
+// one nonsense choice. Same register as the other in-document corrections: quiet, not alarming.
+.md-input__hint {
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--sv-text-muted);
+  code {
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 11px;
+    background: var(--sv-inset);
+    border-radius: 3px;
+    padding: 0 4px;
+  }
+}

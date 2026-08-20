@@ -15,6 +15,13 @@ export const Question = ({ label, attrs = {}, line }) => {
     .split("|")
     .map((o) => o.trim())
     .filter(Boolean);
+  // AN UNQUOTED ATTRIBUTE VALUE STOPS AT THE FIRST SPACE. `{options=browser key|only}` parses as
+  // options="browser" and leaves `key|only` as stray attribute names — so the block rendered one
+  // nonsense choice and the writer had no idea why. Stray keys are the tell (a real question carries
+  // options/id/answer/ask and nothing else), and saying it beats rendering it wrong.
+  const KNOWN = ["options", "id", "answer", "ask"];
+  const strays = Object.keys(attrs).filter((k) => !KNOWN.includes(k));
+  const unquoted = strays.length > 0 && options.length <= 1;
   // Optimistic local answer so the click feels instant; the file is the durable copy.
   const [local, setLocal] = useState(null);
   const answer = local != null ? local : attrs.answer || "";
@@ -37,7 +44,12 @@ export const Question = ({ label, attrs = {}, line }) => {
         <span className="md-input__label">{label || attrs.ask || "…"}</span>
       </div>
       <div className="md-input__options">
-        {options.length ? (
+        {unquoted ? (
+          <span className="md-input__hint">
+            options with spaces must be quoted — <code>{'{options="a b|c d"}'}</code> (unquoted, the
+            value stops at the first space: this one parsed as <code>{options[0] || "…"}</code>)
+          </span>
+        ) : options.length ? (
           options.map((opt) => (
             <button
               key={opt}

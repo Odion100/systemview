@@ -424,7 +424,10 @@ async function loadCaseSetting() {
     else if (command === "selection") exitCode = await stageCmd.selection(input[1], opts);
     else exitCode = await stageCmd.stage(input[1], input[2], opts); // stage <add|clear> <target>
     flushAndExit(exitCode || 0);
-  } else if (command && !/^\d+$/.test(command)) {
+  } else if (command && command !== "start" && !/^\d+$/.test(command)) {
+    // `start` and a bare port reach the fallthrough BY DESIGN — they are the default action, not
+    // unknown verbs. Leaving them out of this guard is what took the hub down the first time it
+    // shipped: the check meant to catch a typo caught the one command that must always work.
     // AN UNKNOWN VERB MUST SAY SO. Anything unrecognised used to fall through to `start`, so a
     // command from a newer version — or a typo — printed the boot banner and looked like it had
     // done something. systemlynx hit this on the published build: `systemview thread …` did not

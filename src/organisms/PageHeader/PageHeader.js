@@ -20,6 +20,8 @@ const PageHeader = ({ current, projectCode }) => {
       <span className="page-header__version">v{VERSION}</span>
       <span className="page-header__brand">SystemView</span>
       <img className="page-header__logo" src={LOGO} alt="logo" />
+      {/* What it IS, after the icon and on the same line — his placement. */}
+      <span className="page-header__tagline">SystemLynx IDE</span>
       {/* Right cluster — the theme pill sits immediately LEFT of the Specs/Stats control. */}
       <span className="page-header__right">
         {/* The agent hub — every bot lives here; parked ones wait here. Sits right before the

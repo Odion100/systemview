@@ -2,6 +2,16 @@
 // lives in SystemView/styles.scss and is global, so every page's header is the same bar; here we only
 // style its contents so brand / logo / version read identically everywhere.
 .page-header {
+  // What SystemView IS, riding the same line after the icon — small and green, so it reads as a
+  // descriptor of the name rather than a second thing in the bar.
+  &__tagline {
+    font-family: Malkor;
+    font-size: 13px;
+    letter-spacing: 0.05em;
+    color: #2db432;
+    margin-left: 8px;
+    white-space: nowrap;
+  }
   &__brand {
     font-size: 28px;
     font-family: Malkor;

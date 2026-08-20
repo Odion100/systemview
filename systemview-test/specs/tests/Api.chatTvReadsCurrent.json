@@ -1,42 +1,75 @@
 [
   {
     "title": "The TV reads back the CURRENT show, never a stale one",
-    "namespace": { "serviceId": "SystemViewCore", "moduleName": "Api", "methodName": "chatTvReadsCurrent" },
+    "namespace": {
+      "serviceId": "SystemViewCore",
+      "moduleName": "Api",
+      "methodName": "chatTvReadsCurrent"
+    },
     "Before": [],
     "Main": [
       {
-        "title": "pushed show wins · his clicks win on that show · a re-push wins over his stale answers, and says so",
-        "namespace": { "serviceId": "SystemViewCore", "moduleName": "Api", "methodName": "chatTvReadsCurrent" },
+        "title": "pushed show wins \u00b7 his clicks win on that show \u00b7 a re-push wins over his stale answers, and says so",
+        "namespace": {
+          "serviceId": "SystemViewCore",
+          "moduleName": "Api",
+          "methodName": "chatTvReadsCurrent"
+        },
         "args": [],
         "savedEvaluations": [
           {
             "namespace": "results.startsEmpty",
             "expected_type": "boolean",
-            "validations": [{ "name": "boolEquals", "value": true }],
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
             "save": true
           },
           {
             "namespace": "results.readsPushedShow",
             "expected_type": "boolean",
-            "validations": [{ "name": "boolEquals", "value": true }],
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
             "save": true
           },
           {
             "namespace": "results.clickedCopyWins",
             "expected_type": "boolean",
-            "validations": [{ "name": "boolEquals", "value": true }],
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
             "save": true
           },
           {
             "namespace": "results.repushWinsOverStaleState",
             "expected_type": "boolean",
-            "validations": [{ "name": "boolEquals", "value": true }],
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
             "save": true
           },
           {
-            "namespace": "results.supersededAnswersFlagged",
+            "namespace": "results.noStaleCopyToFlag",
             "expected_type": "boolean",
-            "validations": [{ "name": "boolEquals", "value": true }],
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
             "save": true
           }
         ]

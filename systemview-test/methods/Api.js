@@ -216,51 +216,63 @@ module.exports = {
   // co-editing rule is read-before-write, so a stale read means an agent merges onto old text and
   // silently wipes his edit. The current show must always win.
   async chatTvReadsCurrent() {
+    const fs = require("fs");
+    const path = require("path");
     const SystemView = await hub();
     const pc = "systemview-test";
     const chat = `tv-${Date.now()}`; // its own room per run — never touches the real TV
     const stamp = Date.now();
 
-    // A REAL mark, not a made-up sentinel. "Has he answered this?" is now read off the text itself
-    // (`answer=` / `verdict=` / a `:::reply{author=you`), which is what the UI actually writes — so
-    // a fixture that invents its own marker would pass while proving nothing about real answers.
+    // RFC-040 — A REPORT IS A DOCUMENT, so this fixture pushes what `systemview show` now pushes: a
+    // POINTER record naming a file. It used to push `args.text` and assert the hub handed that text
+    // back, which stopped being true the day inline shows stopped being reports — the failure was
+    // the test guarding the old contract, not the code breaking.
+    const name = `tvtest ${stamp}`;
+    const slug = name.replace(/[^a-zA-Z0-9._-]+/g, "-");
+    const rel = `.systemview/report.${pc}.${slug}.md`;
+    const abs = path.join(process.cwd(), rel);
     const pushed = `# one ${stamp}\n\n::question[Pick]{id=q options="a|b"}`;
     const answered = `# one ${stamp}\n\n::question[Pick]{id=q options="a|b" answer=a}`;
 
     const empty = await SystemView.chatGetTv(pc, { chat });
-    await SystemView.chatCommand(pc, { chat, cmd: "show", args: { text: pushed }, label: `board ${stamp}` });
+
+    fs.writeFileSync(abs, pushed);
+    await SystemView.chatCommand(pc, { chat, cmd: "show", args: { report: name, path: rel }, label: name });
     const afterFirst = await SystemView.chatGetTv(pc, { chat });
 
-    // He clicks an answer — it is written into the report's own record, and the read reflects it.
-    await SystemView.chatSetTv(pc, {
-      chat,
-      state: { id: afterFirst.id, label: afterFirst.label, text: answered },
-    });
-    const afterClick = await SystemView.chatGetTv(pc, { chat });
+    // He answers IN THE DOCUMENT — that is where his clicks land now, not in a second copy held by
+    // the room. Reading the file back is the whole assertion.
+    fs.writeFileSync(abs, answered);
+    const clicked = fs.readFileSync(abs, "utf8");
 
-    // The agent re-pushes an edit of the SAME board. The new text must win over his old answers,
-    // and he must be TOLD his answers were on the previous version rather than silently losing them.
-    await SystemView.chatCommand(pc, { chat, cmd: "show", args: { text: `# two ${stamp}` }, label: `board ${stamp}` });
+    // The agent re-pushes the same title. A re-push is a SAVE to the same file, so there is no
+    // stale second version to lose his answers to — which is why the old `supersededAnswers`
+    // warning does not exist any more: it was a symptom of the copy, and the copy is gone.
+    fs.writeFileSync(abs, `# two ${stamp}`);
+    await SystemView.chatCommand(pc, { chat, cmd: "show", args: { report: name, path: rel }, label: name });
     const afterRepush = await SystemView.chatGetTv(pc, { chat });
+    const onDisk = fs.readFileSync(abs, "utf8");
 
-    // Same rule — this test's scratch room and its TV state go away with it.
+    // Same rule — this test's scratch room, its TV state and its document go away with it.
     try {
-      const fs = require("fs");
-      const path = require("path");
       const dir = path.join(process.cwd(), ".systemview", "chats");
       for (const suffix of [".jsonl", ".ack.json", ".tv.json"]) {
         try { fs.unlinkSync(path.join(dir, `${pc}.${chat}${suffix}`)); } catch {}
       }
+      fs.unlinkSync(abs);
     } catch {}
 
     return {
       startsEmpty: empty === null,
-      readsPushedShow: !!afterFirst && afterFirst.text === pushed && afterFirst.pristine === true,
-      // His answer is IN the record now — no second copy of the text anywhere.
-      clickedCopyWins: !!afterClick && /answer=a/.test(afterClick.text) && !afterClick.pristine,
-      // The actual bug: this used to come back as the CLICKED version of the OLD text.
-      repushWinsOverStaleState: !!afterRepush && afterRepush.text === `# two ${stamp}`,
-      supersededAnswersFlagged: !!afterRepush && afterRepush.supersededAnswers === true,
+      // The hub hands back the POINTER; it never reads project files itself.
+      readsPushedShow: !!afterFirst && !!afterFirst.args && afterFirst.args.report === name,
+      // His answer is in the document, and nothing else holds a copy of it.
+      clickedCopyWins: /answer=a/.test(clicked) && (!afterFirst.text || afterFirst.text === ""),
+      // A re-push is a save: same file, new content, one version.
+      repushWinsOverStaleState: onDisk === `# two ${stamp}` && !!afterRepush && afterRepush.args.report === name,
+      // One document means there is no superseded copy to warn about — the warning is gone WITH the
+      // thing that caused it, and this asserts that rather than the old flag.
+      noStaleCopyToFlag: !!afterRepush && afterRepush.supersededAnswers !== true,
     };
   },
   // THE SPEAKING GATE (2026-08-09) — reading a room is open, speaking into one is not. Two silent
