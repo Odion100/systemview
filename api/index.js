@@ -969,11 +969,9 @@ function findShow(projectCode, chat, needle) {
   for (let i = rows.length - 1; i >= 0; i--) {
     const r = rows[i];
     if (!r || r.kind !== "command" || r.cmd !== "show") continue;
-    const text = (r.args && r.args.text) || "";
-    const pointer = !text && r.args && r.args.report;
-    if (!text && !pointer) continue;
+    if (!r.args || !r.args.report) continue; // only documents are reports now (RFC-040)
     if (r.id === needle || String(r.label || "").toLowerCase().includes(want))
-      return { id: r.id, label: r.label || "show", text, args: r.args, ts: r.ts };
+      return { id: r.id, label: r.label || "show", text: "", args: r.args, ts: r.ts };
   }
   return null;
 }
@@ -984,15 +982,15 @@ function currentShow(projectCode, chat) {
   for (let i = rows.length - 1; i >= 0; i--) {
     const r = rows[i];
     if (r && r.kind === "command" && r.cmd === "show") {
-      const text = (r.args && r.args.text) || "";
-      // RFC-040 — a POINTER record names a document instead of carrying one. The hub does not read
-      // project files, so it hands the pointer back and the caller (UI or CLI) reads the document
-      // through that project's own plugin, which is the thing that owns its filesystem. A pointer
-      // may ALSO carry an inline copy for bundles that predate this — the pointer still wins.
+      // RFC-040 — A REPORT IS A DOCUMENT. The hub hands back the POINTER; the caller (UI or CLI)
+      // reads the document through that project's own plugin, which is the thing that owns its
+      // filesystem. A legacy record that carries text instead of a pointer is NOT a report any more
+      // (his call: "I don't need that to be backwards compatible… the old ones shouldn't work") —
+      // it is skipped, so the picker and the TV only ever show documents.
       if (r.args && r.args.report)
-        return { id: r.id, label: r.label || "show", text, args: r.args, ts: r.ts };
-      if (!text) return null; // a `--clear` blanks the TV
-      return { id: r.id, label: r.label || "show", text, ts: r.ts };
+        return { id: r.id, label: r.label || "show", text: "", args: r.args, ts: r.ts };
+      if (r.args && r.args.text) continue; // legacy inline show — not a document, not a report
+      return null; // a `--clear` blanks the TV
     }
   }
   return null;

@@ -1780,7 +1780,7 @@ function BotBubble({ projectCode, index }) {
     // not only for pushes that happen after some hub restarts.
     const seen = new Set();
     return src
-      .filter((m) => m.kind === "command" && m.cmd === "show" && m.args && m.args.text && !m.hidden)
+      .filter((m) => m.kind === "command" && m.cmd === "show" && m.args && m.args.report && !m.hidden)
       .slice()
       .reverse()
       .filter((m) => {
@@ -1809,7 +1809,7 @@ function BotBubble({ projectCode, index }) {
     for (const m of src) {
       if (m.hidden) continue; // taken off the list by hand, or superseded by a re-push
       if (m.kind === "command") {
-        if (m.cmd === "show" && m.args && m.args.text) {
+        if (m.cmd === "show" && m.args && m.args.report) {
           if (!q || String(m.label || "show").toLowerCase().includes(q) || String(m.args.text).toLowerCase().includes(q))
             out.push({ kind: "show", m, title: String(m.label || "show") });
         }

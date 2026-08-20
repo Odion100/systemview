@@ -739,15 +739,14 @@ module.exports.show = async function show(projectCode, { uiUrl, Client, chat, ag
   } catch (err) {
     log.warn(`couldn't file the report (${cleanErr(err)}) — sending it inline instead`);
   }
-  // THE POINTER CARRIES THE TEXT TOO, for now. A UI running a bundle from before RFC-040 reads
-  // `args.text` and knows nothing about `args.report` — so the day pointers started shipping, every
-  // new report rendered as nothing in any tab that had not picked up the new code yet. ("Something's
-  // wrong, the report doesn't exist.") The FILE is the source of truth: a current UI reads the
-  // document and writes his answers there. The inline copy is a fallback for older bundles and comes
-  // out once nothing is reading it.
-  return sendCommand(projectCode, {
-    uiUrl, Client, chat, agent, cmd: "show",
-    args: path ? { report: label, path, text: content } : { text: content },
-    label,
-  });
+  // A POINTER, AND ONLY A POINTER (his call: "I don't need that to be backwards compatible"). The
+  // transition copy is gone — while it existed it had to be re-synced on every write to the file or
+  // it drifted, and a stale copy is worse than none: he opened a report and saw the agent's replies
+  // without his own, two versions of one document with no way to tell which was real. The document
+  // is the report. If it cannot be written, the show does not go up.
+  if (!path) {
+    log.error(`couldn't file the report — the show did not go up. A report is a document now; there is nowhere else to put it.`);
+    return 1;
+  }
+  return sendCommand(projectCode, { uiUrl, Client, chat, agent, cmd: "show", args: { report: label, path }, label });
 };
