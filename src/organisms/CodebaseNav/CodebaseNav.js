@@ -9,6 +9,7 @@ import RowMenu from "../../atoms/RowMenu/RowMenu";
 import { commentedPathSet } from "../../atoms/CodeView/codeComments";
 import { pickHost, pluginFns } from "../../utils/pluginHost";
 import { slotId, useNavDock } from "../AgentChat/navDock";
+import TerminalSection from "./TerminalSection";
 import imageFileIcon from "../../assets/image-file.png";
 import "./styles.scss";
 
@@ -2057,6 +2058,10 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
               )}
             </>
           )}
+
+          {/* RFC-045 — THE LAST SECTION: a shell in this codebase. SystemView renders it; the
+              embedding host runs it. In a plain browser tab it says so and stops. */}
+          <TerminalSection projectCode={projectCode} CLASSNAME={CLASSNAME} Chevron={Chevron} />
         </div>
     </div>
   );

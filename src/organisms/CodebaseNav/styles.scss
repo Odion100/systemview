@@ -1351,3 +1351,146 @@
   padding: 2px 0 4px;
   margin-bottom: 4px;
 }
+
+// RFC-045 — the terminal section's chrome: a gear and a + on the fold row, tabs when there is more
+// than one shell, and the settings popover. Sized to sit inside a 280px column without pushing the
+// fold label around.
+.codebase-nav {
+  &__term-tools {
+    margin-left: auto;
+    display: flex;
+    gap: 2px;
+    align-items: center;
+  }
+  // His numbers, verbatim — 20px with line-height 0, which is what stops a glyph that size from
+  // pushing the fold row taller. The RESTING colour is per app mode: inheriting the row's colour
+  // left them looking wrong in dark ("the icons need a different default colour"), because a glyph
+  // at 20px carries far more of it than a word does.
+  &__term-tool {
+    font-size: 20px;
+    line-height: 0;
+    padding: 2px 4px;
+    border-radius: 3px;
+    opacity: 0.5;
+    color: #6b7280;
+    // ORDER MATTERS HERE, and it cost a round: `.codebase-nav--dark .codebase-nav__term-tool` and
+    // `.codebase-nav__term-tool--gear:hover` have the SAME specificity, so whichever comes last
+    // wins — with the dark rule below, hovering in dark mode did nothing at all. It goes first.
+    .codebase-nav--dark & {
+      color: #8b93a7;
+    }
+    &:hover {
+      opacity: 1;
+    }
+    // Two doors, two colours: the gear is settings, the + makes something. Rustic orange and the
+    // header's green.
+    &--gear:hover,
+    .codebase-nav--dark &--gear:hover {
+      color: #c1743a;
+    }
+    &--plus:hover,
+    .codebase-nav--dark &--plus:hover {
+      color: #2db432;
+    }
+  }
+  &__term-gear {
+    padding: 6px 8px;
+    background: var(--sv-inset);
+    border-bottom: 1px solid var(--sv-border);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  &__term-gear-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+  &__term-gear-label,
+  &__term-gear-val,
+  &__term-gear-hint {
+    font-size: 10px;
+    color: var(--sv-text-faint);
+    font-family: "SF Mono", Menlo, monospace;
+  }
+  &__term-gear-hint {
+    margin-left: auto;
+  }
+  // One row per live shell inside the gear: what it is, its pid, and the two things you can do with
+  // it — bring it into this card, or end it.
+  &__term-live {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    font-family: "SF Mono", Menlo, monospace;
+    color: var(--sv-text-muted);
+  }
+  &__term-live-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  &__term-live-pid {
+    color: var(--sv-text-faint);
+  }
+  &__term-swatch {
+    font-size: 10px;
+    font-family: "SF Mono", Menlo, monospace;
+    border: 1px solid var(--sv-border);
+    border-radius: 3px;
+    padding: 3px 6px;
+    cursor: pointer;
+    &.is-on {
+      border-color: #2db432;
+    }
+  }
+  &__term-step {
+    border: 1px solid var(--sv-border);
+    background: none;
+    color: var(--sv-text-muted);
+    border-radius: 3px;
+    min-width: 18px;
+    padding: 1px 5px;
+    font-size: 10px;
+    font-family: "SF Mono", Menlo, monospace;
+    cursor: pointer;
+    &:hover {
+      color: var(--sv-text);
+    }
+  }
+  // The strip takes the TERMINAL's colours (set inline from the active theme), not the app's — it
+  // sits on the terminal, so a fixed dark strip under a light shell reads as two stacked widgets.
+  &__term-tabs {
+    display: flex;
+    gap: 3px;
+    padding: 5px 8px 0;
+  }
+  &__term-tab {
+    font-size: 11px;
+    font-family: "SF Mono", Menlo, monospace;
+    border-radius: 4px 4px 0 0;
+    padding: 5px 9px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    white-space: nowrap;
+  }
+  // A REAL TARGET, AND SET APART FROM THE LABEL. A 10px ✕ tight against a single digit is a misclick
+  // waiting to happen — this one has its own hit area and only appears on the active tab.
+  &__term-tab-x {
+    font-size: 10px;
+    line-height: 1;
+    padding: 3px 4px;
+    margin-right: -3px;
+    border-radius: 3px;
+    opacity: 0.45;
+    &:hover {
+      opacity: 1;
+      background: rgba(127, 127, 127, 0.3);
+    }
+  }
+}

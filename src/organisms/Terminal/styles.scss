@@ -1,0 +1,30 @@
+// RFC-045 — the terminal's own skin. Deliberately minimal: xterm draws everything inside, and every
+// pixel of padding here is a pixel where the emulator's own background stops and the card's starts,
+// which is exactly the seam that made the first attempt read as a widget instead of a shell.
+.sv-term {
+  display: flex;
+  flex-direction: column;
+  // background is painted from the chosen theme at runtime — see paint() in Terminal.js
+
+  &__screen {
+    // A terminal is as tall as you give it. This is the resting height in the nav column; the pane
+    // scrolls internally past it, and xterm's own scrollback owns the history.
+    height: 220px;
+    // NO PADDING AT THE BOTTOM (his catch, twice now): the last line should sit on the container's
+    // edge so the shell blends into the card instead of floating in a box. Left only, to keep the
+    // text off the border.
+    padding: 4px 0 0 6px;
+    .xterm {
+      height: 100%;
+    }
+  }
+
+  &__error,
+  &__exit {
+    padding: 5px 8px;
+    font-size: 11px;
+    font-family: "SF Mono", Menlo, monospace;
+    color: #c9a26b;
+    background: rgba(0, 0, 0, 0.25);
+  }
+}

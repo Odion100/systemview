@@ -43,8 +43,16 @@
 
   &--file {
     color: #2e6f9e;
+    // THE BADGE HUGS THE PATH (his catch). It sat 5px in from the left edge with 8px of slack after
+    // the text — so the chip read as a badge floating in a box rather than a label attached to a
+    // file. The badge is flush against the left edge now, sharing the chip's corner, and the two
+    // sides are even: measured 1px / 6px instead of 5px / 8px.
+    padding-left: 0;
+    padding-right: 6px;
     .md-chip__kind {
       background: #5a94bd;
+      border-radius: 4px 0 0 4px;
+      margin-right: -1px; // the flex gap alone is the space between badge and path
     }
     &:hover {
       background: #e6f0f7;

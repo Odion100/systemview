@@ -11,6 +11,7 @@ import Markdown from "../../atoms/Markdown/Markdown";
 import { spotlight, clearSpotlight, animationMode, setAnimationMode, MODES } from "../../spotlight";
 import { resolveTarget, docRectOf, revealDocLines } from "../../spotlightTargets";
 import { slotId, setNavDocked, useNavDock } from "./navDock";
+import { hasHostDictation, startHostRecording } from "../../utils/hostDictation";
 import { useAppDark } from "../../atoms/appTheme";
 import loadServiceWithHeaders from "../../utils/loadService";
 import SEND_ICON from "../../assets/send.png";
@@ -668,10 +669,49 @@ function BotBubble({ projectCode, index }) {
   // "no indication, the words just pop up"); finals commit into the input.
   const [interim, setInterim] = useState("");
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  const micSupported = !!SR;
-  const toggleMic = () => {
+  // RFC-045 — INSIDE A HOST, THE HOST DICTATES. `webkitSpeechRecognition` exists in Electron and
+  // never returns a result (the recogniser is a Chrome service), so `!!SR` is a false positive there
+  // and this mic would look broken rather than absent. utils/hostDictation.js records with plain
+  // MediaRecorder and hands the bytes over; the trade is that there are no interim words, so the
+  // live line says "transcribing…" for the gap instead of pretending.
+  const hostMicRef = useRef(null);
+  const viaHostMic = hasHostDictation();
+  const micSupported = !!SR || viaHostMic;
+  // Text lands in the input AS YOU TALK now, one segment per pause — so this only closes the last
+  // one and appends nothing itself.
+  const commitSpoken = (text) => {
+    setInput((cur) => (cur ? `${cur} ` : "") + text.trim());
+    setInterim("");
+    setTimeout(() => inputRef.current && autogrow(inputRef.current), 0);
+  };
+  const finishHostMic = async () => {
+    const rec = hostMicRef.current;
+    if (!rec) return;
+    hostMicRef.current = null;
+    setInterim("transcribing…");
+    try {
+      await rec.stop();
+    } catch {}
+    setListening(false);
+    setInterim("");
+  };
+  const toggleMic = async () => {
     if (listening) {
+      if (viaHostMic) return finishHostMic();
       try { if (recRef.current) recRef.current.stop(); } catch {}
+      return;
+    }
+    if (viaHostMic) {
+      try {
+        hostMicRef.current = await startHostRecording({
+          onDraft: (t) => setInterim(t),
+          onSegment: commitSpoken,
+        });
+        setInterim("");
+        setListening(true);
+      } catch {
+        setListening(false);
+      }
       return;
     }
     try {
@@ -958,6 +998,13 @@ function BotBubble({ projectCode, index }) {
         if (args.clear) {
           setTv(null);
           setTvOpen(false);
+        } else if (args.report) {
+          // RFC-040 — A DOCUMENT-BACKED SHOW. The record carries a POINTER, not the text, so the
+          // TV has to READ the file. This branch only ever tested `args.text`, so once reports
+          // became documents a live push did nothing at all here: whatever you were last looking
+          // at stayed up, and the new report was only findable through the picker. His words:
+          // "every time a new report came before, it became the one you'd open up to."
+          openShow(record.id, record.label || "show", null, record.ts, args);
         } else if (args.text) {
           setTv({ id: record.id, text: args.text, label: record.label || "show", ts: record.ts });
           setTvOpen(true);
@@ -1220,7 +1267,17 @@ function BotBubble({ projectCode, index }) {
   };
 
   const send = async () => {
-    const text = input.trim();
+    // SEND WHILE THE MIC IS STILL RUNNING (his ask: "I used to be able to just send and not have to
+    // stop the recorder"). Host dictation commits at every pause, but the sentence you are in the
+    // middle of has not committed yet — so sending forces that segment to finish and takes it along.
+    // Without this, pressing send mid-breath silently drops your last few words.
+    let spoken = "";
+    if (listening && hostMicRef.current) {
+      try {
+        spoken = (await hostMicRef.current.flush()) || "";
+      } catch {}
+    }
+    const text = [input.trim(), spoken.trim()].filter(Boolean).join(" ");
     if (!text) return;
     // Sending ends the dictation — you said what you had to say (his call). `onend` arrives a beat
     // later, so drop the flag HERE: otherwise the transcript panel hangs on screen after the
@@ -1229,6 +1286,11 @@ function BotBubble({ projectCode, index }) {
       setListening(false);
       setInterim("");
       try { if (recRef.current) recRef.current.stop(); } catch {}
+      if (hostMicRef.current) {
+        const rec = hostMicRef.current;
+        hostMicRef.current = null;
+        rec.cancel(); // already flushed above — nothing left to transcribe
+      }
     }
     setInput("");
     // SENDING MEANS YOU'VE SEEN WHAT'S THERE. Without this, sending from the CLOSED chat left the
@@ -1365,12 +1427,49 @@ function BotBubble({ projectCode, index }) {
           /* hub unreachable — the pristine copy is still the right thing to show */
         }
       }
-      setTv({ id, text, label: label || "show", ts, path });
+      // WHEN you chose this one. The TV is sticky on purpose — you switch to a report and it stays
+      // put — but a report pushed AFTER your pick should be what comes up next time you open the TV
+      // ("if I switch, stay with me; but if a new one comes in, that's the one I'd see").
+      setTv({ id, text, label: label || "show", ts, path, pickedAt: Date.now() });
       setTvOpen(true);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [SystemView, projectCode, chat],
   );
+  // A REPORT ON SCREEN KEEPS ITSELF FRESH. His words: "I had to refresh to see your changes to the
+  // report why is that" — because RFC-040 made a report a FILE and the TV read it exactly once, when
+  // it opened. An agent editing that file while he watched changed nothing on his screen, and the
+  // only way out was the one instruction this app never gets to give: reload the page.
+  //
+  // So the open document re-reads on a beat and repaints ONLY when the bytes actually changed —
+  // an unconditional setTv would rebuild the markdown under him every few seconds and cost him his
+  // scroll and any thread he had open.
+  useEffect(() => {
+    if (!tvOpen || !tv || !tv.path) return undefined;
+    let dead = false;
+    const id = tv.id;
+    const reread = async () => {
+      const plugin = projPluginRef.current;
+      if (!plugin || dead || document.hidden) return;
+      try {
+        const res = await plugin.readFile({ path: tv.path });
+        if (dead || typeof res.content !== "string") return;
+        setTv((prev) =>
+          prev && prev.id === id && prev.text !== res.content ? { ...prev, text: res.content } : prev,
+        );
+      } catch {
+        /* the file may be mid-write, or the host may be down — the copy on screen stays */
+      }
+    };
+    const t = setInterval(reread, 4000);
+    window.addEventListener("focus", reread);
+    return () => {
+      dead = true;
+      clearInterval(t);
+      window.removeEventListener("focus", reread);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tvOpen, tv && tv.id, tv && tv.path]);
   // GRAB A PANEL BY ITS HEADER (his ask). The TV and the links panel are anchored beside the chat,
   // which is the right default but a bad prison — when both are open, or the chat is docked at an
   // edge, the useful place for a report is somewhere else on the screen. Each panel carries its own
@@ -1972,6 +2071,7 @@ function BotBubble({ projectCode, index }) {
   const [titling, setTitling] = useState(false); // the title is a word until it is clicked
   const [boardRec, setBoardRec] = useState(false);
   const boardRecRef = useRef(null);
+  const boardHostRef = useRef(null); // { rec, into } while the HOST is recording for a board box
   const boardDraftRef = useRef(null);
   const boardPath = ".systemview/boards/board.md";
   const boardHost = useMemo(
@@ -2186,6 +2286,20 @@ function BotBubble({ projectCode, index }) {
   // `into` names the target ("note" = a new card, or a card's ts = a reply on that note), so the
   // finals land in the right draft and the mic can only be lit in one place at a time.
   const toggleBoardRec = (into = "note") => {
+    if (boardHostRef.current) {
+      const { rec, into: wasFor } = boardHostRef.current;
+      boardHostRef.current = null;
+      setBoardInterim("transcribing…");
+      // The segments already landed in the box as he paused; stopping just closes the last one.
+      rec
+        .stop()
+        .catch(() => {})
+        .finally(() => {
+          setBoardRec(false);
+          setBoardInterim("");
+        });
+      if (wasFor === into) return;
+    }
     if (boardRecRef.current) {
       const wasFor = boardRec;
       try { boardRecRef.current.stop(); } catch {}
@@ -2194,11 +2308,31 @@ function BotBubble({ projectCode, index }) {
       if (wasFor === into) return;
     }
     const SRB = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SRB) return;
     const write = (txt) =>
       into === "note"
         ? setBoardDraft((cur) => (cur ? `${cur} ` : "") + txt)
         : setReplyDraft((cur) => (cur ? `${cur} ` : "") + txt);
+    // Same host-first rule as the chat mic — the board's recorder is the same feature on another box.
+    if (hasHostDictation()) {
+      (async () => {
+        try {
+          const rec = await startHostRecording({
+            onDraft: (t) => setBoardInterim(t),
+            onSegment: (t) => {
+              setBoardInterim("");
+              write(t.trim());
+            },
+          });
+          boardHostRef.current = { rec, into };
+          setBoardRec(into);
+          setBoardInterim("");
+        } catch {
+          setBoardRec(false);
+        }
+      })();
+      return;
+    }
+    if (!SRB) return;
     try {
       const rec = new SRB();
       rec.lang = navigator.language || "en-US";
@@ -2360,6 +2494,22 @@ function BotBubble({ projectCode, index }) {
     return () => window.removeEventListener("sv:navFold", onFold);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectCode, navDocked]);
+  // Which report the 📺 should put up: the newest one if it landed after your last pick, otherwise
+  // whatever you were on. `shows` is already newest-first and deduped by title.
+  const showToOpen = () => {
+    if (!shows.length) return null;
+    if (!tv) return shows[0];
+    return (shows[0].ts || 0) > (tv.pickedAt || 0) ? shows[0] : null;
+  };
+  // Where the report on the TV lives on disk. Looked up rather than only remembered, the same rule
+  // the save path follows — a TV opened by an older route carries no path of its own.
+  const tvDocPath = (() => {
+    if (!tv) return null;
+    if (tv.path) return tv.path;
+    const rec = shows.find((m) => m.id === tv.id);
+    const a = rec && rec.args;
+    return (a && (a.path || (a.report && reportPathFor(a.report)))) || null;
+  })();
   const navPick = (which) => {
     const already =
       (which === "chat" && open) ||
@@ -2370,13 +2520,31 @@ function BotBubble({ projectCode, index }) {
     openRef.current = which === "chat" && !already;
     setBoardOpen(which === "board" && !already);
     setLinksOpen(which === "links" && !already);
-    if (which === "tv" && !already && !tv && shows.length)
-      openShow(shows[0].id, shows[0].label, shows[0].args.text, shows[0].ts, shows[0].args.report ? shows[0].args : null);
+    const fresh = which === "tv" && !already ? showToOpen() : null;
+    if (fresh) openShow(fresh.id, fresh.label, fresh.args.text, fresh.ts, fresh.args.report ? fresh.args : null);
     else setTvOpen(which === "tv" && !already);
     if (which === "chat" && !already) {
       setUnread(0);
       try { localStorage.setItem(`sv.chatSeen.${projectCode}`, String(Date.now())); } catch {}
     }
+  };
+  // THE WHOLE ROW TOGGLES, docked — his catch: "you got to click on the agent icon to expand, and
+  // obviously you're supposed to be able to just click on the row just like the other rows."
+  // `services` and `code` are one big button each; the agent row is a strip of controls, so instead
+  // of making the strip a button it ignores clicks that landed ON a control and takes the rest.
+  const navToggle = () => {
+    if (navShowing) {
+      setOpen(false);
+      openRef.current = false;
+      setBoardOpen(false);
+      setLinksOpen(false);
+      setTvOpen(false);
+    } else navPick("chat");
+  };
+  const onNavRowClick = (e) => {
+    if (!inNav) return;
+    if (e.target.closest("button, [role='button'], input, textarea")) return; // a control did its job
+    navToggle();
   };
   // THE ICONS LIVE ON THE RIGHT. They move out of the way only when something is actually in the
   // way — the message display or the live transcript, hanging on that same side. Flipping them by
@@ -2899,6 +3067,34 @@ function BotBubble({ projectCode, index }) {
                   {whenAbs ? showWhenAbs(tv.ts) : showWhen(tv.ts)}
                 </button>
               )}
+              {/* TAKE IT WITH YOU (his ask). A report is a document now, and the documents section
+                  reads documents by path — so "put this on the big screen" is one press: point the
+                  centre at the same file and close the TV behind it, the same hand-off a file chip
+                  already does. Nothing is staged and nothing is copied; rdoc reads the file. */}
+              {tvDocPath && (
+                <button
+                  type="button"
+                  className={`${CLASSNAME}__tv-doc`}
+                  title="Open this report in the documents section"
+                  onPointerDown={(e) => e.stopPropagation()} // the header drags; this doesn't
+                  onDoubleClick={(e) => e.stopPropagation()} // …and never resets the TV
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const p = new URLSearchParams(window.location.search);
+                    p.set("tab", "reports");
+                    p.set("rdoc", tvDocPath);
+                    p.delete("help");
+                    const pathname = window.location.pathname.startsWith(`/specs/${projectCode}`)
+                      ? window.location.pathname
+                      : `/specs/${projectCode}`;
+                    go({ pathname, search: `?${p.toString()}` });
+                    setTvOpen(false);
+                    if (endErrandRef.current) endErrandRef.current(true);
+                  }}
+                >
+                  📄
+                </button>
+              )}
               <button
                 type="button"
                 className={`${CLASSNAME}__close`}
@@ -3323,7 +3519,13 @@ function BotBubble({ projectCode, index }) {
                 🎙
               </button>
             )}
-            <button type="button" className={`${CLASSNAME}__send`} onClick={send} disabled={!input.trim()} title="Send">
+            <button
+              type="button"
+              className={`${CLASSNAME}__send`}
+              onClick={send}
+              disabled={!input.trim() && !listening}
+              title="Send"
+            >
               <img src={SEND_ICON} alt="send" />
             </button>
           </div>
@@ -3362,6 +3564,14 @@ function BotBubble({ projectCode, index }) {
               title="Stop and throw it away"
               onClick={() => {
                 try { if (recRef.current) recRef.current.stop(); } catch {}
+                // …and a HOST recording, which is a different object entirely: without this the ✕
+                // cleared the words on screen and left the microphone running.
+                if (hostMicRef.current) {
+                  const rec = hostMicRef.current;
+                  hostMicRef.current = null;
+                  rec.cancel();
+                  setListening(false);
+                }
                 setInput("");
                 setInterim("");
               }}
@@ -3372,7 +3582,10 @@ function BotBubble({ projectCode, index }) {
               type="button"
               className={`${CLASSNAME}__mic-btn ${CLASSNAME}__mic-btn--send`}
               title="Send it — the chat stays closed"
-              disabled={!input.trim()}
+              // LIVE MIC COUNTS AS SOMETHING TO SEND. The words you are saying right now have not
+              // committed yet, so an input-only check greys the button out mid-sentence — which is
+              // exactly what "I can't even use the recorder when the chat is closed" was.
+              disabled={!input.trim() && !listening}
               onClick={send}
             >
               send
@@ -3523,8 +3736,9 @@ function BotBubble({ projectCode, index }) {
       <div
         data-sv="bot"
         data-sv-pc={projectCode}
-        className={`${CLASSNAME}__bot`}
+        className={`${CLASSNAME}__bot${inNav ? ` ${CLASSNAME}__bot--row` : ""}`}
         onPointerDown={onBotPointerDown}
+        onClick={onNavRowClick}
         onContextMenu={(e) => {
           e.preventDefault();
           setCtxMenu(true);
@@ -3541,13 +3755,7 @@ function BotBubble({ projectCode, index }) {
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation();
-              if (navShowing) {
-                setOpen(false);
-                openRef.current = false;
-                setBoardOpen(false);
-                setLinksOpen(false);
-                setTvOpen(false);
-              } else navPick("chat");
+              navToggle();
             }}
           >
             {navShowing ? "▾" : "▸"}
@@ -3633,9 +3841,10 @@ function BotBubble({ projectCode, index }) {
               if (endErrandRef.current) endErrandRef.current(true);
               return;
             }
-            // Nothing on it yet — put the latest show up rather than opening an empty box.
-            if (!tv && shows.length)
-              openShow(shows[0].id, shows[0].label, shows[0].args.text, shows[0].ts, shows[0].args.report ? shows[0].args : null);
+            // Nothing on it yet — or something newer has landed since you last picked.
+            const fresh = showToOpen();
+            if (fresh)
+              openShow(fresh.id, fresh.label, fresh.args.text, fresh.ts, fresh.args.report ? fresh.args : null);
             else setTvOpen(true);
           }}
         >

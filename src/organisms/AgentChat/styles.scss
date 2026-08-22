@@ -1123,6 +1123,19 @@
     font-size: 9px;
     opacity: 0.6;
   }
+  // Hand the report to the documents section. Quiet next to the ✕ — it belongs to the same row of
+  // things you do TO the panel rather than to the report.
+  &__tv-doc {
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 11px;
+    padding: 0 4px;
+    opacity: 0.55;
+    &:hover {
+      opacity: 1;
+    }
+  }
   // The list of shows, hanging under the header like the reports picker.
   &__tv-picker {
     max-height: 240px;
@@ -1966,7 +1979,9 @@
     align-items: center;
     gap: 6px;
     padding: 3px 8px 3px 10px;
-    cursor: default; // it doesn't travel any more — it's home
+    // It doesn't travel any more — it's home, and the whole row is the fold, the same as the
+    // `services` and `code` rows above it.
+    cursor: pointer;
   }
   // No name: the project card overhead already said it (his call).
   .agent-chat__label {

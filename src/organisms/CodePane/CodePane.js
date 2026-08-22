@@ -638,6 +638,11 @@ const CodePane = ({ file, onClose }) => {
   return (
     <div className={CLASSNAME}>
       <div className={`${CLASSNAME}__header ${!editorDark ? `${CLASSNAME}__header--light` : ""}`}>
+        {/* THE PAIR BRACKETS THE FILE: back before the badge, forward on the other side of the path.
+            What was wrong was never the arrangement — it was that forward lived in `__actions`,
+            which is pinned to the far right of the header, so it drifted away from the file it
+            belongs to and ended up sitting next to the diff and theme buttons. His words: "they were
+            on either side of the file, except it was being pushed all the way down to the end". */}
         {backTo && (
           <button
             type="button"
@@ -664,18 +669,18 @@ const CodePane = ({ file, onClose }) => {
             </span>
           ))}
         </span>
+        {fwdTo && (
+          <button
+            type="button"
+            className={`${CLASSNAME}__back`}
+            title={`Forward to ${fwdTo.path}`}
+            onClick={() => step(1)}
+          >
+            ›
+          </button>
+        )}
         {dirty && <span className={`${CLASSNAME}__dirty`} title="unsaved changes" />}
         <span className={`${CLASSNAME}__actions`}>
-          {fwdTo && (
-            <button
-              type="button"
-              className={`${CLASSNAME}__back`}
-              title={`Forward to ${fwdTo.path}`}
-              onClick={() => step(1)}
-            >
-              ›
-            </button>
-          )}
           <EditorThemeToggle scope={themeScope} />
           {/* Shown while the MODE is on even where this file has no diff — otherwise opening an
               unchanged file takes away the only control that turns the mode back off. */}

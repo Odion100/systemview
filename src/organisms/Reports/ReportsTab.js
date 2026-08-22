@@ -162,7 +162,25 @@ const ReportsTab = ({ projectCode, serviceId, moduleName, methodName, openName, 
   // report no matter where you're standing ("you gotta select the report" was the bug).
   useEffect(() => {
     if (!openName) return setDoc(null);
-    if (doc && (doc.name === openName || doc.path === openName)) return;
+    if (doc && (doc.name === openName || doc.path === openName)) {
+      // OPENED BY PATH, TITLED BY FILENAME. `?rdoc=` may arrive before the index does (a chip, a nav
+      // command, the TV's hand-off), and the fallback below names the document after its file — so
+      // the header read `report.systemview-test.Four-off-the-board` instead of "Four off the board".
+      // Adopt the real name the moment the index can supply it; the title is how he knows what he's
+      // reading.
+      if (doc.path === openName && index) {
+        for (const list of Object.values(index)) {
+          const hit = (Array.isArray(list) ? list : []).find(
+            (r) => r && r.path === openName && r.name && r.name !== doc.name,
+          );
+          if (hit) {
+            setDoc((d) => (d ? { ...d, name: hit.name } : d));
+            break;
+          }
+        }
+      }
+      return;
+    }
     let entry = mine.find((r) => r.name === openName || r.path === openName);
     if (!entry && index) {
       for (const list of Object.values(index)) {
@@ -206,6 +224,40 @@ const ReportsTab = ({ projectCode, serviceId, moduleName, methodName, openName, 
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshTick]);
+
+  // THE OPEN REPORT KEEPS ITSELF FRESH — his catch: "I had to refresh to see your changes to the
+  // report why is that". A report is a file (RFC-040) and this pane read it once, on open, so an
+  // agent writing to it while he read changed nothing on screen. It re-reads on a beat and repaints
+  // only when the bytes actually differ, so a document sitting untouched costs one small read and
+  // never moves under him. It stands off while he's editing or mid-save — his keystrokes win.
+  useEffect(() => {
+    if (!Plugin || !doc || !doc.path || editing) return undefined;
+    let dead = false;
+    const path = doc.path;
+    const reread = async () => {
+      if (dead || document.hidden) return;
+      if (Date.now() - savingRef.current < 4000) return; // a save of his is still settling
+      try {
+        const data = await Plugin.readFile({ path });
+        if (dead || typeof data.content !== "string") return;
+        setDoc((cur) =>
+          cur && cur.path === path && cur.content !== data.content
+            ? { ...cur, content: data.content, failed: undefined }
+            : cur,
+        );
+      } catch {
+        /* mid-write, or the host is down — what's on screen stays */
+      }
+    };
+    const t = setInterval(reread, 4000);
+    window.addEventListener("focus", reread);
+    return () => {
+      dead = true;
+      clearInterval(t);
+      window.removeEventListener("focus", reread);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [Plugin, doc && doc.path, editing]);
 
   const open = (entry) => {
     setPicking(false);
@@ -264,10 +316,14 @@ const ReportsTab = ({ projectCode, serviceId, moduleName, methodName, openName, 
   // saved meanwhile — surface it and let a deliberate second Save overwrite (their version is in
   // the snapshot ring either way).
   const conflictRef = useRef(false);
+  // A save is in flight — the freshness poll below stands off while it is, so it can't read the
+  // pre-save bytes back over what you just wrote.
+  const savingRef = useRef(0);
   const save = useCallback(
     async (next) => {
       if (!doc) return;
       const base = doc.content;
+      savingRef.current = Date.now();
       setDoc((d) => (d ? { ...d, content: next } : d));
       try {
         const res = await Plugin.writeFile(

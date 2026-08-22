@@ -1,3 +1,4 @@
+import { hasHostDictation, startHostRecording } from "../../utils/hostDictation";
 import { useCallback, useEffect, useState } from "react";
 
 // RFC-034 — COMMENTS ON CODE. Threads on a source file, the same conversation a document thread
@@ -176,6 +177,48 @@ export function useCodeComments(Plugin, path) {
 // listen, press again to stop, finals append. Interim text streams too — the live line IS the
 // recording indicator, same as the chat's mic.
 export function dictateInto(textarea, onState) {
+  // RFC-045 — THE FOURTH MICROPHONE, and the one that stayed broken longest. Inside the shell
+  // `webkitSpeechRecognition` exists and never returns a result, so this returned a live-looking
+  // recogniser and the comment box simply never filled in — "speech recognition is broken in
+  // comments". Host first, exactly like the chat and the board.
+  if (hasHostDictation()) {
+    let base = textarea.value;
+    let session = null;
+    let stopped = false;
+    const paint = (draft) => {
+      textarea.value = draft ? `${base}${base && !/\s$/.test(base) ? " " : ""}${draft}` : base;
+    };
+    startHostRecording({
+      onDraft: (t) => paint(t),
+      onSegment: (t) => {
+        base = `${base}${base && !/\s$/.test(base) ? " " : ""}${t.trim()}`;
+        paint("");
+      },
+    })
+      .then((s) => {
+        if (stopped) return s.cancel();
+        session = s;
+        if (onState) onState(true);
+      })
+      .catch(() => onState && onState(false));
+    return {
+      stop() {
+        stopped = true;
+        if (!session) return onState && onState(false);
+        const s = session;
+        session = null;
+        s.stop()
+          .catch(() => {})
+          .then(() => {
+            // DROP THE UNCOMMITTED DRAFT. Whatever the live line was showing when you pressed stop
+            // is a guess; the committed sentences are the text. Without this the box kept the last
+            // rough draft appended after the real words.
+            paint("");
+            if (onState) onState(false);
+          });
+      },
+    };
+  }
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) return null;
   const rec = new SR();
@@ -204,4 +247,5 @@ export function dictateInto(textarea, onState) {
   }
   return rec;
 }
-export const dictationSupported = () => !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+export const dictationSupported = () =>
+  hasHostDictation() || !!(window.SpeechRecognition || window.webkitSpeechRecognition);
