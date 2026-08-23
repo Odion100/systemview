@@ -10,6 +10,7 @@ import { changeMarksOf, hunksOf, stagedContentFor, fileGitState } from "../../Co
 import { useCodeComments } from "../../CodeView/codeComments";
 import { useEditorDark } from "../../CodeView/editorTheme";
 import { canGit, hasPlugin, pickHost } from "../../../utils/pluginHost";
+import Markdown from "../Markdown";
 
 // RFC-025 — the two story-pane kinds a document was still missing: a FILE pane and a DIFF pane.
 //
@@ -64,9 +65,22 @@ const Embed = ({ label, attrs = {}, opens }) => {
   const raw = label || attrs.path || "";
   const { path, lines } = parseFileSpec(raw);
   const [view, setView] = useState(opens);
+  // AN EMBEDDED `.md` IS A DOCUMENT, NOT A LISTING — his catch: "embedded markdown should be able to
+  // show it in preview". A file open in the pane already opens rendered; the same file dropped into
+  // a document showed its raw source, which is the one place markdown is worth LESS than its text.
+  // Same remembered preference key the pane uses, because it is the file's preference, not the
+  // surface's: flip it here and the pane agrees.
+  const isMd = langOf(raw ? parseFileSpec(raw).path : "") === "markdown";
+  const [mdPreview, setMdPreview] = useState(true);
   // Stamped with the file it belongs to, so a changed path reads as absent rather than showing the
   // previous file's body for a frame.
   const key = `${path}@${host ? host.serviceId : ""}`;
+  useEffect(() => {
+    if (!isMd) return;
+    try {
+      setMdPreview(localStorage.getItem(`sv.mdPreview.${path}`) !== "false");
+    } catch {}
+  }, [path, isMd]);
   // ONE FETCH PAIR SERVES BOTH SIDES: readFile is the content (and the honest "no such file"), and
   // getDiff carries HEAD + the index, which is what the stripes, the diff and the right-click menu
   // are all made of. Nothing extra is read when you press Diff.
@@ -180,10 +194,15 @@ const Embed = ({ label, attrs = {}, opens }) => {
   // order, same two-step on anything destructive. YOU CANNOT DISCARD WHAT YOU HAVE STAGED: unstage
   // first, so discard only appears when there is an unstaged difference to throw away.
   //
-  // IT LIVES ON THE HEADER BAR, NOT THE WHOLE BLOCK. On the whole block it swallowed the DOCUMENT's
-  // own right-click, and a code embed became the one place you could no longer wrap a block or use
-  // the block menu — his catch, within a minute. The split is the honest one: the chrome is the
-  // file, the body is the document.
+  // IT LIVES ON THE FILE'S OWN CHROME, NOT THE WHOLE BLOCK. On the whole block it swallowed the
+  // DOCUMENT's own right-click, and a code embed became the one place you could no longer wrap a
+  // block or use the block menu — his catch, within a minute. The split is the honest one: the
+  // chrome is the file, the text is the document.
+  //
+  // THE GUTTER IS CHROME TOO — his follow-up: "I can highlight the numbers on the corner of the
+  // file, but I still can't right click to do the native file features." The line-number column is
+  // the file's edge, not its prose, so right-clicking there is the file's menu, exactly like the
+  // bar. Everything over the actual code still belongs to the document.
   const openMenu = (e) => {
     if (!host || !path) return;
     e.preventDefault();
@@ -224,7 +243,7 @@ const Embed = ({ label, attrs = {}, opens }) => {
 
   return (
     <div className={`md-embed md-embed--${view}`}>
-      <div className="md-embed__head" onContextMenu={openMenu} title="Right-click this bar for the file's own menu">
+      <div className="md-embed__head" onContextMenu={openMenu} title="Right-click this bar — or the line numbers — for the file's own menu">
         {/* ONE KIND: code. The badge names the pane, not which side of it you're looking at —
             outside, a file open in the panel doesn't rename itself when you press Diff either. */}
         <span className="md-embed__kind md-embed__kind--quiet">code</span>
@@ -246,6 +265,22 @@ const Embed = ({ label, attrs = {}, opens }) => {
             💬 {threads.length}
           </button>
         )}
+        {isMd && !diffOn && (
+          <button
+            type="button"
+            className={`md-embed__view ${mdPreview ? "md-embed__view--on" : ""}`}
+            title={mdPreview ? "Showing it rendered — click for the source" : "Show it rendered"}
+            onClick={() => {
+              const next = !mdPreview;
+              setMdPreview(next);
+              try {
+                localStorage.setItem(`sv.mdPreview.${path}`, String(next));
+              } catch {}
+            }}
+          >
+            {mdPreview ? "Source" : "Preview"}
+          </button>
+        )}
         <button
           type="button"
           className={`md-embed__view ${diffOn ? "md-embed__view--on" : ""}`}
@@ -256,7 +291,14 @@ const Embed = ({ label, attrs = {}, opens }) => {
         </button>
       </div>
       {note && <div className="md-embed__note">{note}</div>}
-      <div className="md-embed__file-body">
+      <div
+        className="md-embed__file-body"
+        // Only the line-number column — `closest` because the gutter is a stack of elements and the
+        // thing under the pointer is usually the number itself, not the column.
+        onContextMenu={(e) => {
+          if (e.target && e.target.closest && e.target.closest(".cm-gutters")) openMenu(e);
+        }}
+      >
         {error ? (
           <div className="report-chart-empty">{error}</div>
         ) : content === null ? (
@@ -276,6 +318,19 @@ const Embed = ({ label, attrs = {}, opens }) => {
               dark={editorDark}
             />
           )
+        ) : isMd && mdPreview ? (
+          // RENDERED, and read-only like everything else in an embed: no `onSourceChange`, so a
+          // checklist here shows its state without writing to his file behind his back. Open it
+          // properly (click the path) to change it.
+          <div className={`md-view md-view--${editorDark ? "dark" : "light"}`}>
+            <Markdown
+              dark={editorDark}
+              scope={{ projectCode: host ? host.projectCode : projectCode, serviceId: host ? host.serviceId : null }}
+              commentKey={`file-${path}`}
+            >
+              {content}
+            </Markdown>
+          </div>
         ) : (
           // The EDITOR, held read-only — that's what carries the change stripes, the panel a stripe
           // opens and the per-run staging. CodeView has none of that, and a file in a document was

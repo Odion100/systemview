@@ -19,6 +19,9 @@ const SystemViewPage = () => {
   );
   useEffect(() => {
     localStorage.setItem("sv.navOpen", String(navOpen));
+    // The bot's pop-out codebase panel exists only BECAUSE the navigator is away — so it has to know
+    // the moment that changes, rather than reading a flag it has no reason to re-check.
+    window.dispatchEvent(new CustomEvent("sv:navOpen", { detail: { open: navOpen } }));
   }, [navOpen]);
   useEffect(() => {
     localStorage.setItem("sv.scratchOpen", String(scratchOpen));

@@ -2161,3 +2161,63 @@
     color: var(--sv-text-muted);
   }
 }
+
+// RFC-045-adjacent (his ask, 2026-08-22) — THE CODEBASE, HANGING OFF THE BOT. Same card the nav
+// renders; it just lives here when the navigator is collapsed. The body scrolls on its own so a
+// long tree can't push the panel past the window.
+.agent-chat {
+  &__cbpanel {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  // `</>` is TEXT where the other badges are emoji, so it takes its colour from the header instead
+  // of carrying its own — which on dark left it near-invisible.
+  &__cbpanel-badge {
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: #5a94bd;
+    :root.sv-dark & {
+      color: #7fc0e8;
+    }
+  }
+  // FLEX ALL THE WAY DOWN, but only here. In the sidebar the cards stack in a scrolling column, so
+  // "fill the remaining space" has no meaning there; in this panel exactly one card fills a box of
+  // known height, so the terminal — the last section — can take whatever the tree leaves it, and
+  // resizing the panel resizes the shell. Dragging its grip sets a number that wins over this.
+  &__cbpanel-body {
+    flex: 1;
+    min-height: 120px;
+    overflow-y: auto;
+    background: var(--sv-surface);
+    display: flex;
+    flex-direction: column;
+    .codebase-nav {
+      padding: 4px 0 0;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .codebase-nav__codebase {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      margin-bottom: 0;
+    }
+    .codebase-nav__cb-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      padding-bottom: 0; // the shell sits on the panel's edge — no strip of card under it
+      overflow-y: auto;
+    }
+    .sv-term {
+      min-height: 90px;
+    }
+  }
+}

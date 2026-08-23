@@ -1,7 +1,7 @@
 import React, { useRef, useEffect } from "react";
 import { EditorState } from "@codemirror/state";
 import { EditorView, lineNumbers, keymap, Decoration, gutter, gutterLineClass, GutterMarker, WidgetType, MatchDecorator, ViewPlugin } from "@codemirror/view";
-import { StateField, StateEffect, RangeSet } from "@codemirror/state";
+import { StateField, StateEffect, RangeSet, Prec } from "@codemirror/state";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { syntaxHighlighting, defaultHighlightStyle } from "@codemirror/language";
 import { oneDark } from "@codemirror/theme-one-dark";
@@ -884,6 +884,30 @@ const CodeEditor = ({
       selectedLineNumbers,
       history(),
       keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
+      // ⌃D SEARCHES WHAT YOU ARE LOOKING AT — the keyboard half of the ⌘-click below, and the way
+      // a search actually starts: highlight a name, press it, the box is already filled and focused.
+      // With nothing selected it takes the word under the cursor, so it works from a bare caret too.
+      // Highest precedence because the default (emacs) keymap spends Ctrl-D on delete-forward.
+      Prec.highest(
+        keymap.of(
+          ["Ctrl-d", "Mod-d"].map((key) => ({
+            key,
+            run(view) {
+              if (!onWordClickRef.current) return false;
+              const { from, to } = view.state.selection.main;
+              let word = from === to ? "" : view.state.doc.sliceString(from, to).trim();
+              if (!word) {
+                const line = view.state.doc.lineAt(from);
+                const col = from - line.from;
+                word = `${line.text.slice(0, col).match(/[\w$]*$/)[0]}${line.text.slice(col).match(/^[\w$]*/)[0]}`;
+              }
+              if (!word || /\n/.test(word)) return false;
+              onWordClickRef.current(word, { focus: true });
+              return true;
+            },
+          })),
+        ),
+      ),
       EditorView.lineWrapping,
       focusRangeField, // the visible line-range mark (see above)
       changeMarkField, // the vs-HEAD stripe down the edge
@@ -1236,6 +1260,12 @@ const CodeEditor = ({
   // setting the editor's OWN scroller only. Never scrollIntoView: it walks up the DOM and scrolls
   // every scrollable ancestor, which is what used to yank a whole story to the middle.
   const focusKey = focusLines ? focusLines.join("-") : "";
+  // WHY NOT `value`: this effect used to re-run on every change to the document, so with a range in
+  // the URL (`?flines=29-29`, set by a `:file[path#L29]` chip or a click on the change ruler) EVERY
+  // KEYSTROKE re-selected those lines and scrolled you back to them. His report: "anytime I edit a
+  // file, some feature navigates me to the middle of the file." A focus range is a thing to honour
+  // when it ARRIVES and when the document arrives — not something to re-apply while he types.
+  const hasDoc = !!value;
   useEffect(() => {
     const view = viewRef.current;
     // LETTING GO IS ALSO A STATE. Setting a range marked the lines; clearing it did nothing at all,
@@ -1296,7 +1326,8 @@ const CodeEditor = ({
       if (window.__svCodeFocus && window.__svCodeFocus.rectOf === rectOf) window.__svCodeFocus = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [focusKey, value]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusKey, hasDoc]);
 
   return <div className={`code-editor ${dark ? "code-editor--dark" : ""}`} ref={host} />;
 };

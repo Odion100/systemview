@@ -17,6 +17,7 @@ const Terminal = React.lazy(() => import("../Terminal/Terminal"));
 // a `sessionId`, and the host keys its pty by it — so a tab that is not on screen keeps running, and
 // coming back to it repaints from the host's scrollback.
 const sessKey = (pc) => `sv.cbNav.termTabs.${pc}`;
+const heightKey = (pc) => `sv.cbNav.termH.${pc}`;
 
 const loadTabs = (pc) => {
   try {
@@ -37,6 +38,45 @@ const TerminalSection = ({ projectCode, CLASSNAME, Chevron }) => {
   // evening of testing, none of them visible anywhere. A terminal that survives the window is a
   // feature; a terminal that survives it INVISIBLY is a leak.
   const [live, setLive] = useState([]);
+  // THE TERMINAL IS THE LAST SECTION, so by default it takes whatever space is left — resize the
+  // panel and the shell grows with it. Drag its top edge and you have said a number out loud, and
+  // that number wins from then on (double-click the grip hands the space back to the flex).
+  const [height, setHeight] = useState(() => {
+    const v = Number(localStorage.getItem(heightKey(projectCode)));
+    return Number.isFinite(v) && v > 60 ? v : null;
+  });
+  const dragRef = React.useRef(null);
+  const startDrag = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const box = e.currentTarget.parentElement.querySelector(".sv-term");
+    const from = box ? box.getBoundingClientRect().height : height || 220;
+    dragRef.current = { y: e.clientY, from };
+    const move = (ev) => {
+      if (!dragRef.current) return;
+      const next = Math.max(90, Math.round(dragRef.current.from + (dragRef.current.y - ev.clientY)));
+      setHeight(next);
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      dragRef.current = null;
+      setHeight((h) => {
+        try {
+          if (h) localStorage.setItem(heightKey(projectCode), String(h));
+        } catch {}
+        return h;
+      });
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
+  const releaseHeight = () => {
+    setHeight(null);
+    try {
+      localStorage.removeItem(heightKey(projectCode));
+    } catch {}
+  };
   const [appDark] = useAppDark();
   const [look, setLook] = useState(() => readLook(appDark));
   useEffect(() => setLook(readLook(appDark)), [appDark]);
@@ -124,6 +164,14 @@ const TerminalSection = ({ projectCode, CLASSNAME, Chevron }) => {
 
   return (
     <>
+      {open && hosted && (
+        <div
+          className={`${CLASSNAME}__term-grip`}
+          title="Drag to size the terminal · double-click to let it fill what's left"
+          onPointerDown={startDrag}
+          onDoubleClick={releaseHeight}
+        />
+      )}
       <button
         type="button"
         className={`${CLASSNAME}__code-fold`}
@@ -290,7 +338,7 @@ const TerminalSection = ({ projectCode, CLASSNAME, Chevron }) => {
           {/* One mounted pane — the others keep running on the host, which is the whole reason a tab
               is a sessionId rather than a component instance. `key` forces a clean re-open on switch,
               and history() repaints what happened while you were on the other tab. */}
-          <Terminal key={active} projectCode={projectCode} sessionId={active} />
+          <Terminal key={active} projectCode={projectCode} sessionId={active} height={height} />
         </Suspense>
       )}
     </>

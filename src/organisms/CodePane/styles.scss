@@ -474,6 +474,107 @@
 
   // DOC UNDO — the history strip (saved versions, newest first; click restores) and the
   // stale-tab conflict bar (the save was held; the human picks a side).
+  // HIS SIZE AND HIS WEIGHT, the same numbers the terminal's tools carry: 20px, line-height 0,
+  // half-opacity until you're on it. No border, no capsule — it is not one of the pill buttons.
+  &__cog-btn {
+    border: none;
+    background: none;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-size: 20px;
+    line-height: 0;
+    opacity: 0.5;
+    cursor: pointer;
+    color: var(--sv-text-muted);
+    &:hover {
+      opacity: 1;
+      color: #d98c6a;
+    }
+    &.is-on {
+      opacity: 1;
+      color: #d98c6a;
+    }
+  }
+  // THE COG PANEL — the terminal's gear, on a file: what the pane answers to, and what it remembers.
+  // Same inset-strip shape as the history row above, so the header can drop either without the
+  // page moving differently.
+  &__cog {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--sv-border);
+    background: var(--sv-inset);
+  }
+  &__cog-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  &__cog-label,
+  &__cog-hint {
+    font-size: 10px;
+    color: var(--sv-text-faint);
+    font-family: "SF Mono", Menlo, monospace;
+  }
+  &__cog-hint {
+    font-style: italic;
+  }
+  // Two columns so the keys line up down the left and the sentences all start together.
+  &__cog-keys {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 3px 10px;
+    align-items: baseline;
+  }
+  &__cog-key {
+    display: contents;
+    kbd {
+      font-family: "SF Mono", Menlo, monospace;
+      font-size: 10.5px;
+      color: var(--sv-text);
+      border: 1px solid var(--sv-border);
+      border-radius: 3px;
+      padding: 1px 5px;
+      white-space: nowrap;
+      justify-self: start;
+    }
+    span {
+      font-size: 11.5px;
+      color: var(--sv-text-muted);
+    }
+  }
+  &__cog-term {
+    border: 1px solid var(--sv-border);
+    background: none;
+    color: var(--sv-text);
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 11px;
+    border-radius: 999px;
+    padding: 2px 9px;
+    cursor: pointer;
+    &:hover {
+      border-color: #9a7cb8;
+      background: color-mix(in srgb, #9a7cb8 10%, transparent);
+    }
+    &.is-on {
+      border-color: #9a7cb8;
+      color: #c8a8e0;
+    }
+  }
+  &__cog-clear {
+    margin-left: auto;
+    border: none;
+    background: none;
+    color: var(--sv-text-faint);
+    font-size: 10px;
+    font-family: "SF Mono", Menlo, monospace;
+    cursor: pointer;
+    &:hover {
+      color: #d98c6a;
+    }
+  }
   &__history {
     display: flex;
     flex-wrap: wrap;

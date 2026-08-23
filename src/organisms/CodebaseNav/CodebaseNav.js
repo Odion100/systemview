@@ -2084,6 +2084,9 @@ const CodebaseNav = ({
   // RFC-027 — configuration hand for HOSTED services (rename service, add/delete/rename modules).
   // (pc, op, payload) → null on success, an error message on failure.
   onHostedOp = null,
+  // The help topics belong to the NAV, not to the card. Rendered inside the bot's pop-out codebase
+  // panel they are a second thing in a space that has one job — his call: "get rid of the help part".
+  showHelp = true,
   // Right-click removals — the old tree tab's delete buttons live in the row menu now.
   onDeleteService = null,
   onDeleteProject = null,
@@ -2145,7 +2148,9 @@ const CodebaseNav = ({
       ) : (
         <div className={`${CLASSNAME}__empty`}>No connected codebases.</div>
       )}
-      <HelpSection revealedTopic={reveal && reveal.kind === "help" ? reveal.topic : null} />
+      {showHelp && (
+        <HelpSection revealedTopic={reveal && reveal.kind === "help" ? reveal.topic : null} />
+      )}
       <RowMenu menu={menu} onClose={() => setMenu(null)} />
     </div>
   );

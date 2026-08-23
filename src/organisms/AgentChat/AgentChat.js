@@ -12,6 +12,7 @@ import { spotlight, clearSpotlight, animationMode, setAnimationMode, MODES } fro
 import { resolveTarget, docRectOf, revealDocLines } from "../../spotlightTargets";
 import { slotId, setNavDocked, useNavDock } from "./navDock";
 import { hasHostDictation, startHostRecording } from "../../utils/hostDictation";
+import CodebaseNav from "../CodebaseNav/CodebaseNav";
 import { useAppDark } from "../../atoms/appTheme";
 import loadServiceWithHeaders from "../../utils/loadService";
 import SEND_ICON from "../../assets/send.png";
@@ -753,6 +754,22 @@ function BotBubble({ projectCode, index }) {
   // THE TV — the show-and-tell surface beside the panel (his Canvas model): one show at a time,
   // auto-populates on a live `show` command, closable, and every show in the chat is a clickable
   // line that puts THAT show back on. Content rides IN the command record, so history is free.
+  // THE CODEBASE, TRAVELLING WITH THE BOT (his ask). With the navigator collapsed into its corner
+  // there was nowhere for `</>` to go: it focused a panel that isn't on screen, so pressing it did
+  // nothing visible. Floating, it becomes one more panel hanging off the agent — the same tree, git
+  // and terminal, beside the chat instead of across the window.
+  const [cbOpen, setCbOpen] = useState(false);
+  // Resizable and double-click-to-reset like every other panel here. It should never have shipped
+  // without this — his point, and it is the right one: these panels share `makeResize`/`resetSize`
+  // and a `<ResizeBorder>`, so a new one that skips them is a panel that behaves differently for no
+  // reason. (The real fix is one panel component they all use; noted, not done.)
+  const [cbSize, setCbSize] = useState(() => {
+    try {
+      const v = JSON.parse(localStorage.getItem(`sv.cbSize.${projectCode}`));
+      if (v && v.w && v.h) return v;
+    } catch {}
+    return { w: 320, h: 460 };
+  });
   const [tv, setTv] = useState(null); // { id, text, label } — the show on screen
   const [tvOpen, setTvOpen] = useState(false);
   const [tvPick, setTvPick] = useState(false); // the title's picker, open or shut
@@ -958,6 +975,9 @@ function BotBubble({ projectCode, index }) {
         else if (!inProject) pathname = `/specs/${projectCode}`;
         if (args.report) {
           params.set("tab", "reports");
+          // Same rule as the TV hand-off: file params belonging to another project do not travel.
+          if (params.get("fproj") && params.get("fproj") !== projectCode)
+            ["file", "fproj", "fsvc", "flang", "flines", "fside"].forEach((k) => params.delete(k));
           // A RANGE MAY STILL BE GLUED TO THE PATH. Older CLIs (and anyone hand-writing a link)
           // send `report.md#L274-L378` whole, which then goes looking for a file literally called
           // that and finds nothing — the report just doesn't open. Split it here, and accept the
@@ -2391,6 +2411,8 @@ function BotBubble({ projectCode, index }) {
     try { localStorage.setItem(key, JSON.stringify(def)); } catch {}
   };
   const panelReset = resetSize(setSize, { w: 340, h: 480 }, `sv.chatSize.${projectCode}`);
+  const cbResize = makeResize(() => cbSize, setCbSize, `sv.cbSize.${projectCode}`);
+  const cbReset = resetSize(setCbSize, { w: 320, h: 460 }, `sv.cbSize.${projectCode}`);
   const boardResize = makeResize(() => boardSize, setBoardSize, `sv.boardSize.${projectCode}`);
   const boardReset = resetSize(setBoardSize, { w: 380, h: 420 }, `sv.boardSize.${projectCode}`);
   // The TV's double-click means "give me my natural FLEX size" (his call, matching the story
@@ -2462,6 +2484,15 @@ function BotBubble({ projectCode, index }) {
     }, 60);
     return () => clearTimeout(t);
   }, [navShowing, slotEl]);
+  // THE NAVIGATOR COMING BACK PUTS THIS AWAY. It is the nav's stand-in, not a second copy of the
+  // card — with both on screen he would be looking at the same tree twice.
+  useEffect(() => {
+    const onNav = (e) => {
+      if (e && e.detail && e.detail.open) setCbOpen(false);
+    };
+    window.addEventListener("sv:navOpen", onNav);
+    return () => window.removeEventListener("sv:navOpen", onNav);
+  }, []);
   // HANDING OFF PUTS THE TV AWAY. Opening the file from inside a report is switching location, not
   // opening a second copy of the same thing — his call: "you're switching from one place to the
   // next". So a file chip pressed on the TV closes the TV behind it, and the report stays one press
@@ -2576,6 +2607,9 @@ function BotBubble({ projectCode, index }) {
         : { left: `calc(100% + ${10 + px}px)` };
   const linksAhead = linksOpen ? LINKS_W + 10 : 0;
   const boardAhead = linksAhead + (tvOpen && tv ? tvSize.w + 10 : 0);
+  const cbAhead = boardAhead + (boardOpen ? boardSize.w + 10 : 0);
+  // The project's own services, which is all a single card needs.
+  const myServices = (connectedServices || []).filter((s) => s.projectCode === projectCode);
   const body = (
     <div
       ref={rootRef}
@@ -2587,8 +2621,48 @@ function BotBubble({ projectCode, index }) {
     >
       {/* The anchor also stands up for the COLLECTOR alone — the links table opens from the closed
           bot now, so it can't live behind the panel being open. */}
-      {(open || linksOpen || boardOpen || (tvOpen && tv)) && (
+      {(open || linksOpen || boardOpen || cbOpen || (tvOpen && tv)) && (
         <div className={`${CLASSNAME}__panel-anchor`}>
+        {/* THE CODEBASE PANEL — the real card, not a copy of it: same tree, same git, same terminal
+            section, rendered here when the navigator is put away. Opening a file from it goes
+            through the same event a `:file` chip uses, so the centre behaves identically. */}
+        {cbOpen && (
+          <div
+            data-sv="codebase"
+            className={`${CLASSNAME}__tv ${CLASSNAME}__cbpanel`}
+            style={{ width: cbSize.w, height: cbSize.h, ...after(cbAhead) }}
+          >
+            <ResizeBorder start={cbResize} onReset={cbReset} />
+            <div
+              className={`${CLASSNAME}__tv-head ${CLASSNAME}__tv-head--grab`}
+              title="Drag to move"
+              onPointerDown={onBotPointerDown}
+            >
+              <span className={`${CLASSNAME}__tv-badge ${CLASSNAME}__cbpanel-badge`}>{"</>"}</span>
+              <span className={`${CLASSNAME}__tv-title`}>{projectCode}</span>
+              <button
+                type="button"
+                className={`${CLASSNAME}__close`}
+                title="Put the codebase away"
+                onClick={() => setCbOpen(false)}
+              >
+                ✕
+              </button>
+            </div>
+            <div className={`${CLASSNAME}__cbpanel-body`}>
+              <CodebaseNav
+                connectedServices={myServices}
+                projectCode={projectCode}
+                openFile={null}
+                onOpenFile={(detail) =>
+                  detail && window.dispatchEvent(new CustomEvent("sv:openFileInNav", { detail }))
+                }
+                theme={appDark ? "dark" : "light"}
+                showHelp={false}
+              />
+            </div>
+          </div>
+        )}
         {/* THE BOARD. Plain and his: type, it saves itself, it is still there tomorrow. Markdown,
             so anything he pastes or writes can be a real block later — but nothing here renders it,
             because a notepad that reformats what you typed while you type is not a notepad. */}
@@ -3084,6 +3158,12 @@ function BotBubble({ projectCode, index }) {
                     p.set("tab", "reports");
                     p.set("rdoc", tvDocPath);
                     p.delete("help");
+                    // A REPORT BELONGS TO A PROJECT, and so do the file params sitting in the URL.
+                    // Landing on this project's page while `file`/`fproj`/`fsvc` still point at
+                    // another one leaves the nav showing a foreign file beside the report — which is
+                    // what "my reports are not being transferred properly" looks like from outside.
+                    if (p.get("fproj") && p.get("fproj") !== projectCode)
+                      ["file", "fproj", "fsvc", "flang", "flines", "fside"].forEach((k) => p.delete(k));
                     const pathname = window.location.pathname.startsWith(`/specs/${projectCode}`)
                       ? window.location.pathname
                       : `/specs/${projectCode}`;
@@ -3774,12 +3854,13 @@ function BotBubble({ projectCode, index }) {
             // THE BOT IS THE MASTER SWITCH. Anything open — chat, TV, collector — and one click on
             // the bot puts all of it away. Closing three panels with three clicks isn't closing,
             // it's tidying. The icons beside the name tag are how you toggle one on its own.
-            if (open || tvOpen || linksOpen || boardOpen) {
+            if (open || tvOpen || linksOpen || boardOpen || cbOpen) {
               openRef.current = false;
               setOpen(false);
               setTvOpen(false);
               setLinksOpen(false);
               setBoardOpen(false);
+              setCbOpen(false);
               if (endErrandRef.current) endErrandRef.current(true);
               return;
             }
@@ -3890,6 +3971,15 @@ function BotBubble({ projectCode, index }) {
           onPointerDown={(e) => e.stopPropagation()} // the bot drags; this button does not
           onClick={(e) => {
             e.stopPropagation();
+            // THE NAVIGATOR MAY NOT BE THERE. Collapsed into its corner, focusing it is a no-op you
+            // can't see — so a floating bot shows the codebase itself instead, and only hands the
+            // job to the nav when the nav is actually on screen.
+            let navShut = false;
+            try { navShut = localStorage.getItem("sv.navOpen") === "false"; } catch {}
+            if (navShut && !inNav) {
+              setCbOpen((v) => !v);
+              return;
+            }
             // WHICH codebase — this bot's project. Without it the nav had nothing to focus, which
             // is why pressing it looked like nothing happening at all.
             window.dispatchEvent(new CustomEvent("sv:codebase", { detail: { projectCode } }));

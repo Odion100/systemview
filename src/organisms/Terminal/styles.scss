@@ -6,10 +6,17 @@
   flex-direction: column;
   // background is painted from the chosen theme at runtime — see paint() in Terminal.js
 
+  // Sized by its container: an explicit height when he has dragged one, otherwise it fills whatever
+  // the card has left (it is the last section, so "what's left" is the honest answer).
+  flex: 1 1 auto;
+  min-height: 90px;
+  overflow: hidden; // the screen fills the box and stops at it — xterm scrolls inside, not the card
+  &--fill {
+    height: 220px; // the resting size when nothing above it is flexing
+  }
   &__screen {
-    // A terminal is as tall as you give it. This is the resting height in the nav column; the pane
-    // scrolls internally past it, and xterm's own scrollback owns the history.
-    height: 220px;
+    flex: 1;
+    min-height: 0; // without this a flex child refuses to shrink below its content
     // NO PADDING AT THE BOTTOM (his catch, twice now): the last line should sit on the container's
     // edge so the shell blends into the card instead of floating in a box. Left only, to keep the
     // text off the border.

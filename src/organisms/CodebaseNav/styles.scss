@@ -1356,6 +1356,15 @@
 // than one shell, and the settings popover. Sized to sit inside a 280px column without pushing the
 // fold label around.
 .codebase-nav {
+  // The seam between the file tree and the shell — 5px of nothing you can grab.
+  &__term-grip {
+    height: 5px;
+    cursor: ns-resize;
+    background: transparent;
+    &:hover {
+      background: rgba(127, 127, 127, 0.35);
+    }
+  }
   &__term-tools {
     margin-left: auto;
     display: flex;

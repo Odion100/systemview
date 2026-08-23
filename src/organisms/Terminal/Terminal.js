@@ -39,7 +39,7 @@ const paint = (root, term, look) => {
   if (vp) vp.style.backgroundColor = t.background;
 };
 
-const Terminal = ({ projectCode, sessionId = null, cwd = null, onExit = null }) => {
+const Terminal = ({ projectCode, sessionId = null, cwd = null, onExit = null, height = null }) => {
   const [appDark] = useAppDark();
   const hostRef = useRef(null); // the DOM node xterm draws into
   const termRef = useRef(null); // the emulator, for the things that reach it after mount
@@ -170,7 +170,14 @@ const Terminal = ({ projectCode, sessionId = null, cwd = null, onExit = null }) 
   }, [appDark]);
 
   return (
-    <div className="sv-term">
+    <div
+      className={`sv-term${height ? "" : " sv-term--fill"}`}
+      // A NUMBER HE DRAGGED MUST WIN. With `flex: 1 1 auto` still in play the flex line simply
+      // shrank the explicit height back to whatever was left, so the grip appeared to do nothing in
+      // the pop-out panel while working fine in the sidebar. Fixed basis, no shrink; the tree above
+      // scrolls instead.
+      style={height ? { height, flex: "0 0 auto" } : undefined}
+    >
       {error ? <div className="sv-term__error">{error}</div> : null}
       <div className="sv-term__screen" ref={hostRef} />
       {exit ? <div className="sv-term__exit">session ended — close and reopen for a new one</div> : null}

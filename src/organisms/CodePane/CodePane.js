@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import ServiceContext from "../../ServiceContext";
 import loadServiceWithHeaders from "../../utils/loadService";
 import CodeEditor from "../../atoms/CodeView/CodeEditor";
@@ -301,6 +301,10 @@ const CodePane = ({ file, onClose }) => {
     [],
   );
   const [clearArmed, setClearArmed] = useState(false);
+  // THE COG — his ask, in his words: "files need a cog icon for things like search, shortcuts and
+  // stuff". The same gear the terminal has, on the file: the keys this pane answers to (which were
+  // invisible the moment they were built) and the searches it remembers, which had no home either.
+  const [cog, setCog] = useState(false);
   // ONE SEARCH THAT ALSO TRACES CODE. The term is the pane's, not the editor's, because it has to
   // SURVIVE THE FILE — his ask: "the search follows you if you navigate to another file". Kept per
   // project, so opening the next file already has it running.
@@ -382,6 +386,16 @@ const CodePane = ({ file, onClose }) => {
     setDefAt(0);
     setHitAt(-1);
   }, [term, file.path]);
+  // THE PAY-OFF. Hits arrive a render after the term is set, and an empty set can simply mean the
+  // editor has not marked them yet — so nothing is decided until there IS something to decide on.
+  useEffect(() => {
+    if (!wantDef.current || wantDef.current !== term || !hits.length) return;
+    const defs = hits.filter((h) => h.def);
+    wantDef.current = null;
+    if (!defs.length) return; // searched, found instances, none of them a declaration — stay put
+    setDefAt(1); // pressing `1 def` next goes to the SECOND one, not back to this
+    setJump([defs[0].line, defs[0].line, Date.now()]);
+  }, [hits, term]);
   const stepHit = useCallback(
     (d) => {
       if (!hits.length) return;
@@ -468,6 +482,68 @@ const CodePane = ({ file, onClose }) => {
       } catch {}
     },
     [file.projectCode],
+  );
+  // PREVIOUS SEARCHES, THE WAY A SHELL KEEPS THEM — ↑/↓ in the box walks back through what you have
+  // already looked for in this project. A term is remembered only when you MEAN it (Enter, ⌃D, or
+  // the project button), never per keystroke, or the list would be every prefix you ever typed.
+  const HIST_KEY = `sv.codeSearch.hist.${file.projectCode}`;
+  const [pastTerms, setPastTerms] = useState(() => {
+    try {
+      const raw = JSON.parse(localStorage.getItem(HIST_KEY));
+      return Array.isArray(raw) ? raw : [];
+    } catch {
+      return [];
+    }
+  });
+  const histAt = useRef(-1); // -1 = you are typing, not walking
+  const histDraft = useRef(""); // what was in the box before ↑ took it over
+  const rememberTerm = useCallback(
+    (t) => {
+      const v = (t || "").trim();
+      histAt.current = -1;
+      if (!v) return;
+      setPastTerms((cur) => {
+        const next = [v, ...cur.filter((x) => x !== v)].slice(0, 30);
+        try {
+          localStorage.setItem(HIST_KEY, JSON.stringify(next));
+        } catch {}
+        return next;
+      });
+    },
+    [HIST_KEY],
+  );
+  const walkHist = useCallback(
+    (d) => {
+      if (!pastTerms.length) return;
+      const i = histAt.current + d;
+      if (i < -1 || i >= pastTerms.length) return;
+      if (histAt.current < 0) histDraft.current = term; // stepping off what you were typing
+      histAt.current = i;
+      setSearchTerm(i < 0 ? histDraft.current : pastTerms[i]);
+    },
+    [pastTerms, term, setSearchTerm],
+  );
+  // ⌃D IN THE EDITOR LANDS HERE. Same door the ⌘-click uses; the difference is that the keyboard
+  // gesture also puts you IN the box, so the very next key (Enter) can walk the hits.
+  const findRef = useRef(null);
+  // ⌘-CLICK OWES YOU THE DEFINITION. His ask: the click already searches — but when the search can
+  // SEE where the name is defined, sitting there showing you "1 def" and making you press it is a
+  // step it didn't need to ask for. Armed here, paid off below once the editor reports its hits,
+  // because the hits for a term the pane has only just set do not exist yet at this moment.
+  const wantDef = useRef(null);
+  const takeWord = useCallback(
+    (word, opts) => {
+      setSearchTerm(word);
+      rememberTerm(word);
+      // Only the CLICK. ⌃D is a search-where-I-am gesture — it puts you in the box so you can walk
+      // the instances, and yanking the file to another line under your cursor is not that.
+      wantDef.current = opts && opts.focus ? null : word;
+      if (opts && opts.focus && findRef.current) {
+        findRef.current.focus();
+        findRef.current.select();
+      }
+    },
+    [setSearchTerm, rememberTerm],
   );
 
   const [codeMenu, setCodeMenu] = useState(null);
@@ -681,6 +757,17 @@ const CodePane = ({ file, onClose }) => {
         )}
         {dirty && <span className={`${CLASSNAME}__dirty`} title="unsaved changes" />}
         <span className={`${CLASSNAME}__actions`}>
+          {/* FIRST IN THE ICONS — before the light/dark toggle. Not a pill: Diff / ⏱ / Save are
+              things you DO to the file, the cog opens what the pane knows — a bare 20px glyph, the
+              weight and hover his terminal tools carry. */}
+          <button
+            type="button"
+            className={`${CLASSNAME}__cog-btn${cog ? " is-on" : ""}`}
+            title="What this file answers to — the keys, and the searches it remembers"
+            onClick={() => setCog(!cog)}
+          >
+            ⚙
+          </button>
           <EditorThemeToggle scope={themeScope} />
           {/* Shown while the MODE is on even where this file has no diff — otherwise opening an
               unchanged file takes away the only control that turns the mode back off. */}
@@ -753,6 +840,71 @@ const CodePane = ({ file, onClose }) => {
       {/* THE SEARCH BAR. One box: type in it, or ⌘-click a name in the code and it fills itself.
           It says how many hits are in this file and how many of them look like a definition, and it
           carries across files — the whole point is that it follows you. */}
+      {cog && (
+        <div className={`${CLASSNAME}__cog`}>
+          <div className={`${CLASSNAME}__cog-row`}>
+            <span className={`${CLASSNAME}__cog-label`}>keys</span>
+          </div>
+          <div className={`${CLASSNAME}__cog-keys`}>
+            {[
+              ["⌃D", "search the selected word — or the one under the cursor"],
+              ["Enter", "next instance · ⇧Enter the previous one"],
+              ["↑ ↓", "in the find box: the searches before this one"],
+              ["Esc", "in the find box: clear the search"],
+              ["⌘-click", "a name — search it without leaving the line"],
+              ["⌘S", "save"],
+              ["right-click", "comment on the selected lines"],
+            ].map(([k, what]) => (
+              <div className={`${CLASSNAME}__cog-key`} key={k}>
+                <kbd>{k}</kbd>
+                <span>{what}</span>
+              </div>
+            ))}
+          </div>
+          <div className={`${CLASSNAME}__cog-row`}>
+            <span className={`${CLASSNAME}__cog-label`}>
+              {`searches in ${file.projectCode} (${pastTerms.length})`}
+            </span>
+            {pastTerms.length > 0 && (
+              <button
+                type="button"
+                className={`${CLASSNAME}__cog-clear`}
+                title="Forget every remembered search in this project"
+                onClick={() => {
+                  setPastTerms([]);
+                  histAt.current = -1;
+                  try {
+                    localStorage.removeItem(HIST_KEY);
+                  } catch {}
+                }}
+              >
+                forget them
+              </button>
+            )}
+          </div>
+          <div className={`${CLASSNAME}__cog-row`}>
+            {!pastTerms.length ? (
+              <span className={`${CLASSNAME}__cog-hint`}>nothing searched yet</span>
+            ) : (
+              pastTerms.map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  className={`${CLASSNAME}__cog-term${t === term ? " is-on" : ""}`}
+                  title={`Search ${t} in this file`}
+                  onClick={() => {
+                    setSearchTerm(t);
+                    histAt.current = -1;
+                    if (findRef.current) findRef.current.focus();
+                  }}
+                >
+                  {t}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
       {editorShowing && (
         <div className={`${CLASSNAME}__find`}>
           {shownRange && (
@@ -767,13 +919,32 @@ const CodePane = ({ file, onClose }) => {
             </button>
           )}
           <input
+            ref={findRef}
             className={`${CLASSNAME}__find-input`}
             value={term}
-            placeholder="find in file — or ⌘-click a name"
+            placeholder="find in file — ⌃D on a word, ↑ for the last one"
             spellCheck={false}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => {
+              histAt.current = -1; // typing is leaving the history, not walking it
+              setSearchTerm(e.target.value);
+            }}
             onKeyDown={(e) => {
-              if (e.key === "Escape") setSearchTerm("");
+              // Enter walks the hits forward (⇧Enter back) — the other half of ⌃D, so a search is
+              // start-and-step without the hands leaving the keyboard. ↑/↓ are the earlier searches.
+              if (e.key === "Escape") return setSearchTerm("");
+              if (e.key === "Enter") {
+                e.preventDefault();
+                rememberTerm(term);
+                return stepHit(e.shiftKey ? -1 : 1);
+              }
+              if (e.key === "ArrowUp") {
+                e.preventDefault();
+                return walkHist(1);
+              }
+              if (e.key === "ArrowDown") {
+                e.preventDefault();
+                return walkHist(-1);
+              }
             }}
           />
           {term && hits.length > 0 && (
@@ -833,7 +1004,10 @@ const CodePane = ({ file, onClose }) => {
               className={`${CLASSNAME}__find-wide`}
               title={`Search every file in ${file.projectCode}`}
               disabled={wide === "loading"}
-              onClick={searchProject}
+              onClick={() => {
+                rememberTerm(term);
+                searchProject();
+              }}
             >
               {wide === "loading" ? "searching…" : "project"}
             </button>
@@ -1088,7 +1262,7 @@ const CodePane = ({ file, onClose }) => {
             onOpenPath={openImport}
             search={term}
             onSearchHits={setHits}
-            onWordClick={setSearchTerm}
+            onWordClick={takeWord}
           />
         ))}
       </div>
