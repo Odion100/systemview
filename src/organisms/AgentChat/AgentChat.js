@@ -1458,22 +1458,44 @@ function BotBubble({ projectCode, index }) {
         // us — a value with no question attached is a receipt for a purchase you can't identify. The
         // block only hands back (line, key, value), so the question is found by looking for the
         // directive that owns this value among the rows on screen.
+        // WHICH KIND OF BLOCK WROTE THIS. The search used to look for question|approval|input and
+        // nothing else, so a COMMIT stamping its own `sha` and `ts` was matched against the nearest
+        // QUESTION and reported as one — "cleared the sha — How do these read now?", and a commit
+        // timestamp arriving as `answered "1787615445105"`. Two different blocks, one message, and
+        // the receipt named the wrong one. The key says who owns the write: sha/ts/height belong to
+        // a commit, an answer belongs to a question. Match on that, not on whatever is nearby.
+        const OWNER = { sha: "commit", ts: "commit", height: "commit" };
+        const kind = OWNER[key] || "question|approval|input";
+        const re = new RegExp(`^\\s*(:{2,3})(${kind})\\b`);
         let about = "";
         try {
           const rows = (workRef.current && workRef.current.rows) || [];
           for (const r of rows) {
             const hit = String(r.text || "")
               .split("\n")
-              .find((l) => /^\s*(:{2,3})(question|approval|input)\b/.test(l) && (!value || l.includes(String(value))));
+              .find((l) => re.test(l) && (!value || kind === "commit" || l.includes(String(value))));
             if (hit) {
               const label = hit.match(/\[([^\]]+)\]/);
+              const msg = hit.match(/\bmessage=("?)([^"}]+)\1/);
               const id = hit.match(/\bid=("?)([^"\s}]+)\1/);
-              about = label ? label[1] : id ? id[2] : "";
+              about = label ? label[1] : msg ? msg[2] : id ? id[2] : "";
               if (about) break;
             }
           }
         } catch {}
-        const said = value ? `answered "${value}"` : `cleared the ${key || "answer"}`;
+        // …and say what actually happened. "answered" is a question's word; a commit that stamps a
+        // sha committed, and one that clears it is offering itself again.
+        const said =
+          OWNER[key] === "commit"
+            ? key === "sha"
+              ? value
+                ? `committed ${String(value).slice(0, 7)}`
+                : "cleared the commit — offering it again"
+              : null
+            : value
+            ? `answered "${value}"`
+            : `cleared the ${key || "answer"}`;
+        if (!said) return; // a `ts` or a height is bookkeeping, not something to narrate
         work.send(about ? `${said} — ${about}` : said);
       },
     }),

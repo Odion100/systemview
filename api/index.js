@@ -983,9 +983,17 @@ async function push(projectCode, { root } = {}) {
   const res = await serial(cwd, () => git(cwd, args));
   bustGit(projectCode);
   if (!res.ok) return { ok: false, error: res.error };
-  const after = await git(cwd, ["rev-list", "--left-right", "--count", "HEAD...@{u}"]);
-  const [ahead] = after.ok ? after.out.trim().split(/\s+/).map(Number) : [0];
-  return { ok: true, ahead: ahead || 0, out: res.out };
+  // `pushed` is what the block checks before choosing between a success line and a reason — absent,
+  // it fell through to "nothing to push" on a push that had just worked. And `state` is what
+  // refreshes the ahead count, which is what decides whether Push is offered at all.
+  const state = await gitStateRaw(projectCode, { root });
+  return {
+    ok: true,
+    pushed: true,
+    ahead: state.ahead || 0,
+    output: String(res.out || "").trim() || "pushed",
+    state,
+  };
 }
 // Commits that touched one path — the file's own history, newest first.
 async function fileHistory(projectCode, { path: rel, limit, root } = {}) {
