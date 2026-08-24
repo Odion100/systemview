@@ -968,6 +968,51 @@ async function stageFiles(projectCode, { paths, unstage, root } = {}) {
   bustGit(projectCode); // a write makes every cached read wrong at once
   return res.ok ? { ok: true, changed: list } : { ok: false, error: res.error };
 }
+// PUSH, HISTORY, SNAPSHOT — the three the callers still needed and I had not written. I moved the
+// providers and checked the ones I happened to think of instead of the ones the code actually calls;
+// `Plugin.push is not a function` is what that costs, and it surfaced on him pressing a button.
+// The list is not a guess: grep every `Plugin.<method>` in the files that now use hostFiles and
+// implement exactly that set.
+async function push(projectCode, { root } = {}) {
+  const cwd = rootOf(projectCode, root);
+  if (!cwd) return { ok: false, error: "no folder for this project" };
+  const up = await git(cwd, ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"]);
+  // No upstream is not a failure to hide — it is the one case where push needs to say what it will
+  // do (create the branch there) rather than silently doing it.
+  const args = up.ok ? ["push"] : ["push", "-u", "origin", "HEAD"];
+  const res = await serial(cwd, () => git(cwd, args));
+  bustGit(projectCode);
+  if (!res.ok) return { ok: false, error: res.error };
+  const after = await git(cwd, ["rev-list", "--left-right", "--count", "HEAD...@{u}"]);
+  const [ahead] = after.ok ? after.out.trim().split(/\s+/).map(Number) : [0];
+  return { ok: true, ahead: ahead || 0, out: res.out };
+}
+// Commits that touched one path — the file's own history, newest first.
+async function fileHistory(projectCode, { path: rel, limit, root } = {}) {
+  const cwd = rootOf(projectCode, root);
+  if (!cwd) return { ok: false, error: "no folder for this project", commits: [] };
+  const SEP = "\u001f";
+  const res = await git(cwd, [
+    "log", `-${Number(limit) || 20}`, `--pretty=format:%h${SEP}%s${SEP}%an${SEP}%ar`, "--", rel || ".",
+  ]);
+  if (!res.ok) return { ok: false, error: res.error, commits: [] };
+  return {
+    ok: true,
+    commits: String(res.out || "").split("\n").filter(Boolean).map((line) => {
+      const [sha, subject, who, when] = line.split(SEP);
+      return { sha, subject, who, when };
+    }),
+  };
+}
+// One file as it was AT a commit — what the history rows open into.
+async function readSnapshot(projectCode, { path: rel, sha, root } = {}) {
+  const cwd = rootOf(projectCode, root);
+  if (!cwd) return { ok: false, error: "no folder for this project" };
+  if (!rel || !sha) return { ok: false, error: "a snapshot needs a path and a sha" };
+  const res = await git(cwd, ["show", `${sha}:${rel}`]);
+  return res.ok ? { ok: true, path: rel, sha, content: res.out } : { ok: false, error: res.error };
+}
+
 async function discardFiles(projectCode, { paths, root } = {}) {
   const cwd = rootOf(projectCode, root);
   if (!cwd) return { ok: false, error: "no folder for this project" };
@@ -1579,6 +1624,9 @@ module.exports = function launchSystemView(port = 3000) {
       stageFiles,
       discardFiles,
       commit,
+      push,
+      fileHistory,
+      readSnapshot,
       chatRelay,
       chatVisitors,
       chatAddVisitor,

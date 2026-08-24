@@ -169,6 +169,21 @@ export const hostFiles = (projectCode, root) => {
       if (res && res.ok === false) throw new Error(res.error || "discard failed");
       return res;
     },
+    push: async () => {
+      const res = await hub().push(projectCode, { root });
+      if (res && res.ok === false) throw new Error(res.error || "push failed");
+      return res;
+    },
+    fileHistory: async ({ path, limit } = {}) => {
+      const res = await hub().fileHistory(projectCode, { path, limit, root });
+      if (res && res.ok === false) throw new Error(res.error || "could not read that history");
+      return res;
+    },
+    readSnapshot: async ({ path, sha } = {}) => {
+      const res = await hub().readSnapshot(projectCode, { path, sha, root });
+      if (res && res.ok === false) throw new Error(res.error || "could not read that snapshot");
+      return res;
+    },
     commit: async ({ message } = {}) => {
       const res = await hub().commit(projectCode, { message, root });
       if (res && res.ok === false) throw new Error(res.error || "commit failed");
