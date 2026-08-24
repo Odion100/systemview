@@ -14,6 +14,8 @@ import {
   putHostProject,
   renameHostProject,
   migrateConnectedProjects,
+  hostFileProviders,
+  hostProjectEntry,
 } from "../../utils/hostProject";
 import { listHusks, addHusk, removeHusk, reconcileHusks, huskEntry } from "../../utils/husks";
 import CodebaseNav from "../CodebaseNav/CodebaseNav";
@@ -208,7 +210,35 @@ const SystemNav = ({
         );
       }
       const folders = await hostProjects(all);
-      const both = [...all, ...folders];
+      // AND THE FOLDER BEHIND A CONNECTED PROJECT. `hostProjects` hides it so one directory draws
+      // one card — right for cards, wrong for files: a project with services was reading its own
+      // source back over HTTP through the plugin. These entries are file providers, not cards
+      // (`pickHost` takes them first, the services grouping ignores them), so the codebase reads
+      // from disk while the plugin keeps doing documentation and tests.
+      const providers = await hostFileProviders(all);
+      // …and the folders the HUB knows, which is all of them. A card takes its root from whichever
+      // entry carries one, so a project whose services are down — or that never had services — was
+      // drawn without a folder and therefore without a file tree, git bar or commit box. The
+      // registry knew where it lived the whole time; nothing was asking.
+      let hubRoots = {};
+      try {
+        hubRoots = (await SystemViewService.SystemView.projectRoots()) || {};
+      } catch {
+        hubRoots = {};
+      }
+      // SHAPED LIKE EVERY OTHER ENTRY, not a bare pair. The card grouping reads `system.connectionData`
+      // off each row; handing it `{ projectCode, root }` threw during render and took the panel to a
+      // blank white page — the same lesson as the tvEdit crash: one malformed row is not one missing
+      // card, it is the whole surface gone.
+      // NO CONDITION ON THIS. It skipped any project that already had a root SOMEWHERE in the list —
+      // and "somewhere" included dead service entries the card grouping never reads, so the projects
+      // whose services are down (exactly the ones that need this) were the ones it skipped. The card
+      // merges by project code, so an extra folder row is not an extra card; it is just the folder
+      // finally being on the card. Cheap, unconditional, and it cannot single anyone out.
+      const fromHub = Object.entries(hubRoots)
+        .filter(([code, root]) => code && root)
+        .map(([projectCode, root]) => ({ ...hostProjectEntry(projectCode, root), fileProvider: true }));
+      const both = [...all, ...folders, ...providers, ...fromHub];
       // A husk that has grown a folder or a service is a real project now — drop it rather than
       // drawing a second, empty card beside the thing it became.
       setHusks(reconcileHusks(both.map((s) => s.projectCode)));

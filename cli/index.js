@@ -228,7 +228,7 @@ async function loadCaseSetting() {
     const deleteHosted = require("./deleteHosted");
     const exitCode = await deleteHosted(input[1], { uiUrl: UI_URL, Client, force: flags.force });
     flushAndExit(exitCode || 0);
-  } else if (["join", "say", "reply", "thread", "inbox", "nav", "refresh", "act", "highlight", "show", "tv"].includes(command) || (command === "status" && input[1])) {
+  } else if (["join", "say", "read", "visitors", "reply", "thread", "inbox", "nav", "refresh", "act", "highlight", "show", "tv"].includes(command) || (command === "status" && input[1])) {
     // RFC-028 — the chat front door; RFC-029 — agent control rides the same door (a command is a
     // chat record the open UI executes). join HANGS on purpose (the hold IS presence); the others
     // are one-shots. All need the hub up.
@@ -250,6 +250,11 @@ async function loadCaseSetting() {
       // `--room` — the deliberate override for the reply-into-the-void wall: "I really do mean my
       // own room", spoken right after a visitor, knowing they won't hear it.
       room: !!flags.room,
+      // `--json` belongs to the chat verbs generally, not to whichever ones remembered to splice it
+      // in by hand — two new verbs shipped without it and printed prose at a parser.
+      json: flags.json,
+      since: flags.since,
+      limit: flags.limit,
     };
     // ONE GATE, NOT ONE PER VERB. His rule, after catching a reply signed as a name that was never
     // a project: *"all `--as` need to be checked against the project whenever `as` is used — not
@@ -262,6 +267,10 @@ async function loadCaseSetting() {
     let exitCode = 0;
     if (command === "join") exitCode = await chatCmd.join(input[1], opts);
     else if (command === "say") exitCode = await chatCmd.say(input[1], input[2], opts);
+    // Reading another project's conversation, and the visitor list that decides who receives this
+    // one's — the pair that retires join/arm/cursor/drain.
+    else if (command === "read") exitCode = await chatCmd.read(input[1], opts);
+    else if (command === "visitors") exitCode = await chatCmd.visitors(input[1], input[2], input[3], opts);
     // RFC-039 — answer a report's thread in one command instead of a whole-document round-trip.
     else if (command === "thread")
       exitCode = await chatCmd.thread(input[1], input[2], input[3], { ...opts, json: flags.json });
@@ -447,7 +456,7 @@ async function loadCaseSetting() {
     const VERBS = [
       "start", "test", "list", "open", "probe", "connect", "disconnect", "manifest", "logs", "log",
       "stats", "comments", "board", "skill", "init", "delete", "shutdown", "toggle", "help",
-      "join", "say", "reply", "thread", "inbox", "status", "nav", "refresh", "act", "highlight",
+      "join", "say", "read", "visitors", "reply", "thread", "inbox", "status", "nav", "refresh", "act", "highlight",
       "show", "tv", "assemble", "stage", "view", "selection",
     ];
     const near = VERBS.filter((v) => v.startsWith(command.slice(0, 2)) || command.startsWith(v.slice(0, 2)));

@@ -10,12 +10,21 @@ import "./styles.scss";
 // rows and nothing else; whoever mounts it owns the header, the input and the arrangement.
 export const CLASSNAME = "agent-wb";
 
+// DO NOT BUILD A RUNNING COST METER ON THIS NUMBER. Measured on the wire by autobot over a live
+// 3-turn session (2026-08-24): `total_cost_usd` on subscription hosting was 0 on turn one and then
+// FROZEN at 0.000941 across turns two and three — neither per-turn nor cleanly cumulative, it simply
+// stops moving. So this is a per-turn footnote on a receipt that already says what it is, and that
+// is the only weight it can carry; a header meter reading "$" beside the context bar would be the
+// fourth meter lie of the same day. `num_turns` beside it WAS measured trustworthy — 1 on every
+// result, per-turn, not cumulative — which is what makes "only the receipt pays" (feedRows) a
+// structural discriminator rather than a lucky one. Anyone wanting real money: re-measure on a
+// Console/API-key session first, and say on the face of it which one you measured.
 const money = (n) => (typeof n === "number" && n > 0 ? `$${n < 0.01 ? n.toFixed(4) : n.toFixed(2)}` : "");
 
 // WHEN, next to every turn — his ask: *"I need to see a timestamp next to the chats."* Today's
 // messages carry just the clock; older ones say the day too, because a resumed conversation
 // replays yesterday and "3:41 PM" alone would lie about which yesterday.
-const timeOf = (ts) => {
+export const timeOf = (ts) => {
   if (!ts) return "";
   const d = new Date(ts);
   if (isNaN(d.getTime())) return "";
@@ -231,6 +240,9 @@ const Feed = ({ rows, answered = {}, onAnswer = null, renderText = null }) =>
       // His own turns, so a resumed conversation reads like a conversation and not a monologue.
       <div
         key={r.key}
+        // The address a "spoke" chip jumps to. A visitor's turn is the one row you go looking for
+        // after the fact — "who was that and what did they say" — so it has to be addressable.
+        data-row={r.key}
         className={`${CLASSNAME}__row ${CLASSNAME}__row--mine${r.as ? ` ${CLASSNAME}__row--visit` : ""}`}
         style={visStyle(r.as)}
       >

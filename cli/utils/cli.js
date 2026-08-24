@@ -209,6 +209,9 @@ function parseArgs(rawArgs) {
     skip: listOf("--skip"),
     level: valOf("--level"),
     limit: intOf("--limit", undefined),
+    // `read --since <ms>` — the reader carries its own position (the timestamp `read` handed back
+    // last time), so the hub stores no cursor for anyone. That is the whole cursor retirement.
+    since: intOf("--since", undefined),
     follow: rawArgs.includes("--follow") || rawArgs.includes("-f"),
     current: rawArgs.includes("--current"),
     filter: listOf("--filter"),

@@ -282,3 +282,78 @@ export const hostProjects = async (connected = []) => {
     .filter((r) => !have.has(r.projectCode) && !haveRoot.has(norm(r.root || r.path)))
     .map((r) => hostProjectEntry(r.projectCode, r.root || r.path || ""));
 };
+
+// THE HOST OWNS FILES. THE PLUGIN OWNS DOCUMENTATION AND TESTS. That is the whole rule, and it is
+// what the plugin was designed for in the first place — his words: *"the only concern is
+// documentation and testing now, like it originally was designed. That's it."*
+//
+// `hostProjects` above deliberately hides a folder whose project is ALREADY connected by services,
+// because two entries for one directory drew two cards. Correct for cards — and wrong for FILES: it
+// meant a project with services fell back to reading its own source over HTTP through the plugin,
+// with a socket, a retry storm when that service was down, and a codebase panel that went blank
+// because a test service wasn't running. The folder was known the whole time.
+//
+// This returns the host entry for a project that IS connected, tagged so it groups into that
+// project's existing card instead of making a new one. It is a FILE PROVIDER, never a card.
+export const hostFileProviders = async (connected = []) => {
+  const p = typeof window !== "undefined" && window.systemview && window.systemview.projects;
+  if (!p || typeof p.list !== "function") return [];
+  let rows = [];
+  try {
+    rows = (await p.list()) || [];
+  } catch {
+    return [];
+  }
+  const norm = (s) => String(s || "").replace(/\/+$/, "");
+  // ONE LIST OF FOLDERS, NOT TWO. This only ever returned providers for projects the SHELL already
+  // listed — and a project that arrived as a service connection has its folder in the connections
+  // registry and no entry in the shell at all. So that project got no folder, and with no folder
+  // there is no file tree, no git and no commit box, while the project beside it (added through the
+  // shell) had all three. His words, and they are the rule: *"one thing working one way and the same
+  // thing working the other way IS the break."*
+  //
+  // So the two lists are reconciled instead of compared: a connected project with a real folder the
+  // shell has not heard of is REGISTERED with it, through the shell's own `put` — no new verb, no
+  // fallback path, no second way of getting files. After this the shell knows every project that has
+  // a folder, and every panel asks exactly one place.
+  try {
+    const known = new Set(
+      (Array.isArray(rows) ? rows : Object.entries(rows).map(([projectCode, root]) => ({ projectCode, root })))
+        .map((r) => (typeof r === "string" ? r : r && r.projectCode))
+        .filter(Boolean),
+    );
+    const missing = [];
+    const seen = new Set();
+    connected.forEach((s) => {
+      if (!s || !s.projectCode || !s.root) return;
+      if (known.has(s.projectCode) || seen.has(s.projectCode)) return;
+      seen.add(s.projectCode);
+      missing.push({ code: s.projectCode, dir: s.root });
+    });
+    if (missing.length && typeof p.put === "function") {
+      await Promise.all(missing.map(({ code, dir }) => Promise.resolve(p.put(code, dir)).catch(() => null)));
+      rows = (await p.list()) || rows;
+    }
+  } catch {
+    /* registering is best-effort — a shell that refuses still gets the list it had */
+  }
+  // Which connected projects the shell knows a folder for — matched by code OR by root, the same
+  // two-sided match the card dedupe uses (the plugin names a project, the host names a directory).
+  const byCode = new Map();
+  const byRoot = new Map();
+  connected.forEach((s) => {
+    if (s.projectCode) byCode.set(s.projectCode, s.projectCode);
+    if (s.root) byRoot.set(norm(s.root), s.projectCode);
+  });
+  return (Array.isArray(rows) ? rows : Object.entries(rows).map(([projectCode, root]) => ({ projectCode, root })))
+    .map((r) => (typeof r === "string" ? { projectCode: r } : r))
+    .filter((r) => r && r.projectCode)
+    .map((r) => {
+      const root = r.root || r.path || "";
+      // The code this folder belongs to in the CONNECTED world — its own name if that project is
+      // connected, otherwise whoever is connected from this same directory.
+      const code = byCode.get(r.projectCode) || byRoot.get(norm(root));
+      return code ? { ...hostProjectEntry(code, root), fileProvider: true } : null;
+    })
+    .filter(Boolean);
+};

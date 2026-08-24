@@ -5,12 +5,14 @@ import "./sass/theme.scss";
 import App from "./App";
 import reportWebVitals from "./reportWebVitals";
 import { Client } from "./systemClient";
+import { setHub } from "./utils/hub";
 // import "./assets/fonts/FontsFree-Net-SFMono-Regular.ttf";
 // import "./assets/fonts/Malkor-Regular.ttf";
 
 const url = "http://localhost:3000/systemview/api";
 
 Client.loadService(url).then((SystemViewService) => {
+  setHub(SystemViewService);
   ReactDOM.render(
     <React.StrictMode>
       <App SystemViewService={SystemViewService} />

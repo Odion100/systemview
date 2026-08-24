@@ -14,9 +14,11 @@ import { useMarkdownScope } from "../context";
 
 const OneImage = ({ relPath, projectCode, candidates, width, alt, onZoom }) => {
   const [idx, setIdx] = useState(0);
-  const svc = candidates[idx];
-  if (!svc) return <div className="md-image__dead">file not found: {relPath}</div>;
-  const src = `/sv-raw/${encodeURIComponent(projectCode)}/${encodeURIComponent(svc.serviceId)}?path=${encodeURIComponent(relPath)}`;
+  // ONE PROJECT, ONE FOLDER, ONE ROUTE. This used to walk the project's SERVICES in order, hoping
+  // one had a plugin new enough to serve bytes — so an image in a project with no services, or with
+  // services down, rendered as a dead box. The hub reads the folder directly; there is nothing to
+  // try in order any more.
+  const src = `/sv-file/${encodeURIComponent(projectCode)}?path=${encodeURIComponent(relPath)}`;
   return (
     <img
       key={src}

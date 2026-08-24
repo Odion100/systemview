@@ -26,8 +26,16 @@ const safe = (s) => String(s || "").replace(/[^a-zA-Z0-9._-]/g, "_");
 // can never wake its own author's hold, so the upgrade can't create echo storms in rooms still
 // running old holds. Commands never reach any agent (found live in RFC-029: a hold once took
 // delivery of its own `kind:"command"` records).
+// A VISIT IS DELIVERABLE, and it has to be said explicitly here or it silently is not. His
+// correction: *"it's a completely different message than anything… it's not even just a message,
+// it's a notification — yo, you're subscribed, this message is coming from…"* So a relay stopped
+// being a chat line dressed in a prefix and became its own record kind — and every gate written
+// against the two kinds that existed before then has to be told about the third. This is the gate
+// that decides whether a waiting agent is handed it at all.
 const deliverable = (m, me) =>
-  m && m.kind !== "command" && (m.from === "you" || (m.from === "agent" && m.as && m.as !== me));
+  m &&
+  m.kind !== "command" &&
+  (m.from === "you" || (m.from === "agent" && m.as && m.as !== me));
 // Filenames keep the `<projectCode>.` prefix even inside a project: two projects can legitimately
 // share one working directory (systemview-test and systemview-logtest both run from this repo), so
 // dropping the prefix would collide their rooms. Only the DIRECTORY moves — which also makes the
@@ -97,6 +105,40 @@ module.exports = function Chats({ chatFor } = {}) {
   // was last-writer-wins, so simultaneous cooks erased each other; now every agent in the room
   // narrates on its own line). Home's identity is the pc itself.
   const statusMap = new Map();
+
+  // ---- VISITING, WITHOUT A HOLD ------------------------------------------------------------
+  // His model, and it retires the whole join/arm/cursor/drain apparatus: *"if the agents can use
+  // the old — they don't even need to use the old hold mechanism to visit, because the hub is the
+  // one sending the messages. When I speak, it just means it should send a visitor message to the
+  // other agent."*
+  //
+  // A VISITOR IS A SUBSCRIPTION, not a parked poll. Speaking into a room subscribes you; the human
+  // can add or remove anyone (`✕` finally means something: unsubscribe). While subscribed, what is
+  // said in this room is DELIVERED into that agent's own conversation — which is why nobody needs a
+  // cursor any more: their own transcript is their read position.
+  //
+  // On disk beside the room, so a hub restart doesn't silently unsubscribe everyone — the failure
+  // that would look exactly like "the agents stopped answering".
+  const visitorsMap = new Map(); // key → Map(identity → { ts, by })
+  const visitorFile = (pc, chat) => path.join(dirFor(pc), `${safe(pc)}.${safe(chat || DEFAULT_CHAT)}.visitors.json`);
+  function loadVisitors(pc, chat) {
+    const k = key(pc, chat);
+    if (visitorsMap.has(k)) return visitorsMap.get(k);
+    const m = new Map();
+    try {
+      const raw = JSON.parse(fs.readFileSync(visitorFile(pc, chat), "utf8"));
+      Object.entries(raw || {}).forEach(([id, v]) => m.set(id, v && typeof v === "object" ? v : { ts: 0, by: "agent" }));
+    } catch {}
+    visitorsMap.set(k, m);
+    return m;
+  }
+  function saveVisitors(pc, chat) {
+    const m = loadVisitors(pc, chat);
+    try {
+      fs.mkdirSync(dirFor(pc), { recursive: true });
+      fs.writeFileSync(visitorFile(pc, chat), JSON.stringify(Object.fromEntries(m), null, 2));
+    } catch {}
+  }
 
   // THE MIRROR — the hub's in-memory copy of a room the PROJECT owns. Hydrated once from the
   // project, then kept current by its `chat` events. It exists so every synchronous path in this
@@ -342,7 +384,7 @@ module.exports = function Chats({ chatFor } = {}) {
     // User messages wake every held join poll; agent messages wake the OTHER identities' polls
     // (never the speaker's own — the deliverable rule). When a LIVE agent takes delivery of the
     // human's message, the status flips to "received…" immediately.
-    send(pc, chat, { from, text, view, as, toRoom }) {
+    send(pc, chat, { from, text, view, as, toRoom, relayedTo }) {
       // THE WALL AT THE WRONG DOOR — his call, verbatim: *"we need a surface that will block
       // that."* The failure it blocks happened live: a visitor spoke into this room, the home
       // agent answered IN ITS OWN ROOM — the natural move — and the reply reached no one, because
@@ -353,10 +395,20 @@ module.exports = function Chats({ chatFor } = {}) {
       if (from === "agent" && (!as || as === pc) && !toRoom) {
         const REPLY_WINDOW = 15 * 60 * 1000;
         const tail = readAll(pc, chat).filter((r) => !r.kind && String(r.text || "").trim());
-        const last = tail[tail.length - 1];
-        if (last && last.as && last.as !== pc && Date.now() - (last.ts || 0) < REPLY_WINDOW) {
+        // THE MOST RECENT VISITOR IN THE WINDOW, not merely the last message. Checking only the
+        // tail meant one home-agent line in between disarmed the wall completely — reply, then
+        // reply again, and the second one sails into the void. A visitor who spoke inside the
+        // window is who you are still answering, whatever you said after them.
+        const last = [...tail]
+          .reverse()
+          .find((r) => r.as && r.as !== pc && Date.now() - (r.ts || 0) < REPLY_WINDOW);
+        if (last) {
+          // SUBSCRIBED IS THE NEW "LISTENING". A visitor on the list gets this room's messages
+          // delivered by the hub, so answering here genuinely reaches them — no wall needed. The
+          // refusal is only for the case that actually goes nowhere: nobody subscribed, no hold.
           const held = waiters.get(key(pc, chat)) || [];
-          const listening = held.some((w) => w.identity === last.as);
+          const listening =
+            loadVisitors(pc, chat).has(last.as) || held.some((w) => w.identity === last.as);
           if (!listening)
             return {
               record: null,
@@ -372,9 +424,32 @@ module.exports = function Chats({ chatFor } = {}) {
         text,
         ...(from === "agent" && as ? { as } : {}),
         ...(view ? { view } : {}),
+        // WHO THIS WENT OUT TO, ON THE MESSAGE ITSELF. His complaint, and it is the whole point of
+        // the app: *"why the fuck am I not seeing it — I have to come to you, talk to you in the
+        // chat, and then you come back like 'look, I got this'."* Delivery that only the recipient
+        // can confirm is not observable. The subscribers are known at send time, so the record
+        // carries them and his own line can say where it went.
+        ...(relayedTo && relayedTo.length ? { relayedTo } : {}),
       });
+      // SPEAKING SUBSCRIBES YOU. A visitor who says something into this room is, by that act, in
+      // the conversation — no arming, no join. (The home agent is not a visitor to itself, and the
+      // human's own turns don't subscribe anyone.)
+      if (from === "agent" && as && as !== pc) {
+        const m = loadVisitors(pc, chat);
+        const prev = m.get(as);
+        m.set(as, { ts: Date.now(), by: prev && prev.by === "human" ? "human" : "spoke" });
+        saveVisitors(pc, chat);
+      }
       const takers = push(pc, chat, record);
-      const delivered = takers.length > 0;
+      // DELIVERED MEANS IT IS IN THEIR ROOM. It used to mean "a long-poll hold happened to be armed
+      // at that instant", which is a fact about listening, and listening is the thing we retired —
+      // his correction, and it is right: *"this feature has nothing to do with listening, we are no
+      // longer needing SystemView to listen, we have a handle, we're in the shell."* A record that
+      // is written to the recipient's room HAS arrived; whether anyone was standing there at that
+      // millisecond is a separate question and never the sender's. `takers` still says who was
+      // standing there, for the cooking lines below — it just no longer defines delivery.
+      const delivered = !!record;
+      const tookLive = takers.length > 0;
       const k = key(pc, chat);
       // Per-identity cooking (his catch: one shared line meant simultaneous cooks erased each
       // other). An agent's say ends the SPEAKER's own line — the reply is what the cooking
@@ -385,9 +460,44 @@ module.exports = function Chats({ chatFor } = {}) {
       takers.forEach((t) => setLine(k, t, "received"));
       // "Waiting on" is a VISITOR's message sitting in an empty room — never the home agent's
       // own reply, and never a clobber of a home line that's already narrating a cook.
-      if (from === "agent" && as && as !== pc && !delivered && !statusOf(k).has(pc))
+      if (from === "agent" && as && as !== pc && !tookLive && !statusOf(k).has(pc))
         setLine(k, pc, `waiting on ${pc}`);
-      return { record, delivered };
+      return { record, delivered, tookLive };
+    },
+
+    // ---- THE VISITOR LIST ---------------------------------------------------------------------
+    // Who is subscribed to this room right now, newest first. `by` records how they got on the
+    // list — "spoke" (subscribed themselves) or "human" (he added them) — because a name he put
+    // there by hand should not read the same as one that arrived on its own.
+    visitors(pc, chat) {
+      return [...loadVisitors(pc, chat).entries()]
+        .map(([identity, v]) => ({ identity, ts: v.ts || 0, by: v.by || "spoke" }))
+        .sort((a, b) => b.ts - a.ts);
+    },
+    addVisitor(pc, chat, identity, by = "human") {
+      if (!identity || identity === pc) return { added: false, reason: "not a visitor" };
+      const m = loadVisitors(pc, chat);
+      // Re-adding refreshes the timestamp but never downgrades a human's pick to "spoke": he put
+      // them there on purpose and that fact outlives their next sentence.
+      const prev = m.get(identity);
+      m.set(identity, { ts: Date.now(), by: prev && prev.by === "human" ? "human" : by });
+      saveVisitors(pc, chat);
+      return { added: true, identity };
+    },
+    removeVisitor(pc, chat, identity) {
+      const m = loadVisitors(pc, chat);
+      const had = m.delete(identity);
+      if (had) saveVisitors(pc, chat);
+      // Delivery stops; the record does not move. They keep whatever they already received, and
+      // they fade to a "spoke" chip on their own — nothing is deleted from anyone's transcript.
+      return { removed: had, identity };
+    },
+    // Everyone this record should be FANNED OUT to: the subscribed visitors, minus whoever said it.
+    // The hub does the sending — that is the whole point of the model, and why no agent needs to
+    // hold, arm, or drain anything to be present in someone else's conversation.
+    fanout(pc, chat, record) {
+      const speaker = record && record.as ? record.as : record && record.from === "you" ? null : pc;
+      return [...loadVisitors(pc, chat).keys()].filter((v) => v !== speaker);
     },
 
     // RFC-029 — a COMMAND from the agent rides the same file (`kind: "command"`). It renders in
@@ -397,6 +507,56 @@ module.exports = function Chats({ chatFor } = {}) {
     // `label` is what the command did, generated; `say` is what the agent meant by doing it.
     command(pc, chat, { from = "agent", cmd, args, label, say }) {
       return append(pc, chat, { kind: "command", from, cmd, args: args || {}, label: label || "", say: say || "" });
+    },
+
+    // A VISIT — the hub delivering, to a SUBSCRIBER, something said in a room they are visiting.
+    // Not a message from this room's people: a notification about another room, which is why it is
+    // its own kind rather than a `send` with a prefix glued on the front. His words, rejecting the
+    // prefix version: *"it's a distinct kind of message… it's a notification like, yo, you're
+    // subscribed, this message is coming from — come on, it's supposed to be distinct."*
+    //
+    // `room` is where it was said. `who` is WHO said it — an agent's identity, or nobody when the
+    // speaker was the human, because a person is not an agent identity and pretending otherwise is
+    // exactly the bug he caught one round earlier (his sentence arriving signed by my agent).
+    // Nothing here subscribes anyone: a visit is delivery, never membership.
+    visit(pc, chat, { room, who = null, human = false, text }) {
+      const record = append(pc, chat, {
+        // NO NEW `kind`. It had one for twenty minutes and that is what stopped waking anyone:
+        // consumers skip records whose kind they do not recognise (this file's own reader skips
+        // `system`, mine skips `command`), so a brand-new kind is invisible everywhere by default.
+        // His read was right and mine was overbuilt — *"it was a stupid easy-ass fix, a reformatting,
+        // sending it a different way and rendering it a different way."* It is an ORDINARY message
+        // from whoever said it, wearing extra fields that a renderer may use and no consumer has to
+        // understand. `visit: true` decorates; it never gates.
+        visit: true,
+        // IT IS STILL A MESSAGE FROM WHOEVER SAID IT — his exact framing, and the thing I broke by
+        // taking "distinct kind" too literally on the first pass: *"I'm supposed to read it as MY
+        // message too, just another one of my messages, but coming from a different room because of
+        // subscription."* A record whose `from` is neither "you" nor "agent" is invisible to every
+        // consumer written before this kind existed — every panel, every hold, every agent's reader
+        // — so a "distinct kind" that replaces the author is a message that arrives nowhere. It is
+        // BOTH: the ordinary author underneath, and the visit metadata on top for anyone who knows
+        // how to draw it. Old readers see his message; new ones see where it came from.
+        // THE SHAPE THAT WORKED, WITH THE LABEL FIXED — which is all he ever asked for. It arrived
+        // and got answered in this exact form; the single thing wrong with it was that his sentence
+        // read as though the agent had written it. So nothing about the transport changes, and the
+        // fix lives where the problem was: what the reader SEES.
+        from: "agent",
+        as: human ? room : who,
+        room,
+        who: human ? null : who,
+        human: !!human,
+        // The room is in the text as well as the field, because a reader that predates this kind
+        // shows the text and nothing else — and "which room" is the one fact that stops it reading
+        // as a sentence from nowhere.
+        // WHO SAID IT, IN THE ONE FIELD EVERY READER SHOWS. A peer may or may not know about
+        // `human: true`; it will always print the text. So the text says it: this came from the
+        // human in that room, not from that room's agent.
+        text: human ? `[in ${room} · human] ${text || ""}` : `[in ${room}] ${text || ""}`,
+      });
+      const takers = push(pc, chat, record);
+      takers.forEach((t) => setLine(key(pc, chat), t, "received"));
+      return { record, delivered: takers.length > 0 };
     },
 
     history(pc, chat, { limit = 200 } = {}) {
@@ -640,6 +800,12 @@ module.exports = function Chats({ chatFor } = {}) {
     // `live` = the room's OWN agent holds the line; `agents` = the full roster of identities
     // currently in (home + visitors); `visiting` = rooms this project's agent is off in.
     presence(pc, opts = {}) {
+      // Still holding a line here, right now — the only thing a stale hold may still prove.
+      const held = (p, chat, identity) => {
+        const seen = liveSeen.get(key(p, chat));
+        const ts = seen && seen.get(identity);
+        return !!ts && Date.now() - ts <= LIVE_GRACE;
+      };
       const now = Date.now();
       const out = {};
       const entry = (chat) =>
@@ -652,12 +818,14 @@ module.exports = function Chats({ chatFor } = {}) {
             const e = entry(chat);
             if (!e.agents.includes(identity)) e.agents.push(identity);
             if (identity === pc) e.live = true;
-            else if (!e.visitors.includes(identity)) e.visitors.push(identity);
-          } else if (identity === pc) {
-            // This project's agent is live in ANOTHER room — its own bot should show it.
-            const e = entry(DEFAULT_CHAT);
-            if (!e.visiting.includes(kpc)) e.visiting.push(kpc);
+            // NOT a visitor. Being seen in a room is presence — `agents` says so, and that is the
+            // honest word for it. Visiting is a subscription, and mixing the two is what put two
+            // names on systemlynx's strip when its list was empty: a couple of `systemview join`
+            // processes still parked in terminals from this morning. His read was exact — *"it's
+            // reading recent messages... it's reading the wrong thing."*
           }
+          // NOTE: "this agent is visiting elsewhere" used to be derived HERE, from a live hold in
+          // another room. See the visitorsMap pass below for why that had to go.
         }
       }
       for (const [k, v] of listenerSeen) {
@@ -665,6 +833,41 @@ module.exports = function Chats({ chatFor } = {}) {
         if (kpc !== pc) continue;
         if (now - v.ts > LISTENER_GRACE) continue;
         entry(chat).listener = true;
+      }
+      // VISITING IS THE SUBSCRIPTION LIST, FULL STOP. Above, `visitors` is built from LIVE HOLDS —
+      // who was recently seen holding a line in this room. That was the old model and it is the one
+      // we retired: in the new one nobody holds anything, the hub sends, and being a visitor means
+      // being on the list. So the badge kept claiming someone was visiting after they had been
+      // removed, because it was answering a question nobody asks any more — his catch: *"if I remove
+      // systemview from this room, nothing updates; the agent icon lies to you about visiting."*
+      //
+      // A hold is still worth showing (an agent genuinely parked here), so the two are UNIONED
+      // rather than one replacing the other — but the list is the authority, and someone taken off
+      // it stops being a visitor immediately, whatever any stale hold remembers.
+      // VISITING IS THE SUBSCRIPTION LIST, BOTH DIRECTIONS. Who is visiting ME is one pass; where I
+      // am visiting is the other, and BOTH used to be read off live holds. That is the retired
+      // model — and worse than merely outdated, because a `systemview join` left running in some
+      // terminal months ago still counts as a hold, so agents showed a VISITING ring for rooms
+      // nobody had subscribed them to and kicking could not clear it. His catch, twice: *"there's
+      // nobody in autobot's room but it still shows, and several people still show."*
+      //
+      // The list is the authority in both directions. A hold may still add someone genuinely parked
+      // in this room (union below) — it may not invent a visit that no list agrees with.
+      for (const [k] of visitorsMap) {
+        const [kpc, chat] = k.split("|");
+        const subs = [...loadVisitors(kpc, chat).keys()];
+        if (kpc === pc) {
+          const e = entry(chat);
+          e.subscribed = subs;
+          // THE LIST, AND ONLY THE LIST. No union with holds: a hold proved presence under the old
+          // model and proves nothing about subscription under this one, so letting it add a name
+          // here just re-opens the same lie through a smaller door.
+          e.visitors = subs;
+        } else if (subs.includes(pc)) {
+          // This project is on SOMEONE ELSE'S list — that, and only that, is visiting.
+          const e = entry(DEFAULT_CHAT);
+          if (!e.visiting.includes(kpc)) e.visiting.push(kpc);
+        }
       }
       for (const [k, lines] of statusMap) {
         const [kpc, chat] = k.split("|");

@@ -1,5 +1,5 @@
 import { summarise, pathTouchedBy, isWrite } from "../../utils/hostAgent";
-import { parseSvCommand } from "./svCommand";
+import { parseSvCommand, svStatus } from "./svCommand";
 
 // RFC-046 — EVENTS IN, ROWS OUT. Kept pure and away from the component for the reason the rest of
 // this codebase keeps its rules out of render: the same fold has to run over `history()` when a view
@@ -44,6 +44,71 @@ const textOf = (ev) => ev.text || ev.content || ev.message || "";
 const IS_COMPACTED = (k) => k === "compaction" || k === "compact_boundary" || k === "compact.boundary";
 const IS_COMPACTING = (k) => k === "compacting" || k === "compaction.start" || k === "pre_compact";
 const IS_USAGE = (k) => k === "usage" || k === "token.usage";
+
+// A STATUS IS ONE LINE. Whatever a host calls a tool call, the cooking line has room for a label and
+// nothing more — his rule, plainly put: *"cooking messages are really short."* Newlines collapse
+// first, because a status that wraps is a status that has already lost.
+const STATUS_MAX = 60;
+const clampTo = (max) => (text) => {
+  const t = String(text || "").replace(/\s+/g, " ").trim();
+  if (!t) return "";
+  return t.length > max ? `${t.slice(0, max).trimEnd()}…` : t;
+};
+export const statusBrief = clampTo(STATUS_MAX);
+
+// A CARD'S HEADLINE IS ALSO A LABEL — wider than the cooking line, still not a container for a
+// payload. Autobot proved this one on themselves after I sent them the status version: their
+// `toolSummary` clamped only the branch someone had already spot-fixed, and every file-path branch
+// returned `path.basename(input)` — which bounds NOTHING when the string has no separators. Mine is
+// the same shape: `summarise()` takes the last two path segments, so a pathological path is echoed
+// whole into the row's headline. The RECORD is `input`, which the card unfolds and which stays
+// untouched; this is only the line you read with it. Same one-exit rule as the status, so a new row
+// kind added later inherits the bound without knowing it exists.
+const ROW_LABEL_MAX = 140;
+export const rowLabel = clampTo(ROW_LABEL_MAX);
+
+// HIS PLAN LIMITS, READ OFF THE ONE PLACE THAT ALREADY KNOWS THEM. His ask: *"I need to be updated
+// on my usage… like there's a bar at the top that shows compaction — but only if it's not extra
+// work. If it's extra work I'll just wait until I ask for it."* So nothing here polls, calls, or
+// costs a turn: `/usage` already prints the numbers, that printout already arrives in this feed as
+// a slash-command record, and this reads the last one that went past. Zero new plumbing is the
+// whole reason it is allowed to exist.
+//
+// The real shape, off the transcript rather than imagined:
+//   Current session: 46% used · resets Aug 24 at 10:39am (America/New_York)
+//   Current week (all models): 51% used · resets Aug 25 at 11:59pm (America/New_York)
+//   Current week (Fable): 80% used · resets Aug 25 at 11:59pm (America/New_York)
+//
+// A READING THIS CHEAP IS ALSO A READING THAT GOES STALE — it is only as fresh as the last `/usage`
+// — so the display carries its own timestamp and says so. Today's whole lesson, applied on the way
+// in rather than after he catches it: a meter that cannot say AS OF WHEN has no business on screen.
+const USAGE_LINE = /^(.+?):\s*(\d{1,3})%\s*used(?:\s*·\s*resets\s+(.+?))?$/;
+// "Current week (all models)" is the printout's phrasing; on a one-line bar next to a context meter
+// the word that matters is the span, not the sentence.
+const usageLabel = (raw) => {
+  const t = String(raw).trim();
+  if (/^current session$/i.test(t)) return "session";
+  const w = /^current week\s*\((.+)\)$/i.exec(t);
+  if (w) return `week · ${w[1]}`;
+  return t.replace(/^current\s+/i, "");
+};
+export const parseUsageReport = (text) => {
+  const raw = String(text || "");
+  const out = /<local-command-stdout>([\s\S]*?)<\/local-command-stdout>/.exec(raw);
+  if (!out) return null;
+  const bars = [];
+  out[1].split("\n").forEach((line) => {
+    const m = USAGE_LINE.exec(line.trim());
+    if (!m) return;
+    bars.push({
+      label: usageLabel(m[1]),
+      pct: Math.min(100, Number(m[2])),
+      // The timezone in parentheses is his own machine's — true, and noise on a bar this size.
+      resets: String(m[3] || "").replace(/\s*\([^)]*\)\s*$/, "").trim(),
+    });
+  });
+  return bars.length ? bars : null;
+};
 
 // WHAT THE MODEL ACTUALLY READ THIS TURN. Cache reads are context — a cached prompt still occupies
 // the window — so the honest number is everything that went IN, however the host spells it.
@@ -360,11 +425,13 @@ export function foldEvents(events) {
         // CodePane.js" or "run: yarn build" once, at the source — and every view that renders it
         // agrees for free. Ours is only the fallback for a host that doesn't.
         sv,
-        summary: xsend
-          ? `message → ${xsend.to}${xsend.about ? ` — ${xsend.about}` : ""}`
-          : sv
-          ? sv.what
-          : ev.summary || summarise(ev) || ev.tool || ev.name,
+        summary: rowLabel(
+          xsend
+            ? `message → ${xsend.to}${xsend.about ? ` — ${xsend.about}` : ""}`
+            : sv
+            ? sv.what
+            : ev.summary || summarise(ev) || ev.tool || ev.name,
+        ),
         input: ev.input,
         path: pathTouchedBy(ev),
         wrote: isWrite(ev) && !!pathTouchedBy(ev),
@@ -387,7 +454,7 @@ export function foldEvents(events) {
         row.state = ok ? "ok" : "failed";
         row.output = out;
       } else {
-        rows.push({ key, kind: "tool", id: ev.id, tool: "", summary: ev.summary || "(result)", state: ok ? "ok" : "failed", output: out, ts: ev.ts });
+        rows.push({ key, kind: "tool", id: ev.id, tool: "", summary: rowLabel(ev.summary) || "(result)", state: ok ? "ok" : "failed", output: out, ts: ev.ts });
       }
       return;
     }
@@ -547,9 +614,31 @@ export function foldState(events) {
   // to be the only place a visit could happen and the roster read off the hub's real holds; a peer
   // reaching into a SESSION leaves no hold anywhere, so the only honest record of who is here is who
   // has spoken. His standing rule either way: who is in whose chat is always on screen.
-  const s = { state: "idle", model: null, exited: null, cost: 0, turns: 0, doing: null, ctx: 0, ctxWindow: 0, compactions: 0, visitors: [] };
+  const s = { state: "idle", model: null, exited: null, cost: 0, turns: 0, doing: null, ctx: 0, ctxWindow: 0, compactions: 0, visitors: [], usage: null };
+  // ONE FIELD, ONE CONSUMER — autobot's synthesis after we each corrected the other's half-rule, and
+  // it is better than either. They said clamp at the SOURCE; I said that shrinks the RECORD to fit
+  // the label, so clamp at the STATUS; they answered that a rule every future call site has to
+  // remember is a rule that eventually is not — and the three doorways I had just found were the
+  // evidence. One unbounded field, three consumers, each expected to know.
+  //
+  // So the status is built into a LOCAL and clamped ONCE on the way out. Every branch below writes
+  // to `doing` in whatever words it likes and none of them makes a clamp decision, because none of
+  // them is the thing the panel reads. A new branch added next year inherits the bound without
+  // knowing the rule exists. The rows from foldEvents stay whole — they are the RECORD, and the
+  // record and the label were never the same field here, only the same variable.
+  let doing = null;
   let hostWindow = 0;
   let ctxSeen = 0;
+  // A COMPACTION IS A CEILING, and this is the third act of the receipt saga. `compactMetadata`
+  // arrives with `preTokens` and NO `postTokens` (verified in the transcript: preTokens 783332,
+  // no post half at all), so the boundary alone cannot say what the window now holds. Worse, the
+  // host's snapshot is a variable that nothing resets at the boundary — so the very next `result`
+  // re-emits the PRE-compaction number and the bar snaps straight back to where it was. His words,
+  // right after compacting: *"the compaction bar still looks the same… same page, what's going on."*
+  // The context after a compaction cannot be larger than it was before it. So the pre figure becomes
+  // a ceiling: any snapshot at or above it is the stale one and is refused, until a smaller one — a
+  // genuine post-compaction reading — arrives and disarms it.
+  let staleAbove = 0;
   // Did the SESSION declare its model, or did we only overhear one on a usage line? See below.
   let modelDeclared = false;
   (events || []).forEach((ev) => {
@@ -557,6 +646,11 @@ export function foldState(events) {
     if (ev.kind === "user.prompt" || ev.kind === "text") {
       const vis = parseVisitorTurn(textOf(ev));
       if (vis && !s.visitors.includes(vis.as)) s.visitors.push(vis.as);
+      // Read BEFORE the branches, not inside one: the printout rides a record the branches below
+      // deliberately treat as "not a turn", and a fact worth keeping should not depend on which
+      // branch happens to claim the record.
+      const bars = parseUsageReport(textOf(ev));
+      if (bars) s.usage = { bars, ts: ev.ts || 0 };
     }
     if (ev.kind === "status" || ev.kind === "session.started") {
       if (ev.state) s.state = ev.state;
@@ -578,12 +672,12 @@ export function foldState(events) {
       // structurally cannot see: nobody typed anything.
       if (ev.status === "compacting") {
         s.state = "working";
-        s.doing = "compacting the conversation";
+        doing = "compacting the conversation";
       } else if (ev.compactResult) {
         // A verdict ends the turn. Without this a failed compaction leaves the line spinning forever
         // — the same hole autobot has today, because `compactResult` is half of their working test.
         s.state = "ready";
-        s.doing = null;
+        doing = null;
       }
     } else if (ev.kind === "text" && ev.mine) {
       // HIS SEND, THE INSTANT HE SENDS IT. The panel's own send drops a local echo of kind "text"
@@ -593,17 +687,27 @@ export function foldState(events) {
       // host's own panel flips to cooking immediately). The send IS the turn starting; nothing
       // needs to round-trip to know that.
       s.state = "working";
-      s.doing = null;
+      doing = null;
     } else if (IS_CALL(ev.kind)) {
       s.state = "working";
       const sv = parseSvCommand(ev.input && ev.input.command);
-      s.doing = sv ? `${sv.what}${sv.target ? ` ${sv.target}` : ""}` : ev.summary || summarise(ev) || ev.tool || ev.name;
+      // Short by construction — see svStatus. The full body still lands in the feed row above.
+      // The FALLBACK is clamped too, because a status has one line no matter who wrote it: the
+      // host's own `summary` is whatever their toolSummary produced, and `SendMessage` hands it a
+      // whole message. Same bug, other doorway — a cooking line reciting the thing it is announcing.
+      doing = svStatus(sv) || ev.summary || summarise(ev) || ev.tool || ev.name;
     } else if (ev.kind === "assistant.thinking" || ev.kind === "thinking-delta") {
       s.state = "working";
       // THE AGENT NARRATES ITS OWN THINKING. RFC-048 gives `assistant.thinking` a `summary`, so the
       // line can say what is actually being turned over and CHANGE as that changes. Hardcoding the
       // word "thinking" was the bug: one frozen word for a whole turn is indistinguishable from stuck.
-      s.doing = ev.summary || ev.text || ev.delta || "thinking";
+      // CLAMPED FOR THE SAME REASON, and found by applying the rule to my own file rather than
+      // waiting to be shown it: `summary` is a short narration by design (RFC-048), but the
+      // fallbacks are not — `text` on a SETTLED thinking block is the entire reasoning, which is
+      // the flood he caught on `say` wearing different clothes. The clamp lives HERE, at the
+      // status, not in the shared source: the same fields feed the feed row, and the row wants
+      // every word. Clamping at the source would shrink the record to fit the label.
+      doing = ev.summary || ev.text || ev.delta || "thinking";
     } else if (ev.kind === "assistant.text" || ev.kind === "text-delta" || ev.kind === "user.prompt") {
       // THE LAST COMMAND HOLDS THE LINE — his call, watching both panels side by side: *"the agent
       // panel always shows the last command as the cooking message, and you only sometimes show
@@ -612,14 +716,14 @@ export function foldState(events) {
       // whatever was last named — a command, a thought — stays up until the next one replaces it.
       // The stale-status danger was never this: it was the name outliving the TURN, and every
       // turn-ending event (done, interrupted, compacted) still clears it.
-      if (ev.kind === "user.prompt") s.doing = null;
+      if (ev.kind === "user.prompt") doing = null;
       // …unless the turn IS a compaction. `/compact` goes in as an ordinary user turn and the host
       // says nothing more until the boundary lands a minute or two later, so without this the line
       // spends the whole wait cycling "stirring the pot" over a conversation that is being rewritten.
       // Autobot's panel reads the prompt text for exactly this reason and so does this one — same
       // heuristic, same words, so the two windows he watches side by side agree.
       if (ev.kind === "user.prompt" && !ev.replay && /^\s*\/compact\b/.test(textOf(ev))) {
-        s.doing = "compacting the conversation";
+        doing = "compacting the conversation";
         s.state = "working";
         return;
       }
@@ -635,35 +739,52 @@ export function foldState(events) {
       // still said "thinking" after the answer had finished printing: a status outliving the state it
       // describes, the same bug class as the stale dictation draft and the ReportsTab poll.
       s.state = ev.done ? "ready" : "working";
-      if (ev.done) s.doing = null;
+      if (ev.done) doing = null;
     } else if (IS_RESULT(ev.kind)) {
       // The command's name OUTLIVES its result on purpose — see the writing branch above. Nulling
       // here was what made the line drop to a generic cooking word between commands while the
       // other panel kept saying the real thing.
     } else if (IS_ASK(ev.kind)) {
       s.state = "waiting";
-      s.doing = ev.title || ev.tool || "asking permission";
+      doing = ev.title || ev.tool || "asking permission";
     } else if (ev.kind === "interrupted") {
       // The turn is over because he ended it. Nothing is in flight, so nothing may claim to be.
       s.state = "ready";
-      s.doing = null;
+      doing = null;
     } else if (IS_COMPACTING(ev.kind)) {
       // Named, and not cycled — compacting is a specific thing happening and the line should say so
       // rather than reach for "stirring the pot".
       s.state = "working";
-      s.doing = "compacting the conversation";
+      doing = "compacting the conversation";
     } else if (IS_COMPACTED(ev.kind)) {
       s.state = "ready";
-      s.doing = null;
+      doing = null;
       s.compactions += 1;
       // The window just emptied. `postTokens` is the honest new number when the SDK sends it; when it
       // doesn't, zero is still closer to the truth than the pre-compaction figure, and the next
       // `usage` corrects it within one turn. `preTokens` also counts as a sighting for the ruler
       // below — a conversation that reached 908k proves a window that holds 908k.
-      ctxSeen = Math.max(ctxSeen, preTokensOf(ev));
+      const pre = preTokensOf(ev);
+      ctxSeen = Math.max(ctxSeen, pre);
+      // The ceiling is what the bar was ALREADY SHOWING, not `preTokens`. They are not the same
+      // number — the transcript's boundary said 783332 while the host's last snapshot was 776000,
+      // so a preTokens ceiling sits above the stale value and lets it straight through (it did).
+      // What we held a moment ago is exact and is the honest bound: whatever a compaction leaves
+      // behind is smaller than what it started with.
+      const held = s.ctx;
       s.ctx = Number(ev.postTokens || ev.post_tokens || 0) || 0;
+      // Arm only when the boundary did not tell us where it landed. One carrying both numbers
+      // needs no defending.
+      staleAbove = s.ctx ? 0 : held || pre || 0;
     } else if (IS_USAGE(ev.kind)) {
-      if (typeof ev.costUsd === "number") s.cost += ev.costUsd;
+      // A RULER TICK IS NOT A BILL. Autobot now emits `usage{snapshot:true}` off every parent
+      // assistant message so the bar can move DURING a turn (their commit 81c6213, my ask). Those
+      // carry the window reading only — but the ledger below adds any `costUsd` it is handed, and
+      // a ruler tick that ever grew a cost field would quietly multiply the running total by the
+      // number of messages in a turn. The receipt is the only thing that may pay: it is the one
+      // carrying `turns`. Their trap warning was about the turn-CLOSE path (we are immune there —
+      // nothing in this branch touches `state` or `doing`); this is the same shape one door over.
+      if (!ev.snapshot && typeof ev.costUsd === "number") s.cost += ev.costUsd;
       // `contextTokens` is autobot's own sum — fresh input plus everything read from cache — and it
       // is the number their meter rides, so taking it verbatim is what makes the two bars agree.
       // The hand-rolled sum stays as the fallback for a host that only sends the raw fields.
@@ -680,10 +801,13 @@ export function foldState(events) {
       // shape is itself the stale belief. The receipt is trusted again; the one thing still
       // refused is `contextTokens: null` — the fixed bridge's explicit "no snapshot yet", which
       // must not fall back to the cumulative inputTokens beside it.
+      // Act three: the ceiling (see `staleAbove`). A snapshot at or above the figure the last
+      // compaction started from is the pre-compaction reading arriving late, not the new one.
       const inTok = ev.contextTokens === null ? 0 : Number(ev.contextTokens) || inputTokensOf(ev);
-      if (inTok > 0) {
+      if (inTok > 0 && !(staleAbove && inTok >= staleAbove)) {
         s.ctx = inTok;
         ctxSeen = Math.max(ctxSeen, inTok);
+        staleAbove = 0;
       }
       // THE SESSION'S MODEL, NOT THIS TURN'S. `usage` carries a model name, and a subagent turn
       // carries the SUBAGENT's — so a single Task running on a small-window model would redefine the
@@ -694,7 +818,7 @@ export function foldState(events) {
       if (w > 0) hostWindow = w;
     } else if (IS_DONE(ev.kind)) {
       s.state = "ready";
-      s.doing = null;
+      doing = null;
       if (typeof ev.costUsd === "number") s.cost += ev.costUsd;
       if (typeof ev.turns === "number") s.turns += ev.turns;
       if (ev.kind === "session.ended") s.exited = ev.reason || "ended";
@@ -709,6 +833,7 @@ export function foldState(events) {
   // alarm he will act on, a late warning is recoverable and the real number is always in the
   // tooltip. So the model table is consulted ONLY when the session declared the model itself;
   // otherwise we size from what we have actually watched this conversation carry.
+  s.doing = statusBrief(doing) || null;
   s.ctxWindow = contextWindowFor(modelDeclared ? s.model : null, ctxSeen, hostWindow);
   return s;
 }

@@ -1,3 +1,4 @@
+import { hostFiles } from "../../utils/hostFiles";
 import { useCallback, useContext, useEffect, useState } from "react";
 import loadServiceWithHeaders from "../../utils/loadService";
 import ServiceContext from "../../ServiceContext";
@@ -38,7 +39,9 @@ export function useComments(commentKey, projectCode) {
           (!projectCode || s.projectCode === projectCode) &&
           ((s.system && s.system.connectionData && s.system.connectionData.modules) || []).some((m) => m.name === "Plugin")
       );
-  const Plugin = host ? loadServiceWithHeaders(host.system.connectionData, host.headers, host.credentials).Plugin : null;
+  // Files come from the hub, addressed by PROJECT — a service that happens to be up is no longer
+  // part of the address. See hostFiles.
+  const Plugin = host ? hostFiles(host.projectCode) : null;
   const CLI = app && SystemViewService ? SystemViewService.CLI : null;
   const store = Plugin || CLI;
 

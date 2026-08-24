@@ -280,6 +280,12 @@ module.exports.say = async function say(projectCode, text, { uiUrl, Client, chat
       log.warn(`  mean the room anyway?  add --room`);
       return 1;
     }
+    // A RECEIPT, BECAUSE A SEND THAT PRINTS NOTHING IS INDISTINGUISHABLE FROM ONE THAT VANISHED.
+    // His catch: *"I saw the log that shows a message you sent into autobot. I did not see any log
+    // that showed he received it — but I used to."* Delivery is the record being in their room, and
+    // that is known here, so it gets said here.
+    const to = res && res.relayedTo && res.relayedTo.length ? ` · also ${res.relayedTo.join(", ")}` : "";
+    console.log(`  ✓ delivered → ${projectCode}${agent ? ` (as ${agent})` : ""}${to}`);
   } catch (err) {
     log.error(cleanErr(err));
     return 1;
@@ -533,6 +539,112 @@ module.exports.tv = async function tv(projectCode, { uiUrl, Client, chat, json =
   console.log(state.text);
   console.log("");
   return 0;
+};
+
+// ---- READ SOMEONE ELSE'S CONVERSATION --------------------------------------------------------
+//
+//   systemview read <projectCode> [--since <ms>] [--limit N] [--json]
+//
+// Catching up before you speak, through the front door. Agents were cat-ing each other's room
+// FILES to do this; one of them then filed a confident "their chat is GONE" report about a file it
+// had no context for. This answers the three things a reader actually needs — who, when, and
+// whether that agent is mid-turn right now — and hands back `now` to pass as `--since` next time,
+// so no cursor has to live anywhere.
+module.exports.read = async function read(projectCode, { uiUrl, Client, chat, since, limit, json = false } = {}) {
+  if (!projectCode) {
+    log.warn("Usage: systemview read <projectCode> [--since <ms>] [--limit N] [--json]");
+    return 1;
+  }
+  const SystemView = await loadHub(Client, uiUrl);
+  let res;
+  try {
+    res = await SystemView.chatRead(projectCode, { chat, since: Number(since) || 0, limit: Number(limit) || 40 });
+  } catch (err) {
+    log.error(cleanErr(err));
+    return 1;
+  }
+  if (json) {
+    console.log(JSON.stringify(res, null, 2));
+    return 0;
+  }
+  console.log("");
+  (res.messages || []).forEach((m) => {
+    const t = new Date(m.ts || 0).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+    // A VISIT READS AS A NOTIFICATION, not as a line someone in this room said. His rejection of
+    // the prefix version was the point: *"it's a completely different message than anything… it's
+    // a notification like, yo, you're subscribed, this message is coming from."* So it announces
+    // the subscription and the room before it says a word of the message — and when the speaker
+    // was the HUMAN it still reads as him, because it is him, just somewhere else.
+    if (m.visit) {
+      const who = m.human ? "your human" : m.who;
+      console.log(`  ${t}  ⇢ visiting ${m.room} — ${who} said:`);
+      console.log(`            ${String(m.text || "").replace(/\n/g, "\n            ")}`);
+      return;
+    }
+    console.log(`  ${t}  ${m.who}${m.kind === "command" ? " ·" : ":"} ${String(m.text || "").replace(/\n/g, "\n            ")}`);
+  });
+  if (!res.messages || !res.messages.length) console.log("  (nothing new)");
+  console.log("");
+  // MID-TURN IS NOT SETTLED STATE. Whoever is still working is named here so nobody quotes an
+  // unfinished thought back at its author as though it were a conclusion.
+  (res.working || []).forEach((w) => log.warn(`  ${w.who} is mid-turn — ${w.doing}`));
+  if (res.visitors && res.visitors.length)
+    console.log(`  visiting: ${res.visitors.map((v) => v.identity).join(", ")}`);
+  console.log(`  --since ${res.now}   (pass this next time)`);
+  console.log("");
+  return 0;
+};
+
+// ---- THE VISITOR LIST ------------------------------------------------------------------------
+//
+//   systemview visitors <projectCode> [--json]
+//   systemview visitors <projectCode> add <identity>
+//   systemview visitors <projectCode> remove <identity>
+//
+// Subscribing is what speaking already does; this is for seeing the list and editing it by hand.
+// Removing STOPS DELIVERY — it does not erase anything anyone already received.
+module.exports.visitors = async function visitors(projectCode, op, identity, { uiUrl, Client, chat, json = false } = {}) {
+  if (!projectCode) {
+    log.warn("Usage: systemview visitors <projectCode> [add|remove <identity>] [--chat name] [--json]");
+    return 1;
+  }
+  const SystemView = await loadHub(Client, uiUrl);
+  try {
+    if (op === "add" || op === "remove") {
+      if (!identity) {
+        log.warn(`Usage: systemview visitors ${projectCode} ${op} <identity>`);
+        return 1;
+      }
+      const res =
+        op === "add"
+          ? await SystemView.chatAddVisitor(projectCode, { chat, identity })
+          : await SystemView.chatRemoveVisitor(projectCode, { chat, identity });
+      if (op === "add" && !res.added) {
+        log.error(`visitors: could not add ${identity}${res.reason ? ` — ${res.reason}` : ""}`);
+        return 1;
+      }
+      if (op === "remove" && !res.removed) {
+        log.warn(`visitors: ${identity} was not on the list`);
+        return 0;
+      }
+      log.info(op === "add" ? `${identity} is now visiting ${projectCode}` : `${identity} no longer receives ${projectCode}'s messages`);
+      return 0;
+    }
+    const list = await SystemView.chatVisitors(projectCode, chat);
+    if (json) {
+      console.log(JSON.stringify(list, null, 2));
+      return 0;
+    }
+    if (!list.length) console.log("  nobody is visiting this conversation");
+    else
+      list.forEach((v) =>
+        console.log(`  ${v.identity}${v.by === "human" ? "  (added by hand)" : ""}  ${new Date(v.ts).toLocaleString()}`),
+      );
+    return 0;
+  } catch (err) {
+    log.error(cleanErr(err));
+    return 1;
+  }
 };
 
 module.exports.inbox = async function inbox(projectCode, { uiUrl, Client, chat, agent, json = true, history = false } = {}) {

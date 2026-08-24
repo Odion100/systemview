@@ -33,6 +33,19 @@ export const canGit = (s) => {
 // Pick a host out of candidates already narrowed to one project: the git-capable one first, then
 // any plugin, then nothing.
 export const pickHost = (candidates = []) => {
-  const withPlugin = candidates.filter(hasPlugin);
-  return withPlugin.find(canGit) || withPlugin[0] || null;
+  // THE HOST SERVES FILES. THE PLUGIN SERVES DOCUMENTATION AND TESTS. One rule, no preference —
+  // his correction, and it was the right one to make: *"what do you mean prefer the host? There's
+  // one method. Where's the preference coming from?"* A preference is two answers wearing one
+  // name, and this app has been burned by that shape all day (two meters on one bar, two meanings
+  // on one chip). So there is exactly one file provider: the folder the shell knows.
+  //
+  // No folder ⇒ no codebase. That is not a failure, it is the husk the project already shows
+  // ("no folder yet — choose a folder"). It replaces the old fallback, where a project with
+  // services read its own source back over HTTP through the plugin — which is why a dead test
+  // service could blank the code panel and flood the console with retries.
+  return (
+    candidates.find(
+      (s) => s && s.system && s.system.connectionData && s.system.connectionData.__hostFiles,
+    ) || null
+  );
 };

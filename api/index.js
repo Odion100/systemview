@@ -607,15 +607,434 @@ function emitStatuses(ctx, projectCode, chat) {
     as: p.statusAs || null,
   });
 }
+// THE HUB DOES THE VISITING — the one place a subscribed visitor is actually delivered to, lifted
+// out of `chatSend` because the room is no longer the only place he speaks. His model, in his words:
+// *"when I speak, it just means it should send a visitor message to the other agent."* WHEN, not
+// WHERE. No holds, no cursors: the delivery IS the read position, a visitor's own words never come
+// back to them (fanout excludes the speaker), and a failed hand-off must never break the send that
+// succeeded.
+function relayToVisitors(ctx, projectCode, chatName, { text, speaker, record, human }) {
+  try {
+    Chats.fanout(projectCode, chatName, record || { from: "you" }).forEach((visitor) => {
+      try {
+        // A VISIT IS ITS OWN RECORD, not a chat line with a prefix glued on. Two corrections from
+        // him, one after the other, and the second one is why this is a `kind` and not a `text`:
+        //
+        //   1. *"that message looks like it's coming from you"* — the relay signed HIS sentence
+        //      with this project's agent. Wrong speaker, not wrong formatting.
+        //   2. *"it's a completely different message than anything… it's a notification like, yo,
+        //      you're subscribed, this message is coming from — it's supposed to be distinct."*
+        //
+        // And the shape he then named exactly: *"I'm supposed to read it as MY message too — just
+        // another one of my messages, but coming from a different room because of subscription."*
+        // So a visit carries WHO independently of WHERE. `human: true` means the person said it,
+        // and the person is the same person on both ends — the receiving panel draws it as his own
+        // turn wearing the room it came from, not as a stranger and not as an agent.
+        const relayed = Chats.visit(visitor, Chats.DEFAULT_CHAT, {
+          room: projectCode,
+          who: human ? null : speaker,
+          human,
+          text,
+        });
+        if (relayed && relayed.record)
+          ctx.emit(`chat-updated:${visitor}`, { chat: Chats.DEFAULT_CHAT, record: relayed.record });
+      } catch {}
+    });
+  } catch {}
+}
+
+// SPEAKING TO THE ATTACHED AGENT IS STILL SPEAKING. His catch, and he was right to doubt it:
+// *"Autobot is in your room right now. He's not going to get a notification that I'm talking. I've
+// noticed that."* He had. An attached conversation is the SESSION's transcript and deliberately
+// writes nothing to the room file — which is correct, and which silently took the fan-out with it,
+// because the fan-out lived inside the room write. So visiting worked perfectly room-to-room (proved
+// live all day) and did nothing at all in the one place he actually talks to his agent.
+// Nothing is written to any room here. This is delivery only: the visitors of this project's chat
+// get what he just said, and his session transcript stays the single home of the conversation.
+function chatRelay(projectCode, { chat, text } = {}) {
+  const body = String(text || "").trim();
+  if (!body) return { relayed: 0 };
+  const chatName = chat || Chats.DEFAULT_CHAT;
+  const to = Chats.fanout(projectCode, chatName, { from: "you" });
+  // The attached path is his by definition — this is only ever reached by him typing at his agent.
+  relayToVisitors(this, projectCode, chatName, { text: body, human: true, record: { from: "you" } });
+  return { relayed: to.length, to };
+}
+
+// GIT, SERVED BY THE HUB. It used to come from the plugin; the UI stopped asking the plugin when
+// files moved to the shell, and the shell cut its own git verbs the same day — so both halves moved
+// and the code panel went silent for every project at once. His words, and they are fair: *"you
+// removed git without putting it back."*
+//
+// The hub is the right home: git is a LOCAL operation on a folder this process runs beside, so there
+// is no bridge to be out of step with. `root` is passed by the caller when it knows (the UI knows
+// every card's folder) and resolved from the connections registry otherwise.
+//
+// NO SILENT EMPTY. Every call says whether git RAN — `{ ok: false, error }` — because a provider
+// that cannot tell "no changes" from "git did not run" always looks like the panel's fault. That is
+// the exact trap this bug hid in for an hour (autobot's line, and they were right about the class).
+const { execFile } = require("child_process");
+const fsGit = require("fs");
+function git(cwd, args) {
+  return new Promise((resolve) => {
+    execFile("git", args, { cwd, maxBuffer: 20 * 1024 * 1024 }, (err, stdout, stderr) => {
+      if (err) return resolve({ ok: false, error: String((stderr || err.message || "").trim()).slice(0, 400), out: "" });
+      resolve({ ok: true, out: String(stdout || "") });
+    });
+  });
+}
+function rootOf(projectCode, root) {
+  const dir = root || projectRoot(projectCode);
+  return dir && fsGit.existsSync(dir) ? dir : null;
+}
+// `git status --porcelain=v1` — two status columns then the path, with renames as "old -> new".
+const STATUS_WORDS = { M: "modified", A: "added", D: "deleted", R: "renamed", C: "copied", "?": "untracked", U: "conflicted" };
+function parseStatus(out) {
+  return String(out || "")
+    .split("\n")
+    .filter((l) => l.trim())
+    .map((line) => {
+      const x = line[0];
+      const y = line[1];
+      let path = line.slice(3).trim();
+      if (path.includes(" -> ")) path = path.split(" -> ").pop();
+      if (path.startsWith('"') && path.endsWith('"')) path = path.slice(1, -1);
+      const code = x !== " " && x !== "?" ? x : y;
+      return {
+        path,
+        // `status` is the key the panel draws from; `change` kept as an alias for anything newer.
+        status: STATUS_WORDS[x === "?" ? "?" : code] || "modified",
+        change: STATUS_WORDS[x === "?" ? "?" : code] || "modified",
+        staged: x !== " " && x !== "?",
+        // PARTIAL = staged AND edited again since. The row menu turns on this: a fully staged file
+        // offers Unstage and nothing else, a partial one offers both — and without the flag every
+        // staged file claimed to be fully staged, which is the one state where a wrong answer costs
+        // you work.
+        partial: x !== " " && x !== "?" && y !== " ",
+        unstaged: y !== " ",
+        x,
+        y,
+      };
+    });
+}
+// EVERY PROJECT'S FOLDER, FROM THE ONE PLACE THAT KNOWS THEM ALL. A card gets its folder from a
+// connected SERVICE that happens to report a root — so a project whose services are down, or that
+// never had any, ends up with no folder on screen while the registry has known its root the whole
+// time. That is why one project sat there with no tree, no git bar and no commit box while the ones
+// beside it were fine: not a different code path, just a card that was never told where it lived.
+function projectRoots() {
+  const out = {};
+  try {
+    ConnectedServices.getAllConnections().forEach((c) => {
+      if (c && c.projectCode && c.root && !out[c.projectCode]) out[c.projectCode] = c.root;
+    });
+  } catch {
+    /* an unreadable registry is an empty answer, not a thrown one */
+  }
+  return out;
+}
+
+// FILES, SERVED BY THE HUB — the same owner as git, which is the entire point. His question, and it
+// was the right one to ask: *"is it better for you to use the hub?"* Yes, for one reason that has
+// nothing to do with taste: THE HUB KNOWS EVERY PROJECT'S FOLDER. The shell only knows the projects
+// that were added through it, so a project that arrived as a service connection had a folder in the
+// registry and no folder in the shell — and got no file tree, no git bar, no commit box, while the
+// project beside it had all three. Two lists, one of them incomplete, is what made "it works over
+// here and not over there" the shape of this entire day.
+// One owner, no fallback, no second path.
+const path_ = require("path");
+const IGNORE_DIRS = new Set([".git", "node_modules", ".next", "dist", "coverage", ".cache", ".DS_Store"]);
+function inside(root, rel) {
+  // A path is only servable if it resolves INSIDE the project's folder. Not a formality: `rel` comes
+  // from a browser, and `../../` is how a file layer becomes a disk layer.
+  const abs = path_.resolve(root, rel || ".");
+  const base = path_.resolve(root);
+  return abs === base || abs.startsWith(base + path_.sep) ? abs : null;
+}
+async function readFile(projectCode, { path: rel, root } = {}) {
+  const cwd = rootOf(projectCode, root);
+  if (!cwd) return { ok: false, error: "no folder for this project" };
+  const abs = inside(cwd, rel);
+  if (!abs) return { ok: false, error: "outside the project folder" };
+  try {
+    return { ok: true, path: rel, content: fsGit.readFileSync(abs, "utf8") };
+  } catch (e) {
+    return { ok: false, error: String(e.message || e) };
+  }
+}
+async function writeFile(projectCode, { path: rel, content, root } = {}) {
+  const cwd = rootOf(projectCode, root);
+  if (!cwd) return { ok: false, error: "no folder for this project" };
+  const abs = inside(cwd, rel);
+  if (!abs) return { ok: false, error: "outside the project folder" };
+  try {
+    fsGit.mkdirSync(path_.dirname(abs), { recursive: true });
+    fsGit.writeFileSync(abs, String(content == null ? "" : content));
+    return { ok: true, path: rel };
+  } catch (e) {
+    return { ok: false, error: String(e.message || e) };
+  }
+}
+async function deleteFile(projectCode, { path: rel, root } = {}) {
+  const cwd = rootOf(projectCode, root);
+  if (!cwd) return { ok: false, error: "no folder for this project" };
+  const abs = inside(cwd, rel);
+  if (!abs || abs === path_.resolve(cwd)) return { ok: false, error: "outside the project folder" };
+  try {
+    fsGit.rmSync(abs, { recursive: true, force: true });
+    return { ok: true, path: rel };
+  } catch (e) {
+    return { ok: false, error: String(e.message || e) };
+  }
+}
+function walkDir(root, dir, out, cap) {
+  let entries = [];
+  try {
+    entries = fsGit.readdirSync(path_.join(root, dir), { withFileTypes: true });
+  } catch {
+    return;
+  }
+  for (const e of entries) {
+    if (out.length >= cap) return;
+    if (IGNORE_DIRS.has(e.name)) continue;
+    const rel = dir ? `${dir}/${e.name}` : e.name;
+    if (e.isDirectory()) walkDir(root, rel, out, cap);
+    else out.push({ path: rel });
+  }
+}
+async function listFiles(projectCode, { dir, root, max } = {}) {
+  const cwd = rootOf(projectCode, root);
+  if (!cwd) return { ok: false, error: "no folder for this project", files: [] };
+  const start = dir && dir !== "." ? dir : "";
+  if (start && !inside(cwd, start)) return { ok: false, error: "outside the project folder", files: [] };
+  const cap = Number(max) || 4000;
+  const out = [];
+  walkDir(cwd, start, out, cap);
+  return { ok: true, dir: start, files: out, truncated: out.length >= cap };
+}
+async function searchFiles(projectCode, { query, max, root } = {}) {
+  const cwd = rootOf(projectCode, root);
+  if (!cwd) return { ok: false, error: "no folder for this project", results: [] };
+  if (!String(query || "").trim()) return { ok: true, results: [] };
+  const res = await git(cwd, ["grep", "-n", "-I", "--untracked", "-e", String(query)]);
+  // `git grep` exits 1 on "no matches", which is not an error — an empty result is the answer.
+  const lines = String(res.out || "").split("\n").filter(Boolean).slice(0, Number(max) || 200);
+  return {
+    ok: true,
+    results: lines.map((l) => {
+      const m = /^([^:]+):(\d+):([\s\S]*)$/.exec(l);
+      return m ? { path: m[1], line: Number(m[2]), text: m[3] } : { path: l, line: 0, text: "" };
+    }),
+  };
+}
+
+// A SMALL, SHORT CACHE — because the panel polls, and the panel is not alone. Every project card
+// polls its own status and state on a timer, and each `gitState` was spawning five git processes
+// (branch, upstream, counts, log, rev-list). Six cards on a five-second beat is ~36 git processes
+// every five seconds, and the machine feels exactly as you would expect: a stage takes forever and
+// nothing looks like it is happening. His words: *"I clicked stage ten minutes ago."*
+//
+// Reads are cached for a beat and writes clear it, so a stage still shows up instantly — the cache
+// only ever collapses the duplicate reads that were racing each other anyway.
+// ONE WRITE AT A TIME, PER REPO. Git takes an exclusive index.lock for `add`, `restore`, `commit`;
+// two of those at once and the second dies with "Unable to create .git/index.lock". That is not
+// hypothetical — he hit it staging while the pollers were mid-read. Reads are cached above; writes
+// queue behind each other per folder, which costs nothing and makes the failure impossible.
+const gitQueue = new Map();
+function serial(cwd, run) {
+  const prev = gitQueue.get(cwd) || Promise.resolve();
+  const next = prev.then(run, run);
+  gitQueue.set(cwd, next.catch(() => {}));
+  return next;
+}
+
+const gitCache = new Map();
+const CACHE_MS = 2500;
+const cacheKey = (verb, pc, extra) => `${verb}|${pc}|${extra || ""}`;
+function cached(key, run) {
+  const hit = gitCache.get(key);
+  if (hit && Date.now() - hit.at < CACHE_MS) return hit.p;
+  const p = Promise.resolve(run());
+  gitCache.set(key, { at: Date.now(), p });
+  return p;
+}
+function bustGit(pc) {
+  for (const k of [...gitCache.keys()]) if (k.includes(`|${pc}|`)) gitCache.delete(k);
+}
+
+async function gitState(projectCode, opts = {}) {
+  return cached(cacheKey("state", projectCode, opts.root), () => gitStateRaw(projectCode, opts));
+}
+async function gitStateRaw(projectCode, { root } = {}) {
+  const cwd = rootOf(projectCode, root);
+  if (!cwd) return { repo: false, ok: false, error: "no folder for this project" };
+  const inside = await git(cwd, ["rev-parse", "--is-inside-work-tree"]);
+  if (!inside.ok || inside.out.trim() !== "true") return { repo: false, ok: true };
+  const [branch, upstream, counts] = await Promise.all([
+    git(cwd, ["rev-parse", "--abbrev-ref", "HEAD"]),
+    git(cwd, ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"]),
+    git(cwd, ["rev-list", "--left-right", "--count", "HEAD...@{u}"]),
+  ]);
+  const [ahead, behind] = counts.ok ? counts.out.trim().split(/\s+/).map(Number) : [0, 0];
+  // THE LOG RIDES ON gitState — that is where the panel reads it from (`gitState.log`), so a state
+  // without it renders "no commits yet" on a repo with thousands. His catch: *"I can't see my git
+  // logs like I used to."* Each row needs sha/subject/who/when, and `pushed` so a committed line and
+  // a pushed one never look identical — a history you have to verify somewhere else is not a history.
+  const up = upstream.ok ? upstream.out.trim() : null;
+  const SEP = "\u001f";
+  const logRes = await git(cwd, ["log", "-40", `--pretty=format:%h${SEP}%s${SEP}%an${SEP}%ar`]);
+  const unpushed = up ? await git(cwd, ["rev-list", `${up}..HEAD`, "--pretty=format:%h", "--no-commit-header"]) : { ok: false, out: "" };
+  const ahead_set = new Set(String(unpushed.out || "").split("\n").map((x) => x.trim()).filter(Boolean));
+  const log = String(logRes.out || "")
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => {
+      const [sha, subject, who, when] = line.split(SEP);
+      return { sha, subject, who, when, ...(up ? { pushed: !ahead_set.has(sha) } : {}) };
+    });
+  // THE FILE LISTS RIDE ON gitState TOO. The commit block reads `state.staged` and
+  // `state.unstaged` straight off this object — same as it reads `state.log` — so returning a state
+  // without them renders a clean tree on a repo with 41 changes. Exactly the shape of bug the log
+  // had an hour ago, and I fixed that one without asking what ELSE this object is expected to
+  // carry. It carries everything the version-control surfaces read; that is what it is for.
+  const st = await git(cwd, ["status", "--porcelain=v1", "--untracked-files=all"]);
+  const rows = st.ok ? parseStatus(st.out) : [];
+  return {
+    repo: true,
+    ok: true,
+    root: cwd,
+    branch: branch.ok ? branch.out.trim() : null,
+    upstream: up,
+    ahead: ahead || 0,
+    behind: behind || 0,
+    log,
+    staged: rows.filter((f) => f.staged),
+    unstaged: rows.filter((f) => f.unstaged && f.change !== "untracked"),
+    untracked: rows.filter((f) => f.change === "untracked"),
+    changed: rows,
+  };
+}
+async function changedFiles(projectCode, opts = {}) {
+  return cached(cacheKey("changed", projectCode, opts.root), () => changedFilesRaw(projectCode, opts));
+}
+async function changedFilesRaw(projectCode, { root } = {}) {
+  const cwd = rootOf(projectCode, root);
+  if (!cwd) return { ok: false, error: "no folder for this project", files: [] };
+  const res = await git(cwd, ["status", "--porcelain=v1", "--untracked-files=all"]);
+  if (!res.ok) return { ok: false, error: res.error, files: [] };
+  return { ok: true, files: parseStatus(res.out) };
+}
+async function getDiff(projectCode, { path: rel, staged, root } = {}) {
+  const cwd = rootOf(projectCode, root);
+  if (!cwd) return { ok: false, error: "no folder for this project" };
+  // WHAT THE CALLERS ACTUALLY WANT IS CONTENT, NOT A PATCH. Every diff surface in this app —
+  // the ::diff block, the stripes in the editor, the file embed — compares the working file against
+  // the committed one itself, so it asks for `{ base, index }`: the two OTHER versions of the file.
+  // I had this returning a unified `diff` string, which is a perfectly good answer to a question
+  // nobody here asks: `g.base` came back undefined, every stripe and every ::diff block drew
+  // nothing, and it read as "interactive markdown is broken". A shape mismatch renders exactly like
+  // a dead feature.
+  //   base  = HEAD's copy      (git show HEAD:<path>)   — null when the file is new
+  //   index = the staged copy  (git show :<path>)       — null when nothing is staged
+  // The patch text rides along too, for anything that would rather have it.
+  if (!rel) {
+    const all = await git(cwd, ["diff", ...(staged ? ["--cached"] : []), "--no-color"]);
+    return all.ok ? { ok: true, diff: all.out } : { ok: false, error: all.error, diff: "" };
+  }
+  const [headRes, indexRes, patch] = await Promise.all([
+    git(cwd, ["show", `HEAD:${rel}`]),
+    git(cwd, ["show", `:${rel}`]),
+    git(cwd, ["diff", ...(staged ? ["--cached"] : []), "--no-color", "--", rel]),
+  ]);
+  const base = headRes.ok ? headRes.out : null;
+  const index = indexRes.ok ? indexRes.out : null;
+  return {
+    ok: true,
+    path: rel,
+    base,
+    // `head` is the same thing under the older name some callers still use.
+    head: base,
+    index: index != null && index !== base ? index : null,
+    diff: patch.ok ? patch.out : "",
+  };
+}
+
+async function stageFiles(projectCode, { paths, unstage, root } = {}) {
+  const cwd = rootOf(projectCode, root);
+  if (!cwd) return { ok: false, error: "no folder for this project" };
+  const list = (Array.isArray(paths) ? paths : [paths]).filter(Boolean);
+  if (!list.length) return { ok: false, error: "nothing to stage" };
+  const res = await serial(cwd, () => git(cwd, unstage ? ["restore", "--staged", ...list] : ["add", "--", ...list]));
+  bustGit(projectCode); // a write makes every cached read wrong at once
+  return res.ok ? { ok: true, changed: list } : { ok: false, error: res.error };
+}
+async function discardFiles(projectCode, { paths, root } = {}) {
+  const cwd = rootOf(projectCode, root);
+  if (!cwd) return { ok: false, error: "no folder for this project" };
+  const list = (Array.isArray(paths) ? paths : [paths]).filter(Boolean);
+  if (!list.length) return { ok: false, error: "nothing to discard" };
+  // TRACKED and UNTRACKED are different operations and `restore` only knows the first — an untracked
+  // file "discarded" with restore fails, and the panel would report success on a file still sitting
+  // there. So each path is asked what it is, and answered accordingly.
+  const discarded = [];
+  for (const rel of list) {
+    const tracked = await git(cwd, ["ls-files", "--error-unmatch", "--", rel]);
+    const res = await serial(cwd, () =>
+      tracked.ok ? git(cwd, ["restore", "--worktree", "--", rel]) : git(cwd, ["clean", "-f", "--", rel]),
+    );
+    if (!res.ok) return { ok: false, error: res.error, discarded };
+    discarded.push(rel);
+  }
+  bustGit(projectCode);
+  return { ok: true, discarded };
+}
+async function commit(projectCode, { message, root } = {}) {
+  const cwd = rootOf(projectCode, root);
+  if (!cwd) return { ok: false, error: "no folder for this project" };
+  if (!String(message || "").trim()) return { ok: false, error: "a commit needs a message" };
+  const res = await serial(cwd, () => git(cwd, ["commit", "-m", String(message)]));
+  return res.ok ? { ok: true, out: res.out } : { ok: false, error: res.error };
+}
+
 function chatSend(projectCode, { chat, from = "you", text, view, as, toRoom } = {}) {
   armChatSweep(this);
   const identity = from === "agent" ? resolveSpeaker(projectCode, chat, as) : undefined;
-  const sent = Chats.send(projectCode, chat || Chats.DEFAULT_CHAT, { from, text, view, as: identity, toRoom });
+  // Known BEFORE the write, so the record can carry it — see `relayedTo` in Chats.send.
+  const goingTo = Chats.fanout(projectCode, chat || Chats.DEFAULT_CHAT, {
+    from,
+    ...(identity ? { as: identity } : {}),
+  });
+  const sent = Chats.send(projectCode, chat || Chats.DEFAULT_CHAT, {
+    from,
+    text,
+    view,
+    as: identity,
+    toRoom,
+    relayedTo: goingTo,
+  });
   // The wall at the wrong door said no — nothing was written, so nothing is emitted; the refusal
   // travels back to the CLI, which prints the command that actually reaches the visitor.
   if (sent && sent.blocked) return sent;
   const { record } = sent;
   this.emit(`chat-updated:${projectCode}`, { chat: chat || Chats.DEFAULT_CHAT, record });
+  // THE HUB DOES THE VISITING. Everyone subscribed to this room gets what was just said, delivered
+  // into THEIR conversation as a visitor turn — his model: *"when I speak, it just means it should
+  // send a visitor message to the other agent."* No holds, no cursors: the delivery IS the read
+  // position. A visitor's own words never come back to them (fanout excludes the speaker), and a
+  // failed hand-off must never break the send that succeeded.
+  // Speaking subscribes, so the list can move without anyone pressing anything.
+  try {
+    this.emit(`chat-visitors:${projectCode}`, {
+      chat: chat || Chats.DEFAULT_CHAT,
+      visitors: Chats.visitors(projectCode, chat || Chats.DEFAULT_CHAT),
+    });
+  } catch {}
+  relayToVisitors(this, projectCode, chat || Chats.DEFAULT_CHAT, {
+    text,
+    speaker: identity || projectCode,
+    human: from === "you",
+    record,
+  });
   // The store just moved cooking lines around (speaker's line cleared, takers' lines flipped
   // "received", maybe a "waiting on" appeared) — push the whole per-identity set.
   emitStatuses(this, projectCode, chat);
@@ -670,6 +1089,73 @@ async function chatFlush(projectCode) {
 }
 function chatHistory(projectCode, chat, limit) {
   return Chats.history(projectCode, chat || Chats.DEFAULT_CHAT, { limit });
+}
+// ---- READING SOMEONE ELSE'S CONVERSATION ----------------------------------------------------
+// The catch-up read, through the front door. Agents were doing this by opening each other's room
+// FILES off disk — a side door, and exactly how a project once filed a false "data loss" report
+// about a file it had no context for. One verb instead, and it answers the three questions an
+// agent must have before it speaks into someone's conversation: WHO said each thing, WHEN, and
+// whether that project's agent is mid-turn RIGHT NOW (reading half-finished work as settled state
+// is how a confident wrong answer gets made).
+function chatRead(projectCode, { chat, since = 0, limit = 40 } = {}) {
+  const chatName = chat || Chats.DEFAULT_CHAT;
+  // `--since` filters, `--limit` caps what survives it — in that order. Reversed (slice a fixed
+  // 400 first) the limit silently did nothing and a catch-up read dumped an entire room.
+  const cap = Math.max(1, Math.min(200, Number(limit) || 40));
+  const all = Chats.history(projectCode, chatName, { limit: 1000 })
+    .filter((r) => !r.hidden && (r.ts || 0) > (Number(since) || 0))
+    .slice(-cap)
+    .map((r) => ({
+      ts: r.ts,
+      // A VISIT NAMES BOTH HALVES. Who said it and where they said it are two facts, and the
+      // reader needs them apart: *"I'm supposed to read it as MY message too — just another one of
+      // my messages, but coming from a different room because of subscription."* So the human stays
+      // "human" wherever he says it, and `room` carries the elsewhere.
+      who: r.visit ? (r.human ? "human" : r.who || r.room) : r.from === "you" ? "human" : r.as || projectCode,
+      kind: r.kind || "message",
+      ...(r.visit ? { visit: true, room: r.room, human: !!r.human } : {}),
+      text: r.kind === "command" ? `${r.cmd} ${r.label || ""}`.trim() : r.text || "",
+    }));
+  // Mid-turn or not — read off the same per-identity cooking lines the panel draws.
+  const p = presenceFor(projectCode)[chatName] || {};
+  const working = (p.statuses || []).filter((s) => s && String(s.text || "").trim());
+  return {
+    project: projectCode,
+    chat: chatName,
+    messages: all,
+    // The two things that stop a reader misreading what they just read.
+    working: working.map((s) => ({ who: s.as || projectCode, doing: s.text })),
+    visitors: Chats.visitors(projectCode, chatName),
+    now: Date.now(), // carry it back as `--since` next time; nothing is stored hub-side
+  };
+}
+// The visitor list: read it, add to it, remove from it. `✕` finally means something real —
+// delivery stops — and `＋` lets the human pull an agent into a conversation it never entered.
+function chatVisitors(projectCode, chat) {
+  return Chats.visitors(projectCode, chat || Chats.DEFAULT_CHAT);
+}
+function chatAddVisitor(projectCode, { chat, identity } = {}) {
+  const chatName = chat || Chats.DEFAULT_CHAT;
+  const res = Chats.addVisitor(projectCode, chatName, canonIdentity(projectCode, identity), "human");
+  // THE SUBSCRIPTION LIST IS NOT PRESENCE, so a presence event does not refresh it. The panel keeps
+  // its own copy from `chatVisitors` and only ever fetched it once, so adding or removing a visitor
+  // changed the truth and changed nothing on screen — his catch: *"if I remove systemview from this
+  // room right now, nothing updates. The agent icon lies to you about visiting."* It did. Anything
+  // that moves the list now says so on its own channel.
+  if (res.added) {
+    this.emit(`chat-presence:${projectCode}`, presenceFor(projectCode));
+    this.emit(`chat-visitors:${projectCode}`, { chat: chatName, visitors: Chats.visitors(projectCode, chatName) });
+  }
+  return res;
+}
+function chatRemoveVisitor(projectCode, { chat, identity } = {}) {
+  const chatName = chat || Chats.DEFAULT_CHAT;
+  const res = Chats.removeVisitor(projectCode, chatName, identity);
+  if (res.removed) {
+    this.emit(`chat-presence:${projectCode}`, presenceFor(projectCode));
+    this.emit(`chat-visitors:${projectCode}`, { chat: chatName, visitors: Chats.visitors(projectCode, chatName) });
+  }
+  return res;
 }
 function chatList(projectCode) {
   return Chats.chats(projectCode);
@@ -989,6 +1475,32 @@ module.exports = function launchSystemView(port = 3000) {
   // ::image's byte pipe — the hub proxies raw file bytes from the project's OWN plugin (the
   // image lives in the repo; the document carries a locator, same rule as ::file). Approved via
   // a TV verdict, fittingly.
+  // BYTES STRAIGHT OFF DISK, ADDRESSED BY PROJECT. The route below proxies through a project's
+  // PLUGIN, which is why an image stopped rendering the moment files left the plugin: no plugin, no
+  // bytes, broken image — on a file sitting in a folder the hub can read. Images, PDFs, anything
+  // that is not text needs BYTES, not `readFile`'s utf8, so it gets its own door rather than being
+  // squeezed through the text one.
+  server.get("/sv-file/:pc", (req, res) => {
+    try {
+      const rel = String(req.query.path || "");
+      const cwd = rootOf(req.params.pc, req.query.root);
+      if (!cwd) return res.status(404).send("no folder for this project");
+      const abs = inside(cwd, rel);
+      if (!abs || !fsGit.existsSync(abs)) return res.status(404).send("not found");
+      const ext = path_.extname(abs).toLowerCase().slice(1);
+      const MIME = {
+        png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp",
+        svg: "image/svg+xml", ico: "image/x-icon", bmp: "image/bmp", avif: "image/avif",
+        pdf: "application/pdf", mp4: "video/mp4", webm: "video/webm", mp3: "audio/mpeg", wav: "audio/wav",
+      };
+      res.set("Content-Type", MIME[ext] || "application/octet-stream");
+      res.set("Cache-Control", "private, max-age=30");
+      res.send(fsGit.readFileSync(abs));
+    } catch (e) {
+      res.status(404).send(String((e && e.message) || "not found"));
+    }
+  });
+
   server.get("/sv-raw/:pc/:sid", async (req, res) => {
     try {
       const { service } = ConnectedServices.findService(null, req.params.pc, req.params.sid);
@@ -1054,6 +1566,23 @@ module.exports = function launchSystemView(port = 3000) {
       listViews,
       deleteView,
       chatSend,
+      chatRead,
+      projectRoots,
+      readFile,
+      writeFile,
+      deleteFile,
+      listFiles,
+      searchFiles,
+      gitState,
+      changedFiles,
+      getDiff,
+      stageFiles,
+      discardFiles,
+      commit,
+      chatRelay,
+      chatVisitors,
+      chatAddVisitor,
+      chatRemoveVisitor,
       chatCommand,
       chatHistory,
       chatList,

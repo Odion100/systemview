@@ -1,4 +1,5 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { hostFiles } from "../../../utils/hostFiles";
 import ServiceContext from "../../../ServiceContext";
 import loadServiceWithHeaders from "../../../utils/loadService";
 import { useMarkdownScope } from "../context";
@@ -38,23 +39,14 @@ const langOf = (p) => EXT_LANG[(String(p).split(".").pop() || "").toLowerCase()]
 
 // Same host rule as the file CHIP: the document's own service, then its project, then any connected
 // file host — a help topic has no project of its own and should still be able to show a file.
+// THE FILE HOST IS THE PROJECT, NOT A SERVICE. This used to hunt through connected services for one
+// carrying a plugin — so an embed in a project whose services were down, or that never had any,
+// simply refused to render. That is why a `::file[...]` block dropped into the chat showed nothing
+// while the very same file was open in the code panel beside it. Files come from the hub now, which
+// knows every project's folder; the only question left is which PROJECT the document belongs to.
 function useFileHost(attrs, scope) {
-  const { connectedServices = [] } = useContext(ServiceContext);
   const projectCode = attrs.project || scope.projectCode;
-  const inProject = connectedServices.filter((s) => s.projectCode === projectCode && hasPlugin(s));
-  // Within the project, a git-capable sibling outranks the named service: they read the same working
-  // directory, so preferring it costs nothing and is the difference between the row menu offering
-  // Stage and the menu quietly not having it.
-  const named = inProject.find((s) => s.serviceId === (attrs.service || scope.serviceId));
-  const mine = (named && canGit(named) && named) || pickHost(inProject) || named || null;
-  if (mine) return mine;
-  // NEVER BORROW ANOTHER PROJECT'S ROOT. This used to fall through to "any connected service with a
-  // Plugin" — so when the document's own project happened to be disconnected, every embed resolved
-  // against a DIFFERENT repo and came back "no such file" with a full path from somewhere the
-  // reader had never heard of. Silently reading the wrong repo is worse than reading nothing.
-  // The fallback only makes sense where there IS no project — a help topic, the hub itself.
-  if (projectCode) return null;
-  return connectedServices.find(hasPlugin) || null;
+  return projectCode ? { projectCode } : null;
 }
 
 const Embed = ({ label, attrs = {}, opens }) => {
@@ -74,7 +66,7 @@ const Embed = ({ label, attrs = {}, opens }) => {
   const [mdPreview, setMdPreview] = useState(true);
   // Stamped with the file it belongs to, so a changed path reads as absent rather than showing the
   // previous file's body for a frame.
-  const key = `${path}@${host ? host.serviceId : ""}`;
+  const key = `${path}@${host ? host.projectCode : ""}`;
   useEffect(() => {
     if (!isMd) return;
     try {
@@ -91,7 +83,7 @@ const Embed = ({ label, attrs = {}, opens }) => {
   const [menu, setMenu] = useState(null);
 
   const Plugin = useMemo(
-    () => (host ? loadServiceWithHeaders(host.system.connectionData, host.headers, host.credentials).Plugin : null),
+    () => (host ? hostFiles(host.projectCode) : null),
     [host],
   );
   const data = file && file.key === key ? file : null;
@@ -182,7 +174,7 @@ const Embed = ({ label, attrs = {}, opens }) => {
 
   const open = (e) => {
     if (!host) return;
-    const detail = { projectCode: host.projectCode, serviceId: host.serviceId, path, language: langOf(path), lines };
+    const detail = { projectCode: host.projectCode, path, language: langOf(path), lines };
     window.dispatchEvent(
       new CustomEvent(e.metaKey || e.ctrlKey ? "sv:openFileInNav" : "sv:revealInNav", {
         detail: e.metaKey || e.ctrlKey ? detail : { kind: "file", ...detail },

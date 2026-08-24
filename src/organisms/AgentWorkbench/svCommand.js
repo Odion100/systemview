@@ -43,6 +43,41 @@ const words = (line) => {
   return out;
 };
 
+// SHELL SEPARATORS ONLY WHERE THE SHELL SEES THEM — outside quotes. A plain `.split(/;|\|\|…/)`
+// cuts inside the message body too, and a `say` whose text merely CONTAINS a semicolon then looked
+// like two commands: the second "command" was just prose, it failed the safety check below, and the
+// whole line was demoted to a bash row. That is exactly what he caught — *"there is a trace, the
+// trace is that they ran a bash command"* — on autobot's first message through the new model.
+// One character of English punctuation must never change what a command IS.
+const splitOutsideQuotes = (line) => {
+  const out = [];
+  let cur = "";
+  let quote = null;
+  for (let i = 0; i < line.length; i += 1) {
+    const c = line[i];
+    if (quote) {
+      cur += c;
+      if (c === quote && line[i - 1] !== "\\") quote = null;
+      continue;
+    }
+    if (c === '"' || c === "'") {
+      quote = c;
+      cur += c;
+      continue;
+    }
+    if (c === ";" || c === "|" || (c === "&" && line[i + 1] === "&")) {
+      if (c === "&") i += 1;
+      if (c === "|" && line[i + 1] === "|") i += 1;
+      out.push(cur);
+      cur = "";
+      continue;
+    }
+    cur += c;
+  }
+  out.push(cur);
+  return out;
+};
+
 export function parseSvCommand(command) {
   if (typeof command !== "string" || !command.trim()) return null;
   // THE REAL COMMAND, not the throat-clearing before it. Every agent shell here opens with
@@ -53,11 +88,15 @@ export function parseSvCommand(command) {
   // SAFETY KEPT, and tightened: anything after the act must be a read-only output filter (tail,
   // grep, …) or the whole line renders plain — `systemview nav; rm -rf` must never hide behind a
   // friendly row.
-  const segs = command.split(/&&|\|\||;|\|/);
+  const segs = splitOutsideQuotes(command);
   let idx = 0;
   while (idx < segs.length && /^\s*(?:export\s+\S+=\S*|\w+=(?:"[^"]*"|'[^']*'|\S*)|cd\s+\S+)\s*$/.test(segs[idx])) idx += 1;
   const head = segs[idx] || "";
-  const benign = /^\s*(?:tail|head|grep|wc|jq|cat|sort|uniq|cut|tee \/tmp\/)\b/;
+  // What may ride BEHIND the act without changing what it was: output filters and reporting.
+  // `echo "exit: $?"` is the single most common thing an agent appends — it prints the exit code
+  // and touches nothing — and leaving it out demoted autobot's whole message to a bash row on its
+  // first live send. An allowlist that omits the most common harmless case is a broken allowlist.
+  const benign = /^\s*(?:tail|head|grep|wc|jq|cat|sort|uniq|cut|echo|printf|true|date|tee \/tmp\/)\b/;
   if (segs.slice(idx + 1).some((s) => s.trim() && !benign.test(s))) return null;
   const w = words(head).filter((t) => !/^(?:PATH=|export|2>)/.test(t));
   let i = w.findIndex((t) => /(^|\/)systemview$/.test(t) || /cli\/index\.js$/.test(t));
@@ -89,5 +128,26 @@ export function parseSvCommand(command) {
   const as = ai !== -1 ? args[ai + 1] || null : null;
   return { verb, icon: spec.icon, what: spec.what, project, target, as, raw: head.trim() };
 }
+
+// THE COOKING LINE IS A LABEL, NOT THE PAYLOAD. His catch: *"when you send a message, your whole
+// message gets put into the cooking message. Cooking messages are really short, and usually the
+// command lines you put are really short — how is it you're copying the entire message?"* Right, and
+// the cause is that `target` means "what the line is ABOUT", which for a `say` is the entire body.
+// That is the correct answer for the FEED ROW — the message he wants to read and follow after the
+// fact — and the wrong one for a status, which has one short line and has to say what is happening
+// rather than recite it.
+//
+// So a status names the DESTINATION for anything whose subject is prose, and clamps everything else.
+// `show --text "Title"` keeps its title: a title is short and it IS the thing you want named.
+const BODY_VERBS = new Set(["say", "reply", "thread"]);
+const SHORT = 40;
+
+export const svStatus = (sv) => {
+  if (!sv) return null;
+  if (BODY_VERBS.has(sv.verb)) return `${sv.what}${sv.project ? ` → ${sv.project}` : ""}`;
+  const t = String(sv.target || "").replace(/\s+/g, " ").trim();
+  if (!t) return sv.what;
+  return `${sv.what} ${t.length > SHORT ? `${t.slice(0, SHORT).trimEnd()}…` : t}`;
+};
 
 export { VERBS };

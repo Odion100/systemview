@@ -14,7 +14,7 @@ import { spotlight, clearSpotlight, animationMode, setAnimationMode, MODES } fro
 import { resolveTarget, docRectOf, revealDocLines } from "../../spotlightTargets";
 import { slotId, setNavDocked, useNavDock } from "./navDock";
 import { hasHostDictation, startHostRecording } from "../../utils/hostDictation";
-import Feed from "../AgentWorkbench/Feed";
+import Feed, { timeOf } from "../AgentWorkbench/Feed";
 import useAgentSession from "../AgentWorkbench/useAgentSession";
 import { CTX_WARN, CTX_DUE, tokensShort } from "../AgentWorkbench/feedRows";
 import { visStyle } from "../AgentWorkbench/visitorColor";
@@ -22,6 +22,7 @@ import { canListTranscripts, listAgents, listTranscripts, transcriptTail } from 
 import CodebaseNav from "../CodebaseNav/CodebaseNav";
 import { useAppDark } from "../../atoms/appTheme";
 import loadServiceWithHeaders from "../../utils/loadService";
+import { hostFiles, hasHostFiles } from "../../utils/hostFiles";
 import SEND_ICON from "../../assets/send.png";
 import "./styles.scss";
 
@@ -882,6 +883,12 @@ function BotBubble({ projectCode, index }) {
   }, [picker, projectCode]);
   // THE KICK (right-click a roster name) — the human's bouncer power; which visitor is targeted.
   const [kickTarget, setKickTarget] = useState(null);
+  // WHO IS SUBSCRIBED to this conversation — the hub's list, not the transcript's memory. This is
+  // the half that means "receives what is said here"; the transcript's own visitors are merely
+  // who has spoken. Kept apart because he asked for exactly that distinction.
+  const [subscribed, setSubscribed] = useState([]);
+  const [addingVisitor, setAddingVisitor] = useState(false);
+  const [newVisitor, setNewVisitor] = useState("");
   // Click-to-front: this bot's place in the focus order (see topZ above).
   const [z, setZ] = useState(8500);
   const bringToFront = () => setZ(++topZ);
@@ -938,6 +945,20 @@ function BotBubble({ projectCode, index }) {
   // The live wire: INTERIM transcripts stream into a visible line while you talk (his catch —
   // "no indication, the words just pop up"); finals commit into the input.
   const [interim, setInterim] = useState("");
+  // A SEND PRESSED BEFORE ITS WORDS ARRIVED. Holds the moment he pressed it; the effect below fires
+  // it as soon as the transcript lands. Short-lived on purpose — an intention from four seconds ago
+  // is not an intention, and a stale one would send the NEXT thing he starts saying.
+  // WHERE HIS LAST MESSAGE WENT. *"And if they get the message, I don't see it."* Delivery that only
+  // the recipient can confirm is not observable, and this app is named for the opposite. The hub
+  // answers the relay with exactly who it reached; this is that answer, kept so his own screen can
+  // say it without him asking anyone.
+  const [lastRelay, setLastRelay] = useState(null);
+  // Names he has cleared off the spoke strip, and WHEN — cleared at a moment, not forever, so the
+  // same agent speaking again puts them back. Forgetting permanently would make the strip lie in
+  // the other direction.
+  const [spokeCleared, setSpokeCleared] = useState({});
+  const armedSend = useRef(0);
+  const ARMED_WINDOW = 4000;
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   // RFC-045 — INSIDE A HOST, THE HOST DICTATES. `webkitSpeechRecognition` exists in Electron and
   // never returns a result (the recogniser is a Chrome service), so `!!SR` is a false positive there
@@ -1027,7 +1048,29 @@ function BotBubble({ projectCode, index }) {
   // there was nowhere for `</>` to go: it focused a panel that isn't on screen, so pressing it did
   // nothing visible. Floating, it becomes one more panel hanging off the agent — the same tree, git
   // and terminal, beside the chat instead of across the window.
-  const [cbOpen, setCbOpen] = useState(false);
+  // THE CODEBASE PANEL REMEMBERS, PER PROJECT. It did not, and that is the whole of "systemview-test
+  // has no branch/staged/logs/commit in hover": autobot's CDP dump of his live window settled it —
+  // five projects mount a `cbpanel-body` and every one of them has the tree, the vc pill, the commit
+  // tab and the commit box; systemview-test mounts NO PANEL AT ALL. Nothing was missing from the
+  // panel. The panel was closed, and `cbOpen` started `false` every time with nowhere to record that
+  // he had opened it — so one project could sit closed while five sat open and look like a bug in
+  // the five hundred lines underneath.
+  //
+  // Three theories died on that dump (docking, gitState, vcLens) and none of them were measured
+  // before I said them. The measurement took one query.
+  const cbOpenKey = `sv.chat.cbOpen.${projectCode}`;
+  const [cbOpen, setCbOpen] = useState(() => {
+    try {
+      return localStorage.getItem(cbOpenKey) === "true";
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem(cbOpenKey, String(cbOpen));
+    } catch {}
+  }, [cbOpen, cbOpenKey]);
   // Resizable and double-click-to-reset like every other panel here. It should never have shipped
   // without this — his point, and it is the right one: these panels share `makeResize`/`resetSize`
   // and a `<ResizeBorder>`, so a new one that skips them is a panel that behaves differently for no
@@ -1762,7 +1805,19 @@ function BotBubble({ projectCode, index }) {
       } catch {}
     }
     const text = [input.trim(), spoken.trim()].filter(Boolean).join(" ");
-    if (!text) return;
+    // PRESSING SEND WHILE THE WORDS ARE STILL LANDING. His bug, and it wasted his time all session:
+    // *"if I press send while the chat is building up — I can see the transcript building up, it
+    // didn't go into the input yet — then it won't do anything, it'll just stay there and I'm
+    // waiting."* Host dictation commits a segment ASYNCHRONOUSLY into the box, so there is a real
+    // window where he has finished speaking, can SEE the words arriving, and the input is still
+    // empty. `if (!text) return` threw that press away, and the transcript then landed in a box
+    // nobody was going to send. A press is an intention, not a snapshot — so when the mic is live
+    // and there is nothing yet, the send is ARMED and fires the moment the words arrive.
+    if (!text) {
+      if (listening || hostMicRef.current) armedSend.current = Date.now();
+      return;
+    }
+    armedSend.current = 0;
     // Sending ends the dictation — you said what you had to say (his call). `onend` arrives a beat
     // later, so drop the flag HERE: otherwise the transcript panel hangs on screen after the
     // message is already gone, which reads as it popping up because you sent something.
@@ -1845,6 +1900,23 @@ function BotBubble({ projectCode, index }) {
       // to the room would put his message in the place he just left — worse than an error.
       if (!workRef.current.send(text)) setSendErr("the session isn't accepting input — try 'back to the room' and re-attach");
       else setSendErr("");
+      // …AND THE VISITORS STILL HEAR HIM. His catch: *"Autobot is in your room right now. He's not
+      // going to get a notification that I'm talking. I've noticed that."* He had noticed correctly.
+      // The fan-out used to live inside the room write, and an attached send deliberately writes
+      // nothing to the room — so visiting worked room-to-room and did nothing in the one place he
+      // actually talks to his agent. This writes nothing either; it only delivers. His rule was
+      // never about the room: *"when I speak, it just means it should send a visitor message to the
+      // other agent."* WHEN, not WHERE.
+      // NO CLIENT-SIDE GATE. This said `if (subscribed.length)` and that was the bug that made his
+      // test look like the feature was dead: `subscribed` is a list this panel FETCHED once, so an
+      // empty or stale copy silently cancelled every relay while the hub knew perfectly well who
+      // was subscribed. The roster said autobot was there, the hub agreed, and the browser's own
+      // cached array — the only opinion that had no business deciding — said no. Same class as
+      // every meter today: a local belief standing in for the authority. The hub owns the list; it
+      // returns `relayed: 0` when nobody is subscribed, which costs nothing.
+      SystemView.chatRelay(projectCode, { chat, text })
+        .then((r) => r && r.to && r.to.length && setLastRelay({ to: r.to, ts: Date.now() }))
+        .catch(() => {});
       setTimeout(scrollToEnd, 50);
       return;
     }
@@ -1858,6 +1930,23 @@ function BotBubble({ projectCode, index }) {
     } catch {}
   };
 
+  // …AND IT FIRES WHEN THE WORDS ARRIVE. The other half of the armed send: the press happened, the
+  // input was empty, and a moment later dictation commits its segment. Watching `input` is the right
+  // trigger because that IS the arrival — no timer guessing how long a transcript takes.
+  const sendRef = useRef(null);
+  sendRef.current = send;
+  useEffect(() => {
+    if (!armedSend.current) return;
+    if (Date.now() - armedSend.current > ARMED_WINDOW) {
+      armedSend.current = 0; // an intention this old is not an intention
+      return;
+    }
+    if (!input.trim()) return;
+    armedSend.current = 0; // clear BEFORE sending, or the send's own setInput re-enters this
+    if (sendRef.current) sendRef.current();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [input]);
+
   // RFC-031 — the roster: who's in this room besides its own agent, and where this project's
   // own agent is off visiting (both derived hub-side from real holds, so they can't lie).
   // ATTACHED, THE ROSTER IS THE SESSION'S. The hub's roster is built from real holds in a ROOM, and
@@ -1865,7 +1954,66 @@ function BotBubble({ projectCode, index }) {
   // is permanently empty and the strip said "nobody" while another agent was plainly talking. Who
   // has SPOKEN is the honest answer here (foldState collects it), and it is the same rule underneath:
   // you can always see who is in whose chat.
-  const visitors = attached ? work.state.visitors : p.visitors || [];
+  // SPOKE LAPSES. His rule: *"spoke needs to just have a time lapse — disappear once the message
+  // is not new in the chat."* So a bare "spoke" chip only stands while that turn is still near the
+  // end of the conversation; after that the name is in the transcript, which is where history
+  // belongs, and the strip goes back to naming who is actually here. Subscribed visitors never
+  // lapse — they are present until removed.
+  const SPOKE_TAIL = 12;
+  // WHO SPOKE RECENTLY, AND WHERE THEIR LAST SENTENCE IS. The name alone would be trivia; the row
+  // key is what makes the chip a way BACK to the thing it is telling you about — the one row you go
+  // looking for after the fact ("who was that and what did they say"). Feed stamps `data-row` on a
+  // visitor's turn for exactly this. Subscribed visitors are named at the top as presence and do not
+  // repeat down here; this bar is only for people who are gone.
+  const spokeMarks = attached
+    ? (() => {
+        const subs = new Set((subscribed || []).map((v) => (typeof v === "string" ? v : v && v.identity)));
+        const seen = new Map();
+        (work.rows || []).slice(-SPOKE_TAIL).forEach((r) => {
+          if (r.as && !subs.has(r.as) && !(spokeCleared[r.as] && (r.ts || 0) <= spokeCleared[r.as]))
+            seen.set(r.as, r.key);
+        });
+        return [...seen].map(([as, key]) => ({ as, key }));
+      })()
+    : [];
+  // ONE VALUE, TWO SURFACES. This computed "who spoke recently" a SECOND time, separately from
+  // `spokeMarks` above — so the dots on the agent's icon and the chips above the chat box were two
+  // independent answers to the same question, and clearing a chip changed one of them. His words,
+  // and they are the whole bug: *"they're not tied to the same value, and that's the problem."*
+  // They are now: the strip and the pips read this, `subscribed` is the visitor list, and the two
+  // never mix.
+  const visitors = attached ? spokeMarks.map((m) => m.as) : p.visitors || [];
+  // WHO IS IN THIS CONVERSATION — the subscription list, and nothing else. Attached, that is the
+  // hub's list for this chat; in a room it is the room's. This is what the star reads.
+  const inHere = attached
+    ? (subscribed || []).map((v) => (typeof v === "string" ? v : v && v.identity)).filter(Boolean)
+    : p.visitors || [];
+  // The hub's subscription list, refreshed when the conversation changes hands.
+  useEffect(() => {
+    if (!attached) {
+      setSubscribed([]);
+      return;
+    }
+    let alive = true;
+    (async () => {
+      try {
+        const list = await SystemView.chatVisitors(projectCode);
+        if (alive) setSubscribed(Array.isArray(list) ? list : []);
+      } catch {}
+    })();
+    // …and it stays true. Fetching once meant the roster showed whatever was true at mount: remove a
+    // visitor and the chip sat there claiming they were still listening. The hub announces every
+    // change to the list now, so the strip is a live answer instead of a snapshot with a long shelf
+    // life. Anything that says who is here has to move when who is here moves.
+    const off = SystemView.on(`chat-visitors:${projectCode}`, (payload = {}) => {
+      if (alive && Array.isArray(payload.visitors)) setSubscribed(payload.visitors);
+    });
+    return () => {
+      alive = false;
+      if (typeof off === "function") off();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [attached, projectCode]);
   const visiting = p.visiting || [];
   // Visiting counts as LIVE (his rule: "if you're visiting other people then you're actually
   // live") — a real hold somewhere is a live agent, just not in this room right now.
@@ -2394,8 +2542,16 @@ function BotBubble({ projectCode, index }) {
   const [linksOpen, setLinksOpen] = useState(false);
   const [linkQ, setLinkQ] = useState("");
   const [fullHist, setFullHist] = useState(null);
+  // THE TV NEEDS THIS TOO, and that is why clicking the TV icon did nothing. Shows are found by
+  // scanning the room's records — and this only ever loaded them for the LINKS panel. Attached, the
+  // room is deliberately out of the panel, so `messages` is empty, so the show list is empty, so the
+  // TV opened onto nothing and looked like a dead button. Every report he had ever pushed was still
+  // on disk the whole time.
+  // Loaded whenever the room's history is needed by anything: the links collector, the TV, or simply
+  // being attached — a panel that cannot see its own room cannot show what is in it.
   useEffect(() => {
-    if (!linksOpen || !SystemView) return;
+    if (!SystemView) return;
+    if (!linksOpen && !tvOpen && !attached) return;
     let dead = false;
     (async () => {
       try {
@@ -2407,7 +2563,7 @@ function BotBubble({ projectCode, index }) {
     })();
     return () => { dead = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [linksOpen, messages.length]);
+  }, [linksOpen, tvOpen, attached, projectCode, chat, messages.length]);
   // Every show this room has had, newest first — what the TV's title picker lists. Unfiltered by
   // the collector's search box, because that box belongs to the collector.
   const shows = React.useMemo(() => {
@@ -2617,18 +2773,14 @@ function BotBubble({ projectCode, index }) {
   const boardHostRef = useRef(null); // { rec, into } while the HOST is recording for a board box
   const boardDraftRef = useRef(null);
   const boardPath = ".systemview/boards/board.md";
-  const boardHost = useMemo(
-    () => (connectedServices || []).find((s) => s.projectCode === projectCode && s.system),
-    [connectedServices, projectCode],
+  // THE BOARD IS A FILE, SO IT COMES FROM THE SHELL. It used to be read through whichever service
+  // happened to be first for this project — which is why his notes vanished the moment a test
+  // service was down: not lost, just asked for down a road that was closed. `.systemview/boards/
+  // board.md` sits on disk the whole time. Same rule as the codebase: files are the host's.
+  const boardPlugin = useMemo(
+    () => (hasHostFiles() ? hostFiles(projectCode) : null),
+    [projectCode],
   );
-  const boardPlugin = useMemo(() => {
-    if (!boardHost) return null;
-    try {
-      return loadServiceWithHeaders(boardHost.system.connectionData, boardHost.headers, boardHost.credentials).Plugin;
-    } catch {
-      return null;
-    }
-  }, [boardHost]);
   useEffect(() => {
     projPluginRef.current = boardPlugin;
   }, [boardPlugin]);
@@ -3242,6 +3394,11 @@ function BotBubble({ projectCode, index }) {
                 }
                 theme={appDark ? "dark" : "light"}
                 showHelp={false}
+                // THIS PANEL IS DRAWN BY THE AGENT, so the agent must not dock into it. The card
+                // renders a slot for a docked agent and the agent portals itself in — fine in the
+                // side nav, circular here, and the rest of the card does not survive the move. It
+                // is why the two projects with a live agent were the two missing the git bar.
+                allowDock={false}
               />
             </div>
           </div>
@@ -3653,6 +3810,29 @@ function BotBubble({ projectCode, index }) {
             model), interactive markdown through the one renderer, full-border resizable.
             It stands on its own too: picking a show out of the links table with the chat closed
             has to actually put it ON, not shuffle the table sideways to make room for nothing. */}
+        {/* A CONTROL MUST NEVER HAVE A STATE THAT DRAWS NOTHING. Open with nothing to show used to
+            render literally nothing — no frame, no message — while the button flipped to "Close the
+            TV". So it looked broken, twice: once when it did nothing, again when the second click
+            silently closed the thing that was never on screen. An empty TV is a fine thing to be;
+            an invisible one is not. It says it is empty and how to fill it. */}
+        {tvOpen && !tv && (
+          <div
+            className={`${CLASSNAME}__tv ${CLASSNAME}__tv--empty`}
+            style={{ width: tvSize.w, height: 120 }}
+          >
+            <div className={`${CLASSNAME}__tv-empty-line`}>nothing on the TV yet</div>
+            <div className={`${CLASSNAME}__tv-empty-sub`}>
+              a report put on screen here shows up on this TV — <code>systemview show {projectCode} …</code>
+            </div>
+            <button
+              type="button"
+              className={`${CLASSNAME}__tv-empty-close`}
+              onClick={() => setTvOpen(false)}
+            >
+              close
+            </button>
+          </div>
+        )}
         {tvOpen && tv && (
           <div
             data-sv="tv"
@@ -4178,6 +4358,48 @@ function BotBubble({ projectCode, index }) {
               )}
             </div>
           )}
+          {/* HIS PLAN LIMITS, beside the context bar — his ask, with its own condition attached:
+              *"I need to be updated on my usage… like there's a bar at the top that shows
+              compaction. But only if it's not extra work — if it's extra work I'll just wait until
+              I ask for it."* It is not extra work: `/usage` already prints these numbers and that
+              printout already arrives in this feed, so this is the last one that went past, read
+              rather than fetched. Nothing polls and nothing costs a turn.
+              AND IT SAYS WHEN IT WAS TRUE. A free reading is a stale reading — it only moves when
+              /usage runs — so the stamp is on its face, not in a tooltip. Four meter lies died
+              today and every one of them was a number that could not answer "as of when"; this one
+              answers before being asked. */}
+          {attached && work.state.usage && work.state.usage.bars.length > 0 && (
+            <div className={`${CLASSNAME}__usage`}>
+              {work.state.usage.bars.map((b) => (
+                <div
+                  key={b.label}
+                  className={`${CLASSNAME}__usage-row`}
+                  title={`${b.label} — ${b.pct}% used${b.resets ? ` · resets ${b.resets}` : ""}`}
+                >
+                  <span className={`${CLASSNAME}__usage-label`}>{b.label}</span>
+                  <span className={`${CLASSNAME}__usage-bar`}>
+                    <span
+                      className={`${CLASSNAME}__usage-fill${
+                        b.pct >= 90
+                          ? ` ${CLASSNAME}__usage-fill--due`
+                          : b.pct >= 75
+                          ? ` ${CLASSNAME}__usage-fill--warn`
+                          : ""
+                      }`}
+                      style={{ width: `${b.pct}%` }}
+                    />
+                  </span>
+                  <span className={`${CLASSNAME}__usage-pct`}>{b.pct}%</span>
+                </div>
+              ))}
+              <div className={`${CLASSNAME}__usage-as-of`}>
+                {work.state.usage.ts ? `as of ${timeOf(work.state.usage.ts)}` : "as of the last /usage"}
+                {work.state.usage.bars[0] && work.state.usage.bars[0].resets
+                  ? ` · session resets ${work.state.usage.bars[0].resets}`
+                  : ""}
+              </div>
+            </div>
+          )}
           {/* RFC-031 — the roster: every identity currently holding a line in THIS room. ALWAYS
               visible (his catch: with the strip hidden, "nobody else here" was indistinguishable
               from "did they come back?" — old name-tagged bubbles read as presence). Right-click
@@ -4198,12 +4420,76 @@ function BotBubble({ projectCode, index }) {
               ) : (
                 <span className={`${CLASSNAME}__roster-empty`}>nobody — the agent is out</span>
               )}
-              {visitors.map((v) =>
-                attached ? (
-                  <span key={v} className={`${CLASSNAME}__roster-name`} style={visStyle(v)} title={`${v} spoke in this conversation`}>
-                    {v}
+              {/* VISITING IS A SUBSCRIPTION, SPOKE IS HISTORY — his distinction, and the two look
+                  different because they ARE different. A visitor on the list receives what is said
+                  here (the hub sends it; they hold nothing), and the ✕ finally means something
+                  real: unsubscribe. Someone who merely spoke fades and lapses on its own. */}
+              {attached &&
+                subscribed.map((v) => (
+                  <span
+                    key={`sub-${v.identity}`}
+                    className={`${CLASSNAME}__roster-name ${CLASSNAME}__roster-name--visiting`}
+                    style={visStyle(v.identity)}
+                    title={`${v.identity} is visiting — receives what is said here${v.by === "human" ? " (you added them)" : ""}`}
+                  >
+                    {v.identity}
+                    <button
+                      type="button"
+                      className={`${CLASSNAME}__roster-x`}
+                      title={`Stop sending ${v.identity} this conversation`}
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        try {
+                          await SystemView.chatRemoveVisitor(projectCode, { identity: v.identity });
+                          setSubscribed((cur) => cur.filter((x) => x.identity !== v.identity));
+                        } catch {}
+                      }}
+                    >
+                      ×
+                    </button>
                   </span>
-                ) : (
+                ))}
+              {/* ＋ ADD SOMEONE — his ask: pull an agent into a conversation it never entered. */}
+              {attached && (
+                <span className={`${CLASSNAME}__roster-add`}>
+                  {addingVisitor ? (
+                    <input
+                      autoFocus
+                      className={`${CLASSNAME}__roster-add-input`}
+                      placeholder="project code"
+                      value={newVisitor}
+                      onChange={(e) => setNewVisitor(e.target.value)}
+                      onBlur={() => { setAddingVisitor(false); setNewVisitor(""); }}
+                      onKeyDown={async (e) => {
+                        if (e.key === "Escape") { setAddingVisitor(false); setNewVisitor(""); }
+                        if (e.key !== "Enter") return;
+                        const id = newVisitor.trim();
+                        if (!id) return;
+                        try {
+                          const res = await SystemView.chatAddVisitor(projectCode, { identity: id });
+                          if (res && res.added)
+                            setSubscribed((cur) =>
+                              cur.some((x) => x.identity === id) ? cur : [{ identity: id, by: "human", ts: Date.now() }, ...cur],
+                            );
+                        } catch {}
+                        setAddingVisitor(false);
+                        setNewVisitor("");
+                      }}
+                    />
+                  ) : (
+                    <button type="button" className={`${CLASSNAME}__roster-add-btn`} title="Add an agent as a visitor" onClick={() => setAddingVisitor(true)}>
+                      +
+                    </button>
+                  )}
+                </span>
+              )}
+              {/* SPOKE IS NOT PRESENCE AND IT DOES NOT BELONG UP HERE — his call, and he is right
+                  that a faded name beside the live ones was spooky: *"as far as visits, that's all
+                  I should show at the top."* Someone speaking once is a thing that HAPPENED, so it
+                  lives at the bottom of the conversation as a passing note you can click, not in
+                  the strip that answers "who is here". See __spokebar below. */}
+              {visitors.map((v) =>
+                attached ? null : (
                   <span
                     key={v}
                     className={`${CLASSNAME}__roster-name`}
@@ -4294,7 +4580,23 @@ function BotBubble({ projectCode, index }) {
                         {m.as && m.as !== projectCode && (
                           <span className={`${CLASSNAME}__waiting-who`} style={visStyle(m.as)}>{m.as}</span>
                         )}
+                        {/* SCOPED, so the blocks inside actually have a project to read from. Every
+                            ::file / ::diff / ::image resolves its folder from `scope.projectCode`, and
+                            three of the four places that render chat markdown had no provider above
+                            them — so the same block that worked in the session panel drew its
+                            empty-handed state in the room, which reads as "interactive markdown is
+                            broken". It was not broken; it was unaddressed. (autobot found this.) */}
+                        <MarkdownScopeProvider value={{ projectCode }}>
+                          {/* SCOPED, so the blocks inside actually have a project to read from. Every
+                          ::file / ::diff / ::image resolves its folder from `scope.projectCode`, and
+                          three of the four places that render chat markdown had no provider above
+                          them — so the same block that worked in the session panel drew its
+                          empty-handed state in the room, which reads as "interactive markdown is
+                          broken". It was not broken; it was unaddressed. (autobot found this.) */}
+                      <MarkdownScopeProvider value={{ projectCode }}>
                         {renderChatMessage(String(m.text || ""))}
+                      </MarkdownScopeProvider>
+                        </MarkdownScopeProvider>
                       </div>
                     ))}
                   </div>
@@ -4479,6 +4781,61 @@ function BotBubble({ projectCode, index }) {
                   talk to the agent directly
                 </button>
               )}
+            </div>
+          )}
+          {/* SPOKE, AT THE BOTTOM, WHERE HE PUT IT. His call, twice: *"let's get rid of that spoke
+              shit, that shit is spooky — you shouldn't put that at the top. You should put it like
+              a bar at the bottom above the chat box… and it could say it, and you could click it and
+              navigate to it in the chat."* Someone speaking once is a thing that HAPPENED, not
+              presence — so it sits at the edge of the conversation as a passing note with a way back
+              to the sentence, and it lapses on its own once that turn is no longer near the end.
+              The comment upstairs promised this bar for a while before it existed; a promise a file
+              makes and does not keep is worse than no comment, so it exists now. */}
+          {/* SENT → WHO. One line, under the conversation, naming the visitors his last message
+              actually reached. It is the hub's own answer to the relay, not a guess by this panel. */}
+          {attached && lastRelay && lastRelay.to.length > 0 && (
+            <div className={`${CLASSNAME}__relayed`}>
+              <span className={`${CLASSNAME}__relayed-mark`}>→</span>
+              {lastRelay.to.map((v) => (
+                <span key={v} className={`${CLASSNAME}__relayed-name`} style={visStyle(v)}>
+                  {v}
+                </span>
+              ))}
+              <span className={`${CLASSNAME}__relayed-when`}>{timeOf(lastRelay.ts)}</span>
+            </div>
+          )}
+          {attached && spokeMarks.length > 0 && (
+            <div className={`${CLASSNAME}__spokebar`}>
+              <span className={`${CLASSNAME}__spokebar-label`}>spoke</span>
+              {spokeMarks.map((m) => (
+                <span key={m.as} className={`${CLASSNAME}__spokebar-chip`}>
+                  <button
+                    type="button"
+                    className={`${CLASSNAME}__spokebar-name`}
+                    style={visStyle(m.as)}
+                    title={`Jump to what ${m.as} said`}
+                    onClick={() => {
+                      const el = document.querySelector(`[data-row="${m.key}"]`);
+                      if (el && el.scrollIntoView) el.scrollIntoView({ behavior: "smooth", block: "center" });
+                    }}
+                  >
+                    {m.as}
+                  </button>
+                  {/* CLEARABLE, so the two strips can be told apart by USING them — his ask, and the
+                      right test: this ✕ only forgets that someone spoke. If a name vanishes from
+                      here and the top strip is unchanged, the top strip is the subscription list,
+                      which is the claim. A distinction you cannot check is a distinction nobody
+                      believes, and he has had reason not to believe this one all day. */}
+                  <button
+                    type="button"
+                    className={`${CLASSNAME}__spokebar-x`}
+                    title={`Clear — forget that ${m.as} spoke (does not change who is visiting)`}
+                    onClick={() => setSpokeCleared((cur) => ({ ...cur, [m.as]: Date.now() }))}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
             </div>
           )}
           <div className={`${CLASSNAME}__inputrow`}>
@@ -4708,7 +5065,15 @@ function BotBubble({ projectCode, index }) {
                   if (!shownSaid.length) return <div className={`${CLASSNAME}__peek-row`}>new reply</div>;
                   return shownSaid.map((r, i) => (
                     <div key={r.key || i} className={`${CLASSNAME}__peek-row`}>
-                      {renderChatMessage(String(r.text || ""))}
+                      {/* SCOPED, so the blocks inside actually have a project to read from. Every
+                          ::file / ::diff / ::image resolves its folder from `scope.projectCode`, and
+                          three of the four places that render chat markdown had no provider above
+                          them — so the same block that worked in the session panel drew its
+                          empty-handed state in the room, which reads as "interactive markdown is
+                          broken". It was not broken; it was unaddressed. (autobot found this.) */}
+                      <MarkdownScopeProvider value={{ projectCode }}>
+                        {renderChatMessage(String(r.text || ""))}
+                      </MarkdownScopeProvider>
                     </div>
                   ));
                 }
@@ -4861,11 +5226,20 @@ function BotBubble({ projectCode, index }) {
           {/* The badge counts the SAME thing the peek previews. Counting the room while previewing
               the session would put a number on the bubble that nothing inside it explains. */}
           {peekUnread > 0 && !animating && <span className={`${CLASSNAME}__unread`}>{peekUnread}</span>}
-          {/* RFC-031 — a visit never hides behind a closed panel: the plum shoulder badge says
-              someone's in this room right now; hover names them. */}
-          {visitors.length > 0 && (
-            <span className={`${CLASSNAME}__visitors-badge`} title={`in the room: ${visitors.join(", ")}`}>
-              ✦{visitors.length > 1 ? visitors.length : ""}
+          {/* THE STAR IS VISITING, NOT SPEAKING — his correction, and it is the last knot in this:
+              *"the big circle with the star is tied to 'in this conversation'. Stop showing it
+              because visitor spoke, visitor spoke."* It was reading the same value as the dots, so
+              clearing two spoke chips took the star down with them — a badge that means
+              "someone is subscribed to this conversation" cannot be extinguished by forgetting that
+              they once talked.
+              Two facts, two sources, and now they finally match the two shapes on screen: the small
+              dots say who SPOKE, this says who is IN HERE. */}
+          {inHere.length > 0 && (
+            <span
+              className={`${CLASSNAME}__visitors-badge`}
+              title={`in this conversation: ${inHere.join(", ")}`}
+            >
+              ✦{inHere.length > 1 ? inHere.length : ""}
             </span>
           )}
         </button>

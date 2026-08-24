@@ -1,4 +1,5 @@
-import React, { useContext, useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { hostFiles } from "../../../utils/hostFiles";
 import ServiceContext from "../../../ServiceContext";
 import loadServiceWithHeaders from "../../../utils/loadService";
 import { useMarkdownScope, useMarkdownWrite } from "../context";
@@ -27,36 +28,25 @@ const MARK = {
 const CommitBlock = ({ label, attrs = {}, line }) => {
   const scope = useMarkdownScope();
   const { editable, setAttr } = useMarkdownWrite();
-  const { connectedServices = [] } = useContext(ServiceContext);
+  // ADDRESSED BY PROJECT, SERVED BY THE HUB — same as every other file surface. This hunted the
+  // project's SERVICES for one whose plugin was new enough to do version control, so on a project
+  // with no live service the block loaded nothing and rendered as though there were no changes: an
+  // offer to commit an empty tree, on a repo with forty modified files. His catch, and it is the
+  // worst kind of wrong — not an error, a confident zero.
   const projectCode = attrs.project || scope.projectCode;
-  // Same host rule as the file embeds: this project's plugin, never a stranger's repo. Committing
-  // into the wrong repository is not a mistake worth being clever about.
-  //
-  // WITHIN the project though, the named service only gets the job if its plugin can actually do
-  // git — siblings share a working directory, so a sibling on a newer plugin commits the same repo.
-  // Otherwise the block draws fine and dies on the button with `stageFiles is not a function`.
-  const mine = connectedServices.filter((s) => s.projectCode === projectCode && hasPlugin(s));
-  const named = mine.find((s) => s.serviceId === (attrs.service || scope.serviceId));
-  const host = (named && canGit(named) && named) || pickHost(mine) || named || null;
-
+  const host = projectCode ? { projectCode } : null;
   const [message, setMessage] = useState(label || attrs.message || "");
-  // The message reads as TEXT until you click into it — his note: "editable but doesn't look
-  // editable by default, you click into it".
   const [typing, setTyping] = useState(false);
   const [state, setState] = useState(null);
   const [tab, setTab] = useState("changes");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
-  // TWO-STEP, his call: the first click arms, the second runs — same shape the destructive items
-  // in the nav's row menus use.
   const [armed, setArmed] = useState("");
-  // Everything git said, newest last — the log tab is a transcript, not a status line.
   const [output, setOutput] = useState([]);
   const sha = attrs.sha || "";
   const msgRef = useRef(null);
 
-  const svc = () =>
-    loadServiceWithHeaders(host.system.connectionData, host.headers, host.credentials);
+  const svc = () => ({ Plugin: hostFiles(host.projectCode) });
 
   const load = async () => {
     if (!host) return;

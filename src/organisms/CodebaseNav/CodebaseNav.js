@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useHistory, useLocation } from "react-router-dom";
-import loadServiceWithHeaders from "../../utils/loadService";
 import { canPickThenName, canRenameHostProject, isHostProject } from "../../utils/hostProject";
 import DocIcon from "../../atoms/DocsIcon/DocsIcon";
 import TestsIcon from "../../atoms/TestsIcon/TestsIcon";
@@ -8,7 +7,7 @@ import HELP_TOPICS from "../../atoms/Help/helpTopics";
 import { setHelpTopic } from "../../atoms/Help/helpStore";
 import RowMenu from "../../atoms/RowMenu/RowMenu";
 import { commentedPathSet } from "../../atoms/CodeView/codeComments";
-import { pickHost, pluginFns } from "../../utils/pluginHost";
+import { hostFiles, hasHostFiles } from "../../utils/hostFiles";
 import { slotId, useNavDock } from "../AgentChat/navDock";
 import TerminalSection from "./TerminalSection";
 import imageFileIcon from "../../assets/image-file.png";
@@ -613,7 +612,7 @@ function ServiceNode({ service, projectCode, history, selection, onNavigate, rev
 
 // One connected codebase: header, ALL the project's services (real + project-defined), and the file
 // tree behind its own fold.
-function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigate, revealFile = null, revealNs = null, serviceStatus = {}, onHostedOp = null, onDeleteService = null, onDeleteProject = null, onRenameProject = null, renaming = null, onStartRename = () => {}, onAttachFolder = null, openRowMenu = null }) {
+function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigate, revealFile = null, revealNs = null, serviceStatus = {}, onHostedOp = null, onDeleteService = null, onDeleteProject = null, onRenameProject = null, renaming = null, onStartRename = () => {}, onAttachFolder = null, openRowMenu = null , allowDock = true }) {
   const { projectCode, fileHost, services, dynamicServices } = entry;
   const history = useHistory();
   // Reveals scoped to THIS card. A file reveal always names its host project; a namespace reveal
@@ -699,8 +698,42 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
   // exists and nothing about what to do with it — his description of the husk was *"nothing there
   // really, except it just says add this and add that"*, and a fold hides exactly that. A project
   // with a folder still opens the way it always did: only when it holds the open file.
-  const [codeOpen, setCodeOpen] = useState(holdsOpenFile || !fileHost);
-  const flipCode = () => setCodeOpen(!codeOpen);
+  // IT STICKS, PER PROJECT — the same rule the services fold beside it has always followed, and the
+  // reason two panels disagreed. This started as `holdsOpenFile || !fileHost`, which reads the OPEN
+  // FILE to decide whether to be open. The main nav is given the open file, so it expanded; the
+  // hovering panel is given `openFile={null}`, so it was collapsed every single time — and the file
+  // tree, the version-control pill and the commit box all live inside this fold, so "the hovering
+  // panel has no commit box" and "it never opens where I left off" were one bug, not two.
+  //
+  // His rule, and it is the whole lesson of the day: one thing working one way and the same thing
+  // working another way IS the break. Selection still opens it (arriving with a file open expands
+  // down to that file); what changed is that his own choice outlives the render, everywhere.
+  // KEY BUMPED ON PURPOSE. `sv.cbNav.code.*` was written under the OLD meaning of this fold, back
+  // when it hid only the file tree and not the git bar with it — and autobot still carries an
+  // explicit 'false' from then, which is why its tree measures 0px high while its commit bar sits
+  // exactly where everyone else's does. A stored answer to a question that has changed is worse
+  // than no answer: nobody chose it, and nobody can see why it is being obeyed. Old values are
+  // ignored once; every click from here writes the new key and sticks.
+  const codeOpenKey = `sv.cbNav.code2.${projectCode}`;
+  const [codeOpen, setCodeOpen] = useState(() => {
+    const saved = localStorage.getItem(codeOpenKey);
+    if (saved !== null) return saved === "true";
+    // OPEN BY DEFAULT WHEN THERE IS A FOLDER — and this is the answer to "the hovering panel has no
+    // logs or commit box, for everyone." It defaulted to `holdsOpenFile`, i.e. it read THE OPEN FILE
+    // to decide. The side panel is handed the open file so it expanded itself; the hovering panel is
+    // handed `openFile={null}` and therefore never did. The file tree, the version-control pill, the
+    // staged/logs/commit bar all live inside this fold — so one collapsed fold reads as five missing
+    // features, on one surface only, on every project at once.
+    //
+    // A fold whose default depends on which surface is asking is the same defect as everything else
+    // today: one thing behaving two ways. His choice still wins the moment he makes one (saved
+    // above); until then both panels open the same.
+    return true;
+  });
+  const flipCode = () => {
+    setCodeOpen(!codeOpen);
+    localStorage.setItem(codeOpenKey, String(!codeOpen));
+  };
   // The services region folds the same way — OPEN by default (it's the project's primary content),
   // and the choice sticks per project.
   const [servicesOpen, setServicesOpen] = useState(
@@ -781,31 +814,48 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
   // status is re-read on its own: whenever this tab regains focus, and on a slow tick while the
   // version-control lens is actually open. Status only, never the whole file list — it's one git
   // call, and the tree isn't what went stale.
+  // A SERVICE THAT IS DOWN GOES QUIET — it does not get hammered. His catch, off a console flooded
+  // with hundreds of identical failures: *"those services don't need to be running — the UI,
+  // whether they're running or not, what the fuck is that?"* Every 5s tick against a dead port
+  // fanned out into the client's own 3-attempt retry, forever. Now the first failure parks the
+  // poller for a minute; anything deliberate (focusing the window, a git event, the service
+  // answering again) clears it immediately. Nothing is hidden — the panel still shows what it last
+  // knew — it just stops shouting at something that isn't there.
+  const pollDeadUntil = useRef(0);
   const reloadChanged = useRef(() => {});
   reloadChanged.current = async () => {
     if (!fileHost) return;
+    if (Date.now() < pollDeadUntil.current) return;
     try {
-      const svc = loadServiceWithHeaders(
-        fileHost.system.connectionData,
-        fileHost.headers,
-        fileHost.credentials,
-      );
+      const svc = { Plugin: hostFiles(projectCode, fileHost && fileHost.root) };
       if (!svc.Plugin.changedFiles) return;
       const ch = await svc.Plugin.changedFiles();
+      pollDeadUntil.current = 0; // it answered — the poller is live again
       if (ch && ch.files)
         setChanged(
           new Map(
             ch.files.map((f) => [f.path, f.status ? f : { ...f, status: "modified" }]),
           ),
         );
-    } catch {}
+    } catch {
+      pollDeadUntil.current = Date.now() + 60000;
+    }
   };
   useEffect(() => {
-    const onFocus = () => {
+    // The unattended beat: it OBEYS the parking brake, which is the whole point of having one.
+    const poll = () => {
       reloadChanged.current();
       // The branch and the ahead count go stale the same way the status does — a commit or a push
       // from a terminal has to show up here without being asked.
       loadGitState.current();
+    };
+    // A DELIBERATE ACT CLEARS THE BRAKE. Coming back to the window, or moving git yourself, is you
+    // saying "look again" — that always gets a real attempt, however dead it looked a minute ago.
+    // Deliberately NOT the interval's callback: if the tick cleared the brake it would re-arm the
+    // hammering it exists to stop.
+    const onFocus = () => {
+      pollDeadUntil.current = 0;
+      poll();
     };
     onFocus();
     window.addEventListener("focus", onFocus);
@@ -813,14 +863,20 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
     // showing the old state until something else forced a re-read — his report: "I had to unstage
     // and stage it just for it to kick in".
     window.addEventListener("sv:git", onFocus);
-    const tick = vcLens ? setInterval(onFocus, 5000) : null;
+    const tick = vcLens ? setInterval(poll, 5000) : null;
     return () => {
       window.removeEventListener("focus", onFocus);
       window.removeEventListener("sv:git", onFocus);
       if (tick) clearInterval(tick);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [vcLens, fileHost && fileHost.serviceId]);
+  // THE DEP IS THE FOLDER, NOT A SERVICE ID. `fileHost` used to be a SERVICE and this watched its
+  // `serviceId`; it is a folder now — `{ root }` — and has no serviceId at all, so the dep was
+  // permanently `undefined`. An effect whose dependency never changes never re-runs, which is fine
+  // on a surface that already had its data at mount and fatal on one that gets it a beat later:
+  // the hovering panel drew an empty tree, no git, no commit box, forever. Same component, same
+  // props, different timing — that IS the gap he asked about, and it was mine.
+  }, [vcLens, fileHost && fileHost.root]);
 
   // Load the file list as soon as the host is live (the card is always open now) — the count and
   // the head doc indicator need it even while the code fold is closed.
@@ -829,11 +885,7 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
     let live = true;
     (async () => {
       try {
-        const svc = loadServiceWithHeaders(
-          fileHost.system.connectionData,
-          fileHost.headers,
-          fileHost.credentials,
-        );
+        const svc = { Plugin: hostFiles(projectCode, fileHost && fileHost.root) };
         const res = await svc.Plugin.listFiles({});
         if (!live) return;
         setFiles(res.files || []);
@@ -857,7 +909,7 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
     // connected — the list must load when the host ARRIVES. refreshTick re-runs it on a
     // `sv:refresh` nav-scope command.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fileHost && fileHost.serviceId, refreshTick]);
+  }, [fileHost && fileHost.root, refreshTick]);
 
   // Auto-expand the folder path DOWN TO the open file (and scroll its row into view once) — the tree
   // shows the selection whenever you arrive with a file already open.
@@ -907,11 +959,7 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
     setFileBusy(sayWhat);
     setVcError("");
     try {
-      const svc = loadServiceWithHeaders(
-        fileHost.system.connectionData,
-        fileHost.headers,
-        fileHost.credentials,
-      );
+      const svc = { Plugin: hostFiles(projectCode, fileHost && fileHost.root) };
       if (!svc.Plugin[verb])
         throw new Error(`this project's plugin has no ${verb} — npm i systemview-plugin@latest and restart`);
       await svc.Plugin[verb](args);
@@ -982,19 +1030,15 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
 
   const stage = async (paths, unstage, busyKey) => {
     if (!fileHost) return;
-    // Say it in English BEFORE the call. A plugin that predates staging fails as
-    // `Plugin.stageFiles is not a function`, which reads like this app is broken rather than like
-    // the service is a version behind.
-    if (!pluginFns(fileHost).includes("stageFiles"))
-      return setVcError(`${projectCode}'s plugin predates staging — upgrade systemview-plugin there`);
+    // THE VERSION GATE IS GONE, because there is no longer a version to be behind. This asked the
+    // PLUGIN whether it was new enough to stage — a fair question when the plugin served git, and an
+    // unanswerable one now that `fileHost` is a folder. It could never pass, so "stage all" reported
+    // "this project's plugin predates staging" on a repo with 33 changes in it. A capability check
+    // that outlives the capability it was checking is just a closed door.
     setVcBusy(busyKey || paths[0]);
     setVcError("");
     try {
-      const svc = loadServiceWithHeaders(
-        fileHost.system.connectionData,
-        fileHost.headers,
-        fileHost.credentials,
-      );
+      const svc = { Plugin: hostFiles(projectCode, fileHost && fileHost.root) };
       const res = await svc.Plugin.stageFiles({ paths, unstage });
       window.dispatchEvent(new CustomEvent("sv:git"));
       if (res && res.files)
@@ -1021,11 +1065,7 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
     setVcBusy(paths[0]);
     setVcError("");
     try {
-      const svc = loadServiceWithHeaders(
-        fileHost.system.connectionData,
-        fileHost.headers,
-        fileHost.credentials,
-      );
+      const svc = { Plugin: hostFiles(projectCode, fileHost && fileHost.root) };
       if (!svc.Plugin.discardFiles)
         throw new Error("this project's plugin predates discard — restart the service");
       const res = await svc.Plugin.discardFiles({ paths });
@@ -1065,21 +1105,22 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
   const loadGitState = useRef(() => {});
   loadGitState.current = async () => {
     if (!fileHost) return;
+    // Same quiet-when-dead rule as the status poller above — one shared parking brake, so a
+    // down service can't be hammered from two directions on the same tick.
+    if (Date.now() < pollDeadUntil.current) return;
     try {
-      const svc = loadServiceWithHeaders(
-        fileHost.system.connectionData,
-        fileHost.headers,
-        fileHost.credentials,
-      );
+      const svc = { Plugin: hostFiles(projectCode, fileHost && fileHost.root) };
       // An older plugin has neither — the box says so instead of drawing dead buttons.
       if (!svc.Plugin.gitState) {
         setGitState(null);
         return setGitProbe("old");
       }
       const s = await svc.Plugin.gitState();
+      pollDeadUntil.current = 0;
       setGitState(s);
       setGitProbe(s && s.repo ? "ok" : "notrepo");
     } catch {
+      pollDeadUntil.current = Date.now() + 60000;
       setGitState(null);
       setGitProbe("error");
     }
@@ -1090,11 +1131,7 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
     setVcBusy(what);
     setVcError("");
     try {
-      const svc = loadServiceWithHeaders(
-        fileHost.system.connectionData,
-        fileHost.headers,
-        fileHost.credentials,
-      );
+      const svc = { Plugin: hostFiles(projectCode, fileHost && fileHost.root) };
       if (what === "commit") {
         const res = await svc.Plugin.commit({ message: message.trim() });
         window.dispatchEvent(new CustomEvent("sv:git"));
@@ -1659,7 +1696,14 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
   }, [changed, query, docsOnly, commentsOnly, commented]);
 
   // RFC-038 — is this project's agent docked in here right now?
-  const agentDocked = useNavDock(projectCode);
+  // NOT INSIDE THE AGENT'S OWN PANEL. A docked agent renders itself through a portal into the slot
+  // this card puts up — which is right in the side nav and circular in the hovering codebase panel,
+  // because that panel is drawn BY the agent. The agent then portals itself into a slot inside its
+  // own body, and the rest of the card below it never survives the move. That is why exactly two
+  // projects were missing the branch, staged, logs and commit bar in hover: the two with a live
+  // docked agent. Not a per-project bug — a per-AGENT one, which is why it followed us around.
+  const dockedFlag = useNavDock(projectCode);
+  const agentDocked = allowDock && dockedFlag;
 
   return (
     <div
@@ -1941,6 +1985,13 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
             <div className={`${CLASSNAME}__empty`}>loading files…</div>
           )}
 
+          {/* BACK INSIDE THE FOLD, WHERE HE PUT IT. I lifted the git bar out so that collapsing the
+              tree would not hide it — reasonable-sounding, and wrong: the section's fold is supposed
+              to fold the SECTION. Minimised, a code section shows its one row and nothing else, and
+              that is the behaviour he has had all along. What I shipped left the filter box and the
+              staged/log/commit bar floating outside a collapsed section, which is not a smaller
+              version of the thing, it is a different thing. His words: *"why aren't they disappearing
+              with the section being minimised?"* They are again. */}
           {codeOpen && files && (
             <>
               {/* Filter row: text query (substring, or `*.ext`) + composing toggles. The clear ×
@@ -2288,6 +2339,9 @@ const CodebaseNav = ({
   // The help topics belong to the NAV, not to the card. Rendered inside the bot's pop-out codebase
   // panel they are a second thing in a space that has one job — his call: "get rid of the help part".
   showHelp = true,
+  // The agent docks into the SIDE nav's slot. Inside the agent's own hovering codebase panel that
+  // slot is circular — see `agentDocked`. False there, true everywhere else.
+  allowDock = true,
   // Right-click removals — the old tree tab's delete buttons live in the row menu now.
   onDeleteService = null,
   onDeleteProject = null,
@@ -2319,10 +2373,15 @@ const CodebaseNav = ({
         byProject[s.projectCode] = {
           projectCode: s.projectCode,
           fileHost: null,
+          root: "",
           services: [],
           dynamicServices: [],
         };
       const cb = byProject[s.projectCode];
+      // THE ROOT IS THE PROJECT'S OWN FACT. Every registration carries it — a connected service
+      // records where it runs from, a folder IS a directory — so the card learns its folder from
+      // whichever entry knows it, and never from "which service should answer files".
+      if (!cb.root && s.root) cb.root = s.root;
       // A HUSK IS A NAME AND NOTHING ELSE. Its entry exists only to put the card on screen; counting
       // it as a service drew a `husk://scratch` row under SERVICES, which is the opposite of what an
       // empty project should say. Every slot on this card must be genuinely empty until something
@@ -2331,7 +2390,9 @@ const CodebaseNav = ({
       if (s.dynamic) cb.dynamicServices.push(s);
       else cb.services.push(s);
     });
-    return Object.values(byProject).map((cb) => ({ ...cb, fileHost: pickHost(cb.services) }));
+    // THE CARD KNOWS ITS OWN FOLDER. No candidates, no picking, no service standing in for a
+    // directory: if the shell can read files and this project has a root, the codebase is live.
+    return Object.values(byProject).map((cb) => ({ ...cb, fileHost: cb.root ? { root: cb.root } : null }));
   }, [connectedServices]);
 
   return (
@@ -2339,6 +2400,7 @@ const CodebaseNav = ({
       {codebases.length ? (
         codebases.map((cb) => (
           <Codebase
+            allowDock={allowDock}
             key={cb.projectCode}
             entry={cb}
             isCurrent={cb.projectCode === projectCode}

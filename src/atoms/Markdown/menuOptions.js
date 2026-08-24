@@ -1,3 +1,4 @@
+import { hostFiles } from "../../utils/hostFiles";
 import loadServiceWithHeaders from "../../utils/loadService";
 import { isSystemModule } from "../../systemModules";
 
@@ -54,7 +55,8 @@ export function testOptions(services) {
 export async function fileOptions(services, { changed = false } = {}) {
   const host = services.find(hasPlugin);
   if (!host) return [];
-  const { Plugin } = loadServiceWithHeaders(host.system.connectionData, host.headers, host.credentials);
+  // Addressed by project, served by the hub — a row menu must not depend on a service being up.
+  const Plugin = hostFiles(host.projectCode);
   const pick = (res) => (res && (res.files || res)) || [];
   try {
     if (changed) {

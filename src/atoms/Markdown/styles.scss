@@ -115,7 +115,6 @@
   }
 }
 
-
 .markdown {
   // DELIBERATELY NO theme tokens in here: a document is explicitly light (this block) or explicitly
   // dark (`--dark` below), driven by the `dark` prop. Tokens would let the APP theme bleed in and
@@ -608,7 +607,7 @@
   --sv-text: #46506a;
   --sv-text-strong: #3b4460;
   --sv-text-muted: #8b93a7;
-  --sv-text-faint: #97a0b8;
+  --sv-text-faint: #42a942;
 
   &--dark {
     --sv-surface: #21252b;
@@ -618,7 +617,7 @@
     --sv-text: #abb2bf;
     --sv-text-strong: #d7dce9;
     --sv-text-muted: #98a0b5;
-    --sv-text-faint: #6f7789;
+    --sv-text-faint: #42a942;
   }
 
   // (the .md-chip block moved to TOP LEVEL — chips render outside .markdown too, e.g. chat)
@@ -648,26 +647,36 @@
 
     &--info {
       border-left-color: #6886ba;
-      .md-callout__icon { color: #6886ba; }
+      .md-callout__icon {
+        color: #6886ba;
+      }
     }
     &--note {
       border-left-color: #6886ba;
-      .md-callout__icon { color: #6886ba; }
+      .md-callout__icon {
+        color: #6886ba;
+      }
     }
     &--warn {
       border-left-color: #c9922e;
       background: #fdf8ee;
-      .md-callout__icon { color: #c9922e; }
+      .md-callout__icon {
+        color: #c9922e;
+      }
     }
     &--danger {
       border-left-color: #c0392b;
       background: #fdf1ef;
-      .md-callout__icon { color: #c0392b; }
+      .md-callout__icon {
+        color: #c0392b;
+      }
     }
     &--success {
       border-left-color: #2e8b74;
       background: #eff8f5;
-      .md-callout__icon { color: #2e8b74; }
+      .md-callout__icon {
+        color: #2e8b74;
+      }
     }
   }
 
@@ -691,7 +700,9 @@
       color: var(--sv-text);
       text-align: left;
       cursor: pointer;
-      &:hover { background: #e9edf6; }
+      &:hover {
+        background: #e9edf6;
+      }
     }
     &__caret {
       color: var(--sv-text-muted);
@@ -699,8 +710,12 @@
     }
     &__body {
       padding: 2px 13px 10px;
-      > *:first-child { margin-top: 10px; }
-      > *:last-child { margin-bottom: 0; }
+      > *:first-child {
+        margin-top: 10px;
+      }
+      > *:last-child {
+        margin-bottom: 0;
+      }
     }
   }
 
@@ -780,14 +795,20 @@
       font-size: 11px;
       font-weight: 600;
       cursor: pointer;
-      &:hover { border-color: #b8c2d8; color: var(--sv-text-strong); }
+      &:hover {
+        border-color: #b8c2d8;
+        color: var(--sv-text-strong);
+      }
       // Diff mode is ON — the same amber the open pane's Diff button wears, which is the same amber
       // the nav's changed dots wear. One colour means "changed" everywhere in the app.
       &--on {
         background: #fdf3dd;
         border-color: #d9a441;
         color: #b98a1c;
-        &:hover { border-color: #d9a441; color: #b98a1c; }
+        &:hover {
+          border-color: #d9a441;
+          color: #b98a1c;
+        }
       }
     }
     // RFC-029 already-ran — honest label: these results were inserted from a recorded run.
@@ -820,16 +841,22 @@
         background: #343a45;
         border-color: #4a5160;
       }
-      &__range { color: #6f7789; }
+      &__range {
+        color: #6f7789;
+      }
       &--file {
         color: #61afef;
-        &:hover { background: #343a45; }
+        &:hover {
+          background: #343a45;
+        }
       }
       &--dead {
         color: #d08b7c;
         background: #33292a;
         border-color: #5a4340;
-        &:hover { background: #33292a; }
+        &:hover {
+          background: #33292a;
+        }
       }
       &--unknown {
         color: #cbb87f;
@@ -840,32 +867,47 @@
     .md-callout {
       border-color: #3a3f4b;
       background: #2c313a;
-      &--warn { background: #322d24; }
-      &--danger { background: #322727; }
-      &--success { background: #24312e; }
+      &--warn {
+        background: #322d24;
+      }
+      &--danger {
+        background: #322727;
+      }
+      &--success {
+        background: #24312e;
+      }
     }
     .md-details {
       border-color: #3a3f4b;
       &__head {
         background: #2c313a;
         color: #b8bfd3;
-        &:hover { background: #343a45; }
+        &:hover {
+          background: #343a45;
+        }
       }
     }
     .md-embed {
       border-color: #3a3f4b;
       background: #24282f;
-      &__title { color: #d7dce9; }
+      &__title {
+        color: #d7dce9;
+      }
       &__kind--quiet {
         background: #333944;
         color: #98a2b8;
       }
-      &__note { color: #d08b7c; }
+      &__note {
+        color: #d08b7c;
+      }
       &__view {
         background: #2c313a;
         border-color: #3f4552;
         color: #99a2b8;
-        &:hover { border-color: #56607a; color: #d7dce9; }
+        &:hover {
+          border-color: #56607a;
+          color: #d7dce9;
+        }
         &--on {
           background: #3b3222;
           border-color: #8a6d2c;
@@ -931,13 +973,22 @@
     margin: 15px 0;
     align-items: start;
     // The column clamps; anything too wide inside it scrolls IN the column, never the page.
-    &__col { min-width: 0; overflow-x: auto; }
-    &__col > *:first-child { margin-top: 0; }
-    &__col > *:last-child { margin-bottom: 0; }
+    &__col {
+      min-width: 0;
+      overflow-x: auto;
+    }
+    &__col > *:first-child {
+      margin-top: 0;
+    }
+    &__col > *:last-child {
+      margin-bottom: 0;
+    }
 
     // RFC-026 — the drag boundary between two columns. The 18px track IS the gap (gap drops to 0
     // on the resizable variant); a slim bar appears only on hover so the look doesn't change.
-    &--resizable { gap: 0; }
+    &--resizable {
+      gap: 0;
+    }
     &__divider {
       cursor: col-resize;
       align-self: stretch;
@@ -957,7 +1008,9 @@
     }
   }
   @media (max-width: 900px) {
-    .md-columns { grid-template-columns: 1fr; }
+    .md-columns {
+      grid-template-columns: 1fr;
+    }
   }
 
   // ::::tabs / :::tab{label=…}
@@ -985,23 +1038,33 @@
       color: var(--sv-text-muted);
       cursor: pointer;
       white-space: nowrap;
-      &:hover { color: var(--sv-text); }
+      &:hover {
+        color: var(--sv-text);
+      }
       &--on {
         background: var(--sv-surface);
         color: #3f51b5;
         box-shadow: 0 -1px 0 var(--sv-border-soft) inset;
       }
     }
-    &__body { padding: 2px 14px 12px; }
-    &__panel > *:first-child { margin-top: 12px; }
-    &__panel > *:last-child { margin-bottom: 0; }
+    &__body {
+      padding: 2px 14px 12px;
+    }
+    &__panel > *:first-child {
+      margin-top: 12px;
+    }
+    &__panel > *:last-child {
+      margin-bottom: 0;
+    }
   }
 
   &--dark {
     .md-task--done .md-task__text {
       color: #6f7789;
     }
-    .md-task--live:hover .md-task__text { color: #8f97e8; }
+    .md-task--live:hover .md-task__text {
+      color: #8f97e8;
+    }
     .md-tabs {
       border-color: #3a3f4b;
       &__bar {
@@ -1010,7 +1073,9 @@
       }
       &__tab {
         color: #98a0b5;
-        &:hover { color: #d7dce9; }
+        &:hover {
+          color: #d7dce9;
+        }
         &--on {
           background: #21252b;
           color: #8f97e8;
@@ -1125,8 +1190,12 @@
     .md-input {
       border-color: #3a3f4b;
       background: #24282f;
-      &__label { color: #d7dce9; }
-      &__value { color: #8f97e8; }
+      &__label {
+        color: #d7dce9;
+      }
+      &__value {
+        color: #8f97e8;
+      }
       &__opt {
         background: #2c313a;
         border-color: #3a3f4b;
@@ -1141,7 +1210,9 @@
           color: #b6bdf3;
         }
       }
-      &__bound { color: #6f7789; }
+      &__bound {
+        color: #6f7789;
+      }
     }
   }
 }
@@ -1174,7 +1245,11 @@
       line-height: 1;
       color: var(--sv-text);
       cursor: pointer;
-      &:hover { background: var(--sv-bg); border-color: #b9c2e8; color: #3f51b5; }
+      &:hover {
+        background: var(--sv-bg);
+        border-color: #b9c2e8;
+        color: #3f51b5;
+      }
     }
     &__label {
       font-size: 12.5px;
@@ -1195,25 +1270,47 @@
       border: 0;
       background: #c7cddd;
       cursor: pointer;
-      &--on { background: #3f51b5; }
+      &--on {
+        background: #3f51b5;
+      }
     }
-    &__stage { padding: 4px 14px 12px; }
-    &__slide > *:first-child { margin-top: 12px; }
-    &__slide > *:last-child { margin-bottom: 0; }
+    &__stage {
+      padding: 4px 14px 12px;
+    }
+    &__slide > *:first-child {
+      margin-top: 12px;
+    }
+    &__slide > *:last-child {
+      margin-bottom: 0;
+    }
   }
 
   &--dark {
     .md-carousel {
       border-color: #3a3f4b;
-      &__bar { background: #2c313a; border-bottom-color: #3a3f4b; }
+      &__bar {
+        background: #2c313a;
+        border-bottom-color: #3a3f4b;
+      }
       &__nav {
         background: #21252b;
         border-color: #3a3f4b;
         color: #b8bfd3;
-        &:hover { background: #343a45; border-color: #4a5160; color: #8f97e8; }
+        &:hover {
+          background: #343a45;
+          border-color: #4a5160;
+          color: #8f97e8;
+        }
       }
-      &__label { color: #d7dce9; }
-      &__dot { background: #4a5160; &--on { background: #8f97e8; } }
+      &__label {
+        color: #d7dce9;
+      }
+      &__dot {
+        background: #4a5160;
+        &--on {
+          background: #8f97e8;
+        }
+      }
     }
   }
 }
@@ -1224,14 +1321,18 @@
 .markdown {
   .md-embed--run-adhoc {
     border-left: 3px solid #7a5bb5;
-    .md-embed__kind { background: #7a5bb5; }
+    .md-embed__kind {
+      background: #7a5bb5;
+    }
   }
   .md-embed__problems {
     margin-top: 7px;
     font-size: 11.5px;
     color: #a2503f;
   }
-  &--dark .md-embed__problems { color: #d08b7c; }
+  &--dark .md-embed__problems {
+    color: #d08b7c;
+  }
 }
 
 // ── RFC-025 §12 · block reply threads ───────────────────────────────────────────────────────────
@@ -1275,7 +1376,9 @@
       font-size: 11.5px;
     }
     // A drawer — the block asked what it needs before it was written.
-    &--drawer { min-width: 280px; }
+    &--drawer {
+      min-width: 280px;
+    }
     &__back {
       border: 0;
       background: transparent;
@@ -1283,7 +1386,9 @@
       font-size: 11.5px;
       padding: 2px 6px 4px;
       cursor: pointer;
-      &:hover { color: #dfe4f0; }
+      &:hover {
+        color: #dfe4f0;
+      }
     }
     &__filter {
       width: 100%;
@@ -1295,7 +1400,10 @@
       color: #e2e6ef;
       font-size: 12px;
       font-family: inherit;
-      &:focus { outline: none; border-color: #6a74c4; }
+      &:focus {
+        outline: none;
+        border-color: #6a74c4;
+      }
     }
     &__list {
       max-height: 260px;
@@ -1325,13 +1433,19 @@
       padding: 5px 8px;
       border-radius: 5px;
       cursor: pointer;
-      &:hover { background: rgba(143, 151, 232, 0.18); }
-      &--lead { font-weight: 600; }
+      &:hover {
+        background: rgba(143, 151, 232, 0.18);
+      }
+      &--lead {
+        font-weight: 600;
+      }
       // Armed for removal — it has to look like it means it before the second click.
       &--armed {
         background: rgba(224, 87, 87, 0.16);
         color: #ffb3b3;
-        &:hover { background: rgba(224, 87, 87, 0.26); }
+        &:hover {
+          background: rgba(224, 87, 87, 0.26);
+        }
       }
     }
     &__hint {
@@ -1374,7 +1488,9 @@
       cursor: pointer;
       padding: 0;
       text-align: left;
-      &:hover { text-decoration: underline; }
+      &:hover {
+        text-decoration: underline;
+      }
     }
   }
 
@@ -1389,11 +1505,15 @@
 
     &--approved {
       border-left-color: #3f9e6a;
-      .md-approval__kind { background: #3f9e6a; }
+      .md-approval__kind {
+        background: #3f9e6a;
+      }
     }
     &--rejected {
       border-left-color: #e05757;
-      .md-approval__kind { background: #e05757; }
+      .md-approval__kind {
+        background: #e05757;
+      }
     }
 
     &__head {
@@ -1434,8 +1554,13 @@
       padding: 3px 10px;
       border-radius: 5px;
       cursor: pointer;
-      &:hover { background: var(--sv-bg); }
-      &:disabled { opacity: 0.45; cursor: default; }
+      &:hover {
+        background: var(--sv-bg);
+      }
+      &:disabled {
+        opacity: 0.45;
+        cursor: default;
+      }
       &--yes.is-on {
         border-color: #3f9e6a;
         background: #3f9e6a;
@@ -1447,9 +1572,15 @@
         color: #fff;
       }
     }
-    &__body { padding: 10px 12px; }
-    &__body > *:first-child { margin-top: 0; }
-    &__body > *:last-child { margin-bottom: 0; }
+    &__body {
+      padding: 10px 12px;
+    }
+    &__body > *:first-child {
+      margin-top: 0;
+    }
+    &__body > *:last-child {
+      margin-bottom: 0;
+    }
     &__stamp {
       padding: 4px 10px 6px;
       font-size: 10.5px;
@@ -1476,7 +1607,9 @@
 
     &--done {
       border-left-color: #3f9e6a;
-      .md-commit__kind { background: #3f9e6a; }
+      .md-commit__kind {
+        background: #3f9e6a;
+      }
     }
 
     &__head {
@@ -1501,8 +1634,16 @@
       font-size: 11.5px;
       color: var(--sv-text);
     }
-    &__ahead { color: #3f9e6a; margin-left: 5px; font-weight: 700; }
-    &__behind { color: #d9a441; margin-left: 5px; font-weight: 700; }
+    &__ahead {
+      color: #3f9e6a;
+      margin-left: 5px;
+      font-weight: 700;
+    }
+    &__behind {
+      color: #d9a441;
+      margin-left: 5px;
+      font-weight: 700;
+    }
     &__scope {
       margin-left: auto;
       font-size: 10.5px;
@@ -1519,7 +1660,10 @@
       border-radius: 4px;
       cursor: pointer;
       white-space: nowrap;
-      &:hover { border-color: #b8c2d8; color: var(--sv-text-strong); }
+      &:hover {
+        border-color: #b8c2d8;
+        color: var(--sv-text-strong);
+      }
     }
 
     // TABS — commit, flip to the log to watch it land, come back. His ask, and the reason the block
@@ -1540,8 +1684,14 @@
       color: var(--sv-text-muted);
       padding: 2px 7px;
       border-radius: 4px;
-      &:hover { color: #4a54a4; }
-      &.is-on { background: var(--sv-surface); color: #4a54a4; box-shadow: inset 0 0 0 1px var(--sv-border); }
+      &:hover {
+        color: #4a54a4;
+      }
+      &.is-on {
+        background: var(--sv-surface);
+        color: #4a54a4;
+        box-shadow: inset 0 0 0 1px var(--sv-border);
+      }
     }
 
     // THE MESSAGE ROW — the button rides WITH the message rather than on its own row underneath,
@@ -1576,18 +1726,25 @@
       cursor: text;
       white-space: pre-wrap;
       word-break: break-word;
-      &--empty { color: #a8afc0; font-style: italic; }
+      &--empty {
+        color: #a8afc0;
+        font-style: italic;
+      }
       &--editing {
         resize: none;
         overflow: hidden;
-        &:focus { outline: none; }
+        &:focus {
+          outline: none;
+        }
       }
     }
 
     &__body {
       padding: 6px 0;
       overflow-y: auto;
-      &--log { padding: 8px 12px; }
+      &--log {
+        padding: 8px 12px;
+      }
     }
     // EITHER EDGE of the list resizes it — a single grip pinned under the whole card is in the one
     // place you can't reach. Quiet until you're on it.
@@ -1597,8 +1754,12 @@
       justify-content: center;
       height: 8px;
       cursor: ns-resize;
-      &--top { border-bottom: 1px solid var(--sv-border-soft); }
-      &--bottom { border-top: 1px solid var(--sv-border-soft); }
+      &--top {
+        border-bottom: 1px solid var(--sv-border-soft);
+      }
+      &--bottom {
+        border-top: 1px solid var(--sv-border-soft);
+      }
       &:hover .md-commit__grip {
         background: #6a74c4;
         width: 40px;
@@ -1618,7 +1779,9 @@
       align-items: center;
       gap: 8px;
       padding: 4px 12px 2px;
-      &:hover .md-commit__all { opacity: 1; }
+      &:hover .md-commit__all {
+        opacity: 1;
+      }
     }
     &__group-label {
       font-size: 9.5px;
@@ -1637,16 +1800,25 @@
       color: #a8afc0;
       cursor: pointer;
       opacity: 0;
-      &:hover { color: #4a54a4; }
-      &:disabled { opacity: 0.4; cursor: default; }
+      &:hover {
+        color: #4a54a4;
+      }
+      &:disabled {
+        opacity: 0.4;
+        cursor: default;
+      }
     }
     &__row {
       display: flex;
       align-items: center;
       gap: 6px;
       padding: 2px 12px;
-      &:hover { background: rgba(63, 81, 181, 0.04); }
-      &:hover .md-commit__act { opacity: 1; }
+      &:hover {
+        background: rgba(63, 81, 181, 0.04);
+      }
+      &:hover .md-commit__act {
+        opacity: 1;
+      }
     }
     &__mark {
       flex: none;
@@ -1655,10 +1827,18 @@
       font-size: 11px;
       font-weight: 700;
       color: #d9a441;
-      &--added { color: #3f9e6a; }
-      &--deleted { color: #d9534f; }
-      &--renamed { color: #4a90d9; }
-      &--untracked { color: #8e5aa8; }
+      &--added {
+        color: #3f9e6a;
+      }
+      &--deleted {
+        color: #d9534f;
+      }
+      &--renamed {
+        color: #4a90d9;
+      }
+      &--untracked {
+        color: #8e5aa8;
+      }
     }
     &__path {
       flex: 1 1 auto;
@@ -1669,7 +1849,10 @@
       font-family: "SF Mono", Menlo, monospace;
       font-size: 11px;
       color: var(--sv-text);
-      &--gone { text-decoration: line-through; opacity: 0.65; }
+      &--gone {
+        text-decoration: line-through;
+        opacity: 0.65;
+      }
     }
     &__partial {
       flex: none;
@@ -1691,8 +1874,13 @@
       line-height: 1;
       color: var(--sv-text-muted);
       opacity: 0;
-      &:hover { color: #4a54a4; }
-      &:disabled { opacity: 0.4; cursor: default; }
+      &:hover {
+        color: #4a54a4;
+      }
+      &:disabled {
+        opacity: 0.4;
+        cursor: default;
+      }
     }
 
     // git's own words, kept verbatim — including the sentence an aborting hook prints.
@@ -1776,8 +1964,13 @@
       padding: 3px 10px;
       border-radius: 5px;
       cursor: pointer;
-      &:hover { background: var(--sv-bg); }
-      &:disabled { opacity: 0.45; cursor: default; }
+      &:hover {
+        background: var(--sv-bg);
+      }
+      &:disabled {
+        opacity: 0.45;
+        cursor: default;
+      }
       // ARMED — the first click of the two. It has to look different enough that a second click is
       // obviously a second decision, not a repeat of the first.
       &.is-armed {
@@ -1790,7 +1983,10 @@
         border-color: #6a74c4;
         color: #4a54a4;
       }
-      &--cancel { border: none; color: var(--sv-text-muted); }
+      &--cancel {
+        border: none;
+        color: var(--sv-text-muted);
+      }
     }
     &__error {
       padding: 5px 12px 7px;
@@ -1804,9 +2000,11 @@
   // thread here"). Purely structural — the old hover-💬 margin button is gone (his call).
   .md-commentable {
     position: relative;
-    > * { margin-top: 0; margin-bottom: 0; }
+    > * {
+      margin-top: 0;
+      margin-bottom: 0;
+    }
     margin: 12px 0;
-
   }
 
   // A ```markdown fence, shown verbatim (see Markdown.js) — same frame as a highlighted block.
@@ -1841,8 +2039,12 @@
       background: rgba(63, 81, 181, 0.03);
     }
 
-    &__body > *:first-child { margin-top: 0; }
-    &__body > *:last-child { margin-bottom: 0; }
+    &__body > *:first-child {
+      margin-top: 0;
+    }
+    &__body > *:last-child {
+      margin-bottom: 0;
+    }
 
     // Bottom-right corner, exactly where a STORY PANE's 💬 sits — it's the same affordance, so it
     // should be in the same place. (The replies strip below reserves right padding for it.)
@@ -1858,11 +2060,18 @@
       border-radius: 5px;
       cursor: pointer;
       opacity: 0.25;
-      transition: opacity 0.12s, background 0.12s;
-      &:hover { opacity: 1; background: rgba(63, 81, 181, 0.08); }
+      transition:
+        opacity 0.12s,
+        background 0.12s;
+      &:hover {
+        opacity: 1;
+        background: rgba(63, 81, 181, 0.08);
+      }
     }
     &--has &__toggle,
-    &--open &__toggle { opacity: 0.9; }
+    &--open &__toggle {
+      opacity: 0.9;
+    }
     &__count {
       font-size: 9.5px;
       font-weight: 700;
@@ -1895,7 +2104,9 @@
         // Spelled out, NOT `&__reply--agent &__badge` — inside a nested block that `&` re-expands to
         // the whole ancestor chain, producing a selector that can never match (it silently left the
         // agent badge amber).
-        .md-thread__badge { background: #6a74c4; }
+        .md-thread__badge {
+          background: #6a74c4;
+        }
       }
     }
     &__badge {
@@ -1909,7 +2120,10 @@
       border-radius: 3px;
       margin-top: 1px;
     }
-    &__text { flex: 1 1 auto; white-space: pre-wrap; }
+    &__text {
+      flex: 1 1 auto;
+      white-space: pre-wrap;
+    }
     &__del {
       border: 0;
       background: transparent;
@@ -1917,10 +2131,16 @@
       cursor: pointer;
       font-size: 14px;
       line-height: 1;
-      &:hover { color: #c0392b; }
+      &:hover {
+        color: #c0392b;
+      }
     }
 
-    &__form { display: flex; flex-direction: column; gap: 6px; }
+    &__form {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
     &__input {
       width: 100%;
       border: 1px solid var(--sv-border);
@@ -1932,7 +2152,10 @@
       background: var(--sv-surface);
       resize: vertical;
     }
-    &__actions { display: flex; gap: 6px; }
+    &__actions {
+      display: flex;
+      gap: 6px;
+    }
     &__post,
     &__cancel {
       border: 1px solid var(--sv-border);
@@ -1941,13 +2164,18 @@
       padding: 3px 12px;
       font-size: 12px;
       cursor: pointer;
-      &:hover { background: var(--sv-bg); }
+      &:hover {
+        background: var(--sv-bg);
+      }
     }
     &__post {
       border-color: #3f51b5;
       color: #3f51b5;
       font-weight: 600;
-      &:disabled { opacity: 0.45; cursor: default; }
+      &:disabled {
+        opacity: 0.45;
+        cursor: default;
+      }
     }
     // Same mic + interim line the chat input has — a reply box listens too.
     &__mic {
@@ -1959,7 +2187,9 @@
       font-size: 13px;
       line-height: 1;
       cursor: pointer;
-      &:hover { background: var(--sv-bg); }
+      &:hover {
+        background: var(--sv-bg);
+      }
       &--on {
         border-color: #e05252;
         background: rgba(224, 82, 82, 0.12);
@@ -1984,13 +2214,20 @@
       animation: md-mic-pulse 1.4s ease-in-out infinite;
     }
     @keyframes md-mic-pulse {
-      0%, 100% { box-shadow: 0 0 0 0 rgba(224, 82, 82, 0.35); }
-      50% { box-shadow: 0 0 0 5px rgba(224, 82, 82, 0); }
+      0%,
+      100% {
+        box-shadow: 0 0 0 0 rgba(224, 82, 82, 0.35);
+      }
+      50% {
+        box-shadow: 0 0 0 5px rgba(224, 82, 82, 0);
+      }
     }
     &__note {
       font-size: 11.5px;
       color: var(--sv-text-muted);
-      &--bad { color: #a2503f; }
+      &--bad {
+        color: #a2503f;
+      }
     }
   }
 
@@ -2002,12 +2239,16 @@
         background: rgba(143, 151, 232, 0.06);
         border-bottom-color: #3a3f4b;
       }
-      &__label { color: #b8bfd3; }
+      &__label {
+        color: #b8bfd3;
+      }
       &__btn {
         background: #21252b;
         border-color: #3a3f4b;
         color: #b8bfd3;
-        &:hover { background: #2c313a; }
+        &:hover {
+          background: #2c313a;
+        }
       }
     }
     .md-commit {
@@ -2017,39 +2258,66 @@
         background: rgba(143, 151, 232, 0.06);
         border-bottom-color: #3a3f4b;
       }
-      &__branch { color: #b8bfd3; }
+      &__branch {
+        color: #b8bfd3;
+      }
       &__tonav {
         background: #2c313a;
         border-color: #3f4552;
         color: #99a2b8;
-        &:hover { border-color: #56607a; color: #d7dce9; }
+        &:hover {
+          border-color: #56607a;
+          color: #d7dce9;
+        }
       }
       &__tab {
-        &.is-on { background: #21252b; color: #9aa3e8; box-shadow: inset 0 0 0 1px #3a3f4b; }
+        &.is-on {
+          background: #21252b;
+          color: #9aa3e8;
+          box-shadow: inset 0 0 0 1px #3a3f4b;
+        }
       }
       &__message {
         border-bottom-color: #3a3f4b;
         color: #d3d8e3;
-        &--editing { background: rgba(143, 151, 232, 0.06); }
+        &--editing {
+          background: rgba(143, 151, 232, 0.06);
+        }
       }
-      &__row:hover { background: rgba(143, 151, 232, 0.06); }
-      &__path { color: #b8bfd3; }
+      &__row:hover {
+        background: rgba(143, 151, 232, 0.06);
+      }
+      &__path {
+        color: #b8bfd3;
+      }
       &__edge {
-        &--top { border-bottom-color: #3a3f4b; }
-        &--bottom { border-top-color: #3a3f4b; }
+        &--top {
+          border-bottom-color: #3a3f4b;
+        }
+        &--bottom {
+          border-top-color: #3a3f4b;
+        }
       }
-      &__grip { background: #3a3f4b; }
+      &__grip {
+        background: #3a3f4b;
+      }
       &__out {
         background: #21252b;
         color: #b8bfd3;
       }
-      &__logsubj { color: #b8bfd3; }
-      &__actions { border-top-color: #3a3f4b; }
+      &__logsubj {
+        color: #b8bfd3;
+      }
+      &__actions {
+        border-top-color: #3a3f4b;
+      }
       &__btn {
         background: #21252b;
         border-color: #3a3f4b;
         color: #b8bfd3;
-        &:hover { background: #2c313a; }
+        &:hover {
+          background: #2c313a;
+        }
         &.is-armed {
           background: #3a3324;
           border-color: #d9a441;
@@ -2062,11 +2330,23 @@
       }
     }
     .md-thread {
-      &:hover { border-left-color: #4a5160; background: rgba(143, 151, 232, 0.05); }
-      &--has { border-left-color: #4a5160; }
-      &--open { border-left-color: #8f97e8; background: rgba(143, 151, 232, 0.07); }
-      &__toggle:hover { background: rgba(143, 151, 232, 0.14); }
-      &__count { color: #8f97e8; }
+      &:hover {
+        border-left-color: #4a5160;
+        background: rgba(143, 151, 232, 0.05);
+      }
+      &--has {
+        border-left-color: #4a5160;
+      }
+      &--open {
+        border-left-color: #8f97e8;
+        background: rgba(143, 151, 232, 0.07);
+      }
+      &__toggle:hover {
+        background: rgba(143, 151, 232, 0.14);
+      }
+      &__count {
+        color: #8f97e8;
+      }
       // Dark keeps the SAME amber/indigo split, lifted for a dark ground.
       &__reply {
         color: #d8c79a;
@@ -2074,10 +2354,16 @@
         &--agent {
           color: #b9c0ea;
           border-left-color: #6a74c4;
-          .md-thread__badge { background: #6a74c4; color: #fff; }
+          .md-thread__badge {
+            background: #6a74c4;
+            color: #fff;
+          }
         }
       }
-      &__badge { background: #b98f2f; color: #17191d; }
+      &__badge {
+        background: #b98f2f;
+        color: #17191d;
+      }
       &__input {
         background: #21252b;
         border-color: #3a3f4b;
@@ -2088,15 +2374,25 @@
         background: #21252b;
         border-color: #3a3f4b;
         color: #b8bfd3;
-        &:hover { background: #2c313a; }
+        &:hover {
+          background: #2c313a;
+        }
       }
-      &__post { border-color: #8f97e8; color: #8f97e8; }
+      &__post {
+        border-color: #8f97e8;
+        color: #8f97e8;
+      }
       &__mic {
         background: #21252b;
         border-color: #3a3f4b;
         color: #b8bfd3;
-        &:hover { background: #2c313a; }
-        &--on { border-color: #e05252; background: rgba(224, 82, 82, 0.16); }
+        &:hover {
+          background: #2c313a;
+        }
+        &--on {
+          border-color: #e05252;
+          background: rgba(224, 82, 82, 0.16);
+        }
       }
     }
   }

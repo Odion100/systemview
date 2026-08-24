@@ -1,6 +1,6 @@
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import ServiceContext from "../../ServiceContext";
-import loadServiceWithHeaders from "../../utils/loadService";
+import { hostFiles } from "../../utils/hostFiles";
 import CodeEditor from "../../atoms/CodeView/CodeEditor";
 import { changeMarksOf, hunksOf, stagedContentFor } from "../../atoms/CodeView/gitLines";
 import { useCodeComments } from "../../atoms/CodeView/codeComments";
@@ -71,22 +71,24 @@ const CodePane = ({ file, onClose }) => {
   const themeScope = diffMode ? "diff" : isMd ? "docs" : "code";
   const editorDark = diffMode ? diffDark : isMd ? docsDark : codeDark;
 
-  const host = connectedServices.find(
-    (s) => s.serviceId === file.serviceId && s.projectCode === file.projectCode,
-  );
+  // THE FILE BELONGS TO A PROJECT, NOT TO A SERVICE. This looked up the exact SERVICE the file was
+  // opened from and refused to read anything without it — so clicking a file in a project whose
+  // services are down opened nothing at all, on a folder sitting right there on disk. Files come
+  // from the hub now; the project code is the whole address.
+  const host = file.projectCode ? { projectCode: file.projectCode } : null;
   // The open file's codebase disconnected/was deleted → close the pane instead of sitting on a dead
   // error. Guarded on connectedServices being loaded (empty at boot ≠ gone).
   useEffect(() => {
-    if (!host && connectedServices.length && onClose) onClose();
+    if (!host && onClose) onClose();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [host, connectedServices.length]);
   // Memoized because the comment store keys its load on it — an identity that changed every render
   // would re-read the sidecar every render.
   const Plugin = useMemo(
     () =>
-      host ? loadServiceWithHeaders(host.system.connectionData, host.headers, host.credentials).Plugin : null,
+      host ? hostFiles(host.projectCode) : null,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [host && host.serviceId, host && host.projectCode],
+    [host && host.projectCode],
   );
 
   useEffect(() => {
@@ -1202,9 +1204,9 @@ const CodePane = ({ file, onClose }) => {
           <div className={`${CLASSNAME}__image`}>
             <img
               className={`${CLASSNAME}__image-img`}
-              src={`/sv-raw/${encodeURIComponent(file.projectCode)}/${encodeURIComponent(
-                file.serviceId,
-              )}?path=${encodeURIComponent(file.path)}`}
+              // Bytes off disk, addressed by PROJECT — /sv-raw went through the project's plugin,
+              // which is exactly why images broke the moment files stopped coming from plugins.
+              src={`/sv-file/${encodeURIComponent(file.projectCode)}?path=${encodeURIComponent(file.path)}`}
               alt={file.path}
             />
           </div>

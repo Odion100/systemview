@@ -2,9 +2,12 @@ import { parseSvCommand } from "./svCommand";
 
 describe("recognising a SystemView command in a shell line", () => {
   it("reads the verb, the project and the subject through the PATH export we all prefix with", () => {
+    // Leading environment setup is throat-clearing, not a command. Every agent shell here opens
+    // with the PATH export because the sandbox forgets it between calls, and refusing the line for
+    // that reason meant every real systemview action rendered as a plain bash row.
     expect(
       parseSvCommand('export PATH="/x/bin:$PATH"; node cli/index.js nav systemview-test /specs/x'),
-    ).toBeNull(); // after a `;` is a different command — deliberately not dressed up
+    ).toMatchObject({ verb: "nav", project: "systemview-test", target: "/specs/x" });
     expect(parseSvCommand("node cli/index.js nav systemview-test /specs/x")).toMatchObject({
       verb: "nav",
       project: "systemview-test",
@@ -27,7 +30,14 @@ describe("recognising a SystemView command in a shell line", () => {
   });
 
   it("never dresses up what comes after a separator", () => {
-    expect(parseSvCommand("systemview nav x /y && rm -rf /")).toMatchObject({ verb: "nav" });
+    // Anything riding behind the act must be a read-only output filter, or the whole line stays
+    // plain. A friendly "moved the window" row must never be the costume on a line that also
+    // deletes something.
+    expect(parseSvCommand("systemview nav x /y && rm -rf /")).toBeNull();
     expect(parseSvCommand("rm -rf / && systemview nav x /y")).toBeNull();
+    expect(parseSvCommand('systemview say bob "hi" --as me; echo "exit: $?"')).toMatchObject({
+      verb: "say",
+      as: "me",
+    });
   });
 });

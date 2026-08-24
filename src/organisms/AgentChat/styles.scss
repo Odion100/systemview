@@ -1426,6 +1426,164 @@
       background: #c0392b;
     }
   }
+  // WHERE IT WENT — the delivery line above the composer.
+  &__relayed {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 12px 0;
+    font-size: 10px;
+    color: var(--sv-text-faint);
+  }
+  &__relayed-mark {
+    opacity: 0.7;
+  }
+  &__relayed-name {
+    font-weight: 600;
+  }
+  &__relayed-when {
+    opacity: 0.6;
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 9px;
+  }
+  // SPOKE — the bottom strip, above the chat box. Deliberately the quietest thing in the panel: a
+  // name that spoke once is history, and history should be findable without being loud. Each name is
+  // a button that scrolls to the sentence it belongs to.
+  &__tv--empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border: 1px dashed var(--sv-border);
+    border-radius: 8px;
+    background: var(--sv-panel);
+    color: var(--sv-text-faint);
+    font-size: 11px;
+    padding: 10px;
+  }
+  &__tv-empty-line {
+    font-weight: 600;
+  }
+  &__tv-empty-sub {
+    opacity: 0.8;
+    text-align: center;
+    code {
+      font-size: 10px;
+    }
+  }
+  &__tv-empty-close {
+    background: none;
+    border: 1px solid var(--sv-border);
+    border-radius: 5px;
+    color: inherit;
+    font-size: 10px;
+    padding: 2px 8px;
+    cursor: pointer;
+  }
+  &__spokebar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    padding: 3px 12px 0;
+    font-size: 10px;
+    color: var(--sv-text-faint);
+  }
+  &__spokebar-label {
+    opacity: 0.7;
+    letter-spacing: 0.04em;
+    text-transform: lowercase;
+  }
+  &__spokebar-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 1px;
+  }
+  &__spokebar-x {
+    background: none;
+    border: none;
+    padding: 0 2px;
+    font-size: 10px;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0.45;
+    &:hover {
+      opacity: 1;
+    }
+  }
+  &__spokebar-name {
+    background: none;
+    border: none;
+    padding: 0 2px;
+    font: inherit;
+    font-size: 10px;
+    cursor: pointer;
+    opacity: 0.75;
+    border-bottom: 1px dotted currentColor;
+    &:hover {
+      opacity: 1;
+    }
+  }
+  // HIS PLAN LIMITS — three thin bars under the context hairline. Deliberately quieter than the
+  // context meter: that one is about the conversation on screen and can demand action, this one is
+  // background weather. Same colour language though (calm → amber at 75 → red at 90), because a
+  // number meaning "getting full" has to look the same everywhere in this window.
+  &__usage {
+    padding: 5px 12px 6px;
+    border-bottom: 1px solid var(--sv-border);
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  &__usage-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  &__usage-label {
+    flex: 0 0 auto;
+    min-width: 86px;
+    font-size: 9.5px;
+    letter-spacing: 0.02em;
+    color: var(--sv-text-faint);
+    white-space: nowrap;
+  }
+  &__usage-bar {
+    flex: 1 1 auto;
+    height: 3px;
+    border-radius: 2px;
+    overflow: hidden;
+    background: color-mix(in srgb, var(--sv-border) 55%, transparent);
+  }
+  &__usage-fill {
+    display: block;
+    height: 100%;
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--sv-text-faint) 55%, transparent);
+    transition: width 0.4s ease;
+    &--warn {
+      background: #d19a2e;
+    }
+    &--due {
+      background: #c0392b;
+    }
+  }
+  &__usage-pct {
+    flex: 0 0 auto;
+    min-width: 26px;
+    text-align: right;
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 9px;
+    color: var(--sv-text-muted);
+  }
+  // THE STAMP IS PART OF THE READING, not a footnote to it — a number this cheap is only as fresh
+  // as the last /usage, and every meter lie killed today was one that could not say as-of-when.
+  &__usage-as-of {
+    font-size: 9px;
+    color: var(--sv-text-faint);
+    opacity: 0.75;
+  }
   // RFC-031 — the roster strip: every identity currently holding a line in this room.
   &__roster {
     position: relative;
@@ -1474,6 +1632,39 @@
   &__roster-empty {
     font-style: italic;
     color: var(--sv-text-faint);
+  }
+  // VISITING vs SPOKE, at a glance. Subscribed = present, full ink, carries the ✕ that actually
+  // unsubscribes. Spoke = history, faded and italic, no controls — it lapses on its own.
+  &__roster-name--visiting { font-weight: 600; }
+  &__roster-name--spoke {
+    opacity: 0.5;
+    font-style: italic;
+  }
+  &__roster-add { display: inline-flex; align-items: center; }
+  &__roster-add-btn {
+    background: none;
+    border: 1px dashed var(--sv-text-faint);
+    color: var(--sv-text-faint);
+    border-radius: 999px;
+    width: 16px;
+    height: 16px;
+    line-height: 1;
+    font-size: 11px;
+    padding: 0;
+    margin-left: 4px;
+    cursor: pointer;
+    &:hover { color: var(--sv-text); border-color: var(--sv-text); }
+  }
+  &__roster-add-input {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--sv-text-faint);
+    color: var(--sv-text);
+    font: inherit;
+    font-size: 11px;
+    width: 110px;
+    margin-left: 4px;
+    outline: none;
   }
   &__roster-x {
     border: 0;
@@ -2615,3 +2806,149 @@
 // the app is dark, which switches the same tokens the TV switches. No chat-specific colour table:
 // the earlier version of this file had one, and a second set of colours for the same components is
 // how two surfaces drift apart.
+
+// EMBEDS IN A CHAT ARE NOT EMBEDS IN A DOCUMENT. A report has a page to itself; a chat message has
+// a column shared with everything said before and after it, and a 460px-tall file body pushes the
+// conversation off the screen. His note, and it applies to the whole surface: *"they're a little
+// too imposing — a rectangle that just shows the part of the code you're trying to show, more
+// compact and neat. That kind of goes for everything in this chat. Too tall."*
+//
+// So the SAME block gets a quieter size in here. Not a different component and not a different
+// renderer — one scope, tighter numbers. Scroll is kept: a clipped view that cannot be opened is
+// worse than a tall one.
+.agent-chat {
+  .md-embed {
+    margin: 8px 0;
+    border-radius: 6px;
+    font-size: 11px;
+  }
+  .md-embed__head {
+    padding: 3px 8px;
+    font-size: 10px;
+    min-height: 0;
+  }
+  .md-embed--file,
+  .md-embed--diff {
+    .md-embed__file-body,
+    .md-embed__file-body .cm-editor,
+    .md-embed__file-body .cm-scroller {
+      max-height: 190px;
+    }
+    .cm-content,
+    .cm-line {
+      font-size: 10.5px;
+      line-height: 1.45;
+    }
+  }
+  // Images sit inline with the sentence that mentions them rather than taking the column.
+  .md-image__img {
+    max-height: 180px;
+    border-radius: 5px;
+  }
+  // Logs, charts, tests — same rule, one number.
+  .md-embed--logs .md-embed__logs-body,
+  .md-embed--test .md-embed__body,
+  .md-embed--chart .md-embed__body {
+    max-height: 200px;
+    overflow: auto;
+  }
+  // Fenced code in a message: shorter, and it scrolls instead of growing.
+  .chat-md__fence {
+    max-height: 200px;
+    overflow: auto;
+    font-size: 10.5px;
+  }
+
+  // EVERY OTHER BLOCK, SAME RULE. A document can afford 16px of air around a decision; a chat
+  // cannot, because the next sentence is right there. These are the same components with the
+  // margins and type a conversation can carry — nothing is hidden, nothing is a different widget.
+  .md-commit,
+  .md-approval,
+  .md-input,
+  .md-callout,
+  .md-details,
+  .md-thread,
+  .md-tabs,
+  .md-columns,
+  .md-carousel {
+    margin: 8px 0;
+    font-size: 11px;
+    border-radius: 6px;
+  }
+  .md-commit__head,
+  .md-approval__head,
+  .md-thread__head {
+    padding: 3px 8px;
+  }
+  .md-commit__kind,
+  .md-approval__kind {
+    font-size: 8.5px;
+  }
+  // A COMMIT IN A CHAT IS AN OFFER, NOT A CONTROL PANEL. In a report it can afford the branch, the
+  // file list, the log tab and the ahead/behind counters. Here it is one sentence with a button:
+  // the message, and press it or don't. Everything it can still DO is unchanged — the file list is
+  // there when you want it, it just doesn't open the conversation with a wall.
+  .md-commit__body {
+    padding: 4px 8px;
+    max-height: 150px;
+    overflow: auto;
+  }
+  .md-commit__message {
+    font-size: 11px;
+    line-height: 1.4;
+    padding: 3px 6px;
+  }
+  .md-commit__msgrow {
+    gap: 6px;
+  }
+  .md-commit__row {
+    padding: 1px 4px;
+    font-size: 10px;
+  }
+  .md-commit__path {
+    font-size: 10px;
+  }
+  .md-commit__group-label,
+  .md-commit__stamp,
+  .md-commit__scope,
+  .md-commit__branch {
+    font-size: 9px;
+  }
+  .md-commit__tabs {
+    gap: 4px;
+  }
+  .md-commit__tab {
+    font-size: 9px;
+    padding: 1px 6px;
+  }
+  .md-commit__logrow {
+    font-size: 10px;
+    padding: 1px 4px;
+  }
+  // The resize grip is for a document you're laying out, not a message you're reading past.
+  .md-commit__edge,
+  .md-commit__grip {
+    display: none;
+  }
+  .md-approval__body {
+    padding: 6px 8px;
+  }
+  // Answers in a question block: chips, not stacked rows that push the reply off screen.
+  .md-input__options {
+    gap: 4px;
+  }
+  .md-input__option,
+  .md-commit__btn,
+  .md-approval__btn {
+    font-size: 10.5px;
+    padding: 3px 8px;
+  }
+  // Tables in a message scroll rather than widening the column.
+  .chat-md__tablewrap {
+    max-height: 220px;
+    overflow: auto;
+  }
+  .chat-md__table {
+    font-size: 10.5px;
+  }
+}
