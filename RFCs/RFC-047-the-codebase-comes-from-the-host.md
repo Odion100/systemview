@@ -77,6 +77,15 @@ taken away from anyone; the floor is lowered.
 1. **Project identity stops meaning "a connected service".** Today `connectedServices` is the source
    of every project in the nav. It gains a second source: folders the browser has open. A project is
    then `{ projectCode, root, host }` with services optional.
+
+   **THE PROJECT CODE IS STILL REQUIRED — it is the plugin that is optional.** His correction, twice,
+   after I wrote the opposite in a summary of this RFC: *"I said a project code is fucking required…
+   you choose one when you fucking choosing the folder."* The code is what the plugin connects by
+   later, what the nav displays, and what an agent's name is attached to — so it cannot be derived
+   afterwards or left blank. **Opening a folder therefore asks for one at that moment**, defaulting
+   to the folder's own name, and that answer is what makes the folder a project. Nothing downstream
+   changes: `pickHost`, the room path, the sidecars and the reports index all already key on
+   `projectCode`, and they keep doing so whether the host or the plugin is serving the files.
 2. **`.systemview/` needs an owner without a service.** Reports, the board, code-comment sidecars and
    the reports index are all files under the folder — fine. The **room** is the exception: it lives in
    the repo but is served by the plugin's `SystemViewChat` module today. Either the host serves it the

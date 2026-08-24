@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useHistory, useLocation } from "react-router-dom";
 import loadServiceWithHeaders from "../../utils/loadService";
+import { canPickThenName, canRenameHostProject, isHostProject } from "../../utils/hostProject";
 import DocIcon from "../../atoms/DocsIcon/DocsIcon";
 import TestsIcon from "../../atoms/TestsIcon/TestsIcon";
 import HELP_TOPICS from "../../atoms/Help/helpTopics";
@@ -258,6 +259,37 @@ function DirNode({
 // Fully navigable like the SystemLynx section: service/module/method all select + route, the current
 // namespace highlights, and navigating hands the center back to docs/tests (closes any open file).
 // Modules expand INDIVIDUALLY — a service with many modules must not dump every method on open.
+// A CODEBASE WITH NO CONVERSATION. It asks once, quietly, and disappears the moment one is picked.
+// It reads the attachment from where the chat persists it rather than owning any of that state —
+// the nav has no business knowing how a session is opened, only whether one is.
+function AgentRow({ projectCode }) {
+  const key = `sv.chat.attached.${projectCode}`;
+  const read = () => {
+    try { return localStorage.getItem(key); } catch { return null; }
+  };
+  const [attached, setAttached] = useState(read);
+  useEffect(() => {
+    const on = (e) => {
+      if (e.detail && e.detail.projectCode === projectCode) setAttached(e.detail.attached || null);
+    };
+    window.addEventListener("sv:agentAttached", on);
+    return () => window.removeEventListener("sv:agentAttached", on);
+  }, [projectCode]);
+  if (attached) return null;
+  return (
+    <button
+      type="button"
+      className={`${CLASSNAME}__noagent`}
+      title="Pick up a conversation from this folder, or start a new one"
+      onClick={() =>
+        window.dispatchEvent(new CustomEvent("sv:chooseConversation", { detail: { projectCode } }))
+      }
+    >
+      no agent here yet — <span className={`${CLASSNAME}__noagent-do`}>choose a conversation</span>
+    </button>
+  );
+}
+
 function ServiceNode({ service, projectCode, history, selection, onNavigate, revealNs, serviceStatus = {}, bulk = null, onOpenFile = null, onHostedOp = null, onDeleteService = null, openRowMenu = null }) {
   const isSelectedService =
     selection.serviceId === service.serviceId && selection.projectCode === projectCode;
@@ -581,7 +613,7 @@ function ServiceNode({ service, projectCode, history, selection, onNavigate, rev
 
 // One connected codebase: header, ALL the project's services (real + project-defined), and the file
 // tree behind its own fold.
-function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigate, revealFile = null, revealNs = null, serviceStatus = {}, onHostedOp = null, onDeleteService = null, onDeleteProject = null, openRowMenu = null }) {
+function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigate, revealFile = null, revealNs = null, serviceStatus = {}, onHostedOp = null, onDeleteService = null, onDeleteProject = null, onRenameProject = null, renaming = null, onStartRename = () => {}, onAttachFolder = null, openRowMenu = null }) {
   const { projectCode, fileHost, services, dynamicServices } = entry;
   const history = useHistory();
   // Reveals scoped to THIS card. A file reveal always names its host project; a namespace reveal
@@ -594,6 +626,45 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
   // RFC-026 — the card itself never collapses: it's the project's whole nav, and its header
   // NAVIGATES (project-level docs/tests) instead of toggling.
   const holdsOpenFile = !!(openFile && openFile.projectCode === projectCode);
+  // A folder brought in through the host, rather than a SystemLynx project. It removes differently
+  // and it says so differently.
+  const hostBacked = isHostProject([...(services || []), ...(dynamicServices || [])]);
+  // The directory this project points at — from the folder the shell holds, or from the connection
+  // record of whichever service is running in it. Both are the same fact.
+  const root = ((services || []).find((s) => s && s.root) || (dynamicServices || []).find((s) => s && s.root) || {}).root || null;
+  // NO FOLDER = the project is a name and nothing else yet. `fileHost` is the honest test: it is
+  // whoever can actually read files here, whether that is the shell holding a folder or a plugin
+  // running inside one. Without it there is no directory, and everything below depends on one.
+  const noFolder = !fileHost;
+  // IN-PLACE RENAME — double-click the name. (`renaming` stays lifted so the nav can also start
+  // an edit; ＋ itself no longer registers anything, it only names a husk.)
+  const editingName = renaming === projectCode;
+  const nameInputRef = useRef(null);
+  const [nameDraft, setNameDraft] = useState(projectCode);
+  useEffect(() => {
+    if (!editingName) return;
+    setNameDraft(projectCode);
+    // Select the whole thing — starting an edit means replacing the name, not appending to it.
+    const t = setTimeout(() => {
+      if (!nameInputRef.current) return;
+      nameInputRef.current.focus();
+      nameInputRef.current.select();
+    }, 0);
+    return () => clearTimeout(t);
+  }, [editingName, projectCode]);
+  const cancelName = () => onStartRename(null);
+  const commitName = () => {
+    const next = String(nameDraft || "").trim();
+    // Renaming a thing to what it is already called is not a rename; it is a way to make a surface
+    // flash and change nothing.
+    if (!next || next === projectCode) return cancelName();
+    onRenameProject(projectCode, next);
+  };
+  // Everything that is actually a service. The host stand-in is filtered out by its marker rather
+  // than by name, so a real service that happens to be called "Files" is untouched.
+  const realServices = [...(services || []), ...(dynamicServices || [])].filter(
+    (x) => !(x && x.system && x.system.connectionData && x.system.connectionData.__hostFiles),
+  );
   const [files, setFiles] = useState(null); // null = not loaded; [] = loaded empty
   const [changed, setChanged] = useState(new Map()); // path → { status, staged, partial }
   const [truncated, setTruncated] = useState(false);
@@ -624,7 +695,11 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
   // RFC-026 — the file region (filter + tree) folds behind its own `code` row. COLLAPSED by
   // default: selection drives it — it opens itself when a file in this project is opened or
   // revealed, and expands down to that file.
-  const [codeOpen, setCodeOpen] = useState(holdsOpenFile);
+  // AN EMPTY PROJECT SHOWS ITS OFFERS. A husk collapsed to `▸ code ▸ terminal` tells you a project
+  // exists and nothing about what to do with it — his description of the husk was *"nothing there
+  // really, except it just says add this and add that"*, and a fold hides exactly that. A project
+  // with a folder still opens the way it always did: only when it holds the open file.
+  const [codeOpen, setCodeOpen] = useState(holdsOpenFile || !fileHost);
   const flipCode = () => setCodeOpen(!codeOpen);
   // The services region folds the same way — OPEN by default (it's the project's primary content),
   // and the choice sticks per project.
@@ -1608,20 +1683,93 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
           const hostedFolders = [...services, ...dynamicServices]
             .filter((s) => s.hosted)
             .map((s) => s.hosted);
+          // A FOLDER IS FORGOTTEN, A PROJECT IS DISCONNECTED. Two different acts behind one label
+          // was why removing a folder appeared to do nothing at all: `deleteProject` deregisters
+          // SystemLynx connections, and a folder has none.
           openRowMenu(e, projectCode, [
-            {
-              label: "Remove project",
-              danger: true,
-              confirm: hostedFolders.length
-                ? `Remove ${projectCode}? ${[...new Set(hostedFolders)].join(", ")}/ stays`
-                : `Remove ${projectCode} and all its connections?`,
-              action: () => onDeleteProject(projectCode),
-            },
+            hostBacked
+              ? {
+                  label: "Forget this folder",
+                  danger: true,
+                  confirm: `Forget ${projectCode}? Nothing on disk is touched.`,
+                  action: () => onDeleteProject(projectCode, true),
+                }
+              : {
+                  label: "Remove project",
+                  danger: true,
+                  confirm: hostedFolders.length
+                    ? `Remove ${projectCode}? ${[...new Set(hostedFolders)].join(", ")}/ stays`
+                    : `Remove ${projectCode} and all its connections?`,
+                  action: () => onDeleteProject(projectCode),
+                },
           ]);
         }}
       >
+        {/* HOW THIS PROJECT GOT HERE, on its face. He cannot tell by looking whether a project came
+            in the new way (a folder the browser holds) or the old one (a SystemLynx connection) —
+            *"there's no way for me to look and tell that you actually transferred things over."*
+            One word settles it, and it is the word that decides everything else about the project:
+            what removes it, whether it has services, where its files come from. */}
+        {/* IT IS A CODEBASE EITHER WAY. Labelling the host-backed ones "folder" was me naming a
+            project after the mechanism that registered it — his objection, and he is right: *"why
+            would I bring a thing in here and call it folder?"* A project is a codebase; whether
+            SystemLynx services happen to be running in it is a separate fact, and the services
+            section already tells that story by being there or not. */}
         <span className={`${CLASSNAME}__cb-badge`}>codebase</span>
-        <span className={`${CLASSNAME}__cb-name`}>{projectCode}</span>
+        {/* THE NAME IS THE FIELD. Not a menu item, not a form above the list — his correction,
+            after I tried both: *"just bring the fucking project in and have the fucking name edited
+            in place."* It reads as the title until you edit it, which is the point: a project code
+            is the identity every other surface uses (the chat, `systemview test <project>`, `--as`,
+            report filenames), so it should be changed where you read it. Double-click to edit.
+            Enter or blur commits; Escape puts it back. */}
+        {editingName ? (
+          <input
+            ref={nameInputRef}
+            className={`${CLASSNAME}__cb-name ${CLASSNAME}__cb-name--editing`}
+            value={nameDraft}
+            spellCheck={false}
+            onChange={(e) => setNameDraft(e.target.value)}
+            onClick={(e) => e.stopPropagation()}
+            onDoubleClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              e.stopPropagation();
+              if (e.key === "Enter") commitName();
+              if (e.key === "Escape") cancelName();
+            }}
+            onBlur={commitName}
+          />
+        ) : (
+          <span
+            className={`${CLASSNAME}__cb-name${canRenameHostProject() && onRenameProject ? ` ${CLASSNAME}__cb-name--renamable` : ""}`}
+            title={canRenameHostProject() && onRenameProject ? "Double-click to rename" : undefined}
+            onDoubleClick={(e) => {
+              if (!onRenameProject || !canRenameHostProject()) return;
+              e.stopPropagation();
+              onStartRename(projectCode);
+            }}
+          >
+            {projectCode}
+          </span>
+        )}
+        {/* VISIBLE, because hidden was the bug. Removing lived behind a right-click, so two folders
+            added just to test adding folders could not be taken back out — *"I can't remove the
+            projects that I put in just to test."* A thing you can add with one visible button has to
+            be removable with one. Only on folders: a SystemLynx project keeps the menu, because
+            disconnecting a live project is not a one-click act. */}
+        {hostBacked && onDeleteProject && (
+          <button
+            type="button"
+            className={`${CLASSNAME}__cb-forget`}
+            title={`Forget ${projectCode} — nothing on disk is touched`}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onDeleteProject(projectCode, true);
+            }}
+          >
+            ✕
+          </button>
+        )}
         {/* Project doc = `<projectCode>.md` at the repo root — only knowable once the file list is
             loaded, so the indicator renders only then. */}
         {files && (
@@ -1655,9 +1803,45 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
           {agentDocked && (
             <div className={`${CLASSNAME}__agent`} id={slotId(projectCode)} />
           )}
+          {/* THE FIRST PROMPT, WHERE IT BELONGS. His catch on my earlier answer: *"where is the
+              first prompt to you as a new user — do you have to try to open the chat to see the
+              prompt? Think about where the first prompt is supposed to really be."* A codebase with
+              no conversation says so HERE, on the codebase, and the button is the way in. Once one
+              is attached this row is gone: it is a door, not a status. */}
+          {/* A PROJECT WITH NO FOLDER SHOWS ONE PROMPT, AND IT IS THIS ONE. Not `code`, not
+              `terminal`, not the agent door — his correction, and the reasoning is his too: *"the
+              agent needs to be attached to the current directory… it's supposed to say choose a
+              folder, not show code and show terminal. Just like how the agent one doesn't show the
+              agent, it should show that prompt instead."* Every one of those slots depends on a
+              directory, so offering them before there is one is offering doors that open onto
+              nothing. One question at a time, in the order the answers are needed. */}
+          {noFolder ? (
+            onAttachFolder && canPickThenName() ? (
+              <button
+                type="button"
+                className={`${CLASSNAME}__noagent`}
+                title="Point this project at a folder on disk"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAttachFolder(projectCode);
+                }}
+              >
+                no folder yet — <span className={`${CLASSNAME}__noagent-do`}>choose a folder</span>
+              </button>
+            ) : (
+              <div className={`${CLASSNAME}__empty`}>no folder attached yet</div>
+            )
+          ) : (
+            <AgentRow projectCode={projectCode} />
+          )}
           {/* ALL of the project's services (RFC-026) — real ones first, then project-defined
               (RFC-021 synthesized namespaces). Expandable IN PLACE: service → modules → methods;
               clicking a method points the page (and the scratchpad) at that namespace. */}
+          {/* HIDDEN ENTIRELY when a folder has none — his answer to the question, in his words. A
+              folder brought in the new way carries a stand-in entry so files and git have something
+              to hang off; it is not a service and must not be drawn as one. The plugin adds real
+              services on top, and the section appears when there are some. */}
+          {realServices.length > 0 && (
           <div className={`${CLASSNAME}__services`}>
             <button
               type="button"
@@ -1669,8 +1853,8 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
               <span className={`${CLASSNAME}__code-fold-label`}>services</span>
               <span className={`${CLASSNAME}__lynx-tag`}>SystemLynx</span>
             </button>
-            {!servicesOpen ? null : [...services, ...dynamicServices].length ? (
-              [...services, ...dynamicServices].map((s) => (
+            {!servicesOpen ? null : realServices.length ? (
+              realServices.map((s) => (
                 <ServiceNode
                   key={s.serviceId}
                   service={s}
@@ -1693,9 +1877,12 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
               </div>
             )}
           </div>
+          )}
 
           {/* RFC-026 — the whole file region sits behind one `code` fold: root indentation, quiet,
-              same section-label voice as `project services` above it. */}
+              same section-label voice as `project services` above it. Hidden entirely when there is
+              no folder: a fold over nothing is furniture. */}
+          {!noFolder && (<>
           <button
             type="button"
             className={`${CLASSNAME}__code-fold`}
@@ -1704,6 +1891,16 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
           >
             <Chevron open={codeOpen} />
             <span className={`${CLASSNAME}__code-fold-label`}>code</span>
+            {/* WHERE THIS PROJECT POINTS, on the row that IS the folder. His question — *"if I'm
+                dealing with multiple folders in one window, how the fuck do I know that? … without
+                ruining the aesthetics"* — answered in the one place it costs nothing: `code` is the
+                directory, so the directory is written on `code`. Tail only, full path on hover; the
+                card header stays clean. */}
+            {root && (
+              <span className={`${CLASSNAME}__code-dir`} title={root}>
+                {String(root).split("/").filter(Boolean).slice(-2).join("/")}
+              </span>
+            )}
             {/* GIT SURVIVES THE FOLD. Everything about committing — the lens, the groups, the box —
                 lives inside this fold, so with it closed the panel said nothing at all: no changes,
                 no branch, no hint that a commit happens here ("why wouldn't it show something
@@ -1735,9 +1932,10 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
               </span>
             )}
           </button>
-          {codeOpen && !fileHost && (
-            <div className={`${CLASSNAME}__empty`}>no live service with file access</div>
-          )}
+          {/* AN EMPTY CODE SLOT IS AN OFFER, NOT AN ERROR. "no live service with file access" told
+              him what SystemView lacked; it never told him what to do, and it named a mechanism
+              (a service) for something that is a folder. His model: the project exists, code is one
+              of its slots, and an empty slot carries the button that fills it. */}
           {codeOpen && error && <div className={`${CLASSNAME}__empty`}>{error}</div>}
           {codeOpen && fileHost && !files && !error && (
             <div className={`${CLASSNAME}__empty`}>loading files…</div>
@@ -2058,10 +2256,13 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
               )}
             </>
           )}
+          </>)}
 
           {/* RFC-045 — THE LAST SECTION: a shell in this codebase. SystemView renders it; the
               embedding host runs it. In a plain browser tab it says so and stops. */}
-          <TerminalSection projectCode={projectCode} CLASSNAME={CLASSNAME} Chevron={Chevron} />
+          {!noFolder && (
+            <TerminalSection projectCode={projectCode} CLASSNAME={CLASSNAME} Chevron={Chevron} />
+          )}
         </div>
     </div>
   );
@@ -2090,6 +2291,10 @@ const CodebaseNav = ({
   // Right-click removals — the old tree tab's delete buttons live in the row menu now.
   onDeleteService = null,
   onDeleteProject = null,
+  onRenameProject = null,
+  renaming = null,
+  onRenamingChange = () => {},
+  onAttachFolder = null,
 }) => {
   // ONE context menu for the whole nav: { x, y, title, items } or null.
   const [menu, setMenu] = useState(null);
@@ -2118,6 +2323,11 @@ const CodebaseNav = ({
           dynamicServices: [],
         };
       const cb = byProject[s.projectCode];
+      // A HUSK IS A NAME AND NOTHING ELSE. Its entry exists only to put the card on screen; counting
+      // it as a service drew a `husk://scratch` row under SERVICES, which is the opposite of what an
+      // empty project should say. Every slot on this card must be genuinely empty until something
+      // real attaches to it.
+      if (s.husk) return;
       if (s.dynamic) cb.dynamicServices.push(s);
       else cb.services.push(s);
     });
@@ -2142,6 +2352,10 @@ const CodebaseNav = ({
             onHostedOp={onHostedOp}
             onDeleteService={onDeleteService}
             onDeleteProject={onDeleteProject}
+            onRenameProject={onRenameProject}
+            renaming={renaming}
+            onStartRename={onRenamingChange}
+            onAttachFolder={onAttachFolder}
             openRowMenu={openRowMenu}
           />
         ))

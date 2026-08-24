@@ -80,6 +80,13 @@
       border-style: solid;
       animation: sv-busy-pulse 2.2s ease-in-out infinite;
     }
+    // ASKING — it stopped and is waiting on YOU. Distinct from busy on purpose: busy means your
+    // message waits, asking means the AGENT waits, and those are opposite instructions.
+    &--asking {
+      border-color: #8f97e8;
+      border-style: solid;
+      animation: sv-busy-pulse 1.4s ease-in-out infinite;
+    }
     &--none {
       opacity: 0.85;
     }
@@ -92,6 +99,23 @@
     font-size: 21px;
     line-height: 1;
     pointer-events: none;
+  }
+  // Who else is in here, readable from across the screen. Bottom-LEFT, because the unread count
+  // owns the top-right and a visit is not an unread message.
+  &__vis-pips {
+    position: absolute;
+    bottom: -2px;
+    left: -2px;
+    display: flex;
+    gap: 2px;
+    pointer-events: none;
+  }
+  &__vis-pip {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--vis, #9a7cb8);
+    box-shadow: 0 0 0 1.5px var(--sv-bg);
   }
   // A reply is waiting — the green count on the bot's shoulder. Cleared when the panel opens.
   &__unread {
@@ -389,6 +413,62 @@
     flex-direction: column;
     gap: 4px;
     padding: 2px 2px 0;
+  }
+  // THE MINIMISED BRIEF — two lines, both clipped to one. It replaces the cooking word while a
+  // conversation is attached: what it last SAID, and what it last DID. Clipping is the point; a
+  // brief that wraps is a panel he did not ask to open.
+  &__brief {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+  }
+  &__brief-say,
+  &__brief-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+  &__brief-cmd {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+  }
+  &__brief-say { display: block; }
+  &__brief-say {
+    font-size: 12px;
+    line-height: 1.35;
+    color: var(--sv-text);
+  }
+  &__brief-cmd {
+    font-family: "SF Mono", Menlo, "Courier New", monospace;
+    font-size: 10.5px;
+    line-height: 1.35;
+    color: var(--sv-text-faint);
+    // The dots ride at the end of the line, scaled down to sit with 10.5px mono, and they take the
+    // line's own colour so a SystemView action bounces in plum and a shell line in green.
+    .agent-chat__dots {
+      margin-left: 5px;
+      gap: 2px;
+      i {
+        width: 4px;
+        height: 4px;
+        background: currentColor;
+      }
+    }
+    // Still running — the one that is happening NOW, and the only one worth a colour.
+    &--running {
+      color: #4caf50;
+    }
+    // A SystemView action is not a shell line; it wears the app's plum here exactly as it does in
+    // the panel, so the two surfaces never disagree about what kind of thing just happened.
+    &--sv {
+      color: #9a7cb8;
+    }
+    &--running#{&}--sv {
+      color: #9a7cb8;
+    }
   }
   &__peek-row {
     font-size: 12px;
@@ -1242,9 +1322,98 @@
     }
   }
   // The fullness meter — a hairline under the header; fills toward the compaction mark.
+  // WHICH MODEL IS ANSWERING, in the header, always. Quiet — it is a fact you check, not a headline
+  // — but never absent, because "what am I talking to" should not require a hover.
+  &__model {
+    margin-right: 6px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: color-mix(in srgb, var(--sv-text-faint) 16%, transparent);
+    color: var(--sv-text-muted);
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 10px;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+  }
+  &__model-wrap {
+    position: relative;
+    display: inline-flex;
+  }
+  // Clickable ONLY when the shell can actually switch — otherwise it stays a plain label. A chip
+  // that looks pressable and does nothing is the lie this panel has already told twice.
+  &__model--pick {
+    border: none;
+    cursor: pointer;
+    &:hover { background: color-mix(in srgb, var(--sv-text-faint) 30%, transparent); }
+  }
+  // Mid-switch: the host does not confirm until the next turn opens, so the chip says what it is
+  // becoming rather than claiming it already has.
+  &__model--switching {
+    opacity: 0.65;
+    font-style: italic;
+  }
+  &__model-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    z-index: 30;
+    margin-top: 4px;
+    min-width: 210px;
+    padding: 4px;
+    border: 1px solid var(--sv-border);
+    border-radius: 8px;
+    background: var(--sv-surface);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+  }
+  &__model-item {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    width: 100%;
+    padding: 5px 8px;
+    border: none;
+    border-radius: 5px;
+    background: transparent;
+    color: var(--sv-text);
+    text-align: left;
+    cursor: pointer;
+    &:hover { background: color-mix(in srgb, #8f97e8 18%, transparent); }
+  }
+  &__model-item--current {
+    color: #4caf50;
+    font-weight: 700;
+  }
+  &__model-item-name {
+    flex: 1;
+    min-width: 0;
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  &__model-item-id {
+    flex: none;
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 10px;
+    color: var(--sv-text-muted);
+  }
   &__meter {
+    position: relative;
     height: 3px;
     background: color-mix(in srgb, var(--sv-border) 55%, transparent);
+  }
+  // The numbers behind a red bar, on the bar. Small, monospace, and only ever present when the bar
+  // is making a claim big enough to need them.
+  &__meter-why {
+    position: absolute;
+    right: 4px;
+    top: 4px;
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 9px;
+    line-height: 1;
+    color: #e05252;
+    white-space: nowrap;
+    pointer-events: none;
   }
   &__meter-fill {
     height: 100%;
@@ -2221,3 +2390,228 @@
     }
   }
 }
+
+// RFC-046 — the live work feed, at the foot of the message list. It is deliberately quieter than a
+// bubble: these are things the agent DID, sitting under the things it SAID, and they must never
+// compete with the conversation for attention.
+.agent-chat__work {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 4px 0 2px;
+  padding: 4px 6px;
+  border-left: 2px solid var(--sv-border);
+}
+
+// RFC-046 — the one press that moves the conversation out of the room and into the agent.
+.agent-chat__attach {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border-top: 1px solid var(--sv-border);
+  font-family: "SF Mono", Menlo, monospace;
+  font-size: 10px;
+  color: var(--sv-text-faint);
+
+  &-on { color: #9a7cb8; }
+  &-state { color: var(--sv-text-faint); }
+  &-note { font-style: italic; }
+  &-btn {
+    margin-left: auto;
+    border: 1px solid var(--sv-border);
+    background: none;
+    color: var(--sv-text-muted);
+    border-radius: 3px;
+    padding: 1px 8px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 10px;
+    &:hover { border-color: #7fb069; color: #7fb069; }
+  }
+  &-list { display: flex; flex-direction: column; gap: 2px; width: 100%; }
+  &-row {
+    border: 1px solid transparent;
+    background: none;
+    color: var(--sv-text-muted);
+    text-align: left;
+    border-radius: 3px;
+    padding: 2px 6px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 10.5px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    &:hover { border-color: var(--sv-border); color: var(--sv-text); }
+  }
+}
+
+// Attached, the feed IS the panel — no border-left tucking it under a conversation that is no
+// longer shown.
+// THE DIRECT CHAT'S WHOLE FEED IS ONE FLEX CHILD, and a flex child shrinks. `__list` is a flex
+// column, so this single tall div was being COMPRESSED to the height of the panel — its 240 rows
+// overflowed it instead of extending the list's scrollable height. Measured: 240 rows rendered,
+// 72kB of markup, and `scrollHeight === clientHeight === 350`. There was nothing to scroll TO, which
+// is why every JS fix looked like it did nothing and why the room (whose messages are many small
+// children) scrolled fine while talking directly did not. `flex: none` is the whole bug.
+.agent-chat__work--only {
+  border-left: none;
+  margin: 0;
+  padding: 6px 8px;
+  flex: none;
+  min-height: 0;
+}
+.agent-chat__work-note { color: var(--sv-text-faint); font-style: italic; line-height: 1.45; }
+
+// The conversation something is using right now — almost always the agent in this very panel.
+.agent-chat__attach-live { color: #d9c76a; }
+
+// The session's own cooking line — a beat that says it is alive and what it is on.
+// PINNED BELOW THE FEED, so it never scrolls away — his call: *"cooking should be sticky, she
+// shouldn't scroll away from it."* It sits outside the scroll container entirely (see AgentChat),
+// which is stronger than `position: sticky` and works where sticky structurally could not. Reading
+// back through an hour of transcript still leaves it in view.
+// THE PANEL WITH NO SESSION. Not an empty chat — a door. It is the first thing a project without
+// an agent says, and it says one thing.
+// A CONVERSATION ROW IS THREE FACTS, not a name: what it was about, when it was last touched, and
+// the last thing said in it. Picking the wrong conversation is the fear; evidence is the answer.
+.agent-chat__attach-row {
+  display: block;
+  text-align: left;
+  width: 100%;
+}
+.agent-chat__attach-title {
+  display: block;
+  font-weight: 600;
+  color: var(--sv-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.agent-chat__attach-when {
+  display: inline;
+  margin-right: 6px;
+  color: var(--sv-text-faint);
+  font-size: 10px;
+}
+.agent-chat__attach-tail {
+  color: var(--sv-text-muted, #8b93a7);
+  font-size: 10px;
+  font-style: italic;
+}
+
+.agent-chat__waiting {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px 2px;
+  border-top: 1px solid var(--sv-border);
+  margin-top: 6px;
+
+  &-msg {
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--sv-text);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  &-who {
+    display: inline-block;
+    margin-right: 5px;
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 10px;
+    font-weight: 700;
+  }
+}
+
+.agent-chat__swap {
+  border: none;
+  background: none;
+  color: var(--sv-text-faint);
+  font-size: 13px;
+  line-height: 1;
+  padding: 2px 4px;
+  cursor: pointer;
+  &:hover { color: #9a7cb8; }
+}
+
+.agent-chat__nobody {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 14px 10px;
+  &-line { font-size: 13px; font-weight: 600; color: var(--sv-text); }
+  &-sub { font-size: 11.5px; color: var(--sv-text-faint); line-height: 1.45; }
+  &-waiting {
+    font-size: 10.5px;
+    font-style: italic;
+    color: var(--sv-text-faint);
+  }
+  &-btn {
+    margin-top: 2px;
+    padding: 4px 11px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: #fff;
+    background: #9a7cb8;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    &:hover { background: #8a6ca8; }
+  }
+}
+
+// A window control, sized like the ones beside it — an icon, not a word.
+.agent-chat__stop {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 4px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: #d9736a;
+  opacity: .8;
+
+  &:hover { opacity: 1; }
+  &-sq {
+    width: 9px;
+    height: 9px;
+    border-radius: 2px;
+    background: currentColor;
+  }
+}
+
+.agent-chat__cooking {
+  // `flex: none` is the ONLY addition, and it is not a look: the line now sits outside the scroll
+  // as a flex child, and without it a flex child shrinks. Everything else is exactly as it was.
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  // BIGGER, his ask: at 11px the line was smaller than the chat body and easy to miss — the one
+  // line that answers "did my message even go through" should not be the smallest thing on screen.
+  font-size: 13.5px;
+  color: #7fb069;
+  font-style: italic;
+  &--waiting { color: #d9c76a; }
+}
+.agent-chat__cooking-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: sv-cook 1.1s ease-in-out infinite;
+}
+@keyframes sv-cook {
+  0%, 100% { opacity: .25; }
+  50% { opacity: 1; }
+}
+
+// Blocks follow the APP's theme here, not a document's — the wrapper carries `markdown--dark` when
+// the app is dark, which switches the same tokens the TV switches. No chat-specific colour table:
+// the earlier version of this file had one, and a second set of colours for the same components is
+// how two surfaces drift apart.

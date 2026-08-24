@@ -7,10 +7,13 @@
   align-items: baseline;
   gap: 5px;
   padding: 1px 7px 1px 4px;
-  margin: 0 1px;
-  border: 1px solid #d7dbe6;
+  // CHIPS NEED AIR. At 1px, two references written next to each other touched — he put three in a
+  // row on purpose and they read as one run-on control. The vertical margin matters just as much:
+  // chips that wrap onto a second line were sitting on the line above them.
+  margin: 3px 8px 3px 0;
+  border: 1px solid var(--sv-border);
   border-radius: 5px;
-  background: #f4f6fb;
+  background: var(--sv-bg);
   font-family: Monaco, Consolas, monospace;
   font-size: 12.5px;
   line-height: 1.5;
@@ -38,7 +41,7 @@
     font-family: inherit;
   }
   &__range {
-    color: #8b93a7;
+    color: var(--sv-text-muted);
   }
 
   &--file {
@@ -626,10 +629,10 @@
     gap: 10px;
     margin: 15px 0;
     padding: 10px 13px;
-    border: 1px solid #d7dbe6;
+    border: 1px solid var(--sv-border);
     border-left-width: 3px;
     border-radius: 6px;
-    background: #f7f8fb;
+    background: var(--sv-bg);
 
     &__icon {
       font-size: 14px;
@@ -671,7 +674,7 @@
   // ── :::details{summary=…} ──
   .md-details {
     margin: 15px 0;
-    border: 1px solid #e6e9f0;
+    border: 1px solid var(--sv-border-soft);
     border-radius: 6px;
     overflow: hidden;
 
@@ -685,13 +688,13 @@
       background: #f2f4f9;
       font-size: 13px;
       font-weight: 600;
-      color: #46506a;
+      color: var(--sv-text);
       text-align: left;
       cursor: pointer;
       &:hover { background: #e9edf6; }
     }
     &__caret {
-      color: #8b93a7;
+      color: var(--sv-text-muted);
       font-size: 10px;
     }
     &__body {
@@ -707,9 +710,9 @@
     // spacing (.md-commentable's 12px), which is what pushed an embed BELOW the text beside it in
     // a column. The wrappers own the rhythm; the embed is just a box.
     padding: 9px 11px 11px;
-    border: 1px solid #e6e9f0;
+    border: 1px solid var(--sv-border-soft);
     border-radius: 8px;
-    background: #fbfcfe;
+    background: var(--sv-bg);
     // An embed's internal layout (log table, load columns) scrolls inside the card — the document
     // itself must never scroll sideways.
     max-width: 100%;
@@ -735,11 +738,11 @@
     }
     &__title {
       font-weight: 600;
-      color: #3b4460;
+      color: var(--sv-text-strong);
     }
     &__scope {
       margin-left: auto;
-      color: #8b93a7;
+      color: var(--sv-text-muted);
       font-family: Monaco, Consolas, monospace;
       font-size: 11px;
     }
@@ -772,12 +775,12 @@
       padding: 1px 7px;
       border: 1px solid #d5dbe8;
       border-radius: 4px;
-      background: #fff;
+      background: var(--sv-surface);
       color: #6b7590;
       font-size: 11px;
       font-weight: 600;
       cursor: pointer;
-      &:hover { border-color: #b8c2d8; color: #3b4460; }
+      &:hover { border-color: #b8c2d8; color: var(--sv-text-strong); }
       // Diff mode is ON — the same amber the open pane's Diff button wears, which is the same amber
       // the nav's changed dots wear. One colour means "changed" everywhere in the app.
       &--on {
@@ -915,7 +918,7 @@
   // Done = DONE, not cancelled. A feature-status list reads wrong with strikethrough (it looks
   // deprecated), so a ticked item just goes quiet — the box carries the state.
   .md-task--done .md-task__text {
-    color: #8b93a7;
+    color: var(--sv-text-muted);
   }
 
   // ::::columns{split=60} / :::col
@@ -960,7 +963,7 @@
   // ::::tabs / :::tab{label=…}
   .md-tabs {
     margin: 15px 0;
-    border: 1px solid #e6e9f0;
+    border: 1px solid var(--sv-border-soft);
     border-radius: 8px;
     overflow: hidden;
 
@@ -969,7 +972,7 @@
       gap: 2px;
       padding: 5px 5px 0;
       background: #f2f4f9;
-      border-bottom: 1px solid #e6e9f0;
+      border-bottom: 1px solid var(--sv-border-soft);
       overflow-x: auto;
     }
     &__tab {
@@ -979,14 +982,14 @@
       border-radius: 6px 6px 0 0;
       font-size: 12.5px;
       font-weight: 600;
-      color: #8b93a7;
+      color: var(--sv-text-muted);
       cursor: pointer;
       white-space: nowrap;
-      &:hover { color: #46506a; }
+      &:hover { color: var(--sv-text); }
       &--on {
-        background: #fff;
+        background: var(--sv-surface);
         color: #3f51b5;
-        box-shadow: 0 -1px 0 #e6e9f0 inset;
+        box-shadow: 0 -1px 0 var(--sv-border-soft) inset;
       }
     }
     &__body { padding: 2px 14px 12px; }
@@ -1023,9 +1026,9 @@
   .md-input {
     margin: 15px 0;
     padding: 10px 12px 12px;
-    border: 1px solid #e6e9f0;
+    border: 1px solid var(--sv-border-soft);
     border-radius: 8px;
-    background: #fbfcfe;
+    background: var(--sv-bg);
 
     &__head {
       display: flex;
@@ -1045,7 +1048,7 @@
       padding: 1px 5px;
     }
     &__label {
-      color: #3b4460;
+      color: var(--sv-text-strong);
       font-weight: 600;
     }
     &__value {
@@ -1066,15 +1069,15 @@
       align-items: center;
       gap: 6px;
       padding: 5px 11px;
-      border: 1px solid #d7dbe6;
+      border: 1px solid var(--sv-border);
       border-radius: 999px;
-      background: #fff;
+      background: var(--sv-surface);
       font-size: 12.5px;
-      color: #46506a;
+      color: var(--sv-text);
       cursor: pointer;
       &:hover:not(:disabled) {
         border-color: #b9c2e8;
-        background: #f4f6fb;
+        background: var(--sv-bg);
       }
       &:disabled {
         cursor: default;
@@ -1082,7 +1085,7 @@
       }
       &--on {
         border-color: #3f51b5;
-        background: #eef1fb;
+        background: var(--sv-bg);
         color: #3f51b5;
         font-weight: 600;
       }
@@ -1099,7 +1102,7 @@
     }
     &__empty {
       font-size: 12px;
-      color: #97a0b8;
+      color: var(--sv-text-faint);
     }
 
     &__track {
@@ -1114,7 +1117,7 @@
     &__bound {
       font-family: Monaco, Consolas, monospace;
       font-size: 11px;
-      color: #97a0b8;
+      color: var(--sv-text-faint);
     }
   }
 
@@ -1149,7 +1152,7 @@
 .markdown {
   .md-carousel {
     margin: 15px 0;
-    border: 1px solid #e6e9f0;
+    border: 1px solid var(--sv-border-soft);
     border-radius: 8px;
     overflow: hidden;
 
@@ -1159,24 +1162,24 @@
       gap: 10px;
       padding: 6px 8px;
       background: #f2f4f9;
-      border-bottom: 1px solid #e6e9f0;
+      border-bottom: 1px solid var(--sv-border-soft);
     }
     &__nav {
-      border: 1px solid #d7dbe6;
-      background: #fff;
+      border: 1px solid var(--sv-border);
+      background: var(--sv-surface);
       border-radius: 6px;
       width: 26px;
       height: 24px;
       font-size: 15px;
       line-height: 1;
-      color: #46506a;
+      color: var(--sv-text);
       cursor: pointer;
-      &:hover { background: #eef1fb; border-color: #b9c2e8; color: #3f51b5; }
+      &:hover { background: var(--sv-bg); border-color: #b9c2e8; color: #3f51b5; }
     }
     &__label {
       font-size: 12.5px;
       font-weight: 600;
-      color: #3b4460;
+      color: var(--sv-text-strong);
     }
     &__dots {
       margin-left: auto;
@@ -1251,7 +1254,7 @@
 
     &__head {
       padding: 4px 8px 6px;
-      color: #8b93a7;
+      color: var(--sv-text-muted);
       font-size: 11px;
       white-space: nowrap;
       overflow: hidden;
@@ -1261,14 +1264,14 @@
     }
     &__sep {
       padding: 7px 8px 3px;
-      color: #8b93a7;
+      color: var(--sv-text-muted);
       font-size: 10px;
       letter-spacing: 0.06em;
       text-transform: uppercase;
     }
     &__note {
       padding: 5px 8px;
-      color: #8b93a7;
+      color: var(--sv-text-muted);
       font-size: 11.5px;
     }
     // A drawer — the block asked what it needs before it was written.
@@ -1300,14 +1303,14 @@
     }
     &__more {
       float: right;
-      color: #8b93a7;
+      color: var(--sv-text-muted);
     }
     &__tag {
       float: right;
       font-size: 9.5px;
       text-transform: uppercase;
       letter-spacing: 0.04em;
-      color: #8b93a7;
+      color: var(--sv-text-muted);
       margin-left: 8px;
       margin-top: 2px;
     }
@@ -1332,7 +1335,7 @@
       }
     }
     &__hint {
-      color: #8b93a7;
+      color: var(--sv-text-muted);
       font-size: 10.5px;
       font-weight: 400;
       margin-left: 6px;
@@ -1379,7 +1382,7 @@
   // green/red once you have, because a document someone shares should show the verdict at a glance.
   .md-approval {
     margin: 16px 0;
-    border: 1px solid #d7dbe6;
+    border: 1px solid var(--sv-border);
     border-left: 4px solid #b0b7c9;
     border-radius: 6px;
     overflow: hidden;
@@ -1399,7 +1402,7 @@
       gap: 8px;
       padding: 6px 10px;
       background: rgba(63, 81, 181, 0.04);
-      border-bottom: 1px solid #e6e9f0;
+      border-bottom: 1px solid var(--sv-border-soft);
     }
     &__kind {
       text-transform: uppercase;
@@ -1412,7 +1415,7 @@
     }
     &__label {
       font-size: 12.5px;
-      color: #46506a;
+      color: var(--sv-text);
       min-width: 0;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -1424,14 +1427,14 @@
       gap: 6px;
     }
     &__btn {
-      border: 1px solid #d7dbe6;
-      background: #fff;
-      color: #46506a;
+      border: 1px solid var(--sv-border);
+      background: var(--sv-surface);
+      color: var(--sv-text);
       font-size: 11.5px;
       padding: 3px 10px;
       border-radius: 5px;
       cursor: pointer;
-      &:hover { background: #f1f3fa; }
+      &:hover { background: var(--sv-bg); }
       &:disabled { opacity: 0.45; cursor: default; }
       &--yes.is-on {
         border-color: #3f9e6a;
@@ -1452,7 +1455,7 @@
       font-size: 10.5px;
       text-transform: uppercase;
       letter-spacing: 0.05em;
-      color: #8b93a7;
+      color: var(--sv-text-muted);
     }
     &__stamp-note {
       text-transform: none;
@@ -1466,7 +1469,7 @@
   // context, actions on the right. Green once it has run, because at that point it is a receipt.
   .md-commit {
     margin: 16px 0;
-    border: 1px solid #d7dbe6;
+    border: 1px solid var(--sv-border);
     border-left: 4px solid #b0b7c9;
     border-radius: 6px;
     overflow: hidden;
@@ -1482,7 +1485,7 @@
       gap: 8px;
       padding: 6px 10px;
       background: rgba(63, 81, 181, 0.04);
-      border-bottom: 1px solid #e6e9f0;
+      border-bottom: 1px solid var(--sv-border-soft);
     }
     &__kind {
       text-transform: uppercase;
@@ -1496,27 +1499,27 @@
     &__branch {
       font-family: "SF Mono", Menlo, monospace;
       font-size: 11.5px;
-      color: #46506a;
+      color: var(--sv-text);
     }
     &__ahead { color: #3f9e6a; margin-left: 5px; font-weight: 700; }
     &__behind { color: #d9a441; margin-left: 5px; font-weight: 700; }
     &__scope {
       margin-left: auto;
       font-size: 10.5px;
-      color: #8b93a7;
+      color: var(--sv-text-muted);
     }
     // Hand the message to the codebase panel's commit box and finish it there. Quiet — it's a way
     // OUT of the block, not a second Commit button.
     &__tonav {
-      border: 1px solid #d7dbe6;
-      background: #fff;
+      border: 1px solid var(--sv-border);
+      background: var(--sv-surface);
       color: #6b7590;
       font-size: 10.5px;
       padding: 1px 7px;
       border-radius: 4px;
       cursor: pointer;
       white-space: nowrap;
-      &:hover { border-color: #b8c2d8; color: #3b4460; }
+      &:hover { border-color: #b8c2d8; color: var(--sv-text-strong); }
     }
 
     // TABS — commit, flip to the log to watch it land, come back. His ask, and the reason the block
@@ -1534,11 +1537,11 @@
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.05em;
-      color: #8b93a7;
+      color: var(--sv-text-muted);
       padding: 2px 7px;
       border-radius: 4px;
       &:hover { color: #4a54a4; }
-      &.is-on { background: #fff; color: #4a54a4; box-shadow: inset 0 0 0 1px #d7dbe6; }
+      &.is-on { background: var(--sv-surface); color: #4a54a4; box-shadow: inset 0 0 0 1px var(--sv-border); }
     }
 
     // THE MESSAGE ROW — the button rides WITH the message rather than on its own row underneath,
@@ -1548,7 +1551,7 @@
       align-items: flex-start;
       gap: 8px;
       padding: 8px 12px;
-      border-bottom: 1px solid #e6e9f0;
+      border-bottom: 1px solid var(--sv-border-soft);
     }
     &__msgacts {
       flex: none;
@@ -1594,8 +1597,8 @@
       justify-content: center;
       height: 8px;
       cursor: ns-resize;
-      &--top { border-bottom: 1px solid #e6e9f0; }
-      &--bottom { border-top: 1px solid #e6e9f0; }
+      &--top { border-bottom: 1px solid var(--sv-border-soft); }
+      &--bottom { border-top: 1px solid var(--sv-border-soft); }
       &:hover .md-commit__grip {
         background: #6a74c4;
         width: 40px;
@@ -1605,7 +1608,7 @@
       width: 26px;
       height: 2px;
       border-radius: 2px;
-      background: #d7dbe6;
+      background: var(--sv-border);
       transition: width 0.12s ease;
     }
     // "going in" / "not going in" — the two states the commit actually cares about, named the way
@@ -1622,7 +1625,7 @@
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.06em;
-      color: #8b93a7;
+      color: var(--sv-text-muted);
     }
     &__all {
       margin-left: auto;
@@ -1665,7 +1668,7 @@
       white-space: nowrap;
       font-family: "SF Mono", Menlo, monospace;
       font-size: 11px;
-      color: #46506a;
+      color: var(--sv-text);
       &--gone { text-decoration: line-through; opacity: 0.65; }
     }
     &__partial {
@@ -1686,7 +1689,7 @@
       font-size: 13px;
       font-weight: 700;
       line-height: 1;
-      color: #8b93a7;
+      color: var(--sv-text-muted);
       opacity: 0;
       &:hover { color: #4a54a4; }
       &:disabled { opacity: 0.4; cursor: default; }
@@ -1696,12 +1699,12 @@
     &__out {
       margin: 0 0 8px;
       padding: 7px 9px;
-      background: #f1f3fa;
+      background: var(--sv-bg);
       border-radius: 5px;
       font-family: "SF Mono", Menlo, monospace;
       font-size: 10.5px;
       line-height: 1.45;
-      color: #46506a;
+      color: var(--sv-text);
       white-space: pre-wrap;
       word-break: break-word;
     }
@@ -1734,7 +1737,7 @@
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      color: #46506a;
+      color: var(--sv-text);
     }
     &__logwhen {
       flex: none;
@@ -1745,7 +1748,7 @@
     &__none {
       padding: 4px 12px;
       font-size: 11.5px;
-      color: #8b93a7;
+      color: var(--sv-text-muted);
       font-style: italic;
     }
 
@@ -1766,14 +1769,14 @@
       opacity: 0.8;
     }
     &__btn {
-      border: 1px solid #d7dbe6;
-      background: #fff;
-      color: #46506a;
+      border: 1px solid var(--sv-border);
+      background: var(--sv-surface);
+      color: var(--sv-text);
       font-size: 11.5px;
       padding: 3px 10px;
       border-radius: 5px;
       cursor: pointer;
-      &:hover { background: #f1f3fa; }
+      &:hover { background: var(--sv-bg); }
       &:disabled { opacity: 0.45; cursor: default; }
       // ARMED — the first click of the two. It has to look different enough that a second click is
       // obviously a second decision, not a repeat of the first.
@@ -1787,7 +1790,7 @@
         border-color: #6a74c4;
         color: #4a54a4;
       }
-      &--cancel { border: none; color: #8b93a7; }
+      &--cancel { border: none; color: var(--sv-text-muted); }
     }
     &__error {
       padding: 5px 12px 7px;
@@ -1827,7 +1830,7 @@
     border-radius: 4px;
 
     &:hover {
-      border-left-color: #d7dbe6;
+      border-left-color: var(--sv-border);
       background: rgba(63, 81, 181, 0.02);
     }
     &--has {
@@ -1920,25 +1923,25 @@
     &__form { display: flex; flex-direction: column; gap: 6px; }
     &__input {
       width: 100%;
-      border: 1px solid #d7dbe6;
+      border: 1px solid var(--sv-border);
       border-radius: 6px;
       padding: 6px 9px;
       font-size: 13px;
       font-family: inherit;
-      color: #46506a;
-      background: #fff;
+      color: var(--sv-text);
+      background: var(--sv-surface);
       resize: vertical;
     }
     &__actions { display: flex; gap: 6px; }
     &__post,
     &__cancel {
-      border: 1px solid #d7dbe6;
-      background: #fff;
+      border: 1px solid var(--sv-border);
+      background: var(--sv-surface);
       border-radius: 6px;
       padding: 3px 12px;
       font-size: 12px;
       cursor: pointer;
-      &:hover { background: #f1f3fa; }
+      &:hover { background: var(--sv-bg); }
     }
     &__post {
       border-color: #3f51b5;
@@ -1949,14 +1952,14 @@
     // Same mic + interim line the chat input has — a reply box listens too.
     &__mic {
       margin-left: auto;
-      border: 1px solid #d7dbe6;
-      background: #fff;
+      border: 1px solid var(--sv-border);
+      background: var(--sv-surface);
       border-radius: 6px;
       padding: 3px 8px;
       font-size: 13px;
       line-height: 1;
       cursor: pointer;
-      &:hover { background: #f1f3fa; }
+      &:hover { background: var(--sv-bg); }
       &--on {
         border-color: #e05252;
         background: rgba(224, 82, 82, 0.12);
@@ -1969,7 +1972,7 @@
       gap: 7px;
       font-size: 12px;
       font-style: italic;
-      color: #8b93a7;
+      color: var(--sv-text-muted);
       min-height: 18px;
     }
     &__interim-dot {
@@ -1986,7 +1989,7 @@
     }
     &__note {
       font-size: 11.5px;
-      color: #8b93a7;
+      color: var(--sv-text-muted);
       &--bad { color: #a2503f; }
     }
   }

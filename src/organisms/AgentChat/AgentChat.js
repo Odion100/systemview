@@ -3,6 +3,8 @@ import { createPortal } from "react-dom";
 import moment from "moment";
 import { useHistory, useLocation, useParams } from "react-router-dom";
 import ServiceContext from "../../ServiceContext";
+import BLOCKS from "../../atoms/Markdown/registry";
+import { MarkdownWriteProvider, MarkdownScopeProvider } from "../../atoms/Markdown/context";
 import ReportLink from "../../atoms/Markdown/blocks/ReportLink";
 import NsLink from "../../atoms/Markdown/blocks/NsLink";
 import FileLink from "../../atoms/Markdown/blocks/FileLink";
@@ -12,6 +14,11 @@ import { spotlight, clearSpotlight, animationMode, setAnimationMode, MODES } fro
 import { resolveTarget, docRectOf, revealDocLines } from "../../spotlightTargets";
 import { slotId, setNavDocked, useNavDock } from "./navDock";
 import { hasHostDictation, startHostRecording } from "../../utils/hostDictation";
+import Feed from "../AgentWorkbench/Feed";
+import useAgentSession from "../AgentWorkbench/useAgentSession";
+import { CTX_WARN, CTX_DUE, tokensShort } from "../AgentWorkbench/feedRows";
+import { visStyle } from "../AgentWorkbench/visitorColor";
+import { canListTranscripts, listAgents, listTranscripts, transcriptTail } from "../../utils/hostAgent";
 import CodebaseNav from "../CodebaseNav/CodebaseNav";
 import { useAppDark } from "../../atoms/appTheme";
 import loadServiceWithHeaders from "../../utils/loadService";
@@ -49,7 +56,17 @@ const LINKISH =
 // The reference chips a bubble can carry. Deliberately the SAME components the markdown renderer
 // uses — a `:file[…]` must mean the identical thing in a chat bubble and in a document, or agents
 // have to learn two dialects for one idea.
-const REF_BLOCKS = { report: ReportLink, ns: NsLink, file: FileLink, ui: UiLink };
+// RFC-050 — inline references, now the registry's own. `help` and `diff` were missing for no reason
+// other than that nobody had needed them in a bubble; a chat that carries the vocabulary carries all
+// of it. Falls back to ReportLink for an unknown name, exactly as before.
+const REF_BLOCKS = {
+  report: ReportLink,
+  ns: NsLink,
+  file: FileLink,
+  ui: UiLink,
+  help: (BLOCKS.help && BLOCKS.help.Component) || ReportLink,
+  diff: (BLOCKS.diff && BLOCKS.diff.Component) || ReportLink,
+};
 // The open door wants a language; without one the pane falls back to plain text and the file loses
 // its highlighting for no reason other than which door opened it.
 const langFromPath = (p = "") => {
@@ -173,7 +190,56 @@ const alignOf = (c) => (/^:.*:$/.test(c) ? "center" : /:$/.test(c) ? "right" : u
 // Block pass: fenced code, headings (as bold lines — an h1 inside a bubble is absurd), tight
 // lists, quotes, rules. Anything else is prose, and prose keeps its own newlines because the
 // bubble is `white-space: pre-wrap`; blank lines become block spacing instead of dead height.
-function renderChatMessage(text) {
+// RFC-050 — THE SAME BLOCKS THE TV RENDERS, in the chat. His call, once the chat started reading
+// like a document: *"I think it can take interactive markdown elements — sometimes it's a report,
+// sometimes you could just offer me a commit right in the chat, show me files."*
+//
+// The registry is the ONE implementation; the chat dispatches to it rather than growing its own
+// copy of a commit block. What the chat keeps is its TYPOGRAPHY — his spacing, his bubbles — which
+// is the thing he told me not to touch when I reached for `atoms/Markdown` wholesale. So: prose
+// renders here, blocks render there, and there is only ever one CommitBlock in this codebase.
+//
+//   :file[cli/index.js]            inline, mid-sentence
+//   ::commit{message="…"}          a leaf on its own line
+//   :::approval{id=x} … :::        a container wrapping what is being decided
+const LEAF_RE = /^\s*(:{2,3})([a-z][\w-]*)(?:\[([^\]]*)\])?(?:\{([^}]*)\})?\s*$/;
+const INLINE_RE = /:([a-z][\w-]*)\[([^\]]*)\](?:\{([^}]*)\})?/;
+// Attributes, parsed the way the directive syntax actually works: a quoted value may hold spaces
+// and pipes, an unquoted one stops at the first space. Getting this wrong is what silently ate a
+// `::question` on RFC-049, so the chat uses the same rule rather than a looser one.
+export function parseAttrs(src) {
+  const out = {};
+  const re = /([\w-]+)(?:=(?:"([^"]*)"|'([^']*)'|([^\s]+)))?/g;
+  let m;
+  while ((m = re.exec(String(src || "")))) {
+    const [, k, dq, sq, bare] = m;
+    out[k] = dq !== undefined ? dq : sq !== undefined ? sq : bare !== undefined ? bare : "true";
+  }
+  return out;
+}
+
+// One directive → one registry component. Unknown names render as the literal text they were, so a
+// sentence that merely looks like a directive is never swallowed.
+function SvChatBlock({ name, label, attrs, line, children }) {
+  const [dark] = useAppDark();
+  const entry = BLOCKS[name];
+  if (!entry || !entry.Component) return null;
+  const { Component } = entry;
+  return (
+    // `markdown` IS THE SCOPE THE BLOCK STYLES LIVE IN — and it re-declares the theme tokens as
+    // LIGHT, because a DOCUMENT is explicitly light or dark rather than following the app. That is
+    // right for the TV and wrong here: adding the class without its `--dark` twin is what pinned a
+    // white card into a dark chat. A chat is not a document; it follows the app, like the panel
+    // around it does.
+    <div className={`chat-md__block markdown${dark ? " markdown--dark" : ""}`}>
+      <Component label={label} attrs={attrs} line={line} node={null}>
+        {children}
+      </Component>
+    </div>
+  );
+}
+
+export function renderChatMessage(text) {
   const lines = String(text || "").split("\n");
   const out = [];
   let para = [];
@@ -262,6 +328,32 @@ function renderChatMessage(text) {
             </tbody>
           </table>
         </div>,
+      );
+      continue;
+    }
+    // A DIRECTIVE ON ITS OWN LINE. `::commit{…}` is a leaf; `:::approval{…}` opens a container that
+    // wraps whatever is being decided, and its body renders through this same function so a proposal
+    // inside an approval still reads like the rest of the chat.
+    const dir = line.match(LEAF_RE);
+    if (dir && BLOCKS[dir[2]]) {
+      flushAll();
+      const [, fence, name, dlabel, dattrs] = dir;
+      const attrs = parseAttrs(dattrs);
+      let body = null;
+      if (fence === ":::") {
+        const close = [];
+        let j = i + 1;
+        for (; j < lines.length; j++) {
+          if (lines[j].trim() === ":::") break;
+          close.push(lines[j]);
+        }
+        body = close.join("\n");
+        i = j; // the loop's own increment steps past the closing fence
+      }
+      out.push(
+        <SvChatBlock key={`d${k++}`} name={name} label={dlabel || ""} attrs={attrs} line={i + 1}>
+          {body ? renderChatMessage(body) : null}
+        </SvChatBlock>,
       );
       continue;
     }
@@ -363,6 +455,9 @@ const COOKING = [
 // Where the fullness meter points: agents self-compact their room around this record count
 // (agents/chat.md); the meter exists because "aren't going to always remember" is true.
 const COMPACT_MARK = 300;
+// The context window is no longer a constant here — `work.state.ctxWindow` carries it, worked out
+// from the model the session reports (see contextWindowFor in feedRows). The 200k that used to live
+// on this line was wrong by five times for his sessions and pinned the bar at 100% permanently.
 // Focus order across ALL bots — clicking any bot's window brings it above the others; the
 // counter only ever climbs, so the last-touched bot is always on top.
 let topZ = 8500;
@@ -385,14 +480,23 @@ const dockAllBots = () => window.dispatchEvent(new Event("sv:dockAll"));
 // Every visitor project gets ITS OWN color (his call: "everyone who's a visitor has the same
 // color, so them cooking both is not as helpful") — a stable hash of the project code to a hue,
 // steered off the home-agent green so a visitor never reads as the house. Same name = same color
-// everywhere: bubbles, name tags, cooking lines, roster chips, system pills.
-const visColor = (pc) => {
-  let h = 0;
-  for (const c of String(pc || "")) h = (h * 31 + c.charCodeAt(0)) % 360;
-  if (Math.abs(h - 122) < 30) h = (h + 60) % 360; // keep clear of the cooking green
-  return `hsl(${h}, 55%, 52%)`;
-};
-const visStyle = (pc) => (pc ? { "--vis": visColor(pc) } : undefined);
+// everywhere: bubbles, name tags, cooking lines, roster chips, system pills. It lives in the
+// workbench now so the SESSION feed can wear the same colours — a peer agent turns up in a direct
+// chat too, and it must be the same agent in both places.
+
+// `claude-opus-5-20260101` is a build identifier; `opus-5` is a name. The chip shows the name and
+// keeps the identifier on the hover, because the only time the date matters is when you are
+// checking exactly which build answered.
+//
+// AGREED WITH AUTOBOT, character for character, so the two panels read as one system: strip the
+// `claude-` prefix and the trailing date, and KEEP the `[1m]` marker — the long-context variant is
+// a different thing to be talking to, not a build detail. The date is stripped even when the marker
+// sits after it, which a naive `-\d{8}$` misses.
+const shortModel = (m) =>
+  String(m || "")
+    .replace(/^claude-/, "")
+    .replace(/-\d{8}(?=(\[|$))/, "")
+    .replace(/-latest(?=(\[|$))/, "");
 
 // Message-bubble time (his ask: "we need to see the time") — compact clock, full date on hover.
 const msgTime = (ts) =>
@@ -440,6 +544,61 @@ function StatusLine({ status, visitor }) {
     >
       {visitor ? `${visitor}: ${text}` : text}
       <span className="agent-chat__dots">
+        <i />
+        <i />
+        <i />
+      </span>
+    </div>
+  );
+}
+
+// THE DIRECT CHAT'S COOKING LINE — and it needs BOTH modes. His catch once the host wired
+// `assistant.thinking` for real: *"all it shows is your thinking. It ain't showing the fucking
+// cooking messages. There needs to still display an animation mode, even though we can have the new
+// one here."* So: a SPECIFIC thing in flight ("reading CodePane.js", "moved the window /specs/x")
+// shows verbatim, because truth beats theatre — but the moment there is nothing specific, or the
+// only thing on offer is the bare word "thinking", it falls back to the room's cycling words. One
+// frozen word for a whole turn is indistinguishable from a dead agent, which is the whole reason
+// the room's line cycles in the first place.
+// The WORDS, separated from the line that draws them, because two different surfaces draw them:
+// the open panel's own line, and the closed bubble's peek — and the peek has always been a
+// StatusLine. Handing it a CookLine instead swapped the markup underneath the peek's styling and
+// drew an empty bubble, which is what he saw: *"it wasn't the word, it was empty."*
+function useCookWord(doing, state) {
+  const specific = doing && doing !== "thinking" ? doing : "";
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    if (specific) return undefined;
+    setI(0);
+    const t0 = setTimeout(() => setI(1), 2600);
+    const iv = setInterval(() => setI((n) => (n === 0 ? 0 : (n % COOKING.length) + 1)), 2600);
+    return () => {
+      clearTimeout(t0);
+      clearInterval(iv);
+    };
+  }, [specific]);
+  return specific || (state === "waiting" ? "waiting on you" : i > 0 ? COOKING[i - 1] : "thinking");
+}
+
+function CookLine({ doing, state }) {
+  const text = useCookWord(doing, state);
+  // I TOOK THESE OUT MYSELF AND BLAMED HIM FOR IT — correcting the record, because the old comment
+  // here claimed he had cut the trailing dots. He hadn't: *"I never rejected the dots on that line,
+  // trust me."* What he actually objected to was the cooking line's LOOK changing wholesale, and I
+  // over-read that into stripping an ornament he had never mentioned. Asked for directly now —
+  // *"you might as well put those dancing ellipses at the end of the cooking message inside the
+  // chat as well"* — and they earn their place: on a line naming a specific thing in flight, the
+  // dots are the only signal separating "doing this" from "did this".
+  //
+  // The lesson worth more than the dots: a comment that attributes a decision to him is a claim
+  // about what he said, and getting it wrong buries a wrong rule where the next session will obey it.
+  return (
+    <div className={`${CLASSNAME}__cooking ${CLASSNAME}__cooking--${state}`}>
+      <span className={`${CLASSNAME}__cooking-dot`} />
+      {text}
+      {/* The room's dots, exactly as they are — *"just add it at the end. Be there. Don't change no
+          style."* No modifier class, no resizing, nothing else on this line touched. */}
+      <span className={`${CLASSNAME}__dots`}>
         <i />
         <i />
         <i />
@@ -611,6 +770,116 @@ function BotBubble({ projectCode, index }) {
   const [open, setOpen] = useState(false);
   const [ctxMenu, setCtxMenu] = useState(false);
   const [messages, setMessages] = useState([]);
+  // RFC-046 — WHAT IT IS DOING, in the conversation where he is already talking to it. His
+  // correction after I built it as a fold in the navigation: *"there's a new agent in a section in
+  // a navigation, and that's not what I meant by anything I said"* — he said he does not see the
+  // agents work IN THE CONVERSATIONS. So the live feed lands at the bottom of this list, in the
+  // silence between messages that was the actual complaint.
+  //
+  // TWO STREAMS, ONE PANEL, and they are different things: the room carries what an agent SAYS
+  // (and works for a CLI agent with no host session at all); the session carries what it DOES.
+  // With no host, or an agent that is only a CLI hold, `rows` is empty and this renders nothing —
+  // which is the honest outcome, not a broken-looking box.
+  // TALKING TO THE AGENT DIRECTLY, IN THIS BOX. His instruction, and the end of the CLI detour:
+  // *"that chat now needs to be just a chat just like this — I should be talking over there to you,
+  // not over here anymore."*
+  //
+  // Attach a conversation and this panel STOPS being a room and becomes the session: what you type
+  // goes to the agent, not into `.systemview/chats`. The room keeps existing underneath for agents
+  // talking to each other, unused by him — the CLI hold is a remnant from that moment, which is
+  // exactly the handoff autobot and I settled (the resume click IS the handoff; the hold stands
+  // down when the session claims the identity).
+  //
+  // ATTACHED IS A CHOICE, NOT A DEFAULT. Opening a panel must never silently start a Claude session
+  // in a folder — that is a process, and a process you did not ask for is the thing this whole seam
+  // exists to prevent.
+  // ATTACHMENT IS THE PROJECT'S STATE, not this panel's. It survives navigation — losing your
+  // conversation because you clicked a file is absurd — and it is readable by other surfaces, which
+  // is how the codebase itself can say "no agent here yet" without knowing anything about the chat.
+  const [attached, setAttached] = useState(() => {
+    try { return localStorage.getItem(`sv.chat.attached.${projectCode}`) || null; } catch { return null; }
+  });
+  useEffect(() => {
+    try {
+      if (attached) localStorage.setItem(`sv.chat.attached.${projectCode}`, attached);
+      else localStorage.removeItem(`sv.chat.attached.${projectCode}`);
+    } catch {}
+    window.dispatchEvent(new CustomEvent("sv:agentAttached", { detail: { projectCode, attached } }));
+    // NO SELF-EVICTION. I wired attaching to kick this project's own identity, meaning to evict a
+    // stale CLI hold — but `kick` is the ROOM's eviction, so every attach threw the home agent out
+    // of its own room and wrote "systemview-test was kicked from the room" into the history. It
+    // solved a problem that is already gone (holds), by breaking presence for the agent he is
+    // actually talking to. If a double-answer ever shows up in practice, the fix belongs in the
+    // hub — one identity, one live claim — not in a kick from the view that just attached.
+  }, [attached, projectCode]);
+  // Read inside the chat subscription, which is set up once and must not capture a stale value.
+  const attachedRef = useRef(attached);
+  attachedRef.current = attached;
+  // The first prompt does not live behind a chat you have to open first (his catch: *"where is the
+  // first prompt to you as a new user — do you have to try to open the chat to see it?"*). The
+  // codebase asks, and this is the door it knocks on.
+  useEffect(() => {
+    const onAsk = (e) => {
+      if (!e.detail || e.detail.projectCode !== projectCode) return;
+      openRef.current = true;
+      setOpen(true);
+      setPicker(true);
+    };
+    window.addEventListener("sv:chooseConversation", onAsk);
+    return () => window.removeEventListener("sv:chooseConversation", onAsk);
+  }, [projectCode]);
+  const [modelMenu, setModelMenu] = useState(false);
+  const [picker, setPicker] = useState(false);
+  const [sendErr, setSendErr] = useState("");
+  const [transcripts, setTranscripts] = useState(null);
+  // The last thing said in each conversation, so picking one is reading rather than guessing.
+  const [tails, setTails] = useState({});
+  const [live, setLive] = useState([]);
+  // `attached` is one of: null (the room), "fresh", "live:<id>" (join a running session), or a
+  // transcript id (resume a file). Joining passes NO resume — the session is already alive, and
+  // asking the host to resume a live session would be asking it to start what is already started.
+  const joining = typeof attached === "string" && attached.startsWith("live:");
+  const attachedId = joining ? attached.slice(5) : attached;
+  const work = useAgentSession({
+    projectCode,
+    // ATTACHED MEANS SUBSCRIBED, OPEN OR NOT. This used to be `open && !!attached` — a closed panel
+    // cost nothing, which was the right trade when the bot showed nothing while minimised. It isn't
+    // any more: minimised, the bot has to show the ring and the last line, and neither exists if
+    // nobody is listening. His ask — *"when it's in minimization mode, one block that shows text and
+    // commands right under the agent"* — is structurally impossible without this.
+    enabled: !!attached,
+    resume: !joining && attached && attached !== "fresh" ? attachedId : null,
+    sessionId: attached && attached !== "fresh" ? attachedId : "agent",
+  });
+  const workRef = useRef(work);
+  workRef.current = work;
+  useEffect(() => {
+    if (!picker) return;
+    let dead = false;
+    // Live first — a session already talking to him is the one he means, and joining it is not the
+    // same act as resuming a file.
+    listAgents().then((r) => !dead && setLive(r.filter((x) => x.projectCode === projectCode)));
+    if (canListTranscripts())
+      listTranscripts(projectCode).then(async (r) => {
+        if (dead) return;
+        setTranscripts(r);
+        // Only the ones he can actually see — reading every transcript on disk to draw a list is
+        // the kind of eager work that makes a picker feel broken.
+        const rows = (r || []).slice(0, 8);
+        const got = {};
+        for (const t of rows) {
+          if (dead) return;
+          const tail = await transcriptTail(projectCode, t.sessionId, 2);
+          const last = [...tail].reverse().find((m) => (m.text || "").trim());
+          if (last) got[t.sessionId] = String(last.text).replace(/\s+/g, " ").slice(0, 120);
+        }
+        if (!dead) setTails(got);
+      });
+    else setTranscripts([]);
+    return () => {
+      dead = true;
+    };
+  }, [picker, projectCode]);
   // THE KICK (right-click a roster name) — the human's bouncer power; which visitor is targeted.
   const [kickTarget, setKickTarget] = useState(null);
   // Click-to-front: this bot's place in the focus order (see topZ above).
@@ -887,6 +1156,9 @@ function BotBubble({ projectCode, index }) {
   // replay rule: history never executes, and nothing executes twice no matter which path delivered it.
   const mountTsRef = useRef(Date.now());
   const execedRef = useRef(new Set());
+  // Record ids whose side-effects (forward/showSaid/unread/animate) have already run — the
+  // same-record-twice guard for the chat-updated handler; see the comment there.
+  const seenRecordsRef = useRef(new Set());
   // Landing exactly where you already are must not cost a history entry — pressing the same
   // receipt five times should not mean five clicks of Back (his catch). Different destination:
   // push, as always.
@@ -1065,15 +1337,174 @@ function BotBubble({ projectCode, index }) {
     } catch {}
   };
 
+  // A programmatic scroll fires a scroll EVENT, and the handler below reads that event to decide
+  // whether he is still pinned to the bottom. Left ungated, our own pin could measure itself
+  // mid-layout, decide he had scrolled away, and switch sticking off for the rest of the session —
+  // one bad frame and the chat never follows anything again.
+  const pinning = useRef(0);
   const scrollToEnd = () => {
     const el = listRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
+    if (!el) return;
+    pinning.current = Date.now() + 300;
+    el.scrollTop = el.scrollHeight;
   };
   // Opening the panel lands you at the LATEST message — the list mounts on open, so scroll after
   // it exists.
+
+  // AND SO DOES ATTACHING. A resumed conversation arrives as a wall of replayed messages, and it
+  // was landing him at the TOP of it — his catch: *"I have to scroll all the way from the top back
+  // down to the bottom."* Nobody opens a conversation to read the beginning again.
+  //
+  // STICKY, NOT FORCED. Once it is open, new rows only pull the view down if he is ALREADY near the
+  // bottom — yanking the scroll while he is reading something further up is the same disrespect in
+  // the other direction. Attaching itself always lands at the end, because that is the arrival.
+  // THE CLOSED BUBBLE HAS TO SPEAK FOR THE CONVERSATION HE IS ACTUALLY IN. Both the preview and the
+  // cooking line still read the ROOM — his catch: *"the chat preview when the chat is closed is
+  // currently coming from the old chat, not the new chat."* While attached, the session is the chat,
+  // so it owns both. This is the first half of the teardown: the bubble stops depending on the room
+  // before the room goes, rather than after, so nothing goes dark in between.
+  const saidRows = attached
+    ? work.rows.filter((r) => r.kind === "say" && !r.replay && String(r.text || "").trim())
+    : [];
+  const seenAt = (() => {
+    try { return Number(localStorage.getItem(`sv.chatSeen.${projectCode}`)) || 0; } catch { return 0; }
+  })();
+  const freshSaid = saidRows.filter((r) => (r.ts || 0) > seenAt);
+  // A replay row has no business raising an unread count — those are messages he has already read,
+  // arriving again because he resumed the conversation.
+  const sessionUnread = attached ? freshSaid.length : 0;
+  // OPEN MEANS SEEN — for the SESSION'S rows, not only the room's. The room stamp lives in the
+  // chat-message handler, which never fires for a reply that exists only in the session feed — so
+  // a reply he watched land stayed "fresh" forever, and the instant he closed the panel the peek
+  // popped up to show him the conversation he had just left. His catch: *"the preview shows right
+  // after I close the chat — I was already in the chat, so there's no messages that I didn't see."*
+  // While the panel is open, whatever the session says is read as it arrives — the rule the room
+  // has always had (the handler stamps record.ts on every arrival while open). Stamped with the
+  // ROW'S ts rather than the wall clock, so a bridge clock running ahead of ours can't leave the
+  // newest message forever unread.
+  const sawOpenRef = useRef(false);
+  const [, seenBump] = React.useReducer((n) => n + 1, 0);
   useEffect(() => {
-    if (open) setTimeout(scrollToEnd, 30);
-  }, [open]);
+    const closing = sawOpenRef.current && !open;
+    sawOpenRef.current = open;
+    if (!open && !closing) return; // stamp while open, and once more at the moment of closing
+    if (!saidRows.length) return;
+    const last = saidRows[saidRows.length - 1].ts || 0;
+    if (last > seenAt) {
+      try { localStorage.setItem(`sv.chatSeen.${projectCode}`, String(last)); } catch {}
+      // The close render already drew with the stale stamp — a write to localStorage repaints
+      // nothing on its own, so nudge one re-render and the peek recomputes to empty.
+      if (closing) seenBump();
+    }
+  });
+
+  // The room's last words, for a project with no session. Newest last, capped — this is a holding
+  // area, not a second inbox to live in.
+  const roomTail = attached ? [] : messages.filter((m) => m.from === "agent" && !m.kind).slice(-12);
+
+  const sessionWrite = useMemo(
+    () => ({
+      // CLICKABLE FOREVER, the same rule the TV has. He answered "lock once answered", I built it,
+      // and then he changed his answer by clicking the other option — which is the argument. Taking
+      // something back is a real answer, and a surface that forbids it just means the correction
+      // arrives as a sentence instead, which is worse for both of us.
+      editable: !!attached,
+      setAttr: (line, key, value) => {
+        if (!attached) return;
+        // NAME WHAT WAS ANSWERED. `answered "157"` arrived on its own and meant nothing to either of
+        // us — a value with no question attached is a receipt for a purchase you can't identify. The
+        // block only hands back (line, key, value), so the question is found by looking for the
+        // directive that owns this value among the rows on screen.
+        let about = "";
+        try {
+          const rows = (workRef.current && workRef.current.rows) || [];
+          for (const r of rows) {
+            const hit = String(r.text || "")
+              .split("\n")
+              .find((l) => /^\s*(:{2,3})(question|approval|input)\b/.test(l) && (!value || l.includes(String(value))));
+            if (hit) {
+              const label = hit.match(/\[([^\]]+)\]/);
+              const id = hit.match(/\bid=("?)([^"\s}]+)\1/);
+              about = label ? label[1] : id ? id[2] : "";
+              if (about) break;
+            }
+          }
+        } catch {}
+        const said = value ? `answered "${value}"` : `cleared the ${key || "answer"}`;
+        work.send(about ? `${said} — ${about}` : said);
+      },
+    }),
+    // `work.send` is stable (useCallback with no deps); `attached` is what actually changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [attached],
+  );
+
+  const stick = useRef(true);
+  // ARRIVING IS ALWAYS THE BOTTOM. Opening the panel, switching chats, attaching a session — every
+  // one of those is an arrival, and nobody arrives at a conversation to read the top of it.
+  useEffect(() => {
+    stick.current = true;
+    scrollToEnd();
+    const t = [10, 60, 200, 500].map((ms) => setTimeout(scrollToEnd, ms));
+    return () => t.forEach(clearTimeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, attached, chat]);
+  // NEW ROWS PULL THE VIEW DOWN — in the ROOM as well as in a session. The old effect was gated on
+  // `attached`, so the room's chat never followed a new message at all. That gate was the bug he
+  // reported twice: *"it doesn't scroll down as new messages come in."*
+  useEffect(() => {
+    if (stick.current) scrollToEnd();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages.length, work.rows.length]);
+  // AND THE OTHER HALF: height that arrives AFTER the rows do. Markdown, file embeds, images and a
+  // streaming answer all grow the list milliseconds — sometimes seconds — after React is finished,
+  // so a one-shot scroll lands short and then just sits there. Following the content beats guessing
+  // when it settles, which is what the old two-timeout version was doing.
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return undefined;
+    // COALESCED TO ONE PER FRAME. `scrollToEnd` reads `scrollHeight`, which forces a synchronous
+    // layout — and the MutationObserver below watches characterData across the whole subtree, so a
+    // streaming answer fires it on every few characters. Un-throttled that is a forced reflow per
+    // mutation over a list that can hold hundreds of messages, and the whole panel goes gummy: the
+    // symptom he noticed was dictation showing interim words but taking a beat to commit them into
+    // the input, on a feature neither of us had touched.
+    let frame = 0;
+    const bump = () => {
+      if (!stick.current || frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        if (stick.current) scrollToEnd();
+      });
+    };
+    // TWO OBSERVERS, because the list grows in two different ways and a count-based effect sees
+    // NEITHER of them. Rows arriving is the easy case. The ones that were actually failing him:
+    // a streamed answer growing character by character, an embed or image measuring itself late,
+    // and the COOKING LINE appearing — *"when you're cooking, I don't see you cooking at the
+    // bottom."* None of those change a message count, so nothing was firing.
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(bump) : null;
+    if (ro) {
+      ro.observe(el);
+      Array.from(el.children).forEach((c) => ro.observe(c));
+    }
+    const mo =
+      typeof MutationObserver !== "undefined"
+        ? new MutationObserver((recs) => {
+            if (ro)
+              recs.forEach((r) =>
+                Array.from(r.addedNodes).forEach((n) => n.nodeType === 1 && ro.observe(n)),
+              );
+            bump();
+          })
+        : null;
+    if (mo) mo.observe(el, { childList: true, subtree: true, characterData: true });
+    return () => {
+      if (frame) cancelAnimationFrame(frame);
+      if (ro) ro.disconnect();
+      if (mo) mo.disconnect();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, attached]);
 
   useEffect(() => {
     if (!projectCode || !SystemView) return;
@@ -1167,13 +1598,46 @@ function BotBubble({ projectCode, index }) {
       // read `record.id` unconditionally, threw inside a state updater, and took the whole app down
       // to a white page: every interactive block on the TV crashed the thing it was drawn on.
       if (!record || !record.id) return;
+      // ONE RECORD, ONE SET OF CONSEQUENCES. The same record can arrive on this channel more than
+      // once (the hub has several emit sites for a say, and a room served by its own process pushes
+      // up as well). The LIST was already deduped by id — but the side-effects below were not, so a
+      // double-emitted visitor message forwarded into the session TWICE: two echoes, two host
+      // round-trips, four blocks on his screen ("you're getting four blocks, two of each, every
+      // time you send a message"). Everything a record causes now runs exactly once.
+      if (seenRecordsRef.current.has(record.id)) return;
+      seenRecordsRef.current.add(record.id);
       setMessages((prev) => (prev.some((m) => m.id === record.id) ? prev : [...prev, record]));
       // A command MOVES the screen — that's its own notification; no unread count for it.
       if (record.kind === "command") {
         execedRef.current.add(record.id);
         execCommand(record);
       }
-      else if (record.from === "agent" && !openRef.current) setUnread((n) => n + 1);
+      // VISITING, IN THE NEW WORLD. An agent reaching this project through the CLI used to land in
+      // the room and wait for its agent to be "joined" — a hold, an arming ritual, and a whole class
+      // of "was anyone listening?". Attached, the conversation IS the agent, so the message goes
+      // straight into the session, carrying who sent it. Skipping our own is what stops it talking
+      // to itself: a message with no `as` is this project speaking, and forwarding that would loop.
+      if (
+        attachedRef.current &&
+        record.from === "agent" &&
+        !record.kind &&
+        record.as &&
+        record.as !== projectCode
+      ) {
+        try { workRef.current.send(String(record.text || ""), record.as); } catch {}
+      }
+      // AND THE HOME AGENT'S OWN MESSAGES ARE NOT INVISIBLE. This is the one that cost him the whole
+      // evening: attached, the room is out of the panel, and a `systemview say` from this project's
+      // own agent had nowhere on earth to render. He kept going back to look for a commit block that
+      // was genuinely in the room and genuinely rendering — on a surface he was no longer looking at.
+      // It is SHOWN, not sent: the session already IS this agent, so feeding it back to the model
+      // would have it answering itself.
+      else if (attachedRef.current && record.from === "agent" && !record.kind && !record.as) {
+        try { workRef.current.showSaid(String(record.text || "")); } catch {}
+      }
+      // `!record.kind` restated, because the command branch above is no longer chained to this one:
+      // a command moves the screen, which is its own notification, and must not raise unread.
+      else if (record.from === "agent" && !record.kind && !openRef.current) setUnread((n) => n + 1);
       // THE MESSAGE ARRIVING IS WHAT ANIMATES (his correction: "do not make links and animation the
       // same thing"). An agent naming a thing in what it says IS the gesture — the bot goes there
       // as the words land. Clicking a chip afterwards is just a link, and stays one; he retracted
@@ -1313,6 +1777,14 @@ function BotBubble({ projectCode, index }) {
       }
     }
     setInput("");
+    // SENDING IS AN ARRIVAL, and it is the one case that overrides sticking. Incoming messages are
+    // sticky-only on purpose — they must never yank the view while he is reading further up. His
+    // OWN message is the opposite: he just spoke, so the bottom is where he is, whatever the scroll
+    // was doing a moment ago. His catch, exactly: *"like when I send a message, not when the
+    // messages come through."* Once this flag is back on, the list observers carry the rest — the
+    // echo row, the answer streaming in, and the cooking line under it.
+    stick.current = true;
+    scrollToEnd();
     // SENDING MEANS YOU'VE SEEN WHAT'S THERE. Without this, sending from the CLOSED chat left the
     // unread count standing — nothing stamps "seen" except opening the panel — so the next poll
     // recomputed it and shoved the new-message display back on screen the moment you sent. It read
@@ -1365,6 +1837,17 @@ function BotBubble({ projectCode, index }) {
       openFile: params.get("file") || undefined,
       help: params.get("help") || undefined,
     };
+    // ATTACHED? THEN THIS IS THE AGENT, NOT THE ROOM. Nothing is written to the chat file — the
+    // conversation is the session's own transcript on disk, which is the whole point: one place the
+    // conversation lives, and it is the same file whether it runs here or in a terminal.
+    if (attached) {
+      // A SEND THAT GOES NOWHERE MUST SAY SO. If the transport is not there, silently falling back
+      // to the room would put his message in the place he just left — worse than an error.
+      if (!workRef.current.send(text)) setSendErr("the session isn't accepting input — try 'back to the room' and re-attach");
+      else setSendErr("");
+      setTimeout(scrollToEnd, 50);
+      return;
+    }
     try {
       // OPTIMISTIC: the returned record goes straight into the thread — your own message must
       // never depend on the push channel to become visible (his catch: send → nothing → refresh).
@@ -1377,7 +1860,12 @@ function BotBubble({ projectCode, index }) {
 
   // RFC-031 — the roster: who's in this room besides its own agent, and where this project's
   // own agent is off visiting (both derived hub-side from real holds, so they can't lie).
-  const visitors = p.visitors || [];
+  // ATTACHED, THE ROSTER IS THE SESSION'S. The hub's roster is built from real holds in a ROOM, and
+  // a peer agent reaching into a session takes no hold anywhere — so on an attached chat `p.visitors`
+  // is permanently empty and the strip said "nobody" while another agent was plainly talking. Who
+  // has SPOKEN is the honest answer here (foldState collects it), and it is the same rule underneath:
+  // you can always see who is in whose chat.
+  const visitors = attached ? work.state.visitors : p.visitors || [];
   const visiting = p.visiting || [];
   // Visiting counts as LIVE (his rule: "if you're visiting other people then you're actually
   // live") — a real hold somewhere is a live agent, just not in this room right now.
@@ -1387,9 +1875,44 @@ function BotBubble({ projectCode, index }) {
   // and it's the tell for an agent that didn't re-arm before cooking (agents/chat.md step 3).
   const busy =
     !p.live && (p.statuses || []).some((s) => !s.as) && !visiting.length;
-  const ring = p.live ? "live" : visiting.length ? "visiting" : busy ? "busy" : p.listener ? "listener" : "none";
-  const mode = p.live ? "LIVE" : visiting.length ? "VISITING" : busy ? "BUSY" : p.listener ? "FILE" : "OFFLINE";
-  const modeText = p.live
+  // THE RING WAS ANSWERING A QUESTION NOBODY IS ASKING ANY MORE. Every branch below reads the ROOM's
+  // presence — a hub-side hold, a file listener, a status record — and an attached session has none
+  // of those, so the bot sat permanently grey-and-offline while the agent it belongs to was right
+  // there working. His catch: *"the different colors that the circle around the icon… that's going
+  // based on the previous behavior. We got to fix that."*
+  //
+  // The question the ring answers is unchanged — IF I SPEAK RIGHT NOW, WHAT HAPPENS? — so the
+  // answers keep their colours and only their source moves: green it answers, amber it is head down,
+  // indigo it is waiting on YOU, grey it is gone. The room's rules stay for a project with no
+  // conversation attached, which is still a real state.
+  const sessionRing = attached
+    ? work.state.exited
+      ? "none"
+      : work.state.state === "working"
+      ? "busy"
+      : work.state.state === "waiting"
+      ? "asking"
+      : work.live
+      ? "live"
+      : "none"
+    : null;
+  const ring = sessionRing || (p.live ? "live" : visiting.length ? "visiting" : busy ? "busy" : p.listener ? "listener" : "none");
+  const sessionMode = sessionRing && { live: "LIVE", busy: "BUSY", asking: "ASKING", none: "OFFLINE" }[sessionRing];
+  const mode = sessionMode || (p.live ? "LIVE" : visiting.length ? "VISITING" : busy ? "BUSY" : p.listener ? "FILE" : "OFFLINE");
+  const sessionModeText = sessionRing
+    ? sessionRing === "busy"
+      ? `working — ${work.state.doing || "head down"}`
+      : sessionRing === "asking"
+      ? `waiting on you — ${work.state.doing || "needs an answer"}`
+      : sessionRing === "live"
+      ? visitors.length
+        ? `in this conversation — ${visitors.join(" + ")} here too`
+        : "in this conversation — answers now"
+      : work.state.exited
+      ? `this conversation ended — ${work.state.exited}`
+      : "connecting to this conversation"
+    : null;
+  const modeText = sessionModeText || (p.live
     ? visitors.length
       ? `joined — ${visitors.join(" + ")} in the room too`
       : "joined — answers now"
@@ -1399,7 +1922,7 @@ function BotBubble({ projectCode, index }) {
     ? `head down cooking — ${p.pending ? `${p.pending} message${p.pending === 1 ? "" : "s"} waiting` : "has your messages"}; replies when it surfaces`
     : p.listener
     ? `hears you at its next turn — send freely, nothing is ever lost${p.pending ? ` · ${p.pending} waiting` : ""}`
-    : `out right now — your message waits in the room for its next wake${p.pending ? ` · ${p.pending} waiting` : ""}`;
+    : `out right now — your message waits in the room for its next wake${p.pending ? ` · ${p.pending} waiting` : ""}`);
   // LEFT/RIGHT FLIPS, UP/DOWN DOES NOT (his call). Past the middle of the screen the row opens
   // leftward off the bot instead of rightward — otherwise a bot parked on the right has nowhere to
   // put a panel and everything gets shoved back inward. It settles on the DROP, not continuously,
@@ -2580,7 +3103,67 @@ function BotBubble({ projectCode, index }) {
   // THE ICONS LIVE ON THE RIGHT. They move out of the way only when something is actually in the
   // way — the message display or the live transcript, hanging on that same side. Flipping them by
   // screen half would move them for no reason half the time.
-  const peekShowing = !open && (listening || (!animating && (p.status || unread > 0)));
+  // The session counts as a reason to show the peek, exactly like the room's status and unread did.
+  const sessionCooking = attached && (work.state.state === "working" || work.state.state === "waiting");
+  const peekCookWord = useCookWord(work.state.doing, work.state.state);
+  // THE MINIMISED BRIEF — his ask, and it replaces the cooking word outright while attached:
+  // *"when it's in minimization mode, can we have one block that just shows text and commands, one
+  // line text and one line commands, right under the agent — that could replace the whole cooking
+  // shit."* And he is right that it is better. A cycling cooking word is theatre: it proves the
+  // clock is ticking and says nothing about the work. Two real lines — the last thing it SAID and
+  // the last thing it DID — say both, and they are the same two facts the browser panel shows.
+  // The cooking word survives only as the fallback for a turn that has produced neither yet.
+  const brief = attached
+    ? (() => {
+        const firstLine = (t) => {
+          const s = String(t || "")
+            .split("\n")
+            .map((x) => x.trim())
+            .find((x) => x);
+          return s || "";
+        };
+        let cmd = null;
+        for (let i = work.rows.length - 1; i >= 0; i -= 1) {
+          // NOT A REPLAYED ONE. Attaching replays the transcript, so the "last command" was
+          // whatever this conversation did yesterday — and with the dots on it, a dead bot sat
+          // there narrating old work as though it were happening now.
+          if (work.rows[i].kind === "tool" && !work.rows[i].replay) {
+            cmd = work.rows[i];
+            break;
+          }
+        }
+        const say = saidRows.length ? firstLine(saidRows[saidRows.length - 1].text) : "";
+        return {
+          say,
+          cmd: cmd ? cmd.summary || cmd.tool : "",
+          // A finished command is history; one still running is what it is doing NOW, and the
+          // difference is the whole reason to show it.
+          running: !!(cmd && cmd.state === "running"),
+          kind: cmd && cmd.sv ? "sv" : "sh",
+        };
+      })()
+    : null;
+  // A BRIEF IS A LIVE THING OR IT IS NOTHING. His catch, about autobot's bot: *"I know he's not
+  // cooking. There's no message. So why the fuck are they showing a message for him?"* — and he was
+  // right: a bot with an attached-but-idle conversation drew the last thing that conversation ever
+  // said, with dancing dots on it, forever. That is the stale-status bug wearing a new hat, and this
+  // app has now shipped it five times. The brief exists ONLY while the session is actually working;
+  // idle with replies waiting is the message display's job, and idle with nothing is NOTHING.
+  const hasBrief = !!(sessionCooking && brief && (brief.say || brief.cmd));
+  // UNATTACHED, THERE IS NOTHING TO PREVIEW. The room is no longer in the panel, so previewing its
+  // messages offered him a door into a conversation that would not be there when he opened it.
+  const peekUnread = attached ? sessionUnread : 0;
+  // THE PEEK SHOWS ONLY WHEN IT HAS SOMETHING TO SAY. It was gated on `p.status` being truthy while
+  // the lines inside were filtered for being blank — so a status that was present but EMPTY opened
+  // an empty bubble and parked it at the top of his screen while nothing was happening. One list,
+  // computed once, decides both whether to show and what to draw; there is no way for those two to
+  // disagree now.
+  const roomLines = (p.statuses && p.statuses.length ? p.statuses : [{ as: p.statusAs, text: p.status }])
+    .filter((s) => s && String(s.text || "").trim());
+  // ONE ANSWER TO "IS THERE ANYTHING TO SHOW". Every branch inside the bubble reads from this list,
+  // and so does the gate that decides whether to draw it at all.
+  const peekHas = hasBrief || sessionCooking || peekUnread > 0 || roomLines.length > 0;
+  const peekShowing = !open && (listening || (!animating && peekHas));
   const iconsLeft = peekShowing && leftHalf;
   // The docked pill is 150px centred under a 46px bubble, so near either edge half of it lands off
   // screen — which is what you saw as the cooking line "going under the agent" in the corner.
@@ -3387,6 +3970,129 @@ function BotBubble({ projectCode, index }) {
             {/* The collector's button used to live here as well as on the bot. One door, one
                 handle — it's beside the name tag now, where it's reachable whether or not the chat
                 is open, which is the only place that works for a panel you may want without one. */}
+            {/* The one door the strip used to hold: switch conversation, or start another. It lives
+                in the header now, where a control you use rarely belongs. */}
+            {/* COMPACT, the way Claude compacts — not the way the room does. The room's compaction
+                is SystemView folding its own message file; a conversation's compaction is the model
+                summarising itself, and only the session can do it. The browser's panel proved the
+                transport passes the command through, so this is the same act from here. */}
+            {work.hosted && attached && (
+              <button
+                type="button"
+                className={`${CLASSNAME}__swap`}
+                title={
+                  work.state.ctx
+                    ? `Compact this conversation — ${tokensShort(work.state.ctx)} in context`
+                    : "Compact this conversation"
+                }
+                onClick={() => work.compact()}
+              >
+                ⤵
+              </button>
+            )}
+            {work.hosted && attached && (
+              <button
+                type="button"
+                className={`${CLASSNAME}__swap`}
+                title="Switch conversation"
+                onClick={() => setPicker(true)}
+              >
+                ⇅
+              </button>
+            )}
+            {/* STOP, in the header with the other window controls. The transport has always had
+                `interrupt`; nothing was calling it, so anything you started — a compaction you did
+                not mean, a long tool run — had no way out from here. It sits beside the close
+                button because that is where the controls for THIS WINDOW live; hanging it off the
+                cooking line put a text button in the middle of a sentence. */}
+            {attached && (work.state.state === "working" || work.state.state === "waiting") && (
+              <button
+                type="button"
+                className={`${CLASSNAME}__stop`}
+                title="Stop what it's doing"
+                onClick={() => work.interrupt()}
+              >
+                <span className={`${CLASSNAME}__stop-sq`} />
+              </button>
+            )}
+            {/* WHICH MODEL IS ANSWERING — always, not only when the bar goes red. His catch:
+                *"I have no other way of seeing which agent is being used."* It was buried in a
+                tooltip and in the red label, so at every healthy moment the one fact he most wanted
+                was invisible. Short form on purpose — `opus-5`, not `claude-opus-5-20260101` — the
+                full string is a build identifier, not a name you read at a glance.
+                SWITCHING is not wired yet and this deliberately does not pretend to offer it: the
+                shell has no primitive for it and I asked autobot rather than guessing. A control
+                that looks live and does nothing is the class of lie this panel has already told
+                twice tonight. */}
+            {attached && work.state.model && (
+              work.models && work.models.length ? (
+                <span className={`${CLASSNAME}__model-wrap`}>
+                  <button
+                    type="button"
+                    className={`${CLASSNAME}__model ${CLASSNAME}__model--pick${
+                      work.switching ? ` ${CLASSNAME}__model--switching` : ""
+                    }`}
+                    title={`${work.state.model} — click to switch`}
+                    onClick={() => setModelMenu((v) => !v)}
+                  >
+                    {work.switching ? `${shortModel(work.switching)}…` : shortModel(work.state.model)}
+                  </button>
+                  {modelMenu && (
+                    <>
+                      <div className={`${CLASSNAME}__ctx-overlay`} onClick={() => setModelMenu(false)} />
+                      <div className={`${CLASSNAME}__model-menu`}>
+                        {work.models.map((m) => {
+                          const val = m.value || m.resolvedModel;
+                          const shown = shortModel(m.resolvedModel || m.value);
+                          // A BEST GUESS AT WHICH ONE IS RUNNING, and treated as exactly that. The
+                          // panel only learns the model from a `session.started`, which arrives at
+                          // the START OF THE NEXT TURN — so between a switch and the next answer
+                          // this belief is knowingly stale. Match on either name the row carries,
+                          // because `value` ("opus[1m]") and `resolvedModel`
+                          // ("claude-opus-5[1m]") are both legitimate spellings of the same thing.
+                          const mine = shortModel(work.state.model);
+                          const current = !!mine && (mine === shown || mine === shortModel(val));
+                          return (
+                            <button
+                              key={val}
+                              type="button"
+                              className={`${CLASSNAME}__model-item${
+                                current ? ` ${CLASSNAME}__model-item--current` : ""
+                              }`}
+                              title={m.description || m.resolvedModel || val}
+                              onClick={() => {
+                                setModelMenu(false);
+                                // ALWAYS SWITCH — never refuse because we believe it is already
+                                // selected. His catch, and it is the sharpest kind of bug: the
+                                // belief was stale (he had switched from the terminal, so no
+                                // confirming event had arrived), the wrong row was marked current,
+                                // and marking it current was what made it UNCLICKABLE. So the one
+                                // row he needed became the one row that would not respond. A
+                                // control disabled by a guess is worse than a control that does
+                                // nothing, because it refuses in silence. Re-selecting the model
+                                // you are already on is harmless — the host no-ops it — so there
+                                // is nothing to protect against here. The tick stays as
+                                // information; it stops being a gate.
+                                work.switchModel(val);
+                              }}
+                            >
+                              <span className={`${CLASSNAME}__model-item-name`}>
+                                {m.displayName || shown}
+                              </span>
+                              <span className={`${CLASSNAME}__model-item-id`}>{shown}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+                </span>
+              ) : (
+                <span className={`${CLASSNAME}__model`} title={`${work.state.model} — this shell cannot switch models yet`}>
+                  {shortModel(work.state.model)}
+                </span>
+              )
+            )}
             <button
               type="button"
               className={`${CLASSNAME}__close`}
@@ -3401,10 +4107,59 @@ function BotBubble({ projectCode, index }) {
           {/* The fullness meter — a hairline under the header: how close this room is to the
               ~300-record compaction mark. Agents are supposed to self-compact; this is how the
               human SEES when one hasn't. */}
-          {p.records > 0 && (
+          {/* THE BAR HAS TO MEAN WHAT IT SHOWS. Attached, this is the CONVERSATION's fullness —
+              the last turn's input tokens against the model's window — not SystemView's 300-record
+              room rule, which describes a different thing entirely. His words: *"I don't know how
+              to trust the bar."* Two bars measuring two different things wearing one look is
+              exactly how a bar stops being trustworthy, so only one of them is ever drawn. */}
+          {attached && work.state.ctx > 0 && work.state.ctxWindow > 0 && (
             <div
               className={`${CLASSNAME}__meter`}
-              title={`${p.records} records — agents compact around ${COMPACT_MARK}`}
+              title={`context ${tokensShort(work.state.ctx)} of ~${tokensShort(work.state.ctxWindow)} — ${
+                work.state.ctx >= work.state.ctxWindow * CTX_DUE
+                  ? "compact now"
+                  : work.state.ctx >= work.state.ctxWindow * CTX_WARN
+                  ? "compact soon"
+                  : "healthy"
+              }${work.state.model ? ` · ${work.state.model}` : ""}`}
+            >
+              <div
+                className={`${CLASSNAME}__meter-fill${
+                  work.state.ctx >= work.state.ctxWindow * CTX_DUE
+                    ? ` ${CLASSNAME}__meter-fill--due`
+                    : work.state.ctx >= work.state.ctxWindow * CTX_WARN
+                    ? ` ${CLASSNAME}__meter-fill--warn`
+                    : ""
+                }`}
+                style={{ width: `${Math.min(100, (work.state.ctx / work.state.ctxWindow) * 100)}%` }}
+              />
+              {/* A CLAIM THIS LOUD SHOWS ITS WORKING. He has told me three times the bar goes red
+                  when he presses stop, and three times I could not reproduce it — so the honest fix
+                  is not another guess about the trigger, it is making the bar unable to say
+                  "compact now" without showing the two numbers it divided to get there. Hidden
+                  behind a hover, the evidence may as well not exist: *"I don't know how to trust
+                  it."* Only when it is due — a healthy bar is a hairline and should stay one. */}
+              {work.state.ctx >= work.state.ctxWindow * CTX_DUE && (
+                <span className={`${CLASSNAME}__meter-why`}>
+                  {tokensShort(work.state.ctx)} / {tokensShort(work.state.ctxWindow)}
+                  {work.state.model ? ` · ${shortModel(work.state.model)}` : ""}
+                </span>
+              )}
+            </div>
+          )}
+          {!attached && p.records > 0 && (
+            // THE OTHER BAR, AND IT HAS TO SAY SO. This one counts the ROOM's records, and it
+            // solved the red-bar mystery he reported four times: the moment attachment drops (a
+            // restart, a stop), the token ruler above disappears and THIS bar takes its exact
+            // place — same hairline, same colours — sitting at 90%+ forever, because a session
+            // compaction cannot lower a room's record count. He read it as "you need a compaction
+            // right after we just did one." Ground truth at the time: 77k of 1M. So the same rule
+            // the token meter already obeys applies here — a loud claim shows its working. Once
+            // it is warm the bar says "272 / ~300 records · room" on its face, and the two bars
+            // can never be mistaken for each other again.
+            <div
+              className={`${CLASSNAME}__meter`}
+              title={`${p.records} records in this room — agents compact around ${COMPACT_MARK}. Not the session's context.`}
             >
               <div
                 className={`${CLASSNAME}__meter-fill${
@@ -3416,6 +4171,11 @@ function BotBubble({ projectCode, index }) {
                 }`}
                 style={{ width: `${Math.min(100, (p.records / COMPACT_MARK) * 100)}%` }}
               />
+              {p.records >= COMPACT_MARK * 0.8 && (
+                <span className={`${CLASSNAME}__meter-why`}>
+                  {p.records} / ~{COMPACT_MARK} records · room
+                </span>
+              )}
             </div>
           )}
           {/* RFC-031 — the roster: every identity currently holding a line in THIS room. ALWAYS
@@ -3424,40 +4184,54 @@ function BotBubble({ projectCode, index }) {
               a visitor = the kick menu; the × on the chip is the same bounce. */}
           {(
             <div className={`${CLASSNAME}__roster`}>
-              in the room:{" "}
-              {(p.live || p.listener) ? (
+              {/* ATTACHED, THIS IS NOT A ROOM AND NOBODY CAN BE KICKED OUT OF IT. A peer agent that
+                  messaged a session holds no line anywhere, so `chatKick` would report success and
+                  change nothing — a control that looks live and does nothing, the same class of lie
+                  as an unanswerable permission prompt. The strip still names everyone, because
+                  who is in whose chat is always on screen; it just stops offering a door that isn't
+                  there. */}
+              {attached ? "in this conversation: " : "in the room: "}
+              {attached ? (
+                <span className={`${CLASSNAME}__roster-name ${CLASSNAME}__roster-name--home`}>{projectCode}</span>
+              ) : (p.live || p.listener) ? (
                 <span className={`${CLASSNAME}__roster-name ${CLASSNAME}__roster-name--home`}>{projectCode}</span>
               ) : (
                 <span className={`${CLASSNAME}__roster-empty`}>nobody — the agent is out</span>
               )}
-              {visitors.map((v) => (
-                <span
-                  key={v}
-                  className={`${CLASSNAME}__roster-name`}
-                  style={visStyle(v)}
-                  title="Right-click to kick out"
-                  onContextMenu={(e) => {
-                    e.preventDefault();
-                    setKickTarget(v);
-                  }}
-                >
-                  {v}
-                  {/* the ✕ right on the chip — visitors are listed at the top, so the bounce is too */}
-                  <button
-                    type="button"
-                    className={`${CLASSNAME}__roster-x`}
-                    title={`Kick ${v} out`}
-                    onClick={async (e) => {
-                      e.stopPropagation();
-                      try {
-                        await SystemView.chatKick(projectCode, { identity: v });
-                      } catch {}
+              {visitors.map((v) =>
+                attached ? (
+                  <span key={v} className={`${CLASSNAME}__roster-name`} style={visStyle(v)} title={`${v} spoke in this conversation`}>
+                    {v}
+                  </span>
+                ) : (
+                  <span
+                    key={v}
+                    className={`${CLASSNAME}__roster-name`}
+                    style={visStyle(v)}
+                    title="Right-click to kick out"
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      setKickTarget(v);
                     }}
                   >
-                    ×
-                  </button>
-                </span>
-              ))}
+                    {v}
+                    {/* the ✕ right on the chip — visitors are listed at the top, so the bounce is too */}
+                    <button
+                      type="button"
+                      className={`${CLASSNAME}__roster-x`}
+                      title={`Kick ${v} out`}
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        try {
+                          await SystemView.chatKick(projectCode, { identity: v });
+                        } catch {}
+                      }}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ),
+              )}
               {kickTarget && (
                 <>
                   <div className={`${CLASSNAME}__ctx-overlay`} onClick={() => setKickTarget(null)} />
@@ -3477,96 +4251,234 @@ function BotBubble({ projectCode, index }) {
               )}
             </div>
           )}
-          <div className={`${CLASSNAME}__list`} ref={listRef}>
-            {messages.length === 0 && (
-              <div className={`${CLASSNAME}__empty`}>
-                Say something — it arrives with where you're standing (page, tab, namespace).
+          <div
+            className={`${CLASSNAME}__list`}
+            ref={listRef}
+            onScroll={(e) => {
+              // Our own pin does not get a vote on whether he scrolled away.
+              if (Date.now() < pinning.current) return;
+              const el = e.currentTarget;
+              stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+            }}
+          >
+            {/* THE ROOM IS GONE FROM THE PANEL. Not hidden behind a session — gone. His call once
+                visiting worked: *"I don't need to see that old chat between me and you anymore, I
+                don't need to see this whole back-to-the-room and resume shit at the bottom. If none
+                of the chats are set up, what I need to see is a prompt to attach an agent."* The
+                hub subscription stays — commands still move his window, and other agents still
+                reach this project — but the CONVERSATION is the session now, and a panel with no
+                session says so instead of offering a second inbox. */}
+            {!attached && (
+              <div className={`${CLASSNAME}__nobody`}>
+                <div className={`${CLASSNAME}__nobody-line`}>No agent here yet.</div>
+                <div className={`${CLASSNAME}__nobody-sub`}>
+                  {work.hosted
+                    ? "Pick up a conversation from this folder, or start a new one."
+                    : "This window isn't running inside the browser, so there's nothing to attach to."}
+                </div>
+                {/* NOTHING GOES MISSING IN THE HANDOVER. With the room out of the panel, a message
+                    another agent sent to a project that has no session yet would have had nowhere
+                    to appear at all. It is not shown here — this is a door, not an inbox — but it
+                    is COUNTED, so the handover never silently swallows anything. */}
+                {/* AND THEY ARE READABLE. Counting them was not enough — a message you are told
+                    about but cannot read is worse than one you never heard of. The room shows here
+                    and ONLY here: under the prompt, on a project that has no conversation yet. The
+                    moment one is attached this is gone and the session is the chat. */}
+                {roomTail.length > 0 && (
+                  <div className={`${CLASSNAME}__waiting`}>
+                    <div className={`${CLASSNAME}__nobody-waiting`}>
+                      {`${roomTail.length} message${roomTail.length === 1 ? "" : "s"} arrived before there was a conversation to put them in`}
+                    </div>
+                    {roomTail.map((m) => (
+                      <div key={m.id} className={`${CLASSNAME}__waiting-msg`}>
+                        {m.as && m.as !== projectCode && (
+                          <span className={`${CLASSNAME}__waiting-who`} style={visStyle(m.as)}>{m.as}</span>
+                        )}
+                        {renderChatMessage(String(m.text || ""))}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {work.hosted && (
+                  <button type="button" className={`${CLASSNAME}__nobody-btn`} onClick={() => setPicker(true)}>
+                    Choose a conversation
+                  </button>
+                )}
               </div>
             )}
-            {messages.map((m) =>
-              m.kind === "command" ? (
-                m.cmd === "show" && m.args && m.args.text ? (
-                  // A SHOW is a clickable line — the Canvas model: click any show in history and
-                  // THAT show goes (back) on the TV.
-                  <button
-                    type="button"
-                    key={m.id}
-                    className={`${CLASSNAME}__cmd ${CLASSNAME}__cmd--show ${tv && tv.id === m.id && tvOpen ? `${CLASSNAME}__cmd--live` : ""}`}
-                    title="Put this show on the TV"
-                    onClick={() => openShow(m.id, m.label, m.args.text, m.ts, m.args.report ? m.args : null)}
-                  >
-                    <span className={`${CLASSNAME}__cmd-arrow`}>📺</span> {m.label || "show"}
-                  </button>
-                ) : (
-                  // A command shows AS a command — the window moved because the agent moved it, and
-                  // this line is the receipt. CLICK IT TO RUN IT AGAIN (his ask, for exactly the
-                  // loop we're in: watch it, change the styling, watch it again without asking me
-                  // to resend). It re-executes locally; it never writes a new record, so replaying
-                  // a trip twenty times leaves the room exactly as long as it was.
-                  <button
-                    type="button"
-                    key={m.id}
-                    className={`${CLASSNAME}__cmd ${CLASSNAME}__cmd--replay`}
-                    title={`Run it again — ${m.cmd}`}
-                    onClick={() => execCommand(m, { replay: true })}
-                  >
-                    <span className={`${CLASSNAME}__cmd-arrow`}>→</span>{" "}
-                    {m.label || `${m.cmd} ${JSON.stringify(m.args || {})}`}
-                    <span className={`${CLASSNAME}__cmd-replay`}>↻</span>
-                  </button>
-                )
-              ) : m.kind === "system" ? (
-                // RFC-031 — the room announces comings and goings itself: a subtle centered line,
-                // no bubble, no unread. "He just said he's leaving, cool — what if someone just
-                // leaves? You need to SEE it."
-                <div key={m.id} className={`${CLASSNAME}__sys`} style={visStyle(m.who)} title={new Date(m.ts).toLocaleString()}>
-                  {m.text}
-                </div>
-              ) : (
-                // RFC-031 — a VISITOR's bubble wears its project's name; the room's own agent
-                // stays unlabeled (records without `as` are the room's agent from before identities).
-                <div
-                  key={m.id}
-                  className={`${CLASSNAME}__msg ${
-                    m.from === "agent" ? `${CLASSNAME}__msg--agent` : `${CLASSNAME}__msg--you`
-                  }${m.from === "agent" && m.as && m.as !== projectCode ? ` ${CLASSNAME}__msg--visitor` : ""}`}
-                  style={m.from === "agent" && m.as && m.as !== projectCode ? visStyle(m.as) : undefined}
-                >
-                  {m.from === "agent" && m.as && m.as !== projectCode && (
-                    <span className={`${CLASSNAME}__visitor-tag`}>{m.as}</span>
-                  )}
-                  {renderChatMessage(String(m.text || ""))}
-                  {/* the time, quietly in the corner — hover for the full date. Your bubbles
-                      also carry a READ receipt (his ask): ✓✓ once the agent has actually
-                      DRAINED past this message; a dot while it's still queued. */}
-                  <span className={`${CLASSNAME}__msg-time`} title={new Date(m.ts).toLocaleString()}>
-                    {m.from === "you" &&
-                      ((p.agentSeen || 0) >= m.ts ? (
-                        <span className={`${CLASSNAME}__read`} title="seen — the agent has collected this">✓✓ </span>
-                      ) : (
-                        <span className={`${CLASSNAME}__read ${CLASSNAME}__read--queued`} title="sent — waiting for the agent to collect it">✓ </span>
-                      ))}
-                    {msgTime(m.ts)}
-                  </span>
-                </div>
-              ),
+            {/* ATTACHED MEANS ATTACHED. The room's history is not shown behind the session — his
+                catch, and he is right: *"why are you keeping that conversation behind it? … wouldn't
+                the whole window transfer over?"* Two conversations stacked in one panel is exactly
+                the double-tracking this is meant to end. Detach and the room comes back untouched. */}
+            {/* THE WORK, under the words. A tool call is one line you can open; a file it wrote
+                carries a door into the diff; a permission it needs is a control right here. */}
+            {attached && (
+              <div className={`${CLASSNAME}__work ${CLASSNAME}__work--only`}>
+                {/* PROVE IT IS THE SAME CONVERSATION, without making him ask. A resume continues the
+                    transcript but does NOT replay it as events, so a resumed session starts with an
+                    empty feed — which reads exactly like a broken one. Until the host can hand back
+                    the transcript's own messages, say that instead of showing nothing. */}
+                {!work.rows.length && (
+                  <div className={`${CLASSNAME}__work-note`}>
+                    {attached === "fresh"
+                      ? "new conversation — say something"
+                      : `${work.state.state}…`}
+                  </div>
+                )}
+                {/* RFC-050 — THE WRITE CHANNEL, and why it is a message rather than a file edit.
+                    On the TV an input block writes its answer into the source document; a session's
+                    transcript is not ours to rewrite. So answering SAYS the answer — the agent
+                    reads it through the same path as everything else he types, which is exactly the
+                    burden he asked me to avoid: *"make sure it's something that doesn't burden you
+                    guys on how you read the response."* The block keeps its own optimistic state,
+                    so it still looks answered the moment he clicks. */}
+                {/* A BLOCK IN AN AGENT'S CHAT BELONGS TO THAT AGENT'S PROJECT. Without this the
+                    scope falls back to the URL — `/specs` with nothing selected has no project at
+                    all — so every ::commit I offered him drew the empty-handed message *"no live
+                    service with file access — connect one, or name it with {project=…}"*. The chat
+                    has always known whose chat it is; it simply never said so to the blocks inside
+                    it. Same for ::file, ::diff and anything else that reads a repo. */}
+                <MarkdownScopeProvider value={{ projectCode }}>
+                  <MarkdownWriteProvider value={sessionWrite}>
+                    <Feed rows={work.rows} answered={work.answered} onAnswer={work.answer} renderText={renderChatMessage} />
+                  </MarkdownWriteProvider>
+                </MarkdownScopeProvider>
+              </div>
             )}
-            {/* Every identity cooking gets its OWN line (his catch: one shared line meant
-                simultaneous cooks erased each other) — home first, visitors in plum below. */}
-            {(p.statuses || (p.status ? [{ as: p.statusAs, text: p.status }] : [])).map((s) => (
-              <StatusLine
-                key={s.as || "home"}
-                status={s.text}
-                visitor={s.as && s.as !== projectCode ? s.as : null}
-              />
-            ))}
+            {!attached && work.rows.length > 0 && (
+              <div className={`${CLASSNAME}__work`}>
+                <Feed rows={work.rows} answered={work.answered} onAnswer={work.answer} />
+              </div>
+            )}
+            {/* The ROOM's cooking lines, and only while there is no session. Attached, the session
+                owns that line and it lives outside the scroll — two of them stacked would be the
+                same status said twice by two different authorities. */}
+            {!attached &&
+              roomLines.map((s) => (
+                <StatusLine
+                  key={s.as || "home"}
+                  status={s.text}
+                  visitor={s.as && s.as !== projectCode ? s.as : null}
+                />
+              ))}
           </div>
+          {/* COOKING, in the direct chat — OUTSIDE the scroll, on purpose. His call: *"cooking should
+              be sticky, she shouldn't scroll away from it."* It was the last row inside the feed, so
+              it scrolled off the moment he read back through anything. Sticky positioning cannot
+              save it there — a sticky element can never travel past the bottom of its containing
+              block, and it WAS the bottom of it — so the line lives between the feed and the input
+              instead. The one line that says whether anything is happening is the one line he must
+              never have to go looking for. It names the tool in flight and falls back to the room's
+              cycling words when there is nothing specific to name. */}
+          {attached && (work.state.state === "working" || work.state.state === "waiting") && (
+            <CookLine doing={work.state.doing} state={work.state.state} />
+          )}
           {/* While the mic listens: the words appear HERE as you speak (interim), then commit
               into the input as they finalize. The line itself is the recording indicator. */}
           {listening && (
             <div className={`${CLASSNAME}__interim`}>
               <span className={`${CLASSNAME}__interim-dot`} />
               {interim || "listening…"}
+            </div>
+          )}
+          {/* THE BUTTON HE ASKED FOR — one press to stop talking through the room and start talking
+              to the agent itself. Closed, it is a single line; open, it is the conversations already
+              on disk for this project's folder. */}
+          {/* THE STRIP ONLY EXISTS WHEN THERE IS A CHOICE TO MAKE. Attached, it said "resumed ·
+              ready · back to the room" under every conversation, forever — three facts he does not
+              need and one door to a place that no longer exists. It shows while choosing, and while
+              something is genuinely wrong; otherwise the bottom of the panel is the input box. */}
+          {work.hosted && (!attached || picker || work.err || sendErr) && (
+            <div className={`${CLASSNAME}__attach`}>
+              {attached && !picker ? (
+                <>
+                  {work.err && <span className={`${CLASSNAME}__attach-note`}>{work.err}</span>}
+                  {sendErr && <span className={`${CLASSNAME}__attach-note`}>{sendErr}</span>}
+                </>
+              ) : picker ? (
+                <div className={`${CLASSNAME}__attach-list`}>
+                  {/* WHOSE CONVERSATIONS THESE ARE, said out loud. His catch: *"it's kind of hard to
+                      tell which conversation belongs to who."* They belong to a FOLDER, not to an
+                      agent — every session in this list ran in this project's directory — and saying
+                      so is the whole answer, because the ambiguity was never between two agents in
+                      one folder, it was not knowing which folder he was looking at. */}
+                  {/* RUNNING NOW, FIRST. These are the browser's own sessions — the agent he is
+                      already talking to in the browser panel is in here, and picking it makes this
+                      panel a second view of that one conversation rather than a second conversation. */}
+                  {live.length > 0 && (
+                    <>
+                      <span className={`${CLASSNAME}__attach-note`}>running now in the browser</span>
+                      {live.map((l) => {
+                        const named = (transcripts || []).find(
+                          (t) => t.sessionId === l.sessionId || t.sessionId === l.sdkSessionId,
+                        );
+                        return (
+                          <button
+                            key={l.key || l.sessionId}
+                            type="button"
+                            className={`${CLASSNAME}__attach-row`}
+                            title={`${l.sessionId}${l.cwd ? ` · ${l.cwd}` : ""}`}
+                            onClick={() => {
+                              setAttached(`live:${l.sessionId}`);
+                              setPicker(false);
+                            }}
+                          >
+                            {(named && named.about) || l.sessionId}
+                            <span className={`${CLASSNAME}__attach-live`}> · live</span>
+                          </button>
+                        );
+                      })}
+                    </>
+                  )}
+                  <span className={`${CLASSNAME}__attach-note`}>{`conversations in ${projectCode}`}</span>
+                  {transcripts === null && <span className={`${CLASSNAME}__attach-note`}>reading…</span>}
+                  {transcripts && !transcripts.length && (
+                    <span className={`${CLASSNAME}__attach-note`}>no conversations on disk for this folder yet</span>
+                  )}
+                  {(transcripts || []).map((t) => (
+                    <button
+                      key={t.sessionId}
+                      type="button"
+                      className={`${CLASSNAME}__attach-row`}
+                      title={t.sessionId}
+                      onClick={() => {
+                        setAttached(t.sessionId);
+                        setPicker(false);
+                      }}
+                    >
+                      <span className={`${CLASSNAME}__attach-title`}>{t.about || t.sessionId}</span>
+                      {/* WHEN, and WHAT WAS LAST SAID. Two facts that turn a list of names into a
+                          list he can choose from without opening each one to find out. */}
+                      <span className={`${CLASSNAME}__attach-when`}>
+                        {t.lastActive ? moment(t.lastActive).fromNow() : ""}
+                      </span>
+                      {tails[t.sessionId] && (
+                        <span className={`${CLASSNAME}__attach-tail`}>{tails[t.sessionId]}</span>
+                      )}
+                      {/* Touched in the last few minutes = something is probably still using it,
+                          which for this room is almost certainly the agent he is talking to right
+                          now. A hint, never a lock — nothing here can prove a process is alive. */}
+                      {t.lastActive && Date.now() - t.lastActive < 5 * 60 * 1000 && (
+                        <span className={`${CLASSNAME}__attach-live`}> · live now</span>
+                      )}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    className={`${CLASSNAME}__attach-btn`}
+                    onClick={() => {
+                      setAttached("fresh");
+                      setPicker(false);
+                    }}
+                  >
+                    start fresh
+                  </button>
+                </div>
+              ) : (
+                <button type="button" className={`${CLASSNAME}__attach-btn`} onClick={() => setPicker(true)}>
+                  talk to the agent directly
+                </button>
+              )}
             </div>
           )}
           <div className={`${CLASSNAME}__inputrow`}>
@@ -3673,9 +4585,15 @@ function BotBubble({ projectCode, index }) {
           </div>
         </div>
       )}
-      {!open && !animating && !listening && (p.status || unread > 0) && (
+      {/* THE THIRD TIME THIS EXACT BUG: gated on one thing, drawn from another. The gate asked the
+          ROOM (`p.status`, `unread`) and the body drew from the SESSION (`peekUnread`), so every
+          project with old room messages and no attached conversation opened a bubble under its bot
+          with NOTHING IN IT — six of them on his screen at once, which is the "extra row when it's
+          minimised" he asked me to get rid of. `peekHas` is now the single answer to both questions,
+          so there is no way for them to disagree again. */}
+      {!open && !animating && !listening && peekHas && (
         <div
-          className={`${CLASSNAME}__peek ${unread > 0 ? `${CLASSNAME}__peek--thread` : ""} ${leftHalf ? `${CLASSNAME}__peek--right` : ""}`}
+          className={`${CLASSNAME}__peek ${peekUnread > 0 && !(hasBrief && sessionCooking) ? `${CLASSNAME}__peek--thread` : ""} ${leftHalf ? `${CLASSNAME}__peek--right` : ""}`}
           style={peekShift ? { marginLeft: peekShift } : undefined}
           onClick={() => {
             openRef.current = true;
@@ -3684,17 +4602,61 @@ function BotBubble({ projectCode, index }) {
             try { localStorage.setItem(`sv.chatSeen.${projectCode}`, String(Date.now())); } catch {}
           }}
         >
-          {!unread ? (
-            // Closed ≠ blind (his ask: the peek shows MORE): every live cooking line stacks
-            // here — home first, visitors named in plum — so a closed chat still tells you
-            // who's cooking on what. A waiting CONVERSATION outranks it: the thread is the chat.
-            (p.statuses && p.statuses.length ? p.statuses : [{ as: p.statusAs, text: p.status }]).map((s) => (
-              <StatusLine
-                key={s.as || "home"}
-                status={s.text}
-                visitor={s.as && s.as !== projectCode ? s.as : null}
-              />
-            ))
+          {/* WHILE IT IS WORKING, THE BRIEF WINS. These are two different jobs wearing one slot: the
+              message display is for coming BACK to a pile of replies, the brief is for watching work
+              happen. Ranking unread first meant the brief almost never appeared — every sentence the
+              agent finishes is itself an unread, so a working agent went straight back to the pile
+              view. Working ⇒ show what it is doing; quiet with replies waiting ⇒ show the replies. */}
+          {!peekUnread || (hasBrief && sessionCooking) ? (
+            // Closed ≠ blind (his ask: the peek shows MORE): a closed chat still tells you what is
+            // being worked on. ATTACHED, that sentence comes from the session — the same words the
+            // open panel shows — instead of the room's hub status, so there is one answer to "is
+            // anything happening" whether the panel is open, closed or docked.
+            hasBrief ? (
+              // TWO LINES, NOT A CYCLING WORD. Text on top because that is the thing he is waiting
+              // for; the command under it in the same plum the panel uses, so a SystemView action
+              // and a shell line read as themselves here too. Each is ONE line and clipped — this
+              // is a brief, and a brief that wraps to four lines is a panel he did not open.
+              <div className={`${CLASSNAME}__brief`}>
+                {brief.say && <div className={`${CLASSNAME}__brief-say`}>{brief.say}</div>}
+                {/* THE DOTS BELONG TO THE SECOND ROW, and to ALL of them — his correction, twice
+                    over. First I put them on both rows: *"I didn't say the ellipsis is on both rows.
+                    I said the second row."* Then, on the row itself: *"it's only on the green ones…
+                    they can all have dancing dots matching their color at the end."* So the gate on
+                    `running` comes off, and the colour is `currentColor` — inherited from the line
+                    they end, so a green command's dots are green and a neutral one's are neutral,
+                    with no second colour rule to keep in sync. The words clip and the dots do NOT:
+                    inside the clipping box a long command pushes them off the end. */}
+                {brief.cmd && (
+                  <div
+                    className={`${CLASSNAME}__brief-cmd${
+                      brief.running ? ` ${CLASSNAME}__brief-cmd--running` : ""
+                    }${brief.kind === "sv" ? ` ${CLASSNAME}__brief-cmd--sv` : ""}`}
+                  >
+                    <span className={`${CLASSNAME}__brief-text`}>{brief.cmd}</span>
+                    <span className={`${CLASSNAME}__dots`}>
+                      <i />
+                      <i />
+                      <i />
+                    </span>
+                  </div>
+                )}
+                {/* Only when there is nothing real yet — a turn that has started and produced
+                    neither a sentence nor a command still has to prove it is alive. */}
+                {!brief.say && !brief.cmd && sessionCooking && <StatusLine status={peekCookWord} />}
+              </div>
+            ) : sessionCooking ? (
+              // THE PEEK'S OWN COMPONENT, unchanged — only where the sentence comes from changed.
+              <StatusLine status={peekCookWord} />
+            ) : (
+              roomLines.map((s) => (
+                <StatusLine
+                  key={s.as || "home"}
+                  status={s.text}
+                  visitor={s.as && s.as !== projectCode ? s.as : null}
+                />
+              ))
+            )
           ) : (
             // NEW MESSAGES, SHOWN PROPERLY. This is a DISPLAY upgrade, not a chat (his words: "it's
             // for displaying the new messages, it's not for chatting"). What was wrong was never the
@@ -3739,6 +4701,17 @@ function BotBubble({ projectCode, index }) {
                 // left holes in the story: "pulled up X" then a reply about X, with the X missing.
                 let seenTs = 0;
                 try { seenTs = Number(localStorage.getItem(`sv.chatSeen.${projectCode}`)) || 0; } catch {}
+                // ATTACHED, the new replies are the SESSION's — the room is not the conversation he
+                // is in, so previewing it would show him someone else's chat.
+                if (attached) {
+                  const shownSaid = freshSaid.length ? freshSaid : saidRows.slice(-1);
+                  if (!shownSaid.length) return <div className={`${CLASSNAME}__peek-row`}>new reply</div>;
+                  return shownSaid.map((r, i) => (
+                    <div key={r.key || i} className={`${CLASSNAME}__peek-row`}>
+                      {renderChatMessage(String(r.text || ""))}
+                    </div>
+                  ));
+                }
                 const mine = messages.filter((m) => m.from === "agent");
                 const fresh = mine.filter((m) => (m.ts || 0) > seenTs);
                 const shown = fresh.length ? fresh : mine.slice(-1);
@@ -3874,7 +4847,20 @@ function BotBubble({ projectCode, index }) {
           }}
         >
           <span className={`${CLASSNAME}__face`}>🤖</span>
-          {unread > 0 && !animating && <span className={`${CLASSNAME}__unread`}>{unread}</span>}
+          {/* SOMEONE ELSE IS IN HERE. A visit was only ever visible once you opened the panel and
+              read the roster — so an agent talking to another agent looked, from across the screen,
+              exactly like an agent talking to nobody. One pip per visitor in that visitor's own
+              colour, on the opposite shoulder from the unread count so the two never collide. */}
+          {visitors.length > 0 && (
+            <span className={`${CLASSNAME}__vis-pips`} title={`${visitors.join(", ")} in this conversation`}>
+              {visitors.slice(0, 3).map((v) => (
+                <span key={v} className={`${CLASSNAME}__vis-pip`} style={visStyle(v)} />
+              ))}
+            </span>
+          )}
+          {/* The badge counts the SAME thing the peek previews. Counting the room while previewing
+              the session would put a number on the bubble that nothing inside it explains. */}
+          {peekUnread > 0 && !animating && <span className={`${CLASSNAME}__unread`}>{peekUnread}</span>}
           {/* RFC-031 — a visit never hides behind a closed panel: the plum shoulder badge says
               someone's in this room right now; hover names them. */}
           {visitors.length > 0 && (

@@ -247,7 +247,18 @@ async function loadCaseSetting() {
       // RFC-039 — `--pin` keeps that sentence: it also lands in the chat instead of evaporating
       // with the animation. Opt-in, because most pointing lines should stay ephemeral.
       pin: !!flags.pin,
+      // `--room` — the deliberate override for the reply-into-the-void wall: "I really do mean my
+      // own room", spoken right after a visitor, knowing they won't hear it.
+      room: !!flags.room,
     };
+    // ONE GATE, NOT ONE PER VERB. His rule, after catching a reply signed as a name that was never
+    // a project: *"all `--as` need to be checked against the project whenever `as` is used — not
+    // for a particular command, whenever `as` is used."* Checking at the front door means a verb
+    // added later inherits it instead of forgetting it.
+    const badIdentity = await chatCmd.checkIdentity({ uiUrl: UI_URL, Client, agent: flags.as });
+    // `flushAndExit`, not `return` — the hub client holds an open socket, so returning early prints
+    // the refusal and then hangs forever with nothing on screen to explain why.
+    if (badIdentity) flushAndExit(badIdentity);
     let exitCode = 0;
     if (command === "join") exitCode = await chatCmd.join(input[1], opts);
     else if (command === "say") exitCode = await chatCmd.say(input[1], input[2], opts);

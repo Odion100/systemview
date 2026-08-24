@@ -267,13 +267,6 @@ function getServices(searchText) {
   }
 }
 
-// The UI's connect-by-URL. Always treats the input as a URL — no isUrl heuristic — so remote hosts
-// and long TLDs (.global, .systems, …) that the heuristic mis-rejects still connect. Mirrors the
-// CLI's `connect <url>`: probe → pull the whole project manifest.
-function connectUrl(url) {
-  return getConnectionData(url);
-}
-
 async function getConnectionData(url) {
   try {
     const connectionData = await httpClient.request({ url });
@@ -323,18 +316,19 @@ async function getConnectionData(url) {
     return [];
   }
 }
-async function refreshConnection(searchText) {
-  await ConnectedServices.refreshConnections();
-  return getServices(searchText);
-}
-
 function getProjects() {
   const connections = ConnectedServices.getAllConnections();
   const projects = {};
-  connections.forEach(({ projectCode, serviceId, system, specList, credentials, dynamic, hosted }) => {
+  connections.forEach(({ projectCode, serviceId, system, specList, credentials, dynamic, hosted, root }) => {
     if (!projects[projectCode]) projects[projectCode] = [];
     projects[projectCode].push({
       serviceId,
+      // THE DIRECTORY THIS SERVICE RUNS FROM. It has always been on the connection record and was
+      // never handed to the browser — which is why the nav could only tell projects apart by NAME,
+      // and why one directory arriving under two names (the plugin's `systemview-test` and the
+      // host's folder name `systemview`) drew two cards for one folder. A project is a directory;
+      // the UI cannot act on that while the directory is the one field it can't see.
+      root: root || null,
       serviceUrl: system.connectionData.serviceUrl,
       connectionData: system.connectionData,
       system,
@@ -466,110 +460,10 @@ async function deleteView(projectCode, name) {
   return Plugin.deleteView({ name });
 }
 
-// RFC-018 — STORIES. A project has MANY stories (not one live stage), each filed on a namespace with a
-// free name — like a method has many tests. Disk (the project plugin) is the source of truth; the API
-// read-modify-writes a story and broadcasts `stories-updated:<projectCode>` so every open UI (the tab
-// AND the /stories page) refreshes. A pane still carries only a locator — the UI fetches real bytes.
-let storySeq = 0;
-function genId(prefix) {
-  storySeq += 1;
-  return `${prefix}_${Date.now().toString(36)}_${storySeq.toString(36)}`;
-}
-// A story's id (and thus its on-disk filename) is just its NAME, slugified — `RFC-018-work.json`. The
-// namespace lives INSIDE the file (a field), not in the filename. Re-saving the same name upserts it.
-const slugify = (s) =>
-  String(s || "").trim().replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 90) || "untitled";
-function storyId(namespace, name) {
-  return slugify(name);
-}
-async function listStories(projectCode) {
-  const Plugin = projectPlugin(projectCode);
-  return Plugin ? (await Plugin.listStories()) || [] : [];
-}
-async function emitStories(ctx, projectCode) {
-  const list = await listStories(projectCode);
-  ctx.emit(`stories-updated:${projectCode}`, list);
-  return list;
-}
-async function getStory(projectCode, id) {
-  const Plugin = projectPlugin(projectCode);
-  return Plugin ? await Plugin.getStory({ id }) : null;
-}
-async function createStory(projectCode, meta = {}) {
-  const Plugin = projectPlugin(projectCode);
-  if (!Plugin) throw new Error(`no connected service for project "${projectCode}"`);
-  const namespace = meta.namespace || projectCode;
-  const name = meta.name || "Untitled story";
-  const story = {
-    id: storyId(namespace, name),
-    projectCode,
-    namespace,
-    name,
-    layout: meta.layout || "grid",
-    panes: [],
-  };
-  await Plugin.saveStory({ story });
-  await emitStories(this, projectCode);
-  return story;
-}
-// Full write (rename / relayout / bulk panes) — the story object round-trips through the client.
-async function saveStory(projectCode, story) {
-  const Plugin = projectPlugin(projectCode);
-  if (!Plugin) throw new Error(`no connected service for project "${projectCode}"`);
-  if (!story || !story.id) throw new Error("saveStory: a story with an id is required");
-  await Plugin.saveStory({ story });
-  await emitStories(this, projectCode);
-  return story;
-}
-async function deleteStory(projectCode, id) {
-  const Plugin = projectPlugin(projectCode);
-  if (!Plugin) throw new Error(`no connected service for project "${projectCode}"`);
-  await Plugin.deleteStory({ id });
-  await emitStories(this, projectCode);
-  return { id };
-}
-// Pane ops read the current story, mutate, persist, broadcast. New panes land at the TOP.
-async function addStoryPane(projectCode, id, pane) {
-  const story = await getStory(projectCode, id);
-  if (!story) throw new Error(`no story "${id}" in "${projectCode}"`);
-  story.panes = story.panes || [];
-  story.panes.unshift({ id: genId("pane"), ...pane });
-  return saveStory.call(this, projectCode, story);
-}
-async function removeStoryPane(projectCode, id, paneId) {
-  const story = await getStory(projectCode, id);
-  if (!story) return null;
-  story.panes = (story.panes || []).filter((p) => p.id !== paneId);
-  return saveStory.call(this, projectCode, story);
-}
-async function setStoryLayout(projectCode, id, layout) {
-  const story = await getStory(projectCode, id);
-  if (!story) return null;
-  story.layout = layout;
-  return saveStory.call(this, projectCode, story);
-}
-async function renameStory(projectCode, id, name) {
-  const story = await getStory(projectCode, id);
-  if (!story) return null;
-  story.name = name;
-  return saveStory.call(this, projectCode, story);
-}
-async function reorderStoryPanes(projectCode, id, ids) {
-  const story = await getStory(projectCode, id);
-  if (!story) return null;
-  const byId = new Map((story.panes || []).map((p) => [p.id, p]));
-  const next = (ids || []).map((pid) => byId.get(pid)).filter(Boolean);
-  (story.panes || []).forEach((p) => { if (!next.includes(p)) next.push(p); });
-  story.panes = next;
-  return saveStory.call(this, projectCode, story);
-}
-async function setStoryPaneSpan(projectCode, id, paneId, span) {
-  const story = await getStory(projectCode, id);
-  if (!story) return null;
-  const pane = (story.panes || []).find((p) => p.id === paneId);
-  if (pane) pane.span = span;
-  return saveStory.call(this, projectCode, story);
-}
+// (RFC-018's STORIES machinery lived here until the sweep — the CLI already answered every story verb
+// with "stories are retired — write a REPORT instead", the /stories UI was unreachable, and the
+// plugin methods these called were retired in systemview-plugin 2.23.0. Old .systemview/stories/
+// files are left untouched on disk.)
 
 // RFC-028 — agent presence: the chat front door. One JSONL file per chat serves BOTH transports
 // (join = pushed live down a held poll, file = drained at turn boundaries); presence is derived
@@ -605,10 +499,11 @@ function resolveSpeaker(projectCode, chat, as) {
     throw new Error(
       `"${as}" is not a connected project — identities ARE project codes (RFC-031). Speak as your own project (--as <yourProjectCode>), or drop --as to speak as ${projectCode}'s own agent.`,
     );
+  // Arriving IS entering. The pre-entry gate was a proof-of-presence built on holds, and holds are
+  // what this replaced; the identity check above is the proof that survives. The visit is still
+  // recorded, so presence and the "who jumped into whose chat" display stay honest.
   if (!Chats.hasEntered(projectCode, chat || Chats.DEFAULT_CHAT, as))
-    throw new Error(
-      `${as} is not in ${projectCode}'s room — enter before you speak: systemview join ${projectCode} --once --as ${as}`,
-    );
+    Chats.enterBySpeaking(projectCode, chat || Chats.DEFAULT_CHAT, as);
   return as;
 }
 // Presence with the identity-canon predicate — a "join:claude" cursor is the HOME agent's
@@ -712,10 +607,14 @@ function emitStatuses(ctx, projectCode, chat) {
     as: p.statusAs || null,
   });
 }
-function chatSend(projectCode, { chat, from = "you", text, view, as } = {}) {
+function chatSend(projectCode, { chat, from = "you", text, view, as, toRoom } = {}) {
   armChatSweep(this);
   const identity = from === "agent" ? resolveSpeaker(projectCode, chat, as) : undefined;
-  const { record, delivered } = Chats.send(projectCode, chat || Chats.DEFAULT_CHAT, { from, text, view, as: identity });
+  const sent = Chats.send(projectCode, chat || Chats.DEFAULT_CHAT, { from, text, view, as: identity, toRoom });
+  // The wall at the wrong door said no — nothing was written, so nothing is emitted; the refusal
+  // travels back to the CLI, which prints the command that actually reaches the visitor.
+  if (sent && sent.blocked) return sent;
+  const { record } = sent;
   this.emit(`chat-updated:${projectCode}`, { chat: chat || Chats.DEFAULT_CHAT, record });
   // The store just moved cooking lines around (speaker's line cleared, takers' lines flipped
   // "received", maybe a "waiting on" appeared) — push the whole per-identity set.
@@ -874,6 +773,58 @@ function readTvStore(projectCode, chat) {
 // clicking an answer edits that record — one place, no second copy of the text. The side-file only
 // survives as the fallback for a project whose plugin predates `chatUpdate`; dropping his answers
 // on those is not an option, so they keep the old behaviour until they upgrade.
+// RFC-050 — ANSWERING A BLOCK IN THE CHAT, and the reason it does two things at once.
+//
+// On the TV, an input block writes its answer back into the SOURCE FILE — that is what makes an
+// answer durable, shared, and readable by an agent later. A chat message has no file behind it, so
+// this rewrites the block's attribute inside the RECORD instead. `Chats.update` already edits a
+// record in place (it is how `chatHide` works), so the mechanism exists.
+//
+// And then it says so in plain words. His question, and the only hard part of the whole idea:
+// *"you gotta make sure it's something that doesn't burden you guys on how you read the response."*
+// An agent should not have to learn a new verb, poll a new store, or parse a block to find out what
+// he decided. So the same click posts an ORDINARY message — `answered "hide it entirely"` — which
+// every agent already reads through the path it uses for everything else. The record edit is for
+// the human scrolling back; the message is for us. Neither one is a burden on the other.
+function chatAnswer(projectCode, { chat, id, line, key: attr, value, label } = {}) {
+  const chatName = chat || Chats.DEFAULT_CHAT;
+  const records = Chats.history(projectCode, chatName, { limit: 400 }) || [];
+  const rec = records.find((r) => r.id === id);
+  if (!rec) return { updated: false, reason: "no such record" };
+  const lines = String(rec.text || "").split("\n");
+  const n = Number(line);
+  if (!(n >= 1) || n > lines.length) return { updated: false, reason: "no such line" };
+  lines[n - 1] = setDirectiveAttr(lines[n - 1], attr, value);
+  const res = Chats.update(projectCode, chatName, id, { text: lines.join("\n") });
+  if (res && res.updated) {
+    this.emit(`chat-updated:${projectCode}`, { chat: chatName, tvEdit: id });
+    // THE PLAIN-WORDS HALF. `from: "you"` because he is the one who answered — an agent reading the
+    // room must see his decision as his, not as a system note it can ignore.
+    const said = value
+      ? `answered ${label ? `${label} — ` : ""}"${value}"`
+      : `cleared ${label ? `their answer to ${label}` : "an answer"}`;
+    const { record } = Chats.send(projectCode, chatName, { from: "you", text: said });
+    this.emit(`chat-updated:${projectCode}`, { chat: chatName, record });
+    this.emit(`chat-presence:${projectCode}`, presenceFor(projectCode));
+  }
+  return res;
+}
+// Set (or drop) one attribute on a directive line, leaving everything else exactly as written. The
+// value is quoted whenever it could not survive unquoted — an unquoted attribute stops at the first
+// space, which is the bug that ate a `::question` on RFC-049.
+function setDirectiveAttr(line, attr, value) {
+  const drop = value === null || value === undefined || value === "";
+  const quoted = /[\s"|}]/.test(String(value || "")) ? JSON.stringify(String(value)) : String(value);
+  const m = String(line).match(/^(.*?)\{([^}]*)\}(\s*)$/);
+  if (!m) return drop ? line : `${line}{${attr}=${quoted}}`;
+  const [, head, body, tail] = m;
+  const without = body
+    .replace(new RegExp(`(^|\\s)${attr}=(?:"[^"]*"|[^\\s}]*)`), "")
+    .replace(/\s+/g, " ")
+    .trim();
+  const next = drop ? without : `${without ? `${without} ` : ""}${attr}=${quoted}`;
+  return `${head}{${next}}${tail}`;
+}
 function chatSetTv(projectCode, { chat, state } = {}) {
   if (!state || !state.id) return { ok: false };
   const inPlace = Chats.update(projectCode, chat || Chats.DEFAULT_CHAT, state.id, {
@@ -1055,7 +1006,19 @@ module.exports = function launchSystemView(port = 3000) {
     }
   });
 
-  server.use(express.static(buildPath));
+  // INDEX.HTML IS NEVER CACHED. Every asset under it is content-hashed and can be cached forever,
+  // but the one file that NAMES those hashes must be fetched fresh or the tab keeps booting the old
+  // bundle from disk cache. That is what broke self-updating tabs: the tab correctly noticed a new
+  // build, reloaded, got its cached index.html back, and came up on the same old bundle — with the
+  // loop-guard now set, so it would not try again. He ended up refreshing by hand for a rule that
+  // exists precisely so he never has to.
+  server.use(
+    express.static(buildPath, {
+      setHeaders: (res, filePath) => {
+        if (/index\.html$/.test(filePath)) res.setHeader("Cache-Control", "no-store");
+      },
+    }),
+  );
 
   App.startService({
     route,
@@ -1065,14 +1028,12 @@ module.exports = function launchSystemView(port = 3000) {
   })
     .module("SystemView", {
       connect,
-      connectUrl,
       hostProject,
       hostedOp,
       getServices,
       getProjects,
       updateSpecList,
       shutdown,
-      refreshConnection,
       deleteService,
       deleteProject,
       getStage,
@@ -1092,17 +1053,6 @@ module.exports = function launchSystemView(port = 3000) {
       openView,
       listViews,
       deleteView,
-      listStories,
-      getStory,
-      createStory,
-      saveStory,
-      deleteStory,
-      addStoryPane,
-      removeStoryPane,
-      setStoryLayout,
-      renameStory,
-      reorderStoryPanes,
-      setStoryPaneSpan,
       chatSend,
       chatCommand,
       chatHistory,
@@ -1115,6 +1065,7 @@ module.exports = function launchSystemView(port = 3000) {
       chatLeave,
       chatKick,
       chatSetTv,
+      chatAnswer,
       chatGetTv,
       chatPresence,
     })
@@ -1130,6 +1081,7 @@ module.exports = function launchSystemView(port = 3000) {
     })
     .on("ready", () => {
       server.get("*", (req, res) => {
+        res.setHeader("Cache-Control", "no-store");
         res.sendFile(indexPath);
       });
 

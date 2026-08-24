@@ -240,8 +240,10 @@ comments filter, and the ⑂ version-control lens all narrow the same list.
 press Enter. Type a name with slashes in it and the folders are made on the way.
 :::
 
-Add a connection with **＋**: paste a \`loadService\` URL for a SystemLynx service, or attach a
-codebase folder.`,
+**＋ names a project** — that is all it does. The project appears as an empty shell right under,
+and everything else attaches to it from there: *choose a folder* in its code area brings in a
+codebase; a SystemLynx service connects by running with the plugin. Name-only, codebase-only,
+services-only, or both — every shape is a real project.`,
   },
 
   markdown: {

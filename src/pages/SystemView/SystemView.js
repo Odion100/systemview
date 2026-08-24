@@ -302,8 +302,6 @@ const SystemViewPage = () => {
               moduleName={moduleName}
               methodName={methodName}
               onCollapse={() => setNavOpen(false)}
-              navTab={navTab}
-              setNavTab={setNavTab}
               openFile={codeFile}
               onOpenFile={openFile}
               reveal={reveal}

@@ -1,0 +1,622 @@
+// RFC-046 — the workbench. It sits inside the codebase card next to the terminal, so it borrows the
+// nav's tokens rather than inventing a palette: one card, one surface.
+.agent-wb {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1 1 auto;
+  background: var(--sv-inset);
+  border-top: 1px solid var(--sv-border);
+  font-size: 11.5px;
+
+  &--dead {
+    padding: 8px 12px;
+    color: var(--sv-text-faint);
+    font-style: italic;
+  }
+
+  &__head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border-bottom: 1px solid var(--sv-border);
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 10px;
+    color: var(--sv-text-faint);
+  }
+  // The one word that answers "is it doing anything" — the question he has had to ask out loud all
+  // week. Amber while it works, because that is what amber already means everywhere else here.
+  &__state {
+    text-transform: lowercase;
+    &--working { color: #d98c6a; }
+    &--waiting { color: #d9c76a; }
+    &--ready { color: #7fb069; }
+  }
+  &__mode { color: var(--sv-text-faint); opacity: .7; }
+  &__cost { margin-left: auto; }
+  &__stop {
+    margin-left: auto;
+    border: 1px solid var(--sv-border);
+    background: none;
+    color: var(--sv-text-muted);
+    border-radius: 3px;
+    padding: 0 6px;
+    cursor: pointer;
+    &:hover { border-color: #d98c6a; color: #d98c6a; }
+  }
+  &__err { padding: 4px 8px; color: #d9736a; }
+
+  &__feed {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 6px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  &__empty { color: var(--sv-text-faint); font-style: italic; }
+
+  &__row {
+    &--say { color: var(--sv-text); white-space: pre-wrap; }
+    // Reasoning is context for the work, not the work — it recedes.
+    &--think {
+      color: var(--sv-text-faint);
+      font-style: italic;
+      white-space: pre-wrap;
+      opacity: .75;
+    }
+    &--tool { display: flex; align-items: baseline; gap: 4px; flex-wrap: wrap; }
+    // His side of a replayed conversation — set apart so the history reads as a dialogue.
+    &--mine {
+      color: var(--sv-text);
+      white-space: pre-wrap;
+      border-left: 2px solid #9a7cb8;
+      padding-left: 6px;
+    }
+    // Where the transcript stops and this session starts. Said once, quietly.
+    &--seam {
+      color: var(--sv-text-faint);
+      font-family: "SF Mono", Menlo, monospace;
+      font-size: 9.5px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      text-align: center;
+      margin: 6px 0 2px;
+      &::before, &::after { content: "———— "; opacity: .5; }
+      &::after { content: " ————"; }
+    }
+    &--done { color: var(--sv-text-faint); font-family: "SF Mono", Menlo, monospace; font-size: 10px; }
+    &--error { color: #d9736a; }
+    &--ask {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 6px;
+      border: 1px solid #d9c76a;
+      border-radius: 4px;
+      background: color-mix(in srgb, #d9c76a 8%, transparent);
+    }
+  }
+  &__ask-title { flex: 1; }
+  // Answered, it stops shouting: the decision stays readable, the offer is gone.
+  &__row--answered {
+    border-color: var(--sv-border);
+    background: none;
+    opacity: .7;
+  }
+  &__ask-was {
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 10px;
+    color: var(--sv-text-faint);
+  }
+  &__ask-yes, &__ask-no {
+    border: 1px solid var(--sv-border);
+    background: none;
+    border-radius: 3px;
+    padding: 1px 8px;
+    cursor: pointer;
+    color: var(--sv-text);
+  }
+  &__ask-yes:hover { border-color: #7fb069; color: #7fb069; }
+  &__ask-no:hover { border-color: #d9736a; color: #d9736a; }
+
+  // ONE LINE PER CALL. The whole point: you can read a hundred of these at a glance, and open the
+  // one you care about.
+  &__tool-line {
+    flex: 1;
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    border: none;
+    background: none;
+    padding: 0;
+    cursor: pointer;
+    text-align: left;
+    color: var(--sv-text-muted);
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 10.5px;
+    overflow: hidden;
+    &:hover { color: var(--sv-text); }
+  }
+  &__dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    flex: 0 0 auto;
+    background: var(--sv-text-faint);
+    &--running { background: #d98c6a; }
+    &--ok { background: #7fb069; }
+    &--failed { background: #d9736a; }
+  }
+  &__tool-name { color: var(--sv-text-faint); }
+  &__tool-sum { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  &__tool-open {
+    border: none;
+    background: none;
+    color: var(--sv-text-faint);
+    font-size: 10px;
+    cursor: pointer;
+    padding: 0 4px;
+    &:hover { color: #d98c6a; }
+  }
+  &__tool-raw {
+    flex: 1 0 100%;
+    max-height: 220px;
+    overflow: auto;
+    pre {
+      margin: 2px 0;
+      font-size: 10px;
+      color: var(--sv-text-muted);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+  }
+  &__tool-out { opacity: .8; }
+
+  &__compose {
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    border-top: 1px solid var(--sv-border);
+  }
+  &__input {
+    flex: 1;
+    resize: none;
+    background: var(--sv-surface);
+    border: 1px solid var(--sv-border);
+    border-radius: 4px;
+    color: var(--sv-text);
+    font-family: inherit;
+    font-size: 11.5px;
+    padding: 4px 6px;
+    &:focus { outline: none; border-color: #9a7cb8; }
+  }
+  &__send {
+    align-self: flex-end;
+    border: 1px solid var(--sv-border);
+    background: none;
+    border-radius: 4px;
+    color: var(--sv-text);
+    padding: 3px 10px;
+    cursor: pointer;
+    &:disabled { opacity: .4; cursor: default; }
+    &:not(:disabled):hover { border-color: #7fb069; color: #7fb069; }
+  }
+}
+
+// PARAGRAPHS ARE BLOCKS HERE. `.chat-md__p` is set to `display: inline` for the ROOM's bubbles —
+// small bubbles where an inline run is right — and the direct chat had no rule for it at all, so
+// every paragraph of a long answer ran into the next one with a single newline between them. His
+// catch, comparing the two windows: *"you got 'two more done' over here, but in the browser chat
+// it's 'two more done', a lot of space, and then the next line. Why am I not seeing that structure
+// that's very helpful to me as a reader?"* The direct chat renders documents, not bubbles, so its
+// blocks get real vertical rhythm.
+.agent-wb__row--say, .agent-wb__row--mine {
+  .chat-md__p {
+    display: block;
+    margin: 0 0 11px;
+    &:last-child { margin-bottom: 0; }
+  }
+  .chat-md__h {
+    display: block;
+    margin: 14px 0 5px;
+    font-weight: 700;
+    &:first-child { margin-top: 0; }
+  }
+  .chat-md__list {
+    margin: 0 0 11px;
+    padding-left: 20px;
+    li { margin: 0 0 3px; }
+  }
+  .chat-md__fence, .chat-md__tablewrap { margin: 0 0 11px; }
+  .chat-md__quote { display: block; margin: 0 0 11px; }
+  .chat-md__rule { margin: 12px 0; }
+}
+
+// A said block is a DOCUMENT now, so the markdown atom's own spacing has to sit inside a chat row
+// without turning every paragraph into a page.
+.agent-wb__row--say .md, .agent-wb__row--mine .md {
+  font-size: inherit;
+  p { margin: 0 0 6px; &:last-child { margin-bottom: 0; } }
+  ul, ol { margin: 4px 0; padding-left: 18px; }
+  h1, h2, h3, h4 { font-size: 1em; margin: 6px 0 3px; }
+  pre { margin: 4px 0; }
+}
+
+// ────────────────────────────────────────────────────────────────────────────────
+// MATCHING THE BROWSER'S PANEL, to its own numbers.
+//
+// His instruction, comparing the two side by side: *"the agent panel has updated so that it shows
+// the bash commands and that they're reading files… yours is not updated properly."* Autobot's
+// panel is ahead, so this is not invention — it is the same measurements, read out of its
+// `electron/ui/src/app.css`, so one conversation looks like one conversation in either window.
+// Not unified in code yet (that is a package, and a later decision he made); unified in LOOK now.
+.agent-wb {
+  &__row {
+    font-size: 12.5px;
+    line-height: 1.5;
+  }
+
+  // The agent's voice: no rail, no fill — a document, not a bubble.
+  &__row--say {
+    padding: 3px 8px;
+    color: var(--sv-text);
+    white-space: pre-wrap;
+    word-break: break-word;
+    border-left: none;
+    background: none;
+  }
+  :root.sv-dark &__row--say { color: #e6e9f2; }
+
+  // HIS turn: the blue wash alone, rounded, and NO side border — rails belong to command cards.
+  &__row--mine {
+    margin-top: 8px;
+    padding: 6px 10px;
+    border-radius: 7px;
+    border-left: none;
+    background: color-mix(in srgb, #575fc1 14%, transparent);
+    color: var(--sv-text-strong);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  // THE FOLD ON A LONG MESSAGE. Clamped bodies fade out at the cut instead of being guillotined,
+  // so it reads as "there is more" rather than "this ended mid-sentence".
+  &__said--clamped {
+    overflow: hidden;
+    -webkit-mask-image: linear-gradient(to bottom, #000 72%, transparent 100%);
+    mask-image: linear-gradient(to bottom, #000 72%, transparent 100%);
+  }
+
+  // The control belongs on the trailing edge, with the rest of this app's affordances — his catch:
+  // *"the see more / show less button is on the wrong side."*
+  // A VISIT wears the VISITOR'S OWN colour, not the human's blue — the two must never be mistaken
+  // for each other, and two different agents in one conversation must not be mistaken for each
+  // other either (his rule from the room: same colour for everyone is no help at all). `--vis` is
+  // set per row from the identity; plum is the fallback when nobody named themselves.
+  &__row--visit {
+    border-left: 2px solid var(--vis, #9a7cb8);
+    background: color-mix(in srgb, var(--vis, #9a7cb8) 10%, transparent);
+  }
+  &__visitor {
+    display: inline-block;
+    margin-right: 6px;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: #fff;
+    background: var(--vis, #9a7cb8);
+  }
+
+  // The tool's name, said out loud, as the first word of the line.
+  &__sv-kind {
+    margin-right: 5px;
+    font-weight: 700;
+    color: #9a7cb8;
+    // The shell is not SystemView, so it does not wear SystemView's plum.
+    &--sh { color: var(--sv-text-faint); font-weight: 600; }
+  }
+
+  &__more {
+    display: block;
+    width: fit-content;
+    margin: 2px 0 6px auto;
+    padding: 1px 7px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: #575fc1;
+    background: color-mix(in srgb, #575fc1 10%, transparent);
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+
+    &:hover { background: color-mix(in srgb, #575fc1 20%, transparent); }
+  }
+  :root.sv-dark &__more { color: #9aa2ee; }
+
+  // A command is a RECEIPT — monospace, plum rail, faint fill. Blue when the turn ends, red when
+  // it failed. Same three states the browser draws.
+  &__row--tool {
+    font-family: "SF Mono", Menlo, "Courier New", monospace;
+    font-size: 11px;
+    color: var(--sv-text-muted);
+    padding: 2px 6px;
+    border-left: 2px solid #9a7cb8;
+    background: color-mix(in srgb, #9a7cb8 8%, transparent);
+    border-radius: 3px;
+    word-break: break-word;
+  }
+  &__row--failed {
+    border-left-color: #e05252;
+    background: color-mix(in srgb, #e05252 8%, transparent);
+  }
+  &__row--done,
+  &__row--note {
+    font-family: "SF Mono", Menlo, "Courier New", monospace;
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    border-left: 2px solid #4a90d9;
+    background: color-mix(in srgb, #4a90d9 8%, transparent);
+    color: var(--sv-text-faint);
+  }
+  &__row--note { color: #4caf50; font-weight: 600; }
+  // The compaction receipt, in the browser panel's colours — the rail turns green too, so the line
+  // reads as its own kind of moment rather than as another blue system note.
+  &__row--compaction {
+    border-left-color: #4caf50;
+    background: color-mix(in srgb, #4caf50 10%, transparent);
+  }
+  // A MODEL CHANGE IS ITS OWN KIND OF MOMENT — not a compaction (green, something was freed) and
+  // not a plain system note. Indigo, the colour this app already uses for "the machinery changed".
+  &__row--model {
+    color: #8f97e8;
+    border-left-color: #8f97e8;
+    background: color-mix(in srgb, #8f97e8 10%, transparent);
+  }
+  &__note-mark { margin-right: 5px; }
+
+  // The clock on a turn — faint and out of the way, riding the right edge. Every message row
+  // carries one (his ask); it must never compete with the words.
+  &__ts {
+    float: right;
+    font-size: 9.5px;
+    color: var(--sv-text-faint);
+    opacity: 0.75;
+    margin-left: 10px;
+    line-height: 2;
+    user-select: none;
+  }
+
+  // A MESSAGE TO ANOTHER AGENT — the visitor family's plum, because it is the same conversation
+  // seen from the other side: their turns arrive as plum visitor rows, ours leave as this.
+  &__row--sent {
+    display: block;
+    border-left-color: #b06ab3;
+    background: color-mix(in srgb, #b06ab3 7%, transparent);
+  }
+  &__sent-kind {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    color: #b06ab3;
+    margin-right: 6px;
+  }
+  &__sent-to {
+    font-weight: 600;
+    color: #b06ab3;
+    margin-right: 6px;
+  }
+  &__sent-about { color: var(--sv-text-faint); font-style: italic; }
+  &__sent-body {
+    margin-top: 3px;
+    padding-left: 12px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--sv-text);
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  // A TERMINAL COMMAND'S RECEIPT (/usage and friends) — a quiet card: the command as its title,
+  // the printout in its own ink, and any percentage drawn as a thin bar in the meter's colour
+  // language. It must NOT read as him speaking or as the agent's prose — it is the host answering.
+  &__row--cmdret {
+    padding: 5px 8px;
+    border-left-color: var(--sv-text-faint);
+    background: color-mix(in srgb, var(--sv-text-faint) 6%, transparent);
+    border-radius: 5px;
+  }
+  &__cmdret-head {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    margin-bottom: 2px;
+  }
+  &__cmdret-name {
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 11px;
+    font-weight: 600;
+    color: #8f97e8; // the machinery's colour — the host did this, not the conversation
+  }
+  &__cmdret-args {
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 10.5px;
+    color: var(--sv-text-faint);
+  }
+  &__cmdret-out { font-size: 11.5px; line-height: 1.55; color: var(--sv-text); }
+  &__cmdret-line { margin: 1px 0; }
+  &__cmdret-text { display: block; white-space: pre-wrap; word-break: break-word; }
+  &__cmdret-gap { height: 7px; }
+  &__cmdret-bar {
+    display: block;
+    height: 3px;
+    margin: 2px 0 3px;
+    max-width: 340px;
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--sv-text-faint) 18%, transparent);
+    overflow: hidden;
+  }
+  &__cmdret-bar-fill {
+    display: block;
+    height: 100%;
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--sv-text-faint) 55%, transparent);
+    &--warn { background: #d19a2e; }
+    &--due { background: #c0392b; }
+  }
+
+  &__tool-raw pre {
+    margin: 3px 0;
+    padding: 5px 7px;
+    border-radius: 5px;
+    font-size: 10.5px;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    word-break: break-word;
+    background: rgba(127, 127, 127, 0.12);
+    max-height: 180px;
+    overflow-y: auto;
+  }
+
+  // A permission is the one thing that stops the feed, so it is a card and not a line.
+  &__row--ask {
+    font-size: 12px;
+    color: var(--sv-text-strong);
+    background: var(--sv-surface);
+    border: 1px solid var(--sv-border);
+    border-radius: 8px;
+    padding: 6px 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  &__ask-yes,
+  &__ask-no {
+    background: #313640;
+    color: var(--sv-text);
+    border: 1px solid var(--sv-border);
+    border-radius: 7px;
+    padding: 2px 10px;
+    cursor: pointer;
+    font-size: 11px;
+  }
+  &__ask-yes { background: #4caf50; border-color: #4caf50; color: #fff; }
+}
+
+// ────────────────────────────────────────────────────────────────────────────────
+// THE COMMAND CARD, drawn properly. Open by default, capped, and legible — his ask, and the part
+// he had to repeat: *"you gotta actually make it look good… the command should be opened by
+// default and rendered nicely, obviously with a max before they scroll."*
+.agent-wb {
+  &__row--tool { padding: 3px 6px 4px; }
+
+  &__tool-head {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+  &__tool-sum {
+    flex: 1;
+    min-width: 0;
+    word-break: break-word;
+    color: var(--sv-text);
+  }
+  // ALWAYS VISIBLE. Hidden until hover, it read as expand-only — a control you cannot see is a
+  // control that is not there.
+  &__tool-fold {
+    color: var(--sv-text-faint);
+    font-size: 13px;
+    line-height: 1;
+    padding: 0 2px;
+    user-select: none;
+  }
+  &__tool-head--can { cursor: pointer; }
+  &__tool-head--can:hover &__tool-fold,
+  &__tool-head--can:hover .agent-wb__tool-sum { color: var(--sv-text-strong); }
+  &__tool-open {
+    border: 1px solid var(--sv-border);
+    background: none;
+    color: var(--sv-text-muted);
+    border-radius: 3px;
+    font-size: 9.5px;
+    padding: 0 6px;
+    cursor: pointer;
+    &:hover { border-color: #9a7cb8; color: #c8a8e0; }
+  }
+
+  &__tool-body { margin-top: 4px; display: flex; flex-direction: column; gap: 3px; }
+
+  // ONE block shape, three inks. Capped so a build log can never own the conversation.
+  &__blk {
+    margin: 0;
+    padding: 5px 7px;
+    border-radius: 5px;
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 10.5px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 168px;
+    overflow: auto;
+    background: rgba(127, 127, 127, 0.12);
+    &--cmd {
+      background: color-mix(in srgb, #9a7cb8 12%, transparent);
+      color: var(--sv-text);
+    }
+    &--args { color: var(--sv-text-muted); max-height: 120px; }
+    &--out { color: var(--sv-text-muted); }
+    &--err {
+      color: #e58a7f;
+      background: color-mix(in srgb, #e05252 10%, transparent);
+    }
+  }
+  // The prompt sign, dim, so the command itself is what your eye lands on.
+  &__cmd-line { display: flex; gap: 6px; }
+  &__cmd-sign { color: var(--sv-text-faint); user-select: none; }
+  &__tool-wait { font-size: 10px; color: var(--sv-text-faint); font-style: italic; padding-left: 2px; }
+}
+
+// NOTHING IN A CHAT SCROLLS SIDEWAYS. A long command line was making the whole panel wider — his
+// catch: *"why the fuck do I have horizontal scrolling on my chat box?"* A chat is a column; a
+// child that refuses to shrink turns the column into a canvas. Every level is pinned to the width
+// it was given, and long text wraps instead of running off.
+.agent-wb {
+  &__row, &__tool-head, &__tool-body { min-width: 0; max-width: 100%; }
+  &__blk { overflow-x: hidden; white-space: pre-wrap; word-break: break-word; }
+  &__cmd-line { min-width: 0; word-break: break-word; }
+}
+.agent-chat__work, .agent-chat__work--only { overflow-x: hidden; }
+
+// A SYSTEMVIEW ACTION reads as itself: the app's own blue rail instead of the plum one every shell
+// command wears, its verb spelled out, and the subject in its own ink. His ask — *"I want to be
+// able to see you run systemview commands… or is it just going to look like another command?"*
+.agent-wb {
+  &__row--sv {
+    border-left-color: #4a90d9;
+    background: color-mix(in srgb, #4a90d9 9%, transparent);
+    font-family: inherit;
+    font-size: 11.5px;
+  }
+  &__sv-icon { font-size: 11px; line-height: 1; opacity: .9; }
+  &__sv-target {
+    margin-left: 6px;
+    color: var(--sv-text-strong);
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 10.5px;
+  }
+  &__sv-proj {
+    margin-left: 6px;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--sv-text-faint);
+  }
+}

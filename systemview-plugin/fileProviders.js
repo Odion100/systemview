@@ -47,36 +47,6 @@ function globToRegExp(glob) {
   return new RegExp(`^${re}$`, "i");
 }
 
-// Locate a method definition line inside a file's lines. Definition-ish, not a call: `name(...)`,
-// `name:`, `name =`, `async name`, `function name`, `this.name =`. First match wins.
-function findMethodLine(lines, method) {
-  const esc = method.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const defRe = new RegExp(
-    `(?:^|[^\\w.])(?:async\\s+)?(?:function\\s+)?${esc}\\s*(?:[:=(]|=>)` +
-    `|\\bthis\\.${esc}\\s*=`,
-  );
-  for (let i = 0; i < lines.length; i++) {
-    if (defRe.test(lines[i])) return i;
-  }
-  return -1;
-}
-
-// From a definition line, brace-match to the end of the block for the highlight span. Falls back to a
-// bounded window when there's no obvious block (arrow one-liners, object shorthand).
-function methodSpan(lines, startIdx) {
-  let depth = 0, seen = false;
-  for (let i = startIdx; i < lines.length && i < startIdx + 400; i++) {
-    for (const ch of lines[i]) {
-      if (ch === "{") { depth++; seen = true; }
-      else if (ch === "}") depth--;
-    }
-    // Settle only at END of line — a destructuring/object param on the signature line (`add({ a, b }) {`)
-    // opens AND closes braces mid-line, so the body brace is what leaves net depth > 0.
-    if (seen && depth <= 0) return i;
-  }
-  return Math.min(startIdx + 30, lines.length - 1);
-}
-
 function createFileProviders(rootDir) {
   const root = () => path.resolve(rootDir || process.cwd());
 
@@ -175,8 +145,8 @@ function createFileProviders(rootDir) {
     };
   }
 
-  // search({ query, glob?, max? }) → content hits {path, line, text}. Also the fallback engine behind
-  // getSource. Case-insensitive substring (not regex — a locator tool, not grep).
+  // search({ query, glob?, max? }) → content hits {path, line, text}. Case-insensitive substring
+  // (not regex — a locator tool, not grep).
   function search({ query, glob, max = 200 } = {}) {
     if (!query) throw new Error("search: `query` is required");
     const needle = String(query).toLowerCase();
@@ -198,65 +168,8 @@ function createFileProviders(rootDir) {
     return { query, hits, truncated: hits.length >= max };
   }
 
-  // Find the file that most likely defines a systemlynx module by NAMING CONVENTION:
-  // `**/Users.js`, `**/Users/index.js`, `**/Users/Users.js`, `**/modules/Users.js`. Convention-first
-  // because systemlynx doesn't preserve a module's source path (see RFC-018 getSource note).
-  function moduleFileCandidates(moduleName) {
-    if (!moduleName) return [];
-    const files = walkFiles(root(), {});
-    const m = moduleName.toLowerCase();
-    const scored = [];
-    for (const rel of files) {
-      if (!/\.(js|mjs|cjs|ts|jsx|tsx)$/i.test(rel)) continue;
-      const base = path.basename(rel).replace(/\.(js|mjs|cjs|ts|jsx|tsx)$/i, "").toLowerCase();
-      const parent = path.basename(path.dirname(rel)).toLowerCase();
-      let score = 0;
-      if (base === m) score = 3;                       // Users.js
-      else if (base === "index" && parent === m) score = 2; // Users/index.js
-      if (score) scored.push({ rel, score });
-    }
-    scored.sort((a, b) => b.score - a.score);
-    return scored.map((s) => s.rel);
-  }
-
-  // getSource({ module, method }) → {path, startLine, endLine, content}. The "show me THIS function"
-  // bridge. Convention-resolves the module file, finds the method's span, returns the WHOLE file
-  // (scrollable) plus the span so the UI can scroll-to + highlight. Degrades to line 1 when a name is
-  // ambiguous or unfound — never throws on a miss, so the pane still shows the best-guess file.
-  function getSource({ module, method } = {}) {
-    if (!method) throw new Error("getSource: `method` is required");
-    const candidates = moduleFileCandidates(module);
-
-    // Prefer the convention-matched module file; else fall back to a content search for the method.
-    let target = null;
-    for (const rel of candidates) {
-      const content = fs.readFileSync(path.join(root(), rel), "utf8");
-      const idx = findMethodLine(content.split("\n"), method);
-      if (idx > -1) { target = { rel, content, idx }; break; }
-      if (!target) target = { rel, content, idx: -1 }; // remember first candidate as a fallback file
-    }
-    if (!target || target.idx === -1) {
-      const found = search({ query: method });
-      const hit = found.hits.find((h) => /\.(js|mjs|cjs|ts|jsx|tsx)$/i.test(h.path)) || found.hits[0];
-      if (hit) {
-        const content = fs.readFileSync(path.join(root(), hit.path), "utf8");
-        const idx = findMethodLine(content.split("\n"), method);
-        target = { rel: hit.path, content, idx: idx > -1 ? idx : hit.line - 1 };
-      }
-    }
-    if (!target) throw new Error(`getSource: no source found for ${module ? module + "." : ""}${method}`);
-
-    const lines = target.content.split("\n");
-    const startIdx = target.idx > -1 ? target.idx : 0;
-    const endIdx = target.idx > -1 ? methodSpan(lines, startIdx) : startIdx;
-    return {
-      path: target.rel,
-      language: languageOf(target.rel),
-      startLine: startIdx + 1,
-      endLine: endIdx + 1,
-      content: target.content,
-    };
-  }
+  // (getSource and its convention-resolver were retired in 2.23.0 — the "show me THIS function"
+  // pane was pulled from the picker in 2.11.0 and its last caller left with the stories surface.)
 
   // getDiff({ path }) → { path, base, head, language }. Before/after a file vs its git base (HEAD).
   // Uses git via child_process; if the file isn't tracked / no git, base is "" (renders as all-added).
@@ -723,8 +636,8 @@ function createFileProviders(rootDir) {
     return { from: relFromRoot(src), to: relFromRoot(dst) };
   }
 
-  return { readFile, readFileRaw, listFiles, changedFiles, stageFiles, stageHunk, discardFiles, gitState, commit, push, search, getSource, getDiff, writeFile, deleteFile, moveFile, copyFile, fileHistory, readSnapshot, snapshot, languageOf, safeResolve };
+  return { readFile, readFileRaw, listFiles, changedFiles, stageFiles, stageHunk, discardFiles, gitState, commit, push, search, getDiff, writeFile, deleteFile, moveFile, copyFile, fileHistory, readSnapshot, snapshot, languageOf, safeResolve };
 }
 
 // Default set bound (lazily) to process.cwd() — the plugin running inside an observed service.
-module.exports = Object.assign(createFileProviders(), { createFileProviders, findMethodLine, languageOf });
+module.exports = Object.assign(createFileProviders(), { createFileProviders, languageOf });

@@ -68,3 +68,20 @@
     }
   }
 }
+
+// Should never be on screen — tabs self-update. When it is, it is the one thing worth interrupting
+// the header for, because everything he is looking at is a lie until he presses it.
+.page-header__stale {
+  margin-left: 6px;
+  padding: 1px 7px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  color: #fff;
+  background: #d9736a;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+
+  &:hover { background: #c96257; }
+}

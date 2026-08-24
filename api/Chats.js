@@ -342,7 +342,31 @@ module.exports = function Chats({ chatFor } = {}) {
     // User messages wake every held join poll; agent messages wake the OTHER identities' polls
     // (never the speaker's own — the deliverable rule). When a LIVE agent takes delivery of the
     // human's message, the status flips to "received…" immediately.
-    send(pc, chat, { from, text, view, as }) {
+    send(pc, chat, { from, text, view, as, toRoom }) {
+      // THE WALL AT THE WRONG DOOR — his call, verbatim: *"we need a surface that will block
+      // that."* The failure it blocks happened live: a visitor spoke into this room, the home
+      // agent answered IN ITS OWN ROOM — the natural move — and the reply reached no one, because
+      // in the new world a visitor holds no line here. Briefings don't fix instinct; a wall does.
+      // If the latest message in the room is a RECENT visitor's and that visitor is not holding a
+      // live line, a home-agent say is refused WITH the exact command that reaches them. `toRoom`
+      // (CLI `--room`) is the deliberate override: "I really do mean my own room."
+      if (from === "agent" && (!as || as === pc) && !toRoom) {
+        const REPLY_WINDOW = 15 * 60 * 1000;
+        const tail = readAll(pc, chat).filter((r) => !r.kind && String(r.text || "").trim());
+        const last = tail[tail.length - 1];
+        if (last && last.as && last.as !== pc && Date.now() - (last.ts || 0) < REPLY_WINDOW) {
+          const held = waiters.get(key(pc, chat)) || [];
+          const listening = held.some((w) => w.identity === last.as);
+          if (!listening)
+            return {
+              record: null,
+              delivered: false,
+              blocked: true,
+              visitor: last.as,
+              hint: `systemview say ${last.as} "…" --as ${pc}`,
+            };
+        }
+      }
       const record = append(pc, chat, {
         from,
         text,
@@ -417,6 +441,17 @@ module.exports = function Chats({ chatFor } = {}) {
       const e = entered.get(key(pc, chat));
       const ts = e && e.get(identity);
       return !!(ts && Date.now() - ts < VISIT_TTL);
+    },
+
+    // SPEAKING IS ARRIVING. Entering used to be a separate act you had to perform first, and it
+    // existed to prove the visitor was really there — a hold in the room was the proof. With holds
+    // gone (a message now goes straight into the other agent's conversation) that gate only stopped
+    // visitors from visiting: *"you should be able to jump in other people's conversations
+    // directly."* The identity is verified against the real project list at the CLI's front door,
+    // which is the proof that actually mattered. Presence still gets marked, so the room shows who
+    // walked in — it is recorded BY the visit rather than demanded before it.
+    enterBySpeaking(pc, chat, identity) {
+      markEntered(key(pc, chat), identity);
     },
 
     // Departure detection for leave(): only announce someone who was actually here.

@@ -32,7 +32,7 @@ module.exports = ({ App, specs, projectCode, serviceId, module = {}, credentials
     // push live spec updates to a CONNECTED UI; with no hub the write still lands on disk, push is skipped.
     const pushSpecList = () => {
       try {
-        this.useService("SystemViewUI").SystemView.updateSpecList(this.getSpecList(), projectCode, serviceId);
+        this.useService("SystemViewUI").SystemView.updateSpecList(getSpecList(), projectCode, serviceId);
       } catch {}
     };
 
@@ -167,7 +167,9 @@ module.exports = ({ App, specs, projectCode, serviceId, module = {}, credentials
       pushSpecList();
       return { error: false, name };
     };
-    this.getSpecList = () => ({
+    // Internal only — it was on the public surface for years with zero external callers; the spec
+    // list travels inside getConnection() and the push, which is how every consumer reads it.
+    const getSpecList = () => ({
       docs: fs.readdirSync(`${specs}/docs/`),
       tests: fs.readdirSync(`${specs}/tests/`),
       // actions/ is a newer sibling — may not exist in older repos, so tolerate its absence.
@@ -180,7 +182,7 @@ module.exports = ({ App, specs, projectCode, serviceId, module = {}, credentials
       })(),
     });
     this.getConnection = () => {
-      const specList = this.getSpecList();
+      const specList = getSpecList();
       // `credentials` and `hosted` must survive this path — refreshConnections re-pulls
       // getConnection(), so omitting either would silently strip it on every refresh (RFC-013/027).
       // `root` = where this project actually lives on disk. The hub cannot know it any other way,
@@ -189,19 +191,8 @@ module.exports = ({ App, specs, projectCode, serviceId, module = {}, credentials
       // refreshConnections re-pulls it, so it lands without a separate registration step.
       return { projectCode, serviceId, system, specList, credentials, hosted, root };
     };
-    this.getLog = ({ limit } = {}) => {
-      // Per-service file — see index.js: a shared log file duplicated records across sibling services.
-      const logsFile = path.join(svDir, `systemview.${serviceId || "default"}.logs`);
-      try {
-        const lines = fs.readFileSync(logsFile, "utf8")
-          .split("\n")
-          .filter(Boolean)
-          .map((line) => JSON.parse(line));
-        return limit ? lines.slice(-limit) : lines;
-      } catch {
-        return [];
-      }
-    };
+    // (Plugin.getLog was a duplicate door — every log read goes through SystemView.getLog in
+    // index.js; the second copy here had zero callers and was retired in 2.23.0.)
     // RFC-017: assemble the whole project from the per-service files the plugins wrote (siblings share
     // this cwd, so one call returns every service — no hub needed), materialize the combined
     // `.systemview/manifest.json`, and return it. Safe to save here: getManifest is called on-demand by a
@@ -265,7 +256,6 @@ module.exports = ({ App, specs, projectCode, serviceId, module = {}, credentials
     this.commit = providers.commit;
     this.push = providers.push;
     this.search = providers.search;
-    this.getSource = providers.getSource;
     this.getDiff = providers.getDiff;
     this.writeFile = providers.writeFile;
     // RFC-034 — a file can be removed now, snapshotted first. The comment sidecars need it: the last
@@ -314,34 +304,9 @@ module.exports = ({ App, specs, projectCode, serviceId, module = {}, credentials
       return { name: viewName(name) };
     };
 
-    // RFC-018 — STORIES. Unlike the single live stage, a project has MANY stories, each filed on a
-    // namespace (project / service / module / method) with a free name — the same way a method has many
-    // tests. Each is one file `.systemview/stories/<id>.json` holding { id, namespace, name, layout,
-    // panes } so it travels with the repo. The full object round-trips (list returns whole stories) so
-    // the /stories page can group by namespace without a second fetch.
-    const storiesDir = () => path.join(svDir, "stories");
-    const storyFile = (id) => path.join(storiesDir(), `${viewName(id)}.json`);
-    this.saveStory = ({ story }) => {
-      if (!story || !story.id) throw new Error("saveStory: story.id is required");
-      ensureDir(storiesDir());
-      fs.writeFileSync(storyFile(story.id), JSON.stringify(story, null, 2), "utf8");
-      return { id: story.id };
-    };
-    this.getStory = ({ id }) => {
-      try { return JSON.parse(fs.readFileSync(storyFile(id), "utf8")); }
-      catch { return null; }
-    };
-    this.listStories = () => {
-      try {
-        return fs.readdirSync(storiesDir())
-          .filter((f) => f.endsWith(".json"))
-          .map((f) => { try { return JSON.parse(fs.readFileSync(path.join(storiesDir(), f), "utf8")); } catch { return null; } })
-          .filter(Boolean);
-      } catch { return []; }
-    };
-    this.deleteStory = ({ id }) => {
-      deleteFile(storyFile(id));
-      return { id };
-    };
+    // (RFC-018 STORIES lived here until 2.23.0 — retired with the whole stories surface: the CLI
+    // already answered every story verb with "stories are retired — write a REPORT instead", the
+    // /stories page was unreachable, and these four methods' only callers were both. Old
+    // `.systemview/stories/` files are left where they are; nothing reads or deletes them.)
   };
 };

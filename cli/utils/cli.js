@@ -222,6 +222,9 @@ function parseArgs(rawArgs) {
     print: rawArgs.includes("--print"),
     history: rawArgs.includes("--history"),
     pin: rawArgs.includes("--pin"),
+    // `--room` — say's deliberate override for the reply-into-the-void wall: "I really do mean my
+    // own room." Every flag lives HERE or it exists nowhere (the drift lesson above).
+    room: rawArgs.includes("--room"),
     save: (() => {
       const i = rawArgs.indexOf("--save");
       if (i === -1) return false;

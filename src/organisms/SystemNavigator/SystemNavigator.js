@@ -1,36 +1,24 @@
-import React, { useEffect, useContext, useState } from "react";
+import React, { useEffect, useContext, useRef, useState } from "react";
 import { useHistory } from "react-router-dom";
 import ServiceContext from "../../ServiceContext";
-import Link from "../../atoms/Link/Link";
-import ExpandableList from "../../molecules/ExpandableList/ExpandableList";
-import ServerModulesList from "../../molecules/ServerModulesList/ServerModulesList";
-import DocIcon from "../../atoms/DocsIcon/DocsIcon";
 import Title from "../../atoms/Title/Title";
 import "./styles.scss";
 import { Client, markCredentialed } from "../../systemClient";
+import {
+  hostProjects,
+  HOST_MARK,
+  removeHostProject,
+  isHostProject,
+  canPickThenName,
+  pickFolderOnly,
+  putHostProject,
+  renameHostProject,
+  migrateConnectedProjects,
+} from "../../utils/hostProject";
+import { listHusks, addHusk, removeHusk, reconcileHusks, huskEntry } from "../../utils/husks";
 import CodebaseNav from "../CodebaseNav/CodebaseNav";
 import { useAppDark } from "../../atoms/appTheme";
 import Help from "../../atoms/Help/Help";
-
-const TrashIcon = () => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="12"
-    height="12"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <polyline points="3 6 5 6 21 6" />
-    <path d="M19 6l-1 14H6L5 6" />
-    <line x1="10" y1="11" x2="10" y2="17" />
-    <line x1="14" y1="11" x2="14" y2="17" />
-    <path d="M9 6V4h6v2" />
-  </svg>
-);
 
 const ArrowIcon = () => (
   <svg
@@ -55,19 +43,71 @@ const SystemNav = ({
   moduleName,
   methodName,
   onCollapse,
-  // RFC-022 — the LENS is page-level state now (the center reacts to it): SystemLynx services vs the
-  // Codebase file navigator. Page persists it; this component just renders whichever is active.
-  navTab = "systemlynx",
-  setNavTab = () => {},
   openFile,
   onOpenFile = () => {},
   // RFC-025 — a pointer from a document: expand to it and highlight it, but never select it.
   reveal = null,
 }) => {
   const [serviceStatus, setServiceStatus] = useState({});
-  const [adding, setAdding] = useState(false);
-  const [connectUrl, setConnectUrl] = useState("");
-  const [connecting, setConnecting] = useState(false);
+  const [pickErr, setPickErr] = useState("");
+  // ＋ NAMES A PROJECT. That is all it does.
+  //
+  // Three flows died here before this one — a text box before the picker, a text box after it, and
+  // an in-place rename on a card that had already been registered. All three were the same mistake:
+  // treating "add a project" as "add a folder". His model is the one that works, because a project
+  // is a NAME and everything else attaches to it:
+  //
+  //   > *"that plus button, it just lets you name a project, right? … name the project right there
+  //   > at the top, input pops up, boom, project pops up right under."*
+  //
+  // Nothing is registered anywhere when you name one — it is a husk until a folder or a service
+  // attaches. Abandon the input and it never existed.
+  // Double-clicking a project's name edits it in place (see CodebaseNav) — this holds which one.
+  const [renaming, setRenaming] = useState(null);
+  const [naming, setNaming] = useState(false);
+  const [newName, setNewName] = useState("");
+  const nameRef = useRef(null);
+  const [husks, setHusks] = useState(() => listHusks());
+  useEffect(() => {
+    if (!naming || !nameRef.current) return;
+    nameRef.current.focus();
+  }, [naming]);
+
+  const createProject = () => {
+    const code = String(newName || "").trim();
+    if (!code) return;
+    if (connectedServices.some((s) => s.projectCode === code) || husks.some((h) => h.projectCode === code)) {
+      setPickErr(`"${code}" is already a project`);
+      return;
+    }
+    setPickErr("");
+    addHusk(code);
+    setHusks(listHusks());
+    setNewName("");
+    setNaming(false);
+  };
+
+  // ATTACHING A FOLDER to a project that already has a name. This is the "pick a folder" button in
+  // an empty `code` slot — the folder is the attachment, the project already exists.
+  const attachFolder = async (pc) => {
+    if (!canPickThenName()) return;
+    setPickErr("");
+    try {
+      const picked = await pickFolderOnly();
+      if (!picked) return; // cancelled — not an error
+      const res = await putHostProject(pc, picked.dir);
+      if (res && res.error) {
+        setPickErr(res.error);
+        return;
+      }
+      removeHusk(pc);
+      setHusks(listHusks());
+      await fetchAllProjects();
+    } catch (e) {
+      setPickErr((e && e.message) || "could not attach that folder");
+    }
+  };
+
   // Codebase nav dark ⇄ light — follows the ONE app toggle in the page header (its own pill retired).
   const [appDark] = useAppDark();
   const cbTheme = appDark ? "dark" : "light";
@@ -84,7 +124,19 @@ const SystemNav = ({
 
   const mergeServices = (existing, incoming, pc) => {
     const others = existing.filter((s) => s.projectCode !== pc);
-    return [...incoming, ...others]; // newly connected/updated project floats to the top
+    // A FOLDER IS NOT SOMETHING THE HUB CAN RE-FETCH. `getServices(pc)` asks the hub what SystemLynx
+    // services a project has; for a folder the honest answer is none — and merging that answer in
+    // dropped the folder itself out of the list. Clicking into a folder made the whole project
+    // vanish from the navigator. Its stand-in entry is held by the browser, not the hub, so it is
+    // kept across a refetch rather than replaced by an answer to a different question.
+    const keptFolders = existing.filter(
+      (s) =>
+        s.projectCode === pc &&
+        s.system &&
+        s.system.connectionData &&
+        s.system.connectionData[HOST_MARK],
+    );
+    return [...incoming, ...keptFolders, ...others]; // newly connected/updated project floats to the top
   };
 
   const fetchProject = async (pc = projectCode) => {
@@ -134,13 +186,57 @@ const SystemNav = ({
         if (url && ((s.headers && Object.keys(s.headers).length) || s.credentials))
           markCredentialed(url);
       });
-      if (all.length) {
-        setConnectedServices(all);
-        probeServices(all);
+      // THE FOLDERS TOO. A project added with + has no service and never will unless he starts one,
+      // but it is still a project and belongs in this list — that is the whole point of adding it.
+      // `hostProjects` skips anything already connected, because a code means one folder.
+      // THE TRANSITION ITSELF, and it runs before the folders are merged in. Every project that
+      // arrived the old way — a SystemLynx connection the shell had never heard of — is registered
+      // with the host under the code it already has, using the `root` its own connection record has
+      // always carried. Same code, same card, same services; the difference is that the project now
+      // EXISTS as a directory the shell knows, so files, the terminal and agent sessions resolve
+      // from the project rather than from whichever plugin answered first.
+      //
+      // Silent and idempotent on purpose: `put` is a no-op for a folder already registered under
+      // that code, so this reconciles on every load instead of being a one-time script he has to
+      // remember to run. Failures are collected rather than thrown — one project refusing to
+      // register must not take the navigator down with it.
+      const moved = await migrateConnectedProjects(all);
+      if (moved.failed.length) {
+        setPickErr(
+          `${moved.failed.length} project${moved.failed.length === 1 ? "" : "s"} could not be registered with the shell: ` +
+            moved.failed.map((f) => `${f.code} (${f.error})`).join(", "),
+        );
+      }
+      const folders = await hostProjects(all);
+      const both = [...all, ...folders];
+      // A husk that has grown a folder or a service is a real project now — drop it rather than
+      // drawing a second, empty card beside the thing it became.
+      setHusks(reconcileHusks(both.map((s) => s.projectCode)));
+      if (both.length) {
+        setConnectedServices(both);
+        // Only real services get probed — a folder has no URL to be up or down.
+        if (all.length) probeServices(all);
       }
     } catch (error) {
       console.error(error);
     }
+  };
+
+  // RENAME. The identity every other surface uses is the project code, so this is not cosmetic —
+  // the shell migrates its saved conversations with it so his chats follow the project rather than
+  // orphaning under a name that no longer exists. It reports one honest caveat of its own: a
+  // session live in memory at rename time keeps the old code until it is reopened.
+  const handleRenameProject = async (pc, next) => {
+    setPickErr("");
+    const res = await renameHostProject(pc, next);
+    if (res && res.error) {
+      setPickErr(res.error);
+      return;
+    }
+    // The nav is keyed by project code, so everything holding the old one has to re-read.
+    await fetchAllProjects();
+    if (projectCode === pc) history.push(`/specs/${next}`);
+    setRenaming(null);
   };
 
   const handleDeleteService = async (pc, svcId) => {
@@ -168,9 +264,25 @@ const SystemNav = ({
     }
   };
 
-  const handleDeleteProject = async (pc) => {
+  const handleDeleteProject = async (pc, hostBacked = false) => {
+    // A HUSK IS ONLY A NAME. It is registered nowhere — not with the hub, not with the host — so
+    // both removal paths below report success at a thing that was never there and the row stays
+    // (his catch: *"the test project that I brought in that I never chose the folder for — I can't
+    // remove it"*). Removing a name means forgetting the name.
+    if (husks.some((h) => h.projectCode === pc)) {
+      removeHusk(pc);
+      setHusks(listHusks());
+      return;
+    }
     try {
-      await SystemView.deleteProject(pc);
+      // A FOLDER IS FORGOTTEN, NOT DELETED. Two different removals wearing one trash icon: a
+      // SystemLynx project is deregistered from the hub, a folder is dropped from the host's own
+      // list. Sending a folder to `deleteProject` did nothing at all, which is exactly what he saw.
+      // Nothing on disk is touched either way — this forgets a folder, it does not delete it.
+      if (hostBacked) {
+        const ok = await removeHostProject(pc);
+        if (!ok) return;
+      } else await SystemView.deleteProject(pc);
       setConnectedServices((prev) => prev.filter((s) => s.projectCode !== pc));
     } catch (error) {
       console.error(error);
@@ -178,37 +290,6 @@ const SystemNav = ({
   };
 
   const history = useHistory();
-  // Everything typed here is treated as a URL. Add a scheme if the user didn't, so we don't reject
-  // otherwise-valid hosts. connect → getServices(url) pulls the whole project manifest (api/).
-  const normalizeUrl = (v) => {
-    const t = (v || "").trim();
-    if (!t) return "";
-    return /^https?:\/\//i.test(t) ? t : `http://${t}`;
-  };
-  const handleConnect = async () => {
-    const target = normalizeUrl(connectUrl);
-    if (!target || connecting) return;
-    setConnecting(true);
-    try {
-      const results = await SystemView.connectUrl(target);
-      if (results && results.length) {
-        const pc = results[0].projectCode;
-        setConnectedServices((prev) => mergeServices(prev, results, pc));
-        probeServices(results);
-        history.push(`/specs/${pc}`);
-        setConnectUrl("");
-        setAdding(false);
-      }
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setConnecting(false);
-    }
-  };
-  const cancelConnect = () => {
-    setConnectUrl("");
-    setAdding(false);
-  };
   // ONE live listener, cleaned up on re-register. The old version had no cleanup and depended on the
   // connectedServices ARRAY IDENTITY — and its handler setConnectedServices'd a new array, so every event
   // re-ran the effect and stacked ANOTHER listener. Each socket event then fired N handlers, each forcing
@@ -287,11 +368,23 @@ const SystemNav = ({
                 </button>
                 <button
                   type="button"
-                  className={`system-nav__tab-add ${adding ? "system-nav__tab-add--open" : ""}`}
-                  title={adding ? "Cancel" : "loadService — connect a service"}
-                  onClick={() => (adding ? cancelConnect() : setAdding(true))}
+                  className={`system-nav__tab-add ${naming ? "system-nav__tab-add--open" : ""}`}
+                  title={naming ? "Cancel" : "New project — name it"}
+                  onClick={() => {
+                    // ＋ NAMES A PROJECT — that is all it does. His model, verbatim: *"that plus
+                    // button, it just lets you name a project… name the project right there at the
+                    // top, input pops up, boom, project pops up right under."* The folder, the
+                    // services, the agent — all attachments, added later from the husk itself.
+                    setPickErr("");
+                    if (naming) {
+                      setNaming(false);
+                      setNewName("");
+                      return;
+                    }
+                    setNaming(true);
+                  }}
                 >
-                  {adding ? "✕" : "+"}
+                  {naming ? "✕" : "+"}
                 </button>
               </div>
             </div>
@@ -300,37 +393,44 @@ const SystemNav = ({
         <div className="container system-nav__body">
           <div className="row system-nav__section">
             <div className="col-12 ">
-              {/* loadService input only appears when you click ＋ — otherwise the projects sit right
-                  under the tabs. Cancel is the ＋ toggle (now ✕), so there's no ugly extra button. */}
-              {adding && (
-                <div className="system-nav__connect">
-                  <div className="system-nav__connect-form">
-                    <input
-                      className="system-nav__connect-input"
-                      type="text"
-                      autoFocus
-                      placeholder="loadService — https://host/route"
-                      value={connectUrl}
-                      onChange={(e) => setConnectUrl(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") handleConnect();
-                        if (e.key === "Escape") cancelConnect();
-                      }}
-                      disabled={connecting}
-                    />
-                    <button
-                      className="system-nav__connect-arrow system-nav__connect-submit"
-                      title="Connect"
-                      onClick={handleConnect}
-                      disabled={connecting || !connectUrl.trim()}
-                    >
-                      {connecting ? "…" : <ArrowIcon />}
-                    </button>
-                  </div>
+              {pickErr && <div className="system-nav__connect-error">{pickErr}</div>}
+              {/* NAMING A PROJECT, AT THE TOP, IN ITS OWN FIELD. Deliberately NOT the loadService
+                  input below — his correction: *"not that same input that was doing services, not
+                  the same button that was attached to it."* Those are different acts and reusing
+                  one control for both is what made adding a project feel like connecting a service.
+                  Escape abandons it and nothing was ever created. */}
+              {naming && (
+                <div className={`system-nav__newproject`}>
+                  <input
+                    ref={nameRef}
+                    className="system-nav__newproject-input"
+                    type="text"
+                    placeholder="name the project"
+                    spellCheck={false}
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") createProject();
+                      if (e.key === "Escape") {
+                        setNaming(false);
+                        setNewName("");
+                        setPickErr("");
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="system-nav__newproject-go"
+                    title={newName.trim() ? `Create ${newName.trim()}` : "Give it a name"}
+                    onClick={createProject}
+                    disabled={!newName.trim()}
+                  >
+                    <ArrowIcon />
+                  </button>
                 </div>
               )}
               <CodebaseNav
-                connectedServices={connectedServices}
+                connectedServices={[...husks.map((h) => huskEntry(h.projectCode)), ...connectedServices]}
                 projectCode={projectCode}
                 serviceId={serviceId}
                 moduleName={moduleName}
@@ -343,6 +443,10 @@ const SystemNav = ({
                 onHostedOp={handleHostedOp}
                 onDeleteService={handleDeleteService}
                 onDeleteProject={handleDeleteProject}
+                onRenameProject={handleRenameProject}
+                renaming={renaming}
+                onRenamingChange={setRenaming}
+                onAttachFolder={attachFolder}
               />
             </div>
           </div>
@@ -350,122 +454,6 @@ const SystemNav = ({
         </div>
     </section>
   );
-};
-
-const NavigationLinks = ({
-  connectedServices,
-  selectedProjectCode,
-  selectedServiceId,
-  selectedModuleName,
-  selectedMethodName,
-  onDeleteService,
-  onDeleteProject,
-  serviceStatus,
-  reveal = null,
-}) => {
-  const projects = connectedServices.reduce((acc, service) => {
-    const pc = service.projectCode;
-    if (!acc[pc]) acc[pc] = [];
-    acc[pc].push(service);
-    return acc;
-  }, {});
-
-  return Object.entries(projects).map(([pc, services], pi) => {
-    const isSelectedProject = pc === selectedProjectCode;
-    const revealNs = reveal && reveal.kind === "namespace" ? reveal : null;
-    const isRevealedProject = !!revealNs && revealNs.projectCode === pc;
-    return (
-      <ExpandableList
-        open={isSelectedProject || isRevealedProject}
-        key={pc}
-        title={
-          <span
-            className={`system-nav__link system-nav__link--project system-nav__link--active-${
-              isSelectedProject
-            } system-nav__link--selected-${isSelectedProject && !selectedServiceId}`}
-          >
-            <Link link={`/specs/${pc}`} text={pc} />
-            <button
-              className="system-nav__delete-btn"
-              title="Remove project"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                onDeleteProject(pc);
-              }}
-            >
-              <TrashIcon />
-            </button>
-          </span>
-        }
-      >
-        {services.map(({ system, serviceId, specList }, i) => {
-          const { serviceUrl } = system.connectionData;
-          const isSaved =
-            specList && specList.docs && specList.docs.includes(`${serviceId}.md`);
-          const isSelected = isSelectedProject && selectedServiceId === serviceId;
-          const isRevealedService = isRevealedProject && revealNs.serviceId === serviceId;
-          return (
-            <ExpandableList
-              open={isSelected || isRevealedService}
-              key={i}
-              title={
-                <span
-                  className={`system-nav__link system-nav__link--active-${
-                    isSelected
-                  } system-nav__link--selected-${!selectedModuleName && isSelected}${
-                    isRevealedService && !revealNs.moduleName ? " is-revealed" : ""
-                  }`}
-                >
-                  <span className="system-nav__service-info">
-                    <Link link={`/specs/${pc}/${serviceId}`} text={serviceId} />
-                    <span className="system-nav__url-row">
-                      <a
-                        className="system-nav__service-url"
-                        href={serviceUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        {serviceUrl}
-                      </a>
-                      <span
-                        className={`system-nav__status-dot system-nav__status-dot--${serviceStatus[serviceUrl] || "unknown"}`}
-                      />
-                    </span>
-                  </span>
-                  <span className="server-module__docs-icon">
-                    <DocIcon isSaved={isSaved} />
-                  </span>
-                  <button
-                    className="system-nav__delete-btn"
-                    title="Remove service"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      onDeleteService(pc, serviceId);
-                    }}
-                  >
-                    <TrashIcon />
-                  </button>
-                </span>
-              }
-            >
-              <ServerModulesList
-                selectedServiceId={selectedServiceId}
-                selectedModuleName={selectedModuleName}
-                selectedMethodName={selectedMethodName}
-                projectCode={pc}
-                serviceId={serviceId}
-                modules={system.connectionData.modules}
-                specList={specList}
-                reveal={isRevealedService ? revealNs : null}
-              />
-            </ExpandableList>
-          );
-        })}
-      </ExpandableList>
-    );
-  });
 };
 
 export default SystemNav;

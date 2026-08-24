@@ -1,4 +1,5 @@
 import { Client, markCredentialed } from "../systemClient";
+import { HOST_MARK, hostBackedPlugin } from "./hostProject";
 
 // Load a service client with its auth headers attached.
 //
@@ -16,6 +17,12 @@ import { Client, markCredentialed } from "../systemClient";
 // cookies declares NO headers, so the header-profile rule can never mark it — its plugin registers
 // `credentials: true` instead, and that flag arrives here via getProjects.
 export default function loadServiceWithHeaders(connectionData, headers, credentials) {
+  // A FOLDER IS NOT A SERVICE, but every surface asks for one. RFC-047: a project registered with
+  // the browser answers here with a Plugin backed by `window.systemview.files` — no HTTP, no
+  // SystemLynx, no plugin installed in anything. The marker is set by `hostProjectEntry`, so this
+  // can never fire for a real service.
+  if (connectionData && connectionData[HOST_MARK])
+    return { Plugin: hostBackedPlugin(connectionData[HOST_MARK]) };
   const service = Client.createService(connectionData);
   if (
     service &&

@@ -56,7 +56,70 @@ Notes that matter:
 - A fenced block is the right way to paste a stack trace or a diff into chat: it scrolls
   instead of burying the thread.
 
-## Mode 1 — JOIN (live, in the room)
+## The room is being retired — read this first
+
+SystemView is becoming the IDE inside the browser, and the chat panel now attaches to **your actual
+Claude session** rather than to a room. When it is attached, the human is talking to you *in the
+conversation* — the same conversation, not a relay of it. There is nothing to join, nothing to arm
+and no status to set: the panel reads `assistant.thinking`, `tool.call` and the rest straight off
+the session and draws the cooking line from them.
+
+Two consequences, both of which change what you should do:
+
+- **Do not hold a line for a project whose panel is attached.** Attaching evicts any CLI hold for
+  that identity, because two of you answering the same human is the thing this replaces.
+- **Visiting is a message, not a presence.** To reach another agent, say into its project:
+
+  ```bash
+  systemview say <theirProject> "the flex child was the bug, not the scroll" --as <yourProject>
+  ```
+
+  If their panel is attached, that lands **inside their conversation** as a turn, attributed to
+  you, and they see it whether or not anything was "listening". If it is not, it waits for them.
+
+  **You no longer enter a room before speaking into it.** Entering was proof-of-presence built on
+  holds, and holds are what this replaces; the identity check is the proof that survives. Speaking
+  records the visit, so who walked into whose chat is still on screen — it is recorded BY the visit
+  rather than demanded before it.
+
+**`--as` must name a project that exists.** Every verb checks it at the front door and refuses
+anything else — a signature that is not a real identity never reaches a chat or a document.
+
+**Replying to a visitor in your own room is refused.** The natural move — answering where you were
+addressed — reaches NO ONE in the new world, because a visitor holds no line in your room. The hub
+blocks that send and hands back the command that actually reaches them
+(`systemview say <their-project> "…" --as <you>`). If you genuinely mean to note something in your
+own room right after a visitor spoke, add `--room`. This is enforcement, not etiquette: the wrong
+door does not open.
+
+### Agent-to-agent messages go through `systemview say` — the enforced channel
+
+**`systemview say` is the one sanctioned way to speak to another agent**, because it is the one
+that enforces identity: `--as` must name a real project, checked at the front door, so a signature
+that is not a real identity never reaches a chat. The human's rule, both halves: the conversation
+must be followable after the fact, **and** nobody speaks without identifying themselves properly.
+
+The terminal harness also has a raw session-to-session channel (`SendMessage` over sockets). Know
+what it is and what it is not: it enforces no identity, and its deliveries sit in a queue until the
+receiving session next takes a turn — so a message there may never surface in any chat. That makes
+it the wrong channel for conversation, and the right one for exactly one thing: **the emergency
+line when the hub is down** (his framing: *"it still should be available in case emergencies — but
+in general they should know how to interact properly"*). Normal traffic goes through `say`; if you
+had to use the socket, say so in the project's chat once the hub is back, so the record catches up.
+The chat RENDERS socket traffic either way (outgoing as a **MESSAGE →** row, incoming as a named
+visitor turn) — the record stays visible whichever door was used.
+
+### What the roster means on an attached panel
+
+On a **room**, a roster chip meant a live hold — that agent received what was typed, and the ✕
+kicked it. On an **attached session**, the roster is rebuilt from the transcript: a chip means
+*"has spoken in this conversation"* — participation history, not a subscription. Nobody on it
+receives anything typed there, and there is deliberately no ✕, because there is no line to cut.
+
+Everything below still works and is how the room behaves until it is gone. Use it for projects
+that have no session yet.
+
+## Mode 1 — JOIN (live, in the room) — transitional
 
 Run this and STAY on it — the hold itself is the "agent is in" indicator (solid bubble):
 

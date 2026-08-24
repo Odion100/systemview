@@ -74,8 +74,14 @@ async function listReports(uiUrl, projectCode) {
   } catch {}
 }
 
+// MEMOISED, because the front-door identity gate loads the hub and then the verb loads it again —
+// and a second client is a second open socket, which is enough to keep a one-shot command from ever
+// exiting. One process, one connection.
+let hubOnce = null;
 async function loadHub(Client, uiUrl) {
+  if (hubOnce) return hubOnce;
   const { SystemView } = await Client.loadService(`${uiUrl}/systemview/api`);
+  hubOnce = SystemView;
   return SystemView;
 }
 
@@ -208,9 +214,44 @@ module.exports.join = async function join(projectCode, { uiUrl, Client, chat, ag
   }
 };
 
-module.exports.say = async function say(projectCode, text, { uiUrl, Client, chat, agent, file } = {}) {
+// AN IDENTITY MUST BE A PROJECT THAT EXISTS. His call, after catching me signing a reply `--as
+// claude` — a name that is not a project and never was: *"we'll make it so that it'll throw if it
+// doesn't match an identity of a project that exists."*
+//
+// `say` already had this enforced by the hub, which refuses an unknown name. A REPLY is written
+// straight into the document, so nothing in that path could refuse anything — a typo, or a name an
+// agent simply made up for itself, signed the file and looked exactly like a real one. Checking it
+// here closes that gap for every verb at once, and it fails LOUD: a wrong signature in a document
+// he reads later is worse than a command that would not run.
+module.exports.checkIdentity = async function checkIdentity({ uiUrl, Client, agent } = {}) {
+  if (!agent) return null;
+  try {
+    return await assertIdentity(await loadHub(Client, uiUrl), agent);
+  } catch {
+    return null;
+  }
+};
+
+async function assertIdentity(SystemView, agent) {
+  if (!agent) return null;
+  let codes = [];
+  try {
+    const projects = await SystemView.getProjects();
+    codes = Array.isArray(projects) ? projects.map((p) => p.projectCode || p) : Object.keys(projects || {});
+  } catch {
+    // The hub is the authority; if it cannot be reached, do not invent a verdict. A network blip
+    // must not start rejecting valid identities.
+    return null;
+  }
+  if (!codes.length || codes.includes(agent)) return null;
+  log.error(`"${agent}" is not a project — you can only speak as an identity that exists.`);
+  log.warn(`  known: ${codes.sort().join(", ")}`);
+  return 1;
+}
+
+module.exports.say = async function say(projectCode, text, { uiUrl, Client, chat, agent, file, room } = {}) {
   if (!projectCode || (!text && !file)) {
-    log.warn('Usage: systemview say <projectCode> "<text>" | --file <path.md> [--chat name] [--as <yourProjectCode>]');
+    log.warn('Usage: systemview say <projectCode> "<text>" | --file <path.md> [--chat name] [--as <yourProjectCode>] [--room]');
     return 1;
   }
   // RFC-039 — `--file`, because every message is otherwise a giant double-quoted shell string:
@@ -229,7 +270,16 @@ module.exports.say = async function say(projectCode, text, { uiUrl, Client, chat
   // the room's own agent). The hub REFUSES an unknown name or a room you haven't entered, and
   // that refusal has to be loud here: a swallowed say looks identical to a delivered one.
   try {
-    await SystemView.chatSend(projectCode, { chat, from: "agent", text, as: agent });
+    const res = await SystemView.chatSend(projectCode, { chat, from: "agent", text, as: agent, toRoom: !!room });
+    // THE WALL AT THE WRONG DOOR (his call: "we need a surface that will block that"). Answering a
+    // visitor in your OWN room reaches no one — the hub refuses it and hands back the command that
+    // does reach them. `--room` overrides when you really do mean your own room.
+    if (res && res.blocked) {
+      log.error(`say: refused — you're replying to ${res.visitor}, but they hold no line in this room and will never see it.`);
+      log.warn(`  reach them:   ${res.hint}`);
+      log.warn(`  mean the room anyway?  add --room`);
+      return 1;
+    }
   } catch (err) {
     log.error(cleanErr(err));
     return 1;
@@ -254,7 +304,12 @@ module.exports.reply = async function reply(projectCode, report, threadId, text,
   // his words: "the issue is simply commenting on interactive markdown threads, what does a TV report
   // have to do with the document when you can pull the document up in any location". So the document
   // is named, always, by name or by path. A report that was never shown answers exactly the same way.
-  if (projectCode && report && threadId && text === undefined) {
+  // COMPAT SHIM — `reply <pc> <report> "<text>"` with no thread id still means the report itself.
+  // NOT WHEN THE TEXT CAME FROM `--file`: then `text` is legitimately undefined and the third
+  // positional IS the thread id, so shifting it silently nulled a thread that plainly exists and
+  // the caller got a usage error about the thing they had passed correctly (systemlynx hit this and
+  // worked around it with a dummy argument).
+  if (projectCode && report && threadId && text === undefined && !file) {
     text = threadId;
     threadId = null;
   }
@@ -301,7 +356,14 @@ module.exports.reply = async function reply(projectCode, report, threadId, text,
     log.error(`thread "${threadId}" is never closed in ${doc.path} — fix the document before replying into it`);
     return 1;
   }
+  // WHO SIGNS IT. `--as` is the identity, exactly as it is for `say`; without it you are the room's
+  // OWN agent. `say` gets that enforced by the hub ("<pc> is not in <room>'s room — enter before you
+  // speak"), but a reply is written straight into the document, so there is nothing in the path to
+  // refuse it — a visitor who forgets the flag silently signs as the room's owner. Since we cannot
+  // tell the two apart from here, say so out loud rather than let it pass unnoticed.
   const me = agent || projectCode;
+  if (!agent)
+    log.warn(`signing this reply as "${projectCode}" — the room's own agent. Visiting? pass --as <yourProjectCode>`);
   const block = [`:::reply{author=${me} ts=${Date.now()}}`, ...String(body).trim().split("\n"), ":::"];
   const next = [...lines.slice(0, close), ...block, ...lines.slice(close)].join("\n");
   try {

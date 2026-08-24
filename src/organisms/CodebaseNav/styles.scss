@@ -71,6 +71,55 @@
     color: var(--sv-text-strong);
     font-size: 13px;
   }
+  // THE NAME IS THE FIELD, so editing it must not move anything: the input inherits the title's own
+  // weight, size and colour and keeps the same box. A row that reflows when you double-click reads
+  // as a mistake you made rather than an edit you started.
+  &__cb-name--renamable {
+    cursor: text;
+    border-radius: 3px;
+    &:hover { background: color-mix(in srgb, var(--sv-text-strong) 10%, transparent); }
+  }
+  &__cb-name--editing {
+    min-width: 0;
+    max-width: 190px;
+    padding: 0 2px;
+    border: none;
+    border-bottom: 1px solid #8f97e8;
+    border-radius: 0;
+    background: transparent;
+    outline: none;
+    font-family: inherit;
+  }
+  // The directory, quiet, on the code row. Never bold, never the headline — it is a fact you check,
+  // not a thing you read.
+  &__code-dir {
+    margin-left: 8px;
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 10px;
+    color: var(--sv-text-muted);
+    opacity: 0.75;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 150px;
+  }
+  // An empty slot's offer to fill itself.
+  &__attach {
+    display: block;
+    margin: 4px 0 4px 18px;
+    padding: 3px 9px;
+    border: 1px dashed var(--sv-border);
+    border-radius: 5px;
+    background: transparent;
+    color: var(--sv-text-muted);
+    font-size: 11px;
+    cursor: pointer;
+    &:hover {
+      border-style: solid;
+      border-color: #8f97e8;
+      color: var(--sv-text-strong);
+    }
+  }
   &__cb-count {
     margin-left: auto;
     font-size: 10.5px;
@@ -237,6 +286,9 @@
     font-size: 11.5px;
     color: #ffb3b3;
   }
+  // ASKING FOR A WORD IS NOT A DESTRUCTIVE CONFIRM. The two-step shape is shared, the alarm is not —
+  // a rename dressed in the delete row's red reads as "are you sure you want to break this".
+
   &__menu-yes,
   &__menu-no {
     flex: none;
@@ -677,12 +729,6 @@
   &__commit-branch { font-weight: 700; }
   &__commit-ahead { color: #3f9e6a; font-weight: 700; }
   &__commit-behind { color: #d9a441; font-weight: 700; }
-  &__commit-n {
-    margin-left: auto;
-    font-size: 9.5px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
   // changes | log, in the panel head — the same switch the ::commit block carries.
   &__commit-tabs {
     margin-left: auto;
@@ -1201,15 +1247,6 @@
       color: #8f97e8;
       border-color: #383e55;
     }
-    .codebase-nav__svc-op {
-      color: #5c6370;
-      &:hover {
-        color: #61afef;
-      }
-      &--danger:hover {
-        color: #e05757;
-      }
-    }
     .codebase-nav__hosted-paths {
       color: #5c6370;
       &:hover {
@@ -1303,11 +1340,6 @@
         background: #2c313a;
         color: #61afef;
       }
-    }
-    .codebase-nav__theme-btn {
-      background: #282c34;
-      border-color: #33383f;
-      color: #abb2bf;
     }
   }
 }
@@ -1502,4 +1534,38 @@
       background: rgba(127, 127, 127, 0.3);
     }
   }
+}
+
+// THE FIRST PROMPT on a codebase with no conversation. A door, not a status — it is gone the moment
+// one is attached.
+.codebase-nav__noagent {
+  display: block;
+  width: 100%;
+  text-align: left;
+  margin: 2px 0 6px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-style: italic;
+  color: var(--sv-text-faint);
+  background: color-mix(in srgb, #9a7cb8 7%, transparent);
+  border: 1px dashed color-mix(in srgb, #9a7cb8 35%, transparent);
+  border-radius: 5px;
+  cursor: pointer;
+
+  &:hover { background: color-mix(in srgb, #9a7cb8 14%, transparent); }
+  &-do { font-style: normal; font-weight: 700; color: #9a7cb8; }
+}
+
+.codebase-nav__cb-forget {
+  margin-left: 6px;
+  padding: 0 4px;
+  border: none;
+  background: none;
+  color: var(--sv-text-faint);
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: .55;
+
+  &:hover { opacity: 1; color: #d9736a; }
 }

@@ -25,7 +25,6 @@ module.exports = ({ root, projectCode }) => {
   // plain move, since the hub already names files this way.
   const stem = (chat) => `${safe(projectCode)}.${safe(chat || "main")}`;
   const roomFile = (chat) => path.join(chatsDir(), `${stem(chat)}.jsonl`);
-  const cursorFile = (chat) => path.join(chatsDir(), `${stem(chat)}.ack.json`);
 
   const readRecords = (chat) => {
     try {
@@ -98,19 +97,9 @@ module.exports = ({ root, projectCode }) => {
       return limit ? all.slice(-limit) : all;
     };
 
-    // Drain cursors live beside the room they belong to, keyed by listener, so an agent's file-mode
-    // position travels with the project instead of being stranded in the hub.
-    this.chatCursor = function ({ chat, listener = "hooks", ts } = {}) {
-      let acks = {};
-      try {
-        acks = JSON.parse(fs.readFileSync(cursorFile(chat), "utf8"));
-      } catch {}
-      if (ts == null) return { listener, ts: acks[listener] || 0 };
-      acks[listener] = ts;
-      fs.mkdirSync(chatsDir(), { recursive: true });
-      fs.writeFileSync(cursorFile(chat), JSON.stringify(acks, null, 2));
-      return { listener, ts };
-    };
+    // (chatCursor was retired in 2.23.0 — the hub keys drain cursors to its own directory because
+    // its store is synchronous; this asynchronous twin was superseded by that design and had no
+    // callers. The `.ack.json` files remain the hub's to manage.)
 
     // WHERE this project keeps its rooms. The hub asks before flushing anything it buffered,
     // because the two directories can be the SAME one: SystemView's own dev hub runs from the very

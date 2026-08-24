@@ -56,6 +56,36 @@ systemview-test.TestService.Math.add      fully qualified
 
 ---
 
+## 1.5 · The project model — a project is a NAME; everything else is an attachment
+
+A project starts as a **name** and grows what it needs. In the UI the ＋ button asks for one thing
+— the name — and the project appears immediately as a *husk*: codebase, services, code, terminal
+all present as places, each saying what it still wants (the codebase area says "no folder yet —
+choose a folder"; nothing pretends to exist). Attachments arrive in any order, and every shape is
+first-class:
+
+| Shape | What it has | How it happens |
+| --- | --- | --- |
+| husk | a name only | ＋, type the name |
+| codebase-only | folder → code, terminal, agent | "choose a folder" on the husk; no services area is drawn |
+| services-only | live SystemLynx connection | the plugin connects, or `systemview connect` |
+| both | folder + services | either order |
+
+Rules that follow from it:
+
+- **The name is chosen, never derived.** No folder ever names a project; renaming is in place
+  (double-click the name).
+- **Removal means what the thing is**: a husk is a forgotten name; a folder is forgotten from the
+  list (nothing on disk is touched); a service project is deregistered.
+- The CLI paths (`systemview init`, `systemview connect`) still register projects and now carry the
+  folder root, so CLI-born and UI-born projects are the same kind of thing to the shell.
+
+Commits are offered **in the conversation**, as a `::commit{message="…"}` block the human presses —
+never pasted into a terminal for them, never run uninvited. The full interactive vocabulary is
+section 4 and [markdown.md](markdown.md).
+
+---
+
 ## 2 · Tests — the engine everything runs on
 
 A test is an **ordered list of named sections**. Built-ins: `before`, `main`, `events`, `after`. Any

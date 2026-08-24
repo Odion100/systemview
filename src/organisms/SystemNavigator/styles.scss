@@ -25,9 +25,6 @@
     overflow-x: hidden;
     padding-right: 0px !important;
   }
-  &__object-title {
-    display: inline;
-  }
 
   // Tabs — parallel to the scratchpad's Test/Actions tabs (same shape), with the nav's indigo accent.
   &__tabs {
@@ -54,29 +51,8 @@
       border-bottom-color: #0d8065;
     }
   }
-  // ＋ at the end of the tab row (toggles to ✕ to cancel) — the loadService affordance, out of the way.
+  // ＋ at the end of the tab row (toggles to ✕ to cancel) — names a new project, out of the way.
   // Codebase-nav dark ⇄ light toggle — the SAME pill it always was, just riding the tabs row now.
-  &__tab-theme {
-    margin-left: auto;
-    align-self: center;
-    border: 1px solid var(--sv-border);
-    background: var(--sv-surface);
-    color: var(--sv-text-muted);
-    font-size: 10.5px;
-    padding: 2px 9px;
-    border-radius: 100px;
-    cursor: pointer;
-    white-space: nowrap;
-    &:hover {
-      border-color: var(--sv-text-faint);
-    }
-    // Follows the codebase-nav theme like it always did — dark mode darkens the pill itself.
-    &--dark {
-      background: #282c34;
-      border-color: #33383f;
-      color: #abb2bf;
-    }
-  }
   &__tab-add {
     margin-left: auto;
     margin-bottom: -1px;
@@ -98,139 +74,12 @@
     }
   }
 
-  &__placeholder {
-    color: var(--sv-text-faint);
-    font-size: 13px;
-    font-style: italic;
-    padding: 8px 4px;
-  }
 
-  &__service-info {
-    flex: 1;
-    min-width: 0;
-    // ONE line: service name + its URL side by side (baseline-aligned — they're different sizes).
-    // The URL takes whatever space is left and ellipses, so it never pushes against the icons.
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-    > .link {
-      flex: none; // the name never shrinks — the URL is the flexible one
-      a {
-        font-size: 14.5px;
-        font-weight: 700;
-        color: var(--sv-text-strong);
-      }
-    }
-  }
 
-  &__url-row {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    flex: 1 1 auto;
-    min-width: 0;
-  }
 
-  &__status-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    flex-shrink: 0;
-    background: #ccc;
-
-    &--live {
-      background: #4caf50;
-    }
-    &--down {
-      background: #e05757;
-    }
-    &--unknown {
-      background: #ccc;
-    }
-  }
 
   // The URL beside a service — a quiet caption, so it never competes with the service name. Ellipses
   // (single line, no wrap) so a long URL can't crowd the status dot or the row's icons.
-  &__service-url {
-    // FULLY divorced from the title's anchor styling — the generic `.system-nav__link a` rules
-    // (14px/500) outrank a single class, so the URL pins its own metrics with !important. Smaller
-    // than the title on BOTH themes; slightly LESS subtle in light, MORE subtle in dark (below).
-    color: #30374b !important;
-    text-decoration: none;
-    font-size: 10.5px !important;
-    font-weight: 400 !important;
-    letter-spacing: 0.1px;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    &:hover {
-      color: var(--sv-blue) !important;
-    }
-  }
-  &__link {
-    width: 100%;
-    margin-left: 3px;
-    display: flex;
-    align-items: center;
-    padding: 2.5px 8px;
-    border: 1px solid transparent; // reserved so selecting doesn't shift the row
-    box-sizing: border-box;
-    border-radius: 6px;
-    transition: background 0.12s;
-
-    // Base link text (modules). The service name + project get their own bumped sizes below, so the tree
-    // reads as a clear hierarchy: project ▸ service ▸ module ▸ method. The anchor FILLS its row so the
-    // whole line is clickable — not just the text.
-    a {
-      color: var(--sv-text);
-      text-decoration: none;
-      font-size: 14px;
-      font-weight: 500;
-      line-height: 1.4;
-      letter-spacing: 0.1px;
-    }
-    & > .link {
-      flex: 1;
-      min-width: 0;
-    }
-    &:hover {
-      background: var(--sv-hover);
-    }
-    &--project {
-      & > a {
-        color: #575fc1 !important;
-        font-weight: 700;
-        font-size: 15px;
-        letter-spacing: 0.2px;
-      }
-    }
-    // Hierarchy PATH (ancestors, not the selection): ONLY a LEFT border, in a LIGHTER indigo, with a
-    // lighter fill — no full border around. `--selected-true` is defined AFTER, so the terminal item wins.
-    &--active-true {
-      box-shadow: inset 3px 0 0 #c3c8ee; // left board only, lighter
-      box-shadow: inset 3px 0 0 #d3d3d3;
-      border-radius: 0; // the gray path bar runs STRAIGHT — square ends, no rounded chip
-    }
-    // The ACTUAL selection: the full 1px border AROUND *and* the left board, in the stronger indigo, on a
-    // darker fill — so it clearly reads as the real selection, not just part of the path.
-    &--selected-true {
-      background: #d9ddf447;
-      border-color: #6a74c4; // full 1px indigo border all the way around…
-      box-shadow: inset 3px 0 0 #6a74c4; // …and the thicker board on the LEFT
-      border-radius: 6px; // re-assert: the selection keeps its rounded chip even while on the path
-      &:hover {
-        background: #cfd4f0;
-      }
-      a {
-        font-weight: 700;
-        color: #575fc1 !important;
-      }
-    }
-    &:hover .system-nav__delete-btn {
-      opacity: 1;
-    }
-  }
 
   // The METHOD rows are `.server-module__methods` (not `.system-nav__link`) but carry the same
   // `--selected-true` modifier — give them the reserved (rounded) border, vertical centering, right
@@ -266,150 +115,15 @@
     }
   }
 
-  &__delete-btn {
-    margin-left: auto;
-    flex-shrink: 0;
-    background: none;
-    border: none;
-    padding: 4px 5px;
-    cursor: pointer;
-    color: #aaa;
-    border-radius: 3px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    transition:
-      opacity 0.15s,
-      color 0.15s,
-      background 0.15s;
-
-    &:hover {
-      color: #e53e3e;
-      background: rgba(229, 62, 62, 0.08);
-      opacity: 1;
-    }
-  }
 
   // Connect-a-service control (replaces the old projectCode search + reload)
-  &__connect-btn {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    width: 100%;
-    padding: 7px 12px;
-    background: #f3f4fb;
-    border: 1px dashed #b9bce0;
-    border-radius: 7px;
-    color: #575fc1;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition:
-      background 0.15s,
-      border-color 0.15s,
-      box-shadow 0.15s;
 
-    &:hover {
-      background: #eceeff;
-      border-color: #575fc1;
-      box-shadow: 0 1px 4px rgba(87, 95, 193, 0.15);
-    }
-  }
 
-  &__connect-bullet {
-    font-size: 15px;
-    line-height: 1;
-    opacity: 0.6;
-  }
 
-  &__connect-arrow {
-    align-items: center;
-    background: #575fc1;
-    border-radius: 50%;
-    color: #fff;
-    display: flex;
-    padding: 2px;
-    justify-content: center;
-    margin-left: auto;
-    transition:
-      transform 0.15s,
-      background 0.15s,
-      box-shadow 0.15s;
-  }
 
-  &__connect-btn:hover &__connect-arrow {
-    transform: translateX(3px);
-    background: #454ca8;
-    box-shadow: 0 2px 6px rgba(87, 95, 193, 0.35);
-  }
 
-  &__connect-form {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    width: 100%;
-  }
 
-  &__connect-input {
-    flex: 1;
-    min-width: 0;
-    padding: 8px 10px;
-    border: 1px solid #b9bce0;
-    border-radius: 6px;
-    font-size: 13px;
-    outline: none;
-    transition:
-      border-color 0.15s,
-      box-shadow 0.15s;
 
-    &:focus {
-      border-color: #575fc1;
-      box-shadow: 0 0 0 2px rgba(87, 95, 193, 0.15);
-    }
-    &:disabled {
-      background: #f5f5f5;
-    }
-  }
-
-  &__connect-cancel {
-    flex-shrink: 0;
-    width: 30px;
-    height: 30px;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 15px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: none;
-    color: #999;
-    transition:
-      background 0.15s,
-      color 0.15s;
-
-    &:hover:not(:disabled) {
-      background: rgba(0, 0, 0, 0.05);
-      color: #666;
-    }
-  }
-
-  // The submit button reuses the exact circular arrow (&__connect-arrow, shown at the end of
-  // loadService) — this only adds the button reset + its own hover/disabled states.
-  &__connect-submit {
-    flex-shrink: 0;
-    border: none;
-    cursor: pointer;
-
-    &:hover:not(:disabled) {
-      background: #454ca8;
-    }
-    &:disabled {
-      background: #c7c9e8;
-      cursor: default;
-    }
-  }
 }
 
 // ── Dark mode — the nav's selection language, re-tuned ────────────────────────────────────────────
@@ -449,14 +163,6 @@
       background: #3a4152;
     }
   }
-  .system-nav__connect-btn {
-    background: #2c313a;
-    border-color: #4a5160;
-    color: #8891e0;
-    &:hover {
-      background: #313640;
-    }
-  }
   // The service URL goes MORE subtle on dark (light mode is the slightly-less-subtle #aab0c2).
   .system-nav__service-url {
     color: #6b7385 !important;
@@ -479,5 +185,59 @@
   }
   100% {
     background: rgba(201, 168, 90, 0.13);
+  }
+}
+
+// The folder picker refusing, said out loud where the + is — a dialog that quietly does nothing is
+// indistinguishable from a button that does nothing.
+.system-nav__connect-error {
+  color: #d9736a;
+  font-size: 11.5px;
+  padding: 4px 2px 0;
+}
+
+// NAMING A NEW PROJECT — its own control, deliberately not the loadService input. Adding a project
+// and connecting a service are different acts; sharing one field is what made the first feel like
+// the second.
+.system-nav__newproject {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 8px;
+  padding: 5px 6px;
+  border: 1px solid #8f97e8;
+  border-radius: 7px;
+  background: color-mix(in srgb, #8f97e8 8%, transparent);
+}
+.system-nav__newproject-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  outline: none;
+  color: var(--sv-text-strong);
+  font-size: 13px;
+  font-weight: 700;
+  &::placeholder {
+    font-weight: 500;
+    color: var(--sv-text-muted);
+  }
+}
+.system-nav__newproject-go {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 5px;
+  background: #8f97e8;
+  color: #fff;
+  cursor: pointer;
+  &:disabled {
+    opacity: 0.4;
+    cursor: default;
   }
 }
