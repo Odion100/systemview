@@ -626,6 +626,8 @@ export function foldState(events) {
   // them is the thing the panel reads. A new branch added next year inherits the bound without
   // knowing the rule exists. The rows from foldEvents stay whole — they are the RECORD, and the
   // record and the label were never the same field here, only the same variable.
+  // His send has started a turn that nothing has finished yet — see the status branch.
+  let pendingTurn = false;
   let doing = null;
   let hostWindow = 0;
   let ctxSeen = 0;
@@ -653,8 +655,15 @@ export function foldState(events) {
       if (bars) s.usage = { bars, ts: ev.ts || 0 };
     }
     if (ev.kind === "status" || ev.kind === "session.started") {
-      if (ev.state) s.state = ev.state;
-      else if (ev.kind === "session.started") s.state = "ready";
+      // A SEND THAT IS STILL IN FLIGHT OUTRANKS A "READY". He sends, the panel flips to cooking
+      // instantly (the local-echo branch below) — and then the host's own `status: ready` or a
+      // `session.started` lands a beat later and puts it straight back to idle. That is the flash
+      // he sees: the line appears, vanishes, and stays gone until the first thinking event seconds
+      // later, so the send looks like it went nowhere. Those events describe the SESSION being
+      // alive, not the turn being over; only a real turn ending (a finished answer, a result, an
+      // interrupt) may clear a turn that has started.
+      if (ev.state && !(pendingTurn && ev.state === "ready")) s.state = ev.state;
+      else if (ev.kind === "session.started" && !pendingTurn) s.state = "ready";
       if (ev.model) {
         // A MODEL SWITCH ENDS THE OLD OBSERVATIONS. `ctxSeen` is a high-water mark used to raise a
         // window we are unsure about — but it described a DIFFERENT model, and carrying it across a
@@ -680,6 +689,7 @@ export function foldState(events) {
         doing = null;
       }
     } else if (ev.kind === "text" && ev.mine) {
+      pendingTurn = true;
       // HIS SEND, THE INSTANT HE SENDS IT. The panel's own send drops a local echo of kind "text"
       // — and this fold had no branch for it, so the state sat "idle" until the host's round-trip
       // or our first thinking event, a second-plus in which his message looked like it hadn't gone
@@ -739,7 +749,10 @@ export function foldState(events) {
       // still said "thinking" after the answer had finished printing: a status outliving the state it
       // describes, the same bug class as the stale dictation draft and the ReportsTab poll.
       s.state = ev.done ? "ready" : "working";
-      if (ev.done) doing = null;
+      if (ev.done) {
+        doing = null;
+        pendingTurn = false; // the answer finished — this turn is genuinely over
+      }
     } else if (IS_RESULT(ev.kind)) {
       // The command's name OUTLIVES its result on purpose — see the writing branch above. Nulling
       // here was what made the line drop to a generic cooking word between commands while the
@@ -749,6 +762,7 @@ export function foldState(events) {
       doing = ev.title || ev.tool || "asking permission";
     } else if (ev.kind === "interrupted") {
       // The turn is over because he ended it. Nothing is in flight, so nothing may claim to be.
+      pendingTurn = false;
       s.state = "ready";
       doing = null;
     } else if (IS_COMPACTING(ev.kind)) {
@@ -817,6 +831,7 @@ export function foldState(events) {
       const w = Number(ev.contextWindow || ev.context_window) || 0;
       if (w > 0) hostWindow = w;
     } else if (IS_DONE(ev.kind)) {
+      pendingTurn = false;
       s.state = "ready";
       doing = null;
       if (typeof ev.costUsd === "number") s.cost += ev.costUsd;

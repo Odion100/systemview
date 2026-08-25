@@ -367,7 +367,13 @@ async function loadCaseSetting() {
     // RFC-034 — his code comments, by a verb rather than a folder path anyone has to remember.
     await launchApp(DEFAULT_PORT);
     const commentsCommand = require("./comments");
-    const exitCode = await commentsCommand(input[1], input[2], { uiUrl: UI_URL, json: flags.json });
+    const exitCode = await commentsCommand(input[1], input[2], {
+      uiUrl: UI_URL,
+      json: flags.json,
+      reply: flags.reply,
+      at: flags.at,
+      as: flags.as,
+    });
     flushAndExit(exitCode || 0);
   } else if (command === "skill") {
     // RFC-039 — SystemView ships the skill instead of every project hand-writing one.

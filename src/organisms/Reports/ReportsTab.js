@@ -1,6 +1,6 @@
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import ServiceContext from "../../ServiceContext";
-import loadServiceWithHeaders from "../../utils/loadService";
+import { hostFiles } from "../../utils/hostFiles";
 import Markdown from "../../atoms/Markdown/Markdown";
 import DescriptionBox from "../../atoms/DescriptionBox/DescriptionBox";
 import { EditorThemeToggle, useEditorDark } from "../../atoms/CodeView/editorTheme";
@@ -43,14 +43,12 @@ const ReportsTab = ({ projectCode, serviceId, moduleName, methodName, openName, 
   const nsKey = [projectCode, serviceId, moduleName, methodName].filter(Boolean).join(".") || "";
   const nsLabel = [serviceId, moduleName, methodName].filter(Boolean).join(".") || projectCode || "";
 
-  const host = useMemo(() => {
-    const inProject = connectedServices.filter((s) => s.projectCode === projectCode && hasPlugin(s));
-    return inProject.find((s) => s.serviceId === serviceId) || inProject[0] || null;
-  }, [connectedServices, projectCode, serviceId]);
-  const Plugin = useMemo(
-    () => (host ? loadServiceWithHeaders(host.system.connectionData, host.headers, host.credentials).Plugin : null),
-    [host]
-  );
+  // REPORTS ARE FILES, so they come from the hub like every other file. This hunted the project's
+  // services for one carrying a plugin — so on a project whose services are down, or that never had
+  // any, the reports tab had no host and showed nothing: a folder full of reports, rendered as an
+  // empty list. Same shape as the code panel, the file embed and the commit block.
+  const host = useMemo(() => (projectCode ? { projectCode } : null), [projectCode]);
+  const Plugin = useMemo(() => (host ? hostFiles(host.projectCode) : null), [host]);
 
   // Reports are tracked in one small index file — the list here is the index, not a directory
   // walk (`.systemview` shows in the file tree now, but the index is what names a report).

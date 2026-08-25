@@ -39,6 +39,9 @@ const HELP_TEXT = `
     manifest save                          Persist session manifest — services, auth headers, cookies  [interactive]
     manifest clean                        Re-probe manifest entries, remove stale ones
     probe <ServiceId.Module.method> [args] Call a service method ad-hoc
+    comments <project> <path> --at <n> --reply "…"
+                                           Answer his comment WHERE HE LEFT IT — on the line, not in
+                                           the chat. --at is the line; optional when the file has one.
     comments <project> [path] [--json]     His comments on the code — every file that has them,
                                            or one file's, with the lines they sit on
     board <project> [--json]               His board — the notes he leaves for you between sessions

@@ -956,7 +956,28 @@ function BotBubble({ projectCode, index }) {
   // Names he has cleared off the spoke strip, and WHEN — cleared at a moment, not forever, so the
   // same agent speaking again puts them back. Forgetting permanently would make the strip lie in
   // the other direction.
-  const [spokeCleared, setSpokeCleared] = useState({});
+  // …AND IT SURVIVES A REFRESH. This lived in React state only, so dismissing a chip cleared it
+  // until the page reloaded and the strip rebuilt itself from the chat — which is derived from the
+  // transcript, and the transcript does not forget. So the ✕ looked broken: press it, come back,
+  // they are all there again. His rule: seeing it IS dismissing it — clicking through to the
+  // message counts, and so does the ✕. Stamped per project, and a NEWER turn from the same agent
+  // still brings them back, because that is a new thing to have seen.
+  const spokeSeenKey = `sv.chat.spokeSeen.${projectCode}`;
+  const [spokeCleared, setSpokeCleared] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem(spokeSeenKey) || "{}") || {};
+    } catch {
+      return {};
+    }
+  });
+  const clearSpoke = (who) =>
+    setSpokeCleared((cur) => {
+      const next = { ...cur, [who]: Date.now() };
+      try {
+        localStorage.setItem(spokeSeenKey, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
   const armedSend = useRef(0);
   const ARMED_WINDOW = 4000;
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -2007,6 +2028,16 @@ function BotBubble({ projectCode, index }) {
   const visitors = attached ? spokeMarks.map((m) => m.as) : p.visitors || [];
   // WHO IS IN THIS CONVERSATION — the subscription list, and nothing else. Attached, that is the
   // hub's list for this chat; in a room it is the room's. This is what the star reads.
+  // EVERY PROJECT THIS APP KNOWS, minus the ones already on the list and minus this one. The roster
+  // is the only place that needs it, so it is derived here rather than fetched again.
+  const addable = useMemo(() => {
+    const already = new Set(
+      (subscribed || []).map((v) => (typeof v === "string" ? v : v && v.identity)).filter(Boolean),
+    );
+    return [...new Set((connectedServices || []).map((s) => s.projectCode).filter(Boolean))]
+      .filter((pc) => pc !== projectCode && !already.has(pc))
+      .sort();
+  }, [connectedServices, subscribed, projectCode]);
   const inHere = attached
     ? (subscribed || []).map((v) => (typeof v === "string" ? v : v && v.identity)).filter(Boolean)
     : p.visitors || [];
@@ -4475,29 +4506,43 @@ function BotBubble({ projectCode, index }) {
               {attached && (
                 <span className={`${CLASSNAME}__roster-add`}>
                   {addingVisitor ? (
-                    <input
-                      autoFocus
-                      className={`${CLASSNAME}__roster-add-input`}
-                      placeholder="project code"
-                      value={newVisitor}
-                      onChange={(e) => setNewVisitor(e.target.value)}
-                      onBlur={() => { setAddingVisitor(false); setNewVisitor(""); }}
-                      onKeyDown={async (e) => {
-                        if (e.key === "Escape") { setAddingVisitor(false); setNewVisitor(""); }
-                        if (e.key !== "Enter") return;
-                        const id = newVisitor.trim();
-                        if (!id) return;
-                        try {
-                          const res = await SystemView.chatAddVisitor(projectCode, { identity: id });
-                          if (res && res.added)
-                            setSubscribed((cur) =>
-                              cur.some((x) => x.identity === id) ? cur : [{ identity: id, by: "human", ts: Date.now() }, ...cur],
-                            );
-                        } catch {}
-                        setAddingVisitor(false);
-                        setNewVisitor("");
-                      }}
-                    />
+                    /* THE SAME MENU THE MODEL PICKER USES — not a native <select>, which opens the
+                       OS widget and looks like a form on a surface that has none. A text box was
+                       worse still: it asked you to spell a project code the app already knows, and
+                       a typo reported success while subscribing nobody. Pick a name, it subscribes. */
+                    <>
+                      <div className={`${CLASSNAME}__ctx-overlay`} onClick={() => setAddingVisitor(false)} />
+                      <div className={`${CLASSNAME}__model-menu ${CLASSNAME}__visitor-menu`}>
+                        {addable.length === 0 && (
+                          <span className={`${CLASSNAME}__model-item ${CLASSNAME}__model-item--none`}>
+                            everyone is already here
+                          </span>
+                        )}
+                        {addable.map((pc) => (
+                          <button
+                            key={pc}
+                            type="button"
+                            className={`${CLASSNAME}__model-item`}
+                            style={visStyle(pc)}
+                            title={`Send ${pc} this conversation`}
+                            onClick={async () => {
+                              setAddingVisitor(false);
+                              try {
+                                const res = await SystemView.chatAddVisitor(projectCode, { identity: pc });
+                                if (res && res.added)
+                                  setSubscribed((cur) =>
+                                    cur.some((x) => x.identity === pc)
+                                      ? cur
+                                      : [{ identity: pc, by: "human", ts: Date.now() }, ...cur],
+                                  );
+                              } catch {}
+                            }}
+                          >
+                            {pc}
+                          </button>
+                        ))}
+                      </div>
+                    </>
                   ) : (
                     <button type="button" className={`${CLASSNAME}__roster-add-btn`} title="Add an agent as a visitor" onClick={() => setAddingVisitor(true)}>
                       +
@@ -4839,6 +4884,8 @@ function BotBubble({ projectCode, index }) {
                     onClick={() => {
                       const el = document.querySelector(`[data-row="${m.key}"]`);
                       if (el && el.scrollIntoView) el.scrollIntoView({ behavior: "smooth", block: "center" });
+                      // Travelling to it is seeing it — the chip has done its whole job.
+                      clearSpoke(m.as);
                     }}
                   >
                     {m.as}
@@ -4852,7 +4899,7 @@ function BotBubble({ projectCode, index }) {
                     type="button"
                     className={`${CLASSNAME}__spokebar-x`}
                     title={`Clear — forget that ${m.as} spoke (does not change who is visiting)`}
-                    onClick={() => setSpokeCleared((cur) => ({ ...cur, [m.as]: Date.now() }))}
+                    onClick={() => clearSpoke(m.as)}
                   >
                     ×
                   </button>

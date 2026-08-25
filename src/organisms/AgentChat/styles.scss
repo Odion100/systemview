@@ -1481,6 +1481,34 @@
     padding: 2px 8px;
     cursor: pointer;
   }
+  // The visitor picker rides the model menu's styling — one dropdown look in this panel, not two.
+  &__visitor-menu {
+    min-width: 130px;
+    // Under the + it belongs to, opening LEFT-aligned — the model chip sits at the right edge of
+    // the header so its menu hangs right; this one sits mid-strip and would hang off into nothing.
+    right: auto;
+    left: 0;
+    // A DOT, NOT A PAINTED NAME. The identity colour is worth carrying (same hue as their bubbles),
+    // but a menu of coloured words reads as decoration; the name stays normal text and the colour
+    // becomes a small mark in front of it.
+    .agent-chat__model-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      &::before {
+        content: "";
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--vis, var(--sv-text-faint));
+        flex: none;
+      }
+    }
+    .agent-chat__model-item--none {
+      color: var(--sv-text-faint);
+      cursor: default;
+    }
+  }
   &__spokebar {
     display: flex;
     align-items: center;
@@ -1491,7 +1519,7 @@
     color: var(--sv-text-faint);
   }
   &__spokebar-label {
-    opacity: 0.7;
+    opacity: 0.85;
     letter-spacing: 0.04em;
     text-transform: lowercase;
   }
@@ -1507,8 +1535,13 @@
     font-size: 10px;
     line-height: 1;
     cursor: pointer;
-    opacity: 0.45;
+    // Faint but READABLE at rest — the hover state was the only one with enough contrast, which
+    // means the control was invisible until you already knew where it was. Themed token, so it
+    // follows dark and light instead of being tuned for the one I happened to build against.
+    color: var(--sv-text-faint);
+    opacity: 0.8;
     &:hover {
+      color: var(--vis, var(--sv-text));
       opacity: 1;
     }
   }
@@ -1520,7 +1553,12 @@
     font-size: 10px;
     cursor: pointer;
     opacity: 0.75;
-    border-bottom: 1px dotted currentColor;
+    // THE IDENTITY COLOUR, which is the whole point of the strip — every agent wears the same hue
+    // everywhere it appears. Left to `inherit` this took the bar's faint grey, so on dark it read as
+    // unstyled text and on light it merely happened to have enough contrast to pass. A name that is
+    // not in its own colour is not doing the one job this chip has.
+    color: var(--vis, inherit);
+    border-bottom: 1px dotted color-mix(in srgb, var(--vis, currentColor) 45%, transparent);
     &:hover {
       opacity: 1;
     }
@@ -1640,7 +1678,11 @@
     opacity: 0.5;
     font-style: italic;
   }
-  &__roster-add { display: inline-flex; align-items: center; }
+  // POSITION:RELATIVE IS WHY THE MENU KNOWS WHERE THE BUTTON IS. Without it the absolutely-placed
+  // dropdown anchors to some far ancestor and lands in the corner of the panel — which is exactly
+  // what it did. The model picker has had this all along (`&__model-wrap`); the visitor picker
+  // borrowed its menu and not its anchor.
+  &__roster-add { display: inline-flex; align-items: center; position: relative; }
   &__roster-add-btn {
     background: none;
     border: 1px dashed var(--sv-text-faint);
@@ -2862,7 +2904,11 @@
   // EVERY OTHER BLOCK, SAME RULE. A document can afford 16px of air around a decision; a chat
   // cannot, because the next sentence is right there. These are the same components with the
   // margins and type a conversation can carry — nothing is hidden, nothing is a different widget.
-  .md-commit,
+  .md-commit {
+    margin: 10px 0;
+    font-size: 12px;
+    border-radius: 6px;
+  }
   .md-approval,
   .md-input,
   .md-callout,
@@ -2889,24 +2935,27 @@
   // the message, and press it or don't. Everything it can still DO is unchanged — the file list is
   // there when you want it, it just doesn't open the conversation with a wall.
   .md-commit__body {
-    padding: 4px 8px;
-    max-height: 150px;
+    padding: 6px 9px;
+    max-height: 220px;
     overflow: auto;
   }
+  // THE MESSAGE IS THE POINT OF THE BLOCK, so it does not get chat-caption treatment. I took the
+  // "compact" note as "shrink everything", and the one line you actually READ ended up smaller than
+  // the prose around it. Compact means less air and less chrome — not a smaller sentence.
   .md-commit__message {
-    font-size: 11px;
-    line-height: 1.4;
-    padding: 3px 6px;
+    font-size: 12.5px;
+    line-height: 1.45;
+    padding: 5px 7px;
   }
   .md-commit__msgrow {
     gap: 6px;
   }
   .md-commit__row {
-    padding: 1px 4px;
-    font-size: 10px;
+    padding: 2px 5px;
+    font-size: 10.5px;
   }
   .md-commit__path {
-    font-size: 10px;
+    font-size: 10.5px;
   }
   .md-commit__group-label,
   .md-commit__stamp,
@@ -2918,8 +2967,8 @@
     gap: 4px;
   }
   .md-commit__tab {
-    font-size: 9px;
-    padding: 1px 6px;
+    font-size: 10px;
+    padding: 2px 7px;
   }
   .md-commit__logrow {
     font-size: 10px;
@@ -2940,8 +2989,8 @@
   .md-input__option,
   .md-commit__btn,
   .md-approval__btn {
-    font-size: 10.5px;
-    padding: 3px 8px;
+    font-size: 11px;
+    padding: 4px 10px;
   }
   // Tables in a message scroll rather than widening the column.
   .chat-md__tablewrap {
