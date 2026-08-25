@@ -1046,7 +1046,22 @@ async function commit(projectCode, { message, root } = {}) {
   if (!cwd) return { ok: false, error: "no folder for this project" };
   if (!String(message || "").trim()) return { ok: false, error: "a commit needs a message" };
   const res = await serial(cwd, () => git(cwd, ["commit", "-m", String(message)]));
-  return res.ok ? { ok: true, out: res.out } : { ok: false, error: res.error };
+  bustGit(projectCode);
+  if (!res.ok) return { ok: false, error: res.error };
+  // THE SHAPE THE BLOCK READS, not the shape git prints. It does `setState(res.state)` and
+  // `say(res.output || sha + " " + subject)` — so a bare `{ ok, out }` receipt makes the block say
+  // "undefined undefined", drop its state to null, and lose the Push button (Push needs
+  // `state.ahead > 0`). His clues exactly. A commit is not finished when git exits 0; it is
+  // finished when the surface that offered it can show what changed.
+  const head = await git(cwd, ["log", "-1", "--pretty=format:%h\u001f%s"]);
+  const [sha, subject] = String(head.out || "").split("\u001f");
+  return {
+    ok: true,
+    sha: sha || "",
+    subject: subject || String(message),
+    output: (res.out || "").trim() || `${sha || ""} ${subject || ""}`.trim(),
+    state: await gitStateRaw(projectCode, { root }),
+  };
 }
 
 function chatSend(projectCode, { chat, from = "you", text, view, as, toRoom } = {}) {
