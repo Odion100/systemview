@@ -134,9 +134,15 @@ export default function useAgentSession({ projectCode, sessionId = "agent", gate
     if (now && (now === switching || now.includes(switching) || switching.includes(now))) setSwitching(null);
   }, [state.model, switching]);
 
-  const showSaid = useCallback((text) => {
+  // A MESSAGE TO THE ROOM IS NOT A SENTENCE IN THE SESSION. This pushed a bare settled "text" event,
+  // so the panel drew this agent's own room message as ordinary speech — nothing marking it as
+  // something that went OUT. That is what systemlynx traced from the other side: a room's own agent
+  // has no `as` field (correctly — it IS the room), the forwarder sends it here, and here it lost
+  // the last thing that identified it. Odion's words: he sees them appear and sees no record of the
+  // message. Now the row knows where it went.
+  const showSaid = useCallback((text, room = null) => {
     if (!text) return false;
-    setEvents((cur) => [...cur, { kind: "text", text, ts: Date.now(), settled: true }]);
+    setEvents((cur) => [...cur, { kind: "text", text, ts: Date.now(), settled: true, toRoom: room || true }]);
     return true;
   }, []);
 

@@ -167,8 +167,8 @@ it where it is, no copy needed.
 
 Two things worth knowing:
 
-- **The path is relative to THAT project's root**, because that project's own service reads it.
-- **A file host must be connected for the project you name.** If it isn't, the panel says so and
+The path is relative to THAT project's root — the HUB reads it, resolved from the registry, so the pin works with that project's services down.
+- **The project you name must be connected** (a registered folder is enough — no live service needed). If it isn't, the panel says so and
   names the project. It will never quietly read the same path out of a different repo — that made a
   correct path look like an author's mistake, with a stranger's `/Users/…` in the error.
 

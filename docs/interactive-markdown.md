@@ -96,7 +96,7 @@ Percentiles stay all-time even under a time range.
 :::
 
 :::callout{type=success}
-`success` — the suite is green at 56/57; the red one is the intentional `Math.subtract` demo.
+`success` — the suite is green apart from the intentional `Math.subtract` failure demo.
 :::
 
 ---
@@ -207,6 +207,12 @@ A **saved test, runnable right here**:
 The test stays the single source of truth — edit it in the Test Panel and every document embedding
 it follows. `::test[Math.add:1]` pins one test by index.
 
+**Every data-reaching block takes `{project=<pc>}`** — `::file[README.md]{project=buAPI}` pins the
+block to that repo, and the path resolves against the named project's root. The hub serves the
+bytes, so the project's services don't need to be up. Without the attribute, a block resolves
+against the document's own project — and in a **chat**, blocks resolve against the ROOM's project
+root.
+
 ---
 
 ## 9 · Checklists that edit the document
@@ -228,7 +234,7 @@ This file is on disk, so these are **live** — ticking one rewrites `docs/inter
 - [x] `::topology` · `::load` — the rest of the Stats page
 - [x] `::::carousel` / `:::slide`
 - [ ] `::cmd` — run a SystemView CLI verb, output inline
-- [ ] media and external embeds
+- [x] media embeds — `::image`, hub-served
 - [ ] `::mermaid` diagrams
 
 Toggling a box writes down the same path the editor uses (`saveDoc` for the Documentation tab,
@@ -436,6 +442,22 @@ shouldn't be a chance to edit a file by accident:
 
 ::diff[cli/runTests.js]
 
+### Images — `::image[path]{caption=…}`
+
+```markdown
+::image[public/logo192.png]{caption="the app icon" width=120}
+::image[public/logo192.png | public/logo512.png]{caption="several paths = a gallery"}
+```
+
+::image[public/logo192.png]{caption="the app icon" width=120}
+
+::image[public/logo192.png | public/logo512.png]{caption="several paths = a gallery"}
+
+A repo image as a first-class block. The document carries only the path; the **hub serves the raw
+bytes** (`/sv-file/<projectCode>?path=…`), so it renders with the project's services down. One path
+is a figure; several — split on `|` or `,` — make a flex **gallery**, every image click-to-zoom.
+Takes `width=` and, like every block, `{project=<pc>}` to show another repo's image.
+
 ---
 
 ## 16 · Threads — reply on a block
@@ -465,9 +487,11 @@ paragraph gets reworded, and no gutter noise on paragraphs nobody wants to discu
 The `id` is what makes a thread survive edits above it. Without one it falls back to the source line,
 which still works but re-anchors if the document shifts.
 
-Comments live in a **sidecar**, not in the document: a comment is *about* the document, not part of
-it, so threads stay out of your git diffs and off anyone you share the file with. Because the wrapper
-names itself, the sidecar is a plain `id → replies` map.
+Replies live **in the document**, as the `:::reply{author=… ts=…}` blocks above show — the document
+carries its own conversation, so reading it is reading the whole exchange. A **sidecar** (a plain
+`id → replies` map, named by the thread's `id`) remains only as the fallback for surfaces with no
+file to write to — the help hub and help topics — and as where replies written before this change
+still read from.
 
 ---
 
@@ -521,7 +545,7 @@ Sketches only — these don't exist yet:
 
 `::cmd` is the command-line idea: an allowlist of SystemView's own CLI verbs rather than a general
 shell, with two states — unrun (a Run button) and already-run (the recorded transcript an agent
-captured). Also ahead: media/external embeds and block-level comments.
+captured). Also ahead: block-level comments. (Media embeds shipped — see `::image` in section 15.)
 
 ---
 

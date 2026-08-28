@@ -71,34 +71,26 @@ const FileLink = ({ label, attrs = {} }) => {
     );
   }
 
+// CLICK OPENS. NOTHING HERE IS A WEB LINK. His ruling, twice over: *"no more only revealing…
+// that's been annoying to me"* and *"they're not real links — none of these are really supposed to
+// be links."* Reveal-only made a reference into a gesture you had to follow up by hand, and with
+// the chat panel over the navigator the gesture was invisible — indistinguishable from a dead
+// control. And being a real `<a href>` is what let the browser treat an app affordance as a web
+// link (that is how every same-origin link ended up in a new tab: RFC-051 round, ChatLink).
+// So: a BUTTON that opens. ⌘-click still opens too — one behaviour, no modifier to learn.
   const open = (e) => {
     e.preventDefault();
     e.stopPropagation();
     const detail = { projectCode: host.projectCode, serviceId: host.serviceId, path, language: langOf(path), lines };
-    // REVEAL by default (see NsLink): switch the nav to the Codebases lens, expand to the file and
-    // highlight it — the document you're reading stays in the centre. Cmd/Ctrl-click OPENS it, which
-    // is the old behaviour and still what you want when you're done reading.
-    if (e.metaKey || e.ctrlKey) {
-      window.dispatchEvent(new CustomEvent("sv:openFileInNav", { detail }));
-      return;
-    }
-    // ON THE TV, A FILE CHIP IS A HAND-OFF. A report is read in a panel that floats over the page,
-    // so revealing the file in the tree behind it leaves you looking at the report you were trying
-    // to leave. From the TV the chip OPENS the file (and the TV puts itself away); everywhere else
-    // reveal stays the default, because there the document you are reading is the page itself.
-    if (e.target && e.target.closest && e.target.closest(".agent-chat__tv")) {
-      window.dispatchEvent(new CustomEvent("sv:openFileInNav", { detail }));
-      return;
-    }
-    window.dispatchEvent(new CustomEvent("sv:revealInNav", { detail: { kind: "file", ...detail } }));
+    window.dispatchEvent(new CustomEvent("sv:openFileInNav", { detail }));
   };
 
   return (
-    <a className="md-chip md-chip--file" href={`#${path}`} onClick={open} title={`Show ${path}${range} in the codebase tree — ⌘-click to open it`}>
+    <button type="button" className="md-chip md-chip--file" onClick={open} title={`Open ${path}${range}`}>
       <span className="md-chip__kind">file</span>
       {path}
       {range ? <span className="md-chip__range">{range}</span> : null}
-    </a>
+    </button>
   );
 };
 

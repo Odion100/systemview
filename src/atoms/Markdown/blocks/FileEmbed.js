@@ -172,12 +172,18 @@ const Embed = ({ label, attrs = {}, opens }) => {
     }
   };
 
-  const open = (e) => {
+// CLICK OPENS. NOTHING HERE IS A WEB LINK. His ruling, twice over: *"no more only revealing…
+// that's been annoying to me"* and *"they're not real links — none of these are really supposed to
+// be links."* Reveal-only made a reference into a gesture you had to follow up by hand, and with
+// the chat panel over the navigator the gesture was invisible — indistinguishable from a dead
+// control. And being a real `<a href>` is what let the browser treat an app affordance as a web
+// link (that is how every same-origin link ended up in a new tab: RFC-051 round, ChatLink).
+// So: a BUTTON that opens. ⌘-click still opens too — one behaviour, no modifier to learn.
+  const open = () => {
     if (!host) return;
-    const detail = { projectCode: host.projectCode, path, language: langOf(path), lines };
     window.dispatchEvent(
-      new CustomEvent(e.metaKey || e.ctrlKey ? "sv:openFileInNav" : "sv:revealInNav", {
-        detail: e.metaKey || e.ctrlKey ? detail : { kind: "file", ...detail },
+      new CustomEvent("sv:openFileInNav", {
+        detail: { projectCode: host.projectCode, path, language: langOf(path), lines },
       })
     );
   };
@@ -239,7 +245,7 @@ const Embed = ({ label, attrs = {}, opens }) => {
         {/* ONE KIND: code. The badge names the pane, not which side of it you're looking at —
             outside, a file open in the panel doesn't rename itself when you press Diff either. */}
         <span className="md-embed__kind md-embed__kind--quiet">code</span>
-        <button type="button" className="md-embed__title md-embed__title--link" onClick={open} title="Show it in the codebase tree — ⌘-click to open it">
+        <button type="button" className="md-embed__title md-embed__title--link" onClick={open} title="Open it">
           {path}
           {range}
         </button>

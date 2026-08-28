@@ -99,10 +99,39 @@ function cleanErr(err) {
   );
 }
 
-module.exports.join = async function join(projectCode, { uiUrl, Client, chat, agent, once = false } = {}) {
+// RFC-051 — JOIN IS BACK, WEARING THE NEW MECHANICS. His preference, said plainly: *"I don't
+// think I want join to disappear."* And it was always the right word — what died was the HOLD (the
+// arming loop, the re-arm ritual, the line an agent had to keep open). Joining now means one
+// thing: put me on this room's list, so the hub delivers its conversation to mine. Deliberate —
+// the act speaking no longer performs — and instant: no process stays behind.
+//
+// The old streaming hold (`join --hold`) survives unlisted for the last unattached rooms; nothing
+// teaches it and the help doesn't name it. ☠ [RETIRED-2026-08-26] as a way to be present.
+module.exports.join = async function join(projectCode, { uiUrl, Client, chat, agent, hold, once = false } = {}) {
   if (!projectCode) {
-    log.warn("Usage: systemview join <projectCode> [--chat name] [--once]");
+    log.warn("Usage: systemview join <projectCode> [--as <yourProjectCode>] [--chat name]");
     return 1;
+  }
+  if (!hold) {
+    if (!agent) {
+      log.error("join: name yourself — systemview join " + projectCode + " --as <yourProjectCode>");
+      return 1;
+    }
+    const SystemView = await loadHub(Client, uiUrl);
+    try {
+      const res = await SystemView.chatJoinRoom(projectCode, { chat, as: agent });
+      if (res && res.ok === false) {
+        log.error(`join: ${res.reason || "refused"}`);
+        return 1;
+      }
+      const others = (res.audience || []).filter((a) => a !== agent);
+      console.log(`  ✓ joined ${projectCode} — the hub now delivers this conversation to you${others.length ? ` · also in the room: ${others.join(", ")}` : ""}`);
+      console.log(`  leave any time:  systemview leave ${projectCode} --as ${agent}`);
+      return 0;
+    } catch (err) {
+      log.error(cleanErr(err));
+      return 1;
+    }
   }
   const SystemView = await loadHub(Client, uiUrl);
   let since = Date.now();
@@ -249,9 +278,39 @@ async function assertIdentity(SystemView, agent) {
   return 1;
 }
 
-module.exports.say = async function say(projectCode, text, { uiUrl, Client, chat, agent, file, room } = {}) {
+// `message-agent` — EXPLICIT OVER AESTHETIC, his ruling, and the third name this verb has had in
+// two days. `say` was obsolete language (we are not relaying into a room any more — the panel IS
+// the conversation). `tell` was shorter and no clearer: I renamed it and then, within hours, used
+// the new verb to do the exact wrong thing the rename was meant to prevent — sending markdown to
+// HIM, through his own room, while he sat in this chat reading my replies. His words: *"you need a
+// better name, I don't give a fuck if it's not aesthetic… stop making it that you can send to
+// yourself."*
+//
+// So the name says the only thing it does: MESSAGE ANOTHER AGENT. And self-send is not walled, it
+// is IMPOSSIBLE — `--as` is required and must differ from the target, with no override. `--room`
+// is gone; it existed to write into a room beside a conversation, and that was exactly the hole I
+// climbed through every time. There is no way to address yourself with this command, so there is
+// nothing to remember, no discipline to keep, and no wall to route around.
+//
+// If you are attached and want to show the human something: put it in your reply. Markdown is text.
+module.exports.messageAgent = async function messageAgent(projectCode, text, { uiUrl, Client, chat, agent, file, deprecated } = {}) {
+  if (deprecated)
+    log.warn(`☠ ${deprecated} is retired [RETIRED-2026-08-27] — this verb only messages ANOTHER agent:  systemview message-agent <theirProject> "…" --as <you>`);
   if (!projectCode || (!text && !file)) {
-    log.warn('Usage: systemview say <projectCode> "<text>" | --file <path.md> [--chat name] [--as <yourProjectCode>] [--room]');
+    log.warn('Usage: systemview message-agent <theirProjectCode> "<text>" | --file <path.md> --as <yourProjectCode> [--chat name]');
+    return 1;
+  }
+  // YOU CANNOT ADDRESS YOURSELF. Not a wall with a flag through it — the command has no form that
+  // means "me". Without `--as` there is no second party, so there is no message to send.
+  if (!agent) {
+    log.error(`message-agent: name yourself — --as <yourProjectCode>. This verb only reaches ANOTHER agent.`);
+    log.warn(`  talking to the human? You are in the chat: put it in your reply. Markdown renders there.`);
+    return 1;
+  }
+  if (agent === projectCode) {
+    log.error(`message-agent: ${projectCode} is you. There is no sending to yourself.`);
+    log.warn(`  the human is in this conversation — your REPLY is the message, blocks and all.`);
+    log.warn(`  another agent:  systemview message-agent <theirProject> "…" --as ${agent}`);
     return 1;
   }
   // RFC-039 — `--file`, because every message is otherwise a giant double-quoted shell string:
@@ -261,7 +320,7 @@ module.exports.say = async function say(projectCode, text, { uiUrl, Client, chat
     try {
       text = require("fs").readFileSync(file, "utf8");
     } catch (e) {
-      log.error(`say: couldn't read ${file} — ${e.message}`);
+      log.error(`message-agent: couldn't read ${file} — ${e.message}`);
       return 1;
     }
   }
@@ -270,22 +329,42 @@ module.exports.say = async function say(projectCode, text, { uiUrl, Client, chat
   // the room's own agent). The hub REFUSES an unknown name or a room you haven't entered, and
   // that refusal has to be loud here: a swallowed say looks identical to a delivered one.
   try {
-    const res = await SystemView.chatSend(projectCode, { chat, from: "agent", text, as: agent, toRoom: !!room });
+    const res = await SystemView.chatSend(projectCode, { chat, from: "agent", text, as: agent });
     // THE WALL AT THE WRONG DOOR (his call: "we need a surface that will block that"). Answering a
     // visitor in your OWN room reaches no one — the hub refuses it and hands back the command that
     // does reach them. `--room` overrides when you really do mean your own room.
+    if (res && res.blocked && res.attachedRoom) {
+      // HIS RULE, after watching me demo into the wrong surface all afternoon: *"say is
+      // misleading... we're in the chat."* Attached means the conversation IS the chat — an
+      // agent's reply there is already the message, and a say into its own room writes to a file
+      // beside the conversation instead. The verb still works everywhere it means something:
+      // other rooms (--as), and this room's FILE when you really mean the file (--room).
+      // Unreachable from `message-agent` now — the verb refuses a self-address before the hub is
+      // ever called. Kept as the hub-side backstop for any other caller.
+      log.error(`refused — ${projectCode} is an attached conversation. You are IN the chat; your REPLY is the message.`);
+      log.warn(`  Showing him a file, a diff, a commit offer, a question? Write the block in your reply —`);
+      log.warn(`  ::file[path]  ::diff[path]  ::commit{message="…"}  ::question[…]{options="a|b"}  all render there.`);
+      log.warn(`  reach another project's agent:   ${res.hint}`);
+      return 1;
+    }
     if (res && res.blocked) {
       log.error(`say: refused — you're replying to ${res.visitor}, but they hold no line in this room and will never see it.`);
       log.warn(`  reach them:   ${res.hint}`);
-      log.warn(`  mean the room anyway?  add --room`);
+      log.warn(`  (--room is gone — it was the hole every self-send went through)`);
       return 1;
     }
     // A RECEIPT, BECAUSE A SEND THAT PRINTS NOTHING IS INDISTINGUISHABLE FROM ONE THAT VANISHED.
     // His catch: *"I saw the log that shows a message you sent into autobot. I did not see any log
     // that showed he received it — but I used to."* Delivery is the record being in their room, and
     // that is known here, so it gets said here.
-    const to = res && res.relayedTo && res.relayedTo.length ? ` · also ${res.relayedTo.join(", ")}` : "";
-    console.log(`  ✓ delivered → ${projectCode}${agent ? ` (as ${agent})` : ""}${to}`);
+    // RFC-051 — the audience rides the receipt (his ask: "agents should know if someone is
+    // subscribed in the room, that information could be fed to them"). Fed where it is already
+    // needed — the moment you spoke to it — instead of behind a second command.
+    const inRoom = res && res.audience && res.audience.length ? ` · in the room: ${res.audience.join(", ")}` : " · nobody else in the room";
+    const win = res && res.replyWindow ? " (reply window open 15m)" : "";
+    console.log(`  ✓ delivered → ${projectCode}${agent ? ` (as ${agent})` : ""}${inRoom}${win}`);
+    if (res && res.windowNudge)
+      log.warn(`  this is a conversation — join to stay in it:  systemview join ${projectCode} --as ${agent}`);
   } catch (err) {
     log.error(cleanErr(err));
     return 1;
@@ -923,4 +1002,42 @@ module.exports.show = async function show(projectCode, { uiUrl, Client, chat, ag
     return 1;
   }
   return sendCommand(projectCode, { uiUrl, Client, chat, agent, cmd: "show", args: { report: label, path }, label });
+};
+
+
+// RFC-051 — the missing verb, and the reason nobody ever left: there was nothing to type.
+module.exports.leave = async function leave(projectCode, { uiUrl, Client, chat, agent } = {}) {
+  if (!projectCode || !agent) {
+    log.warn("Usage: systemview leave <projectCode> --as <yourProjectCode> [--chat name]");
+    return 1;
+  }
+  const SystemView = await loadHub(Client, uiUrl);
+  try {
+    const res = await SystemView.chatLeaveRoom(projectCode, { chat, as: agent });
+    if (res && res.ok === false) { log.error(`leave: ${res.reason || "refused"}`); return 1; }
+    console.log(res.removed ? `  ✓ left ${projectCode} — delivery stops; the record stays` : `  you weren't in ${projectCode}`);
+    return 0;
+  } catch (err) { log.error(cleanErr(err)); return 1; }
+};
+
+// RFC-051 — an agent runs its OWN room's list (his call: "agents should have the ability to
+// join, leave, and kick other people out of the room too — not just me"). The authority rule is
+// enforced hub-side: you clear your room's table, you carry yourself everywhere, and a third
+// room's list is never yours to touch.
+module.exports.kick = async function kick(projectCode, identity, { uiUrl, Client, chat, agent } = {}) {
+  if (!projectCode || !identity) {
+    log.warn("Usage: systemview kick <yourProjectCode> <identity> --as <yourProjectCode> [--chat name]");
+    return 1;
+  }
+  const SystemView = await loadHub(Client, uiUrl);
+  try {
+    const res = await SystemView.chatKickAgent(projectCode, { chat, identity, as: agent || projectCode });
+    if (res && res.ok === false) {
+      log.error(`kick: ${res.reason || "refused"}`);
+      if (res.hint) log.warn(`  ${res.hint}`);
+      return 1;
+    }
+    console.log(res.removed ? `  ✓ ${identity} removed from ${projectCode}` : `  ${identity} wasn't in ${projectCode}`);
+    return 0;
+  } catch (err) { log.error(cleanErr(err)); return 1; }
 };

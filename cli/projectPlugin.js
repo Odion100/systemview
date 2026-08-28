@@ -2,24 +2,40 @@ const { createClient } = require("systemlynx");
 const { createCookieHttpClient } = require("./cookieClient");
 const Client = createClient(createCookieHttpClient());
 
-// RFC-040 — reach a project's OWN plugin from the CLI.
+// THE FILE LAYER, FROM THE CLI. Every verb that writes into a project's folder — reports (`show`),
+// thread replies (`reply`), the board, skills — comes through here.
 //
-// Siblings share a working directory, so any live service of the project can read and write its
-// files. `board` already did this inline; reports need the same thing, and two copies of a lookup
-// that decides WHERE A FILE LANDS is exactly the kind of duplication that drifts into writing into
-// the wrong repo.
+// IT USED TO HUNT FOR A LIVE SERVICE with a plugin that could write, which is how a project whose
+// services were down could READ its whole codebase in the UI and not answer a thread in its own RFC.
+// systemlynx reported it with the repro that makes it obvious — same command, testbed down: "no live
+// service in systemlynx can write files"; start the testbed, works. Their case is the common one:
+// a testbed is up only while you're testing.
+//
+// The UI moved to the hub today and the CLI did not, so half the app knew where the folder was and
+// half still asked a process. The hub knows every project's folder from the registry and runs beside
+// it; nothing here needs a service to be alive. The shape stays `Plugin.readFile/writeFile/...` so no
+// caller changes — it is the same object the browser's `hostFiles` hands its callers.
 module.exports = async function projectPlugin(uiUrl, projectCode) {
   const { SystemView } = await Client.loadService(`${uiUrl}/systemview/api`);
-  const projects = await SystemView.getProjects();
-  if (!projects[projectCode]) {
-    const known = Object.keys(projects).join(", ") || "(none)";
-    throw new Error(`no connected project "${projectCode}" — projects: ${known}`);
+  const roots = await SystemView.projectRoots();
+  if (!roots[projectCode]) {
+    const known = Object.keys(roots).join(", ") || "(none)";
+    throw new Error(`no folder known for "${projectCode}" — projects with folders: ${known}`);
   }
-  for (const s of projects[projectCode]) {
-    try {
-      const svc = await Client.loadService(s.connectionData.serviceUrl);
-      if (svc.Plugin && svc.Plugin.writeFile) return svc.Plugin;
-    } catch {} // down or plugin-less — try the next one
-  }
-  throw new Error(`no live service in ${projectCode} can write files`);
+  const unwrap = (res, what) => {
+    if (res && res.ok === false) throw new Error(res.error || `could not ${what}`);
+    return res;
+  };
+  return {
+    readFile: async ({ path }) => {
+      const res = unwrap(await SystemView.readFile(projectCode, { path }), "read that file");
+      return { path, content: res.content || "" };
+    },
+    writeFile: async ({ path, content }) =>
+      unwrap(await SystemView.writeFile(projectCode, { path, content }), "write that file"),
+    deleteFile: async ({ path }) => unwrap(await SystemView.deleteFile(projectCode, { path }), "delete that file"),
+    listFiles: async ({ dir } = {}) => unwrap(await SystemView.listFiles(projectCode, { dir }), "list that folder"),
+    changedFiles: async () => unwrap(await SystemView.changedFiles(projectCode, {}), "read git"),
+    gitState: async () => unwrap(await SystemView.gitState(projectCode, {}), "read git"),
+  };
 };

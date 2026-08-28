@@ -1,3 +1,8 @@
+// TRANSITION (2026-08-24): the browser no longer calls this module to render files or git — the
+// HUB serves the codebase directly (api/index.js), addressed by project code. The file/git
+// providers attached below survive as the library the hub binds for HOSTED projects and as the
+// plugin's own doc/test file access. The plugin's remit: documentation, tests, the chat-room
+// module, connection/manifest registration, stats.
 const fs = require("fs");
 const path = require("path");
 const {
@@ -240,8 +245,9 @@ module.exports = ({ App, specs, projectCode, serviceId, module = {}, credentials
 
     // RFC-018 — ground-truth file/code providers. These run inside THIS service and read its own
     // source from `root` (cwd for a plugin-run service, the target repo for a hosted one),
-    // path-guarded to that root. The AI Window's stage carries only locators; the browser calls
-    // these directly (like getDoc) to fetch the real bytes at render time.
+    // path-guarded to that root. The AI Window's stage carries only locators; ☠ the browser calls
+    // these directly (like getDoc) to fetch the real bytes at render time [RETIRED-2026-08-26 —
+    // the browser fetches from the HUB now; these remain the hub's library for hosted projects].
     this.readFile = providers.readFile;
     this.readFileRaw = providers.readFileRaw;
     this.listFiles = providers.listFiles;
@@ -249,9 +255,10 @@ module.exports = ({ App, specs, projectCode, serviceId, module = {}, credentials
     this.stageFiles = providers.stageFiles;
     this.stageHunk = providers.stageHunk;
     this.discardFiles = providers.discardFiles;
-    // RFC-033 — these exist to serve a CLICK (the version-control panel, a `::commit` block in a
-    // document). Deliberately absent from the CLI: an agent can write the block, only a human
-    // presses it.
+    // RFC-033 — ☠ these exist to serve a CLICK (the version-control panel, a `::commit` block in a
+    // document) [RETIRED-2026-08-26 — those clicks go to the HUB now; this attachment is the hosted-
+    // project library path]. Deliberately absent from the CLI: an agent can write the block, only a
+    // human presses it.
     this.gitState = providers.gitState;
     this.commit = providers.commit;
     this.push = providers.push;

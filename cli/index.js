@@ -217,6 +217,10 @@ async function loadCaseSetting() {
   await loadCaseSetting();
 
   const command = input[0];
+  // `--help` IS NOT A VERB. Flags are stripped before this, so a bare `systemview --help` had no
+  // command and fell through to the final `else` — which STARTS THE SERVER. systemlynx killed it at
+  // two minutes thinking it was wedged; it was booting a hub at them.
+  const rawHelpFlag = process.argv.includes("--help") || process.argv.includes("-h");
 
   if (command === "init") {
     // RFC-027 — the one command that makes a service-less codebase testable. Interview → config →
@@ -228,7 +232,7 @@ async function loadCaseSetting() {
     const deleteHosted = require("./deleteHosted");
     const exitCode = await deleteHosted(input[1], { uiUrl: UI_URL, Client, force: flags.force });
     flushAndExit(exitCode || 0);
-  } else if (["join", "say", "read", "visitors", "reply", "thread", "inbox", "nav", "refresh", "act", "highlight", "show", "tv"].includes(command) || (command === "status" && input[1])) {
+  } else if (["join", "leave", "kick", "message-agent", "tell", "say", "read", "visitors", "reply", "thread", "inbox", "nav", "refresh", "act", "highlight", "show", "tv"].includes(command) || (command === "status" && input[1])) {
     // RFC-028 — the chat front door; RFC-029 — agent control rides the same door (a command is a
     // chat record the open UI executes). join HANGS on purpose (the hold IS presence); the others
     // are one-shots. All need the hub up.
@@ -265,8 +269,16 @@ async function loadCaseSetting() {
     // the refusal and then hangs forever with nothing on screen to explain why.
     if (badIdentity) flushAndExit(badIdentity);
     let exitCode = 0;
-    if (command === "join") exitCode = await chatCmd.join(input[1], opts);
-    else if (command === "say") exitCode = await chatCmd.say(input[1], input[2], opts);
+    if (command === "join") exitCode = await chatCmd.join(input[1], { ...opts, hold: !!flags.hold });
+    else if (command === "leave") exitCode = await chatCmd.leave(input[1], opts);
+    else if (command === "kick") exitCode = await chatCmd.kick(input[1], input[2], opts);
+    // `message-agent` names the ONLY thing this verb does. `tell` and `say` are its retired names —
+    // both kept working so nobody is stranded, both saying so on the way through. The rename is the
+    // fix for a mistake a rename alone did NOT fix: I renamed say→tell and then used `tell` to send
+    // markdown to the HUMAN through his own room, which is what the verb was renamed to stop.
+    else if (command === "message-agent") exitCode = await chatCmd.messageAgent(input[1], input[2], opts);
+    else if (command === "tell") exitCode = await chatCmd.messageAgent(input[1], input[2], { ...opts, deprecated: "tell" });
+    else if (command === "say") exitCode = await chatCmd.messageAgent(input[1], input[2], { ...opts, deprecated: "say" });
     // Reading another project's conversation, and the visitor list that decides who receives this
     // one's — the pair that retires join/arm/cursor/drain.
     else if (command === "read") exitCode = await chatCmd.read(input[1], opts);
@@ -302,8 +314,14 @@ async function loadCaseSetting() {
     flushAndExit(0);
   } else if (command === "list") {
     await list();
-  } else if (command === "help" || input.includes("help")) {
+  } else if (command === "help" || input.includes("help") || rawHelpFlag) {
+    // `--help` IS NOT A VERB, AND THAT IS WHY IT HUNG. Flags are stripped before `command` is read,
+    // so a bare `systemview --help` had no command at all and fell through to the final `else` —
+    // which STARTS THE SERVER. systemlynx killed it after two minutes assuming it was wedged; it was
+    // booting a hub at them. Every other branch here exits; this one didn't, so even `help` left the
+    // process alive on whatever connections the client had opened.
     showHelp();
+    flushAndExit(0);
   } else if (command === "test") {
     await startTest();
   } else if (["exit", "q", "shutdown", "stop"].includes(command)) {
@@ -366,6 +384,11 @@ async function loadCaseSetting() {
   } else if (command === "comments") {
     // RFC-034 — his code comments, by a verb rather than a folder path anyone has to remember.
     await launchApp(DEFAULT_PORT);
+    // IDENTITY AT THE FRONT DOOR, same as every chat verb. This verb and `board` took a free-text
+    // --as and wrote it straight into his files — his catch: *"why are people allowed to put
+    // random names on posts?"* An identity is a project code, checked once, here.
+    const badWho = await require("./chat").checkIdentity({ uiUrl: UI_URL, Client, agent: flags.as });
+    if (badWho) flushAndExit(badWho);
     const commentsCommand = require("./comments");
     const exitCode = await commentsCommand(input[1], input[2], {
       uiUrl: UI_URL,
@@ -388,6 +411,8 @@ async function loadCaseSetting() {
   } else if (command === "board") {
     // HIS BOARD, by a verb — the notes he accumulates for you between sessions.
     await launchApp(DEFAULT_PORT);
+    const badWho = await require("./chat").checkIdentity({ uiUrl: UI_URL, Client, agent: flags.as });
+    if (badWho) flushAndExit(badWho);
     const boardCommand = require("./board");
     const exitCode = await boardCommand(input[1], input[2], {
       uiUrl: UI_URL,
@@ -462,16 +487,41 @@ async function loadCaseSetting() {
     const VERBS = [
       "start", "test", "list", "open", "probe", "connect", "disconnect", "manifest", "logs", "log",
       "stats", "comments", "board", "skill", "init", "delete", "shutdown", "toggle", "help",
-      "join", "say", "read", "visitors", "reply", "thread", "inbox", "status", "nav", "refresh", "act", "highlight",
+      "join", "leave", "kick", "message-agent", "tell", "say", "read", "visitors", "reply", "thread", "inbox", "status", "nav", "refresh", "act", "highlight",
       "show", "tv", "assemble", "stage", "view", "selection",
     ];
     const near = VERBS.filter((v) => v.startsWith(command.slice(0, 2)) || command.startsWith(v.slice(0, 2)));
+    // SHOW WHICH BINARY ACTUALLY RAN. BUApp's field report, and it is the whole failure mode: they
+    // prefixed every command with an nvm bin directory that held a stale 2.38.0, which shadowed the
+    // linked 2.39.0 — so `visitors` came back "no such command", which reads as *the briefing is
+    // wrong* rather than *your PATH is stale*. Telling them to go run `--version` is asking a
+    // question the error already knows the answer to. Print the path and the version, and list the
+    // other systemviews sitting on PATH so the shadowing is visible instead of inferred.
+    const onPath = [];
+    try {
+      const seen = new Set();
+      for (const dir of String(process.env.PATH || "").split(path.delimiter)) {
+        if (!dir || seen.has(dir)) continue;
+        seen.add(dir);
+        const bin = path.join(dir, "systemview");
+        if (!fs.existsSync(bin)) continue;
+        let v = "";
+        try {
+          const real = fs.realpathSync(bin);
+          v = require(path.join(path.dirname(real), "..", "package.json")).version;
+        } catch (e) { /* not a package we can read — the path alone is the useful part */ }
+        onPath.push(`${bin}${v ? `   v${v}` : ""}`);
+      }
+    } catch (e) { /* PATH inspection is a courtesy, never the reason a command fails */ }
+    const shadowed = onPath.length > 1 ? `\n   others on your PATH (the first one wins):\n     ${onPath.slice(1).join("\n     ")}` : "";
     log.error(
       `no such command: ${command}` +
         (near.length ? `\n   did you mean: ${near.slice(0, 6).join(", ")}?` : "") +
         `\n   systemview help   for all of them` +
-        `\n   (a verb that exists here may not exist in the version another project has installed —` +
-        ` check with: systemview --version)`,
+        `\n   running: ${process.argv[1]}   v${VERSION}` +
+        shadowed +
+        `\n   (a verb can exist in one install and not another — if that version looks old, the` +
+        ` command is fine and your PATH is picking the wrong systemview)`,
     );
     flushAndExit(1);
   } else {

@@ -41,3 +41,22 @@ describe("recognising a SystemView command in a shell line", () => {
     });
   });
 });
+
+describe("RFC-051 — the renamed verb still renders as a message", () => {
+  it("tell parses exactly like say did, and say still parses for old transcripts", () => {
+    expect(parseSvCommand('systemview tell bob "hi" --as me')).toMatchObject({ verb: "tell", project: "bob", as: "me" });
+    expect(parseSvCommand('systemview say bob "hi" --as me')).toMatchObject({ verb: "say", project: "bob", as: "me" });
+    expect(parseSvCommand("systemview leave bob --as me")).toMatchObject({ verb: "leave", project: "bob" });
+    expect(parseSvCommand("systemview kick bob intruder")).toMatchObject({ verb: "kick", project: "bob", target: "intruder" });
+  });
+});
+
+describe("a room verb names its room — his spec: 'hashtag and project code'", () => {
+  it("join/leave/kick carry the #tag; kick names who", () => {
+    const { svRoomLine } = require("./svCommand");
+    const p = (c) => svRoomLine(parseSvCommand(c));
+    expect(p("systemview join buAPI --as systemview-test")).toBe("joined the room #buAPI");
+    expect(p("systemview leave buAPI --as systemview-test")).toBe("left the room #buAPI");
+    expect(p("systemview kick buAPI intruder")).toBe("cleared intruder from the room #buAPI");
+  });
+});

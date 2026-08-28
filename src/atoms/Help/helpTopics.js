@@ -404,7 +404,8 @@ Anything wrapped here carries a reply thread.
 :::thread{id=help-markdown-threads}
 The 💬 in this block's corner is the **same** thread a story pane carries: your replies and agent
 replies in distinct looks, ⌘↵ to post. Leave one here — it saves to \`.systemview/comments.<key>.json\`
-in the connected project and comes back on reload.
+in that project (resolved by the hub — no live service needed) and comes back on reload. Agents
+answer these from the CLI too: \`systemview comments <pc> <path> --at <n> --reply "…"\`.
 
 The wrapper is the whole trick. The thread belongs to it, and it lives in the document, so it moves
 with the content it's about — no heading anchors to guess at, no orphaned comments when a paragraph
@@ -443,7 +444,8 @@ Only the **active** slide is mounted, so an off-screen chart or test isn't quiet
 - [x] structure (callouts, folds, tabs, columns, carousel)
 - [x] embeds (\`::chart\`, \`::test\`, \`::topology\`, \`::load\`)
 - [x] \`:::run\` / \`::run[name]\`, \`::question\`, \`:::thread\`, \`:::approval\`
-- [ ] \`::cmd\`, \`::mermaid\`, media embeds
+- [x] media embeds (\`::image\` — hub-served bytes, galleries, captions)
+- [ ] \`::cmd\`, \`::mermaid\`
 
 Ticking a box rewrites the \`- [ ]\` on that line and saves the document — \`saveDoc\` for the
 Documentation tab, \`writeFile\` for file panes. **The document is the state**; there is no second
@@ -486,11 +488,15 @@ place, not opening a second copy.
 
 ## The ring tells the truth
 
-- **Solid green** — an agent is **joined live**: it answers now, even while idle elsewhere.
-- **Dashed indigo** — an agent is **listening by file**: it hears you at its next turn.
-- **Muted** — nobody's connected. The ring is derived from the real connection — it can't lie.
+An **attached** conversation (the normal case) reads the agent's live session:
 
-The panel header says the same in words: **LIVE / FILE / OFFLINE**.
+- **Green LIVE** — it answers now.  **Amber BUSY** — head down; your message waits its turn.
+- **Indigo ASKING** — it is waiting on YOU.  **Muted OFFLINE** — the session is gone.
+
+A project with no attached session keeps the room's own states — **VISITING** (its agent is in
+another room), **FILE** (dashed: hook-drained inbox; it hears you at its next turn), **OFFLINE**.
+Either way the ring is derived from the real state — it can't lie. ☠ [RETIRED-2026-08-26] "solid green =
+joined live, holding the line" — the hold is retired; nothing holds anything to be present.
 
 ## What your message carries
 
@@ -508,13 +514,16 @@ bubble for replies you haven't read.
 
 ## How an agent connects
 
-Connecting is the **agent's explicit act** — instructions live in \`agents/chat.md\`:
+Attached is the default — nothing to connect. The other modes are the agent's explicit act
+(instructions in \`agents/chat.md\`):
 
-- \`systemview join <project>\` — live mode: the agent holds the line (solid ring), your send wakes
-  it immediately.
+- **Attached (the normal case)** — the panel attaches to the agent's live session: you are talking
+  in its actual conversation, and its replies land here as it writes them. Nothing to join.
 - \`systemview inbox <project>\` from the agent's own hooks — file mode: messages drain from the
   chat's file at the agent's next turn (dashed ring).
-- \`systemview say\` / \`systemview status\` — how its replies and cooking lines get here.
+- \`systemview tell\` / \`systemview status\` — how a NON-attached agent's replies and cooking lines
+  get here (\`say\` ☠ [RETIRED-2026-08-26]; \`join\` now means entering another room's conversation,
+  not holding a line — the hold is retired).
 
 ## Where the conversation lives
 

@@ -120,6 +120,18 @@ module.exports = function Chats({ chatFor } = {}) {
   // On disk beside the room, so a hub restart doesn't silently unsubscribe everyone — the failure
   // that would look exactly like "the agents stopped answering".
   const visitorsMap = new Map(); // key → Map(identity → { ts, by })
+  // RFC-051 — reply windows: a non-subscriber who told into this room hears its replies for a
+  // while, then silence. In-memory on purpose: a window is a courtesy measured in minutes, and a
+  // hub restart forgetting one costs a re-tell, not a lost conversation. Subscriptions stay on disk.
+  const TELL_WINDOW = 15 * 60 * 1000;
+  const tellWindows = new Map(); // key → Map(identity → { ts, count })
+  const openWindows = (k) => {
+    const w = tellWindows.get(k);
+    if (!w) return [];
+    const now = Date.now();
+    for (const [id, v] of w) if (now - v.ts > TELL_WINDOW) w.delete(id);
+    return [...w.keys()];
+  };
   const visitorFile = (pc, chat) => path.join(dirFor(pc), `${safe(pc)}.${safe(chat || DEFAULT_CHAT)}.visitors.json`);
   function loadVisitors(pc, chat) {
     const k = key(pc, chat);
@@ -407,15 +419,18 @@ module.exports = function Chats({ chatFor } = {}) {
           // delivered by the hub, so answering here genuinely reaches them — no wall needed. The
           // refusal is only for the case that actually goes nowhere: nobody subscribed, no hold.
           const held = waiters.get(key(pc, chat)) || [];
+          // RFC-051: an open reply window counts as listening — the teller earned this answer.
           const listening =
-            loadVisitors(pc, chat).has(last.as) || held.some((w) => w.identity === last.as);
+            loadVisitors(pc, chat).has(last.as) ||
+            openWindows(key(pc, chat)).includes(last.as) ||
+            held.some((w) => w.identity === last.as);
           if (!listening)
             return {
               record: null,
               delivered: false,
               blocked: true,
               visitor: last.as,
-              hint: `systemview say ${last.as} "…" --as ${pc}`,
+              hint: `systemview tell ${last.as} "…" --as ${pc}`,
             };
         }
       }
@@ -431,14 +446,18 @@ module.exports = function Chats({ chatFor } = {}) {
         // carries them and his own line can say where it went.
         ...(relayedTo && relayedTo.length ? { relayedTo } : {}),
       });
-      // SPEAKING SUBSCRIBES YOU. A visitor who says something into this room is, by that act, in
-      // the conversation — no arming, no join. (The home agent is not a visitor to itself, and the
-      // human's own turns don't subscribe anyone.)
-      if (from === "agent" && as && as !== pc) {
-        const m = loadVisitors(pc, chat);
-        const prev = m.get(as);
-        m.set(as, { ts: Date.now(), by: prev && prev.by === "human" ? "human" : "spoke" });
-        saveVisitors(pc, chat);
+      // SPEAKING NO LONGER SUBSCRIBES — RFC-051, his distinction: *"just because you spoke —
+      // there's a distinction between you wanting to subscribe and sometimes you just send people
+      // messages."* Speak-auto-subscribe left every one-off sender in the room forever (a briefing
+      // to three rooms = three permanent subscriptions), and with no leave verb nobody ever left.
+      // A tell from a non-subscriber now opens a REPLY WINDOW instead: this room's replies reach
+      // them like a subscriber's for TELL_WINDOW, then it closes. Joining is `join` — deliberate,
+      // its own verb, never a side effect of speaking.
+      if (from === "agent" && as && as !== pc && !loadVisitors(pc, chat).has(as)) {
+        const w = tellWindows.get(key(pc, chat)) || new Map();
+        const prev = w.get(as);
+        w.set(as, { ts: Date.now(), count: (prev ? prev.count : 0) + 1 });
+        tellWindows.set(key(pc, chat), w);
       }
       const takers = push(pc, chat, record);
       // DELIVERED MEANS IT IS IN THEIR ROOM. It used to mean "a long-poll hold happened to be armed
@@ -469,10 +488,22 @@ module.exports = function Chats({ chatFor } = {}) {
     // Who is subscribed to this room right now, newest first. `by` records how they got on the
     // list — "spoke" (subscribed themselves) or "human" (he added them) — because a name he put
     // there by hand should not read the same as one that arrived on its own.
+    // A REPLY WINDOW IS PRESENCE AND MUST BE ON THE ROSTER. It shipped invisible: `visitors` read
+    // only the subscription file, so an agent hearing this room through a window appeared NOWHERE
+    // while receiving every word — and he could not kick what he could not see. His words, and the
+    // second time this exact defect has bitten him: *"the fucking problem is it doesn't show that
+    // you're in the chat — I can't kick you out, but meanwhile you're getting my chats."*
+    // (The first time was the roster lying about holds: "the agent icon lies to you about
+    // visiting." Same lesson, new mechanism — anything that RECEIVES must be listed.)
+    // `by: "window"` so the UI can draw it as the temporary thing it is; it expires on its own.
     visitors(pc, chat) {
-      return [...loadVisitors(pc, chat).entries()]
-        .map(([identity, v]) => ({ identity, ts: v.ts || 0, by: v.by || "spoke" }))
-        .sort((a, b) => b.ts - a.ts);
+      const subs = [...loadVisitors(pc, chat).entries()]
+        .map(([identity, v]) => ({ identity, ts: v.ts || 0, by: v.by || "spoke" }));
+      const w = tellWindows.get(key(pc, chat));
+      for (const id of openWindows(key(pc, chat)))
+        if (!subs.some((x) => x.identity === id))
+          subs.push({ identity: id, ts: (w.get(id) || {}).ts || 0, by: "window" });
+      return subs.sort((a, b) => b.ts - a.ts);
     },
     addVisitor(pc, chat, identity, by = "human") {
       if (!identity || identity === pc) return { added: false, reason: "not a visitor" };
@@ -488,16 +519,41 @@ module.exports = function Chats({ chatFor } = {}) {
       const m = loadVisitors(pc, chat);
       const had = m.delete(identity);
       if (had) saveVisitors(pc, chat);
+      // CLOSING THE DOOR CLOSES IT. Removing a subscription while leaving an open reply window
+      // would keep delivering to someone he just threw out — a kick that does not stop the
+      // messages is worse than no kick, because it says the job is done.
+      const w = tellWindows.get(key(pc, chat));
+      const hadWindow = !!(w && w.delete(identity));
       // Delivery stops; the record does not move. They keep whatever they already received, and
       // they fade to a "spoke" chip on their own — nothing is deleted from anyone's transcript.
-      return { removed: had, identity };
+      return { removed: had || hadWindow, identity, wasWindow: !had && hadWindow };
     },
     // Everyone this record should be FANNED OUT to: the subscribed visitors, minus whoever said it.
     // The hub does the sending — that is the whole point of the model, and why no agent needs to
     // hold, arm, or drain anything to be present in someone else's conversation.
     fanout(pc, chat, record) {
       const speaker = record && record.as ? record.as : record && record.from === "you" ? null : pc;
-      return [...loadVisitors(pc, chat).keys()].filter((v) => v !== speaker);
+      // Subscribers plus open reply windows (RFC-051) — a window rides delivery only; it never
+      // appears on the roster, because hearing an answer is not membership.
+      const subs = [...loadVisitors(pc, chat).keys()];
+      for (const id of openWindows(key(pc, chat))) if (!subs.includes(id)) subs.push(id);
+      return subs.filter((v) => v !== speaker);
+    },
+    // The nudge threshold — the third windowed exchange is a conversation wearing a courtesy;
+    // the CLI tells the sender so, and joining stays their decision.
+    // A delivery to a windowed teller refreshes their window — "refreshed by each exchange"
+    // (RFC-051), so a slow answer doesn't close the door mid-conversation. Count is NOT bumped:
+    // the nudge measures the teller's own sends, not what they heard.
+    touchWindow(pc, chat, identity) {
+      const w = tellWindows.get(key(pc, chat));
+      const v = w && w.get(identity);
+      if (v && Date.now() - v.ts <= TELL_WINDOW) v.ts = Date.now();
+    },
+    windowState(pc, chat, identity) {
+      const w = tellWindows.get(key(pc, chat));
+      const v = w && w.get(identity);
+      if (!v || Date.now() - v.ts > TELL_WINDOW) return null;
+      return { count: v.count, joined: loadVisitors(pc, chat).has(identity) };
     },
 
     // RFC-029 — a COMMAND from the agent rides the same file (`kind: "command"`). It renders in

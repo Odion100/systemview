@@ -66,9 +66,9 @@ if (process.env.SYSTEMVIEW_HOST) {
 
 On startup the plugin:
 1. Registers the service with the SystemView UI (source of truth for all connections)
-2. Writes `systemview.manifest.json` to the project root — used by the CLI to reconnect at startup
+2. Writes `.systemview/<serviceId>.manifest.json` — connection data the CLI can reconnect from
 
-Add `systemview.manifest.json` to `.gitignore` — it regenerates each time the service starts.
+The manifests regenerate each time the service starts.
 
 ---
 
@@ -282,8 +282,9 @@ What's being proposed.
 ```
 
 **Links reveal, they don't navigate.** `:ns[…]` and `:file[…]` point the navigator at their target
-without moving you off the document (⌘-click navigates for real), and both resolve against the live
-connection tree, so a stale reference renders dashed and says why instead of lying.
+without moving you off the document (⌘-click navigates for real). `:ns[…]` resolves against the
+live connection tree; `:file[…]` is HUB-served by project code and works with services down —
+either way a stale reference renders dashed and says why instead of lying.
 
 **Embeds are the real components**, not screenshots: `::chart` · `::topology` · `::load` · `::logs` ·
 `::test` · `::file` · `::diff`. Page and embed can't drift because they're the same component.
@@ -366,5 +367,7 @@ systemview stories <projectCode>          # list every saved story
 | `systemview open [projectCode] [namespace]` | Open the UI in a browser |
 | `systemview shutdown [port]` | Stop a running instance |
 | `systemview help` | Print help |
+
+The newer verbs — the conversation set (`tell`, `join`, `leave`, `kick`, `visitors`, `read` — RFC-051), `comments … --at <line> --reply`, `nav`/`show`/`tv`/`status`, and `skill` — are documented in `systemview help` and [docs/cli.md](docs/cli.md).
 
 **Common flags:** `--json` · `--verbose` · `--bail` · `--dry-run` · `--manifest` · `--force` · `--header "Name: Value"` · `--skip <pattern>` · `--phase <phase>` · `--index <n>` · `--level <level>` · `--current` · `--limit <n>` · `--filter <field=value>` · `--or <field=value>` · `--include <field>`

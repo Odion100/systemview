@@ -117,9 +117,15 @@ module.exports = async function commentsCommand(
       );
       return 1;
     }
+    // Any agent can answer any comment and the CLI cannot tell who is running it — so the
+    // signature is required, not defaulted (neither "agent" nor the file's own project).
+    if (!as) {
+      log.error(`comments --reply: say who you are — --as <yourProjectCode>.`);
+      return 1;
+    }
     hit.replies = [
       ...(hit.replies || []),
-      { author: as || "agent", text: String(reply), ts: Date.now() },
+      { author: as, text: String(reply), ts: Date.now() },
     ];
     try {
       await Plugin.writeFile({

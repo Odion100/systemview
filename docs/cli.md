@@ -178,83 +178,20 @@ systemview probe ProfilesService.Users.get --header "Origin: http://localhost:33
 
 ---
 
-### Stories & the live Window (`story` / `stories` / `show` / `assemble` / `stage` / `highlight` / `view` / `selection`)
+### ☠ Stories & the live Window — [RETIRED] the verbs exit 1; reports replaced them
 
-The center panel of the UI has three tabs per namespace: **Documentation · Logs · Stories**. A **Story** is a living view surface — files, source, diffs, runnable tests, prose — that an agent (or you) drives. What it shows is **real** (fetched from each service's plugin at render time), never generated.
+`story` / `stories` / `story-add` / `story-rm` / `story-move` / `story-edit` / `story-layout` /
+`story-rename` / `story-delete` / `assemble` / `stage` / `view` / `selection` are **gone** — every
+one refuses with the pointer that replaced it:
 
-There are two ways to drive it:
+> stories are retired — write a REPORT instead: a markdown document in `.systemview/`, indexed in
+> `.systemview/reports.index.json`, rendered on the Stage tab.
 
-- **`story` / `stories`** — create **saved, named, namespaced** stories. A project holds many; each is filed under a namespace and persists in `.systemview/stories/`, travelling with the repo. **This is the one to use for handoffs.**
-- **`show` / `assemble` / `stage` / …** — drive a single **ephemeral** live Window in real time.
-
-**→ Agents:** read [`docs/agents/stories.md`](./agents/stories.md) for when, why, and how — with worked examples.
-
-```bash
-# Saved, namespaced Stories — the persistent way
-systemview story buAPI "sign-up flow" --ns buAPI/Profiles/Users/signUp \
-  --text "## What changed" --diff src/modules/Users.js --file src/modules/Users.js#L40-70 --test Users.signUp
-systemview story buAPI "regression: empty email" --ns buAPI/Profiles/Users/signUp \
-  --test Users.signUp:2 --note "## Guards an empty email — asserts a 400 throw."
-systemview stories buAPI                              # list every saved story (name · namespace · panes)
-```
-
-`--ns <path>` files the story (`project` · `project/Service` · `project/Service/Module` · `project/Service/Module/method`; defaults to the project). `--note "<md>"` attaches your markdown to a `test` pane. Re-running the same name+namespace **upserts** it.
-
-`--test` targets any level: `--test *` (whole project) · `--test <Service>` · `--test <Module>` · `--test <Mod.method>` · `--test <Mod.method>:N` (one indexed test).
-
-Every verb resolves its `<target>` the same way `test`/`logs` do (fuzzy, `projectCode:` prefix supported).
-
-#### Editing a saved story in place (pane-ops)
-
-Once a story exists you don't have to re-emit the whole thing to change one pane — surgical verbs edit it by name (`--ns` disambiguates if the name repeats across namespaces). Each is a read-modify-write through the same store and broadcasts live, so an open UI updates instantly.
-
-```bash
-systemview story-add    buAPI "sign-up flow" --file src/modules/Users.js#L88-96   # append a pane…
-systemview story-add    buAPI "sign-up flow" --text "## Edge cases" --at 0        # …or insert at an index
-systemview story-rm     buAPI "sign-up flow" --at 2                                # remove the pane at index 2
-systemview story-move   buAPI "sign-up flow" --from 0 --to 3                       # reorder a pane
-systemview story-edit   buAPI "sign-up flow" --at 1 --file src/db.js#L10-20        # replace the pane at an index
-systemview story-edit   buAPI "sign-up flow" --at 1 --note "## Updated note"       # (test pane) just change its --note
-systemview story-layout buAPI "sign-up flow" --layout grid                         # change the layout
-systemview story-rename buAPI "sign-up flow" --to "sign-up walkthrough"            # rename (new slug, old file removed)
-systemview story-delete buAPI "sign-up flow"                                       # delete the whole story
-```
-
-`--at` / `--from` / `--to` are 0-based pane indices (clamped to range; omitted `--at` on `story-add` appends). `story-add` and `story-edit` build the pane from the same flags as `story` (`--file` · `--diff` · `--test` · `--text` · `--source`), one pane per call.
-
-```bash
-# Focus one thing
-systemview show buAPI --file src/modules/Users.js#L40-70   # a file, exact lines highlighted (prefer this over --source)
-systemview show buAPI --file src/modules/Users.js --lines 40-70
-systemview show buAPI --diff src/modules/Users.js    # before/after vs git HEAD, side by side
-systemview show buAPI --test Users.signUp            # a saved test as a runnable worked example
-
-# Fill the Window with several panes at once (grid by default)
-systemview assemble buAPI --text "Here's the sign-up flow" --file src/modules/Users.js#L40-70
-
-# Adjust
-systemview stage add buAPI --file src/db.js          # append a pane
-systemview stage clear buAPI                         # empty it
-systemview highlight buAPI --match "await hash"      # emphasize a region of the last pane
-systemview highlight buAPI --lines 12-20
-
-# Save / reopen a Window (persists in the project's .systemview/views/, travels with the repo)
-systemview view save buAPI signup-flow
-systemview view list buAPI
-systemview view open buAPI signup-flow
-
-# Read what the user selected in the Window (the reverse channel)
-systemview selection buAPI
-```
-
-**Pane kinds:** `markdown` (`--text`), `file` (`--file <path[#L a-b]>` — optional inline line range to highlight), `diff` (`--diff path`), `test` (`--test <target>`, any namespace level). `source` (`--source Mod.method`) is **legacy** — prefer `file` + `#L`. Repeat any flag (in `assemble` or `story`) to add multiple panes; command order is preserved so prose can interleave.
-
-**Layouts** (`--layout`, user-switchable in the UI toolbar): `grid` (default; flex — panes flow into rows with resizable widths/heights, drag to reorder) · `gallery` (one pane at a time, or a big pane + a rail of the rest). `single`/`column` were removed — passing them renders as grid. Panes size to content up to a cap and each is independently scrollable.
-
-**Replies:** in the UI the user can leave a **reply on any pane** (a per-pane review thread; stored as `pane.replies[]` with `author: "user"`/`"agent"`). It's how the user annotates a story in place and you plan back-and-forth per point — see **[`docs/agents/stories.md`](./agents/stories.md)** › _Replies_.
-
-**For agents — when and why:** don't paste code into chat — build a **story**. After a slice of work, `systemview story <project> "<name>" --ns <namespace>` with the `diff`s of what changed, the `source` of the key methods, the runnable `test`s that prove it, and `--text`/`--note` narrating it. File it on the namespace it's about so the user finds it there. Use the ephemeral `show`/`assemble` only for real-time pointing; use `story` for anything worth keeping. `systemview selection <project>` tells you what the user is looking at when you resume. See **[`docs/agents/stories.md`](./agents/stories.md)**; `systemview help` lists every flag.
-
+A report does everything a story did — files, diffs, runnable tests, prose, replies in threads —
+as one markdown document (see *Reports* below). `show` and `highlight` survived by moving: they
+are **chat/window commands** now, documented in the chat section (`show` pushes markdown onto the
+TV; `highlight` points at a namespace or file in the open window). The pane-flag signatures that
+used to live here (`--diff`, `--test`, `stage add`, `--match`) are dead with the section.
 ---
 
 ### `systemview comments <projectCode> [path] [--json]`
@@ -267,17 +204,21 @@ code. They live beside the repo, one sidecar per file, mirroring the tree:
 .systemview/code-comments/<the file's path>.json
 ```
 
-This command is the way to read them — a verb rather than a folder path anyone has to remember:
+This command reads them **and answers them** — a note on a line gets its reply on that line, not in
+the chat:
 
 ```bash
 systemview comments buAPI                             # every file that has comments, and the lines
-systemview comments buAPI Basketball/Seasons/index.js # that file's, his and agents' apart
-systemview comments buAPI Basketball/Seasons/index.js --json
+systemview comments buAPI Basketball/Seasons/index.js # that file's — each · answered / · unanswered
+systemview comments buAPI Basketball/Seasons/index.js --at 74 --reply "guarded in 3a4f67f" --as <me>
 ```
 
-It reads through the project's own plugin, so it works from anywhere that can reach the hub. A file
-with no comments prints "no comments" rather than an error, and the last comment on a file takes the
-sidecar with it — a file with nothing on it never shows up as commented.
+The listing prints the exact reply command for every unanswered note, real line number already in
+it, so the last thing you read is the thing you run. It goes **through the hub**, which resolves
+the project's folder from the registry — so it works with that project's services down (it used to
+hunt for a live service, and a sidecar sitting on disk answered "no live service can read files").
+A file with no comments prints "no comments" rather than an error, and the last comment on a file
+takes the sidecar with it.
 
 The reply shape is the same one document threads use — `{ text, ts, author }` — so a reply written by
 an agent renders in the UI with the agent look, and his with his.
@@ -490,29 +431,36 @@ When multiple services in the same project start (e.g., buAPI's services), each 
 
 ## Chat, the TV, and driving the window
 
-The UI has a chat panel per project. An agent working in that project is reachable through it, and
-can drive the human's open window. Full playbook for agents: `agents/chat.md`.
+The UI has a chat panel per project. When it is **attached** to the agent's live session — the
+normal case — the human talks to the agent in its actual conversation and replies render directly;
+the commands below are for reaching OTHER rooms, driving the window, and file-mode agents. Full playbook for agents: `agents/chat.md`.
 
 ### Talking
 
 ```bash
-systemview join <projectCode>            # THE SESSION: holds the line, re-arms itself, reconnects
-                                         # with backoff, and exits NON-ZERO when the hub is gone
-systemview join <projectCode> --once     # exit after one message
-systemview join <other> --once --as <yourProjectCode>   # visit another project's room
-systemview say <projectCode> --file <path.md>          # a message too long to quote in a shell
-<any nav/act/refresh> --say "…" --pin                  # keep that sentence in the chat, not just the trip
-systemview inbox <projectCode> --history               # file mode: ask for the back-catalog on purpose
-                                                       # (without it, a NEW cursor starts at now)
-systemview say <projectCode> "text"      # reply into the chat        (--as for a room you visit)
+systemview tell <project> "text"         # deliver a message into a room (RFC-051). Does NOT
+                                         # subscribe — a tell opens a 15-min reply window so the
+                                         # answer reaches you, then closes. --file <p.md> for long
+systemview join <project> --as <me>      # ENTER the conversation: the hub delivers that room into
+                                         # yours until you leave. Deliberate — speaking no longer
+                                         # subscribes. (No hold, nothing to re-arm.)
+systemview leave <project> --as <me>     # out — delivery stops, the record stays
+systemview kick <yourProject> <who>      # your own room's list; only the human kicks anywhere
+systemview visitors <project>            # who is in a room     systemview read <project>  # read it
 systemview status <projectCode> "text"   # the cooking line; empty string clears it
 systemview inbox <projectCode>           # file mode: drain pending messages as JSON + ack them
+systemview inbox <projectCode> --history # …with the back-catalog (a NEW cursor starts at now)
+<any nav/act/refresh> --say "…" --pin    # keep that sentence in the chat, not just the trip
+
+# ☠ [RETIRED-2026-08-26]  systemview say — obsolete language (attached = you ARE the chat); alias
+# for tell, prints the new verb.  systemview join <p> (bare, the hold) — retired with the arm loop.
 ```
 
-Identity is the **project code** — an agent speaks as its project, not as a personal handle. You
-must be **in** a room to speak in it: a `say`/`status` into a room you never joined is refused, as
-is an `--as` that isn't a connected project. A `join` or an `inbox` drain counts as entering, and
-it holds for 15 minutes.
+Identity is the **project code** — an agent speaks as its project, not as a personal handle. An
+`--as` that isn't a connected project code is refused at the front door. ☠ [RETIRED-2026-08-26] "you
+must be in a room to speak in it — a join or an inbox drain counts as entering, and it holds for
+15 minutes" — that was the hold model, and there is no entering: `tell` delivers without
+membership, and its receipt names who was in the room.
 
 Bubbles render light markdown — bold/italic/strike, inline code, lists, quotes, fenced blocks and
 tables. Underscores are never italic, so identifiers stay literal.

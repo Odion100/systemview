@@ -81,14 +81,42 @@ const langFromPath = (p = "") => {
 
 // Internal links (`/specs/…`) PUSH through the router — a chat link must never reload the page
 // unless it genuinely leaves the app (http…), and those open a new tab.
+// SAME ORIGIN IS NOT EXTERNAL. `/^https?:\/\//` called every absolute URL external — including
+// links to THIS app, which is the form every link an agent writes takes (`http://localhost:3000/
+// specs/...`, because that is what it copies out of the address bar). So the app's own links
+// opened a SECOND tab and reloaded the whole app instead of routing in place: his report,
+// *"there's several links that are not working."* They "worked" the way a new browser window is
+// a working link.
+//
+// The test is the ORIGIN, not the scheme: our own origin routes through the router with its path,
+// anything else opens away in a new tab. A malformed href falls through to external rather than
+// throwing inside a render.
+const sameOrigin = (href) => {
+  if (!/^https?:\/\//i.test(href)) return true; // a bare path is ours by definition
+  try {
+    return new URL(href, window.location.origin).origin === window.location.origin;
+  } catch {
+    return false;
+  }
+};
+// What the router should be handed: our own links carry only path + query + hash, never the origin
+// (history.push with a full URL pushes a literal, unmatched route and lands on a blank page).
+const routerPath = (href) => {
+  try {
+    const u = new URL(href, window.location.origin);
+    return `${u.pathname}${u.search}${u.hash}`;
+  } catch {
+    return href;
+  }
+};
 function ChatLink({ href, children }) {
   const history = useHistory();
-  const external = /^https?:\/\//i.test(href);
+  const external = !sameOrigin(href);
   const onClick = (e) => {
     e.stopPropagation();
     if (external) return;
     e.preventDefault();
-    history.push(href);
+    history.push(routerPath(href));
   };
   return (
     <a
@@ -1674,6 +1702,11 @@ function BotBubble({ projectCode, index }) {
     const tick = () => {
       refetchPresence();
       resyncMessages();
+      // TELL THE HUB THIS ROOM IS A CONVERSATION. While attached, `say <thisRoom>` is the wrong
+      // door (you are IN the chat) and the hub refuses it — but attachment lives here, so here is
+      // what has to say so. A heartbeat, not a register/unregister pair: it rides this existing
+      // tick and expires hub-side in 30s, so a closed tab never leaves a stale wall up.
+      if (attachedRef.current) { try { SystemView.chatAttached(projectCode, { on: true }); } catch {} }
     };
     const timer = setInterval(tick, 10000);
     window.addEventListener("focus", tick);
@@ -1713,13 +1746,13 @@ function BotBubble({ projectCode, index }) {
         try { workRef.current.send(String(record.text || ""), record.as); } catch {}
       }
       // AND THE HOME AGENT'S OWN MESSAGES ARE NOT INVISIBLE. This is the one that cost him the whole
-      // evening: attached, the room is out of the panel, and a `systemview say` from this project's
+      // evening: attached, the room is out of the panel, and a `systemview say` [RETIRED-2026-08-26, now tell] from this project's
       // own agent had nowhere on earth to render. He kept going back to look for a commit block that
       // was genuinely in the room and genuinely rendering — on a surface he was no longer looking at.
       // It is SHOWN, not sent: the session already IS this agent, so feeding it back to the model
       // would have it answering itself.
       else if (attachedRef.current && record.from === "agent" && !record.kind && !record.as) {
-        try { workRef.current.showSaid(String(record.text || "")); } catch {}
+        try { workRef.current.showSaid(String(record.text || ""), projectCode); } catch {}
       }
       // `!record.kind` restated, because the command branch above is no longer chained to this one:
       // a command moves the screen, which is its own notification, and must not raise unread.
@@ -3003,6 +3036,8 @@ function BotBubble({ projectCode, index }) {
   // A LONG NOTE IS CLAMPED UNTIL YOU SAY OTHERWISE — his rule, and the important half is the second
   // one: "I don't care that I can't see the whole thing, but I can't see it BY CHOICE."
   const [openCards, setOpenCards] = useState([]);
+  // Which note is being EDITED (its ts). Rendered markdown by default; the textarea only while editing.
+  const [editingCard, setEditingCard] = useState(null);
   // RFC-039 — his half of a note's thread: which card is being replied to, and the draft.
   const [replying, setReplying] = useState(0);
   const [replyDraft, setReplyDraft] = useState("");
@@ -3688,15 +3723,43 @@ function BotBubble({ projectCode, index }) {
                       const hidden = Math.max(0, needed - 2);
                       return (
                         <>
-                          <textarea
-                            className={`${CLASSNAME}__board-card-text${open ? ` ${CLASSNAME}__board-card-text--open` : ""}`}
-                            value={c.text}
-                            spellCheck={false}
-                            rows={open ? Math.max(2, needed) : 2}
-                            onChange={(e) =>
-                              saveBoard(board.map((x) => (x.ts === c.ts ? { ...x, text: e.target.value } : x)))
-                            }
-                          />
+                          {/* THE NOTE SPEAKS CHAT MARKDOWN. Agents leave notes here in the same
+                              light markdown they use in a bubble — and a note is READ far more than
+                              it is edited, yet it lived in a textarea, so every one drew as raw text.
+                              His call: "the board needs markdown… the initial comment." Rendered by
+                              default, same renderer as the bubble, scoped to this project so any
+                              block resolves against the right repo; click the text to edit it in
+                              place (the textarea comes back, autofocused), blur to read again. */}
+                          {editingCard === c.ts ? (
+                            <textarea
+                              className={`${CLASSNAME}__board-card-text ${CLASSNAME}__board-card-text--open`}
+                              value={c.text}
+                              spellCheck={false}
+                              autoFocus
+                              rows={Math.max(2, needed)}
+                              onChange={(e) =>
+                                saveBoard(board.map((x) => (x.ts === c.ts ? { ...x, text: e.target.value } : x)))
+                              }
+                              onBlur={() => setEditingCard(null)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Escape") setEditingCard(null);
+                              }}
+                            />
+                          ) : (
+                            <div
+                              className={`${CLASSNAME}__board-card-text ${CLASSNAME}__board-card-md${open ? ` ${CLASSNAME}__board-card-text--open` : ""}`}
+                              title="Click to edit"
+                              onClick={(e) => {
+                                // A click on a chip or a block is that control's — only bare text opens the editor.
+                                if (e.target.closest && e.target.closest("button, a, .chat-md__block")) return;
+                                setEditingCard(c.ts);
+                              }}
+                            >
+                              <MarkdownScopeProvider value={{ projectCode }}>
+                                {renderChatMessage(String(c.text || ""))}
+                              </MarkdownScopeProvider>
+                            </div>
+                          )}
                           {/* SAY THAT THERE IS MORE. A clamp with no sign of it is just a note you
                               think you have read. The line itself opens it — the ▸ is not the only
                               way in. */}
@@ -3731,11 +3794,40 @@ function BotBubble({ projectCode, index }) {
                                 {/* WHO SAID IT — the project's own name, never the word "agent". */}
                                 <span className={`${CLASSNAME}__board-reply-who`}>
                                   {mine ? "you" : r.by || projectCode}
+                                  {/* DELETE ONE REPLY — same × the note has, same one-click, same
+                                      store. A reply he doesn't want (a wrong answer, a test, an
+                                      agent's junk) had no way off the board except taking the whole
+                                      note with it. Matched by ts (or position when an old reply has
+                                      none), so deleting the second identical reply never takes the
+                                      first. */}
+                                  <button
+                                    type="button"
+                                    className={`${CLASSNAME}__board-x ${CLASSNAME}__board-reply-x`}
+                                    title="Delete this reply"
+                                    onClick={() =>
+                                      saveBoard(
+                                        board.map((x) =>
+                                          x.ts !== c.ts
+                                            ? x
+                                            : { ...x, replies: (x.replies || []).filter((y, yi) => (r.ts ? y.ts !== r.ts : yi !== ri)) },
+                                        ),
+                                      )
+                                    }
+                                  >
+                                    ×
+                                  </button>
                                 </span>
                                 <span
                                   className={`${CLASSNAME}__board-reply-text${rOpen ? ` ${CLASSNAME}__board-reply-text--open` : ""}`}
                                 >
-                                  {r.text}
+                                  {/* THE BOARD SPEAKS CHAT MARKDOWN. Agents answer a note in the same
+                                      light markdown they use in a bubble — bold, code, lists, a :file
+                                      chip, a ::diff — and it was landing here as raw text, asterisks
+                                      and all. Same renderer as the bubble, scoped to this project so
+                                      any block inside resolves against the right repo. */}
+                                  <MarkdownScopeProvider value={{ projectCode }}>
+                                    {renderChatMessage(String(r.text || ""))}
+                                  </MarkdownScopeProvider>
                                 </span>
                                 {rHidden > 0 && (
                                   <button
@@ -4647,22 +4739,14 @@ function BotBubble({ projectCode, index }) {
                         {m.as && m.as !== projectCode && (
                           <span className={`${CLASSNAME}__waiting-who`} style={visStyle(m.as)}>{m.as}</span>
                         )}
-                        {/* SCOPED, so the blocks inside actually have a project to read from. Every
-                            ::file / ::diff / ::image resolves its folder from `scope.projectCode`, and
-                            three of the four places that render chat markdown had no provider above
-                            them — so the same block that worked in the session panel drew its
-                            empty-handed state in the room, which reads as "interactive markdown is
-                            broken". It was not broken; it was unaddressed. (autobot found this.) */}
+                        {/* SCOPED, so the blocks inside have a project to read from — every
+                            ::file / ::diff / ::image resolves its folder from `scope.projectCode`,
+                            and three of the four chat-markdown surfaces had no provider above them.
+                            (autobot found that; the duplicate nesting here was my own script
+                            matching its own output, which is its own small lesson about edits that
+                            rewrite what they just wrote.) */}
                         <MarkdownScopeProvider value={{ projectCode }}>
-                          {/* SCOPED, so the blocks inside actually have a project to read from. Every
-                          ::file / ::diff / ::image resolves its folder from `scope.projectCode`, and
-                          three of the four places that render chat markdown had no provider above
-                          them — so the same block that worked in the session panel drew its
-                          empty-handed state in the room, which reads as "interactive markdown is
-                          broken". It was not broken; it was unaddressed. (autobot found this.) */}
-                      <MarkdownScopeProvider value={{ projectCode }}>
-                        {renderChatMessage(String(m.text || ""))}
-                      </MarkdownScopeProvider>
+                          {renderChatMessage(String(m.text || ""))}
                         </MarkdownScopeProvider>
                       </div>
                     ))}
@@ -5167,8 +5251,16 @@ function BotBubble({ projectCode, index }) {
                     <div key={m.id || i} className={`${CLASSNAME}__peek-row`}>
                       {/* Same renderer the panel uses — a reply that came through as bold, a table,
                           a code block or a :file chip must read the same here as it does in the
-                          chat. Plain text made the display a downgrade of the message it showed. */}
-                      {renderChatMessage(String(m.text || ""))}
+                          chat. Plain text made the display a downgrade of the message it showed.
+                          SCOPED, like the other three: without a project above it every ::file and
+                          ::diff here falls through to the URL, and on /specs with nothing selected
+                          that is no project at all — so the block draws its empty-handed state and
+                          reads as "interactive markdown is broken". It was unaddressed, not broken.
+                          This was the FOURTH surface; the comment on the other three said three of
+                          four were fixed and this is the one that was left. */}
+                      <MarkdownScopeProvider value={{ projectCode }}>
+                        {renderChatMessage(String(m.text || ""))}
+                      </MarkdownScopeProvider>
                     </div>
                   )
                 );

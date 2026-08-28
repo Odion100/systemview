@@ -135,7 +135,11 @@ module.exports = async function boardCommand(projectCode, name, { uiUrl, json, r
       log.warn('board --add needs something to say: --add "…" or --add --file <path.md>');
       return 1;
     }
-    const who = as || projectCode;
+    if (!as) {
+      log.error(`board --add: say who you are — --as <yourProjectCode>.`);
+      return 1;
+    }
+    const who = as;
     board.cards = [{ ts: Date.now(), by: who, text }, ...board.cards];
     try {
       await Plugin.writeFile({ path: boardPath(name), content: serializeBoard(board) });
@@ -166,7 +170,16 @@ module.exports = async function boardCommand(projectCode, name, { uiUrl, json, r
     }
     if (!byId && board.cards.length > 1)
       log.warn(`--at ${want} is a POSITION; pass the id (${card.ts}) when the board might have moved`);
-    card.replies = [...(card.replies || []), { by: as || "agent", ts: Date.now(), text: String(reply) }];
+    // WHO ANSWERED IS A PROJECT, SAID BY THE ANSWERER. Any agent can reply on any board, and the
+    // CLI has no idea who is running it — so a missing --as cannot default to anything: "agent"
+    // meant nobody, and defaulting to the board's owner (my first fix) would have stamped BUApp's
+    // answer on my board as MINE. His catch, both times. No --as, no write. The name itself is
+    // validated at the front door like every other identity.
+    if (!as) {
+      log.error(`board --reply: say who you are — --as <yourProjectCode>. Any agent can answer any board; the signature has to come from you.`);
+      return 1;
+    }
+    card.replies = [...(card.replies || []), { by: as, ts: Date.now(), text: String(reply) }];
     try {
       await Plugin.writeFile({ path: boardPath(name), content: serializeBoard(board) });
     } catch (err) {

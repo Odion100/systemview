@@ -1,10 +1,16 @@
 const fs = require("fs");
 const path = require("path");
 
+// TRANSITION (2026-08-24): the browser no longer calls these to render — the HUB serves files and
+// git directly (api/index.js), addressed by project code. These providers survive as the LIBRARY
+// the hub binds for HOSTED projects (createFileProviders below) and as the plugin's own doc/test
+// file access.
+//
 // RFC-018 ground-truth file providers. These run INSIDE the observed service, so they read THAT
 // service's real source from its own working directory. Every path is guarded to the repo root —
 // a client can browse the project but never escape it (no `../../etc/passwd`). The stage/UI only
-// ever carries TARGETS (locators); the real bytes come from here at render time.
+// ever carries TARGETS (locators); ☠ the real bytes come from here at render time
+// [RETIRED-2026-08-26 — render-time bytes come from the hub].
 //
 // RFC-027: the providers are also a LIBRARY — createFileProviders(rootDir) binds the whole set to
 // an explicit root, so the hub can serve a HOSTED project's files from that project's directory
@@ -365,8 +371,9 @@ function createFileProviders(rootDir) {
     return { done, changed: changedFiles() };
   }
 
-  // --- RFC-033 — COMMIT FROM THE DOCUMENT. These serve a CLICK: a human presses a button in the
-  // version-control panel or a `::commit` block. Nothing here is reachable from the CLI, and no
+  // --- RFC-033 — COMMIT FROM THE DOCUMENT. ☠ These serve a CLICK: a human presses a button in the
+  // version-control panel or a `::commit` block [RETIRED-2026-08-26 — those clicks go to the HUB
+  // now; this code runs only as the hub's library for hosted projects]. Nothing here is reachable from the CLI, and no
   // agent calls them. The verbs stop at commit and push — no amend, no force, no discard, no branch
   // switching. If those ever arrive they arrive named, in their own RFC.
   const git = (args) => {

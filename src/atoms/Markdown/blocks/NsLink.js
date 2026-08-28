@@ -38,18 +38,20 @@ const NsLink = ({ label, attrs = {} }) => {
   }
 
   const path = ["/specs", t.projectCode, t.serviceId, t.moduleName, t.methodName].filter(Boolean).join("/");
+// CLICK OPENS. NOTHING HERE IS A WEB LINK. His ruling, twice over: *"no more only revealing…
+// that's been annoying to me"* and *"they're not real links — none of these are really supposed to
+// be links."* Reveal-only made a reference into a gesture you had to follow up by hand, and with
+// the chat panel over the navigator the gesture was invisible — indistinguishable from a dead
+// control. And being a real `<a href>` is what let the browser treat an app affordance as a web
+// link (that is how every same-origin link ended up in a new tab: RFC-051 round, ChatLink).
+// So: a BUTTON that opens. ⌘-click still opens too — one behaviour, no modifier to learn.
   const go = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    // REVEAL, don't navigate. Reading a document and clicking a reference shouldn't yank the document
-    // out from under you — the nav switches to the SystemLynx lens, expands to the target and
-    // HIGHLIGHTS it without selecting it. You decide whether to actually go there by clicking it in
-    // the tree. Cmd/Ctrl-click still navigates outright, for when that IS what you meant.
-    if (e.metaKey || e.ctrlKey) {
-      const tab = new URLSearchParams(location.search).get("tab");
-      history.push(tab ? { pathname: path, search: `?tab=${tab}` } : path);
-      return;
-    }
+    const tab = new URLSearchParams(location.search).get("tab");
+    history.push(tab ? { pathname: path, search: `?tab=${tab}` } : path);
+    // The tree still expands to it and marks it — the reveal rides along with the navigation
+    // instead of standing in for it, so you arrive AND you can see where you arrived.
     window.dispatchEvent(
       new CustomEvent("sv:revealInNav", {
         detail: {
@@ -64,10 +66,10 @@ const NsLink = ({ label, attrs = {} }) => {
   };
 
   return (
-    <a className="md-chip md-chip--ns" href={path} onClick={go} title={`Show ${path.replace("/specs/", "")} in the navigator — ⌘-click to go there`}>
+    <button type="button" className="md-chip md-chip--ns" onClick={go} title={`Go to ${path.replace("/specs/", "")}`}>
       <span className="md-chip__kind">ns</span>
       {text}
-    </a>
+    </button>
   );
 };
 

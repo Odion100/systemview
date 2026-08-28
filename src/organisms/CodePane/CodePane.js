@@ -36,7 +36,12 @@ const CodePane = ({ file, onClose }) => {
   const [savedContent, setSavedContent] = useState(null);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
-  const isMd = file.language === "markdown";
+  // THE PATH ALWAYS KNOWS; THE ROW SOMETIMES DOESN'T. This trusted `file.language`, which the file
+  // TREE sets — but a file opened from the CHANGES list comes from `changedFiles`, whose rows carry
+  // `path`/`status` and no language at all. So the same document opened from the tree rendered, and
+  // opened from the changes list showed raw markdown. On a repo with forty changes that is where you
+  // open things from, which is why it read as "preview disappeared".
+  const isMd = file.language === "markdown" || /\.mdx?$/i.test(file.path || "");
   // AN IMAGE IS NOT TEXT. Opening a .png from the tree read its bytes as a string and printed them
   // into the editor. The bytes never had to travel that way: the hub already serves repo files raw
   // at /sv-raw for the ::image block, so the pane just points an <img> at the same route — no read,

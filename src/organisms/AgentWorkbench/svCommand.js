@@ -12,6 +12,10 @@
 // ordinary shell lines as app actions, which is worse than not doing this at all.
 const VERBS = {
   say: { icon: "✎", what: "said" },
+  tell: { icon: "✎", what: "messaged" },
+  "message-agent": { icon: "✎", what: "messaged" },
+  leave: { icon: "◌", what: "left the room" },
+  kick: { icon: "✕", what: "cleared from the room" },
   show: { icon: "📺", what: "put on the TV" },
   tv: { icon: "📺", what: "read the TV" },
   nav: { icon: "↦", what: "moved the window" },
@@ -139,12 +143,27 @@ export function parseSvCommand(command) {
 //
 // So a status names the DESTINATION for anything whose subject is prose, and clamps everything else.
 // `show --text "Title"` keeps its title: a title is short and it IS the thing you want named.
-const BODY_VERBS = new Set(["say", "reply", "thread"]);
+const BODY_VERBS = new Set(["say", "tell", "message-agent", "reply", "thread"]);
+// A ROOM VERB NAMES ITS ROOM — his spec, verbatim: "the join command log should point to a project
+// code… shows join the room and then hashtag and project code, like a project code tag." A bare
+// "joined the room" is a row about nothing; the room IS the information.
+const ROOM_VERBS = new Set(["join", "leave", "kick"]);
 const SHORT = 40;
+
+// The one formatter for a room verb's line, shared by the status and the row so they can never
+// disagree: `joined the room #buAPI`, `cleared intruder from the room #buAPI`.
+export const svRoomLine = (sv) => {
+  if (!sv || !ROOM_VERBS.has(sv.verb)) return null;
+  const tag = sv.project ? ` #${sv.project}` : "";
+  if (sv.verb === "kick" && sv.target) return `cleared ${sv.target} from the room${tag}`;
+  return `${sv.what}${tag}`;
+};
 
 export const svStatus = (sv) => {
   if (!sv) return null;
   if (BODY_VERBS.has(sv.verb)) return `${sv.what}${sv.project ? ` → ${sv.project}` : ""}`;
+  const room = svRoomLine(sv);
+  if (room) return room;
   const t = String(sv.target || "").replace(/\s+/g, " ").trim();
   if (!t) return sv.what;
   return `${sv.what} ${t.length > SHORT ? `${t.slice(0, SHORT).trimEnd()}…` : t}`;

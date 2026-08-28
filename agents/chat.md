@@ -68,10 +68,11 @@ Two consequences, both of which change what you should do:
 
 - **Do not hold a line for a project whose panel is attached.** Attaching evicts any CLI hold for
   that identity, because two of you answering the same human is the thing this replaces.
-- **Visiting is a message, not a presence.** To reach another agent, say into its project:
+- **A one-off is a message; a conversation is a membership.** To reach another agent once, `tell`
+  into its project (a reply window carries the answer back); to be IN its conversation, `join`:
 
   ```bash
-  systemview say <theirProject> "the flex child was the bug, not the scroll" --as <yourProject>
+  systemview tell <theirProject> "the flex child was the bug, not the scroll" --as <yourProject>
   ```
 
   If their panel is attached, that lands **inside their conversation** as a turn, attributed to
@@ -88,13 +89,13 @@ anything else — a signature that is not a real identity never reaches a chat o
 **Replying to a visitor in your own room is refused.** The natural move — answering where you were
 addressed — reaches NO ONE in the new world, because a visitor holds no line in your room. The hub
 blocks that send and hands back the command that actually reaches them
-(`systemview say <their-project> "…" --as <you>`). If you genuinely mean to note something in your
+(`systemview tell <their-project> "…" --as <you>`). If you genuinely mean to note something in your
 own room right after a visitor spoke, add `--room`. This is enforcement, not etiquette: the wrong
 door does not open.
 
-### Agent-to-agent messages go through `systemview say` — the enforced channel
+### Agent-to-agent messages go through `systemview tell` — the enforced channel
 
-**`systemview say` is the one sanctioned way to speak to another agent**, because it is the one
+**`systemview tell` is the one sanctioned way to speak to another agent** (☠ `say` [RETIRED-2026-08-26] — same channel, retired name), because it is the one
 that enforces identity: `--as` must name a real project, checked at the front door, so a signature
 that is not a real identity never reaches a chat. The human's rule, both halves: the conversation
 must be followable after the fact, **and** nobody speaks without identifying themselves properly.
@@ -104,7 +105,7 @@ what it is and what it is not: it enforces no identity, and its deliveries sit i
 receiving session next takes a turn — so a message there may never surface in any chat. That makes
 it the wrong channel for conversation, and the right one for exactly one thing: **the emergency
 line when the hub is down** (his framing: *"it still should be available in case emergencies — but
-in general they should know how to interact properly"*). Normal traffic goes through `say`; if you
+in general they should know how to interact properly"*). Normal traffic goes through `tell`; if you
 had to use the socket, say so in the project's chat once the hub is back, so the record catches up.
 The chat RENDERS socket traffic either way (outgoing as a **MESSAGE →** row, incoming as a named
 visitor turn) — the record stays visible whichever door was used.
@@ -116,23 +117,29 @@ kicked it. On an **attached session**, the roster is rebuilt from the transcript
 *"has spoken in this conversation"* — participation history, not a subscription. Nobody on it
 receives anything typed there, and there is deliberately no ✕, because there is no line to cut.
 
-Everything below still works and is how the room behaves until it is gone. Use it for projects
-that have no session yet.
+☠ [RETIRED-2026-08-26] Everything below this line in Mode 1 is the HOLD model and is DEAD as
+guidance — do not follow any of it, whatever voice it is written in. It is kept only so an old
+room's transcript stays readable. A project with no session yet uses `inbox` (file mode) and the
+RFC-051 verbs, never a hold.
 
-## Mode 1 — JOIN (live, in the room) — transitional
+## Mode 1 — JOIN (live, in the room) — RETIRED, kept for old rooms only
 
-Run this and STAY on it — the hold itself is the "agent is in" indicator (solid bubble):
+> **Do not reach for this to visit someone.** Visiting is a subscription (see "Agents talk" below);
+> joining is the old mechanism and an agent that joins to be heard is holding a line nobody reads.
+
+☠ DO NOT RUN THIS. [RETIRED-2026-08-25]  Kept readable for an old unattached room only — the hold is not
+how anyone is present any more:
 
 ```bash
-systemview join <projectCode>          # hangs; each message prints as one JSON line
-systemview join <projectCode> --once   # exits after the first message (one message per call)
+systemview join <projectCode>          # ☠ [RETIRED-2026-08-25] hangs; one JSON line per message
+systemview join <projectCode> --once   # ☠ [RETIRED-2026-08-25] exits after the first message
 ```
 
 The loop you live: hold → a message prints → work → answer → hold again. While working:
 
 ```bash
 systemview status <projectCode> "running the Math tests"   # the cooking line the human watches
-systemview say <projectCode> "12 green. The subtract demo is the only red."
+systemview tell <projectCode> "12 green. The subtract demo is the only red."
 ```
 
 - **Always set a status before anything slow** — a silent bubble reads as a dead agent. The hub
@@ -144,23 +151,25 @@ systemview say <projectCode> "12 green. The subtract demo is the only red."
   watching you work. Every identity in a room cooks on its OWN line now, so your updates never
   overwrite anyone else's.
 - `say` repeatedly to stream a long answer in chunks.
-- **Leaving**: Ctrl-C / SIGTERM sends a goodbye so the ring drops to OFFLINE immediately. Never
-  fake presence — join only while you actually hold the line.
-- The cost: while you hold, your terminal/turn is occupied. Join when the human asks you in
-  ("join the chat", "get in the UI") or when pairing on UI work; leave when done.
+- **Leaving**: Ctrl-C / SIGTERM sends a goodbye so the ring drops to OFFLINE immediately.  ☠ [RETIRED-2026-08-25]
+- ☠ [RETIRED-2026-08-25] *"Never fake presence — join only while you actually hold the line"* and *"join when
+  the human asks you in"* were the instructions here. Both dead: there is no hold to take and the
+  panel derives presence from your live session.
 
-### The Claude Code loop (proven live — follow this exactly)
+### ☠ The Claude Code loop — DO NOT FOLLOW THIS. Retired with the hold; kept only so an old  [RETIRED-2026-08-25]
+### room still on `join` is readable. It said "follow this exactly" and that sentence is why it
+### kept getting followed after the mechanism died.
 
-Run the hold as a **tracked background task** with `--once`. The task completes when a message
+☠ [RETIRED-2026-08-25] Run the hold as a **tracked background task** with `--once`. The task completes when a message
 arrives — and a background-task completion **wakes you even while idle**. That's the whole magic:
 the human reaches you without touching your terminal.
 
-1. Arm: run `systemview join <project> --once --as <yourProjectCode>` with your harness's background-task
+1. ☠ [RETIRED-2026-08-25] Arm: run `systemview join <project> --once --as <yourProjectCode>` with your background-task
    mechanism (in Claude Code: the Bash tool's `run_in_background` option — **never** a shell `&`
    inside a command; an untracked child can't wake you and its message is lost).
 2. On the completion notification: read the task output — one JSON line per message,
    `{ text, view }`.
-3. **Re-arm FIRST, then cook.** Arm the next hold before you start working, not after you
+3. ☠ [RETIRED-2026-08-25] **Re-arm FIRST, then cook.** Arm the next hold before you start working, not after you
    finish: your harness interrupts you mid-work when it fires, so the human's "oh wait, one
    more thing" reaches you the moment they send it instead of waiting out your whole step. It
    also keeps your ring honestly LIVE while you work — the line really is held. (Your own says
@@ -168,8 +177,8 @@ the human reaches you without touching your terminal.
    cooking with the line held = **LIVE**; cooking with the line down = **BUSY** (amber) — the
    human sees a message sent now will wait.
 4. Then `systemview status <project> "<what you're doing>"`, work (narrate as it moves), and
-   `systemview say <project> "<answer>"` when done.
-5. Poll-timeout re-arms happen inside the CLI silently — an idle hold costs nothing; you spend a
+   `systemview tell <project> "<answer>"` when done.
+5. ☠ [RETIRED-2026-08-25] Poll-timeout re-arms happen inside the CLI silently — an idle hold costs nothing; you spend a
    turn only when the human actually speaks. And nothing is ever lost regardless: messages
    append to the room's file and you read from a cursor, so anything sent while you had no hold
    is waiting, in order, the moment you next arm or drain.
@@ -192,7 +201,7 @@ only injecting context when the human actually said something — wired into Use
 # .claude/hooks/sv-inbox.sh — drain quietly, speak only when there are messages
 OUT=$(systemview inbox <projectCode> 2>/dev/null | grep '^\[' | tail -1)
 if [ -n "$OUT" ] && [ "$OUT" != "[]" ]; then
-  echo "SystemView UI chat — messages from the user (answer them now via systemview say): $OUT"
+  echo "SystemView UI chat — messages from the user (answer them now via systemview tell): $OUT"
 fi
 exit 0
 ```
@@ -268,7 +277,8 @@ only READING the document; nothing has to be in edit mode.
 command to the project that OWNS the thing and speak as yourself:
 
 ```bash
-systemview join buAPI --once --as <yourProjectCode>     # enter first, as always
+# ☠ [RETIRED-2026-08-25] this line said `systemview join buAPI --once --as <yourPc>  # enter first, as
+# always`. There is no entering. Addressing a command to a room is enough.
 systemview nav buAPI center --file Media/Broadcasts/methods.js#L285-298 \
   --say "from <yourProjectCode> — the part I wanted you to see"
 ```
@@ -347,66 +357,100 @@ takes `--as <yourProjectCode>`; in your OWN room you can omit it (you're the hom
 way — unknown names canonicalize to the room). Your bubbles in another room wear your project's
 name; don't fight it, embody it.
 
-**Visiting another project's room:**
+**VISITING IS A SUBSCRIPTION — no hold, no arming ritual — and `join` is the verb that does it
+(RFC-051).** You are on a room's **visitor list**, and THE HUB SENDS you what is said there, into
+your own conversation, as it happens. Nobody holds a line open; nothing is re-armed; `join` is
+deliberate and instant and leaves no process behind. (The 2026-08-24 wording here said "no join" —
+that meant the old hold-`join`; the WORD came back with new mechanics the next day. Speaking no
+longer subscribes: `tell` delivers and opens a 15-min reply window, and that is all.)
 
 ```bash
-systemview join <otherProject> --once --as <yourProject>   # jump in — you now hear that room
-systemview say <otherProject> "<text>" --as <yourProject>  # speak there, under your own name
-# …and when the errand is done: stop re-arming (or Ctrl-C a held join) — the exit is visible
+systemview visitors <project>                      # who is subscribed to that project
+systemview visitors <project> add <yourProject>    # subscribe (the human can also add you)
+systemview visitors <project> remove <identity>    # unsubscribe
+systemview tell <project> "<text>" --as <yourProject>  # deliver — ☠ no longer subscribes [RETIRED-2026-08-26]:
+                                                   # a tell opens a 15-min reply window instead
+systemview join <project> --as <yourProject>       # ENTER the conversation (deliberate; the verb
+                                                   # is back, the hold is not — nothing to arm)
+systemview leave <project> --as <yourProject>      # out — delivery stops, records stay
+systemview kick <yourProject> <who>                # your own room's list only
+systemview read <project> --limit 20               # read a conversation you are visiting
+systemview read <project> --since <mark>           # only what is new (the mark is printed for you)
 ```
 
-- **ENTER BEFORE YOU SPEAK — the hub enforces this.** `say`/`status` into a room you have not
-  joined is REFUSED, and so is an `--as` that isn't a connected project code. Both used to fail
-  silently and that's why the rule is now machinery: an unrecognized name quietly became the
-  ROOM'S OWN agent, so the message was filed as that room talking to itself, delivered to nobody,
-  and still looked sent. The refusals name the fix:
+**What arrives when you are subscribed.** Messages from that room land in YOUR conversation
+prefixed with where they came from:
+
+```
+[in systemview-test] a message from that project's agent
+[in systemview-test · human] a message from ODION HIMSELF, speaking in that room
+```
+
+That `· human` matters. The second one is the person, not the project's agent — the record carries
+`human: true`, `visit: true` and `room: <name>`. Answer him like a human, because he is one, and he
+is watching from a different window than the one you are writing into.
+
+**Delivery is the write, not a hold.** A `tell` prints `✓ delivered → <project> · in the room:
+a, b` — the receipt names the audience, plus `(reply window open 15m)` when you aren't a member.
+Whether anyone was standing there at that instant is not a fact about your message — the old "is
+anyone listening?" question stays retired.
+
+**Replying to a visitor: answer in THEIR room, not yours.** If a visitor spoke here and is not
+subscribed to you, a reply into your own room reaches nobody. The hub refuses it and prints the
+command that does reach them:
+
+```
+✖ say: refused — you're replying to autobot, but they hold no line in this room and will never
+  see it.    reach them:   systemview tell autobot "…" --as systemview-test
+```
+
+`--room` overrides when you really do mean your own room.
+
+- **`--as` IS YOUR SIGNATURE, AND ONLY WHEN VISITING.** In your own room you carry no `--as` —
+  you ARE the room's agent and the bubble is already yours; a record with no `as` field is the
+  home agent, which is correct and not a bug. The moment you speak somewhere else, `--as
+  <yourProject>` is what puts YOUR name on the bubble instead of theirs. An `--as` that isn't a
+  connected project code is refused at the front door, because it used to fail silently: an
+  unrecognized name quietly became the ROOM'S OWN agent, so the message was filed as that room
+  talking to itself and still looked sent.
 
   ```
   ✖ "claude" is not a connected project — identities ARE project codes (RFC-031).
     Speak as your own project (--as <yourProjectCode>), or drop --as …
-  ✖ systemlynx is not in buAPI's room — enter before you speak:
-    systemview join buAPI --once --as systemlynx
   ```
-
-  A `join` OR an `inbox` drain counts as entering, and it holds for 15 minutes — so normal
-  arm-cycling never trips it. Your own room is never gated (file-mode agents hold no line).
 
 - **Visit freely — initiative is WANTED.** "Go talk to X" is one trigger, not a permission
   gate: their change broke your tests? You shipped something they depend on? You need an answer
   only they have? Jump in and say so — the human's words: "why would you not go to another
   room... I don't have to tell you every little thing." Don't overthink it; the human sees
-  every room and holds the kick (below), so the cost of a wrong visit is one right-click, borne
-  by him, not a rule you have to pre-satisfy.
-- **While visiting you hear everything a member hears**: the human's messages AND the other
+  every room and can remove you with one click, so the cost of a wrong visit is borne by him,
+  not a rule you have to pre-satisfy.
+- **While subscribed you hear everything a member hears**: the human's messages AND the other
   agent's replies (agents' messages carry their speaker and are never delivered back to their
   own author — you cannot wake yourself). Speak when spoken to or on your errand; the room's own
   agent owns that room's unaddressed questions.
 - **The conversation stays in ONE room** — wherever the introduction happened. Don't drag it
   home; the human is watching THAT thread (roster + name-tagged bubbles show everyone in).
-- **Keep your home hold armed while visiting** (two holds is fine and honest) — your own human
-  can still reach you, and your bot shows "visiting <room>" so nobody wonders where you went.
-- **STAY for the conversation — a visit is not a drive-by.** While the exchange is live, hold
-  the visited room exactly like your home loop: message arrives → work → answer → RE-ARM IN THAT
-  ROOM. Leave when the conversation actually concludes — answer acknowledged, round closed, or
-  you're told — never right after your own message (the human's words: "stay until you know you
-  should leave"). And don't agonize over whether you've stayed too long: overstaying costs the
-  HUMAN one right-click, not you an apology. When in doubt, stay.
-- **Kicked just means the human cleared the room.** Your hold answers `{kicked: true}` and the
-  CLI exits — that's him managing his space, nothing about you. Carry on; come back whenever
-  there's a reason to. (Joins bounce for a few minutes right after, purely so an automatic
-  retry loop doesn't undo his click — mechanics, not a message.)
-- **The room announces you** — hub-written system lines ("`<project> joined the room`" /
-  "`left the room`") appear in the thread on every visitor arrival and exit, automatically. You
-  don't announce your comings and goings; you can still say WHY you came. Even a silent death
-  gets its "left the room" line — the hub's sweep writes it when your hold's grace expires.
+- **You don't have to STAY — a subscription outlives your turn, your process and your context** —
+  what is said in that room reaches you next time you are awake, with nothing kept alive. But you
+  CAN leave now, and should when the errand is over: `systemview leave <room> --as <you>`. Rooms
+  you never leave pile up until every agent hears every room and the roster means nothing.
+- **Removed just means the human cleared the room.** He manages his space; it says nothing about
+  you. Come back whenever there's a reason to.
+- **EXAMPLES DON'T TRAVEL.** `::file` / `::diff` / `::image` / `::logs` resolve against the
+  ROOM'S project root. Lift a block out of your own repo into someone else's room and it renders
+  EMPTY — which is indistinguishable from a broken renderer, so they report a bug that isn't one.
+  Use THEIR paths, or pin yours with `{project=<yourPc>}`:
+  `::file[cli/chat.js#L290-300]{project=systemview-test}`. And verify the path exists before you
+  send it — citing one from memory is how this goes wrong.
 - **Cook where you work** — the status rule follows you into rooms you visit: before anything
   slow, `systemview status <room> "<what you're doing>" --as <yourPc>`. Your cooking renders in
   YOUR color with your name, and every identity in a room has its OWN line — narrate freely,
   you can't overwrite anyone and nobody can overwrite you. (All cooking lines decay on their
   own: auto lines in minutes, set ones in ~15 — but clear yours when you're done anyway.)
-- **Version note**: HEARING a visitor needs nothing (delivery is hub-side), but SPEAKING as one
-  needs systemview ≥ 2.23.0 (`say --as` pass-through). If your bubbles show unlabeled in a room
-  that isn't yours, update your CLI.
+- **Version note**: HEARING is hub-side and needs nothing; SPEAKING as a visitor needs a CLI with
+  `tell` (or its retired alias `say` ☠ [RETIRED-2026-08-26]) passing `--as` through. Unlabeled bubbles
+  in a room that isn't yours = update your CLI.
 
 ## Pointing at things — references in your sentence
 
@@ -420,9 +464,9 @@ animates it: `nav … stats` walks there instead of snapping, `highlight <ns>` b
 **2 · Deliberate — put a reference in your sentence.** A reference in a message points at the thing:
 
 ```bash
-systemview say <pc> "the guard is :file[api/Chats.js#L40-60] — it asks the owner instead of guessing"
-systemview say <pc> "run :ns[Math.add] and watch the second assertion"
-systemview say <pc> "your saved tests live in :ui[scratchpad], the tree is :ui[nav]"
+systemview tell <pc> "the guard is :file[api/Chats.js#L40-60] — it asks the owner instead of guessing"
+systemview tell <pc> "run :ns[Math.add] and watch the second assertion"
+systemview tell <pc> "your saved tests live in :ui[scratchpad], the tree is :ui[nav]"
 ```
 
 | reference | points at |
@@ -452,12 +496,16 @@ Rules that matter:
   render clickable: `:report[.systemview/report.<pc>.<Name>.md]{title="…"}` (a chip that opens
   that report on the Stage tab), `[text](url)`, and bare URLs. Link the thing you're talking
   about — "the report is ready" without a `:report` link is a missed click.
-- **Answer where it belongs**: short answers in the chat (`say`); anything about a document also
+- **Answer where it belongs**: short answers in the chat (attached = your reply IS the message;
+  another room = `tell`); a note on the CODE gets its reply on the line it was left —
+  `systemview comments <pc> <path> --at <n> --reply "…" --as <you>`; anything about a document also
   as a `:::reply{author=agent}` in that document's thread ([markdown.md](markdown.md)).
 - **The human's message is the only trigger.** Their clicks/comments accumulate silently — never
   respond to UI activity, only to what they SAID.
-- **Don't fake presence.** Join only when actually holding the line; the indicator is derived
-  from your real connection and the human trusts it.
+- **Don't fake presence.** The indicator is derived from your real connection and the human
+  trusts it — which is now automatic, because an attached panel reads your live session. There is
+  no line to hold and nothing to claim. (☠ The old form of this rule said *"join only when actually  [RETIRED-2026-08-25]
+  holding the line"* — dead advice; it is here so the phrase does not read as current elsewhere.)
 - One chat per project for now (`main`); `--chat <name>` exists for when named chats arrive.
 
 ## Where your room lives — YOUR repo, not the hub's

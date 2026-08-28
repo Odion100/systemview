@@ -1087,6 +1087,13 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
   // RFC-033 — COMMIT / PUSH, in the place he already stages from. Two-step, his call: the first
   // click arms, the second runs. Nothing here is reachable except by that click.
   const [gitState, setGitState] = useState(null);
+  // THE HUB SENDS THE LIST, NOT A COUNT. `gitState.stagedCount` was the PLUGIN's field; the hub's
+  // gitState returns `staged` as an array (repo/ok/root/branch/upstream/ahead/behind/log/staged/
+  // unstaged/untracked/changed — no counts). This one call site never moved, so the commit box read
+  // `undefined`: the tab said "undefined staged" and the button was disabled forever, on a tree
+  // with 38 files in the index. His report — *"why is the commit button disabled?"* — and the fifth
+  // instance of the same class from that transition: the contract is what the CALLER READS.
+  const stagedCount = (gitState && (gitState.staged || []).length) || 0;
   // WHY there is no box, when there is no box. Drawing nothing until git answered meant the lens
   // could sit there with no sign the feature exists at all — "you don't even know the feature is
   // existing, you're wondering, like, hold on". loading | old | notrepo | error.
@@ -2114,7 +2121,7 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
                         className={`${CLASSNAME}__commit-tab${vcTab === "changes" ? ` ${CLASSNAME}__commit-tab--on` : ""}`}
                         onClick={() => setVcTab("changes")}
                       >
-                        {gitState.stagedCount} staged
+                        {stagedCount} staged
                       </button>
                       <button
                         type="button"
@@ -2160,9 +2167,9 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
                       <button
                         type="button"
                         className={`${CLASSNAME}__commit-btn${armed === "commit" ? ` ${CLASSNAME}__commit-btn--armed` : ""}`}
-                        disabled={!gitState.stagedCount || !message.trim() || vcBusy === "commit"}
+                        disabled={!stagedCount || !message.trim() || vcBusy === "commit"}
                         title={
-                          !gitState.stagedCount
+                          !stagedCount
                             ? "Nothing is staged"
                             : !message.trim()
                               ? "A commit needs a message"

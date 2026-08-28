@@ -318,7 +318,21 @@ const Feed = ({ rows, answered = {}, onAnswer = null, renderText = null }) =>
     ) : r.kind === "error" ? (
       <div key={r.key} className={`${CLASSNAME}__row ${CLASSNAME}__row--error`}>{r.text}</div>
     ) : (
-      <div key={r.key} className={`${CLASSNAME}__row ${CLASSNAME}__row--say`}>
+      <div
+        key={r.key}
+        className={`${CLASSNAME}__row ${CLASSNAME}__row--say${r.toRoom ? ` ${CLASSNAME}__row--toroom` : ""}`}
+      >
+        {/* SENT, NOT SAID. A message this agent put in its own room arrives here through `showSaid`
+            — shown, never fed back, because feeding an agent its own words has it answering itself.
+            Drawn as plain speech it was indistinguishable from a sentence in the session, which is
+            exactly what Odion reported: the agent appears, the message doesn't. The mark says where
+            it went. (systemlynx traced this from the other side: a room's own agent carries no `as`
+            field, correctly, so there was nothing left to key on by the time it got here.) */}
+        {r.toRoom && (
+          <span className={`${CLASSNAME}__toroom`} title={`sent to the ${typeof r.toRoom === "string" ? r.toRoom : "project"} room`}>
+            ↗ room
+          </span>
+        )}
         {r.settled && <When ts={r.ts} />}
         <Said row={r} render={renderText} />
       </div>

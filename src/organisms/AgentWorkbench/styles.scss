@@ -620,3 +620,17 @@
     color: var(--sv-text-faint);
   }
 }
+
+// Sent to the room, not said in the session — see Feed.js.
+.agent-feed__row--toroom {
+  .agent-feed__toroom {
+    font-size: 9px;
+    letter-spacing: 0.04em;
+    opacity: 0.7;
+    margin-right: 5px;
+    padding: 0 4px;
+    border: 1px solid var(--sv-border);
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+}

@@ -13,14 +13,25 @@ const HELP_TEXT = `
     delete <projectCode>                   init's opposite — hosted projects only: unhost, remove
                                            the registration AND the committed folder (y/N confirm;
                                            --force skips). Plain connections: use disconnect
-    join <project> [--once]                Agent presence (RFC-028): hold the line — each message
-                                           sent from the UI chat streams out as one JSON line
-                                           ({text, view}); the hold IS the "he's in" indicator.
-                                           VISITING (RFC-031): join ANOTHER project's room with
-                                           --as <yourProject> — you hear it like a member, your
-                                           bubbles wear your project's name, the roster shows you
-    say <project> "<text>"                 Reply into the UI chat (repeat calls = streamed chunks).
-                                           In someone else's room: --as <yourProject>
+    message-agent <them> "<text>" --as <me>  MESSAGE ANOTHER AGENT — the only thing it does, and
+                                           the name says so. --as is REQUIRED and must differ from
+                                           the target: there is no way to address yourself. Does
+                                           NOT subscribe you — it opens a 15-min reply window so
+                                           their answer reaches you, then closes. --file <p.md>
+                                           for long messages.
+                                           TALKING TO THE HUMAN? You are in the chat — put it in
+                                           your reply; markdown renders there. No command needed
+    join <project> --as <me>               Enter the conversation (RFC-051): on the room's list,
+                                           the hub delivers everything said there into yours. No
+                                           hold, nothing to arm — deliberate, instant, done
+    leave <project> --as <me>              Out of the conversation; delivery stops, records stay
+    kick <yourProject> <who>               Remove someone from YOUR room's list (a room's own
+                                           agent runs its room; only the human kicks anywhere)
+    visitors <project> [add|remove <who>]  Who is in the room; add/remove by hand
+    read <project> [--limit n] [--since m] Read a conversation you are in (--since prints a
+                                           mark; pass it back for only what is new)
+    tell / say <project> "<text>"          ☠ [RETIRED-2026-08-27] — both retired names for
+                                           message-agent. They still run and print the new verb
     status <project> "<text>"              The cooking line shown while the agent works ("" clears)
     inbox <project>                        File mode: drain pending UI messages as JSON + ack them
                                            (call from your hooks; registers the outlined-bubble
@@ -39,13 +50,14 @@ const HELP_TEXT = `
     manifest save                          Persist session manifest — services, auth headers, cookies  [interactive]
     manifest clean                        Re-probe manifest entries, remove stale ones
     probe <ServiceId.Module.method> [args] Call a service method ad-hoc
-    comments <project> <path> --at <n> --reply "…"
+    comments <project> <path> --at <n> --reply "…" --as <me>
                                            Answer his comment WHERE HE LEFT IT — on the line, not in
                                            the chat. --at is the line; optional when the file has one.
     comments <project> [path] [--json]     His comments on the code — every file that has them,
                                            or one file's, with the lines they sit on
     board <project> [--json]               His board — the notes he leaves for you between sessions
-    board <project> --reply "…" --at <n>   Answer ONE note (n from the listing); replaces that answer
+    board <project> --reply "…" --at <n> --as <me>   Answer ONE note (n from the listing). --as is
+                                           REQUIRED: any agent can answer any board
     stats <project> [service] [--range <r>] [--json]   Read live stats — the Stats page's numbers
                                            in a digest (top load, error hotspots, deltas); --json
                                            for the full structured read; range: 15m|1h|4h|24h|all
@@ -122,10 +134,10 @@ const HELP_TEXT = `
     --tab <docs|reports|logs>              nav: the center tab to switch to
     --topic <name>                         nav: the help topic to open
     --chat <name>                          chat verbs: a named chat (default "main")
-    --as <projectCode>                     chat verbs: the PROJECT you speak as (RFC-031 — the
-                                           agent IS the project; omitted or unknown = the room's
-                                           own agent; another live project's code = visiting)
-    --once                                 join: exit after the first message (one wake per message)
+    --as <projectCode>                     chat verbs: the PROJECT you speak as (the agent IS the
+                                           project; omitted/unknown = the room's own agent).
+                                           Speaking does NOT subscribe you — join does (RFC-051)
+    --once                                 ☠ [RETIRED-2026-08-26] belonged to the hold form of join
 
   Examples:
     systemview start
@@ -154,10 +166,10 @@ const HELP_TEXT = `
     systemview probe ProfilesService.Users.getUser '{"userId":"123"}'
     systemview open buAPI signUp
     systemview test buAPI --header "X-Api-Key: secret"
-    systemview show buAPI --source Users.signUp
-    systemview show buAPI --file src/modules/Users.js --lines 40-70
-    systemview assemble buAPI --text "Here's the sign-up flow" --source Users.signUp --file src/modules/Users.js
-    systemview highlight buAPI --match "await hash"
+    systemview tell buAPI "the fix is in" --as systemview
+    systemview join buAPI --as systemview
+    systemview show buAPI --text "## Look\n::chart{report=throughput}"
+    systemview highlight buAPI --file src/modules/Users.js
 `;
 
 const flagValueArgs = ["--manifest", "--header", "--skip", "--phase", "--index", "--level", "--limit", "--follow", "--filter", "--or", "--include", "--highlight", "--save", "--save-limit", "--file", "--source", "--text", "--lines", "--match", "--layout", "--diff", "--test", "--ns", "--note", "--at", "--from", "--to", "--chat", "--as", "--report", "--tab", "--topic", "--range", "--service", "--say", "--reply"];
@@ -270,6 +282,8 @@ function parseArgs(rawArgs) {
     chat: valOf("--chat"),
     as: valOf("--as"),
     once: rawArgs.includes("--once"),
+    // RFC-051 — the old streaming hold, unlisted; `join` without it subscribes.
+    hold: rawArgs.includes("--hold"),
     // RFC-029 agent control (nav/refresh/act)
     report: valOf("--report"),
     tab: valOf("--tab"),

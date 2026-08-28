@@ -43,7 +43,11 @@ const CommitBlock = ({ label, attrs = {}, line }) => {
   const [busy, setBusy] = useState("");
   const [armed, setArmed] = useState("");
   const [output, setOutput] = useState([]);
-  const sha = attrs.sha || "";
+  // The sha the document remembers, or — on a surface with no document (the chat) — the one this
+  // block just produced. Without the local half the commit succeeded and the block still offered to
+  // do it again, with no receipt anywhere on screen.
+  const [localSha, setLocalSha] = useState("");
+  const sha = attrs.sha || localSha || "";
   const msgRef = useRef(null);
 
   const svc = () => ({ Plugin: hostFiles(host.projectCode) });
@@ -56,19 +60,30 @@ const CommitBlock = ({ label, attrs = {}, line }) => {
       setError("");
     } catch {
       setState(null);
-      setError("this project's plugin doesn't have version control yet");
+      // GIT IS HUB-SERVED — a failure here means the HUB did not answer (restarting, socket
+      // dropped), not that some plugin is too old. The old wording sent people to upgrade a
+      // package that has nothing to do with it.
+      setError("couldn't read git — the hub didn't answer");
     }
   };
 
+  // The dep read `[host && host.serviceId]` — a field that stopped existing when file hosts became
+  // projects, so it was `undefined` forever and the block never re-read on a project change. Keyed
+  // on the field that exists. (`sv:git` is what the panel already fires when it stages or commits;
+  // this listens to the same one instead of inventing a poll.)
   useEffect(() => {
     load();
     // Staging happens in terminals we don't own — a button describing a tree that moved an hour ago
     // is worse than no button.
     const onFocus = () => load();
     window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
+    window.addEventListener("sv:git", onFocus);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("sv:git", onFocus);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [host && host.serviceId]);
+  }, [host && host.projectCode]);
 
   const say = (text) => setOutput((prev) => [...prev, { ts: Date.now(), text }]);
 
@@ -99,6 +114,7 @@ const CommitBlock = ({ label, attrs = {}, line }) => {
         setTab("log");
         // The document is the state. Stamped only where the surface can save — on a read-only one
         // the commit still happened, it just has nowhere to be written down.
+        setLocalSha(res.sha || "");
         if (editable) {
           setAttr(line, "sha", res.sha);
           setAttr(line, "ts", String(Date.now()));
@@ -170,7 +186,13 @@ const CommitBlock = ({ label, attrs = {}, line }) => {
       <span className="md-commit__grip" />
     </div>
   );
-  const canCommit = editable && !!state && state.repo && staged.length > 0 && !!message.trim();
+  // COMMITTING IS AN ACTION, NOT AN EDIT. `editable` gates writing the sha back INTO a document —
+  // and a chat message is not a document, so `editable` is false for every block in the chat and
+  // the button was permanently disabled there. That is backwards: the commit is the point, the
+  // receipt is a nicety. It works everywhere; where there is nothing to write the sha into, the
+  // block just keeps the sha in its own state and shows it. (The one earlier block he DID press
+  // lived in a report on the TV — a writable document — which is why this never showed up before.)
+  const canCommit = !!state && state.repo && staged.length > 0 && !!message.trim();
   const canPush = !!state && state.repo && state.ahead > 0;
 
   // A group heading that MOVES ITS WHOLE GROUP — the per-file +/− without a stage-all is the panel's
@@ -327,8 +349,8 @@ const CommitBlock = ({ label, attrs = {}, line }) => {
               disabled={!canCommit || !!busy}
               onClick={() => run("commit")}
               title={
-                !editable
-                  ? "Read-only here — the sha would have nowhere to be written"
+                !state
+                  ? "Couldn't read git — the hub didn't answer"
                   : !staged.length
                     ? "Nothing is staged"
                     : !message.trim()

@@ -1,5 +1,5 @@
 import { summarise, pathTouchedBy, isWrite } from "../../utils/hostAgent";
-import { parseSvCommand, svStatus } from "./svCommand";
+import { parseSvCommand, svStatus, svRoomLine } from "./svCommand";
 
 // RFC-046 — EVENTS IN, ROWS OUT. Kept pure and away from the component for the reason the rest of
 // this codebase keeps its rules out of render: the same fold has to run over `history()` when a view
@@ -20,7 +20,13 @@ import { parseSvCommand, svStatus } from "./svCommand";
 // you did was the wrong thing."* Both spellings are accepted, because a fold that only understands
 // one dialect is how this broke in the first place.
 const OPENERS = { "text-delta": "say", "thinking-delta": "think" };
-const SETTLERS = { text: "say", thinking: "think", "assistant.thinking": "think" };
+// `assistant.text` WAS MISSING FROM HERE, and that is the duplicate he sees. The host streams a
+// block as `assistant.text` chunks and CLOSES it with `assistant.text` carrying `done:true` and the
+// full text — the same kind name for both halves. The grow branch above skips the close (it tests
+// `done !== true`), and with no settler entry the close fell through and pushed a SECOND row: the
+// streamed copy, then the finished copy, identical, one after the other. `assistant.thinking` was
+// listed and its text twin was not, which is why thinking never doubled and speech always did.
+const SETTLERS = { text: "say", thinking: "think", "assistant.text": "say", "assistant.thinking": "think" };
 const IS_CALL = (k) => k === "tool.call" || k === "tool-start";
 const IS_RESULT = (k) => k === "tool.result" || k === "tool-end";
 const IS_ASK = (k) => k === "permission.request" || k === "permission-request";
@@ -212,6 +218,28 @@ export function foldEvents(events) {
     openRow = null;
   };
 
+  // WHICH ROW DOES THIS SETTLE BELONG TO? `closeOpen()` only drops the REFERENCE — it never marks
+  // the row finished — so anything that closes a block mid-stream (a tool call between the chunks
+  // and the close is the common one) left the settle with nothing to replace, and it pushed a
+  // SECOND row carrying the same text. That is the duplicate he kept seeing after the SETTLERS fix:
+  // that fix was dead code, because `assistant.text` is intercepted by the REPLAY branch above and
+  // never reaches SETTLERS at all.
+  //
+  // It also answers the other doubling: a resumed session SEEDS its transcript into `history` and
+  // the same message can arrive again live, identical and already settled. Same question, same
+  // answer — the row already exists, so claim it instead of adding another.
+  const claim = (kind, text) => {
+    if (openRow && openRow.kind === kind && !openRow.settled) return openRow;
+    for (let k = rows.length - 1; k >= 0 && rows.length - k <= 8; k -= 1) {
+      const r = rows[k];
+      if (r.kind !== kind) continue; // tool rows and the like sit between the stream and its close
+      if (!r.settled && text.startsWith(r.text)) return r; // the stream this settle finishes
+      if (r.settled && r.text === text) return r; // already recorded — replay meeting live
+      break; // a different finished message: this settle opens a new one
+    }
+    return null;
+  };
+
   let sawReplay = false;
   let seamDrawn = false;
   // The compaction receipt currently waiting for its second number (see the `compaction` branch).
@@ -337,11 +365,14 @@ export function foldEvents(events) {
       // The settled text is the authority for the row its own chunks grew — REPLACE it, exactly
       // the rule the hyphenated settlers already follow. Pushing a second row here is how a
       // streamed answer would print itself twice the moment it finished.
-      if (replayKind === "say" && openRow && openRow.kind === "say" && !openRow.settled) {
-        openRow.text = t || openRow.text;
-        openRow.settled = true;
-        closeOpen();
-        return;
+      if (replayKind === "say") {
+        const target = claim("say", t);
+        if (target) {
+          target.text = t || target.text;
+          target.settled = true;
+          closeOpen();
+          return;
+        }
       }
       closeOpen();
       if (t.trim())
@@ -382,12 +413,15 @@ export function foldEvents(events) {
     const settler = SETTLERS[ev.kind];
     if (settler) {
       // The authoritative text for the block that was streaming. Replace, never append.
-      if (openRow && openRow.kind === settler && !openRow.settled) {
-        openRow.text = ev.text || openRow.text;
-        openRow.settled = true;
+      const target = claim(settler, ev.text || "");
+      if (target) {
+        target.text = ev.text || target.text;
+        target.settled = true;
         closeOpen();
       } else if ((ev.text || "").trim()) {
-        rows.push({ key, kind: settler, text: ev.text, ts: ev.ts, settled: true });
+        // `toRoom` marks a message this agent SENT to its room rather than said in the session —
+        // same text, different act, and the row says which.
+        rows.push({ key, kind: settler, text: ev.text, ts: ev.ts, settled: true, toRoom: ev.toRoom || undefined });
       }
       return;
     }
@@ -409,10 +443,13 @@ export function foldEvents(events) {
       const xsend =
         (ev.tool || ev.name) === "SendMessage" && ev.input
           ? { to: String(ev.input.to || "?"), msg: String(ev.input.message || ""), about: String(ev.input.summary || "") }
-          : // A `systemview say` IS a message — the sanctioned channel, and it was rendering as a
+          : // A `systemview tell` IS a message — the sanctioned channel, and it was rendering as a
           // plain bash line while the discouraged socket got the proper row (his catch). Same row
-          // for both: who it went to, the words on screen, the identity it spoke as.
-          sv && sv.verb === "say" && sv.project
+          // for both: who it went to, the words on screen, the identity it spoke as. `say` stays
+          // matched — ☠ [RETIRED-2026-08-26] as a verb, but every old transcript is full of it and a
+          // rename must never demote history back to bash lines (the rename DID exactly that to
+          // `tell` for a day: this check read `=== "say"` alone, so the new verb drew invisible).
+          sv && (sv.verb === "say" || sv.verb === "tell") && sv.project
           ? { to: sv.project, msg: String(sv.target || ""), about: sv.as ? `as ${sv.as}` : "" }
           : null;
       const row = {
@@ -429,7 +466,7 @@ export function foldEvents(events) {
           xsend
             ? `message → ${xsend.to}${xsend.about ? ` — ${xsend.about}` : ""}`
             : sv
-            ? sv.what
+            ? svRoomLine(sv) || sv.what
             : ev.summary || summarise(ev) || ev.tool || ev.name,
         ),
         input: ev.input,

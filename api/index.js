@@ -638,10 +638,27 @@ function relayToVisitors(ctx, projectCode, chatName, { text, speaker, record, hu
         });
         if (relayed && relayed.record)
           ctx.emit(`chat-updated:${visitor}`, { chat: Chats.DEFAULT_CHAT, record: relayed.record });
+        // RFC-051 — the exchange refreshes a windowed teller's window, so an answer arriving at
+        // minute 14 doesn't close the door on their thanks.
+        try { Chats.touchWindow(projectCode, chatName, visitor); } catch {}
       } catch {}
     });
   } catch {}
 }
+
+// THE ROOM KNOWS WHEN IT IS A CONVERSATION. `say <yourOwnRoom>` while your panel is attached is
+// the wrong door — you are IN the chat, your reply IS the message — but the hub could not refuse
+// it because attachment lived only in the browser. His call: *"say is misleading... we're in the
+// chat."* So the panel now tells the hub: a heartbeat on its existing presence tick, expiring on
+// its own (30s) so a closed tab or dead panel never leaves a stale wall up. No unregister needed —
+// silence IS detach, the same rule the presence sweep already lives by.
+const attachedRooms = new Map(); // pc -> last heartbeat ts
+function chatAttached(projectCode, { on = true } = {}) {
+  if (on) attachedRooms.set(projectCode, Date.now());
+  else attachedRooms.delete(projectCode);
+  return { ok: true };
+}
+const isAttached = (pc) => (attachedRooms.get(pc) || 0) > Date.now() - 30000;
 
 // SPEAKING TO THE ATTACHED AGENT IS STILL SPEAKING. His catch, and he was right to doubt it:
 // *"Autobot is in your room right now. He's not going to get a notification that I'm talking. I've
@@ -1072,6 +1089,25 @@ function chatSend(projectCode, { chat, from = "you", text, view, as, toRoom } = 
     from,
     ...(identity ? { as: identity } : {}),
   });
+  // THE WALL AT THE HOME DOOR. An agent saying into its OWN room while that room is an attached
+  // conversation is talking to a file beside the chat instead of in it — the message lands in the
+  // room surface, not the conversation, and reads as a duplicate voice. Refused with the reason;
+  // `--room` still means the file on purpose (notes for the record, cross-session hand-offs).
+  // NO ESCAPE HATCH ON AN ATTACHED ROOM. This wall shipped with `!toRoom` — `--room` walked around
+  // it — and I then used `--room` all evening to "drop examples in the chat", writing into the room
+  // file BESIDE the conversation he was reading, while he told me nothing was rendering. Routing
+  // around my own guard. His words: *"why do you use message so much? you even send yourself
+  // messages… we're in the chat directly."*
+  // An attached room has no legitimate own-agent send: the human is in the conversation, and the
+  // reply IS the message (interactive blocks render in it). `--room` keeps its meaning for a room
+  // that is NOT attached — a note for a future session, a file-mode hand-off.
+  if (from === "agent" && identity === projectCode && isAttached(projectCode))
+    return {
+      blocked: true,
+      attachedRoom: true,
+      hadRoomFlag: !!toRoom,
+      hint: `systemview tell <otherProject> "…" --as ${projectCode}`,
+    };
   const sent = Chats.send(projectCode, chat || Chats.DEFAULT_CHAT, {
     from,
     text,
@@ -1110,7 +1146,23 @@ function chatSend(projectCode, { chat, from = "you", text, view, as, toRoom } = 
   // push presence so the waiting count and read receipts move the moment a message lands,
   // in every mode — not at the next poll.
   this.emit(`chat-presence:${projectCode}`, presenceFor(projectCode));
-  return record;
+  // RFC-051 — FEED THE AUDIENCE TO THE SPEAKER (his ask: "agents should know if someone is
+  // subscribed in the room"). The subscriber list is known right here at send time, so the receipt
+  // carries it instead of making the agent run a second command. `windowNudge` rides along when
+  // this sender is on their third-or-later windowed exchange: the moment a courtesy becomes a
+  // conversation, they are told the verb that makes it one — and joining stays THEIR decision.
+  try {
+    const chatName2 = chat || Chats.DEFAULT_CHAT;
+    const subs = Chats.visitors(projectCode, chatName2).map((v) => v.identity);
+    const win = identity && identity !== projectCode ? Chats.windowState(projectCode, chatName2, identity) : null;
+    return {
+      ...record,
+      audience: subs,
+      ...(win && !win.joined ? { replyWindow: true, windowNudge: win.count >= 3 } : {}),
+    };
+  } catch {
+    return record;
+  }
 }
 // RFC-029 — agent control: a command is a chat record; the push IS the execution channel. The
 // UI executes commands only off this live emit — chatHistory renders them as lines, nothing more.
@@ -1503,6 +1555,56 @@ function currentShow(projectCode, chat) {
 // The bouncer — the human kicks an identity out of a room (right-click a roster name). The
 // kicked hold answers {kicked} immediately, the room gets its system line, rejoin refused for
 // the cooldown.
+// RFC-051 — THE CONVERSATION VERBS, agent-side. Joining, leaving and kicking were his controls
+// only (roster clicks); his call: "agents should have the ability to join, leave, and kick other
+// people out of the room too. Not just me." Join is DELIBERATE — the one thing speaking no longer
+// does — and kick carries the one authority rule that keeps rooms legible: you run YOUR room's
+// list, you carry yourself everywhere, and nobody clears a third room's table.
+function chatJoinRoom(projectCode, { chat, as } = {}) {
+  const chatName = chat || Chats.DEFAULT_CHAT;
+  const identity = resolveSpeaker(projectCode, chatName, as); // same front door as speaking
+  if (identity === projectCode) return { ok: false, reason: "your own room — you are already it" };
+  const res = Chats.addVisitor(projectCode, chatName, identity, "spoke");
+  if (res.added) {
+    const sys = Chats.system(projectCode, chatName, { event: "joined", who: identity });
+    this.emit(`chat-updated:${projectCode}`, { chat: chatName, record: sys });
+    this.emit(`chat-visitors:${projectCode}`, { chat: chatName, visitors: Chats.visitors(projectCode, chatName) });
+    this.emit(`chat-presence:${projectCode}`, presenceFor(projectCode));
+  }
+  return { ok: true, ...res, audience: Chats.visitors(projectCode, chatName).map((v) => v.identity) };
+}
+function chatLeaveRoom(projectCode, { chat, as } = {}) {
+  const chatName = chat || Chats.DEFAULT_CHAT;
+  const identity = canonIdentity(projectCode, as);
+  if (identity === projectCode) return { ok: false, reason: "your own room — there is no leaving it" };
+  const res = Chats.removeVisitor(projectCode, chatName, identity);
+  if (res.removed) {
+    const sys = Chats.system(projectCode, chatName, { event: "left", who: identity });
+    this.emit(`chat-updated:${projectCode}`, { chat: chatName, record: sys });
+    this.emit(`chat-visitors:${projectCode}`, { chat: chatName, visitors: Chats.visitors(projectCode, chatName) });
+    this.emit(`chat-presence:${projectCode}`, presenceFor(projectCode));
+  }
+  return { ok: true, ...res };
+}
+function chatKickAgent(projectCode, { chat, identity, as } = {}) {
+  const chatName = chat || Chats.DEFAULT_CHAT;
+  const by = canonIdentity(projectCode, as);
+  // THE AUTHORITY RULE. Only this room's own agent clears this room's table (the human's kick is
+  // chatKick, from the UI, and answers to nobody). A visitor may remove ITSELF — that is leave,
+  // and the refusal says so rather than doing it under the wrong name.
+  if (by !== projectCode)
+    return identity === by
+      ? { ok: false, reason: "removing yourself is leave", hint: `systemview leave ${projectCode} --as ${by}` }
+      : { ok: false, reason: `only ${projectCode}'s own agent runs ${projectCode}'s list` };
+  const res = Chats.removeVisitor(projectCode, chatName, identity);
+  if (res.removed) {
+    const sys = Chats.system(projectCode, chatName, { event: "kicked", who: identity });
+    this.emit(`chat-updated:${projectCode}`, { chat: chatName, record: sys });
+    this.emit(`chat-visitors:${projectCode}`, { chat: chatName, visitors: Chats.visitors(projectCode, chatName) });
+    this.emit(`chat-presence:${projectCode}`, presenceFor(projectCode));
+  }
+  return { ok: res.removed, ...res };
+}
 function chatKick(projectCode, { chat, identity } = {}) {
   if (!identity) throw new Error("chatKick: identity required");
   const chatName = chat || Chats.DEFAULT_CHAT;
@@ -1634,6 +1736,7 @@ module.exports = function launchSystemView(port = 3000) {
       listViews,
       deleteView,
       chatSend,
+      chatAttached,
       chatRead,
       projectRoots,
       readFile,
@@ -1654,6 +1757,9 @@ module.exports = function launchSystemView(port = 3000) {
       chatVisitors,
       chatAddVisitor,
       chatRemoveVisitor,
+      chatJoinRoom,
+      chatLeaveRoom,
+      chatKickAgent,
       chatCommand,
       chatHistory,
       chatList,

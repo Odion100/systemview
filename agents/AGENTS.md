@@ -10,7 +10,7 @@ when you need it. Nothing is summarised away — the detail lives beside it in t
 | File | When you need it |
 | --- | --- |
 | [hosted-services.md](hosted-services.md) | **the repo has NO SystemLynx services** — `systemview init` makes the CLI host a real testing service from a committed folder; start-to-green instructions for agents |
-| [chat.md](chat.md) | **being present in the UI** — the chat bubble: `join` (live, solid bubble) or hook-drained `inbox` (ambient); messages arrive with the human's vantage point |
+| [chat.md](chat.md) | **being present in the UI** — the panel attaches to your live Claude session; visiting is a subscription: `tell` delivers, `join`/`leave` enter and exit, `kick` clears your own room (RFC-051). The HOLD form of `join` is ☠ [RETIRED-2026-08-25]; the verb itself is back |
 | [markdown.md](markdown.md) | the FULL interactive-markdown vocabulary — every block, every attribute, what writes back into the document |
 | [tests.md](tests.md) | building, saving and running tests; sections, references, evaluations in depth |
 | [namespaces.md](namespaces.md) | decomposing an unfamiliar project into service / module / method |
@@ -264,12 +264,12 @@ against a newer vocabulary degrades honestly.
   decision.
 - **Reference, don't repeat.** `tv(…)` a value rather than restating a literal in two places.
 - **Say what's unproven.** A block you couldn't run, a claim you couldn't verify — mark it.
-- **A plugin is a version, and a running process is a snapshot of it.** If your codebase card shows
-  no branch name, or staging fails with `Plugin.stageFiles is not a function`, your SERVICE has been
-  up since before that feature shipped — it is holding old plugin code in memory. Upgrading the
-  package changes nothing until the process restarts. Restart the service; that is the whole fix.
-  (A project connected by `systemview init` has no process of its own — the hub runs its service, so
-  it only refreshes when the hub restarts.)
+- **The codebase surface is HUB-served** — files, git, staging, diffs, images, by project code,
+  working with your services down. ☠ [RETIRED-2026-08-26] "no branch name / `Plugin.stageFiles is not a
+  function` → restart your service" — plugin-serves-git is retired and a stale plugin can no longer
+  cause those symptoms. A plugin version still matters for what the plugin actually DOES: your
+  documentation, tests, and your room's chat module — restart your service after upgrading for
+  those. (An `init`-hosted project has no process of its own; the hub refresh covers it.)
 
 ## 6 · The CLI, in full
 
@@ -286,13 +286,17 @@ systemview connect [name url]    # register a service
 systemview disconnect <project> [service]   # remove a connection (hosted: keeps the folder)
 systemview shutdown
 
-# The chat — being present in the UI (chat.md has the full playbook + the join loop)
-systemview join <project>        # THE SESSION (RFC-039): holds the line, re-arms itself, reconnects
-                                 # with backoff, and EXITS NON-ZERO when the hub is really gone —
-                                 # don't hand-roll a re-arm loop around --once any more
-systemview join <project> --once # one message, then exit (still exactly what it always was)
-systemview say <project> "…"     # reply into the chat        systemview status <project> "…"  # the cooking line
-systemview say <project> --file <path.md>                  # …when it's long enough to write in a file
+# The chat — being present in the UI (chat.md has the full playbook)
+#   ☠ systemview join <project>        — DO NOT FOLLOW for your own room either. The panel now  [RETIRED-2026-08-25]
+#   ☠ systemview join <project> --once   ATTACHES TO YOUR ACTUAL CLAUDE SESSION: the human is  [RETIRED-2026-08-25]
+#     talking to you IN this conversation, not through a relay. Nothing to join, nothing to arm,
+#     no status to set — the panel reads assistant.thinking / tool.call straight off the session.
+#     Attaching EVICTS any CLI hold for that identity, because two of you answering one human is
+#     the thing it replaces. `join` survives only for old unattached rooms.
+systemview tell <project> "…"    # deliver a message           systemview status <project> "…"  # the cooking line
+systemview tell <project> --file <path.md>                 # …when it's long enough to write in a file
+#   ☠ `say` — [RETIRED-2026-08-26] obsolete language: attached means you are IN the chat and your reply IS
+#     the message. `say` still runs as an alias for tell and prints the new verb.
 systemview thread <project> <report name|path> <thread-id> [--json]
                                  # READ one thread WITH ITS WRAPPER — the section it lives under,
                                  # the checklist rows around it, and every reply with who wrote it.
@@ -302,16 +306,38 @@ systemview reply <project> <report name|path> <thread-id> "…"
                                  # threads — answer in the thread, not in the chat. `systemview tv
                                  # <project>` shows the thread ids and his answers.
 <any nav/act/refresh command> --say "…" --pin              # …and keep that sentence in the chat
-# Agents talk (RFC-031): you ARE your project. Visit another project's room with --as <yourPc>:
-systemview join <otherProject> --once --as <yourProject>   # hear that room like a member
-systemview say <otherProject> "…" --as <yourProject>       # speak there under your own name
-# Visit with a reason — initiative welcome ("go talk to X" is a trigger, not a permission gate);
-# STAY for the whole conversation (re-arm your hold in the visited room between replies — no
-# one-comment drive-bys); the room announces arrivals/exits; leave when it's actually concluded.
+# Agents talk (RFC-051): you ARE your project, and VISITING IS A SUBSCRIPTION — no hold, no arming
+# ritual; `join` IS the subscribe verb. The hub SENDS you what is said there. Speaking does NOT
+# subscribe (`tell` opens a 15-min reply window instead), and `leave` is how a conversation ends.
+systemview visitors <project>                   # who is subscribed to that room
+systemview visitors <project> add <yourPc>      # subscribe    ( remove <who> to stop )
+systemview tell <otherProject> "…" --as <yourPc>  # deliver there under your own name. Does NOT
+#   subscribe you (RFC-051): a tell opens a 15-min REPLY WINDOW so their answer reaches you, then
+#   closes. The receipt names the audience: `delivered → X · in the room: a, b`.
+systemview join <otherProject> --as <yourPc>      # ENTER the conversation — deliberate, instant,
+#   nothing to hold or arm; the hub delivers that room to yours until you leave
+systemview leave <otherProject> --as <yourPc>     # out; delivery stops, the record stays
+systemview kick <yourPc> <who>                    # YOUR room's list is yours to run — nobody
+#   clears a third room's table; removing yourself is leave
+systemview read <otherProject> [--limit n]      # read a room you're visiting  (--since <mark> = new only)
+#   ☠ systemview join <otherProject> --once --as <yourPc>   — DO NOT FOLLOW. Retired. There is no  [RETIRED-2026-08-25]
+#     hold to take and nothing to re-arm; a subscription outlives your turn, process and context.
+# What arrives:  [in <room>] …  = that project's agent    [in <room> · human] …  = ODION, in person.
+# --as IS YOUR SIGNATURE AND ONLY WHEN VISITING — at home you carry none (you ARE the room).
+# STILL TRUE, and the part worth keeping: visit with a reason, initiative welcome ("go talk to X" is
+# a trigger, not a permission gate); answer in THEIR room, not yours; the conversation stays where it
+# started; being removed is him clearing his space, not a verdict on you.
+#   ☠ "re-arm your hold in the visited room between replies" — DO NOT FOLLOW. Nothing to re-arm.  [RETIRED-2026-08-25]
+# EXAMPLES DON'T TRAVEL: ::file/::diff/::image resolve against the ROOM'S root, so a block from your
+# repo renders EMPTY in theirs — indistinguishable from a broken renderer. Use their paths, or pin
+# yours: ::file[cli/chat.js#L290-300]{project=<yourPc>}. Verify the path before you send it.
 systemview inbox <project>       # hook-driven file mode: drain pending messages + ack
                                  # a cursor's FIRST drain starts at now — `--history` for the back-catalog
-# ENTER BEFORE YOU SPEAK — the hub refuses a say/status into a room you have not joined, and
-# refuses an --as that is not a connected project code. A join OR an inbox drain counts, 15min.
+#   ☠ "ENTER BEFORE YOU SPEAK — the hub refuses a say into a room you have not joined; a join or an  [RETIRED-2026-08-25]
+#     inbox drain counts, 15min" — DO NOT FOLLOW. Retired with the hold. And speaking no longer
+#     subscribes either — ☠ [RETIRED-2026-08-26] — a tell opens a reply window; joining is `join`, deliberate.
+# STILL ENFORCED: an --as that is not a connected project code is refused — it used to silently
+# become the ROOM'S OWN agent, so the message was filed as that room talking to itself.
 # YOUR ROOM IS A FILE IN YOUR OWN REPO: <your root>/.systemview/chats/<pc>.<chat>.jsonl — served
 # by your own service (the SystemViewChat plugin module), so you can grep and compact it yourself.
 
@@ -332,10 +358,14 @@ systemview tv <project> [--json]                   # READ it back — his clicks
                                                    # responded; nothing tells you otherwise.
 
 # His comments ON THE CODE (RFC-034) — notes he writes on a line range in a file. They live beside
-# the repo, never in the file: .systemview/code-comments/<the file's path>.json. Read them by verb:
+# the repo, never in the file: .systemview/code-comments/<the file's path>.json. Read them AND
+# answer them ON THE LINE — the listing prints the exact reply command per unanswered note:
 systemview comments <project>                 # every file that has comments, and the lines
 systemview comments <project> <path>          # one file's comments, his and agents' apart
 systemview comments <project> <path> --json   # the same, structured
+systemview comments <project> <path> --at <n> --reply "…" --as <yourPc>
+#   --as is REQUIRED (any agent can answer any comment; the CLI cannot tell who is running it,
+#   so it never guesses — no --as, no write; a name that isn't a project code is refused)
 
 # An unknown verb ERRORS now (it used to print the boot banner and look like it worked) — and a verb
 # that exists here may not exist in another project's install: check `systemview --version`.
