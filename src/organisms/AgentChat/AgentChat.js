@@ -460,8 +460,8 @@ const RESIZE_ZONES = [
 // Double-click resets THE AXIS you clicked (his call: "one side at a time") — a side edge
 // hands back its own dimension, a corner both. The reset callback receives (mw, mh) so the
 // surface can flex just that axis.
-const ResizeBorder = ({ start, onReset }) =>
-  RESIZE_ZONES.map((z) => (
+const ResizeBorder = ({ start, onReset, zones = RESIZE_ZONES }) =>
+  zones.map((z) => (
     <div
       key={z.k}
       className={`${CLASSNAME}__rz ${CLASSNAME}__rz--${z.k}`}
@@ -560,7 +560,7 @@ const showWhenAbs = (ts) => {
   return m.isValid() ? m.format("MMM D · h:mm A") : "";
 };
 
-function StatusLine({ status, visitor }) {
+function StatusLine({ status, visitor, tok }) {
   const [i, setI] = useState(0);
   const generic = status === "received";
   useEffect(() => {
@@ -589,6 +589,8 @@ function StatusLine({ status, visitor }) {
         <i />
         <i />
       </span>
+      {/* The live token count, after the dots — same place it rides on the panel's cooking line. */}
+      {tok && <span className="agent-chat__cooking-tok">{tok}</span>}
     </div>
   );
 }
@@ -1902,6 +1904,14 @@ function BotBubble({ projectCode, index }) {
   // printout in the transcript. `cmdRun` remembers what was sent and when, so the panel shows the
   // receipt that arrives AFTER the press and never a stale one from an hour ago.
   const [cmdsOpen, setCmdsOpen] = useState(false);
+  // THE COMMANDS PANEL'S CORNER PULLS THE CHAT. It is as tall as the chat, so its edges are the
+  // chat's edges: pull one and the chat resizes, and the panel with it — the same gesture you make
+  // on the chat's own corner, from the other side (his: "if it's going to resize with the chat,
+  // then it needs to be able to be pulled as well… vice versa"). Height only — the width is the
+  // panel's own and stays.
+  const cmdsPull = (mw, mh) => makeResize(() => size, (v) => setSize((cur) => ({ ...cur, h: v.h })), `sv.chatSize.${projectCode}`)(0, mh);
+  // Vertical only — the width is the panel's own; no side or corner handle on it.
+  const CMDS_ZONES = RESIZE_ZONES.filter((z) => z.k === "n" || z.k === "s");
   const [slashSel, setSlashSel] = useState(0); // highlighted row in the `/` popup
   const [cmdRun, setCmdRun] = useState(null);
   // ONE DOOR FOR A SLASH COMMAND, wherever it came from — the panel's list, the `/` popup, or
@@ -3446,6 +3456,9 @@ function BotBubble({ projectCode, index }) {
   // The session counts as a reason to show the peek, exactly like the room's status and unread did.
   const sessionCooking = attached && (work.state.state === "working" || work.state.state === "waiting");
   const peekCookWord = useCookWord(work.state.doing, work.state.state);
+  // THE COUNT SHOWS MINIMISED TOO — the peek is where he watches a turn build. Same rule as the
+  // panel's cooking line: chars over four, marked ≈, only while the session is actually working.
+  const peekTok = work.state.state === "working" && work.state.liveChars > 40 ? `≈${Math.round(work.state.liveChars / 4).toLocaleString()} tok` : "";
   // THE MINIMISED BRIEF — his ask, and it replaces the cooking word outright while attached:
   // *"when it's in minimization mode, can we have one block that just shows text and commands, one
   // line text and one line commands, right under the agent — that could replace the whole cooking
@@ -3627,12 +3640,11 @@ function BotBubble({ projectCode, index }) {
           return (
             <div
               className={`${CLASSNAME}__board ${CLASSNAME}__cmds`}
-              // AS TALL AS THE CHAT, ITS OWN WIDTH. His ask was "match the LENGTH of the input" —
-              // height. I read it as size and tied the width to the chat's too, so the panel
-              // ballooned to 655px and grew whenever he resized the chat: his words, "that's a
-              // bug." Height follows the chat; width is the panel's own.
+              // AS TALL AS THE CHAT, ITS OWN WIDTH — height follows the chat (his ask: "match the
+              // LENGTH of the input"); the width is the panel's own. Pulled, it carries its offset.
               style={inNav ? { width: "auto", height: Math.max(380, size.h) } : { width: 360, height: size.h, ...after(boardAhead) }}
             >
+              <ResizeBorder start={cmdsPull} onReset={panelReset} zones={CMDS_ZONES} />
               <div
                 className={`${CLASSNAME}__board-head ${CLASSNAME}__tv-head--grab`}
                 title="Drag to move"
@@ -5261,7 +5273,9 @@ function BotBubble({ projectCode, index }) {
                 type="button"
                 className={`${CLASSNAME}__usageline${tone ? ` ${CLASSNAME}__usageline--${tone}` : ""}`}
                 title={usage ? usage.bars.map((b) => `${b.label}: ${b.pct}%${b.resets ? ` — resets ${b.resets}` : ""}`).join("\n") : "usage not read yet"}
-                onClick={() => runSlash("/usage")}
+                // A TOGGLE (his ask: "click it open, click it close"). Open: fetch and show; open
+                // already: put the panel away.
+                onClick={() => (cmdsOpen ? setCmdsOpen(false) : runSlash("/usage"))}
               >
                 <span className={`${CLASSNAME}__usageline-track`}>
                   <span className={`${CLASSNAME}__usageline-fill`} style={{ width: `${pct}%` }} />
@@ -5271,11 +5285,17 @@ function BotBubble({ projectCode, index }) {
                     if (!usage) return "usage";
                     const find = (re) => usage.bars.find((b) => re.test(b.label));
                     const session = find(/^session/i), week = find(/all models/i), fable = find(/fable/i);
-                    const short = (r) => String(r || "").replace(/^\w+ \d+ at /, "");
+                    // A SESSION RESETS IN HOURS, so its time is enough; week and Fable reset days
+                    // out, and a bare "11:59pm" says nothing without the day (his catch). The date
+                    // stays for those; only the filler word goes.
+                    const short = (r, name) => (name === "session" ? String(r || "").replace(/^\w+ \d+ at /, "") : String(r || "").replace(" at ", " "));
                     // THE BAR AND THE TEXT BESIDE IT ARE ONE THING. Whatever meter the fill
                     // tracks is named FIRST, right against the bar — his: "the bar belongs to the
-                    // text next to it." The rest follow in a fixed order.
-                    const meter = (b, name) => `${name} ${b.pct}%${b.pct >= 75 ? " high" : ""}${name === "session" && b.resets ? ` · resets ${short(b.resets)}` : ""}`;
+                    // text next to it." The rest follow in a fixed order. THE RESET RIDES WITH THE
+                    // FILL, not with "session": the bar shows the meter that matters most (highest,
+                    // by default), so its reset is the one he wants to see — his: "whenever
+                    // something's the highest I would also be able to see when it resets."
+                    const meter = (b, name) => `${name} ${b.pct}%${b.pct >= 75 ? " high" : ""}${b === top && b.resets ? ` – resets ${short(b.resets, name)}` : ""}`;
                     const listed = [
                       barPrefs.session && session && ["session", session],
                       barPrefs.week && week && ["week", week],
@@ -5503,15 +5523,16 @@ function BotBubble({ projectCode, index }) {
                       <i />
                       <i />
                     </span>
+                    {peekTok && <span className={`${CLASSNAME}__cooking-tok`}>{peekTok}</span>}
                   </div>
                 )}
                 {/* Only when there is nothing real yet — a turn that has started and produced
                     neither a sentence nor a command still has to prove it is alive. */}
-                {!brief.cmd && sessionCooking && <StatusLine status={peekCookWord} />}
+                {!brief.cmd && sessionCooking && <StatusLine status={peekCookWord} tok={peekTok} />}
               </div>
             ) : sessionCooking ? (
               // THE PEEK'S OWN COMPONENT, unchanged — only where the sentence comes from changed.
-              <StatusLine status={peekCookWord} />
+              <StatusLine status={peekCookWord} tok={peekTok} />
             ) : (
               roomLines.map((s) => (
                 <StatusLine

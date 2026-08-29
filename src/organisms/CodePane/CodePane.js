@@ -9,6 +9,8 @@ import RowMenu from "../../atoms/RowMenu/RowMenu";
 import DiffView from "../../atoms/DiffView/DiffView";
 import { useEditorDark, EditorThemeToggle } from "../../atoms/CodeView/editorTheme";
 import Markdown from "../../atoms/Markdown/Markdown";
+import { MarkdownScopeProvider } from "../../atoms/Markdown/context";
+import { renderChatMessage } from "../AgentChat/AgentChat";
 import "./styles.scss";
 
 // RFC-022 — the CODE center. EDIT-FIRST: every file opens straight into the CM6 editor (the inversion
@@ -649,6 +651,11 @@ const CodePane = ({ file, onClose }) => {
       removeReply,
       removeThread,
       cancelDraft: () => setDraft(null),
+      // The reply renderer — the bubble's chat markdown, scoped to this file's project so a block
+      // inside a reply resolves against the right repo. The widget mounts what this returns.
+      renderText: (text) => (
+        <MarkdownScopeProvider value={{ projectCode: file.projectCode }}>{renderChatMessage(text)}</MarkdownScopeProvider>
+      ),
       // The right-click ON a comment. Everything you can do to one lives here — reply, reply by
       // voice, delete it — because that is where this app keeps its verbs.
       threadMenu: (e, id) => {
@@ -672,7 +679,7 @@ const CodePane = ({ file, onClose }) => {
         });
       },
     }),
-    [addThread, addReply, removeReply, removeThread, threads],
+    [addThread, addReply, removeReply, removeThread, threads, file.projectCode],
   );
 
   // The code's own right-click. The pane owns it because only the pane knows about the store; the

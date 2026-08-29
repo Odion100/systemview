@@ -837,8 +837,17 @@ export function foldState(events) {
       // host's own `summary` is whatever their toolSummary produced, and `SendMessage` hands it a
       // whole message. Same bug, other doorway — a cooking line reciting the thing it is announcing.
       doing = svStatus(sv) || ev.summary || summarise(ev) || ev.tool || ev.name;
+      // A TOOL CALL IS GENERATED TOO. The live count used to move only while the answer's prose
+      // streamed, so a turn spent in tool calls and thinking sat near zero — his: "what happened to
+      // the token shown with the cooking message?… building up as the turn went on." The call's
+      // input is output the model wrote; count it (chars, ~4 per token) unless this is a replay.
+      if (!ev.replay && ev.input) {
+        try { s.liveChars += JSON.stringify(ev.input).length; } catch {}
+      }
     } else if (ev.kind === "assistant.thinking" || ev.kind === "thinking-delta") {
       s.state = "working";
+      // Thinking is generated output as well — it climbs the same count.
+      if (!ev.replay && !ev.done && ev.delta) s.liveChars += String(ev.delta).length;
       // THE AGENT NARRATES ITS OWN THINKING. RFC-048 gives `assistant.thinking` a `summary`, so the
       // line can say what is actually being turned over and CHANGE as that changes. Hardcoding the
       // word "thinking" was the bug: one frozen word for a whole turn is indistinguishable from stuck.

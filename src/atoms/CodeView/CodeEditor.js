@@ -1,4 +1,5 @@
 import React, { useRef, useEffect } from "react";
+import ReactDOM from "react-dom";
 import { EditorState } from "@codemirror/state";
 import { EditorView, lineNumbers, keymap, Decoration, gutter, gutterLineClass, GutterMarker, WidgetType, MatchDecorator, ViewPlugin } from "@codemirror/view";
 import { StateField, StateEffect, RangeSet, Prec } from "@codemirror/state";
@@ -461,8 +462,13 @@ class ThreadWidget extends WidgetType {
       const body = document.createElement("span");
       body.title = `${agent ? r.author : "you"} · ${when(r.ts)}`;
       body.className = "cm-sv-thread__text";
-      // textContent, never innerHTML — this is text someone typed.
-      body.textContent = r.text || "";
+      // A REPLY IS CHAT MARKDOWN. Agents answer a note in the light markdown they use everywhere
+      // else — bold, code, a :file chip, a ::diff — and it drew here as raw text, asterisks and all
+      // (his call: "code comments need markdown just like the board did"). The pane hands over the
+      // renderer (the bubble's, scoped to this project) and it mounts into the widget's node; the
+      // widget unmounts it in destroy(). Without a renderer: textContent, never innerHTML.
+      if (h.renderText) ReactDOM.render(h.renderText(r.text || ""), body);
+      else body.textContent = r.text || "";
       row.appendChild(body);
       const del = document.createElement("button");
       del.type = "button";
@@ -488,6 +494,10 @@ class ThreadWidget extends WidgetType {
         }),
       );
     return wrap;
+  }
+  destroy(dom) {
+    // Every reply mounted a React tree into its text node — unmount them or they leak.
+    dom.querySelectorAll(".cm-sv-thread__text").forEach((el) => ReactDOM.unmountComponentAtNode(el));
   }
   ignoreEvent() {
     // TRUE = the editor keeps its hands off. A textarea inside a widget needs its own keystrokes,
