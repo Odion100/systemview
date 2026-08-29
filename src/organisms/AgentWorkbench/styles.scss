@@ -552,7 +552,21 @@
     &:hover { border-color: #9a7cb8; color: #c8a8e0; }
   }
 
+  &__tool-fold--embed {
+    font-family: inherit;
+    font-size: 10px;
+    letter-spacing: 0.02em;
+    color: var(--sv-blue);
+    opacity: 0.9;
+  }
+  &__row--can { cursor: pointer; }
   &__tool-body { margin-top: 4px; display: flex; flex-direction: column; gap: 3px; }
+  // The embedded file / diff inside an opened row — a real block, sized to the row it is in.
+  &__tool-embed {
+    min-width: 0;
+    max-width: 100%;
+    > * { max-width: 100%; min-width: 0; }
+  }
 
   // ONE block shape, three inks. Capped so a build log can never own the conversation.
   &__blk {

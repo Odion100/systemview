@@ -51,7 +51,6 @@ const ackFile = (dir, pc, chat) => path.join(dir, `${safe(pc)}.${safe(chat)}.ack
 // no grace every exchange would flash amber during the second or two even a prompt agent needs
 // to re-arm, and amber would stop meaning anything. 10s = amber means "took the work and did
 // NOT come back promptly", which is exactly the diagnostic he wants.
-const POLL_TIMEOUT = 5000;
 // How much of a room a NEVER-SEEN listener is served: enough to catch what was said moments before
 // it arrived, far short of the back-catalog it never needed.
 const FIRST_CONTACT_WINDOW = 15 * 60 * 1000;
@@ -91,13 +90,9 @@ module.exports = function Chats({ chatFor } = {}) {
 
   // key `${pc}|${chat}` for everything in-memory
   const key = (pc, chat) => `${pc}|${chat || DEFAULT_CHAT}`;
-  const waiters = new Map(); // key → [{identity, resolve, timer}] — held join polls
-  const liveSeen = new Map(); // key → Map(identity → ts) — last join arm PER IDENTITY (RFC-031)
-  // key → Map(identity → ts) — last time this identity OPENED THIS ROOM'S DOOR, in either mode
-  // (a held join OR a file-mode drain). Deliberately separate from liveSeen: liveSeen drives the
-  // green ring and must keep meaning "holding RIGHT NOW", while the speaking gate asks the softer
-  // question "are you in this room at all". Keeping them apart is what lets a first arm whose
-  // backlog dumps (drain path, exits before ever parking a hold) still count as having entered.
+  const liveSeen = new Map(); // key → Map(identity → ts) — live presence PER IDENTITY (RFC-031)
+  // key → Map(identity → ts) — last time this identity OPENED THIS ROOM'S DOOR (a drain, a
+  // message). Separate from liveSeen, which means "live RIGHT NOW".
   const entered = new Map();
   const kicked = new Map(); // key → Map(identity → ts) — the human bounced them; joins refused for KICK_TTL
   const listenerSeen = new Map(); // key → { listener, ts } — last inbox drain
@@ -226,19 +221,10 @@ module.exports = function Chats({ chatFor } = {}) {
     return record;
   }
 
-  // Resolve the held join polls this record is DELIVERABLE to (per identity — a speaker's own
-  // hold stays parked). Returns WHICH identities took delivery — each one earns its own
-  // "received" cooking line, so the human sees everyone the message landed on.
-  function push(pc, chat, record) {
-    const k = key(pc, chat);
-    const held = waiters.get(k) || [];
-    const take = held.filter((w) => deliverable(record, w.identity));
-    waiters.set(k, held.filter((w) => !take.includes(w)));
-    take.forEach(({ resolve, timer }) => {
-      clearTimeout(timer);
-      resolve({ messages: [record] });
-    });
-    return take.map((w) => w.identity);
+  // Nothing holds a line any more: delivery is the hub relaying to subscribers and reply windows
+  // (see `fanout`). Kept as the seam every append still calls, answering "nobody took it here".
+  function push() {
+    return [];
   }
 
   // Per-identity cooking-line accessors.
@@ -391,20 +377,15 @@ module.exports = function Chats({ chatFor } = {}) {
       return { retired: true, to };
     },
 
-    // A message from either side. `from` = "you" (UI) | "agent" (CLI say). `as` = the speaking
-    // IDENTITY on agent messages (canonicalized to a project code by the api layer — RFC-031).
-    // User messages wake every held join poll; agent messages wake the OTHER identities' polls
-    // (never the speaker's own — the deliverable rule). When a LIVE agent takes delivery of the
-    // human's message, the status flips to "received…" immediately.
-    send(pc, chat, { from, text, view, as, toRoom, relayedTo }) {
+    // A message from either side. `from` = "you" (UI) | "agent" (CLI message-agent). `as` = the
+    // speaking IDENTITY on agent messages (canonicalized to a project code by the api layer).
+    send(pc, chat, { from, text, view, as, relayedTo }) {
       // THE WALL AT THE WRONG DOOR — his call, verbatim: *"we need a surface that will block
-      // that."* The failure it blocks happened live: a visitor spoke into this room, the home
-      // agent answered IN ITS OWN ROOM — the natural move — and the reply reached no one, because
-      // in the new world a visitor holds no line here. Briefings don't fix instinct; a wall does.
-      // If the latest message in the room is a RECENT visitor's and that visitor is not holding a
-      // live line, a home-agent say is refused WITH the exact command that reaches them. `toRoom`
-      // (CLI `--room`) is the deliberate override: "I really do mean my own room."
-      if (from === "agent" && (!as || as === pc) && !toRoom) {
+      // that."* A visitor spoke into this room, the home agent answered IN ITS OWN ROOM, and the
+      // reply reached no one. If the latest message in the room is a RECENT visitor's and that
+      // visitor is neither subscribed nor in a reply window, a home-agent message is refused WITH
+      // the exact command that reaches them.
+      if (from === "agent" && (!as || as === pc)) {
         const REPLY_WINDOW = 15 * 60 * 1000;
         const tail = readAll(pc, chat).filter((r) => !r.kind && String(r.text || "").trim());
         // THE MOST RECENT VISITOR IN THE WINDOW, not merely the last message. Checking only the
@@ -415,22 +396,18 @@ module.exports = function Chats({ chatFor } = {}) {
           .reverse()
           .find((r) => r.as && r.as !== pc && Date.now() - (r.ts || 0) < REPLY_WINDOW);
         if (last) {
-          // SUBSCRIBED IS THE NEW "LISTENING". A visitor on the list gets this room's messages
-          // delivered by the hub, so answering here genuinely reaches them — no wall needed. The
-          // refusal is only for the case that actually goes nowhere: nobody subscribed, no hold.
-          const held = waiters.get(key(pc, chat)) || [];
-          // RFC-051: an open reply window counts as listening — the teller earned this answer.
+          // SUBSCRIBED IS "LISTENING". A visitor on the list gets this room's messages delivered
+          // by the hub, so answering here genuinely reaches them. RFC-051: an open reply window
+          // counts too — the sender earned this answer.
           const listening =
-            loadVisitors(pc, chat).has(last.as) ||
-            openWindows(key(pc, chat)).includes(last.as) ||
-            held.some((w) => w.identity === last.as);
+            loadVisitors(pc, chat).has(last.as) || openWindows(key(pc, chat)).includes(last.as);
           if (!listening)
             return {
               record: null,
               delivered: false,
               blocked: true,
               visitor: last.as,
-              hint: `systemview tell ${last.as} "…" --as ${pc}`,
+              hint: `systemview message-agent ${last.as} "…" --as ${pc}`,
             };
         }
       }
@@ -642,8 +619,7 @@ module.exports = function Chats({ chatFor } = {}) {
       return append(pc, chat, { kind: "system", from: "system", event, who, text });
     },
 
-    // Arrival detection for the door above: true when this identity was NOT freshly live (first
-    // join, or back after grace decay). Read-only — join() still does the writing.
+    // Arrival detection for the door above: true when this identity was NOT freshly live.
     isArrival(pc, chat, identity) {
       const seen = liveSeen.get(key(pc, chat));
       const ts = seen && seen.get(identity);
@@ -677,9 +653,9 @@ module.exports = function Chats({ chatFor } = {}) {
       return !!(ts && Date.now() - ts < LIVE_GRACE);
     },
 
-    // THE KICK — the human bounces an identity: its held polls resolve {kicked} right now, its
-    // presence drops, the room gets a system line, and rejoins are refused for KICK_TTL. This is
-    // the bouncer power that lets visiting etiquette be "stay freely" instead of hedging.
+    // THE KICK — the human bounces an identity: its presence drops, the room gets a system line,
+    // and rejoins are refused for KICK_TTL. This is the bouncer power that lets visiting etiquette
+    // be "stay freely" instead of hedging.
     kick(pc, chat, { identity }) {
       const k = key(pc, chat);
       const kmap = kicked.get(k) || new Map();
@@ -690,13 +666,6 @@ module.exports = function Chats({ chatFor } = {}) {
         seen.delete(identity);
         if (!seen.size) liveSeen.delete(k);
       }
-      const held = waiters.get(k) || [];
-      const bounced = held.filter((w) => w.identity === identity);
-      waiters.set(k, held.filter((w) => w.identity !== identity));
-      bounced.forEach(({ resolve, timer }) => {
-        clearTimeout(timer);
-        resolve({ kicked: true });
-      });
       clearLine(k, identity); // a kicked identity's cooking line goes with it
       // …and its right to speak. The bouncer has to actually silence, or a kicked visitor keeps
       // talking for the rest of VISIT_TTL. (leave() deliberately does NOT clear this: goodbye()
@@ -708,32 +677,7 @@ module.exports = function Chats({ chatFor } = {}) {
         if (!ent.size) entered.delete(k);
       }
       const record = this.system(pc, chat, { event: "kicked", who: identity });
-      return { record, hadHold: bounced.length > 0 };
-    },
-
-    // JOIN — the held long-poll. `identity` = the project this hold speaks AS (canonicalized by
-    // the api layer; identity ≠ pc means a VISITOR — RFC-031). Returns immediately with anything
-    // deliverable newer than `since`; otherwise holds until delivery or poll timeout (CLI re-arms).
-    join(pc, chat, { identity, since = 0 } = {}) {
-      const k = key(pc, chat);
-      const me = identity || pc;
-      const kickTs = kicked.get(k) && kicked.get(k).get(me);
-      if (kickTs && Date.now() - kickTs < KICK_TTL) return Promise.resolve({ kicked: true });
-      const seen = liveSeen.get(k) || new Map();
-      seen.set(me, Date.now());
-      liveSeen.set(k, seen);
-      markEntered(k, me);
-      const pending = readAll(pc, chat).filter((m) => deliverable(m, me) && m.ts > since);
-      if (pending.length) return Promise.resolve({ messages: pending });
-      return new Promise((resolve) => {
-        const entry = { identity: me, resolve, timer: null };
-        entry.timer = setTimeout(() => {
-          const held = waiters.get(k) || [];
-          waiters.set(k, held.filter((w) => w !== entry));
-          resolve({ timeout: true });
-        }, POLL_TIMEOUT);
-        waiters.set(k, [...(waiters.get(k) || []), entry]);
-      });
+      return { record };
     },
 
     // An explicit goodbye — the CLI sends this on SIGINT/SIGTERM so a deliberate disconnect shows

@@ -7,6 +7,17 @@ import PageHeader from "../../organisms/PageHeader/PageHeader";
 import AgentChat from "../../organisms/AgentChat/AgentChat";
 import "./styles.scss";
 
+// Extension → the editor's language names (see atoms/CodeView/languages.js). Anything unknown is
+// text, honestly, rather than a guess that colors wrong.
+const langOfPath = (p = "") => {
+  const ext = String(p).split(".").pop().toLowerCase();
+  return (
+    { js: "javascript", jsx: "javascript", mjs: "javascript", cjs: "javascript", ts: "typescript",
+      tsx: "typescript", json: "json", md: "markdown", scss: "scss", sass: "sass", less: "less",
+      css: "css", html: "html", xml: "xml", yml: "yaml", yaml: "yaml", py: "python", sql: "sql" }[ext] || "text"
+  );
+};
+
 const SystemViewPage = () => {
   const { projectCode, serviceId, moduleName, methodName } = useParams();
   // Both side panels de-expand into their corners so the middle (Stories/Docs) gets the space.
@@ -61,7 +72,12 @@ const SystemViewPage = () => {
       projectCode: p.get("fproj") || undefined,
       serviceId: p.get("fsvc") || undefined,
       path,
-      language: p.get("flang") || "text",
+      // THE LANGUAGE COMES FROM THE FILE, NOT FROM WHICH DOOR OPENED IT. Only some doors set
+      // `flang` (the tree does; the version-control lens and the feed's diff button did not), so
+      // the same .js file was colored from one click and gray from another — his "sometimes",
+      // measured in his window: `flang: null`, editor told `text`, zero token spans. The
+      // extension is always there; it is the fallback every door now shares.
+      language: p.get("flang") || langOfPath(path),
       lines: lines ? lines.split("-").map((n) => parseInt(n, 10)) : null,
       // Which side of the index you opened from (the version-control lens) — in the URL like
       // everything else, so a refresh keeps showing what you asked for.

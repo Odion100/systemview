@@ -151,17 +151,23 @@ async function warmProjectChat(ctx, projectCode) {
     for (const service of services) {
       const url = service.system.connectionData.serviceUrl;
       let Chat = null;
+      // THE HUB'S ONE CLIENT. `loadService` caches by URL, so a service is loaded once and every
+      // later tick gets the same instance — no new sockets, nothing to close. This loop used to
+      // build `createClient(...)` per attempt and drop it on a failed proof, and each dropped client
+      // kept a socket per module open forever: 10,000+ to one service whose proof 500ed every 20s,
+      // until git could not spawn (EBADF). His rule: you only need to load the service; creating
+      // and disconnecting connections that were never necessary is the inefficiency itself.
       try {
-        const client = await createClient(httpClient).loadService(url);
-        Chat = client.SystemViewChat;
-        if (!Chat) continue;
+        const svc = await Client.loadService(url);
+        Chat = svc.SystemViewChat;
         // ADVERTISING THE MODULE IS NOT THE SAME AS ANSWERING. Prove it can actually serve before
         // committing the whole project's room to it — a service whose own middleware throws on every
         // call will happily list SystemViewChat and then 500 on everything.
-        await Chat.chatDir();
+        if (Chat) await Chat.chatDir();
       } catch {
-        continue; // this one can't serve — try the next service that carries the module
+        Chat = null;
       }
+      if (!Chat) continue; // this one can't serve — try the next service that carries the module
       // The event is the FAST path; `Chats.absorb` also reconciles by reading since its last known
       // record, so a dropped subscription makes a record late rather than lost.
       Chat.on("chat", ({ chat, record }) => {
@@ -1081,7 +1087,7 @@ async function commit(projectCode, { message, root } = {}) {
   };
 }
 
-function chatSend(projectCode, { chat, from = "you", text, view, as, toRoom } = {}) {
+function chatSend(projectCode, { chat, from = "you", text, view, as } = {}) {
   armChatSweep(this);
   const identity = from === "agent" ? resolveSpeaker(projectCode, chat, as) : undefined;
   // Known BEFORE the write, so the record can carry it — see `relayedTo` in Chats.send.
@@ -1089,31 +1095,22 @@ function chatSend(projectCode, { chat, from = "you", text, view, as, toRoom } = 
     from,
     ...(identity ? { as: identity } : {}),
   });
-  // THE WALL AT THE HOME DOOR. An agent saying into its OWN room while that room is an attached
-  // conversation is talking to a file beside the chat instead of in it — the message lands in the
-  // room surface, not the conversation, and reads as a duplicate voice. Refused with the reason;
-  // `--room` still means the file on purpose (notes for the record, cross-session hand-offs).
-  // NO ESCAPE HATCH ON AN ATTACHED ROOM. This wall shipped with `!toRoom` — `--room` walked around
-  // it — and I then used `--room` all evening to "drop examples in the chat", writing into the room
-  // file BESIDE the conversation he was reading, while he told me nothing was rendering. Routing
-  // around my own guard. His words: *"why do you use message so much? you even send yourself
-  // messages… we're in the chat directly."*
-  // An attached room has no legitimate own-agent send: the human is in the conversation, and the
-  // reply IS the message (interactive blocks render in it). `--room` keeps its meaning for a room
-  // that is NOT attached — a note for a future session, a file-mode hand-off.
+  // THE WALL AT THE HOME DOOR. An agent writing into its OWN room while that room is an attached
+  // conversation is talking to a file beside the chat instead of in it. The CLI has no verb that
+  // can do this any more (message-agent refuses a self-address before the hub is called); this is
+  // the hub-side backstop for any other caller. The human is in the conversation, and the reply IS
+  // the message.
   if (from === "agent" && identity === projectCode && isAttached(projectCode))
     return {
       blocked: true,
       attachedRoom: true,
-      hadRoomFlag: !!toRoom,
-      hint: `systemview tell <otherProject> "…" --as ${projectCode}`,
+      hint: `systemview message-agent <otherProject> "…" --as ${projectCode}`,
     };
   const sent = Chats.send(projectCode, chat || Chats.DEFAULT_CHAT, {
     from,
     text,
     view,
     as: identity,
-    toRoom,
     relayedTo: goingTo,
   });
   // The wall at the wrong door said no — nothing was written, so nothing is emitted; the refusal
@@ -1279,23 +1276,6 @@ function chatRemoveVisitor(projectCode, { chat, identity } = {}) {
 }
 function chatList(projectCode) {
   return Chats.chats(projectCode);
-}
-function chatJoin(projectCode, { chat, agent, since } = {}) {
-  // join() registers the live presence synchronously before parking the hold — push the ring flip
-  // to every open panel NOW (the poll only exists to catch silent decay).
-  const identity = canonIdentity(projectCode, agent);
-  const chatName = chat || Chats.DEFAULT_CHAT;
-  // RFC-031 — a VISITOR's arrival gets a system line in the thread (the room announces it; the
-  // home agent's ring already tells its own story). Checked BEFORE join() stamps the timestamp.
-  if (identity !== projectCode && Chats.isArrival(projectCode, chatName, identity)) {
-    const sys = Chats.system(projectCode, chatName, { event: "joined", who: identity });
-    this.emit(`chat-updated:${projectCode}`, { chat: chatName, record: sys });
-  }
-  const held = Chats.join(projectCode, chatName, { identity, since });
-  this.emit(`chat-presence:${projectCode}`, presenceFor(projectCode));
-  // A visitor's arrival also changes ITS OWN bot's story ("visiting <room>") — tell that room too.
-  if (identity !== projectCode) this.emit(`chat-presence:${identity}`, presenceFor(identity));
-  return held;
 }
 function chatStatus(projectCode, { chat, text, as } = {}) {
   // A cooking line is speech too — his catch that logtest "was cooking" in a room it wasn't in.
@@ -1605,6 +1585,50 @@ function chatKickAgent(projectCode, { chat, identity, as } = {}) {
   }
   return { ok: res.removed, ...res };
 }
+// THE PLAN METERS, FROM THE THING THAT KNOWS THEM. `/usage` is a Claude Code CLI command, not an
+// SDK one — sent through a session it arrives at the model as text (he pressed it twice and watched
+// "running…" forever). But the CLI answers it in PRINT mode, non-interactively, in a few seconds:
+// `claude -p "/usage" --output-format text`. So the hub runs the CLI on this machine and hands the
+// text back. Real numbers, on demand, no workaround — I proposed two before checking whether the
+// straight door was open; his call: *"you should check with me if what I'm asking for can be
+// accomplished before trying a workaround."* It could.
+const usageCache = { ts: 0, text: "" };
+function findClaudeCli() {
+  const os = require("os");
+  const candidates = [
+    path.join(os.homedir(), ".claude", "local", "claude"),
+    "/usr/local/bin/claude",
+    "/opt/homebrew/bin/claude",
+    path.join(os.homedir(), "autobot", "node_modules", "@anthropic-ai", "claude-agent-sdk-darwin-arm64", "claude"),
+  ];
+  try {
+    const ext = path.join(os.homedir(), ".vscode", "extensions");
+    fsGit.readdirSync(ext).filter((d) => /^anthropic\.claude-code-/.test(d)).sort().reverse()
+      .forEach((d) => candidates.push(path.join(ext, d, "resources", "native-binary", "claude")));
+  } catch {}
+  return candidates.find((c) => fsGit.existsSync(c)) || null;
+}
+function usageReport({ fresh = false } = {}) {
+  return new Promise((resolve) => {
+    if (!fresh && usageCache.text && Date.now() - usageCache.ts < 60000) return resolve({ ok: true, text: usageCache.text, ts: usageCache.ts, cached: true });
+    const cli = findClaudeCli();
+    if (!cli) return resolve({ ok: false, error: "no claude CLI found on this machine" });
+    const { spawn } = require("child_process");
+    let out = "", err = "";
+    const child = spawn(cli, ["-p", "/usage", "--output-format", "text"], { stdio: ["ignore", "pipe", "pipe"], env: { ...process.env } });
+    const timer = setTimeout(() => { try { child.kill("SIGKILL"); } catch {} resolve({ ok: false, error: "the CLI took too long to answer" }); }, 45000);
+    child.stdout.on("data", (d) => { out += d; });
+    child.stderr.on("data", (d) => { err += d; });
+    child.on("error", (e) => { clearTimeout(timer); resolve({ ok: false, error: e.message }); });
+    child.on("close", () => {
+      clearTimeout(timer);
+      const text = String(out || "").trim();
+      if (!/\d+%/.test(text)) return resolve({ ok: false, error: (err || text || "empty answer").slice(0, 300) });
+      usageCache.text = text; usageCache.ts = Date.now();
+      resolve({ ok: true, text, ts: usageCache.ts, cached: false });
+    });
+  });
+}
 function chatKick(projectCode, { chat, identity } = {}) {
   if (!identity) throw new Error("chatKick: identity required");
   const chatName = chat || Chats.DEFAULT_CHAT;
@@ -1636,9 +1660,12 @@ module.exports = function launchSystemView(port = 3000) {
     try {
       const html = require("fs").readFileSync(indexPath, "utf8");
       const m = html.match(/main\.[a-z0-9]+\.js/);
-      res.json({ bundle: m ? m[0] : null });
+      // The stylesheet rides along: a CSS-only build changes nothing in the script hash, and a tab
+      // keyed on the script alone sat on stale styles forever (his window, measured).
+      const c = html.match(/main\.[a-z0-9]+\.css/);
+      res.json({ bundle: m ? m[0] : null, css: c ? c[0] : null });
     } catch {
-      res.json({ bundle: null });
+      res.json({ bundle: null, css: null });
     }
   });
 
@@ -1760,11 +1787,11 @@ module.exports = function launchSystemView(port = 3000) {
       chatJoinRoom,
       chatLeaveRoom,
       chatKickAgent,
+      usageReport,
       chatCommand,
       chatHistory,
       chatList,
       chatFlush,
-      chatJoin,
       chatStatus,
       chatDrain,
       chatHide,

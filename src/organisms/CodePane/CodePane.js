@@ -1251,7 +1251,13 @@ const CodePane = ({ file, onClose }) => {
           // `file.lines` is set when a :file[path#L40-70] link opened this — select + center it.
           <CodeEditor
             value={content}
-            language={file.language}
+            // THE FILE KNOWS ITS OWN LANGUAGE. Doors that open a file without naming one — the
+            // version-control lens, the changes list, the feed's diff button — handed `text` (or
+            // nothing) here, and the same .js file was colored from the tree and gray from the
+            // lens: his "sometimes", measured in his window (`flang: null` → language "text" →
+            // zero token spans). The pane is where every door ends, so the fallback lives here:
+            // the extension decides whenever the door did not.
+            language={file.language && file.language !== "text" ? file.language : langFor(file.path)}
             onChange={setContent}
             dark={editorDark}
             focusLines={jump || (rangeOff ? null : file.lines) || null}

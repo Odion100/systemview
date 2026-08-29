@@ -18,6 +18,7 @@ const LANGS = {
   markdown: () => markdown(),
   css: () => css(),
   sass: () => css(),
+  scss: () => css(), // FileEmbed names .scss "scss"; without this key every stylesheet embed was gray
   less: () => css(),
   html: () => html(),
   xml: () => xml(),

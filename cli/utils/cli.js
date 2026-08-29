@@ -30,8 +30,6 @@ const HELP_TEXT = `
     visitors <project> [add|remove <who>]  Who is in the room; add/remove by hand
     read <project> [--limit n] [--since m] Read a conversation you are in (--since prints a
                                            mark; pass it back for only what is new)
-    tell / say <project> "<text>"          ☠ [RETIRED-2026-08-27] — both retired names for
-                                           message-agent. They still run and print the new verb
     status <project> "<text>"              The cooking line shown while the agent works ("" clears)
     inbox <project>                        File mode: drain pending UI messages as JSON + ack them
                                            (call from your hooks; registers the outlined-bubble
@@ -137,7 +135,6 @@ const HELP_TEXT = `
     --as <projectCode>                     chat verbs: the PROJECT you speak as (the agent IS the
                                            project; omitted/unknown = the room's own agent).
                                            Speaking does NOT subscribe you — join does (RFC-051)
-    --once                                 ☠ [RETIRED-2026-08-26] belonged to the hold form of join
 
   Examples:
     systemview start
@@ -166,7 +163,7 @@ const HELP_TEXT = `
     systemview probe ProfilesService.Users.getUser '{"userId":"123"}'
     systemview open buAPI signUp
     systemview test buAPI --header "X-Api-Key: secret"
-    systemview tell buAPI "the fix is in" --as systemview
+    systemview message-agent buAPI "the fix is in" --as systemview
     systemview join buAPI --as systemview
     systemview show buAPI --text "## Look\n::chart{report=throughput}"
     systemview highlight buAPI --file src/modules/Users.js
@@ -240,9 +237,6 @@ function parseArgs(rawArgs) {
     print: rawArgs.includes("--print"),
     history: rawArgs.includes("--history"),
     pin: rawArgs.includes("--pin"),
-    // `--room` — say's deliberate override for the reply-into-the-void wall: "I really do mean my
-    // own room." Every flag lives HERE or it exists nowhere (the drift lesson above).
-    room: rawArgs.includes("--room"),
     save: (() => {
       const i = rawArgs.indexOf("--save");
       if (i === -1) return false;
@@ -281,9 +275,6 @@ function parseArgs(rawArgs) {
     // RFC-028 chat verbs
     chat: valOf("--chat"),
     as: valOf("--as"),
-    once: rawArgs.includes("--once"),
-    // RFC-051 — the old streaming hold, unlisted; `join` without it subscribes.
-    hold: rawArgs.includes("--hold"),
     // RFC-029 agent control (nav/refresh/act)
     report: valOf("--report"),
     tab: valOf("--tab"),

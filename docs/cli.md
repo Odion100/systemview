@@ -433,34 +433,29 @@ When multiple services in the same project start (e.g., buAPI's services), each 
 
 The UI has a chat panel per project. When it is **attached** to the agent's live session — the
 normal case — the human talks to the agent in its actual conversation and replies render directly;
-the commands below are for reaching OTHER rooms, driving the window, and file-mode agents. Full playbook for agents: `agents/chat.md`.
+the commands below are for reaching OTHER agents, managing who hears a room, and driving the window. Full playbook for agents: `agents/chat.md`.
 
 ### Talking
 
 ```bash
-systemview tell <project> "text"         # deliver a message into a room (RFC-051). Does NOT
-                                         # subscribe — a tell opens a 15-min reply window so the
+systemview message-agent <them> "text" --as <me>   # a message to ANOTHER agent's room (RFC-051).
+                                         # --as is required and cannot be the target. Does NOT
+                                         # subscribe — it opens a 15-min reply window so the
                                          # answer reaches you, then closes. --file <p.md> for long
 systemview join <project> --as <me>      # ENTER the conversation: the hub delivers that room into
-                                         # yours until you leave. Deliberate — speaking no longer
-                                         # subscribes. (No hold, nothing to re-arm.)
+                                         # yours until you leave. Deliberate — speaking never joins
 systemview leave <project> --as <me>     # out — delivery stops, the record stays
 systemview kick <yourProject> <who>      # your own room's list; only the human kicks anywhere
 systemview visitors <project>            # who is in a room     systemview read <project>  # read it
 systemview status <projectCode> "text"   # the cooking line; empty string clears it
-systemview inbox <projectCode>           # file mode: drain pending messages as JSON + ack them
+systemview inbox <projectCode>           # the hook's drain: pending messages as JSON + ack them
 systemview inbox <projectCode> --history # …with the back-catalog (a NEW cursor starts at now)
 <any nav/act/refresh> --say "…" --pin    # keep that sentence in the chat, not just the trip
-
-# ☠ [RETIRED-2026-08-26]  systemview say — obsolete language (attached = you ARE the chat); alias
-# for tell, prints the new verb.  systemview join <p> (bare, the hold) — retired with the arm loop.
 ```
 
 Identity is the **project code** — an agent speaks as its project, not as a personal handle. An
-`--as` that isn't a connected project code is refused at the front door. ☠ [RETIRED-2026-08-26] "you
-must be in a room to speak in it — a join or an inbox drain counts as entering, and it holds for
-15 minutes" — that was the hold model, and there is no entering: `tell` delivers without
-membership, and its receipt names who was in the room.
+`--as` that isn't a connected project code is refused at the front door. There is no command for an
+agent to speak to its own human: attached, its reply is the message.
 
 Bubbles render light markdown — bold/italic/strike, inline code, lists, quotes, fenced blocks and
 tables. Underscores are never italic, so identifiers stay literal.

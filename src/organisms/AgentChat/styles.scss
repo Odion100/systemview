@@ -585,7 +585,15 @@
     align-items: center;
     min-width: 0;
   }
-  &__brief-say { display: block; }
+  // UP TO THREE LINES of the last thing said — it was one line with an ellipsis, which on a real
+  // answer showed the first eight words and cut the sentence he minimised to keep reading.
+  &__brief-say {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    white-space: pre-wrap;
+    text-overflow: clip;
+  }
   &__brief-say {
     font-size: 12px;
     line-height: 1.35;
@@ -595,7 +603,11 @@
     font-family: "SF Mono", Menlo, "Courier New", monospace;
     font-size: 10.5px;
     line-height: 1.35;
-    color: var(--sv-text-faint);
+    // ALWAYS GREEN IN THE MINIMISED VIEW — his call: "the cooking message in minimize mode should
+    // always be green." It used to go gray once the command finished, and gray-vs-green was a
+    // distinction nobody had explained; the one thing this row means is "cooking", and cooking is
+    // green. SystemView actions keep their purple.
+    color: #4caf50;
     // The dots ride at the end of the line, scaled down to sit with 10.5px mono, and they take the
     // line's own colour so a SystemView action bounces in plum and a shell line in green.
     .agent-chat__dots {
@@ -955,6 +967,156 @@
     font-size: 13px;
     padding: 0 2px;
     &:hover { color: #e05757; }
+  }
+  // The `/` popup — the model menu's box, opening UPWARD from the composer so it never covers
+  // what you are typing. The row it hangs from has to be positioned for that.
+  &__inputrow { position: relative; }
+  // TWO CLASSES, so this outranks the base menu's `top: 100%` regardless of where in the sheet it
+  // sits. With one class the base won on source order and BOTH top and bottom applied — the popup
+  // rendered with all seven rows crushed into a 10px sliver at the foot of the panel: measured in
+  // his window, and exactly why "typing / does nothing" was true while the code was "working".
+  &__model-menu#{&}__slash-menu {
+    top: auto;
+    bottom: 100%;
+    left: 0;
+    right: auto;
+    margin: 0 0 6px;
+    min-width: 260px;
+    max-width: calc(100% - 8px);
+  }
+  // THE COMMANDS PANEL — the board's box, with a list up top and the fresh result under it.
+  &__cmds {
+    z-index: 3; // above the board when both are out; the newest thing you opened is on top
+  }
+  &__cmds-list {
+    display: flex;
+    flex-direction: column;
+    padding: 6px 8px;
+    gap: 2px;
+    border-bottom: 1px solid var(--sv-border);
+  }
+  &__cmds-item {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    width: 100%;
+    text-align: left;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 11.5px;
+    color: var(--sv-text);
+    padding: 3px 6px;
+    border-radius: 6px;
+    code {
+      flex: none;
+      font-family: "SF Mono", Menlo, monospace;
+      font-size: 11px;
+      color: var(--sv-blue);
+    }
+    span { color: var(--sv-text-faint); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    &:hover { background: var(--sv-inset); }
+    &--on { background: var(--sv-inset); }
+  }
+  &__cmds-out {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+  // The token count on the cooking line — quiet, monospace, after the words, before the dots.
+  &__cooking-tok {
+    margin-left: 8px;
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 10px;
+    color: var(--sv-text-faint);
+    font-variant-numeric: tabular-nums;
+  }
+  // THE USAGE LINE above the composer — a hairline meter with the ticker text on its right.
+  &__usageline {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 3px 10px 2px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 9.5px;
+    color: var(--sv-text-faint);
+    text-align: left;
+    &:hover { color: var(--sv-text); }
+    &--warn &-fill { background: #d19a2e; }
+    &--due &-fill { background: #c0392b; }
+    &--due &-text { color: #e05252; }
+  }
+  &__usageline-track { flex: 1 1 auto; height: 3px; border-radius: 2px; background: color-mix(in srgb, var(--sv-border) 55%, transparent); overflow: hidden; }
+  &__usageline-fill { display: block; height: 100%; background: #6b76d6; transition: width 400ms; }
+  &__usageline-text { flex: none; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  &__usage-asof { font-size: 10px; color: var(--sv-text-faint); margin-bottom: 2px; }
+  &__usage-prefs { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 10.5px; color: var(--sv-text-faint); padding: 2px 0 6px; }
+  &__usage-prefs-label { font-weight: 600; }
+  &__usage-pref {
+    border: 1px solid var(--sv-border);
+    border-radius: 999px;
+    background: none;
+    color: var(--sv-text-faint);
+    font-family: inherit;
+    font-size: 10.5px;
+    line-height: 1;
+    padding: 3px 8px;
+    cursor: pointer;
+    &:hover { color: var(--sv-text); }
+    &--on { color: var(--sv-blue); border-color: var(--sv-blue); background: color-mix(in srgb, var(--sv-blue) 10%, transparent); }
+  }
+  // /usage as meters — the context ruler's colours, one per limit.
+  // THE METERS ARE THE POINT — his: "a series of bars showing my usage so I can see how much,
+  // visually." Big enough to read from across the room: tall fills, the percentage large, the
+  // reset time under each.
+  // THE USAGE TILES. Meter fill carries severity (accent → warning → critical); the track is a
+  // lighter step of the SAME blue ramp so the bar reads as one state end to end; dark mode gets
+  // its own validated steps rather than a flipped light one. Text wears text tokens, never the
+  // fill color; the severity word beside the number is what makes it never color-alone.
+  &__usage {
+    display: flex; flex-direction: column; gap: 14px; padding: 10px 10px 8px;
+    --u-fill: #2a78d6;   // blue 450 — 3:1+ on the light surface
+    --u-track: #cde2fb;  // blue 100 — same ramp, near the surface
+    --u-warn: #fab219;
+    --u-due: #d03b3b;
+    :root.sv-dark & { --u-fill: #3987e5; --u-track: #184f95; } // blue 400 on blue 600
+  }
+  &__usage-row {
+    display: flex; flex-direction: column; gap: 6px;
+    padding: 10px 12px 9px;
+    border: 1px solid var(--sv-border);
+    border-radius: 10px;
+    background: var(--sv-surface);
+    &--warn { --u-fill: var(--u-warn); }
+    &--due { --u-fill: var(--u-due); border-color: color-mix(in srgb, var(--u-due) 45%, var(--sv-border)); }
+  }
+  &__usage-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  &__usage-label { font-size: 12px; color: var(--sv-text-faint); }
+  &__usage-value { display: flex; align-items: baseline; gap: 10px; }
+  &__usage-word { font-size: 11px; font-weight: 600; color: var(--sv-text); }
+  &__usage-row--due &__usage-word { color: var(--u-due); }
+  &__usage-pct { font-size: 26px; font-weight: 600; line-height: 1; color: var(--sv-text); font-variant-numeric: proportional-nums; letter-spacing: -0.02em; }
+  &__usage-unit { font-size: 14px; font-weight: 500; color: var(--sv-text-faint); margin-left: 1px; }
+  &__usage-meter { height: 10px; border-radius: 5px; background: var(--u-track); overflow: hidden; }
+  &__usage-fill { height: 100%; background: var(--u-fill); border-radius: 5px; transition: width 400ms ease-out; }
+  &__usage-resets { font-size: 11px; color: var(--sv-text-faint); }
+  &__usage-notes { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--sv-border); font-size: 11px; color: var(--sv-text-faint); line-height: 1.45; }
+  &__usage-note-head { color: var(--sv-text); margin-top: 4px; }
+  &__usage-note { padding-left: 8px; }
+  &__cmds-empty {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--sv-text-faint);
+    font-size: 11.5px;
+    padding: 8px 2px;
   }
   // The reply's ×: same control, sized to the 9px who-line it sits on, and only visible when the
   // reply is hovered — ten replies with ten permanent ×s reads as a row of warnings.
@@ -1740,58 +1902,6 @@
     &:hover {
       opacity: 1;
     }
-  }
-  // HIS PLAN LIMITS — three thin bars under the context hairline. Deliberately quieter than the
-  // context meter: that one is about the conversation on screen and can demand action, this one is
-  // background weather. Same colour language though (calm → amber at 75 → red at 90), because a
-  // number meaning "getting full" has to look the same everywhere in this window.
-  &__usage {
-    padding: 5px 12px 6px;
-    border-bottom: 1px solid var(--sv-border);
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-  }
-  &__usage-row {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-  &__usage-label {
-    flex: 0 0 auto;
-    min-width: 86px;
-    font-size: 9.5px;
-    letter-spacing: 0.02em;
-    color: var(--sv-text-faint);
-    white-space: nowrap;
-  }
-  &__usage-bar {
-    flex: 1 1 auto;
-    height: 3px;
-    border-radius: 2px;
-    overflow: hidden;
-    background: color-mix(in srgb, var(--sv-border) 55%, transparent);
-  }
-  &__usage-fill {
-    display: block;
-    height: 100%;
-    border-radius: 2px;
-    background: color-mix(in srgb, var(--sv-text-faint) 55%, transparent);
-    transition: width 0.4s ease;
-    &--warn {
-      background: #d19a2e;
-    }
-    &--due {
-      background: #c0392b;
-    }
-  }
-  &__usage-pct {
-    flex: 0 0 auto;
-    min-width: 26px;
-    text-align: right;
-    font-family: "SF Mono", Menlo, monospace;
-    font-size: 9px;
-    color: var(--sv-text-muted);
   }
   // THE STAMP IS PART OF THE READING, not a footnote to it — a number this cheap is only as fresh
   // as the last /usage, and every meter lie killed today was one that could not say as-of-when.

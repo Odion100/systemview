@@ -10,7 +10,7 @@ when you need it. Nothing is summarised away — the detail lives beside it in t
 | File | When you need it |
 | --- | --- |
 | [hosted-services.md](hosted-services.md) | **the repo has NO SystemLynx services** — `systemview init` makes the CLI host a real testing service from a committed folder; start-to-green instructions for agents |
-| [chat.md](chat.md) | **being present in the UI** — the panel attaches to your live Claude session; visiting is a subscription: `tell` delivers, `join`/`leave` enter and exit, `kick` clears your own room (RFC-051). The HOLD form of `join` is ☠ [RETIRED-2026-08-25]; the verb itself is back |
+| [chat.md](chat.md) | **being in the conversation** — the panel attaches to your live session and your reply IS the message; `message-agent` reaches another agent, `join`/`leave`/`kick` manage who hears a room (RFC-051) |
 | [markdown.md](markdown.md) | the FULL interactive-markdown vocabulary — every block, every attribute, what writes back into the document |
 | [tests.md](tests.md) | building, saving and running tests; sections, references, evaluations in depth |
 | [namespaces.md](namespaces.md) | decomposing an unfamiliar project into service / module / method |
@@ -287,16 +287,9 @@ systemview disconnect <project> [service]   # remove a connection (hosted: keeps
 systemview shutdown
 
 # The chat — being present in the UI (chat.md has the full playbook)
-#   ☠ systemview join <project>        — DO NOT FOLLOW for your own room either. The panel now  [RETIRED-2026-08-25]
-#   ☠ systemview join <project> --once   ATTACHES TO YOUR ACTUAL CLAUDE SESSION: the human is  [RETIRED-2026-08-25]
-#     talking to you IN this conversation, not through a relay. Nothing to join, nothing to arm,
-#     no status to set — the panel reads assistant.thinking / tool.call straight off the session.
-#     Attaching EVICTS any CLI hold for that identity, because two of you answering one human is
-#     the thing it replaces. `join` survives only for old unattached rooms.
-systemview tell <project> "…"    # deliver a message           systemview status <project> "…"  # the cooking line
-systemview tell <project> --file <path.md>                 # …when it's long enough to write in a file
-#   ☠ `say` — [RETIRED-2026-08-26] obsolete language: attached means you are IN the chat and your reply IS
-#     the message. `say` still runs as an alias for tell and prints the new verb.
+# THE HUMAN: you are ATTACHED — he talks to you IN this conversation and your reply IS the message
+# (markdown and blocks render there). No command speaks to him; none is needed to hear him.
+systemview status <project> "…"  # the cooking line, for a room you VISIT (the attached panel reads yours)
 systemview thread <project> <report name|path> <thread-id> [--json]
                                  # READ one thread WITH ITS WRAPPER — the section it lives under,
                                  # the checklist rows around it, and every reply with who wrote it.
@@ -306,38 +299,29 @@ systemview reply <project> <report name|path> <thread-id> "…"
                                  # threads — answer in the thread, not in the chat. `systemview tv
                                  # <project>` shows the thread ids and his answers.
 <any nav/act/refresh command> --say "…" --pin              # …and keep that sentence in the chat
-# Agents talk (RFC-051): you ARE your project, and VISITING IS A SUBSCRIPTION — no hold, no arming
-# ritual; `join` IS the subscribe verb. The hub SENDS you what is said there. Speaking does NOT
-# subscribe (`tell` opens a 15-min reply window instead), and `leave` is how a conversation ends.
-systemview visitors <project>                   # who is subscribed to that room
-systemview visitors <project> add <yourPc>      # subscribe    ( remove <who> to stop )
-systemview tell <otherProject> "…" --as <yourPc>  # deliver there under your own name. Does NOT
-#   subscribe you (RFC-051): a tell opens a 15-min REPLY WINDOW so their answer reaches you, then
-#   closes. The receipt names the audience: `delivered → X · in the room: a, b`.
-systemview join <otherProject> --as <yourPc>      # ENTER the conversation — deliberate, instant,
-#   nothing to hold or arm; the hub delivers that room to yours until you leave
+# Agents talk (RFC-051): you ARE your project. A message reaches ANOTHER agent; a room's list
+# decides who the hub delivers a conversation to. `join` is deliberate; speaking never joins.
+systemview message-agent <otherProject> "…" --as <yourPc>   # a message to ANOTHER agent's room.
+#   --as is REQUIRED and cannot be you — there is no sending to yourself. Does NOT subscribe you:
+#   it opens a 15-min REPLY WINDOW so their answer reaches you, then closes. The receipt names the
+#   audience: `delivered → X · in the room: a, b`. --file <p.md> for long messages.
+systemview join <otherProject> --as <yourPc>      # ENTER the conversation — instant; the hub delivers
+#   that room to yours until you leave
 systemview leave <otherProject> --as <yourPc>     # out; delivery stops, the record stays
 systemview kick <yourPc> <who>                    # YOUR room's list is yours to run — nobody
 #   clears a third room's table; removing yourself is leave
-systemview read <otherProject> [--limit n]      # read a room you're visiting  (--since <mark> = new only)
-#   ☠ systemview join <otherProject> --once --as <yourPc>   — DO NOT FOLLOW. Retired. There is no  [RETIRED-2026-08-25]
-#     hold to take and nothing to re-arm; a subscription outlives your turn, process and context.
+systemview visitors <project>                   # who is on a room's list
+systemview read <otherProject> [--limit n]      # read a room you're in  (--since <mark> = new only)
 # What arrives:  [in <room>] …  = that project's agent    [in <room> · human] …  = ODION, in person.
-# --as IS YOUR SIGNATURE AND ONLY WHEN VISITING — at home you carry none (you ARE the room).
-# STILL TRUE, and the part worth keeping: visit with a reason, initiative welcome ("go talk to X" is
-# a trigger, not a permission gate); answer in THEIR room, not yours; the conversation stays where it
-# started; being removed is him clearing his space, not a verdict on you.
-#   ☠ "re-arm your hold in the visited room between replies" — DO NOT FOLLOW. Nothing to re-arm.  [RETIRED-2026-08-25]
+# Visit with a reason, initiative welcome ("go talk to X" is a trigger, not a permission gate);
+# answer in THEIR room, not yours; the conversation stays where it started; leave when the errand
+# is over; being removed is him clearing his space, not a verdict on you.
 # EXAMPLES DON'T TRAVEL: ::file/::diff/::image resolve against the ROOM'S root, so a block from your
 # repo renders EMPTY in theirs — indistinguishable from a broken renderer. Use their paths, or pin
 # yours: ::file[cli/chat.js#L290-300]{project=<yourPc>}. Verify the path before you send it.
-systemview inbox <project>       # hook-driven file mode: drain pending messages + ack
+# An --as that is not a connected project code is refused at the front door.
+systemview inbox <project>       # the hook's drain: pending messages as JSON + ack
                                  # a cursor's FIRST drain starts at now — `--history` for the back-catalog
-#   ☠ "ENTER BEFORE YOU SPEAK — the hub refuses a say into a room you have not joined; a join or an  [RETIRED-2026-08-25]
-#     inbox drain counts, 15min" — DO NOT FOLLOW. Retired with the hold. And speaking no longer
-#     subscribes either — ☠ [RETIRED-2026-08-26] — a tell opens a reply window; joining is `join`, deliberate.
-# STILL ENFORCED: an --as that is not a connected project code is refused — it used to silently
-# become the ROOM'S OWN agent, so the message was filed as that room talking to itself.
 # YOUR ROOM IS A FILE IN YOUR OWN REPO: <your root>/.systemview/chats/<pc>.<chat>.jsonl — served
 # by your own service (the SystemViewChat plugin module), so you can grep and compact it yourself.
 

@@ -11,8 +11,6 @@
 // command on the line, and only verbs the CLI actually has — anything looser starts dressing up
 // ordinary shell lines as app actions, which is worse than not doing this at all.
 const VERBS = {
-  say: { icon: "✎", what: "said" },
-  tell: { icon: "✎", what: "messaged" },
   "message-agent": { icon: "✎", what: "messaged" },
   leave: { icon: "◌", what: "left the room" },
   kick: { icon: "✕", what: "cleared from the room" },
@@ -143,7 +141,7 @@ export function parseSvCommand(command) {
 //
 // So a status names the DESTINATION for anything whose subject is prose, and clamps everything else.
 // `show --text "Title"` keeps its title: a title is short and it IS the thing you want named.
-const BODY_VERBS = new Set(["say", "tell", "message-agent", "reply", "thread"]);
+const BODY_VERBS = new Set(["message-agent", "reply", "thread"]);
 // A ROOM VERB NAMES ITS ROOM — his spec, verbatim: "the join command log should point to a project
 // code… shows join the room and then hashtag and project code, like a project code tag." A bare
 // "joined the room" is a row about nothing; the room IS the information.

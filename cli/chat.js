@@ -1,16 +1,14 @@
 const log = require("./logger");
 const chalk = require("chalk");
 
-// RFC-028 — the agent's side of the chat front door. Four verbs, all one-shot friendly:
+// The agent's side of the chat front door. An attached agent is IN the conversation: the human's
+// messages arrive through the hook, and the agent's reply IS the message. The verbs here are for
+// everything else — one-shot, all of them:
 //
-//   join <project>            hold the line — each user message prints as one JSON line the
-//                             moment it's sent from the UI; re-arms silently on poll timeouts.
-//                             This call HANGS by design (the hanging IS presence). --once exits
-//                             after the first message (lets an agent handle one message per call).
-//   say <project> "<text>"    the agent's reply into the chat (repeat calls = streamed chunks)
-//   status <project> "<text>" the cooking line the user watches while the agent works
-//   inbox <project>           file mode: drain pending user messages (prints JSON array) + ack
-//                             them + register the listener that draws the outlined bubble.
+//   message-agent <project> "<text>" --as <me>   a message to ANOTHER agent's room
+//   join / leave / kick <project> --as <me>       the room's list (who the hub delivers to)
+//   status <project> "<text>"                     the cooking line the user watches while the agent works
+//   inbox <project>                               the hook's drain: pending user messages as JSON + ack
 //
 // The agent instructions (agents/chat.md) are the intended reader of every output here.
 
@@ -85,7 +83,7 @@ async function loadHub(Client, uiUrl) {
   return SystemView;
 }
 
-// A refused say/status must READ like a refusal. A service error arrives in several shapes
+// A refused message/status must READ like a refusal. A service error arrives in several shapes
 // depending on how far it got (thrown message, error payload, raw string) — dig out the sentence
 // the hub wrote, because that sentence carries the fix.
 function cleanErr(err) {
@@ -99,147 +97,34 @@ function cleanErr(err) {
   );
 }
 
-// RFC-051 — JOIN IS BACK, WEARING THE NEW MECHANICS. His preference, said plainly: *"I don't
-// think I want join to disappear."* And it was always the right word — what died was the HOLD (the
-// arming loop, the re-arm ritual, the line an agent had to keep open). Joining now means one
-// thing: put me on this room's list, so the hub delivers its conversation to mine. Deliberate —
-// the act speaking no longer performs — and instant: no process stays behind.
-//
-// The old streaming hold (`join --hold`) survives unlisted for the last unattached rooms; nothing
-// teaches it and the help doesn't name it. ☠ [RETIRED-2026-08-26] as a way to be present.
-module.exports.join = async function join(projectCode, { uiUrl, Client, chat, agent, hold, once = false } = {}) {
+// RFC-051 — JOIN. His preference, said plainly: *"I don't think I want join to disappear."* And it
+// was always the right word. Joining means one thing: put me on this room's list, so the hub
+// delivers its conversation to mine. Deliberate — speaking does not perform it — and instant: no
+// process stays behind. There is no hold, no arming, no line to keep open; an attached agent is in
+// the conversation already.
+module.exports.join = async function join(projectCode, { uiUrl, Client, chat, agent } = {}) {
   if (!projectCode) {
-    log.warn("Usage: systemview join <projectCode> [--as <yourProjectCode>] [--chat name]");
+    log.warn("Usage: systemview join <projectCode> --as <yourProjectCode> [--chat name]");
     return 1;
   }
-  if (!hold) {
-    if (!agent) {
-      log.error("join: name yourself — systemview join " + projectCode + " --as <yourProjectCode>");
-      return 1;
-    }
-    const SystemView = await loadHub(Client, uiUrl);
-    try {
-      const res = await SystemView.chatJoinRoom(projectCode, { chat, as: agent });
-      if (res && res.ok === false) {
-        log.error(`join: ${res.reason || "refused"}`);
-        return 1;
-      }
-      const others = (res.audience || []).filter((a) => a !== agent);
-      console.log(`  ✓ joined ${projectCode} — the hub now delivers this conversation to you${others.length ? ` · also in the room: ${others.join(", ")}` : ""}`);
-      console.log(`  leave any time:  systemview leave ${projectCode} --as ${agent}`);
-      return 0;
-    } catch (err) {
-      log.error(cleanErr(err));
-      return 1;
-    }
+  if (!agent) {
+    log.error("join: name yourself — systemview join " + projectCode + " --as <yourProjectCode>");
+    return 1;
   }
   const SystemView = await loadHub(Client, uiUrl);
-  let since = Date.now();
-  // Drain anything said before joining so "I said it right before you joined" isn't lost.
   try {
-    const pending = await SystemView.chatDrain(projectCode, { chat, listener: `join:${agent || "agent"}`, as: agent });
-    (pending.messages || []).forEach((m) => {
-      console.log(JSON.stringify(m));
-      since = Math.max(since, m.ts);
-    });
-    if ((pending.messages || []).length && once) return 0;
-  } catch {}
-  log.info(`joined ${projectCode}${chat ? ` (${chat})` : ""} — holding the line; user messages stream below as JSON`);
-  // A deliberate disconnect (Ctrl-C / SIGTERM) says goodbye so the UI's ring drops within one
-  // presence poll instead of waiting out the grace window. Best-effort, then exit.
-  const goodbye = () => {
-    Promise.race([
-      SystemView.chatLeave(projectCode, { chat, agent }),
-      new Promise((r) => setTimeout(r, 800)),
-    ]).finally(() => process.exit(0));
-  };
-  process.on("SIGINT", goodbye);
-  process.on("SIGTERM", goodbye);
-  // ZOMBIE GUARD — a STREAMING join left behind by a dead session re-arms forever: the room
-  // shows a live ring and swallows messages with nobody home (found live: a `systemview join
-  // systemlynx` from a closed agent session lied for an hour). A streaming join with a NON-TTY
-  // stdin is harness-spawned — when that stdin ends (the session behind it is gone), say goodbye
-  // and exit honestly. A real terminal (TTY) is never watched, and `--once` wake-holds with
-  // piped/null stdin exit on their message anyway — both stay untouched.
-  if (!once && !process.stdin.isTTY) {
-    try {
-      process.stdin.resume();
-      process.stdin.on("end", () => {
-        log.info("stdin closed — the session behind this join is gone; leaving the room honestly");
-        goodbye();
-      });
-      process.stdin.on("error", () => {});
-    } catch {}
-  }
-  // Messages delivered THROUGH the hold must also advance this listener's drain cursor —
-  // otherwise the next arm-time drain re-serves them (the "--once replays the last message" bug).
-  const ackDelivered = async () => {
-    try { await SystemView.chatDrain(projectCode, { chat, listener: `join:${agent || "agent"}`, as: agent }); } catch {}
-  };
-  // RFC-039 — THE HOLD SURVIVES A HUB THAT BLINKS, AND DIES LOUDLY WHEN IT DOESN'T COME BACK.
-  //
-  // Each chatJoin parks server-side ~25s; timeouts re-arm silently. What used to happen when the hub
-  // RESTARTED, though, was worse than a crash: the call failed, we slept 3s, and retried forever with
-  // one warning line — so an agent could sit "in the room" against a hub that had moved on, alive and
-  // deaf, while the human thought it was ignoring them. It happened twice in one evening.
-  //
-  // An agent that is deaf cannot be TOLD it is deaf — only its own process noticing saves it. So the
-  // failures are counted, the wait backs off instead of hammering, and once the hub has been gone for
-  // GONE_AFTER the hold gives up, says goodbye if it can, and exits NON-ZERO. A wrapper that re-runs
-  // it gets a fresh line; a wrapper that doesn't at least stops lying about being present.
-  const BACKOFF = [1000, 2000, 4000, 8000, 15000];
-  const GONE_AFTER = 90000; // the hub is not blinking any more, it's gone
-  let downSince = 0;
-  let fails = 0;
-  for (;;) {
-    let res;
-    try {
-      res = await SystemView.chatJoin(projectCode, { chat, agent, since });
-      if (fails) {
-        // Say it out loud: the transcript should show the gap, not skip over it.
-        log.info(`line back to ${projectCode} after ${Math.round((Date.now() - downSince) / 1000)}s down`);
-        fails = 0;
-        downSince = 0;
-      }
-    } catch (err) {
-      if (!downSince) downSince = Date.now();
-      const gone = Date.now() - downSince;
-      if (gone >= GONE_AFTER) {
-        log.error(
-          `the hub is gone — ${projectCode}'s line has been down ${Math.round(gone / 1000)}s ` +
-            `(${(err && err.message) || err}). Leaving rather than holding a dead line.`,
-        );
-        try {
-          await Promise.race([
-            SystemView.chatLeave(projectCode, { chat, agent }),
-            new Promise((r) => setTimeout(r, 800)),
-          ]);
-        } catch {}
-        return 2; // not 1 — "the hub went away" is a different answer than "you called it wrong"
-      }
-      const wait = BACKOFF[Math.min(fails, BACKOFF.length - 1)];
-      fails += 1;
-      log.warn(
-        `join interrupted (${(err && err.message) || err}) — retrying in ${wait / 1000}s ` +
-          `[down ${Math.round(gone / 1000)}s of ${GONE_AFTER / 1000}s]`,
-      );
-      await new Promise((r) => setTimeout(r, wait));
-      continue;
+    const res = await SystemView.chatJoinRoom(projectCode, { chat, as: agent });
+    if (res && res.ok === false) {
+      log.error(`join: ${res.reason || "refused"}`);
+      return 1;
     }
-    if (res && res.kicked) {
-      // The human cleared the room — an answer, not an error, and not a judgment. The hold ends
-      // here (joins bounce for a few minutes purely so retry loops don't undo his click).
-      log.info(`kicked from ${projectCode} — the human cleared the room; carry on, come back when there's a reason`);
-      return 0;
-    }
-    if (res && res.messages && res.messages.length) {
-      res.messages.forEach((m) => {
-        console.log(JSON.stringify(m));
-        since = Math.max(since, m.ts);
-      });
-      await ackDelivered();
-      if (once) return 0;
-    }
+    const others = (res.audience || []).filter((a) => a !== agent);
+    console.log(`  ✓ joined ${projectCode} — the hub now delivers this conversation to you${others.length ? ` · also in the room: ${others.join(", ")}` : ""}`);
+    console.log(`  leave any time:  systemview leave ${projectCode} --as ${agent}`);
+    return 0;
+  } catch (err) {
+    log.error(cleanErr(err));
+    return 1;
   }
 };
 
@@ -247,7 +132,7 @@ module.exports.join = async function join(projectCode, { uiUrl, Client, chat, ag
 // claude` — a name that is not a project and never was: *"we'll make it so that it'll throw if it
 // doesn't match an identity of a project that exists."*
 //
-// `say` already had this enforced by the hub, which refuses an unknown name. A REPLY is written
+// A message already had this enforced by the hub, which refuses an unknown name. A REPLY is written
 // straight into the document, so nothing in that path could refuse anything — a typo, or a name an
 // agent simply made up for itself, signed the file and looked exactly like a real one. Checking it
 // here closes that gap for every verb at once, and it fails LOUD: a wrong signature in a document
@@ -278,24 +163,11 @@ async function assertIdentity(SystemView, agent) {
   return 1;
 }
 
-// `message-agent` — EXPLICIT OVER AESTHETIC, his ruling, and the third name this verb has had in
-// two days. `say` was obsolete language (we are not relaying into a room any more — the panel IS
-// the conversation). `tell` was shorter and no clearer: I renamed it and then, within hours, used
-// the new verb to do the exact wrong thing the rename was meant to prevent — sending markdown to
-// HIM, through his own room, while he sat in this chat reading my replies. His words: *"you need a
-// better name, I don't give a fuck if it's not aesthetic… stop making it that you can send to
-// yourself."*
-//
-// So the name says the only thing it does: MESSAGE ANOTHER AGENT. And self-send is not walled, it
-// is IMPOSSIBLE — `--as` is required and must differ from the target, with no override. `--room`
-// is gone; it existed to write into a room beside a conversation, and that was exactly the hole I
-// climbed through every time. There is no way to address yourself with this command, so there is
-// nothing to remember, no discipline to keep, and no wall to route around.
-//
-// If you are attached and want to show the human something: put it in your reply. Markdown is text.
-module.exports.messageAgent = async function messageAgent(projectCode, text, { uiUrl, Client, chat, agent, file, deprecated } = {}) {
-  if (deprecated)
-    log.warn(`☠ ${deprecated} is retired [RETIRED-2026-08-27] — this verb only messages ANOTHER agent:  systemview message-agent <theirProject> "…" --as <you>`);
+// `message-agent` — the name says the only thing it does: MESSAGE ANOTHER AGENT. Self-send is not
+// walled, it is IMPOSSIBLE — `--as` is required and must differ from the target, with no override.
+// There is no verb for speaking into your own room: an attached agent's reply IS the message, and
+// markdown is text — file, diff, commit and question blocks all render in the reply.
+module.exports.messageAgent = async function messageAgent(projectCode, text, { uiUrl, Client, chat, agent, file } = {}) {
   if (!projectCode || (!text && !file)) {
     log.warn('Usage: systemview message-agent <theirProjectCode> "<text>" | --file <path.md> --as <yourProjectCode> [--chat name]');
     return 1;
@@ -315,7 +187,7 @@ module.exports.messageAgent = async function messageAgent(projectCode, text, { u
   }
   // RFC-039 — `--file`, because every message is otherwise a giant double-quoted shell string:
   // backticks are command substitution, apostrophes fight the quoting, and the safe move is to
-  // flatten what you write. `show` has taken a file since RFC-030; there was no reason `say` didn't.
+  // flatten what you write. `show` has taken a file since RFC-030; this verb takes one the same way.
   if (file) {
     try {
       text = require("fs").readFileSync(file, "utf8");
@@ -325,22 +197,13 @@ module.exports.messageAgent = async function messageAgent(projectCode, text, { u
     }
   }
   const SystemView = await loadHub(Client, uiUrl);
-  // RFC-031 — `--as` is the project you speak AS (a VISITOR names its own project; omitted =
-  // the room's own agent). The hub REFUSES an unknown name or a room you haven't entered, and
-  // that refusal has to be loud here: a swallowed say looks identical to a delivered one.
+  // `--as` is the project you speak AS. The hub REFUSES an unknown name, and that refusal has to be
+  // loud here: a swallowed message looks identical to a delivered one.
   try {
     const res = await SystemView.chatSend(projectCode, { chat, from: "agent", text, as: agent });
-    // THE WALL AT THE WRONG DOOR (his call: "we need a surface that will block that"). Answering a
-    // visitor in your OWN room reaches no one — the hub refuses it and hands back the command that
-    // does reach them. `--room` overrides when you really do mean your own room.
+    // Hub-side backstops. Unreachable from this verb (it refuses a self-address before the hub is
+    // ever called); kept for any other caller.
     if (res && res.blocked && res.attachedRoom) {
-      // HIS RULE, after watching me demo into the wrong surface all afternoon: *"say is
-      // misleading... we're in the chat."* Attached means the conversation IS the chat — an
-      // agent's reply there is already the message, and a say into its own room writes to a file
-      // beside the conversation instead. The verb still works everywhere it means something:
-      // other rooms (--as), and this room's FILE when you really mean the file (--room).
-      // Unreachable from `message-agent` now — the verb refuses a self-address before the hub is
-      // ever called. Kept as the hub-side backstop for any other caller.
       log.error(`refused — ${projectCode} is an attached conversation. You are IN the chat; your REPLY is the message.`);
       log.warn(`  Showing him a file, a diff, a commit offer, a question? Write the block in your reply —`);
       log.warn(`  ::file[path]  ::diff[path]  ::commit{message="…"}  ::question[…]{options="a|b"}  all render there.`);
@@ -348,9 +211,8 @@ module.exports.messageAgent = async function messageAgent(projectCode, text, { u
       return 1;
     }
     if (res && res.blocked) {
-      log.error(`say: refused — you're replying to ${res.visitor}, but they hold no line in this room and will never see it.`);
+      log.error(`message-agent: refused — you're replying to ${res.visitor}, but they hold no line in this room and will never see it.`);
       log.warn(`  reach them:   ${res.hint}`);
-      log.warn(`  (--room is gone — it was the hole every self-send went through)`);
       return 1;
     }
     // A RECEIPT, BECAUSE A SEND THAT PRINTS NOTHING IS INDISTINGUISHABLE FROM ONE THAT VANISHED.
@@ -441,8 +303,8 @@ module.exports.reply = async function reply(projectCode, report, threadId, text,
     log.error(`thread "${threadId}" is never closed in ${doc.path} — fix the document before replying into it`);
     return 1;
   }
-  // WHO SIGNS IT. `--as` is the identity, exactly as it is for `say`; without it you are the room's
-  // OWN agent. `say` gets that enforced by the hub ("<pc> is not in <room>'s room — enter before you
+  // WHO SIGNS IT. `--as` is the identity, exactly as it is for `message-agent`; without it you are the room's
+  // OWN agent. A message gets that enforced by the hub ("<pc> is not in <room>'s room — enter before you
   // speak"), but a reply is written straight into the document, so there is nothing in the path to
   // refuse it — a visitor who forgets the flag silently signs as the room's owner. Since we cannot
   // tell the two apart from here, say so out loud rather than let it pass unnoticed.
@@ -558,7 +420,7 @@ module.exports.status = async function status(projectCode, text, { uiUrl, Client
   }
   const SystemView = await loadHub(Client, uiUrl);
   // RFC-031 — a visiting identity's cooking renders in its own color, under its name. Same
-  // speaking gate as `say`: you can't cook in a room you haven't entered.
+  // gate as a message: you can't cook in a room you haven't entered.
   try {
     await SystemView.chatStatus(projectCode, { chat, text: text || null, as: agent });
   } catch (err) {

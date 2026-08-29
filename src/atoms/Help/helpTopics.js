@@ -495,8 +495,7 @@ An **attached** conversation (the normal case) reads the agent's live session:
 
 A project with no attached session keeps the room's own states — **VISITING** (its agent is in
 another room), **FILE** (dashed: hook-drained inbox; it hears you at its next turn), **OFFLINE**.
-Either way the ring is derived from the real state — it can't lie. ☠ [RETIRED-2026-08-26] "solid green =
-joined live, holding the line" — the hold is retired; nothing holds anything to be present.
+Either way the ring is derived from the real state — it can't lie.
 
 ## What your message carries
 
@@ -521,9 +520,8 @@ Attached is the default — nothing to connect. The other modes are the agent's 
   in its actual conversation, and its replies land here as it writes them. Nothing to join.
 - \`systemview inbox <project>\` from the agent's own hooks — file mode: messages drain from the
   chat's file at the agent's next turn (dashed ring).
-- \`systemview tell\` / \`systemview status\` — how a NON-attached agent's replies and cooking lines
-  get here (\`say\` ☠ [RETIRED-2026-08-26]; \`join\` now means entering another room's conversation,
-  not holding a line — the hold is retired).
+- \`systemview message-agent\` — how ANOTHER project's agent speaks in this room, under its own
+  name; \`join\`/\`leave\` are how it enters and exits the conversation.
 
 ## Where the conversation lives
 

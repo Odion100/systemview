@@ -98,6 +98,21 @@ const usageLabel = (raw) => {
   if (w) return `week · ${w[1]}`;
   return t.replace(/^current\s+/i, "");
 };
+// The bars from a printout that has ALREADY been unwrapped — a `cmdret` row's `out`. The panel
+// renders the fresh /usage from that row, so it needs the parser without the tag hunt.
+export const parseUsageLines = (printout) => {
+  const bars = [];
+  String(printout || "").split("\n").forEach((line) => {
+    const m = USAGE_LINE.exec(line.trim());
+    if (!m) return;
+    bars.push({
+      label: usageLabel(m[1]),
+      pct: Math.min(100, Number(m[2])),
+      resets: String(m[3] || "").replace(/\s*\([^)]*\)\s*$/, "").trim(),
+    });
+  });
+  return bars.length ? bars : null;
+};
 export const parseUsageReport = (text) => {
   const raw = String(text || "");
   const out = /<local-command-stdout>([\s\S]*?)<\/local-command-stdout>/.exec(raw);
@@ -207,6 +222,71 @@ export const parseVisitorTurn = (text) => {
   const b = raw.match(/^\[([A-Za-z0-9_-]+)\]:\s?([\s\S]*)$/);
   if (b) return { as: identityOf(b[1]), text: b[2].trim() };
   return null;
+};
+
+// A BASH ROW NAMES ITS FILE TOO. Nearly every row in a real feed is Bash — `sed -n '40,60p' x.js`,
+// `cat x.js`, `awk 'NR>=10 && NR<=30' x.js`, `grep -n foo x.js` — because that is how agents read
+// and edit. Keyed on Read/Edit/Write alone the embed had nothing to bite on: his report after a
+// full day of rows, *"still haven't seen one command with any embedded thing."* So the command is
+// read for the file it touched: the last path-looking argument, plus a line window when `sed -n`
+// or `awk NR` name one. Writes (`sed -i`, `> file`, `tee file`) embed as a diff. A command that
+// names nothing (a python heredoc, `git status`) stays a plain row — nothing invented.
+const bashTouch = (cmd) => {
+  const c = String(cmd || "").trim();
+  if (!c) return null;
+  // Only the LAST simple command matters — `cd x && sed -n … file` reads `file`. Split OUTSIDE
+  // quotes: an awk program is full of `&&` (`'NR>=10 && NR<=30'`) and a naive split cut inside it,
+  // leaving `NR<=30'` as the "verb" — the same trap svCommand hit on a `say` with a semicolon.
+  const segs = [];
+  let cur = "", q = null;
+  for (let i = 0; i < c.length; i += 1) {
+    const ch = c[i];
+    if (q) { cur += ch; if (ch === q && c[i - 1] !== "\\") q = null; continue; }
+    if (ch === '"' || ch === "'") { q = ch; cur += ch; continue; }
+    if (ch === ";" || (ch === "&" && c[i + 1] === "&") || (ch === "|" && c[i + 1] === "|")) {
+      if (ch !== ";") i += 1;
+      segs.push(cur); cur = ""; continue;
+    }
+    cur += ch;
+  }
+  segs.push(cur);
+  const last = segs.pop().trim();
+  const words = last.match(/"[^"]*"|'[^']*'|\S+/g) || [];
+  const verb = words[0] || "";
+  const pathLike = (w) => /^[A-Za-z0-9_./-]+\.[A-Za-z0-9]+$/.test(w) && !/^-/.test(w) && !/^\d+$/.test(w);
+  const strip = (w) => w.replace(/^['"]|['"]$/g, "");
+  let span = null;
+  if (verb === "sed") {
+    const m = last.match(/-n\s+'?(\d+),(\d+)p'?/);
+    if (m) span = `${m[1]}-${m[2]}`;
+  } else if (verb === "awk") {
+    const m = last.match(/NR\s*>=\s*(\d+)\s*&&\s*NR\s*<=\s*(\d+)/);
+    if (m) span = `${m[1]}-${m[2]}`;
+  } else if (verb === "head" || verb === "tail") {
+    const m = last.match(/-n?\s*(\d+)/);
+    if (m && verb === "head") span = `1-${m[1]}`;
+  }
+  const wrote = /\bsed\s+-i\b/.test(last) || /(^|[^&>])>\s*\S/.test(last) || /\btee\s/.test(last);
+  const READERS = new Set(["sed", "cat", "awk", "grep", "head", "tail", "less", "wc", "tee"]);
+  if (!READERS.has(verb) && !wrote) return null;
+  const files = words.slice(1).map(strip).filter(pathLike);
+  const file = files[files.length - 1];
+  return file ? { file, span, wrote } : null;
+};
+
+// Repo-relative path, or null when the file is not under the session's cwd.
+const relTo = (cwd, p) => {
+  if (!cwd || !p) return null;
+  const base = String(cwd).replace(/\/+$/, "") + "/";
+  return String(p).startsWith(base) ? String(p).slice(base.length) : null;
+};
+// A Read's window, as the `#Lfrom-to` a ::file block takes; null when it read the whole file.
+const readSpan = (ev) => {
+  const i = (ev && ev.input) || {};
+  if ((ev.tool || ev.name) !== "Read" || !i.offset) return null;
+  const from = Number(i.offset) || 1;
+  const to = i.limit ? from + Number(i.limit) - 1 : null;
+  return to ? `${from}-${to}` : `${from}`;
 };
 
 export function foldEvents(events) {
@@ -443,13 +523,10 @@ export function foldEvents(events) {
       const xsend =
         (ev.tool || ev.name) === "SendMessage" && ev.input
           ? { to: String(ev.input.to || "?"), msg: String(ev.input.message || ""), about: String(ev.input.summary || "") }
-          : // A `systemview tell` IS a message — the sanctioned channel, and it was rendering as a
-          // plain bash line while the discouraged socket got the proper row (his catch). Same row
-          // for both: who it went to, the words on screen, the identity it spoke as. `say` stays
-          // matched — ☠ [RETIRED-2026-08-26] as a verb, but every old transcript is full of it and a
-          // rename must never demote history back to bash lines (the rename DID exactly that to
-          // `tell` for a day: this check read `=== "say"` alone, so the new verb drew invisible).
-          sv && (sv.verb === "say" || sv.verb === "tell") && sv.project
+          : // A `systemview message-agent` IS a message — the sanctioned channel, and it was rendering
+          // as a plain bash line while the discouraged socket got the proper row (his catch). Same
+          // row for both: who it went to, the words on screen, the identity it spoke as.
+          sv && sv.verb === "message-agent" && sv.project
           ? { to: sv.project, msg: String(sv.target || ""), about: sv.as ? `as ${sv.as}` : "" }
           : null;
       const row = {
@@ -471,7 +548,24 @@ export function foldEvents(events) {
         ),
         input: ev.input,
         path: pathTouchedBy(ev),
-        wrote: isWrite(ev) && !!pathTouchedBy(ev),
+        // Whose repo — the event is stamped with it, and the open/diff door needs it: an absolute
+        // path with no project behind it is exactly the click that opened nothing (his report).
+        project: ev.projectCode || null,
+        wrote: (isWrite(ev) && !!pathTouchedBy(ev)) || (!pathTouchedBy(ev) && !!(ev.input && typeof ev.input.command === "string" && (bashTouch(ev.input.command) || {}).wrote)),
+        // WHAT TO EMBED WHEN THE ROW OPENS. The host hands absolute paths; the hub serves files by
+        // project + relative path, so the row carries the path relative to the session's cwd (the
+        // event stamps it) and, for a Read, the lines it looked at. A row whose path is outside the
+        // repo gets no embed — the button still points at it, nothing is taken away.
+        ...(() => {
+          const direct = pathTouchedBy(ev);
+          if (direct) return { rel: relTo(ev.cwd || ev.worktree, direct), span: readSpan(ev) };
+          const t = ev.input && typeof ev.input.command === "string" ? bashTouch(ev.input.command) : null;
+          if (!t) return { rel: null, span: null };
+          // A relative path in a bash command is relative to the cwd already; an absolute one is
+          // relativised like a Read's.
+          const rel = t.file.startsWith("/") ? relTo(ev.cwd || ev.worktree, t.file) : t.file.replace(/^\.\//, "");
+          return { rel, span: t.span, bashWrote: t.wrote };
+        })(),
         state: "running",
         ts: ev.ts,
       };
@@ -651,7 +745,7 @@ export function foldState(events) {
   // to be the only place a visit could happen and the roster read off the hub's real holds; a peer
   // reaching into a SESSION leaves no hold anywhere, so the only honest record of who is here is who
   // has spoken. His standing rule either way: who is in whose chat is always on screen.
-  const s = { state: "idle", model: null, exited: null, cost: 0, turns: 0, doing: null, ctx: 0, ctxWindow: 0, compactions: 0, visitors: [], usage: null };
+  const s = { state: "idle", model: null, exited: null, cost: 0, turns: 0, doing: null, ctx: 0, ctxWindow: 0, compactions: 0, visitors: [], usage: null, tokIn: 0, tokOut: 0, turnOut: 0, liveChars: 0, lastUsage: null };
   // ONE FIELD, ONE CONSUMER — autobot's synthesis after we each corrected the other's half-rule, and
   // it is better than either. They said clamp at the SOURCE; I said that shrinks the RECORD to fit
   // the label, so clamp at the STATUS; they answered that a rule every future call site has to
@@ -769,6 +863,15 @@ export function foldState(events) {
       // spends the whole wait cycling "stirring the pot" over a conversation that is being rewritten.
       // Autobot's panel reads the prompt text for exactly this reason and so does this one — same
       // heuristic, same words, so the two windows he watches side by side agree.
+      // THE PLAN METERS, FROM THE ONE PLACE THEY EXIST. The terminal's /usage prints into the
+      // transcript as a local-command printout; the host cannot run it on request. So the fold
+      // keeps the LAST report it saw — bars and the time it was printed — and the ticker warns off
+      // it, aged honestly ("as of 4:12 PM"). Replayed history counts: a report from an hour ago is
+      // still the newest truth until he runs it again.
+      if (ev.kind === "user.prompt" && /<command-name>\s*\/?usage\s*<\/command-name>/.test(textOf(ev))) {
+        const bars = parseUsageReport(textOf(ev));
+        if (bars) s.lastUsage = { bars, ts: ev.ts || 0 };
+      }
       if (ev.kind === "user.prompt" && !ev.replay && /^\s*\/compact\b/.test(textOf(ev))) {
         doing = "compacting the conversation";
         s.state = "working";
@@ -786,6 +889,11 @@ export function foldState(events) {
       // still said "thinking" after the answer had finished printing: a status outliving the state it
       // describes, the same bug class as the stale dictation draft and the ReportsTab poll.
       s.state = ev.done ? "ready" : "working";
+      // TOKENS AS IT COOKS. Every streamed chunk adds to a live count (chars, ~4 per token) so the
+      // ticker can move while the answer is being written — his ask, from the harness he had
+      // before: "I could see tokens being generated as you cooked." The exact figure replaces it
+      // when the turn's receipt lands.
+      if (!ev.done && ev.delta) s.liveChars += String(ev.delta).length;
       if (ev.done) {
         doing = null;
         pendingTurn = false; // the answer finished — this turn is genuinely over
@@ -836,6 +944,16 @@ export function foldState(events) {
       // carrying `turns`. Their trap warning was about the turn-CLOSE path (we are immune there —
       // nothing in this branch touches `state` or `doing`); this is the same shape one door over.
       if (!ev.snapshot && typeof ev.costUsd === "number") s.cost += ev.costUsd;
+      // THE SESSION'S OWN USAGE — tokens in and out, summed off the same receipts that carry cost.
+      // This is what the usage view draws, because the host cannot run the terminal's /usage:
+      // sending "/usage" through the SDK delivers the text to the model (he pressed it twice and
+      // watched "running…" forever). These numbers are real, live, and need no command.
+      if (!ev.snapshot) {
+        s.tokIn += Number(ev.inputTokens || 0) || 0;
+        const out = Number(ev.outputTokens || 0) || 0;
+        s.tokOut += out;
+        if (out) { s.turnOut = out; s.liveChars = 0; }
+      }
       // `contextTokens` is autobot's own sum — fresh input plus everything read from cache — and it
       // is the number their meter rides, so taking it verbatim is what makes the two bars agree.
       // The hand-rolled sum stays as the fallback for a host that only sends the raw fields.

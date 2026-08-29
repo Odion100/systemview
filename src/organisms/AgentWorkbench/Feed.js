@@ -76,11 +76,42 @@ const SentRow = ({ row }) => (
   </div>
 );
 
-const ToolRow = ({ row }) => {
+const ToolRow = ({ row, renderText = null }) => {
   const [open, setOpen] = useState(false);
+  // THE FILE IS IN THE ROW. His ask, verbatim: the rows that show what an agent ran carry buttons
+  // that POINT at things — open, diff — when expanding the row should SHOW them, embedded, the
+  // same blocks the chat already renders. So an opened row draws the file it read (at the lines
+  // it read), or the diff of what it wrote, right here. The button and the fold stay exactly as
+  // they were — this is added under them, not instead of them.
+  const embed =
+    renderText && row.rel
+      ? row.wrote
+        ? `::diff[${row.rel}]`
+        : `::file[${row.rel}${row.span ? `#L${row.span}` : ""}]`
+      : null;
+  // THE DOOR CARRIES THE ADDRESS. This dispatched `{ path }` alone — an ABSOLUTE path with no
+  // project behind it — and the code pane, which is addressed by project + repo path, opened
+  // nothing. His report: *"I clicked on diff and that shit didn't bring up the diffs."* Now it
+  // sends the project the event was stamped with, the repo-relative path, the lines a Read looked
+  // at, and asks for the diff side when the row wrote.
   const openPath = (e) => {
     e.stopPropagation();
-    window.dispatchEvent(new CustomEvent("sv:openFileInNav", { detail: { path: row.path } }));
+    // "diff" MEANS THE DIFF. The pane treats diff as a MODE it remembers (`sv.diffMode`), not a
+    // per-open flag — so the diff button turns the mode on before it opens the file, and the pane
+    // comes up side-by-side instead of on the plain source with a toggle you then have to find.
+    if (row.wrote) { try { localStorage.setItem("sv.diffMode", "true"); } catch {} }
+    const lines = row.span ? row.span.split("-").map(Number) : null;
+    window.dispatchEvent(
+      new CustomEvent("sv:openFileInNav", {
+        detail: {
+          projectCode: row.project || undefined,
+          path: row.rel || row.path,
+          lines: lines && lines[0] ? (lines.length > 1 ? lines : [lines[0], lines[0]]) : undefined,
+          // The nav's two sides of the index are "staged" and "unstaged"; a write lands unstaged.
+          ...(row.wrote ? { side: "unstaged" } : {}),
+        },
+      }),
+    );
   };
   const cmd = row.input && typeof row.input.command === "string" ? row.input.command : null;
   const out = row.output == null ? "" : String(row.output);
@@ -92,19 +123,23 @@ const ToolRow = ({ row }) => {
     return Object.keys(others).length ? others : null;
   })();
 
-  const has = !!(cmd || out || rest);
+  const has = !!(cmd || out || rest || embed);
 
   return (
     <div
       className={`${CLASSNAME}__row ${CLASSNAME}__row--tool ${CLASSNAME}__row--${row.state}${
         row.sv ? ` ${CLASSNAME}__row--sv` : ""
-      }`}
+      }${has ? ` ${CLASSNAME}__row--can` : ""}`}
+      // THE WHOLE ROW IS THE HANDLE, not the words on it — his: "why do you got to actually click
+      // on the name in the row?" A click anywhere on the row that isn't a button toggles it; the
+      // open/diff button stops its own click so it never doubles as a fold.
+      onClick={(e) => { if (has && !open && !e.target.closest("button, a, .agent-wb__tool-body")) setOpen(true); }}
     >
       <div
         className={`${CLASSNAME}__tool-head${has ? ` ${CLASSNAME}__tool-head--can` : ""}`}
         role={has ? "button" : undefined}
         tabIndex={has ? 0 : undefined}
-        onClick={() => has && setOpen(!open)}
+        onClick={(e) => { if (has) { e.stopPropagation(); setOpen(!open); } }}
         onKeyDown={(e) => has && (e.key === "Enter" || e.key === " ") && setOpen(!open)}
       >
         {row.sv ? (
@@ -138,9 +173,15 @@ const ToolRow = ({ row }) => {
             {row.wrote ? "diff" : "open"}
           </button>
         )}
+        {/* SAY WHAT'S INSIDE. A bare "+" gave no hint that a file or a diff was waiting under the
+            row — his: "there should be some sort of indication if there's an embedded thing." The
+            fold names it: `file ▾` / `diff ▾`, and folds back to "−" when open. */}
         {has && (
-          <span className={`${CLASSNAME}__tool-fold`} title={open ? "Fold it away" : "Show what it ran and what came back"}>
-            {open ? "−" : "+"}
+          <span
+            className={`${CLASSNAME}__tool-fold${embed ? ` ${CLASSNAME}__tool-fold--embed` : ""}`}
+            title={open ? "Fold it away" : embed ? (row.wrote ? "Show the diff here" : "Show the file here") : "Show what it ran and what came back"}
+          >
+            {open ? "−" : embed ? (row.wrote ? "diff ▾" : "file ▾") : "+"}
           </span>
         )}
       </div>
@@ -162,6 +203,7 @@ const ToolRow = ({ row }) => {
               that printed nothing. */}
           {!out && row.state === "running" && <div className={`${CLASSNAME}__tool-wait`}>running…</div>}
           {out && <Block kind={row.state === "failed" ? "err" : "out"}>{out}</Block>}
+          {embed && <div className={`${CLASSNAME}__tool-embed`}>{renderText(embed)}</div>}
         </div>
       )}
     </div>
@@ -209,7 +251,7 @@ const Said = ({ row, render, clamp = false }) => {
 const Feed = ({ rows, answered = {}, onAnswer = null, renderText = null }) =>
   rows.map((r) =>
     r.kind === "tool" ? (
-      r.xsend ? <SentRow key={r.key} row={r} /> : <ToolRow key={r.key} row={r} />
+      r.xsend ? <SentRow key={r.key} row={r} /> : <ToolRow key={r.key} row={r} renderText={renderText} />
     ) : r.kind === "think" ? (
       // Reasoning is quiet by design: it is context for what it did, not the thing it did.
       <div key={r.key} className={`${CLASSNAME}__row ${CLASSNAME}__row--think`}>{r.text}</div>

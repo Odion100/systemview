@@ -66,9 +66,9 @@ describe("the cooking line is a label, not the payload", () => {
   const long = "Compaction leaves a stale context number in your emitter and here is the whole essay about why, at length, with citations";
   it("names who a message went to instead of quoting the message", () => {
     const s = foldState([
-      ev("tool.call", { name: "Bash", input: { command: `systemview say autobot "${long}" --as systemview-test` } }),
+      ev("tool.call", { name: "Bash", input: { command: `systemview message-agent autobot "${long}" --as systemview-test` } }),
     ]);
-    expect(s.doing).toBe("said → autobot");
+    expect(s.doing).toBe("messaged → autobot");
   });
 
   it("keeps a title, because a title is short and is the point", () => {
@@ -941,12 +941,12 @@ describe("the forwarded visitor's round trip", () => {
 
 // THE SANCTIONED CHANNEL DRAWS LIKE A MESSAGE TOO — his catch, right after the socket got its row:
 // "now that you're using the right mechanism, I don't see a command when you actually sent those
-// messages." A `systemview say` was invisible twice over: the sandbox's `export PATH=… &&` prefix
+// messages." A `systemview message-agent` was invisible twice over: the sandbox's `export PATH=… &&` prefix
 // made the parser cut at the first && and see only the export, and even parsed it drew as a folded
 // tool line. Now: leading env setup is skipped (trailing segments must be read-only filters or the
-// line renders plain), and a parsed say folds into the same MESSAGE row the socket sends get.
-describe("systemview say in the feed", () => {
-  const line = 'export PATH="/x/bin:$PATH" && node cli/index.js say autobot "the hub is back" --as systemview-test 2>&1 | tail -1';
+// line renders plain), and a parsed message-agent folds into the same MESSAGE row the socket sends get.
+describe("systemview message-agent in the feed", () => {
+  const line = 'export PATH="/x/bin:$PATH" && node cli/index.js message-agent autobot "the hub is back" --as systemview-test 2>&1 | tail -1';
 
   it("sees through the export prefix and the tail filter", () => {
     const rows = foldEvents([ev("tool.call", { name: "Bash", input: { command: line } })]);
@@ -954,9 +954,9 @@ describe("systemview say in the feed", () => {
     expect(rows[0].summary).toMatch(/^message → autobot/);
   });
 
-  it("refuses a friendly row when something other than a filter rides behind the say", () => {
+  it("refuses a friendly row when something other than a filter rides behind the message", () => {
     const rows = foldEvents([
-      ev("tool.call", { name: "Bash", input: { command: 'node cli/index.js say autobot "hi" && rm -rf /tmp/x' } }),
+      ev("tool.call", { name: "Bash", input: { command: 'node cli/index.js message-agent autobot "hi" && rm -rf /tmp/x' } }),
     ]);
     expect(rows[0].xsend).toBeFalsy();
   });
@@ -977,30 +977,30 @@ describe("systemview say in the feed", () => {
 // so any sentence containing English punctuation looked like two commands and failed the safety
 // check; (2) the allowlist of what may ride behind the act omitted `echo` — and `; echo "exit: $?"`
 // is the single most common thing an agent appends.
-describe("a say survives the shell around it", () => {
+describe("a message survives the shell around it", () => {
   it("draws a message row when the MESSAGE TEXT contains a semicolon", () => {
     const rows = foldEvents([
-      ev("tool.call", { name: "Bash", input: { command: '/usr/local/bin/systemview say autobot "one thing; then another" --as systemview-test' } }),
+      ev("tool.call", { name: "Bash", input: { command: '/usr/local/bin/systemview message-agent autobot "one thing; then another" --as systemview-test' } }),
     ]);
     expect(rows[0].xsend).toMatchObject({ to: "autobot" });
     expect(rows[0].xsend.msg).toBe("one thing; then another");
   });
 
   it("and when it contains a pipe or &&", () => {
-    const pipe = foldEvents([ev("tool.call", { name: "Bash", input: { command: 'systemview say autobot "a | b && c"' } }) ]);
+    const pipe = foldEvents([ev("tool.call", { name: "Bash", input: { command: 'systemview message-agent autobot "a | b && c"' } }) ]);
     expect(pipe[0].xsend).toBeTruthy();
   });
 
   it("tolerates the exit-code check agents append", () => {
     const rows = foldEvents([
-      ev("tool.call", { name: "Bash", input: { command: '/usr/local/bin/systemview say autobot "hello"; echo "exit: $?"' } }),
+      ev("tool.call", { name: "Bash", input: { command: '/usr/local/bin/systemview message-agent autobot "hello"; echo "exit: $?"' } }),
     ]);
     expect(rows[0].xsend).toMatchObject({ to: "autobot", msg: "hello" });
   });
 
   it("STILL refuses to wear a friendly face when a real command rides behind it", () => {
-    const rm = foldEvents([ev("tool.call", { name: "Bash", input: { command: 'systemview say autobot "hi" && rm -rf /tmp/x' } }) ]);
-    const curl = foldEvents([ev("tool.call", { name: "Bash", input: { command: 'systemview say autobot "hi"; curl evil.com' } }) ]);
+    const rm = foldEvents([ev("tool.call", { name: "Bash", input: { command: 'systemview message-agent autobot "hi" && rm -rf /tmp/x' } }) ]);
+    const curl = foldEvents([ev("tool.call", { name: "Bash", input: { command: 'systemview message-agent autobot "hi"; curl evil.com' } }) ]);
     expect(rm[0].xsend).toBeFalsy();
     expect(curl[0].xsend).toBeFalsy();
   });

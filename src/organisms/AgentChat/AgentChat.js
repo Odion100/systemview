@@ -16,7 +16,7 @@ import { slotId, setNavDocked, useNavDock } from "./navDock";
 import { hasHostDictation, startHostRecording } from "../../utils/hostDictation";
 import Feed, { timeOf } from "../AgentWorkbench/Feed";
 import useAgentSession from "../AgentWorkbench/useAgentSession";
-import { CTX_WARN, CTX_DUE, tokensShort } from "../AgentWorkbench/feedRows";
+import { CTX_WARN, CTX_DUE, tokensShort, parseUsageLines } from "../AgentWorkbench/feedRows";
 import { visStyle } from "../AgentWorkbench/visitorColor";
 import { canListTranscripts, listAgents, listTranscripts, transcriptTail } from "../../utils/hostAgent";
 import CodebaseNav from "../CodebaseNav/CodebaseNav";
@@ -33,6 +33,18 @@ import "./styles.scss";
 // it really is (offline included — unconditional for now, his call). DRAGGING and CLICKING are
 // SEPARATE PARTS: the grip (shows on hover) drags and docks; the bubble itself only clicks.
 const CLASSNAME = "agent-chat";
+// THE HOST'S SLASH COMMANDS — one list, two doors: the `/` panel beside the board, and the popup
+// that opens the moment you type `/` in the composer (his ask: *"typing / should bring up the
+// list"*). The host does not publish which commands it has, so this is the set it is known to
+// answer; a command typed that is not here still sends — the list suggests, it never gates.
+// ONLY WHAT ACTUALLY RUNS. /context, /cost, /status, /help, /model are terminal-local: sent through
+// a session they arrive at the model as text (measured — he pressed /usage twice and watched
+// "running…" forever). /usage is answered by the hub running the CLI; /compact the SDK handles.
+// Skills come from the host's supportedCommands() once it exposes them — the list, not this one.
+const SLASH_COMMANDS = [
+  { cmd: "/usage", what: "plan limits — session and week, with reset times" },
+  { cmd: "/compact", what: "summarise and free the context" },
+];
 const EDGE = 18; // docked margin
 const STACK = 78; // default vertical spacing per undragged bot
 
@@ -609,8 +621,12 @@ function useCookWord(doing, state) {
   return specific || (state === "waiting" ? "waiting on you" : i > 0 ? COOKING[i - 1] : "thinking");
 }
 
-function CookLine({ doing, state }) {
+function CookLine({ doing, state, liveChars = 0 }) {
   const text = useCookWord(doing, state);
+  // TOKENS, WITH THE TURN THEY BELONG TO. The count of what is being generated rides the cooking
+  // line, not the usage bar — his call: a per-turn number "should show with the cooking message."
+  // Characters over four, marked ≈, only while the answer is actually streaming.
+  const tok = state === "working" && liveChars > 40 ? `≈${Math.round(liveChars / 4).toLocaleString()} tok` : "";
   // I TOOK THESE OUT MYSELF AND BLAMED HIM FOR IT — correcting the record, because the old comment
   // here claimed he had cut the trailing dots. He hadn't: *"I never rejected the dots on that line,
   // trust me."* What he actually objected to was the cooking line's LOOK changing wholesale, and I
@@ -632,6 +648,9 @@ function CookLine({ doing, state }) {
         <i />
         <i />
       </span>
+      {/* The count climbs AFTER the dots — his: "it should be on the other side of that dancing
+          ellipsis, and it would be going up and up as you worked." */}
+      {tok && <span className={`${CLASSNAME}__cooking-tok`}>{tok}</span>}
     </div>
   );
 }
@@ -796,7 +815,16 @@ function BotBubble({ projectCode, index }) {
   const { serviceId, moduleName, methodName, projectCode: routeProject } = useParams();
   const { SystemViewService, connectedServices } = useContext(ServiceContext);
   const { SystemView } = SystemViewService;
-  const [open, setOpen] = useState(false);
+  // OPEN SURVIVES THE SWAP. The self-updating tab reloads itself when a build lands, and the
+  // panel's open state lived only in memory — so every build closed his chat mid-conversation and
+  // he had to find the 💬 again (three times in one evening, once per build). A swap is meant to
+  // be invisible; a panel that shuts is the opposite. Remembered per project, like `attached`.
+  const [open, setOpen] = useState(() => {
+    try { return localStorage.getItem(`sv.chat.open.${projectCode}`) === "1"; } catch { return false; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem(`sv.chat.open.${projectCode}`, open ? "1" : "0"); } catch {}
+  }, [open, projectCode]);
   const [ctxMenu, setCtxMenu] = useState(false);
   const [messages, setMessages] = useState([]);
   // RFC-046 — WHAT IT IS DOING, in the conversation where he is already talking to it. His
@@ -1869,6 +1897,76 @@ function BotBubble({ projectCode, index }) {
     window.addEventListener("pointerup", up);
   };
 
+  // THE COMMANDS PANEL — his ask: a place to see the slash commands, run one, and have the result
+  // render FRESH beside the chat (the way the editor extension does it) instead of landing as a
+  // printout in the transcript. `cmdRun` remembers what was sent and when, so the panel shows the
+  // receipt that arrives AFTER the press and never a stale one from an hour ago.
+  const [cmdsOpen, setCmdsOpen] = useState(false);
+  const [slashSel, setSlashSel] = useState(0); // highlighted row in the `/` popup
+  const [cmdRun, setCmdRun] = useState(null);
+  // ONE DOOR FOR A SLASH COMMAND, wherever it came from — the panel's list, the `/` popup, or
+  // typed out and sent. His correction: *"you type slash, it gives you the options, you click on
+  // them — you don't have to press enter."* A pick IS the send. And every route opens the panel,
+  // so the result renders fresh there instead of only as a printout in the transcript.
+  // THE PLAN METERS. The hub runs the CLI's own /usage on his machine and hands the text back —
+  // real numbers, no agent in the loop. Fetched when it can have MOVED: a turn ending (the only
+  // event that spends), throttled to once per five minutes; on opening the panel; on picking
+  // /usage (always fresh); and a thirty-minute fallback so a quiet panel never goes stale. His
+  // rule on cost: *"stop offering inefficient things casually, like running some call every few
+  // minutes"* — each fetch is a few seconds of CLI, so the events decide, not a clock.
+  // THE LAST REPORT IS ALWAYS ON SCREEN. The CLI takes ~3s to answer; that wait belongs behind
+  // the numbers, never in front of them. The last report is remembered across reloads so the bar
+  // and the meters paint instantly with an honest "as of", and the fresh read replaces them.
+  const [usage, setUsage] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("sv.usage.last")) || null; } catch { return null; }
+  });
+  // WHAT THE BAR SHOWS IS HIS TO CONFIGURE — checkboxes in the usage panel, remembered. His
+  // correction after I trimmed the bar by fiat: "cost and tokens should be optional… add a list
+  // of checkboxes that allows you to configure what shows on the bar." Session, week and Fable
+  // are on by default; tokens and cost are there for the day another API makes them matter.
+  const BAR_DEFAULTS = { session: true, week: true, fable: true, ctx: true, tokens: false, cost: false, fill: "auto" };
+  const [barPrefs, setBarPrefs] = useState(() => {
+    try { return { ...BAR_DEFAULTS, ...(JSON.parse(localStorage.getItem("sv.usagebar.show")) || {}) }; } catch { return BAR_DEFAULTS; }
+  });
+  const setBarPref = (k, v) => {
+    const next = { ...barPrefs, [k]: v };
+    setBarPrefs(next);
+    try { localStorage.setItem("sv.usagebar.show", JSON.stringify(next)); } catch {}
+  };
+  const usageAt = useRef(0);
+  const fetchUsage = async ({ fresh = false } = {}) => {
+    try {
+      const r = await SystemView.usageReport({ fresh });
+      if (!r || !r.ok) return;
+      const bars = parseUsageLines(r.text);
+      if (!bars) return;
+      usageAt.current = Date.now();
+      const next = { bars, text: r.text, ts: r.ts || Date.now() };
+      setUsage(next);
+      try { localStorage.setItem("sv.usage.last", JSON.stringify(next)); } catch {}
+    } catch {}
+  };
+  const usageTurns = work.state.turns;
+  useEffect(() => {
+    if (!attached) return undefined;
+    if (Date.now() - usageAt.current > 5 * 60 * 1000) fetchUsage();
+    const t = setInterval(() => fetchUsage(), 30 * 60 * 1000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [attached, usageTurns]);
+
+  const runSlash = (cmd) => {
+    const c = String(cmd || "").trim();
+    if (!c) return;
+    setSlashSel(0);
+    setInput("");
+    setCmdsOpen(true);
+    // /usage is answered by the hub, not the session — the CLI runs it, the panel draws it.
+    if (/^\/usage\b/.test(c)) { setCmdRun({ cmd: "/usage", at: Date.now(), local: true }); fetchUsage({ fresh: true }); return; }
+    setCmdRun({ cmd: c, at: Date.now() });
+    work.send(c);
+  };
+
   const send = async () => {
     // SEND WHILE THE MIC IS STILL RUNNING (his ask: "I used to be able to just send and not have to
     // stop the recorder"). Host dictation commits at every pause, but the sentence you are in the
@@ -1881,6 +1979,8 @@ function BotBubble({ projectCode, index }) {
       } catch {}
     }
     const text = [input.trim(), spoken.trim()].filter(Boolean).join(" ");
+    // A SLASH COMMAND IS NOT A MESSAGE — it goes through the commands door, panel and all.
+    if (attached && /^\/\S+/.test(text)) return runSlash(text);
     // PRESSING SEND WHILE THE WORDS ARE STILL LANDING. His bug, and it wasted his time all session:
     // *"if I press send while the chat is building up — I can see the transcript building up, it
     // didn't go into the input yet — then it won't do anything, it'll just stay there and I'm
@@ -3372,10 +3472,30 @@ function BotBubble({ projectCode, index }) {
             break;
           }
         }
-        const say = saidRows.length ? firstLine(saidRows[saidRows.length - 1].text) : "";
+        // THE LAST THING SAID, UP TO THREE LINES — his ask: "it can show more than one line."
+        const firstLines = (t, n = 3) =>
+          String(t || "")
+            .split("\n")
+            .map((x) => x.trim())
+            .filter((x) => x)
+            .slice(0, n)
+            .join("\n");
+        // STALE IS NOT CURRENT. The brief showed the last sentence of the PREVIOUS turn as if it
+        // were this one — he sends a message, the agent starts, and the display keeps quoting an
+        // answer to something else with nothing saying so. His words: "it will say something
+        // that's stale — your last thing." A sentence from before his latest message is dropped
+        // while a new turn is cooking; the cooking line stands in for it until this turn speaks.
+        let turnStart = 0;
+        for (let i = work.rows.length - 1; i >= 0; i -= 1) {
+          if (work.rows[i].kind === "mine" && !work.rows[i].replay) { turnStart = work.rows[i].ts || 0; break; }
+        }
+        const lastSaid = saidRows.length ? saidRows[saidRows.length - 1] : null;
+        const sayStale = !!(lastSaid && sessionCooking && (lastSaid.ts || 0) < turnStart);
+        const say = lastSaid && !sayStale ? firstLines(lastSaid.text) : "";
+        const cmdStale = !!(cmd && sessionCooking && cmd.state !== "running" && (cmd.ts || 0) < turnStart);
         return {
           say,
-          cmd: cmd ? cmd.summary || cmd.tool : "",
+          cmd: cmd && !cmdStale ? cmd.summary || cmd.tool : "",
           // A finished command is history; one still running is what it is doing NOW, and the
           // difference is the whole reason to show it.
           running: !!(cmd && cmd.state === "running"),
@@ -3444,7 +3564,7 @@ function BotBubble({ projectCode, index }) {
     >
       {/* The anchor also stands up for the COLLECTOR alone — the links table opens from the closed
           bot now, so it can't live behind the panel being open. */}
-      {(open || linksOpen || boardOpen || cbOpen || (tvOpen && tv)) && (
+      {(open || linksOpen || boardOpen || cbOpen || cmdsOpen || (tvOpen && tv)) && (
         <div className={`${CLASSNAME}__panel-anchor`}>
         {/* THE CODEBASE PANEL — the real card, not a copy of it: same tree, same git, same terminal
             section, rendered here when the navigator is put away. Opening a file from it goes
@@ -3494,6 +3614,133 @@ function BotBubble({ projectCode, index }) {
         {/* THE BOARD. Plain and his: type, it saves itself, it is still there tomorrow. Markdown,
             so anything he pastes or writes can be a real block later — but nothing here renders it,
             because a notepad that reformats what you typed while you type is not a notepad. */}
+        {cmdsOpen && attached && (() => {
+          const SLASH = SLASH_COMMANDS;
+          // The receipt that arrived for THIS press — newest command row stamped after the send.
+          const fresh = cmdRun
+            ? [...work.rows].reverse().find((r) => r.kind === "cmdret" && (r.ts || 0) >= cmdRun.at - 1000)
+            : null;
+          const run = (cmd) => {
+            setCmdRun({ cmd, at: Date.now() });
+            work.send(cmd);
+          };
+          return (
+            <div
+              className={`${CLASSNAME}__board ${CLASSNAME}__cmds`}
+              // AS TALL AS THE CHAT, ITS OWN WIDTH. His ask was "match the LENGTH of the input" —
+              // height. I read it as size and tied the width to the chat's too, so the panel
+              // ballooned to 655px and grew whenever he resized the chat: his words, "that's a
+              // bug." Height follows the chat; width is the panel's own.
+              style={inNav ? { width: "auto", height: Math.max(380, size.h) } : { width: 360, height: size.h, ...after(boardAhead) }}
+            >
+              <div
+                className={`${CLASSNAME}__board-head ${CLASSNAME}__tv-head--grab`}
+                title="Drag to move"
+                onPointerDown={onBotPointerDown}
+              >
+                <span className={`${CLASSNAME}__tv-badge`}>/</span>
+                <span className={`${CLASSNAME}__board-title`}>commands</span>
+                <button type="button" className={`${CLASSNAME}__board-x`} title="Put it away" onClick={() => setCmdsOpen(false)}>
+                  ✕
+                </button>
+              </div>
+              <div className={`${CLASSNAME}__cmds-list`}>
+                {SLASH.map((c) => (
+                  <button
+                    key={c.cmd}
+                    type="button"
+                    className={`${CLASSNAME}__cmds-item${cmdRun && cmdRun.cmd === c.cmd ? ` ${CLASSNAME}__cmds-item--on` : ""}`}
+                    title={c.what}
+                    onClick={() => run(c.cmd)}
+                  >
+                    <code>{c.cmd}</code>
+                    <span>{c.what}</span>
+                  </button>
+                ))}
+              </div>
+              <div className={`${CLASSNAME}__cmds-out`}>
+                {!cmdRun ? (
+                  <div className={`${CLASSNAME}__cmds-empty`}>pick one — it runs now and shows here</div>
+                ) : cmdRun.local && !usage ? (
+                  <div className={`${CLASSNAME}__cmds-empty`}><span className={`${CLASSNAME}__interim-dot`} /> asking the CLI…</div>
+                ) : cmdRun.local && usage ? (
+                  // USAGE, DRAWN AS METERS — his ask from the start: *"a nice display for commands
+                  // like that… it should be showing nice bars."* Each limit is its own meter with
+                  // the reset time under it, in the context ruler's colour language (calm, amber
+                  // past 75, red past 90). The "what's contributing" lines follow as plain text.
+                  <div className={`${CLASSNAME}__usage`}>
+                    <div className={`${CLASSNAME}__usage-asof`}>as of {new Date(usage.ts).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</div>
+                    {/* STAT TILES WITH METERS. The fill carries severity — accent, then warning past
+                        75, critical past 90 — and severity never rides color alone: past the
+                        thresholds the tile says so in words beside the number. The unfilled track
+                        is a lighter step of the same ramp so the whole bar reads as one state.
+                        Values are proportional figures (a display-size number in tabular digits
+                        looks loose); the reset time sits under each bar in secondary ink. */}
+                    {/* THE BAR'S SETTINGS — toggles in the app's own chip style rather than the
+                        browser's checkboxes (his: "the default checkbox is a little clunky"), and a
+                        second row picking which meter the bar's fill follows. */}
+                    <div className={`${CLASSNAME}__usage-prefs`}>
+                      <span className={`${CLASSNAME}__usage-prefs-label`}>on the bar</span>
+                      {[["session", "session"], ["week", "week"], ["fable", "Fable"], ["ctx", "context"], ["tokens", "tokens"], ["cost", "cost"]].map(([k, name]) => (
+                        <button
+                          key={k}
+                          type="button"
+                          className={`${CLASSNAME}__usage-pref${barPrefs[k] ? ` ${CLASSNAME}__usage-pref--on` : ""}`}
+                          onClick={() => setBarPref(k, !barPrefs[k])}
+                        >
+                          {name}
+                        </button>
+                      ))}
+                    </div>
+                    <div className={`${CLASSNAME}__usage-prefs`}>
+                      <span className={`${CLASSNAME}__usage-prefs-label`}>fill follows</span>
+                      {[["auto", "highest"], ["session", "session"], ["week", "week"], ["fable", "Fable"]].map(([k, name]) => (
+                        <button
+                          key={k}
+                          type="button"
+                          className={`${CLASSNAME}__usage-pref${barPrefs.fill === k ? ` ${CLASSNAME}__usage-pref--on` : ""}`}
+                          onClick={() => setBarPref("fill", k)}
+                        >
+                          {name}
+                        </button>
+                      ))}
+                    </div>
+                    {usage.bars.map((bar) => {
+                      const tone = bar.pct >= 90 ? "due" : bar.pct >= 75 ? "warn" : "";
+                      const word = tone === "due" ? "at the limit" : tone === "warn" ? "high" : "";
+                      return (
+                        <div key={bar.label} className={`${CLASSNAME}__usage-row${tone ? ` ${CLASSNAME}__usage-row--${tone}` : ""}`}>
+                          <div className={`${CLASSNAME}__usage-head`}>
+                            <span className={`${CLASSNAME}__usage-label`}>{bar.label.replace(/^week · /, "week — ")}</span>
+                            <span className={`${CLASSNAME}__usage-value`}>
+                              {word && <span className={`${CLASSNAME}__usage-word`}>{tone === "due" ? "⚠" : "▲"} {word}</span>}
+                              <span className={`${CLASSNAME}__usage-pct`}>{bar.pct}<span className={`${CLASSNAME}__usage-unit`}>%</span></span>
+                            </span>
+                          </div>
+                          <div className={`${CLASSNAME}__usage-meter`} role="meter" aria-valuenow={bar.pct} aria-valuemin={0} aria-valuemax={100} aria-label={bar.label}>
+                            <div className={`${CLASSNAME}__usage-fill`} style={{ width: `${Math.max(bar.pct, 1.5)}%` }} />
+                          </div>
+                          {bar.resets && <div className={`${CLASSNAME}__usage-resets`}>resets {bar.resets}</div>}
+                        </div>
+                      );
+                    })}
+                    <div className={`${CLASSNAME}__usage-notes`}>
+                      {String(usage.text).split("\n").filter((l) => l.trim() && !/^\s*Current /.test(l) && !/^You are currently/.test(l)).map((l, i) => (
+                        <div key={i} className={/^\S/.test(l) ? `${CLASSNAME}__usage-note-head` : `${CLASSNAME}__usage-note`}>{l.trim()}</div>
+                      ))}
+                    </div>
+                  </div>
+                ) : fresh ? (
+                  <Feed rows={[fresh]} />
+                ) : (
+                  <div className={`${CLASSNAME}__cmds-empty`}>
+                    <span className={`${CLASSNAME}__interim-dot`} /> running {cmdRun.cmd}…
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
         {boardOpen && (
           <div
             className={`${CLASSNAME}__board`}
@@ -4824,7 +5071,7 @@ function BotBubble({ projectCode, index }) {
               never have to go looking for. It names the tool in flight and falls back to the room's
               cycling words when there is nothing specific to name. */}
           {attached && (work.state.state === "working" || work.state.state === "waiting") && (
-            <CookLine doing={work.state.doing} state={work.state.state} />
+            <CookLine doing={work.state.doing} state={work.state.state} liveChars={work.state.liveChars} />
           )}
           {/* While the mic listens: the words appear HERE as you speak (interim), then commit
               into the input as they finalize. The line itself is the recording indicator. */}
@@ -4991,9 +5238,96 @@ function BotBubble({ projectCode, index }) {
               ))}
             </div>
           )}
+          {/* THE USAGE LINE — his ask: "a slick bar just like the compaction bar at the top that can
+              show constantly, a thin line right above the input." The fill is the HIGHEST of the
+              plan meters (that is the one that bites), in the ruler's colours; hover names all
+              three; click opens the full report. The right end is the live ticker: tokens as the
+              answer streams (chars/4 until the receipt lands), context, and this session's cost. */}
+          {attached && (usage || work.state.ctx > 0) && (() => {
+            // WHICH METER THE FILL TRACKS is his pick — session, week, Fable, or (default) whichever
+            // is highest, because that is the one about to bite.
+            const highest = usage ? usage.bars.reduce((a, b) => (b.pct > a.pct ? b : a), usage.bars[0]) : null;
+            const pickRe = { session: /^session/i, week: /all models/i, fable: /fable/i }[barPrefs.fill];
+            const top = (pickRe && usage && usage.bars.find((b) => pickRe.test(b.label))) || highest;
+            const pct = top ? top.pct : 0;
+            const tone = pct >= 90 ? "due" : pct >= 75 ? "warn" : "";
+            // Only what is about the WHOLE picture lives here: the plan meter and the context.
+            // A per-turn token count belongs with the turn — it rides the cooking line — and
+            // cost is an API-equivalent figure that means nothing on a subscription (his call:
+            // "it's not like I'm paying that much, what's the point").
+            const ctxPct = work.state.ctxWindow ? Math.round((work.state.ctx / work.state.ctxWindow) * 100) : null;
+            return (
+              <button
+                type="button"
+                className={`${CLASSNAME}__usageline${tone ? ` ${CLASSNAME}__usageline--${tone}` : ""}`}
+                title={usage ? usage.bars.map((b) => `${b.label}: ${b.pct}%${b.resets ? ` — resets ${b.resets}` : ""}`).join("\n") : "usage not read yet"}
+                onClick={() => runSlash("/usage")}
+              >
+                <span className={`${CLASSNAME}__usageline-track`}>
+                  <span className={`${CLASSNAME}__usageline-fill`} style={{ width: `${pct}%` }} />
+                </span>
+                <span className={`${CLASSNAME}__usageline-text`}>
+                  {(() => {
+                    if (!usage) return "usage";
+                    const find = (re) => usage.bars.find((b) => re.test(b.label));
+                    const session = find(/^session/i), week = find(/all models/i), fable = find(/fable/i);
+                    const short = (r) => String(r || "").replace(/^\w+ \d+ at /, "");
+                    // THE BAR AND THE TEXT BESIDE IT ARE ONE THING. Whatever meter the fill
+                    // tracks is named FIRST, right against the bar — his: "the bar belongs to the
+                    // text next to it." The rest follow in a fixed order.
+                    const meter = (b, name) => `${name} ${b.pct}%${b.pct >= 75 ? " high" : ""}${name === "session" && b.resets ? ` · resets ${short(b.resets)}` : ""}`;
+                    const listed = [
+                      barPrefs.session && session && ["session", session],
+                      barPrefs.week && week && ["week", week],
+                      barPrefs.fable && fable && ["fable", fable],
+                    ].filter(Boolean);
+                    const first = top ? listed.find(([, b]) => b === top) : null;
+                    const parts = [];
+                    if (first) parts.push(meter(first[1], first[0]));
+                    else if (top) parts.push(meter(top, /fable/i.test(top.label) ? "fable" : /all models/i.test(top.label) ? "week" : "session"));
+                    listed.filter((x) => x !== first).forEach(([name, b]) => parts.push(meter(b, name)));
+                    if (barPrefs.ctx && ctxPct !== null) parts.push(`ctx ${ctxPct}%`);
+                    if (barPrefs.tokens) {
+                      const live = work.state.state === "working" && work.state.liveChars ? Math.round(work.state.liveChars / 4) : work.state.turnOut || 0;
+                      if (live) parts.push(`${work.state.state === "working" ? "≈" : ""}${live.toLocaleString()} tok`);
+                    }
+                    if (barPrefs.cost && work.state.cost) parts.push(`$${work.state.cost.toFixed(2)}`);
+                    return parts.join(" · ") || "usage";
+                  })()}
+                </span>
+              </button>
+            );
+          })()}
           <div className={`${CLASSNAME}__inputrow`}>
             {/* A textarea that WRAPS and GROWS (to ~6 lines, then scrolls). Enter sends,
                 Shift+Enter breaks a line — chat conventions. */}
+            {/* TYPING `/` OPENS THE LIST. A message that starts with a slash and has no space yet is
+                a command being typed — the popup shows what matches, filters as you type, and a
+                pick fills the input (so arguments can follow); Enter then sends it. It suggests,
+                never gates: an unlisted command still goes to the host as typed. */}
+            {(() => {
+              const typing = attached && /^\/[^\s]*$/.test(input);
+              const matches = typing ? SLASH_COMMANDS.filter((c) => c.cmd.startsWith(input.toLowerCase())) : [];
+              if (!matches.length) return null;
+              const sel = Math.min(slashSel, matches.length - 1);
+              return (
+                <div className={`${CLASSNAME}__model-menu ${CLASSNAME}__slash-menu`}>
+                  {matches.map((c, i) => (
+                    <button
+                      key={c.cmd}
+                      type="button"
+                      className={`${CLASSNAME}__model-item${i === sel ? ` ${CLASSNAME}__model-item--current` : ""}`}
+                      onMouseEnter={() => setSlashSel(i)}
+                      onMouseDown={(e) => e.preventDefault()} // keep the caret in the box
+                      onClick={() => runSlash(c.cmd)}
+                    >
+                      <span className={`${CLASSNAME}__model-item-name`}>{c.cmd}</span>
+                      <span className={`${CLASSNAME}__model-item-id`}>{c.what}</span>
+                    </button>
+                  ))}
+                </div>
+              );
+            })()}
             <textarea
               ref={inputRef}
               className={`${CLASSNAME}__input`}
@@ -5002,9 +5336,28 @@ function BotBubble({ projectCode, index }) {
               placeholder={p.live ? "the agent is in — talk" : "message (delivered at the agent's next turn)"}
               onChange={(e) => {
                 setInput(e.target.value);
+                setSlashSel(0);
                 autogrow(e.target);
               }}
               onKeyDown={(e) => {
+                // The popup owns the arrow keys, Tab, Escape, and Enter while it is showing.
+                const typing = attached && /^\/[^\s]*$/.test(input);
+                const matches = typing ? SLASH_COMMANDS.filter((c) => c.cmd.startsWith(input.toLowerCase())) : [];
+                if (matches.length) {
+                  const sel = Math.min(slashSel, matches.length - 1);
+                  if (e.key === "ArrowDown") { e.preventDefault(); return setSlashSel((sel + 1) % matches.length); }
+                  if (e.key === "ArrowUp") { e.preventDefault(); return setSlashSel((sel - 1 + matches.length) % matches.length); }
+                  if (e.key === "Escape") { e.preventDefault(); return setInput(input + " "); }
+                  if (e.key === "Tab") {
+                    e.preventDefault();
+                    setSlashSel(0);
+                    return setInput(`${matches[sel].cmd} `); // fill, for arguments
+                  }
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    return runSlash(matches[sel].cmd); // a pick is the send
+                  }
+                }
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
                   send();
@@ -5142,6 +5495,7 @@ function BotBubble({ projectCode, index }) {
                     className={`${CLASSNAME}__brief-cmd${
                       brief.running ? ` ${CLASSNAME}__brief-cmd--running` : ""
                     }${brief.kind === "sv" ? ` ${CLASSNAME}__brief-cmd--sv` : ""}`}
+                    title={brief.running ? "running right now" : brief.kind === "sv" ? "a SystemView action" : "finished"}
                   >
                     <span className={`${CLASSNAME}__brief-text`}>{brief.cmd}</span>
                     <span className={`${CLASSNAME}__dots`}>
@@ -5153,7 +5507,7 @@ function BotBubble({ projectCode, index }) {
                 )}
                 {/* Only when there is nothing real yet — a turn that has started and produced
                     neither a sentence nor a command still has to prove it is alive. */}
-                {!brief.say && !brief.cmd && sessionCooking && <StatusLine status={peekCookWord} />}
+                {!brief.cmd && sessionCooking && <StatusLine status={peekCookWord} />}
               </div>
             ) : sessionCooking ? (
               // THE PEEK'S OWN COMPONENT, unchanged — only where the sentence comes from changed.
@@ -5353,13 +5707,18 @@ function BotBubble({ projectCode, index }) {
             // THE BOT IS THE MASTER SWITCH. Anything open — chat, TV, collector — and one click on
             // the bot puts all of it away. Closing three panels with three clicks isn't closing,
             // it's tidying. The icons beside the name tag are how you toggle one on its own.
-            if (open || tvOpen || linksOpen || boardOpen || cbOpen) {
+            // …and the commands panel is one of those panels. It was added without joining this
+            // list, so it outlived the click that put everything else away — his: "why is this
+            // sticky? how disorganized are things that are supposed to be unified." One switch,
+            // every panel, or it is not a switch.
+            if (open || tvOpen || linksOpen || boardOpen || cbOpen || cmdsOpen) {
               openRef.current = false;
               setOpen(false);
               setTvOpen(false);
               setLinksOpen(false);
               setBoardOpen(false);
               setCbOpen(false);
+              setCmdsOpen(false);
               if (endErrandRef.current) endErrandRef.current(true);
               return;
             }

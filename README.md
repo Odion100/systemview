@@ -368,6 +368,6 @@ systemview stories <projectCode>          # list every saved story
 | `systemview shutdown [port]` | Stop a running instance |
 | `systemview help` | Print help |
 
-The newer verbs — the conversation set (`tell`, `join`, `leave`, `kick`, `visitors`, `read` — RFC-051), `comments … --at <line> --reply`, `nav`/`show`/`tv`/`status`, and `skill` — are documented in `systemview help` and [docs/cli.md](docs/cli.md).
+The newer verbs — the conversation set (`message-agent`, `join`, `leave`, `kick`, `visitors`, `read` — RFC-051), `comments … --at <line> --reply`, `nav`/`show`/`tv`/`status`, and `skill` — are documented in `systemview help` and [docs/cli.md](docs/cli.md).
 
 **Common flags:** `--json` · `--verbose` · `--bail` · `--dry-run` · `--manifest` · `--force` · `--header "Name: Value"` · `--skip <pattern>` · `--phase <phase>` · `--index <n>` · `--level <level>` · `--current` · `--limit <n>` · `--filter <field=value>` · `--or <field=value>` · `--include <field>`

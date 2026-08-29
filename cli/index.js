@@ -232,10 +232,9 @@ async function loadCaseSetting() {
     const deleteHosted = require("./deleteHosted");
     const exitCode = await deleteHosted(input[1], { uiUrl: UI_URL, Client, force: flags.force });
     flushAndExit(exitCode || 0);
-  } else if (["join", "leave", "kick", "message-agent", "tell", "say", "read", "visitors", "reply", "thread", "inbox", "nav", "refresh", "act", "highlight", "show", "tv"].includes(command) || (command === "status" && input[1])) {
+  } else if (["join", "leave", "kick", "message-agent", "read", "visitors", "reply", "thread", "inbox", "nav", "refresh", "act", "highlight", "show", "tv"].includes(command) || (command === "status" && input[1])) {
     // RFC-028 — the chat front door; RFC-029 — agent control rides the same door (a command is a
-    // chat record the open UI executes). join HANGS on purpose (the hold IS presence); the others
-    // are one-shots. All need the hub up.
+    // chat record the open UI executes). All one-shots. All need the hub up.
     await launchApp(DEFAULT_PORT);
     const chatCmd = require("./chat");
     const opts = {
@@ -251,9 +250,6 @@ async function loadCaseSetting() {
       // RFC-039 — `--pin` keeps that sentence: it also lands in the chat instead of evaporating
       // with the animation. Opt-in, because most pointing lines should stay ephemeral.
       pin: !!flags.pin,
-      // `--room` — the deliberate override for the reply-into-the-void wall: "I really do mean my
-      // own room", spoken right after a visitor, knowing they won't hear it.
-      room: !!flags.room,
       // `--json` belongs to the chat verbs generally, not to whichever ones remembered to splice it
       // in by hand — two new verbs shipped without it and printed prose at a parser.
       json: flags.json,
@@ -269,16 +265,12 @@ async function loadCaseSetting() {
     // the refusal and then hangs forever with nothing on screen to explain why.
     if (badIdentity) flushAndExit(badIdentity);
     let exitCode = 0;
-    if (command === "join") exitCode = await chatCmd.join(input[1], { ...opts, hold: !!flags.hold });
+    if (command === "join") exitCode = await chatCmd.join(input[1], opts);
     else if (command === "leave") exitCode = await chatCmd.leave(input[1], opts);
     else if (command === "kick") exitCode = await chatCmd.kick(input[1], input[2], opts);
-    // `message-agent` names the ONLY thing this verb does. `tell` and `say` are its retired names —
-    // both kept working so nobody is stranded, both saying so on the way through. The rename is the
-    // fix for a mistake a rename alone did NOT fix: I renamed say→tell and then used `tell` to send
-    // markdown to the HUMAN through his own room, which is what the verb was renamed to stop.
+    // `message-agent` names the ONLY thing this verb does: a message to ANOTHER agent's room. There
+    // is no verb for speaking into your own room — an attached agent's reply IS the message.
     else if (command === "message-agent") exitCode = await chatCmd.messageAgent(input[1], input[2], opts);
-    else if (command === "tell") exitCode = await chatCmd.messageAgent(input[1], input[2], { ...opts, deprecated: "tell" });
-    else if (command === "say") exitCode = await chatCmd.messageAgent(input[1], input[2], { ...opts, deprecated: "say" });
     // Reading another project's conversation, and the visitor list that decides who receives this
     // one's — the pair that retires join/arm/cursor/drain.
     else if (command === "read") exitCode = await chatCmd.read(input[1], opts);
@@ -487,7 +479,7 @@ async function loadCaseSetting() {
     const VERBS = [
       "start", "test", "list", "open", "probe", "connect", "disconnect", "manifest", "logs", "log",
       "stats", "comments", "board", "skill", "init", "delete", "shutdown", "toggle", "help",
-      "join", "leave", "kick", "message-agent", "tell", "say", "read", "visitors", "reply", "thread", "inbox", "status", "nav", "refresh", "act", "highlight",
+      "join", "leave", "kick", "message-agent", "read", "visitors", "reply", "thread", "inbox", "status", "nav", "refresh", "act", "highlight",
       "show", "tv", "assemble", "stage", "view", "selection",
     ];
     const near = VERBS.filter((v) => v.startsWith(command.slice(0, 2)) || command.startsWith(v.slice(0, 2)));

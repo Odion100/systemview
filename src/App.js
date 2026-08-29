@@ -27,19 +27,26 @@ installGlobalErrorChannel();
 // app is URL-backed; the loop-guard stops a reload cycle if the server ever serves stale.
 function useSelfUpdate() {
   useEffect(() => {
+    // THE STYLESHEET IS PART OF THE BUILD. This keyed on the JS bundle alone — so a build that
+    // changed only CSS kept the same script hash, `/sv-bundle` answered "same", and his tab never
+    // swapped: he sat on a stale stylesheet while I reported the fix served. Measured in his window
+    // (js hash equal, css hash behind). The key is now js + css together.
     const current = (() => {
       const s = document.querySelector('script[src*="static/js/main."]');
+      const c = document.querySelector('link[href*="static/css/main."]');
       const m = s && s.src.match(/main\.[a-z0-9]+\.js/);
-      return m ? m[0] : null;
+      const mc = c && c.href.match(/main\.[a-z0-9]+\.css/);
+      return m ? `${m[0]}${mc ? `+${mc[0]}` : ""}` : null;
     })();
     if (!current) return undefined;
     const check = async () => {
       try {
         const res = await fetch("/sv-bundle");
-        const { bundle } = await res.json();
-        if (!bundle || bundle === current) return;
-        if (sessionStorage.getItem("sv.reloadedFor") === bundle) return; // loop-guard
-        sessionStorage.setItem("sv.reloadedFor", bundle);
+        const { bundle, css } = await res.json();
+        const key = bundle ? `${bundle}${css ? `+${css}` : ""}` : null;
+        if (!key || key === current) return;
+        if (sessionStorage.getItem("sv.reloadedFor") === key) return; // loop-guard
+        sessionStorage.setItem("sv.reloadedFor", key);
         // PULL THE PAGE THROUGH THE CACHE FIRST. A plain reload can be answered from the disk cache
         // with the OLD index.html — which names the old bundle — so the tab comes back on exactly
         // the build it was trying to leave, and the guard above then stops it trying again. This

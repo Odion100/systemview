@@ -35,17 +35,18 @@ describe("recognising a SystemView command in a shell line", () => {
     // deletes something.
     expect(parseSvCommand("systemview nav x /y && rm -rf /")).toBeNull();
     expect(parseSvCommand("rm -rf / && systemview nav x /y")).toBeNull();
-    expect(parseSvCommand('systemview say bob "hi" --as me; echo "exit: $?"')).toMatchObject({
-      verb: "say",
+    expect(parseSvCommand('systemview message-agent bob "hi" --as me; echo "exit: $?"')).toMatchObject({
+      verb: "message-agent",
       as: "me",
     });
   });
 });
 
-describe("RFC-051 — the renamed verb still renders as a message", () => {
-  it("tell parses exactly like say did, and say still parses for old transcripts", () => {
-    expect(parseSvCommand('systemview tell bob "hi" --as me')).toMatchObject({ verb: "tell", project: "bob", as: "me" });
-    expect(parseSvCommand('systemview say bob "hi" --as me')).toMatchObject({ verb: "say", project: "bob", as: "me" });
+describe("RFC-051 — message-agent is the only message verb", () => {
+  it("message-agent parses; say and tell are not verbs", () => {
+    expect(parseSvCommand('systemview message-agent bob "hi" --as me')).toMatchObject({ verb: "message-agent", project: "bob", as: "me" });
+    expect(parseSvCommand('systemview say bob "hi" --as me')).toBeNull();
+    expect(parseSvCommand('systemview tell bob "hi" --as me')).toBeNull();
     expect(parseSvCommand("systemview leave bob --as me")).toMatchObject({ verb: "leave", project: "bob" });
     expect(parseSvCommand("systemview kick bob intruder")).toMatchObject({ verb: "kick", project: "bob", target: "intruder" });
   });
