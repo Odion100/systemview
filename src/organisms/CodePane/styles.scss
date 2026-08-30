@@ -60,6 +60,15 @@
   &__crumb-file {
     color: var(--sv-on-header);
     font-weight: 700;
+    // As a button it must still read as the file name: no chrome, the header's ink, pointer.
+    &--btn {
+      all: unset;
+      color: var(--sv-on-header);
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      &:hover { text-decoration: underline; }
+    }
   }
   &__dirty {
     width: 8px;

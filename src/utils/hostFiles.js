@@ -156,10 +156,10 @@ export const hostFiles = (projectCode, root) => {
       if (res && res.ok === false) throw new Error(res.error || "git did not run");
       return res;
     },
-    stageHunk: async ({ path, hunk, unstage } = {}) => {
-      const files = shellFiles();
-      if (!files || !files.stageHunk) throw new Error("this shell can't stage hunks yet");
-      const res = await files.stageHunk(projectCode, path, hunk, unstage);
+    // The HUB, like every other git verb — this one was still pointed at the shell (which has no
+    // such verb), so "+ stage" on a hunk always failed. `content` is the rebuilt index copy.
+    stageHunk: async ({ path, content } = {}) => {
+      const res = await hub().stageHunk(projectCode, { path, content, root });
       if (res && res.ok === false) throw new Error(res.error || "git did not run");
       return res;
     },

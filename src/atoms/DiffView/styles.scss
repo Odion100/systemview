@@ -16,3 +16,8 @@
     overflow: auto;
   }
 }
+
+// Staged hunks in the unstaged view: still there, faded — already in, not what you're deciding on.
+.diff-view .diff-view__faded {
+  opacity: 0.38;
+}

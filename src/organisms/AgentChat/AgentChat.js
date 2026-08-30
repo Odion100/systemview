@@ -12,7 +12,7 @@ import UiLink from "../../atoms/Markdown/blocks/UiLink";
 import Markdown from "../../atoms/Markdown/Markdown";
 import { spotlight, clearSpotlight, animationMode, setAnimationMode, MODES } from "../../spotlight";
 import { resolveTarget, docRectOf, revealDocLines } from "../../spotlightTargets";
-import { slotId, setNavDocked, useNavDock } from "./navDock";
+import { slotId, setNavDocked, useNavDock, railId, spotId, placeInDock, setDockOrder, useDockOrder, dockOrder } from "./navDock";
 import { hasHostDictation, startHostRecording } from "../../utils/hostDictation";
 import Feed, { timeOf } from "../AgentWorkbench/Feed";
 import useAgentSession from "../AgentWorkbench/useAgentSession";
@@ -623,12 +623,44 @@ function useCookWord(doing, state) {
   return specific || (state === "waiting" ? "waiting on you" : i > 0 ? COOKING[i - 1] : "thinking");
 }
 
+// THE NUMBER COUNTS UP. A token figure that jumps 1,200 → 2,749 reads as a glitch; one that runs
+// through the numbers reads as work happening (his ask: "animate it growing, number by number —
+// the distance between the changes decides how fast it changes"). Each new target starts a run
+// from wherever the display is; the run's length grows with the gap, so a small step ticks and a
+// big one sprints, and both land exactly on the target.
+function useCountUp(target) {
+  const [shown, setShown] = useState(target);
+  const ref = useRef({ from: target, to: target, t0: 0, dur: 0, raf: 0 });
+  useEffect(() => {
+    const r = ref.current;
+    if (target === r.to) return undefined;
+    cancelAnimationFrame(r.raf);
+    r.from = shown;
+    r.to = target;
+    r.t0 = performance.now();
+    const gap = Math.abs(target - shown);
+    // 200ms for a handful, up to ~1.4s for thousands — never so slow it lags the next update.
+    r.dur = Math.min(1400, 200 + Math.sqrt(gap) * 18);
+    const step = (now) => {
+      const k = Math.min(1, (now - r.t0) / r.dur);
+      const eased = 1 - (1 - k) * (1 - k);
+      setShown(Math.round(r.from + (r.to - r.from) * eased));
+      if (k < 1) r.raf = requestAnimationFrame(step);
+    };
+    r.raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(r.raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [target]);
+  return shown;
+}
+
 function CookLine({ doing, state, liveChars = 0 }) {
   const text = useCookWord(doing, state);
+  const counted = useCountUp(Math.round(liveChars / 4));
   // TOKENS, WITH THE TURN THEY BELONG TO. The count of what is being generated rides the cooking
   // line, not the usage bar — his call: a per-turn number "should show with the cooking message."
   // Characters over four, marked ≈, only while the answer is actually streaming.
-  const tok = state === "working" && liveChars > 40 ? `≈${Math.round(liveChars / 4).toLocaleString()} tok` : "";
+  const tok = state === "working" && liveChars > 40 ? `${counted.toLocaleString()} tok` : "";
   // I TOOK THESE OUT MYSELF AND BLAMED HIM FOR IT — correcting the record, because the old comment
   // here claimed he had cut the trailing dots. He hadn't: *"I never rejected the dots on that line,
   // trust me."* What he actually objected to was the cooking line's LOOK changing wholesale, and I
@@ -683,6 +715,19 @@ export default function AgentChats() {
   return projects
     .filter((pc) => !isParked(pc))
     .map((pc, i) => <BotBubble key={pc} projectCode={pc} index={i} />);
+}
+
+// RFC-052 — THE DOCK'S SPOTS, one per agent, in his order. Rendered by the page inside the rail;
+// each docked bot portals into its own spot, an undocked one leaves its spot visibly empty.
+export function DockSpots() {
+  const { connectedServices } = useContext(ServiceContext);
+  const order = useDockOrder();
+  const projects = useMemo(
+    () => [...new Set((connectedServices || []).map((s) => s.projectCode))].filter((pc) => !isParked(pc)),
+    [connectedServices],
+  );
+  const ordered = [...order.filter((pc) => projects.includes(pc)), ...projects.filter((pc) => !order.includes(pc))];
+  return ordered.map((pc) => <div key={pc} id={spotId(pc)} data-spot={pc} className="nav-panel__spot" title={pc} />);
 }
 
 // THE HUB — lives in the page header beside the version. Drops down to every agent bot: turn a
@@ -955,7 +1000,29 @@ function BotBubble({ projectCode, index }) {
   // the face sends the agent back into its own codebase card; the arrow on the docked row (or
   // dragging it out) brings it back to floating. The header lane keeps configuration and loses
   // docking, which is his call: two docks was one too many.
-  const dockHere = () => setNavDocked(projectCode, true);
+  const dockHere = () => {
+    if (!dockOrder().includes(projectCode)) placeInDock(projectCode, null); // a spot at the end
+    setNavDocked(projectCode, true);
+  };
+  // COME OUT WHERE YOU WENT IN (his ask). Undocking used to drop the bot back at whatever corner
+  // it was floating in before, which is usually nowhere near the codebase you were just reading —
+  // so pulling it out looked like it had vanished. It lands beside its own slot (card or rail)
+  // instead, and that position is remembered like any other.
+  const pullOut = () => {
+    try {
+      const el = document.getElementById(slotId(projectCode)) || document.getElementById(railId);
+      const r = el && el.getBoundingClientRect();
+      if (r) {
+        const p2 = {
+          x: Math.min(Math.max(12, r.right + 14), window.innerWidth - 70),
+          y: Math.min(Math.max(12, r.top - 6), window.innerHeight - 90),
+        };
+        setPos(p2);
+        try { localStorage.setItem(`sv.chatPos.${projectCode}`, JSON.stringify(p2)); } catch {}
+      }
+    } catch {}
+    setNavDocked(projectCode, false);
+  };
   const navDocked = useNavDock(projectCode);
   // The slot is a DOM node owned by the nav, which mounts and unmounts on its own (the panel opens,
   // a filter hides the card, the page changes). So it is looked for on a slow tick rather than once
@@ -965,7 +1032,12 @@ function BotBubble({ projectCode, index }) {
   useEffect(() => {
     if (!navDocked) return setSlotEl(null) || undefined;
     const look = () => {
-      const el = document.getElementById(slotId(projectCode));
+      // The card's slot first; the RAIL when the navigator is collapsed (RFC-052) — docked never
+      // means gone.
+      // A card slot inside a HIDDEN navigator does not count — the collapsed nav keeps its body
+      // mounted at display:none, and a bot portaled into that is the "docked agents vanish" bug.
+      const card = document.getElementById(slotId(projectCode));
+      const el = (card && card.offsetParent !== null ? card : null) || document.getElementById(spotId(projectCode));
       setSlotEl((cur) => (cur === el ? cur : el || null));
     };
     look();
@@ -1853,6 +1925,12 @@ function BotBubble({ projectCode, index }) {
       const dy = ev.clientY - d.startY;
       if (!d.moved && Math.abs(dx) + Math.abs(dy) < 6) return;
       d.moved = true;
+      // RFC-052 — DRAGGED OUT OF THE RAIL: it comes out where it was, under the pointer, and floats.
+      if (inRailRef.current) setNavDocked(projectCode, false);
+      // …and over the dock, the preview: shrink, and ring the spot it would take.
+      const hit = dockTargetOf(ev.clientX, ev.clientY);
+      setOverDock(!!hit);
+      markDockTarget(hit);
       // THE WHOLE ASSEMBLY STAYS ON SCREEN — the panel and the docked lane, not just the bot. The
       // panel hangs up-and-left off the bot, so its width and height decide how close to an edge the
       // bot may go. This is what makes flipping unnecessary: there is no position where the layout
@@ -1867,12 +1945,44 @@ function BotBubble({ projectCode, index }) {
         y: clamp(d.origY + dy, DOCK_EDGE, Math.max(DOCK_EDGE, window.innerHeight - d.h - DOCK_EDGE)),
       });
     };
-    const up = () => {
+    const up = (ev) => {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
       const d = dragRef.current;
       dragRef.current = null;
       setDragging(false);
+      setOverDock(false);
+      markDockTarget(null);
+      // RFC-052 — DROPPED ONTO THE RAIL: that is docking. Only when the rail is there (navigator
+      // collapsed) and the pointer let go over the rail's OWN area — below the nav tab. Above it
+      // stays free (his rule: "from the nav tab up, it should be free" — the top corners are still
+      // places to put an agent).
+      const railEl = document.getElementById(railId);
+      const railBox = railEl && railEl.getBoundingClientRect();
+      if (d && d.moved && ev && railBox && ev.clientX <= railBox.right + 12 && ev.clientY >= railBox.top && ev.clientY <= railBox.bottom) {
+        suppressClickRef.current = true;
+        setTimeout(() => { suppressClickRef.current = false; }, 0);
+        // WHERE YOU DROPPED IT (his ask): the spot under the pointer is the spot it takes, and
+        // that spot's owner SWITCHES into the spot you left — your own, wherever it sits. Two
+        // spots trade; nothing else moves. (Shifting the column was built first and read as a
+        // blink without an animation to carry it — his call: "switching would be more intuitive.")
+        const spots = [...railEl.querySelectorAll("[data-spot]")];
+        const full = spots.map((el) => el.dataset.spot);
+        let target = -1;
+        for (let i = 0; i < spots.length; i += 1) {
+          const b = spots[i].getBoundingClientRect();
+          if (ev.clientY <= b.bottom) { target = i; break; }
+        }
+        if (target < 0) target = full.length - 1;
+        const mine = full.indexOf(projectCode);
+        if (mine >= 0 && target !== mine) {
+          full[mine] = full[target];
+          full[target] = projectCode;
+        }
+        setDockOrder(full);
+        setNavDocked(projectCode, true);
+        return;
+      }
       // The side settles HERE, once, on the drop — never mid-drag.
       if (posRef.current) setFlip(posRef.current.x > window.innerWidth / 2);
       if (!d || !d.moved) return;
@@ -1934,10 +2044,52 @@ function BotBubble({ projectCode, index }) {
   // correction after I trimmed the bar by fiat: "cost and tokens should be optional… add a list
   // of checkboxes that allows you to configure what shows on the bar." Session, week and Fable
   // are on by default; tokens and cost are there for the day another API makes them matter.
-  const BAR_DEFAULTS = { session: true, week: true, fable: true, ctx: true, tokens: false, cost: false, fill: "auto" };
+  const BAR_DEFAULTS = { session: true, week: true, fable: true, ctx: true, tokens: false, cost: false, fill: "auto" , resets: "date" };
+// WHEN A METER RESETS, TWO FACES (his: "an option to show resets as the date, or a countdown —
+// granular"). The printout says "Sep 1 at 11:59pm" in his own zone; that parses to an instant, and
+// the countdown is measured from now, in days, hours and minutes — every unit that is non-zero.
+const resetAt = (str) => {
+  const m = /^(\w{3}) (\d{1,2}) at (\d{1,2}):(\d{2})(am|pm)$/i.exec(String(str || "").trim());
+  if (!m) return null;
+  const months = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+  const mo = months.indexOf(m[1].toLowerCase());
+  if (mo < 0) return null;
+  let h = Number(m[3]) % 12;
+  if (m[5].toLowerCase() === "pm") h += 12;
+  const now = new Date();
+  let d = new Date(now.getFullYear(), mo, Number(m[2]), h, Number(m[4]));
+  // A reset more than a day in the past was really next year's (a January reset read in December).
+  if (d.getTime() < now.getTime() - 86400000) d = new Date(now.getFullYear() + 1, mo, Number(m[2]), h, Number(m[4]));
+  return d;
+};
+const countdown = (str, now = Date.now()) => {
+  const at = resetAt(str);
+  if (!at) return null;
+  let ms = at.getTime() - now;
+  if (ms <= 0) return "now";
+  const dd = Math.floor(ms / 86400000); ms -= dd * 86400000;
+  const hh = Math.floor(ms / 3600000); ms -= hh * 3600000;
+  const mm = Math.floor(ms / 60000);
+  return [dd && `${dd}d`, hh && `${hh}h`, `${mm}m`].filter(Boolean).join(" ");
+};
+
   const [barPrefs, setBarPrefs] = useState(() => {
     try { return { ...BAR_DEFAULTS, ...(JSON.parse(localStorage.getItem("sv.usagebar.show")) || {}) }; } catch { return BAR_DEFAULTS; }
   });
+  // The countdown moves — one re-render a minute while that face is showing.
+  const [, resetTick] = useState(0);
+  useEffect(() => {
+    if (barPrefs.resets !== "countdown") return undefined;
+    const t = setInterval(() => resetTick((n) => n + 1), 60000);
+    return () => clearInterval(t);
+  }, [barPrefs.resets]);
+  const resetFace = (r, name) => {
+    if (barPrefs.resets === "countdown") {
+      const c = countdown(r);
+      if (c) return `in ${c}`;
+    }
+    return name === "session" ? String(r || "").replace(/^\w+ \d+ at /, "") : String(r || "").replace(" at ", " ");
+  };
   const setBarPref = (k, v) => {
     const next = { ...barPrefs, [k]: v };
     setBarPrefs(next);
@@ -3342,7 +3494,31 @@ function BotBubble({ projectCode, index }) {
   // RFC-038 — IN THE NAV. `navDocked` is the intent; `inNav` is the fact, because the slot only
   // exists while that codebase card is on screen. If the panel is closed or the card unmounts, the
   // bot has nowhere to be and floats again rather than disappearing.
-  const inNav = navDocked && !!slotEl;
+  // RFC-052 — IN THE RAIL: the navigator is collapsed, the card is gone, and the bot is drawn small
+  // in the strip that remains. Not `inNav` (no tabs, no card row): a small face whose panels open
+  // beside the rail.
+  const inRail = navDocked && !!slotEl && slotEl.id === spotId(projectCode);
+  const inNav = navDocked && !!slotEl && !inRail;
+  const inRailRef = useRef(inRail);
+  inRailRef.current = inRail;
+  // RFC-052 — OVER THE DOCK WHILE DRAGGING: the bot shrinks to dock size in your hand and the spot
+  // under the pointer shows a ring, so where it lands is clear before you let go (his ask).
+  const [overDock, setOverDock] = useState(false);
+  const dockTargetOf = (x, y) => {
+    const railEl = document.getElementById(railId);
+    const box = railEl && railEl.getBoundingClientRect();
+    if (!box || x > box.right + 12 || y < box.top || y > box.bottom) return null;
+    const spots = [...railEl.querySelectorAll("[data-spot]")];
+    let target = spots.length - 1;
+    for (let i = 0; i < spots.length; i += 1) {
+      if (y <= spots[i].getBoundingClientRect().bottom) { target = i; break; }
+    }
+    return { railEl, spots, target };
+  };
+  const markDockTarget = (hit) => {
+    document.querySelectorAll("[data-spot].nav-panel__spot--target").forEach((el) => el.classList.remove("nav-panel__spot--target"));
+    if (hit && hit.spots[hit.target]) hit.spots[hit.target].classList.add("nav-panel__spot--target");
+  };
   // Docked, the four icons are TABS over one surface — a 280px column cannot hold four boxes side
   // by side, and switching is a tab bar's whole job (his call, and better than what I proposed).
   // OPENING HAS TO SCROLL THE PANEL TO IT (his catch): several projects are stacked in that column,
@@ -3458,7 +3634,8 @@ function BotBubble({ projectCode, index }) {
   const peekCookWord = useCookWord(work.state.doing, work.state.state);
   // THE COUNT SHOWS MINIMISED TOO — the peek is where he watches a turn build. Same rule as the
   // panel's cooking line: chars over four, marked ≈, only while the session is actually working.
-  const peekTok = work.state.state === "working" && work.state.liveChars > 40 ? `≈${Math.round(work.state.liveChars / 4).toLocaleString()} tok` : "";
+  const peekCounted = useCountUp(Math.round(work.state.liveChars / 4));
+  const peekTok = work.state.state === "working" && work.state.liveChars > 40 ? `${peekCounted.toLocaleString()} tok` : "";
   // THE MINIMISED BRIEF — his ask, and it replaces the cooking word outright while attached:
   // *"when it's in minimization mode, can we have one block that just shows text and commands, one
   // line text and one line commands, right under the agent — that could replace the whole cooking
@@ -3569,8 +3746,8 @@ function BotBubble({ projectCode, index }) {
   const body = (
     <div
       ref={rootRef}
-      className={`${CLASSNAME} ${topHalf ? `${CLASSNAME}--top` : ""} ${leftHalf ? `${CLASSNAME}--left` : ""} ${flip ? `${CLASSNAME}--flipx` : ""} ${docked ? `${CLASSNAME}--docked` : ""}${saying ? ` ${CLASSNAME}--errand` : ""}${iconsLeft ? ` ${CLASSNAME}--iconsleft` : ""}${inNav ? ` ${CLASSNAME}--innav` : ""}`}
-      style={inNav ? undefined : style}
+      className={`${CLASSNAME} ${topHalf ? `${CLASSNAME}--top` : ""} ${leftHalf ? `${CLASSNAME}--left` : ""} ${flip && !inRail ? `${CLASSNAME}--flipx` : ""} ${docked ? `${CLASSNAME}--docked` : ""}${saying ? ` ${CLASSNAME}--errand` : ""}${iconsLeft ? ` ${CLASSNAME}--iconsleft` : ""}${inNav ? ` ${CLASSNAME}--innav` : ""}${inRail ? ` ${CLASSNAME}--rail` : ""}${inRail && (open || tvOpen || linksOpen || boardOpen || cbOpen || cmdsOpen) ? ` ${CLASSNAME}--rail-open` : ""}${overDock ? ` ${CLASSNAME}--overdock` : ""}`}
+      style={inNav || inRail ? undefined : style}
       // Touch any part of a bot — its bubble, panel, or TV — and it comes to the FRONT (his
       // ask: "if I click on it, I'm trying to be in that chat").
       onPointerDownCapture={bringToFront}
@@ -3717,6 +3894,19 @@ function BotBubble({ projectCode, index }) {
                         </button>
                       ))}
                     </div>
+                    <div className={`${CLASSNAME}__usage-prefs`}>
+                      <span className={`${CLASSNAME}__usage-prefs-label`}>resets as</span>
+                      {[["date", "date"], ["countdown", "countdown"]].map(([k, name]) => (
+                        <button
+                          key={k}
+                          type="button"
+                          className={`${CLASSNAME}__usage-pref${barPrefs.resets === k ? ` ${CLASSNAME}__usage-pref--on` : ""}`}
+                          onClick={() => setBarPref("resets", k)}
+                        >
+                          {name}
+                        </button>
+                      ))}
+                    </div>
                     {usage.bars.map((bar) => {
                       const tone = bar.pct >= 90 ? "due" : bar.pct >= 75 ? "warn" : "";
                       const word = tone === "due" ? "at the limit" : tone === "warn" ? "high" : "";
@@ -3732,7 +3922,7 @@ function BotBubble({ projectCode, index }) {
                           <div className={`${CLASSNAME}__usage-meter`} role="meter" aria-valuenow={bar.pct} aria-valuemin={0} aria-valuemax={100} aria-label={bar.label}>
                             <div className={`${CLASSNAME}__usage-fill`} style={{ width: `${Math.max(bar.pct, 1.5)}%` }} />
                           </div>
-                          {bar.resets && <div className={`${CLASSNAME}__usage-resets`}>resets {bar.resets}</div>}
+                          {bar.resets && <div className={`${CLASSNAME}__usage-resets`} title={`resets ${bar.resets}`}>resets {resetFace(bar.resets, /^session/i.test(bar.label) ? "session" : "week")}</div>}
                         </div>
                       );
                     })}
@@ -5278,7 +5468,11 @@ function BotBubble({ projectCode, index }) {
                 onClick={() => (cmdsOpen ? setCmdsOpen(false) : runSlash("/usage"))}
               >
                 <span className={`${CLASSNAME}__usageline-track`}>
-                  <span className={`${CLASSNAME}__usageline-fill`} style={{ width: `${pct}%` }} />
+                  {/* THE BAR SHADES AS IT CLIMBS — its own thing, not the meters' amber/red steps
+                      (his: "it has a separate color already… I want it to do its own thing").
+                      It stays its blue through 60% (his: "shouldn't it still be blue at 39%?"),
+                      then warms — violet, magenta, red at full — never crossing green or yellow. */}
+                  <span className={`${CLASSNAME}__usageline-fill`} style={{ width: `${pct}%`, background: `hsl(${Math.round(232 + (128 * Math.max(0, Math.min(100, pct) - 60)) / 40)} 58% 60%)` }} />
                 </span>
                 <span className={`${CLASSNAME}__usageline-text`}>
                   {(() => {
@@ -5288,7 +5482,7 @@ function BotBubble({ projectCode, index }) {
                     // A SESSION RESETS IN HOURS, so its time is enough; week and Fable reset days
                     // out, and a bare "11:59pm" says nothing without the day (his catch). The date
                     // stays for those; only the filler word goes.
-                    const short = (r, name) => (name === "session" ? String(r || "").replace(/^\w+ \d+ at /, "") : String(r || "").replace(" at ", " "));
+                    const short = resetFace;
                     // THE BAR AND THE TEXT BESIDE IT ARE ONE THING. Whatever meter the fill
                     // tracks is named FIRST, right against the bar — his: "the bar belongs to the
                     // text next to it." The rest follow in a fixed order. THE RESET RIDES WITH THE
@@ -5501,7 +5695,15 @@ function BotBubble({ projectCode, index }) {
               // and a shell line read as themselves here too. Each is ONE line and clipped — this
               // is a brief, and a brief that wraps to four lines is a panel he did not open.
               <div className={`${CLASSNAME}__brief`}>
-                {brief.say && <div className={`${CLASSNAME}__brief-say`}>{brief.say}</div>}
+                {/* THE PREVIEW RENDERS ITS MARKDOWN (his ask): the last thing said often carries
+                    bold, code, a list — as raw asterisks it read wrong. Same renderer as the
+                    bubble, same three-line clamp and size as before; blocks are dropped here, a
+                    preview is not the place for a file card. */}
+                {brief.say && (
+                  <div className={`${CLASSNAME}__brief-say`}>
+                    <MarkdownScopeProvider value={{ projectCode }}>{renderChatMessage(brief.say)}</MarkdownScopeProvider>
+                  </div>
+                )}
                 {/* THE DOTS BELONG TO THE SECOND ROW, and to ALL of them — his correction, twice
                     over. First I put them on both rows: *"I didn't say the ellipsis is on both rows.
                     I said the second row."* Then, on the row itself: *"it's only on the green ones…
@@ -5722,7 +5924,8 @@ function BotBubble({ projectCode, index }) {
           // DOCKING BELONGS TO THE FACE, not to the whole bot. It used to sit on the container, so
           // a double-click that landed on the name tag or on one of the icons beside it docked the
           // agent as if you'd hit the icon itself.
-          onDoubleClick={dockHere}
+          // DOUBLE-CLICK GOES BOTH WAYS (his rule): floating, it docks; docked, it comes out.
+          onDoubleClick={inNav || inRail ? pullOut : dockHere}
           onClick={() => {
             if (suppressClickRef.current) return; // a drag is not a click
             // THE BOT IS THE MASTER SWITCH. Anything open — chat, TV, collector — and one click on
@@ -5867,7 +6070,7 @@ function BotBubble({ projectCode, index }) {
             click brings the tree up, the next puts it away. */}
         <button
           type="button"
-          className={`${CLASSNAME}__minicode`}
+          className={`${CLASSNAME}__minicode${cbOpen ? ` ${CLASSNAME}__minicode--on` : ""}`}
           title="The codebase — open it, click again to put it away"
           onPointerDown={(e) => e.stopPropagation()} // the bot drags; this button does not
           onClick={(e) => {
@@ -5904,7 +6107,7 @@ function BotBubble({ projectCode, index }) {
         </button>
         {/* PULL IT BACK OUT. Dragging the row works too, but a gesture you have to already know is
             not a way out — the arrow says there is one. */}
-        {inNav && (
+        {(inNav || inRail) && (
           <button
             type="button"
             className={`${CLASSNAME}__pullout`}
@@ -5912,22 +6115,7 @@ function BotBubble({ projectCode, index }) {
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation();
-              // COME OUT WHERE YOU WENT IN (his ask). Undocking used to drop the bot back at whatever
-              // corner it was floating in before, which is usually nowhere near the codebase you were
-              // just reading — so pulling it out looked like it had vanished. It lands beside its own
-              // card instead, and that position is remembered like any other.
-              try {
-                const r = slotEl && slotEl.getBoundingClientRect();
-                if (r) {
-                  const p2 = {
-                    x: Math.min(Math.max(12, r.right + 14), window.innerWidth - 70),
-                    y: Math.min(Math.max(12, r.top - 6), window.innerHeight - 90),
-                  };
-                  setPos(p2);
-                  try { localStorage.setItem(`sv.chatPos.${projectCode}`, JSON.stringify(p2)); } catch {}
-                }
-              } catch {}
-              setNavDocked(projectCode, false);
+              pullOut();
             }}
           >
             ↗
@@ -5939,5 +6127,5 @@ function BotBubble({ projectCode, index }) {
   // RFC-038 — the same bot, rendered somewhere else. A portal rather than a second component, so
   // nothing about its state (the chat, the board, the TV, presence, the roster) is rebuilt or lost
   // by going home.
-  return inNav ? createPortal(body, slotEl) : body;
+  return inNav || inRail ? createPortal(body, slotEl) : body;
 }

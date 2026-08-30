@@ -50,54 +50,104 @@ export function lineDiff(base = "", head = "") {
     return marks;
   }
 
-  if (a.length * b.length > MAX_CELLS) {
-    // Too big to be exact: say "this span differs" rather than guess line by line.
-    b.forEach((_l, i) => marks.set(pre + i + 1, "changed"));
-    return marks;
-  }
-
-  // LCS length table over the trimmed middles.
-  const n = a.length;
-  const m = b.length;
-  const L = new Uint32Array((n + 1) * (m + 1));
-  const at = (i, j) => i * (m + 1) + j;
-  for (let i = n - 1; i >= 0; i -= 1)
-    for (let j = m - 1; j >= 0; j -= 1)
-      L[at(i, j)] =
-        a[i] === b[j]
-          ? L[at(i + 1, j + 1)] + 1
-          : Math.max(L[at(i + 1, j)], L[at(i, j + 1)]);
+  // The edit script — "=" keep, "-" delete a line of A, "+" insert a line of B — from the exact
+  // LCS table while it fits, and from Myers' O(ND) walk when it does not. The cap used to mean
+  // "mark the whole span changed": on a 6,000-line file with edits spread across it (his
+  // AgentChat.js) that made ONE hunk out of everything, so no run could be staged on its own and
+  // the faded view had nothing to fade. Myers costs O((n+m)·D), D = edits, which is small even
+  // when n·m is not.
+  const ops = a.length * b.length > MAX_CELLS ? myersOps(a, b) : lcsOps(a, b);
 
   // Walk it, recording what happened to each line of B. A deletion immediately followed by an
   // insertion reads as a CHANGED line, which is what a human means by "this line changed".
-  let i = 0;
   let j = 0;
   let pendingDelete = false;
-  while (i < n && j < m) {
-    if (a[i] === b[j]) {
+  for (const op of ops) {
+    if (op === "=") {
       if (pendingDelete) {
         // Deleted lines with nothing put in their place — mark the surviving line above the gap.
         marks.set(pre + j, marks.get(pre + j) || "removed");
         pendingDelete = false;
       }
-      i += 1;
       j += 1;
-    } else if (L[at(i + 1, j)] >= L[at(i, j + 1)]) {
+    } else if (op === "-") {
       pendingDelete = true;
-      i += 1;
     } else {
       marks.set(pre + j + 1, pendingDelete ? "changed" : "added");
       pendingDelete = false;
       j += 1;
     }
   }
-  while (j < m) {
-    marks.set(pre + j + 1, pendingDelete ? "changed" : "added");
-    pendingDelete = false;
-    j += 1;
-  }
-  if (i < n || pendingDelete) marks.set(Math.max(1, pre + j), "removed");
+  if (pendingDelete) marks.set(Math.max(1, pre + j), "removed");
   return marks;
+}
+
+// Exact: the LCS length table, then the classic walk.
+function lcsOps(a, b) {
+  const n = a.length;
+  const m = b.length;
+  const L = new Uint32Array((n + 1) * (m + 1));
+  const at = (i, j) => i * (m + 1) + j;
+  for (let i = n - 1; i >= 0; i -= 1)
+    for (let j = m - 1; j >= 0; j -= 1)
+      L[at(i, j)] = a[i] === b[j] ? L[at(i + 1, j + 1)] + 1 : Math.max(L[at(i + 1, j)], L[at(i, j + 1)]);
+  const ops = [];
+  let i = 0;
+  let j = 0;
+  while (i < n && j < m) {
+    if (a[i] === b[j]) { ops.push("="); i += 1; j += 1; }
+    else if (L[at(i + 1, j)] >= L[at(i, j + 1)]) { ops.push("-"); i += 1; }
+    else { ops.push("+"); j += 1; }
+  }
+  while (i < n) { ops.push("-"); i += 1; }
+  while (j < m) { ops.push("+"); j += 1; }
+  return ops;
+}
+
+// Myers (1986), the forward walk with a saved trace per step — memory O(D²) worst case, which for
+// a real edit (hundreds of differing lines) is nothing. Same op alphabet as lcsOps.
+function myersOps(a, b) {
+  const n = a.length;
+  const m = b.length;
+  const max = n + m;
+  const offset = max;
+  let v = new Int32Array(2 * max + 2);
+  const trace = [];
+  let found = false;
+  for (let d = 0; d <= max && !found; d += 1) {
+    trace.push(v.slice());
+    for (let k = -d; k <= d; k += 2) {
+      let x;
+      if (k === -d || (k !== d && v[offset + k - 1] < v[offset + k + 1])) x = v[offset + k + 1];
+      else x = v[offset + k - 1] + 1;
+      let y = x - k;
+      while (x < n && y < m && a[x] === b[y]) { x += 1; y += 1; }
+      v[offset + k] = x;
+      if (x >= n && y >= m) { found = true; break; }
+    }
+  }
+  // Backtrack through the saved traces to recover the script, then reverse it.
+  const rev = [];
+  let x = n;
+  let y = m;
+  for (let d = trace.length - 1; d >= 0; d -= 1) {
+    const vv = trace[d];
+    const k = x - y;
+    let prevK;
+    if (k === -d || (k !== d && vv[offset + k - 1] < vv[offset + k + 1])) prevK = k + 1;
+    else prevK = k - 1;
+    const prevX = vv[offset + prevK];
+    const prevY = prevX - prevK;
+    while (x > prevX && y > prevY) { rev.push("="); x -= 1; y -= 1; }
+    if (d > 0) {
+      if (x === prevX) { rev.push("+"); y -= 1; }
+      else { rev.push("-"); x -= 1; }
+    }
+  }
+  while (x > 0 && y > 0) { rev.push("="); x -= 1; y -= 1; }
+  while (x > 0) { rev.push("-"); x -= 1; }
+  while (y > 0) { rev.push("+"); y -= 1; }
+  return rev.reverse();
 }
 
 // HUNKS — the same walk, grouped. A stripe you can CLICK needs to know what was there BEFORE, and

@@ -33,6 +33,18 @@
     background: #c9cfe8;
   }
 }
+// RFC-052 — the divider at a COLLAPSED strip's edge: same line, same hover, same drag; it just
+// lives on the strip's outer edge instead of between two open panels.
+.panel-divider--edge {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  margin: 0;
+  flex: none;
+}
+.panel-divider--edge-left { right: -3px; }
+.panel-divider--edge-right { left: -3px; }
 body.panel-resizing {
   cursor: col-resize;
   user-select: none;
@@ -217,8 +229,12 @@ body.panel-resizing {
     position: fixed;
     right: 0;
     top: 74px;
+    bottom: 0;
     z-index: 30;
-    width: auto;
+    width: auto; // the tab's width, exactly
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
   }
   &--collapsed .scratchpad__toggle {
     writing-mode: vertical-rl;
@@ -255,12 +271,79 @@ body.panel-resizing {
 // Nav panel — mirror of the scratchpad, de-expanding into the LEFT corner.
 .nav-panel {
   position: relative;
+  // RFC-052 — collapsed, the navigator is a RAIL: a strip the width of its tab, the full height of
+  // the page, that (1) holds the docked agents and (2) is the handle that pulls the panel back out.
   &--collapsed {
     position: fixed;
     left: 0;
     top: 74px;
-    z-index: 30;
+    bottom: 0;
+    z-index: 8400; // above the page; the agents' panels open out of it
+    // EXACTLY THE TAB'S WIDTH, no more (his rule): the strip takes its width from the tab, and
+    // never the other way round — stretching the tab to a fixed strip width made the tab bigger.
     width: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  &__rail {
+    align-self: stretch;
+    // AS LONG AS ITS AGENTS, not the page (his: "just like the tabs, it has its length — the
+    // number of agents tells you how long it needs to be"). Empty, it takes no room at all.
+    flex: 0 0 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 0 8px 3px; // the faces sit a touch off the corner, not on it (his ask)
+    overflow: visible;
+    // THE DOCK ITSELF (his ask: "styling behind them that makes it look like they're docked") —
+    // a soft well down the strip, as long as its SPOTS (one per agent), there whether or not any
+    // agent is in it. Blue, to sit with the tab (his: "some blue, still subtle, matching the tabs").
+    // Subtle elevation — less than the tab's — and a faint line to sharpen its edges (his ask).
+    &:has(.nav-panel__spot) {
+      // Wide enough to hold the whole face with a margin, not just the strip (his ask).
+      width: 40px;
+      align-self: flex-start;
+      background: var(--sv-surface); // light: plain white (his call)
+      // Dark keeps the earlier one — the tab's own blue (his call: "in dark mode I like the old one").
+      :root.sv-dark & {
+        background: color-mix(in srgb, var(--sv-blue) 9%, transparent);
+      }
+      box-shadow: 0 1px 3px rgba(20, 30, 80, 0.12); // a lift, not a border (his catch)
+      border-radius: 0 8px 8px 0;
+      margin-top: 6px;
+    }
+    // A SPOT: room for a face, a name and the mic. Empty, it shows a faint ring — a place an agent
+    // can be dropped, and a place one has left.
+    .nav-panel__spot {
+      width: 34px;
+      min-height: 64px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      &:empty::before {
+        content: "";
+        width: 26px;
+        height: 26px;
+        margin: 1px 0 0 4px;
+        border-radius: 50%;
+        border: 1px dashed color-mix(in srgb, var(--sv-blue) 40%, transparent);
+      }
+      // THE SPOT YOU ARE OVER, while dragging: a solid ring where the dashed one was, and a ring
+      // around an occupied spot too — this is where it lands (his ask).
+      &--target {
+        border-radius: 8px;
+        outline: 1.5px dashed var(--sv-blue);
+        outline-offset: -1px;
+        background: color-mix(in srgb, var(--sv-blue) 10%, transparent);
+        &:empty::before {
+          border-style: solid;
+          border-color: var(--sv-blue);
+        }
+      }
+    }
   }
   &__toggle {
     border: 1px solid #b0bed8;

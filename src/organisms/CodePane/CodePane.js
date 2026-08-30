@@ -37,6 +37,10 @@ const CodePane = ({ file, onClose }) => {
   const [content, setContent] = useState(null); // null = loading
   const [savedContent, setSavedContent] = useState(null);
   const [error, setError] = useState("");
+  // AN ACTION'S FAILURE IS A LINE, NOT A BLANK FILE. `error` above means "this file could not be
+  // shown" and hides the editor; a stage that failed is not that (his report: "the file goes blank,
+  // can't read anymore"). Staging errors get their own line under the file.
+  const [stageError, setStageError] = useState("");
   const [saving, setSaving] = useState(false);
   // THE PATH ALWAYS KNOWS; THE ROW SOMETIMES DOESN'T. This trusted `file.language`, which the file
   // TREE sets — but a file opened from the CHANGES list comes from `changedFiles`, whose rows carry
@@ -158,14 +162,13 @@ const CodePane = ({ file, onClose }) => {
   const stageHunkAt = async (h, unstage) => {
     // SAY WHY when nothing happens. Every one of these used to be a silent return, which is how a
     // button that did nothing looked identical to a button that was broken.
-    if (!Plugin) return setError("no file host for this project");
-    if (!Plugin.stageHunk)
-      return setError("this project's plugin predates line-level staging — restart the service");
+    if (!Plugin) return setStageError("no file host for this project");
+    if (!Plugin.stageHunk) return setStageError("this project's file host can't stage hunks");
     if (content == null) return;
     const built = stagedContentFor(h, { base, index, content, unstage });
-    if (built.error) return setError(built.error);
+    if (built.error) return setStageError(built.error);
     const out = built.content;
-    setError("");
+    setStageError("");
     try {
       await Plugin.stageHunk({ path: file.path, content: out });
       // Re-read rather than assume: the index is git's now, not ours.
@@ -176,7 +179,7 @@ const CodePane = ({ file, onClose }) => {
       // something forced it — his report: "I had to unstage and stage it just for it to kick in".
       window.dispatchEvent(new CustomEvent("sv:git"));
     } catch (e) {
-      setError(e.message || "could not stage those lines");
+      setStageError(e.message || "could not stage those lines");
     }
   };
 
@@ -749,13 +752,25 @@ const CodePane = ({ file, onClose }) => {
           {segments.map((seg, i) => (
             <span key={i}>
               {i > 0 && <span className={`${CLASSNAME}__crumb-sep`}>/</span>}
-              <span
-                className={
-                  i === segments.length - 1 ? `${CLASSNAME}__crumb-file` : `${CLASSNAME}__crumb-dir`
-                }
-              >
-                {seg}
-              </span>
+              {i === segments.length - 1 ? (
+                // THE FILE NAME PULLS THE TREE TO IT. The nav scrolls away while you read; clicking
+                // the name reveals this file in the codebase — expands, marks, scrolls it into view
+                // — without changing anything else (his ask).
+                <button
+                  type="button"
+                  className={`${CLASSNAME}__crumb-file ${CLASSNAME}__crumb-file--btn`}
+                  title="Show this file in the codebase"
+                  onClick={() =>
+                    window.dispatchEvent(
+                      new CustomEvent("sv:revealInNav", { detail: { kind: "file", path: file.path, projectCode: file.projectCode, at: Date.now() } }),
+                    )
+                  }
+                >
+                  {seg}
+                </button>
+              ) : (
+                <span className={`${CLASSNAME}__crumb-dir`}>{seg}</span>
+              )}
             </span>
           ))}
         </span>
@@ -798,7 +813,8 @@ const CodePane = ({ file, onClose }) => {
               }
               onClick={toggleDiff}
             >
-              Diff
+              {/* Say which pair is on screen, so a staged row and a changes row read differently. */}
+              {diffMode && file.side === "staged" && index != null ? "Diff · staged" : diffMode && file.side === "unstaged" && index != null ? "Diff · unstaged" : "Diff"}
             </button>
           )}
           {/* RFC-034 — one control for ALL of this file's comments, off by default. The count is on
@@ -1224,9 +1240,26 @@ const CodePane = ({ file, onClose }) => {
           </div>
         )}
         {!error && !isImage && content !== null && (diffMode && diffData ? (
-          // The diff EDITS the working file: head = the editor's live content (unsaved edits show),
-          // typing in the right side feeds the same dirty/Save/⌘S machinery as the plain editor.
-          <DiffView base={diffData.base} head={content} language={diffData.language} dark={editorDark} onChange={setContent} />
+          // WHICH PAIR depends on WHICH ROW you opened it from (his catch: the same file listed under
+          // staged and under changes showed the same diff from both — both were HEAD → working).
+          //   staged   HEAD → index    what you would be committing; read-only, the index is git's
+          //   changes  HEAD → working  with the hunks ALREADY STAGED faded — still visible, not
+          //                            what you are deciding on (his ask); editable
+          //   (no side: opened from the tree) HEAD → working, editable, as before.
+          // The diff EDITS the working file when the right side IS the working file: head = the
+          // editor's live content (unsaved edits show), typing feeds the same dirty/Save/⌘S machinery.
+          file.side === "staged" && index != null ? (
+            <DiffView base={diffData.base} head={index} language={diffData.language} dark={editorDark} />
+          ) : (
+            <DiffView
+              base={diffData.base}
+              head={content}
+              language={diffData.language}
+              dark={editorDark}
+              onChange={setContent}
+              faded={file.side === "unstaged" && index != null && hunks ? hunks.filter((h) => h.staged) : null}
+            />
+          )
         ) : preview && isMd ? (
           <div className={`md-view md-view--${editorDark ? "dark" : "light"}`}>
             <Markdown
@@ -1287,6 +1320,7 @@ const CodePane = ({ file, onClose }) => {
         ))}
       </div>
       {commentError && <div className={`${CLASSNAME}__error`}>{commentError}</div>}
+      {stageError && <div className={`${CLASSNAME}__error`}>{stageError}</div>}
       {/* The same two-step context menu the codebase tree uses — one menu, two surfaces. */}
       <RowMenu menu={codeMenu} onClose={() => setCodeMenu(null)} />
     </div>

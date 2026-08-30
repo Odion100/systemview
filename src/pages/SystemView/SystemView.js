@@ -4,7 +4,7 @@ import SystemNavigator from "../../organisms/SystemNavigator/SystemNavigator";
 import Documentation from "../../organisms/Documentation/Documentation";
 import TestPanel from "../../organisms/TestPanel/TestPanel";
 import PageHeader from "../../organisms/PageHeader/PageHeader";
-import AgentChat from "../../organisms/AgentChat/AgentChat";
+import AgentChat, { DockSpots } from "../../organisms/AgentChat/AgentChat";
 import "./styles.scss";
 
 // Extension → the editor's language names (see atoms/CodeView/languages.js). Anything unknown is
@@ -255,6 +255,16 @@ const SystemViewPage = () => {
     dragRef.current = which;
     document.body.classList.add("panel-resizing");
   };
+  // RFC-052 — THE COLLAPSED STRIP IS THE GRAB BAR. Drag it inward and the panel comes back out of
+  // its minimised state, already resizing under the pointer (his: "if you have a handle on it, you
+  // could drag — boom — in and out"). Ignored when the press lands on an agent in the rail.
+  const startPull = (which) => (e) => {
+    if (e.button !== 0) return;
+    if (e.target.closest && e.target.closest(".agent-chat")) return;
+    e.preventDefault();
+    dragRef.current = `pull-${which}`;
+    document.body.classList.add("panel-resizing");
+  };
   useEffect(() => {
     const up = () => {
       dragRef.current = null;
@@ -263,19 +273,37 @@ const SystemViewPage = () => {
     const move = (e) => {
       if (!dragRef.current || !rowRef.current) return;
       const rect = rowRef.current.getBoundingClientRect();
+      // A pull on a collapsed strip: past a few pixels inward, the panel opens and the drag becomes
+      // an ordinary resize.
+      // It opens once the pointer is past the panel's own MINIMUM width — opening any earlier put
+      // the pointer inside the collapse zone of the resize that follows, so the panel opened and
+      // shut in the same gesture.
+      if (dragRef.current === "pull-nav") {
+        if (((e.clientX - rect.left) / rect.width) * 100 < 12) return;
+        setNavOpen(true);
+        dragRef.current = "nav";
+      } else if (dragRef.current === "pull-scratch") {
+        if (((rect.right - e.clientX) / rect.width) * 100 < 15) return;
+        setScratchOpen(true);
+        dragRef.current = "scratch";
+      }
       if (dragRef.current === "nav") {
         const raw = ((e.clientX - rect.left) / rect.width) * 100;
-        // Dragged past the edge → COLLAPSE into the corner tab (another way to minimize).
+        // Dragged past the edge → COLLAPSE into the corner tab (another way to minimize). THE
+        // GESTURE DOES NOT END THERE (RFC-052, his rule): the drag turns into a pull, so keeping
+        // hold and coming back out reopens it — one motion, in and out.
         if (raw < 7) {
           setNavOpen(false);
-          return up();
+          dragRef.current = "pull-nav";
+          return;
         }
         setNavW(clampNav(raw));
       } else {
         const raw = ((rect.right - e.clientX) / rect.width) * 100;
         if (raw < 9) {
           setScratchOpen(false);
-          return up();
+          dragRef.current = "pull-scratch";
+          return;
         }
         setScratchW(clampScratch(raw));
       }
@@ -307,6 +335,23 @@ const SystemViewPage = () => {
             >
               Navigator ›
             </button>
+          )}
+          {/* RFC-052 — THE RAIL. Docked agents live here while the navigator is away, drawn small;
+              they portal themselves in (see navDock.railId). Docking never means disappearing. */}
+          {!navOpen && (
+            <div id="sv-agent-rail" className="nav-panel__rail">
+              <DockSpots />
+            </div>
+          )}
+          {/* RFC-052 — THE SAME DIVIDER, at the strip's edge. Collapsed, the line you drag is the
+              one you dragged to collapse it: it sits at the strip's edge and pulls the panel back
+              out (his: "it becomes the corner… a line that pops up when you hover"). */}
+          {!navOpen && (
+            <div
+              className="panel-divider panel-divider--edge panel-divider--edge-left"
+              title="Drag to pull the navigator out"
+              onMouseDown={startPull("nav")}
+            />
           )}
           <div
             className="nav-panel__body"
@@ -368,6 +413,13 @@ const SystemViewPage = () => {
           className={`scratchpad ${scratchOpen ? "col-3 scratchpad--open" : "scratchpad--collapsed"}`}
           style={scratchOpen ? { flex: `0 0 ${scratchW}%`, maxWidth: `${scratchW}%` } : undefined}
         >
+          {!scratchOpen && (
+            <div
+              className="panel-divider panel-divider--edge panel-divider--edge-right"
+              title="Drag to pull the scratchpad out"
+              onMouseDown={startPull("scratch")}
+            />
+          )}
           {!scratchOpen && (
             <button
               type="button"

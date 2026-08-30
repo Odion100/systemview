@@ -671,6 +671,16 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
   const [filter, setFilter] = useState("");
   const [openDirs, setOpenDirs] = useState(new Set());
   const scrolledTo = useRef(null);
+  // A NEW REVEAL SCROLLS, even to the file already selected. The row's own ref scrolls once per
+  // file and a selected row is never "revealed" — right for unrelated renders, wrong for the human
+  // clicking the file's name after scrolling the tree away (his ask). So a reveal event scrolls
+  // the row itself, whatever its state.
+  useEffect(() => {
+    if (!revealedPath || !cardRef.current) return;
+    const el = cardRef.current.querySelector(`[data-path="${CSS.escape(revealedPath)}"]`);
+    if (el) el.scrollIntoView({ block: "center" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [revealFile]);
   // VERSION CONTROL is a LENS, not a filter. The changed count used to be a pill that hid every
   // unchanged file — which answered "what changed" and nothing else. Flipping the lens replaces the
   // tree with git's own three groups (staged / changes / untracked) and puts stage-unstage on each
@@ -1455,6 +1465,7 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
     const row = (
       <button
         key={f.path}
+        data-path={f.path}
         type="button"
         // Scroll the selected (or revealed) row into view ONCE per file — arriving lands right on
         // it, without re-scrolling on every unrelated render.

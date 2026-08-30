@@ -14,6 +14,9 @@ import { useEffect, useState } from "react";
 const KEY = (pc) => `sv.navDock.${pc}`;
 
 export const slotId = (pc) => `sv-agent-slot-${pc}`;
+// RFC-052 — THE RAIL. When the navigator is collapsed its card (and slot) is gone; the docked agents
+// move to the thin strip that is left, instead of vanishing. One slot for all of them.
+export const railId = "sv-agent-rail";
 
 export const isNavDocked = (pc) => {
   try {
@@ -42,4 +45,40 @@ export const useNavDock = (pc) => {
     return () => window.removeEventListener("sv:navDock", read);
   }, [pc]);
   return on;
+};
+
+// RFC-052 — THE DOCK HAS SPOTS. One per agent, in an order he arranges by dropping: the dock keeps
+// its length whether one agent is in it or all of them, and an empty spot is visible. The order is
+// the whole state; a spot's id is what a docked bot portals into.
+const ORDER_KEY = "sv.dockOrder";
+export const spotId = (pc) => `sv-agent-spot-${pc}`;
+export const dockOrder = () => {
+  try {
+    const v = JSON.parse(localStorage.getItem(ORDER_KEY));
+    return Array.isArray(v) ? v.filter((x) => typeof x === "string") : [];
+  } catch {
+    return [];
+  }
+};
+export const setDockOrder = (list) => {
+  try {
+    localStorage.setItem(ORDER_KEY, JSON.stringify(list));
+  } catch {}
+  window.dispatchEvent(new CustomEvent("sv:dockOrder"));
+};
+// Put `pc` at `index` (null = the end), shifting the others — dropping on a spot is rearranging.
+export const placeInDock = (pc, index) => {
+  const cur = dockOrder().filter((x) => x !== pc);
+  const i = index == null ? cur.length : Math.max(0, Math.min(index, cur.length));
+  cur.splice(i, 0, pc);
+  setDockOrder(cur);
+};
+export const useDockOrder = () => {
+  const [order, setOrder] = useState(dockOrder);
+  useEffect(() => {
+    const read = () => setOrder(dockOrder());
+    window.addEventListener("sv:dockOrder", read);
+    return () => window.removeEventListener("sv:dockOrder", read);
+  }, []);
+  return order;
 };

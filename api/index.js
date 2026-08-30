@@ -991,6 +991,32 @@ async function stageFiles(projectCode, { paths, unstage, root } = {}) {
   bustGit(projectCode); // a write makes every cached read wrong at once
   return res.ok ? { ok: true, changed: list } : { ok: false, error: res.error };
 }
+// STAGE JUST THESE LINES. The pane rebuilds the index copy of the file with only one hunk's edits
+// applied (`stagedContentFor`) and hands the bytes here; the working tree is never touched, only
+// the index moves: hash the bytes into the object store, then point the index entry at them. Found
+// live: this verb was still routed to the SHELL, which has no such thing, so pressing "+ stage" on
+// a hunk failed — and the pane blanked the file to show the error.
+async function stageHunk(projectCode, { path: rel, content, root } = {}) {
+  const cwd = rootOf(projectCode, root);
+  if (!cwd) return { ok: false, error: "no folder for this project" };
+  if (!rel || typeof content !== "string") return { ok: false, error: "nothing to stage" };
+  const res = await serial(cwd, async () => {
+    const hashed = await new Promise((resolve) => {
+      const child = execFile("git", ["hash-object", "-w", "--stdin"], { cwd }, (err, stdout, stderr) =>
+        resolve(err ? { ok: false, error: String((stderr || err.message || "").trim()).slice(0, 400) } : { ok: true, out: String(stdout || "").trim() }),
+      );
+      child.stdin.on("error", () => {});
+      child.stdin.end(content);
+    });
+    if (!hashed.ok) return hashed;
+    // Keep the entry's mode when it has one (an executable stays executable); a new file is 100644.
+    const ls = await git(cwd, ["ls-files", "--stage", "--", rel]);
+    const mode = (ls.ok && /^(\d{6}) /.exec(ls.out.trim()) || [])[1] || "100644";
+    return git(cwd, ["update-index", "--add", "--cacheinfo", `${mode},${hashed.out},${rel}`]);
+  });
+  bustGit(projectCode);
+  return res.ok ? { ok: true, path: rel } : { ok: false, error: res.error };
+}
 // PUSH, HISTORY, SNAPSHOT — the three the callers still needed and I had not written. I moved the
 // providers and checked the ones I happened to think of instead of the ones the code actually calls;
 // `Plugin.push is not a function` is what that costs, and it surfaced on him pressing a button.
@@ -1775,6 +1801,7 @@ module.exports = function launchSystemView(port = 3000) {
       changedFiles,
       getDiff,
       stageFiles,
+      stageHunk,
       discardFiles,
       commit,
       push,
