@@ -3141,17 +3141,10 @@
   .agent-chat__pullout {
     display: none; // double-click or drag brings a docked agent out; the arrow is noise here
   }
-  .agent-chat__panel-anchor {
-    top: 0;
-    left: calc(100% + 14px); // clear of the strip
-  }
 }
 // RFC-052 — OPEN FROM THE DOCK (his third ask): the chat drops a little so the name's row has room,
 // and the rest of the icons come out in a row beside the name; the mic stays where it is.
 .agent-chat--rail-open {
-  .agent-chat__panel-anchor {
-    top: 44px;
-  }
   .agent-chat__bot > .agent-chat__miniboard,
   .agent-chat__bot > .agent-chat__minichat,
   .agent-chat__bot > .agent-chat__minitv,
@@ -3209,4 +3202,52 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+}
+
+// THE PANEL ROW SCROLLS (his ask). Floating, the anchor is a flex row: the panels sit side by side
+// in his order with the same 10px gap the arithmetic used to produce, the row stops at the screen
+// edge (max-width set from the bot's position), and anything past that scrolls sideways — the bar
+// hidden, trackpad or shift-wheel moves it. Docked in the card and in the rail keep their own
+// layouts; this is the floating bot only.
+.agent-chat:not(.agent-chat--innav) .agent-chat__panel-anchor {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 10px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  // ROOM FOR THE WHOLE SHADOW. A scroll box clips, and the panels' shadow is `0 14px 40px` — cut
+  // at 24px it ended in a hard rectangle that read as a new shadow drawn around the panel (his
+  // catch). Floating, the row is pinned to the viewport (inline: left 0 / right 0, the bot's x as
+  // padding) so the sides clip at the screen's own edges; top and bottom keep the shadow's room.
+  padding: 30px 60px 60px 60px;
+  margin: -30px -60px -60px -60px;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+  // Every panel is a row item now, whatever its own rule says about absolute placement.
+  > .agent-chat__tv,
+  > .agent-chat__board,
+  > .agent-chat__panel,
+  > .agent-chat__cbpanel,
+  > .agent-chat__cmds,
+  > .agent-chat__links {
+    position: relative !important;
+    left: auto !important;
+    right: auto !important;
+    top: auto !important;
+    flex: 0 0 auto;
+  }
+  // His order, left to right: chat, links, TV, board, commands, codebase.
+  > .agent-chat__panel { order: 0; }
+  > .agent-chat__tv { order: 2; }
+  > .agent-chat__links { order: 1; }
+  > .agent-chat__board { order: 3; }
+  > .agent-chat__cmds { order: 4; }
+  > .agent-chat__cbpanel { order: 5; }
+}
+// Past the middle of the screen the row opens leftward: same row, reversed, hung from the right.
+.agent-chat--flipx:not(.agent-chat--innav) .agent-chat__panel-anchor {
+  flex-direction: row-reverse;
 }

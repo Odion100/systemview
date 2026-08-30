@@ -22,6 +22,13 @@ const SystemViewPage = () => {
   const { projectCode, serviceId, moduleName, methodName } = useParams();
   // Both side panels de-expand into their corners so the middle (Stories/Docs) gets the space.
   // The open/collapsed state PERSISTS across refresh (localStorage) — you get the layout back exactly.
+  // RFC-052 — the rail rises with the docked agent you click (see bringToFront in AgentChat).
+  const [railZ, setRailZ] = useState(8400);
+  useEffect(() => {
+    const on = (e) => setRailZ((e.detail && e.detail.z) || 8400);
+    window.addEventListener("sv:railFront", on);
+    return () => window.removeEventListener("sv:railFront", on);
+  }, []);
   const [navOpen, setNavOpen] = useState(
     () => localStorage.getItem("sv.navOpen") !== "false",
   );
@@ -324,7 +331,7 @@ const SystemViewPage = () => {
         <div
           data-sv="nav"
           className={`nav-panel ${navOpen ? "col-3 nav-panel--open" : "nav-panel--collapsed"}`}
-          style={navOpen ? { flex: `0 0 ${navW}%`, maxWidth: `${navW}%` } : undefined}
+          style={navOpen ? { flex: `0 0 ${navW}%`, maxWidth: `${navW}%` } : { zIndex: railZ }}
         >
           {!navOpen && (
             <button

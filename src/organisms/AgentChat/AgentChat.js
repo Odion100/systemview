@@ -994,7 +994,16 @@ function BotBubble({ projectCode, index }) {
   const [newVisitor, setNewVisitor] = useState("");
   // Click-to-front: this bot's place in the focus order (see topZ above).
   const [z, setZ] = useState(8500);
-  const bringToFront = () => setZ(++topZ);
+  // THE UNIT YOU CLICK COMES TO THE FRONT, DOCKED OR NOT (his rule). A docked bot lives inside the
+  // rail, and the rail is its own stacking context — so its own z only orders it among the other
+  // docked bots, and a floating bot's panel always covered it. Clicking a docked bot lifts the RAIL
+  // to the top of the same counter; clicking a floating bot takes the next number and comes back
+  // over the rail. One order, every agent in it.
+  const bringToFront = () => {
+    const nz = ++topZ;
+    setZ(nz);
+    if (inRailRef.current) window.dispatchEvent(new CustomEvent("sv:railFront", { detail: { z: nz } }));
+  };
   // Double-click the bot → take the lowest free slot and go there. Only THIS bot moves.
   // RFC-038 — DOCKING MEANS GOING HOME NOW, not parking at the edge of the window. Double-clicking
   // the face sends the agent back into its own codebase card; the arrow on the docked row (or
@@ -3732,12 +3741,38 @@ const countdown = (str, now = Date.now()) => {
   // it, so opening all four reads left to right instead of piling on the same spot — which is why
   // the board looked like it couldn't be up at the same time as the TV: it was, directly on top of it.
   const LINKS_W = 300;
-  const after = (px) =>
-    inNav
-      ? {}
-      : flip
-        ? { left: "auto", right: `calc(100% + ${10 + px}px)` }
-        : { left: `calc(100% + ${10 + px}px)` };
+  // THE ROW IS A FLEX ROW NOW (his ask: "can they all be in an invisible horizontal scroll?").
+  // `after()` used to place every panel by hand — an absolute `left` summed from the widths of
+  // whatever was open ahead of it — which is a flex row done with arithmetic, and one that hung
+  // off the screen edge. The anchor lays them out (CSS `order` keeps his sequence: chat, links,
+  // TV, board, commands, codebase), caps itself at the viewport, and scrolls sideways with the
+  // bar hidden. Kept as a no-op so the call sites read the same; the offsets are the row's now.
+  const after = () => ({});
+  // How wide the row may be before it scrolls: from the bot to the screen edge on the side it
+  // opens toward. Measured off the bot itself; a bot that has not been placed yet gets the width.
+  // THE ROW IS THE FULL SCREEN, WHEREVER THE BOT IS (his rule: "the agent is not the edge — it
+  // should disappear in the corners regardless"). Floating, the row is pinned to the viewport,
+  // corner to corner, at the bot's height; the first panel starts at the bot's x (padding), and
+  // everything scrolls edge to edge. Past the middle the row runs leftward from the bot instead.
+  // ONE RULE, FLOATING OR DOCKED (his catch: the dock's row was on its own rule and did not
+  // scroll). Docked, the row starts beside the strip, a little lower so the name's icon row has
+  // room; otherwise identical.
+  const rowStyle = (() => {
+    if (inNav) return undefined;
+    const r = rootRef.current && rootRef.current.getBoundingClientRect();
+    if (!r) return undefined;
+    if (inRail)
+      return { position: "fixed", left: 0, right: 0, top: r.top + 44, margin: 0, paddingLeft: Math.max(0, r.right + 14), paddingRight: 0 };
+    return {
+      position: "fixed",
+      left: 0,
+      right: 0,
+      top: r.bottom + 10,
+      margin: 0,
+      paddingLeft: flip ? 0 : Math.max(0, r.left),
+      paddingRight: flip ? Math.max(0, window.innerWidth - r.right) : 0,
+    };
+  })();
   const linksAhead = linksOpen ? LINKS_W + 10 : 0;
   const boardAhead = linksAhead + (tvOpen && tv ? tvSize.w + 10 : 0);
   const cbAhead = boardAhead + (boardOpen ? boardSize.w + 10 : 0);
@@ -3747,7 +3782,7 @@ const countdown = (str, now = Date.now()) => {
     <div
       ref={rootRef}
       className={`${CLASSNAME} ${topHalf ? `${CLASSNAME}--top` : ""} ${leftHalf ? `${CLASSNAME}--left` : ""} ${flip && !inRail ? `${CLASSNAME}--flipx` : ""} ${docked ? `${CLASSNAME}--docked` : ""}${saying ? ` ${CLASSNAME}--errand` : ""}${iconsLeft ? ` ${CLASSNAME}--iconsleft` : ""}${inNav ? ` ${CLASSNAME}--innav` : ""}${inRail ? ` ${CLASSNAME}--rail` : ""}${inRail && (open || tvOpen || linksOpen || boardOpen || cbOpen || cmdsOpen) ? ` ${CLASSNAME}--rail-open` : ""}${overDock ? ` ${CLASSNAME}--overdock` : ""}`}
-      style={inNav || inRail ? undefined : style}
+      style={inNav ? undefined : inRail ? { zIndex: z } : style}
       // Touch any part of a bot — its bubble, panel, or TV — and it comes to the FRONT (his
       // ask: "if I click on it, I'm trying to be in that chat").
       onPointerDownCapture={bringToFront}
@@ -3755,7 +3790,7 @@ const countdown = (str, now = Date.now()) => {
       {/* The anchor also stands up for the COLLECTOR alone — the links table opens from the closed
           bot now, so it can't live behind the panel being open. */}
       {(open || linksOpen || boardOpen || cbOpen || cmdsOpen || (tvOpen && tv)) && (
-        <div className={`${CLASSNAME}__panel-anchor`}>
+        <div className={`${CLASSNAME}__panel-anchor`} style={rowStyle}>
         {/* THE CODEBASE PANEL — the real card, not a copy of it: same tree, same git, same terminal
             section, rendered here when the navigator is put away. Opening a file from it goes
             through the same event a `:file` chip uses, so the centre behaves identically. */}
