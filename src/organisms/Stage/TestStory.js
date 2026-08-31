@@ -422,8 +422,11 @@ const TestStory = React.forwardRef(
     }, [recorded, test, connectedServices]);
     const [collapsed, setCollapsed] = useState({});
     const [phaseSig, setPhaseSig] = useState({});
-    // Chromeless (scratchpad) tests start COLLAPSED — just the header. Story panes keep their open default.
-    const [open, setOpen] = useState(!chromeless);
+    // Chromeless (scratchpad) tests start COLLAPSED — just the header. Story panes keep their open
+    // default — and so does anything that ASKED to be open (autoExpand: a one-step run, a run that
+    // arrived already ran). His catch: the recorded run block showed "passed" and hid the step and
+    // its response under this fold.
+    const [open, setOpen] = useState(!chromeless || !!autoExpand);
     // Toggling a phase flips its collapsed flag AND bumps a per-phase signal so its actions cascade
     // (collapse to previews / expand) — the actions stay VISIBLE either way, never hidden.
     const toggle = (phase) => {

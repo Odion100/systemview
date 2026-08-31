@@ -61,10 +61,23 @@ const resetTestClass = (test, FullTest, connectedServices, editMode, client, ext
     ...test,
     // `|| []` — defensive: a real test step always has args, but this keeps a stray/unexpanded step from
     // hard-crashing the whole run (RFC-020: `{ use }` steps are expanded away before they reach here).
-    args: (test.args || []).map(
-      (arg) =>
-        new Argument(arg.name, FullTest, arg.input_type, arg.input, arg.targetValues)
-    ),
+    args: (test.args || []).map((arg) => {
+      const a = new Argument(arg.name, FullTest, arg.input_type, arg.input, arg.targetValues);
+      // A HAND-WRITTEN TEST RESOLVES TOO. The UI registers every helper string (`mockFile(…)`,
+      // `date(…)`, `random(…)`, `tv(…)`, a target namespace) as it is typed, and the runner only
+      // substitutes what is registered — so a test written straight into the JSON (by an agent, or
+      // by hand) with `targetValues: []` sent "mockFile(test.png)" as a literal. Scan the input
+      // once when nothing was registered; the same parser the UI uses, over every string leaf.
+      if (!a.targetValues || !a.targetValues.length) {
+        const walk = (v, map) => {
+          if (typeof v === "string") a.parseTargetValues(v, map);
+          else if (Array.isArray(v)) v.forEach((x, i) => walk(x, [...map, String(i)]));
+          else if (v && typeof v === "object") Object.keys(v).forEach((k) => walk(v[k], [...map, k]));
+        };
+        walk(a.input, ["input"]);
+      }
+      return a;
+    }),
     editMode,
     client,
     extraHeaders,

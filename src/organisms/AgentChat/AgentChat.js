@@ -12,7 +12,7 @@ import UiLink from "../../atoms/Markdown/blocks/UiLink";
 import Markdown from "../../atoms/Markdown/Markdown";
 import { spotlight, clearSpotlight, animationMode, setAnimationMode, MODES } from "../../spotlight";
 import { resolveTarget, docRectOf, revealDocLines } from "../../spotlightTargets";
-import { slotId, setNavDocked, useNavDock, railId, spotId, placeInDock, setDockOrder, useDockOrder, dockOrder } from "./navDock";
+import { slotId, setNavDocked, useNavDock, railId, spotId, placeInDock, setDockOrder, useDockOrder, dockOrder, orderProjects } from "./navDock";
 import { hasHostDictation, startHostRecording } from "../../utils/hostDictation";
 import Feed, { timeOf } from "../AgentWorkbench/Feed";
 import useAgentSession from "../AgentWorkbench/useAgentSession";
@@ -155,9 +155,12 @@ function renderChatText(text, kp = "l") {
   while ((m = LINKISH.exec(text))) {
     if (m.index > last) out.push(text.slice(last, m.index));
     if (m[1] !== undefined) {
-      const attrs = {};
-      const t = (m[3] || "").match(/title=(?:"([^"]*)"|'([^']*)'|([^\s}]+))/);
-      if (t) attrs.title = t[1] || t[2] || t[3];
+      // THE WHOLE ATTRIBUTE BAG, not one key of it. This read `title` and dropped everything else,
+      // so `:file[Profiles/…]{project=buAPI}` lost its project on the way in and the chip fell back
+      // to the ROOM's project — a reference into a sibling repo silently opened the same path in the
+      // repo you were standing in (BUApp's report, and they were right). Same parser the leaf
+      // directives use, so `{…}` means one thing in a bubble whichever weight it's written at.
+      const attrs = parseAttrs(m[3] || "");
       const Ref = REF_BLOCKS[m[1]] || ReportLink;
       out.push(<Ref key={`${kp}${k++}`} label={m[2]} attrs={attrs} />);
     } else if (m[4] !== undefined) {
@@ -261,11 +264,15 @@ export function parseAttrs(src) {
 
 // One directive → one registry component. Unknown names render as the literal text they were, so a
 // sentence that merely looks like a directive is never swallowed.
-function SvChatBlock({ name, label, attrs, line, children }) {
+function SvChatBlock({ name, label, attrs, line, children, kind = "leaf", src = "" }) {
   const [dark] = useAppDark();
   const entry = BLOCKS[name];
   if (!entry || !entry.Component) return null;
   const { Component } = entry;
+  // KIND AND SOURCE TRAVEL WITH THE BLOCK, as they do from the document renderer. A `:::run` in the
+  // chat arrived without them, so RunBlock took it for a SAVED action named "" — "loading…", then a
+  // "saved action" card around steps that were written right there (his catch: "it's not a saved
+  // action, why is it in a saved action block?").
   return (
     // `markdown` IS THE SCOPE THE BLOCK STYLES LIVE IN — and it re-declares the theme tokens as
     // LIGHT, because a DOCUMENT is explicitly light or dark rather than following the app. That is
@@ -273,7 +280,7 @@ function SvChatBlock({ name, label, attrs, line, children }) {
     // white card into a dark chat. A chat is not a document; it follows the app, like the panel
     // around it does.
     <div className={`chat-md__block markdown${dark ? " markdown--dark" : ""}`}>
-      <Component label={label} attrs={attrs} line={line} node={null}>
+      <Component name={name} kind={kind} src={src} label={label} attrs={attrs} line={line} node={null}>
         {children}
       </Component>
     </div>
@@ -392,7 +399,7 @@ export function renderChatMessage(text) {
         i = j; // the loop's own increment steps past the closing fence
       }
       out.push(
-        <SvChatBlock key={`d${k++}`} name={name} label={dlabel || ""} attrs={attrs} line={i + 1}>
+        <SvChatBlock key={`d${k++}`} name={name} label={dlabel || ""} attrs={attrs} line={i + 1} kind={fence === ":::" ? "container" : "leaf"} src={body || ""}>
           {body ? renderChatMessage(body) : null}
         </SvChatBlock>,
       );
@@ -726,7 +733,7 @@ export function DockSpots() {
     () => [...new Set((connectedServices || []).map((s) => s.projectCode))].filter((pc) => !isParked(pc)),
     [connectedServices],
   );
-  const ordered = [...order.filter((pc) => projects.includes(pc)), ...projects.filter((pc) => !order.includes(pc))];
+  const ordered = orderProjects(order, projects);
   return ordered.map((pc) => <div key={pc} id={spotId(pc)} data-spot={pc} className="nav-panel__spot" title={pc} />);
 }
 
@@ -3757,20 +3764,31 @@ const countdown = (str, now = Date.now()) => {
   // ONE RULE, FLOATING OR DOCKED (his catch: the dock's row was on its own rule and did not
   // scroll). Docked, the row starts beside the strip, a little lower so the name's icon row has
   // room; otherwise identical.
+  // NO LAG (his catch: the bot "bouncing" above its panel while dragged). A row pinned by a
+  // MEASURED rectangle is always one frame behind the bot; anchored inside the bot with the bot's
+  // own `pos` — the same number, the same render — they move as one. The row is still a full
+  // screen wide: it starts at the screen's left edge (`-pos.x` from the bot) and its padding puts
+  // the first panel at the bot.
   const rowStyle = (() => {
     if (inNav) return undefined;
     const r = rootRef.current && rootRef.current.getBoundingClientRect();
-    if (!r) return undefined;
-    if (inRail)
-      return { position: "fixed", left: 0, right: 0, top: r.top + 44, margin: 0, paddingLeft: Math.max(0, r.right + 14), paddingRight: 0 };
+    if (inRail) {
+      if (!r) return undefined;
+      return { position: "fixed", left: 0, right: 0, top: r.top + 44 - 30, margin: 0, paddingLeft: Math.max(0, r.right + 14), paddingRight: 0 };
+    }
+    const x = pos ? pos.x : r ? r.left : 0;
+    const w = r ? r.width : 60;
     return {
-      position: "fixed",
-      left: 0,
-      right: 0,
-      top: r.bottom + 10,
-      margin: 0,
-      paddingLeft: flip ? 0 : Math.max(0, r.left),
-      paddingRight: flip ? Math.max(0, window.innerWidth - r.right) : 0,
+      position: "absolute",
+      top: "calc(100% + 10px)",
+      left: -x,
+      right: "auto",
+      width: "100vw",
+      // The box has 30px of padding above for the panels' shadow; pull it back so the panels sit
+      // 10px under the bot, not 40 (his catch: "so much further down").
+      margin: "-30px 0 0 0",
+      paddingLeft: flip ? 0 : Math.max(0, x),
+      paddingRight: flip ? Math.max(0, window.innerWidth - x - w) : 0,
     };
   })();
   const linksAhead = linksOpen ? LINKS_W + 10 : 0;
@@ -5524,7 +5542,26 @@ const countdown = (str, now = Date.now()) => {
                     // FILL, not with "session": the bar shows the meter that matters most (highest,
                     // by default), so its reset is the one he wants to see — his: "whenever
                     // something's the highest I would also be able to see when it resets."
-                    const meter = (b, name) => `${name} ${b.pct}%${b.pct >= 75 ? " high" : ""}${b === top && b.resets ? ` – resets ${short(b.resets, name)}` : ""}`;
+                    // EACH METER COLOURS ITSELF, and the one tied to the bar is ONE UNIT with its
+                    // reset (his rule). The whole line used to turn red when the top meter was due —
+                    // so a session at 92% painted "week 22%" red too, which says something untrue
+                    // about the week. Every string carries its own tone, computed from its own
+                    // percentage; the fill keeps its own continuous shading, unrelated to these.
+                    const toneOf = (n) => (n >= 90 ? "due" : n >= 75 ? "warn" : "");
+                    const unit = (key, text, n) => (
+                      <span
+                        key={key}
+                        className={`${CLASSNAME}__usageline-unit${toneOf(n) ? ` ${CLASSNAME}__usageline-unit--${toneOf(n)}` : ""}`}
+                      >
+                        {text}
+                      </span>
+                    );
+                    const meter = (b, name) =>
+                      unit(
+                        name,
+                        `${name} ${b.pct}%${b.pct >= 75 ? " high" : ""}${b === top && b.resets ? ` – resets ${short(b.resets, name)}` : ""}`,
+                        b.pct,
+                      );
                     const listed = [
                       barPrefs.session && session && ["session", session],
                       barPrefs.week && week && ["week", week],
@@ -5535,13 +5572,18 @@ const countdown = (str, now = Date.now()) => {
                     if (first) parts.push(meter(first[1], first[0]));
                     else if (top) parts.push(meter(top, /fable/i.test(top.label) ? "fable" : /all models/i.test(top.label) ? "week" : "session"));
                     listed.filter((x) => x !== first).forEach(([name, b]) => parts.push(meter(b, name)));
-                    if (barPrefs.ctx && ctxPct !== null) parts.push(`ctx ${ctxPct}%`);
+                    if (barPrefs.ctx && ctxPct !== null) parts.push(unit("ctx", `ctx ${ctxPct}%`, ctxPct));
                     if (barPrefs.tokens) {
                       const live = work.state.state === "working" && work.state.liveChars ? Math.round(work.state.liveChars / 4) : work.state.turnOut || 0;
-                      if (live) parts.push(`${work.state.state === "working" ? "≈" : ""}${live.toLocaleString()} tok`);
+                      if (live) parts.push(unit("tok", `${work.state.state === "working" ? "≈" : ""}${live.toLocaleString()} tok`, 0));
                     }
-                    if (barPrefs.cost && work.state.cost) parts.push(`$${work.state.cost.toFixed(2)}`);
-                    return parts.join(" · ") || "usage";
+                    if (barPrefs.cost && work.state.cost) parts.push(unit("cost", `$${work.state.cost.toFixed(2)}`, 0));
+                    if (!parts.length) return "usage";
+                    // The separator belongs BETWEEN units and to neither of them, so it never
+                    // inherits a colour from the meter beside it.
+                    return parts.flatMap((el, i) =>
+                      i === 0 ? [el] : [<span key={`sep${i}`} className={`${CLASSNAME}__usageline-sep`}> · </span>, el],
+                    );
                   })()}
                 </span>
               </button>

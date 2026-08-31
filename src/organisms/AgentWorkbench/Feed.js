@@ -76,6 +76,48 @@ const SentRow = ({ row }) => (
   </div>
 );
 
+// A PROBE OPENS AS A RUN. `systemview probe Service.Module.method '{…}'` is a method call, and
+// the document vocabulary already has the block for one: an ad-hoc `:::run` with that step. So an
+// opened probe row draws the same runnable the docs use instead of a "code" button pointed at a
+// namespace as if it were a file (his catch). THE RESULT RIDES IN: the probe already ran and
+// printed its answer; that answer becomes the step's `=` line, so the block opens ALREADY RAN with
+// the real response — nothing to press, nothing for the agent to remember (his: "could the results
+// be piped… automatically?").
+export const probeEmbedFor = (row, canRender = true) => {
+  if (!canRender || !row || !row.sv || row.sv.verb !== "probe" || !row.sv.project) return null;
+  const ns = String(row.sv.project).trim();
+  const raw = String(row.sv.target || "").trim().replace(/^['"]|['"]$/g, "");
+  // THE CLI'S ARGUMENT SHAPE IS THE CALL'S. An object is one argument (the grammar's shorthand,
+  // `ns { … }`); a JSON ARRAY is the positional list — `probe ns '[a, b]'` calls ns(a, b) — so it
+  // becomes the call form `ns(a, b)`. Written as one array argument it re-ran as ns([a, b]) and
+  // failed (his catch: "I ran it, it broke").
+  let args = "";
+  if (raw && /^[[{]/.test(raw)) {
+    try {
+      const v = JSON.parse(raw);
+      args = Array.isArray(v) ? `(${v.map((x) => JSON.stringify(x)).join(", ")})` : ` ${JSON.stringify(v)}`;
+    } catch {
+      args = ` ${raw}`;
+    }
+  }
+  let result = "";
+  const out = row.output == null ? "" : String(row.output).trim();
+  if (out) {
+    const tryJson = (t) => { try { return `\n  = ${JSON.stringify(JSON.parse(t))}`; } catch { return ""; } };
+    result = tryJson(out);
+    if (!result) {
+      // The CLI prints its answer LAST, at column 0, after its own log lines ("ℹ …", "✔ result:").
+      // Take the text from the last line that opens a JSON value — a greedy grab from the first
+      // bracket swallowed the header's `combine([{…` and never parsed.
+      const lines = out.split("\n");
+      let start = -1;
+      for (let i = lines.length - 1; i >= 0; i -= 1) if (/^[[{]/.test(lines[i])) { start = i; break; }
+      if (start >= 0) result = tryJson(lines.slice(start).join("\n"));
+    }
+  }
+  return `:::run{title="probe ${ns}"}\n- ${ns}${args}${result}\n:::`;
+};
+
 const ToolRow = ({ row, renderText = null }) => {
   const [open, setOpen] = useState(false);
   // THE FILE IS IN THE ROW. His ask, verbatim: the rows that show what an agent ran carry buttons
@@ -83,12 +125,18 @@ const ToolRow = ({ row, renderText = null }) => {
   // same blocks the chat already renders. So an opened row draws the file it read (at the lines
   // it read), or the diff of what it wrote, right here. The button and the fold stay exactly as
   // they were — this is added under them, not instead of them.
+  // A PROBE OPENS AS A RUN. `systemview probe Service.Module.method '{…}'` is a method call, and
+  // the document vocabulary already has the block for one: an ad-hoc `:::run` with that step. So
+  // an opened probe row draws the same runnable the docs use — press play, see the live result —
+  // instead of a "code" button pointed at a namespace as if it were a file (his catch).
+  const probeEmbed = probeEmbedFor(row, !!renderText);
   const embed =
-    renderText && row.rel
+    probeEmbed ||
+    (renderText && row.rel
       ? row.wrote
         ? `::diff[${row.rel}]`
         : `::file[${row.rel}${row.span ? `#L${row.span}` : ""}]`
-      : null;
+      : null);
   // THE DOOR CARRIES THE ADDRESS. This dispatched `{ path }` alone — an ABSOLUTE path with no
   // project behind it — and the code pane, which is addressed by project + repo path, opened
   // nothing. His report: *"I clicked on diff and that shit didn't bring up the diffs."* Now it
@@ -161,10 +209,7 @@ const ToolRow = ({ row, renderText = null }) => {
             </span>
           )}
           {row.summary}
-          {/* The subject, in its own ink — the title of the show, the place it navigated to. */}
-          {row.sv && row.sv.target && <span className={`${CLASSNAME}__sv-target`}>{row.sv.target}</span>}
-          {/* Whose window. Silent for this project, named when an agent reached into another's. */}
-          {row.sv && row.sv.project && <span className={`${CLASSNAME}__sv-proj`}>{row.sv.project}</span>}
+          {/* A SystemView row's summary IS the whole command line now — nothing to add beside it. */}
         </span>
         {/* THE PATH IS A DOOR. An agent editing a file is the moment you most want to look at the
             file, and the diff for it is already a click away in the codebase panel. */}
@@ -187,6 +232,9 @@ const ToolRow = ({ row, renderText = null }) => {
       </div>
       {open && has && (
         <div className={`${CLASSNAME}__tool-body`}>
+          {/* THE BLOCK FIRST. What the row is about — the file, the diff, the run with its result —
+              goes on top; the exact command and its raw output sit under it (his order). */}
+          {embed && <div className={`${CLASSNAME}__tool-embed`}>{renderText(embed)}</div>}
           {/* The command reads like a prompt, because that is what it is. */}
           {cmd && (
             <Block kind="cmd">
@@ -203,7 +251,6 @@ const ToolRow = ({ row, renderText = null }) => {
               that printed nothing. */}
           {!out && row.state === "running" && <div className={`${CLASSNAME}__tool-wait`}>running…</div>}
           {out && <Block kind={row.state === "failed" ? "err" : "out"}>{out}</Block>}
-          {embed && <div className={`${CLASSNAME}__tool-embed`}>{renderText(embed)}</div>}
         </div>
       )}
     </div>

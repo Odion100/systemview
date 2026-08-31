@@ -46,7 +46,11 @@ const langOf = (p) => EXT_LANG[(String(p).split(".").pop() || "").toLowerCase()]
 // knows every project's folder; the only question left is which PROJECT the document belongs to.
 function useFileHost(attrs, scope) {
   const projectCode = attrs.project || scope.projectCode;
-  return projectCode ? { projectCode } : null;
+  // ONE OBJECT PER PROJECT, not one per render. A fresh `{ projectCode }` every render gave the
+  // comment store a fresh `Plugin` every render, which re-read the sidecar, which set state, which
+  // rendered again — 6,500 readFile calls in five seconds, the page pinned at 100%, the box at a
+  // load average of 600 (measured). The identity is the project; it changes when the project does.
+  return useMemo(() => (projectCode ? { projectCode } : null), [projectCode]);
 }
 
 const Embed = ({ label, attrs = {}, opens }) => {

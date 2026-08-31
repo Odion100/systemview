@@ -927,13 +927,17 @@
     color: var(--sv-text-faint);
     text-align: left;
     &:hover { color: var(--sv-text); }
-    &--warn &-fill { background: #d19a2e; }
-    &--due &-fill { background: #c0392b; }
-    &--due &-text { color: #e05252; }
+    // The fill's colour is inline and continuous (see AgentChat.js) — it is not stepped, and the
+    // text's tone no longer paints the whole line: each meter carries its own (his rule).
   }
   &__usageline-track { flex: 1 1 auto; height: 3px; border-radius: 2px; background: color-mix(in srgb, var(--sv-border) 55%, transparent); overflow: hidden; }
   &__usageline-fill { display: block; height: 100%; background: #6b76d6; transition: width 400ms; }
   &__usageline-text { flex: none; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  // ONE UNIT PER STRING: the meter tied to the bar carries its reset with it, every other meter is
+  // its own. A unit warms only on its OWN percentage.
+  &__usageline-unit--warn { color: #d19a2e; }
+  &__usageline-unit--due { color: #e05252; }
+  &__usageline-sep { color: var(--sv-text-faint); }
   &__usage-asof { font-size: 10px; color: var(--sv-text-faint); margin-bottom: 2px; }
   &__usage-prefs { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 10.5px; color: var(--sv-text-faint); padding: 2px 0 6px; }
   &__usage-prefs-label { font-weight: 600; }
@@ -3226,6 +3230,13 @@
   &::-webkit-scrollbar {
     display: none;
   }
+  // THE EMPTY PART OF THE ROW IS NOT THERE. Pinned corner to corner, the row is a full-width box,
+  // and its empty stretch was catching the click meant for a bot behind it — so the one you
+  // clicked never came to the front (his catch). Clicks pass through the box; the panels take them.
+  pointer-events: none;
+  > * {
+    pointer-events: auto;
+  }
   // Every panel is a row item now, whatever its own rule says about absolute placement.
   > .agent-chat__tv,
   > .agent-chat__board,
@@ -3238,6 +3249,14 @@
     right: auto !important;
     top: auto !important;
     flex: 0 0 auto;
+  }
+  // A BUFFER PAST THE LAST PANEL (his ask): the row keeps scrolling into empty space, so the end
+  // never slams against the edge. A pseudo flex child, because horizontal end-padding on a flex
+  // scroller is dropped by the overflow math; a child never is.
+  &::after {
+    content: "";
+    flex: 0 0 360px;
+    order: 99;
   }
   // His order, left to right: chat, links, TV, board, commands, codebase.
   > .agent-chat__panel { order: 0; }

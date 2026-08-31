@@ -1569,3 +1569,11 @@
 
   &:hover { opacity: 1; color: #d9736a; }
 }
+
+// RFC-052 — a card being dragged to reorder, and the card it would take the place of.
+.codebase-nav__codebase--dragging {
+  opacity: 0.45;
+}
+.codebase-nav__codebase--dropover {
+  box-shadow: inset 0 3px 0 var(--sv-blue);
+}

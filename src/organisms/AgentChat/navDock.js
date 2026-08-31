@@ -73,6 +73,19 @@ export const placeInDock = (pc, index) => {
   cur.splice(i, 0, pc);
   setDockOrder(cur);
 };
+// ONE ORDER FOR THE DOCK AND THE CODEBASE PANEL (his rule): the projects in his order first, then
+// any project the order has not met yet, in the order they arrived. Both surfaces call this.
+export const orderProjects = (order, projects) => [
+  ...order.filter((pc) => projects.includes(pc)),
+  ...projects.filter((pc) => !order.includes(pc)),
+];
+// Move `pc` to the position `before` holds (or the end when `before` is null) and keep the rest.
+export const moveInDock = (pc, before, projects) => {
+  const cur = orderProjects(dockOrder(), projects).filter((x) => x !== pc);
+  const i = before == null ? cur.length : Math.max(0, cur.indexOf(before));
+  cur.splice(i, 0, pc);
+  setDockOrder(cur);
+};
 export const useDockOrder = () => {
   const [order, setOrder] = useState(dockOrder);
   useEffect(() => {

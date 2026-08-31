@@ -253,6 +253,11 @@ const bashTouch = (cmd) => {
   const last = segs.pop().trim();
   const words = last.match(/"[^"]*"|'[^']*'|\S+/g) || [];
   const verb = words[0] || "";
+  // A SYSTEMVIEW COMMAND TOUCHES NO FILE. `systemview probe TestService.Math.add` — the namespace
+  // looks like a path to the regex below (letters and dots), so the row grew a "code" button that
+  // pointed at a namespace as if it were a file (his catch). Those lines carry their own meaning
+  // (see parseSvCommand); nothing here applies to them.
+  if (/^(systemview|sv)$/.test(verb) || /cli\/index\.js$/.test(verb) || /cli\/index\.js$/.test(words[1] || "")) return null;
   const pathLike = (w) => /^[A-Za-z0-9_./-]+\.[A-Za-z0-9]+$/.test(w) && !/^-/.test(w) && !/^\d+$/.test(w);
   const strip = (w) => w.replace(/^['"]|['"]$/g, "");
   let span = null;
@@ -539,13 +544,13 @@ export function foldEvents(events) {
         // CodePane.js" or "run: yarn build" once, at the source — and every view that renders it
         // agrees for free. Ours is only the fallback for a host that doesn't.
         sv,
-        summary: rowLabel(
-          xsend
-            ? `message → ${xsend.to}${xsend.about ? ` — ${xsend.about}` : ""}`
-            : sv
-            ? svRoomLine(sv) || sv.what
-            : ev.summary || summarise(ev) || ev.tool || ev.name,
-        ),
+        // A SYSTEMVIEW ROW READS AS THE COMMAND — verb and arguments as typed, unclamped; the
+        // "probed …" wording is for the cooking line, not the log (his rule).
+        summary: xsend
+          ? rowLabel(`message → ${xsend.to}${xsend.about ? ` — ${xsend.about}` : ""}`)
+          : sv
+          ? sv.line
+          : rowLabel(ev.summary || summarise(ev) || ev.tool || ev.name),
         input: ev.input,
         path: pathTouchedBy(ev),
         // Whose repo — the event is stamped with it, and the open/diff door needs it: an absolute
@@ -580,7 +585,10 @@ export function foldEvents(events) {
       // silently dropping it makes the feed disagree with what the session actually did.
       const row = ev.id && byToolId.get(ev.id);
       const ok = ev.ok !== false;
-      const out = ev.output != null ? ev.output : ev.content;
+      // The host (autobot's sessions.cjs) sends a result's text as `detail` — the first 400 chars
+      // of what the tool returned. Reading `output`/`content` alone left every result row empty
+      // (his catch: a probe row with no answer to pipe into its block).
+      const out = ev.output != null ? ev.output : ev.content != null ? ev.content : ev.detail;
       if (row) {
         row.state = ok ? "ok" : "failed";
         row.output = out;

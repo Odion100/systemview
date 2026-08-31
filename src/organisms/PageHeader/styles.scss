@@ -13,6 +13,7 @@
     white-space: nowrap;
   }
   &__brand {
+    position: relative; // the subtitle is placed against these letters
     font-size: 28px;
     font-family: Malkor;
     color: var(--sv-indigo);
@@ -21,6 +22,32 @@
     // Dark mode — no text shadow (the light shadow reads as a smudge on the dark header).
     :root.sv-dark & {
       text-shadow: none;
+    }
+  }
+  // "SystemLynx IDE", tucked in after the Y — no width, no height of its own.
+  &__brand-sub {
+    // His placement, tuned in DevTools 2026-08-30.
+    position: absolute;
+    left: 25px;
+    top: 24px;
+    font-family: Malkor;
+    font-size: 11px;
+    font-weight: 400;
+    letter-spacing: 0.4px;
+    line-height: 1;
+    white-space: nowrap;
+    color: #905ca9; // "The" and "IDE" — his lighter plum, picked from the page
+    opacity: 0.75;
+    text-shadow: none;
+    pointer-events: none;
+  }
+  // "SystemLynx" wears the same colour the services section gives its SystemLynx tag
+  // (`.codebase-nav__lynx-tag`): plum in light, the brighter plum in dark.
+  &__brand-lynx {
+    color: #8e5aa8;
+    font-weight: 700; // his
+    :root.sv-dark & {
+      color: #c678dd;
     }
   }
   &__logo {

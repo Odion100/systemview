@@ -1,4 +1,4 @@
-import { parseSvCommand } from "./svCommand";
+import { parseSvCommand, svStatus } from "./svCommand";
 
 describe("recognising a SystemView command in a shell line", () => {
   it("reads the verb, the project and the subject through the PATH export we all prefix with", () => {
@@ -59,5 +59,19 @@ describe("a room verb names its room — his spec: 'hashtag and project code'", 
     expect(p("systemview join buAPI --as systemview-test")).toBe("joined the room #buAPI");
     expect(p("systemview leave buAPI --as systemview-test")).toBe("left the room #buAPI");
     expect(p("systemview kick buAPI intruder")).toBe("cleared intruder from the room #buAPI");
+  });
+});
+
+describe("a probe names its method", () => {
+  it("says 'probed <namespace>', never 'probed a method'", () => {
+    const sv = parseSvCommand(`systemview probe TestService.Math.add '{"a":2,"b":3}'`);
+    expect(svStatus(sv)).toBe("probed TestService.Math.add");
+  });
+});
+
+describe("the row reads the command as typed", () => {
+  it("keeps the verb and every argument, quotes and all, without the binary or the PATH prefix", () => {
+    const sv = parseSvCommand(`export PATH="/usr/local/bin:$PATH" && systemview probe TestService.Math.divide '{"a":84,"b":2}'`);
+    expect(sv.line).toBe(`probe TestService.Math.divide '{"a":84,"b":2}'`);
   });
 });

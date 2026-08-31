@@ -1,6 +1,7 @@
 const { createApp } = require("systemlynx");
 const Math = require("./Math");
 const CLI = require("./CLI");
+const Files = require("./Files");
 const makeAuth = require("./Auth");
 
 // ── PLAIN service `TestService` @ :5555 — its OWN process ──────────────────────────────────────
@@ -17,6 +18,7 @@ const auth = makeAuth();
 
 App.startService({ route: "test/api", port: PORT })
   .module("Math", Math)
+  .module("Files", Files)
   .module("CLI", CLI)
   .module("Auth", auth)
   .before("Auth.getSession", (req, res, next) => {

@@ -55,7 +55,15 @@ const PageHeader = ({ current, projectCode }) => {
           update
         </button>
       )}
-      <span className="page-header__brand">SystemView</span>
+      {/* THE SUBTITLE RIDES ON THE TITLE — "SystemLynx IDE", small, placed by hand against the
+          letters (his call: right after the Y), absolutely positioned inside the brand so it costs
+          no layout space at all. The numbers below are a starting point; he tunes them in DevTools. */}
+      <span className="page-header__brand">
+        SystemView
+        <span className="page-header__brand-sub" aria-hidden="true">
+          The <span className="page-header__brand-lynx">SystemLynx</span> IDE
+        </span>
+      </span>
       <img className="page-header__logo" src={LOGO} alt="logo" />
       {/* Right cluster — the theme pill sits immediately LEFT of the Specs/Stats control. */}
       <span className="page-header__right">

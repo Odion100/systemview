@@ -1668,7 +1668,51 @@ function chatKick(projectCode, { chat, identity } = {}) {
 
 const shutdown = () => process.exit(0);
 
+// GIT CHANGES ANNOUNCE THEMSELVES. A commit block in one place and the version-control panel in
+// another were reading the same repo and disagreeing (his "divergence"): each refreshes only on
+// its own action or on window focus, so a change made anywhere else — an agent's `git add` in a
+// terminal, a commit from another window — left one of them stale until something poked it. The
+// hub watches every known project's `.git/index` and `.git/HEAD`, drops its cache, and tells every
+// open window at once; both surfaces re-read from the same truth in the same second.
+const fsWatch = require("fs");
+const gitWatchers = new Map(); // root → { pc, watchers: [] }
+function watchGitRoots() {
+  const roots = projectRoots();
+  try {
+    const registry = JSON.parse(fsWatch.readFileSync(path.join(__dirname, "hosted.json"), "utf8"));
+    (Array.isArray(registry) ? registry : []).forEach((e) => {
+      if (e && e.folder && e.projectDir && !roots[e.folder]) roots[e.folder] = e.projectDir;
+    });
+  } catch {}
+  for (const [pc, root] of Object.entries(roots)) {
+    if (gitWatchers.has(root)) continue;
+    const gitDir = path.join(root, ".git");
+    if (!fsWatch.existsSync(gitDir)) continue;
+    let timer = null;
+    const fire = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        bustGit(pc);
+        bootCtx.emit("git-updated", { projectCode: pc });
+      }, 300);
+    };
+    const watchers = [];
+    for (const f of ["index", "HEAD", "refs"]) {
+      try {
+        const target = path.join(gitDir, f);
+        if (!fsWatch.existsSync(target)) continue;
+        watchers.push(fsWatch.watch(target, { persistent: false }, fire));
+      } catch {}
+    }
+    gitWatchers.set(root, { pc, watchers });
+  }
+}
+
 module.exports = function launchSystemView(port = 3000) {
+  // NOT ARMED. The watcher above fed itself: every window re-read git on the event, `git status`
+  // refreshes `.git/index` as it reads, the watcher fired again, and the box hit a load average of
+  // 546 within minutes (his: "the app is running incredibly slow"). It stays out until it ignores
+  // the reads it causes itself — kept here so the shape is not rebuilt from scratch.
   const { server } = App;
   const buildPath = path.resolve(__dirname, "../build");
   const indexPath = path.join(buildPath, "index.html");

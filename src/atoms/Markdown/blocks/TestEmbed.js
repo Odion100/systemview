@@ -1,4 +1,5 @@
 import React, { Suspense, useContext } from "react";
+import lazyLoad from "../../../utils/lazyLoad";
 import ServiceContext from "../../../ServiceContext";
 import { useMarkdownScope } from "../context";
 
@@ -12,7 +13,7 @@ import { useMarkdownScope } from "../context";
 //
 // Lazily imported to break a real cycle: TestPane renders agent notes through Markdown, and Markdown
 // dispatches to this block.
-const TestPane = React.lazy(() => import("../../../organisms/Stage/TestPane"));
+const TestPane = lazyLoad(() => import("../../../organisms/Stage/TestPane"));
 
 // `Service.Module.method`, `Module.method`, or a bare `Module` (all its tests). A trailing `:N` pins
 // one test by index — same grammar the story `--test` flag uses.

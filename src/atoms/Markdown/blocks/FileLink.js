@@ -1,5 +1,4 @@
-import React, { useContext } from "react";
-import ServiceContext from "../../../ServiceContext";
+import React from "react";
 import { useMarkdownScope } from "../context";
 
 // RFC-025 §4.1 — `:file[cli/stage.js#L40-70]`. Codebase connections (RFC-022) made a file reference
@@ -33,40 +32,31 @@ const langOf = (p) => EXT_LANG[(p.split(".").pop() || "").toLowerCase()] || "tex
 
 const FileLink = ({ label, attrs = {} }) => {
   const scope = useMarkdownScope();
-  const { connectedServices = [] } = useContext(ServiceContext);
   const raw = label || attrs.path || "";
   const { path, lines } = parseFileSpec(raw);
 
-  // Files are served by any service that exposes a Plugin (siblings share a cwd). Prefer the
-  // document's own service, then its project, then ANY connected file host — a help topic or the hub
-  // has no project in scope at all, and a file chip that reads "no file host" there would look
-  // broken rather than honest.
-  const hasPlugin = (s) =>
-    ((s.system && s.system.connectionData && s.system.connectionData.modules) || []).some(
-      (m) => m.name === "Plugin"
-    );
+  // THE FILE HOST IS THE PROJECT, NOT A SERVICE — the same rule `::file` moved to when files became
+  // the shell's (see FileEmbed). This chip was the last holdout: it hunted connected services
+  // carrying a Plugin, so a reference into a project whose services were down went dead, and the
+  // project named in `{project=…}` could only be honoured if that project happened to be running.
+  // The hub knows every project's root; the only question is WHICH project the reference belongs to.
   const projectCode = attrs.project || scope.projectCode;
-  const inProject = connectedServices.filter((s) => s.projectCode === projectCode && hasPlugin(s));
-  // Same rule as the embeds: a chip belonging to a project resolves against THAT project or not at
-  // all. Borrowing another project's file host made a chip point into the wrong repo.
-  const host =
-    inProject.find((s) => s.serviceId === (attrs.service || scope.serviceId)) ||
-    inProject[0] ||
-    (projectCode ? null : connectedServices.find(hasPlugin)) ||
-    null;
+  // A NAMED PROJECT BRINGS NO SERVICE WITH IT. `scope.serviceId` belongs to the document's project,
+  // so carrying it across into another one points the pane at a foreign service.
+  const serviceId = attrs.project ? attrs.service || null : attrs.service || scope.serviceId || null;
 
   const range = lines ? `:${lines[0]}${lines[1] !== lines[0] ? `-${lines[1]}` : ""}` : "";
 
-  if (!path || !host) {
+  if (!path || !projectCode) {
     return (
       <span
         className="md-chip md-chip--file md-chip--dead"
-        title="No connected service in this project can read files — a codebase connection is needed to open it."
+        title="This reference doesn't belong to a project, so there's no folder to read it from — name one with {project=…}."
       >
         <span className="md-chip__kind">file</span>
         {path || raw}
         {range}
-        <span className="md-chip__why">no file host</span>
+        <span className="md-chip__why">no project</span>
       </span>
     );
   }
@@ -81,7 +71,7 @@ const FileLink = ({ label, attrs = {} }) => {
   const open = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    const detail = { projectCode: host.projectCode, serviceId: host.serviceId, path, language: langOf(path), lines };
+    const detail = { projectCode, serviceId, path, language: langOf(path), lines };
     window.dispatchEvent(new CustomEvent("sv:openFileInNav", { detail }));
   };
 

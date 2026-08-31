@@ -213,6 +213,10 @@ bytes, so the project's services don't need to be up. Without the attribute, a b
 against the document's own project — and in a **chat**, blocks resolve against the ROOM's project
 root.
 
+**So does the inline chip**: `:file[Profiles/common/schemas/Groups.js]{project=buAPI}` mid-sentence
+points into that repo and opens it there. One rule at both weights — a reference into a sibling
+project is how two rooms point at the same code without copying it.
+
 ---
 
 ## 9 · Checklists that edit the document

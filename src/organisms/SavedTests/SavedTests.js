@@ -251,7 +251,10 @@ const SavedTests = ({
 export function SavedTestItem({ test, index, status, hidden, connectedServices, storyRef, onResult, onEdit, onDelete, autoTrack, autoExpand, kindLabel = "test", kindTone = "test", nsLabel, showTitle = true, recorded = null }) {
   const nodeRef = useRef(null);
   const localRef = useRef(null);
-  const [expanded, setExpanded] = useState(false); // collapsed by default — just the header
+  // Collapsed by default — just the header — EXCEPT when the caller asks for it open: a run block
+  // of one step, or one that arrives already ran, has nothing to hide (his catch: "why is the
+  // action minimized? nothing else minimizes like that").
+  const [expanded, setExpanded] = useState(!!autoExpand);
   const running = status === "running";
   const ran = status === "pass" || status === "fail";
   const failed = status === "fail";

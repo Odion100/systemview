@@ -1,4 +1,5 @@
 import React, { Suspense, useContext, useMemo } from "react";
+import lazyLoad from "../../../utils/lazyLoad";
 import ServiceContext from "../../../ServiceContext";
 import { useMarkdownScope } from "../context";
 import { parseTarget, resolveNamespace } from "../nsResolve";
@@ -14,7 +15,7 @@ import { parseTarget, resolveNamespace } from "../nsResolve";
 //
 // Lazily loaded: LogAnalyzer pulls in the whole log table + dashboard, and a document that doesn't
 // mention logs shouldn't pay for it.
-const InlineLogs = React.lazy(() => import("../../../organisms/InlineLogs/InlineLogs"));
+const InlineLogs = lazyLoad(() => import("../../../organisms/InlineLogs/InlineLogs"));
 
 const LogsEmbed = ({ label, attrs = {} }) => {
   const scope = useMarkdownScope();

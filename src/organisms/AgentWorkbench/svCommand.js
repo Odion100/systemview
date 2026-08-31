@@ -25,7 +25,7 @@ const VERBS = {
   status: { icon: "◌", what: "set its status" },
   board: { icon: "📋", what: "the board" },
   test: { icon: "✓", what: "ran tests" },
-  probe: { icon: "◎", what: "probed a method" },
+  probe: { icon: "◎", what: "probed" },
   logs: { icon: "▤", what: "read logs" },
   log: { icon: "▤", what: "read logs" },
   open: { icon: "↗", what: "opened the UI" },
@@ -128,7 +128,16 @@ export function parseSvCommand(command) {
   // what lets the feed draw the message properly attributed.
   const ai = args.indexOf("--as");
   const as = ai !== -1 ? args[ai + 1] || null : null;
-  return { verb, icon: spec.icon, what: spec.what, project, target, as, raw: head.trim() };
+  // THE LINE AS TYPED, from the verb on — `probe TestService.Math.divide '{"a":84,"b":2}'` — because
+  // the row must say EXACTLY what ran, not a paraphrase of it (his: "I can't even know what
+  // command was run"). Quoted runs stay whole; the binary's path and the PATH prefix are gone.
+  const line = (() => {
+    // From the raw head, not the tokenised words — quotes are part of how the line was typed.
+    const h = head.replace(/^\s*(?:export\s+)?PATH=\S+\s*(?:&&|;)\s*/, "").trim();
+    const m = h.match(/(?:^|\s)(?:\S*\/)?(?:systemview|cli\/index\.js)\s+([\s\S]*)$/);
+    return (m ? m[1] : h).replace(/\s+2>&1\s*$/, "").trim();
+  })();
+  return { verb, icon: spec.icon, what: spec.what, project, target, as, raw: head.trim(), line };
 }
 
 // THE COOKING LINE IS A LABEL, NOT THE PAYLOAD. His catch: *"when you send a message, your whole
@@ -157,8 +166,13 @@ export const svRoomLine = (sv) => {
   return `${sv.what}${tag}`;
 };
 
+// A PROBE NAMES ITS METHOD. `probe Service.Module.method '{…}'` — the first argument is the
+// namespace, not a project, and it is the whole point of the line; "probed a method" said nothing
+// (his catch). The status is "probed Service.Module.method".
+const NS_VERBS = new Set(["probe"]);
 export const svStatus = (sv) => {
   if (!sv) return null;
+  if (NS_VERBS.has(sv.verb) && sv.project) return `${sv.what} ${sv.project}`;
   if (BODY_VERBS.has(sv.verb)) return `${sv.what}${sv.project ? ` → ${sv.project}` : ""}`;
   const room = svRoomLine(sv);
   if (room) return room;

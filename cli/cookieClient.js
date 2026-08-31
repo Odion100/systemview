@@ -32,8 +32,11 @@ function createCookieHttpClient(extraHeaders = {}) {
     upload: async ({ url, formData, headers }) => {
       const { file, files, __arguments } = formData;
       const form = new FormData();
-      if (file) form.append("file", file, path.basename(file.path));
-      if (files) files.forEach((f) => form.append("files", f, path.basename(f.path)));
+      // The filename comes from the stream's path; a Buffer or a nameless stream gets a plain one
+      // rather than crashing the whole upload on `.path` of undefined.
+      const nameOf = (f, i) => (f && f.path ? path.basename(String(f.path)) : `file${i ? `-${i}` : ""}`);
+      if (file) form.append("file", file, nameOf(file, 0));
+      if (files) files.forEach((f, i) => form.append("files", f, nameOf(f, i)));
       if (__arguments) form.append("__arguments", JSON.stringify(__arguments));
       const allHeaders = {
         ...headersFor(url),

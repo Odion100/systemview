@@ -8,7 +8,8 @@ import { setHelpTopic } from "../../atoms/Help/helpStore";
 import RowMenu from "../../atoms/RowMenu/RowMenu";
 import { commentedPathSet } from "../../atoms/CodeView/codeComments";
 import { hostFiles, hasHostFiles } from "../../utils/hostFiles";
-import { slotId, useNavDock } from "../AgentChat/navDock";
+import { slotId, useNavDock, useDockOrder, orderProjects, moveInDock } from "../AgentChat/navDock";
+import useFold from "./useFold";
 import TerminalSection from "./TerminalSection";
 import imageFileIcon from "../../assets/image-file.png";
 import "./styles.scss";
@@ -612,7 +613,7 @@ function ServiceNode({ service, projectCode, history, selection, onNavigate, rev
 
 // One connected codebase: header, ALL the project's services (real + project-defined), and the file
 // tree behind its own fold.
-function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigate, revealFile = null, revealNs = null, serviceStatus = {}, onHostedOp = null, onDeleteService = null, onDeleteProject = null, onRenameProject = null, renaming = null, onStartRename = () => {}, onAttachFolder = null, openRowMenu = null , allowDock = true }) {
+function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigate, revealFile = null, revealNs = null, serviceStatus = {}, onHostedOp = null, onDeleteService = null, onDeleteProject = null, onRenameProject = null, renaming = null, onStartRename = () => {}, onAttachFolder = null, openRowMenu = null , allowDock = true, reorder = null }) {
   const { projectCode, fileHost, services, dynamicServices } = entry;
   const history = useHistory();
   // Reveals scoped to THIS card. A file reveal always names its host project; a namespace reveal
@@ -724,10 +725,13 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
   // exactly where everyone else's does. A stored answer to a question that has changed is worse
   // than no answer: nobody chose it, and nobody can see why it is being obeyed. Old values are
   // ignored once; every click from here writes the new key and sticks.
+  // Bulk fold on the head: one click closes EVERYTHING inside the card (every service, every
+  // module, every section); click again opens every section. The card itself never collapses —
+  // this empties it instead. Sections hold their state through `useFold`, which obeys `bulk` on
+  // its own — see useFold.js for why.
+  const [bulk, setBulk] = useState(null); // { n, mode: "collapse" | "expand" }
   const codeOpenKey = `sv.cbNav.code2.${projectCode}`;
-  const [codeOpen, setCodeOpen] = useState(() => {
-    const saved = localStorage.getItem(codeOpenKey);
-    if (saved !== null) return saved === "true";
+  const [codeOpen, flipCode, setCodeOpen] = useFold(codeOpenKey, () => {
     // OPEN BY DEFAULT WHEN THERE IS A FOLDER — and this is the answer to "the hovering panel has no
     // logs or commit box, for everyone." It defaulted to `holdsOpenFile`, i.e. it read THE OPEN FILE
     // to decide. The side panel is handed the open file so it expanded itself; the hovering panel is
@@ -739,35 +743,15 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
     // today: one thing behaving two ways. His choice still wins the moment he makes one (saved
     // above); until then both panels open the same.
     return true;
-  });
-  const flipCode = () => {
-    setCodeOpen(!codeOpen);
-    localStorage.setItem(codeOpenKey, String(!codeOpen));
-  };
+  }, bulk);
   // The services region folds the same way — OPEN by default (it's the project's primary content),
   // and the choice sticks per project.
-  const [servicesOpen, setServicesOpen] = useState(
-    localStorage.getItem(`sv.cbNav.services.${projectCode}`) !== "false",
-  );
-  const flipServices = () => {
-    setServicesOpen(!servicesOpen);
-    localStorage.setItem(
-      `sv.cbNav.services.${projectCode}`,
-      String(!servicesOpen),
-    );
-  };
-  // Bulk fold on the head: one click closes EVERYTHING inside the card (every service, every
-  // module, the code fold); click again re-opens the services. The card itself never collapses —
-  // this empties it instead.
-  const [bulk, setBulk] = useState(null); // { n, mode: "collapse" | "expand" }
+  const [servicesOpen, flipServices, setServicesOpen] = useFold(`sv.cbNav.services.${projectCode}`, true, bulk);
   const foldAll = (e) => {
     e.stopPropagation(); // the head navigates — this control must not
     const mode = bulk && bulk.mode === "collapse" ? "expand" : "collapse";
     setBulk({ n: (bulk ? bulk.n : 0) + 1, mode });
-    // "Minimize the project" means the SECTIONS go down too — services and code both — not just
-    // what is inside them.
-    setCodeOpen(mode === "expand" ? codeOpen : false);
-    setServicesOpen(mode === "expand");
+    // Every section that holds its state through useFold follows `bulk` by itself.
     // …and the AGENT is a section of this card now (RFC-038), so it minimizes with the rest. It
     // owns its own open state inside the bot, so the card asks rather than reaches in — the bot is
     // portaled in here but it is still the bot, not a child component.
@@ -1726,14 +1710,21 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
   return (
     <div
       ref={cardRef}
-      className={`${CLASSNAME}__codebase ${isCurrent ? `${CLASSNAME}__codebase--current` : ""}`}
+      className={`${CLASSNAME}__codebase ${isCurrent ? `${CLASSNAME}__codebase--current` : ""}${reorder && reorder.dragging === projectCode ? ` ${CLASSNAME}__codebase--dragging` : ""}${reorder && reorder.over === projectCode ? ` ${CLASSNAME}__codebase--dropover` : ""}`}
+      // DRAG A CARD TO REORDER — the same order the dock keeps. A drop on another card takes its
+      // place; the dock's spots follow in the same instant (they read the same list).
+      onDragOver={reorder ? (e) => { if (reorder.dragging) { e.preventDefault(); reorder.onOver(); } } : undefined}
+      onDrop={reorder ? (e) => { if (reorder.dragging) { e.preventDefault(); reorder.onDrop(); } } : undefined}
     >
       {/* The header NAVIGATES — project-level docs/tests — it does not toggle (RFC-026: the card
           is the project's whole nav and stays open; the `code` fold below owns collapsing). */}
       <button
         type="button"
         className={`${CLASSNAME}__cb-head`}
-        title={`Open ${projectCode} — project documentation and tests — right-click for options`}
+        draggable={!!reorder}
+        onDragStart={reorder ? (e) => { e.dataTransfer.effectAllowed = "move"; try { e.dataTransfer.setData("text/plain", projectCode); } catch {} reorder.onStart(); } : undefined}
+        onDragEnd={reorder ? reorder.onEnd : undefined}
+        title={`Open ${projectCode} — project documentation and tests — drag to reorder — right-click for options`}
         onClick={() => {
           onNavigate();
           history.push(withTab(`/specs/${projectCode}`));
@@ -2330,7 +2321,7 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
           {/* RFC-045 — THE LAST SECTION: a shell in this codebase. SystemView renders it; the
               embedding host runs it. In a plain browser tab it says so and stops. */}
           {!noFolder && (
-            <TerminalSection projectCode={projectCode} CLASSNAME={CLASSNAME} Chevron={Chevron} />
+            <TerminalSection projectCode={projectCode} CLASSNAME={CLASSNAME} Chevron={Chevron} bulk={bulk} />
           )}
         </div>
     </div>
@@ -2413,14 +2404,40 @@ const CodebaseNav = ({
     return Object.values(byProject).map((cb) => ({ ...cb, fileHost: cb.root ? { root: cb.root } : null }));
   }, [connectedServices]);
 
+  // THE CARDS ARE IN THE DOCK'S ORDER, AND DRAGGING A CARD REORDERS THE DOCK (his rule: one order,
+  // "when you switch the order in the dock it switches in the codebase" — and the other way).
+  const dockOrderList = useDockOrder();
+  const orderedCodebases = useMemo(() => {
+    const byPc = Object.fromEntries(codebases.map((cb) => [cb.projectCode, cb]));
+    return orderProjects(dockOrderList, codebases.map((cb) => cb.projectCode)).map((pc) => byPc[pc]).filter(Boolean);
+  }, [codebases, dockOrderList]);
+  const [dragPc, setDragPc] = useState(null);
+  const [overPc, setOverPc] = useState(null);
+  const allPcs = orderedCodebases.map((cb) => cb.projectCode);
+
   return (
     <div className={`${CLASSNAME} ${theme === "dark" ? `${CLASSNAME}--dark` : ""}`}>
       {codebases.length ? (
-        codebases.map((cb) => (
+        orderedCodebases.map((cb) => (
           <Codebase
             allowDock={allowDock}
             key={cb.projectCode}
             entry={cb}
+            reorder={{
+              dragging: dragPc,
+              over: overPc,
+              onStart: () => setDragPc(cb.projectCode),
+              onOver: () => dragPc && dragPc !== cb.projectCode && setOverPc(cb.projectCode),
+              onDrop: () => {
+                if (dragPc && dragPc !== cb.projectCode) moveInDock(dragPc, cb.projectCode, allPcs);
+                setDragPc(null);
+                setOverPc(null);
+              },
+              onEnd: () => {
+                setDragPc(null);
+                setOverPc(null);
+              },
+            }}
             isCurrent={cb.projectCode === projectCode}
             openFile={openFile}
             onOpenFile={onOpenFile}

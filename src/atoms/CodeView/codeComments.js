@@ -82,14 +82,18 @@ export function useCodeComments(Plugin, path) {
   const [threads, setThreads] = useState([]);
   const [error, setError] = useState("");
 
+  // Never set state to an equal value — a new empty array every load is a render every load, and
+  // with an unstable `Plugin` upstream that was the loop. Same content, same state.
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   const load = useCallback(async () => {
-    if (!Plugin || !path) return setThreads([]);
+    if (!Plugin || !path) return setThreads((cur) => (same(cur, []) ? cur : []));
     try {
       const res = await Plugin.readFile({ path: codeCommentsPath(path) });
-      setThreads(parse(res.content).threads);
+      const next = parse(res.content).threads;
+      setThreads((cur) => (same(cur, next) ? cur : next));
     } catch {
       // Nothing stored yet is the normal case, not an error.
-      setThreads([]);
+      setThreads((cur) => (same(cur, []) ? cur : []));
     }
   }, [Plugin, path]);
 

@@ -1,9 +1,11 @@
 import React, { Suspense, useEffect, useState } from "react";
+import useFold from "./useFold";
+import lazyLoad from "../../utils/lazyLoad";
 import { hasTerminalHost, terminalHost } from "../Terminal/host";
 import { THEMES, readLook, writeLook } from "../Terminal/themes";
 import { useAppDark } from "../../atoms/appTheme";
 
-const Terminal = React.lazy(() => import("../Terminal/Terminal"));
+const Terminal = lazyLoad(() => import("../Terminal/Terminal"));
 
 // RFC-045 — THE TERMINAL AS A SECTION OF THE CODEBASE CARD, beside `services` and `code`. His reason,
 // unchanged since RFC-042: he wants to stay in SystemView with several projects open instead of going
@@ -27,10 +29,10 @@ const loadTabs = (pc) => {
   return { tabs: [{ id: `${pc}-1`, n: 1 }], active: `${pc}-1` };
 };
 
-const TerminalSection = ({ projectCode, CLASSNAME, Chevron }) => {
-  const [open, setOpen] = useState(
-    () => localStorage.getItem(`sv.cbNav.term.${projectCode}`) === "true",
-  );
+const TerminalSection = ({ projectCode, CLASSNAME, Chevron, bulk = null }) => {
+  // A section of the card like any other: it folds with the head's chevron (useFold obeys `bulk`).
+  const [open, , setOpenFold] = useFold(`sv.cbNav.term.${projectCode}`, false, bulk);
+  const setOpen = (v) => setOpenFold(typeof v === "function" ? v(open) : v);
   const [{ tabs, active }, setTabs] = useState(() => loadTabs(projectCode));
   const [gear, setGear] = useState(false);
   // WHAT IS ACTUALLY RUNNING ON THE MACHINE — not what this card has tabs for. His worry, and it was

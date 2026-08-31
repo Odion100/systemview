@@ -1,0 +1,149 @@
+// CHAT MARKDOWN, ONE RULE SET, EVERY HOME. The simple chat markdown (bold, code, lists, quotes,
+// tables, chips, blocks) renders in a bubble, in a board reply and in a code-comment reply — agents
+// write all three in the same markdown. His call, twice: *"the board needs markdown… the simple
+// type used inside the chat"*, then *"code comments need markdown just like the board did."* One
+// mixin, imported by every surface, so they can never drift apart.
+@mixin chat-md {
+  --md-ink: #5e6ade52;
+  --md-line: rgba(0, 0, 0, 0.18);
+  .chat-md__p {
+    display: inline;
+  }
+  // AN INTERACTIVE BLOCK MUST FIT THE CHAT IT IS IN. `SvChatBlock` wraps every ::file, ::diff,
+  // ::question, ::image, ::commit in `.chat-md__block` — and that class had NO rules anywhere in
+  // the app, ever, so a block laid itself out at DOCUMENT width and overflowed the panel. Measured:
+  // 569px blocks inside a 340px chat. They rendered perfectly and hung off the side of the panel,
+  // which reads as "there is not one lick of interactive markdown in the chat" — his words, and
+  // fair, because you cannot see a thing that is painted outside the box.
+  //
+  // The fix is the box, not the blocks: nothing may be wider than the bubble, anything with its own
+  // minimum (a code fence, a wide table) scrolls inside itself rather than pushing the panel open.
+  .chat-md__block {
+    display: block;
+    max-width: 100%;
+    min-width: 0;
+    margin: 6px 0;
+    overflow-x: auto;
+    // The children carry their own widths from the document stylesheet — they have to be told
+    // that "full width" now means the bubble.
+    > * {
+      max-width: 100%;
+      min-width: 0;
+      box-sizing: border-box;
+    }
+    // A block is a card in a conversation, not a page section — the document spacing reads as a
+    // gap in the chat.
+    pre,
+    table {
+      max-width: 100%;
+    }
+  }
+  // HIS colors, per mode: the lavender wash reads on LIGHT bubbles, the translucent ink is
+  // right on DARK — so light is the default and `.sv-dark` hands the ink back.
+  .chat-md__code {
+    background: rgba(
+      216,
+      219,
+      255,
+      0.32
+    ); // #d8dbff52 — as rgba because the build drops 8-digit hex
+    border: 1px solid var(--md-line);
+    border-radius: 4px;
+    padding: 0 3px;
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.9em;
+  }
+  // A pasted stack trace must not eat the thread — the fence scrolls inside its own box.
+  .chat-md__fence {
+    display: block;
+    margin: 4px 0;
+    padding: 6px 8px;
+    background: rgba(
+      216,
+      219,
+      255,
+      0.32
+    ); // #d8dbff52 — as rgba because the build drops 8-digit hex
+    border: 1px solid var(--md-line);
+    border-radius: 6px;
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.87em;
+    line-height: 1.35;
+    white-space: pre;
+    overflow: auto;
+    max-height: 180px;
+  }
+  .chat-md__h {
+    display: block;
+    font-weight: 700;
+    margin: 4px 0 2px;
+  }
+  .chat-md__list {
+    display: block;
+    margin: 3px 0;
+    padding-left: 18px;
+    li {
+      margin: 1px 0;
+    }
+  }
+  .chat-md__quote {
+    display: block;
+    margin: 3px 0;
+    padding-left: 7px;
+    border-left: 2px solid var(--md-line);
+    opacity: 0.85;
+  }
+  .chat-md__rule {
+    display: block;
+    margin: 5px 0;
+    border-top: 1px solid var(--md-line);
+  }
+  // Tables sized for a BUBBLE, not a page: compact, no heavy grid, and the wrapper takes the
+  // horizontal scroll so a wide table never widens the bubble or spills out of it.
+  .chat-md__tablewrap {
+    display: block;
+    margin: 4px 0;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+  .chat-md__table {
+    border-collapse: collapse;
+    font-size: 0.92em;
+    // Cells decide their own width; `pre-wrap` on the bubble would otherwise stretch them.
+    white-space: nowrap;
+    th,
+    td {
+      padding: 3px 8px 3px 0;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      font-weight: 700;
+      border-bottom: 1px solid var(--md-line);
+      padding-bottom: 4px;
+    }
+    tbody tr + tr td {
+      border-top: 1px solid var(--md-ink);
+    }
+    // Last column keeps no trailing gap, so a two-column table reads tight in a narrow bubble.
+    th:last-child,
+    td:last-child {
+      padding-right: 0;
+    }
+  }
+  del {
+    opacity: 0.7;
+  }
+  // DARK: the translucent ink comes back — the lavender wash is a light-mode color.
+  :root.sv-dark & {
+    .chat-md__code,
+    .chat-md__fence {
+      background: var(--md-ink);
+    }
+  }
+  // Chips ride inside narrow bubbles — let a long title wrap instead of overflowing.
+  .md-chip {
+    white-space: normal;
+    max-width: 100%;
+  }
+}

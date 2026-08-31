@@ -1,0 +1,73 @@
+[
+  {
+    "title": "upload: mockFile() in a CLI test becomes a real multipart upload \u2014 the method sees the files",
+    "namespace": {
+      "serviceId": "TestService",
+      "moduleName": "Files",
+      "methodName": "upload"
+    },
+    "Before": [],
+    "Main": [
+      {
+        "title": "send two mock files with a note; the method receives both by name",
+        "namespace": {
+          "serviceId": "TestService",
+          "moduleName": "Files",
+          "methodName": "upload"
+        },
+        "args": [
+          {
+            "name": "argument:",
+            "input": {
+              "note": "from the CLI",
+              "files": [
+                "mockFile(test.png)",
+                "mockFile(test2.png)"
+              ]
+            },
+            "input_type": "object",
+            "data_type": "",
+            "targetValues": []
+          }
+        ],
+        "savedEvaluations": [
+          {
+            "namespace": "results.count",
+            "expected_type": "number",
+            "validations": [
+              {
+                "name": "numEquals",
+                "value": 2
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.note",
+            "expected_type": "string",
+            "validations": [
+              {
+                "name": "strEquals",
+                "value": "from the CLI"
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.names[0]",
+            "expected_type": "string",
+            "validations": [
+              {
+                "name": "strEquals",
+                "value": "test.png"
+              }
+            ],
+            "save": true
+          }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": []
+  }
+]

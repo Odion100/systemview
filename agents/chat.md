@@ -140,7 +140,9 @@ where the introduction happened; don't drag it home.
 
 Blocks in a message resolve against the **room's** repo: a `::file` lifted from your repo into
 someone else's room renders empty, which looks like a broken renderer. Use their paths, or pin yours
-with `{project=<yourPc>}`.
+with `{project=<yourPc>}` — which works on the inline chip too, so
+`:file[cli/index.js]{project=systemview-test}` in someone else's room points at YOUR file and opens
+it there. Absolute paths are refused on purpose; the project attribute is the way across.
 
 ## Cooking lines — `status`
 

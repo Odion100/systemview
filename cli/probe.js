@@ -144,7 +144,11 @@ module.exports = async function probe(namespace, argsStr, { json = false, manife
       process.stdout.write(JSON.stringify({ serviceId, moduleName, methodName, args, result }, null, 2) + "\n");
     } else {
       log.success("result:");
-      console.log(JSON.stringify(result, null, 2));
+      // COMPACT FOR A MACHINE, PRETTY FOR A PERSON. An agent reads this through its tool result,
+      // and the host keeps only the first 400 characters of it — a pretty-printed object with
+      // two nested inputs is already past that, so the feed's run block could never pipe it back
+      // in. A terminal gets the indented form; a pipe gets one line.
+      console.log(process.stdout.isTTY ? JSON.stringify(result, null, 2) : JSON.stringify(result));
       takeNotices().forEach((n) => log.info(n));
     }
     return 0;

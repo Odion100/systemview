@@ -42,51 +42,8 @@ import { resolveNamespace } from "../nsResolve";
 //
 // (`✓` was the original form. It reads well in a rendered document but nobody wants to type it, so
 // the parser takes any of them and the docs lead with the plain bullet.)
-export function parseSteps(src) {
-  const lines = String(src || "").split("\n");
-  const steps = [];
-  let cur = null;
-  let stepIndent = 0;
-  const flush = () => {
-    if (cur) steps.push(cur);
-    cur = null;
-  };
-  const addCheck = (text) => {
-    const body = String(text).replace(/^(?:✓|✔|expect|assert)\s+/i, "").trim();
-    if (cur && body) (cur.checks || (cur.checks = [])).push(body);
-  };
-  lines.forEach((raw) => {
-    const bullet = raw.match(/^(\s*)[-*]\s+(.*)$/);
-    if (bullet) {
-      const indent = bullet[1].length;
-      const body = bullet[2];
-      // Indented DEEPER than the step it sits under ⇒ it's one of that step's assertions, not the
-      // next step.
-      if (cur && indent > stepIndent) {
-        addCheck(body);
-        return;
-      }
-      flush();
-      stepIndent = indent;
-      const useMatch = body.match(/^use:\s*(\S+)/i);
-      if (useMatch) {
-        steps.push({ use: useMatch[1] });
-        return;
-      }
-      const m = body.match(/^([A-Za-z0-9_$.\-]+)\s*(.*)$/);
-      if (!m) return;
-      cur = { ns: m[1], rest: m[2] || "" };
-    } else if (cur && raw.trim()) {
-      // A bare indented line: an assertion if it's marked as one, otherwise the continuation of a
-      // call that spans lines.
-      const check = raw.match(/^\s+(?:✓|✔|expect|assert)\s+(.+)$/i);
-      if (check) addCheck(check[1]);
-      else cur.rest += "\n" + raw;
-    }
-  });
-  flush();
-  return steps;
-}
+import { parseSteps } from "./runSteps";
+export { parseSteps };
 
 // Split on TOP-LEVEL commas only: quotes, braces, brackets and nested parens (a `tv(…)` reference is
 // full of them) must not be split through.
@@ -258,6 +215,7 @@ const RunBlock = ({ kind, label, attrs = {}, src }) => {
   // SavedTestItem shows pass/fail from a `status` prop its PARENT owns (the scratchpad keeps a results
   // map). Without it a run completes silently, so the block keeps its own one-test result.
   const [status, setStatus] = useState(null);
+  const recordedRef = useRef({ main: null, rec: null }); // see `recorded` below
   const services = connectedServices.filter((s) => s.projectCode === projectCode);
 
   // Saved actions are needed for BOTH forms: the saved form replays one, the ad-hoc form can pull one
@@ -306,6 +264,7 @@ const RunBlock = ({ kind, label, attrs = {}, src }) => {
         if (st) {
           if (st.dropped > 0)
             bad.push(`${st.dropped} assertion${st.dropped > 1 ? "s" : ""} under "${p.ns}" couldn't be read — write path = value or path ~ text`);
+          if (p.hasResult) st.recordedResponse = p.result;
           mainSteps.push(st);
         }
         else if (toNamespace(p.ns, scope))
@@ -379,6 +338,18 @@ const RunBlock = ({ kind, label, attrs = {}, src }) => {
     run: runOrder.length ? runOrder : [inline ? ownKey : "main"],
   };
   const ready = actions != null || (inline && !Object.keys(sections).length);
+  // ALREADY RAN, FROM THE DOCUMENT ITSELF. When every step carries a `=` result the block hydrates
+  // the same way a `::test{ran=…}` does from a run file — the record is keyed by the run's own
+  // section so the story finds it (`recSections[ownKey]`).
+  // Plain computation, not a hook — this sits below an early return. `main` is itself memoised,
+  // so the record's identity only changes when the steps do (the story hydrates once per record).
+  const recorded = recordedRef.current && recordedRef.current.main === main
+    ? recordedRef.current.rec
+    : (recordedRef.current = { main, rec: (() => {
+        if (!inline || !main.length || !main.every((st) => "recordedResponse" in st)) return null;
+        const steps = main.map((st) => ({ status: "passed", response: st.recordedResponse }));
+        return { ranAt: null, [ownKey]: steps, Main: steps };
+      })() }).rec;
 
   return (
     <div className={`md-embed md-embed--run${inline ? " md-embed--run-adhoc" : ""}`}>
@@ -387,6 +358,7 @@ const RunBlock = ({ kind, label, attrs = {}, src }) => {
             must never say the same word, which is what "test inside test" was doing. */}
         <span className="md-embed__kind">{inline ? "run" : "saved action"}</span>
         <span className="md-embed__title">{title}</span>
+        {recorded && <span className="md-embed__ran">recorded run</span>}
         <span className="md-embed__scope">
           {inline ? "written here" : "from specs/actions"} · {stepCount} step{stepCount === 1 ? "" : "s"}
           {Object.keys(sections).length ? ` · ${Object.keys(sections).length} shared action${Object.keys(sections).length === 1 ? "" : "s"}` : ""}
@@ -409,6 +381,10 @@ const RunBlock = ({ kind, label, attrs = {}, src }) => {
           status={status}
           onResult={(_i, st) => setStatus(st === undefined ? _i : st)}
           connectedServices={connectedServices}
+          recorded={recorded}
+          // OPEN, not folded: a run of one step, or one that arrives already ran, has nothing to
+          // hide behind a header (his catch: "there's only one section — it shouldn't be minimized").
+          autoExpand={!!recorded || stepCount === 1}
         />
       ) : (
         <div className="report-chart-empty">{problems[0] || "no steps"}</div>

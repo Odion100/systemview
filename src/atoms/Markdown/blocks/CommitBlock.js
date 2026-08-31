@@ -137,7 +137,10 @@ const CommitBlock = ({ label, attrs = {}, line }) => {
   };
 
   const staged = (state && state.staged) || [];
-  const rest = (state && state.unstaged) || [];
+  // Untracked files come in their OWN list from the hub (`state.untracked`); `unstaged` is only
+  // tracked files with edits. Reading `unstaged` alone dropped every untracked file from the block
+  // while the panel beside it still listed them (his catch: "why isn't it showing untracked?").
+  const rest = state ? [...(state.unstaged || []), ...(state.untracked || [])] : [];
   // The SAME three groups the version-control panel shows, under the same names — one vocabulary
   // for both surfaces. A staged-and-edited-since file lands in staged AND changes, deliberately.
   const changes = rest.filter((f) => f.status !== "untracked");

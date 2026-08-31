@@ -1023,10 +1023,23 @@ const CodeEditor = ({
   // which lines differ). Keyed on the CONTENT of the map, not its identity — the pane builds a new
   // Map every render and identity alone would dispatch on every keystroke regardless.
   const markKey = changeMarks ? [...changeMarks.entries()].join(",") : "";
-  useEffect(() => {
+  // NEVER DISPATCH MID-UPDATE. These two effects fire inside React commits, and when two files are
+  // flipped between quickly the commit lands while CodeMirror is still applying the previous
+  // update — `EditorView.update is not allowed while an update is in progress`, uncaught, white
+  // screen (his repro: alternate two changed files until the fourth click). A microtask puts the
+  // dispatch after whatever update is in flight; the view is re-checked because the flip that
+  // caused this can also have destroyed it.
+  const deferDispatch = (spec) => {
     const view = viewRef.current;
     if (!view) return;
-    view.dispatch({
+    Promise.resolve().then(() => {
+      if (viewRef.current === view) {
+        try { view.dispatch(spec); } catch {}
+      }
+    });
+  };
+  useEffect(() => {
+    deferDispatch({
       effects: [
         setChangeMarks.of(changeMarks),
         setHunks.of(hunks || []),
@@ -1040,9 +1053,7 @@ const CodeEditor = ({
   // having to hand back a new array identity for every keystroke elsewhere.
   const commentKey = JSON.stringify([comments || [], commentOpen || []]);
   useEffect(() => {
-    const view = viewRef.current;
-    if (!view) return;
-    view.dispatch({
+    deferDispatch({
       effects: [
         setComments.of({ threads: comments || [], on: !!commentsOn, openIds: commentOpen || [] }),
         setCommentHandlers.of(onComment || null),
