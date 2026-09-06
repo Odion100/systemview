@@ -687,6 +687,10 @@ function WorkList({ items }) {
         onClick={() => setOpen(!open)}
         title={open ? "Hide the rest of the plan" : "Show the whole plan"}
       >
+        {/* The clipboard LEADS the line — his second pass: no check beside it (the one glyph that
+            refused his green: ✓ next to an emoji renders as the EMOJI variant and ignores color),
+            just the clipboard, smaller, opening the line it names. */}
+        <span className={`${CLASSNAME}__worklist-badge`}>📋</span>
         <span className={`${CLASSNAME}__worklist-count`}>
           {done}/{items.length}
         </span>
@@ -701,8 +705,13 @@ function WorkList({ items }) {
         <ul className={`${CLASSNAME}__worklist-items`}>
           {items.map((t) => (
             <li key={t.id} className={`${CLASSNAME}__worklist-item ${CLASSNAME}__worklist-item--${t.state}`}>
+              {/* TWO SPANS, TWO STYLES — his correction, twice, and he is right that the honest fix
+                  is structural: Chrome draws a row's line-through across inline-block children
+                  regardless of what they declare (the spec says atomic inlines escape; the browser
+                  disagrees). So the strike lives on the TEXT'S OWN SPAN and the check never shares
+                  a decoration with it — there is nothing to escape from. */}
               <span className={`${CLASSNAME}__worklist-mark`}>{mark[t.state] || "·"}</span>
-              {t.text}
+              <span className={`${CLASSNAME}__worklist-text`}>{t.text}</span>
             </li>
           ))}
         </ul>
@@ -3753,6 +3762,17 @@ const countdown = (str, now = Date.now()) => {
   // panel's cooking line: chars over four, marked ≈, only while the session is actually working.
   const peekCounted = useCountUp(Math.round(work.state.liveChars / 4));
   const peekTok = work.state.state === "working" && work.state.liveChars > 40 ? `${peekCounted.toLocaleString()} tok` : "";
+  // THE PLAN'S HEADER RIDES THE MINIMISED VIEW ONLY — his correction after I put it on the open
+  // panel's cooking line too: *"the worklist is already showing inside the chat."* Open, the list
+  // itself sits right under the cooking line, and a summary of a thing beside the thing is noise.
+  // Minimised there IS no list — that is what the brief is for.
+  const peekTodo = (() => {
+    const t = work.state.todo;
+    if (!t || !t.length) return "";
+    const done = t.filter((x) => x.state === "done").length;
+    const act = t.find((x) => x.state === "active");
+    return `${done}/${t.length}${act ? ` ${act.text.length > 44 ? `${act.text.slice(0, 42)}…` : act.text}` : ""}`;
+  })();
   // THE MINIMISED BRIEF — his ask, and it replaces the cooking word outright while attached:
   // *"when it's in minimization mode, can we have one block that just shows text and commands, one
   // line text and one line commands, right under the agent — that could replace the whole cooking
@@ -5904,10 +5924,22 @@ const countdown = (str, now = Date.now()) => {
                 {/* Only when there is nothing real yet — a turn that has started and produced
                     neither a sentence nor a command still has to prove it is alive. */}
                 {!brief.cmd && sessionCooking && <StatusLine status={peekCookWord} tok={peekTok} />}
+                {peekTodo && (
+                  <div className={`${CLASSNAME}__cooking-todo`}>
+                    <span className={`${CLASSNAME}__worklist-badge`}>📋</span> {peekTodo}
+                  </div>
+                )}
               </div>
             ) : sessionCooking ? (
               // THE PEEK'S OWN COMPONENT, unchanged — only where the sentence comes from changed.
-              <StatusLine status={peekCookWord} tok={peekTok} />
+              <>
+                <StatusLine status={peekCookWord} tok={peekTok} />
+                {peekTodo && (
+                  <div className={`${CLASSNAME}__cooking-todo`}>
+                    <span className={`${CLASSNAME}__worklist-badge`}>📋</span> {peekTodo}
+                  </div>
+                )}
+              </>
             ) : (
               roomLines.map((s) => (
                 <StatusLine

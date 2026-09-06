@@ -3022,7 +3022,12 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.agent-chat__worklist-chev { flex: none; opacity: 0.6; }
+.agent-chat__worklist-badge {
+  flex: none;
+  font-size: 10.5px; // smaller — his ask
+  line-height: 1;
+}
+.agent-chat__worklist-chev { flex: none; opacity: 0.6; font-size: 14px; } // a little bigger, his ask
 .agent-chat__worklist-items {
   list-style: none;
   margin: 2px 0 0;
@@ -3038,10 +3043,36 @@
   line-height: 1.35;
   color: var(--sv-text-soft, #8a8f98);
   &--active { color: var(--sv-text); font-weight: 600; }
-  &--done { opacity: 0.55; text-decoration: line-through; }
+  // HIS CRITIQUE, verbatim: the strike goes through THE ENTIRE LINE, check included — the
+  // decoration was on the text only, so the ✓ sat outside the strike and the row read half-done.
+  // The line-through lives on the ROW (both children inherit it), and the check is GREEN — "it
+  // helps you see, boom, checked off."
+  &--done {
+    opacity: 0.55;
+    // NO DECORATION ON THE ROW — that was the whole bug. The row's line-through painted across the
+    // check no matter what the check declared (inline-block "escape" is spec fiction in Chrome), and
+    // he called the fix: separate the styling. The strike belongs to the text span alone.
+    .agent-chat__worklist-text { text-decoration: line-through; }
+    .agent-chat__worklist-mark { color: #00c408; font-weight: 800; } // HIS green, exactly
+  }
 }
 .agent-chat__worklist-mark { flex: none; width: 10px; text-align: center; }
 
+.agent-chat__cooking-todo {
+  flex: none;
+  // NO LEFT MARGIN — his catch: the 6px was for the line's ORIGINAL seat, inline after the token
+  // count on the open panel's cooking line. That seat no longer exists; in the peek this is a block
+  // row of its own, and the leftover margin read as a stray indent against the cooking message.
+  margin-left: 0;
+  font-size: 11.5px;
+  font-style: normal;
+  color: #7fb069;
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 46ch;
+}
 .agent-chat__cooking-dot {
   width: 7px;
   height: 7px;

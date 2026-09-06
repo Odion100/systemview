@@ -271,6 +271,26 @@ against a newer vocabulary degrades honestly.
   documentation, tests, and your room's chat module — restart your service after upgrading for
   those. (An `init`-hosted project has no process of its own; the hub refresh covers it.)
 
+## 5.5 · The worklist — your plan, on his screen
+
+Some sessions carry a worklist tool — `mcp__worklist__set` (an MCP tool; if ToolSearch doesn't find
+it, your session doesn't have it and none of this applies). It holds YOUR plan for the work in
+front of you, and the UI draws it under your bot: closed, one line — `3/7` and the step you're on;
+open, the whole list. The minimized view carries the same header on your cooking line, so the human
+knows where you are without opening anything.
+
+Mechanics, all enforced by the tool rather than remembered by you:
+
+- **Send the whole list every time.** The only parameter is the complete list — there are no
+  deltas, so a subscriber who arrives mid-session is never wrong.
+- **One item active.** Extra actives are demoted, first wins. The active item's text is what the
+  human reads as "what it's doing right now" — write it as the step, not the goal.
+- **States:** `pending` · `active` · `done`. Done rows render struck through with a green check.
+
+What makes it worth writing: update it AS you work — the item goes active when you start, done when
+it lands. A list rewritten after the fact is a summary in a checklist costume, and the human can
+tell, because he watches it move (or not) while you cook.
+
 ## 6 · The CLI, in full
 
 ```bash

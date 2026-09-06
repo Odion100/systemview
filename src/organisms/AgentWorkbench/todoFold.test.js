@@ -49,3 +49,27 @@ describe("an agent's worklist folds off the session stream", () => {
     expect(s.todo).toEqual([{ id: "1", text: "real", state: "pending" }]);
   });
 });
+
+describe("a worklist arrives as a TOOL CALL too — terminal sessions have the tool, not the event", () => {
+  const ev = (kind, rest = {}) => ({ kind, ts: 1, ...rest });
+  it("folds mcp__worklist__set's input.items exactly like the event", () => {
+    const s = foldState([
+      ev("tool.call", { tool: "mcp__worklist__set", input: { items: [{ id: "1", text: "fix it", state: "active" }, { id: "2", text: "ship it", state: "pending" }] } }),
+    ]);
+    expect(s.todo).toEqual([
+      { id: "1", text: "fix it", state: "active" },
+      { id: "2", text: "ship it", state: "pending" },
+    ]);
+  });
+  it("the newest call wins over an older event, and vice versa — one list, latest writer", () => {
+    const s = foldState([
+      ev("todo.updated", { items: [{ text: "old", state: "done" }] }),
+      ev("tool.call", { tool: "mcp__worklist__set", input: { items: [{ text: "new", state: "active" }] } }),
+    ]);
+    expect(s.todo).toEqual([{ id: "0", text: "new", state: "active" }]);
+  });
+  it("a tool call that isn't the worklist changes nothing", () => {
+    const s = foldState([ev("tool.call", { tool: "Bash", input: { command: "ls", items: [1] } })]);
+    expect(s.todo).toBe(null);
+  });
+});

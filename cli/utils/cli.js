@@ -169,7 +169,12 @@ const HELP_TEXT = `
     systemview highlight buAPI --file src/modules/Users.js
 `;
 
-const flagValueArgs = ["--manifest", "--header", "--skip", "--phase", "--index", "--level", "--limit", "--follow", "--filter", "--or", "--include", "--highlight", "--save", "--save-limit", "--file", "--source", "--text", "--lines", "--match", "--layout", "--diff", "--test", "--ns", "--note", "--at", "--from", "--to", "--chat", "--as", "--report", "--tab", "--topic", "--range", "--service", "--say", "--reply"];
+const flagValueArgs = ["--manifest", "--header", "--skip", "--phase", "--index", "--level", "--limit", "--follow", "--filter", "--or", "--include", "--highlight", "--save", "--save-limit", "--file", "--source", "--text", "--lines", "--match", "--layout", "--diff", "--test", "--ns", "--note", "--at", "--from", "--to", "--chat", "--as", "--report", "--tab", "--topic", "--range", "--service", "--say", "--reply", "--add"];
+// `--add` IS a value flag when a value follows it (bare `--add --file x.md` stays legal because
+// the filter only skips a NON-flag token after it). Missing from this list, its text stayed
+// POSITIONAL — so `board <pc> --add "Parked: …"` read the whole note as the board's NAME and
+// wrote `.systemview/boards/<your entire paragraph>.md` (ENAMETOOLONG found it; a shorter note
+// silently creates a garbage board, which is worse).
 
 // Quote-aware tokenizer: a single/double-quoted arg (e.g. a JSON payload with spaces) stays ONE token,
 // surrounding quotes stripped. Turns an interactive REPL line into the same argv shape the shell hands

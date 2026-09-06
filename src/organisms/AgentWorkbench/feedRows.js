@@ -857,6 +857,14 @@ export function foldState(events) {
       doing = null;
     } else if (IS_CALL(ev.kind)) {
       s.state = "working";
+      // THE TOOL CALL IS THE LIST — his catch, looking at his own window: *"I do see you calling
+      // something that says updating worklist… but I don't see any interface for me being able to
+      // track it."* The panel folded only autobot's `todo.updated` EVENT, and an agent whose
+      // harness exposes the tool directly (a terminal session like the one he was watching) never
+      // emits that event — its tool CALL crosses the feed instead, carrying the same full list as
+      // `input.items`. Same contract, other doorway: whole list, newest wins.
+      if (/worklist/i.test(String(ev.tool || ev.name || "")) && ev.input && Array.isArray(ev.input.items))
+        s.todo = ev.input.items.map(todoItem).filter((t) => t.text);
       const sv = parseSvCommand(ev.input && ev.input.command);
       // Short by construction — see svStatus. The full body still lands in the feed row above.
       // The FALLBACK is clamped too, because a status has one line no matter who wrote it: the

@@ -93,19 +93,18 @@ module.exports = async function boardCommand(projectCode, name, { uiUrl, json, r
     return 1;
   }
 
-  // Any live service of the project can read its files — siblings share a working directory.
+  // HUB-BACKED, addressed by project — the last verb still hunting a LIVE service for a Plugin
+  // that could read files. With the project's services down (or worse, with stale dead
+  // registrations on the list) the hunt burned three connection timeouts per corpse and then
+  // refused: a note could not be left on the board of a repo whose folder the hub has known all
+  // along. Found live: `board --add` died against :5555/:5556/:5557 — three registrations nothing
+  // has answered for days. Same fix as skill.js, same reason, same shape.
   let Plugin = null;
-  for (const s of services) {
-    try {
-      const svc = await Client.loadService(s.connectionData.serviceUrl);
-      if (svc.Plugin && svc.Plugin.readFile) {
-        Plugin = svc.Plugin;
-        break;
-      }
-    } catch {} // down or plugin-less — try the next one
-  }
-  if (!Plugin) {
-    log.error(`no live service in ${projectCode} can read files`);
+  try {
+    Plugin = await require("./projectPlugin")(uiUrl, projectCode);
+  } catch {}
+  if (!Plugin || !Plugin.readFile) {
+    log.error(`the hub has no folder for ${projectCode} — connect it first`);
     return 1;
   }
 
