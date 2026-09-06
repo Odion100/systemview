@@ -205,9 +205,14 @@ export function toStep(parsed, scope, services) {
 
 const RunBlock = ({ kind, label, attrs = {}, src }) => {
   const scope = useMarkdownScope();
+  // HOST VOCABULARY, not a capability (his cutback): running a saved action is SystemView's own
+  // idea, so this reads SystemView's own context. What SURVIVES from the capability round:
   const { connectedServices = [] } = useContext(ServiceContext);
-  const firstProject = connectedServices.length ? connectedServices[0].projectCode : null;
-  const projectCode = attrs.project || scope.projectCode || firstProject;
+  // NO MORE `firstProject`. This fell back to `connectedServices[0].projectCode` — an arbitrary
+  // entry off the connected list, related to nothing, varying with connection ORDER and with what
+  // happens to be up. A `::run` that EXECUTES against a project nobody named is the confident-wrong
+  // shape this seam exists to end: it changes when a service restarts, with nothing he did.
+  const projectCode = attrs.project || scope.projectCode;
   const savedName = (label || attrs.use || attrs.action || "").trim();
   const inline = kind === "container";
 

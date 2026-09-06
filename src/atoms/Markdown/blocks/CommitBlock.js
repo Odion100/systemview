@@ -1,9 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
-import { hostFiles } from "../../../utils/hostFiles";
-import ServiceContext from "../../../ServiceContext";
-import loadServiceWithHeaders from "../../../utils/loadService";
+import { useCapability, useCapabilityState } from "../capabilities";
 import { useMarkdownScope, useMarkdownWrite } from "../context";
-import { canGit, hasPlugin, pickHost } from "../../../utils/pluginHost";
 
 // RFC-033 — `::commit{message="…"}`. A commit message in a report is a line to copy into a
 // terminal; this makes it a button.
@@ -35,6 +32,11 @@ const CommitBlock = ({ label, attrs = {}, line }) => {
   // worst kind of wrong — not an error, a confident zero.
   const projectCode = attrs.project || scope.projectCode;
   const host = projectCode ? { projectCode } : null;
+  // RFC-053 — VERSION CONTROL IS A CAPABILITY THE HOST GRANTS. Not an import, not a feature flag:
+  // a host that doesn't pass `git` never renders a commit button to disable. That is the whole
+  // permission model, and it is the same seam that makes this block portable.
+  const git = useCapability("git");
+  const gitGrant = useCapabilityState("git");
   const [message, setMessage] = useState(label || attrs.message || "");
   const [typing, setTyping] = useState(false);
   const [state, setState] = useState(null);
@@ -50,10 +52,10 @@ const CommitBlock = ({ label, attrs = {}, line }) => {
   const sha = attrs.sha || localSha || "";
   const msgRef = useRef(null);
 
-  const svc = () => ({ Plugin: hostFiles(host.projectCode) });
+  const svc = () => ({ Plugin: git(host.projectCode) });
 
   const load = async () => {
-    if (!host) return;
+    if (!host || !git) return;
     try {
       if (!svc().Plugin.gitState) throw new Error("no gitState");
       setState(await svc().Plugin.gitState());
@@ -259,6 +261,18 @@ const CommitBlock = ({ label, attrs = {}, line }) => {
       </button>
     </div>
   );
+
+  // NO CAPABILITY, NO BUTTON. A disabled commit button is a promise the surface can't keep; a
+  // stated absence is a true sentence. Same dead-block styling `::file` already uses for "name a
+  // path", because this is the same idea — the document asked for something this surface hasn't got.
+  if (!git)
+    return (
+      <div className="md-embed md-embed--dead">
+        ::commit — {gitGrant === "denied"
+          ? "committing isn't allowed here"
+          : "this surface can't reach version control"}
+      </div>
+    );
 
   return (
     <div className={`md-commit${sha ? " md-commit--done" : ""}`}>

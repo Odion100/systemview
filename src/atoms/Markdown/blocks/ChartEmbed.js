@@ -34,6 +34,7 @@ function mergeSeries(snapshots, sinceMs) {
 
 const ChartEmbed = ({ attrs = {} }) => {
   const scope = useMarkdownScope();
+  // HOST VOCABULARY, not a capability (his cutback) — stats are SystemView's own model.
   const { connectedServices = [] } = useContext(ServiceContext);
   const [snapshots, setSnapshots] = useState(null);
   const [error, setError] = useState(null);
@@ -42,8 +43,9 @@ const ChartEmbed = ({ attrs = {} }) => {
   // A document isn't always read inside a project — help topics and the hub have no namespace at
   // all. Rather than rendering dead there (which makes the docs look broken), fall back to the
   // first connected project and SAY which one in the scope label.
-  const firstProject = connectedServices.length ? connectedServices[0].projectCode : null;
-  const projectCode = attrs.project || scope.projectCode || firstProject;
+  // NO `firstProject` FALLBACK. Charting an arbitrary entry off the connected list — order-
+  // dependent, changing when a service restarts — is a confident wrong answer. No project, no chart.
+  const projectCode = attrs.project || scope.projectCode;
   const only = attrs.service || null;
 
   const targets = useMemo(

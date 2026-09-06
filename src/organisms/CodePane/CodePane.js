@@ -10,6 +10,8 @@ import DiffView from "../../atoms/DiffView/DiffView";
 import { useEditorDark, EditorThemeToggle } from "../../atoms/CodeView/editorTheme";
 import Markdown from "../../atoms/Markdown/Markdown";
 import { MarkdownScopeProvider } from "../../atoms/Markdown/context";
+import { MarkdownCapabilitiesProvider } from "../../atoms/Markdown/capabilities";
+import { systemviewCapabilities } from "../../markdownCapabilities";
 import { renderChatMessage } from "../AgentChat/AgentChat";
 import "./styles.scss";
 
@@ -656,8 +658,14 @@ const CodePane = ({ file, onClose }) => {
       cancelDraft: () => setDraft(null),
       // The reply renderer — the bubble's chat markdown, scoped to this file's project so a block
       // inside a reply resolves against the right repo. The widget mounts what this returns.
+      // RFC-053 — CAPABILITIES DON'T CROSS THIS BOUNDARY EITHER. The widget mounts its own React
+      // tree (`ReactDOM.render` into the CodeMirror widget's DOM), so every context has to be
+      // re-provided here, exactly as the scope already is. Miss it and a `::file` written inside a
+      // code comment goes inert while the identical block two panes over works.
       renderText: (text) => (
-        <MarkdownScopeProvider value={{ projectCode: file.projectCode }}>{renderChatMessage(text)}</MarkdownScopeProvider>
+        <MarkdownCapabilitiesProvider value={systemviewCapabilities}>
+          <MarkdownScopeProvider value={{ projectCode: file.projectCode }}>{renderChatMessage(text)}</MarkdownScopeProvider>
+        </MarkdownCapabilitiesProvider>
       ),
       // The right-click ON a comment. Everything you can do to one lives here — reply, reply by
       // voice, delete it — because that is where this app keeps its verbs.

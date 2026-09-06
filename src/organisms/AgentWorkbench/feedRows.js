@@ -29,6 +29,20 @@ const OPENERS = { "text-delta": "say", "thinking-delta": "think" };
 const SETTLERS = { text: "say", thinking: "think", "assistant.text": "say", "assistant.thinking": "think" };
 const IS_CALL = (k) => k === "tool.call" || k === "tool-start";
 const IS_RESULT = (k) => k === "tool.result" || k === "tool-end";
+// The worklist event, under whichever name it arrives — agreeing on a name is cheap, and being
+// wrong about it should not cost the feature.
+const IS_TODO = (k) => k === "todo.updated" || k === "todos" || k === "todo";
+// Two vocabularies exist in the wild already: {text,state} and Claude Code's own
+// {content,status:'pending'|'in_progress'|'completed'}. Both mean the same three things.
+const TODO_STATE = { in_progress: "active", active: "active", doing: "active", completed: "done", done: "done", complete: "done" };
+const todoItem = (t, i) => {
+  const o = t && typeof t === "object" ? t : { text: String(t == null ? "" : t) };
+  return {
+    id: o.id != null ? String(o.id) : String(i),
+    text: String(o.text || o.content || o.title || o.activeForm || "").trim(),
+    state: TODO_STATE[String(o.state || o.status || "").toLowerCase()] || "pending",
+  };
+};
 const IS_ASK = (k) => k === "permission.request" || k === "permission-request";
 const IS_DONE = (k) => k === "result" || k === "session.ended";
 
@@ -753,7 +767,11 @@ export function foldState(events) {
   // to be the only place a visit could happen and the roster read off the hub's real holds; a peer
   // reaching into a SESSION leaves no hold anywhere, so the only honest record of who is here is who
   // has spoken. His standing rule either way: who is in whose chat is always on screen.
-  const s = { state: "idle", model: null, exited: null, cost: 0, turns: 0, doing: null, ctx: 0, ctxWindow: 0, compactions: 0, visitors: [], usage: null, tokIn: 0, tokOut: 0, turnOut: 0, liveChars: 0, lastUsage: null };
+  // `todo` — THE AGENT'S OWN WORKLIST, when the harness has one. It is agent state, not project
+  // content: it belongs to the session, arrives on the session's stream, and every surface watching
+  // that session draws the same list. Null until a harness actually sends one, so a host without
+  // the capability shows nothing rather than an empty checklist that looks like a bug.
+  const s = { state: "idle", model: null, exited: null, cost: 0, turns: 0, doing: null, todo: null, ctx: 0, ctxWindow: 0, compactions: 0, visitors: [], usage: null, tokIn: 0, tokOut: 0, turnOut: 0, liveChars: 0, lastUsage: null };
   // ONE FIELD, ONE CONSUMER — autobot's synthesis after we each corrected the other's half-rule, and
   // it is better than either. They said clamp at the SOURCE; I said that shrinks the RECORD to fit
   // the label, so clamp at the STATUS; they answered that a rule every future call site has to
@@ -1009,6 +1027,12 @@ export function foldState(events) {
       if (typeof ev.costUsd === "number") s.cost += ev.costUsd;
       if (typeof ev.turns === "number") s.turns += ev.turns;
       if (ev.kind === "session.ended") s.exited = ev.reason || "ended";
+    } else if (IS_TODO(ev.kind)) {
+      // WHOLE LIST, EVERY TIME — never deltas, so a panel opened mid-session renders correctly from
+      // the one event it happens to catch. Read LIBERALLY: this shape is autobot's to define and I
+      // am not going to make their field names a condition of it working.
+      const items = ev.items || ev.todos || ev.list || [];
+      s.todo = Array.isArray(items) ? items.map(todoItem).filter((t) => t.text) : null;
     } else if (ev.kind === "exit") s.exited = ev.reason || "ended";
   });
   // AN UNKNOWN MODEL MUST NOT PRODUCE A RED BAR. He has reported twice that interrupting a turn

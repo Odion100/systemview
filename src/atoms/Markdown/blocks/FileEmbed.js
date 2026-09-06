@@ -1,5 +1,5 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { hostFiles } from "../../../utils/hostFiles";
+import { useCapability, useCapabilityState } from "../capabilities";
 import ServiceContext from "../../../ServiceContext";
 import loadServiceWithHeaders from "../../../utils/loadService";
 import { useMarkdownScope } from "../context";
@@ -86,9 +86,13 @@ const Embed = ({ label, attrs = {}, opens }) => {
   const [note, setNote] = useState("");
   const [menu, setMenu] = useState(null);
 
+  // RFC-053 — the reader comes from the HOST, not from an import. Here that resolves through the
+  // hub; in the browser it resolves through Electron; this block is identical in both.
+  const files = useCapability("files");
+  const filesState = useCapabilityState("files");
   const Plugin = useMemo(
-    () => (host ? hostFiles(host.projectCode) : null),
-    [host],
+    () => (host && files ? files(host.projectCode) : null),
+    [host, files],
   );
   const data = file && file.key === key ? file : null;
   const gitData = git && git.key === key ? git : null;
@@ -116,8 +120,14 @@ const Embed = ({ label, attrs = {}, opens }) => {
     // Name the project AND the way out. Every block takes `{project=…}`, which is exactly what
     // you want when the file lives in another repo — and not knowing that is what makes people
     // copy files into their own project just to get them on screen.
-    if (!path || !host) {
-      const noHost = projectCode
+    if (!path || !host || !files) {
+      // ABSENT IS NOT DENIED, and neither is "no project" — three different sentences, because
+      // they mean three different things to whoever is reading the document.
+      const noHost = !files
+        ? filesState === "denied"
+          ? "reading files isn't allowed here"
+          : "this surface can't read files"
+        : projectCode
         ? `no connected service in ${projectCode} can read files — name another with {project=…}`
         : "no file host";
       return setErr((prev) => (prev.key === key && prev.file === noHost ? prev : { key, file: noHost }));

@@ -19,6 +19,7 @@ const InlineLogs = lazyLoad(() => import("../../../organisms/InlineLogs/InlineLo
 
 const LogsEmbed = ({ label, attrs = {} }) => {
   const scope = useMarkdownScope();
+  // HOST VOCABULARY, not a capability (his cutback) — SystemView's own context, directly.
   const { connectedServices = [] } = useContext(ServiceContext);
 
   const target = useMemo(() => {

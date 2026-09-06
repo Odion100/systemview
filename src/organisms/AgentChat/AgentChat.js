@@ -4,6 +4,7 @@ import moment from "moment";
 import { useHistory, useLocation, useParams } from "react-router-dom";
 import ServiceContext from "../../ServiceContext";
 import BLOCKS from "../../atoms/Markdown/registry";
+import { createInterimStore, InterimLine, MicText } from "./interimStore";
 import { MarkdownWriteProvider, MarkdownScopeProvider } from "../../atoms/Markdown/context";
 import ReportLink from "../../atoms/Markdown/blocks/ReportLink";
 import NsLink from "../../atoms/Markdown/blocks/NsLink";
@@ -661,6 +662,55 @@ function useCountUp(target) {
   return shown;
 }
 
+// THE AGENT'S OWN WORKLIST — autobot's `mcp__worklist__set`, arriving as `todo.updated` on the
+// session stream and folded into `state.todo` (feedRows). His ask, and the reason it is here rather
+// than in a document: *"work that follows you and you can see the progress"* — and, sharper, that it
+// helped ME as much as him. A list written in prose is one I can quietly stop honouring; a list on
+// screen is one he can hold me to.
+//
+// IT IS THE HARNESS'S STATE, NOT OURS. We render whatever the session says, in the session's own
+// order — no sorting, no re-grouping. The model's ordering is its plan.
+//
+// CLOSED IT IS ONE LINE: what it is doing now, and how far in. Open, the whole plan. A worklist that
+// costs the conversation five lines forever is a worklist he will collapse once and never see again.
+function WorkList({ items }) {
+  const [open, setOpen] = useState(false);
+  if (!items || !items.length) return null;
+  const done = items.filter((t) => t.state === "done").length;
+  const active = items.find((t) => t.state === "active");
+  const mark = { done: "✓", active: "▸", pending: "·" };
+  return (
+    <div className={`${CLASSNAME}__worklist`}>
+      <button
+        type="button"
+        className={`${CLASSNAME}__worklist-head`}
+        onClick={() => setOpen(!open)}
+        title={open ? "Hide the rest of the plan" : "Show the whole plan"}
+      >
+        <span className={`${CLASSNAME}__worklist-count`}>
+          {done}/{items.length}
+        </span>
+        {/* The ACTIVE item is the line — not "3 tasks", which says nothing about what is happening.
+            With nothing active (finished, or not started yet) it says so plainly. */}
+        <span className={`${CLASSNAME}__worklist-now`}>
+          {active ? active.text : done === items.length ? "plan complete" : "planning"}
+        </span>
+        <span className={`${CLASSNAME}__worklist-chev`}>{open ? "▾" : "▸"}</span>
+      </button>
+      {open && (
+        <ul className={`${CLASSNAME}__worklist-items`}>
+          {items.map((t) => (
+            <li key={t.id} className={`${CLASSNAME}__worklist-item ${CLASSNAME}__worklist-item--${t.state}`}>
+              <span className={`${CLASSNAME}__worklist-mark`}>{mark[t.state] || "·"}</span>
+              {t.text}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function CookLine({ doing, state, liveChars = 0 }) {
   const text = useCookWord(doing, state);
   const counted = useCountUp(Math.round(liveChars / 4));
@@ -1090,7 +1140,11 @@ function BotBubble({ projectCode, index }) {
   const peekCountRef = useRef(0);
   // The live wire: INTERIM transcripts stream into a visible line while you talk (his catch —
   // "no indication, the words just pop up"); finals commit into the input.
-  const [interim, setInterim] = useState("");
+  // THE LIVE TRANSCRIPT IS NOT PANEL STATE. See interimStore.js: this used to be `useState`, so
+  // every few syllables re-rendered the entire chat panel while he was mid-sentence — the strain he
+  // could feel in the recorder. The store's subscribers are the two leaves that draw the words.
+  const interimStore = useRef(createInterimStore()).current;
+  const setInterim = interimStore.set;
   // A SEND PRESSED BEFORE ITS WORDS ARRIVED. Holds the moment he pressed it; the effect below fires
   // it as soon as the transcript lands. Short-lived on purpose — an intention from four seconds ago
   // is not an intention, and a stale one would send the NEXT thing he starts saying.
@@ -1207,6 +1261,29 @@ function BotBubble({ projectCode, index }) {
       setListening(false);
     }
   };
+
+  // A CEILING ON RECORDING, his ask alongside the border and for the same reason: he forgets it is
+  // running. The border tells him whenever he looks; this one acts when he doesn't.
+  //
+  // IT STOPS THE WAY THE BUTTON STOPS — nothing is discarded. Every finalised phrase is already in
+  // the input box, so a cap that fires leaves him with his words and a stopped mic, never a lost
+  // sentence. (Throwing the transcript away on a timeout would make the cap worse than the problem.)
+  const MAX_RECORDING_MS = 2.5 * 60 * 1000; // HIS NUMBER, revised: two and a half minutes
+  useEffect(() => {
+    if (!listening) return undefined;
+    const t = setTimeout(() => {
+      if (viaHostMic) finishHostMic();
+      else {
+        try {
+          if (recRef.current) recRef.current.stop();
+        } catch {}
+      }
+    }, MAX_RECORDING_MS);
+    // The timer is keyed to the RECORDING, not to a render: it starts when the mic opens and is
+    // cleared the moment it closes, however it closes.
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listening, viaHostMic]);
 
   // THE TV — the show-and-tell surface beside the panel (his Canvas model): one show at a time,
   // auto-populates on a live `show` command, closable, and every show in the chat is a clickable
@@ -3290,11 +3367,7 @@ const countdown = (str, now = Date.now()) => {
     // had to say. Left running, the next thing spoken landed in an empty box behind a note that was
     // already on the board. The flag drops HERE rather than waiting for `onend`, which arrives a
     // beat late and leaves the transcript line hanging over a box you just emptied.
-    if (boardRec) {
-      setBoardRec(false);
-      setBoardInterim("");
-      try { if (boardRecRef.current) boardRecRef.current.stop(); } catch {}
-    }
+    if (boardRec) stopBoardMic();
     setBoardDraft("");
     saveBoard([{ ts: Date.now(), text }, ...(board || [])]); // newest on top
   };
@@ -3346,6 +3419,34 @@ const countdown = (str, now = Date.now()) => {
   // mic is a broken box, which is exactly what the note-reply box shipped as for about ten minutes.
   // `into` names the target ("note" = a new card, or a card's ts = a reply on that note), so the
   // finals land in the right draft and the mic can only be lit in one place at a time.
+  // ONE WAY TO STOP THE BOARD'S MIC, because two of them is what left it running.
+  //
+  // HIS REPORT: *"the record is recording at all time on this chat that I'm using… no indication
+  // that it's open."* That is not ambient capture by design — nothing here was ever meant to listen
+  // on its own. It is this: the board's recorder lives in `boardHostRef` when the shell does the
+  // listening (which is his setup, always) and in `boardRecRef` when the browser does. FOUR stop
+  // paths — adding a note, pressing another box's mic, Escape, "never mind" — stopped only
+  // `boardRecRef`, an object that is null on his machine. So every one of them set the light to off
+  // and left the microphone open, with no way to tell and nothing to press.
+  //
+  // A state that two places decide is a state that eventually disagrees. There is one door now, it
+  // closes both kinds, and it is the only thing any caller is allowed to know about.
+  const stopBoardMic = () => {
+    const host = boardHostRef.current;
+    if (host) {
+      boardHostRef.current = null;
+      try {
+        const r = host.rec.stop();
+        if (r && r.catch) r.catch(() => {});
+      } catch {}
+    }
+    if (boardRecRef.current) {
+      try { boardRecRef.current.stop(); } catch {}
+      boardRecRef.current = null;
+    }
+    setBoardRec(false);
+    setBoardInterim("");
+  };
   const toggleBoardRec = (into = "note") => {
     if (boardHostRef.current) {
       const { rec, into: wasFor } = boardHostRef.current;
@@ -4376,9 +4477,7 @@ const countdown = (str, now = Date.now()) => {
                                   onKeyDown={(e) => {
                                     if (e.key === "Escape") {
                                       e.preventDefault();
-                                      if (boardRecRef.current) {
-                                        try { boardRecRef.current.stop(); } catch {}
-                                      }
+                                      stopBoardMic();
                                       setReplying(0);
                                       setReplyDraft("");
                                     } else if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
@@ -4394,9 +4493,7 @@ const countdown = (str, now = Date.now()) => {
                                       className={`${CLASSNAME}__board-act`}
                                       title="Never mind (esc)"
                                       onClick={() => {
-                                        if (boardRecRef.current) {
-                                          try { boardRecRef.current.stop(); } catch {}
-                                        }
+                                        stopBoardMic();
                                         setReplying(0);
                                         setReplyDraft("");
                                       }}
@@ -4764,7 +4861,12 @@ const countdown = (str, now = Date.now()) => {
         {open && (
         <div
           data-sv="chat"
-          className={`${CLASSNAME}__panel`}
+          // RECORDING IS A STATE OF THE WHOLE BOX, not of the button. His reason IS the
+          // requirement: he forgets to stop the recorder, so this has to still be telling him five
+          // minutes later, when he has stopped thinking about it and is looking at something else.
+          // Ambient, never a flash — and static, because a cue that lives on screen for minutes is
+          // the last thing that should animate (that lesson cost this page a day).
+          className={`${CLASSNAME}__panel${listening ? ` ${CLASSNAME}__panel--recording` : ""}`}
           // A free-parked bubble may not have the panel's height of room on its open side — cap
           // to the space that actually exists so it never runs off the top or bottom.
           // Docked, the COLUMN decides the width — a stored 340 would hang out over the nav's edge.
@@ -5328,12 +5430,16 @@ const countdown = (str, now = Date.now()) => {
           {attached && (work.state.state === "working" || work.state.state === "waiting") && (
             <CookLine doing={work.state.doing} state={work.state.state} liveChars={work.state.liveChars} />
           )}
+          {/* THE PLAN OUTLIVES THE TURN THAT WROTE IT. Deliberately not gated on `working`: the
+              moment a turn ends is exactly when "what's left" matters, and a list that vanishes
+              when the agent stops is a list he can only read while he cannot act on it. */}
+          {attached && <WorkList items={work.state.todo} />}
           {/* While the mic listens: the words appear HERE as you speak (interim), then commit
               into the input as they finalize. The line itself is the recording indicator. */}
           {listening && (
             <div className={`${CLASSNAME}__interim`}>
               <span className={`${CLASSNAME}__interim-dot`} />
-              {interim || "listening…"}
+              <InterimLine store={interimStore} />
             </div>
           )}
           {/* THE BUTTON HE ASKED FOR — one press to stop talking through the room and start talking
@@ -5692,17 +5798,7 @@ const countdown = (str, now = Date.now()) => {
           {/* PINNED TO WHAT YOU'RE SAYING NOW. Once the transcript passes the box height the newest
               words fall below the fold, and nobody scrolls a box while they're mid-sentence — the
               whole point is watching your own message. It rides the bottom as you talk. */}
-          <div
-            className={`${CLASSNAME}__mic-text`}
-            ref={(el) => {
-              if (el) el.scrollTop = el.scrollHeight;
-            }}
-          >
-            {input}
-            {input && interim ? " " : ""}
-            <i>{interim}</i>
-            {!input && !interim && "listening…"}
-          </div>
+          <MicText store={interimStore} input={input} className={`${CLASSNAME}__mic-text`} />
           <div className={`${CLASSNAME}__mic-actions`}>
             <button
               type="button"
@@ -5996,7 +6092,10 @@ const countdown = (str, now = Date.now()) => {
         )}
         <button
           type="button"
-          className={`${CLASSNAME}__fab ${CLASSNAME}__fab--${ring}`}
+          // …and the bubble, so a MINIMISED bot carries it as well. It rides the ring rather than
+          // replacing it: whatever the agent's state is, recording is additional information about
+          // HIM, and losing the agent's status to show it would be a bad trade.
+          className={`${CLASSNAME}__fab ${CLASSNAME}__fab--${ring}${listening ? ` ${CLASSNAME}__fab--recording` : ""}`}
           title={`${projectCode} — ${modeText}${unread ? ` — ${unread} waiting` : ""} — drag to move, release near an edge to dock`}
           // DOCKING BELONGS TO THE FACE, not to the whole bot. It used to sit on the container, so
           // a double-click that landed on the name tag or on one of the icons beside it docked the

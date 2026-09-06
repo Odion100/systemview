@@ -1,5 +1,6 @@
-import React, { Suspense, useContext } from "react";
+import React, { Suspense } from "react";
 import lazyLoad from "../../../utils/lazyLoad";
+import { useContext } from "react";
 import ServiceContext from "../../../ServiceContext";
 import { useMarkdownScope } from "../context";
 
@@ -32,6 +33,8 @@ function parseTarget(label, scope) {
 
 const TestEmbed = ({ label, attrs = {} }) => {
   const scope = useMarkdownScope();
+  // HOST VOCABULARY, not a capability — his cutback: a saved test is a SystemView idea, so this
+  // block imports SystemView's own context like the app code it is. Only files/git stay in the bag.
   const { connectedServices = [] } = useContext(ServiceContext);
   // Same fallback as ::chart — a help topic has no project in scope, but the test it names is still
   // perfectly resolvable against whatever is connected.

@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import SystemView from "./pages/SystemView/SystemView";
 import Reports from "./pages/Reports/Reports";
 import ServiceContext from "./ServiceContext";
+import { MarkdownCapabilitiesProvider } from "./atoms/Markdown/capabilities";
+import { systemviewCapabilities } from "./markdownCapabilities";
 import BannerStack from "./atoms/Banner/Banner";
 import { installGlobalErrorChannel } from "./atoms/Banner/bannerStore";
 import {
@@ -71,6 +73,10 @@ function App({ SystemViewService }) {
     <ServiceContext.Provider
       value={{ SystemViewService, connectedServices, setConnectedServices }}
     >
+      {/* RFC-053 — what a document is allowed to touch IN THIS APP, granted once at the root so
+          every markdown surface inherits it: the docs tab, help, story panes, code comments, the
+          chat. A block asks the bag; nothing in the registry knows which app it is running in. */}
+      <MarkdownCapabilitiesProvider value={systemviewCapabilities}>
       <BannerStack />
       <Router>
         <DebugRouter>
@@ -89,6 +95,7 @@ function App({ SystemViewService }) {
           </Switch>
         </DebugRouter>
       </Router>
+      </MarkdownCapabilitiesProvider>
     </ServiceContext.Provider>
   );
 }

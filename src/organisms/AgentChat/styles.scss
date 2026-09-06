@@ -79,14 +79,42 @@
     &--busy {
       border-color: #e2a03f;
       border-style: solid;
-      animation: sv-busy-pulse 2.2s ease-in-out infinite;
+      position: relative;
+      &::after {
+        content: "";
+        position: absolute;
+        inset: -4px;
+        border-radius: inherit;
+        box-shadow: 0 0 0 4px color-mix(in srgb, #e2a03f 22%, transparent);
+        pointer-events: none;
+        opacity: 0;
+        animation: sv-busy-pulse 2.2s ease-in-out infinite;
+      }
     }
     // ASKING — it stopped and is waiting on YOU. Distinct from busy on purpose: busy means your
     // message waits, asking means the AGENT waits, and those are opposite instructions.
     &--asking {
       border-color: #8f97e8;
       border-style: solid;
-      animation: sv-busy-pulse 1.4s ease-in-out infinite;
+      position: relative;
+      &::after {
+        content: "";
+        position: absolute;
+        inset: -4px;
+        border-radius: inherit;
+        box-shadow: 0 0 0 4px color-mix(in srgb, #8f97e8 22%, transparent);
+        pointer-events: none;
+        opacity: 0;
+        animation: sv-busy-pulse 1.4s ease-in-out infinite;
+      }
+    }
+    // …and on the bubble, which is all that is left when everything is put away. It rides ON TOP of
+    // the agent's own ring (live/busy/asking keep their border) — recording is a fact about HIM, and
+    // trading away the agent's status to show it would be the wrong swap.
+    &--recording {
+      box-shadow:
+        0 4px 14px rgba(0, 0, 0, 0.14),
+        0 0 0 2px rgba(136, 51, 51, 0.7);
     }
     &--none {
       opacity: 0.85;
@@ -179,8 +207,25 @@
     &--on {
       opacity: 1;
       border-color: #e05252;
-      box-shadow: 0 0 0 3px rgba(224, 82, 82, 0.22);
-      animation: sv-mic-pulse 1.4s ease-in-out infinite;
+      // NO `position` HERE. The minimic is already absolutely placed (top/left above), and
+      // `position: relative` threw that placement away the moment recording started — the mic
+      // jumped out of line mid-sentence, floating only, because that is where it is positioned by
+      // hand. An absolute element is already a containing block for its own `::after`.
+      // NOTHING ANIMATES WHILE HE IS TALKING. His report, and it is the only measurement that
+      // counts: "the recorder feels much slower… you can feel the strain." This button carries a
+      // `backdrop-filter`, and an opacity animation layered over a backdrop filter makes the
+      // browser re-blur what's behind it EVERY FRAME — cheaper than the old box-shadow keyframes,
+      // still not free, and it runs during the one activity that needs the main thread most.
+      // The red border and the live transcript already say "recording"; a still ring says it too,
+      // for nothing.
+      &::after {
+        content: "";
+        position: absolute;
+        inset: -3px;
+        border-radius: inherit;
+        box-shadow: 0 0 0 3px rgba(224, 82, 82, 0.22);
+        pointer-events: none;
+      }
     }
   }
   // The collector, reachable from a closed bot — sits just inside the mic so the mic keeps the end.
@@ -326,6 +371,12 @@
 
   // PEEK — the closed bubble's voice: cooking status or an unseen reply preview, sticking out
   // beside the bot on whichever side has room. Click opens the panel.
+  // MINIMISED, THE PEEK IS THE BOX. It already carries the live transcript, so it only needs the
+  // same edge the open panel gets — one cue, two sizes, rather than a second invented signal.
+  &__peek--mic {
+    border-color: #883333;
+    box-shadow: inset 0 0 0 1px rgba(136, 51, 51, 0.45);
+  }
   &__peek {
     position: absolute;
     top: 8px;
@@ -1504,6 +1555,20 @@
     box-shadow: 0 14px 40px rgba(0, 0, 0, 0.22);
     overflow: hidden;
   }
+  // RECORDING — the whole box says it, not the button. His ask, and his reason for it: he forgets
+  // the recorder is running, so the cue has to survive his attention going elsewhere. A border, as
+  // he suggested: present the moment you look at the window, invisible until you do. It does NOT
+  // animate — this is on screen for as long as he talks, and a permanent animation on this page is
+  // the exact thing that cost a day.
+  &__panel--recording {
+    border-color: #883333; // HIS COLOUR — darker, "less screaming for attention"
+
+    // The second line is what makes it read as a state rather than a stray colour, without adding
+    // weight: a hairline inside the border, no layout shift, no repaint cost.
+    box-shadow:
+      0 14px 40px rgba(0, 0, 0, 0.22),
+      inset 0 0 0 1px rgba(136, 51, 51, 0.45);
+  }
   &__head {
     display: flex;
     align-items: center;
@@ -2079,24 +2144,34 @@
   }
 }
 
+// MEASURED, NOT GUESSED (autobot, 2026-08-25): this animated `box-shadow`, which
+// the compositor cannot promote — so every one of these repainted the FAB and its
+// ancestors 60x a second. With two of them running, this page sat at 47fps and
+// pegged the GPU process at ~115% with WindowServer at ~82%. Pausing JUST these
+// two took it to 105fps; pausing the other EIGHT animations (opacity/transform,
+// all composited) only bought 17 more. Two rules did ~3x the damage of the rest
+// combined.
+//
+// Same look, composited: the ring is a pseudo-element and only `opacity` moves.
+// Rule of thumb this is an instance of — if a keyframe touches anything but
+// transform/opacity/filter, it repaints; a ring drawn once and faded is free.
 @keyframes sv-busy-pulse {
   0%,
   100% {
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.14);
+    opacity: 0;
   }
   50% {
-    box-shadow:
-      0 4px 14px rgba(0, 0, 0, 0.14),
-      0 0 0 4px color-mix(in srgb, #e2a03f 22%, transparent);
+    opacity: 1;
   }
 }
-@keyframes sv-mic-pulse {
+// The interim dot has no ring — it just breathes.
+@keyframes sv-dot-breathe {
   0%,
   100% {
-    box-shadow: 0 0 0 3px rgba(224, 82, 82, 0.22);
+    opacity: 0.45;
   }
   50% {
-    box-shadow: 0 0 0 6px rgba(224, 82, 82, 0.08);
+    opacity: 1;
   }
 }
 @keyframes sv-status-fade {
@@ -2168,7 +2243,7 @@
     border-radius: 50%;
     background: #e05252;
     align-self: center;
-    animation: sv-mic-pulse 1.4s ease-in-out infinite;
+    animation: sv-dot-breathe 1.4s ease-in-out infinite;
   }
   &__mic {
     border-radius: 7px;
@@ -2177,16 +2252,22 @@
     &--on {
       border-color: #e05252;
       background: color-mix(in srgb, #e05252 14%, transparent);
-      animation: sv-mic-pulse 1.4s ease-in-out infinite;
-    }
-  }
-  @keyframes sv-mic-pulse {
-    0%,
-    100% {
-      box-shadow: 0 0 0 0 rgba(224, 82, 82, 0.35);
-    }
-    50% {
-      box-shadow: 0 0 0 5px rgba(224, 82, 82, 0);
+      position: relative;
+      // NOTHING ANIMATES WHILE HE IS TALKING. His report, and it is the only measurement that
+      // counts: "the recorder feels much slower… you can feel the strain." This button carries a
+      // `backdrop-filter`, and an opacity animation layered over a backdrop filter makes the
+      // browser re-blur what's behind it EVERY FRAME — cheaper than the old box-shadow keyframes,
+      // still not free, and it runs during the one activity that needs the main thread most.
+      // The red border and the live transcript already say "recording"; a still ring says it too,
+      // for nothing.
+      &::after {
+        content: "";
+        position: absolute;
+        inset: -3px;
+        border-radius: inherit;
+        box-shadow: 0 0 0 3px rgba(224, 82, 82, 0.22);
+        pointer-events: none;
+      }
     }
   }
   // A show line — clickable: puts that show (back) on the TV. The live one glows.
@@ -2904,6 +2985,63 @@
   font-style: italic;
   &--waiting { color: #d9c76a; }
 }
+// THE WORKLIST — the agent's plan, from the harness (autobot's worklist tool → `todo.updated`).
+// Sits with the cooking line and reads like it: quiet, one line closed, the plan when opened.
+// NOTHING ANIMATES. It is on screen whenever there is a plan, which is most of the time, and this
+// page has already been through one round of paying for a permanent animation.
+.agent-chat__worklist {
+  flex: none;
+  padding: 0 8px 4px;
+  font-size: 12px;
+}
+.agent-chat__worklist-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  border: none;
+  background: none;
+  padding: 2px 0;
+  cursor: pointer;
+  color: var(--sv-text-soft, #8a8f98);
+  font: inherit;
+  text-align: left;
+  &:hover { color: var(--sv-text); }
+}
+.agent-chat__worklist-count {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: #7fb069;
+}
+// The active item is the sentence — it gets the room, and it truncates rather than wrapping the
+// panel open.
+.agent-chat__worklist-now {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.agent-chat__worklist-chev { flex: none; opacity: 0.6; }
+.agent-chat__worklist-items {
+  list-style: none;
+  margin: 2px 0 0;
+  padding: 0 0 0 2px;
+  // A LONG PLAN SCROLLS ITSELF rather than pushing the conversation off screen.
+  max-height: 160px;
+  overflow-y: auto;
+}
+.agent-chat__worklist-item {
+  display: flex;
+  gap: 6px;
+  padding: 1px 0;
+  line-height: 1.35;
+  color: var(--sv-text-soft, #8a8f98);
+  &--active { color: var(--sv-text); font-weight: 600; }
+  &--done { opacity: 0.55; text-decoration: line-through; }
+}
+.agent-chat__worklist-mark { flex: none; width: 10px; text-align: center; }
+
 .agent-chat__cooking-dot {
   width: 7px;
   height: 7px;
