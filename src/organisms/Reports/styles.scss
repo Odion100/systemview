@@ -233,3 +233,6 @@
     border-color: #9a7cb8;
   }
 }
+
+// RFC-054 — an OPEN report's name is a title, not a chooser.
+.reports-tab__current--title { cursor: default; font-weight: 600; }

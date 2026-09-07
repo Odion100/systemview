@@ -5,6 +5,7 @@ import DescriptionBox from "../../atoms/DescriptionBox/DescriptionBox";
 import { EditorThemeToggle, useEditorDark } from "../../atoms/CodeView/editorTheme";
 import Markdown from "../../atoms/Markdown/Markdown";
 import CodePane from "../CodePane/CodePane";
+import { getTabs, subscribeTabs, openTab, focusTab, closeTab, moveTab, fileKey } from "../../pages/SystemView/tabsStore";
 import ServiceContext from "../../ServiceContext";
 import { Client } from "../../systemClient";
 import InlineLogs from "../InlineLogs/InlineLogs";
@@ -182,18 +183,116 @@ export default function Documentation({
     prevScopeKey.current = scopeKey;
     setHelpTopic(null);
   }, [scopeKey]);
-  const selectTab = useCallback((t) => {
-    setTab(t);
-    const p = new URLSearchParams(window.location.search);
-    p.set("tab", t);
-    p.delete("help");
-    history.replace({ search: p.toString() });
-  }, [history]);
+  // (selectTab is gone — the strip's clickTab/routeTo replaced the fixed kind buttons, RFC-054.)
   useEffect(() => { setTab(urlTab); }, [urlTab]);
 
   // Which document the Reports tab is reading rides the URL (?rdoc=…), so it survives a refresh and
   // can be linked — the same rule an open file follows.
   const reportPath = new URLSearchParams(location.search).get("rdoc") || null;
+
+  // RFC-054 — THE OPEN SET. The strip renders from the store; the URL names the ACTIVE tab (his
+  // rule: "the URL routing includes what TYPE someone is in the center"). Existing params keep
+  // their meaning by becoming open-or-focus operations — his dedupe rule, one entry point.
+  const tabsPc = projectCode || "@none";
+  const [tabsState, setTabsState] = useState(() => getTabs(tabsPc));
+  useEffect(() => {
+    setTabsState(getTabs(tabsPc));
+    return subscribeTabs(tabsPc, setTabsState);
+  }, [tabsPc]);
+  const pane = tabsState.panes[0];
+  // URL → store. A file in the URL opens/focuses its tab; otherwise the tab param names the kind.
+  useEffect(() => {
+    if (codeFile && codeFile.path) {
+      openTab(tabsPc, { key: fileKey(codeFile), kind: "file", file: codeFile });
+      return;
+    }
+    if (urlTab === "logs")
+      // LOGS ACCUMULATE PER SCOPE — his correction: "logs here and logs there" are two different
+      // things you're watching, and one tab silently switching between them is the old model
+      // wearing the new clothes. The key IS the place; the tab remembers it.
+      openTab(tabsPc, {
+        key: `logs:${sService || ""}.${sModule || ""}.${sMethod || ""}`,
+        kind: "logs",
+        logs: { serviceId: sService, moduleName: sModule, methodName: sMethod },
+      });
+    else if (urlTab === "reports")
+      // STAGE IS JUST REPORTS (his correction, mid-build): a report OPEN gets its OWN tab, keyed by
+      // its path — multiple reports showing at once, exactly like files. The bare Stage (no rdoc)
+      // is the PICKER, one tab, labeled Stage.
+      if (reportPath) {
+        // A REPORT TAB IS ALWAYS A DOCUMENT. There is NO picker tab — his ruling, loudly: nothing
+        // opens until an actual report is selected, and selection lives in the NAV's reports fold.
+        // (closeTab("report") clears any cached picker tab from the hours this shape existed.)
+        closeTab(tabsPc, "report");
+        openTab(tabsPc, { key: `report:${reportPath}`, kind: "report", report: { path: reportPath } });
+      } else {
+        // Bare tab=reports (old links, old cache) opens nothing — same rule as docs below.
+        closeTab(tabsPc, "report");
+        if (sService) openTab(tabsPc, { key: "doc", kind: "doc" });
+        else closeTab(tabsPc, "doc");
+      }
+    // THE DOC TAB EXISTS ONLY WHEN A NAMESPACE IS NAVIGATED TO — his diagnosis was exact: the
+    // seeded/default doc tab was "a lingering namespace on the section", and closing anything fell
+    // into a document nobody opened. Service or deeper = deliberate navigation = the doc tab
+    // (following the tree, browser-style). Project level or nothing = NO doc tab; the project's
+    // plain landing renders as BACKGROUND, not as a tab.
+    else if (sService) openTab(tabsPc, { key: "doc", kind: "doc" });
+    else closeTab(tabsPc, "doc");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tabsPc, urlTab, reportPath, sService, sModule, sMethod, codeFile && codeFile.path, codeFile && codeFile.projectCode, codeFile && String(codeFile.lines), codeFile && codeFile.side]);
+  // store → URL, on a strip click: the active tab writes the params that MEAN it — which is exactly
+  // what keeps every deep link, chip and agent command working unchanged.
+  const routeTo = useCallback((t) => {
+    const p = new URLSearchParams(window.location.search);
+    ["file", "fproj", "fsvc", "flang", "flines", "fside", "fnav", "ftab"].forEach((k) => p.delete(k));
+    p.delete("help");
+    if (t.kind === "file") {
+      const f = t.file || {};
+      p.set("tab", "docs");
+      p.set("file", f.path);
+      if (f.projectCode) p.set("fproj", f.projectCode);
+      if (f.serviceId) p.set("fsvc", f.serviceId);
+      if (f.language) p.set("flang", f.language);
+      if (f.lines && f.lines[0]) p.set("flines", f.lines.join("-"));
+      if (f.side) p.set("fside", f.side);
+    } else if (t.kind === "logs") {
+      p.set("tab", "logs");
+      const lg = t.logs || {};
+      const segs = [projectCode, lg.serviceId, lg.moduleName, lg.methodName].filter(Boolean);
+      history.push({ pathname: `/specs/${segs.join("/")}`, search: `?${p.toString()}` });
+      return;
+    }
+    else if (t.kind === "report") {
+      p.set("tab", "reports");
+      if (t.report && t.report.path) p.set("rdoc", t.report.path);
+      else p.delete("rdoc");
+    } else p.set("tab", "docs");
+    history.push({ pathname: window.location.pathname, search: p.toString() });
+  }, [history, projectCode]);
+  const clickTab = useCallback((t) => {
+    focusTab(tabsPc, t.key);
+    routeTo(t);
+  }, [tabsPc, routeTo]);
+  const closeStripTab = useCallback((t) => {
+    const nextKey = closeTab(tabsPc, t.key);
+    // Closing what you're LOOKING AT routes to the neighbor; closing a background tab moves nothing.
+    const wasActive =
+      (t.kind === "file" && fileLens && codeFile && fileKey(codeFile) === t.key) ||
+      (t.kind !== "file" && !fileLens && ((t.kind === "logs" && urlTab === "logs") || (t.kind === "report" && urlTab === "reports") || (t.kind === "doc" && urlTab === "docs")));
+    if (!wasActive) return;
+    const next = getTabs(tabsPc).panes[0].tabs.find((x) => x.key === nextKey);
+    if (next) return routeTo(next);
+    // NOTHING LEFT OPEN lands on the project's own page — pathname stripped of the namespace, so
+    // the lingering-scope effect can't reopen a doc tab for a place he just closed out of.
+    const q = new URLSearchParams(window.location.search);
+    ["file", "fproj", "fsvc", "flang", "flines", "fside", "fnav", "ftab", "help", "rdoc"].forEach((k) => q.delete(k));
+    q.set("tab", "docs");
+    history.push({ pathname: `/specs/${projectCode}`, search: `?${q.toString()}` });
+  }, [tabsPc, fileLens, codeFile, urlTab, routeTo, history, projectCode]);
+  // WHAT THE CENTER SHOWS = what the URL says is active (never the store alone, so back/forward
+  // keep working): a file when one is in the URL, else the kind the tab param names.
+  const activeFileTab = fileLens && codeFile ? pane.tabs.find((x) => x.key === fileKey(codeFile)) : null;
+
   const openReport = useCallback((path) => {
     const p = new URLSearchParams(window.location.search);
     if (path) p.set("rdoc", path);
@@ -269,27 +368,106 @@ export default function Documentation({
             The selected namespace rides at the END of this same row (no separate title row → more vertical
             space for the document / stories / logs below). */}
         <div className="doc-tabs">
-          {/* RFC-026 — the FULL tab set, always. An open file puts Code in the Documentation slot
-              (the file IS the document you're reading); Logs/Stage stay reachable, scoped
-              to the PROJECT — a file open means you're on the project namespace, not off it. */}
-          <button
-            className={`doc-tab ${tab === "docs" ? "doc-tab--active" : ""}`}
-            onClick={() => selectTab("docs")}
-          >
-            {fileLens ? "Code" : "Documentation"}
-          </button>
-          <button
-            className={`doc-tab ${tab === "logs" ? "doc-tab--active" : ""}`}
-            onClick={() => selectTab("logs")}
-          >
-            Logs
-          </button>
-          <button
-            className={`doc-tab ${tab === "reports" ? "doc-tab--active" : ""}`}
-            onClick={() => selectTab("reports")}
-          >
-            Stage
-          </button>
+        <div
+          className="doc-tabs__scroll"
+          onDragOver={(e) => {
+            if (e.dataTransfer.types.includes("text/sv-tab")) e.preventDefault();
+          }}
+          onDrop={(e) => {
+            const key = e.dataTransfer.getData("text/sv-tab");
+            if (!key) return;
+            e.preventDefault();
+            moveTab(tabsPc, key, null); // past the tabs = last
+          }}
+        >
+          {/* RFC-054 — TABS OF WHAT'S OPEN, not a fixed kind set. Each tab is an open document and
+              wears its kind (his rule: "they all have distinct-looking tabs"). The doc tab NAVIGATES
+              as the tree moves — a browser tab, not a tab per click; files ACCUMULATE, which was the
+              whole ask; logs and stage exist only while open. Click focuses; × closes; closing what
+              you're reading lands on the neighbor. */}
+          {pane.tabs.map((t) => {
+            const isActive =
+              t.kind === "file"
+                ? !!(fileLens && codeFile && fileKey(codeFile) === t.key)
+                : !fileLens &&
+                  ((t.kind === "doc" && (tab === "docs" || (tab === "reports" && !reportPath))) ||
+                    (t.kind === "logs" && tab === "logs" && t.key === `logs:${sService || ""}.${sModule || ""}.${sMethod || ""}`) ||
+                    (t.kind === "report" && tab === "reports" && (t.report ? t.report.path === reportPath : !reportPath)));
+            const label =
+              t.kind === "file"
+                ? (t.file && t.file.path ? t.file.path.split("/").pop() : "file")
+                : t.kind === "logs"
+                ? `Logs · ${(t.logs && (t.logs.methodName || t.logs.moduleName || t.logs.serviceId)) || tabsPc}`
+                : t.kind === "report"
+                ? (() => {
+                    if (!t.report || !t.report.path) return "Reports"; // his rename: the picker is the report LIST
+                    // .systemview/report.<pc>.<Name-with-dashes>.md → "Name with dashes" + the
+                    // codebase it came from (his: "they should point to which codebase they're
+                    // coming from") — pc shown when it isn't this project's own.
+                    const m = t.report.path.match(/report\.([^.]+)\.(.+)\.md$/);
+                    const nm = m ? m[2].replace(/-/g, " ") : t.report.path.split("/").pop();
+                    return m && m[1] !== tabsPc ? `${nm} · ${m[1]}` : nm;
+                  })()
+                : nothingSelected
+                ? "Documentation"
+                : sMethod || sModule || sService || sProject || "Documentation";
+            return (
+              <span
+                key={t.key}
+                className={`doc-tab doc-tab--kind-${t.kind} ${isActive ? "doc-tab--active" : ""}`}
+                // DRAG TO REORDER (his ask) — native dnd, the same trade the dock made: the tab is
+                // the handle, dropping on a tab puts you where IT sat, dropping past the row's end
+                // sends you last. The store owns the order; active never moves on a reorder.
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.setData("text/sv-tab", t.key);
+                  e.dataTransfer.effectAllowed = "move";
+                }}
+                onDragOver={(e) => {
+                  if (e.dataTransfer.types.includes("text/sv-tab")) e.preventDefault();
+                }}
+                onDrop={(e) => {
+                  const key = e.dataTransfer.getData("text/sv-tab");
+                  if (!key || key === t.key) return;
+                  e.preventDefault();
+                  e.stopPropagation(); // or the ROW's drop fires next and sends it to the end
+                  moveTab(tabsPc, key, t.key);
+                }}
+              >
+                <button
+                  className="doc-tab__face"
+                  title={t.kind === "file" && t.file ? `${t.file.projectCode || ""}: ${t.file.path}` : undefined}
+                  onClick={() => clickTab(t)}
+                >
+                  <span className="doc-tab__kind-dot" aria-hidden="true" />
+                  {label}
+                </button>
+                <button
+                  className="doc-tab__close"
+                  title="Close"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    closeStripTab(t);
+                  }}
+                >
+                  ×
+                </button>
+              </span>
+            );
+          })}
+        </div>
+        </div>
+        {/* THE NAMESPACE IS THE DOC TAB'S, PER-TAB — his second correction on this line: it was
+            still painted at the COMPONENT level, so it sat over logs, over files, over an empty
+            view after a delete ("it shows the namespace at the top — that doesn't make any sense").
+            A namespace is a fact about the namespace DOCUMENT: it renders only on that tab, and
+            only when something is actually selected — an empty state has no address to announce. */}
+        {/* THE ROW HOLDS ITS GROUND — his catch: the crumbs vanishing collapsed the row and the
+            whole document jumped up. The AREA is permanent on the doc view; only the SEGMENTS come
+            and go with a real namespace. Empty, it's a quiet spacer the exact height of itself. */}
+        {!helpOpen && !fileLens && (tab === "docs" || (tab === "reports" && !reportPath)) && (
+          <div className={`doc-crumbline${sService ? "" : " doc-crumbline--blank"}`}>
+          {!!sService && (<>
           {/* The scope breadcrumb. Each segment is CLICKABLE: it retargets the middle panel (docs/logs/
               stories) to that level WITHOUT moving the nav or scratchpad. The segment matching the current
               middle scope is highlighted blue; the rest (project included) are grey. Segments come from the
@@ -348,7 +526,9 @@ export default function Documentation({
             )}
           </span>
           )}
-        </div>
+          </>)}
+          </div>
+        )}
         {/* An open HELP topic takes the content spot — whatever tab was showing waits behind it. */}
         {helpOpen && (
           <div className="documentation-view__data-table">
@@ -358,10 +538,15 @@ export default function Documentation({
         {/* RFC-022 — the Code center: edit-first file pane fed by the Codebase nav's selection. */}
         {!helpOpen && fileLens && tab === "docs" && (
           <div className="documentation-view__data-table">
-            <CodePane file={codeFile} onClose={onCloseFile} />
+            {/* The pane's × closes the TAB — the strip picks the neighbor you land on. (The old
+                ftab-restore dance is the strip's job now.) */}
+            <CodePane
+              file={(activeFileTab && activeFileTab.file) || codeFile}
+              onClose={() => closeStripTab({ key: fileKey(codeFile), kind: "file" })}
+            />
           </div>
         )}
-        {!helpOpen && !fileLens && tab === "docs" && (
+        {!helpOpen && !fileLens && (tab === "docs" || (tab === "reports" && !reportPath)) && (
           <div className="documentation-view__data-table">
             {/* The doc IS a file panel — a framed pane with a header/badge. When nothing is selected it
                 shows SystemView's own help; otherwise the per-namespace doc (getDoc/saveDoc). The doc's
@@ -390,7 +575,7 @@ export default function Documentation({
         {/* REPORTS — one document with the whole panel. The picker shows only until you choose;
             then the document owns the space and an ✕ brings the list back (RFC-025). */}
         {/* With a file open, Logs and Report run at the PROJECT level — same rule as Stories. */}
-        {!helpOpen && tab === "reports" && (
+        {!helpOpen && tab === "reports" && reportPath && (
           <ReportsTab
             key={fileLens ? codeFile.projectCode : `${sProject}.${sService}.${sModule}.${sMethod}`}
             projectCode={fileLens ? codeFile.projectCode : sProject}

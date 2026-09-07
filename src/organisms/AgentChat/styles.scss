@@ -2994,11 +2994,29 @@
   padding: 0 8px 4px;
   font-size: 12px;
 }
+.agent-chat__worklist-headrow {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.agent-chat__worklist-clear {
+  flex: none;
+  border: none;
+  background: none;
+  padding: 0 3px;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--sv-text-soft, #8a8f98);
+  opacity: 0.6;
+  &:hover { opacity: 1; color: var(--sv-text); }
+}
 .agent-chat__worklist-head {
   display: flex;
   align-items: center;
   gap: 6px;
-  width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
   border: none;
   background: none;
   padding: 2px 0;

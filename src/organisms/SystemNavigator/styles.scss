@@ -241,3 +241,21 @@
     cursor: default;
   }
 }
+
+// RFC-054 — the Logs / Stage openers beside the Projects tab: quiet doors, not tabs. The center's
+// strip is what's OPEN; these are how you open the two kinds that no tree click reaches.
+.system-nav__openers {
+  margin-left: auto;
+  display: inline-flex;
+  gap: 2px;
+}
+.system-nav__opener {
+  border: none;
+  background: none;
+  font-size: 11.5px;
+  color: var(--sv-text-soft, #8a8f98);
+  cursor: pointer;
+  padding: 3px 7px;
+  border-radius: 6px;
+  &:hover { color: var(--sv-text); background: color-mix(in srgb, var(--sv-blue) 10%, transparent); }
+}

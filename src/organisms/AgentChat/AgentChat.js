@@ -673,14 +673,19 @@ function useCountUp(target) {
 //
 // CLOSED IT IS ONE LINE: what it is doing now, and how far in. Open, the whole plan. A worklist that
 // costs the conversation five lines forever is a worklist he will collapse once and never see again.
-function WorkList({ items }) {
+function WorkList({ items, onClear }) {
   const [open, setOpen] = useState(false);
   if (!items || !items.length) return null;
   const done = items.filter((t) => t.state === "done").length;
+  // FINISHED IS HIS TO CLEAR — his call, and it removes the reliance on agent manners: a completed
+  // plan stays on screen for him to look over, and the × retires it from HIS view. The agent's next
+  // write brings the clipboard back with the new plan; nothing is deleted anywhere but here.
+  const complete = done === items.length;
   const active = items.find((t) => t.state === "active");
   const mark = { done: "✓", active: "▸", pending: "·" };
   return (
     <div className={`${CLASSNAME}__worklist`}>
+      <div className={`${CLASSNAME}__worklist-headrow`}>
       <button
         type="button"
         className={`${CLASSNAME}__worklist-head`}
@@ -701,6 +706,17 @@ function WorkList({ items }) {
         </span>
         <span className={`${CLASSNAME}__worklist-chev`}>{open ? "▾" : "▸"}</span>
       </button>
+      {complete && onClear && (
+        <button
+          type="button"
+          className={`${CLASSNAME}__worklist-clear`}
+          title="Clear the finished plan"
+          onClick={onClear}
+        >
+          ×
+        </button>
+      )}
+      </div>
       {open && (
         <ul className={`${CLASSNAME}__worklist-items`}>
           {items.map((t) => (
@@ -3762,12 +3778,18 @@ const countdown = (str, now = Date.now()) => {
   // panel's cooking line: chars over four, marked ≈, only while the session is actually working.
   const peekCounted = useCountUp(Math.round(work.state.liveChars / 4));
   const peekTok = work.state.state === "working" && work.state.liveChars > 40 ? `${peekCounted.toLocaleString()} tok` : "";
+  // CLEARED IS A VIEW STATE, HIS — the fingerprint of the list he dismissed. The fold keeps
+  // rebuilding `state.todo` from the stream, so "cleared" must survive re-folds: same list → stays
+  // hidden; the agent's next WRITE is a different fingerprint and the clipboard returns on its own.
+  const [clearedTodo, setClearedTodo] = useState("");
+  const todoShown =
+    work.state.todo && JSON.stringify(work.state.todo) !== clearedTodo ? work.state.todo : null;
   // THE PLAN'S HEADER RIDES THE MINIMISED VIEW ONLY — his correction after I put it on the open
   // panel's cooking line too: *"the worklist is already showing inside the chat."* Open, the list
   // itself sits right under the cooking line, and a summary of a thing beside the thing is noise.
   // Minimised there IS no list — that is what the brief is for.
   const peekTodo = (() => {
-    const t = work.state.todo;
+    const t = todoShown;
     if (!t || !t.length) return "";
     const done = t.filter((x) => x.state === "done").length;
     const act = t.find((x) => x.state === "active");
@@ -5453,7 +5475,12 @@ const countdown = (str, now = Date.now()) => {
           {/* THE PLAN OUTLIVES THE TURN THAT WROTE IT. Deliberately not gated on `working`: the
               moment a turn ends is exactly when "what's left" matters, and a list that vanishes
               when the agent stops is a list he can only read while he cannot act on it. */}
-          {attached && <WorkList items={work.state.todo} />}
+          {attached && (
+            <WorkList
+              items={todoShown}
+              onClear={() => setClearedTodo(JSON.stringify(work.state.todo))}
+            />
+          )}
           {/* While the mic listens: the words appear HERE as you speak (interim), then commit
               into the input as they finalize. The line itself is the recording indicator. */}
           {listening && (

@@ -276,14 +276,9 @@ const ReportsTab = ({ projectCode, serviceId, moduleName, methodName, openName, 
     onOpen(null);
   };
 
-  // Landing on a namespace that HAS reports shows the LATEST one straight away — an empty pane
-  // with a picker while a report exists reads as broken, doubly so when there's exactly one.
-  useEffect(() => {
-    if (doc || openName || closedRef.current || !mine.length) return;
-    const latest = [...mine].sort((a, b) => (b.ts || 0) - (a.ts || 0))[0];
-    open(latest);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [index, nsKey, Plugin]);
+  // NO AUTO-OPEN ANYMORE (RFC-054, his correction): the picker is its own deliberate TAB — the
+  // report list IS its content, and auto-jumping to the latest would convert the tab he just
+  // opened into a different one. Choosing is the tab's whole job now.
 
   const create = async (name) => {
     const clean = String(name || "").trim();
@@ -385,15 +380,15 @@ const ReportsTab = ({ projectCode, serviceId, moduleName, methodName, openName, 
   const bar = (
     <div className={`reports-tab__bar ${!editorDark ? "reports-tab__bar--light" : ""}`}>
       <span className="reports-tab__kind">report</span>
-      <button
-        type="button"
-        className="reports-tab__current"
-        title={mine.length ? "Switch report" : "No reports on this namespace yet"}
-        onClick={() => setPicking((p) => !p)}
-      >
-        {doc ? doc.name : mine.length ? `${mine.length} report${mine.length === 1 ? "" : "s"}` : "none yet"}
-        <span className="reports-tab__caret">▾</span>
-      </button>
+      {/* RFC-054, his rule: "you can't use the report document to open another report document —
+          that's not how it works anymore." Open, the name is a TITLE; choosing happens in the
+          Reports tab (the picker) or the strip. Only the picker view keeps the chooser. */}
+      {/* No dropdown chooser ANYWHERE now (his cut): open, the name is a title; as the picker, the
+          LIST IS THE CONTENT below — a dropdown over a list was choosing twice. (He may bring a
+          selector back later as a general document-navigation thing; that's his call, not a leftover.) */}
+      {/* Open: the document's name. As the list: NOTHING — the count line was a picker leftover
+          ("it still says four reports up here"); the list below speaks for itself. */}
+      {doc && <span className="reports-tab__current reports-tab__current--title">{doc.name}</span>}
       <span className="reports-tab__ns" title="Reports are scoped to this namespace">
         {nsLabel}
       </span>
@@ -440,8 +435,8 @@ const ReportsTab = ({ projectCode, serviceId, moduleName, methodName, openName, 
             </button>
           </>
         ) : null}
-        {doc && !editing ? (
-          <button type="button" className="reports-tab__x" title="Close — back to the namespace" onClick={close}>
+        {false ? (
+          <button type="button" className="reports-tab__x" onClick={close}>
             ✕
           </button>
         ) : null}

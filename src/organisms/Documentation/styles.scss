@@ -3,12 +3,40 @@
 .doc-tabs {
   display: flex;
   align-items: center;
-  gap: 0;
-  border-bottom: 2px solid #e0e0e8;
-
-  // Dark mode — the tab underline goes fully WHITE (a crisp rail on the dark surface).
-  :root.sv-dark & {
-    border-bottom-color: #fff;
+  gap: 1px; // his: a hair of daylight between the tabs
+  // THE RAIL IS A LAYER BEHIND THE TABS — his catch, twice, and the second time he was right that I
+  // had "fixed" it on a bad measurement (computed style says painted, elementFromPoint says
+  // VISIBLE; only the second is true). The old overhang (-2px margin over a bordered row) cannot
+  // live inside a scroll container: overflow clips at the box, full stop. So no overhang exists.
+  // The rail is an ::after line UNDER the strip; the active tab's opaque blue bottom border sits ON
+  // that same 2px and covers its segment; inactive tabs' transparent borders let the rail show
+  // through. The classic look, with nothing reaching outside anything.
+  position: relative;
+  &::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 2px;
+    background: #e0e0e8;
+  }
+  :root.sv-dark &::after {
+    background: #fff;
+  }
+  &__scroll {
+    display: flex;
+    align-items: center;
+    gap: 1px;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    scrollbar-width: none;
+    min-width: 0;
+    flex: 1 1 auto;
+    position: relative;
+    z-index: 1; // the tabs (and their underlines) paint OVER the rail line
+    &::-webkit-scrollbar { display: none; }
+    > .doc-tab { flex: none; }
   }
 
   // The scope breadcrumb rides at the far end of the tab row — monospace so it names the scope without
@@ -56,23 +84,96 @@
 
 .doc-tab {
   padding: 6px 16px;
-  background: none;
-  border: none;
+  // RFC-054, his look: TAB-SHAPED — rounded top corners, translucent body, and the active one
+  // BLENDS DOWN INTO ITS BLUE UNDERLINE (his read of the current active state: "it almost seems
+  // like there's this transparent tab around that blends into the blue — so let the tab blend into
+  // the border"). A vertical gradient from nearly-nothing at the top to a blue-tinged foot does
+  // exactly that, and because every color is a mix of var(--sv-blue) with transparent, both themes
+  // get it from the same rule — the page's own surface shows through.
+  // EVERY tab has the body — his correction: the shape and the transparent background are for all
+  // of them ("I'm not saying everything is on selection"); only the blend into the blue border
+  // belongs to the selected one. At rest a tab is a faint pane of glass, so the row reads as tabs
+  // before you touch anything.
+  // The 9% glass, borderless at rest — the hairline belongs to SELECTION only (his final cut after
+  // trying it on all of them): unselected tabs are pure glass, the chosen one gets the blue-leaning
+  // outline meeting its underline.
+  background: color-mix(in srgb, currentColor 9%, transparent);
+  border: 1px solid transparent;
+  border-radius: 8px 8px 0 0;
   border-bottom: 2px solid transparent;
-  margin-bottom: -2px;
   font-size: 13px;
-  color: #888;
+  // HIS FINAL TOUCH, found in his own devtools: in LIGHT mode an unselected tab reads in the
+  // regular dark text, not the washed #888 — the gray was fine on a dark surface and weak on a
+  // light one. Dark mode keeps the quieter gray he already liked.
+  color: var(--sv-text, #333);
+  :root.sv-dark & {
+    color: #888;
+  }
   cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
 
   &--active {
     color: var(--sv-blue);
+    border-color: color-mix(in srgb, var(--sv-blue) 35%, transparent);
     border-bottom-color: var(--sv-blue);
     font-weight: 600;
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--sv-blue) 6%, transparent),
+      color-mix(in srgb, var(--sv-blue) 22%, transparent)
+    );
   }
 
   &:hover:not(.doc-tab--active) {
     color: #555;
+    background: color-mix(in srgb, currentColor 13%, transparent);
   }
+
+  // RFC-054 — a tab is an OPEN DOCUMENT now; the span wraps a face and a close so the × never
+  // triggers the focus click. The old fixed-tab styling stays byte-identical for the active
+  // underline; the kind wears a colored dot (his rule: distinct-looking tabs per type).
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  &__face {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 4px 6px 12px;
+    background: none;
+    border: none;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  &__close {
+    border: none;
+    background: none;
+    color: inherit;
+    opacity: 0;
+    padding: 2px 8px 2px 2px;
+    font-size: 13px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  &:hover &__close, &--active &__close { opacity: 0.55; }
+  &__close:hover { opacity: 1 !important; }
+  &__kind-dot {
+    flex: none;
+    width: 7px;
+    height: 7px;
+    border-radius: 2px;
+  }
+  // One color per kind, quiet: doc blue-slate, file amber-ish (a file is the thing most often
+  // changed), logs green, stage plum — the same family the app already speaks.
+  &--kind-doc .doc-tab__kind-dot { background: #7a8db0; }
+  &--kind-file .doc-tab__kind-dot { background: #d9a13f; border-radius: 50%; }
+  &--kind-logs .doc-tab__kind-dot { background: #4caf50; }
+  &--kind-report .doc-tab__kind-dot { background: #9a7cb8; }
 
   // Green dot on the Window tab when the AI Window has panes (an agent drove it).
   &__dot {
@@ -255,4 +356,16 @@
       opacity: 0.6;
     }
   }
+}
+
+// RFC-054 — the namespace line, out of the tab row's corner and onto the document. Bigger and
+// darker than its corner life ("it's too subtle") — this is the reader's "where am I", not chrome.
+.doc-crumbline {
+  padding: 7px 12px 2px;
+  font-size: 13px;
+  // the row keeps its height with nothing in it — no layout jump when the crumbs go
+  min-height: 28px;
+  box-sizing: border-box;
+  .doc-tabs__ns { margin-left: 0; font-size: 13px; }
+  .doc-tabs__ns-seg { font-weight: 600; }
 }
