@@ -1,4 +1,4 @@
-import { getTabs, openTab, focusTab, closeTab, activeTab, moveTab, fileKey } from "./tabsStore";
+import { getTabs, openTab, focusTab, closeTab, activeTab, moveTab, fileKey, closeRight, closeOthers, closeAll, countRight } from "./tabsStore";
 
 // RFC-054 — the open set. The rules under test are the ones his asks named: multiple files open at
 // once; open-or-focus (never duplicate); closing the active tab lands on a neighbor, never nowhere;
@@ -75,5 +75,46 @@ describe("the open set", () => {
     const raw = JSON.parse(localStorage.getItem(`sv.tabs.${PC}`));
     expect(Array.isArray(raw.panes)).toBe(true);
     expect(raw.panes[0].tabs.some((t) => t.kind === "file")).toBe(true);
+  });
+});
+
+// RIGHT-CLICK VERBS — the anchor is what survives, and it is where focus lands.
+describe("bulk close", () => {
+  const PC = "bulk-close-proj";
+  const t = (k) => ({ key: k, kind: "file", file: { path: k, projectCode: PC } });
+  beforeEach(() => {
+    closeAll(PC);
+    ["a", "b", "c", "d"].forEach((k) => openTab(PC, t(k)));
+  });
+
+  it("closes everything to the right and keeps the anchor", () => {
+    expect(closeRight(PC, "b")).toBe("b");
+    expect(getTabs(PC).panes[0].tabs.map((x) => x.key)).toEqual(["a", "b"]);
+  });
+
+  it("leaves active alone when the close did not swallow it", () => {
+    focusTab(PC, "a");
+    expect(closeRight(PC, "b")).toBe("a");
+  });
+
+  it("closes others and focuses the anchor", () => {
+    expect(closeOthers(PC, "c")).toBe("c");
+    expect(getTabs(PC).panes[0].tabs.map((x) => x.key)).toEqual(["c"]);
+  });
+
+  it("closes all and reports nothing active", () => {
+    expect(closeAll(PC)).toBe(null);
+    expect(getTabs(PC).panes[0].tabs).toEqual([]);
+  });
+
+  it("counts what closeRight would remove, so a dead menu item can be hidden", () => {
+    expect(countRight(PC, "a")).toBe(3);
+    expect(countRight(PC, "d")).toBe(0);
+  });
+
+  it("is a no-op when there is nothing to the right", () => {
+    focusTab(PC, "b");
+    expect(closeRight(PC, "d")).toBe("b");
+    expect(getTabs(PC).panes[0].tabs).toHaveLength(4);
   });
 });

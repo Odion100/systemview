@@ -61,7 +61,7 @@ command for speaking to him and none for hearing him — his messages arrive thr
 
 \`\`\`bash
 systemview status ${projectCode} "<text>"         # the cooking line he watches while you work
-systemview inbox ${projectCode}                   # the hook's drain: what's waiting, as JSON
+systemview inbox ${projectCode}                   # UNATTACHED sessions only — if his words already reach your conversation, never call this
 \`\`\`
 
 ## Talking to other projects (RFC-051)

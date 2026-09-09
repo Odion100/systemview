@@ -822,7 +822,15 @@ function walkDir(root, dir, out, cap) {
     if (IGNORE_DIRS.has(e.name)) continue;
     const rel = dir ? `${dir}/${e.name}` : e.name;
     if (e.isDirectory()) walkDir(root, rel, out, cap);
-    else out.push({ path: rel });
+    else {
+      const row = { path: rel };
+      // Reports list by TIME ("everyone doesn't even have a time next to it" — scanned, unindexed
+      // files carried none). One stat, only for the files whose lists sort by it.
+      if (/^\.systemview\/report\..+\.md$/i.test(rel)) {
+        try { row.mtime = fsGit.statSync(path_.join(root, rel)).mtimeMs; } catch {}
+      }
+      out.push(row);
+    }
   }
 }
 async function listFiles(projectCode, { dir, root, max } = {}) {
@@ -883,6 +891,52 @@ function cached(key, run) {
 }
 function bustGit(pc) {
   for (const k of [...gitCache.keys()]) if (k.includes(`|${pc}|`)) gitCache.delete(k);
+}
+
+// ONE COMMIT, IN FULL — his ask: the log row shows a truncated subject and nothing else, so a
+// message with a body (which is most of ours) is unreadable at the only place you go to read it.
+//
+// SEPARATE from gitState deliberately. The log carries 40 commits; loading every body and file list
+// with it would multiply the payload for data nobody is looking at yet. This is fetched when a row
+// is actually opened, once, and cached by the caller.
+async function showCommit(projectCode, opts = {}) {
+  const cwd = await rootFor(projectCode, opts);
+  if (!cwd) return { ok: false, error: "unknown project" };
+  const sha = String(opts.sha || "").trim();
+  // Anchored, and no dots: a sha is hex, and anything else here is an argument being smuggled into
+  // `git show`. `--` would not save us — the value is the REVISION, not a path.
+  if (!/^[0-9a-fA-F]{4,40}$/.test(sha)) return { ok: false, error: "bad sha" };
+  const SEP = "\u001f";
+  const REC = "\u001e";
+  const meta = await git(cwd, [
+    "show", "--no-patch", "--date=iso",
+    `--pretty=format:%H${SEP}%h${SEP}%an${SEP}%ae${SEP}%ad${SEP}%ar${SEP}%P${SEP}%s${SEP}%b${REC}`,
+    sha,
+  ]);
+  if (!meta.ok) return { ok: false, error: meta.err || "no such commit" };
+  const [full, short, who, email, date, when, parents, subject, body] =
+    String(meta.out || "").split(REC)[0].split(SEP);
+  // --numstat, so a row can say +12/−3 per file rather than just naming it. Binary files report
+  // "-" for both, which we keep as null rather than coercing to 0 — "unknown" and "no change"
+  // are different facts.
+  const stat = await git(cwd, ["show", "--numstat", "--format=", sha]);
+  const files = String(stat.out || "")
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => {
+      const [add, del, path] = line.split("\t");
+      return { path, added: add === "-" ? null : +add, removed: del === "-" ? null : +del };
+    })
+    .filter((f) => f.path);
+  return {
+    ok: true,
+    sha: short, full, who, email, date, when, subject,
+    body: (body || "").trim(),
+    parents: String(parents || "").trim().split(/\s+/).filter(Boolean),
+    files,
+    added: files.reduce((n, f) => n + (f.added || 0), 0),
+    removed: files.reduce((n, f) => n + (f.removed || 0), 0),
+  };
 }
 
 async function gitState(projectCode, opts = {}) {
@@ -1842,6 +1896,7 @@ module.exports = function launchSystemView(port = 3000) {
       listFiles,
       searchFiles,
       gitState,
+      showCommit,
       changedFiles,
       getDiff,
       stageFiles,

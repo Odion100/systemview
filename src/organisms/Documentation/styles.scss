@@ -1,3 +1,4 @@
+@import "../../sass/file-icons";
 @import "../../sass/log-table";
 
 .doc-tabs {
@@ -162,18 +163,39 @@
   }
   &:hover &__close, &--active &__close { opacity: 0.55; }
   &__close:hover { opacity: 1 !important; }
-  &__kind-dot {
+  // FILE TYPE AT A GLANCE, in the tab — his ask. A colored dot only means something once you have
+  // memorized the palette; the glyph says it outright, in the same width. Same table the codebase
+  // tree uses (`src/utils/fileIcons.js`), so a tab and its row in the tree can never disagree.
+  &__icon {
     flex: none;
-    width: 7px;
-    height: 7px;
-    border-radius: 2px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    // Monospace so `JS`, `TS` and `{}` occupy the same box as a single glyph — otherwise the
+    // labels after them fail to line up down the strip.
+    font: 600 9px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+    letter-spacing: -0.02em;
+    opacity: 0.85;
+
+    img {
+      width: 11px;
+      height: 11px;
+      display: block;
+    }
+
+    // THE SAME COLORS THE TREE USES — included here, inside `&__icon`, so `&--js` composes to
+    // `doc-tab__icon--js`. Included one level up it silently produced `doc-tab--js`, which matches
+    // nothing: valid CSS, no error, and every glyph fell back to inherited color.
+    @include file-icon-kinds(9px);
+
+    // The three kinds that exist only as tabs — no file on disk behind them.
+    &--ns { color: #7a8db0; }
+    &--logs { color: #5aa39a; }
+    &--sv { color: var(--sv-blue); }
   }
-  // One color per kind, quiet: doc blue-slate, file amber-ish (a file is the thing most often
-  // changed), logs green, stage plum — the same family the app already speaks.
-  &--kind-doc .doc-tab__kind-dot { background: #7a8db0; }
-  &--kind-file .doc-tab__kind-dot { background: #d9a13f; border-radius: 50%; }
-  &--kind-logs .doc-tab__kind-dot { background: #4caf50; }
-  &--kind-report .doc-tab__kind-dot { background: #9a7cb8; }
+
+  &__face--still { cursor: default; }
 
   // Green dot on the Window tab when the AI Window has panes (an agent drove it).
   &__dot {
@@ -358,14 +380,9 @@
   }
 }
 
-// RFC-054 — the namespace line, out of the tab row's corner and onto the document. Bigger and
-// darker than its corner life ("it's too subtle") — this is the reader's "where am I", not chrome.
-.doc-crumbline {
-  padding: 7px 12px 2px;
-  font-size: 13px;
-  // the row keeps its height with nothing in it — no layout jump when the crumbs go
-  min-height: 28px;
-  box-sizing: border-box;
-  .doc-tabs__ns { margin-left: 0; font-size: 13px; }
+
+// The crumb IN the header — segments inherit the header's size; no extra row anywhere.
+.doc-pane__label--crumb {
+  .doc-tabs__ns { margin-left: 0; font-size: inherit; }
   .doc-tabs__ns-seg { font-weight: 600; }
 }

@@ -62,9 +62,15 @@ Notes that matter:
 - **Long content and choices go on the TV** (`systemview show`), with one short line in the chat.
 - **Never tell him to reload.** Tabs update themselves.
 
-## The hook — how his messages reach a session
+## The hook — ONLY for sessions the harness doesn't attach
 
-Install YOUR OWN hook (e.g. `.claude/settings.json`) that drains the room at your turn boundary:
+**Check first: are his messages already appearing in your conversation?** Then you are ATTACHED —
+the harness delivers directly, there is no pipeline, and none of this section applies to you.
+Installing a drain you don't need is how an agent ends up describing a plumbing that stopped
+existing (it happened; the confusion outlived the plumbing by weeks).
+
+A session the harness does NOT attach (a bare terminal) wires itself with a hook that drains the
+room at its turn boundary:
 
 ```bash
 #!/bin/bash

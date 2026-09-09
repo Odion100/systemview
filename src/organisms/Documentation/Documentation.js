@@ -5,7 +5,7 @@ import DescriptionBox from "../../atoms/DescriptionBox/DescriptionBox";
 import { EditorThemeToggle, useEditorDark } from "../../atoms/CodeView/editorTheme";
 import Markdown from "../../atoms/Markdown/Markdown";
 import CodePane from "../CodePane/CodePane";
-import { getTabs, subscribeTabs, openTab, focusTab, closeTab, moveTab, fileKey } from "../../pages/SystemView/tabsStore";
+import { getTabs, subscribeTabs, openTab, focusTab, closeTab, moveTab, fileKey, closeRight, closeOthers, closeAll, countRight } from "../../pages/SystemView/tabsStore";
 import ServiceContext from "../../ServiceContext";
 import { Client } from "../../systemClient";
 import InlineLogs from "../InlineLogs/InlineLogs";
@@ -13,6 +13,8 @@ import { backHelpTopic, setHelpTopic } from "../../atoms/Help/helpStore";
 import HELP_TOPICS from "../../atoms/Help/helpTopics";
 import { raiseError } from "../../atoms/Banner/bannerStore";
 import ReportsTab from "../Reports/ReportsTab";
+import { iconForTab, TAB_ICONS } from "../../utils/fileIcons";
+import RowMenu from "../../atoms/RowMenu/RowMenu";
 
 // Shown in the center when NOTHING is selected in the nav — SystemView's own help, so the Specs area is
 // useful on arrival instead of blank.
@@ -228,16 +230,24 @@ export default function Documentation({
       } else {
         // Bare tab=reports (old links, old cache) opens nothing — same rule as docs below.
         closeTab(tabsPc, "report");
-        if (sService) openTab(tabsPc, { key: "doc", kind: "doc" });
-        else closeTab(tabsPc, "doc");
+        if (sService)
+          openTab(tabsPc, {
+            key: `doc:${sService}.${sModule || ""}.${sMethod || ""}`,
+            kind: "doc",
+            doc: { serviceId: sService, moduleName: sModule, methodName: sMethod },
+          });
       }
-    // THE DOC TAB EXISTS ONLY WHEN A NAMESPACE IS NAVIGATED TO — his diagnosis was exact: the
-    // seeded/default doc tab was "a lingering namespace on the section", and closing anything fell
-    // into a document nobody opened. Service or deeper = deliberate navigation = the doc tab
-    // (following the tree, browser-style). Project level or nothing = NO doc tab; the project's
-    // plain landing renders as BACKGROUND, not as a tab.
-    else if (sService) openTab(tabsPc, { key: "doc", kind: "doc" });
-    else closeTab(tabsPc, "doc");
+    // DOC TABS ACCUMULATE PER NAMESPACE — his rule from day one ("everything is a document, even a
+    // namespace; they all show"), finally honored after two half-versions: reports accumulate,
+    // logs accumulate, and now docs do too. A link inside a page OPENS A TAB instead of navigating
+    // the page you're reading — the single follow-along doc tab was what made an :ns link feel
+    // like theft. Project level or nothing = no tab; the landing is BACKGROUND.
+    else if (sService)
+      openTab(tabsPc, {
+        key: `doc:${sService}.${sModule || ""}.${sMethod || ""}`,
+        kind: "doc",
+        doc: { serviceId: sService, moduleName: sModule, methodName: sMethod },
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tabsPc, urlTab, reportPath, sService, sModule, sMethod, codeFile && codeFile.path, codeFile && codeFile.projectCode, codeFile && String(codeFile.lines), codeFile && codeFile.side]);
   // store → URL, on a strip click: the active tab writes the params that MEAN it — which is exactly
@@ -266,7 +276,15 @@ export default function Documentation({
       p.set("tab", "reports");
       if (t.report && t.report.path) p.set("rdoc", t.report.path);
       else p.delete("rdoc");
-    } else p.set("tab", "docs");
+    } else {
+      p.set("tab", "docs");
+      if (t.kind === "doc" && t.doc) {
+        const d = t.doc;
+        const segs = [projectCode, d.serviceId, d.moduleName, d.methodName].filter(Boolean);
+        history.push({ pathname: `/specs/${segs.join("/")}`, search: `?${p.toString()}` });
+        return;
+      }
+    }
     history.push({ pathname: window.location.pathname, search: p.toString() });
   }, [history, projectCode]);
   const clickTab = useCallback((t) => {
@@ -278,7 +296,11 @@ export default function Documentation({
     // Closing what you're LOOKING AT routes to the neighbor; closing a background tab moves nothing.
     const wasActive =
       (t.kind === "file" && fileLens && codeFile && fileKey(codeFile) === t.key) ||
-      (t.kind !== "file" && !fileLens && ((t.kind === "logs" && urlTab === "logs") || (t.kind === "report" && urlTab === "reports") || (t.kind === "doc" && urlTab === "docs")));
+      (t.kind !== "file" &&
+        !fileLens &&
+        ((t.kind === "logs" && urlTab === "logs" && t.key === `logs:${sService || ""}.${sModule || ""}.${sMethod || ""}`) ||
+          (t.kind === "report" && urlTab === "reports" && !!t.report && t.report.path === reportPath) ||
+          (t.kind === "doc" && urlTab === "docs" && t.key === `doc:${sService || ""}.${sModule || ""}.${sMethod || ""}`)));
     if (!wasActive) return;
     const next = getTabs(tabsPc).panes[0].tabs.find((x) => x.key === nextKey);
     if (next) return routeTo(next);
@@ -288,7 +310,65 @@ export default function Documentation({
     ["file", "fproj", "fsvc", "flang", "flines", "fside", "fnav", "ftab", "help", "rdoc"].forEach((k) => q.delete(k));
     q.set("tab", "docs");
     history.push({ pathname: `/specs/${projectCode}`, search: `?${q.toString()}` });
-  }, [tabsPc, fileLens, codeFile, urlTab, routeTo, history, projectCode]);
+  }, [tabsPc, fileLens, codeFile, urlTab, reportPath, sService, sModule, sMethod, routeTo, history, projectCode]);
+  // RIGHT-CLICK ON A TAB — his ask, and the verbs are the ones every browser already taught him.
+  // Reuses the RowMenu atom (and the nav's stylesheet via `classname`), so this menu cannot drift
+  // in look or behaviour from the one on a codebase row.
+  const [tabMenu, setTabMenu] = useState(null);
+
+  // A bulk close can swallow the tab you are LOOKING AT. The store returns whichever key is active
+  // afterwards, so the only thing left to decide is whether the URL has to move — same rule as a
+  // single close, expressed once instead of per verb.
+  const afterBulkClose = useCallback((nextKey) => {
+    const tabs = getTabs(tabsPc).panes[0].tabs;
+    const next = tabs.find((x) => x.key === nextKey);
+    if (next) return routeTo(next);
+    const q = new URLSearchParams(window.location.search);
+    ["file", "fproj", "fsvc", "flang", "flines", "fside", "fnav", "ftab", "help", "rdoc"].forEach((k) => q.delete(k));
+    q.set("tab", "docs");
+    history.push({ pathname: `/specs/${projectCode}`, search: `?${q.toString()}` });
+  }, [tabsPc, routeTo, history, projectCode]);
+
+  const openTabMenu = useCallback((e, t, label) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const rightCount = countRight(tabsPc, t.key);
+    const total = getTabs(tabsPc).panes[0].tabs.length;
+    const items = [{ label: "Close", action: () => closeStripTab(t) }];
+    // A verb that would do nothing is HIDDEN, not greyed: a menu of dead items teaches you to stop
+    // reading it. "Close others" on a lone tab and "close to the right" on the last tab are both no-ops.
+    if (rightCount)
+      items.push({
+        label: `Close ${rightCount} to the right`,
+        action: () => afterBulkClose(closeRight(tabsPc, t.key)),
+      });
+    if (total > 1)
+      items.push({ label: "Close others", action: () => afterBulkClose(closeOthers(tabsPc, t.key)) });
+    items.push({
+      label: `Close all ${total}`,
+      action: () => afterBulkClose(closeAll(tabsPc)),
+      // Two-step, because it is the one verb here you cannot undo by clicking the tree again —
+      // a strip he spent a session assembling goes in one click otherwise.
+      confirm: total > 2 ? `Close all ${total}?` : undefined,
+    });
+    if (t.kind === "file" && t.file) {
+      items.push({
+        label: "Reveal in codebase",
+        action: () =>
+          window.dispatchEvent(
+            new CustomEvent("sv:openFileInNav", {
+              detail: { projectCode: t.file.projectCode || projectCode, path: t.file.path },
+            })
+          ),
+      });
+      items.push({
+        label: "Copy path",
+        action: () => navigator.clipboard && navigator.clipboard.writeText(t.file.path),
+      });
+    }
+    setTabMenu({ x: e.clientX, y: e.clientY, title: label, items });
+  }, [tabsPc, closeStripTab, afterBulkClose, projectCode]);
+
   // WHAT THE CENTER SHOWS = what the URL says is active (never the store alone, so back/forward
   // keep working): a file when one is in the URL, else the kind the tab param names.
   const activeFileTab = fileLens && codeFile ? pane.tabs.find((x) => x.key === fileKey(codeFile)) : null;
@@ -385,12 +465,26 @@ export default function Documentation({
               as the tree moves — a browser tab, not a tab per click; files ACCUMULATE, which was the
               whole ask; logs and stage exist only while open. Click focuses; × closes; closing what
               you're reading lands on the neighbor. */}
+          {/* THE FLOOR SHOWS AS A TAB — his ask ("why doesn't a tab show for SystemView?"): with
+              nothing open, the strip isn't empty chrome over a mystery document; it names what
+              you're looking at. Synthetic — not in the store, nothing to close: it IS the
+              nothing-open state. */}
+          {pane.tabs.length === 0 && (
+            <span className="doc-tab doc-tab--kind-sv doc-tab--active">
+              <span className="doc-tab__face doc-tab__face--still">
+                <span className="doc-tab__icon doc-tab__icon--sv" aria-hidden="true">
+                  {TAB_ICONS.sv.glyph}
+                </span>
+                SystemView
+              </span>
+            </span>
+          )}
           {pane.tabs.map((t) => {
             const isActive =
               t.kind === "file"
                 ? !!(fileLens && codeFile && fileKey(codeFile) === t.key)
                 : !fileLens &&
-                  ((t.kind === "doc" && (tab === "docs" || (tab === "reports" && !reportPath))) ||
+                  ((t.kind === "doc" && (tab === "docs" || (tab === "reports" && !reportPath)) && t.key === `doc:${sService || ""}.${sModule || ""}.${sMethod || ""}`) ||
                     (t.kind === "logs" && tab === "logs" && t.key === `logs:${sService || ""}.${sModule || ""}.${sMethod || ""}`) ||
                     (t.kind === "report" && tab === "reports" && (t.report ? t.report.path === reportPath : !reportPath)));
             const label =
@@ -408,12 +502,16 @@ export default function Documentation({
                     const nm = m ? m[2].replace(/-/g, " ") : t.report.path.split("/").pop();
                     return m && m[1] !== tabsPc ? `${nm} · ${m[1]}` : nm;
                   })()
-                : nothingSelected
-                ? "Documentation"
-                : sMethod || sModule || sService || sProject || "Documentation";
+                : (t.doc && (t.doc.methodName || t.doc.moduleName || t.doc.serviceId)) || "Documentation";
             return (
               <span
                 key={t.key}
+                // THE TAB YOU'RE ON IS ALWAYS IN VIEW — his ask: with the strip scrolling, the
+                // active tab can sit past the fold, and "look up and see what tab I'm on" is the
+                // strip's whole job. The ref fires on every render where this tab is active;
+                // scrollIntoView with nearest is a no-op when it's already visible, so this costs
+                // nothing except when it's needed.
+                ref={isActive ? (el) => { if (el) try { el.scrollIntoView({ block: "nearest", inline: "nearest" }); } catch {} } : null}
                 className={`doc-tab doc-tab--kind-${t.kind} ${isActive ? "doc-tab--active" : ""}`}
                 // DRAG TO REORDER (his ask) — native dnd, the same trade the dock made: the tab is
                 // the handle, dropping on a tab puts you where IT sat, dropping past the row's end
@@ -433,13 +531,21 @@ export default function Documentation({
                   e.stopPropagation(); // or the ROW's drop fires next and sends it to the end
                   moveTab(tabsPc, key, t.key);
                 }}
+                onContextMenu={(e) => openTabMenu(e, t, label)}
               >
                 <button
                   className="doc-tab__face"
                   title={t.kind === "file" && t.file ? `${t.file.projectCode || ""}: ${t.file.path}` : undefined}
                   onClick={() => clickTab(t)}
                 >
-                  <span className="doc-tab__kind-dot" aria-hidden="true" />
+                  {(() => {
+                    const { glyph, kind } = iconForTab(t);
+                    return (
+                      <span className={`doc-tab__icon doc-tab__icon--${kind}`} aria-hidden="true">
+                        {kind === "img" ? <img src={glyph} alt="" /> : glyph}
+                      </span>
+                    );
+                  })()}
                   {label}
                 </button>
                 <button
@@ -457,17 +563,40 @@ export default function Documentation({
           })}
         </div>
         </div>
+        {/* One menu instance for the strip — same atom and same `codebase-nav__menu…` classes the
+            nav rows use, so a tab's menu and a file row's menu cannot drift apart. */}
+        <RowMenu menu={tabMenu} onClose={() => setTabMenu(null)} />
         {/* THE NAMESPACE IS THE DOC TAB'S, PER-TAB — his second correction on this line: it was
             still painted at the COMPONENT level, so it sat over logs, over files, over an empty
             view after a delete ("it shows the namespace at the top — that doesn't make any sense").
             A namespace is a fact about the namespace DOCUMENT: it renders only on that tab, and
             only when something is actually selected — an empty state has no address to announce. */}
-        {/* THE ROW HOLDS ITS GROUND — his catch: the crumbs vanishing collapsed the row and the
-            whole document jumped up. The AREA is permanent on the doc view; only the SEGMENTS come
-            and go with a real namespace. Empty, it's a quiet spacer the exact height of itself. */}
+        {/* An open HELP topic takes the content spot — whatever tab was showing waits behind it. */}
+        {helpOpen && (
+          <div className="documentation-view__data-table">
+            <HelpPane topicKey={helpTopic} />
+          </div>
+        )}
+        {/* RFC-022 — the Code center: edit-first file pane fed by the Codebase nav's selection. */}
+        {!helpOpen && fileLens && tab === "docs" && (
+          <div className="documentation-view__data-table">
+            {/* The pane's × closes the TAB — the strip picks the neighbor you land on. (The old
+                ftab-restore dance is the strip's job now.) */}
+            <CodePane
+              file={(activeFileTab && activeFileTab.file) || codeFile}
+              onClose={() => closeStripTab({ key: fileKey(codeFile), kind: "file" })}
+            />
+          </div>
+        )}
         {!helpOpen && !fileLens && (tab === "docs" || (tab === "reports" && !reportPath)) && (
-          <div className={`doc-crumbline${sService ? "" : " doc-crumbline--blank"}`}>
-          {!!sService && (<>
+          <div className="documentation-view__data-table">
+            {/* The doc IS a file panel — a framed pane with a header/badge. When nothing is selected it
+                shows SystemView's own help; otherwise the per-namespace doc (getDoc/saveDoc). The doc's
+                Edit/Save/Close live IN this header, exactly like the Code pane's — the rendered document
+                below is for reading, never click-to-edit. */}
+            <DocDescription
+              key={`${sService}.${sModule}.${sMethod}`}
+              crumb={sService ? (<>
           {/* The scope breadcrumb. Each segment is CLICKABLE: it retargets the middle panel (docs/logs/
               stories) to that level WITHOUT moving the nav or scratchpad. The segment matching the current
               middle scope is highlighted blue; the rest (project included) are grey. Segments come from the
@@ -526,49 +655,19 @@ export default function Documentation({
             )}
           </span>
           )}
-          </>)}
-          </div>
-        )}
-        {/* An open HELP topic takes the content spot — whatever tab was showing waits behind it. */}
-        {helpOpen && (
-          <div className="documentation-view__data-table">
-            <HelpPane topicKey={helpTopic} />
-          </div>
-        )}
-        {/* RFC-022 — the Code center: edit-first file pane fed by the Codebase nav's selection. */}
-        {!helpOpen && fileLens && tab === "docs" && (
-          <div className="documentation-view__data-table">
-            {/* The pane's × closes the TAB — the strip picks the neighbor you land on. (The old
-                ftab-restore dance is the strip's job now.) */}
-            <CodePane
-              file={(activeFileTab && activeFileTab.file) || codeFile}
-              onClose={() => closeStripTab({ key: fileKey(codeFile), kind: "file" })}
-            />
-          </div>
-        )}
-        {!helpOpen && !fileLens && (tab === "docs" || (tab === "reports" && !reportPath)) && (
-          <div className="documentation-view__data-table">
-            {/* The doc IS a file panel — a framed pane with a header/badge. When nothing is selected it
-                shows SystemView's own help; otherwise the per-namespace doc (getDoc/saveDoc). The doc's
-                Edit/Save/Close live IN this header, exactly like the Code pane's — the rendered document
-                below is for reading, never click-to-edit. */}
-            <DocDescription
-              key={`${sService}.${sModule}.${sMethod}`}
+              </>) : null}
               doc={doc}
               setDocument={setDocument}
               Plugin={Plugin}
               scope={{ projectCode: sProject, serviceId: sService, moduleName: sModule, methodName: sMethod }}
-              readOnly={nothingSelected}
-              label={
-                nothingSelected
-                  ? "SystemView"
-                  : sMethod && sModule && sService
-                  ? `${sService}.${sModule}.${sMethod}`
-                  : sModule && sService
-                  ? `${sService}.${sModule}`
-                  : sService || sProject || ""
-              }
-              helpText={nothingSelected ? SYSTEMVIEW_HELP : null}
+              // THE BACKGROUND IS SYSTEMVIEW'S OWN DOCUMENTATION — his rule for the empty strip:
+              // "stop defaulting to the namespace document." Keyed off the STRIP BEING EMPTY, not
+              // off scope — his catch: a lingering scope slipped a namespace body under a
+              // "SystemView" label, which is worse than either alone. Strip empty = the manual,
+              // whole; anything else = the tab's own document.
+              readOnly={pane.tabs.length === 0 || !sService}
+              label={pane.tabs.length === 0 || !sService ? "SystemView" : sMethod ? `${sService}.${sModule}.${sMethod}` : sModule ? `${sService}.${sModule}` : sService}
+              helpText={pane.tabs.length === 0 || !sService ? SYSTEMVIEW_HELP : null}
             />
           </div>
         )}
@@ -644,7 +743,7 @@ const HelpPane = ({ topicKey, depth = 1 }) => {
 // The doc pane, whole: header (badge + namespace label + the Edit/Save/Close controls) and the body
 // (rendered document, or the dark editor while editing). Same shape as the Code pane — the header
 // owns the mode, the document below is for reading.
-const DocDescription = ({ doc, setDocument, Plugin, label, readOnly, helpText, scope = null }) => {
+const DocDescription = ({ doc, setDocument, Plugin, label, crumb = null, readOnly, helpText, scope = null }) => {
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(doc.documentation);
   const [editorDark] = useEditorDark("docs");
@@ -692,7 +791,11 @@ const DocDescription = ({ doc, setDocument, Plugin, label, readOnly, helpText, s
     <div className="doc-pane">
       <div className={`doc-pane__header ${!editorDark ? "doc-pane__header--light" : ""}`}>
         <span className="doc-pane__kind">doc</span>
-        <span className="doc-pane__label">{label}</span>
+        {/* THE NAMESPACE LIVES IN THE HEADER — his cut, after the separate crumb row kept costing
+            a blank band above every namespace doc: the header bar already names the document, so
+            the clickable segments ARE the name. Falls back to the plain label anywhere no crumb
+            is handed in (help pane, project landing). */}
+        {crumb ? <span className="doc-pane__label doc-pane__label--crumb">{crumb}</span> : <span className="doc-pane__label">{label}</span>}
         <span className="doc-pane__actions">
           {/* The document follows the DOCS theme even in READ mode — the toggle rides the ONE
               corner cluster, right beside Edit (a second auto-margined span floated it to center). */}

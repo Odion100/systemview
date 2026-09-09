@@ -1744,7 +1744,10 @@
     gap: 6px;
     border: 1px dashed var(--sv-border);
     border-radius: 8px;
-    background: var(--sv-panel);
+    // `--sv-panel` WAS NEVER DEFINED — an undefined token resolves to nothing, which is why this
+    // box rendered "completely transparent for some reason" (his words, and the reason was that
+    // simple). The surface token is real and opaque.
+    background: var(--sv-surface);
     color: var(--sv-text-faint);
     font-size: 11px;
     padding: 10px;
@@ -3456,4 +3459,24 @@
 // Past the middle of the screen the row opens leftward: same row, reversed, hung from the right.
 .agent-chat--flipx:not(.agent-chat--innav) .agent-chat__panel-anchor {
   flex-direction: row-reverse;
+}
+
+// RFC-039/054 — the TV list's rows: full-width, deletable in place. Same rhythm as everywhere.
+.agent-chat__tv-pick-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  .agent-chat__tv-pick-item { flex: 1 1 auto; min-width: 0; }
+  .agent-chat__tv-pick-del {
+    flex: none;
+    border: none;
+    background: none;
+    color: inherit;
+    font-size: 11px;
+    opacity: 0;
+    cursor: pointer;
+    padding: 2px 8px;
+  }
+  &:hover .agent-chat__tv-pick-del, &.is-armed .agent-chat__tv-pick-del { opacity: 1; }
+  &.is-armed .agent-chat__tv-pick-del { color: #e05252; font-weight: 700; }
 }

@@ -13,6 +13,12 @@ const HELP_TEXT = `
     delete <projectCode>                   init's opposite — hosted projects only: unhost, remove
                                            the registration AND the committed folder (y/N confirm;
                                            --force skips). Plain connections: use disconnect
+
+    ── talking ──────────────────────────────────────────────────────────────────────
+    YOUR OWN ROOM NEEDS NONE OF THIS. Attached in the harness (the normal case), his messages
+    arrive directly IN your conversation and your reply IS the message — no join, no inbox,
+    no pipeline, nothing to arm. Every verb below is for reaching OTHER agents' rooms.
+
     message-agent <them> "<text>" --as <me>  MESSAGE ANOTHER AGENT — the only thing it does, and
                                            the name says so. --as is REQUIRED and must differ from
                                            the target: there is no way to address yourself. Does
@@ -31,9 +37,10 @@ const HELP_TEXT = `
     read <project> [--limit n] [--since m] Read a conversation you are in (--since prints a
                                            mark; pass it back for only what is new)
     status <project> "<text>"              The cooking line shown while the agent works ("" clears)
-    inbox <project>                        File mode: drain pending UI messages as JSON + ack them
-                                           (call from your hooks; registers the outlined-bubble
-                                           listener). See agents/chat.md
+    inbox <project>                        UNATTACHED SESSIONS ONLY (a terminal harness wired by
+                                           hooks): drain pending UI messages as JSON + ack. If his
+                                           words already appear in your conversation, you are
+                                           attached — never call this. See agents/chat.md
     test [target]                          Run saved tests. target = projectCode OR any namespace
                                            (service / module / method / dotted, e.g. Posts.add) — no
                                            projectCode required; it resolves where it lives

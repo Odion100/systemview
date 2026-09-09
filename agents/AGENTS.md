@@ -340,7 +340,7 @@ systemview read <otherProject> [--limit n]      # read a room you're in  (--sinc
 # repo renders EMPTY in theirs — indistinguishable from a broken renderer. Use their paths, or pin
 # yours: ::file[cli/chat.js#L290-300]{project=<yourPc>}. Verify the path before you send it.
 # An --as that is not a connected project code is refused at the front door.
-systemview inbox <project>       # the hook's drain: pending messages as JSON + ack
+systemview inbox <project>       # UNATTACHED sessions only (hook-wired terminals) — attached agents never call this
                                  # a cursor's FIRST drain starts at now — `--history` for the back-catalog
 # YOUR ROOM IS A FILE IN YOUR OWN REPO: <your root>/.systemview/chats/<pc>.<chat>.jsonl — served
 # by your own service (the SystemViewChat plugin module), so you can grep and compact it yourself.

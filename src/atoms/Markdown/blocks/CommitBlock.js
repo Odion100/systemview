@@ -242,9 +242,29 @@ const CommitBlock = ({ label, attrs = {}, line }) => {
       <span className={`md-commit__mark md-commit__mark--${f.status}`} title={f.status}>
         {MARK[f.status] || "M"}
       </span>
-      <span className={`md-commit__path${f.status === "deleted" ? " md-commit__path--gone" : ""}`}>
-        {f.path}
-      </span>
+      {/* THE PATH OPENS THE FILE — his rule, and it's the tab-strip rule everywhere now: a file
+          named on screen opens in its own tab (or focuses the one it has), never navigates you
+          away. A deleted file has nothing to open and stays text. Which SIDE it opens on rides
+          along, so a staged row shows HEAD→index and an unstaged one HEAD→working — the same
+          split the nav's version-control lens sends. */}
+      {f.status === "deleted" ? (
+        <span className="md-commit__path md-commit__path--gone">{f.path}</span>
+      ) : (
+        <button
+          type="button"
+          className="md-commit__path md-commit__path--open"
+          title={`Open ${f.path} in a tab`}
+          onClick={() =>
+            window.dispatchEvent(
+              new CustomEvent("sv:openFileInNav", {
+                detail: { projectCode, path: f.path, side: isStaged ? "staged" : "unstaged" },
+              }),
+            )
+          }
+        >
+          {f.path}
+        </button>
+      )}
       {f.partial && isStaged && (
         <span className="md-commit__partial" title="Staged, then edited again since">
           +edits

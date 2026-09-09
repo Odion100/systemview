@@ -24,6 +24,7 @@ import CodebaseNav from "../CodebaseNav/CodebaseNav";
 import { useAppDark } from "../../atoms/appTheme";
 import loadServiceWithHeaders from "../../utils/loadService";
 import { hostFiles, hasHostFiles } from "../../utils/hostFiles";
+import { deleteReport as deleteReportFile, reportIndexSets, listReports } from "../../utils/reportOps";
 import SEND_ICON from "../../assets/send.png";
 import "./styles.scss";
 
@@ -550,6 +551,18 @@ const shortModel = (m) =>
 // Message-bubble time (his ask: "we need to see the time") — compact clock, full date on hover.
 const msgTime = (ts) =>
   new Date(ts).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+// A LIST ROW NEEDS THE DAY — his catch on the TV's report list: bare times read fine in a chat
+// (everything is today) and mean nothing on a list spanning weeks. Today keeps the bare time;
+// anything older leads with its date, the board's own style.
+const rowWhen = (ts) => {
+  if (!ts) return "";
+  const d = new Date(ts);
+  const now = new Date();
+  const sameDay = d.toDateString() === now.toDateString();
+  return sameDay
+    ? msgTime(ts)
+    : `${d.toLocaleDateString([], { month: "short", day: "numeric" })}, ${msgTime(ts)}`;
+};
 
 // WHEN THIS SHOW WENT UP, beside the TV's title — in the language you actually think in about a
 // show ("2 hours ago"), his call, and moment is already a dependency here. The absolute stamp stays
@@ -1203,8 +1216,6 @@ function BotBubble({ projectCode, index }) {
       } catch {}
       return next;
     });
-  const armedSend = useRef(0);
-  const ARMED_WINDOW = 4000;
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   // RFC-045 — INSIDE A HOST, THE HOST DICTATES. `webkitSpeechRecognition` exists in Electron and
   // never returns a result (the recogniser is a Chrome service), so `!!SR` is a false positive there
@@ -1216,7 +1227,12 @@ function BotBubble({ projectCode, index }) {
   const micSupported = !!SR || viaHostMic;
   // Text lands in the input AS YOU TALK now, one segment per pause — so this only closes the last
   // one and appends nothing itself.
+  // Send took the visible words and hung up — anything the recorder delivers AFTER that is a
+  // duplicate, not a message. Cleared every time a recording STARTS; never set by the stop button,
+  // whose tail commit is legitimate.
+  const suppressCommitsRef = useRef(false);
   const commitSpoken = (text) => {
+    if (suppressCommitsRef.current) return;
     setInput((cur) => (cur ? `${cur} ` : "") + text.trim());
     setInterim("");
     setTimeout(() => inputRef.current && autogrow(inputRef.current), 0);
@@ -1233,6 +1249,7 @@ function BotBubble({ projectCode, index }) {
     setInterim("");
   };
   const toggleMic = async () => {
+    if (!listening) suppressCommitsRef.current = false; // a fresh recording commits normally
     if (listening) {
       if (viaHostMic) return finishHostMic();
       try { if (recRef.current) recRef.current.stop(); } catch {}
@@ -1240,6 +1257,7 @@ function BotBubble({ projectCode, index }) {
     }
     if (viaHostMic) {
       try {
+        suppressCommitsRef.current = false;
         hostMicRef.current = await startHostRecording({
           onDraft: (t) => setInterim(t),
           onSegment: commitSpoken,
@@ -1252,6 +1270,7 @@ function BotBubble({ projectCode, index }) {
       return;
     }
     try {
+      suppressCommitsRef.current = false;
       const rec = new SR();
       rec.lang = navigator.language || "en-US";
       rec.interimResults = true;
@@ -1854,9 +1873,46 @@ function BotBubble({ projectCode, index }) {
         setPresence(pres || {});
         // The TV restores its LAST show from history (content rides in the record) — rendering
         // is passive, so replay is safe here, unlike nav. Open-state is the user's, persisted.
-        const lastShow = [...(history || [])]
-          .reverse()
-          .find((m) => m.kind === "command" && m.cmd === "show" && m.args && m.args.text);
+        //
+        // …but only a show that still EXISTS — his zombie: "it starts you off with one… 'the
+        // document could not be read'. If it's empty, it's empty." This restore ignored `hidden`
+        // (a deleted show came back on every reload) and never asked whether a report-backed
+        // show's FILE was still there. Same truth as the picker now: files first, hidden skipped,
+        // and if nothing real remains the TV restores NOTHING.
+        // HIS PICK WINS. A report chosen from the TV's list leaves no show record — restoring
+        // records over the pick sent him back to an old show on every reload. If the picked file
+        // still exists, it IS the TV.
+        let picked = null;
+        try { picked = JSON.parse(localStorage.getItem(`sv.tvPicked.${projectCode}`)); } catch {}
+        if (picked && picked.path) {
+          try {
+            const res = await hostFiles(projectCode).readFile({ path: picked.path });
+            if (!dead) setTv({ id: `report:${picked.path}`, path: picked.path, text: res.content || "", label: picked.name, ts: Date.now(), pickedAt: Date.now() });
+            picked = { held: true };
+          } catch {
+            try { localStorage.removeItem(`sv.tvPicked.${projectCode}`); } catch {} // dead pick dies
+            picked = null;
+          }
+        } else picked = null;
+        const candidates = picked
+          ? []
+          : [...(history || [])]
+              .reverse()
+              .filter((m) => m.kind === "command" && m.cmd === "show" && m.args && m.args.text && !m.hidden);
+        let lastShow = null;
+        for (const m of candidates) {
+          const a = m.args || {};
+          const sets = await reportIndexSets(projectCode).catch(() => null);
+          // A "text-only" show can still POINT at reports — the zombie's last hiding place: its
+          // text embeds `.systemview/report.…md` paths, and if any of those is dead the show
+          // renders as "this file can't be read". Every referenced report must exist.
+          const referenced = String(a.text || "").match(/\.systemview\/report\.[^\s"')\]]+\.md/g) || [];
+          if (sets && referenced.some((pth) => !sets.paths.has(pth))) continue;
+          if (!a.report && !a.path) { lastShow = m; break; }
+          if (!sets) { lastShow = m; break; } // unreadable index must not read as deleted
+          const path = a.path || (a.report && reportPathFor(a.report));
+          if ((path && sets.paths.has(path)) || (a.report && sets.names.has(a.report))) { lastShow = m; break; }
+        }
         if (lastShow) {
           // Prefer the CLICKED-UP state (silent TV interactions persist hub-side) — his
           // verdicts and answers must survive a reload, not reset to the pristine show.
@@ -2043,8 +2099,10 @@ function BotBubble({ projectCode, index }) {
       const dy = ev.clientY - d.startY;
       if (!d.moved && Math.abs(dx) + Math.abs(dy) < 6) return;
       d.moved = true;
-      // RFC-052 — DRAGGED OUT OF THE RAIL: it comes out where it was, under the pointer, and floats.
-      if (inRailRef.current) setNavDocked(projectCode, false);
+      // RFC-052 — DRAGGED OUT OF THE RAIL — and out of the CODEBASE CARD's slot the same way: the
+      // moment a real drag starts, a docked agent undocks and floats under the pointer. The button
+      // (double-click) stays; the drag was always supposed to work too.
+      if (inRailRef.current || inNavRef.current) setNavDocked(projectCode, false);
       // …and over the dock, the preview: shrink, and ring the spot it would take.
       const hit = dockTargetOf(ev.clientX, ev.clientY);
       setOverDock(!!hit);
@@ -2248,17 +2306,17 @@ const countdown = (str, now = Date.now()) => {
   };
 
   const send = async () => {
-    // SEND WHILE THE MIC IS STILL RUNNING (his ask: "I used to be able to just send and not have to
-    // stop the recorder"). Host dictation commits at every pause, but the sentence you are in the
-    // middle of has not committed yet — so sending forces that segment to finish and takes it along.
-    // Without this, pressing send mid-breath silently drops your last few words.
-    let spoken = "";
-    if (listening && hostMicRef.current) {
-      try {
-        spoken = (await hostMicRef.current.flush()) || "";
-      } catch {}
-    }
-    const text = [input.trim(), spoken.trim()].filter(Boolean).join(" ");
+    // SEND TAKES WHAT'S VISIBLE — his procedure, after every cleverer version failed him: "the
+    // words are showing, meaning they've been captured; the simplest thing is just send whatever
+    // words are there." The input holds the committed segments; the buildup line holds the rest,
+    // already on screen. Their sum IS the message — no flush call (the old flush could WEDGE the
+    // host recorder: light on, words frozen, stop-recording vaporizing them), no armed IOU firing
+    // later or never. What you can read is what sends, the moment you press.
+    const draft = (() => {
+      const v = interimStore.get();
+      return v && v !== "transcribing…" ? v : "";
+    })();
+    const text = [input.trim(), draft.trim()].filter(Boolean).join(" ");
     // A SLASH COMMAND IS NOT A MESSAGE — it goes through the commands door, panel and all.
     if (attached && /^\/\S+/.test(text)) return runSlash(text);
     // PRESSING SEND WHILE THE WORDS ARE STILL LANDING. His bug, and it wasted his time all session:
@@ -2269,22 +2327,21 @@ const countdown = (str, now = Date.now()) => {
     // empty. `if (!text) return` threw that press away, and the transcript then landed in a box
     // nobody was going to send. A press is an intention, not a snapshot — so when the mic is live
     // and there is nothing yet, the send is ARMED and fires the moment the words arrive.
-    if (!text) {
-      if (listening || hostMicRef.current) armedSend.current = Date.now();
-      return;
-    }
-    armedSend.current = 0;
+    // NOTHING VISIBLE = NOTHING HAPPENS — his rule: an empty press must not touch the recorder,
+    // arm anything, or leave a note. The recorder keeps doing its job; press again when words show.
+    if (!text) return;
     // Sending ends the dictation — you said what you had to say (his call). `onend` arrives a beat
     // later, so drop the flag HERE: otherwise the transcript panel hangs on screen after the
     // message is already gone, which reads as it popping up because you sent something.
     if (listening) {
+      suppressCommitsRef.current = true; // late deliveries are duplicates from here
       setListening(false);
       setInterim("");
-      try { if (recRef.current) recRef.current.stop(); } catch {}
+      try { if (recRef.current) { recRef.current.onresult = null; recRef.current.stop(); } } catch {}
       if (hostMicRef.current) {
         const rec = hostMicRef.current;
         hostMicRef.current = null;
-        rec.cancel(); // already flushed above — nothing left to transcribe
+        rec.cancel(); // the visible words are already IN the message — a late segment would double-land
       }
     }
     setInput("");
@@ -2354,8 +2411,17 @@ const countdown = (str, now = Date.now()) => {
     if (attached) {
       // A SEND THAT GOES NOWHERE MUST SAY SO. If the transport is not there, silently falling back
       // to the room would put his message in the place he just left — worse than an error.
-      if (!workRef.current.send(text)) setSendErr("the session isn't accepting input — try 'back to the room' and re-attach");
-      else setSendErr("");
+      // A FAILED DISPATCH GIVES THE WORDS BACK. The teardown above (mic stopped, input cleared,
+      // overlay closed) runs before delivery is known — so a session that refuses input (busy,
+      // compacting: his board note names it) was VAPORIZING the message, with one easy-to-miss
+      // error line as the only trace. The words return to the input box, selected territory, his.
+      if (!workRef.current.send(text)) {
+        setSendErr("the session isn't accepting input — your words are back in the box");
+        setInput(text);
+        setTimeout(() => inputRef.current && autogrow(inputRef.current), 0);
+        return;
+      }
+      setSendErr("");
       // …AND THE VISITORS STILL HEAR HIM. His catch: *"Autobot is in your room right now. He's not
       // going to get a notification that I'm talking. I've noticed that."* He had noticed correctly.
       // The fan-out used to live inside the room write, and an attached send deliberately writes
@@ -2383,25 +2449,15 @@ const countdown = (str, now = Date.now()) => {
       if (rec && rec.id)
         setMessages((prev) => (prev.some((m) => m.id === rec.id) ? prev : [...prev, rec]));
       setTimeout(scrollToEnd, 50);
-    } catch {}
+    } catch {
+      // Same rule on the room path: a send that threw did not happen — the words come back.
+      setSendErr("couldn't reach the hub — your words are back in the box");
+      setInput(text);
+    }
   };
 
-  // …AND IT FIRES WHEN THE WORDS ARRIVE. The other half of the armed send: the press happened, the
-  // input was empty, and a moment later dictation commits its segment. Watching `input` is the right
-  // trigger because that IS the arrival — no timer guessing how long a transcript takes.
-  const sendRef = useRef(null);
-  sendRef.current = send;
-  useEffect(() => {
-    if (!armedSend.current) return;
-    if (Date.now() - armedSend.current > ARMED_WINDOW) {
-      armedSend.current = 0; // an intention this old is not an intention
-      return;
-    }
-    if (!input.trim()) return;
-    armedSend.current = 0; // clear BEFORE sending, or the send's own setInput re-enters this
-    if (sendRef.current) sendRef.current();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [input]);
+  // (The armed-send machinery is GONE — send takes the visible words instead of promising to
+  // send invisible future ones.)
 
   // RFC-031 — the roster: who's in this room besides its own agent, and where this project's
   // own agent is off visiting (both derived hub-side from real holds, so they can't lie).
@@ -2564,7 +2620,7 @@ const countdown = (str, now = Date.now()) => {
       .replace(/^-+|-+$/g, "")
       .slice(0, 80)}.md`;
   const openShow = React.useCallback(
-    async (id, label, pristineText, ts, report) => {
+    async (id, label, pristineText, ts, report, { auto = false } = {}) => {
       let text = pristineText;
       let path = report && report.path;
       // A POINTER SHOW LIVES IN A FILE. Read the document, and remember where it came from so that
@@ -2574,6 +2630,12 @@ const countdown = (str, now = Date.now()) => {
           const res = await projPluginRef.current.readFile({ path: report.path });
           text = res.content;
         } catch {
+          // THE MECHANISM HE DEMANDED, on the record: this is not a second list. Show RECORDS are
+          // chat history — a memory — and the 📺 fallback trusted the memory without asking the
+          // files, then rendered this tombstone when the file was gone. An AUTO open (📺, restore)
+          // of a dead report now opens NOTHING and reports failure so the caller tries the next;
+          // only an explicit CLICK on a history line still says plainly what's missing.
+          if (auto) return false;
           text = `> This report points at \`${report.path}\` and the document could not be read.`;
         }
       } else {
@@ -2589,6 +2651,7 @@ const countdown = (str, now = Date.now()) => {
       // ("if I switch, stay with me; but if a new one comes in, that's the one I'd see").
       setTv({ id, text, label: label || "show", ts, path, pickedAt: Date.now() });
       setTvOpen(true);
+      return true;
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [SystemView, projectCode, chat],
@@ -3054,6 +3117,114 @@ const countdown = (str, now = Date.now()) => {
         return true;
       });
   }, [fullHist, messages]);
+  // FILES ARE THE TRUTH (his unification): a report-backed show whose DOCUMENT is gone is a memory,
+  // not an entry — he deletes reports from the repo precisely so they stop lying around, and the TV
+  // list kept them alive. The index is read when the picker opens; a null read prunes NOTHING
+  // (an unreadable index must not look like a mass deletion). Text-only shows have no file and are
+  // untouched by all of this.
+  const [reportSets, setReportSets] = useState(null);
+  // THE PICKER LISTS THE PROJECT'S REPORTS — the same list the nav fold reads, from the same
+  // function. His rule, after a fresh report couldn't be pulled up here: "it's the same thing,
+  // it's just where I get to see it." A report needs no show record to be on the TV's menu.
+  const [allReports, setAllReports] = useState(null);
+  useEffect(() => {
+    // NO hasHostFiles GUARD — hostFiles reaches the HUB when the shell has no file verb, which is
+    // exactly how the nav's fold works. The guard made the picker permanently "empty" in any tab
+    // where the shell bridge was absent, while the nav happily listed reports beside it.
+    if (!tvPick) return;
+    let dead = false;
+    reportIndexSets(projectCode).then((sets) => {
+      if (!dead) setReportSets(sets);
+    });
+    listReports(projectCode).then((list) => {
+      if (!dead) setAllReports(list);
+    }).catch(() => { if (!dead) setAllReports([]); });
+    return () => { dead = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tvPick, projectCode]);
+  // A report row plays ON the TV by reading its FILE — a show record is history, not a
+  // prerequisite. Text-only shows (no file behind them) stay listed from history below.
+  const openReportOnTv = async (r) => {
+    try {
+      const res = await hostFiles(projectCode).readFile({ path: r.path });
+      setTvPick(false);
+      setTvArmed("");
+      // `path` rides along — it is what the 📄 hand-off and freshness re-reads key on; without it
+      // a report opened from the LIST had no button to the tabs (his catch on the walkthrough).
+      setTv({ id: `report:${r.path}`, path: r.path, text: res.content || "", label: r.name, ts: r.ts || Date.now(), pickedAt: Date.now() });
+      setTvOpen(true);
+      // THE PICK IS THE TV'S STATE — his bug: he picked a new report, reloaded, and the TV went
+      // back to an old show record, because a pick left no record for the restore to find. The
+      // pick persists; restore honors it FIRST (if its file still exists).
+      try { localStorage.setItem(`sv.tvPicked.${projectCode}`, JSON.stringify({ path: r.path, name: r.name })); } catch {}
+    } catch {}
+  };
+  const deleteReportRow = async (r) => {
+    try { await deleteReportFile(projectCode, r.path); } catch {}
+    setAllReports((cur) => (cur || []).filter((x) => x.path !== r.path));
+    // …and every show RECORD carrying this report goes hidden with it — leaving them was the
+    // zombie's other half: the restore found an unhidden record for a file that no longer existed.
+    (fullHist || messages || []).forEach((m) => {
+      if (m.kind !== "command" || m.cmd !== "show" || m.hidden) return;
+      const a = m.args || {};
+      if (
+        a.path === r.path ||
+        (a.report && reportPathFor(a.report) === r.path) ||
+        (a.text && a.text.includes(r.path)) ||
+        // OLD FULL-TEXT RECORDS carry the whole document and no path at all — the immortal zombie:
+        // file deleted, list clean, record replaying its embedded copy forever. The label is the
+        // report's name and it is the only handle left.
+        (m.label && r.name && m.label === r.name)
+      )
+        hideRecord(m.id);
+    });
+    try {
+      const picked = JSON.parse(localStorage.getItem(`sv.tvPicked.${projectCode}`));
+      if (picked && picked.path === r.path) localStorage.removeItem(`sv.tvPicked.${projectCode}`);
+    } catch {}
+    setTvArmed("");
+    // …and the TV itself, whatever id the dead show wears — an in-session `tv` that survived its
+    // own deletion was the "pops up every time I go back in" (state, not storage: reopening the TV
+    // showed the held object without asking anything).
+    if (tv && (tv.id === `report:${r.path}` || tv.path === r.path || (r.name && tv.label === r.name))) {
+      setTv(null);
+      setTvOpen(false);
+    }
+  };
+  const showExists = React.useCallback(
+    (s) => {
+      const a = s.args || {};
+      if (!a.report && !a.path) return true; // not document-backed — nothing to be missing
+      if (!reportSets) return true;
+      const path = a.path || (a.report && reportPathFor(a.report));
+      return (path && reportSets.paths.has(path)) || (a.report && reportSets.names.has(a.report));
+    },
+    [reportSets, reportPathFor],
+  );
+  const liveShows = React.useMemo(() => shows.filter(showExists), [shows, showExists]);
+  // THE TV'S DELETE IS THE REPORT'S DELETE — one verb, shared with the nav fold. Report-backed:
+  // the file and the index entry go, then the show record hides; text-only: the record hides.
+  // Deleting what's ON the TV puts the TV away.
+  const [tvArmed, setTvArmed] = useState("");
+  const deleteShow = async (s) => {
+    const a = s.args || {};
+    const path = a.path || (a.report && reportPathFor(a.report));
+    if (path) {
+      try { await deleteReportFile(projectCode, path); } catch {}
+      setReportSets((cur) => {
+        if (!cur) return cur;
+        const paths = new Set(cur.paths); paths.delete(path);
+        const names = new Set(cur.names); if (a.report) names.delete(a.report);
+        return { paths, names };
+      });
+    }
+    hideRecord(s.id);
+    setTvArmed("");
+    if (tv && (tv.id === s.id || (s.label && tv.label === s.label))) {
+      setTv(null);
+      setTvOpen(false);
+    }
+  };
   // RFC-039 — take a show off the list. Optimistic locally so the row goes at once, then the hub
   // patches the record (hidden: true) and every open panel re-reads it.
   const [dropShow, setDropShow] = useState(0);
@@ -3643,6 +3814,11 @@ const countdown = (str, now = Date.now()) => {
   const inNav = navDocked && !!slotEl && !inRail;
   const inRailRef = useRef(inRail);
   inRailRef.current = inRail;
+  // …and its twin for the CARD dock, so a drag can pull the agent out of the codebase slot exactly
+  // like it pulls one out of the rail (his call, and it was always the obvious symmetry: "you're
+  // supposed to just be able to drag that agent out, just like the other dock").
+  const inNavRef = useRef(inNav);
+  inNavRef.current = inNav;
   // RFC-052 — OVER THE DOCK WHILE DRAGGING: the bot shrinks to dock size in your hand and the spot
   // under the pointer shows a ring, so where it lands is clear before you let go (his ask).
   const [overDock, setOverDock] = useState(false);
@@ -3718,6 +3894,17 @@ const countdown = (str, now = Date.now()) => {
   }, [projectCode, navDocked]);
   // Which report the 📺 should put up: the newest one if it landed after your last pick, otherwise
   // whatever you were on. `shows` is already newest-first and deduped by title.
+  // AUTO-OPEN WALKS UNTIL SOMETHING REAL OPENS — files first, memory second. If every candidate
+  // is dead, the TV opens onto its PICKER (the live list), never onto a corpse.
+  const openFreshShow = async (cands) => {
+    for (const c of cands) {
+      // eslint-disable-next-line no-await-in-loop
+      if (await openShow(c.id, c.label, c.args.text, c.ts, c.args.report || c.args.path ? c.args : null, { auto: true })) return true;
+    }
+    setTvOpen(true);
+    setTvPick(true);
+    return false;
+  };
   const showToOpen = () => {
     if (!shows.length) return null;
     if (!tv) return shows[0];
@@ -3743,13 +3930,85 @@ const countdown = (str, now = Date.now()) => {
     setBoardOpen(which === "board" && !already);
     setLinksOpen(which === "links" && !already);
     const fresh = which === "tv" && !already ? showToOpen() : null;
-    if (fresh) openShow(fresh.id, fresh.label, fresh.args.text, fresh.ts, fresh.args.report ? fresh.args : null);
-    else setTvOpen(which === "tv" && !already);
+    if (fresh) openFreshShow(shows.slice(shows.indexOf(fresh)));
+    else {
+      setTvOpen(which === "tv" && !already);
+      if (which === "tv" && !already && !tv) setTvPick(true); // empty TV opens onto the list
+    }
     if (which === "chat" && !already) {
       setUnread(0);
       try { localStorage.setItem(`sv.chatSeen.${projectCode}`, String(Date.now())); } catch {}
     }
   };
+  // ONE PICKER, TWO SEATS — the full TV's dropdown and the EMPTY TV's body are the same list.
+  const tvPickerEl = tvPick ? (
+    <div className={`${CLASSNAME}__tv-picker`} onClick={(e) => e.stopPropagation()}>
+                    {/* THE PROJECT'S REPORTS — the nav's exact list. Every report is playable here the
+                        moment it exists; no show record required. */}
+                    {(allReports || []).map((r) => (
+                      <div key={r.path} className={`${CLASSNAME}__tv-pick-row${tvArmed === r.path ? " is-armed" : ""}`}>
+                        <button
+                          type="button"
+                          className={`${CLASSNAME}__tv-pick-item${tv && tv.id === `report:${r.path}` ? " is-on" : ""}`}
+                          title={r.path}
+                          onClick={() => openReportOnTv(r)}
+                        >
+                          <span className={`${CLASSNAME}__tv-pick-name`}>{r.name}</span>
+                          {r.ts ? <span className={`${CLASSNAME}__tv-pick-time`}>{rowWhen(r.ts)}</span> : null}
+                        </button>
+                        <button
+                          type="button"
+                          className={`${CLASSNAME}__tv-pick-del`}
+                          title={tvArmed === r.path ? "Click again — deletes the report (kept in git history)" : "Delete this report"}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (tvArmed === r.path) deleteReportRow(r);
+                            else setTvArmed(r.path);
+                          }}
+                        >
+                          {tvArmed === r.path ? "sure?" : "×"}
+                        </button>
+                      </div>
+                    ))}
+                    {allReports === null ? (
+                      <div className={`${CLASSNAME}__tv-pick-empty`}>reading the reports…</div>
+                    ) : allReports.length === 0 && liveShows.filter((s) => !(s.args && (s.args.report || s.args.path))).length === 0 ? (
+                      <div className={`${CLASSNAME}__tv-pick-empty`}>no reports or shows in this room yet</div>
+                    ) : (
+                      liveShows.filter((s) => !(s.args && (s.args.report || s.args.path))).map((s) => (
+                        <div key={s.id} className={`${CLASSNAME}__tv-pick-row${tvArmed === s.id ? " is-armed" : ""}`}>
+                          <button
+                            type="button"
+                            className={`${CLASSNAME}__tv-pick-item${tv && tv.id === s.id ? " is-on" : ""}`}
+                            onClick={() => {
+                              setTvArmed("");
+                              setTvPick(false);
+                              openShow(s.id, s.label, s.args.text, s.ts, s.args.report ? s.args : null);
+                            }}
+                          >
+                            <span className={`${CLASSNAME}__tv-pick-name`}>{s.label || "show"}</span>
+                            <span className={`${CLASSNAME}__tv-pick-time`}>{rowWhen(s.ts)}</span>
+                          </button>
+                          {/* The row's quick delete — the SAME two-step every deletable row in this app
+                              has, and the SAME delete the nav's reports fold runs: file + index + this
+                              list, one press pair. */}
+                          <button
+                            type="button"
+                            className={`${CLASSNAME}__tv-pick-del`}
+                            title={tvArmed === s.id ? "Click again — deletes the report file too (kept in git history)" : "Delete this report"}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (tvArmed === s.id) deleteShow(s);
+                              else setTvArmed(s.id);
+                            }}
+                          >
+                            {tvArmed === s.id ? "sure?" : "×"}
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+  ) : null;
   // THE WHOLE ROW TOGGLES, docked — his catch: "you got to click on the agent icon to expand, and
   // obviously you're supposed to be able to just click on the row just like the other rows."
   // `services` and `code` are one big button each; the agent row is a strip of controls, so instead
@@ -4606,10 +4865,11 @@ const countdown = (str, now = Date.now()) => {
             className={`${CLASSNAME}__tv ${CLASSNAME}__tv--empty`}
             style={{ width: tvSize.w, height: 120 }}
           >
-            <div className={`${CLASSNAME}__tv-empty-line`}>nothing on the TV yet</div>
-            <div className={`${CLASSNAME}__tv-empty-sub`}>
-              a report put on screen here shows up on this TV — <code>systemview show {projectCode} …</code>
-            </div>
+            <div className={`${CLASSNAME}__tv-empty-line`}>nothing on the TV yet — pick a report</div>
+            {/* THE LIST, NOT A CLI LESSON — his call ("so we don't have to go through this
+                ceremony"): an empty TV in a room with reports on the nav was teaching him a show
+                command instead of offering the reports. Same picker, same rows, same delete. */}
+            {tvPickerEl}
             <button
               type="button"
               className={`${CLASSNAME}__tv-empty-close`}
@@ -4739,28 +4999,7 @@ const countdown = (str, now = Date.now()) => {
                 ✕
               </button>
             </div>
-            {tvPick && (
-              <div className={`${CLASSNAME}__tv-picker`} onClick={(e) => e.stopPropagation()}>
-                {shows.length === 0 ? (
-                  <div className={`${CLASSNAME}__tv-pick-empty`}>no shows in this room yet</div>
-                ) : (
-                  shows.map((s) => (
-                    <button
-                      type="button"
-                      key={s.id}
-                      className={`${CLASSNAME}__tv-pick-item${tv && tv.id === s.id ? " is-on" : ""}`}
-                      onClick={() => {
-                        setTvPick(false);
-                        openShow(s.id, s.label, s.args.text, s.ts, s.args.report ? s.args : null);
-                      }}
-                    >
-                      <span className={`${CLASSNAME}__tv-pick-name`}>{s.label || "show"}</span>
-                      <span className={`${CLASSNAME}__tv-pick-time`}>{msgTime(s.ts)}</span>
-                    </button>
-                  ))
-                )}
-              </div>
-            )}
+            {tvPickerEl}
             <div className={`${CLASSNAME}__tv-body`}>
               {/* The TV is INTERACTIVE-COMPLETE — and clicks are SILENT (his flow: "when I'm
                   done I'll jump back in the chat and say I responded"). Every interaction
@@ -6263,9 +6502,11 @@ const countdown = (str, now = Date.now()) => {
             }
             // Nothing on it yet — or something newer has landed since you last picked.
             const fresh = showToOpen();
-            if (fresh)
-              openShow(fresh.id, fresh.label, fresh.args.text, fresh.ts, fresh.args.report ? fresh.args : null);
-            else setTvOpen(true);
+            if (fresh) openFreshShow(shows.slice(shows.indexOf(fresh)));
+            else {
+              setTvOpen(true);
+              if (!tv) setTvPick(true);
+            }
           }}
         >
           📺

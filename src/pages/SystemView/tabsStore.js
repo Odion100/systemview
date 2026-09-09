@@ -27,7 +27,7 @@ export const fileKey = (file) => `file:${file.projectCode || ""}:${file.path}`;
 // the stale cache produced exactly the bug he replicated: a leftover "Stage" tab written under the
 // old meaning, wearing the new code's clothes. A cache that outlives its shape lies; on mismatch we
 // start fresh (the open set is a convenience, losing it once is cheap — believing it wrongly isn't).
-const V = 4; // v4: NO seeded doc tab — an empty strip is EMPTY (the doc tab exists only when a namespace is navigated to)
+const V = 5; // v5: doc tabs are PER NAMESPACE (doc:<svc>.<mod>.<meth>) — a link from content opens a tab, never navigates the page you are on
 const load = (pc) => {
   try {
     const raw = JSON.parse(localStorage.getItem(KEY(pc)));
@@ -110,6 +110,54 @@ export function moveTab(pc, key, beforeKey) {
   const to = beforeKey ? tabs.findIndex((t) => t.key === beforeKey) : tabs.length;
   tabs.splice(to === -1 ? tabs.length : to, 0, pane.tabs[from]);
   write(pc, { panes: [{ tabs, active: pane.active }] });
+}
+
+// BULK CLOSE — the right-click verbs. One writer, so they cannot disagree with closeTab about
+// what "active" means afterwards.
+//
+// The ANCHOR (the tab he right-clicked) is the one guaranteed to survive `closeRight`/`closeOthers`,
+// so it is where focus lands when the close swallowed whatever was active. Focusing the neighbor
+// instead — closeTab's rule for a single close — would be wrong here: the neighbor may be one of
+// the tabs he just asked to be rid of.
+//
+// Returns the key now active (null when nothing is left), so the caller knows whether to navigate.
+function closeMany(pc, keep, anchorKey) {
+  const s = storeOf(pc).state;
+  const pane = s.panes[0];
+  const tabs = pane.tabs.filter(keep);
+  if (tabs.length === pane.tabs.length) return pane.active;
+  const active = tabs.some((t) => t.key === pane.active)
+    ? pane.active
+    : tabs.some((t) => t.key === anchorKey)
+    ? anchorKey
+    : tabs.length
+    ? tabs[tabs.length - 1].key
+    : null;
+  write(pc, { panes: [{ tabs, active }] });
+  return active;
+}
+
+export function closeRight(pc, key) {
+  const pane = storeOf(pc).state.panes[0];
+  const idx = pane.tabs.findIndex((t) => t.key === key);
+  if (idx === -1) return pane.active;
+  return closeMany(pc, (_t, i) => i <= idx, key);
+}
+
+export function closeOthers(pc, key) {
+  return closeMany(pc, (t) => t.key === key, key);
+}
+
+export function closeAll(pc) {
+  return closeMany(pc, () => false, null);
+}
+
+// How many would each verb remove — so the menu can hide a verb that would do nothing rather than
+// offering a dead item.
+export function countRight(pc, key) {
+  const tabs = storeOf(pc).state.panes[0].tabs;
+  const idx = tabs.findIndex((t) => t.key === key);
+  return idx === -1 ? 0 : tabs.length - idx - 1;
 }
 
 export function activeTab(pc) {

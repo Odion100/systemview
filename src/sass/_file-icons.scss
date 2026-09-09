@@ -1,0 +1,38 @@
+// FILE-TYPE COLORS — ONE DEFINITION, EVERY SURFACE.
+//
+// These were written for the codebase tree and then re-invented, badly, for the tab strip: nine
+// shades hand-picked to be "the same family" that were all a step off, and markdown came out
+// PURPLE in a tab while the tree painted it BLUE. He read a tab and lost a second working out what
+// it was — which is the whole thing the glyph was added to prevent.
+//
+// The glyph table already lives in one place (`src/utils/fileIcons.js`) for exactly this reason.
+// The colors are the other half of the same fact and they belong in one place too. Any surface
+// that shows a file type includes this mixin; none of them owns a color.
+//
+// `$size` exists because the cog is a smudge at row size — his note the first time, when the fix
+// was to raise everything instead of just the cog.
+@mixin file-icon-kinds($size: 10px) {
+  &--js { color: #d9a441; }
+  &--ts { color: #4a90d9; }
+  &--data { color: #9a7cb8; }
+  &--style { color: #d97fb8; }
+  // Markdown reads BLUE, deeper than the TS sky so the two don't blur together in a long list.
+  &--doc { color: #2f6fdc; }
+  &--img {
+    color: #d97f6f;
+    img {
+      display: block;
+      margin: 0 auto;
+      width: 11px;
+      height: 11px;
+      object-fit: contain;
+    }
+  }
+  &--config {
+    color: #7a8699;
+    font-size: $size * 1.4;
+  }
+  &--shell { color: #5aa39a; }
+  &--markup { color: #c07a4a; }
+  &--other { color: var(--sv-text-faint); }
+}

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useHistory, useLocation } from "react-router-dom";
 import { canPickThenName, canRenameHostProject, isHostProject } from "../../utils/hostProject";
 import DocIcon from "../../atoms/DocsIcon/DocsIcon";
@@ -8,10 +8,12 @@ import { setHelpTopic } from "../../atoms/Help/helpStore";
 import RowMenu from "../../atoms/RowMenu/RowMenu";
 import { commentedPathSet } from "../../atoms/CodeView/codeComments";
 import { hostFiles, hasHostFiles } from "../../utils/hostFiles";
+import { listReports } from "../../utils/reportOps";
+import { deleteReport as deleteReportEverywhere } from "../../utils/reportOps";
 import { slotId, useNavDock, useDockOrder, orderProjects, moveInDock } from "../AgentChat/navDock";
 import useFold from "./useFold";
 import TerminalSection from "./TerminalSection";
-import imageFileIcon from "../../assets/image-file.png";
+import { iconFor } from "../../utils/fileIcons";
 import "./styles.scss";
 
 // RFC-022 — the CODEBASE navigation (the "Codebase" nav tab). Designed fresh for files, NOT a copy of
@@ -25,26 +27,8 @@ const CLASSNAME = "codebase-nav";
 // same trick for the same reason).
 const FILE_MIME = "application/x-systemview-file";
 
-// FILE TYPE AT A GLANCE. A monospace tree of forty identical names is read one line at a time; a
-// glyph in front of each is read by shape. Deliberately a small set — the point is telling KINDS
-// apart (code / style / data / doc / image / config), not decorating every extension.
-const FILE_ICONS = [
-  [/\.(jsx?|mjs|cjs)$/i, "JS", "js"],
-  [/\.tsx?$/i, "TS", "ts"],
-  [/\.(json|jsonc)$/i, "{}", "data"],
-  [/\.(s?css|less)$/i, "#", "style"],
-  [/\.(md|markdown|txt)$/i, "¶", "doc"],
-  // Images get the real icon Odion picked, not a glyph — `img` renders as an <img> below.
-  [/\.(png|jpe?g|gif|svg|webp|ico|avif|bmp)$/i, imageFileIcon, "img"],
-  [/\.(ya?ml|toml|ini|env|conf)$/i, "⚙", "config"],
-  [/\.(sh|bash|zsh)$/i, "$", "shell"],
-  [/\.(html?|xml)$/i, "<>", "markup"],
-];
-const iconFor = (name) => {
-  for (const [re, glyph, kind] of FILE_ICONS) if (re.test(name)) return { glyph, kind };
-  return { glyph: "·", kind: "other" };
-};
-
+// FILE TYPE AT A GLANCE — the table moved to `src/utils/fileIcons.js` when the tab strip needed
+// the same glyphs. Two copies would have drifted silently; one table cannot.
 // WHICH change, not just "changed". Everything used to be one amber dot, so a new file, a deleted
 // one and something already staged all read the same. These are git's own letters — the ones anyone
 // who has run `git status` already knows — so there's nothing new to learn.
@@ -615,6 +599,12 @@ function ServiceNode({ service, projectCode, history, selection, onNavigate, rev
 // RFC-054 — the reports section of a codebase's card: the index read from the hub, the documents
 // listed by NAME, newest first. Clicking one opens that report's tab in the center — the navigation
 // is where you select, the strip is what's open (his design, said twice before I got it right).
+const reportWhen = (ts) => {
+  const d = new Date(ts);
+  const sameDay = d.toDateString() === new Date().toDateString();
+  const t = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  return sameDay ? t : `${d.toLocaleDateString([], { month: "short", day: "numeric" })}, ${t}`;
+};
 function ReportsFold({ projectCode, CLASSNAME, Chevron, bulk, history, openRowMenu }) {
   const [open, flip] = useFold(`sv.cbNav.reports.${projectCode}`, false, bulk);
   const [reports, setReports] = useState(null);
@@ -627,11 +617,9 @@ function ReportsFold({ projectCode, CLASSNAME, Chevron, bulk, history, openRowMe
     let dead = false;
     (async () => {
       try {
-        const res = await hostFiles(projectCode).readFile({ path: ".systemview/reports.index.json" });
-        const idx = JSON.parse(res.content || "{}");
-        // every entry in this project's index belongs to this project's card — the index file IS the scope
-        const all = Object.values(idx).flat().filter((r) => r && r.path);
-        if (!dead) setReports(all.sort((a, b) => (b.ts || 0) - (a.ts || 0)));
+        // THE ONE LIST — shared with the TV picker (reportOps.listReports): index + scan − hidden.
+        const all = await listReports(projectCode);
+        if (!dead) setReports(all);
       } catch {
         if (!dead) setReports([]);
       }
@@ -658,18 +646,7 @@ function ReportsFold({ projectCode, CLASSNAME, Chevron, bulk, history, openRowMe
     ]);
   };
   const deleteReport = async (r) => {
-    const files = hostFiles(projectCode);
-    try {
-      const res = await files.readFile({ path: ".systemview/reports.index.json" });
-      const idx = JSON.parse(res.content || "{}");
-      Object.keys(idx).forEach((k) => {
-        idx[k] = (idx[k] || []).filter((x) => !(x && x.path === r.path));
-      });
-      await files.writeFile({ path: ".systemview/reports.index.json", content: JSON.stringify(idx, null, 1) });
-    } catch {}
-    try {
-      if (files.deleteFile) await files.deleteFile({ path: r.path });
-    } catch {}
+    await deleteReportEverywhere(projectCode, r.path); // shared with the TV's list — one delete
     setArmed("");
     setReports((cur) => (cur || []).filter((x) => x.path !== r.path));
   };
@@ -709,6 +686,9 @@ function ReportsFold({ projectCode, CLASSNAME, Chevron, bulk, history, openRowMe
                 }}
               >
                 {r.name}
+                {/* the day, not just a time — a report list spans weeks (his catch on the TV's list;
+                    this one had nothing at all) */}
+                {r.ts ? <span className={`${CLASSNAME}__report-when`}>{reportWhen(r.ts)}</span> : null}
               </button>
               <button
                 type="button"
@@ -1222,6 +1202,27 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
   const commitBoxRef = useRef(null);
   // git's own words from the last commit/push — including the sentence an aborting hook prints.
   const [gitOut, setGitOut] = useState("");
+  // A LOG ROW OPENS — his ask: the row shows a clipped subject and nothing else, and that row is
+  // the only place you go to read a commit. Fetched LAZILY and cached by sha: the 40-row log would
+  // otherwise carry forty bodies and forty file lists nobody has asked to see.
+  const [openCommit, setOpenCommit] = useState(null);
+  const [commitInfo, setCommitInfo] = useState({});
+  const toggleCommit = useCallback(async (sha) => {
+    if (openCommit === sha) return setOpenCommit(null);
+    setOpenCommit(sha);
+    if (commitInfo[sha]) return;
+    // A marker while it is in flight, so a slow repo shows "loading" rather than an empty drawer
+    // that reads as "this commit touched nothing".
+    setCommitInfo((m) => ({ ...m, [sha]: { loading: true } }));
+    try {
+      const api = hostFiles(projectCode, fileHost && fileHost.root);
+      const info = api.showCommit ? await api.showCommit(sha) : { ok: false, error: "older host" };
+      setCommitInfo((m) => ({ ...m, [sha]: info }));
+    } catch (e) {
+      setCommitInfo((m) => ({ ...m, [sha]: { ok: false, error: (e && e.message) || "could not read that commit" } }));
+    }
+  }, [openCommit, commitInfo, projectCode, fileHost]);
+
   const loadGitState = useRef(() => {});
   loadGitState.current = async () => {
     if (!fileHost) return;
@@ -1258,6 +1259,10 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
         setMessage("");
         setGitState(res.state);
         setGitOut(res.output || `${res.sha} ${res.subject}`);
+        // …AND SHOW IT — the ::commit block flips to its log after a commit and he liked exactly
+        // that ("you don't do the same thing in the nav commit location"). Same move here: the
+        // receipt is the point of the moment after a commit.
+        setVcTab("log");
         if (res.changed && res.changed.files)
           setChanged(
             new Map(
@@ -1269,12 +1274,14 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
         window.dispatchEvent(new CustomEvent("sv:git"));
         setGitState(res.state);
         setGitOut(res.pushed ? res.output : res.reason || "nothing to push");
+        setVcTab("log");
         if (!res.pushed) setVcError(res.reason || "nothing to push");
       }
     } catch (e) {
       // git's own sentence, not ours — a hook that aborts explains itself.
       setVcError((e && e.message) || `${what} failed`);
       setGitOut((e && e.message) || `${what} failed`);
+      setVcTab("log"); // a failure's explanation lives in the same place as a success's receipt
     } finally {
       setVcBusy(null);
     }
@@ -2356,17 +2363,82 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
                               {!gitState.upstream && " — this branch tracks nothing"}
                             </div>
                           )}
-                          {gitState.log.map((c, i) => (
+                          {gitState.log.map((c, i) => {
+                            const open = openCommit === c.sha;
+                            const info = commitInfo[c.sha];
+                            return (
+                            <React.Fragment key={c.sha}>
                             <div
-                              key={c.sha}
-                              className={`${CLASSNAME}__logrow${isUnpushed(c, i) ? ` ${CLASSNAME}__logrow--unpushed` : ""}`}
+                              className={`${CLASSNAME}__logrow${isUnpushed(c, i) ? ` ${CLASSNAME}__logrow--unpushed` : ""}${open ? ` ${CLASSNAME}__logrow--open` : ""}`}
                               title={`${c.subject} — ${c.who}${isUnpushed(c, i) ? " · not pushed" : ""}`}
+                              role="button"
+                              onClick={() => toggleCommit(c.sha)}
                             >
                               <code className={`${CLASSNAME}__logsha`}>{c.sha}</code>
                               <span className={`${CLASSNAME}__logsubj`}>{c.subject}</span>
                               <span className={`${CLASSNAME}__logwhen`}>{c.when}</span>
                             </div>
-                          ))}
+                            {open && (
+                              <div className={`${CLASSNAME}__logdetail`}>
+                                {!info || info.loading ? (
+                                  <div className={`${CLASSNAME}__logdetail-note`}>reading…</div>
+                                ) : info.ok === false ? (
+                                  <div className={`${CLASSNAME}__logdetail-note`}>{info.error}</div>
+                                ) : (
+                                  <>
+                                    {/* THE WHOLE SUBJECT, WRAPPED. The row clips it to one line —
+                                        that clipping is the complaint, so the drawer must not
+                                        reproduce it. */}
+                                    <div className={`${CLASSNAME}__logsubj-full`}>{info.subject}</div>
+                                    {info.body ? (
+                                      <pre className={`${CLASSNAME}__logbody`}>{info.body}</pre>
+                                    ) : null}
+                                    <div className={`${CLASSNAME}__logmeta`}>
+                                      <span>{info.who}</span>
+                                      <span>{info.date}</span>
+                                      <code>{info.full ? info.full.slice(0, 12) : c.sha}</code>
+                                      {info.parents && info.parents.length > 1 ? <span>merge</span> : null}
+                                    </div>
+                                    <div className={`${CLASSNAME}__logstat`}>
+                                      {info.files.length} file{info.files.length === 1 ? "" : "s"}
+                                      <span className={`${CLASSNAME}__logadd`}>+{info.added}</span>
+                                      <span className={`${CLASSNAME}__logdel`}>−{info.removed}</span>
+                                    </div>
+                                    {/* Each file OPENS — a commit you can read but not follow into
+                                        makes you go find the file by hand, which is the trip the
+                                        panel exists to save. */}
+                                    <div className={`${CLASSNAME}__logfiles`}>
+                                      {info.files.map((f) => (
+                                        <div
+                                          key={f.path}
+                                          className={`${CLASSNAME}__logfile`}
+                                          role="button"
+                                          title={f.path}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            onOpenFile &&
+                                              onOpenFile({
+                                                projectCode,
+                                                serviceId: fileHost && fileHost.serviceId,
+                                                path: f.path,
+                                              });
+                                          }}
+                                        >
+                                          {fileIcon(f.path)}
+                                          <span className={`${CLASSNAME}__logfile-path`}>{f.path}</span>
+                                          <span className={`${CLASSNAME}__logfile-n`}>
+                                            {f.added === null ? "bin" : `+${f.added} −${f.removed}`}
+                                          </span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                            )}
+                            </React.Fragment>
+                            );
+                          })}
                         </>
                       );
                     })()

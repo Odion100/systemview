@@ -54,7 +54,7 @@ async function walkAll(files, projectCode) {
         if (!IGNORE.has(name)) queue.push(r.path);
         return;
       }
-      out.push({ path: r.path, language: r.language || languageOf(r.path), size: r.size });
+      out.push({ path: r.path, language: r.language || languageOf(r.path), size: r.size, mtime: r.mtime });
     });
   }
   return out;
@@ -133,6 +133,8 @@ export const hostFiles = (projectCode, root) => {
     // the path again and the hub stays underneath ONLY so a gap on one side can never blank the
     // panel a second time. Two owners is what caused today; a fallback that is never the first
     // answer is not two owners.
+    // ONE COMMIT, IN FULL — fetched only when a log row is opened, never with the 40-row log.
+    showCommit: async (sha) => hub().showCommit(projectCode, { sha, root }),
     gitState: async () => {
       const st = await hub().gitState(projectCode, { root });
       if (st && st.ok === false) throw new Error(st.error || "git did not run");
