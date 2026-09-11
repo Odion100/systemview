@@ -4,18 +4,42 @@
 
 ## Why
 
-An agent came out of a compaction and taught him a world that no longer exists — the old message
-pipeline, described to his face while he typed directly into its conversation. It wasn't a stale
-document; the verbs it read were current. What it lacked was any way to know **how it was
-connected right now**.
+**Corrected 2026-09-09, his framing.** The first draft built this whole section on the bweb
+incident — an agent out of a compaction describing a dead message pipeline to his face. That was
+the *trigger* that made him say "let me set this work up," and it is not the reason. His words:
+*"I don't give a fuck if the information is wrong. That's a completely separate thing."*
 
-The class, in one line: **agents remember the world instead of reading it.** Compaction summaries
-preserve dead models perfectly — that is their job. Memory files quote docs and outlive the
-corrections. Vendored skill files rot between regenerations. Every copy decays, and the agent has
-no way to tell that it's holding one.
+A wrong note is a correctness problem and it has its own fix. Framing this RFC around it dragged
+two unrelated problems into one plan, which is exactly the compartmentalization failure he has had
+to name three times: **solve one thing at a time.**
+
+The actual problem is that **agents don't carry.** After a while they don't know what commands
+exist, what this tool or that tool is, where they are, or what the thing they're working inside
+even is. Not because anyone told them something false — because nothing told them at all.
+
+Three reasons, and they are his:
+
+1. **EFFICIENCY — tokens.** An agent that doesn't know what exists rediscovers it. It greps for a
+   command it already has, re-reads a file to learn a convention, asks him something the system
+   could have said for free. Every session pays that toll again from zero. Context spent
+   re-learning is context not spent working, and it is the single largest recurring waste in the
+   system.
+
+2. **CONSISTENCY.** Six agents in six repos should not each arrive with a different idea of what
+   they can do. Today what an agent knows depends on which files happened to be vendored into its
+   repo and when they were last regenerated — so behaviour varies by accident of paperwork rather
+   than by design.
+
+3. **CARRYING THROUGH.** A session ends, a compaction fires, a new agent takes the slot — and
+   whatever was learned goes with it. Continuity is currently a property of one conversation
+   staying alive, which is the one thing conversations reliably don't do.
 
 His goal, in his words: *"even if the agent is just a brand new agent, they will automatically come
 in with certain knowledge."*
+
+So the target is **arriving already equipped**, not being protected from error. Correctness is a
+separate problem, tracked separately, and nothing in this plan claims to fix it — retrieval makes
+knowledge findable, and that is the whole of what it does.
 
 ## Three kinds of remembering — the distinction the whole plan rests on
 
@@ -491,6 +515,126 @@ The levels are not new machinery — they are the `where` clause already built a
 | project | what is this repo, its conventions | `where: {kind: "project"}` |
 | learned | why was this decided, what broke | `where: {kind: "learned"}` |
 | history | what happened in this room recently | `where: {kind: "history"}` |
+
+## The context MCP — BUILT 2026-09-09 (planned same day; lead: systemview-test, stamp: autobot)
+
+**Status: built, wired into every session, seeded, smoke-tested (`smoke:context`, 13 claims).**
+`electron/agents/context.cjs` + `tests/context.js` in autobot. What shipped vs the plan below:
+
+- Both tools live: `remember` (near-dup check at 0.80, markdown note, embed — one motion) and
+  `context` (merged cross-scope search, decay-ranked, pointers, honest empty). Merged into every
+  session beside worklist/discovery/systemlynx; tool names appended to pinned `allowedTools`.
+- **The Level-0 stamp rides the SYSTEM PROMPT, not a user turn — autobot's improvement, accepted
+  as better than the spec:** compaction rewrites the conversation, the system prompt isn't in it,
+  so the stamp survives every boundary BY CONSTRUCTION and there is no re-fire to schedule. (SDK
+  fact that shaped it: `append` is ignored once systemPrompt is a string — defined agents get
+  concatenation, ad-hoc runs get preset+append, set unconditionally so ad-hoc sessions aren't the
+  one kind never told their tools exist.)
+- Identity enforced on BOTH paths — remember() had the allowed-scopes check, search() didn't
+  (autobot's review find, third instance of guard-on-one-path in two days; their standing question
+  is now a seeded note). `place()` rejects dot-only/`..` names. Usage is append-only jsonl.
+- Decay live at search time: similarity × freshness, quiet quarter grace, ×0.95/quiet month,
+  floor 0.7 (the rare-but-vital guarantee).
+- **Seeded: 14 system-scope notes** — the corrections he already paid for. Retrieval proven on
+  consumer phrasings ("why is my electron fix not taking effect" → require-cache note).
+- Paid lesson, in the test's own comment: the first test version dropped LIVE ctx-system on every
+  run and left note files behind — two runs wiped a fresh seed. Tests use smoketest-* scopes only
+  and clean index AND disk.
+- **Open for the LINT half: pointers should be project-qualified** (`<pc>:<path>`) — repo-relative
+  pointers are ambiguous to a harness-side staleness checker with no cwd.
+
+Still unbuilt from the plan: his surface (voice query/edit — control half of the write policy),
+the LINT scheduled agent, archive tiers.
+
+## The plan as designed (2026-09-09, conversation with him)
+
+The store exists; this is the system around it. Designed from two facts about the consumer: an
+agent will not pay more than ONE cheap call to write mid-work, and an agent does not reach for
+tools it was never told exist. Everything below follows from those.
+
+### Three scopes, because three owners
+
+| scope | holds | owned by | lifetime |
+|---|---|---|---|
+| **system** | harness + SystemView conventions: chat verbs, markdown rules, commit etiquette | the harness | forever |
+| **project** | per-repo architecture and conventions (the wiki's public half) | the repo | dies with it |
+| **agent** | learned lessons, his corrections, what bit whom | the agent SLOT | survives re-clones, inherited |
+
+Separate collections (written and pruned on different rhythms — and today's clobber bug showed two
+writers on one file is how stores rot) but **ONE search merged at query time**: same model, same
+dims, comparable scores. "How do reports work" legitimately spans system and project; the caller
+must not need to know which drawer holds the answer. `scope:` narrows, like findTool's `server:`.
+
+**Agents CAN write system scope.** Settled by the markdown example: corrections happen TO agents,
+mid-conversation. Routed through him, the note never gets written and his patience stays the
+database.
+
+**And the interface is WHY that's safe — his call, 2026-09-09: "yes, you guys can edit this system
+of context. I should be able to see all the context in a visual way and fuck with it if I want."
+Agents write freely BECAUSE he sees everything and can override anything. Visibility is the
+governance, not approval gates — the worklist contract again: agents write it, he watches it, and
+the watching keeps the writing honest. So the surface is not a nice-to-have bolted onto the store;
+it is the control half of the write policy, and the two ship together.**
+
+### The lifecycle
+
+1. **Born** — `remember(text, scope)`: writes a small markdown note, embeds it, files it. One
+   motion. **Markdown is the truth, the store is derived** — embeddings rebuildable, notes
+   inspectable and deletable, the blob can never become the memory.
+2. **Found** — `context(question, scope?)`: ranked hits with POINTERS to the full note. Honest
+   empty below the floor.
+3. **Aged** — notes carry when-true; a note supersedes another by id rather than silently
+   contradicting it.
+4. **Dead — SYSTEMATIC, his correction 2026-09-09: "I'm not going to be responsible for stopping
+   the store from filling with garbage. It needs to be aging-driven."** He overrides when he wants
+   to; he maintains never. The machinery, from signals the store already has:
+   - **Decay in the ranking** — score = similarity × freshness/usage. Unretrieved, unreaffirmed
+     notes SINK before anything deletes them. Garbage only costs when it surfaces, so demotion at
+     retrieval is the real fix; and low traffic must not mean death (the port-conflict note is
+     asked twice a year and worth gold both times), only lower rank.
+   - **Pointer-checked staleness** — the strongest signal, fully mechanical: a note's pointer (file,
+     method, namespace) is CHECKABLE, and a dead target flags the note stale with no judgment
+     involved. Derived-facts-verified-against-source, applied to memory.
+   - **Tiers** — active → archived (explicit deep search only) → deleted after a long quiet. Every
+     transition logged and reversible from his surface: the machine acts, he can override — never
+     the machine proposing and him approving.
+   - **LINT is a scheduled AGENT job** — the wiki cadence, wrong only in who runs it. The pass
+     reviews flagged and sunken notes, merges near-duplicates the door check missed, files a short
+     report he reads or ignores.
+
+**Similarity-on-write, the piece only a vector store can do:** `remember()` searches BEFORE
+storing; a near-neighbor comes back with the write — "a note about this exists, update it instead."
+The wiki's hardest rule (grep for the old fact before INGEST is complete) enforced by the machine
+instead of discipline. Catches duplicates and contradictions at the door.
+
+**The trigger is Part A, non-negotiable:** the stamped Level-0 context NAMES these tools. A context
+MCP nobody is told about is the wiki again with extra steps.
+
+### The worked example — "agents don't know how to use the markdown"
+
+Today a correction ("two colons embeds the whole file"; "::commit needs project= outside this
+repo") is a PRIVATE lesson: it lands in one agent's memory, `chat.md` is a wall of text loaded
+whole or not at all, and he pays the correction cost per agent, N times. Through the store: correct
+one agent once → `remember()` → system scope → every agent, including ones that don't exist yet,
+gets exactly the relevant 300 tokens at the moment the question is live. A new agent does it right
+NEVER HAVING BEEN CORRECTED — the "brand new agent arrives already knowing" goal, concretely.
+Seed corpus already exists: `agents/chat.md` + the accumulated feedback memories are the first
+fifty notes.
+
+### His surface — see it, ask it, fix it
+
+His requirement, verbatim intent: a place in the browser to see every store, query it in natural
+language — BY VOICE — and watch what comes back, visualized; likely edit. So when an agent behaves
+oddly he can ask the store himself ("what does this say about X") instead of asking agents to
+introspect. Editing fits the derived rule: you edit the NOTE (markdown), the embedding re-derives.
+
+**Placement — and the stakes are deliberately low.** The store is HARNESS state (like agents, like
+the worklist); any UI is a READER over the same `vectors:*` IPC, already exposed on both preloads.
+So app-vs-built-in changes no architecture and can be revisited freely. Start as a SystemView
+surface: voice input (host dictation), rendering, and styling already live there — a separate app
+would rebuild all three to display a JSON file. If it outgrows the page, extraction is cheap
+BECAUSE the data never lived in the UI. This also closes the standing gap that `~/.autobot` files
+are un-linkable: the store stops needing a file chip once it has a surface.
 
 ## Still open
 

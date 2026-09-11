@@ -4,6 +4,7 @@ import { Client } from "../../systemClient";
 import ServiceContext from "../../ServiceContext";
 import PageHeader from "../../organisms/PageHeader/PageHeader";
 import AgentChat from "../../organisms/AgentChat/AgentChat";
+import AgentNav from "../../organisms/AgentNav/AgentNav";
 import { isSystemModule } from "../../systemModules";
 import LineChart from "../../organisms/Charts/LineChart";
 import LoadColumns from "../../organisms/Charts/LoadColumns";
@@ -475,6 +476,11 @@ export default function Reports() {
     <section className="reports-page">
       <PageHeader projectCode={projectCode} current="reports" />
 
+      {/* THE NAV UNIT TRAVELS HERE TOO (his call: "agents should be able to go everywhere") —
+          same rail, same dock; without it a docked agent has no home on Stats. */}
+      <div className="reports-row">
+      <AgentNav projectCode={projectCode} />
+      <div className="reports-center">
       <div className="reports-toolbar">
         <select
           value={projectCode || ""}
@@ -942,6 +948,8 @@ export default function Reports() {
             )}
           </>
         )}
+      </div>
+      </div>
       </div>
       {/* RFC-032 — the bots ride the Stats page too: same dock line, same peeks, same TV. */}
       <AgentChat />

@@ -1,0 +1,478 @@
+// RFC-055 — the agent profile. On the app's own tokens, same world as the Context page.
+.agent-profile {
+  // tight at the bottom (his call): the knowledge section leads STRAIGHT into the context
+  // section below — dead space between them broke the flow.
+  padding: 16px 20px 4px;
+  max-width: 920px;
+  margin: 0 auto;
+  color: var(--sv-text);
+
+  &--empty {
+    color: var(--sv-text-muted);
+    padding: 40px 20px;
+  }
+
+  &__roster {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 18px;
+  }
+  &__chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 14px;
+    border: 1px solid var(--sv-border);
+    border-radius: 20px;
+    background: var(--sv-surface);
+    color: var(--sv-text-muted);
+    cursor: pointer;
+    font-size: 13px;
+    &:hover { background: var(--sv-hover); }
+    &--on {
+      background: var(--sv-blue);
+      color: #fff;
+      border-color: var(--sv-blue);
+    }
+  }
+  // the liveness tell — green means a session is running right now
+  &__dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--sv-border);
+    flex: none;
+    &--live { background: #4caf50; }
+  }
+  &__live-tag {
+    margin-left: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #4caf50;
+  }
+  &__wiped {
+    margin: 0 0 14px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid #d64c4c55;
+    background: #d64c4c14;
+    color: #d64c4c;
+    font-size: 13px;
+  }
+
+  &__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 16px;
+  }
+  &__name {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--sv-text-strong);
+  }
+  &__sub {
+    font-size: 12px;
+    color: var(--sv-text-faint);
+    margin-top: 2px;
+  }
+  &__head-actions {
+    display: flex;
+    gap: 8px;
+  }
+  &__save,
+  &__del {
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--sv-border);
+    background: var(--sv-surface);
+    color: var(--sv-text);
+    cursor: pointer;
+    font-size: 13px;
+    &:hover { background: var(--sv-hover); }
+  }
+  &__save {
+    background: var(--sv-blue);
+    color: #fff;
+    border-color: var(--sv-blue);
+  }
+  &__del {
+    color: #d64c4c;
+    border-color: #d64c4c55;
+  }
+  &__del--confirm {
+    background: #d64c4c;
+    color: #fff;
+    border-color: #d64c4c;
+    &:hover { background: #b83b3b; }
+  }
+  &__cancel {
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--sv-border);
+    background: var(--sv-surface);
+    color: var(--sv-text);
+    cursor: pointer;
+    font-size: 13px;
+    &:hover { background: var(--sv-hover); }
+  }
+
+  &__section { margin-bottom: 18px; }
+  &__section--last { margin-bottom: 4px; }
+  // HELP TEXT (his ask): every section says what it is, what gets inserted, and when — so the
+  // page teaches while it manages.
+  &__hint {
+    font-size: 11.5px;
+    color: var(--sv-text-faint);
+    line-height: 1.5;
+    margin-bottom: 8px;
+    b { color: var(--sv-text-muted); }
+    code {
+      font-family: ui-monospace, Menlo, monospace;
+      font-size: 10.5px;
+    }
+  }
+  &__doc-empty {
+    font-size: 10.5px;
+    font-style: italic;
+    color: var(--sv-text-faint);
+  }
+  &__doc-where {
+    font-size: 10px;
+    color: var(--sv-text-faint);
+    background: var(--sv-hover);
+    padding: 1px 5px;
+    border-radius: 4px;
+  }
+  &__doc-chip--off { opacity: 0.55; }
+  &__toolgroup { margin-bottom: 10px; }
+  &__toolgroup-head {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--sv-text-muted);
+    margin-bottom: 3px;
+  }
+  &__tooltoggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 8px;
+    border: 1px solid var(--sv-border);
+    border-radius: 5px;
+    background: var(--sv-surface);
+    color: var(--sv-text-muted);
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 11px;
+    cursor: pointer;
+    input { margin: 0; cursor: pointer; }
+    &--off {
+      opacity: 0.5;
+      text-decoration: line-through;
+    }
+  }
+  &__section-head {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--sv-text-faint);
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+  &__grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  &__doc,
+  &__list {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid var(--sv-border);
+    border-radius: 8px;
+    background: var(--sv-surface);
+    color: var(--sv-text);
+    padding: 9px 11px;
+    font-size: 13px;
+    font-family: inherit;
+    line-height: 1.5;
+    resize: vertical;
+    &:focus {
+      outline: none;
+      border-color: var(--sv-blue);
+    }
+  }
+  &__doc { min-height: 220px; font-family: ui-monospace, Menlo, monospace; font-size: 12.5px; }
+  &__list {
+    min-height: 80px;
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 12px;
+  }
+
+  // THE DOCS ROW — a horizontal list of doc chips; click one to open it below.
+  &__docs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  &__doc-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 14px;
+    border: 1px solid var(--sv-border);
+    border-radius: 8px;
+    background: var(--sv-surface);
+    color: var(--sv-text);
+    cursor: pointer;
+    font-size: 13px;
+    &:hover { border-color: var(--sv-blue); }
+    &--on {
+      border-color: var(--sv-blue);
+      background: var(--sv-hover);
+      color: var(--sv-text-strong);
+    }
+  }
+  &__doc-ico { color: var(--sv-blue); }
+  &__doc-dirty { color: #d9a441; font-size: 9px; }
+  &__doc-editor { margin-top: 10px; }
+  &__doc-where {
+    font-size: 11px;
+    font-family: ui-monospace, Menlo, monospace;
+    color: var(--sv-text-faint);
+    margin-bottom: 5px;
+  }
+  &__doc-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 7px;
+  }
+
+  // THE REAL LISTS — capability names from the SDK init message, wrapped tight.
+  &__caps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+  &__cap {
+    padding: 2px 8px;
+    border: 1px solid var(--sv-border);
+    border-radius: 5px;
+    background: var(--sv-surface);
+    color: var(--sv-text-muted);
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 11px;
+    // MCP tools are ours, not the model's — same distinction as the panel and the browser
+    &--mcp {
+      color: #8fb6e8;
+      background: color-mix(in srgb, #8fb6e8 10%, transparent);
+      border-color: color-mix(in srgb, #8fb6e8 35%, transparent);
+    }
+  }
+
+  &__mcp {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+    td { padding: 5px 8px; border-bottom: 1px solid var(--sv-border); vertical-align: baseline; }
+  }
+  &__mcp-name { font-weight: 600; color: var(--sv-text-strong); white-space: nowrap; }
+  &__mcp-url { color: var(--sv-blue); font-family: ui-monospace, Menlo, monospace; word-break: break-all; }
+  &__mcp-del {
+    border: none;
+    background: none;
+    color: #d64c4c;
+    cursor: pointer;
+    font-size: 15px;
+    &:hover { color: #b03636; }
+  }
+  // same semantics as the services log: green = connected/live, amber = standby
+  &__mcp-status--on { color: #4caf50; }
+  &__mcp-status--off { color: #d9a441; }
+  &__mcp-lock {
+    font-size: 11px;
+    color: var(--sv-text-faint);
+  }
+
+  &__knows {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  &__know {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    padding: 8px 14px;
+    border: 1px solid var(--sv-border);
+    border-radius: 8px;
+    background: var(--sv-surface);
+    color: var(--sv-text-muted);
+    text-decoration: none;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    &:hover { border-color: var(--sv-blue); color: var(--sv-blue); }
+  }
+  &__know-n {
+    font: 700 15px/1 ui-monospace, Menlo, monospace;
+    color: var(--sv-blue);
+  }
+  &__know-note {
+    font-size: 12px;
+    color: var(--sv-text-faint);
+    margin-top: 6px;
+    font-style: italic;
+  }
+
+  &__none {
+    color: var(--sv-text-muted);
+    font-size: 13px;
+    font-style: italic;
+  }
+}
+
+// DARK SELECTION — the app's slate + indigo, not a solid blue fill (his call: "I really don't
+// like this blue shit" — dark mode only; light keeps its look). Same language as the navigator's
+// selected rows: #3a4152 fill, #6a74c4 edge, indigo text.
+:root.sv-dark .agent-profile {
+  .agent-profile__chip--on {
+    background: #3a4152;
+    border-color: #6a74c4;
+    color: #a6aef0;
+  }
+}
+
+// THE FILE BEHIND THE SECTION (his ask: "if it's stored in a file, show a document icon — see
+// the document directly and edit it"). Rides the section head; opens the raw file in the panel.
+.agent-profile__filelink {
+  border: none;
+  background: none;
+  color: var(--sv-blue);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0 4px;
+  vertical-align: baseline;
+  &:hover { text-decoration: underline; }
+  &--head {
+    border: 1px solid var(--sv-border);
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 12.5px;
+    color: var(--sv-text-muted);
+    background: var(--sv-surface);
+    &:hover { text-decoration: none; border-color: var(--sv-blue); color: var(--sv-blue); }
+  }
+}
+
+// MCP SERVER GROUP HEADS — a server is a THING with methods, not a sibling tool list (his catch:
+// "it lists its methods as if they're tools — I had to interpret"). Per-server colors, the same
+// ones the chat's MCP logs wear, so a server reads the same everywhere.
+.agent-profile__srv {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 5px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #fff;
+  background: #7a8194; // default = EXTERNAL servers: neutral slate, never an internal house color
+  &--context { background: #4a90d9; }
+  &--discovery { background: #5aa39a; }
+  &--systemlynx { background: #d9a441; }
+  &--worklist { background: #8891e0; }
+}
+.agent-profile__srv-kind {
+  margin-left: 8px;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--sv-text-faint);
+}
+
+// the whitelist add form — name + url/command, lands in the definition on Save
+.agent-profile__mcp-add {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+.agent-profile__mcp-input {
+  padding: 6px 10px;
+  border: 1px solid var(--sv-border);
+  border-radius: 6px;
+  background: var(--sv-surface);
+  color: var(--sv-text);
+  font-size: 12.5px;
+  &:focus { outline: none; border-color: var(--sv-blue); }
+  &--url { flex: 1; font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
+}
+.agent-profile__mcp-addbtn {
+  padding: 6px 12px;
+  border: 1px solid var(--sv-border);
+  border-radius: 6px;
+  background: var(--sv-surface);
+  color: var(--sv-text-muted);
+  cursor: pointer;
+  font-size: 12px;
+  &:hover:not(:disabled) { border-color: var(--sv-blue); color: var(--sv-blue); }
+  &:disabled { opacity: 0.5; cursor: default; }
+}
+
+// GATING — prominent in the head (his call): the ask-before-acting switch, not a buried word.
+.agent-profile__gating {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.agent-profile__gating-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 700;
+  color: var(--sv-text-faint);
+}
+.agent-profile__gating-pick {
+  padding: 5px 9px;
+  border: 1px solid var(--sv-border);
+  border-radius: 6px;
+  background: var(--sv-surface);
+  color: var(--sv-text);
+  font-size: 12.5px;
+  cursor: pointer;
+  &:focus { outline: none; border-color: var(--sv-blue); }
+  // never-asks reads as what it is — the hot setting
+  &--open { color: #d9a441; border-color: #d9a44166; }
+}
+.agent-profile__gating-note {
+  font-size: 11px;
+  color: var(--sv-text-faint);
+  font-style: italic;
+}
+
+// THE TOOL AUDIT VIEW — click a method's name to read exactly what it tells the agent
+// (description + parameters, the same text findTool searches). The checkbox stays allow/deny.
+.agent-profile__tool-name {
+  border: none;
+  background: none;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  &:hover { text-decoration: underline; }
+}
+.agent-profile__tooltoggle--open {
+  border-color: var(--sv-blue);
+  color: var(--sv-text-strong);
+}
+.agent-profile__tooldetail {
+  margin: 6px 0 2px;
+  padding: 8px 12px;
+  border: 1px solid var(--sv-border);
+  border-left: 3px solid var(--sv-blue);
+  border-radius: 6px;
+  background: var(--sv-inset);
+  color: var(--sv-text-muted);
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}

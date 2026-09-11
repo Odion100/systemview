@@ -1,0 +1,78 @@
+// The merged agents+context page scrolls inside the 100vh shell — without this the content below
+// the fold is clipped by .system-viewer's overflow:hidden (his: "you can never scroll").
+// The center fills the row below the header; the page scrolls INSIDE it. Off 100vh the nav rail
+// (also in the row) would scroll with the content — this keeps the rail fixed and the page scrolling.
+.ctx-center {
+  flex: 1 1 0%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+// No fold button (his call): unselecting the agent IS minimizing — the profile body only exists
+// while an agent is selected, and the knowledge section leads straight into the context below.
+.ctx-page {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+// THE CONTEXT STORE SECTION — close under the profile but DISTINGUISHED (his call): a full-width
+// rule and its own label, because this section stands alone — it searches every scope.
+.ctx-store {
+  border-top: 1px solid var(--sv-border);
+  margin-top: 10px;
+  padding-top: 12px;
+}
+.ctx-store__head {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 0 20px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--sv-text-faint);
+  font-weight: 700;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.ctx-store__note {
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 400;
+  font-size: 11.5px;
+  font-style: italic;
+}
+
+// AgentNav open state — the agents-only body on non-Specs pages (Specs has the file navigator here).
+.nav-panel__agents-only {
+  padding: 10px;
+  height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  // the card panel scrolls inside; the head and dock spots stay put
+  .agent-panel { flex: 1 1 0%; min-height: 0; }
+}
+.nav-panel__agents-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--sv-text-faint);
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.nav-panel__collapse {
+  border: 1px solid var(--sv-border);
+  border-radius: 6px;
+  background: var(--sv-surface);
+  color: var(--sv-text-muted);
+  cursor: pointer;
+  padding: 1px 8px;
+  &:hover { border-color: var(--sv-blue); color: var(--sv-blue); }
+}

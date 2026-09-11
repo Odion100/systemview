@@ -4,7 +4,8 @@ import SystemNavigator from "../../organisms/SystemNavigator/SystemNavigator";
 import Documentation from "../../organisms/Documentation/Documentation";
 import TestPanel from "../../organisms/TestPanel/TestPanel";
 import PageHeader from "../../organisms/PageHeader/PageHeader";
-import AgentChat, { DockSpots } from "../../organisms/AgentChat/AgentChat";
+import AgentChat from "../../organisms/AgentChat/AgentChat";
+import NavRail from "../../organisms/AgentNav/NavRail";
 import "./styles.scss";
 
 // Extension → the editor's language names (see atoms/CodeView/languages.js). Anything unknown is
@@ -333,31 +334,14 @@ const SystemViewPage = () => {
           className={`nav-panel ${navOpen ? "col-3 nav-panel--open" : "nav-panel--collapsed"}`}
           style={navOpen ? { flex: `0 0 ${navW}%`, maxWidth: `${navW}%` } : { zIndex: railZ }}
         >
+          {/* RFC-052 — the collapsed rail is the SHARED NavRail (same one every other page uses);
+              only the edge behaviour differs here — a drag-to-pull instead of a click. */}
           {!navOpen && (
-            <button
-              type="button"
-              className="nav-panel__toggle"
-              title="Expand the navigator"
-              onClick={() => setNavOpen(true)}
-            >
-              Navigator ›
-            </button>
-          )}
-          {/* RFC-052 — THE RAIL. Docked agents live here while the navigator is away, drawn small;
-              they portal themselves in (see navDock.railId). Docking never means disappearing. */}
-          {!navOpen && (
-            <div id="sv-agent-rail" className="nav-panel__rail">
-              <DockSpots />
-            </div>
-          )}
-          {/* RFC-052 — THE SAME DIVIDER, at the strip's edge. Collapsed, the line you drag is the
-              one you dragged to collapse it: it sits at the strip's edge and pulls the panel back
-              out (his: "it becomes the corner… a line that pops up when you hover"). */}
-          {!navOpen && (
-            <div
-              className="panel-divider panel-divider--edge panel-divider--edge-left"
-              title="Drag to pull the navigator out"
-              onMouseDown={startPull("nav")}
+            <NavRail
+              label="Navigator"
+              onExpand={() => setNavOpen(true)}
+              edgeTitle="Drag to pull the navigator out"
+              edgeProps={{ onMouseDown: startPull("nav") }}
             />
           )}
           <div

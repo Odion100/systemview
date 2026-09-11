@@ -1,5 +1,6 @@
 import React, { useState, useRef, useLayoutEffect } from "react";
 import { visStyle } from "./visitorColor";
+import { parseMcpResult } from "./feedRows";
 import "./styles.scss";
 
 // RFC-046 — THE FEED ITSELF, with no chrome around it, because it has to sit in two places: the
@@ -43,6 +44,34 @@ const When = ({ ts }) => (ts ? <span className={`${CLASSNAME}__ts`}>{timeOf(ts)}
 // the toggle now, and the sign is always visible, because a control you cannot see is a control
 // that is not there.
 
+
+// JSON, DISTINGUISHED — his ask: the call's input read as a flat grey dump. A tiny tokenizer
+// colors keys, string values, numbers and punctuation so it looks like an object, not stdout. No
+// library (CSP), no font-size change — just color, which is what "distinguished" meant.
+const HiJson = ({ value }) => {
+  const text = JSON.stringify(value, null, 2);
+  const re = /("(?:\\.|[^"\\])*")(\s*:)?|(\btrue\b|\bfalse\b|\bnull\b)|(-?\d+(?:\.\d+)?)|([{}\[\],])/g;
+  const parts = [];
+  let last = 0;
+  let m;
+  let i = 0;
+  while ((m = re.exec(text))) {
+    if (m.index > last) parts.push(text.slice(last, m.index));
+    if (m[1]) {
+      parts.push(<span key={i++} className={`agent-wb__json-${m[2] ? "key" : "str"}`}>{m[1]}</span>);
+      if (m[2]) parts.push(<span key={i++} className="agent-wb__json-punc">{m[2]}</span>);
+    } else if (m[3]) {
+      parts.push(<span key={i++} className="agent-wb__json-lit">{m[3]}</span>);
+    } else if (m[4]) {
+      parts.push(<span key={i++} className="agent-wb__json-num">{m[4]}</span>);
+    } else if (m[5]) {
+      parts.push(<span key={i++} className="agent-wb__json-punc">{m[5]}</span>);
+    }
+    last = re.lastIndex;
+  }
+  if (last < text.length) parts.push(text.slice(last));
+  return <pre className="agent-wb__blk agent-wb__blk--args agent-wb__json">{parts}</pre>;
+};
 
 const Block = ({ kind, children }) => (
   <pre className={`${CLASSNAME}__blk ${CLASSNAME}__blk--${kind}`}>{children}</pre>
@@ -177,7 +206,7 @@ const ToolRow = ({ row, renderText = null }) => {
     <div
       className={`${CLASSNAME}__row ${CLASSNAME}__row--tool ${CLASSNAME}__row--${row.state}${
         row.sv ? ` ${CLASSNAME}__row--sv` : ""
-      }${has ? ` ${CLASSNAME}__row--can` : ""}`}
+      }${row.mcp ? ` ${CLASSNAME}__row--mcp` : ""}${has ? ` ${CLASSNAME}__row--can` : ""}`}
       // THE WHOLE ROW IS THE HANDLE, not the words on it — his: "why do you got to actually click
       // on the name in the row?" A click anywhere on the row that isn't a button toggles it; the
       // open/diff button stops its own click so it never doubles as a fold.
@@ -203,9 +232,11 @@ const ToolRow = ({ row, renderText = null }) => {
           {/* SAY THE TOOL'S NAME. A bash row reads "run …"; a SystemView row read only its summary,
               so it looked like any other command in the feed — his catch: *"why doesn't mine just
               say systemview as the first word, so you know it's a SystemView command."* */}
-          {(row.sv || row.tool === "Bash") && (
-            <span className={`${CLASSNAME}__sv-kind${row.sv ? "" : ` ${CLASSNAME}__sv-kind--sh`}`}>
-              {row.sv ? "systemview" : "bash"}
+          {(row.sv || row.mcp || row.tool === "Bash") && (
+            <span
+              className={`${CLASSNAME}__sv-kind${row.sv ? "" : row.mcp ? ` ${CLASSNAME}__sv-kind--mcp ${CLASSNAME}__sv-kind--mcp-${row.mcp.server}` : ` ${CLASSNAME}__sv-kind--sh`}`}
+            >
+              {row.sv ? "systemview" : row.mcp ? row.mcp.server : "bash"}
             </span>
           )}
           {row.summary}
@@ -246,11 +277,21 @@ const ToolRow = ({ row, renderText = null }) => {
               ))}
             </Block>
           )}
-          {rest && <Block kind="args">{JSON.stringify(rest, null, 2)}</Block>}
+          {rest && (row.mcp
+            ? <HiJson value={rest} />
+            : <Block kind="args">{JSON.stringify(rest, null, 2)}</Block>)}
           {/* STILL RUNNING is a state worth drawing — a command with no output yet is not a command
               that printed nothing. */}
           {!out && row.state === "running" && <div className={`${CLASSNAME}__tool-wait`}>running…</div>}
-          {out && <Block kind={row.state === "failed" ? "err" : "out"}>{out}</Block>}
+          {/* OUR OWN TOOLS SPEAK HUMAN — the words come out of the tool already readable (his
+              rule: "they should come out nice and human readable — those are the words"), so
+              they render as prose, not as stdout in a mono block. Bash keeps the mono block;
+              it earned it. */}
+          {out &&
+            (() => {
+              const data = row.mcp && parseMcpResult(row.mcp, out);
+              return data ? <McpTable data={data} /> : <Block kind={row.state === "failed" ? "err" : "out"}>{out}</Block>;
+            })()}
         </div>
       )}
     </div>
@@ -264,6 +305,161 @@ const ToolRow = ({ row, renderText = null }) => {
 // fold is MEASURED, not guessed from character count: a code block and a paragraph of the same
 // length are nowhere near the same height, so only a body that genuinely runs past the line gets a
 // control. Everything short stays exactly as it was — no button, no chrome, no change.
+// OUR TOOLS' RESULTS ARE DATA, AND DATA GETS A TABLE — his correction after two rounds of
+// prettier text: "we're in a UI." One row per hit: match, note, where; the ROW is the expander
+// (the whole row is the handle, same as the tool rows) and its body opens beneath it. The pointer
+// is a door: a `<pc>:path` dispatches the same open the codebase rows use. Applies ACROSS THE
+// BOARD — every harness tool renders as UI, and only a payload that fails its own contract falls
+// back to the raw block, so pretty never loses data.
+// loadService — the summary always shown, the METHODS collapsed under it, expandable to a table
+// (his: "you can make the methods show, but you have to expand — table of data, human readable").
+const LoadedTable = ({ data }) => {
+  const [open, setOpen] = useState(false);
+  const has = data.methods && data.methods.length;
+  return (
+    <div className={`${CLASSNAME}__mcp-loaded`}>
+      <div
+        className={`${CLASSNAME}__mcp-noteline${has ? ` ${CLASSNAME}__mcp-noteline--can` : ""}`}
+        onClick={() => has && setOpen(!open)}
+      >
+        <span className={`${CLASSNAME}__mcp-noteline-label`}>attached</span>
+        <span className={`${CLASSNAME}__mcp-noteline-subject`}>{data.subject}</span>
+        <span className={`${CLASSNAME}__mcp-noteline-detail`}>{data.detail}</span>
+        {has ? <span className={`${CLASSNAME}__mcp-caret`}>{open ? "−" : "+"}</span> : null}
+      </div>
+      {open && has && (
+        <table className={`${CLASSNAME}__mcp-table`}>
+          <thead><tr><th>method</th><th>schema</th></tr></thead>
+          <tbody>
+            {data.methods.map((m) => (
+              <tr key={m.namespace} className={`${CLASSNAME}__mcp-tr`}>
+                <td className={`${CLASSNAME}__mcp-title`}>{m.namespace}</td>
+                <td className={`${CLASSNAME}__mcp-status--${m.schema ? "on" : "off"}`}>{m.schema ? "schema" : "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+};
+
+const McpTable = ({ data }) => {
+  // COLLAPSED BY DEFAULT, INDEPENDENTLY EXPANDABLE — his fix on both counts. The first version
+  // was a single-open accordion (one openRow), so opening a row folded whichever was open — "they
+  // switch expansion." A Set of OPEN rows, default empty, means each row toggles on its own and
+  // any number can be open at once.
+  const [open, setOpen] = useState(() => new Set());
+  if (data.kind === "call")
+    return (
+      <div className={`${CLASSNAME}__mcp-call`}>
+        <div className={`${CLASSNAME}__mcp-call-head${data.status >= 400 ? ` ${CLASSNAME}__mcp-call-head--bad` : ""}`}>
+          <code>{data.namespace}</code> returned <b>{data.status}</b>
+          {data.message ? <span> — {data.message}</span> : null}
+        </div>
+        <pre className={`${CLASSNAME}__blk ${CLASSNAME}__mcp-json${data.status >= 400 ? ` ${CLASSNAME}__mcp-json--bad` : ""}`}>{data.json}</pre>
+      </div>
+    );
+  if (data.kind === "services")
+    return (
+      <table className={`${CLASSNAME}__mcp-table`}>
+        <thead><tr><th>service</th><th>status</th><th>where</th></tr></thead>
+        <tbody>
+          {data.rows.map((r) => (
+            <tr key={r.name} className={`${CLASSNAME}__mcp-tr`}>
+              <td className={`${CLASSNAME}__mcp-title`}>{r.name}</td>
+              <td className={`${CLASSNAME}__mcp-status--${/attach/i.test(r.status) ? "on" : "off"}`}>{r.status}</td>
+              <td className={`${CLASSNAME}__mcp-where`}>{r.detail}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    );
+  if (data.kind === "loaded")
+    return <LoadedTable data={data} />;
+  if (data.kind === "note-line")
+    return (
+      <div className={`${CLASSNAME}__mcp-noteline`}>
+        <span className={`${CLASSNAME}__mcp-noteline-label`}>{data.label}</span>
+        <span className={`${CLASSNAME}__mcp-noteline-subject`}>{data.subject}</span>
+        <span className={`${CLASSNAME}__mcp-noteline-detail`}>{data.detail}</span>
+        {data.warn && <span className={`${CLASSNAME}__mcp-noteline-warn`}>{data.warn}</span>}
+      </div>
+    );
+  const withBody = data.rows.map((r, i) => (r.body ? i : -1)).filter((i) => i >= 0);
+  const allOpen = withBody.length > 0 && withBody.every((i) => open.has(i));
+  return (
+    <table className={`${CLASSNAME}__mcp-table`}>
+      <thead>
+        <tr>
+          <th>match</th>
+          <th>note</th>
+          <th>from</th>
+          {/* EXPAND ALL / COLLAPSE ALL — his ask, at the top. One press opens every row that has a
+              body or folds them all; individual rows still toggle on their own underneath it. */}
+          <th className={`${CLASSNAME}__mcp-allth`}>
+            {withBody.length > 1 && (
+              <button
+                type="button"
+                className={`${CLASSNAME}__mcp-all`}
+                title={allOpen ? "Collapse all" : "Expand all"}
+                onClick={() => setOpen(allOpen ? new Set() : new Set(withBody))}
+              >
+                {allOpen ? "−" : "+"}
+              </button>
+            )}
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {data.rows.map((r, i) => (
+          <React.Fragment key={i}>
+            <tr
+              className={`${CLASSNAME}__mcp-tr${open.has(i) ? ` ${CLASSNAME}__mcp-tr--open` : ""}`}
+              onClick={() =>
+                setOpen((o) => {
+                  const n = new Set(o);
+                  n.has(i) ? n.delete(i) : n.add(i);
+                  return n;
+                })
+              }
+            >
+              <td className={`${CLASSNAME}__mcp-score`}>{r.score}</td>
+              <td className={`${CLASSNAME}__mcp-title`}>{r.title}</td>
+              <td className={`${CLASSNAME}__mcp-where`}>{r.where || ""}</td>
+              <td className={`${CLASSNAME}__mcp-caret`}>{r.body ? (open.has(i) ? "−" : "+") : ""}</td>
+            </tr>
+            {open.has(i) && r.body && (
+              <tr className={`${CLASSNAME}__mcp-detail`}>
+                <td colSpan={4}>
+                  {r.body}
+                  {/* the note's id — what remember(id=) and forget() take, so the exact block
+                      is addressable from here too */}
+                  {r.id && <span className={`${CLASSNAME}__mcp-id`}>id {r.id}</span>}
+                  {r.pointer && (
+                    <button
+                      type="button"
+                      className={`${CLASSNAME}__mcp-ptr`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const mm = /^([a-zA-Z0-9._-]+):(.+)$/.exec(r.pointer);
+                        if (mm)
+                          window.dispatchEvent(new CustomEvent("sv:openFileInNav", { detail: { projectCode: mm[1], path: mm[2] } }));
+                      }}
+                    >
+                      → {r.pointer}
+                    </button>
+                  )}
+                </td>
+              </tr>
+            )}
+          </React.Fragment>
+        ))}
+      </tbody>
+    </table>
+  );
+};
+
 const CLAMP = 260;
 
 const Said = ({ row, render, clamp = false }) => {

@@ -1072,3 +1072,85 @@ describe("a card headline is a label too", () => {
     expect(rows[0].input.command).toHaveLength(4000);
   });
 });
+
+// HIS AUDIT ASK — harness MCP calls read as what they are, argument included, because the verb
+// alone audits nothing. The parser is the contract; if a summary shape changes, this is the
+// conversation to have first.
+describe("parseMcp", () => {
+  const { parseMcp } = require("./feedRows");
+
+  it("renders a context question with its scope", () => {
+    expect(parseMcp("mcp__context__context", { question: "how do file chips work", scope: "system" }).line)
+      .toBe('context "how do file chips work" in system');
+  });
+
+  it("renders remember with scope and title, and marks a supersede", () => {
+    expect(parseMcp("mcp__context__remember", { scope: "system", title: "file chips", text: "…", supersedes: "x1" }).line)
+      .toBe('remember [system] "file chips" (supersedes)');
+  });
+
+  it("falls back to the note text when remember has no title", () => {
+    expect(parseMcp("mcp__context__remember", { text: "two colons embeds the whole file" }).line)
+      .toBe('remember "two colons embeds the whole file"');
+  });
+
+  it("renders findTool with an optional server aim", () => {
+    expect(parseMcp("mcp__discovery__findTool", { question: "grep the codebase" }).line)
+      .toBe('findTool "grep the codebase"');
+    expect(parseMcp("mcp__discovery__findTool", { question: "grep", server: "wb-repo" }).line)
+      .toBe('findTool "grep" on wb-repo');
+  });
+
+  it("renders the systemlynx tier: services, loadService, call", () => {
+    expect(parseMcp("mcp__systemlynx__services", {}).line).toBe("services");
+    expect(parseMcp("mcp__systemlynx__loadService", { name: "workbench" }).line).toBe("loadService workbench");
+    expect(parseMcp("mcp__systemlynx__call", { service: "workbench", namespace: "Repo.findRfc" }).line)
+      .toBe("call workbench Repo.findRfc");
+  });
+
+  it("ignores foreign MCP servers and plain tools — they keep the generic row", () => {
+    expect(parseMcp("mcp__wb-repo__Repo_findRfc", {})).toBeNull();
+    expect(parseMcp("Bash", { command: "ls" })).toBeNull();
+  });
+
+  it("worklist is not claimed — the todo fold owns it", () => {
+    expect(parseMcp("mcp__worklist__set", { items: [] })).toBeNull();
+  });
+
+  it("clamps a long question instead of flooding the line", () => {
+    const line = parseMcp("mcp__context__context", { question: "x".repeat(300) }).line;
+    expect(line.length).toBeLessThan(100);
+  });
+});
+
+// RFC-055 — the context search table, PINNED (we author both the harness text and this parser).
+// The [id] on each hit is the note's address — remember(id=)/forget() take it, so every agent
+// (and the human, from the expanded row) can point at the exact block.
+describe("parseMcpResult — context hits carry the note id", () => {
+  const { parseMcpResult } = require("./feedRows");
+  const mcp = { server: "context", verb: "context" };
+
+  it("parses a hit with the id and keeps it on the row", () => {
+    const text =
+      "2 notes match:\n\n" +
+      "• offering a commit — from system conventions, match 0.75 [offering-a-commit-fwkw]\n" +
+      "  the agent writes it, the human presses it\n" +
+      "  see: systemview-test:agents/markdown.md\n\n" +
+      "• bots come from harness defs — from the systemview-test project, match 0.58 [bots-come-50m7]\n" +
+      "  enumerated from the harness";
+    const out = parseMcpResult(mcp, text);
+    expect(out.kind).toBe("notes");
+    expect(out.rows).toHaveLength(2);
+    expect(out.rows[0].id).toBe("offering-a-commit-fwkw");
+    expect(out.rows[0].pointer).toBe("systemview-test:agents/markdown.md");
+    expect(out.rows[1].id).toBe("bots-come-50m7");
+  });
+
+  it("still parses hits WITHOUT an id — an older harness stays readable", () => {
+    const text = "One note matches:\n\n• old note — from system conventions, match 0.61\n  body text";
+    const out = parseMcpResult(mcp, text);
+    expect(out.rows).toHaveLength(1);
+    expect(out.rows[0].id).toBeNull();
+    expect(out.rows[0].score).toBe("0.61");
+  });
+});

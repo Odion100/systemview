@@ -795,6 +795,34 @@ const setParked = (pc, parked) => {
   window.dispatchEvent(new CustomEvent("sv:botHub"));
 };
 
+// AGENTS COME FROM THE BROWSER — his correction. `connectedServices` is the legacy webpage model
+// (you "joined" by connecting to a SystemLynx service through the plugin). In the harness, agents
+// are DEFINED at the browser level; `window.systemview.agent.defs()` is the source of truth. Keying
+// bot presence off this means the bots exist on every page by construction and survive a refresh —
+// there is no connection step to miss, which is exactly why they vanished on the Context page.
+function useHarnessAgentProjects() {
+  const [pcs, setPcs] = useState([]);
+  useEffect(() => {
+    let dead = false;
+    const load = async () => {
+      const a = typeof window !== "undefined" && window.systemview && window.systemview.agent;
+      if (!a || typeof a.defs !== "function") return;
+      try {
+        const defs = await a.defs();
+        if (!dead) setPcs([...new Set((defs || []).map((d) => d.projectCode).filter(Boolean))]);
+      } catch {}
+    };
+    load();
+    const on = () => load();
+    window.addEventListener("sv:botHub", on);
+    return () => {
+      dead = true;
+      window.removeEventListener("sv:botHub", on);
+    };
+  }, []);
+  return pcs;
+}
+
 export default function AgentChats() {
   const { connectedServices } = useContext(ServiceContext);
   const [, force] = useState(0);
@@ -803,9 +831,10 @@ export default function AgentChats() {
     window.addEventListener("sv:botHub", on);
     return () => window.removeEventListener("sv:botHub", on);
   }, []);
+  const harnessPcs = useHarnessAgentProjects();
   const projects = useMemo(
-    () => [...new Set((connectedServices || []).map((s) => s.projectCode))],
-    [connectedServices],
+    () => [...new Set([...(connectedServices || []).map((s) => s.projectCode), ...harnessPcs])],
+    [connectedServices, harnessPcs],
   );
   return projects
     .filter((pc) => !isParked(pc))
@@ -817,9 +846,10 @@ export default function AgentChats() {
 export function DockSpots() {
   const { connectedServices } = useContext(ServiceContext);
   const order = useDockOrder();
+  const harnessPcs = useHarnessAgentProjects();
   const projects = useMemo(
-    () => [...new Set((connectedServices || []).map((s) => s.projectCode))].filter((pc) => !isParked(pc)),
-    [connectedServices],
+    () => [...new Set([...(connectedServices || []).map((s) => s.projectCode), ...harnessPcs])].filter((pc) => !isParked(pc)),
+    [connectedServices, harnessPcs],
   );
   const ordered = orderProjects(order, projects);
   return ordered.map((pc) => <div key={pc} id={spotId(pc)} data-spot={pc} className="nav-panel__spot" title={pc} />);
@@ -835,7 +865,11 @@ export function BotHub() {
   // something is turned off is noise — an inactive parked bot earns no count). Active = its
   // agent is actually connected (live hold or file listener), polled like the bots poll.
   const [activeParked, setActiveParked] = useState(0);
-  const projects = [...new Set((connectedServices || []).map((s) => s.projectCode))];
+  // HARNESS AGENTS COUNT TOO — connectedServices alone is the webpage-era model, and with nothing
+  // joined the hub returned null: the 🤖 vanished from the header on any page without a service
+  // join. Same merge the dock and the chats already do.
+  const harnessPcs = useHarnessAgentProjects();
+  const projects = [...new Set([...(connectedServices || []).map((s) => s.projectCode), ...harnessPcs])];
   // One dial for every bot on screen. READ, not remembered: it was seeded into state once at mount,
   // and at that moment the connection list is usually still empty — so it read `sv.anim.undefined`,
   // got the default, and sat there saying "subtle" no matter what was actually set. The setting
@@ -2104,9 +2138,13 @@ function BotBubble({ projectCode, index }) {
       // (double-click) stays; the drag was always supposed to work too.
       if (inRailRef.current || inNavRef.current) setNavDocked(projectCode, false);
       // …and over the dock, the preview: shrink, and ring the spot it would take.
+      // The agent-panel CARD is a dock target too (his ask: "I can drag it out of the card, I
+      // should drag it into the card") — its own card only.
       const hit = dockTargetOf(ev.clientX, ev.clientY);
-      setOverDock(!!hit);
+      const cardHit = panelCardAt(ev.clientX, ev.clientY);
+      setOverDock(!!hit || !!cardHit);
       markDockTarget(hit);
+      markPanelCard(cardHit);
       // THE WHOLE ASSEMBLY STAYS ON SCREEN — the panel and the docked lane, not just the bot. The
       // panel hangs up-and-left off the bot, so its width and height decide how close to an edge the
       // bot may go. This is what makes flipping unnecessary: there is no position where the layout
@@ -2129,6 +2167,14 @@ function BotBubble({ projectCode, index }) {
       setDragging(false);
       setOverDock(false);
       markDockTarget(null);
+      markPanelCard(null);
+      // DROPPED ON ITS OWN CARD in the agent panel: that is docking, same as the rail.
+      if (d && d.moved && ev && panelCardAt(ev.clientX, ev.clientY)) {
+        suppressClickRef.current = true;
+        setTimeout(() => { suppressClickRef.current = false; }, 0);
+        setNavDocked(projectCode, true);
+        return;
+      }
       // RFC-052 — DROPPED ONTO THE RAIL: that is docking. Only when the rail is there (navigator
       // collapsed) and the pointer let go over the rail's OWN area — below the nav tab. Above it
       // stays free (his rule: "from the nav tab up, it should be free" — the top corners are still
@@ -3837,6 +3883,21 @@ const countdown = (str, now = Date.now()) => {
     document.querySelectorAll("[data-spot].nav-panel__spot--target").forEach((el) => el.classList.remove("nav-panel__spot--target"));
     if (hit && hit.spots[hit.target]) hit.spots[hit.target].classList.add("nav-panel__spot--target");
   };
+  // RFC-055 — THE AGENT-PANEL CARD IS A DOCK TARGET (his ask: dragging out works, dragging back
+  // in has to work too). This bot's OWN card only — the one whose slot carries its projectCode.
+  const panelCardAt = (x, y) => {
+    for (const s of document.querySelectorAll(".agent-panel__slot[data-spot]")) {
+      if (s.dataset.spot !== projectCode) continue;
+      const card = s.closest(".agent-panel__card");
+      const b = card && card.getBoundingClientRect();
+      if (b && x >= b.left && x <= b.right && y >= b.top && y <= b.bottom) return card;
+    }
+    return null;
+  };
+  const markPanelCard = (card) => {
+    document.querySelectorAll(".agent-panel__card--dockover").forEach((el) => el.classList.remove("agent-panel__card--dockover"));
+    if (card) card.classList.add("agent-panel__card--dockover");
+  };
   // Docked, the four icons are TABS over one surface — a 280px column cannot hold four boxes side
   // by side, and switching is a tab bar's whole job (his call, and better than what I proposed).
   // OPENING HAS TO SCROLL THE PANEL TO IT (his catch): several projects are stacked in that column,
@@ -3844,6 +3905,30 @@ const countdown = (str, now = Date.now()) => {
   // the slot lookup, because it reads the four open-flags — declared further down, and reading one
   // above its declaration is a TDZ crash that takes the whole surface with it.
   const navShowing = navDocked && (open || boardOpen || linksOpen || tvOpen);
+  // RFC-055 — DOCKED IN AN AGENT-PANEL CARD. Same rail mode, different home: the card lives in a
+  // SCROLLING column, so everything measured off the bot (the panel row, the peek, the say bubble)
+  // must re-measure as he scrolls or it stays behind while the face moves (his catch). A scroll
+  // tick re-renders the bot; the fixed positions are recomputed from the fresh rect each time.
+  const inPanelCard = inRail && !!(slotEl && typeof slotEl.closest === "function" && slotEl.closest(".agent-panel"));
+  const [, bumpReflow] = useState(0);
+  useEffect(() => {
+    if (!inPanelCard) return undefined;
+    const on = () => bumpReflow((n) => n + 1);
+    window.addEventListener("scroll", on, true); // capture reaches the panel's inner scroll
+    window.addEventListener("resize", on);
+    return () => {
+      window.removeEventListener("scroll", on, true);
+      window.removeEventListener("resize", on);
+    };
+  }, [inPanelCard]);
+  // …and the bubbles ESCAPE the card: the panel clips (it scrolls) and sits under the page, so a
+  // peek or say positioned inside it gets cut at the panel's edge. Fixed, measured off the face,
+  // over everything (his rule: "that z-index should be above all this stuff on the page").
+  const bubbleFix = (dy = 0) => {
+    if (!inPanelCard || !rootRef.current) return undefined;
+    const b = rootRef.current.getBoundingClientRect();
+    return { position: "fixed", left: b.right + 8, right: "auto", top: b.top + dy, transform: "none", zIndex: 9000 };
+  };
   useEffect(() => {
     if (!navShowing || !slotEl) return undefined;
     const t = setTimeout(() => {
@@ -6079,7 +6164,7 @@ const countdown = (str, now = Date.now()) => {
       {!open && listening && (
         <div
           className={`${CLASSNAME}__peek ${CLASSNAME}__peek--mic ${leftHalf ? `${CLASSNAME}__peek--right` : ""}`}
-          style={peekShift ? { marginLeft: peekShift } : undefined}
+          style={bubbleFix(4) || (peekShift ? { marginLeft: peekShift } : undefined)}
         >
           {/* PINNED TO WHAT YOU'RE SAYING NOW. Once the transcript passes the box height the newest
               words fall below the fold, and nobody scrolls a box while they're mid-sentence — the
@@ -6130,7 +6215,7 @@ const countdown = (str, now = Date.now()) => {
       {!open && !animating && !listening && peekHas && (
         <div
           className={`${CLASSNAME}__peek ${peekUnread > 0 && !(hasBrief && sessionCooking) ? `${CLASSNAME}__peek--thread` : ""} ${leftHalf ? `${CLASSNAME}__peek--right` : ""}`}
-          style={peekShift ? { marginLeft: peekShift } : undefined}
+          style={bubbleFix(4) || (peekShift ? { marginLeft: peekShift } : undefined)}
           onClick={() => {
             openRef.current = true;
             setOpen(true);
@@ -6322,7 +6407,7 @@ const countdown = (str, now = Date.now()) => {
           rather than the peek: the peek is status and unread replies, this is "I am pointing at
           that and here is what I'm saying about it". It never persists — the errand clears it. */}
       {saying && (
-        <div className={`${CLASSNAME}__say ${leftHalf ? `${CLASSNAME}__say--right` : ""}`}>
+        <div className={`${CLASSNAME}__say ${leftHalf ? `${CLASSNAME}__say--right` : ""}`} style={bubbleFix(-4)}>
           {saying.text}
           {/* THE X IS HOW IT ENDS. Nothing else does — not a click on the page, not a keystroke, not
               scrolling. You dismiss it when you are done with it, the same way you would close

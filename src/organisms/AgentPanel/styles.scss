@@ -1,0 +1,208 @@
+// RFC-055 — the agent cards in the nav, on the app's own tokens.
+// Lives inside the navigator's own scroll body (system-nav__body) — it flows, it does not scroll.
+.agent-panel {
+  padding: 8px 10px 40px;
+  box-sizing: border-box;
+
+  &--empty {
+    color: var(--sv-text-muted);
+    font-size: 13px;
+    padding: 14px 12px;
+  }
+
+  &__note {
+    font-size: 11px;
+    color: var(--sv-text-faint);
+    margin: 2px 2px 8px;
+  }
+
+  &__card {
+    border: 1px solid var(--sv-border);
+    border-radius: 10px;
+    background: var(--sv-surface);
+    padding: 9px 11px;
+    margin-bottom: 8px;
+    font-size: 12.5px;
+    color: var(--sv-text);
+    // dragging a card reorders the dock — same signals as the codebase panel
+    &--dragging { opacity: 0.45; }
+    &--dropover {
+      outline: 1.5px dashed var(--sv-blue);
+      outline-offset: -1px;
+    }
+    // a bot dragged over its own card — this is where it lands (dock preview)
+    &--dockover {
+      outline: 1.5px solid var(--sv-blue);
+      outline-offset: -1px;
+      background: color-mix(in srgb, var(--sv-blue) 8%, var(--sv-surface));
+    }
+  }
+  &__card-head {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+  &__state {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex: none;
+    background: var(--sv-border);
+    &--running { background: #4caf50; }
+    &--defined { background: var(--sv-blue); opacity: 0.5; }
+  }
+  &__name {
+    font-weight: 700;
+    color: var(--sv-text-strong);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  &__word {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--sv-text-faint);
+    &--running { color: #4caf50; }
+  }
+  &__spacer { flex: 1; }
+  &__edit {
+    font-size: 11px;
+    color: var(--sv-blue);
+    text-decoration: none;
+    &:hover { text-decoration: underline; }
+  }
+  &__end {
+    border: none;
+    background: none;
+    color: #d64c4c;
+    cursor: pointer;
+    font-size: 13px;
+    padding: 0 2px;
+    &:hover { color: #b03636; }
+    &--confirm {
+      background: #d64c4c;
+      color: #fff;
+      border-radius: 5px;
+      font-size: 11px;
+      padding: 2px 8px;
+      &:hover { background: #b83b3b; color: #fff; }
+    }
+  }
+  &__keep {
+    border: 1px solid var(--sv-border);
+    background: var(--sv-surface);
+    color: var(--sv-text-muted);
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 11px;
+    padding: 2px 8px;
+    &:hover { background: var(--sv-hover); }
+  }
+
+  &__work {
+    display: flex;
+    align-items: baseline;
+    gap: 7px;
+    margin-top: 6px;
+    font-size: 12px;
+  }
+  &__work-count {
+    font: 700 11px/1 ui-monospace, Menlo, monospace;
+    color: var(--sv-blue);
+  }
+  &__work-now {
+    color: var(--sv-text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    margin-top: 6px;
+    font-size: 11.5px;
+    color: var(--sv-text-muted);
+    b {
+      font-weight: 600;
+      color: var(--sv-text-faint);
+    }
+    span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 100%;
+    }
+  }
+
+  &__lists { margin-top: 7px; }
+  &__list {
+    cursor: pointer;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px;
+    margin-top: 4px;
+  }
+  &__list-k {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--sv-text-faint);
+    margin-right: 3px;
+    b { color: var(--sv-text-muted); }
+  }
+  &__chip {
+    padding: 1px 6px;
+    border: 1px solid var(--sv-border);
+    border-radius: 4px;
+    background: var(--sv-bg);
+    color: var(--sv-text-muted);
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 10.5px;
+    &--skill { color: var(--sv-blue); }
+    // MCP tools read differently from the model's own — same distinction the browser panel draws
+    &--mcp {
+      color: #8fb6e8;
+      background: color-mix(in srgb, #8fb6e8 10%, transparent);
+      border-color: color-mix(in srgb, #8fb6e8 35%, transparent);
+    }
+    &--more { border-style: dashed; }
+  }
+
+  // THE DOCKED FACE — its own row at the bottom of the card, the icon tucked in the corner.
+  // Face only, shrunk: no name tag, no mic, no icon strip — the agent's panels hover OUTSIDE
+  // the card. Never display:none on the slot itself (the dock logic checks visibility, and a
+  // hidden slot bounces the bot out); empty it takes no room.
+  &__slot {
+    display: flex;
+    justify-content: flex-end;
+    overflow: visible;
+    &:empty { height: 0; }
+    &:not(:empty) { margin-top: 6px; }
+
+    // shrink the rail-mode bot to a plain small face
+    .agent-chat--rail,
+    .agent-chat--rail .agent-chat__bot {
+      width: 22px;
+    }
+    .agent-chat--rail .agent-chat__fab {
+      width: 22px;
+      height: 22px;
+      font-size: 12px;
+    }
+    .agent-chat--rail .agent-chat__label,
+    .agent-chat--rail .agent-chat__minimic {
+      display: none;
+    }
+  }
+
+  &__none {
+    color: var(--sv-text-muted);
+    font-size: 13px;
+    font-style: italic;
+    padding: 8px 2px;
+  }
+}

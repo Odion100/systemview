@@ -19,6 +19,7 @@ import {
 } from "../../utils/hostProject";
 import { listHusks, addHusk, removeHusk, reconcileHusks, huskEntry } from "../../utils/husks";
 import CodebaseNav from "../CodebaseNav/CodebaseNav";
+import AgentPanel from "../AgentPanel/AgentPanel";
 import { useAppDark } from "../../atoms/appTheme";
 import Help from "../../atoms/Help/Help";
 
@@ -66,6 +67,14 @@ const SystemNav = ({
   // attaches. Abandon the input and it never existed.
   // Double-clicking a project's name edits it in place (see CodebaseNav) — this holds which one.
   const [renaming, setRenaming] = useState(null);
+  // RFC-055 — AGENTS IS A TAB IN THIS STRIP, beside Projects (his call: "we already have a
+  // navigation tab" — not a second nav, not a second pill row over this one). One navigator,
+  // two tabs; the whole thing travels to every page.
+  const [section, setSection] = useState(() => localStorage.getItem("sv.navSection") || "projects");
+  const pickSection = (s) => {
+    setSection(s);
+    localStorage.setItem("sv.navSection", s);
+  };
   const [naming, setNaming] = useState(false);
   const [newName, setNewName] = useState("");
   const nameRef = useRef(null);
@@ -393,10 +402,21 @@ const SystemNav = ({
           <div className="row system-nav__section">
             <div className="col-12">
               <div className="system-nav__tabs">
-                <button type="button" className="system-nav__tab system-nav__tab--active">
+                <button
+                  type="button"
+                  className={`system-nav__tab${section === "projects" ? " system-nav__tab--active" : ""}`}
+                  onClick={() => pickSection("projects")}
+                >
                   Projects
                 </button>
                 <button
+                  type="button"
+                  className={`system-nav__tab${section === "agents" ? " system-nav__tab--active" : ""}`}
+                  onClick={() => pickSection("agents")}
+                >
+                  Agents
+                </button>
+                {section === "projects" && <button
                   type="button"
                   className={`system-nav__tab-add ${naming ? "system-nav__tab-add--open" : ""}`}
                   title={naming ? "Cancel" : "New project — name it"}
@@ -415,12 +435,18 @@ const SystemNav = ({
                   }}
                 >
                   {naming ? "✕" : "+"}
-                </button>
+                </button>}
               </div>
             </div>
           </div>
         </div>
-        <div className="container system-nav__body">
+        {/* THE AGENTS TAB — the card panel, in the same scroll body the projects use. */}
+        {section === "agents" && (
+          <div className="container system-nav__body">
+            <AgentPanel />
+          </div>
+        )}
+        {section === "projects" && <div className="container system-nav__body">
           <div className="row system-nav__section">
             <div className="col-12 ">
               {pickErr && <div className="system-nav__connect-error">{pickErr}</div>}
@@ -481,7 +507,7 @@ const SystemNav = ({
             </div>
           </div>
           <div className="scroll-buffer"></div>
-        </div>
+        </div>}
     </section>
   );
 };

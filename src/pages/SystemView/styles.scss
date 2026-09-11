@@ -368,6 +368,13 @@ body.panel-resizing {
 .center-panel--nav-collapsed {
   padding-left: 66px;
 }
+// The collapsed rail is position:fixed — it HOVERS unless the page reserves its strip. Specs does
+// it with the class above; the other pages' centers reserve the same space by adjacency (his catch
+// on Stats: "give it that little space on closed view — it doesn't have to hover over the page").
+.nav-panel--collapsed + .reports-center,
+.nav-panel--collapsed + .ctx-center {
+  padding-left: 66px;
+}
 .center-panel--scratch-collapsed {
   padding-right: 41px;
 }

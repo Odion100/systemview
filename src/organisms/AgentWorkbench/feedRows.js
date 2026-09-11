@@ -43,6 +43,109 @@ const todoItem = (t, i) => {
     state: TODO_STATE[String(o.state || o.status || "").toLowerCase()] || "pending",
   };
 };
+// THE HARNESS'S OWN MCP CALLS READ AS WHAT THEY ARE — his ask: "the internal tool calls, the MCP
+// calls, display distinctly just like SystemView displays distinctly, with info that helps me
+// audit." A `mcp__context__context` drawn as a generic tool row hides exactly the calls this
+// system exists to make visible: what an agent asked its memory, what it chose to remember, what
+// reach it granted itself. Same treatment as `sv` — a parsed shape the renderer badges — and the
+// summary carries the ARGUMENT (the question, the note, the namespace), because the verb alone
+// audits nothing. The worklist is deliberately absent: it already renders as the todo fold.
+const MCP_SERVERS = { context: true, discovery: true, systemlynx: true };
+// THE RESULT IS DATA, AND DATA GETS A TABLE — his correction, after I shipped prettier prose:
+// "we're in a UI. Have you heard of a table?" The tool's text stays the model's channel; the CHAT
+// parses it back into rows and renders a real table with expandable bodies. We author both ends,
+// so the format is a contract (pinned by tests below), and anything that doesn't parse falls
+// through to the raw block — the pretty path can never lose data.
+export function parseMcpResult(mcp, text) {
+  const t = String(text || "");
+  if (!mcp || !t.trim()) return null;
+  if (mcp.server === "context" && mcp.verb === "context") {
+    // "N notes match:\n\n• title — from <where>, match 0.68 [id]\n  body…\n  see: pointer"
+    // The [id] is optional — older harnesses don't send it; newer ones do so any agent can
+    // remember(id=)/forget() the exact note it just read.
+    const rows = [];
+    let cur = null;
+    for (const line of t.split("\n")) {
+      const h = /^• (.*?) — from (.*?), match (\d\.\d\d)(?: \[([^\]]+)\])?$/.exec(line.trim());
+      if (h) {
+        cur = { title: h[1], where: h[2], score: h[3], id: h[4] || null, body: "", pointer: null };
+        rows.push(cur);
+      } else if (cur && /^\s*see:\s+(\S+)/.test(line)) cur.pointer = /^\s*see:\s+(\S+)/.exec(line)[1];
+      else if (cur && /^\s{2,}/.test(line)) cur.body = (cur.body ? cur.body + " " : "") + line.trim();
+    }
+    return rows.length ? { kind: "notes", rows } : null;
+  }
+  if (mcp.server === "discovery") {
+    // "1. callable — match 0.74\n   desc"
+    const rows = [];
+    let cur = null;
+    for (const line of t.split("\n")) {
+      const h = /^(\d+)\. (\S+) — match (\d\.\d\d)$/.exec(line.trim());
+      if (h) {
+        cur = { title: h[2], where: null, score: h[3], body: "", pointer: null };
+        rows.push(cur);
+      } else if (cur && /^\s{2,}/.test(line)) cur.body = (cur.body ? cur.body + " " : "") + line.trim();
+    }
+    return rows.length ? { kind: "notes", rows } : null;
+  }
+  if (mcp.server === "systemlynx" && mcp.verb === "services") {
+    // "Services:\n  workbench — available · http://…" or "— ATTACHED · N methods across …"
+    const rows = [];
+    for (const line of t.split("\n")) {
+      const h = /^\s+(\S+)\s+—\s+(\S+)\s+·\s+(.*)$/.exec(line);
+      if (h) rows.push({ name: h[1], status: h[2], detail: h[3] });
+    }
+    return rows.length ? { kind: "services", rows } : null;
+  }
+  if (mcp.server === "systemlynx" && mcp.verb === "loadService") {
+    // "Attached workbench: 6 methods … (4 carry schemas).\n\nRepo.findRfc [schema]\n…"
+    const head = /^Attached (\S+): (.*?)(?:\n|$)/.exec(t);
+    if (!head) return null;
+    const methods = t
+      .split("\n")
+      .map((l) => /^(\w[\w.]*\.\w+)(\s+\[schema\])?\s*$/.exec(l.trim()))
+      .filter(Boolean)
+      .map((m) => ({ namespace: m[1], schema: !!m[2] }));
+    return { kind: "loaded", subject: head[1], detail: head[2].replace(/\s*Search them.*/, ""), methods };
+  }
+  if (mcp.server === "context" && mcp.verb === "remember") {
+    // "Remembered as <id> in <scope>.[\nNOTE: …]"
+    const m = /^Remembered as (\S+) in ([^.]+)\.(.*)$/s.exec(t.trim());
+    if (m) return { kind: "note-line", label: "remembered", subject: m[2].trim(), detail: m[1], warn: /NOTE:/.test(m[3]) ? m[3].replace(/^.*NOTE:\s*/s, "").trim() : null };
+    return null;
+  }
+  if (mcp.server === "systemlynx" && mcp.verb === "call") {
+    // "<ns> returned <status>[ — message]\n\n<json>"
+    const m = /^(.+?) returned (\d{3})(?: — (.*))?\n\n([\s\S]*)$/.exec(t);
+    if (!m) return null;
+    return { kind: "call", namespace: m[1], status: +m[2], message: m[3] || "", json: m[4] };
+  }
+  return null;
+}
+
+export function parseMcp(tool, input = {}) {
+  const m = /^mcp__([a-z0-9-]+)__(.+)$/.exec(String(tool || ""));
+  if (!m || !MCP_SERVERS[m[1]]) return null;
+  const [, server, verb] = m;
+  const i = input || {};
+  const q = (t) => (t ? `"${String(t).replace(/\s+/g, " ").trim().slice(0, 80)}"` : "");
+  const line =
+    server === "context" && verb === "context"
+      ? `context ${q(i.question)}${i.scope ? ` in ${i.scope}` : ""}`
+      : server === "context" && verb === "remember"
+      ? `remember${i.scope ? ` [${i.scope}]` : ""} ${q(i.title || i.text)}${i.supersedes ? " (supersedes)" : ""}`
+      : server === "discovery"
+      ? `findTool ${q(i.question)}${i.server ? ` on ${i.server}` : ""}`
+      : verb === "loadService"
+      ? `loadService ${i.name || "?"}`
+      : verb === "call"
+      ? `call ${i.service || "?"} ${i.namespace || ""}`.trim()
+      : verb === "services"
+      ? "services"
+      : `${server} ${verb}`;
+  return { server, verb, line };
+}
+
 const IS_ASK = (k) => k === "permission.request" || k === "permission-request";
 const IS_DONE = (k) => k === "result" || k === "session.ended";
 
@@ -548,11 +651,13 @@ export function foldEvents(events) {
           sv && sv.verb === "message-agent" && sv.project
           ? { to: sv.project, msg: String(sv.target || ""), about: sv.as ? `as ${sv.as}` : "" }
           : null;
+      const mcp = xsend ? null : parseMcp(ev.tool || ev.name, ev.input);
       const row = {
         key,
         kind: "tool",
         id: ev.id,
         xsend,
+        mcp,
         tool: ev.tool || ev.name,
         // THE HOST ALREADY WROTE THE LINE. It holds the tool schemas, so it says "reading
         // CodePane.js" or "run: yarn build" once, at the source — and every view that renders it
@@ -564,6 +669,8 @@ export function foldEvents(events) {
           ? rowLabel(`message → ${xsend.to}${xsend.about ? ` — ${xsend.about}` : ""}`)
           : sv
           ? sv.line
+          : mcp
+          ? mcp.line
           : rowLabel(ev.summary || summarise(ev) || ev.tool || ev.name),
         input: ev.input,
         path: pathTouchedBy(ev),

@@ -1,0 +1,63 @@
+// The app's own selector — button + menu on the sv tokens, light/dark follow the theme.
+.sv-select {
+  position: relative;
+  display: inline-block;
+
+  &__btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 11px;
+    border: 1px solid var(--sv-border);
+    border-radius: 6px;
+    background: var(--sv-surface);
+    color: var(--sv-text);
+    cursor: pointer;
+    font-size: 12.5px;
+    font-family: inherit;
+    &:hover { border-color: var(--sv-blue); }
+    &--hot {
+      color: #d9a441;
+      border-color: #d9a44166;
+    }
+  }
+  &__caret {
+    font-size: 10px;
+    color: var(--sv-text-faint);
+  }
+
+  &__menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    min-width: 100%;
+    width: max-content;
+    background: var(--sv-surface);
+    border: 1px solid var(--sv-border);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(10, 15, 40, 0.18);
+    padding: 4px;
+    z-index: 60;
+    display: flex;
+    flex-direction: column;
+  }
+  &__opt {
+    text-align: left;
+    border: none;
+    background: none;
+    color: var(--sv-text);
+    padding: 6px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 12.5px;
+    font-family: inherit;
+    white-space: nowrap;
+    &:hover { background: var(--sv-hover); }
+    &--on {
+      background: var(--sv-hover);
+      color: var(--sv-text-strong);
+      font-weight: 600;
+    }
+    &--hot { color: #d9a441; }
+  }
+}

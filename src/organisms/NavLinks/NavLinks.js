@@ -34,6 +34,7 @@ const NavLinks = ({ projectCode, current }) => {
   const links = [
     { key: "specs", to: remember("specs", projectCode ? `/specs${pc}` : "/specs"), label: "Specs" },
     { key: "reports", to: remember("reports", `/reports${pc}`), label: "Stats" },
+    { key: "context", to: remember("context", projectCode ? `/context${pc}` : "/context"), label: "Agents" },
   ];
   return (
     <div className="nav-links">

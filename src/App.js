@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import SystemView from "./pages/SystemView/SystemView";
 import Reports from "./pages/Reports/Reports";
+import Context from "./pages/Context/Context";
+import Agents from "./pages/Agents/Agents";
 import ServiceContext from "./ServiceContext";
 import { MarkdownCapabilitiesProvider } from "./atoms/Markdown/capabilities";
 import { systemviewCapabilities } from "./markdownCapabilities";
@@ -83,6 +85,12 @@ function App({ SystemViewService }) {
           <Switch>
             <Route path="/reports/:projectCode?" exact>
               <Reports />
+            </Route>
+            <Route path="/context/:projectCode?" exact>
+              <Context />
+            </Route>
+            <Route path="/agents/:projectCode?" exact>
+              <Context />
             </Route>
             {/* The /ide pages are gone — the transition landed IN /specs (the husk model, the
                 codebase card, the attached agent), so the "build it beside, swap when ready" page

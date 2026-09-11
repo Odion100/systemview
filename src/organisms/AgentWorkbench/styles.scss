@@ -320,6 +320,151 @@
     color: #9a7cb8;
     // The shell is not SystemView, so it does not wear SystemView's plum.
     &--sh { color: var(--sv-text-faint); font-weight: 600; }
+    // The harness's own MCP servers, each in its own color so "what an agent asked its memory"
+    // and "what reach it granted itself" read apart at a glance — his audit ask. Beside
+    // SystemView's plum without borrowing it: these are the harness speaking, not the app.
+    &--mcp-context { color: #4a90d9; }     // memory - the blue the doc glyphs already speak
+    &--mcp-discovery { color: #5aa39a; }   // finding - the shell-teal family
+    &--mcp-systemlynx { color: #d9a441; }  // reach - amber, "this touches a service"
+  }
+
+  // The harness tools' answers are AUTHORED words, so they read as prose: the app font, real
+  // line-height, wrapped — not stdout. Bash keeps its mono block; it earned it.
+  // THE CALL STANDS OUT — full-strength text + weight on the summary line (NO size change, his
+  // rule), so what an agent called reads at a glance instead of squinting at faint grey.
+  &__row--mcp &__tool-sum { color: var(--sv-text-strong); font-weight: 600; }
+  // THE CALL'S INPUT — the same JSON object as any tool, just DISTINGUISHED: full-strength text
+  // instead of the muted grey the feed uses for incidental output, so the call reads clearly.
+  // (His: "wasn't it okay as an object, just made to be lighter / more distinguished.")
+  // JSON, DISTINGUISHED — each token its own color so the call's input reads like an object, not a
+  // grey dump. Values are the loud part (that is the call); keys and braces recede.
+  &__json {
+    color: var(--sv-text-faint);        // braces, colons, commas
+    .agent-wb__json-key { color: #7aa2d6; }     // "question"
+    .agent-wb__json-str { color: var(--sv-text-strong); font-weight: 600; }  // the value — loud
+    .agent-wb__json-num { color: #c9925a; }
+    .agent-wb__json-lit { color: #b07cc8; }
+    .agent-wb__json-punc { color: var(--sv-text-faint); }
+  }
+  &__mcp-said {
+    white-space: pre-wrap;
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: var(--sv-text);
+    background: var(--sv-inset);
+    border: 1px solid var(--sv-border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-top: 6px;
+  }
+
+  // VECTOR-STORE RESULTS ARE A TABLE — his rule: these are our logs, in a UI, so store hits render
+  // as rows you scan, not text you read. Match / note / from, and a row expands its body in place.
+  &__mcp-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+    margin: 2px 0;
+    th {
+      text-align: left;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--sv-text-faint);
+      font-weight: 700;
+      padding: 3px 8px;
+      border-bottom: 1px solid var(--sv-border);
+    }
+  }
+  &__mcp-tr {
+    cursor: pointer;
+    border-bottom: 1px solid var(--sv-border);
+    &:hover { background: var(--sv-hover); }
+    &--open { background: var(--sv-hover); }
+    td { padding: 5px 8px; vertical-align: baseline; }
+  }
+  &__mcp-score {
+    font: 700 12px/1 ui-monospace, Menlo, monospace;
+    color: var(--sv-blue);
+    white-space: nowrap;
+  }
+  &__mcp-title { font-weight: 600; color: var(--sv-text-strong); }
+  &__mcp-where { color: var(--sv-text-faint); white-space: nowrap; font-size: 11.5px; }
+  &__mcp-caret { color: var(--sv-text-faint); text-align: center; width: 18px; }
+  &__mcp-detail {
+    td {
+      padding: 2px 10px 10px 34px;
+      color: var(--sv-text-muted);
+      line-height: 1.5;
+      font-size: 12.5px;
+    }
+  }
+  &__mcp-ptr {
+    display: inline-block;
+    margin-top: 6px;
+    padding: 2px 8px;
+    border: 1px solid var(--sv-border);
+    border-radius: 6px;
+    background: var(--sv-surface);
+    color: var(--sv-blue);
+    font: 11px ui-monospace, Menlo, monospace;
+    cursor: pointer;
+    &:hover { border-color: var(--sv-blue); }
+  }
+  // A CALL is a service response, not store hits — status as a sentence, the return value under it.
+  // THE RETURNED VALUE STANDS OUT — his ask: the call log showed the payload in muted grey and it
+  // read as noise. This is the DATA he called for, so it gets full-strength text and a soft accent
+  // rail, not the incidental-stdout treatment.
+  &__mcp-json {
+    color: var(--sv-text-strong);
+    border-left: 2px solid var(--sv-blue);
+    padding-left: 8px;
+    background: color-mix(in srgb, var(--sv-blue) 6%, transparent);
+    &--bad {
+      color: #d9736a;
+      border-left-color: #d9736a;
+      background: color-mix(in srgb, #d9736a 7%, transparent);
+    }
+  }
+  // Expand-all / collapse-all, top-right of the table header.
+  &__mcp-allth { text-align: right; }
+  &__mcp-all {
+    border: 1px solid var(--sv-border);
+    border-radius: 5px;
+    background: var(--sv-surface);
+    color: var(--sv-text-muted);
+    font-size: 10px;
+    padding: 1px 7px;
+    cursor: pointer;
+    white-space: nowrap;
+    &:hover { border-color: var(--sv-blue); color: var(--sv-blue); }
+  }
+  // services — plain lines, ONLY color changed (his rule: don't touch size or weight). available
+  // and attached both read GREEN (a good, ready state); the url is dimmed so the status leads.
+  &__mcp-status--on { color: #4caf50; }
+  &__mcp-status--off { color: #d9a441; } // available — whitelisted standby (distinct from connected green)
+  &__mcp-url { color: var(--sv-text-faint); }
+  // a one-line confirmation (remember / loadService) — colored, not a grey dump.
+  &__mcp-noteline--can { cursor: pointer; }
+  &__mcp-noteline {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 2px 0 4px;
+  }
+  &__mcp-noteline-label {
+    font-weight: 700;
+    color: #d9a441;
+  }
+  &__mcp-noteline-subject { font-weight: 600; color: var(--sv-text-strong); }
+  &__mcp-noteline-detail { color: var(--sv-text-muted); font-family: ui-monospace, Menlo, monospace; }
+  &__mcp-noteline-warn { color: #c9925a; flex-basis: 100%; }
+  &__mcp-call-head {
+    font-size: 13px;
+    margin: 2px 0 6px;
+    code { color: var(--sv-blue); font-weight: 600; }
+    &--bad code, &--bad b { color: #d64c4c; }
   }
 
   &__more {
@@ -560,7 +705,7 @@
     opacity: 0.9;
   }
   &__row--can { cursor: pointer; }
-  &__tool-body { margin-top: 4px; display: flex; flex-direction: column; gap: 3px; }
+  &__tool-body { margin-top: 4px; display: flex; flex-direction: column; gap: 3px; flex: 0 0 100%; width: 100%; min-width: 0; }
   // The embedded file / diff inside an opened row — a real block, sized to the row it is in.
   &__tool-embed {
     min-width: 0;
@@ -647,4 +792,13 @@
     border-radius: 4px;
     white-space: nowrap;
   }
+}
+
+// the note id in an expanded hit — faint mono, the address remember(id=)/forget() take
+.agent-wb__mcp-id {
+  display: block;
+  margin-top: 4px;
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 10.5px;
+  color: var(--sv-text-faint);
 }

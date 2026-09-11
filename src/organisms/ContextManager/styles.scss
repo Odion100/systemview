@@ -1,0 +1,348 @@
+// RFC-055 — the context surface. Reads on the app's own tokens so it sits in the same world as
+// the codebase nav and the reports, light and dark, without a second palette to keep in sync.
+.ctx-mgr {
+  padding: 16px 20px 60px;
+  max-width: 920px;
+  margin: 0 auto;
+  color: var(--sv-text);
+
+  &--empty {
+    color: var(--sv-text-muted);
+    padding: 40px 20px;
+  }
+
+  &__query {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    background: var(--sv-bg);
+    padding: 10px 0;
+    z-index: 2;
+  }
+
+  &__q-input {
+    flex: 1;
+    padding: 9px 12px;
+    border: 1px solid var(--sv-border);
+    border-radius: 8px;
+    background: var(--sv-surface);
+    color: var(--sv-text);
+    font-size: 14px;
+    &:focus {
+      outline: none;
+      border-color: var(--sv-blue);
+    }
+  }
+
+  &__mic,
+  &__go,
+  &__clear {
+    padding: 9px 14px;
+    border: 1px solid var(--sv-border);
+    border-radius: 8px;
+    background: var(--sv-surface);
+    color: var(--sv-text);
+    cursor: pointer;
+    font-size: 13px;
+    &:hover {
+      background: var(--sv-hover);
+    }
+  }
+  &__go {
+    background: var(--sv-blue);
+    color: #fff;
+    border-color: var(--sv-blue);
+  }
+  &__mic--on {
+    background: #d64c4c;
+    color: #fff;
+    border-color: #d64c4c;
+  }
+
+  &__err {
+    margin: 10px 0;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: #d64c4c22;
+    color: #d64c4c;
+    font-size: 13px;
+    border: 1px solid #d64c4c55;
+  }
+
+  &__section-head {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--sv-text-faint);
+    margin: 20px 0 8px;
+    font-weight: 700;
+  }
+
+  &__hits {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    th {
+      text-align: left;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--sv-text-faint);
+      font-weight: 700;
+      padding: 4px 8px;
+      border-bottom: 1px solid var(--sv-border);
+    }
+  }
+  &__hit-tr {
+    cursor: pointer;
+    border-bottom: 1px solid var(--sv-border);
+    &:hover { background: var(--sv-hover); }
+    &--open { background: var(--sv-hover); }
+    td { padding: 6px 8px; vertical-align: baseline; }
+  }
+  &__hit-caret { color: var(--sv-text-faint); text-align: center; width: 20px; }
+  &__hit-allth { text-align: right; }
+  &__hit-all {
+    border: 1px solid var(--sv-border);
+    border-radius: 5px;
+    background: var(--sv-surface);
+    color: var(--sv-text-muted);
+    font-size: 10px;
+    padding: 1px 7px;
+    cursor: pointer;
+    &:hover { border-color: var(--sv-blue); color: var(--sv-blue); }
+  }
+  &__hit-detail td {
+    padding: 2px 12px 12px 42px;
+    color: var(--sv-text-muted);
+    line-height: 1.55;
+    font-size: 12.5px;
+  }
+  &__results {
+    border: 1px solid var(--sv-border);
+    border-radius: 10px;
+    padding: 4px 12px 12px;
+    background: var(--sv-inset);
+  }
+
+  &__hit {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--sv-border);
+    font-size: 13px;
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+  &__score {
+    font: 700 12px/1 ui-monospace, Menlo, monospace;
+    color: var(--sv-blue);
+    min-width: 34px;
+  }
+  &__hit-scope {
+    font-size: 11px;
+    color: var(--sv-text-faint);
+    background: var(--sv-hover);
+    padding: 1px 6px;
+    border-radius: 4px;
+  }
+  &__hit-title {
+    font-weight: 600;
+    color: var(--sv-text-strong);
+  }
+  &__ptr,
+  &__note-ptr {
+    color: var(--sv-text-faint);
+    font-size: 12px;
+    font-family: ui-monospace, Menlo, monospace;
+  }
+
+  &__none {
+    color: var(--sv-text-muted);
+    font-size: 13px;
+    padding: 6px 0;
+    font-style: italic;
+  }
+
+  &__scopes {
+    display: flex;
+    gap: 8px;
+    margin: 18px 0 4px;
+  }
+  &__scope {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 14px;
+    border: 1px solid var(--sv-border);
+    border-radius: 20px;
+    background: var(--sv-surface);
+    color: var(--sv-text-muted);
+    cursor: pointer;
+    font-size: 13px;
+    &:hover {
+      background: var(--sv-hover);
+    }
+    &--on {
+      background: var(--sv-blue);
+      color: #fff;
+      border-color: var(--sv-blue);
+    }
+  }
+  &__scope-count {
+    font: 700 11px/1 ui-monospace, Menlo, monospace;
+    opacity: 0.75;
+  }
+
+  &__note {
+    border: 1px solid var(--sv-border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    margin-bottom: 8px;
+    background: var(--sv-surface);
+    cursor: pointer;
+    &:hover {
+      border-color: var(--sv-blue);
+    }
+    &--editing {
+      cursor: default;
+      border-color: var(--sv-blue);
+    }
+  }
+  &__note-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+  }
+  &__note-title {
+    font-weight: 700;
+    color: var(--sv-text-strong);
+  }
+  &__note-meta {
+    font-size: 11px;
+    color: var(--sv-text-faint);
+    white-space: nowrap;
+  }
+  &__note-body {
+    margin-top: 5px;
+    font-size: 13px;
+    color: var(--sv-text);
+    line-height: 1.5;
+    white-space: pre-wrap;
+  }
+  &__note-ptr {
+    margin-top: 5px;
+  }
+
+  &__edit-title,
+  &__edit-ptr,
+  &__edit-body {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid var(--sv-border);
+    border-radius: 6px;
+    background: var(--sv-bg);
+    color: var(--sv-text);
+    padding: 7px 10px;
+    margin-bottom: 7px;
+    font-size: 13px;
+    font-family: inherit;
+    &:focus {
+      outline: none;
+      border-color: var(--sv-blue);
+    }
+  }
+  &__edit-title {
+    font-weight: 700;
+  }
+  &__edit-body {
+    resize: vertical;
+    line-height: 1.5;
+  }
+  &__edit-actions {
+    display: flex;
+    gap: 8px;
+  }
+  &__save,
+  &__cancel,
+  &__del {
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--sv-border);
+    background: var(--sv-surface);
+    color: var(--sv-text);
+    cursor: pointer;
+    font-size: 13px;
+    &:hover {
+      background: var(--sv-hover);
+    }
+  }
+  &__save {
+    background: var(--sv-blue);
+    color: #fff;
+    border-color: var(--sv-blue);
+  }
+  &__del {
+    margin-left: auto;
+    color: #d64c4c;
+    border-color: #d64c4c55;
+  }
+  &__del--confirm {
+    margin-left: auto;
+    background: #d64c4c;
+    color: #fff;
+    border-color: #d64c4c;
+    &:hover { background: #b83b3b; }
+  }
+
+  &__tools {
+    margin-top: 8px;
+  }
+  &__tool {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--sv-border);
+    font-size: 12.5px;
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+  &__tool-kind {
+    font-size: 10px;
+    text-transform: uppercase;
+    color: var(--sv-text-faint);
+    background: var(--sv-hover);
+    padding: 1px 6px;
+    border-radius: 4px;
+    min-width: 48px;
+    text-align: center;
+  }
+  &__tool-name {
+    font-family: ui-monospace, Menlo, monospace;
+    color: var(--sv-blue);
+    white-space: nowrap;
+  }
+  &__tool-desc {
+    color: var(--sv-text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+// DARK SELECTION — slate + indigo instead of the solid blue fill (his call), matching the
+// navigator's dark selection language.
+:root.sv-dark .ctx-mgr {
+  .ctx-mgr__scope--on {
+    background: #3a4152;
+    border-color: #6a74c4;
+    color: #a6aef0;
+  }
+}
