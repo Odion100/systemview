@@ -11349,10 +11349,10 @@ systemlynx-client@^3.1.1:
     axios "^1.6.7"
     socket.io-client "^4.8.1"
 
-systemlynx@3.5.0:
-  version "3.5.0"
-  resolved "https://registry.yarnpkg.com/systemlynx/-/systemlynx-3.5.0.tgz#53ae993b1be79447642394348fd1c18836bf4cfd"
-  integrity sha512-YWQnFEgskznJuOSyGDLYTyjuNZySXmm9KuvnMazmkprbJ+MPagYVj+wQqJ3zZdhxg2uYsbbpFEkXyMwqYc5EyQ==
+systemlynx@3.6.1:
+  version "3.6.1"
+  resolved "https://registry.yarnpkg.com/systemlynx/-/systemlynx-3.6.1.tgz#6a26bfec81a52d6b715949c57176bba1a2111010"
+  integrity sha512-vbOIWEPfpDnNsotmfWoZd5Nc8x5147dycunP8dUXMozu5RTw72jFTTvQ/S78iVQa9PBQ0qKAsUmireyKNnZiVg==
   dependencies:
     axios "^1.5.0"
     express "^4.18.2"

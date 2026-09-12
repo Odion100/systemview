@@ -220,6 +220,16 @@ const isUrl = (str) =>
   );
 
 function connect({ system, projectCode, serviceId, specList, credentials, dynamic, hosted }) {
+  // EVICT AT THE RE-REGISTRATION MOMENT. The hub is the registry — this is the first place in
+  // the universe that knows a service came back, possibly with new methods. Closing the shared
+  // Client's cached instance HERE (sockets closed, entry deleted — idempotent on a miss) means
+  // no stub map can be stale for longer than this line, and no route ever needs a throwaway
+  // client or forceReload to dodge the cache (systemlynx@3.6.1 fixed forceReload's hang, but
+  // the eviction pattern makes the hot paths never need it).
+  try {
+    if (system && system.connectionData && system.connectionData.serviceUrl)
+      Client.unloadService(system.connectionData.serviceUrl);
+  } catch {}
   const { service, index } = ConnectedServices.findService(
     system.connectionData.serviceUrl,
     projectCode,
@@ -1828,10 +1838,11 @@ module.exports = function launchSystemView(port = 3000) {
     try {
       const { service } = ConnectedServices.findService(null, req.params.pc, req.params.sid);
       if (!service) return res.status(404).send("service not connected");
-      // A FRESH client per request — the shared Client caches each service's method stubs at
-      // first load, so a service that gained readFileRaw after a restart kept 404ing through
-      // the stale stub map (found live: rebooted fixtures still "not a function" via the cache).
-      const { Plugin } = await createClient(httpClient).loadService(service.system.connectionData.serviceUrl);
+      // THE SHARED CLIENT, CACHED. This used to build a throwaway client per request to dodge
+      // stale stubs after a service restart — the 10,000-socket incident's shape on the image
+      // hot path. The stale-stub problem is now solved at its source: connect() evicts the
+      // cached instance the moment a service re-registers, so the cache here is always honest.
+      const { Plugin } = await Client.loadService(service.system.connectionData.serviceUrl);
       const file = await Plugin.readFileRaw({ path: String(req.query.path || "") });
       res.set("Content-Type", file.mime || "application/octet-stream");
       res.set("Cache-Control", "private, max-age=30");
