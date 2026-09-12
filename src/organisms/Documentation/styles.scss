@@ -54,13 +54,17 @@
     text-overflow: ellipsis;
     max-width: 60%;
   }
-  // A clickable segment. Grey by default (any level you're NOT scoped to), blue + bold when it IS the
-  // current middle scope. Hover hints it's interactive.
+  // A clickable segment. PLUM by default (his call — the owner address wears its own color on
+  // every pane, same as the code pane's project crumb), indigo + bold when it IS the current
+  // middle scope. Hover hints it's interactive.
   &__ns-seg {
-    color: var(--sv-text-muted);
+    color: #8e5aa8;
     cursor: pointer;
+    :root.sv-dark & {
+      color: #b48ad2;
+    }
     &:hover {
-      color: #6b7080;
+      color: #6d3f85;
       text-decoration: underline;
     }
     &--active {

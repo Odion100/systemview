@@ -33,7 +33,76 @@ const VERBS = {
   stats: { icon: "▦", what: "stats" },
   join: { icon: "◍", what: "joined the room" },
   connect: { icon: "⇄", what: "connected a service" },
+  disconnect: { icon: "⇄", what: "disconnected a service" },
+  projects: { icon: "◫", what: "listed the projects" },
 };
+
+// RFC-056 — THE SAME ROW FOR THE NEW DOOR. The verbs moved from bash lines to internal MCP tools;
+// the STYLE stays exactly where it was (his rule: "the systemview logs already had a style — why
+// are you recreating one?"). An mcp__systemview__ call maps to the SAME shape parseSvCommand
+// returns, so every row, badge, status line and treatment applies unchanged — the mechanism moved,
+// the record did not.
+export function svFromMcp(tool, input = {}) {
+  const m = /^mcp__systemview__(.+)$/.exec(String(tool || ""));
+  if (!m) return null;
+  const mcpVerb = m[1];
+  const verb = mcpVerb === "runTests" ? "test" : mcpVerb === "listTests" ? "projects" : mcpVerb;
+  // A SYSTEMVIEW CALL NEVER RENDERS GREY (his catch): an unmapped verb still wears the app's
+  // identity — generic icon, the verb as its own label — rather than falling through to a plain
+  // tool row. The badge IS the information.
+  const spec = Object.prototype.hasOwnProperty.call(VERBS, verb) ? VERBS[verb] : { icon: "▸", what: verb };
+  const i = input || {};
+  const pc = i.projectCode || null;
+  const q = (t) => `"${String(t).replace(/\s+/g, " ").trim().slice(0, 48)}"`;
+  // the line as the CLI would have shown it — verb and arguments, no paraphrase
+  const line =
+    verb === "test"
+      ? `test ${pc || ""}${i.namespace ? ` ${i.namespace}` : ""}${i.dryRun ? " --dry-run" : ""}`.trim()
+      : verb === "projects"
+      ? "projects"
+      : verb === "logs"
+      ? `logs ${pc || ""}${i.level ? ` --level ${i.level}` : ""}${i.namespace ? ` ${i.namespace}` : ""}`.trim()
+      : verb === "stats"
+      ? `stats ${pc || ""}${i.range ? ` --range ${i.range}` : ""}`.trim()
+      : verb === "show"
+      ? `show ${pc || ""}${i.clear ? " --clear" : i.text ? ` --text ${q(i.text)}` : i.reportPath ? ` --file ${i.reportPath}` : ""}`.trim()
+      : verb === "tv"
+      ? `tv ${pc || ""}${i.show ? ` --show ${q(i.show)}` : ""}`.trim()
+      : verb === "reply"
+      ? `reply ${pc || ""} ${i.report || ""} ${i.threadId || ""}`.trim()
+      : verb === "board"
+      ? `board ${pc || ""}${i.name ? ` ${i.name}` : ""}${i.add ? ` --add ${q(i.add)}` : i.replyText ? ` --reply ${q(i.replyText)}` : ""}`.trim()
+      : verb === "comments"
+      ? `comments ${pc || ""}${i.path ? ` ${i.path}` : ""}${i.replyText ? ` --reply ${q(i.replyText)}` : ""}`.trim()
+      : verb === "nav"
+      ? // EXPLICIT KINDS (the schema split): the line carries the destination the way the CLI
+        // would write it — a namespace is positional, the documents wear their flag, the pages
+        // (stats, agents) are named. The bare "nav <pc> center" row that said nothing was the
+        // bug (his catch: "I have to open up the log to see exactly where you went").
+        (i.namespace
+          ? `nav ${pc || ""} ${i.namespace}`
+          : i.stats
+          ? `nav ${pc || ""} stats${i.stats === "open" ? "" : ` ${i.stats}`}`
+          : i.agents
+          ? `nav ${pc || ""} agents`
+          : `nav ${pc || ""} ${i.region || "center"}${i.tab ? ` --tab ${i.tab}` : i.report ? ` --report ${i.report}` : i.file ? ` --file ${i.file}` : i.target ? ` ${i.target}` : ""}`
+        ).replace(/\s+/g, " ").trim()
+      : verb === "refresh"
+      ? `refresh ${pc || ""} ${i.pane || ""}`.trim()
+      : verb === "act"
+      ? `act ${pc || ""} ${i.kind || ""} ${i.target || ""}`.trim()
+      : verb === "highlight"
+      ? `highlight ${pc || ""} ${i.target || ""}`.trim()
+      : verb === "connect"
+      ? `connect ${i.url || ""}`.trim()
+      : verb === "disconnect"
+      ? `disconnect ${pc || ""}${i.serviceId ? ` ${i.serviceId}` : ""}`.trim()
+      : `${verb} ${pc || ""}`.trim();
+  const target =
+    i.namespace || i.target || i.file || i.tab || i.pane || i.report || i.path || i.name || i.show || i.url || i.serviceId ||
+    (i.text ? String(i.text).slice(0, 48) : null) || null;
+  return { verb, icon: spec.icon, what: spec.what, project: pc, target, as: null, raw: line, line };
+}
 
 // Split a command line into words, keeping quoted runs whole — the label of a `show` is the very
 // thing that lives inside quotes, so a naive split loses exactly what is worth showing.

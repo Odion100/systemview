@@ -56,18 +56,22 @@
     overflow-y: auto;
     overflow-x: hidden;
   }
-  // The scratchpad title + the "editing this saved test" chip share ONE row and never wrap — the chip's
-  // own title ellipsis handles a long name (before, a long name pushed the chip onto a second line).
+  // The scratchpad title + the namespace chip share one row WHEN IT FITS. The old hard nowrap let
+  // the chip's ellipsis shrink all the way to ZERO on a narrow scratchpad — the namespace simply
+  // vanished from the top (his report, reproduced at ≤230px: 14px, then 0). A visibility FLOOR
+  // keeps at least the tail of the namespace readable; when even the floor can't fit beside the
+  // title, the chip wraps under it — visible beats vanished, every time.
   &__head {
-    flex-wrap: nowrap !important; // bootstrap .row's wrap ties on specificity and loads later — force it
+    flex-wrap: wrap;
     align-items: center;
     gap: 6px;
     .status-indicator {
-      min-width: 0; // allow the chip to shrink so its title can ellipsis instead of wrapping the row
+      flex: 0 1 auto;
+      min-width: 130px; // the floor: enough for "…Math.add(…)" — never squeezed to nothing
     }
     .panel-title {
       flex: none;
-      white-space: nowrap; // "Scratch Pad" never breaks — the CHIP is the shrinkable one
+      white-space: nowrap; // "Scratch Pad" never breaks — the CHIP is the flexible one
     }
   }
 

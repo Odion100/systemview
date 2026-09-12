@@ -434,7 +434,7 @@ module.exports.status = async function status(projectCode, text, { uiUrl, Client
 // clicks save silently to the room's TV state — which is worthless if the agent can't read them
 // back. This was the missing half of that loop (agents/chat.md promised "the hub's chatGetTv"
 // with no command behind it, so agents correctly reported they could not see his answers).
-module.exports.tv = async function tv(projectCode, { uiUrl, Client, chat, json = false, show } = {}) {
+module.exports.tv = async function tv(projectCode, { uiUrl, Client, chat, json = false, show, collect = false } = {}) {
   if (!projectCode) {
     log.warn("Usage: systemview tv <projectCode> [<report title>] [--chat name] [--json]");
     return 1;
@@ -463,6 +463,7 @@ module.exports.tv = async function tv(projectCode, { uiUrl, Client, chat, json =
     log.warn(`nothing on ${projectCode}'s TV${chat ? ` (${chat})` : ""} — put a show up with: systemview show ${projectCode} --text "<markdown>"`);
     return 1;
   }
+  if (collect) return state; // RFC-056 lib mode — the hub serves this to the internal MCP
   if (json) {
     console.log(JSON.stringify(state));
     return 0;
@@ -727,6 +728,10 @@ module.exports.nav = async function nav(projectCode, section, target, opts = {})
     args.file = p;
     if (fm) args.lines = [Number(fm[2]), Number(fm[3] || fm[2])];
     label = `pulled up ${p}${l ? `#L${l}` : ""}`;
+  } else if (opts.agents) {
+    // RFC-055's page — the agent roster and profiles. A destination like any other.
+    args.agents = true;
+    label = "opened the agents page";
   } else if (opts.tab) {
     args.tab = opts.tab;
     label = `switched to the ${opts.tab} tab`;

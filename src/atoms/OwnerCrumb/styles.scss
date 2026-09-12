@@ -1,0 +1,27 @@
+// The one owner-address style. Plum segments — the house color for SystemView's own addressing —
+// lighter on a dark header band, deeper on a light one; separators muted either way.
+.owner-crumb {
+  font-family: "SF Mono", Menlo, monospace;
+  font-size: 12px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: none;
+  &__seg {
+    color: #b48ad2;
+    font-weight: 600;
+  }
+  &__sep {
+    color: var(--sv-on-header-muted, var(--sv-text-faint));
+    padding: 0 4px;
+    // The trailing › hands off to the next flex child — the container's own gap does the
+    // spacing there; keeping this side's padding stacked a double-wide hole before titles.
+    &--trail {
+      padding-right: 0;
+    }
+  }
+  &--light &__seg {
+    color: #8e5aa8;
+  }
+}

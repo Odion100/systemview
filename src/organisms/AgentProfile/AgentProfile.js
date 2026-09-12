@@ -24,7 +24,7 @@ import SvSelect from "../../atoms/SvSelect/SvSelect";
 //   - The knowledge counts filter the context section directly below.
 const asList = (v) => (Array.isArray(v) ? v : []);
 
-const INTERNAL_MCP = new Set(["worklist", "discovery", "systemlynx", "context"]);
+const INTERNAL_MCP = new Set(["worklist", "discovery", "systemlynx", "context", "systemview"]);
 
 const ago = (ts) => {
   if (!ts) return "";

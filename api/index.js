@@ -3,6 +3,8 @@ const { createCookieHttpClient } = require("../cli/cookieClient");
 const { headersFor } = require("../cli/manifestHeaders");
 const ConnectedServices = require("./Connections")();
 const CLIHistory = require("./CLIHistory")();
+// RFC-056 — recent test runs by HANDLE: hub memory, capped, never on disk (his rule).
+const RUNS = new Map();
 const Settings = require("./Settings")();
 const Comments = require("./Comments")();
 const Stage = require("./Stage")();
@@ -1933,6 +1935,163 @@ module.exports = function launchSystemView(port = 3000) {
       saveHistory: CLIHistory.saveHistory,
       getSettings: Settings.getSettings,
       saveSettings: Settings.saveSettings,
+      // RFC-056 — THE SAME RUNNER, SERVED. The internal MCP's runTests/listTests tools call these;
+      // the CLI keeps calling the module directly. One runner, one lister, two faces — the
+      // orchestration (filter grammar, phases, action resolution) never forks.
+      runTests: async ({ projectCode, namespace, headers, bail, phase, index, skip, dryRun } = {}) => {
+        const run = require("../cli/runTests");
+        const r = await run(`http://localhost:${process.env.PORT || 3000}`, projectCode, namespace || undefined, {
+          collect: true,
+          headers: headers || {},
+          bail: !!bail,
+          dryRun: !!dryRun,
+          phase: phase || null,
+          index,
+          skip: Array.isArray(skip) ? skip : [],
+        });
+        // hold the result by HANDLE (in memory, capped) so the chat can display it richly on
+        // demand — never written anywhere
+        if (r && Array.isArray(r.tests) && r.tests.length && !r.dryRun) {
+          const id = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+          RUNS.set(id, { ...r, ranAt: Date.now() });
+          while (RUNS.size > 20) RUNS.delete(RUNS.keys().next().value);
+          r.runId = id;
+        }
+        return r;
+      },
+      listTests: async ({ projectCode, namespace } = {}) => {
+        const list = require("../cli/listTests");
+        return list(`http://localhost:${process.env.PORT || 3000}`, projectCode || undefined, namespace || undefined, { collect: true });
+      },
+      // THE RUN IS A HANDLE, NOT A FILE (his rule: "we have a handle on it and we display it").
+      // Results live in hub memory for the process's lifetime, capped — nothing written, nothing
+      // to maintain or delete. The chat row fetches by id only when someone opens it.
+      getRun: async ({ id } = {}) => (id && RUNS.has(String(id)) ? RUNS.get(String(id)) : { expired: true }),
+      // Logs and stats, served structured — the internal MCP renders them human-readable.
+      getLogs: async ({ projectCode, level, limit = 100, namespace } = {}) => {
+        const services = getServices(projectCode) || [];
+        const all = [];
+        for (const s of services) {
+          try {
+            const svc = Client.createService(s.system.connectionData);
+            let entries = (await svc.SystemView.getLog({ limit })) || [];
+            if (level) entries = entries.filter((e) => e.level === level);
+            if (namespace)
+              entries = entries.filter((e) =>
+                `${e.serviceId || ""}.${e.moduleMethod || ""}`.toLowerCase().includes(String(namespace).toLowerCase())
+              );
+            all.push(...entries.map((e) => ({ ...e, serviceId: e.serviceId || s.serviceId })));
+          } catch {}
+        }
+        all.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+        return { projectCode, entries: all.slice(-Math.max(1, Number(limit) || 100)) };
+      },
+      stats: async ({ projectCode, service, range } = {}) => {
+        const statsCmd = require("../cli/stats");
+        const r = await statsCmd(projectCode, service || undefined, {
+          uiUrl: `http://localhost:${process.env.PORT || 3000}`,
+          range: range || "all",
+          collect: true,
+        });
+        return typeof r === "number" ? { projectCode, error: "stats unavailable — is the project connected?" } : r;
+      },
+      // The speaking-to-him verbs, one runner two faces: same cli/chat.js the terminal uses.
+      svShow: async ({ projectCode, text, reportPath, clear, as } = {}) => {
+        const chatCmd = require("../cli/chat");
+        const code = await chatCmd.show(projectCode, {
+          uiUrl: `http://localhost:${process.env.PORT || 3000}`,
+          Client,
+          agent: as || null,
+          text: text || null,
+          file: reportPath || null,
+          clear: !!clear,
+        });
+        return { ok: code === 0 };
+      },
+      svTv: async ({ projectCode, show, as } = {}) => {
+        const chatCmd = require("../cli/chat");
+        const state = await chatCmd.tv(projectCode, {
+          uiUrl: `http://localhost:${process.env.PORT || 3000}`,
+          Client,
+          show: show || undefined,
+          collect: true,
+        });
+        return typeof state === "number" ? { error: "nothing on the TV" } : state;
+      },
+      svReply: async ({ projectCode, report, threadId, text, as } = {}) => {
+        const chatCmd = require("../cli/chat");
+        const code = await chatCmd.reply(projectCode, report, threadId, text, {
+          uiUrl: `http://localhost:${process.env.PORT || 3000}`,
+          Client,
+          agent: as || null,
+        });
+        return { ok: code === 0 };
+      },
+      svBoard: async ({ projectCode, name, add, replyText, at, as } = {}) => {
+        const boardCmd = require("../cli/board");
+        const r = await boardCmd(projectCode, name || undefined, {
+          uiUrl: `http://localhost:${process.env.PORT || 3000}`,
+          add: add || undefined,
+          reply: replyText || undefined,
+          at,
+          as: as || null,
+          collect: !add && !replyText,
+        });
+        return typeof r === "number" ? { ok: r === 0 } : r;
+      },
+      svComments: async ({ projectCode, path, replyText, at, as } = {}) => {
+        const commentsCmd = require("../cli/comments");
+        const r = await commentsCmd(projectCode, path || undefined, {
+          uiUrl: `http://localhost:${process.env.PORT || 3000}`,
+          reply: replyText || undefined,
+          at,
+          as: as || null,
+          collect: !replyText,
+        });
+        return typeof r === "number" ? { ok: r === 0 } : r;
+      },
+      svDrive: async ({ projectCode, verb, a, b, as, namespace, file, report, stats, agents } = {}) => {
+        // nav / refresh / act / highlight — the window-driving verbs, one door
+        const chatCmd = require("../cli/chat");
+        const opts = { uiUrl: `http://localhost:${process.env.PORT || 3000}`, Client, agent: as || null };
+        let code = 1;
+        if (verb === "nav") {
+          // EXPLICIT KINDS (his rule): the caller SAYS whether it's a namespace, file, report,
+          // stats, or agents — the sniffing regex that guessed from one target string is gone;
+          // the guessing was the bug, three times in one afternoon. Region died with it: every
+          // document nav is the center. `b` stays as a namespace-only alias for a session whose
+          // tool schema predates the split.
+          if (report) code = await chatCmd.nav(projectCode, "center", undefined, { ...opts, report });
+          else if (file) code = await chatCmd.nav(projectCode, "center", undefined, { ...opts, file });
+          else if (stats) code = await chatCmd.nav(projectCode, "stats", stats === "open" ? undefined : stats, opts);
+          else if (agents) code = await chatCmd.nav(projectCode, "agents", undefined, { ...opts, agents: true });
+          else code = await chatCmd.nav(projectCode, "center", namespace || b || undefined, opts);
+        }
+        else if (verb === "refresh") code = await chatCmd.refresh(projectCode, a, opts);
+        else if (verb === "act") code = await chatCmd.act(projectCode, a, b, opts);
+        else if (verb === "highlight") code = await chatCmd.highlight(projectCode, a, opts);
+        else return { ok: false, error: `unknown drive verb: ${verb}` };
+        return { ok: code === 0 };
+      },
+      svConnect: async ({ url } = {}) => {
+        // agent-side connect (his t4 call): a URL in, the project's services registered
+        const list = await getServices(url);
+        const arr = Array.isArray(list) ? list : [];
+        return { connected: arr.map((s) => ({ projectCode: s.projectCode, serviceId: s.serviceId })) };
+      },
+      svDisconnect: async ({ projectCode, serviceId } = {}) => {
+        if (!projectCode) return { ok: false, error: "projectCode required" };
+        // never report a disconnect that removed nothing (caught by RFC-056's own verification)
+        const svcs = ConnectedServices.findProject(projectCode) || [];
+        if (!svcs.length) return { ok: false, error: `no connected project "${projectCode}"` };
+        if (serviceId) {
+          if (!svcs.some((s) => s.serviceId === serviceId)) return { ok: false, error: `no service "${serviceId}" in ${projectCode}` };
+          await deleteService(projectCode, serviceId);
+        } else {
+          for (const s of svcs) await deleteService(projectCode, s.serviceId);
+        }
+        return { ok: true };
+      },
       // Threads on SystemView's own surfaces (hub, help topics) — see api/Comments.js for why they
       // don't ride a project's plugin the way a document's threads do.
       getComments: Comments.getComments,

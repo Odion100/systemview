@@ -4,6 +4,7 @@ import { hostFiles } from "../../utils/hostFiles";
 import Markdown from "../../atoms/Markdown/Markdown";
 import DescriptionBox from "../../atoms/DescriptionBox/DescriptionBox";
 import { EditorThemeToggle, useEditorDark } from "../../atoms/CodeView/editorTheme";
+import OwnerCrumb from "../../atoms/OwnerCrumb/OwnerCrumb";
 import { raiseError } from "../../atoms/Banner/bannerStore";
 import "./styles.scss";
 
@@ -23,6 +24,8 @@ const INDEX = ".systemview/reports.index.json";
 // Flat inside `.systemview/`: that folder always exists (stories live there) and older published
 // plugins can't create directories — the same constraint the comment sidecars work under.
 const filePath = (nsKey, name) => `.systemview/report.${slug(nsKey)}.${slug(name)}.md`;
+// A report path names its OWNER project — the segment right after "report.".
+const projOfPath = (p) => (String(p || "").match(/^\.systemview\/report\.([^.]+)\./) || [])[1] || null;
 
 const hasPlugin = (s) =>
   ((s.system && s.system.connectionData && s.system.connectionData.modules) || []).some((m) => m.name === "Plugin");
@@ -41,7 +44,17 @@ const ReportsTab = ({ projectCode, serviceId, moduleName, methodName, openName, 
   const nameRef = useRef(null);
 
   const nsKey = [projectCode, serviceId, moduleName, methodName].filter(Boolean).join(".") || "";
-  const nsLabel = [serviceId, moduleName, methodName].filter(Boolean).join(".") || projectCode || "";
+  // THE OWNER LEADS, ALWAYS BOTH HALVES (his rule — "everything is namespace-based"): project
+  // first, then the namespace inside it. It used to be either/or, so a service-scoped report
+  // never said which project it belonged to.
+  const nsInner = [serviceId, moduleName, methodName].filter(Boolean).join(".");
+  // An OPEN document wears ITS OWN project, not the page's scope — a report's path names its
+  // owner (.systemview/report.<pc>.<name>.md), and the scope crumb on a foreign report was a
+  // lie he caught live: "it says the namespace, but it's on the report".
+  const docOwner = doc ? projOfPath(doc.path) : null;
+  const nsSegs =
+    docOwner && docOwner !== projectCode ? [docOwner] : [projectCode, nsInner].filter(Boolean);
+  const nsLabel = [projectCode, nsInner].filter(Boolean).join(" › ");
 
   // REPORTS ARE FILES, so they come from the hub like every other file. This hunted the project's
   // services for one carrying a plugin — so on a project whose services are down, or that never had
@@ -139,9 +152,15 @@ const ReportsTab = ({ projectCode, serviceId, moduleName, methodName, openName, 
 
   const read = useCallback(
     async (entry) => {
-      if (!Plugin || !entry) return;
+      if (!entry) return;
+      // READ THROUGH THE PROJECT THE PATH NAMES. A foreign report asked through this page's
+      // plugin answered "no such file" (found live — a systemlynx report opened from
+      // systemview-test's window).
+      const owner = projOfPath(entry.path);
+      const P = owner && owner !== projectCode ? hostFiles(owner) : Plugin;
+      if (!P) return;
       try {
-        const data = await Plugin.readFile({ path: entry.path });
+        const data = await P.readFile({ path: entry.path });
         setDoc({ ...entry, content: data.content || "" });
       } catch (e) {
         // AN UNREADABLE REPORT MUST NOT LOOK LIKE AN EMPTY ONE. This used to fall back to blank
@@ -151,7 +170,7 @@ const ReportsTab = ({ projectCode, serviceId, moduleName, methodName, openName, 
         setDoc({ ...entry, content: "", failed: (e && (e.message || String(e))) || "could not be read" });
       }
     },
-    [Plugin]
+    [Plugin, projectCode]
   );
 
   // The open report rides the URL, so a refresh keeps you where you were. RFC-029: `?rdoc=` may
@@ -229,14 +248,19 @@ const ReportsTab = ({ projectCode, serviceId, moduleName, methodName, openName, 
   // only when the bytes actually differ, so a document sitting untouched costs one small read and
   // never moves under him. It stands off while he's editing or mid-save — his keystrokes win.
   useEffect(() => {
-    if (!Plugin || !doc || !doc.path || editing) return undefined;
+    if (!doc || !doc.path || editing) return undefined;
+    // The watcher reads through the OWNER's plugin too — a foreign report watched through the
+    // page's own project would silently never update.
+    const owner = projOfPath(doc.path);
+    const P = owner && owner !== projectCode ? hostFiles(owner) : Plugin;
+    if (!P) return undefined;
     let dead = false;
     const path = doc.path;
     const reread = async () => {
       if (dead || document.hidden) return;
       if (Date.now() - savingRef.current < 4000) return; // a save of his is still settling
       try {
-        const data = await Plugin.readFile({ path });
+        const data = await P.readFile({ path });
         if (dead || typeof data.content !== "string") return;
         setDoc((cur) =>
           cur && cur.path === path && cur.content !== data.content
@@ -388,10 +412,11 @@ const ReportsTab = ({ projectCode, serviceId, moduleName, methodName, openName, 
           selector back later as a general document-navigation thing; that's his call, not a leftover.) */}
       {/* Open: the document's name. As the list: NOTHING — the count line was a picker leftover
           ("it still says four reports up here"); the list below speaks for itself. */}
+      {/* THE OWNER LEADS — the SHARED OwnerCrumb, not a hand-rolled imitation (his catch: the
+          bar's old bespoke label was the one-off; the shared crumb replaces it, it doesn't get
+          imitated). Trailing › only when a document name follows. */}
+      <OwnerCrumb dark={editorDark} segments={nsSegs} trail={!!doc} />
       {doc && <span className="reports-tab__current reports-tab__current--title">{doc.name}</span>}
-      <span className="reports-tab__ns" title="Reports are scoped to this namespace">
-        {nsLabel}
-      </span>
       <span className="reports-tab__bar-actions">
         <EditorThemeToggle scope="docs" />
         {doc && !editing ? (

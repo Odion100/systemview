@@ -6,6 +6,7 @@ import { changeMarksOf, hunksOf, stagedContentFor } from "../../atoms/CodeView/g
 import { useCodeComments } from "../../atoms/CodeView/codeComments";
 import { importBlocks, kindOfLine, originalName } from "../../atoms/CodeView/codeNav";
 import RowMenu from "../../atoms/RowMenu/RowMenu";
+import OwnerCrumb from "../../atoms/OwnerCrumb/OwnerCrumb";
 import DiffView from "../../atoms/DiffView/DiffView";
 import { useEditorDark, EditorThemeToggle } from "../../atoms/CodeView/editorTheme";
 import Markdown from "../../atoms/Markdown/Markdown";
@@ -755,7 +756,11 @@ const CodePane = ({ file, onClose }) => {
           </button>
         )}
         <span className={`${CLASSNAME}__kind`}>code</span>
-        {/* Breadcrumb — the path, its file name emphasized. */}
+        {/* Breadcrumb — WHOSE file first (the shared OwnerCrumb: project, then the service the
+            file came through), then the path, its file name emphasized. His catch on a
+            cross-project nav: a root-level index.js showed one bare segment — no project, no
+            namespace, "where is it?". */}
+        <OwnerCrumb dark={editorDark} segments={[file.projectCode, file.serviceId]} trail />
         <span className={`${CLASSNAME}__crumb`} title={file.path}>
           {segments.map((seg, i) => (
             <span key={i}>

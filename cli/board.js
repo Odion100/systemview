@@ -69,7 +69,8 @@ function serializeBoard({ title, cards }) {
     .join("\n")}`;
 }
 
-module.exports = async function boardCommand(projectCode, name, { uiUrl, json, reply, at, as, add, file } = {}) {
+module.exports = async function boardCommand(projectCode, name, { uiUrl, json, reply, at, as, add, file, collect = false } = {}) {
+  if (collect) json = true;
   if (!projectCode) {
     log.warn(
       'Usage: systemview board <projectCode> [name] [--json]\n' +
@@ -189,6 +190,7 @@ module.exports = async function boardCommand(projectCode, name, { uiUrl, json, r
     return 0;
   }
 
+  if (collect) return { project: projectCode, board: name || "board", ...board };
   if (json) {
     console.log(JSON.stringify({ project: projectCode, board: name || "board", ...board }, null, 2));
     return 0;

@@ -8,10 +8,20 @@ const Client = createClient(cookieHttpClient);
 const resolveTarget = require("./utils/resolveTarget");
 const { matchNamespace } = require("./utils/matchNamespace");
 
-module.exports = async function listTests(url, project_code, namespace, { connectedUrls = new Set(), verbose = false, json = false } = {}) {
+module.exports = async function listTests(url, project_code, namespace, { connectedUrls = new Set(), verbose = false, json = false, collect = false } = {}) {
   const api = `${url}/systemview/api`;
+  // RFC-056 — LIB MODE: return the data instead of printing. One lister, two faces (CLI + MCP).
+  if (collect) json = true;
 
   if (!project_code) {
+    if (collect) {
+      try {
+        const { SystemView } = await Client.loadService(api);
+        return { projects: (await SystemView.getProjects()) || {} };
+      } catch {
+        return { projects: {}, error: "could not reach the hub" };
+      }
+    }
     await listAllProjects(api, Client, verbose, connectedUrls, json);
     return;
   }
@@ -25,6 +35,7 @@ module.exports = async function listTests(url, project_code, namespace, { connec
     if (resolved.resolvedNamespace && !namespace) namespace = resolved.resolvedNamespace;
   } catch {}
   if (!connectedServices.length) {
+    if (collect) return { services: [], error: "no connected services for " + project_code };
     log.warn("No connected services found for: " + project_code);
     return;
   }
@@ -36,7 +47,10 @@ module.exports = async function listTests(url, project_code, namespace, { connec
       try {
         const svc = Client.createService(system.connectionData);
         testList = await svc.Plugin.getTests();
-      } catch { continue; }
+      } catch {
+        if (collect) output.push({ serviceId, error: "could not load tests" });
+        continue;
+      }
       // Scope to specs that belong to THIS service (services can share a specs folder, so getTests
       // returns the whole folder). Then apply the optional namespace filter.
       const own = testList.filter(({ namespace: n }) => n && n.serviceId === serviceId);
@@ -47,6 +61,7 @@ module.exports = async function listTests(url, project_code, namespace, { connec
         : own;
       output.push({ serviceId, tests: filtered });
     }
+    if (collect) return { services: output };
     console.log(JSON.stringify(output, null, 2));
     return;
   }

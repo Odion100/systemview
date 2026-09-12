@@ -9,7 +9,7 @@ import { resolveTestActions, actionMapForTests } from "../SavedTests/transformTe
 // response → the assertions that pin it — with a Run button and inline pass/fail. It reuses the
 // existing SavedTests organism (which already does story-render + run + validation), scoped to the
 // one (or few) tests the pane's target names. The test IS the example: how the method is really used.
-const TestPane = ({ target = {}, projectCode, ranFile = null }) => {
+const TestPane = ({ target = {}, projectCode, ranFile = null, ranData = null }) => {
   const { connectedServices } = useContext(ServiceContext);
   const { serviceId, moduleName, methodName, index, title, note } = target;
   const [tests, setTests] = useState([]);
@@ -79,6 +79,12 @@ const TestPane = ({ target = {}, projectCode, ranFile = null }) => {
   useEffect(() => { fetchTests(); }, [fetchTests]);
 
   useEffect(() => {
+    // RFC-056 — DATA IN HAND WINS (his rule: "we have a handle on it and we display it"): a
+    // caller that already holds the run passes it directly; the file path stays for documents.
+    if (ranData) {
+      setRunData(ranData);
+      return;
+    }
     if (!ranFile || !targetServices.length) return;
     let live = true;
     (async () => {
@@ -96,7 +102,7 @@ const TestPane = ({ target = {}, projectCode, ranFile = null }) => {
     })();
     return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ranFile, targetServices.length]);
+  }, [ranFile, ranData, targetServices.length]);
 
   // The recorded entry per test — matched by namespace (+ title when both sides have one).
   // MEMOIZED as a list: a fresh object identity every render would re-trigger hydration and make

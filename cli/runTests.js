@@ -54,11 +54,16 @@ module.exports = async function runTests(
     phase: phaseFilter = null,
     index: indexFilter = undefined,
     skip: skipPatterns = [],
+    // RFC-056 — LIB MODE: return the structured result instead of printing it. The hub exposes
+    // this same runner as a service method for the internal MCP; one runner, two faces.
+    collect = false,
   } = {}
 ) {
+  if (collect) json = true;
   const api = `${url}/systemview/api`;
 
   if (!project_code) {
+    if (collect) return { projectCode: null, passed: 0, failed: 0, tests: [], exitCode: 1, error: "project_code required" };
     log.warn("project_code required. Example: systemview test myAPI");
     return 1;
   }
@@ -66,6 +71,7 @@ module.exports = async function runTests(
   const { services: connectedServices, resolvedNamespace } = await resolveServices(api, project_code);
   if (resolvedNamespace && !namespace) namespace = resolvedNamespace;
   if (!connectedServices || !connectedServices.length) {
+    if (collect) return { projectCode: project_code, passed: 0, failed: 0, tests: [], exitCode: 1, error: "no connected services for " + project_code };
     log.warn("No connected services found for project: " + project_code);
     return 1;
   }
@@ -100,11 +106,18 @@ module.exports = async function runTests(
     .filter((list) => list.length);
 
   if (!testToRun.length) {
+    if (collect) return { projectCode: project_code, passed: 0, failed: 0, tests: [], exitCode: 0, error: `no tests matching ${project_code}${namespace ? " " + namespace : ""}` };
     log.warn(`No tests found matching: ${project_code}${namespace ? " " + namespace : ""}`);
     return 0;
   }
 
   if (dryRun) {
+    // collect: the would-run list IS the listing (his call: "dry run is how you list tests")
+    if (collect) {
+      const tests = [];
+      testToRun.forEach((list) => list.forEach(({ namespace: n, title }) => tests.push({ serviceId: n.serviceId, moduleName: n.moduleName, methodName: n.methodName, title })));
+      return { projectCode: project_code, dryRun: true, passed: 0, failed: 0, tests, exitCode: 0 };
+    }
     const total = testToRun.reduce((n, list) => n + list.length, 0);
     console.log("");
     console.log(`  Would run ${total} ${total === 1 ? "test" : "tests"}:`);
@@ -154,6 +167,9 @@ module.exports = async function runTests(
     }
   }
 
+  if (collect) {
+    return { ...jsonOutput, exitCode: totalFailed > 0 ? 1 : 0 };
+  }
   if (json) {
     process.stdout.write(JSON.stringify(jsonOutput, null, 2) + "\n");
   } else {

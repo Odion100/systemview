@@ -100,7 +100,8 @@ function changeDelta(series, rangeMs) {
   };
 }
 
-module.exports = async function statsCommand(projectCode, serviceFilter, { uiUrl, range, json } = {}) {
+module.exports = async function statsCommand(projectCode, serviceFilter, { uiUrl, range, json, collect = false } = {}) {
+  if (collect) json = true; // RFC-056 lib mode
   if (!projectCode) {
     log.warn("Usage: systemview stats <projectCode> [service] [--range 15m|1h|4h|24h|all] [--json]");
     return 1;
@@ -179,6 +180,7 @@ module.exports = async function statsCommand(projectCode, serviceFilter, { uiUrl
     };
   });
 
+  if (collect) return { projectCode, range: r, generatedAt: Date.now(), silent, services: perService };
   if (json) {
     console.log(JSON.stringify({ projectCode, range: r, generatedAt: Date.now(), silent, services: perService }, null, 2));
     return 0;

@@ -1,7 +1,16 @@
-import React, { useState, useRef, useLayoutEffect } from "react";
+import React, { useState, useRef, useLayoutEffect, useEffect, useContext, Suspense } from "react";
 import { visStyle } from "./visitorColor";
 import { parseMcpResult } from "./feedRows";
+import ServiceContext from "../../ServiceContext";
+import lazyLoad from "../../utils/lazyLoad";
 import "./styles.scss";
+
+// THE RUN IS A HANDLE, DISPLAYED (his design: "we have a handle on it and we display it" — no
+// files, no plugin writes, nothing to maintain). runTests holds its result in hub memory under a
+// short id; opening the row fetches it once and renders the REAL saved-test display (the same
+// TestPane the Test Panel and docs use), hydrated with the results in hand. Expired handle (hub
+// restarted, or 20 runs later) → the text result still stands, nothing lost.
+const TestPaneLazy = lazyLoad(() => import("../Stage/TestPane"));
 
 // RFC-046 — THE FEED ITSELF, with no chrome around it, because it has to sit in two places: the
 // agent's CHAT (where he actually talks to us, and where the silence between messages is the thing
@@ -76,6 +85,45 @@ const HiJson = ({ value }) => {
 const Block = ({ kind, children }) => (
   <pre className={`${CLASSNAME}__blk ${CLASSNAME}__blk--${kind}`}>{children}</pre>
 );
+
+const TestRunEmbed = ({ project, runId, output, failed }) => {
+  const { SystemViewService } = useContext(ServiceContext);
+  const [run, setRun] = useState(undefined); // undefined = fetching, null = expired
+  useEffect(() => {
+    let live = true;
+    (async () => {
+      try {
+        const CLI = SystemViewService && SystemViewService.CLI;
+        const r = CLI && CLI.getRun ? await CLI.getRun({ id: runId }) : null;
+        if (live) setRun(r && !r.expired && Array.isArray(r.tests) ? r : null);
+      } catch {
+        if (live) setRun(null);
+      }
+    })();
+    return () => { live = false; };
+  }, [runId, SystemViewService]);
+  const textBlock = <Block kind={failed ? "err" : "out"}>{output}</Block>;
+  if (run === undefined) return textBlock;
+  if (!run) return textBlock; // the handle aged out — the words remain
+  const seen = new Set();
+  const targets = [];
+  for (const t of run.tests || []) {
+    const key = `${t.serviceId}.${t.moduleName}.${t.methodName}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      targets.push({ serviceId: t.serviceId, moduleName: t.moduleName, methodName: t.methodName, key });
+    }
+  }
+  return (
+    <div className={`${CLASSNAME}__runpanes`}>
+      <Suspense fallback={textBlock}>
+        {targets.map((t) => (
+          <TestPaneLazy key={t.key} target={t} projectCode={project} ranData={run} />
+        ))}
+      </Suspense>
+    </div>
+  );
+};
 
 // A MESSAGE TO ANOTHER AGENT READS LIKE A MESSAGE — his rule: inter-agent traffic must be
 // followable in the chat after the fact, whatever mechanism carried it. Who it went to on the
@@ -290,7 +338,11 @@ const ToolRow = ({ row, renderText = null }) => {
           {out &&
             (() => {
               const data = row.mcp && parseMcpResult(row.mcp, out);
-              return data ? <McpTable data={data} /> : <Block kind={row.state === "failed" ? "err" : "out"}>{out}</Block>;
+              if (data) return <McpTable data={data} />;
+              // a test run carrying its handle opens as the REAL test display, results in hand
+              const runId = row.sv && row.sv.verb === "test" ? (String(out).match(/^run: (\S+)$/m) || [])[1] : null;
+              if (runId) return <TestRunEmbed project={row.sv.project} runId={runId} output={out} failed={row.state === "failed"} />;
+              return <Block kind={row.state === "failed" ? "err" : "out"}>{out}</Block>;
             })()}
         </div>
       )}

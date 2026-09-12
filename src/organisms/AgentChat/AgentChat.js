@@ -1564,6 +1564,11 @@ function BotBubble({ projectCode, index }) {
           );
           return;
         }
+        if (args.agents) {
+          // The Agents page (RFC-055) — roster and profiles, scoped to the project.
+          go({ pathname: `/agents/${projectCode}`, search: "" });
+          return;
+        }
         if (args.file) {
           // NAVIGATE. His distinction, and I kept blurring it: a `:file[…]` LINK reveals and
           // highlights in the tree; the COMMAND pulls the file up. So this writes the file params

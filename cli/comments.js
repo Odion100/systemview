@@ -36,8 +36,9 @@ const lastLine = (t) => Number(t.to ?? t.endLine ?? (t.range && t.range[1]) ?? f
 module.exports = async function commentsCommand(
   projectCode,
   filePath,
-  { uiUrl, json, reply, at, as } = {},
+  { uiUrl, json, reply, at, as, collect = false } = {},
 ) {
+  if (collect) json = true; // RFC-056 lib mode — reach the structured branches, return them
   if (!projectCode) {
     log.warn("Usage: systemview comments <projectCode> [path] [--json]");
     log.warn('       systemview comments <projectCode> <path> --reply "…" [--at <line>] [--as <who>]');
@@ -137,6 +138,7 @@ module.exports = async function commentsCommand(
       return 1;
     }
     if (json) {
+      if (collect) return { project: projectCode, path: filePath, line: rangeLabel(hit), thread: hit };
       console.log(JSON.stringify({ project: projectCode, path: filePath, line: rangeLabel(hit), thread: hit }, null, 2));
       return 0;
     }
@@ -148,6 +150,7 @@ module.exports = async function commentsCommand(
   if (filePath) {
     const threads = await readThreads(filePath);
     if (json) {
+      if (collect) return { project: projectCode, path: filePath, threads };
       console.log(JSON.stringify({ project: projectCode, path: filePath, threads }, null, 2));
       return 0;
     }
@@ -198,6 +201,7 @@ module.exports = async function commentsCommand(
   }
 
   if (json) {
+    if (collect) return { project: projectCode, files: out };
     console.log(JSON.stringify({ project: projectCode, files: out }, null, 2));
     return 0;
   }

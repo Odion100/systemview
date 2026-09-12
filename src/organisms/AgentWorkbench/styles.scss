@@ -326,6 +326,7 @@
     &--mcp-context { color: #4a90d9; }     // memory - the blue the doc glyphs already speak
     &--mcp-discovery { color: #5aa39a; }   // finding - the shell-teal family
     &--mcp-systemlynx { color: #d9a441; }  // reach - amber, "this touches a service"
+    &--mcp-systemview { color: #4ab8d9; }  // the hub itself - cyan, its own voice, never "a regular log"
   }
 
   // The harness tools' answers are AUTHORED words, so they read as prose: the app font, real

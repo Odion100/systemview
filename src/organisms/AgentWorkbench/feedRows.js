@@ -1,5 +1,5 @@
 import { summarise, pathTouchedBy, isWrite } from "../../utils/hostAgent";
-import { parseSvCommand, svStatus, svRoomLine } from "./svCommand";
+import { parseSvCommand, svFromMcp, svStatus, svRoomLine } from "./svCommand";
 
 // RFC-046 — EVENTS IN, ROWS OUT. Kept pure and away from the component for the reason the rest of
 // this codebase keeps its rules out of render: the same fold has to run over `history()` when a view
@@ -634,7 +634,7 @@ export function foldEvents(events) {
       // AN ACTION ON HIS WINDOW IS NOT A SHELL LINE. A `systemview nav …` moved the thing he is
       // looking at; drawn as `run: node cli/index.js nav …` it read like any other command, which
       // is backwards — it is the one kind of call whose effect he can actually see.
-      const sv = parseSvCommand(ev.input && ev.input.command);
+      const sv = parseSvCommand(ev.input && ev.input.command) || svFromMcp(ev.tool || ev.name, ev.input);
       // A MESSAGE TO ANOTHER AGENT IS CONVERSATION, NOT PLUMBING — his rule, and it is the name of
       // the app: *"it needs to be visible… I need to be able to go back and follow the conversation
       // — that's why it's called SystemView."* The harness's SendMessage went down this pipe as a
@@ -651,7 +651,7 @@ export function foldEvents(events) {
           sv && sv.verb === "message-agent" && sv.project
           ? { to: sv.project, msg: String(sv.target || ""), about: sv.as ? `as ${sv.as}` : "" }
           : null;
-      const mcp = xsend ? null : parseMcp(ev.tool || ev.name, ev.input);
+      const mcp = xsend || sv ? null : parseMcp(ev.tool || ev.name, ev.input);
       const row = {
         key,
         kind: "tool",
@@ -767,6 +767,20 @@ export function foldEvents(events) {
         });
       }
       lastModel = ev.model;
+    }
+
+    // A MESSAGE LANDED (RFC-056, his requirement: sends were visible, landings weren't). The
+    // harness emits this when a cross-session message arrives in the agent's turn — the receipt,
+    // rendered as its own quiet line so agent↔agent traffic is traceable on both ends.
+    if (ev.kind === "message.landed") {
+      rows.push({
+        key,
+        kind: "note",
+        landed: true,
+        text: `✉ message landed from ${ev.from || "another session"}${ev.preview ? ` — ${ev.preview}` : ""}`,
+        ts: ev.ts,
+      });
+      return;
     }
 
     // A COMPACTION THAT FAILED SAYS WHY. ANNOUNCED, NOT YET SHIPPING: autobot has agreed to forward
@@ -972,7 +986,7 @@ export function foldState(events) {
       // `input.items`. Same contract, other doorway: whole list, newest wins.
       if (/worklist/i.test(String(ev.tool || ev.name || "")) && ev.input && Array.isArray(ev.input.items))
         s.todo = ev.input.items.map(todoItem).filter((t) => t.text);
-      const sv = parseSvCommand(ev.input && ev.input.command);
+      const sv = parseSvCommand(ev.input && ev.input.command) || svFromMcp(ev.tool || ev.name, ev.input);
       // Short by construction — see svStatus. The full body still lands in the feed row above.
       // The FALLBACK is clamped too, because a status has one line no matter who wrote it: the
       // host's own `summary` is whatever their toolSummary produced, and `SendMessage` hands it a
