@@ -7,6 +7,7 @@ import {
   removeDef,
   listDocs,
   listSkills,
+  listHelp,
   liveSessions,
   agentRuns,
 } from "../../utils/hostAgents";
@@ -54,6 +55,12 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
   const [toolIndex, setToolIndex] = useState({});
   const [openTool, setOpenTool] = useState(null);
   const [wiped, setWiped] = useState(null); // delete feedback line
+  const [pageDocs, setPageDocs] = useState([]); // page-level docs — scoped to no agent, tagged by side
+  // agent-side = Presence + System context: they load into EVERY agent, so they get their OWN
+  // section ABOVE this agent's docs (his call — same presentation, but shown at the level they
+  // actually live at). human-side = the defining-agents help, which belongs by the roster.
+  const everyAgentDocs = pageDocs.filter((d) => d.side === "agent");
+  const humanHelp = pageDocs.filter((d) => d.side !== "agent");
 
   const refresh = useCallback(async () => {
     const [list, ls, rs, cs, tix] = await Promise.all([listDefs(), liveSessions(), agentRuns(), loadCollections(), loadRecords("mcp-tools")]);
@@ -68,6 +75,26 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
     setToolIndex(idx);
     return list;
   }, []);
+
+  // Page-level help — loaded once, scoped to no agent. Empty stays empty (old harness → the chip
+  // just won't appear). URL restore rides here too: a `help:<key>` in the query reopens without
+  // needing an agent selected, since help belongs to no agent.
+  useEffect(() => {
+    if (!available) return;
+    listHelp().then((h) => {
+      const list = h || [];
+      setPageDocs(list);
+      const want = restoreRef.current.doc;
+      if (want && want.kind === "help" && typeof onOpenDoc === "function") {
+        const hit = list.find((x) => x.key === want.key);
+        if (hit) {
+          restoreRef.current.doc = null;
+          onOpenDoc({ kind: "help", key: hit.key, label: hit.label, where: hit.where, text: hit.text, orig: hit.text });
+        }
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [available]);
 
   useEffect(() => {
     if (!available) return;
@@ -124,6 +151,17 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
     if (rec) open(rec);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [defs]);
+
+  // OPEN MEANS READ (his catch: "why wouldn't it load it on open?"). The page docs were fetched
+  // once at mount, so a file changed by anyone else — a shell, another window, an agent — opened
+  // stale. No poller: the click itself is the trigger, which is the moment that actually matters.
+  const openPageDoc = async (d) => {
+    if (typeof onOpenDoc !== "function") return;
+    const fresh = (await listHelp()) || [];
+    if (fresh.length) setPageDocs(fresh);
+    const hit = fresh.find((x) => x.key === d.key) || d;
+    onOpenDoc({ kind: "help", key: hit.key, label: hit.label, where: hit.where, text: hit.text, orig: hit.text });
+  };
 
   const setDef = (patch) => setDraft((d) => ({ ...d, def: { ...d.def, ...patch } }));
 
@@ -238,6 +276,24 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
           </button>
         ))}
         {!defs.length && <span className="agent-profile__none">No agents defined yet.</span>}
+        {/* HELP — for the humans designing agents, scoped to no agent. The one thing here that is
+            genuinely help (not agent context); it sits by the roster because it is ABOUT the
+            roster. The agent-side page doc (System context) is NOT here — it's context that loads
+            into agents, so it lives WITH the docs below, where it belongs. */}
+        {humanHelp.length > 0 && (
+          <span className="agent-profile__help-slot">
+            {humanHelp.map((h) => (
+              <button
+                key={h.key}
+                className="agent-profile__help-chip"
+                title={`Help for defining agents — ${h.where}`}
+                onClick={() => openPageDoc(h)}
+              >
+                ? {h.label}
+              </button>
+            ))}
+          </span>
+        )}
       </div>
 
       {wiped && <div className="agent-profile__wiped">{wiped}</div>}
@@ -322,8 +378,36 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
 
           {/* THE DOCS — one family, split by WHEN they load. Always-loaded first, then the skills
               (on demand). Click any of them: it opens in the right panel for reading and editing. */}
+          {/* EVERY-AGENT LEVEL — above this agent's own docs, because that's the level they live
+              at (his call). Presence says WHERE an agent is; System context says HOW to act. One
+              file each, harness-injected into every session: editing here edits for all of them. */}
+          {everyAgentDocs.length > 0 && (
+            <div className="agent-profile__section">
+              <div className="agent-profile__section-head">Every agent</div>
+              <div className="agent-profile__hint">
+                <b>Presence</b> = where an agent is (the harness, the browser, the app it's
+                attached to). <b>System context</b> = how to act here. One file each, injected at
+                session start — edit either and it changes for every agent's next session.
+              </div>
+              <div className="agent-profile__docs">
+                {everyAgentDocs.map((d) => (
+                  <button
+                    key={d.key}
+                    className="agent-profile__doc-chip agent-profile__doc-chip--shared"
+                    title={`Loads into every agent — ${d.where}`}
+                    onClick={() => openPageDoc(d)}
+                  >
+                    <span className="agent-profile__doc-ico">▤</span>
+                    {d.label}
+                    {!d.text && <span className="agent-profile__doc-empty">nothing written yet</span>}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="agent-profile__section">
-            <div className="agent-profile__section-head">Docs — loaded every session</div>
+            <div className="agent-profile__section-head">This agent</div>
             <div className="agent-profile__hint">
               Injected at session start, every session. <b>agent doc</b> = this agent's standing
               instructions, stored in its definition, follows it anywhere. <b>CLAUDE.md</b> = the

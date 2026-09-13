@@ -73,6 +73,22 @@ export async function saveSkill(id, name, where, text) {
   return sv().agent.saveSkill(id, name, where, text);
 }
 
+// PAGE-LEVEL HELP — for the humans designing agents, scoped to no agent. Same null-vs-empty
+// discipline as docs: null = harness can't answer yet.
+export async function listHelp() {
+  const a = sv() && sv().agent;
+  if (!a || typeof a.help !== "function") return null;
+  try {
+    return (await a.help()) || [];
+  } catch {
+    return null;
+  }
+}
+
+export async function saveHelp(key, text) {
+  return sv().agent.saveHelp(key, text);
+}
+
 // Live sessions (running right now — the "is it alive, where is it working" tell).
 export async function liveSessions() {
   const a = sv() && sv().agent;

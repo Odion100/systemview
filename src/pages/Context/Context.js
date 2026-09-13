@@ -6,7 +6,7 @@ import AgentProfile from "../../organisms/AgentProfile/AgentProfile";
 import ContextManager from "../../organisms/ContextManager/ContextManager";
 import DocPanel from "../../organisms/DocPanel/DocPanel";
 import AgentChat from "../../organisms/AgentChat/AgentChat";
-import { saveDoc, saveSkill, saveDef } from "../../utils/hostAgents";
+import { saveDoc, saveSkill, saveDef, saveHelp } from "../../utils/hostAgents";
 import "./styles.scss";
 
 // RFC-055 — ONE PAGE, THREE PANELS (his design): the navigator on the left (the same one Specs
@@ -30,7 +30,7 @@ const Context = () => {
     let doc = null;
     if (rawDoc) {
       const [kind, a, b] = rawDoc.split(":");
-      doc = kind === "skill" ? { kind: "skill", where: a, name: b } : kind === "def" ? { kind: "def" } : { kind: "doc", key: a };
+      doc = kind === "skill" ? { kind: "skill", where: a, name: b } : kind === "def" ? { kind: "def" } : kind === "help" ? { kind: "help", key: a } : { kind: "doc", key: a };
     }
     return { agent: p.get("agent"), doc, scope: p.get("scope") };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -62,6 +62,9 @@ const Context = () => {
         window.dispatchEvent(new CustomEvent("sv:botHub")); // the profile re-reads on this signal
       } else if (doc.kind === "skill") {
         res = await saveSkill(doc.agentId, doc.name, doc.where, doc.text);
+      } else if (doc.kind === "help") {
+        // page-level help — scoped to no agent, one shared file
+        res = await saveHelp(doc.key, doc.text);
       } else {
         res = await saveDoc(doc.agentId, doc.key, doc.text);
       }
@@ -106,6 +109,8 @@ const Context = () => {
                     : next.kind === "def"
                     ? true
                     : doc.key === next.key);
+                // help is scoped to no agent — the same-toggle check above compares agentId, so
+                // normalize both to null for it (a help doc carries no agentId).
                 if (same) {
                   setDoc(null);
                   setUrl((p) => p.delete("doc"));
@@ -113,7 +118,7 @@ const Context = () => {
                 }
                 setDoc(next);
                 setUrl((p) =>
-                  p.set("doc", next.kind === "skill" ? `skill:${next.where}:${next.name}` : next.kind === "def" ? "def:file" : `doc:${next.key}`)
+                  p.set("doc", next.kind === "skill" ? `skill:${next.where}:${next.name}` : next.kind === "def" ? "def:file" : next.kind === "help" ? `help:${next.key}` : `doc:${next.key}`)
                 );
               }}
               onFilterScope={(scope) => {

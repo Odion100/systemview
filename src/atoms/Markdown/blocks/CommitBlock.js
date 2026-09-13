@@ -298,6 +298,11 @@ const CommitBlock = ({ label, attrs = {}, line }) => {
     <div className={`md-commit${sha ? " md-commit--done" : ""}`}>
       <div className="md-commit__head">
         <span className="md-commit__kind">commit</span>
+        {/* THE DESTINATION LEADS (his call): pressing this writes history into a repo you may not
+            even be looking at, so which repo it is cannot be a footnote at the far right. It sits
+            beside the badge, in the plum the app uses for its own addressing — same identity the
+            pane headers wear, so "which project" reads the same everywhere. */}
+        <span className="md-commit__scope">{host ? host.projectCode : projectCode || ""}</span>
         {state && state.repo && (
           <span className="md-commit__branch">
             {state.branch}
@@ -321,7 +326,6 @@ const CommitBlock = ({ label, attrs = {}, line }) => {
             log
           </button>
         </span>
-        <span className="md-commit__scope">{host ? host.projectCode : projectCode || ""}</span>
         {/* HAND IT TO THE PANEL. The block can run the commit itself, but sometimes the panel is
             where you want to finish it — stage a few more things, read the log, then commit there.
             This carries the message over and opens the box; it never commits anything. */}

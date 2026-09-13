@@ -36,6 +36,33 @@
       border-color: var(--sv-blue);
     }
   }
+  // PAGE-LEVEL HELP — pushed to the far end of the roster row, set apart from the agent chips:
+  // it's about the roster, not a member of it. Plum outline (SystemView's own color), not the
+  // agents' surface fill, so it never reads as "another agent."
+  &__help-slot {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  // HELP — human-side only now (the agent-side System context moved down into the docs). Plum,
+  // pill-shaped, deliberately NOT the doc-chip look: this is guidance for you, not an artifact
+  // that feeds an agent.
+  &__help-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border: 1px dashed #8e5aa8;
+    border-radius: 20px;
+    background: transparent;
+    color: #8e5aa8;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    &:hover { background: color-mix(in srgb, #8e5aa8 12%, transparent); }
+    :root.sv-dark & { color: #b48ad2; border-color: #b48ad2; }
+  }
   // the liveness tell — green means a session is running right now
   &__dot {
     width: 7px;
@@ -233,6 +260,23 @@
       background: var(--sv-hover);
       color: var(--sv-text-strong);
     }
+    // System context — a doc like the rest, but shared: indigo edge so it reads as "not this
+    // agent's alone" without leaving the doc family.
+    &--shared {
+      border-color: color-mix(in srgb, var(--sv-indigo) 45%, var(--sv-border));
+      .agent-profile__doc-ico { color: var(--sv-indigo); }
+      &:hover { border-color: var(--sv-indigo); }
+    }
+  }
+  &__doc-badge {
+    font-size: 9.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--sv-indigo);
+    background: color-mix(in srgb, var(--sv-indigo) 12%, transparent);
+    border-radius: 3px;
+    padding: 1px 6px;
   }
   &__doc-ico { color: var(--sv-blue); }
   &__doc-dirty { color: #d9a441; font-size: 9px; }
@@ -380,7 +424,8 @@
   &--context { background: #4a90d9; }
   &--discovery { background: #5aa39a; }
   &--systemlynx { background: #d9a441; }
-  &--worklist { background: #8891e0; }
+  &--worklist { background: #7fb069; } // the worklist's own green — the chat panel's count wears it
+  &--systemview { background: var(--sv-indigo); } // the SystemView wordmark's own header color (his call)
 }
 .agent-profile__srv-kind {
   margin-left: 8px;
