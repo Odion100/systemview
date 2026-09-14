@@ -7,7 +7,10 @@
   &__codebase {
     border: 1px solid #c9cfe8; // the old --current border — the default was too light to read as an edge
     border-radius: 8px;
-    background: var(--sv-surface);
+    // OPAQUE, or it is not a header — it is a line with the list sliding under it. `--sv-surface`
+    // is not defined in this stylesheet's scope, so it resolved to nothing and the rows showed
+    // straight through. Same literal the card's own header uses.
+    background: #f8f9fc;
     margin-bottom: 8px;
     // clip, not hidden: same corner clipping, but hidden would make this the sticky containing
     // block and the filter row must stick against the NAV's scroll, not the card.
@@ -332,7 +335,18 @@
 
   // RFC-026 — the `code` fold: the whole file region (filter + tree) behind one quiet row, spoken
   // in the same voice as the section labels. Root indentation, no color.
+  // SECTION HEADERS STAY PUT. Services, code, reports and the terminal all share ONE scroll, so
+  // scrolling deep into a file list used to carry its own heading off the top and leave you with
+  // rows belonging to a section you could no longer name. Sticky under the filter row (which owns
+  // top: 0), so at any scroll position the thing you are looking at still says what it is.
   &__code-fold {
+    position: sticky;
+    top: 28px;
+    z-index: 1;
+    // OPAQUE, or it is not a header — it is a line with the list sliding under it. `--sv-surface`
+    // is not defined in this stylesheet's scope, so it resolved to nothing and the rows showed
+    // straight through. Same literal the card's own header uses.
+    background: #f8f9fc;
     display: flex;
     align-items: center;
     gap: 4px;
@@ -527,6 +541,19 @@
   // inner max-height/overflow here.
   &__tree {
     font-family: "SF Mono", Menlo, monospace;
+    // CAPPED AND SCROLLABLE once the splitter has been dragged. Uncapped (`none`) it behaves
+    // exactly as it always did — grows with its content — so nothing changes until you ask.
+    max-height: var(--sv-tree-max, none);
+    overflow-y: auto;
+  }
+  // The splitter between the file tree and everything under it. Same weight as the terminal's
+  // grip, because it is the same gesture one section up.
+  &__tree-grip {
+    height: 6px;
+    flex: none;
+    cursor: ns-resize;
+    background: transparent;
+    &:hover { background: rgba(127, 127, 127, 0.35); }
   }
   &__children {
     border-left: 1px solid var(--sv-inset); // indent guide
@@ -1698,3 +1725,4 @@
   opacity: 0.55;
   font-variant-numeric: tabular-nums;
 }
+

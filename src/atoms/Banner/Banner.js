@@ -9,6 +9,7 @@ const ICON = { error: "✕", warn: "!", ok: "✓", info: "i" };
 
 const BannerItem = ({ m }) => {
   const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
   return (
     <div className={`sv-banner sv-banner--${m.kind}`}>
       <span className="sv-banner__icon">{ICON[m.kind] || "i"}</span>
@@ -17,6 +18,22 @@ const BannerItem = ({ m }) => {
           {m.text}
           {m.count > 1 ? <span className="sv-banner__count">×{m.count}</span> : null}
         </div>
+        {/* THE HAND ON THE MESSAGE. A notice that reports a state you can act on should carry the
+            act — otherwise it is a signpost to a button somewhere else. Runs, then dismisses
+            itself, because the offer is spent once it is taken. */}
+        {m.action ? (
+          <button
+            type="button"
+            className="sv-banner__action"
+            disabled={busy}
+            onClick={async () => {
+              setBusy(true);
+              try { await m.action.run(); } finally { dismiss(m.id); }
+            }}
+          >
+            {busy ? `${m.action.label}…` : m.action.label}
+          </button>
+        ) : null}
         {m.detail ? (
           <>
             <button type="button" className="sv-banner__more" onClick={() => setOpen((o) => !o)}>

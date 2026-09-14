@@ -271,6 +271,9 @@ const ToolRow = ({ row, renderText = null }) => {
           // Its own mark instead of a state dot: this is SystemView doing something, and which
           // something is the first thing worth knowing.
           <span className={`${CLASSNAME}__sv-icon`}>{row.sv.icon}</span>
+        ) : row.skill ? (
+          // The same diamond the profile marks a skill with, so the two surfaces agree on sight.
+          <span className={`${CLASSNAME}__sv-icon`}>◈</span>
         ) : (
           <span className={`${CLASSNAME}__dot ${CLASSNAME}__dot--${row.state}`} />
         )}
@@ -280,11 +283,19 @@ const ToolRow = ({ row, renderText = null }) => {
           {/* SAY THE TOOL'S NAME. A bash row reads "run …"; a SystemView row read only its summary,
               so it looked like any other command in the feed — his catch: *"why doesn't mine just
               say systemview as the first word, so you know it's a SystemView command."* */}
-          {(row.sv || row.mcp || row.tool === "Bash") && (
+          {(row.sv || row.mcp || row.skill || row.tool === "Bash") && (
             <span
-              className={`${CLASSNAME}__sv-kind${row.sv ? "" : row.mcp ? ` ${CLASSNAME}__sv-kind--mcp ${CLASSNAME}__sv-kind--mcp-${row.mcp.server}` : ` ${CLASSNAME}__sv-kind--sh`}`}
+              className={`${CLASSNAME}__sv-kind${
+                row.sv
+                  ? ""
+                  : row.skill
+                  ? ` ${CLASSNAME}__sv-kind--skill`
+                  : row.mcp
+                  ? ` ${CLASSNAME}__sv-kind--mcp ${CLASSNAME}__sv-kind--mcp-${row.mcp.server}`
+                  : ` ${CLASSNAME}__sv-kind--sh`
+              }`}
             >
-              {row.sv ? "systemview" : row.mcp ? row.mcp.server : "bash"}
+              {row.sv ? "systemview" : row.skill ? "skill" : row.mcp ? row.mcp.server : "bash"}
             </span>
           )}
           {row.summary}
@@ -592,7 +603,38 @@ const Feed = ({ rows, answered = {}, onAnswer = null, renderText = null }) =>
             {r.as}
           </span>
         )}
+        {/* WHAT HE ATTACHED, on the turn he attached it to. Thumbnails only — the full bytes went
+            to the model and were never kept here. Click opens the picture full size in a new view;
+            a screenshot you cannot enlarge is a screenshot you cannot read. */}
+        {(r.images || []).length > 0 && (
+          <div className={`${CLASSNAME}__shots`}>
+            {r.images.map((im, n) => (
+              <button
+                type="button"
+                key={`${r.key}-im${n}`}
+                className={`${CLASSNAME}__shot`}
+                title={im.name || "image"}
+                onClick={() => im.thumb && window.open(im.thumb, "_blank", "noopener")}
+              >
+                {im.thumb ? <img src={im.thumb} alt={im.name || "attachment"} /> : <span>{im.name || "image"}</span>}
+              </button>
+            ))}
+          </div>
+        )}
         <Said row={r} render={renderText} clamp={!r.as} />
+      </div>
+    ) : r.kind === "hook" ? (
+      // A HOOK FIRING IS A THING THAT HAPPENED, so it reads like every other thing that happened —
+      // a row in the feed's existing vocabulary, never raw injected text dumped into the chat.
+      // The chain has to be traceable end to end: this row is the first link (hook fired), the
+      // skill load is the second, and what the agent did next is the third.
+      <div key={r.key} className={`${CLASSNAME}__row ${CLASSNAME}__row--hook${r.work ? ` ${CLASSNAME}__row--hookwork` : ""}`}>
+        <When ts={r.ts} />
+        <span className={`${CLASSNAME}__hook-mark`}>⇥</span>
+        <span className={`${CLASSNAME}__hook-name`}>{r.name}</span>
+        <span className={`${CLASSNAME}__hook-on`}>on {r.on}</span>
+        {r.to && <span className={`${CLASSNAME}__hook-to`}>→ {r.to}</span>}
+        {r.work && <span className={`${CLASSNAME}__hook-work`}>work</span>}
       </div>
     ) : r.kind === "cmdret" ? (
       // A TERMINAL COMMAND'S RECEIPT — /usage, /model, whatever the host ran and answered itself.

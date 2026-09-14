@@ -100,6 +100,22 @@ export async function liveSessions() {
   }
 }
 
+// RE-INIT a running session in place. The system prompt — presence, the system context, the
+// agent's own doc — is composed once at open and handed to the SDK at query time, so editing
+// any of those reaches a RUNNING agent by no other route: not a save, not a compaction (which
+// rewrites the conversation, never the prompt). This restarts the query against the same sdk
+// session id, so the conversation continues and only the composition is new.
+// Returns { key, history } — the caller re-seeds its feed from history — or null if refused.
+export async function refreshSession(key) {
+  const a = sv() && sv().agent;
+  if (!a || typeof a.refresh !== "function") return null;
+  try {
+    return (await a.refresh(key)) || null;
+  } catch {
+    return null;
+  }
+}
+
 export async function killSession(projectCode, sessionId) {
   const a = sv() && sv().agent;
   if (!a || typeof a.killSession !== "function") return false;
@@ -107,6 +123,55 @@ export async function killSession(projectCode, sessionId) {
     return await a.killSession(projectCode, sessionId);
   } catch {
     return false;
+  }
+}
+
+// CONTEXT HOOKS — { hooks: [...], events: [...] }. A hook is `on` (which emitted event) + `when`
+// (a cheap declarative predicate over that event's payload) + `do` (a pointer to a skill, never
+// the procedure itself). `events` is the vocabulary the harness actually emits, and it is what the
+// picker is built from — you can only attach a hook to a moment the system really announces.
+export async function listHooks() {
+  const a = sv() && sv().agent;
+  if (!a || typeof a.hooks !== "function") return { hooks: [], events: [] };
+  try {
+    const r = await a.hooks();
+    return { hooks: (r && r.hooks) || [], events: (r && r.events) || [] };
+  } catch {
+    return { hooks: [], events: [] };
+  }
+}
+
+export async function saveHook(rec) {
+  const a = sv() && sv().agent;
+  if (!a || typeof a.saveHook !== "function") return { error: "no harness" };
+  try {
+    return (await a.saveHook(rec)) || { error: "save failed" };
+  } catch (e) {
+    return { error: String((e && e.message) || e) };
+  }
+}
+
+export async function removeHook(name) {
+  const a = sv() && sv().agent;
+  if (!a || typeof a.removeHook !== "function") return false;
+  try {
+    return await a.removeHook(name);
+  } catch {
+    return false;
+  }
+}
+
+// STATISTICS — { store: { since, notes[], readers, totals }, weight: { rows[], totalTokens } }.
+// Two measurements that must not be read as one: `store` is RETRIEVAL (what gets pulled, how
+// often, by whom — is a note earning its place?), `weight` is the opposite question (the layers
+// nobody retrieves because they arrive on every turn, where size is the whole story).
+export async function contextStats(agentId) {
+  const a = sv() && sv().agent;
+  if (!a || typeof a.contextStats !== "function") return null;
+  try {
+    return (await a.contextStats(agentId)) || null;
+  } catch {
+    return null;
   }
 }
 

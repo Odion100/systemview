@@ -49,17 +49,33 @@ export default function useAgentSession({ projectCode, sessionId = "agent", gate
   // cannot tell its human from a visiting agent will answer the wrong one), and it rides the echo
   // row so the chat can SHOW who jumped in. His rule for the whole mechanism: identity is never
   // optional, and who is in whose chat is always on screen.
-  const send = useCallback((text, as = null) => {
+  const send = useCallback((text, as = null, images = []) => {
     const t = transportRef.current;
-    if (!t || !text) return false;
-    t.send(as ? `[${as}]: ${text}` : text);
+    // A PICTURE ALONE IS A MESSAGE. The old guard required words, which would have silently
+    // swallowed a paste-and-press with nothing typed — the most natural way to send a screenshot.
+    const pics = Array.isArray(images) ? images.filter(Boolean) : [];
+    if (!t || (!text && !pics.length)) return false;
+    t.send(as ? `[${as}]: ${text}` : text, pics);
     // HIS TURN, LOCALLY — because the host does not echo it back. This is also the reason two views
     // of ONE session are not yet the same chat: a message typed in the browser's panel produces no
     // event, so this view never learns he spoke. The fix is the host emitting `user.prompt` on
     // every send; then this echo comes out and both views show the same thing because they are
     // watching the same stream. Marked `local` so it can be deduped against that event when it
     // arrives, rather than showing his sentence twice.
-    setEvents((cur) => [...cur, { kind: "text", text, ts: Date.now(), mine: true, local: true, as }]);
+    setEvents((cur) => [
+      ...cur,
+      {
+        kind: "text",
+        text,
+        // the local echo shows the thumbs immediately — the host's own user.prompt carries the
+        // same ones a beat later and replaces this row rather than doubling it
+        images: pics.map((im) => ({ name: im.name || "image", mime: im.mime, thumb: im.thumb || "" })),
+        ts: Date.now(),
+        mine: true,
+        local: true,
+        as,
+      },
+    ]);
     return true;
   }, []);
 

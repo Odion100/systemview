@@ -85,6 +85,29 @@
     cursor: pointer;
     &:hover { color: #dfe4f0; }
   }
+  // The action reads as the point of the card: filled in the card's own accent, sized like a real
+  // control rather than a link. `currentColor` is deliberate — each kind's rail already carries the
+  // hue, so one rule dresses every variant instead of four near-copies.
+  &__action {
+    margin-top: 7px;
+    display: inline-block;
+    border: 1px solid currentColor;
+    border-radius: 6px;
+    padding: 4px 13px;
+    background: transparent;
+    font-family: inherit;
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    cursor: pointer;
+    transition: background 0.14s ease, color 0.14s ease;
+    &:disabled { opacity: 0.5; cursor: default; }
+  }
+  &--warn &__action { color: #e8b44a; &:hover:not(:disabled) { background: #d19a2e; color: #1d1708; } }
+  &--error &__action { color: #ef7b7b; &:hover:not(:disabled) { background: #e05757; color: #fff; } }
+  &--info &__action { color: #949cdd; &:hover:not(:disabled) { background: #6a74c4; color: #fff; } }
+  &--ok &__action { color: #63b98a; &:hover:not(:disabled) { background: #3f9e6a; color: #fff; } }
+
   &__detail {
     margin: 5px 0 0;
     padding: 6px 8px;

@@ -9,10 +9,16 @@ import {
   listSkills,
   listHelp,
   liveSessions,
+  refreshSession,
   agentRuns,
+  listHooks,
+  saveHook,
+  removeHook,
+  contextStats,
 } from "../../utils/hostAgents";
 import { collections as loadCollections, records as loadRecords } from "../../utils/hostContext";
 import SvSelect from "../../atoms/SvSelect/SvSelect";
+import { raiseKeyed, clearKeyed } from "../../atoms/Banner/bannerStore";
 
 // RFC-055 — THE AGENT PROFILE. One window where he sees and changes EVERYTHING feeding an agent.
 // The rules this page runs on (all his):
@@ -41,6 +47,12 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
   const [defs, setDefs] = useState([]);
   const [live, setLive] = useState([]);
   const [runs, setRuns] = useState({});
+  // which session is mid-re-init — the press disables itself rather than firing twice into a
+  // session that is already being torn down and reopened
+  const [reinitting, setReinitting] = useState(null);
+  // the banner's action closes over this ref, so a card raised on one render still calls the
+  // current handler rather than a stale copy of it
+  const doReinitRef = useRef(() => {});
   const [sel, setSel] = useState(null); // selected agent record
   const [draft, setDraft] = useState(null); // editable copy
   const [cols, setCols] = useState([]);
@@ -55,6 +67,17 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
   const [toolIndex, setToolIndex] = useState({});
   const [openTool, setOpenTool] = useState(null);
   const [wiped, setWiped] = useState(null); // delete feedback line
+  // CONTEXT HOOKS. `hookEvents` is the vocabulary the harness actually emits — the picker is built
+  // from it rather than typed, so a hook can only ever attach to a moment that really happens.
+  // `hookDraft` is the one being edited (null = the list is just being read).
+  const [hooks, setHooks] = useState([]);
+  const [hookEvents, setHookEvents] = useState([]);
+  const [hookDraft, setHookDraft] = useState(null);
+  const [hookErr, setHookErr] = useState("");
+  // WHAT THIS AGENT PAYS EVERY TURN, before it is asked anything. The store's numbers answer
+  // "is this note earning its place"; these layers are never retrieved, so frequency means
+  // nothing and SIZE is the whole story.
+  const [weight, setWeight] = useState(null);
   const [pageDocs, setPageDocs] = useState([]); // page-level docs — scoped to no agent, tagged by side
   // agent-side = Presence + System context: they load into EVERY agent, so they get their OWN
   // section ABOVE this agent's docs (his call — same presentation, but shown at the level they
@@ -63,8 +86,12 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
   const humanHelp = pageDocs.filter((d) => d.side !== "agent");
 
   const refresh = useCallback(async () => {
-    const [list, ls, rs, cs, tix] = await Promise.all([listDefs(), liveSessions(), agentRuns(), loadCollections(), loadRecords("mcp-tools")]);
+    const [list, ls, rs, cs, tix, hk] = await Promise.all([
+      listDefs(), liveSessions(), agentRuns(), loadCollections(), loadRecords("mcp-tools"), listHooks(),
+    ]);
     setDefs(list);
+    setHooks(hk.hooks);
+    setHookEvents(hk.events);
     setLive(ls);
     setRuns(rs);
     setCols(cs);
@@ -195,6 +222,48 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
     }
   };
 
+  // THE OFFER FOLLOWS YOU OUT OF THE PAGE. A stale agent matters while you are reading its chat,
+  // not only while you happen to be standing on its profile — so it rides the app's one message
+  // channel (Banner) instead of being a second floating card designed from scratch. Keyed, so it
+  // updates in place rather than stacking one per re-render; sticky, because an offer that times
+  // out is an offer missed.
+  //
+  // ABOVE THE EARLY RETURN ON PURPOSE: every hook in this component has to run on every render or
+  // the hook order changes the first time `available` flips.
+  const staleSig = live
+    .filter((x) => x.stale)
+    .map((x) => `${x.key}:${asList(x.staleParts).join(",")}`)
+    .join("|");
+  // Re-measured whenever the selected agent changes — and after a save, since editing a doc is
+  // the one act that moves these numbers.
+  useEffect(() => {
+    let gone = false;
+    (async () => {
+      const st = draft ? await contextStats(draft.id) : null;
+      if (!gone) setWeight(st && st.weight ? st.weight : null);
+    })();
+    return () => { gone = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft && draft.id, saving]);
+
+  useEffect(() => {
+    const stale = live.filter((x) => x.stale);
+    if (!stale.length) {
+      clearKeyed("agent-stale");
+      return;
+    }
+    const x = stale[0];
+    const parts = asList(x.staleParts);
+    raiseKeyed(
+      "agent-stale",
+      "warn",
+      `${x.agentName || x.projectCode} is running the definition it opened with`,
+      parts.length ? `changed since it started — ${parts.join(", ")}` : "",
+      { sticky: true, action: { label: "re-init", run: () => doReinitRef.current(x.key) } },
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [staleSig]);
+
   if (!available)
     return (
       <div className="agent-profile agent-profile--empty">
@@ -208,9 +277,142 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
   const systemNotes = cols.find((c) => c.collection === "ctx-system");
   const dirty = sel && draft && JSON.stringify(sel) !== JSON.stringify(draft);
 
+  const doReinit = async (key) => {
+    setReinitting(key);
+    try {
+      await refreshSession(key);
+      // read the roster back rather than assuming it worked — the new session reports its own
+      // composition, so `stale` clearing is the proof, not an optimistic local flip
+      setLive((await liveSessions()) || []);
+    } finally {
+      setReinitting(null);
+    }
+  };
+
+  doReinitRef.current = doReinit;
+
+  // ---- CONTEXT HOOKS -------------------------------------------------------------------------
+  // EVERY HOOK IS SHOWN TO EVERY AGENT. Writing one makes it exist for everybody; the switch is
+  // per agent, exactly like a skill — so you never re-create the same hook on four profiles and
+  // then own four copies that drift. Carrying is the agent's own list.
+  const carried = new Set(asList(d.hooks));
+  const carriesHook = (name) => carried.has(name);
+  // A SWITCH TAKES EFFECT WHEN YOU PRESS IT. Everything else on this page is a form field that
+  // Save commits — but a button reading "enabled" is not a field, it is a claim about the world,
+  // and leaving it sitting in an unsaved draft meant he enabled three hooks, re-initialized, and
+  // watched them come back disabled. Correctly: nothing had been written.
+  //
+  // It saves against the LAST SAVED record, not the draft, so flipping one switch never quietly
+  // commits unrelated edits someone is still making above it. Only the hooks field moves.
+  const toggleHook = async (name) => {
+    if (!sel || !draft) return;
+    const next = new Set(carried);
+    if (next.has(name)) next.delete(name);
+    else next.add(name);
+    const hooksNext = [...next];
+    setDef({ hooks: hooksNext }); // optimistic — the switch must move under the finger
+    try {
+      const base = sel.def || {};
+      await saveDef({
+        id: sel.id,
+        name: sel.name,
+        ...base,
+        hooks: hooksNext,
+        projectCode: sel.projectCode,
+        cwd: sel.cwd,
+        permissionMode: sel.permissionMode,
+        def: undefined,
+      });
+      const list = await refresh();
+      const fresh = list.find((r) => r.id === sel.id);
+      // Re-seat the saved record so `dirty` does not now claim an edit that is already on disk.
+      if (fresh) setSel(fresh);
+    } catch {
+      setDef({ hooks: [...carried] }); // put it back — a switch that lies is worse than one that fails
+    }
+  };
+  const eventNamed = (n) => hookEvents.find((e) => e.name === n) || null;
+  // `when` is stored as an object; the editor works in ROWS because that is what a human edits.
+  // The two shapes convert here and nowhere else.
+  const whenRows = (when) =>
+    Object.entries(when || {}).map(([field, cond]) => {
+      if (cond && typeof cond === "object" && !Array.isArray(cond)) {
+        const [op, val] = Object.entries(cond)[0] || ["contains", ""];
+        return { field, op, val: String(val) };
+      }
+      return { field, op: "equals", val: String(cond) };
+    });
+  const rowsToWhen = (rows) => {
+    const out = {};
+    for (const r of rows || []) {
+      if (!r.field) continue;
+      out[r.field] = r.op === "equals" ? r.val : { [r.op]: r.op === "exists" ? true : r.val };
+    }
+    return out;
+  };
+  const blankHook = () => ({
+    name: "",
+    wasName: "",
+    on: (hookEvents[0] && hookEvents[0].name) || "session.started",
+    rows: [],
+    scope: "every-agent",
+    do: "",
+    kind: "context",
+    guard: "once-per-session",
+    note: "",
+    isNew: true,
+  });
+  const editHook = (h) =>
+    setHookDraft({
+      name: h.name,
+      wasName: h.name,
+      on: h.on,
+      rows: whenRows(h.when),
+      scope: h.scope,
+      do: h.do,
+      kind: h.kind,
+      guard: h.guard || "",
+      note: h.note || "",
+      isNew: false,
+    });
+  const commitHook = async () => {
+    setHookErr("");
+    const d = hookDraft;
+    if (!d) return;
+    const r = await saveHook({
+      name: d.name,
+      wasName: d.wasName,
+      on: d.on,
+      when: rowsToWhen(d.rows),
+      scope: d.scope,
+      do: d.do,
+      kind: d.kind,
+      guard: d.guard,
+      note: d.note,
+    });
+    if (r && r.error) return setHookErr(r.error);
+    const hk = await listHooks();
+    setHooks(hk.hooks);
+    setHookDraft(null);
+  };
+  const dropHook = async (name) => {
+    await removeHook(name);
+    const hk = await listHooks();
+    setHooks(hk.hooks);
+    if (hookDraft && hookDraft.wasName === name) setHookDraft(null);
+  };
+  const setHd = (patch) => setHookDraft((d) => ({ ...d, ...patch }));
+
   const liveOf = (id) => live.filter((s) => s.agentId === id);
   const selLive = draft ? liveOf(draft.id) : [];
+  // STALE = still wearing the composition it opened under. An agent's system prompt is built
+  // once, at open, from presence + the system context + this doc, and the SDK takes it at query
+  // time — so saving any of them changes NOTHING for a session already running, and a compaction
+  // does not help either (it rewrites the conversation, not the prompt). Re-init is the only
+  // route in, which is why it belongs on this page: right under the docs you just edited.
+  const staleLive = selLive.filter((x) => x.stale);
   const selRuns = draft ? runs[draft.id] : null;
+
   // THE REAL LISTS — a running session's init message first, else the last recorded run's.
   const caps = (selLive.find((s) => s.capabilities) || {}).capabilities || (selRuns && selRuns.capabilities) || null;
 
@@ -334,6 +536,37 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
                 {selRuns ? `${selRuns.runs} recorded session${selRuns.runs === 1 ? "" : "s"} · last active ${ago(selRuns.lastActive)}` : "no recorded sessions"}
                 {selLive.length > 0 && ` · live in ${selLive.map((s) => s.projectCode).join(", ")}`}
               </div>
+              {/* OFFERED, NEVER AUTOMATIC — same etiquette as a commit. Saving presence.md makes
+                  every live session stale at once, and restarting one mid-turn to deliver a
+                  paragraph is a worse bug than the paragraph arriving late. So it is stated, and
+                  it is a press. The conversation is kept: re-init resumes the same sdk session. */}
+              {staleLive.map((x) => (
+                <div className="agent-profile__stale" key={x.key}>
+                  <span className="agent-profile__stale-icon">!</span>
+                  <div className="agent-profile__stale-body">
+                    <div className="agent-profile__stale-title">Running an older definition</div>
+                    <div className="agent-profile__stale-note">
+                      This session opened before these changed. Re-init restarts it on the current
+                      docs — same conversation, nothing lost.
+                    </div>
+                    {asList(x.staleParts).length > 0 && (
+                      <div className="agent-profile__stale-parts">
+                        {asList(x.staleParts).map((n) => (
+                          <span className="agent-profile__stale-chip" key={n}>{n}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    className="agent-profile__stale-btn"
+                    disabled={reinitting === x.key}
+                    onClick={() => doReinit(x.key)}
+                  >
+                    {reinitting === x.key ? "re-initing…" : "re-init"}
+                  </button>
+                </div>
+              ))}
             </div>
             <div className="agent-profile__head-actions">
               <button
@@ -436,6 +669,41 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
             )}
           </div>
 
+          {/* THE BILL. Everything above this point is a document that loads on EVERY TURN for the
+              life of a session — so a paragraph nobody needed is the most expensive writing in the
+              system. Shown here, next to the docs themselves, because that is where someone can
+              act on it. Tokens are estimated (~4 chars each); the decision this informs is "is
+              this too long", which does not turn on the third digit. */}
+          {weight && weight.rows && weight.rows.length > 0 && (
+            <div className="agent-profile__section">
+              <div className="agent-profile__section-head">Always loaded — what every turn costs</div>
+              <div className="agent-profile__weights">
+                {weight.rows
+                  .filter((r) => !r.missing)
+                  .sort((a, b) => b.tokens - a.tokens)
+                  .map((r) => (
+                    <div className="agent-profile__weight" key={r.key}>
+                      <span className="agent-profile__weight-name">{r.label}</span>
+                      <span className="agent-profile__weight-scope">{r.scope}</span>
+                      <span className="agent-profile__weight-bar">
+                        <span
+                          className="agent-profile__weight-fill"
+                          style={{ width: `${Math.max(2, Math.round((r.tokens / Math.max(1, weight.rows[0].tokens || 1)) * 100))}%` }}
+                        />
+                      </span>
+                      <span className="agent-profile__weight-tok">{r.tokens.toLocaleString()}</span>
+                    </div>
+                  ))}
+                <div className="agent-profile__weight agent-profile__weight--total">
+                  <span className="agent-profile__weight-name">every turn</span>
+                  <span className="agent-profile__weight-scope" />
+                  <span className="agent-profile__weight-bar" />
+                  <span className="agent-profile__weight-tok">≈{weight.totalTokens.toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="agent-profile__section">
             <div className="agent-profile__section-head">Skills — docs loaded on demand</div>
             <div className="agent-profile__hint">
@@ -464,6 +732,246 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
                   </button>
                 ))}
                 {!skills.length && <span className="agent-profile__none">No skill files found for this agent's homes.</span>}
+              </div>
+            )}
+          </div>
+
+          {/* HOOKS — the third way context reaches an agent. Loaded context is paid every turn;
+              retrieved context is paid when the agent thinks to ask; a hook is paid only when a
+              MOMENT happens. It sits directly under Skills because it is the same family: a hook
+              carries no procedure, it points at a skill. Same body, two doors — a skill fires when
+              the model judges it relevant, a hook fires when an event does. */}
+          <div className="agent-profile__section">
+            <div className="agent-profile__section-head">Hooks — context pushed by an event</div>
+            <div className="agent-profile__hint">
+              A hook is three parts: <b>on</b> (which moment), <b>when</b> (does this one count),
+              and <b>do</b> (which skill applies). It delivers a <b>pointer, never the procedure</b>
+              — the agent still decides whether to pull the skill, so a hook can't drift from it.
+              The event list is generated from what the harness actually emits: you can only hook a
+              moment that really happens. <b>A hook exists for every agent the moment you write
+              it</b> — the checkbox is where <i>this</i> agent opts in, the same way it carries a
+              skill. Applies at its next session.
+            </div>
+
+            {hookErr && <div className="agent-profile__hook-err">{hookErr}</div>}
+
+            <div className="agent-profile__hooks">
+              {hooks.map((h) => {
+                const on = carriesHook(h.name);
+                return (
+                  <div className={`agent-profile__hook${on ? "" : " agent-profile__hook--off"}`} key={h.name}>
+                    <div className="agent-profile__hook-main">
+                      <span className="agent-profile__hook-name">{h.name}</span>
+                      <span className="agent-profile__hook-on">on {h.on}</span>
+                      {Object.keys(h.when || {}).length > 0 && (
+                        <span className="agent-profile__hook-when">when {Object.keys(h.when).join(", ")}</span>
+                      )}
+                      {h.do && <span className="agent-profile__hook-do">→ {h.do}</span>}
+                    </div>
+                    <div className="agent-profile__hook-tags">
+                      {h.guard && <span className="agent-profile__hook-guard">{h.guard}</span>}
+                      {/* A WORK HOOK ACTS; A CONTEXT HOOK WHISPERS. Same wiring up to the branch,
+                          different trust past it — so the loud one is labelled loudly. */}
+                      {h.kind === "work" && <span className="agent-profile__hook-work">work</span>}
+                      {!h.enabled && <span className="agent-profile__hook-guard">off for everyone</span>}
+                      {/* THE SWITCH SITS WITH THE OTHER TWO VERBS — his call. A hook exists for
+                          everybody the moment it is written; this is where THIS agent opts in, and
+                          it belongs beside edit and delete because they are the same kind of act:
+                          things you do TO a hook from the row you are reading. Rides the
+                          definition, so it saves with everything else. */}
+                      <button
+                        type="button"
+                        className={`agent-profile__hook-btn agent-profile__hook-btn--toggle${on ? " agent-profile__hook-btn--on" : ""}`}
+                        title={on ? "Carried — this agent gets it. Click to disable." : "Not carried — exists, but never fires for this agent. Click to enable."}
+                        onClick={() => toggleHook(h.name)}
+                      >
+                        {on ? "enabled" : "disabled"}
+                      </button>
+                      <button type="button" className="agent-profile__hook-btn" onClick={() => editHook(h)}>edit</button>
+                      <button type="button" className="agent-profile__hook-btn agent-profile__hook-btn--del" onClick={() => dropHook(h.name)}>delete</button>
+                    </div>
+                  </div>
+                );
+              })}
+              {!hooks.length && (
+                <span className="agent-profile__none">No hooks written yet.</span>
+              )}
+            </div>
+
+            {!hookDraft && (
+              <button type="button" className="agent-profile__hook-add" onClick={() => setHookDraft(blankHook())}>
+                + new hook
+              </button>
+            )}
+
+            {hookDraft && (
+              <div className="agent-profile__hookform">
+                <div className="agent-profile__hookform-row">
+                  <label className="agent-profile__hookform-label">name</label>
+                  <input
+                    className="agent-profile__hookform-input"
+                    value={hookDraft.name}
+                    placeholder="compaction-prep"
+                    onChange={(e) => setHd({ name: e.target.value })}
+                  />
+                </div>
+
+                <div className="agent-profile__hookform-row">
+                  <label className="agent-profile__hookform-label">on</label>
+                  <SvSelect
+                    value={hookDraft.on}
+                    onChange={(v) => setHd({ on: v, rows: [] })}
+                    options={hookEvents.map((e) => ({ value: e.name, label: e.name }))}
+                  />
+                  <span className="agent-profile__hookform-note">
+                    {(eventNamed(hookDraft.on) || {}).what || ""}
+                  </span>
+                </div>
+
+                {/* THE CONDITION. Declarative field matching only — it runs on every event, and a
+                    predicate in that position is exactly the shape that put the main process at
+                    154% CPU. Fields are offered from the chosen event, never typed from memory. */}
+                <div className="agent-profile__hookform-row agent-profile__hookform-row--top">
+                  <label className="agent-profile__hookform-label">when</label>
+                  <div className="agent-profile__hookform-when">
+                    {hookDraft.rows.length === 0 && (
+                      <span className="agent-profile__hookform-note">every time this event fires</span>
+                    )}
+                    {hookDraft.rows.map((r, i) => (
+                      <div className="agent-profile__hookform-cond" key={i}>
+                        <SvSelect
+                          value={r.field}
+                          onChange={(v) => setHd({ rows: hookDraft.rows.map((x, n) => (n === i ? { ...x, field: v } : x)) })}
+                          options={((eventNamed(hookDraft.on) || {}).fields || []).map((f) => ({ value: f, label: f }))}
+                        />
+                        <SvSelect
+                          value={r.op}
+                          onChange={(v) => setHd({ rows: hookDraft.rows.map((x, n) => (n === i ? { ...x, op: v } : x)) })}
+                          options={[
+                            { value: "equals", label: "is" },
+                            { value: "contains", label: "contains" },
+                            { value: "startsWith", label: "starts with" },
+                            { value: "endsWith", label: "ends with" },
+                            { value: "matches", label: "matches /re/" },
+                            { value: "gte", label: "≥" },
+                            { value: "lte", label: "≤" },
+                            { value: "exists", label: "exists" },
+                          ]}
+                        />
+                        {r.op !== "exists" && (
+                          <input
+                            className="agent-profile__hookform-input"
+                            value={r.val}
+                            placeholder="value"
+                            onChange={(e) => setHd({ rows: hookDraft.rows.map((x, n) => (n === i ? { ...x, val: e.target.value } : x)) })}
+                          />
+                        )}
+                        <button
+                          type="button"
+                          className="agent-profile__hook-btn agent-profile__hook-btn--del"
+                          onClick={() => setHd({ rows: hookDraft.rows.filter((_, n) => n !== i) })}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      className="agent-profile__hook-btn"
+                      disabled={!((eventNamed(hookDraft.on) || {}).fields || []).length}
+                      title={
+                        ((eventNamed(hookDraft.on) || {}).fields || []).length
+                          ? "Narrow this hook to events that match"
+                          : "This event carries no fields to match on"
+                      }
+                      onClick={() =>
+                        setHd({
+                          rows: [
+                            ...hookDraft.rows,
+                            { field: ((eventNamed(hookDraft.on) || {}).fields || [])[0] || "", op: "contains", val: "" },
+                          ],
+                        })
+                      }
+                    >
+                      + condition
+                    </button>
+                  </div>
+                </div>
+
+                <div className="agent-profile__hookform-row">
+                  <label className="agent-profile__hookform-label">do</label>
+                  <SvSelect
+                    value={hookDraft.do}
+                    onChange={(v) => setHd({ do: v })}
+                    options={[
+                      { value: "", label: "— pick a skill —" },
+                      ...(skills || []).map((sk) => ({ value: `skill:${sk.name}`, label: sk.name })),
+                    ]}
+                  />
+                  <span className="agent-profile__hookform-note">the skill this moment points at</span>
+                </div>
+
+                <div className="agent-profile__hookform-row">
+                  <label className="agent-profile__hookform-label">scope</label>
+                  <SvSelect
+                    value={hookDraft.scope}
+                    onChange={(v) => setHd({ scope: v })}
+                    options={[
+                      ...(draft ? [{ value: `agent:${draft.id}`, label: `this agent (${draft.name})` }] : []),
+                      ...(draft && draft.projectCode ? [{ value: `project:${draft.projectCode}`, label: `this project (${draft.projectCode})` }] : []),
+                      { value: "every-agent", label: "every agent" },
+                    ]}
+                  />
+                </div>
+
+                <div className="agent-profile__hookform-row">
+                  <label className="agent-profile__hookform-label">guard</label>
+                  <SvSelect
+                    value={hookDraft.guard}
+                    onChange={(v) => setHd({ guard: v })}
+                    options={[
+                      { value: "once-per-session", label: "once per session" },
+                      { value: "cooldown:300", label: "at most every 5 min" },
+                      { value: "cooldown:3600", label: "at most every hour" },
+                      { value: "", label: "no guard — every match" },
+                    ]}
+                  />
+                  <span className="agent-profile__hookform-note">
+                    an unguarded hook is a context leak that fires forever
+                  </span>
+                </div>
+
+                <div className="agent-profile__hookform-row">
+                  <label className="agent-profile__hookform-label">kind</label>
+                  <SvSelect
+                    value={hookDraft.kind}
+                    onChange={(v) => setHd({ kind: v })}
+                    options={[
+                      { value: "context", label: "context — points, the agent decides" },
+                      { value: "work", label: "work — something runs", hot: true },
+                    ]}
+                  />
+                </div>
+
+                <div className="agent-profile__hookform-row agent-profile__hookform-row--top">
+                  <label className="agent-profile__hookform-label">note</label>
+                  <textarea
+                    className="agent-profile__hookform-area"
+                    rows={2}
+                    value={hookDraft.note}
+                    placeholder="optional — a line the agent reads along with the pointer"
+                    onChange={(e) => setHd({ note: e.target.value })}
+                  />
+                </div>
+
+                <div className="agent-profile__hookform-actions">
+                  <button type="button" className="agent-profile__hook-save" onClick={commitHook}>
+                    {hookDraft.isNew ? "create hook" : "save hook"}
+                  </button>
+                  <button type="button" className="agent-profile__hook-btn" onClick={() => { setHookDraft(null); setHookErr(""); }}>
+                    cancel
+                  </button>
+                </div>
               </div>
             )}
           </div>

@@ -49,8 +49,16 @@ const todoItem = (t, i) => {
 // system exists to make visible: what an agent asked its memory, what it chose to remember, what
 // reach it granted itself. Same treatment as `sv` — a parsed shape the renderer badges — and the
 // summary carries the ARGUMENT (the question, the note, the namespace), because the verb alone
-// audits nothing. The worklist is deliberately absent: it already renders as the todo fold.
-const MCP_SERVERS = { context: true, discovery: true, systemlynx: true };
+// audits nothing.
+//
+// THE WORKLIST IS ONE OF THEM (his catch, and the exclusion was mine): it used to be left out
+// because `set` already renders as the todo fold. But the fold is the INTERFACE — the live list —
+// and the row is the RECORD of the call, and those are not the same thing. The day `get` shipped,
+// the gap showed: a READ carries no `items`, so it folded into nothing and fell through to a bare
+// generic tool row — the one harness tool an agent reaches for straight after a compaction,
+// rendering as if it came from nowhere. Both verbs are claimed; the fold is untouched and still
+// driven by `input.items`.
+const MCP_SERVERS = { context: true, discovery: true, systemlynx: true, worklist: true };
 // THE RESULT IS DATA, AND DATA GETS A TABLE — his correction, after I shipped prettier prose:
 // "we're in a UI. Have you heard of a table?" The tool's text stays the model's channel; the CHAT
 // parses it back into rows and renders a real table with expandable bodies. We author both ends,
@@ -136,6 +144,12 @@ export function parseMcp(tool, input = {}) {
       ? `remember${i.scope ? ` [${i.scope}]` : ""} ${q(i.title || i.text)}${i.supersedes ? " (supersedes)" : ""}`
       : server === "discovery"
       ? `findTool ${q(i.question)}${i.server ? ` on ${i.server}` : ""}`
+      : server === "worklist"
+      ? // The list's SHAPE is the argument worth auditing — how many items, how many already done —
+        // so a `set` says what it set instead of "worklist set". A `get` has no argument at all.
+        verb === "set"
+        ? `worklist set ${(i.items || []).length} item${(i.items || []).length === 1 ? "" : "s"}`
+        : `worklist ${verb}`
       : verb === "loadService"
       ? `loadService ${i.name || "?"}`
       : verb === "call"
@@ -164,7 +178,7 @@ const textOf = (ev) => ev.text || ev.content || ev.message || "";
 // tidy name, the raw subtype, and our own local echo, because which one arrives depends on how much
 // of it the host has chosen to translate — and a fold that understands one dialect is exactly how
 // every tool line went missing the last time.
-const IS_COMPACTED = (k) => k === "compaction" || k === "compact_boundary" || k === "compact.boundary";
+const IS_COMPACTED = (k) => k === "compaction.after" || k === "compaction" || k === "compact_boundary" || k === "compact.boundary";
 const IS_COMPACTING = (k) => k === "compacting" || k === "compaction.start" || k === "pre_compact";
 const IS_USAGE = (k) => k === "usage" || k === "token.usage";
 
@@ -306,6 +320,11 @@ export const compactionText = (before, after, trigger) => {
 const CMD_TAGS = /<(local-command-caveat|command-name|command-message|command-args|local-command-stdout)>[\s\S]*?<\/\1>/;
 
 const XSESSION = /<cross-session-message\b([^>]*)>([\s\S]*?)<\/cross-session-message>/;
+// A CONTEXT HOOK'S POINTER IS NOT A SENTENCE HE TYPED. It rides the input queue the same way a
+// cross-session message does, so left alone it draws as HIS turn — the human appearing to say
+// "a context hook fired". The `hook.fired` receipt is the row for this moment; the injected text
+// is the mechanism, and the mechanism does not get to impersonate anybody.
+const HOOKWRAP = /<context-hook\b[^>]*>[\s\S]*?<\/context-hook>/;
 const ATTR = (s, k) => {
   const m = new RegExp(`${k}="([^"]*)"`).exec(s || "");
   return m ? m[1] : "";
@@ -483,6 +502,8 @@ export function foldEvents(events) {
     // The pair folds into ONE receipt: the command, then what it printed. Ground-truthed against
     // the transcript: the tags are the host's own encoding, and his own prose can share a record
     // with them — whatever is left once the tags are stripped is still HIS turn and keeps its row.
+    if (ev.kind === "user.prompt" && HOOKWRAP.test(textOf(ev))) return;
+
     if (ev.kind === "user.prompt") {
       const t = textOf(ev);
       if (CMD_TAGS.test(t)) {
@@ -502,7 +523,7 @@ export function foldEvents(events) {
           else rows.push({ key, kind: "cmdret", name: "", args: "", out: body, ts: ev.ts, replay: !!ev.replay });
           openCmd = null;
         }
-        if (rest) rows.push({ key: `${key}-said`, kind: "mine", text: rest, ts: ev.ts, as: null, replay: !!ev.replay, settled: true });
+        if (rest) rows.push({ key: `${key}-said`, kind: "mine", text: rest, images: ev.images || [], ts: ev.ts, as: null, replay: !!ev.replay, settled: true });
         return;
       }
     }
@@ -577,10 +598,12 @@ export function foldEvents(events) {
         }
       }
       closeOpen();
-      if (t.trim())
+      // …or a turn that is only pictures. Same reason as the local echo above: a row with no words
+      // is still a turn, and an empty feed where an image went is the record lying.
+      if (t.trim() || (ev.images || []).length)
         // `as: null` explicitly — a turn with nobody attached to it is HIS, and leaving the key off
         // makes "no visitor" and "we forgot to look" the same shape.
-        rows.push({ key, kind: replayKind, text: t, ts: ev.ts, as: null, replay: !!ev.replay, settled: true });
+        rows.push({ key, kind: replayKind, text: t, images: ev.images || [], ts: ev.ts, as: null, replay: !!ev.replay, settled: true });
       return;
     }
     // First live event after a replay: say where the past stopped, once.
@@ -604,12 +627,15 @@ export function foldEvents(events) {
     // the assistant settler it wore our colour, so a conversation looked like the agent talking to
     // itself. Carries `local` so the host's own `user.prompt` can replace it when both views are
     // watching one session.
-    if (ev.mine && (ev.text || "").trim()) {
+    // …OR A PICTURE WITH NOTHING TYPED. `text.trim()` alone dropped an image-only turn on the
+    // floor: the send succeeded, the model saw it, and the feed showed nothing — the record lying
+    // about what was said, which is the one thing this feed exists not to do.
+    if (ev.mine && ((ev.text || "").trim() || (ev.images || []).length)) {
       closeOpen();
       // A VISITOR'S TURN is his turn's shape but not his voice — another agent reached in through
       // the CLI. Same row, carrying WHO, so the chat can name them instead of letting an agent's
       // sentence pass as the human's.
-      rows.push({ key, kind: "mine", text: ev.text, ts: ev.ts, local: !!ev.local, as: ev.as || null, settled: true });
+      rows.push({ key, kind: "mine", text: ev.text, images: ev.images || [], ts: ev.ts, local: !!ev.local, as: ev.as || null, settled: true });
       return;
     }
     const settler = SETTLERS[ev.kind];
@@ -652,12 +678,21 @@ export function foldEvents(events) {
           ? { to: sv.project, msg: String(sv.target || ""), about: sv.as ? `as ${sv.as}` : "" }
           : null;
       const mcp = xsend || sv ? null : parseMcp(ev.tool || ev.name, ev.input);
+      // LOADING A SKILL IS A STEP, NOT PLUMBING. It rendered as a generic tool row — the same grey
+      // line as a `cat` — which made the one chain this system most needs to be traceable
+      // unreadable: hook fired → skill loaded → what the agent then did. Each link has to read as
+      // a link. (This gap predates hooks and was worth closing either way.)
+      const skill =
+        !xsend && !sv && (ev.tool || ev.name) === "Skill" && ev.input
+          ? { name: String(ev.input.skill || "?"), args: String(ev.input.args || "") }
+          : null;
       const row = {
         key,
         kind: "tool",
         id: ev.id,
         xsend,
         mcp,
+        skill,
         tool: ev.tool || ev.name,
         // THE HOST ALREADY WROTE THE LINE. It holds the tool schemas, so it says "reading
         // CodePane.js" or "run: yarn build" once, at the source — and every view that renders it
@@ -667,6 +702,8 @@ export function foldEvents(events) {
         // "probed …" wording is for the cooking line, not the log (his rule).
         summary: xsend
           ? rowLabel(`message → ${xsend.to}${xsend.about ? ` — ${xsend.about}` : ""}`)
+          : skill
+          ? rowLabel(`${skill.name}${skill.args ? ` ${skill.args}` : ""}`)
           : sv
           ? sv.line
           : mcp
@@ -852,6 +889,38 @@ export function foldEvents(events) {
           openCompaction = null;
         }
       }
+      return;
+    }
+    // A HOOK FIRED — pushed context, which nobody asked for, which is exactly why it is never
+    // silent. Everything we had to fix today was something that fed an agent invisibly; a hook is
+    // the easiest thing in this system to get wrong that way. Name, the moment that triggered it,
+    // and what it pointed at — all three, because "a hook fired" without them audits nothing.
+    if (ev.kind === "hook.fired") {
+      closeOpen();
+      rows.push({
+        key,
+        kind: "hook",
+        name: ev.name,
+        on: ev.on,
+        to: ev.to || "",
+        work: ev.hookKind === "work",
+        note: ev.note || "",
+        ts: ev.ts,
+      });
+      return;
+    }
+
+    // A RE-INIT IS A REAL SEAM IN THE RECORD. It changes what the agent IS — the composition
+    // it wears — mid-conversation, without changing a single word of the transcript. Six turns
+    // later there is no other way to read why an agent started behaving differently, which is
+    // the same argument that earned the compaction boundary its own line.
+    if (ev.kind === "session.reinit") {
+      rows.push({
+        key,
+        kind: "note",
+        text: ev.resumedFrom ? "re-initialized — same conversation, current docs" : "re-initialized — current docs",
+        ts: ev.ts,
+      });
       return;
     }
     if (ev.kind === "file.changed" || ev.kind === "session.started") return;

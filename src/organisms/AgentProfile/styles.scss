@@ -520,4 +520,341 @@
   font-size: 12px;
   line-height: 1.55;
   white-space: pre-wrap;
+
+}
+
+// STALE + RE-INIT — TOP LEVEL ON PURPOSE. This block used to be appended before the stylesheet's
+// last brace on the assumption that it closed the root; it did not (it closed
+// `.agent-profile__tooldetail`), so every rule compiled to `.agent-profile__tooldetail__stale…`
+// and matched nothing. Three redesigns shipped into a dead selector while the card on screen never
+// changed. Written flat so placement can never do that again.
+//
+// The anatomy is the app's own notice (atoms/Banner): round icon chip, coloured rail, title plus a
+// supporting line, action as a real control on the right. This is the page-resident twin of the
+// banner the same state raises — two notices about one fact must not be two designs. Amber is the
+// hue this system already means "your attention, nothing is broken".
+.agent-profile__stale {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(209, 154, 46, 0.34);
+  border-left: 3px solid #d19a2e;
+  background: rgba(209, 154, 46, 0.07);
+}
+.agent-profile__stale-icon {
+  flex: none;
+  width: 17px;
+  height: 17px;
+  margin-top: 1px;
+  border-radius: 50%;
+  background: #d19a2e;
+  color: #1d1708;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 17px;
+  text-align: center;
+}
+.agent-profile__stale-body { flex: 1; min-width: 0; }
+.agent-profile__stale-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #e8b44a;
+  line-height: 1.3;
+}
+.agent-profile__stale-note {
+  margin-top: 4px;
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--sv-text-faint);
+  max-width: 62ch;
+}
+// one chip per input that moved — Presence, System context, Agent doc, CLAUDE.md
+.agent-profile__stale-parts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 8px;
+}
+.agent-profile__stale-chip {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  padding: 2px 7px;
+  border-radius: 4px;
+  color: #e8b44a;
+  background: rgba(209, 154, 46, 0.15);
+  border: 1px solid rgba(209, 154, 46, 0.3);
+}
+.agent-profile__stale-btn {
+  flex: none;
+  align-self: center;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  padding: 6px 15px;
+  border-radius: 6px;
+  border: 1px solid #d19a2e;
+  background: transparent;
+  color: #e8b44a;
+  cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease;
+  &:hover:not(:disabled) { background: #d19a2e; color: #1d1708; }
+  &:disabled { opacity: 0.5; cursor: default; }
+}
+
+// HOOKS — FLAT SELECTORS, deliberately. Nested rules appended to the end of this file compile
+// under whatever block the last brace closes, which is how the stale card shipped three times
+// without a single style applying. Verify with: grep -c "agent-profile__hook" build/static/css/main.*.css
+.agent-profile__hooks {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.agent-profile__hook {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--sv-border);
+  border-left: 3px solid #6a74c4;
+  border-radius: 7px;
+  background: var(--sv-inset);
+}
+.agent-profile__hook--off { opacity: 0.5; }
+.agent-profile__hook-main {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+.agent-profile__hook-name {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--sv-text-strong);
+}
+// `on` is the moment; `when` narrows it; `do` is the pointer. Three different jobs, three weights.
+.agent-profile__hook-on {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 10.5px;
+  color: #949cdd;
+}
+.agent-profile__hook-when {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 10.5px;
+  color: var(--sv-text-faint);
+}
+.agent-profile__hook-do {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 10.5px;
+  color: #63b98a;
+}
+.agent-profile__hook-tags {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+.agent-profile__hook-scope,
+.agent-profile__hook-guard {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  color: var(--sv-text-faint);
+  background: var(--sv-hover);
+}
+// a work hook ACTS — it never wears the same clothes as one that only whispers
+.agent-profile__hook-work {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  color: #1d1708;
+  background: #d19a2e;
+}
+.agent-profile__hook-btn {
+  font-family: inherit;
+  font-size: 11px;
+  padding: 3px 9px;
+  border-radius: 5px;
+  border: 1px solid var(--sv-border);
+  background: var(--sv-surface);
+  color: var(--sv-text-muted);
+  cursor: pointer;
+  &:hover:not(:disabled) { background: var(--sv-hover); color: var(--sv-text); }
+  &:disabled { opacity: 0.45; cursor: default; }
+}
+.agent-profile__hook-btn--del {
+  color: #d64c4c;
+  border-color: #d64c4c55;
+  &:hover:not(:disabled) { background: #d64c4c1c; color: #d64c4c; }
+}
+.agent-profile__hook-add {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: 1px dashed var(--sv-border);
+  background: transparent;
+  color: var(--sv-text-muted);
+  cursor: pointer;
+  &:hover { border-color: #6a74c4; color: #949cdd; }
+}
+.agent-profile__hook-err {
+  margin-bottom: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid #d64c4c55;
+  background: #d64c4c14;
+  color: #d64c4c;
+  font-size: 12px;
+}
+
+// THE FORM. A label column and a control column, so the eye reads down one edge instead of
+// hunting — the same shape the gating control already uses on this page.
+.agent-profile__hookform {
+  margin-top: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--sv-border);
+  border-radius: 8px;
+  background: var(--sv-inset);
+}
+.agent-profile__hookform-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 9px;
+}
+.agent-profile__hookform-row--top { align-items: flex-start; }
+.agent-profile__hookform-label {
+  flex: none;
+  width: 52px;
+  text-align: right;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--sv-text-faint);
+  padding-top: 5px;
+}
+.agent-profile__hookform-input {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 12px;
+  padding: 5px 9px;
+  border-radius: 6px;
+  border: 1px solid var(--sv-border);
+  background: var(--sv-surface);
+  color: var(--sv-text);
+  min-width: 0;
+  flex: 1;
+  &:focus { outline: none; border-color: #6a74c4; }
+}
+.agent-profile__hookform-area {
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.5;
+  padding: 6px 9px;
+  border-radius: 6px;
+  border: 1px solid var(--sv-border);
+  background: var(--sv-surface);
+  color: var(--sv-text);
+  resize: vertical;
+  flex: 1;
+  &:focus { outline: none; border-color: #6a74c4; }
+}
+.agent-profile__hookform-note {
+  font-size: 11px;
+  color: var(--sv-text-faint);
+  line-height: 1.45;
+}
+.agent-profile__hookform-when {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+  flex: 1;
+  min-width: 0;
+  padding-top: 3px;
+}
+.agent-profile__hookform-cond {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  width: 100%;
+}
+.agent-profile__hookform-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+  padding-left: 62px;
+}
+.agent-profile__hook-save {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--sv-blue);
+  background: var(--sv-blue);
+  color: #fff;
+  cursor: pointer;
+  &:hover { filter: brightness(1.1); }
+}
+
+// The per-agent switch, sitting with edit and delete. Same button shape as its neighbours so the
+// three read as one set of verbs; only the state colour differs, because the one thing you need
+// at a glance is whether this agent actually gets the hook.
+.agent-profile__hook-btn--toggle {
+  min-width: 66px;
+  font-weight: 700;
+}
+.agent-profile__hook-btn--on {
+  color: #63b98a;
+  border-color: rgba(99, 185, 138, 0.45);
+  background: rgba(99, 185, 138, 0.1);
+  &:hover:not(:disabled) { background: rgba(99, 185, 138, 0.18); color: #63b98a; }
+}
+
+// ALWAYS-LOADED WEIGHT. A bar per layer, scaled against the heaviest one — the comparison between
+// layers is the useful part, not the absolute number, because the decision is always "which of
+// these is too long".
+.agent-profile__weights { display: flex; flex-direction: column; gap: 3px; }
+.agent-profile__weight {
+  display: grid;
+  grid-template-columns: 132px 96px 1fr 58px;
+  align-items: center;
+  gap: 10px;
+  font-size: 11.5px;
+}
+.agent-profile__weight-name { color: var(--sv-text); font-weight: 600; }
+.agent-profile__weight-scope { color: var(--sv-text-faint); font-size: 10.5px; }
+.agent-profile__weight-bar {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--sv-hover);
+  overflow: hidden;
+}
+.agent-profile__weight-fill { display: block; height: 100%; background: #6a74c4; }
+.agent-profile__weight-tok {
+  text-align: right;
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 10.5px;
+  color: var(--sv-text-faint);
+}
+.agent-profile__weight--total {
+  margin-top: 4px;
+  padding-top: 5px;
+  border-top: 1px solid var(--sv-border);
+  .agent-profile__weight-name { color: var(--sv-text-faint); font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: 0.04em; }
+  .agent-profile__weight-tok { color: var(--sv-text-strong); font-weight: 700; font-size: 11.5px; }
 }

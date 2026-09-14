@@ -3480,3 +3480,72 @@
   &:hover .agent-chat__tv-pick-del, &.is-armed .agent-chat__tv-pick-del { opacity: 1; }
   &.is-armed .agent-chat__tv-pick-del { color: #e05252; font-weight: 700; }
 }
+
+// ATTACHMENTS — the pictures waiting to go with the next message, and the panel's drop state.
+// FLAT SELECTORS. Appended nested, these compiled to `.agent-chat__tv-pick-row__clip` and friends:
+// the file input was left completely unstyled, which is exactly what it looked like.
+.agent-chat__panel--dropping {
+  outline: 2px dashed #9a7cb8;
+  outline-offset: -4px;
+}
+.agent-chat__drophint {
+  margin: 0 8px 4px;
+  padding: 5px 9px;
+  border-radius: 6px;
+  background: rgba(154, 124, 184, 0.16);
+  color: #b07cc8;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+}
+.agent-chat__shots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 8px 6px;
+}
+.agent-chat__shot {
+  position: relative;
+  line-height: 0;
+  border: 1px solid var(--sv-border);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--sv-inset);
+  img { display: block; width: 62px; height: 46px; object-fit: cover; }
+}
+// the remove sits ON the thumbnail — it belongs to that picture, not to a list beside it
+.agent-chat__shot-x {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 15px;
+  height: 15px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(16, 18, 22, 0.78);
+  color: #e6e9f0;
+  font-size: 12px;
+  line-height: 15px;
+  text-align: center;
+  padding: 0;
+  cursor: pointer;
+  &:hover { background: #d64c4c; color: #fff; }
+}
+// the file-picker doorway, dressed like the mic beside it. The <input> is display:none — what you
+// click is this label, which is why the rule landing in a dead selector left a raw "Choose file".
+.agent-chat__clip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  color: var(--sv-text-faint);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease;
+  &:hover { background: var(--sv-hover); color: var(--sv-text); }
+  input { display: none; }
+}

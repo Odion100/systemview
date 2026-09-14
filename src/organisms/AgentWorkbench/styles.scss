@@ -327,6 +327,7 @@
     &--mcp-discovery { color: #5aa39a; }   // finding - the shell-teal family
     &--mcp-systemlynx { color: #d9a441; }  // reach - amber, "this touches a service"
     &--mcp-systemview { color: #4ab8d9; }  // the hub itself - cyan, its own voice, never "a regular log"
+    &--mcp-worklist { color: #7fb069; }    // the plan - green, the same green the profile badges it in
   }
 
   // The harness tools' answers are AUTHORED words, so they read as prose: the app font, real
@@ -803,3 +804,62 @@
   font-size: 10.5px;
   color: var(--sv-text-faint);
 }
+
+// ATTACHED PICTURES on a turn — a row of thumbnails above the words, sized so several fit on one
+// line and none of them dominates the message they belong to. Flat selectors: appended nested,
+// these compiled to `.agent-wb__mcp-id__shots` and styled nothing.
+.agent-wb__shots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 2px 0 6px;
+}
+.agent-wb__shot {
+  padding: 0;
+  border: 1px solid var(--sv-border);
+  border-radius: 6px;
+  background: var(--sv-inset);
+  cursor: pointer;
+  overflow: hidden;
+  line-height: 0;
+  transition: border-color 0.14s ease;
+  &:hover { border-color: #9a7cb8; }
+  img { display: block; max-width: 148px; max-height: 108px; object-fit: cover; }
+  span { display: inline-block; padding: 6px 9px; font-size: 11px; line-height: 1.2; color: var(--sv-text-faint); }
+}
+
+// A HOOK FIRED. Flat selectors — see the note on __shots above; nested rules appended here compile
+// under whatever block the file's last brace closes.
+.agent-wb__row--hook {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 10px;
+  border-left: 2px solid #6a74c4;
+  background: rgba(106, 116, 196, 0.07);
+}
+.agent-wb__row--hookwork {
+  border-left-color: #d19a2e;
+  background: rgba(209, 154, 46, 0.08);
+}
+.agent-wb__hook-mark { color: #949cdd; font-size: 11px; line-height: 1; }
+.agent-wb__hook-name { font-size: 12px; font-weight: 700; color: var(--sv-text-strong); }
+.agent-wb__hook-on,
+.agent-wb__hook-to {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 10.5px;
+  color: var(--sv-text-faint);
+}
+.agent-wb__hook-to { color: #63b98a; }
+.agent-wb__hook-work {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  color: #1d1708;
+  background: #d19a2e;
+}
+
+// A SKILL LOADING — green, the colour a hook's `→ skill:` pointer already uses, so the two ends of
+// the chain read as the same thing happening.
+.agent-wb__sv-kind--skill { color: #63b98a; }

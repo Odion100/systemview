@@ -1113,8 +1113,16 @@ describe("parseMcp", () => {
     expect(parseMcp("Bash", { command: "ls" })).toBeNull();
   });
 
-  it("worklist is not claimed — the todo fold owns it", () => {
-    expect(parseMcp("mcp__worklist__set", { items: [] })).toBeNull();
+  // The exclusion this replaces was mine and it was wrong: the fold is the live LIST, the row is
+  // the RECORD of the call, and `get` carries no items at all — so the one tool an agent reaches
+  // for straight after a compaction rendered as a nameless generic row.
+  it("claims the worklist — both verbs read as internal calls, the fold is untouched", () => {
+    expect(parseMcp("mcp__worklist__get", {})).toMatchObject({ server: "worklist", line: "worklist get" });
+    expect(parseMcp("mcp__worklist__set", { items: [{ text: "a" }, { text: "b" }] })).toMatchObject({
+      server: "worklist",
+      line: "worklist set 2 items",
+    });
+    expect(parseMcp("mcp__worklist__set", { items: [{ text: "a" }] }).line).toBe("worklist set 1 item");
   });
 
   it("clamps a long question instead of flooding the line", () => {

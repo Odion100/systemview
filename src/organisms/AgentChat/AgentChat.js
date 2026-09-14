@@ -19,6 +19,7 @@ import Feed, { timeOf } from "../AgentWorkbench/Feed";
 import useAgentSession from "../AgentWorkbench/useAgentSession";
 import { CTX_WARN, CTX_DUE, tokensShort, parseUsageLines } from "../AgentWorkbench/feedRows";
 import { visStyle } from "../AgentWorkbench/visitorColor";
+import { readImagesFrom, readImageFile, hasImages } from "../../utils/imageAttach";
 import { canListTranscripts, listAgents, listTranscripts, transcriptTail } from "../../utils/hostAgent";
 import CodebaseNav from "../CodebaseNav/CodebaseNav";
 import { useAppDark } from "../../atoms/appTheme";
@@ -474,7 +475,7 @@ const ResizeBorder = ({ start, onReset, zones = RESIZE_ZONES }) =>
     <div
       key={z.k}
       className={`${CLASSNAME}__rz ${CLASSNAME}__rz--${z.k}`}
-      title="Drag to resize · double-click for natural size"
+      title="Drag to resize · double-click to toggle default ⇄ large"
       onPointerDown={start(z.mw, z.mh)}
       onDoubleClick={() => onReset(z.mw, z.mh)}
     />
@@ -2356,6 +2357,50 @@ const countdown = (str, now = Date.now()) => {
     work.send(c);
   };
 
+  // ATTACHED PICTURES, waiting to go with the next message. Three doorways — paste into the box,
+  // drop anywhere on the panel, or the paperclip — all landing in one list, because "how did it
+  // get here" must not change what it is. `dropping` is only the highlight — named apart from the
+  // panel's own `dragging`, which is the bubble being moved around the screen.
+  const [shots, setShots] = useState([]);
+  const [dropping, setDropping] = useState(false);
+  const dragDepth = useRef(0);
+  const addFiles = async (dt) => {
+    const found = await readImagesFrom(dt);
+    if (found.length) setShots((cur) => [...cur, ...found]);
+    return found.length;
+  };
+  const onPasteShots = async (e) => {
+    if (!hasImages(e.clipboardData)) return;
+    // Only swallow the paste when it actually carried an image — a normal text paste must keep
+    // behaving like a normal text paste. The clipboard is read synchronously here; the async
+    // work happens after, which is why preventDefault cannot wait for it.
+    e.preventDefault();
+    await addFiles(e.clipboardData);
+  };
+  // DROP ANYWHERE ON THE PANEL, not just on the little input. Dragging a screenshot at a text box
+  // is aiming; dragging it at the conversation is the actual intent. dragenter/leave are counted
+  // because they fire for every child element the pointer crosses — without the depth count the
+  // highlight strobes its way across the feed.
+  const onDragEnter = (e) => {
+    if (!hasImages(e.dataTransfer)) return;
+    e.preventDefault();
+    dragDepth.current += 1;
+    setDropping(true);
+  };
+  const onDragLeave = (e) => {
+    if (!dropping) return;
+    e.preventDefault();
+    dragDepth.current = Math.max(0, dragDepth.current - 1);
+    if (!dragDepth.current) setDropping(false);
+  };
+  const onDropShots = async (e) => {
+    if (!hasImages(e.dataTransfer)) return;
+    e.preventDefault();
+    dragDepth.current = 0;
+    setDropping(false);
+    await addFiles(e.dataTransfer);
+  };
+
   const send = async () => {
     // SEND TAKES WHAT'S VISIBLE — his procedure, after every cleverer version failed him: "the
     // words are showing, meaning they've been captured; the simplest thing is just send whatever
@@ -2380,7 +2425,10 @@ const countdown = (str, now = Date.now()) => {
     // and there is nothing yet, the send is ARMED and fires the moment the words arrive.
     // NOTHING VISIBLE = NOTHING HAPPENS — his rule: an empty press must not touch the recorder,
     // arm anything, or leave a note. The recorder keeps doing its job; press again when words show.
-    if (!text) return;
+    // A PICTURE WITH NO CAPTION IS A WHOLE MESSAGE. Requiring words here would have made the most
+    // natural use of this — paste a screenshot, press send — do nothing at all.
+    const pics = shots;
+    if (!text && !pics.length) return;
     // Sending ends the dictation — you said what you had to say (his call). `onend` arrives a beat
     // later, so drop the flag HERE: otherwise the transcript panel hangs on screen after the
     // message is already gone, which reads as it popping up because you sent something.
@@ -2396,6 +2444,7 @@ const countdown = (str, now = Date.now()) => {
       }
     }
     setInput("");
+    setShots([]);
     // SENDING IS AN ARRIVAL, and it is the one case that overrides sticking. Incoming messages are
     // sticky-only on purpose — they must never yank the view while he is reading further up. His
     // OWN message is the opposite: he just spoke, so the bottom is where he is, whatever the scroll
@@ -2466,9 +2515,10 @@ const countdown = (str, now = Date.now()) => {
       // overlay closed) runs before delivery is known — so a session that refuses input (busy,
       // compacting: his board note names it) was VAPORIZING the message, with one easy-to-miss
       // error line as the only trace. The words return to the input box, selected territory, his.
-      if (!workRef.current.send(text)) {
+      if (!workRef.current.send(text, null, pics)) {
         setSendErr("the session isn't accepting input — your words are back in the box");
         setInput(text);
+        setShots(pics); // the pictures come back with the words — a refused send loses nothing
         setTimeout(() => inputRef.current && autogrow(inputRef.current), 0);
         return;
       }
@@ -3793,59 +3843,69 @@ const countdown = (str, now = Date.now()) => {
     const t = setInterval(() => ageTick((n) => n + 1), 60000);
     return () => clearInterval(t);
   }, [tvOpen, tv]);
-  // Double-click any border → back to the original size (the same convention the page's panel
-  // dividers use).
-  const resetSize = (setter, def, key) => () => {
-    setter(def);
-    try { localStorage.setItem(key, JSON.stringify(def)); } catch {}
+  // DOUBLE-CLICK: DEFAULT ⇄ PROPORTIONALLY LARGER, both axes, on the header and on every edge.
+  //
+  // FIXED PIXEL DEFAULTS, ONE PER PANEL, CHOSEN FOR WHAT THE PANEL HOLDS. Window-fraction defaults
+  // were wrong: they made every panel the same square and left the codebase wide and stupid. A
+  // file tree and a document read DOWN — tall and narrow. A chat is a column. A board is a stack
+  // of cards. They are not the same shape and should never have shared one number.
+  //
+  // Each of these is one line to change if it lands wrong. The MECHANISM is not the thing to
+  // change when a size feels off — that mistake is what turned one tweak into a dozen builds.
+  const GROW = 1.4;
+  const winW = () => window.innerWidth;
+  const winH = () => window.innerHeight;
+  const writeSize = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+  // Clamped, so a grow can never push a panel past the window it lives in.
+  const grownFrom = (d) => ({
+    w: Math.min(Math.round(d.w * GROW), Math.max(320, winW() - 80)),
+    h: Math.min(Math.round(d.h * GROW), Math.max(320, winH() - 80)),
+  });
+  // A few pixels of drift must not make the next double-click a no-op.
+  const sameSize = (a, b) => a && b && Math.abs(a.w - b.w) < 12 && Math.abs(a.h - b.h) < 12;
+  const resetSize = (setter, def, key, getCur) => () => {
+    const big = grownFrom(def);
+    const cur = (typeof getCur === "function" && getCur()) || def;
+    // At the large size → home. Anywhere else, including mid-drag → large.
+    const next = sameSize(cur, big) ? { ...def } : big;
+    setter(next);
+    writeSize(key, next);
   };
-  const panelReset = resetSize(setSize, { w: 340, h: 480 }, `sv.chatSize.${projectCode}`);
+  const panelReset = resetSize(setSize, { w: 340, h: 480 }, `sv.chatSize.${projectCode}`, () => size);
   const cbResize = makeResize(() => cbSize, setCbSize, `sv.cbSize.${projectCode}`);
-  const cbReset = resetSize(setCbSize, { w: 320, h: 460 }, `sv.cbSize.${projectCode}`);
+  // THE CODEBASE PANEL IS A DOCUMENT TOO — a file tree and a code view read down, not across, so
+  // its default is taller than it is wide for the same reason the TV's is.
+  // HIS HAND SIZING, read off the element: 406 × 610.
+  const cbReset = resetSize(setCbSize, { w: 406, h: 610 }, `sv.cbSize.${projectCode}`, () => cbSize);
   const boardResize = makeResize(() => boardSize, setBoardSize, `sv.boardSize.${projectCode}`);
-  const boardReset = resetSize(setBoardSize, { w: 380, h: 420 }, `sv.boardSize.${projectCode}`);
+  const boardReset = resetSize(setBoardSize, { w: 380, h: 420 }, `sv.boardSize.${projectCode}`, () => boardSize);
   // The TV's double-click means "give me my natural FLEX size" (his call, matching the story
   // panes) — PER AXIS: the edge you double-click hands back its own dimension (side = width,
   // top/bottom = height, corner = both), and the TV header flexes the whole thing at once.
-  const tvReset = (mw = 1, mh = 1) => {
-    // NATURAL HEIGHT IS THE CHAT'S HEIGHT, not the whole screen. It used to reset to
-    // `innerHeight - 120` no matter what was on it, and since the TV hangs DOWNWARD off the bot
-    // that ran straight off the bottom of the screen — a double-click on a short show made a
-    // near-full-height box with nothing in it. Same size as the chat and the links by default;
-    // dragging the edges is still how you make it bigger. Clamped to the room actually below.
-    // AND IT TOGGLES. A double-click that always does the same thing is a dead end — you use it,
-    // it isn't what you wanted, and there's nothing to undo it with but the mouse. Now the same
-    // edge swings the other way: fit, fill, fit. Per axis, so a side toggles width and the top or
-    // bottom toggles height, exactly like a single drag would.
-    // MEASURED FROM THE TV, NOT FROM THE BOT. The room below was computed from the bot's own y with
-    // a 40px allowance — but the TV hangs about 70px lower than that, so "fill" always overshot the
-    // bottom of the screen by the difference and he dragged it back every single time. The element
-    // knows where it starts; nothing else has to be kept in step with it.
-    const tvTop = tvElRef.current
-      ? tvElRef.current.getBoundingClientRect().top
-      : ((pos && pos.y) || 0) + 72;
-    const room = Math.max(240, Math.floor(window.innerHeight - tvTop - TV_BOTTOM_GAP));
-    const fitW = Math.max(280, Math.min(window.innerWidth - size.w - 140, 1280));
-    const fillW = Math.max(fitW, window.innerWidth - size.w - 80); // fill means fill
-    const fitH = Math.min(size.h, room);
-    const fillH = Math.max(fitH, room);
-    const at = (a, b) => Math.abs(a - b) < 8;
-    // FIT HANDS THE HEIGHT BACK TO THE SHOW. Not "the chat's height" as a number — no height at
-    // all, so the box goes back to being as tall as what's on it, capped. Fill is a real number.
-    if (mh && tvSized) {
-      setTvSized(false);
-      const back = { w: mw ? fitW : tvSize.w, h: fitH };
-      setTvSize(back);
-      try { localStorage.removeItem(`sv.tvSize.${projectCode}`); } catch {}
-      return;
-    }
-    if (mh && !tvSized) setTvSized(true); // second double-click: fill, and that's a chosen size
-    const nat = {
-      w: mw ? (at(tvSize.w, fitW) ? fillW : fitW) : tvSize.w,
-      h: mh ? fillH : tvSize.h,
-    };
-    setTvSize(nat);
-    try { localStorage.setItem(`sv.tvSize.${projectCode}`, JSON.stringify(nat)); } catch {}
+  // THE TV SWINGS THE SAME WAY AS EVERY OTHER PANEL — both axes, whichever edge you grab. It used
+  // to be its own thing: the fit/fill flip was gated on `mh`, so grabbing a SIDE ran a different
+  // branch that swapped width only, and which way the next double-click went depended on a stored
+  // flag you could not see. Same gesture, three outcomes, depending on where your cursor landed.
+  //
+  // WHAT STAYS DIFFERENT IS ITS SMALL END, and that is a real difference rather than an accident:
+  // the TV's natural size is AUTO — the box is as tall as the show, so a two-line show is a
+  // two-line box. `tvSized` is what switches that off, which is why it is cleared on the way down
+  // and set on the way up rather than deleted outright.
+  // THE TV USES THE SAME RULE AS EVERY OTHER PANEL — grow proportionally from whatever size it is
+  // now, and go back to exactly that. Its one genuine difference stays: until you have sized it by
+  // hand the height flexes to the show, so a two-line show is a two-line box. The first
+  // double-click is what ends that, which is why `tvSized` is set here and never cleared — you
+  // asked for a size, so it keeps a size.
+  // His hand sizing, read off the element: 448 × 638.
+  const TV_DEFAULT = { w: 448, h: 638 };
+  const tvReset = () => {
+    const big = grownFrom(TV_DEFAULT);
+    const r = tvElRef.current ? tvElRef.current.getBoundingClientRect() : null;
+    const cur = { w: Math.round(r ? r.width : tvSize.w), h: Math.round(r ? r.height : tvSize.h) };
+    const next = sameSize(cur, big) ? { ...TV_DEFAULT } : big;
+    setTvSized(true); // a chosen size, so the height stops flexing to the show
+    setTvSize(next);
+    writeSize(`sv.tvSize.${projectCode}`, next);
   };
   const style = pos
     ? { left: pos.x, top: pos.y, right: "auto", bottom: "auto", zIndex: z }
@@ -4313,8 +4373,12 @@ const countdown = (str, now = Date.now()) => {
             <ResizeBorder start={cbResize} onReset={cbReset} />
             <div
               className={`${CLASSNAME}__tv-head ${CLASSNAME}__tv-head--grab`}
-              title="Drag to move"
+              title="Drag to move · double-click to toggle size"
               onPointerDown={onBotPointerDown}
+              // THE HEADER IS THE OBVIOUS TARGET. The size toggle lived only on the 6px resize
+              // borders, so double-clicking the bar you actually grab did nothing at all — the
+              // feature was there and unreachable.
+              onDoubleClick={cbReset}
             >
               <span className={`${CLASSNAME}__tv-badge ${CLASSNAME}__cbpanel-badge`}>{"</>"}</span>
               <span className={`${CLASSNAME}__tv-title`}>{projectCode}</span>
@@ -4503,8 +4567,9 @@ const countdown = (str, now = Date.now()) => {
                 one panel you cannot move. */}
             <div
               className={`${CLASSNAME}__board-head ${CLASSNAME}__tv-head--grab`}
-              title="Drag to move"
+              title="Drag to move · double-click to toggle size"
               onPointerDown={onBotPointerDown}
+              onDoubleClick={boardReset}
             >
               <span className={`${CLASSNAME}__tv-badge`}>📋</span>
               {/* THE TITLE IS TEXT UNTIL YOU GO FOR IT. No field sitting there catching the eye and
@@ -4994,10 +5059,10 @@ const countdown = (str, now = Date.now()) => {
                 anchored spot beside the chat (one gesture undoes both kinds of fiddling). */}
             <div
               className={`${CLASSNAME}__tv-head ${CLASSNAME}__tv-head--grab`}
-              title="Drag to move · double-click for natural size and position"
+              title="Drag to move · double-click to toggle size and reset position"
               onPointerDown={tvDrag.onPointerDown}
               onDoubleClick={() => {
-                tvReset(1, 1);
+                tvReset();
                 tvDrag.reset();
               }}
             >
@@ -5237,7 +5302,13 @@ const countdown = (str, now = Date.now()) => {
           // minutes later, when he has stopped thinking about it and is looking at something else.
           // Ambient, never a flash — and static, because a cue that lives on screen for minutes is
           // the last thing that should animate (that lesson cost this page a day).
-          className={`${CLASSNAME}__panel${listening ? ` ${CLASSNAME}__panel--recording` : ""}`}
+          className={`${CLASSNAME}__panel${listening ? ` ${CLASSNAME}__panel--recording` : ""}${
+            dropping ? ` ${CLASSNAME}__panel--dropping` : ""
+          }`}
+          onDragEnter={onDragEnter}
+          onDragOver={(e) => hasImages(e.dataTransfer) && e.preventDefault()}
+          onDragLeave={onDragLeave}
+          onDrop={onDropShots}
           // A free-parked bubble may not have the panel's height of room on its open side — cap
           // to the space that actually exists so it never runs off the top or bottom.
           // Docked, the COLUMN decides the width — a stored 340 would hang out over the nav's edge.
@@ -6071,6 +6142,27 @@ const countdown = (str, now = Date.now()) => {
               </button>
             );
           })()}
+          {/* WHAT IS GOING WITH THE NEXT MESSAGE. Above the box, because it belongs to the message
+              you are still writing — and removable, because attaching the wrong screenshot should
+              cost one click, not a send. */}
+          {shots.length > 0 && (
+            <div className={`${CLASSNAME}__shots`}>
+              {shots.map((im) => (
+                <div className={`${CLASSNAME}__shot`} key={im.id}>
+                  <img src={im.thumb} alt={im.name} title={im.name} />
+                  <button
+                    type="button"
+                    className={`${CLASSNAME}__shot-x`}
+                    title="Remove"
+                    onClick={() => setShots((cur) => cur.filter((x) => x.id !== im.id))}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          {dropping && <div className={`${CLASSNAME}__drophint`}>drop the image to attach it</div>}
           <div className={`${CLASSNAME}__inputrow`}>
             {/* A textarea that WRAPS and GROWS (to ~6 lines, then scrolls). Enter sends,
                 Shift+Enter breaks a line — chat conventions. */}
@@ -6101,11 +6193,34 @@ const countdown = (str, now = Date.now()) => {
                 </div>
               );
             })()}
+            {/* THE THIRD DOORWAY. Paste and drop are how you will actually do it; the clip is for
+                the picture already sitting in a folder. */}
+            <label className={`${CLASSNAME}__clip`} title="Attach an image">
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={async (e) => {
+                  const files = [...(e.target.files || [])];
+                  e.target.value = "";
+                  const read = [];
+                  for (const f of files) {
+                    try {
+                      const im = await readImageFile(f);
+                      if (im) read.push(im);
+                    } catch {}
+                  }
+                  if (read.length) setShots((cur) => [...cur, ...read]);
+                }}
+              />
+              📎
+            </label>
             <textarea
               ref={inputRef}
               className={`${CLASSNAME}__input`}
               rows={1}
               value={input}
+              onPaste={onPasteShots}
               placeholder={p.live ? "the agent is in — talk" : "message (delivered at the agent's next turn)"}
               onChange={(e) => {
                 setInput(e.target.value);
@@ -6151,7 +6266,7 @@ const countdown = (str, now = Date.now()) => {
               type="button"
               className={`${CLASSNAME}__send`}
               onClick={send}
-              disabled={!input.trim() && !listening}
+              disabled={!input.trim() && !listening && !shots.length}
               title="Send"
             >
               <img src={SEND_ICON} alt="send" />

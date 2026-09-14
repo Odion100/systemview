@@ -830,6 +830,48 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
   // its own — see useFold.js for why.
   const [bulk, setBulk] = useState(null); // { n, mode: "collapse" | "expand" }
   const codeOpenKey = `sv.cbNav.code2.${projectCode}`;
+  // HOW TALL THE FILE TREE MAY GROW. Without a ceiling the tree takes every pixel the panel has
+  // and the terminal keeps whatever is left, which is nothing — so making the panel taller grew
+  // the wrong half and the only way to see a shell was to collapse `code` entirely. His fix, and
+  // the one that leaves both open at once: cap the tree, let it scroll inside the cap, and make
+  // the cap draggable. Shrink the tree and that height goes straight to the terminal below it.
+  // null = no cap (the old behaviour), which is right until you have said otherwise.
+  const treeMaxKey = `sv.cbNav.treeH.${projectCode}`;
+  const [treeMax, setTreeMax] = useState(() => {
+    const v = Number(localStorage.getItem(treeMaxKey));
+    return Number.isFinite(v) && v > 80 ? v : null;
+  });
+  const treeDragRef = React.useRef(null);
+  const startTreeDrag = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const el = e.currentTarget.previousElementSibling;
+    const from = el ? el.getBoundingClientRect().height : treeMax || 240;
+    treeDragRef.current = { y: e.clientY, from };
+    const move = (ev) => {
+      const d = treeDragRef.current;
+      if (!d) return;
+      const h = Math.max(90, Math.round(d.from + (ev.clientY - d.y)));
+      setTreeMax(h);
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      const cur = treeDragRef.current;
+      treeDragRef.current = null;
+      if (cur) {
+        try { localStorage.setItem(treeMaxKey, String(Math.max(90, Math.round(el ? el.getBoundingClientRect().height : 240)))); } catch {}
+      }
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
+  // Double-click the grip hands the cap back — the tree flexes again, as it did before.
+  const releaseTree = () => {
+    setTreeMax(null);
+    try { localStorage.removeItem(treeMaxKey); } catch {}
+  };
+
   const [codeOpen, flipCode, setCodeOpen] = useFold(codeOpenKey, () => {
     // OPEN BY DEFAULT WHEN THERE IS A FOLDER — and this is the answer to "the hovering panel has no
     // logs or commit box, for everyone." It defaulted to `holdsOpenFile`, i.e. it read THE OPEN FILE
@@ -1975,7 +2017,10 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
           {bulk && bulk.mode === "collapse" ? "▸" : "▾"}
         </span>
       </button>
-      <div className={`${CLASSNAME}__cb-body`}>
+      <div
+        className={`${CLASSNAME}__cb-body`}
+        style={treeMax ? { "--sv-tree-max": `${treeMax}px` } : undefined}
+      >
           {/* RFC-038 — WHERE A DOCKED AGENT LIVES. An empty slot, first thing in the card: the bot
               portals itself in here and this side knows nothing about what lands. First rather than
               last on purpose — under an expanded file tree it would be buried. */}
@@ -2508,6 +2553,18 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
             </>
           )}
           </>)}
+
+          {/* THE SPLITTER. Drag it to set how tall the file tree may be; everything below —
+              reports, logs, the shell — takes the rest. Double-click hands the cap back. Only
+              shown while `code` is open, because with the fold shut there is nothing to size. */}
+          {!noFolder && codeOpen && (
+            <div
+              className={`${CLASSNAME}__tree-grip`}
+              title="Drag to size the file tree · double-click to let it flex again"
+              onPointerDown={startTreeDrag}
+              onDoubleClick={releaseTree}
+            />
+          )}
 
           {/* RFC-054, his correction twice over: reports are this CODEBASE'S, and selection
               happens IN THE NAVIGATION — the row folds open and lists the documents by name, click
