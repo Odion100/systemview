@@ -1798,10 +1798,22 @@ function BotBubble({ projectCode, index }) {
         let about = "";
         try {
           const rows = (workRef.current && workRef.current.rows) || [];
-          for (const r of rows) {
-            const hit = String(r.text || "")
-              .split("\n")
-              .find((l) => re.test(l) && (!value || kind === "commit" || l.includes(String(value))));
+          // WHICH BLOCK, NOT WHICH KIND. `line` is the directive's own source line inside this
+          // row's document — the block hands it over on every write, and this search used to throw
+          // it away and take the FIRST matching directive on screen. So three commit offers in one
+          // conversation all reported as the first one: right sha, wrong message, and once the
+          // wrong repo. A commit can't be matched by its value either — the value is a sha the
+          // offer never contained — so the line number is the only thing that says which block was
+          // pressed. Newest row first, because a tie is always the offer made most recently.
+          for (const r of [...rows].reverse()) {
+            const lines = String(r.text || "").split("\n");
+            const at = Number(line) > 0 ? lines[Number(line) - 1] : null;
+            const hit =
+              at && re.test(at)
+                ? at
+                : kind === "commit"
+                ? null // never fall back to "some other commit block" — say nothing instead
+                : lines.find((l) => re.test(l) && (!value || l.includes(String(value))));
             if (hit) {
               const label = hit.match(/\[([^\]]+)\]/);
               const msg = hit.match(/\bmessage=("?)([^"}]+)\1/);
