@@ -131,3 +131,90 @@
     color: #a6aef0;
   }
 }
+
+// PROPOSAL REVIEW — flat selectors: `.doc-panel`'s own block closes at line 124 and the file ends
+// inside a `:root.sv-dark` override, so a nested `&__prop-…` appended here would compile to a
+// selector nothing matches.
+.doc-panel__proposal {
+  padding: 10px 12px;
+  overflow: auto;
+  height: 100%;
+}
+.doc-panel__prop-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-size: 11px;
+  color: var(--sv-text-faint);
+}
+.doc-panel__prop-by { font-style: italic; }
+.doc-panel__prop-raw {
+  margin-left: auto;
+  font: inherit;
+  font-size: 11px;
+  padding: 2px 8px;
+  border: 1px solid var(--sv-border);
+  border-radius: 5px;
+  background: var(--sv-surface);
+  color: var(--sv-text-muted);
+  cursor: pointer;
+}
+.doc-panel__prop-why {
+  padding: 8px 10px;
+  margin-bottom: 10px;
+  background: var(--sv-inset);
+  border: 1px solid var(--sv-border);
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--sv-text);
+
+  b {
+    display: inline-block;
+    min-width: 46px;
+    color: var(--sv-text-faint);
+    font-weight: 600;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+}
+.doc-panel__prop-same,
+.doc-panel__prop-note {
+  font-size: 11px;
+  color: var(--sv-text-faint);
+  font-style: italic;
+}
+.doc-panel__prop-note { margin-left: 8px; }
+.doc-panel__hunks {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 11.5px;
+  line-height: 1.55;
+}
+.doc-panel__hunk {
+  margin-bottom: 10px;
+  border-left: 2px solid var(--sv-border);
+  padding-left: 8px;
+}
+.doc-panel__line {
+  white-space: pre-wrap;
+  word-break: break-word;
+  padding: 0 4px;
+  border-radius: 3px;
+}
+.doc-panel__line--out {
+  background: rgba(192, 57, 43, 0.09);
+  color: #8e2f24;
+}
+.doc-panel__line--in {
+  background: rgba(39, 174, 96, 0.10);
+  color: #1e6b43;
+}
+.doc-panel__sign {
+  display: inline-block;
+  width: 12px;
+  opacity: 0.6;
+}
+:root.sv-dark .doc-panel__line--out { background: rgba(192, 57, 43, 0.18); color: #f0a49a; }
+:root.sv-dark .doc-panel__line--in { background: rgba(39, 174, 96, 0.16); color: #9be0b8; }

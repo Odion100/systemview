@@ -175,6 +175,51 @@ export async function contextStats(agentId) {
   }
 }
 
+// RFC-057 — THE CALL LEDGER: { since, days, calls[], agents, byKind, totals }. The opposite reading
+// of contextStats: that one asks whether a note is worth keeping, this one asks whether a tool is
+// worth arming. Global by default; pass { agent } or { project } to narrow, { days } to window.
+export async function callStats(opts) {
+  const a = sv() && sv().agent;
+  if (!a || typeof a.callStats !== "function") return null;
+  try {
+    return (await a.callStats(opts || {})) || null;
+  } catch {
+    return null;
+  }
+}
+
+// PROPOSED AGENT DOCS — the `agent-authoring` skill drafts into a sidecar and stops; approving is
+// what writes `def.prompt`. Returns [{ id, name, by, cut, added, text, current, at }].
+export async function proposals() {
+  const a = sv() && sv().agent;
+  if (!a || typeof a.proposals !== "function") return [];
+  try {
+    return (await a.proposals()) || [];
+  } catch {
+    return [];
+  }
+}
+
+export async function applyProposal(id, text) {
+  const a = sv() && sv().agent;
+  if (!a || typeof a.applyProposal !== "function") return { ok: false, error: "no proposal bridge — relaunch the browser" };
+  try {
+    return (await a.applyProposal(id, text)) || { ok: false, error: "no answer" };
+  } catch (e) {
+    return { ok: false, error: String((e && e.message) || e) };
+  }
+}
+
+export async function rejectProposal(id) {
+  const a = sv() && sv().agent;
+  if (!a || typeof a.rejectProposal !== "function") return { ok: false };
+  try {
+    return (await a.rejectProposal(id)) || { ok: false };
+  } catch {
+    return { ok: false };
+  }
+}
+
 // Run history per agent: { [agentId]: { runs, lastActive, capabilities } }.
 export async function agentRuns() {
   const a = sv() && sv().agent;

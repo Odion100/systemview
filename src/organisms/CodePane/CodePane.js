@@ -50,7 +50,13 @@ const CodePane = ({ file, onClose }) => {
   // `path`/`status` and no language at all. So the same document opened from the tree rendered, and
   // opened from the changes list showed raw markdown. On a repo with forty changes that is where you
   // open things from, which is why it read as "preview disappeared".
-  const isMd = file.language === "markdown" || /\.mdx?$/i.test(file.path || "");
+  // THE PATH WINS WHEN THE PATH KNOWS. This trusted `language` FIRST, so one stored file object
+  // carrying the wrong language rendered a .js through the markdown renderer — and because the tab
+  // strip and `sv.codeFile` REMEMBER that object, it stayed wrong across restarts with nothing on
+  // screen to explain it. An extension is a fact; `language` is a row someone filled in. Believe the
+  // fact, and fall back to the row only where there is no extension to read.
+  const ext = /\.([A-Za-z0-9]+)$/.exec(file.path || "");
+  const isMd = ext ? /^mdx?$/i.test(ext[1]) : file.language === "markdown";
   // AN IMAGE IS NOT TEXT. Opening a .png from the tree read its bytes as a string and printed them
   // into the editor. The bytes never had to travel that way: the hub already serves repo files raw
   // at /sv-raw for the ::image block, so the pane just points an <img> at the same route — no read,
@@ -1310,7 +1316,13 @@ const CodePane = ({ file, onClose }) => {
             // lens: his "sometimes", measured in his window (`flang: null` → language "text" →
             // zero token spans). The pane is where every door ends, so the fallback lives here:
             // the extension decides whenever the door did not.
-            language={file.language && file.language !== "text" ? file.language : langFor(file.path)}
+            // …AND THE EXTENSION ALSO DECIDES WHEN THE DOOR NAMED THE WRONG ONE. The fallback above
+            // only covered a MISSING language. A stored file object carrying a wrong-but-truthy one
+            // ("markdown" on a .js, remembered by the tab strip) sailed straight through and the
+            // editor loaded the wrong grammar — which is not an error, it is a file with almost no
+            // token spans: gray text, no explanation, identical file colored correctly one panel
+            // over. Whenever the path has an extension we recognise, the path is the answer.
+            language={langFor(file.path) !== "text" ? langFor(file.path) : file.language || "text"}
             onChange={setContent}
             dark={editorDark}
             focusLines={jump || (rangeOff ? null : file.lines) || null}

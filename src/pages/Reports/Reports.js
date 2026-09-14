@@ -5,6 +5,8 @@ import ServiceContext from "../../ServiceContext";
 import PageHeader from "../../organisms/PageHeader/PageHeader";
 import AgentChat from "../../organisms/AgentChat/AgentChat";
 import AgentNav from "../../organisms/AgentNav/AgentNav";
+import DocPanel from "../../organisms/DocPanel/DocPanel";
+import useOpenedFile from "../../organisms/DocPanel/useOpenedFile";
 import { isSystemModule } from "../../systemModules";
 import LineChart from "../../organisms/Charts/LineChart";
 import LoadColumns from "../../organisms/Charts/LoadColumns";
@@ -471,6 +473,13 @@ export default function Reports() {
   })();
 
   const overallStatus = totals.totalCalls === 0 ? "ok" : health({ serverErrorRate: totals.serverErrorRate, p99: Math.max(0, ...serviceHealth.map((s) => s.p99)) });
+
+  // THE SIDE PANEL TRAVELS TOO. Same rule as the nav and the chat: clicking a file in the codebase
+  // should open it where you are, not walk the window over to the code page and lose the numbers
+  // you were reading. One resolver (useOpenedFile), one panel, every page.
+  // CodePane owns reading, editing and saving the file — the page only says which one is open.
+  const [fileDoc, setFileDoc] = useState(null);
+  useOpenedFile(projectCode, setFileDoc);
 
   return (
     <section className="reports-page">
@@ -950,6 +959,9 @@ export default function Reports() {
         )}
       </div>
       </div>
+      {fileDoc && (
+        <DocPanel key={`file:${fileDoc.path}`} doc={fileDoc} onClose={() => setFileDoc(null)} />
+      )}
       </div>
       {/* RFC-032 — the bots ride the Stats page too: same dock line, same peeks, same TV. */}
       <AgentChat />

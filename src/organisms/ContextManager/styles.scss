@@ -346,3 +346,168 @@
     color: #a6aef0;
   }
 }
+
+// STATISTICS — flat selectors on purpose: the root `.ctx-mgr` block above closes at its own `}`,
+// and the last thing in this file is a `:root.sv-dark` override. A nested `&__stat-…` appended at
+// the end of the file lands inside THAT block and compiles to a selector nothing ever matches.
+.ctx-mgr__stats {
+  padding: 10px 12px 16px;
+}
+.ctx-mgr__stat-since {
+  margin-left: 8px;
+  font-weight: 400;
+  color: var(--sv-text-faint);
+}
+.ctx-mgr__stat-totals {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  padding: 8px 10px;
+  margin-bottom: 14px;
+  background: var(--sv-inset);
+  border: 1px solid var(--sv-border);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--sv-text-muted);
+
+  b {
+    color: var(--sv-text-strong);
+    font-size: 14px;
+    margin-right: 4px;
+  }
+}
+.ctx-mgr__stat-block {
+  margin-bottom: 18px;
+}
+.ctx-mgr__stat-head {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--sv-text-faint);
+  margin-bottom: 6px;
+}
+.ctx-mgr__reader {
+  display: grid;
+  grid-template-columns: 160px 1fr 40px;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+  font-size: 12px;
+}
+.ctx-mgr__reader-name {
+  color: var(--sv-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ctx-mgr__reader-bar {
+  height: 8px;
+  background: var(--sv-inset);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.ctx-mgr__reader-fill {
+  display: block;
+  height: 100%;
+  background: var(--sv-blue);
+  border-radius: 4px;
+}
+.ctx-mgr__reader-n {
+  text-align: right;
+  color: var(--sv-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.ctx-mgr__stat-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+
+  th {
+    text-align: left;
+    font-weight: 500;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--sv-text-faint);
+    border-bottom: 1px solid var(--sv-border);
+    padding: 4px 6px;
+  }
+  td {
+    padding: 5px 6px;
+    border-bottom: 1px solid var(--sv-border);
+    vertical-align: top;
+  }
+  tr:hover td {
+    background: var(--sv-hover);
+  }
+}
+.ctx-mgr__stat-title {
+  color: var(--sv-text-strong);
+  max-width: 320px;
+}
+.ctx-mgr__stat-scope {
+  color: var(--sv-text-faint);
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.ctx-mgr__stat-num {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  color: var(--sv-text-muted);
+}
+.ctx-mgr__stat-bar {
+  display: inline-block;
+  width: 54px;
+  height: 6px;
+  margin-right: 6px;
+  background: var(--sv-inset);
+  border-radius: 3px;
+  overflow: hidden;
+  vertical-align: middle;
+}
+.ctx-mgr__stat-fill {
+  display: block;
+  height: 100%;
+  background: var(--sv-blue);
+}
+.ctx-mgr__stat-last {
+  color: var(--sv-text-faint);
+  white-space: nowrap;
+}
+.ctx-mgr__stat-tr--cold td {
+  color: var(--sv-text-faint);
+}
+.ctx-mgr__who {
+  display: inline-block;
+  padding: 1px 6px;
+  margin: 0 4px 2px 0;
+  background: var(--sv-inset);
+  border: 1px solid var(--sv-border);
+  border-radius: 10px;
+  font-size: 11px;
+  color: var(--sv-text-muted);
+
+  i {
+    font-style: normal;
+    margin-left: 3px;
+    color: var(--sv-text-faint);
+  }
+}
+.ctx-mgr__who--none {
+  background: none;
+  border: none;
+  padding-left: 0;
+  color: var(--sv-text-faint);
+  font-style: italic;
+}
+.ctx-mgr__scope--stats {
+  margin-left: auto;
+}
+.ctx-mgr__stat-note {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--sv-text-faint);
+  font-style: italic;
+}

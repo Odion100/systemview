@@ -10,6 +10,7 @@ import {
   save as saveNote,
   remove as removeNote,
 } from "../../utils/hostContext";
+import { contextStats } from "../../utils/hostAgents";
 
 // RFC-055 — THE CONTEXT SURFACE. His ask: see every store, query it (by voice), and edit what's
 // there. The store is a HARNESS capability; this is a reader/editor over it, never its owner.
@@ -37,6 +38,122 @@ const when = (iso) => {
   return days <= 0 ? "today" : days === 1 ? "yesterday" : days < 30 ? `${days}d ago` : `${Math.floor(days / 30)}mo ago`;
 };
 
+// THE STATISTICS LENS — his ask, verbatim: "I need to be able to see what's being used on a
+// statistical level… which ones are being used, in tables, by who?" Everything here is READ from
+// the usage sidecar the store already stamps on every retrieval; nothing is computed twice and
+// nothing is editable. Two questions, in order: who is pulling, and what are they pulling.
+//
+// AN UNREAD NOTE IS NOT A DEAD NOTE. The sidecar is disposable and gets compacted, so a note older
+// than `since` has an UNKNOWN history, not a zero — and "old and never read" is the exact sentence
+// that gets something deleted. Those rows say so rather than showing a bare 0.
+const StoreStats = ({ stats }) => {
+  if (stats === "unavailable")
+    return (
+      <div className="ctx-mgr__none">
+        The harness can't answer yet — relaunch the browser to arm the statistics API.
+      </div>
+    );
+  if (!stats) return <div className="ctx-mgr__none">Reading the store…</div>;
+  const { since, notes = [], readers = {}, totals = {} } = stats;
+  const ranked = [...notes].sort(
+    (a, b) => (b.hits || 0) - (a.hits || 0) || String(b.lastHit || "").localeCompare(String(a.lastHit || "")),
+  );
+  const top = ranked.length ? ranked[0].hits || 1 : 1;
+  const people = Object.entries(readers).sort((a, b) => b[1] - a[1]);
+  const mostReads = people.length ? people[0][1] : 1;
+  const older = (n) => since && n.created && String(n.created) < String(since);
+
+  return (
+    <div className="ctx-mgr__stats">
+      <div className="ctx-mgr__section-head">
+        Statistics — what the store is actually giving back
+        {since && <span className="ctx-mgr__stat-since">tracked since {when(since)}</span>}
+      </div>
+
+      <div className="ctx-mgr__stat-totals">
+        <span><b>{totals.notes || 0}</b> notes</span>
+        <span><b>{totals.read || 0}</b> retrieved</span>
+        <span><b>{totals.unread || 0}</b> never</span>
+        <span><b>{totals.reads || 0}</b> reads</span>
+      </div>
+
+      {/* WHO IS PULLING. A note read by one agent a hundred times is a different thing from a note
+          the whole system leans on, and the store cannot tell you which without this. */}
+      <div className="ctx-mgr__stat-block">
+        <div className="ctx-mgr__stat-head">Readers</div>
+        {!people.length && <div className="ctx-mgr__none">Nothing has been retrieved yet.</div>}
+        {/* MOST READS HAVE NO NAME ON THEM YET. The sidecar only started stamping WHO partway in,
+            so the reader totals are far smaller than the read totals and the gap looks like a bug.
+            Say the number instead of letting the table imply nobody is reading. */}
+        {(() => {
+          const named = people.reduce((a, [, n]) => a + n, 0);
+          const all = totals.reads || 0;
+          return all > named ? (
+            <div className="ctx-mgr__stat-note">
+              {named} of {all} reads carry a reader — the rest were stamped before the store recorded who was asking.
+            </div>
+          ) : null;
+        })()}
+        {people.map(([who, n]) => (
+          <div className="ctx-mgr__reader" key={who}>
+            <span className="ctx-mgr__reader-name">{who}</span>
+            <span className="ctx-mgr__reader-bar">
+              <span className="ctx-mgr__reader-fill" style={{ width: `${Math.max(3, Math.round((n / mostReads) * 100))}%` }} />
+            </span>
+            <span className="ctx-mgr__reader-n">{n}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="ctx-mgr__stat-block">
+        <div className="ctx-mgr__stat-head">Notes by retrieval</div>
+        <table className="ctx-mgr__stat-table">
+          <thead>
+            <tr>
+              <th>note</th>
+              <th>scope</th>
+              <th>read by</th>
+              <th className="ctx-mgr__stat-num">reads</th>
+              <th>last</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ranked.map((n) => (
+              <tr key={`${n.scope}:${n.id}`} className={n.hits ? "" : "ctx-mgr__stat-tr--cold"}>
+                <td className="ctx-mgr__stat-title" title={n.body}>{n.title}</td>
+                <td className="ctx-mgr__stat-scope">{n.scope}</td>
+                <td className="ctx-mgr__stat-who">
+                  {Object.entries(n.readers || {})
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([who, c]) => (
+                      <span className="ctx-mgr__who" key={who}>
+                        {who}
+                        {c > 1 && <i>×{c}</i>}
+                      </span>
+                    ))}
+                  {!Object.keys(n.readers || {}).length && (
+                    <span className="ctx-mgr__who ctx-mgr__who--none">
+                      {older(n) ? "none since tracking began, earlier unknown" : "nobody yet"}
+                    </span>
+                  )}
+                </td>
+                <td className="ctx-mgr__stat-num">
+                  <span className="ctx-mgr__stat-bar">
+                    <span className="ctx-mgr__stat-fill" style={{ width: `${Math.round(((n.hits || 0) / top) * 100)}%` }} />
+                  </span>
+                  {n.hits || 0}
+                </td>
+                <td className="ctx-mgr__stat-last">{n.lastHit ? when(n.lastHit) : ""}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {!ranked.length && <div className="ctx-mgr__none">No notes in any scope yet.</div>}
+      </div>
+    </div>
+  );
+};
+
 const ContextManager = ({ projectCode, agentId, focus = null }) => {
   const available = hasContextStore();
   const [cols, setCols] = useState([]);
@@ -50,6 +167,7 @@ const ContextManager = ({ projectCode, agentId, focus = null }) => {
   const [openHits, setOpenHits] = useState(() => new Set());
   const [armedDel, setArmedDel] = useState(false); // collapsed by default, each row independent
   const [tools, setTools] = useState([]);
+  const [stats, setStats] = useState(null); // {since, notes, readers, totals} — null until the tab is opened
   const recRef = useRef(null);
 
   const scopeArg = useCallback(
@@ -59,6 +177,7 @@ const ContextManager = ({ projectCode, agentId, focus = null }) => {
 
   const refresh = useCallback(async () => {
     setCols(await loadCollections());
+    if (scope === "stats") return; // the statistics tab is not a scope — it has no note list
     setItems(await loadNotes(scopeArg(scope)));
   }, [scope, scopeArg]);
 
@@ -80,6 +199,21 @@ const ContextManager = ({ projectCode, agentId, focus = null }) => {
   useEffect(() => {
     if (available) loadRecords("mcp-tools").then((r) => setTools((r && r.records) || []));
   }, [available]);
+
+  // WHAT IS ACTUALLY BEING READ. Fetched only when the tab is open — it walks every note in three
+  // scopes and replays the usage log, which is not work to do on every render of a notes list.
+  useEffect(() => {
+    if (!available || scope !== "stats") return;
+    let gone = false;
+    contextStats(agentId).then((r) => {
+      // A NULL HERE HAS TWO CAUSES AND THEY NEED DIFFERENT WORDS. Either the harness bridge isn't
+      // armed (an old shell — restart it) or the store answered with nothing. Collapsing both into
+      // a spinner is how a panel sits there saying "Reading the store…" forever with no way to
+      // tell which of the two it is.
+      if (!gone) setStats((r && r.store) || "unavailable");
+    });
+    return () => { gone = true; };
+  }, [available, scope, agentId]);
 
   const doSearch = useCallback(
     async (query) => {
@@ -288,8 +422,21 @@ const ContextManager = ({ projectCode, agentId, focus = null }) => {
             </button>
           );
         })}
+        {/* NOT A SCOPE — a lens across all three. He asked to see the store "on a statistical
+            level… which ones are being used, by who". Same row as the scopes because it is the
+            same question asked sideways: not what is in there, but what is getting pulled. */}
+        <button
+          className={`ctx-mgr__scope ctx-mgr__scope--stats${scope === "stats" ? " ctx-mgr__scope--on" : ""}`}
+          onClick={() => setScope("stats")}
+          title="What is actually being retrieved, and by whom"
+        >
+          Statistics
+        </button>
       </div>
 
+      {scope === "stats" && <StoreStats stats={stats} />}
+
+      {scope !== "stats" && activeScope && (
       <div className="ctx-mgr__notes">
         <div className="ctx-mgr__section-head">
           {activeScope.label} — {activeScope.hint}
@@ -354,6 +501,7 @@ const ContextManager = ({ projectCode, agentId, focus = null }) => {
           )
         )}
       </div>
+      )}
 
       {/* TOOLS — read-only: derived from tools/list and loaded services, not his to edit. */}
       <div className="ctx-mgr__tools">

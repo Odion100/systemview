@@ -76,3 +76,31 @@
   padding: 1px 8px;
   &:hover { border-color: var(--sv-blue); color: var(--sv-blue); }
 }
+
+// RFC-057 — the page-level view switch. Flat selectors: this file's blocks are already closed and
+// appending a nested `&__view` at the end would land inside whichever block happens to be last.
+.ctx-page__views {
+  display: flex;
+  gap: 6px;
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 12px 20px 0;
+}
+.ctx-page__view {
+  font: inherit;
+  font-size: 12px;
+  padding: 5px 14px;
+  border: 1px solid var(--sv-border);
+  border-radius: 6px 6px 0 0;
+  border-bottom: none;
+  background: var(--sv-surface);
+  color: var(--sv-text-muted);
+  cursor: pointer;
+
+  &:hover { color: var(--sv-blue); }
+}
+.ctx-page__view--on {
+  background: var(--sv-inset);
+  color: var(--sv-text-strong);
+  font-weight: 600;
+}

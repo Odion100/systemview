@@ -32,7 +32,10 @@ const NavLinks = ({ projectCode, current }) => {
   // Logs are no longer a standalone page — they live in the Specs page's per-namespace Logs tab, so the
   // top nav is just Specs + Stats now.
   const links = [
-    { key: "specs", to: remember("specs", projectCode ? `/specs${pc}` : "/specs"), label: "Specs" },
+    // "Code", not "Specs" (his call). The page stopped being a spec browser a long time ago — it is
+    // where the codebase, the file, the diff and the terminal live. The ROUTE stays /specs: renaming
+    // a label is a word, renaming a route breaks every link anyone ever saved.
+    { key: "specs", to: remember("specs", projectCode ? `/specs${pc}` : "/specs"), label: "Code" },
     { key: "reports", to: remember("reports", `/reports${pc}`), label: "Stats" },
     { key: "context", to: remember("context", projectCode ? `/context${pc}` : "/context"), label: "Agents" },
   ];

@@ -37,7 +37,17 @@ const AgentNav = ({ projectCode = null }) => {
           />
         )}
         <div className="nav-panel__body" style={{ display: open ? "block" : "none" }}>
-          <SystemNavigator projectCode={projectCode} onCollapse={() => toggle(false)} />
+          {/* A FILE IN THE TREE HAD NOWHERE TO GO. `SystemNavigator`'s `onOpenFile` defaults to a
+              no-op, and this wrapper never passed one — so on every page that uses the travelling
+              navigator instead of Specs, clicking a file in the codebase did literally nothing. Not
+              an error, not a navigation: nothing. Dispatching the same event the `:file` chip has
+              always dispatched hands it to whatever page is listening, which opens it in the side
+              panel. Specs keeps its own handler; nothing there changes. */}
+          <SystemNavigator
+            projectCode={projectCode}
+            onCollapse={() => toggle(false)}
+            onOpenFile={(d) => window.dispatchEvent(new CustomEvent("sv:openFileInNav", { detail: d }))}
+          />
         </div>
       </div>
       {open && (

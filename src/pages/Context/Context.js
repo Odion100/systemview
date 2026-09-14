@@ -1,12 +1,16 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useHistory, useLocation } from "react-router-dom";
 import PageHeader from "../../organisms/PageHeader/PageHeader";
 import AgentNav from "../../organisms/AgentNav/AgentNav";
 import AgentProfile from "../../organisms/AgentProfile/AgentProfile";
 import ContextManager from "../../organisms/ContextManager/ContextManager";
+import CallStats from "../../organisms/CallStats/CallStats";
 import DocPanel from "../../organisms/DocPanel/DocPanel";
 import AgentChat from "../../organisms/AgentChat/AgentChat";
 import { saveDoc, saveSkill, saveDef, saveHelp } from "../../utils/hostAgents";
+import useOpenedFile from "../../organisms/DocPanel/useOpenedFile";
+import { proposals as loadProposals, applyProposal, rejectProposal } from "../../utils/hostAgents";
+import { raiseKeyed, clearKeyed } from "../../atoms/Banner/bannerStore";
 import "./styles.scss";
 
 // RFC-055 — ONE PAGE, THREE PANELS (his design): the navigator on the left (the same one Specs
@@ -32,10 +36,15 @@ const Context = () => {
       const [kind, a, b] = rawDoc.split(":");
       doc = kind === "skill" ? { kind: "skill", where: a, name: b } : kind === "def" ? { kind: "def" } : kind === "help" ? { kind: "help", key: a } : { kind: "doc", key: a };
     }
-    return { agent: p.get("agent"), doc, scope: p.get("scope") };
+    return { agent: p.get("agent"), doc, scope: p.get("scope"), view: p.get("view") };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // RFC-057 — PAGE LEVEL, NOT A CHIP AT THE BOTTOM. His correction after the store's statistics
+  // panel landed in the scope row: store stats belong beside the store because they are ABOUT the
+  // store, but "are these tools being used properly" is about the system and you should not have to
+  // scroll past a notes list to reach it. URL-backed like everything else on this page.
+  const [view, setView] = useState(seed.view === "stats" ? "stats" : "agents");
   const [agentId, setAgentId] = useState(seed.agent);
   const [doc, setDoc] = useState(null); // the doc open on the right: {kind, agentId, key|name, where, label, text, orig}
   const [focus, setFocus] = useState(() => (seed.scope ? { scope: seed.scope, n: 1 } : null));
@@ -47,6 +56,67 @@ const Context = () => {
     mut(p);
     const s = p.toString();
     history.replace(`${window.location.pathname}${s ? `?${s}` : ""}`);
+  };
+
+  // One resolver for every page (see useOpenedFile) — the page only says where the doc lands.
+  useOpenedFile(projectCode, setDoc);
+
+  // A PROPOSED AGENT DOC ARRIVES WITHOUT BEING ASKED FOR, so it announces itself — the banner is the
+  // arrival, the panel is the reading. `agent-authoring` writes the sidecar and stops; nothing else
+  // in the system can turn a draft into `def.prompt`.
+  const openProposal = (p) =>
+    setDoc({
+      kind: "proposal",
+      id: p.id,
+      by: p.by,
+      cut: p.cut,
+      added: p.added,
+      label: `${p.name} — proposed agent doc`,
+      where: p.at ? `drafted ${p.at.slice(0, 16).replace("T", " ")}` : "",
+      language: "markdown",
+      text: p.text,
+      orig: p.text,
+      current: p.current,
+    });
+
+  const checkProposals = React.useCallback(async () => {
+    const list = await loadProposals();
+    if (!list.length) {
+      clearKeyed("agent-proposal");
+      return;
+    }
+    const p = list[0];
+    raiseKeyed(
+      "agent-proposal",
+      "info",
+      `${p.name} proposed a new agent doc`,
+      p.cut ? `would cut — ${p.cut}` : "waiting on you",
+      { sticky: true, action: { label: "review", run: () => openProposal(p) } },
+    );
+  }, []);
+
+  useEffect(() => {
+    checkProposals();
+    const on = () => checkProposals();
+    window.addEventListener("sv:botHub", on);
+    return () => window.removeEventListener("sv:botHub", on);
+  }, [checkProposals]);
+
+  const decideProposal = async (yes) => {
+    if (!doc || doc.kind !== "proposal") return;
+    setSaving(true);
+    try {
+      const res = yes ? await applyProposal(doc.id, doc.text) : await rejectProposal(doc.id);
+      if (res && res.ok === false) throw new Error(res.error || "could not apply");
+      setDoc(null);
+      clearKeyed("agent-proposal");
+      // The profile re-reads on this signal — and because approving rewrites the definition file,
+      // its own staleness check now sees a doc newer than the running session and offers the
+      // re-init on its own. Nothing here has to know about sessions.
+      window.dispatchEvent(new CustomEvent("sv:botHub"));
+    } finally {
+      setSaving(false);
+    }
   };
 
   const saveOpenDoc = async () => {
@@ -82,6 +152,28 @@ const Context = () => {
         <AgentNav projectCode={projectCode} />
         <div className="center-panel ctx-center">
           <div className="ctx-page">
+            <div className="ctx-page__views">
+              {[["agents", "Agents & context"], ["stats", "Statistics"]].map(([k, label]) => (
+                <button
+                  key={k}
+                  className={`ctx-page__view${view === k ? " ctx-page__view--on" : ""}`}
+                  onClick={() => {
+                    setView(k);
+                    setUrl((p) => (k === "stats" ? p.set("view", "stats") : p.delete("view")));
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {view === "stats" && <CallStats projectCode={projectCode} agentId={agentId} />}
+
+            {/* HIDDEN, NOT UNMOUNTED. Gating this on `view` with a conditional threw the profile
+                away on every tab switch — and remounting re-read the MOUNT-TIME url seed, which
+                still named the doc he had closed, so coming back to this tab re-opened the side
+                panel every time. A tab is a view of state you keep, not a component you destroy. */}
+            <div style={view === "agents" ? undefined : { display: "none" }}>
             <AgentProfile
               projectCode={projectCode}
               urlAgent={seed.agent}
@@ -135,15 +227,18 @@ const Context = () => {
               </div>
               <ContextManager projectCode={projectCode} agentId={agentId} focus={focus} />
             </div>
+            </div>
           </div>
         </div>
         {doc && (
           <DocPanel
-            key={`${doc.kind}:${doc.key || doc.name || "file"}`}
+            key={`${doc.kind}:${doc.key || doc.name || doc.path || "file"}`}
             doc={doc}
             saving={saving}
             onChange={(text) => setDoc((cur) => (cur ? { ...cur, text } : cur))}
             onSave={saveOpenDoc}
+            onApprove={() => decideProposal(true)}
+            onReject={() => decideProposal(false)}
             onClose={() => {
               setDoc(null);
               setUrl((p) => p.delete("doc"));
