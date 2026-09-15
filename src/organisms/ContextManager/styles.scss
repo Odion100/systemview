@@ -511,3 +511,31 @@
   color: var(--sv-text-faint);
   font-style: italic;
 }
+
+// THE LENS — notes vs documents, one tier below the page's own tabs and wearing the same look,
+// because it is the same kind of move: two different things to look at, not two filters on one.
+// System / Project / Agent are subtypes of NOTES; documentation is not a fourth one of those.
+.ctx-mgr__lenses {
+  display: flex;
+  gap: 6px;
+  margin: 0 0 -1px;
+  border-bottom: 1px solid var(--sv-border);
+}
+.ctx-mgr__lens {
+  font: inherit;
+  font-size: 12px;
+  padding: 5px 14px;
+  border: 1px solid var(--sv-border);
+  border-radius: 6px 6px 0 0;
+  border-bottom: none;
+  background: var(--sv-surface);
+  color: var(--sv-text-muted);
+  cursor: pointer;
+
+  &:hover { color: var(--sv-blue); }
+}
+.ctx-mgr__lens--on {
+  background: var(--sv-inset);
+  color: var(--sv-text-strong);
+  font-weight: 600;
+}

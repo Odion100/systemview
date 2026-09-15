@@ -230,3 +230,94 @@ export async function agentRuns() {
     return {};
   }
 }
+
+// RFC-058 §8 — THE CORPORA, FROM THE RENDERER. Same shape as the rest of this file: harness state
+// the browser reads and edits, never owns. These reach the SAME functions in docs.cjs that the
+// `docsPlan` / `docsIndex` MCP tools call — one implementation, two doors, so the cuts he judges
+// are the cuts an agent gets.
+export const hasDocs = () => !!(sv() && sv().agent && typeof sv().agent.docsList === "function");
+
+export async function docsList() {
+  const a = sv() && sv().agent;
+  if (!a || !a.docsList) return null;
+  try {
+    return await a.docsList();
+  } catch (e) {
+    return { error: String((e && e.message) || e) };
+  }
+}
+
+export async function docsPlan(name, opts) {
+  const a = sv() && sv().agent;
+  if (!a || !a.docsPlan) return null;
+  try {
+    return await a.docsPlan(name, opts || {});
+  } catch (e) {
+    return { error: String((e && e.message) || e) };
+  }
+}
+
+// The same door `docs()` gives an agent: one question, the documentation half of what is
+// retrievable here. Kept apart from context search on purpose — a note is true because someone
+// learned it, a chunk only while its file has not changed.
+export async function docsSearch(opts) {
+  const a = sv() && sv().agent;
+  if (!a || !a.docsSearch) return null;
+  try {
+    return await a.docsSearch(opts || {});
+  } catch (e) {
+    return { error: String((e && e.message) || e) };
+  }
+}
+
+// A PATH IS PICKED, NOT TYPED — this is a desktop app.
+export async function pickPath(kind) {
+  const a = sv() && sv().agent;
+  if (!a || !a.pickPath) return { canceled: true, unavailable: true };
+  try {
+    return await a.pickPath(kind || "dir");
+  } catch {
+    return { canceled: true };
+  }
+}
+
+// What the pattern MATCHED, before anything is saved. Same `filesOf` the indexer runs.
+export async function docsPreview(spec) {
+  const a = sv() && sv().agent;
+  if (!a || !a.docsPreview) return { files: [] };
+  try {
+    return (await a.docsPreview(spec)) || { files: [] };
+  } catch (e) {
+    return { error: String((e && e.message) || e) };
+  }
+}
+
+export async function docsIndex(name) {
+  const a = sv() && sv().agent;
+  if (!a || !a.docsIndex) return { error: "not in the harness" };
+  try {
+    return await a.docsIndex(name);
+  } catch (e) {
+    return { error: String((e && e.message) || e) };
+  }
+}
+
+export async function docsDrop(name) {
+  const a = sv() && sv().agent;
+  if (!a || !a.docsDrop) return { error: "not in the harness" };
+  try {
+    return await a.docsDrop(name);
+  } catch (e) {
+    return { error: String((e && e.message) || e) };
+  }
+}
+
+export async function saveCorpus(rec) {
+  const a = sv() && sv().agent;
+  if (!a || !a.saveCorpus) return { error: "not in the harness" };
+  try {
+    return await a.saveCorpus(rec);
+  } catch (e) {
+    return { error: String((e && e.message) || e) };
+  }
+}

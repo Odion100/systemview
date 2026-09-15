@@ -2503,3 +2503,64 @@
   text-align: left;
   &:hover { text-decoration: underline; }
 }
+
+// `::ask` — THE QUESTION, made visible. Loud enough to find when scrolling back, quiet enough that
+// two in a row do not shout. It answers nothing and stores nothing; being seen is the whole job.
+.md-ask {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 14px 0;
+  padding: 10px 14px;
+  border: 1px solid var(--sv-blue);
+  border-left-width: 4px;
+  border-radius: 6px;
+  background: var(--sv-inset);
+}
+.md-ask__mark {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  line-height: 20px;
+  text-align: center;
+  border-radius: 50%;
+  background: var(--sv-blue);
+  color: #fff;
+  font-weight: 700;
+  font-size: 13px;
+}
+.md-ask__body { flex: 1 1 auto; min-width: 0; }
+.md-ask__q {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--sv-text-strong);
+  line-height: 1.45;
+}
+.md-ask__why {
+  margin-top: 3px;
+  font-size: 12px;
+  color: var(--sv-text-muted);
+}
+.md-ask__more {
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--sv-text);
+}
+
+// An ASK that is not a question is a thing to DO — same band, different mark, and warm rather than
+// blue so an action and a question are distinguishable at a glance without reading either.
+.md-ask--do {
+  border-color: #d9a441;
+
+  .md-ask__mark { background: #d9a441; }
+}
+
+// A CALLOUT is the same band as `::ask`, one weight down: not a thing to do, a thing to know.
+// Neutral rather than blue or amber, so the two asks keep their pull.
+.md-ask--note {
+  border-color: var(--sv-border);
+  border-left-color: var(--sv-text-muted);
+
+  .md-ask__mark { background: var(--sv-text-muted); }
+  .md-ask__more { margin-top: 0; }
+}

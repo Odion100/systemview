@@ -1,0 +1,491 @@
+// RFC-058 §8 — the corpora surface. Same dialect the store and call-stats panels already speak:
+// tabular numbers, quiet chrome, the content carrying the weight. New file, so the root block is
+// the whole file and nesting is safe here (unlike the older stylesheets that end inside a child).
+//
+// EVERY TOKEN HERE IS ONE THAT EXISTS (src/sass/theme.scss). The first pass invented six of them —
+// `--sv-bg-raised`, `--sv-accent`, `--sv-danger`, and friends — and an undefined `var()` resolves to
+// nothing, so backgrounds vanished and text inherited: dark on dark. The system defines both themes
+// properly; the only way to break it is to use a name it has never heard of. Status colours are
+// literal hex on purpose, the same way CallStats writes them — there is no danger/warn token.
+.corpora {
+  padding: 12px 14px 24px;
+  // THE BASE COLOUR, the way `.ctx-mgr` sets it. Leaving it off is what made this read dark-on-dark:
+  // every element without an explicit `color` — table cells, the plan header, bold text, native
+  // <option>s — inherits from the page instead, and inherits the wrong thing. Fixing the token
+  // NAMES was necessary and not sufficient; nothing was setting the floor.
+  color: var(--sv-text);
+
+  &--empty {
+    color: var(--sv-text-faint);
+    font-size: 13px;
+  }
+
+  h3 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--sv-text-strong);
+  }
+
+  &__head {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas: "title add" "note note";
+    align-items: center;
+    gap: 4px 10px;
+    margin-bottom: 12px;
+
+    h3 { grid-area: title; }
+  }
+  &__headnote {
+    grid-area: note;
+    font-size: 11.5px;
+    line-height: 1.5;
+    color: var(--sv-text-faint);
+    max-width: 78ch;
+
+    b { color: var(--sv-text); }
+  }
+  &__add {
+    grid-area: add;
+    font: inherit;
+    font-size: 11px;
+    padding: 3px 9px;
+    border: 1px solid var(--sv-border);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--sv-text);
+    cursor: pointer;
+
+    &:hover { border-color: var(--sv-blue); color: var(--sv-blue); }
+  }
+
+  &__err,
+  &__say {
+    font-size: 12px;
+    padding: 6px 9px;
+    border-radius: 4px;
+    margin-bottom: 10px;
+  }
+  &__err { color: #d64c4c; border: 1px solid #d64c4c; }
+  &__say { color: var(--sv-text-faint); background: var(--sv-inset); }
+
+  // ---- the add/edit form -----------------------------------------------------------------------
+  &__form {
+    color-scheme: inherit;
+    border: 1px solid var(--sv-border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin-bottom: 14px;
+    background: var(--sv-inset);
+
+    label {
+      display: block;
+      font-size: 11px;
+      color: var(--sv-text-faint);
+      margin-bottom: 8px;
+    }
+    input,
+    textarea,
+    select {
+      display: block;
+      width: 100%;
+      margin-top: 3px;
+      font: inherit;
+      font-size: 12px;
+      padding: 4px 6px;
+      border: 1px solid var(--sv-border);
+      border-radius: 4px;
+      background: var(--sv-bg);
+      color: var(--sv-text);
+    }
+    textarea { font-family: "SF Mono", Menlo, monospace; resize: vertical; }
+  }
+  &__formrow {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  &__formacts {
+    display: flex;
+    gap: 8px;
+
+    button {
+      font: inherit;
+      font-size: 11px;
+      padding: 3px 10px;
+      border: 1px solid var(--sv-border);
+      border-radius: 4px;
+      background: transparent;
+      color: var(--sv-text);
+      cursor: pointer;
+    }
+  }
+  &__hint {
+    font-size: 10.5px;
+    color: var(--sv-text-faint);
+    font-style: italic;
+  }
+
+  // ---- the list --------------------------------------------------------------------------------
+  &__table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+
+    th {
+      text-align: left;
+      font-weight: 500;
+      font-size: 10.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--sv-text-faint);
+      padding: 0 8px 5px 0;
+      border-bottom: 1px solid var(--sv-border);
+    }
+    td {
+      padding: 7px 8px 7px 0;
+      border-bottom: 1px solid var(--sv-border-soft);
+      vertical-align: top;
+      font-variant-numeric: tabular-nums;
+    }
+    tr.is-open td { background: var(--sv-inset); }
+  }
+  &__name {
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--sv-blue);
+    cursor: pointer;
+  }
+  &__root {
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 10.5px;
+    color: var(--sv-text-faint);
+    margin-top: 2px;
+  }
+  &__glob {
+    margin-left: 8px;
+    opacity: 0.75;
+  }
+  &__kind {
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 3px;
+    border: 1px solid var(--sv-border);
+
+    &--working { color: #d9a441; border-color: #d9a441; }
+  }
+  // Staleness is the number worth seeing from across the room: a corpus whose files have moved on
+  // is still answering, and nothing about the answer looks old.
+  &__stale { color: #d64c4c; font-weight: 600; }
+  &__ok { color: var(--sv-text-faint); }
+  &__when { color: var(--sv-text-faint); white-space: nowrap; }
+  &__none {
+    color: var(--sv-text-faint);
+    font-size: 11.5px;
+    line-height: 1.6;
+    padding: 14px 0;
+  }
+  // The CELL stays a cell — same padding and border as every other column, so the row reads as one
+  // row. Only the buttons inside it flex.
+  &__actcell {
+    vertical-align: middle;
+    text-align: right;
+    white-space: nowrap;
+  }
+  &__acts {
+    display: flex;
+    gap: 6px;
+    justify-content: flex-end;
+    align-items: center;
+
+    button {
+      font: inherit;
+      font-size: 10.5px;
+      padding: 2px 8px;
+      border: 1px solid var(--sv-border);
+      border-radius: 4px;
+      background: transparent;
+      color: var(--sv-text);
+      cursor: pointer;
+      white-space: nowrap;
+
+      &:hover:not(:disabled) { border-color: var(--sv-blue); color: var(--sv-blue); }
+      &:disabled { opacity: 0.5; cursor: default; }
+    }
+  }
+  &__ghost { color: var(--sv-text-faint) !important; }
+  &__danger:hover { border-color: #d64c4c !important; color: #d64c4c !important; }
+
+  // ---- the dry run — the main event ------------------------------------------------------------
+  &__plan {
+    margin-top: 18px;
+    border-top: 1px solid var(--sv-border);
+    padding-top: 12px;
+  }
+  &__planhead {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 10px;
+    font-size: 12px;
+    margin-bottom: 10px;
+  }
+  &__totals {
+    color: var(--sv-text-faint);
+    font-variant-numeric: tabular-nums;
+  }
+  &__max {
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--sv-text-faint);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    input {
+      width: 72px;
+      font: inherit;
+      font-size: 11px;
+      padding: 2px 5px;
+      border: 1px solid var(--sv-border);
+      border-radius: 4px;
+      background: var(--sv-bg);
+      color: var(--sv-text);
+    }
+  }
+  &__file { margin-bottom: 14px; }
+  &__filehead {
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 11.5px;
+    color: var(--sv-text-strong);
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--sv-border-soft);
+  }
+  &__filemeta {
+    margin-left: 10px;
+    font-size: 10.5px;
+    color: var(--sv-text-faint);
+  }
+  &__nochunks {
+    font-size: 11px;
+    color: #d9a441;
+    padding: 5px 0 0 12px;
+  }
+  &__chunk { border-bottom: 1px solid var(--sv-border-soft); }
+  &__chunkhead {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    width: 100%;
+    text-align: left;
+    font: inherit;
+    font-size: 11.5px;
+    padding: 4px 0 4px 12px;
+    border: 0;
+    background: none;
+    color: var(--sv-text);
+    cursor: pointer;
+
+    &:hover { background: var(--sv-inset); }
+  }
+  &__chars {
+    font-variant-numeric: tabular-nums;
+    color: var(--sv-text-faint);
+    min-width: 42px;
+    text-align: right;
+  }
+  &__part {
+    font-size: 10px;
+    padding: 0 5px;
+    border-radius: 3px;
+    border: 1px solid #d9a441;
+    color: #d9a441;
+  }
+  &__path { color: var(--sv-text); }
+  &__text {
+    margin: 0 0 8px 54px;
+    padding: 8px 10px;
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 11px;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    background: var(--sv-inset);
+    border-left: 2px solid var(--sv-border);
+    color: var(--sv-text);
+    max-height: 340px;
+    overflow: auto;
+  }
+}
+
+// ---- asking it ---------------------------------------------------------------------------------
+// The corpora list says what is embedded; this says what it ANSWERS. Same shape as the notes
+// surface's query row, because from his side it is the same question.
+.corpora {
+  &__query {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 10px;
+
+    button {
+      font: inherit;
+      font-size: 11px;
+      padding: 3px 12px;
+      border: 1px solid var(--sv-border);
+      border-radius: 4px;
+      background: transparent;
+      color: var(--sv-text);
+      cursor: pointer;
+      white-space: nowrap;
+
+      &:hover:not(:disabled) { border-color: var(--sv-blue); color: var(--sv-blue); }
+      &:disabled { opacity: 0.5; cursor: default; }
+    }
+  }
+  &__q {
+    flex: 1;
+    font: inherit;
+    font-size: 12.5px;
+    padding: 5px 9px;
+    border: 1px solid var(--sv-border);
+    border-radius: 4px;
+    background: var(--sv-surface);
+    color: var(--sv-text);
+
+    &::placeholder { color: var(--sv-text-faint); }
+  }
+  &__scoped {
+    font-size: 11px;
+    color: var(--sv-text-faint);
+    margin: -4px 0 10px;
+  }
+  &__hits { margin-bottom: 16px; }
+  &__hit {
+    border-left: 2px solid var(--sv-border);
+    padding-left: 10px;
+    margin-bottom: 12px;
+  }
+  &__hitwhere {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 11.5px;
+    color: var(--sv-text);
+    margin-bottom: 4px;
+
+    b { font-family: "SF Mono", Menlo, monospace; color: var(--sv-text-strong); }
+  }
+  &__hitscore {
+    font-variant-numeric: tabular-nums;
+    color: var(--sv-text-faint);
+  }
+  &__hitcorpus {
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 3px;
+    border: 1px solid var(--sv-border);
+    color: var(--sv-text-faint);
+  }
+}
+
+// ---- picking, and ticking ----------------------------------------------------------------------
+// The form used to be corpora.json with labels on it. Now step one is a button and what it FOUND is
+// the form — the unticked files become the excludes, so nothing needs a pattern typed by hand.
+.corpora {
+  &__pick {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 10px;
+
+    button {
+      font: inherit;
+      font-size: 11.5px;
+      padding: 4px 12px;
+      border: 1px solid var(--sv-blue);
+      border-radius: 4px;
+      background: transparent;
+      color: var(--sv-blue);
+      cursor: pointer;
+
+      &:hover { background: var(--sv-hover); }
+    }
+  }
+  &__picked {
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 11px;
+    color: var(--sv-text-faint);
+
+    b { color: var(--sv-text); }
+    i { font-style: normal; opacity: 0.8; }
+  }
+  &__files {
+    border: 1px solid var(--sv-border);
+    border-radius: 4px;
+    margin-bottom: 10px;
+    background: var(--sv-surface);
+  }
+  &__fileshead {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    color: var(--sv-text-faint);
+    padding: 5px 9px;
+    border-bottom: 1px solid var(--sv-border-soft);
+
+    button {
+      font: inherit;
+      font-size: 10.5px;
+      padding: 1px 7px;
+      border: 1px solid var(--sv-border);
+      border-radius: 3px;
+      background: transparent;
+      cursor: pointer;
+    }
+  }
+  &__filelist {
+    max-height: 240px;
+    overflow: auto;
+    padding: 4px 0;
+
+    label {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-family: "SF Mono", Menlo, monospace;
+      font-size: 11px;
+      color: var(--sv-text);
+      padding: 2px 10px;
+      margin: 0;
+      cursor: pointer;
+
+      &:hover { background: var(--sv-hover); }
+      &.is-off { color: var(--sv-text-faint); text-decoration: line-through; }
+    }
+    input[type="checkbox"] {
+      width: auto;
+      margin: 0;
+      accent-color: var(--sv-blue);
+    }
+  }
+}
+
+// A corpus defined but not yet indexed says so, instead of reading as empty.
+.corpora__pending {
+  color: #d9a441;
+  white-space: nowrap;
+
+  i {
+    display: block;
+    font-style: normal;
+    font-size: 10.5px;
+    color: var(--sv-text-faint);
+  }
+}

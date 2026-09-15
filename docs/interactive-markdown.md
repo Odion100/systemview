@@ -1,14 +1,17 @@
-# Interactive markdown — the playground
+# Interactive markdown — the block reference
 
-Everything on this page is **live**. Each section gives you the source you'd write, then the real
-thing directly under it — click it, run it, toggle it. Nothing here is a picture of a feature.
+Every block SystemView renders, one section each: the source you would write, then the real thing
+directly under it — click it, run it, toggle it. Nothing here is a picture of a feature.
+
+One section per block is deliberate. The heading is the block's name, so looking one up is finding
+its heading, and nothing above or below it comes along.
 
 For users: this is what your documents can do. For agents: this is the vocabulary, and
 `src/atoms/Markdown/registry.js` is the map. Plan and status: `RFCs/RFC-025-interactive-markdown.md`.
 
 ---
 
-## 1 · Namespace links — `:ns[…]`
+## `:ns[…]` — namespace links
 
 ```markdown
 The chain test lives in :ns[Math.chainUse], the error fixtures in :ns[Auth.throwError],
@@ -44,7 +47,7 @@ says why: :ns[Ghost.vanished]
 
 ---
 
-## 2 · File links — `:file[…]`
+## `:file[…]` — file links and embeds
 
 ```markdown
 The dispatch lives in :file[src/atoms/Markdown/Markdown.js#L20-46].
@@ -61,9 +64,19 @@ real history entry, so **back** returns here).
 
 A file chip with nothing that can read it says so: :file[nowhere/at/all.js]
 
+:::callout{type=warn}
+**One colon links, two colons embed.** `:file[path]` is a chip that points at the file;
+`::file[path]` puts the file itself in the document. Same name, two weights — the same split `:run`
+has. Reaching for two when you meant one drops a whole file into the middle of a sentence.
+
+**Across repos, `project=` is required.** `:file[api/probe.js]{project=systemview-test}` — without
+it the path resolves against the project you are reading in and the chip silently points at
+nothing.
+:::
+
 ---
 
-## 3 · Help links — `:help[…]`
+## `:help[…]` — help topics
 
 ```markdown
 :help[markdown] :help[scratchpad] 
@@ -75,7 +88,48 @@ A file chip with nothing that can read it says so: :file[nowhere/at/all.js]
 
 ---
 
-## 4 · Callouts — `:::callout{type=…}`
+## `:ui[…]` — point at a region of the window
+
+```markdown
+Your answer lands in :ui[chat]; the long version is on the :ui[tv].
+```
+
+Your answer lands in :ui[chat]; the long version is on the :ui[tv], and the file I changed is
+showing in :ui[center].
+
+The named regions: `nav` `center` `reports` `docs` `code` `logs` `scratchpad` `story` `stage`
+`chat` `tv` `links` `bot` `tests` `header`.
+
+**Clicking points — it does not navigate.** The region scrolls into view, the highlight fades on its
+own, and nothing is written anywhere. That is the difference between this and `:ns` or `:file`:
+pointing is a gesture, not a decision.
+
+It exists so the layout can be taught in an ordinary sentence — *"this is the story, this is the
+scratch pad"* — without a built-in tour. An unknown region renders dashed: :ui[nowhere]
+
+---
+
+## `:report[…]` — link to a report
+
+```markdown
+:report[.systemview/report.systemview-test.Context-hooks-the-plan.md]{title="the hook plan"}
+```
+
+| Attribute | Means |
+|---|---|
+| *(label)* | the report's path — `.systemview/report.<projectCode>.<slug>.md` |
+| `title=` | what the chip reads; defaults to the slug, de-slugged |
+| `project=` | overrides the project; rarely needed |
+
+**This one navigates.** Unlike `:ns` and `:file` there is no reveal-first step — the whole point of
+a report link is *go read this*, so it opens the Stage tab on that document.
+
+The path names its own project, so a chip can point at another project's report without
+`project=`. A chip with no path renders dead rather than guessing.
+
+---
+
+## `:::callout{type=…}` — callouts
 
 ```markdown
 :::callout{type=warn}
@@ -101,7 +155,7 @@ Percentiles stay all-time even under a time range.
 
 ---
 
-## 5 · Folds — `:::details{summary=…}`
+## `:::details{summary=…}` — folds
 
 ```markdown
 :::details{summary="Why raw HTML stays off"}
@@ -123,7 +177,7 @@ version degrades honestly. This one doesn't exist — that's the point: ::sparkl
 
 ---
 
-## 6 · Tabs — `::::tabs` / `:::tab{label=…}`
+## `::::tabs` / `:::tab{label=…}` — tabs
 
 ```markdown
 ::::tabs
@@ -160,7 +214,7 @@ A callout inside a tab.
 
 ---
 
-## 7 · Columns — `::::columns` / `:::col`
+## `::::columns` / `:::col` — columns
 
 ```markdown
 ::::columns{split=55}
@@ -185,7 +239,7 @@ into — except inside a single document. Columns collapse to one on a narrow pa
 
 ---
 
-## 8 · Live embeds — `::chart{…}` and `::test[…]`
+## `::chart{…}` and `::test[…]` — live embeds
 
 ```markdown
 ::chart{report=throughput range=1h}
@@ -219,7 +273,7 @@ project is how two rooms point at the same code without copying it.
 
 ---
 
-## 9 · Checklists that edit the document
+## `- [ ]` — checklists that edit the document
 
 ```markdown
 - [x] directive parsing + registry
@@ -247,7 +301,7 @@ say so on hover — **the document is the state; there is no second store.**
 
 ---
 
-## 10 · Inputs — the document asks *you* something
+## `::question{…}` — the document asks *you* something
 
 ```markdown
 ::question[Do embeds complement panes, or replace them?]{id=fork options=complement|replace}
@@ -267,7 +321,7 @@ back. This is the primitive behind RFC-024's plan-first stories.
 
 ---
 
-## 11 · Runnables — steps written **on the fly**
+## `:::run{title=…}` — runnables, written on the fly
 
 The point isn't replaying something saved. It's that I can put steps together **here, because you
 asked for them**, and you press Run.
@@ -341,7 +395,7 @@ document is not permission.
 
 ---
 
-## 12 · The rest of the Stats page — `::topology` and `::load`
+## `::topology` and `::load` — the rest of the Stats page
 
 ```markdown
 ::topology
@@ -359,7 +413,7 @@ nodes, click a card to expand the methods called on it, click a line to trace it
 
 ---
 
-## 13 · Carousel — `::::carousel` / `:::slide`
+## `::::carousel` / `:::slide` — carousel
 
 ```markdown
 ::::carousel
@@ -392,7 +446,7 @@ chart or test isn't quietly fetching in the background.
 
 ---
 
-## 14 · Approvals — a decision, wrapped around what's being decided
+## `:::approval{…}` — a decision, wrapped around what is being decided
 
 An agent proposes; you answer; the answer is written **into the document**, so reading the document
 *is* reading the decision — the agent needs no second store to consult.
@@ -415,7 +469,7 @@ Anything nests inside: a diff, a checklist, a runnable, a thread. Right-click a 
 
 ---
 
-## 15 · Logs, files and diffs — the rest of the panes
+## `::logs`, `::file`, `::diff` — panes inside a document
 
 ```markdown
 ::logs[Math]{limit=25}
@@ -446,7 +500,7 @@ shouldn't be a chance to edit a file by accident:
 
 ::diff[cli/runTests.js]
 
-### Images — `::image[path]{caption=…}`
+### `::image[path]{caption=…}` — images
 
 ```markdown
 ::image[public/logo192.png]{caption="the app icon" width=120}
@@ -464,7 +518,7 @@ Takes `width=` and, like every block, `{project=<pc>}` to show another repo's im
 
 ---
 
-## 16 · Threads — reply on a block
+## `::::thread{id=…}` / `:::reply{…}` — reply on a block
 
 Wrap anything you want to talk about and it gets the **same reply thread a story pane has** — the 💬
 corner, your replies and agent replies in distinct looks, ⌘↵ to post.
@@ -491,6 +545,17 @@ paragraph gets reworded, and no gutter noise on paragraphs nobody wants to discu
 The `id` is what makes a thread survive edits above it. Without one it falls back to the source line,
 which still works but re-anchors if the document shifts.
 
+:::callout{type=danger}
+**Never write `##` or `###` inside a reply.** A reply is inserted into the document verbatim, so its
+headings join the host document's real outline. One RFC with nine answered threads grew eight
+phantom sections in its table of contents. Use bold, or nothing.
+
+**Answer a thread with the tool, not by hand.**
+`mcp__systemview__reply({ projectCode, report, threadId, text })` finds the thread and inserts the
+`:::reply` in the right place — including when the thread wraps a container, where the closing fence
+is five colons and not four. Hand-editing is how a reply lands inside the block instead of after it.
+:::
+
 Replies live **in the document**, as the `:::reply{author=… ts=…}` blocks above show — the document
 carries its own conversation, so reading it is reading the whole exchange. A **sidecar** (a plain
 `id → replies` map, named by the thread's `id`) remains only as the fallback for surfaces with no
@@ -499,7 +564,7 @@ still read from.
 
 ---
 
-## 17 · Commit — `::commit{message=…}`
+## `::commit{message=…}` — a commit you press
 
 The commit message at the end of a report used to be a line you copied into a terminal. Now it's a
 button.
@@ -533,12 +598,18 @@ When it runs, the sha lands in the block itself:
 So the report that describes the work becomes the receipt for the commit it caused, and a week later
 the same line still tells you which commit this turned into.
 
+:::callout{type=warn}
+**Offer it standalone.** A `::commit` block buried mid-prose after a long paragraph has twice failed
+to render; the same block re-sent on its own line rendered immediately. Give it its own message, or
+put it at the top on its own line.
+:::
+
 **An agent can write this block. Only you can press it.** There is no `systemview commit` and no
 `systemview push` on the CLI — that absence is deliberate, and it's what keeps the decision yours.
 
 ---
 
-## 18 · Still to come
+## Still to come
 
 Sketches only — these don't exist yet:
 
@@ -550,6 +621,24 @@ Sketches only — these don't exist yet:
 `::cmd` is the command-line idea: an allowlist of SystemView's own CLI verbs rather than a general
 shell, with two states — unrun (a Run button) and already-run (the recorded transcript an agent
 captured). Also ahead: block-level comments. (Media embeds shipped — see `::image` in section 15.)
+
+---
+
+## Which surface — TV, chat, or the document
+
+The blocks are the same everywhere. *Where you put them* is the part that is learned the hard way,
+so it is written down here rather than in nine separate agents' memories.
+
+| You are writing | Put it | Because |
+|---|---|---|
+| a short answer, an interrupt, one ask | **the chat**, one line | when he is in the chat your reply *is* the message — it renders directly, no tool needed |
+| anything long, or anything with a choice | **the TV** (`show`), with a `::question` | the chat line stays short and points; the document holds the content |
+| an answer to something he wrote in a thread | **that thread** (`reply`) | answering in the chat splits one conversation across two places |
+| a document worth returning to | **a report** — a real file in `.systemview/` | pushing a show grabs attention; a report is what survives it |
+
+**Name a report by its subject, never by its position.** "The next iteration" works exactly once.
+And a report *about* a file opens with a `:file` chip, so the artifact is one click away instead of
+something he has to ask whether you actually made.
 
 ---
 

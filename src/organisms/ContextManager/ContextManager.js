@@ -11,6 +11,7 @@ import {
   remove as removeNote,
 } from "../../utils/hostContext";
 import { contextStats } from "../../utils/hostAgents";
+import CorporaPanel from "../CorporaPanel/CorporaPanel";
 
 // RFC-055 — THE CONTEXT SURFACE. His ask: see every store, query it (by voice), and edit what's
 // there. The store is a HARNESS capability; this is a reader/editor over it, never its owner.
@@ -158,6 +159,11 @@ const ContextManager = ({ projectCode, agentId, focus = null }) => {
   const available = hasContextStore();
   const [cols, setCols] = useState([]);
   const [scope, setScope] = useState("system");
+  // NOTES vs DOCUMENTS IS NOT A SCOPE. System / Project / Agent are three subtypes of one thing —
+  // notes somebody wrote. Documentation is a different kind of thing entirely (derived from files,
+  // true only while the file has not changed), and sitting it in that row as a fourth peer said it
+  // was a fourth scope. It is a tab, one tier below the page's own tabs.
+  const [lens, setLens] = useState("notes");
   const [items, setItems] = useState([]); // notes for the active scope
   const [q, setQ] = useState("");
   const [hits, setHits] = useState(null); // null = not searched; [] = searched, empty
@@ -295,6 +301,58 @@ const ContextManager = ({ projectCode, agentId, focus = null }) => {
 
   return (
     <div className="ctx-mgr">
+
+      {/* THE LENS — one tier below the page's tabs, and the same look, because it is the same kind
+          of move: two different things to look at, not two filters on one thing. */}
+      <div className="ctx-mgr__lenses">
+        {[["notes", "Notes"], ["docs", "Documents"]].map(([k, label]) => (
+          <button
+            key={k}
+            className={`ctx-mgr__lens${lens === k ? " ctx-mgr__lens--on" : ""}`}
+            onClick={() => setLens(k)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {lens === "docs" && <CorporaPanel />}
+
+      {lens === "notes" && (
+      <>
+      {/* CONTEXT NOTES — editable, per scope: his corrections, made once, kept forever. */}
+      <div className="ctx-mgr__scopes">
+        {SCOPES.map((s) => {
+          const col = cols.find(
+            (c) => c.collection === (s.key === "system" ? "ctx-system" : `ctx-${s.key}-${projectCode}`)
+          );
+          return (
+            <button
+              key={s.key}
+              className={`ctx-mgr__scope${scope === s.key ? " ctx-mgr__scope--on" : ""}`}
+              onClick={() => setScope(s.key)}
+              title={s.hint}
+            >
+              {s.label}
+              <span className="ctx-mgr__scope-count">{col ? col.count : 0}</span>
+            </button>
+          );
+        })}
+        {/* NOT A SCOPE — a lens across all three. He asked to see the store "on a statistical
+            level… which ones are being used, by who". Same row as the scopes because it is the
+            same question asked sideways: not what is in there, but what is getting pulled. */}
+        <button
+          className={`ctx-mgr__scope ctx-mgr__scope--stats${scope === "stats" ? " ctx-mgr__scope--on" : ""}`}
+          onClick={() => setScope("stats")}
+          title="What is actually being retrieved, and by whom"
+        >
+          Statistics
+        </button>
+      </div>
+
+      {/* THE QUERY BELONGS TO NOTES. It sat above the lens tabs, outside both of them — so it
+          showed on the Documents tab and, worse, searching from there ran the NOTE search. One box
+          per thing being looked at, inside the tab that owns it. */}
       <div className="ctx-mgr__query">
         <input
           className="ctx-mgr__q-input"
@@ -404,36 +462,6 @@ const ContextManager = ({ projectCode, agentId, focus = null }) => {
         </div>
       )}
 
-      {/* CONTEXT NOTES — editable, per scope: his corrections, made once, kept forever. */}
-      <div className="ctx-mgr__scopes">
-        {SCOPES.map((s) => {
-          const col = cols.find(
-            (c) => c.collection === (s.key === "system" ? "ctx-system" : `ctx-${s.key}-${projectCode}`)
-          );
-          return (
-            <button
-              key={s.key}
-              className={`ctx-mgr__scope${scope === s.key ? " ctx-mgr__scope--on" : ""}`}
-              onClick={() => setScope(s.key)}
-              title={s.hint}
-            >
-              {s.label}
-              <span className="ctx-mgr__scope-count">{col ? col.count : 0}</span>
-            </button>
-          );
-        })}
-        {/* NOT A SCOPE — a lens across all three. He asked to see the store "on a statistical
-            level… which ones are being used, by who". Same row as the scopes because it is the
-            same question asked sideways: not what is in there, but what is getting pulled. */}
-        <button
-          className={`ctx-mgr__scope ctx-mgr__scope--stats${scope === "stats" ? " ctx-mgr__scope--on" : ""}`}
-          onClick={() => setScope("stats")}
-          title="What is actually being retrieved, and by whom"
-        >
-          Statistics
-        </button>
-      </div>
-
       {scope === "stats" && <StoreStats stats={stats} />}
 
       {scope !== "stats" && activeScope && (
@@ -501,6 +529,8 @@ const ContextManager = ({ projectCode, agentId, focus = null }) => {
           )
         )}
       </div>
+      )}
+      </>
       )}
 
       {/* TOOLS — read-only: derived from tools/list and loaded services, not his to edit. */}

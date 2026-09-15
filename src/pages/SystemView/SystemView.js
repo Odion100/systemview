@@ -119,7 +119,15 @@ const SystemViewPage = () => {
       p.set("file", detail.path);
       if (detail.projectCode) p.set("fproj", detail.projectCode);
       if (detail.serviceId) p.set("fsvc", detail.serviceId);
+      // ALWAYS SET, OR ALWAYS CLEAR — never leave the last file's answer behind. Every other param
+      // here has its else (`fside` deletes, `flines` drops on a different file); this one did not,
+      // so a door that names no language handed the NEW file the OLD file's `flang`. Open a .md,
+      // then open a .js from the changes list, and the URL says markdown about a JavaScript file —
+      // pinned, surviving refreshes, seeding `sv.codeFile`. Downstream that is a document rendered
+      // through the markdown renderer and an editor loading the wrong grammar: gray text with
+      // nothing on screen to explain it.
       if (detail.language) p.set("flang", detail.language);
+      else p.delete("flang");
       if (detail.lines && detail.lines[0]) p.set("flines", detail.lines.join("-"));
       else if (p.get("file") !== detail.path) p.delete("flines"); // a DIFFERENT file drops the range
       if (detail.side) p.set("fside", detail.side);

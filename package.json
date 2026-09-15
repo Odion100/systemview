@@ -1,6 +1,6 @@
 {
   "name": "systemview",
-  "description": "A documentation and testing suite for SystemLynx",
+  "description": "An IDE for a codebase and the agents working in it, with live docs, tests and stats for SystemLynx services",
   "version": "2.40.0",
   "license": "UNLICENSED",
   "bin": {

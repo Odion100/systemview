@@ -21,69 +21,115 @@ Directives, not HTML (raw HTML is disabled):
 :::name{attrs} … :::     container (wraps content; the outer one takes one MORE colon when nesting)
 ```
 
-### Links — they reveal, they don't navigate
+## `:ns[…]` — a namespace chip
 
 ```markdown
-:ns[Math.chainUse]                    a namespace chip — points the navigator at it
-:file[src/atoms/Markdown/registry.js#L20-46]   a file, at a line range
-:help[markdown]                       opens a help topic
+:ns[Math.chainUse]                              this document's service, from scope
+:ns[GatedService.Auth.getSession]               a named service
+:ns[systemview-test.TestService.Math.add]       fully qualified
 ```
 
-Clicking one **reveals** the target in the navigator without moving the reader off the document.
-⌘-click navigates for real. Both resolve against the LIVE connection tree, so a stale reference
-renders dashed and says why instead of lying.
+Resolves against the **live connection tree** — the services connected right now. A name that isn't
+in it renders dashed and says why instead of lying. Clicking opens what it points at and the
+navigator expands to mark where you arrived.
 
-### Embeds — live things inside prose
+## `:file[…]` and `::file[…]` — a file, linked or embedded
+
+**One colon links. Two colons embed the whole file inline.**
 
 ```markdown
-::chart{report=throughput range=1h}    throughput | errors | latency, + range, service, height
-::topology                             the service call graph
-::load{limit=8}                        load concentration
-::logs[Math.chainUse]{limit=50}        the Logs viewer, scoped by the block
-::test[Math.chainUse]                  a SAVED test, runnable in place
-::test[Math.add]{ran=".systemview/runs/r1.json"}  the same block ALREADY RAN — hydrated from a
-                                       recorded run file (CLI --json output + ranAt), steps
-                                       colored, responses real, "recorded run" badge; play
-                                       re-runs fresh (see agents/chat.md, the already-ran block)
-::file[cli/stage.js#L43-52]            the file itself, in the document
-::diff[cli/runTests.js]                working copy vs git HEAD (read-only here)
-::commit{message="feat(nav): the lens"}  a commit message he PRESSES instead of copying
+:file[src/atoms/Markdown/registry.js#L20-46]    a chip that opens the file at a line range
+::file[cli/stage.js#L43-52]                     the file itself, in the document
+:file[src/Pages/ResourcesPage.js]{project=BUApp}   a file in ANOTHER repo
 ```
 
-### `::commit` — the commit message as a button
+**Cross-repo needs `project=`.** Without it the chip resolves against the current project and
+silently points at nothing — it renders, it just goes nowhere.
 
-A commit message written at the end of a report is a line someone has to copy into a terminal. This
-makes it a button. **Write it when he asked for a commit message, or when the work in front of him
-is genuinely ready to land — it is not a report footer, and stapling one to every report is noise.**
+`#L10-20` and `#L10-L20` are the same address. Hub-served by project code, so a file chip works with
+every service down. A `::file` pointed at an image renders the image viewer.
+
+## `:help[…]` — a help topic
 
 ```markdown
-::commit{message="feat(git): line-level staging"}
+:help[markdown] :help[scratchpad] :help[navigator]
 ```
 
-It renders the message (editable in place — it is HIS commit), two tabs, and the branch:
+Opens that topic in the centre panel — the same channel every **?** icon uses. `:help` is the one
+link that works the other way round: a click reveals its row in the nav, ⌘-click opens it.
 
-- **changes** — `staged` / `changes` / `untracked`, the same three groups the codebase panel shows,
-  with `+` / `−` per file and per group. Staging happens in the block; you do not send him elsewhere.
-- **log** — git's own output from what just ran, then the last fifteen commits. Committing flips to
-  this tab by itself, so the result gets read.
-
-Commit and Push are **two-step**: the first click arms (the button reads `confirm`), the second runs.
-Push appears only when the branch is ahead. Both edges of the list drag to resize, and the height
-lands back in the block as `height=` — same contract as `::::columns` and `split=`.
-
-When it runs, the sha is written INTO the block, the way `::question` writes `answer=`:
+## `:ui[…]` — point at a region of the window
 
 ```markdown
-::commit{message="feat(git): line-level staging" sha=a4f81c2 ts=1786883000000}
+Your answer lands in :ui[chat]; the long version is on the :ui[tv].
 ```
 
-The report that describes the work becomes the receipt for the commit it caused.
+A reference to a **region of the window** rather than to data — `chat`, `tv`, `center`,
+`scratchpad`, `navigator`. Clicking points at it; nothing is written anywhere. This is what lets you
+teach the layout on the fly instead of describing it. An unknown region renders dashed.
 
-**THE RULE THIS BLOCK EXISTS UNDER: you can WRITE it, you cannot PRESS it.** There is deliberately no
-`systemview commit` and no `systemview push` — the absence is the design, not an oversight. If you
-want work committed, put the block in a document and let him decide.
+## `:report[…]` — link to a report
 
-### Runnables — steps written on the fly
+```markdown
+:report[The agent face stops going through the CLI]
+```
+
+Opens a filed report by its title. Reports are markdown files in `.systemview/` — **title them by
+SUBJECT, never by position** ("the next iteration" only works once). A report about a file should
+open with a `:file` chip so the artifact is one click away.
+
+## `::chart{…}` — a live chart
+
+```markdown
+::chart{report=throughput range=1h}      throughput | errors | latency
+::chart{project=buAPI report=errors range=4h height=70}
+```
+
+Reads the same rollups the Stats page draws. Percentiles stay **all-time** even under a range —
+that is the bounded-memory contract, not a bug.
+
+## `::test[…]` — a saved test, runnable in place
+
+```markdown
+::test[Math.chainUse]                                    runnable here
+::test[Math.add]{ran=".systemview/runs/r1.json"}         the same block ALREADY RAN
+```
+
+The `ran=` form hydrates from a recorded run — steps coloured, responses real, a "recorded run"
+badge. Play re-runs it fresh.
+
+## `::logs[…]` — the log viewer, scoped
+
+```markdown
+::logs[Math.chainUse]{limit=50}
+::logs{project=buAPI service=Profiles limit=20}
+```
+
+## `::diff[…]` — working copy vs git HEAD
+
+```markdown
+::diff[cli/runTests.js]
+::diff[api/index.js]{project=systemview-test}
+```
+
+Read-only in a document.
+
+## `::image[path]{caption=…}` — an image
+
+```markdown
+::image[docs/shot.png]{caption="the corpora surface"}
+```
+
+An image is just another file kind — a block-form `::file` pointed at one renders the same viewer.
+
+## `::topology` and `::load` — the rest of the Stats page
+
+```markdown
+::topology                the service call graph — who calls whom
+::load{limit=8}           load concentration
+```
+
+## `:::run{title=…}` — steps written on the fly
 
 The point is assembling steps **in the document**, for a human to press Run on:
 
@@ -106,83 +152,209 @@ The point is assembling steps **in the document**, for a human to press Run on:
 - `::run[seedSum]` replays a **saved** action instead, badged differently.
 - **Never auto-runs.** A document is not permission.
 
-### The document is the state
+## `- [ ]` — checklists that edit the document
 
-Blocks that take input write back **into the markdown** — there is no second store:
+An ordinary task list. Ticking one **writes back into the markdown** — there is no second store.
+
+## `::question{…}` — the document asks *you* something
 
 ```markdown
-- [ ] a task list that saves when you tick it
-:ui[scratchpad]                             a REGION of the window — clicking points at it
-::question[Which approach?]{options=a|b}     answer=… is written into the block
-::question[Which?]{options="close the hole|show who is caught up"}   ← QUOTE multi-word values
-                                             QUOTE values containing spaces: {options="plan a|plan b"}
-                                             — an unquoted space kills the whole directive SILENTLY
-                                             (it renders as literal text, same trap as {Math.chainUse})
-:::approval{ask="Approve the plan?"} … :::   verdict=approved|rejected is written into the block
+::question[Which approach?]{options=a|b}
+::question[Which?]{options="close the hole|show who is caught up"}
 ```
 
-**`:::approval` is how you ask for a decision.** Wrap what you're proposing, and read the verdict back
-off the document later — that is the entire handshake.
+`answer=…` is written into the block, so the document carries the decision.
 
-### Conversation
+**QUOTE any value containing a space.** An unquoted space kills the whole directive **silently** —
+it renders as literal text and nothing tells you why.
+
+## `::ask[…]` — the one thing you need from them, made visible
 
 ```markdown
-:::thread{id=extraction}
-Anything wrapped here carries a reply thread.
+::ask[Should the corpus point at agents/ or docs/?]
+::ask[Restart the shell — the origin fix is in electron/ and cached until then]
+::ask[Which do you want first?]{why="both touch the same file, so the order matters"}
+```
+
+**Records nothing, offers nothing — it exists to be seen.** A thing buried in the fourth paragraph
+of a long reply does not get acted on; it gets scrolled past, and the work continues on a guess.
+
+**It is not always a question.** "Restart the shell" is the same kind of block — the one thing
+needed from the human. The mark is inferred, so there is nothing to remember: text ending in `?`
+renders as a question, anything else renders as a thing to do. `why=` is the one-line reason it
+matters — what the answer changes. Optional.
+
+**Not `::question`.** That one offers options and writes `answer=` back into the document, which
+makes it a decision record. This is the opposite: one sentence to be looked at, nothing filed.
+**One per message** — two is a list, and a list is the thing this exists to prevent.
+
+## `:::approval{…}` — ask for a decision
+
+```markdown
+:::approval{ask="Approve the plan?"}
+…what is being decided, in full…
 :::
 ```
 
-Replies are `{ text, ts, author }`; write yours with `author: "agent"` and they render distinctly.
-They live in a sidecar (`.systemview/comments.<key>.json`), not in the document.
+Wrap what you are proposing and read `verdict=approved|rejected` back off the document later. That
+is the entire handshake — there is nowhere else to check.
 
-### Structure
+## `::::thread{id=…}` and `:::reply{…}` — a conversation in the document
 
 ```markdown
-:::callout{type=info|warn|danger|success} … :::
-:::details{summary="Click to open"} … :::
-::::tabs / :::tab{label="…"}
-::::columns{split=55} / :::col          ← content side by side: a lead beside its evidence
-::::carousel / :::slide{label="…"}
+::::thread{id=extraction}
+Anything wrapped here carries a reply thread.
+::::
 ```
 
-`::::columns` is the one to remember for layout — a claim on the left, the thing that proves it on
-the right, in one document.
+**Replies live IN the document** as `:::reply{author=… ts=…}` blocks, so reading the document is
+reading the whole exchange. (A sidecar remains only for surfaces with no file to write to — the help
+hub and help topics.)
 
-### Any block can name another project
+Three things that have each cost a real mistake:
+
+- **Answer with the tool, never by hand-editing the markdown** —
+  `mcp__systemview__reply({ projectCode, report, threadId, text })` inserts the block in the right
+  thread. For a file's line-anchored comments it is `mcp__systemview__comments`.
+- **Never use `##` headings inside a reply.** The text is inserted verbatim, so its headings join
+  the host document's real outline — one RFC ended up with eight phantom sections.
+- **A container nests by gaining colons.** A thread wrapping a `::::columns` block opens with
+  **five**, and it closes on a line of the same fence.
+
+`id=` is what makes a thread survive edits above it; without one it falls back to the source line.
+
+- **`author=agent` renders in the agent look.** That is the whole API for answering: a `:::reply`
+  block inside the thread you are answering.
+- The UI widens `:::thread` to `::::` for you when it writes the first reply; writing by hand, start
+  at `::::thread`.
+- Removing the thread wrapper keeps everything inside it, replies included.
+- **Don't wrap content in an empty thread.** A thread is a conversation, not decoration — start one
+  only when you are actually saying something. The human starts their own from the right-click menu;
+  pre-wrapping sections "in case" is noise they have to delete.
+- **The exception:** surfaces with no file — the hub and help topics are JS constants — keep replies
+  in `.systemview/comments.<key>.json`, because there is no document to write into.
+
+## `::commit{message=…}` — a commit you press
+
+A commit message written at the end of a report is a line someone has to copy into a terminal. This
+makes it a button.
+
+```markdown
+::commit{message="feat(git): line-level staging"}
+```
+
+**The agent writes it. Only the human presses it.** There is no `systemview commit` and no
+`systemview push` — that absence is deliberate, and it is what keeps the decision his.
+
+**Offer it standalone, not buried mid-prose.** Twice a block embedded after a long paragraph did not
+render, and a clean re-offer of just the block worked immediately. Put it in its own message, or
+clearly on its own line at the top.
+
+Write it when he asked for a commit message, or when the work in front of him is genuinely ready to
+land — it is not a report footer, and stapling one to every report is noise. When it runs, the sha
+lands in the block itself (`sha=a4f81c2 ts=…`), so the report that describes the work becomes the
+receipt for the commit it caused.
+
+## `:::callout` — the one thing they need to know
+
+```markdown
+:::callout
+Percentiles stay **all-time** even under a time range — that is the bounded-memory contract.
+:::
+```
+
+Same band as `::ask`, one weight down: **`::ask` is what you need FROM them, a callout is what they
+need to KNOW.** Both exist so a sentence that changes what someone does cannot be scrolled past
+inside a paragraph.
+
+**No types.** It had four — info, warn, danger, success — and nobody ever chose between them, so
+the choice was only ever a chance to pick wrong. `type=` is still accepted and ignored, so older
+documents keep rendering.
+
+Reach for it when a caveat would change what the reader does next. Not for emphasis, and not for
+every paragraph you think is important — a page of bands is a page with no bands.
+
+## `:::details{summary=…}` — a fold
+
+```markdown
+:::details{summary="Why raw HTML stays off"}
+…anything, including other blocks…
+:::
+```
+
+Deliberately not `<details>` — the native element cannot be styled consistently across the light
+document and the dark one.
+
+## `::::tabs` and `:::tab{label=…}` — tabs
+
+```markdown
+::::tabs
+:::tab{label="before"}
+…
+:::
+:::tab{label="after"}
+…
+:::
+::::
+```
+
+The container takes one MORE colon than its children. Reach for it when the same thing has two
+forms worth comparing.
+
+## `::::columns{split=…}` and `:::col` — side by side
+
+```markdown
+::::columns{split=55}
+:::col
+a claim
+:::
+:::col
+the thing that proves it
+:::
+::::
+```
+
+**The one to remember for layout** — a claim on the left, its evidence on the right, in one
+document. `split=` is the left column's percentage, and dragging the divider writes it back into
+the block.
+
+## `::::carousel` and `:::slide{label=…}` — a carousel
+
+```markdown
+::::carousel
+:::slide{label="step one"}
+…
+:::
+::::
+```
+
+One thing at a time, in order — a walkthrough rather than a comparison.
+
+## `project=` — any block can name another project
 
 **The hub is the middle of every project, not a window onto one.** By default a block resolves
-against the project whose room the document is in — but `project=` overrides that, on every block
-that reaches for data:
+against the project whose room the document is in; `project=` overrides that on every block that
+reaches for data:
 
 ```markdown
 ::file[src/Pages/ResourcesPage.js#L101-L125]{project=BUApp}
 ::diff[api/index.js]{project=systemview-test}
 ::logs{project=buAPI service=Profiles limit=20}
-::chart{project=buAPI report=throughput}
 :file[cli/chat.js#L290-300]{project=systemview}     ← the inline chip, same attribute
 ```
 
-This is what to reach for when you want to show someone a file that lives in another repo — point at
-it where it is, no copy needed.
-
-Two things worth knowing:
-
-The path is relative to THAT project's root — the HUB reads it, resolved from the registry, so the pin works with that project's services down.
-- **The project you name must be connected** (a registered folder is enough — no live service needed). If it isn't, the panel says so and
-  names the project. It will never quietly read the same path out of a different repo — that made a
-  correct path look like an author's mistake, with a stranger's `/Users/…` in the error.
+The path is relative to THAT project's root — the hub reads it from the registry, so the pin works
+with that project's services down. **The project you name must be connected** (a registered folder
+is enough, no live service needed); if it isn't, the panel says so and names the project rather than
+quietly reading the same path out of a different repo.
 
 A path that belongs to no project at all — something under `/tmp`, a file outside every repo — is
-not an embed. Put its content in the show itself (`systemview show <pc> --file <path>` inlines what
-it reads) or paste it in a fenced block.
+not an embed. Put its content in the show itself, or paste it in a fenced block.
 
-### Unknown blocks
+## Unknown blocks
 
-A block this version doesn't know renders as a visible chip rather than vanishing. A document written
-against a newer vocabulary degrades honestly.
-
----
-
+A block this version doesn't know renders as a visible chip rather than vanishing. A document
+written against a newer vocabulary degrades honestly.
 
 ---
 
@@ -199,34 +371,6 @@ read the answer. There is no second store to consult.
 
 Clicking a chosen answer or verdict again CLEARS it — the attribute is removed, not blanked. So
 "absent" always means "not answered", never "answered with nothing".
-
-## Threads and replies — in the document
-
-```markdown
-::::thread{id=lb-rig}
-The LB rig is still driven by hand.
-:::reply{author=agent ts=1786180000000}
-An automated version should assert three things: every member is seen, concentration sums to ~100%,
-and a member going quiet drops out of the window.
-:::
-::::
-```
-
-- **Replies live IN the document**, as `:::reply{author=you|agent ts=…}` blocks inside the thread.
-  Read the document and you have the conversation — there is nothing else to fetch.
-- **`author=agent` renders in the agent look.** That is the whole API for answering someone: append a
-  `:::reply` block inside the thread you're answering.
-- **Fence lengths matter.** A container only nests when the OUTER fence is longer, so a thread that
-  holds replies is `::::thread` with `:::reply` children. The UI widens `:::thread` to `::::` for you
-  when it writes the first reply; if you're writing by hand, start with `::::thread`.
-- Removing the thread wrapper keeps everything inside it, replies included.
-- **Don't wrap content in an empty thread.** A thread is a conversation, not decoration — start one
-  only when you're actually saying something (a `:::reply` goes in with it). The human starts their
-  own threads from the right-click menu; pre-wrapping sections "in case" just adds noise they have
-  to delete.
-- **The exception:** surfaces with no file — the hub and help topics are JS constants — keep replies
-  in a store at `.systemview/comments.<key>.json` (`{ threadId: [{ text, ts, author }] }`), because
-  there is no document to write into. Replies written there before this change still render.
 
 ## The document right-click menu (what a human has, so you know what they'll do)
 

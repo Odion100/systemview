@@ -95,6 +95,11 @@ const PAUSE_MS = () => num("pauseMs", 1500); // his "slight pauses" — long eno
 const SILENCE = () => num("silence", 0.012); // RMS below this is not speech
 const WATCH_EVERY = 100;
 
+// How long the FINAL transcription may hold the caller after the mic is already off. Past this the
+// segment is lost — which is the right trade: the recording has ended either way, and a promise that
+// never settles is what left the recorder stuck.
+const FINAL_TRANSCRIBE_MS = 20000;
+
 export async function startHostRecording({ onDraft = null, onSegment = null, pauseMs = null } = {}) {
   // THE HOST DOES ALL OF IT when it can. Everything below this branch — capture, the analyser, the
   // segment machine, the draft loop — is the fallback for a host that only transcribes.
@@ -296,19 +301,55 @@ export async function startHostRecording({ onDraft = null, onSegment = null, pau
       heardSpeech = heardSpeech || chunks.length > 0; // forced: whatever is in the buffer counts
       return commit();
     },
+    // STOPPING LISTENING IS NOT FINISHING THE SENTENCE. This used to `await commit({last:true})`
+    // FIRST — and `commit` transcribes. So while transcription was slow (a loaded machine is exactly
+    // when it is slow) nothing below that line ran: the recorder stayed live, the mic tracks stayed
+    // open, and the caller's `await stop()` never returned, so the UI's recording flag never
+    // cleared. The recorder could not be stopped precisely when you most wanted to stop it. His
+    // report, twice: "it won't stop listening."
+    //
+    // Now the order is: flush the tail, RELEASE THE MIC, then transcribe — bounded, so a hung
+    // transcription costs you the last segment and nothing else. The light goes out on the press.
     async stop() {
       finished = true;
       clearTimers();
-      await commit({ last: true });
+
+      // 1 — flush whatever is buffered. MediaRecorder's own stop is local and fast; the race is a
+      //     backstop for a recorder that never fires `onstop`, not an expected path.
+      const mine = rec;
+      const flushed = stopped;
+      const had = heardSpeech || chunks.length > 0;
       try {
-        if (rec && rec.state !== "inactive") rec.stop();
+        if (mine && mine.state !== "inactive") mine.stop();
       } catch {}
+      try {
+        await Promise.race([flushed, new Promise((r) => setTimeout(r, 1500))]);
+      } catch {}
+
+      // 2 — the mic goes off HERE, before anything that can be slow.
+      release();
       if (audio) {
         try {
           await audio.close();
         } catch {}
       }
-      release();
+
+      // 3 — and only now the last transcription, with a ceiling. `committing` means a pause-commit
+      //     is already carrying this audio; doubling it would emit the segment twice.
+      if (had && !committing && chunks.length) {
+        try {
+          const { bytes, type } = await bytesSoFar();
+          const res = await Promise.race([
+            window.systemview.dictation.transcribe(bytes, type),
+            new Promise((r) => setTimeout(() => r(null), FINAL_TRANSCRIBE_MS)),
+          ]);
+          const text = ((res && res.text) || "").trim();
+          if (text && onSegment) onSegment(text);
+        } catch {
+          /* a lost last segment is bad; a stuck microphone is worse */
+        }
+      }
+      heardSpeech = false;
       return ""; // everything committed through onSegment — never append this
     },
     cancel() {

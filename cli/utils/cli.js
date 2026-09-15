@@ -1,5 +1,5 @@
 const HELP_TEXT = `
-  SystemView — Documentation and testing suite for SystemLynx
+  SystemView — an IDE for a codebase and the agents working in it
 
   Usage:
     systemview [command] [args] [flags]

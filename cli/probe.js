@@ -9,8 +9,18 @@ const log = require("./logger");
 const cookieHttpClient = createCookieHttpClient();
 const Client = createClient(cookieHttpClient);
 
-module.exports = async function probe(namespace, argsStr, { json = false, manifest: manifestPath, headers: cliHeaders = {}, uiUrl, saveSession = false, global = false } = {}) {
+// LIB MODE — `collect: true` returns the structured result instead of printing and exiting, the
+// same seam `runTests` grew for RFC-056. The hub serves this to the internal MCP's `probe` tool, so
+// the resolution (projectCode scoping, fuzzy matching, exact-beats-substring, the manifest
+// fallback) never forks between the CLI and the agent face.
+//
+// AND PROBE IS NOT `mcp__systemlynx__call`. That one reaches a whitelisted service that publishes
+// MCP routes. This one reaches anything SYSTEMVIEW has registered, through the hub, with no
+// whitelist and no MCP. Different doors, different reach — RFC-056 called probe retired and it was
+// wrong; nothing ever replaced what it can touch.
+module.exports = async function probe(namespace, argsStr, { json = false, collect = false, manifest: manifestPath, headers: cliHeaders = {}, uiUrl, saveSession = false, global = false } = {}) {
   if (!namespace) {
+    if (collect) return { error: "namespace required — <ServiceId.Module.method>" };
     log.error("Usage: systemview probe <ServiceId.Module.method> [args]");
     return 1;
   }
@@ -63,6 +73,7 @@ module.exports = async function probe(namespace, argsStr, { json = false, manife
       const manifest = JSON.parse(fs.readFileSync(manifestFile, "utf8"));
       candidates = (manifest.services || [manifest]).map((s) => ({ ...s, projectCode: s.projectCode || manifest.projectCode }));
     } catch (err) {
+      if (collect) return { error: `failed to read manifest: ${err.message}` };
       log.error(`Failed to read manifest: ${err.message}`);
       return 1;
     }
@@ -98,6 +109,7 @@ module.exports = async function probe(namespace, argsStr, { json = false, manife
 
   if (hits.length === 0) {
     const msg = `No method matching "${nsInput}"${scope ? ` in project "${scope}"` : ""} found`;
+    if (collect) return { namespace, error: msg };
     if (json) process.stdout.write(JSON.stringify({ namespace, error: msg }, null, 2) + "\n");
     else log.error(`${msg}. Connect it first with: systemview connect <url>`);
     return 1;
@@ -105,6 +117,7 @@ module.exports = async function probe(namespace, argsStr, { json = false, manife
   if (hits.length > 1) {
     const matches = hits.map((h) => `${h.projectCode}:${h.serviceId}.${h.moduleName}.${h.methodName}`);
     const msg = `"${nsInput}" is ambiguous — narrow it with a "projectCode:" prefix or the full Service.Module.method`;
+    if (collect) return { namespace, error: msg, matches };
     if (json) process.stdout.write(JSON.stringify({ namespace, error: msg, matches }, null, 2) + "\n");
     else log.error(`"${nsInput}" is ambiguous — matches:\n${matches.slice(0, 8).map((m) => "    " + m).join("\n")}\n  Narrow it: add the "projectCode:" prefix, or use the full Service.Module.method.`);
     return 1;
@@ -129,7 +142,7 @@ module.exports = async function probe(namespace, argsStr, { json = false, manife
     setSessionPolicy(policy, manifestFile);
   }
 
-  if (!json) log.info(`${service.projectCode}:${serviceId}.${moduleName}.${methodName}(${argsStr || ""})`);
+  if (!json && !collect) log.info(`${service.projectCode}:${serviceId}.${moduleName}.${methodName}(${argsStr || ""})`);
 
   try {
     const client = Client.createService(service.system.connectionData);
@@ -140,6 +153,18 @@ module.exports = async function probe(namespace, argsStr, { json = false, manife
     // Gated by the manifest's opt-in `session.save` policy (set via `connect ... --save-session`);
     // without it, a read-only or one-off probe leaves the manifest untouched (the safe default).
     if (readSessionPolicy(manifestFile).save) persist(manifestFile);
+    // A DEAD SERVICE ANSWERS WITH NOTHING, NOT WITH AN ERROR. SystemLynx's client retries, logs, and
+    // hands back `undefined` — which JSON.stringify then drops, so the tool result read as a clean
+    // success with no value. Measured against a stopped TestService. An agent asserting on that is
+    // asserting on silence, so `result` is always present and an absent one says why it might be.
+    if (collect)
+      return {
+        projectCode: service.projectCode,
+        serviceId, moduleName, methodName, args,
+        result: result === undefined ? null : result,
+        ...(result === undefined ? { warning: "the service returned nothing — it may be down or the method may not answer" } : {}),
+        notices: takeNotices(),
+      };
     if (json) {
       process.stdout.write(JSON.stringify({ serviceId, moduleName, methodName, args, result }, null, 2) + "\n");
     } else {
@@ -153,6 +178,26 @@ module.exports = async function probe(namespace, argsStr, { json = false, manife
     }
     return 0;
   } catch (err) {
+    // AN ERROR WITH NO MESSAGE IS STILL AN ERROR. SystemLynx surfaces a dead service as an
+    // AggregateError whose `message` is the empty string, so `error: err.message` produced
+    // `undefined`, JSON dropped the key, and the caller got an object with neither a result nor a
+    // failure in it — which rendered as a blank. Measured against buAPI, whose services are
+    // registered on ports nothing is listening on. Never hand back a silent failure.
+    // SYSTEMLYNX THROWS AN ARRAY, not an Error. Every attempt lands in it as an AxiosError, so
+    // `err.message` on the array is undefined — which is how a dead service became a blank instead
+    // of "connect ECONNREFUSED 127.0.0.1:4900". Measured: the thrown value's constructor is Array,
+    // element 0 is an AxiosError carrying `code` and `config.url`. Unwrap it, and name the URL,
+    // because "connection refused" without an address does not tell you the registration is stale.
+    const first = Array.isArray(err) ? err[0] : err;
+    const at = first && first.config && first.config.url ? ` (${first.config.url})` : "";
+    const why = first && first.message
+      ? `${first.message}${at}`
+      : first && first.code
+      ? `${first.code} — the service did not answer${at}`
+      : first && first.name
+      ? `${first.name}${at}`
+      : "the call failed and the error carried no message";
+    if (collect) return { projectCode: service.projectCode, serviceId, moduleName, methodName, args, error: why, notices: takeNotices() };
     if (json) {
       process.stdout.write(JSON.stringify({ serviceId, moduleName, methodName, args, error: err.message }, null, 2) + "\n");
     } else {

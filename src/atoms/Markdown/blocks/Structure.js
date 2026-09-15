@@ -4,19 +4,29 @@ import { useMarkdownWrite } from "../context";
 // RFC-025 §4.4 — structure blocks. These wrap markdown (container directives), so their children are
 // ordinary rendered markdown — headings, code, tables, other blocks.
 
-//   :::callout{type=warn}
+//   :::callout
 //   This path is **untested**.
 //   :::
-const ICONS = { info: "ℹ", warn: "⚠", danger: "✕", success: "✓", note: "ℹ" };
-export const Callout = ({ attrs = {}, children }) => {
-  const type = ICONS[attrs.type] ? attrs.type : "info";
-  return (
-    <div className={`md-callout md-callout--${type}`}>
-      <span className="md-callout__icon">{ICONS[type]}</span>
-      <div className="md-callout__body">{children}</div>
+//
+// ONE LOOK, NO TYPES. It had four — info | warn | danger | success — and his verdict on them was
+// that they were "a block of design with no purpose": nobody chose between them, so the choice was
+// only ever a chance to pick wrong. It wears the same band `::ask` does, because they are the same
+// move at two weights: `::ask` is the one thing needed FROM the reader, a callout is the one thing
+// they need to KNOW. Both exist so a sentence that changes what someone does cannot be scrolled
+// past inside a paragraph.
+//
+// `type=` is still accepted and ignored — documents written against the old vocabulary keep
+// rendering rather than breaking, they just stop looking different from each other.
+export const Callout = ({ children }) => (
+  <div className="md-ask md-ask--note" role="note">
+    <span className="md-ask__mark" aria-hidden="true">
+      !
+    </span>
+    <div className="md-ask__body">
+      <div className="md-ask__more">{children}</div>
     </div>
-  );
-};
+  </div>
+);
 
 //   :::details{summary="Why this is bounded"}
 //   …

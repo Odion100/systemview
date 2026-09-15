@@ -618,6 +618,11 @@
 }
 .agent-profile__hook {
   display: flex;
+  // WRAP, so the editor drops to its own line. The card is a ROW (name+meta on the left, the three
+  // verbs on the right) and the edit form is mounted inside it — as a third flex item it sat
+  // BESIDE the buttons, sharing their row, which is not an editor, it is a squeeze. `wrap` plus a
+  // full-basis on the form keeps the header a row and puts the form underneath it.
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
@@ -857,4 +862,12 @@
   border-top: 1px solid var(--sv-border);
   .agent-profile__weight-name { color: var(--sv-text-faint); font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: 0.04em; }
   .agent-profile__weight-tok { color: var(--sv-text-strong); font-weight: 700; font-size: 11.5px; }
+}
+
+// The hook editor now lives INSIDE the row it belongs to (see AgentProfile.js) — so it reads as
+// that hook opening up, not as a panel that appeared somewhere else on the page.
+.agent-profile__hook .agent-profile__hookform {
+  flex: 0 0 100%;   // its own line, always — never a column beside the buttons
+  margin: 8px 0 2px;
+  border-left: 2px solid var(--sv-blue);
 }

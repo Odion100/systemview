@@ -159,7 +159,7 @@ const Context = () => {
                   className={`ctx-page__view${view === k ? " ctx-page__view--on" : ""}`}
                   onClick={() => {
                     setView(k);
-                    setUrl((p) => (k === "stats" ? p.set("view", "stats") : p.delete("view")));
+                    setUrl((p) => (k === "agents" ? p.delete("view") : p.set("view", k)));
                   }}
                 >
                   {label}
@@ -168,6 +168,7 @@ const Context = () => {
             </div>
 
             {view === "stats" && <CallStats projectCode={projectCode} agentId={agentId} />}
+
 
             {/* HIDDEN, NOT UNMOUNTED. Gating this on `view` with a conditional threw the profile
                 away on every tab switch — and remounting re-read the MOUNT-TIME url seed, which

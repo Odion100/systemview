@@ -1,6 +1,8 @@
 const { createClient, App } = require("systemlynx");
 const { createCookieHttpClient } = require("../cli/cookieClient");
 const { headersFor } = require("../cli/manifestHeaders");
+const Drive = require("./drive");
+const ReportsLib = require("./reports");
 const ConnectedServices = require("./Connections")();
 const CLIHistory = require("./CLIHistory")();
 // RFC-056 — recent test runs by HANDLE: hub memory, capped, never on disk (his rule).
@@ -1273,6 +1275,34 @@ function chatCommand(projectCode, { chat, from, cmd, args, label, say } = {}) {
   this.emit(`chat-updated:${projectCode}`, { chat: chatName, record });
   return record;
 }
+const Reports = { ...ReportsLib.reportsOn({ readFile, writeFile }), replyInto: ReportsLib.replyInto };
+const Board = require("./board").boardOn({ readFile, writeFile });
+const CodeComments = require("./codeComments").commentsOn({ readFile, writeFile, listFiles });
+
+// WHERE THE FOUR DRIVE METHODS LAND. api/drive.js decides WHAT to send (and refuses, with why);
+// this emits it, because the chat state and the socket live here. `say` rides the trip and is
+// ephemeral by design — it is spoken while the window moves and then it is gone, which is right for
+// a pointing line and a trap the moment real content lands in it. `pin` also drops it in the chat,
+// where it survives (RFC-039).
+function sendDrive(result, { projectCode, chat, as, say, pin } = {}) {
+  if (!result || result.error) return result || { error: "nothing to send" };
+  const record = chatCommand.call(this, projectCode, {
+    chat,
+    from: as || "agent",
+    cmd: result.cmd,
+    args: result.args,
+    label: result.label,
+    say,
+  });
+  if (pin && say) {
+    try {
+      chatSend.call(this, projectCode, { chat, from: "agent", text: say, as });
+    } catch {
+      /* the trip was sent; failing to pin it must not fail the trip */
+    }
+  }
+  return { ok: true, label: result.label, ...(record && record.id ? { id: record.id } : {}) };
+}
 // RFC-039 — TAKE ONE OFF THE LIST. His words: "I need to be able to delete shit." A show he is done
 // with clutters the picker and, worse, makes the real one ambiguous. This hides the RECORD from the
 // collector; it does not remove it from the room, because the transcript is the account of what
@@ -1946,22 +1976,40 @@ module.exports = function launchSystemView(port = 3000) {
       saveHistory: CLIHistory.saveHistory,
       getSettings: Settings.getSettings,
       saveSettings: Settings.saveSettings,
-      // RFC-056 — THE SAME RUNNER, SERVED. The internal MCP's runTests/listTests tools call these;
-      // the CLI keeps calling the module directly. One runner, one lister, two faces — the
-      // orchestration (filter grammar, phases, action resolution) never forks.
-      runTests: async ({ projectCode, namespace, headers, bail, phase, index, skip, dryRun } = {}) => {
-        const run = require("../cli/runTests");
-        const r = await run(`http://localhost:${process.env.PORT || 3000}`, projectCode, namespace || undefined, {
-          collect: true,
-          headers: headers || {},
-          bail: !!bail,
-          dryRun: !!dryRun,
-          phase: phase || null,
-          index,
-          skip: Array.isArray(skip) ? skip : [],
-        });
-        // hold the result by HANDLE (in memory, capped) so the chat can display it richly on
-        // demand — never written anywhere
+      // THE RUN IS A HANDLE, NOT A FILE (his rule: "we have a handle on it and we display it").
+      // Results live in hub memory for the process's lifetime, capped — nothing written, nothing
+      // to maintain or delete. The chat row fetches by id only when someone opens it.
+      getRun: async ({ id } = {}) => (id && RUNS.has(String(id)) ? RUNS.get(String(id)) : { expired: true }),
+      // Threads on SystemView's own surfaces (hub, help topics) — see api/Comments.js for why they
+      // don't ride a project's plugin the way a document's threads do.
+      getComments: Comments.getComments,
+      saveComments: Comments.saveComments,
+    })
+    // THE AGENT FACE — its own module, because the CLI does not get to dictate its shape.
+    // These methods used to sit on `.module("CLI")` under `sv*` names, which is what happens when
+    // an agent door is grown out of a command surface: a `verb` string dispatching four tools, and
+    // a module named after the one caller it is NOT for. Nothing here shells out, and nothing here
+    // dials the hub over HTTP — it is the hub. The published CLI keeps its own face; this is the
+    // one an in-process MCP calls (RFC-056).
+    .module("Agent", {
+      // PROBE — THE HUB'S OWN CAPABILITY (api/probe.js), and the reason it cannot be the CLI's.
+      // `require("../cli/probe")` resolves its session store, cookie jar and manifest from
+      // process.cwd(); under the hub that is the SystemView repo, so a call to buAPI read
+      // SystemView's session, went out anonymous, and did not error. Here the headers are computed
+      // per call from the TARGET project's own .systemview and cached nowhere.
+      probe: async (arg = {}) => {
+        const { probe } = require("./probe");
+        return probe(arg, ConnectedServices.getAllConnections() || []);
+      },
+      // TESTS — THE HUB'S OWN CAPABILITY (api/runTests.js). This used to require("../cli/runTests")
+      // in a "collect" mode: the CLI as the implementation, the hub as its caller, resolving services
+      // by calling the hub it is already inside. The orchestration that actually matters lives in
+      // testing-utilities/ and is composed here; the terminal's assumptions (cwd cookie jar, log
+      // lines, an exit code) stay in the terminal where they mean something.
+      runTests: async (arg = {}) => {
+        const { runTests } = require("./runTests");
+        const r = await runTests(arg, ConnectedServices.getAllConnections() || []);
+        // hold the result by HANDLE (in memory, capped) so the chat can display it richly on demand
         if (r && Array.isArray(r.tests) && r.tests.length && !r.dryRun) {
           const id = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
           RUNS.set(id, { ...r, ranAt: Date.now() });
@@ -1970,14 +2018,12 @@ module.exports = function launchSystemView(port = 3000) {
         }
         return r;
       },
+      // `dryRun` IS the listing — one capability, not two. The old `listTests` required the CLI's
+      // lister for the same answer.
       listTests: async ({ projectCode, namespace } = {}) => {
-        const list = require("../cli/listTests");
-        return list(`http://localhost:${process.env.PORT || 3000}`, projectCode || undefined, namespace || undefined, { collect: true });
+        const { runTests } = require("./runTests");
+        return runTests({ projectCode, namespace, dryRun: true }, ConnectedServices.getAllConnections() || []);
       },
-      // THE RUN IS A HANDLE, NOT A FILE (his rule: "we have a handle on it and we display it").
-      // Results live in hub memory for the process's lifetime, capped — nothing written, nothing
-      // to maintain or delete. The chat row fetches by id only when someone opens it.
-      getRun: async ({ id } = {}) => (id && RUNS.has(String(id)) ? RUNS.get(String(id)) : { expired: true }),
       // Logs and stats, served structured — the internal MCP renders them human-readable.
       getLogs: async ({ projectCode, level, limit = 100, namespace } = {}) => {
         const services = getServices(projectCode) || [];
@@ -1997,100 +2043,119 @@ module.exports = function launchSystemView(port = 3000) {
         all.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
         return { projectCode, entries: all.slice(-Math.max(1, Number(limit) || 100)) };
       },
+      // STATISTICS — the shared core (api/stats.js). This one was never a terminal program
+      // pretending to be a library: under the printing it is arithmetic the page and the agent must
+      // agree on, so the math moved to a neutral home and both faces call it. What it stops doing is
+      // asking the hub for the project's services over HTTP while running inside the hub.
       stats: async ({ projectCode, service, range } = {}) => {
-        const statsCmd = require("../cli/stats");
-        const r = await statsCmd(projectCode, service || undefined, {
-          uiUrl: `http://localhost:${process.env.PORT || 3000}`,
-          range: range || "all",
-          collect: true,
-        });
-        return typeof r === "number" ? { projectCode, error: "stats unavailable — is the project connected?" } : r;
+        const { stats } = require("./stats");
+        return stats({ projectCode, service, range }, ConnectedServices.getAllConnections() || [], Client);
       },
-      // The speaking-to-him verbs, one runner two faces: same cli/chat.js the terminal uses.
-      svShow: async ({ projectCode, text, reportPath, clear, as } = {}) => {
-        const chatCmd = require("../cli/chat");
-        const code = await chatCmd.show(projectCode, {
-          uiUrl: `http://localhost:${process.env.PORT || 3000}`,
-          Client,
-          agent: as || null,
-          text: text || null,
-          file: reportPath || null,
-          clear: !!clear,
-        });
-        return { ok: code === 0 };
-      },
-      svTv: async ({ projectCode, show, as } = {}) => {
-        const chatCmd = require("../cli/chat");
-        const state = await chatCmd.tv(projectCode, {
-          uiUrl: `http://localhost:${process.env.PORT || 3000}`,
-          Client,
-          show: show || undefined,
-          collect: true,
-        });
-        return typeof state === "number" ? { error: "nothing on the TV" } : state;
-      },
-      svReply: async ({ projectCode, report, threadId, text, as } = {}) => {
-        const chatCmd = require("../cli/chat");
-        const code = await chatCmd.reply(projectCode, report, threadId, text, {
-          uiUrl: `http://localhost:${process.env.PORT || 3000}`,
-          Client,
-          agent: as || null,
-        });
-        return { ok: code === 0 };
-      },
-      svBoard: async ({ projectCode, name, add, replyText, at, as } = {}) => {
-        const boardCmd = require("../cli/board");
-        const r = await boardCmd(projectCode, name || undefined, {
-          uiUrl: `http://localhost:${process.env.PORT || 3000}`,
-          add: add || undefined,
-          reply: replyText || undefined,
-          at,
-          as: as || null,
-          collect: !add && !replyText,
-        });
-        return typeof r === "number" ? { ok: r === 0 } : r;
-      },
-      svComments: async ({ projectCode, path, replyText, at, as } = {}) => {
-        const commentsCmd = require("../cli/comments");
-        const r = await commentsCmd(projectCode, path || undefined, {
-          uiUrl: `http://localhost:${process.env.PORT || 3000}`,
-          reply: replyText || undefined,
-          at,
-          as: as || null,
-          collect: !replyText,
-        });
-        return typeof r === "number" ? { ok: r === 0 } : r;
-      },
-      svDrive: async ({ projectCode, verb, a, b, as, namespace, file, report, stats, agents } = {}) => {
-        // nav / refresh / act / highlight — the window-driving verbs, one door
-        const chatCmd = require("../cli/chat");
-        const opts = { uiUrl: `http://localhost:${process.env.PORT || 3000}`, Client, agent: as || null };
-        let code = 1;
-        if (verb === "nav") {
-          // EXPLICIT KINDS (his rule): the caller SAYS whether it's a namespace, file, report,
-          // stats, or agents — the sniffing regex that guessed from one target string is gone;
-          // the guessing was the bug, three times in one afternoon. Region died with it: every
-          // document nav is the center. `b` stays as a namespace-only alias for a session whose
-          // tool schema predates the split.
-          if (report) code = await chatCmd.nav(projectCode, "center", undefined, { ...opts, report });
-          else if (file) code = await chatCmd.nav(projectCode, "center", undefined, { ...opts, file });
-          else if (stats) code = await chatCmd.nav(projectCode, "stats", stats === "open" ? undefined : stats, opts);
-          else if (agents) code = await chatCmd.nav(projectCode, "agents", undefined, { ...opts, agents: true });
-          else code = await chatCmd.nav(projectCode, "center", namespace || b || undefined, opts);
+      // THE TV — show / tv / reply, on the hub's own file layer (api/reports.js).
+      // These three were `require("../cli/chat")`, which read the project's folder by loading the
+      // hub over HTTP, asking it for the root, and calling back in through a plugin shim: three
+      // hops to reach a path this process already holds. And `show --file` read the file with
+      // fs.readFileSync from the CLI's cwd, which under the hub is the SystemView repo — the same
+      // class of bug as probe's session. Here a path is project-relative and containment-checked.
+      show: async function ({ projectCode, text, reportPath: from, clear, as } = {}) {
+        if (!projectCode) return { ok: false, error: "projectCode required" };
+        if (clear) {
+          sendDrive.call(this, { cmd: "show", args: { clear: true }, label: "cleared the TV" }, { projectCode, as });
+          return { ok: true, label: "cleared the TV" };
         }
-        else if (verb === "refresh") code = await chatCmd.refresh(projectCode, a, opts);
-        else if (verb === "act") code = await chatCmd.act(projectCode, a, b, opts);
-        else if (verb === "highlight") code = await chatCmd.highlight(projectCode, a, opts);
-        else return { ok: false, error: `unknown drive verb: ${verb}` };
-        return { ok: code === 0 };
+        let content = text || "";
+        if (from) {
+          const res = await readFile(projectCode, { path: from });
+          if (!res || res.ok === false)
+            return { ok: false, error: `could not read ${from} in ${projectCode} — ${(res && res.error) || "no such file"}` };
+          content = res.content || "";
+        }
+        if (!content.trim()) return { ok: false, error: "show: give text or a readable .md path" };
+        const label = Reports.labelFor(content, from);
+        // A POINTER, AND ONLY A POINTER (RFC-040). If the document cannot be filed the show does not
+        // go up — a report that exists in a chat record and nowhere on disk is the drifting copy we
+        // deleted the transition path to avoid.
+        let path;
+        try {
+          path = await Reports.write(projectCode, label, content);
+        } catch (e) {
+          return { ok: false, error: `could not file the report — ${e.message}. A report is a document; there is nowhere else to put it.` };
+        }
+        sendDrive.call(this, { cmd: "show", args: { report: label, path }, label }, { projectCode, as });
+        return { ok: true, label, path };
       },
-      svConnect: async ({ url } = {}) => {
+      tv: async ({ projectCode, show } = {}) => {
+        if (!projectCode) return { error: "projectCode required" };
+        let state = chatGetTv(projectCode, { show });
+        // RFC-040 — the record NAMES a document; read that, because his answers are written into the
+        // file, not into the record.
+        if (state && !state.text && state.args && state.args.report) {
+          const doc = await Reports.read(projectCode, state.args.path || state.args.report);
+          if (doc.error)
+            return { error: `the show points at "${state.args.report}" and the document could not be read — ${doc.error}` };
+          state = { ...state, text: doc.text, report: state.args.report, path: doc.path };
+        }
+        if (!state || !state.text)
+          return { error: `nothing on ${projectCode}'s TV — put one up with show`, reports: await Reports.list(projectCode) };
+        return state;
+      },
+      reply: async function ({ projectCode, report, threadId, text, as } = {}) {
+        if (!projectCode || !report || !threadId || !text)
+          return { ok: false, error: "reply needs projectCode, report, threadId and text", reports: projectCode ? await Reports.list(projectCode) : [] };
+        const doc = await Reports.read(projectCode, report);
+        if (doc.error) return { ok: false, ...doc };
+        // WHO SIGNS IT. A message gets identity enforced by the room; a reply is written straight
+        // into the document, so nothing in the path can refuse it — an unsigned reply silently
+        // becomes the room's own agent. Say which it was instead of letting it pass.
+        const author = as || projectCode;
+        const r = Reports.replyInto(doc.text, threadId, text, author);
+        if (r.error) return { ok: false, error: `${r.error} — ${doc.path}`, ...(r.threads ? { threads: r.threads } : {}) };
+        const w = await writeFile(projectCode, { path: doc.path, content: r.content });
+        if (!w || w.ok === false) return { ok: false, error: (w && w.error) || "could not write the reply" };
+        // If a show in the room points at this document, keep its fallback copy in step — otherwise
+        // the TV and the file show two versions of one report.
+        try {
+          const state = chatGetTv(projectCode, { show: doc.name });
+          if (state && state.args && state.args.report === doc.name)
+            chatSetTv.call(this, projectCode, { state: { id: state.id, label: state.label, text: r.content } });
+        } catch {}
+        return { ok: true, path: doc.path, threadId, signedAs: author, unsigned: !as };
+      },
+      // HIS BOARD and HIS CODE COMMENTS (api/board.js, api/comments.js). Both were terminal
+      // programs that loaded the hub over HTTP, asked it for the project's root, and then handed
+      // themselves a shim forwarding straight back to readFile/writeFile. Inside the hub that shim
+      // is the hub. Both keep the rule that mattered: a note or a reply is SIGNED by whoever wrote
+      // it, never defaulted — defaulting to the board's owner once stamped a visitor's answer as his.
+      board: async ({ projectCode, name, add, replyText, at, as } = {}) =>
+        Board({ projectCode, name, add, reply: replyText, at, as: as || null }),
+      comments: async ({ projectCode, path, replyText, at, as } = {}) =>
+        CodeComments({ projectCode, path, reply: replyText, at, as: as || null }),
+      // DRIVING THE WINDOW — FOUR METHODS (api/drive.js), not one door with a verb string.
+      // `svDrive` took `verb: "nav" | "refresh" | "act" | "highlight"` and switched on it, so four
+      // MCP tools funnelled into one method to fan back out. That is a command line's shape, and it
+      // was here because the implementation was `cli/chat.js` — which reached the hub over HTTP to
+      // read a registry the hub holds in memory. The validation is the capability; it lives in
+      // api/drive.js, pure, and the emit happens here where the chat state is.
+      nav: function (arg = {}) {
+        return sendDrive.call(this, Drive.nav(arg, ConnectedServices.getAllConnections() || []), arg);
+      },
+      refresh: function (arg = {}) {
+        return sendDrive.call(this, Drive.refresh(arg), arg);
+      },
+      act: function (arg = {}) {
+        return sendDrive.call(this, Drive.act(arg), arg);
+      },
+      highlight: function (arg = {}) {
+        return sendDrive.call(this, Drive.highlight(arg, ConnectedServices.getAllConnections() || []), arg);
+      },
+
+      connect: async ({ url } = {}) => {
         // agent-side connect (his t4 call): a URL in, the project's services registered
         const list = await getServices(url);
         const arr = Array.isArray(list) ? list : [];
         return { connected: arr.map((s) => ({ projectCode: s.projectCode, serviceId: s.serviceId })) };
       },
-      svDisconnect: async ({ projectCode, serviceId } = {}) => {
+      disconnect: async ({ projectCode, serviceId } = {}) => {
         if (!projectCode) return { ok: false, error: "projectCode required" };
         // never report a disconnect that removed nothing (caught by RFC-056's own verification)
         const svcs = ConnectedServices.findProject(projectCode) || [];
@@ -2103,10 +2168,6 @@ module.exports = function launchSystemView(port = 3000) {
         }
         return { ok: true };
       },
-      // Threads on SystemView's own surfaces (hub, help topics) — see api/Comments.js for why they
-      // don't ride a project's plugin the way a document's threads do.
-      getComments: Comments.getComments,
-      saveComments: Comments.saveComments,
     })
     .on("ready", () => {
       server.get("*", (req, res) => {

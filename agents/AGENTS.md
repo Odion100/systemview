@@ -1,16 +1,22 @@
 # SystemView — the agent guide (start here)
 
-You are working in a codebase with **SystemView** installed. SystemView is a documentation, testing
-and review surface that runs beside the code: a UI on `localhost:3000`, a CLI, and a plugin the
-project's services load.
+You are working **inside SystemView**. It is the IDE this window is — the code, its history, the
+documents, the tests, the statistics and this conversation are all surfaces of it, served by its
+hub (`api/`) and drawn by its window (`src/`).
+
+**You reach it through tools, not a terminal.** SystemView runs an internal MCP server; its tools
+are `mcp__systemview__*`, and calling a service method is `mcp__systemlynx__call`. There is no
+identity flag anywhere — the harness knows which session is calling, so every tool stamps you
+automatically. The `systemview` CLI still exists and still works; it is the surface for a **human at
+a terminal and for CI**, and it is not how you work.
 
 **Start here.** This file is the map: enough of every surface to work, and a pointer to the depth
 when you need it. Nothing is summarised away — the detail lives beside it in this same folder:
 
 | File | When you need it |
 | --- | --- |
-| [hosted-services.md](hosted-services.md) | **the repo has NO SystemLynx services** — `systemview init` makes the CLI host a real testing service from a committed folder; start-to-green instructions for agents |
-| [chat.md](chat.md) | **being in the conversation** — the panel attaches to your live session and your reply IS the message; `message-agent` reaches another agent, `join`/`leave`/`kick` manage who hears a room (RFC-051) |
+| [hosted-services.md](hosted-services.md) | **the repo has NO SystemLynx services** — `systemview init` registers a folder and the **hub** hosts a real testing service from it; start-to-green instructions |
+| [chat.md](chat.md) | **being in the conversation** — the panel attaches to your live session and your reply IS the message, rendered as interactive markdown. Reaching another agent is harness messaging, not a SystemView verb |
 | [markdown.md](markdown.md) | the FULL interactive-markdown vocabulary — every block, every attribute, what writes back into the document |
 | [tests.md](tests.md) | building, saving and running tests; sections, references, evaluations in depth |
 | [namespaces.md](namespaces.md) | decomposing an unfamiliar project into service / module / method |
@@ -30,7 +36,8 @@ Everything in SystemView hangs off a **namespace**: `service / module / method`.
 | **method** | one callable | one endpoint, one exported function, one command — what a test calls and a doc describes. |
 
 On a **SystemLynx** project these are discovered from the live connection. On any other project,
-**run `systemview init`** (RFC-027): the CLI hosts a real testing service from a committed folder —
+**run `systemview init`** (RFC-027) — one of the few things still done at a shell, because it asks
+questions. It registers the folder; the **hub** hosts a real testing service from it —
 one file per module, every exported function a live, testable method. That is the primary path for
 a repo with no services; full start-to-green instructions:
 **[hosted-services.md](hosted-services.md)**. Authoring a namespace map by hand (a `dynamic:true`
@@ -110,17 +117,22 @@ tv(steps[0].args[0].a)             an earlier step's ARGUMENT — `args` is a ro
 **Evaluations** are assertions on a step: a path, a comparison, an expected value. Comparisons are
 typed — `5` is a number, `"5"` a string, `true` a boolean — plus `isLike` for substring/regex.
 
-Run everything from the terminal:
+Run them with tools:
 
-```bash
-systemview test <project>                 # everything
-systemview test <project> Math.divide     # filter by namespace
-systemview test <project> --json          # structured, for CI or for you
-systemview probe Service.Module.method '{"a":1}'   # call a method ad hoc
+```js
+mcp__systemview__runTests({ projectCode })                        // everything
+mcp__systemview__runTests({ projectCode, namespace: "Math.divide" })  // filter
+mcp__systemview__runTests({ projectCode, dryRun: true })          // list what WOULD run
+mcp__systemview__runTests({ projectCode, bail: true })            // stop at the first failure
+mcp__systemlynx__call(...)                                        // call a method ad hoc
 ```
 
-Exit code 0 = all passed, 1 = any failure. Sections, references, evaluations and the save format in
-depth: **[tests.md](tests.md)**.
+The result comes back structured and renders as the run display in the chat — there is no `--json`
+to ask for, and no output to parse. Calling one method ad hoc is `mcp__systemview__probe`; it carries
+session headers itself, which is what retired the per-terminal cookie jar (not the verb).
+
+`systemview test` still exists for **CI**, where the exit code (`0` all passed, `1` any failure) is
+the contract. Sections, references, evaluations and the save format in depth: **[tests.md](tests.md)**.
 
 ---
 
@@ -164,9 +176,17 @@ The syntax is **directives**, not HTML (raw HTML is disabled):
 :help[markdown]                       opens a help topic
 ```
 
-Clicking one **reveals** the target in the navigator without moving the reader off the document.
-⌘-click navigates for real. Both resolve against the LIVE connection tree, so a stale reference
-renders dashed and says why instead of lying.
+**`:ns` and `:file` OPEN what they point at** — one behaviour, no modifier to learn (⌘-click does
+the same thing), and the tree expands and marks where you arrived. Reveal-only was retired: a
+reference you had to follow up by hand is a gesture, not a link.
+
+`:help` is the exception and works the other way — a click reveals the topic's row in the nav,
+⌘-click opens it.
+
+`:ns` resolves against the live connection tree; `:file` is hub-served by project code and works
+with every service down. Either way a stale reference renders dashed and says why instead of lying.
+One colon links, **two embeds the whole file inline**. A `:file`/`::file` pointed at an image
+renders the image viewer.
 
 ### Embeds — live things inside prose
 
@@ -258,10 +278,10 @@ against a newer vocabulary degrades honestly.
 
 - **Render, never depict.** If a feature exists, show it live in the document — no ASCII mock-ups of
   something the UI can draw.
-- **Probe before asserting.** Call the method and read the real response before writing an expected
-  value.
-- **Prefer a report over a story** for write-ups, and a `:::approval` over prose when you need a
-  decision.
+- **Probe before asserting.** Call the method with `mcp__systemview__probe` and read the real
+  response before writing an expected value. Never assert a shape you assumed.
+- **A report for write-ups**, and a `:::approval` over prose when you need a decision. Anything long
+  goes on the TV or in a report — the chat scrolls, and what scrolls is gone.
 - **Reference, don't repeat.** `tv(…)` a value rather than restating a literal in two places.
 - **Say what's unproven.** A block you couldn't run, a claim you couldn't verify — mark it.
 - **The codebase surface is HUB-served** — files, git, staging, diffs, images, by project code,
@@ -291,114 +311,84 @@ What makes it worth writing: update it AS you work — the item goes active when
 it lands. A list rewritten after the fact is a summary in a checklist costume, and the human can
 tell, because he watches it move (or not) while you cook.
 
-## 6 · The CLI, in full
+## 6 · The tools, in full
 
-```bash
-systemview                       # start the UI on :3000
-systemview start 4000            # a different port
-systemview init                  # NO framework? host a testing service from a committed folder
-                                 #   (enter = defaults; `< /dev/null` = non-interactive; see hosted-services.md)
-systemview delete <project>      # init's opposite — hosted projects only; removes the folder (y/N, --force)
-systemview open <project> [service/module/method]
-systemview test <project> [filter] [--json] [--verbose]
-systemview probe <Service.Module.method> '<json args>'
-systemview connect [name url]    # register a service
-systemview disconnect <project> [service]   # remove a connection (hosted: keeps the folder)
-systemview shutdown
+Fifteen tools on the `systemview` MCP server, plus the SystemLynx bridge. **Identity is the
+session's** — no tool takes an "as" argument, because the harness already knows who is calling.
 
-# The chat — being present in the UI (chat.md has the full playbook)
-# THE HUMAN: you are ATTACHED — he talks to you IN this conversation and your reply IS the message
-# (markdown and blocks render there). No command speaks to him; none is needed to hear him.
-systemview status <project> "…"  # the cooking line, for a room you VISIT (the attached panel reads yours)
-systemview thread <project> <report name|path> <thread-id> [--json]
-                                 # READ one thread WITH ITS WRAPPER — the section it lives under,
-                                 # the checklist rows around it, and every reply with who wrote it.
-                                 # Answering a comment no longer means re-reading the report.
-systemview reply <project> <report name|path> <thread-id> "…" 
-                                 # ANSWER WHERE HE ASKED (RFC-039): he replies inside a report's
-                                 # threads — answer in the thread, not in the chat. `systemview tv
-                                 # <project>` shows the thread ids and his answers.
-<any nav/act/refresh command> --say "…" --pin              # …and keep that sentence in the chat
-# Agents talk (RFC-051): you ARE your project. A message reaches ANOTHER agent; a room's list
-# decides who the hub delivers a conversation to. `join` is deliberate; speaking never joins.
-systemview message-agent <otherProject> "…" --as <yourPc>   # a message to ANOTHER agent's room.
-#   --as is REQUIRED and cannot be you — there is no sending to yourself. Does NOT subscribe you:
-#   it opens a 15-min REPLY WINDOW so their answer reaches you, then closes. The receipt names the
-#   audience: `delivered → X · in the room: a, b`. --file <p.md> for long messages.
-systemview join <otherProject> --as <yourPc>      # ENTER the conversation — instant; the hub delivers
-#   that room to yours until you leave
-systemview leave <otherProject> --as <yourPc>     # out; delivery stops, the record stays
-systemview kick <yourPc> <who>                    # YOUR room's list is yours to run — nobody
-#   clears a third room's table; removing yourself is leave
-systemview visitors <project>                   # who is on a room's list
-systemview read <otherProject> [--limit n]      # read a room you're in  (--since <mark> = new only)
-# What arrives:  [in <room>] …  = that project's agent    [in <room> · human] …  = ODION, in person.
-# Visit with a reason, initiative welcome ("go talk to X" is a trigger, not a permission gate);
-# answer in THEIR room, not yours; the conversation stays where it started; leave when the errand
-# is over; being removed is him clearing his space, not a verdict on you.
-# EXAMPLES DON'T TRAVEL: ::file/::diff/::image resolve against the ROOM'S root, so a block from your
-# repo renders EMPTY in theirs — indistinguishable from a broken renderer. Use their paths, or pin
-# yours: ::file[cli/chat.js#L290-300]{project=<yourPc>}. Verify the path before you send it.
-# An --as that is not a connected project code is refused at the front door.
-systemview inbox <project>       # UNATTACHED sessions only (hook-wired terminals) — attached agents never call this
-                                 # a cursor's FIRST drain starts at now — `--history` for the back-catalog
-# YOUR ROOM IS A FILE IN YOUR OWN REPO: <your root>/.systemview/chats/<pc>.<chat>.jsonl — served
-# by your own service (the SystemViewChat plugin module), so you can grep and compact it yourself.
+### Seeing and running
 
-# Agent control (RFC-029) — drive the open window; every command = a "→ …" receipt in the chat
-systemview nav <project> <ns> | center --report <path> | --file <p#La-b> | --tab <t> | --topic <h>
-systemview highlight <project> <ns> | --file <p>   # point the tree; nothing else moves
-systemview refresh <project> docs|reports|nav|all  # panes re-read in place, never a page reload
-systemview act <project> test <ns|title|all>       # run a saved test where the human is looking
-systemview act <project> run "<block title>"       # press a :::run block's play in the open doc
-
-# THE TV — the interactive surface beside the chat. Proposals, demos, status boards, walkthroughs
-# go HERE, not into a report (his standing rule: a report is for when he asks for one).
-systemview show <project> --text "## Look\n::chart{report=throughput}"   # put a show on the TV
-systemview show <project> --file scratch/demo.md   # …or a file's content    --clear  # blank it
-systemview tv <project> [--json]                   # READ it back — his clicks are SILENT, so this
-                                                   # is where his answers, verdicts and typed
-                                                   # replies live. Read it whenever he says he
-                                                   # responded; nothing tells you otherwise.
-
-# His comments ON THE CODE (RFC-034) — notes he writes on a line range in a file. They live beside
-# the repo, never in the file: .systemview/code-comments/<the file's path>.json. Read them AND
-# answer them ON THE LINE — the listing prints the exact reply command per unanswered note:
-systemview comments <project>                 # every file that has comments, and the lines
-systemview comments <project> <path>          # one file's comments, his and agents' apart
-systemview comments <project> <path> --json   # the same, structured
-systemview comments <project> <path> --at <n> --reply "…" --as <yourPc>
-#   --as is REQUIRED (any agent can answer any comment; the CLI cannot tell who is running it,
-#   so it never guesses — no --as, no write; a name that isn't a project code is refused)
-
-# An unknown verb ERRORS now (it used to print the boot banner and look like it worked) — and a verb
-# that exists here may not exist in another project's install: check `systemview --version`.
-# A cursor that has never drained starts at what's still WARM (the last 15 min), not at zero and not
-# at silence — so first contact catches "I said it right before you joined" without replaying a room.
-
-# A REPORT IS A DOCUMENT (RFC-040): `show` writes .systemview/report.<project>.<slug>.md and the
-# chat record only points at it. Re-pushing the same title SAVES over it; his answers live in the
-# file. Read one with `systemview tv <project>`, answer with `reply`, inspect one thread with
-# `thread`.
-
-# HIS BOARD — the notes he leaves for you between sessions: reminders, things to hand you later, a
-# running list of what's wrong with something he was looking at. His surface, read when he points at
-# it. `.systemview/boards/board.md`, one per project, optional title at the top.
-systemview board <project> [--json]           # each note prints with a stable `id`
-systemview board <project> --add "…" --as <you>   # leave HIM a note (agents write here too)
-# A note holds a CONVERSATION (RFC-039): replies accumulate, each stamped with who wrote it, and he
-# can reply back under yours. PASS THE ID, not the position — the list reorders the moment he adds a
-# note, and a position read a minute ago answers the wrong card.
-systemview board <project> --reply "…" --at <id> --as <yourProject>
-
-# YOUR OWN SKILL, generated for a project — its code, its live namespaces, these rules — written to
-# .claude/skills/systemview/SKILL.md in that project's repo. Re-run it when the services change.
-systemview skill <project> [--print] [--force]
-
-# Stats — the /reports page, and the same numbers from the terminal
-systemview stats <project> [--range 1h|24h|7d] [--service <id>] [--json]
-systemview nav <project> stats [tab] [--range …] [--service …]   # walk him to a stats view
+```js
+mcp__systemview__projects({})                                  // what is connected
+mcp__systemview__runTests({ projectCode, namespace, bail, dryRun })
+mcp__systemview__logs({ projectCode, level, limit, namespace })
+mcp__systemview__stats({ projectCode, service, range })        // range: 15m | 1h | 4h | 24h | all
+mcp__systemview__probe({ namespace, args, projectCode, headers })  // call ONE method, read the answer
 ```
 
-Server-side logging: `systemview.log(msg)` inside a service, then read `systemview.logs` — or the
-**Logs** tab, or a `::logs` block in any document.
+`runTests({ dryRun: true })` is how you list what exists without running it.
+
+**`probe` and `mcp__systemlynx__call` are not the same door.** `probe` reaches anything SystemView
+has **registered** — through the hub, no whitelist, no MCP required — and resolves a fuzzy namespace
+(`signIn`, `Users.signIn`, `Profiles.Users.signIn`), with a `projectCode:` prefix to scope it when
+one service is connected twice. `mcp__systemlynx__call` reaches a service on the **MCP tier**:
+whitelisted in `~/.autobot/services.json` and publishing its own MCP routes, so it arrives with
+schemas. Use `probe` to call a method; use `call` when you want the schema-backed surface.
+
+### Writing where he reads
+
+```js
+mcp__systemview__show({ projectCode, text })            // put a document on the TV
+mcp__systemview__show({ projectCode, reportPath })      // ...or an existing .md
+mcp__systemview__show({ projectCode, clear: true })     // take it down
+mcp__systemview__tv({ projectCode, show })              // read the TV back, including his answers
+mcp__systemview__reply({ projectCode, report, threadId, text })
+mcp__systemview__comments({ projectCode, path, at, replyText })
+mcp__systemview__board({ projectCode, name, add, at, replyText })
+```
+
+**A report is a document** (RFC-040). `show` with `text` files it at
+`.systemview/report.<project>.<slug>.md` and the chat only points at it; re-showing the same title
+saves over it, and his answers — `::question` choices, `:::approval` verdicts, `:::thread` replies —
+live in the file. Read them back with `tv({ show: "<title>" })`.
+
+**`show` files a copy.** For a file that already lives somewhere permanent — an RFC, a doc, a skill
+— do not `show` it: link it with a `:file[path]{project=<code>}` chip. Otherwise you create a second
+copy that never updates while he reads it.
+
+**His board** is what he leaves you between sessions: reminders, things to hand you later, what was
+wrong with something he was looking at. A note holds a conversation — replies accumulate under it.
+**Pass the `id`, never the position**; the list reorders the moment he adds a note.
+
+### Driving the window
+
+```js
+mcp__systemview__nav({ projectCode, namespace | file | report | stats | agents })
+mcp__systemview__highlight({ projectCode, ..., say })
+mcp__systemview__act({ projectCode, ..., say })
+mcp__systemview__refresh({ projectCode, scope })
+mcp__systemview__connect({ ... })  /  mcp__systemview__disconnect({ ... })
+```
+
+`nav` is **kind-explicit**: exactly one of `namespace`, `file`, `report`, `stats`, `agents`. The
+caller always knows what it is sending him to, so the code never guesses.
+
+`highlight` and `act` take `say` — a sentence that rides the receipt. It is **ephemeral by design**;
+anything worth keeping goes in your reply or on the TV.
+
+### What is gone, and why
+
+| retired | instead |
+|---|---|
+| `--as`, the cookie jar, `checkIdentity` | the session is the identity |
+| `join` / `leave` / `kick` / `visitors` | attachment is the harness's; a browser agent *is* in its room |
+| `message-agent` / `read` / `inbox` | harness session-to-session messaging; messages arrive pushed, not polled |
+| `status` | the cooking line is driven by your session events |
+| `story` / `stories` | write a report |
+| `skill` (for agents here) | tool descriptions and these docs |
+| plugin-served files and git | the hub serves them, by project code, with your services down |
+
+### Server-side logging
+
+`systemview.log(msg)` inside a service, then read it with `mcp__systemview__logs`, the **Logs** tab,
+or a `::logs` block in any document.

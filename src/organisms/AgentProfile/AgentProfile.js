@@ -462,6 +462,182 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
 
   const skillEnabled = caps ? new Set(asList(caps.skills).map((s) => s.name || String(s))) : null;
 
+  // THE FORM OPENS WHERE THE ROW IS. One shared editor rendered under the whole list meant that
+  // clicking edit on the first of ten hooks opened a box ten rows below it — you edit up here and
+  // read the result off-screen. Built once, MOUNTED at the row being edited, so a hook expands in
+  // place. A new hook is the one case with no row to expand: that one stays under the list, beside
+  // the + button that made it.
+  const hookForm = !hookDraft ? null : (
+                <div className="agent-profile__hookform">
+                  <div className="agent-profile__hookform-row">
+                    <label className="agent-profile__hookform-label">name</label>
+                    <input
+                      className="agent-profile__hookform-input"
+                      value={hookDraft.name}
+                      placeholder="compaction-prep"
+                      onChange={(e) => setHd({ name: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="agent-profile__hookform-row">
+                    <label className="agent-profile__hookform-label">on</label>
+                    <SvSelect
+                      value={hookDraft.on}
+                      onChange={(v) => setHd({ on: v, rows: [] })}
+                      options={hookEvents.map((e) => ({ value: e.name, label: e.name }))}
+                    />
+                    <span className="agent-profile__hookform-note">
+                      {(eventNamed(hookDraft.on) || {}).what || ""}
+                    </span>
+                  </div>
+
+                  {/* THE CONDITION. Declarative field matching only — it runs on every event, and a
+                      predicate in that position is exactly the shape that put the main process at
+                      154% CPU. Fields are offered from the chosen event, never typed from memory. */}
+                  <div className="agent-profile__hookform-row agent-profile__hookform-row--top">
+                    <label className="agent-profile__hookform-label">when</label>
+                    <div className="agent-profile__hookform-when">
+                      {hookDraft.rows.length === 0 && (
+                        <span className="agent-profile__hookform-note">every time this event fires</span>
+                      )}
+                      {hookDraft.rows.map((r, i) => (
+                        <div className="agent-profile__hookform-cond" key={i}>
+                          <SvSelect
+                            value={r.field}
+                            onChange={(v) => setHd({ rows: hookDraft.rows.map((x, n) => (n === i ? { ...x, field: v } : x)) })}
+                            options={((eventNamed(hookDraft.on) || {}).fields || []).map((f) => ({ value: f, label: f }))}
+                          />
+                          <SvSelect
+                            value={r.op}
+                            onChange={(v) => setHd({ rows: hookDraft.rows.map((x, n) => (n === i ? { ...x, op: v } : x)) })}
+                            options={[
+                              { value: "equals", label: "is" },
+                              { value: "contains", label: "contains" },
+                              { value: "startsWith", label: "starts with" },
+                              { value: "endsWith", label: "ends with" },
+                              { value: "matches", label: "matches /re/" },
+                              { value: "gte", label: "≥" },
+                              { value: "lte", label: "≤" },
+                              { value: "exists", label: "exists" },
+                            ]}
+                          />
+                          {r.op !== "exists" && (
+                            <input
+                              className="agent-profile__hookform-input"
+                              value={r.val}
+                              placeholder="value"
+                              onChange={(e) => setHd({ rows: hookDraft.rows.map((x, n) => (n === i ? { ...x, val: e.target.value } : x)) })}
+                            />
+                          )}
+                          <button
+                            type="button"
+                            className="agent-profile__hook-btn agent-profile__hook-btn--del"
+                            onClick={() => setHd({ rows: hookDraft.rows.filter((_, n) => n !== i) })}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        className="agent-profile__hook-btn"
+                        disabled={!((eventNamed(hookDraft.on) || {}).fields || []).length}
+                        title={
+                          ((eventNamed(hookDraft.on) || {}).fields || []).length
+                            ? "Narrow this hook to events that match"
+                            : "This event carries no fields to match on"
+                        }
+                        onClick={() =>
+                          setHd({
+                            rows: [
+                              ...hookDraft.rows,
+                              { field: ((eventNamed(hookDraft.on) || {}).fields || [])[0] || "", op: "contains", val: "" },
+                            ],
+                          })
+                        }
+                      >
+                        + condition
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="agent-profile__hookform-row">
+                    <label className="agent-profile__hookform-label">do</label>
+                    <SvSelect
+                      value={hookDraft.do}
+                      onChange={(v) => setHd({ do: v })}
+                      options={[
+                        { value: "", label: "— pick a skill —" },
+                        ...(skills || []).map((sk) => ({ value: `skill:${sk.name}`, label: sk.name })),
+                      ]}
+                    />
+                    <span className="agent-profile__hookform-note">the skill this moment points at</span>
+                  </div>
+
+                  <div className="agent-profile__hookform-row">
+                    <label className="agent-profile__hookform-label">scope</label>
+                    <SvSelect
+                      value={hookDraft.scope}
+                      onChange={(v) => setHd({ scope: v })}
+                      options={[
+                        ...(draft ? [{ value: `agent:${draft.id}`, label: `this agent (${draft.name})` }] : []),
+                        ...(draft && draft.projectCode ? [{ value: `project:${draft.projectCode}`, label: `this project (${draft.projectCode})` }] : []),
+                        { value: "every-agent", label: "every agent" },
+                      ]}
+                    />
+                  </div>
+
+                  <div className="agent-profile__hookform-row">
+                    <label className="agent-profile__hookform-label">guard</label>
+                    <SvSelect
+                      value={hookDraft.guard}
+                      onChange={(v) => setHd({ guard: v })}
+                      options={[
+                        { value: "once-per-session", label: "once per session" },
+                        { value: "cooldown:300", label: "at most every 5 min" },
+                        { value: "cooldown:3600", label: "at most every hour" },
+                        { value: "", label: "no guard — every match" },
+                      ]}
+                    />
+                    <span className="agent-profile__hookform-note">
+                      an unguarded hook is a context leak that fires forever
+                    </span>
+                  </div>
+
+                  <div className="agent-profile__hookform-row">
+                    <label className="agent-profile__hookform-label">kind</label>
+                    <SvSelect
+                      value={hookDraft.kind}
+                      onChange={(v) => setHd({ kind: v })}
+                      options={[
+                        { value: "context", label: "context — points, the agent decides" },
+                        { value: "work", label: "work — something runs", hot: true },
+                      ]}
+                    />
+                  </div>
+
+                  <div className="agent-profile__hookform-row agent-profile__hookform-row--top">
+                    <label className="agent-profile__hookform-label">note</label>
+                    <textarea
+                      className="agent-profile__hookform-area"
+                      rows={2}
+                      value={hookDraft.note}
+                      placeholder="optional — a line the agent reads along with the pointer"
+                      onChange={(e) => setHd({ note: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="agent-profile__hookform-actions">
+                    <button type="button" className="agent-profile__hook-save" onClick={commitHook}>
+                      {hookDraft.isNew ? "create hook" : "save hook"}
+                    </button>
+                    <button type="button" className="agent-profile__hook-btn" onClick={() => { setHookDraft(null); setHookErr(""); }}>
+                      cancel
+                    </button>
+                  </div>
+                </div>
+  );
+
   return (
     <div className="agent-profile">
       {/* The roster — every defined agent. Click opens; clicking the active one closes (that IS
@@ -790,6 +966,8 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
                       <button type="button" className="agent-profile__hook-btn" onClick={() => editHook(h)}>edit</button>
                       <button type="button" className="agent-profile__hook-btn agent-profile__hook-btn--del" onClick={() => dropHook(h.name)}>delete</button>
                     </div>
+                    {/* expands right here, under the row you clicked */}
+                    {hookDraft && !hookDraft.isNew && hookDraft.wasName === h.name && hookForm}
                   </div>
                 );
               })}
@@ -804,176 +982,7 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
               </button>
             )}
 
-            {hookDraft && (
-              <div className="agent-profile__hookform">
-                <div className="agent-profile__hookform-row">
-                  <label className="agent-profile__hookform-label">name</label>
-                  <input
-                    className="agent-profile__hookform-input"
-                    value={hookDraft.name}
-                    placeholder="compaction-prep"
-                    onChange={(e) => setHd({ name: e.target.value })}
-                  />
-                </div>
-
-                <div className="agent-profile__hookform-row">
-                  <label className="agent-profile__hookform-label">on</label>
-                  <SvSelect
-                    value={hookDraft.on}
-                    onChange={(v) => setHd({ on: v, rows: [] })}
-                    options={hookEvents.map((e) => ({ value: e.name, label: e.name }))}
-                  />
-                  <span className="agent-profile__hookform-note">
-                    {(eventNamed(hookDraft.on) || {}).what || ""}
-                  </span>
-                </div>
-
-                {/* THE CONDITION. Declarative field matching only — it runs on every event, and a
-                    predicate in that position is exactly the shape that put the main process at
-                    154% CPU. Fields are offered from the chosen event, never typed from memory. */}
-                <div className="agent-profile__hookform-row agent-profile__hookform-row--top">
-                  <label className="agent-profile__hookform-label">when</label>
-                  <div className="agent-profile__hookform-when">
-                    {hookDraft.rows.length === 0 && (
-                      <span className="agent-profile__hookform-note">every time this event fires</span>
-                    )}
-                    {hookDraft.rows.map((r, i) => (
-                      <div className="agent-profile__hookform-cond" key={i}>
-                        <SvSelect
-                          value={r.field}
-                          onChange={(v) => setHd({ rows: hookDraft.rows.map((x, n) => (n === i ? { ...x, field: v } : x)) })}
-                          options={((eventNamed(hookDraft.on) || {}).fields || []).map((f) => ({ value: f, label: f }))}
-                        />
-                        <SvSelect
-                          value={r.op}
-                          onChange={(v) => setHd({ rows: hookDraft.rows.map((x, n) => (n === i ? { ...x, op: v } : x)) })}
-                          options={[
-                            { value: "equals", label: "is" },
-                            { value: "contains", label: "contains" },
-                            { value: "startsWith", label: "starts with" },
-                            { value: "endsWith", label: "ends with" },
-                            { value: "matches", label: "matches /re/" },
-                            { value: "gte", label: "≥" },
-                            { value: "lte", label: "≤" },
-                            { value: "exists", label: "exists" },
-                          ]}
-                        />
-                        {r.op !== "exists" && (
-                          <input
-                            className="agent-profile__hookform-input"
-                            value={r.val}
-                            placeholder="value"
-                            onChange={(e) => setHd({ rows: hookDraft.rows.map((x, n) => (n === i ? { ...x, val: e.target.value } : x)) })}
-                          />
-                        )}
-                        <button
-                          type="button"
-                          className="agent-profile__hook-btn agent-profile__hook-btn--del"
-                          onClick={() => setHd({ rows: hookDraft.rows.filter((_, n) => n !== i) })}
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ))}
-                    <button
-                      type="button"
-                      className="agent-profile__hook-btn"
-                      disabled={!((eventNamed(hookDraft.on) || {}).fields || []).length}
-                      title={
-                        ((eventNamed(hookDraft.on) || {}).fields || []).length
-                          ? "Narrow this hook to events that match"
-                          : "This event carries no fields to match on"
-                      }
-                      onClick={() =>
-                        setHd({
-                          rows: [
-                            ...hookDraft.rows,
-                            { field: ((eventNamed(hookDraft.on) || {}).fields || [])[0] || "", op: "contains", val: "" },
-                          ],
-                        })
-                      }
-                    >
-                      + condition
-                    </button>
-                  </div>
-                </div>
-
-                <div className="agent-profile__hookform-row">
-                  <label className="agent-profile__hookform-label">do</label>
-                  <SvSelect
-                    value={hookDraft.do}
-                    onChange={(v) => setHd({ do: v })}
-                    options={[
-                      { value: "", label: "— pick a skill —" },
-                      ...(skills || []).map((sk) => ({ value: `skill:${sk.name}`, label: sk.name })),
-                    ]}
-                  />
-                  <span className="agent-profile__hookform-note">the skill this moment points at</span>
-                </div>
-
-                <div className="agent-profile__hookform-row">
-                  <label className="agent-profile__hookform-label">scope</label>
-                  <SvSelect
-                    value={hookDraft.scope}
-                    onChange={(v) => setHd({ scope: v })}
-                    options={[
-                      ...(draft ? [{ value: `agent:${draft.id}`, label: `this agent (${draft.name})` }] : []),
-                      ...(draft && draft.projectCode ? [{ value: `project:${draft.projectCode}`, label: `this project (${draft.projectCode})` }] : []),
-                      { value: "every-agent", label: "every agent" },
-                    ]}
-                  />
-                </div>
-
-                <div className="agent-profile__hookform-row">
-                  <label className="agent-profile__hookform-label">guard</label>
-                  <SvSelect
-                    value={hookDraft.guard}
-                    onChange={(v) => setHd({ guard: v })}
-                    options={[
-                      { value: "once-per-session", label: "once per session" },
-                      { value: "cooldown:300", label: "at most every 5 min" },
-                      { value: "cooldown:3600", label: "at most every hour" },
-                      { value: "", label: "no guard — every match" },
-                    ]}
-                  />
-                  <span className="agent-profile__hookform-note">
-                    an unguarded hook is a context leak that fires forever
-                  </span>
-                </div>
-
-                <div className="agent-profile__hookform-row">
-                  <label className="agent-profile__hookform-label">kind</label>
-                  <SvSelect
-                    value={hookDraft.kind}
-                    onChange={(v) => setHd({ kind: v })}
-                    options={[
-                      { value: "context", label: "context — points, the agent decides" },
-                      { value: "work", label: "work — something runs", hot: true },
-                    ]}
-                  />
-                </div>
-
-                <div className="agent-profile__hookform-row agent-profile__hookform-row--top">
-                  <label className="agent-profile__hookform-label">note</label>
-                  <textarea
-                    className="agent-profile__hookform-area"
-                    rows={2}
-                    value={hookDraft.note}
-                    placeholder="optional — a line the agent reads along with the pointer"
-                    onChange={(e) => setHd({ note: e.target.value })}
-                  />
-                </div>
-
-                <div className="agent-profile__hookform-actions">
-                  <button type="button" className="agent-profile__hook-save" onClick={commitHook}>
-                    {hookDraft.isNew ? "create hook" : "save hook"}
-                  </button>
-                  <button type="button" className="agent-profile__hook-btn" onClick={() => { setHookDraft(null); setHookErr(""); }}>
-                    cancel
-                  </button>
-                </div>
-              </div>
-            )}
+            {hookDraft && hookDraft.isNew && hookForm}
           </div>
 
           {/* TOOLS vs MCP TOOLS — two SECTIONS, same title format (his call): tools are Claude

@@ -16,6 +16,7 @@ import { FileEmbed, DiffEmbed } from "./blocks/FileEmbed";
 import ReportLink from "./blocks/ReportLink";
 import ImageEmbed from "./blocks/ImageEmbed";
 import CommitBlock from "./blocks/CommitBlock";
+import Ask from "./blocks/Ask";
 
 // `file` is TWO things depending on how it's written — the same split `run` has. Inline is a
 // reference (`:file[path]` → a chip that points at it); block is the thing itself (`::file[path]` →
@@ -57,6 +58,10 @@ export const BLOCKS = {
   logs: { Component: LogsEmbed },
   // inputs — the document asks you something, and the answer lands back in the document
   question: { Component: Question },
+  // `::ask[…]` — THE QUESTION, made visible. Not an input: it records nothing and offers nothing.
+  // `question` is for a decision you want written down; this is for the one thing being asked, so
+  // it cannot be scrolled past in a long reply and answered by a guess.
+  ask: { Component: Ask },
   // conversation — a reply thread on a wrapped block, like a story pane's
   thread: { Component: Thread },
   // one reply, written INTO the document inside its thread
