@@ -949,6 +949,15 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
                       {/* A WORK HOOK ACTS; A CONTEXT HOOK WHISPERS. Same wiring up to the branch,
                           different trust past it — so the loud one is labelled loudly. */}
                       {h.kind === "work" && <span className="agent-profile__hook-work">work</span>}
+                      {/* WHO WROTE IT — shown only when it was not you. An agent can propose a hook
+                          now (RFC-005 §7), and a proposal that looks identical to something you
+                          wrote yourself is a proposal you approve by forgetting you did not. The
+                          write is inert either way; this is the row telling you whose idea it was. */}
+                      {/^agent:/.test(h.author || "") && (
+                        <span className="agent-profile__hook-by" title={`proposed by ${h.author}`}>
+                          {h.author.slice(6)}
+                        </span>
+                      )}
                       {!h.enabled && <span className="agent-profile__hook-guard">off for everyone</span>}
                       {/* THE SWITCH SITS WITH THE OTHER TWO VERBS — his call. A hook exists for
                           everybody the moment it is written; this is where THIS agent opts in, and

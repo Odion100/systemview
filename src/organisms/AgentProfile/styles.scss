@@ -685,6 +685,18 @@
   color: #1d1708;
   background: #d19a2e;
 }
+// PROPOSED BY AN AGENT, not written by you. Quieter than `work` — it is provenance, not danger —
+// but present, because the only thing that distinguishes a hook you wrote from one an agent wrote
+// is this label.
+.agent-profile__hook-by {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  color: var(--sv-text-muted);
+  background: var(--sv-hover);
+  border: 1px solid var(--sv-border);
+}
 .agent-profile__hook-btn {
   font-family: inherit;
   font-size: 11px;
