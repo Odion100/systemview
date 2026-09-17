@@ -255,6 +255,32 @@ land — it is not a report footer, and stapling one to every report is noise. W
 lands in the block itself (`sha=a4f81c2 ts=…`), so the report that describes the work becomes the
 receipt for the commit it caused.
 
+## `::branch[name]` — a branch offered for review
+
+The delivery block for work done on a branch — a refinement, a delegated lane, anything the human
+should review before landing. It is a **live pointer, never a frozen patch**: the diff against the
+repo's default branch is computed when the document is looked at, so it cannot go stale while the
+report sits unread.
+
+```markdown
+::branch[refine/dead-code]
+
+::branch[feature/live-scores]{project=buAPI base=develop}
+```
+
+Rendered, on this repo's own default branch:
+
+::branch[main]
+
+The header carries the project and the branch; the file rows unfold their patches; the button is
+the human's — **switch to it** moves their real working tree onto the branch (two-step, and `git
+switch` refusing over dirty files is shown, never stashed around), and once on it, **back to** the
+branch they came from. Reading the diff never touches their tree; only the button does.
+
+**Put it at the top of the report.** `::file` and `::diff` blocks read the working tree, so
+switching first is what makes the rest of the document show the branch's actual code. The shape of
+a delivery report: `::branch` up top → the walk-through → `::commit` at the bottom.
+
 ## `:::callout` — the one thing they need to know
 
 ```markdown

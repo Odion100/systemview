@@ -1090,6 +1090,63 @@ async function stageHunk(projectCode, { path: rel, content, root } = {}) {
 // `Plugin.push is not a function` is what that costs, and it surfaced on him pressing a button.
 // The list is not a guess: grep every `Plugin.<method>` in the files that now use hostFiles and
 // implement exactly that set.
+// BRANCHES, FOR THE REVIEW SURFACE — an agent's refinement lands on a branch, and the report's
+// blocks (and the nav) need three verbs the namespace never had: what branches exist, move the
+// working tree between them, and the LIVE diff of a branch against its base — computed at view
+// time, never a frozen patch, so it cannot go stale while the report sits open.
+async function branches(projectCode, { root } = {}) {
+  const cwd = rootOf(projectCode, root);
+  if (!cwd) return { ok: false, error: "no folder for this project" };
+  const res = await git(cwd, ["for-each-ref", "refs/heads", "--format=%(refname:short)\u001f%(HEAD)\u001f%(committerdate:iso8601)\u001f%(subject)"]);
+  if (!res.ok) return { ok: false, error: res.error };
+  const rows = res.out.split("\n").filter(Boolean).map((l) => {
+    const [name, head, when, subject] = l.split("\u001f");
+    return { name, current: head === "*", when, subject: subject || "" };
+  });
+  return { ok: true, branches: rows };
+}
+
+async function switchBranch(projectCode, { name, root } = {}) {
+  const cwd = rootOf(projectCode, root);
+  if (!cwd) return { ok: false, error: "no folder for this project" };
+  if (!String(name || "").trim()) return { ok: false, error: "which branch?" };
+  // `git switch` refuses rather than clobbers when local changes collide — that refusal IS the
+  // answer we surface; nothing here stashes or forces on the user's behalf.
+  const res = await serial(cwd, () => git(cwd, ["switch", String(name)]));
+  bustGit(projectCode);
+  if (!res.ok) return { ok: false, error: res.error };
+  return { ok: true, branch: String(name), state: await gitStateRaw(projectCode, { root }) };
+}
+
+async function branchDiff(projectCode, { branch, base, root } = {}) {
+  const cwd = rootOf(projectCode, root);
+  if (!cwd) return { ok: false, error: "no folder for this project" };
+  const b = String(branch || "").trim();
+  if (!b) return { ok: false, error: "which branch?" };
+  // default base: the repo's default branch (origin/HEAD), falling back to main/master
+  let bs = String(base || "").trim();
+  if (!bs) {
+    const dh = await git(cwd, ["symbolic-ref", "refs/remotes/origin/HEAD"]);
+    bs = dh.ok ? dh.out.trim().replace("refs/remotes/origin/", "") : "";
+    if (!bs) {
+      const m = await git(cwd, ["rev-parse", "--verify", "--quiet", "main"]);
+      bs = m.ok ? "main" : "master";
+    }
+  }
+  // three dots: what the BRANCH adds since it forked — the review question — not every way the
+  // two have since diverged
+  const [stat, patch] = await Promise.all([
+    git(cwd, ["diff", "--name-status", `${bs}...${b}`]),
+    git(cwd, ["diff", `${bs}...${b}`]),
+  ]);
+  if (!stat.ok) return { ok: false, error: stat.error };
+  const files = stat.out.split("\n").filter(Boolean).map((l) => {
+    const [status, ...p] = l.split(/\t/);
+    return { status, path: p[p.length - 1] };
+  });
+  return { ok: true, branch: b, base: bs, files, patch: patch.ok ? patch.out : "" };
+}
+
 async function push(projectCode, { root } = {}) {
   const cwd = rootOf(projectCode, root);
   if (!cwd) return { ok: false, error: "no folder for this project" };
@@ -1939,6 +1996,9 @@ module.exports = function launchSystemView(port = 3000) {
       listFiles,
       searchFiles,
       gitState,
+      branches,
+      switchBranch,
+      branchDiff,
       showCommit,
       changedFiles,
       getDiff,

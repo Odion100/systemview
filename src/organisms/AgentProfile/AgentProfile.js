@@ -7,6 +7,7 @@ import {
   removeDef,
   listDocs,
   listSkills,
+  createSkill,
   listHelp,
   liveSessions,
   refreshSession,
@@ -908,6 +909,28 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
                   </button>
                 ))}
                 {!skills.length && <span className="agent-profile__none">No skill files found for this agent's homes.</span>}
+                {/* CREATING ONE IS A VERB NOW. The system could list and edit skills and never make
+                    one, so every skill in here arrived by an agent hand-writing a file into a
+                    dotfolder — which is exactly how six copies of a retired CLI skill happened and
+                    nobody noticed. It opens seeded with front matter rather than blank: the
+                    description IS the trigger, and a blank page is how one ships without one. */}
+                <button
+                  className="agent-profile__doc-chip agent-profile__doc-chip--new"
+                  title="Create a new skill at user level"
+                  onClick={async () => {
+                    const name = window.prompt("New skill — lowercase name, dashes for spaces");
+                    if (!name) return;
+                    const r = await createSkill(draft.id, name.trim(), "user");
+                    if (r && r.error) return window.alert(r.error);
+                    const list = await listSkills(draft.id);
+                    setSkills(list);
+                    if (r && r.skill && typeof onOpenDoc === "function")
+                      onOpenDoc({ kind: "skill", agentId: draft.id, name: r.skill.name, where: r.skill.where, label: r.skill.name, text: r.skill.text, orig: r.skill.text });
+                  }}
+                >
+                  <span className="agent-profile__doc-ico">＋</span>
+                  new skill
+                </button>
               </div>
             )}
           </div>

@@ -79,6 +79,13 @@ export default function useAgentSession({ projectCode, sessionId = "agent", gate
     return true;
   }, []);
 
+  // THE USER'S WIPE IS AS REAL AS THE AGENT'S — it clears the stored board, not just this view.
+  // The host emits whiteboard.updated with empty text, so every watcher clears together.
+  const wipeWhiteboard = useCallback(() => {
+    const t = transportRef.current;
+    if (t && t.wipeWhiteboard) t.wipeWhiteboard();
+  }, []);
+
   const answer = useCallback((id, allow) => {
     const t = transportRef.current;
     if (t && t.answerPermission) t.answerPermission(id, allow);
@@ -176,6 +183,7 @@ export default function useAgentSession({ projectCode, sessionId = "agent", gate
     send,
     answer,
     interrupt,
+    wipeWhiteboard,
     compact,
     showSaid,
   };

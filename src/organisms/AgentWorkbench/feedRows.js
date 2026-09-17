@@ -81,7 +81,22 @@ export function parseMcpResult(mcp, text) {
       } else if (cur && /^\s*see:\s+(\S+)/.test(line)) cur.pointer = /^\s*see:\s+(\S+)/.exec(line)[1];
       else if (cur && /^\s{2,}/.test(line)) cur.body = (cur.body ? cur.body + " " : "") + line.trim();
     }
-    return rows.length ? { kind: "notes", rows } : null;
+    // THE SECOND HALF — documentation sections, "▸ file › heading path — corpus [id]". The parser
+    // only knew notes, so the table silently DROPPED every doc hit and the log claimed the store
+    // answered with notes alone (his catch: "I only see notes"). Docs are their own group because
+    // they are their own kind: a wrong note is forget()-able, a wrong chunk means fix the file.
+    const docs = [];
+    let doc = null;
+    for (const line of t.split("\n")) {
+      const d = /^▸ (.+?)\s+›\s+(.*?) — (\S+?)(?:, match (\d\.\d\d))? \[([^\]]+)\]\s*$/.exec(line.trim());
+      if (d) {
+        doc = { title: d[2], where: d[1], corpus: d[3], score: d[4] || "", id: d[5], body: "", pointer: null };
+        docs.push(doc);
+      } else if (line.trim().startsWith("•")) doc = null;
+      else if (doc && /^\s{2,}/.test(line)) doc.body = (doc.body ? doc.body + " " : "") + line.trim();
+    }
+    if (rows.length || docs.length) return { kind: "context", rows, docs };
+    return null;
   }
   if (mcp.server === "discovery") {
     // "1. callable — match 0.74\n   desc"
@@ -961,7 +976,7 @@ export function foldState(events) {
   // content: it belongs to the session, arrives on the session's stream, and every surface watching
   // that session draws the same list. Null until a harness actually sends one, so a host without
   // the capability shows nothing rather than an empty checklist that looks like a bug.
-  const s = { state: "idle", model: null, exited: null, cost: 0, turns: 0, doing: null, todo: null, ctx: 0, ctxWindow: 0, compactions: 0, visitors: [], usage: null, tokIn: 0, tokOut: 0, turnOut: 0, liveChars: 0, lastUsage: null };
+  const s = { state: "idle", model: null, exited: null, cost: 0, turns: 0, doing: null, todo: null, todoSource: "", todoLists: [], whiteboardTs: 0, whiteboard: "", ctx: 0, ctxWindow: 0, compactions: 0, visitors: [], usage: null, tokIn: 0, tokOut: 0, turnOut: 0, liveChars: 0, lastUsage: null };
   // ONE FIELD, ONE CONSUMER — autobot's synthesis after we each corrected the other's half-rule, and
   // it is better than either. They said clamp at the SOURCE; I said that shrinks the RECORD to fit
   // the label, so clamp at the STATUS; they answered that a rule every future call site has to
@@ -1230,7 +1245,30 @@ export function foldState(events) {
       // the one event it happens to catch. Read LIBERALLY: this shape is autobot's to define and I
       // am not going to make their field names a condition of it working.
       const items = ev.items || ev.todos || ev.list || [];
-      s.todo = Array.isArray(items) ? items.map(todoItem).filter((t) => t.text) : null;
+      const mapped = Array.isArray(items) ? items.map(todoItem).filter((t) => t.text) : null;
+      s.todo = mapped;
+      // Which procedure these steps are the execution of — a run's list wears its source in the
+      // fold, so a skill mid-flight is distinguishable from the agent's own plan at a glance.
+      s.todoSource = String(ev.source || "");
+      // LISTS STACK, THEY DO NOT REPLACE EACH OTHER (his call, watching the demo: the run's list
+      // vanished the moment the session plan wrote again). One entry per list — the session plan
+      // under "session", each run under its id — upserted in first-seen order. Completion removes
+      // NOTHING here: a finished run stays on screen until the human clears it from his view.
+      const key = String(ev.run || "session");
+      const entry = { key, source: String(ev.source || ""), items: mapped || [] };
+      const at = s.todoLists.findIndex((l) => l.key === key);
+      if (at >= 0) s.todoLists[at] = entry;
+      else s.todoLists.push(entry);
+    } else if (ev.kind === "whiteboard.updated") {
+      // THE WHITEBOARD — the worklist's sibling: freeform markdown, whole board every event,
+      // empty text IS the wipe. Same whole-not-delta rule as the list, same reason.
+      const wasBoard = s.whiteboard;
+      s.whiteboard = String(ev.text || "");
+      // when the last real WRITE happened — the view compares this to its own mount time, so a
+      // replayed history batch never auto-opens the board and a live write does. The replay flag
+      // matters as much as the clock: the host re-emits the board on every query open with a
+      // fresh stamp, and without the flag every sent message read as a live write.
+      if (s.whiteboard && !ev.replay && s.whiteboard !== wasBoard) s.whiteboardTs = ev.ts || 0;
     } else if (ev.kind === "exit") s.exited = ev.reason || "ended";
   });
   // AN UNKNOWN MODEL MUST NOT PRODUCE A RED BAR. He has reported twice that interrupting a turn

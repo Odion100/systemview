@@ -91,6 +91,11 @@
     flex-direction: column;
     // the editor fills the column and scrolls itself
     > * { height: 100%; }
+    // EDIT MODE COULD NOT SCROLL (his catch, in the study skill): `.code-editor` grows to its
+    // content — right for pages that scroll around it, wrong here where the body clips. Pin the
+    // editor to the column's height so CodeMirror's own scroller engages, like preview does.
+    .code-editor { height: 100%; }
+    .code-editor .cm-editor { height: 100%; min-height: 0; }
   }
   &__preview {
     overflow-y: auto;

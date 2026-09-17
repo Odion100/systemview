@@ -58,6 +58,35 @@ describe("foldState", () => {
     expect(s.turns).toBe(3);
     expect(s.cost).toBeCloseTo(0.75);
   });
+
+  // Lists STACK — the session plan and each run hold their own entry; a run's write must not
+  // evict the session's, and completion removes nothing (clearing is the human's, in the view).
+  it("stacks the session list and run lists instead of replacing", () => {
+    const s = foldState([
+      ev("todo.updated", { items: [{ id: "1", text: "my plan", state: "active" }], source: "" }),
+      ev("todo.updated", { items: [{ id: "1", text: "step one", state: "active" }], source: "skill:study", run: "r1" }),
+      ev("todo.updated", { items: [{ id: "1", text: "step one", state: "done" }], source: "skill:study", run: "r1" }),
+    ]);
+    expect(s.todoLists).toHaveLength(2);
+    expect(s.todoLists[0].key).toBe("session");
+    expect(s.todoLists[0].items[0].text).toBe("my plan");
+    expect(s.todoLists[1].source).toBe("skill:study");
+    expect(s.todoLists[1].items[0].state).toBe("done"); // finished, still here
+  });
+
+  // The whiteboard is whole-board-every-event, like the list is whole-list — so a panel opened
+  // mid-session renders from the one event it catches, and empty text IS the wipe, not a no-op.
+  it("holds the whiteboard whole, replaces it whole, and clears on the empty event", () => {
+    const held = foldState([ev("whiteboard.updated", { text: "## draft\n- role: owner of X" })]);
+    expect(held.whiteboard).toBe("## draft\n- role: owner of X");
+    const replaced = foldState([
+      ev("whiteboard.updated", { text: "first" }),
+      ev("whiteboard.updated", { text: "second — not first appended" }),
+    ]);
+    expect(replaced.whiteboard).toBe("second — not first appended");
+    const wiped = foldState([ev("whiteboard.updated", { text: "held" }), ev("whiteboard.updated", { text: "" })]);
+    expect(wiped.whiteboard).toBe("");
+  });
 });
 
 // His catch, watching his own panel: *"when you send a message, your whole message gets put into
@@ -1147,7 +1176,7 @@ describe("parseMcpResult — context hits carry the note id", () => {
       "• bots come from harness defs — from the systemview-test project, match 0.58 [bots-come-50m7]\n" +
       "  enumerated from the harness";
     const out = parseMcpResult(mcp, text);
-    expect(out.kind).toBe("notes");
+    expect(out.kind).toBe("context"); // notes AND docs now ride one result, two groups
     expect(out.rows).toHaveLength(2);
     expect(out.rows[0].id).toBe("offering-a-commit-fwkw");
     expect(out.rows[0].pointer).toBe("systemview-test:agents/markdown.md");
@@ -1160,5 +1189,26 @@ describe("parseMcpResult — context hits carry the note id", () => {
     expect(out.rows).toHaveLength(1);
     expect(out.rows[0].id).toBeNull();
     expect(out.rows[0].score).toBe("0.61");
+  });
+
+  // The half the parser used to DROP: documentation sections render as their own group, so the
+  // log stops claiming the store answered with notes alone.
+  it("parses the documentation half into its own group", () => {
+    const text =
+      "1 notes match:\n\n" +
+      "• a note — from system conventions, match 0.60 [a-note-x1]\n  note body\n\n" +
+      "3 documentation section(s) — derived from files; to change one, fix the file and re-index:\n\n" +
+      "▸ markdown.md  ›  Interactive markdown › `::branch[name]` — a branch offered for review — systemview-docs [systemview-docs:markdown.md#]\n" +
+      "  The delivery block for work done on a branch\n\n" +
+      "▸ chat.md  ›  The chat › Pointing — systemview-docs [systemview-docs:chat.md#]\n" +
+      "  a reference points at the thing";
+    const out = parseMcpResult(mcp, text);
+    expect(out.kind).toBe("context");
+    expect(out.rows).toHaveLength(1);
+    expect(out.docs).toHaveLength(2);
+    expect(out.docs[0].where).toBe("markdown.md");
+    expect(out.docs[0].corpus).toBe("systemview-docs");
+    expect(out.docs[0].title).toContain("::branch[name]");
+    expect(out.docs[0].body).toContain("delivery block");
   });
 });

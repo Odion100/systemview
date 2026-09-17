@@ -687,7 +687,7 @@ function useCountUp(target) {
 //
 // CLOSED IT IS ONE LINE: what it is doing now, and how far in. Open, the whole plan. A worklist that
 // costs the conversation five lines forever is a worklist he will collapse once and never see again.
-function WorkList({ items, onClear }) {
+function WorkList({ items, onClear, source = "" }) {
   const [open, setOpen] = useState(false);
   if (!items || !items.length) return null;
   const done = items.filter((t) => t.state === "done").length;
@@ -713,6 +713,8 @@ function WorkList({ items, onClear }) {
         <span className={`${CLASSNAME}__worklist-count`}>
           {done}/{items.length}
         </span>
+        {/* the run's source — a skill's list is visibly the skill's, not the agent's own plan */}
+        {source ? <span className={`${CLASSNAME}__worklist-source`}>{source}</span> : null}
         {/* The ACTIVE item is the line — not "3 tasks", which says nothing about what is happening.
             With nothing active (finished, or not started yet) it says so plainly. */}
         <span className={`${CLASSNAME}__worklist-now`}>
@@ -746,6 +748,69 @@ function WorkList({ items, onClear }) {
           ))}
         </ul>
       )}
+    </div>
+  );
+}
+
+// THE WHITEBOARD — the worklist's sibling (his design, 2026-09-16): freeform markdown for the
+// CONVERSATION'S working state — drafts under discussion, values being worked out — the things
+// that otherwise float up the chat and have to be re-said. The list is the state of the work;
+// the board is the state of the conversation.
+//
+// OPEN BY DEFAULT — visibility is the entire point; a whiteboard you have to open is the scroll
+// problem wearing a toggle. Basic markdown only (renderChatMessage, the chat's own light pass):
+// the moment code walls want in, the content belongs on the TV, not here.
+//
+// THE WIPE IS REAL AND MUTUAL. His × calls the host, the host clears the stored board and emits
+// the empty event — every watcher clears together. Not a view-local hide: a shared surface either
+// side may erase, and the other finds out the way anyone does — by looking at it.
+function Whiteboard({ text, writeTs = 0, onWipe }) {
+  // CLOSED ON ARRIVAL, OPEN ON LIVE WRITE — his rule, fixed properly the second time: comparing
+  // text to its previous value opened on every refresh, because the history batch arrives AFTER
+  // mount and reads as a change. The write's own clock settles it: a stamp older than this view
+  // is history, a newer one is the agent writing while you watch.
+  const [open, setOpen] = useState(false);
+  const mountedAt = useRef(Date.now());
+  useEffect(() => {
+    if (text && writeTs > mountedAt.current) setOpen(true);
+  }, [text, writeTs]);
+  // Wiping is two-step, the same as every other destructive thing in this app — the armed ×
+  // becomes "wipe? yes/no" in place. window.confirm was wrong here and is banned in this codebase
+  // (InlineLogs says so in as many words); found AFTER shipping it, his catch.
+  const [armed, setArmed] = useState(false);
+  if (!text) return null;
+  return (
+    <div className={`${CLASSNAME}__whiteboard`}>
+      <div className={`${CLASSNAME}__whiteboard-headrow`}>
+        <button
+          type="button"
+          className={`${CLASSNAME}__whiteboard-head`}
+          onClick={() => setOpen(!open)}
+          title={open ? "Fold the whiteboard" : "Show the whiteboard"}
+        >
+          <span className={`${CLASSNAME}__whiteboard-badge`}>▦</span>
+          <span className={`${CLASSNAME}__whiteboard-label`}>whiteboard</span>
+          <span className={`${CLASSNAME}__whiteboard-chev`}>{open ? "▾" : "▸"}</span>
+        </button>
+        {onWipe && !armed && (
+          <button
+            type="button"
+            className={`${CLASSNAME}__whiteboard-wipe`}
+            title="Wipe the whiteboard"
+            onClick={() => setArmed(true)}
+          >
+            ×
+          </button>
+        )}
+        {onWipe && armed && (
+          <span className={`${CLASSNAME}__whiteboard-confirm`}>
+            wipe?
+            <button type="button" className={`${CLASSNAME}__whiteboard-confirm-yes`} onClick={() => { onWipe(); setArmed(false); }}>yes</button>
+            <button type="button" className={`${CLASSNAME}__whiteboard-confirm-no`} onClick={() => setArmed(false)}>no</button>
+          </span>
+        )}
+      </div>
+      {open && <div className={`${CLASSNAME}__whiteboard-body`}>{renderChatMessage(text)}</div>}
     </div>
   );
 }
@@ -4199,12 +4264,15 @@ const countdown = (str, now = Date.now()) => {
   // panel's cooking line: chars over four, marked ≈, only while the session is actually working.
   const peekCounted = useCountUp(Math.round(work.state.liveChars / 4));
   const peekTok = work.state.state === "working" && work.state.liveChars > 40 ? `${peekCounted.toLocaleString()} tok` : "";
-  // CLEARED IS A VIEW STATE, HIS — the fingerprint of the list he dismissed. The fold keeps
-  // rebuilding `state.todo` from the stream, so "cleared" must survive re-folds: same list → stays
-  // hidden; the agent's next WRITE is a different fingerprint and the clipboard returns on its own.
-  const [clearedTodo, setClearedTodo] = useState("");
-  const todoShown =
-    work.state.todo && JSON.stringify(work.state.todo) !== clearedTodo ? work.state.todo : null;
+  // CLEARED IS A VIEW STATE, HIS — per LIST now: the fingerprint of each list he dismissed,
+  // keyed by session/run. Same list → stays hidden; that list's next WRITE is a different
+  // fingerprint and it returns on its own. Completion clears NOTHING — a finished run sits on
+  // screen until he presses its ×, which is the only way multiple lists can be seen together.
+  const [clearedLists, setClearedLists] = useState({});
+  const listsShown = (work.state.todoLists || []).filter(
+    (l) => l.items.length && JSON.stringify(l.items) !== clearedLists[l.key]
+  );
+  const todoShown = listsShown.length ? listsShown[listsShown.length - 1].items : null;
   // THE PLAN'S HEADER RIDES THE MINIMISED VIEW ONLY — his correction after I put it on the open
   // panel's cooking line too: *"the worklist is already showing inside the chat."* Open, the list
   // itself sits right under the cooking line, and a summary of a thing beside the thing is noise.
@@ -5887,11 +5955,20 @@ const countdown = (str, now = Date.now()) => {
           {/* THE PLAN OUTLIVES THE TURN THAT WROTE IT. Deliberately not gated on `working`: the
               moment a turn ends is exactly when "what's left" matters, and a list that vanishes
               when the agent stops is a list he can only read while he cannot act on it. */}
+          {attached &&
+            listsShown.map((l) => (
+              <WorkList
+                key={l.key}
+                items={l.items}
+                source={l.source}
+                onClear={() => setClearedLists((c) => ({ ...c, [l.key]: JSON.stringify(l.items) }))}
+              />
+            ))}
+          {/* The whiteboard sits UNDER the list — tried on top, he wants to feel this order
+              again. Same area, different job: the list tracks the work, the board holds the
+              conversation. The wipe is the host's, so an erase clears it for both of us. */}
           {attached && (
-            <WorkList
-              items={todoShown}
-              onClear={() => setClearedTodo(JSON.stringify(work.state.todo))}
-            />
+            <Whiteboard text={work.state.whiteboard} writeTs={work.state.whiteboardTs} onWipe={() => work.wipeWhiteboard()} />
           )}
           {/* While the mic listens: the words appear HERE as you speak (interim), then commit
               into the input as they finalize. The line itself is the recording indicator. */}

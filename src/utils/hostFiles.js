@@ -140,6 +140,23 @@ export const hostFiles = (projectCode, root) => {
       if (st && st.ok === false) throw new Error(st.error || "git did not run");
       return st;
     },
+    // The branch-review verbs (::branch block, the nav's switcher). Same shape as everything
+    // here: the hub answers, ok:false is thrown as the error it carries.
+    branches: async () => {
+      const r = await hub().branches(projectCode, { root });
+      if (r && r.ok === false) throw new Error(r.error || "could not list branches");
+      return r;
+    },
+    switchBranch: async ({ name } = {}) => {
+      const r = await hub().switchBranch(projectCode, { name, root });
+      // the refusal (dirty files, unknown branch) is the ANSWER — pass it through, do not throw
+      return r;
+    },
+    branchDiff: async ({ branch, base } = {}) => {
+      const r = await hub().branchDiff(projectCode, { branch, base, root });
+      if (r && r.ok === false) throw new Error(r.error || "could not diff the branch");
+      return r;
+    },
     changedFiles: async () => {
       const res = await hub().changedFiles(projectCode, { root });
       if (res && res.ok === false) throw new Error(res.error || "git did not run");

@@ -2994,8 +2994,11 @@
 // page has already been through one round of paying for a permanent animation.
 .agent-chat__worklist {
   flex: none;
-  padding: 0 8px 4px;
+  padding: 2px 8px 4px;
   font-size: 12px;
+  // WHERE ONE LIST BEGINS — his ask, after clicking a header he could not see the edge of:
+  // a subtle rule at the top of each list, so stacked lists read as separate things.
+  border-top: 1px solid var(--sv-line, rgba(128, 128, 128, 0.18));
 }
 .agent-chat__worklist-headrow {
   display: flex;
@@ -3043,6 +3046,14 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.agent-chat__worklist-source {
+  flex: none;
+  font-size: 10px;
+  padding: 0 5px;
+  border-radius: 7px;
+  border: 1px solid currentColor;
+  opacity: 0.65;
+}
 .agent-chat__worklist-badge {
   flex: none;
   font-size: 10.5px; // smaller — his ask
@@ -3060,7 +3071,9 @@
 .agent-chat__worklist-item {
   display: flex;
   gap: 6px;
-  padding: 1px 0;
+  // HIS TWO ASKS, AND NOTHING ELSE: a little gap between items, an empty box where a thing
+  // is not yet checked off. No markdown, no interactivity — the whiteboard took that job.
+  padding: 3px 0;
   line-height: 1.35;
   color: var(--sv-text-soft, #8a8f98);
   &--active { color: var(--sv-text); font-weight: 600; }
@@ -3078,6 +3091,109 @@
   }
 }
 .agent-chat__worklist-mark { flex: none; width: 10px; text-align: center; }
+// The empty box: pending items show ☐ where nothing is checked — the mark glyph stays what the
+// component sends (· pending, ▸ active, ✓ done); only pending gets the box, drawn here so the
+// component stays untouched.
+.agent-chat__worklist-item--pending .agent-chat__worklist-mark {
+  font-size: 0; // hide the dot the component renders…
+  &::before { content: "☐"; font-size: 12px; opacity: 0.55; } // …and draw the box
+}
+
+// THE WHITEBOARD — beside the list, a different surface for a different job: freeform markdown,
+// the conversation's held state. Styled as the thing it is named for: a pale writing surface with
+// a marker-line edge, wiped clean rather than scrolled away.
+.agent-chat__whiteboard {
+  flex: none;
+  margin: 2px 8px 4px;
+  font-size: 12px;
+  border-radius: 6px;
+  // LIGHT MODE: darker slate, white ink — his call. DARK MODE: his landing, verbatim.
+  background: #363e48; // his number
+  border: 1px solid #46505c;
+  color: #ffffff;
+  :root.sv-dark & {
+    background: whitesmoke; // #f5f5f5 — his call, by name
+    border-color: #d8d8d2;
+    color: #3a4555; // his ink, second landing
+  }
+}
+.agent-chat__whiteboard-headrow {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 4px;
+}
+.agent-chat__whiteboard-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+  border: none;
+  background: none;
+  padding: 3px 2px;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.8;
+  font: inherit;
+  text-align: left;
+  &:hover { opacity: 1; }
+  :root.sv-dark & { color: #2f9700; opacity: 1; } // his green, dark mode's header
+}
+.agent-chat__whiteboard-badge { flex: none; font-size: 11px; line-height: 1; opacity: 0.8; }
+.agent-chat__whiteboard-label {
+  flex: none;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+.agent-chat__whiteboard-chev { flex: none; opacity: 0.6; font-size: 14px; }
+.agent-chat__whiteboard-wipe {
+  flex: none;
+  border: none;
+  background: none;
+  padding: 0 3px;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.6;
+  &:hover { opacity: 1; }
+}
+.agent-chat__whiteboard-confirm {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  opacity: 0.9;
+  button {
+    border: 1px solid currentColor;
+    background: none;
+    color: inherit;
+    border-radius: 4px;
+    padding: 0 6px;
+    font: inherit;
+    font-size: 11px;
+    cursor: pointer;
+    opacity: 0.75;
+    &:hover { opacity: 1; }
+  }
+  .agent-chat__whiteboard-confirm-yes:hover { color: #e5484d; }
+}
+.agent-chat__whiteboard-body {
+  padding: 2px 10px 8px;
+  line-height: 1.5;
+  // Full-strength ink, and nothing inside declares its own colour.
+  color: inherit;
+  * { color: inherit; }
+  // A LONG BOARD SCROLLS ITSELF, same rule as a long plan — held state must not shove the
+  // conversation off screen.
+  max-height: 220px;
+  overflow-y: auto;
+}
 
 .agent-chat__cooking-todo {
   flex: none;

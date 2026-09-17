@@ -883,3 +883,14 @@
   margin: 8px 0 2px;
   border-left: 2px solid var(--sv-blue);
 }
+
+// THE CREATE VERB, sitting with the skills rather than off in a toolbar — you make one from where
+// you are looking at the others, which is also where you can see whether it already exists.
+.agent-profile__doc-chip--new {
+  border-style: dashed;
+  color: var(--sv-text-muted);
+}
+.agent-profile__doc-chip--new:hover {
+  border-style: solid;
+  color: var(--sv-text);
+}

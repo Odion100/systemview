@@ -449,6 +449,26 @@ const McpTable = ({ data }) => {
         {data.warn && <span className={`${CLASSNAME}__mcp-noteline-warn`}>{data.warn}</span>}
       </div>
     );
+  // TWO SHELVES, BOTH VISIBLE — notes then documentation, the same divide the tool's own text
+  // draws. Not tabs: the bug this fixes was one half being invisible, and a tab would hide it
+  // again behind a click, just politely.
+  if (data.kind === "context")
+    return (
+      <div className={`${CLASSNAME}__ctx`}>
+        {data.rows.length > 0 && (
+          <>
+            <div className={`${CLASSNAME}__ctx-shelf`}>notes · {data.rows.length}</div>
+            <McpTable data={{ kind: "notes", rows: data.rows }} />
+          </>
+        )}
+        {data.docs.length > 0 && (
+          <>
+            <div className={`${CLASSNAME}__ctx-shelf`}>documentation · {data.docs.length}</div>
+            <McpTable data={{ kind: "docs", rows: data.docs }} />
+          </>
+        )}
+      </div>
+    );
   const withBody = data.rows.map((r, i) => (r.body ? i : -1)).filter((i) => i >= 0);
   const allOpen = withBody.length > 0 && withBody.every((i) => open.has(i));
   return (
@@ -456,8 +476,8 @@ const McpTable = ({ data }) => {
       <thead>
         <tr>
           <th>match</th>
-          <th>note</th>
-          <th>from</th>
+          <th>{data.kind === "docs" ? "section" : "note"}</th>
+          <th>{data.kind === "docs" ? "file · corpus" : "from"}</th>
           {/* EXPAND ALL / COLLAPSE ALL — his ask, at the top. One press opens every row that has a
               body or folds them all; individual rows still toggle on their own underneath it. */}
           <th className={`${CLASSNAME}__mcp-allth`}>
@@ -489,7 +509,7 @@ const McpTable = ({ data }) => {
             >
               <td className={`${CLASSNAME}__mcp-score`}>{r.score}</td>
               <td className={`${CLASSNAME}__mcp-title`}>{r.title}</td>
-              <td className={`${CLASSNAME}__mcp-where`}>{r.where || ""}</td>
+              <td className={`${CLASSNAME}__mcp-where`}>{r.corpus ? `${r.where} · ${r.corpus}` : r.where || ""}</td>
               <td className={`${CLASSNAME}__mcp-caret`}>{r.body ? (open.has(i) ? "−" : "+") : ""}</td>
             </tr>
             {open.has(i) && r.body && (

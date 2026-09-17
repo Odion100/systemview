@@ -69,6 +69,21 @@ export async function listSkills(id) {
   }
 }
 
+// CREATE and REMOVE are separate verbs from save on purpose: save refuses a name the scan does not
+// know, create refuses one it does. Before these existed the system could list and edit skills and
+// never make one — so every skill entered by hand, through a dotfolder, where nothing could see it.
+export async function createSkill(id, name, where, text) {
+  const a = sv().agent;
+  if (!a || typeof a.createSkill !== "function") return { ok: false, error: "no harness" };
+  return a.createSkill(id, name, where, text);
+}
+
+export async function removeSkill(id, name, where) {
+  const a = sv().agent;
+  if (!a || typeof a.removeSkill !== "function") return { ok: false, error: "no harness" };
+  return a.removeSkill(id, name, where);
+}
+
 export async function saveSkill(id, name, where, text) {
   return sv().agent.saveSkill(id, name, where, text);
 }

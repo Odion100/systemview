@@ -1222,6 +1222,11 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
   // RFC-033 — COMMIT / PUSH, in the place he already stages from. Two-step, his call: the first
   // click arms, the second runs. Nothing here is reachable except by that click.
   const [gitState, setGitState] = useState(null);
+  // THE BRANCH IS A CONTROL NOW, NOT A LABEL — the same verbs the ::branch block offers, so the
+  // nav and the documents tell one git story. Click the name → the local branches; pick one →
+  // `git switch`, whose refusal over dirty files is shown, never stashed around.
+  const [branchPick, setBranchPick] = useState(null); // null closed · [] loading · rows
+  const [branchErr, setBranchErr] = useState("");
   // THE HUB SENDS THE LIST, NOT A COUNT. `gitState.stagedCount` was the PLUGIN's field; the hub's
   // gitState returns `staged` as an array (repo/ok/root/branch/upstream/ahead/behind/log/staged/
   // unstaged/untracked/changed — no counts). This one call site never moved, so the commit box read
@@ -2280,10 +2285,66 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
                   className={`${CLASSNAME}__commit${took ? ` ${CLASSNAME}__commit--took` : ""}`}
                 >
                   <div className={`${CLASSNAME}__commit-head`}>
-                    <span className={`${CLASSNAME}__commit-branch`}>{gitState.branch}</span>
+                    <span
+                      className={`${CLASSNAME}__commit-branch ${CLASSNAME}__commit-branch--btn`}
+                      role="button"
+                      tabIndex={0}
+                      title="switch branch"
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        if (branchPick) return setBranchPick(null);
+                        setBranchPick([]);
+                        setBranchErr("");
+                        try {
+                          const svc = { Plugin: hostFiles(projectCode, fileHost && fileHost.root) };
+                          if (!svc.Plugin.branches) throw new Error("the hub predates branch switching — restart it");
+                          const r = await svc.Plugin.branches();
+                          if (!r.ok) throw new Error(r.error || "could not list branches");
+                          setBranchPick(r.branches);
+                        } catch (err) {
+                          setBranchPick(null);
+                          setBranchErr((err && err.message) || "could not list branches");
+                        }
+                      }}
+                    >
+                      {gitState.branch} ▾
+                    </span>
                     {gitState.ahead > 0 && (
                       <span className={`${CLASSNAME}__commit-ahead`}>↑{gitState.ahead}</span>
                     )}
+                    {branchPick && (
+                      <div className={`${CLASSNAME}__branch-pick`}>
+                        {branchPick.length === 0 ? (
+                          <div className={`${CLASSNAME}__branch-row ${CLASSNAME}__branch-row--dim`}>reading branches…</div>
+                        ) : (
+                          branchPick.map((b) => (
+                            <button
+                              key={b.name}
+                              type="button"
+                              className={`${CLASSNAME}__branch-row${b.current ? ` ${CLASSNAME}__branch-row--on` : ""}`}
+                              title={b.subject}
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                if (b.current) return setBranchPick(null);
+                                try {
+                                  const svc = { Plugin: hostFiles(projectCode, fileHost && fileHost.root) };
+                                  const r = await svc.Plugin.switchBranch({ name: b.name });
+                                  if (!r.ok) throw new Error(r.error || "switch refused");
+                                  setBranchPick(null);
+                                  setBranchErr("");
+                                  window.dispatchEvent(new Event("sv:git"));
+                                } catch (err) {
+                                  setBranchErr((err && err.message) || "switch failed");
+                                }
+                              }}
+                            >
+                              {b.current ? "● " : ""}{b.name}
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    )}
+                    {branchErr && <div className={`${CLASSNAME}__branch-err`}>{branchErr}</div>}
                     {gitState.behind > 0 && (
                       <span className={`${CLASSNAME}__commit-behind`}>↓{gitState.behind}</span>
                     )}

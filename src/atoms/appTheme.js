@@ -5,9 +5,19 @@ import { setEditorDark } from "./CodeView/editorTheme";
 // The `sv-dark` class flip on <html> lives HERE (not in the header component), so the CSS tokens and
 // JS consumers (react-json-view themes etc.) can never drift apart.
 let dark = localStorage.getItem("sv.appDark") === "true";
+// THE HARNESS SETS THE ROOM'S LIGHT (his ask): hosted, the browser's own light/dark is the source
+// of truth — adopt it before first paint (current() is sync for exactly this) and follow every
+// flip. The header pill still works between flips; the next harness change wins again.
+const host = typeof window !== "undefined" && window.systemview && window.systemview.theme;
+if (host) {
+  try { dark = !!host.current().dark; } catch {}
+}
 const subs = new Set();
 const apply = () => document.documentElement.classList.toggle("sv-dark", dark);
 apply();
+if (host) {
+  try { host.onChange((t) => setAppDark(!!t.dark)); } catch {}
+}
 
 export const getAppDark = () => dark;
 export const setAppDark = (v) => {

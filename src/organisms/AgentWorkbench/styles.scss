@@ -863,3 +863,13 @@
 // A SKILL LOADING — green, the colour a hook's `→ skill:` pointer already uses, so the two ends of
 // the chain read as the same thing happening.
 .agent-wb__sv-kind--skill { color: #63b98a; }
+
+// context() results — two shelves, both visible: notes then documentation.
+.agent-wb__ctx-shelf {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  opacity: 0.6;
+  margin: 6px 0 2px;
+}

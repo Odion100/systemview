@@ -16,6 +16,7 @@ import { FileEmbed, DiffEmbed } from "./blocks/FileEmbed";
 import ReportLink from "./blocks/ReportLink";
 import ImageEmbed from "./blocks/ImageEmbed";
 import CommitBlock from "./blocks/CommitBlock";
+import BranchBlock from "./blocks/BranchBlock";
 import Ask from "./blocks/Ask";
 
 // `file` is TWO things depending on how it's written — the same split `run` has. Inline is a
@@ -71,6 +72,10 @@ export const BLOCKS = {
   // RFC-033 — a commit message you press instead of copy. An agent writes it, a human clicks it;
   // the sha lands back in the document like any other input block's answer.
   commit: { Component: CommitBlock },
+  // A branch offered for review — a live pointer, never a frozen patch: the diff vs its base is
+  // computed at view time, and the switch/back verbs are the human's. The refinement lane's
+  // delivery block.
+  branch: { Component: BranchBlock },
   // structure
   callout: { Component: Callout },
   details: { Component: Details },
