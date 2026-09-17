@@ -74,6 +74,21 @@ describe("foldState", () => {
     expect(s.todoLists[1].items[0].state).toBe("done"); // finished, still here
   });
 
+  // RFC-059 — lane events route to their lane, the main feed stays the owner's, and the sourced
+  // set call is the join from parent id to lane name.
+  it("splits parent-tagged lane events out of the main stream and joins the source", () => {
+    const { splitLaneEvents } = require("./feedRows");
+    const { main, lanes } = splitLaneEvents([
+      ev("tool.call", { id: "a1", name: "Bash", input: { command: "ls" } }),
+      ev("tool.call", { id: "s1", name: "mcp__worklist__set", input: { source: "lane:refine/x" }, parent: "task9" }),
+      ev("tool.call", { id: "s2", name: "Bash", input: { command: "yarn test" }, parent: "task9" }),
+      ev("assistant.text", { text: "owner speaking" }),
+    ]);
+    expect(main).toHaveLength(2);
+    expect(lanes.get("task9").source).toBe("lane:refine/x");
+    expect(lanes.get("task9").events).toHaveLength(2);
+  });
+
   // The whiteboard is whole-board-every-event, like the list is whole-list — so a panel opened
   // mid-session renders from the one event it catches, and empty text IS the wipe, not a no-op.
   it("holds the whiteboard whole, replaces it whole, and clears on the empty event", () => {

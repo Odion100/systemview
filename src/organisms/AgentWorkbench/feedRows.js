@@ -64,6 +64,28 @@ const MCP_SERVERS = { context: true, discovery: true, systemlynx: true, worklist
 // parses it back into rows and renders a real table with expandable bodies. We author both ends,
 // so the format is a contract (pinned by tests below), and anything that doesn't parse falls
 // through to the raw block — the pretty path can never lose data.
+// RFC-059 — a lane's own events (stamped `parent` by the host: the Agent call that spawned it)
+// route to the lane's log, never to the main rows. Two structures from one pass: the main feed
+// stays the owner's, and each lane keeps its last LANE_LOG_CAP events for the panel. The join
+// from parent id to lane name is the lane's own sourced worklist call — the one event that
+// carries both.
+export const LANE_LOG_CAP = 300;
+export function splitLaneEvents(events) {
+  const main = [];
+  const lanes = new Map(); // parentId -> { source, events: [] }
+  for (const ev of events || []) {
+    if (ev && ev.parent) {
+      let lane = lanes.get(ev.parent);
+      if (!lane) { lane = { source: "", events: [] }; lanes.set(ev.parent, lane); }
+      if (ev.kind === "tool.call" && ev.input && typeof ev.input.source === "string" && ev.input.source.startsWith("lane:"))
+        lane.source = ev.input.source;
+      lane.events.push(ev);
+      if (lane.events.length > LANE_LOG_CAP) lane.events.shift();
+    } else main.push(ev);
+  }
+  return { main, lanes };
+}
+
 export function parseMcpResult(mcp, text) {
   const t = String(text || "");
   if (!mcp || !t.trim()) return null;

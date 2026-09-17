@@ -152,6 +152,16 @@ export const hostFiles = (projectCode, root) => {
       // the refusal (dirty files, unknown branch) is the ANSWER — pass it through, do not throw
       return r;
     },
+    worktrees: async () => {
+      const r = await hub().worktrees(projectCode, { root });
+      if (r && r.ok === false) throw new Error(r.error || "could not list worktrees");
+      return r;
+    },
+    branchState: async ({ branch, base } = {}) => {
+      const r = await hub().branchState(projectCode, { branch, base, root });
+      if (r && r.ok === false) throw new Error(r.error || "could not read the branch");
+      return r;
+    },
     branchDiff: async ({ branch, base } = {}) => {
       const r = await hub().branchDiff(projectCode, { branch, base, root });
       if (r && r.ok === false) throw new Error(r.error || "could not diff the branch");

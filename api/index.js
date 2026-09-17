@@ -1147,6 +1147,43 @@ async function branchDiff(projectCode, { branch, base, root } = {}) {
   return { ok: true, branch: b, base: bs, files, patch: patch.ok ? patch.out : "" };
 }
 
+// THE JANITOR'S VIEW (RFC-059) — a lane leaves artifacts: a worktree that auto-cleans only when
+// unchanged (a lane ALWAYS changes its worktree), a branch that lives until deleted. These two
+// verbs are what lets a panel show "what this lane left behind" instead of leaving it to
+// archaeology.
+async function worktrees(projectCode, { root } = {}) {
+  const cwd = rootOf(projectCode, root);
+  if (!cwd) return { ok: false, error: "no folder for this project" };
+  const res = await git(cwd, ["worktree", "list", "--porcelain"]);
+  if (!res.ok) return { ok: false, error: res.error };
+  const rows = [];
+  let cur = null;
+  for (const line of res.out.split("\n")) {
+    if (line.startsWith("worktree ")) { cur = { path: line.slice(9), branch: "", main: false }; rows.push(cur); }
+    else if (cur && line.startsWith("branch ")) cur.branch = line.slice(7).replace("refs/heads/", "");
+    else if (cur && line === "bare") cur.main = true;
+  }
+  if (rows.length) rows[0].main = true; // the first entry is the repo's own tree
+  return { ok: true, worktrees: rows };
+}
+
+async function branchState(projectCode, { branch, base, root } = {}) {
+  const cwd = rootOf(projectCode, root);
+  if (!cwd) return { ok: false, error: "no folder for this project" };
+  const b = String(branch || "").trim();
+  if (!b) return { ok: false, error: "which branch?" };
+  let bs = String(base || "").trim();
+  if (!bs) {
+    const dh = await git(cwd, ["symbolic-ref", "refs/remotes/origin/HEAD"]);
+    bs = dh.ok ? dh.out.trim().replace("refs/remotes/origin/", "") : "main";
+  }
+  const exists = await git(cwd, ["rev-parse", "--verify", "--quiet", b]);
+  if (!exists.ok) return { ok: true, branch: b, exists: false, merged: false };
+  // merged = no commits on the branch that the base lacks
+  const ahead = await git(cwd, ["rev-list", "--count", `${bs}..${b}`]);
+  return { ok: true, branch: b, exists: true, merged: ahead.ok && ahead.out.trim() === "0", base: bs };
+}
+
 async function push(projectCode, { root } = {}) {
   const cwd = rootOf(projectCode, root);
   if (!cwd) return { ok: false, error: "no folder for this project" };
@@ -1999,6 +2036,8 @@ module.exports = function launchSystemView(port = 3000) {
       branches,
       switchBranch,
       branchDiff,
+      worktrees,
+      branchState,
       showCommit,
       changedFiles,
       getDiff,

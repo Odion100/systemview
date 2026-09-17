@@ -9,6 +9,7 @@ import { MarkdownWriteProvider, MarkdownScopeProvider } from "../../atoms/Markdo
 import ReportLink from "../../atoms/Markdown/blocks/ReportLink";
 import NsLink from "../../atoms/Markdown/blocks/NsLink";
 import FileLink from "../../atoms/Markdown/blocks/FileLink";
+import BranchBlock from "../../atoms/Markdown/blocks/BranchBlock";
 import UiLink from "../../atoms/Markdown/blocks/UiLink";
 import Markdown from "../../atoms/Markdown/Markdown";
 import { spotlight, clearSpotlight, animationMode, setAnimationMode, MODES } from "../../spotlight";
@@ -17,7 +18,7 @@ import { slotId, setNavDocked, useNavDock, railId, spotId, placeInDock, setDockO
 import { hasHostDictation, startHostRecording } from "../../utils/hostDictation";
 import Feed, { timeOf } from "../AgentWorkbench/Feed";
 import useAgentSession from "../AgentWorkbench/useAgentSession";
-import { CTX_WARN, CTX_DUE, tokensShort, parseUsageLines } from "../AgentWorkbench/feedRows";
+import { CTX_WARN, CTX_DUE, tokensShort, parseUsageLines, foldEvents } from "../AgentWorkbench/feedRows";
 import { visStyle } from "../AgentWorkbench/visitorColor";
 import { readImagesFrom, readImageFile, hasImages } from "../../utils/imageAttach";
 import { canListTranscripts, listAgents, listTranscripts, transcriptTail } from "../../utils/hostAgent";
@@ -811,6 +812,105 @@ function Whiteboard({ text, writeTs = 0, onWipe }) {
         )}
       </div>
       {open && <div className={`${CLASSNAME}__whiteboard-body`}>{renderChatMessage(text)}</div>}
+    </div>
+  );
+}
+
+// A LANE ROW — RFC-059: one row per delegated subagent lane, in the same strip as the worklist
+// and the whiteboard. A lane is a run whose source is `lane:<branch>`: the row shows a REAL
+// fraction from its run list (never a spinner), and a finished lane grows its review — press the
+// row and the ::branch block renders right here, live diff and landing included.
+// THE LANE PANEL (RFC-059) — the window into a lane: its LOG (the real commands and results it
+// ran, folded by the same Feed the workbench uses), its branch review, and its ARTIFACTS — the
+// janitor's row: worktree still on disk, branch merged or not, run closed or died. What a lane
+// did, what it proved, what it left behind — one panel, closed with ×.
+function LanePanel({ source, items, laneEvents, projectCode, onClose }) {
+  const branch = source.slice(5);
+  const [arts, setArts] = useState(null);
+  useEffect(() => {
+    let dead = false;
+    (async () => {
+      try {
+        const p = hostFiles(projectCode);
+        const [wt, bs] = await Promise.all([
+          p.worktrees ? p.worktrees().catch(() => null) : null,
+          p.branchState ? p.branchState({ branch }).catch(() => null) : null,
+        ]);
+        if (!dead) setArts({
+          worktree: wt && (wt.worktrees || []).find((w) => !w.main && w.branch === branch),
+          branch: bs,
+        });
+      } catch { if (!dead) setArts({}); }
+    })();
+    return () => { dead = true; };
+  }, [projectCode, branch]);
+  const done = items.filter((t) => t.state === "done").length;
+  const finished = items.length > 0 && done === items.length;
+  const died = !finished && items.some((t) => t.state === "active");
+  return (
+    <div className={`${CLASSNAME}__lanepanel`}>
+      <div className={`${CLASSNAME}__lanepanel-head`}>
+        <span className={`${CLASSNAME}__lane-icon`}>🤖</span>
+        <span className={`${CLASSNAME}__lanepanel-name`}>{branch}</span>
+        <span className={`${CLASSNAME}__lanepanel-run`}>
+          {finished ? `run closed · ${done}/${items.length}` : died ? `died at: ${(items.find((t) => t.state === "active") || {}).text}` : `${done}/${items.length}`}
+        </span>
+        <button type="button" className={`${CLASSNAME}__lanepanel-x`} onClick={onClose}>×</button>
+      </div>
+      {arts && (
+        <div className={`${CLASSNAME}__lanepanel-arts`}>
+          <span className={arts.worktree ? `${CLASSNAME}__lanepanel-art--left` : `${CLASSNAME}__lanepanel-art`}>
+            {arts.worktree ? `worktree left behind: ${arts.worktree.path}` : "no worktree left behind"}
+          </span>
+          {arts.branch && arts.branch.exists && (
+            <span className={arts.branch.merged ? `${CLASSNAME}__lanepanel-art` : `${CLASSNAME}__lanepanel-art--left`}>
+              {arts.branch.merged ? `branch merged into ${arts.branch.base} — deletable` : `branch unmerged vs ${arts.branch.base}`}
+            </span>
+          )}
+          {arts.branch && arts.branch.exists === false && <span className={`${CLASSNAME}__lanepanel-art`}>no branch by this name</span>}
+        </div>
+      )}
+      <div className={`${CLASSNAME}__lanepanel-review`}>
+        <BranchBlock label={branch} attrs={{ project: projectCode }} />
+      </div>
+      <div className={`${CLASSNAME}__lanepanel-log`}>
+        <div className={`${CLASSNAME}__lanepanel-logtitle`}>the lane's log — what it actually did</div>
+        {laneEvents && laneEvents.length ? (
+          <Feed rows={foldEvents(laneEvents)} />
+        ) : (
+          <div className={`${CLASSNAME}__lanepanel-empty`}>no log held — the lane ran before this view attached, or its events aged out</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function LaneRow({ source, items, projectCode, onOpenPanel }) {
+  const [openReview, setOpenReview] = useState(false);
+  const branch = source.slice(5); // "lane:" — the suffix IS the branch, by convention
+  const done = items.filter((t) => t.state === "done").length;
+  const finished = items.length > 0 && done === items.length;
+  const active = items.find((t) => t.state === "active");
+  return (
+    <div className={`${CLASSNAME}__lane${finished ? ` ${CLASSNAME}__lane--done` : ""}`}>
+      <div className={`${CLASSNAME}__lane-row`}>
+        <span className={`${CLASSNAME}__lane-icon`}>🤖</span>
+        <button type="button" className={`${CLASSNAME}__lane-name`} title="open the lane's panel — its log, review, and leftovers" onClick={onOpenPanel}>
+          {branch}
+        </button>
+        <span className={`${CLASSNAME}__lane-bar`}>
+          <span className={`${CLASSNAME}__lane-fill`} style={{ width: `${items.length ? Math.round((done / items.length) * 100) : 0}%` }} />
+        </span>
+        <span className={`${CLASSNAME}__lane-count`}>{done}/{items.length}</span>
+        {finished ? (
+          <button type="button" className={`${CLASSNAME}__lane-chip`} onClick={() => setOpenReview(!openReview)}>
+            ⎇ review
+          </button>
+        ) : (
+          <span className={`${CLASSNAME}__lane-doing`}>{active ? active.text : "starting"}</span>
+        )}
+      </div>
+      {openReview && <BranchBlock label={branch} attrs={{ project: projectCode }} />}
     </div>
   );
 }
@@ -4269,8 +4369,15 @@ const countdown = (str, now = Date.now()) => {
   // fingerprint and it returns on its own. Completion clears NOTHING — a finished run sits on
   // screen until he presses its ×, which is the only way multiple lists can be seen together.
   const [clearedLists, setClearedLists] = useState({});
+  // which lane's panel is open — one at a time; the panel is the deep look, the rows are the glance
+  const [lanePanel, setLanePanel] = useState(null);
   const listsShown = (work.state.todoLists || []).filter(
-    (l) => l.items.length && JSON.stringify(l.items) !== clearedLists[l.key]
+    (l) => l.items.length && JSON.stringify(l.items) !== clearedLists[l.key] && !l.source.startsWith("lane:")
+  );
+  // lanes render as instrument rows, not list folds — and unlike a plan, a lane row leaves when
+  // cleared the same way (its next write brings it back)
+  const lanesShown = (work.state.todoLists || []).filter(
+    (l) => l.items.length && JSON.stringify(l.items) !== clearedLists[l.key] && l.source.startsWith("lane:")
   );
   const todoShown = listsShown.length ? listsShown[listsShown.length - 1].items : null;
   // THE PLAN'S HEADER RIDES THE MINIMISED VIEW ONLY — his correction after I put it on the open
@@ -5956,6 +6063,16 @@ const countdown = (str, now = Date.now()) => {
               moment a turn ends is exactly when "what's left" matters, and a list that vanishes
               when the agent stops is a list he can only read while he cannot act on it. */}
           {attached &&
+            lanesShown.map((l) => (
+              <LaneRow
+                key={l.key}
+                source={l.source}
+                items={l.items}
+                projectCode={projectCode}
+                onOpenPanel={() => setLanePanel((cur) => (cur === l.key ? null : l.key))}
+              />
+            ))}
+          {attached &&
             listsShown.map((l) => (
               <WorkList
                 key={l.key}
@@ -5964,6 +6081,25 @@ const countdown = (str, now = Date.now()) => {
                 onClear={() => setClearedLists((c) => ({ ...c, [l.key]: JSON.stringify(l.items) }))}
               />
             ))}
+          {attached && lanePanel && (() => {
+            const l = lanesShown.find((x) => x.key === lanePanel);
+            if (!l) return null;
+            // the lane's raw events, routed by the split: key is the run id; the lane map is
+            // keyed by the spawning Agent call's id — join on the sourced set call
+            let laneEvents = null;
+            for (const [, lane] of work.lanes || []) {
+              if (lane.source === l.source) { laneEvents = lane.events; break; }
+            }
+            return (
+              <LanePanel
+                source={l.source}
+                items={l.items}
+                laneEvents={laneEvents}
+                projectCode={projectCode}
+                onClose={() => setLanePanel(null)}
+              />
+            );
+          })()}
           {/* The whiteboard sits UNDER the list — tried on top, he wants to feel this order
               again. Same area, different job: the list tracks the work, the board holds the
               conversation. The wipe is the host's, so an erase clears it for both of us. */}

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { openAgent, hasAgentHost, listModels, setModel as hostSetModel } from "../../utils/hostAgent";
-import { foldEvents, foldState } from "./feedRows";
+import { foldEvents, foldState, splitLaneEvents } from "./feedRows";
 
 // RFC-046 — ONE SESSION, SUBSCRIBED FROM WHEREVER IT IS BEING WATCHED. A hook rather than a
 // component because the chat and the pane need the same stream and must not open two.
@@ -150,7 +150,10 @@ export default function useAgentSession({ projectCode, sessionId = "agent", gate
 
   // THE PENDING FLAG DIES WHEN THE HOST CONFIRMS, and only then. The confirming `session.started`
   // carries the new model, so the moment the folded state names it, the switch really happened.
-  const state = foldState(events);
+  // the split happens before the folds so a lane's activity can't puppet the owner's cooking
+  // line or its meter — the owner's state comes from the owner's events
+  const { main, lanes } = splitLaneEvents(events);
+  const state = foldState(main);
   useEffect(() => {
     if (!switching) return;
     const now = String(state.model || "");
@@ -173,7 +176,8 @@ export default function useAgentSession({ projectCode, sessionId = "agent", gate
     hosted,
     live: !!transportRef.current,
     events,
-    rows: foldEvents(events),
+    rows: foldEvents(main),
+    lanes,
     state,
     err,
     answered,
