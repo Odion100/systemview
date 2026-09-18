@@ -5423,6 +5423,19 @@ const countdown = (str, now = Date.now()) => {
                   onDoubleClick={(e) => e.stopPropagation()} // …and never resets the TV
                   onClick={(e) => {
                     e.stopPropagation();
+                    // NOT ON THE CODE PAGE? The side panel is the landing (his rule: the panel
+                    // shows up on every page -- reading one doc never costs the page you're on).
+                    // The event opens the panel even when it's closed; `handled` says a panel
+                    // answered, and only silence falls through to the navigate below.
+                    if (!window.location.pathname.startsWith("/specs/")) {
+                      const detail = { projectCode, path: tvDocPath, language: "markdown" };
+                      window.dispatchEvent(new CustomEvent("sv:openFileInNav", { detail }));
+                      if (detail.handled) {
+                        setTvOpen(false);
+                        if (endErrandRef.current) endErrandRef.current(true);
+                        return;
+                      }
+                    }
                     const p = new URLSearchParams(window.location.search);
                     p.set("tab", "reports");
                     p.set("rdoc", tvDocPath);

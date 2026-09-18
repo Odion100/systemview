@@ -153,9 +153,9 @@
   font-size: 11px;
   color: var(--sv-text-faint);
 }
-.doc-panel__prop-by { font-style: italic; }
-.doc-panel__prop-raw {
-  margin-left: auto;
+.doc-panel__prop-by { font-style: italic; margin-right: auto; }
+// read | changes | edit — read is the default because a proposal is a DOCUMENT first
+.doc-panel__prop-view {
   font: inherit;
   font-size: 11px;
   padding: 2px 8px;
@@ -164,6 +164,17 @@
   background: var(--sv-surface);
   color: var(--sv-text-muted);
   cursor: pointer;
+  &--on { border-color: var(--sv-accent, #2f9700); color: var(--sv-text); }
+}
+.doc-panel__prop-read {
+  padding: 4px 10px 10px;
+  border: 1px solid var(--sv-border);
+  border-radius: 6px;
+  overflow-y: auto;
+  min-height: 0;
+  flex: 1 1 auto;
+  font-size: 13px;
+  line-height: 1.55;
 }
 .doc-panel__prop-why {
   padding: 8px 10px;

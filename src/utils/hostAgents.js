@@ -147,12 +147,12 @@ export async function killSession(projectCode, sessionId) {
 // picker is built from — you can only attach a hook to a moment the system really announces.
 export async function listHooks() {
   const a = sv() && sv().agent;
-  if (!a || typeof a.hooks !== "function") return { hooks: [], events: [] };
+  if (!a || typeof a.hooks !== "function") return { hooks: [], events: [], ambient: [] };
   try {
     const r = await a.hooks();
-    return { hooks: (r && r.hooks) || [], events: (r && r.events) || [] };
+    return { hooks: (r && r.hooks) || [], events: (r && r.events) || [], ambient: (r && r.ambient) || [] };
   } catch {
-    return { hooks: [], events: [] };
+    return { hooks: [], events: [], ambient: [] };
   }
 }
 
@@ -205,35 +205,6 @@ export async function callStats(opts) {
 
 // PROPOSED AGENT DOCS — the `agent-authoring` skill drafts into a sidecar and stops; approving is
 // what writes `def.prompt`. Returns [{ id, name, by, cut, added, text, current, at }].
-export async function proposals() {
-  const a = sv() && sv().agent;
-  if (!a || typeof a.proposals !== "function") return [];
-  try {
-    return (await a.proposals()) || [];
-  } catch {
-    return [];
-  }
-}
-
-export async function applyProposal(id, text) {
-  const a = sv() && sv().agent;
-  if (!a || typeof a.applyProposal !== "function") return { ok: false, error: "no proposal bridge — relaunch the browser" };
-  try {
-    return (await a.applyProposal(id, text)) || { ok: false, error: "no answer" };
-  } catch (e) {
-    return { ok: false, error: String((e && e.message) || e) };
-  }
-}
-
-export async function rejectProposal(id) {
-  const a = sv() && sv().agent;
-  if (!a || typeof a.rejectProposal !== "function") return { ok: false };
-  try {
-    return (await a.rejectProposal(id)) || { ok: false };
-  } catch {
-    return { ok: false };
-  }
-}
 
 // Run history per agent: { [agentId]: { runs, lastActive, capabilities } }.
 export async function agentRuns() {

@@ -9,8 +9,6 @@ import DocPanel from "../../organisms/DocPanel/DocPanel";
 import AgentChat from "../../organisms/AgentChat/AgentChat";
 import { saveDoc, saveSkill, saveDef, saveHelp } from "../../utils/hostAgents";
 import useOpenedFile from "../../organisms/DocPanel/useOpenedFile";
-import { proposals as loadProposals, applyProposal, rejectProposal } from "../../utils/hostAgents";
-import { raiseKeyed, clearKeyed } from "../../atoms/Banner/bannerStore";
 import "./styles.scss";
 
 // RFC-055 — ONE PAGE, THREE PANELS (his design): the navigator on the left (the same one Specs
@@ -60,64 +58,6 @@ const Context = () => {
 
   // One resolver for every page (see useOpenedFile) — the page only says where the doc lands.
   useOpenedFile(projectCode, setDoc);
-
-  // A PROPOSED AGENT DOC ARRIVES WITHOUT BEING ASKED FOR, so it announces itself — the banner is the
-  // arrival, the panel is the reading. `agent-authoring` writes the sidecar and stops; nothing else
-  // in the system can turn a draft into `def.prompt`.
-  const openProposal = (p) =>
-    setDoc({
-      kind: "proposal",
-      id: p.id,
-      by: p.by,
-      cut: p.cut,
-      added: p.added,
-      label: `${p.name} — proposed agent doc`,
-      where: p.at ? `drafted ${p.at.slice(0, 16).replace("T", " ")}` : "",
-      language: "markdown",
-      text: p.text,
-      orig: p.text,
-      current: p.current,
-    });
-
-  const checkProposals = React.useCallback(async () => {
-    const list = await loadProposals();
-    if (!list.length) {
-      clearKeyed("agent-proposal");
-      return;
-    }
-    const p = list[0];
-    raiseKeyed(
-      "agent-proposal",
-      "info",
-      `${p.name} proposed a new agent doc`,
-      p.cut ? `would cut — ${p.cut}` : "waiting on you",
-      { sticky: true, action: { label: "review", run: () => openProposal(p) } },
-    );
-  }, []);
-
-  useEffect(() => {
-    checkProposals();
-    const on = () => checkProposals();
-    window.addEventListener("sv:botHub", on);
-    return () => window.removeEventListener("sv:botHub", on);
-  }, [checkProposals]);
-
-  const decideProposal = async (yes) => {
-    if (!doc || doc.kind !== "proposal") return;
-    setSaving(true);
-    try {
-      const res = yes ? await applyProposal(doc.id, doc.text) : await rejectProposal(doc.id);
-      if (res && res.ok === false) throw new Error(res.error || "could not apply");
-      setDoc(null);
-      clearKeyed("agent-proposal");
-      // The profile re-reads on this signal — and because approving rewrites the definition file,
-      // its own staleness check now sees a doc newer than the running session and offers the
-      // re-init on its own. Nothing here has to know about sessions.
-      window.dispatchEvent(new CustomEvent("sv:botHub"));
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const saveOpenDoc = async () => {
     if (!doc) return;
@@ -238,8 +178,6 @@ const Context = () => {
             saving={saving}
             onChange={(text) => setDoc((cur) => (cur ? { ...cur, text } : cur))}
             onSave={saveOpenDoc}
-            onApprove={() => decideProposal(true)}
-            onReject={() => decideProposal(false)}
             onClose={() => {
               setDoc(null);
               setUrl((p) => p.delete("doc"));

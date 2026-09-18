@@ -16,6 +16,9 @@ export default function useOpenedFile(projectCode, onOpen) {
       if (!d.path) return;
       const pc = d.projectCode || projectCode;
       if (!pc) return;
+      // the dispatcher may have a fallback (the TV's doc button navigates when no panel is
+      // here) -- marking the event taken is how it knows a panel answered
+      d.handled = true;
       onOpen({ kind: "file", projectCode: pc, serviceId: d.serviceId || null, path: d.path, label: d.path, language: d.language || null, lines: d.lines || null });
     };
     window.addEventListener("sv:openFileInNav", handler);

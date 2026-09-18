@@ -73,6 +73,9 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
   // `hookDraft` is the one being edited (null = the list is just being read).
   const [hooks, setHooks] = useState([]);
   const [hookEvents, setHookEvents] = useState([]);
+  // ambient fields ride EVERY event (stamped at the fire choke point) — offered beside the
+  // event's own fields in every when-condition
+  const [hookAmbient, setHookAmbient] = useState([]);
   const [hookDraft, setHookDraft] = useState(null);
   const [hookErr, setHookErr] = useState("");
   // WHAT THIS AGENT PAYS EVERY TURN, before it is asked anything. The store's numbers answer
@@ -93,6 +96,7 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
     setDefs(list);
     setHooks(hk.hooks);
     setHookEvents(hk.events);
+    setHookAmbient(hk.ambient || []);
     setLive(ls);
     setRuns(rs);
     setCols(cs);
@@ -333,6 +337,17 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
     }
   };
   const eventNamed = (n) => hookEvents.find((e) => e.name === n) || null;
+  // every field a `when` may use on this event: its own, then the ambient set — and the preset
+  // values a field declares, so the surface OFFERS them instead of asking anyone to type from memory
+  const condFields = (on) => [
+    ...(((eventNamed(on) || {}).fields) || []).map((f) => ({ value: f, label: f })),
+    ...hookAmbient.map((a) => ({ value: a.name, label: `${a.name} · ambient` })),
+  ];
+  const valuesFor = (on, field) => {
+    const ev = eventNamed(on);
+    const v = ev && ev.values && ev.values[field];
+    return Array.isArray(v) ? v : null;
+  };
   // `when` is stored as an object; the editor works in ROWS because that is what a human edits.
   // The two shapes convert here and nowhere else.
   const whenRows = (when) =>
@@ -506,7 +521,7 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
                           <SvSelect
                             value={r.field}
                             onChange={(v) => setHd({ rows: hookDraft.rows.map((x, n) => (n === i ? { ...x, field: v } : x)) })}
-                            options={((eventNamed(hookDraft.on) || {}).fields || []).map((f) => ({ value: f, label: f }))}
+                            options={condFields(hookDraft.on)}
                           />
                           <SvSelect
                             value={r.op}
@@ -522,14 +537,21 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
                               { value: "exists", label: "exists" },
                             ]}
                           />
-                          {r.op !== "exists" && (
-                            <input
-                              className="agent-profile__hookform-input"
-                              value={r.val}
-                              placeholder="value"
-                              onChange={(e) => setHd({ rows: hookDraft.rows.map((x, n) => (n === i ? { ...x, val: e.target.value } : x)) })}
-                            />
-                          )}
+                          {r.op !== "exists" &&
+                            (valuesFor(hookDraft.on, r.field) && r.op === "equals" ? (
+                              <SvSelect
+                                value={r.val}
+                                onChange={(v) => setHd({ rows: hookDraft.rows.map((x, n) => (n === i ? { ...x, val: v } : x)) })}
+                                options={valuesFor(hookDraft.on, r.field).map((v) => ({ value: String(v), label: String(v) }))}
+                              />
+                            ) : (
+                              <input
+                                className="agent-profile__hookform-input"
+                                value={r.val}
+                                placeholder="value"
+                                onChange={(e) => setHd({ rows: hookDraft.rows.map((x, n) => (n === i ? { ...x, val: e.target.value } : x)) })}
+                              />
+                            ))}
                           <button
                             type="button"
                             className="agent-profile__hook-btn agent-profile__hook-btn--del"
@@ -542,17 +564,13 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
                       <button
                         type="button"
                         className="agent-profile__hook-btn"
-                        disabled={!((eventNamed(hookDraft.on) || {}).fields || []).length}
-                        title={
-                          ((eventNamed(hookDraft.on) || {}).fields || []).length
-                            ? "Narrow this hook to events that match"
-                            : "This event carries no fields to match on"
-                        }
+                        disabled={!condFields(hookDraft.on).length}
+                        title="Narrow this hook to events that match"
                         onClick={() =>
                           setHd({
                             rows: [
                               ...hookDraft.rows,
-                              { field: ((eventNamed(hookDraft.on) || {}).fields || [])[0] || "", op: "contains", val: "" },
+                              { field: (condFields(hookDraft.on)[0] || {}).value || "", op: "contains", val: "" },
                             ],
                           })
                         }
