@@ -103,7 +103,13 @@ const BranchBlock = ({ label, attrs = {} }) => {
         // Same door a ::commit block uses: opens the lens, lands the message, glows — the commit
         // itself stays his two clicks.
         const msg = (diff.commits || []).map((c) => c.subject).filter(Boolean).join("; ");
-        if (msg) window.dispatchEvent(new CustomEvent("sv:commitInNav", { detail: { projectCode, message: msg } }));
+        if (msg) {
+          // HELD AS WELL AS FIRED (his catch): when this press is what OPENS the panel, the
+          // panel's listener does not exist yet — the event sails past an empty room. The
+          // mailbox is what a just-mounting git bar checks; the event covers the already-open.
+          window.__svCommitHandoff = { projectCode, message: msg, ts: Date.now() };
+          window.dispatchEvent(new CustomEvent("sv:commitInNav", { detail: { projectCode, message: msg } }));
+        }
       }
     } catch (e) {
       setError((e && e.message) || "apply failed");

@@ -1365,6 +1365,7 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
     const onTake = (e) => {
       const d = (e && e.detail) || {};
       if (d.projectCode && d.projectCode !== projectCode) return;
+      delete window.__svCommitHandoff; // handled here — no other surface should replay it on mount
       setCodeOpen(true);
       setVcLens(true);
       localStorage.setItem("sv.cbNav.vcLens", "true");
@@ -1391,6 +1392,14 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
       setTimeout(land, 60);
     };
     window.addEventListener("sv:commitInNav", onTake);
+    // THE MAILBOX (his catch): when the hand-off is what OPENED this surface, the event fired
+    // before this listener existed — an empty room. A just-mounted git bar checks for a held
+    // message; fresh and for this project means it was meant for us, so consume it exactly once.
+    const held = typeof window !== "undefined" && window.__svCommitHandoff;
+    if (held && held.projectCode === projectCode && Date.now() - (held.ts || 0) < 20000) {
+      delete window.__svCommitHandoff;
+      onTake({ detail: held });
+    }
     return () => window.removeEventListener("sv:commitInNav", onTake);
   }, [projectCode]);
 
