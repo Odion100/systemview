@@ -824,7 +824,11 @@ function Whiteboard({ text, writeTs = 0, onWipe }) {
 // ran, folded by the same Feed the workbench uses), its branch review, and its ARTIFACTS — the
 // janitor's row: worktree still on disk, branch merged or not, run closed or died. What a lane
 // did, what it proved, what it left behind — one panel, closed with ×.
-function LanePanel({ source, items, laneEvents, projectCode, onClose }) {
+function LanePanel({ source, items, laneEvents, brief = "", projectCode, onClose }) {
+  // THE BRIEF AT THE TOP (his ask): the prompt that scoped this lane, shown where the lane is
+  // monitored — the owner's context compressed into instructions is exactly what a reader needs
+  // to judge the log below it. Folded, because it can be long and the log is the live half.
+  const [briefOpen, setBriefOpen] = useState(false);
   const branch = source.slice(5);
   const [arts, setArts] = useState(null);
   useEffect(() => {
@@ -857,6 +861,14 @@ function LanePanel({ source, items, laneEvents, projectCode, onClose }) {
         </span>
         <button type="button" className={`${CLASSNAME}__lanepanel-x`} onClick={onClose}>×</button>
       </div>
+      {brief && (
+        <div className={`${CLASSNAME}__lanepanel-brief`}>
+          <button type="button" className={`${CLASSNAME}__lanepanel-brieftoggle`} onClick={() => setBriefOpen((v) => !v)}>
+            {briefOpen ? "▾" : "▸"} the brief — what this lane was told
+          </button>
+          {briefOpen && <pre className={`${CLASSNAME}__lanepanel-brieftext`}>{brief}</pre>}
+        </div>
+      )}
       {arts && (
         <div className={`${CLASSNAME}__lanepanel-arts`}>
           <span className={arts.worktree ? `${CLASSNAME}__lanepanel-art--left` : `${CLASSNAME}__lanepanel-art`}>
@@ -4699,9 +4711,9 @@ const countdown = (str, now = Date.now()) => {
         {attached && lanePanel && !inNav && (() => {
           const l = lanesShown.find((x) => x.key === lanePanel);
           if (!l) return null;
-          let laneEvents = null;
+          let laneEvents = null, laneBrief = "";
           for (const [, lane] of work.lanes || []) {
-            if (lane.source === l.source) { laneEvents = lane.events; break; }
+            if (lane.source === l.source) { laneEvents = lane.events; laneBrief = lane.brief || ""; break; }
           }
           return (
             <div className={`${CLASSNAME}__tv ${CLASSNAME}__lanepanel-side`} style={{ width: 460, height: Math.max(380, size.h) }}>
@@ -4709,6 +4721,7 @@ const countdown = (str, now = Date.now()) => {
                 source={l.source}
                 items={l.items}
                 laneEvents={laneEvents}
+                brief={laneBrief}
                 projectCode={projectCode}
                 onClose={() => setLanePanel(null)}
               />
@@ -6227,15 +6240,16 @@ const countdown = (str, now = Date.now()) => {
             if (!l) return null;
             // the lane's raw events, routed by the split: key is the run id; the lane map is
             // keyed by the spawning Agent call's id — join on the sourced set call
-            let laneEvents = null;
+            let laneEvents = null, laneBrief = "";
             for (const [, lane] of work.lanes || []) {
-              if (lane.source === l.source) { laneEvents = lane.events; break; }
+              if (lane.source === l.source) { laneEvents = lane.events; laneBrief = lane.brief || ""; break; }
             }
             return (
               <LanePanel
                 source={l.source}
                 items={l.items}
                 laneEvents={laneEvents}
+                brief={laneBrief}
                 projectCode={projectCode}
                 onClose={() => setLanePanel(null)}
               />

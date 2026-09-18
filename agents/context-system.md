@@ -99,6 +99,26 @@ A corpus is a folder of markdown; editing the files and maintaining the corpus a
 context layer that fires on a moment instead of a question. A written hook is inert until the
 human carries it on an agent.)
 
+## The layers — what loads when, and where a sentence belongs
+
+Context reaches an agent three ways, and every fact has one home — one definition, or it drifts:
+
+| layer | carries | reaches the agent |
+| --- | --- | --- |
+| **presence** (`~/.autobot/presence.md`) | where you are, what the harness offers | loaded every turn, every agent |
+| **system context** (`~/.autobot/system-context.md`) | how any agent here acts — store rules, work norms, the room | loaded every turn, every agent |
+| **agent doc** (`def.prompt`) | the ROLE: what this one agent is for, owns, cares about | loaded every turn, this agent |
+| **CLAUDE.md** (per repo) | that repo's operating rules — commands, arming, constraints | loaded when working in that repo |
+| **skills** | procedures — name + description always; the body when one fires | on demand |
+| **hooks** | pointers pushed at a moment the agent would not think to ask | on the event, if carried |
+| **the store + corpora** | knowledge — info and crystallized, this page's subject | when the agent asks (`context()`) |
+
+The loaded layers are paid in **attention** every turn, so they stay small and distill; anything
+an agent can ask for lives on the retrieved side instead. CLAUDE.md is **rules, not memory** — what
+must be true every time anyone works in that repo (the build command, what needs a restart), never
+narrative, never lessons; lessons are notes, and settled knowledge is this corpus's job. The
+always-loaded files are **pointed at, never copied** — a copy in two layers is two copies drifting.
+
 ## Nominations — the closed pipeline from notes to handbook
 
 **A note in the store about a documented topic is a bug report against the doc.** Somebody hit a

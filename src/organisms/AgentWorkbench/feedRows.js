@@ -72,17 +72,30 @@ const MCP_SERVERS = { context: true, discovery: true, systemlynx: true, worklist
 export const LANE_LOG_CAP = 300;
 export function splitLaneEvents(events) {
   const main = [];
-  const lanes = new Map(); // parentId -> { source, events: [] }
+  const lanes = new Map(); // parentId -> { source, brief, events: [] }
   for (const ev of events || []) {
     if (ev && ev.parent) {
       let lane = lanes.get(ev.parent);
-      if (!lane) { lane = { source: "", events: [] }; lanes.set(ev.parent, lane); }
+      if (!lane) { lane = { source: "", brief: "", events: [] }; lanes.set(ev.parent, lane); }
       if (ev.kind === "tool.call" && ev.input && typeof ev.input.source === "string" && ev.input.source.startsWith("lane:"))
         lane.source = ev.input.source;
       lane.events.push(ev);
       if (lane.events.length > LANE_LOG_CAP) lane.events.shift();
-    } else main.push(ev);
+    } else {
+      // THE BRIEF (his ask: "that should be at the top of that window"). The spawning Agent call
+      // sits in the OWNER's feed, and its tool_use id is exactly the parent the lane's events
+      // carry — so the prompt that scoped the lane is captured here, not re-said from memory.
+      if (ev && ev.kind === "tool.call" && ev.id && ev.input && typeof ev.input.prompt === "string") {
+        const lane = lanes.get(String(ev.id));
+        if (lane && !lane.brief) lane.brief = ev.input.prompt;
+        else if (!lanes.has(String(ev.id)) && /agent|task/i.test(String(ev.tool || "")))
+          lanes.set(String(ev.id), { source: "", brief: ev.input.prompt, events: [] });
+      }
+      main.push(ev);
+    }
   }
+  // drop brief-only phantoms (an Agent call that never produced lane events)
+  for (const [k, l] of lanes) if (!l.events.length) lanes.delete(k);
   return { main, lanes };
 }
 
