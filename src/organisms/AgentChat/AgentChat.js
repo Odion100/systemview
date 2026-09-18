@@ -885,32 +885,106 @@ function LanePanel({ source, items, laneEvents, projectCode, onClose }) {
   );
 }
 
-function LaneRow({ source, items, projectCode, onOpenPanel }) {
-  const [openReview, setOpenReview] = useState(false);
+function LaneRow({ source, items, projectCode, panelOpen, onOpenPanel, onDelete }) {
   const branch = source.slice(5); // "lane:" — the suffix IS the branch, by convention
   const done = items.filter((t) => t.state === "done").length;
   const finished = items.length > 0 && done === items.length;
   const active = items.find((t) => t.state === "active");
+  // THE DELETE IS HIS, TWO-STEP (his design): pressing 🗑 first READS what the delete would
+  // destroy — branch merged or not, worktree still on disk — and the confirm says it to his
+  // face. An unmerged branch is real work; "delete anyway?" is the honesty, same as the switch
+  // refusing over dirty files. Yes removes worktree, branch and run record; the row dying is
+  // the verification.
+  const [confirm, setConfirm] = useState(null); // null | "reading" | {merged, exists, worktree}
+  const [delErr, setDelErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  const armDelete = async (e) => {
+    e.stopPropagation();
+    if (confirm) { setConfirm(null); return; }
+    setConfirm("reading");
+    setDelErr("");
+    try {
+      const p = hostFiles(projectCode);
+      const [wt, bs] = await Promise.all([
+        p.worktrees().catch(() => null),
+        p.branchState({ branch }).catch(() => null),
+      ]);
+      setConfirm({
+        merged: !!(bs && bs.merged),
+        exists: !!(bs && bs.exists),
+        worktree: wt && (wt.worktrees || []).find((w) => !w.main && w.branch === branch),
+      });
+    } catch {
+      setConfirm({ merged: false, exists: false, worktree: null });
+    }
+  };
+  const doDelete = async (e) => {
+    e.stopPropagation();
+    if (!confirm || confirm === "reading") return;
+    setBusy(true);
+    try {
+      const p = hostFiles(projectCode);
+      if (confirm.worktree) {
+        const r = await p.removeWorktree({ path: confirm.worktree.path, force: true });
+        if (r && r.ok === false) throw new Error(r.error || "could not remove the worktree");
+      }
+      if (confirm.exists) {
+        // -d when merged; the forced -D only rides a confirm that said "not merged" out loud
+        const r = await p.deleteBranch({ name: branch, force: !confirm.merged });
+        if (r && r.ok === false) throw new Error(r.error || "could not delete the branch");
+      }
+      await onDelete();
+      return; // the row is gone — nothing left to un-busy
+    } catch (err) {
+      setDelErr((err && err.message) || "delete failed");
+    }
+    setBusy(false);
+  };
   return (
     <div className={`${CLASSNAME}__lane${finished ? ` ${CLASSNAME}__lane--done` : ""}`}>
-      <div className={`${CLASSNAME}__lane-row`}>
+      {/* THE WHOLE ROW IS THE DOOR. The name alone was the button and nothing said so — a lane
+          mid-flight looked like a read-only bar until it finished. His call: rows "should just be
+          clickable to open this panel in general." The ⎇ review chip that used to expand a branch
+          block inline is gone — his call too: the panel already holds the review, the bar already
+          says done, and one row does not need two doors. */}
+      <div
+        className={`${CLASSNAME}__lane-row${panelOpen ? ` ${CLASSNAME}__lane-row--open` : ""}`}
+        role="button"
+        tabIndex={0}
+        title="open the lane's panel — its log, review, and leftovers"
+        onClick={onOpenPanel}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpenPanel(); } }}
+      >
         <span className={`${CLASSNAME}__lane-icon`}>🤖</span>
-        <button type="button" className={`${CLASSNAME}__lane-name`} title="open the lane's panel — its log, review, and leftovers" onClick={onOpenPanel}>
-          {branch}
-        </button>
+        <span className={`${CLASSNAME}__lane-name`}>{branch}</span>
         <span className={`${CLASSNAME}__lane-bar`}>
           <span className={`${CLASSNAME}__lane-fill`} style={{ width: `${items.length ? Math.round((done / items.length) * 100) : 0}%` }} />
         </span>
         <span className={`${CLASSNAME}__lane-count`}>{done}/{items.length}</span>
-        {finished ? (
-          <button type="button" className={`${CLASSNAME}__lane-chip`} onClick={() => setOpenReview(!openReview)}>
-            ⎇ review
-          </button>
-        ) : (
-          <span className={`${CLASSNAME}__lane-doing`}>{active ? active.text : "starting"}</span>
-        )}
+        {!finished && <span className={`${CLASSNAME}__lane-doing`}>{active ? active.text : "starting"}</span>}
+        <button type="button" className={`${CLASSNAME}__lane-del`} title="clean up this lane — worktree, branch, record" onClick={armDelete}>🗑</button>
+        <span className={`${CLASSNAME}__lane-chev`}>{panelOpen ? "▾" : "▸"}</span>
       </div>
-      {openReview && <BranchBlock label={branch} attrs={{ project: projectCode }} />}
+      {confirm && (
+        <div className={`${CLASSNAME}__lane-confirm`} onClick={(e) => e.stopPropagation()}>
+          {confirm === "reading" ? (
+            <span>reading what this would destroy…</span>
+          ) : (
+            <>
+              <span className={confirm.exists && !confirm.merged ? `${CLASSNAME}__lane-confirm-warn` : ""}>
+                {confirm.exists && !confirm.merged
+                  ? `branch not merged — real work dies with it. Delete anyway?`
+                  : confirm.exists
+                  ? `branch merged${confirm.worktree ? ", worktree still on disk" : ""} — delete the lane?`
+                  : `no branch left — delete the lane's record${confirm.worktree ? " and worktree" : ""}?`}
+              </span>
+              <button type="button" disabled={busy} onClick={doDelete}>yes, delete</button>
+              <button type="button" disabled={busy} onClick={(e) => { e.stopPropagation(); setConfirm(null); }}>no</button>
+            </>
+          )}
+          {delErr && <span className={`${CLASSNAME}__lane-confirm-warn`}>{delErr}</span>}
+        </div>
+      )}
     </div>
   );
 }
@@ -4374,11 +4448,22 @@ const countdown = (str, now = Date.now()) => {
   const listsShown = (work.state.todoLists || []).filter(
     (l) => l.items.length && JSON.stringify(l.items) !== clearedLists[l.key] && !l.source.startsWith("lane:")
   );
-  // lanes render as instrument rows, not list folds — and unlike a plan, a lane row leaves when
-  // cleared the same way (its next write brings it back)
-  const lanesShown = (work.state.todoLists || []).filter(
-    (l) => l.items.length && JSON.stringify(l.items) !== clearedLists[l.key] && l.source.startsWith("lane:")
-  );
+  // STANDING LANES (RFC-059 slice 2): a lane row is born from a spawn and DIES AT CLEANUP —
+  // nothing in between kills it. Rows come from the host's run files, so they outlive refreshes;
+  // this session's live lane events overlay them (freshest items win) but never own the row's
+  // existence. clearedLists still applies — after his confirmed delete the run file is gone, and
+  // the fingerprint is what keeps the session's own event echo from resurrecting the row.
+  const lanesShown = (() => {
+    const rows = new Map();
+    for (const r of work.standingLanes || []) {
+      const id = String(r.owner || "").slice(4); // "run:<id>"
+      if (r.items && r.items.length) rows.set(id, { key: id, source: r.source, items: r.items });
+    }
+    for (const l of work.state.todoLists || []) {
+      if (l.items.length && l.source.startsWith("lane:")) rows.set(l.key, { key: l.key, source: l.source, items: l.items });
+    }
+    return [...rows.values()].filter((l) => JSON.stringify(l.items) !== clearedLists[l.key]);
+  })();
   const todoShown = listsShown.length ? listsShown[listsShown.length - 1].items : null;
   // THE PLAN'S HEADER RIDES THE MINIMISED VIEW ONLY — his correction after I put it on the open
   // panel's cooking line too: *"the worklist is already showing inside the chat."* Open, the list
@@ -4597,6 +4682,27 @@ const countdown = (str, now = Date.now()) => {
             </div>
           </div>
         )}
+        {/* THE LANE PANEL, FLOATING: a side panel beside the chat, like every other deep look —
+            in the nav it expands inline in the strip instead (that render is up in the strip). */}
+        {attached && lanePanel && !inNav && (() => {
+          const l = lanesShown.find((x) => x.key === lanePanel);
+          if (!l) return null;
+          let laneEvents = null;
+          for (const [, lane] of work.lanes || []) {
+            if (lane.source === l.source) { laneEvents = lane.events; break; }
+          }
+          return (
+            <div className={`${CLASSNAME}__tv ${CLASSNAME}__lanepanel-side`} style={{ width: 460, height: Math.max(380, size.h) }}>
+              <LanePanel
+                source={l.source}
+                items={l.items}
+                laneEvents={laneEvents}
+                projectCode={projectCode}
+                onClose={() => setLanePanel(null)}
+              />
+            </div>
+          );
+        })()}
         {/* THE BOARD. Plain and his: type, it saves itself, it is still there tomorrow. Markdown,
             so anything he pastes or writes can be a real block later — but nothing here renders it,
             because a notepad that reformats what you typed while you type is not a notepad. */}
@@ -6069,7 +6175,14 @@ const countdown = (str, now = Date.now()) => {
                 source={l.source}
                 items={l.items}
                 projectCode={projectCode}
+                panelOpen={lanePanel === l.key}
                 onOpenPanel={() => setLanePanel((cur) => (cur === l.key ? null : l.key))}
+                onDelete={async () => {
+                  await work.deleteLaneRun(l.key);
+                  // the session's own event echo of this run must not resurrect the row
+                  setClearedLists((c) => ({ ...c, [l.key]: JSON.stringify(l.items) }));
+                  setLanePanel((cur) => (cur === l.key ? null : cur));
+                }}
               />
             ))}
           {attached &&
@@ -6081,7 +6194,10 @@ const countdown = (str, now = Date.now()) => {
                 onClear={() => setClearedLists((c) => ({ ...c, [l.key]: JSON.stringify(l.items) }))}
               />
             ))}
-          {attached && lanePanel && (() => {
+          {/* IN THE NAV the panel expands in place — the chat is a column there and has no side.
+              FLOATING, it goes out to the chat's side with the other panels (his call); that
+              render lives in the panel-anchor row below. */}
+          {attached && lanePanel && inNav && (() => {
             const l = lanesShown.find((x) => x.key === lanePanel);
             if (!l) return null;
             // the lane's raw events, routed by the split: key is the run id; the lane map is

@@ -1184,6 +1184,34 @@ async function branchState(projectCode, { branch, base, root } = {}) {
   return { ok: true, branch: b, exists: true, merged: ahead.ok && ahead.out.trim() === "0", base: bs };
 }
 
+// THE USER'S CLEANUP (RFC-059 slice 2) — pressed on a lane row after its confirm, never run
+// quietly by an agent. Both verbs REFUSE rather than force: a worktree with uncommitted changes
+// and an unmerged branch each need `force: true`, which only the confirm that told the user so
+// sends. The refusal text is the answer we surface.
+async function removeWorktree(projectCode, { path: wt, root, force } = {}) {
+  const cwd = rootOf(projectCode, root);
+  if (!cwd) return { ok: false, error: "no folder for this project" };
+  const p = String(wt || "").trim();
+  if (!p) return { ok: false, error: "which worktree?" };
+  const args = ["worktree", "remove", ...(force ? ["--force"] : []), p];
+  const res = await serial(cwd, () => git(cwd, args));
+  bustGit(projectCode);
+  if (!res.ok) return { ok: false, error: res.error };
+  return { ok: true, removed: p };
+}
+
+async function deleteBranch(projectCode, { name, root, force } = {}) {
+  const cwd = rootOf(projectCode, root);
+  if (!cwd) return { ok: false, error: "no folder for this project" };
+  const b = String(name || "").trim();
+  if (!b) return { ok: false, error: "which branch?" };
+  // -d refuses an unmerged branch; -D is only sent by a confirm that said "not merged" out loud
+  const res = await serial(cwd, () => git(cwd, ["branch", force ? "-D" : "-d", b]));
+  bustGit(projectCode);
+  if (!res.ok) return { ok: false, error: res.error };
+  return { ok: true, deleted: b };
+}
+
 async function push(projectCode, { root } = {}) {
   const cwd = rootOf(projectCode, root);
   if (!cwd) return { ok: false, error: "no folder for this project" };
@@ -2038,6 +2066,8 @@ module.exports = function launchSystemView(port = 3000) {
       branchDiff,
       worktrees,
       branchState,
+      removeWorktree,
+      deleteBranch,
       showCommit,
       changedFiles,
       getDiff,

@@ -167,6 +167,9 @@ export const hostFiles = (projectCode, root) => {
       if (r && r.ok === false) throw new Error(r.error || "could not diff the branch");
       return r;
     },
+    // the user's cleanup (RFC-059) — refusals pass through like switchBranch's: they are the answer
+    removeWorktree: async ({ path, force } = {}) => hub().removeWorktree(projectCode, { path, force, root }),
+    deleteBranch: async ({ name, force } = {}) => hub().deleteBranch(projectCode, { name, force, root }),
     changedFiles: async () => {
       const res = await hub().changedFiles(projectCode, { root });
       if (res && res.ok === false) throw new Error(res.error || "git did not run");

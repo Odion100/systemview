@@ -86,6 +86,36 @@ export default function useAgentSession({ projectCode, sessionId = "agent", gate
     if (t && t.wipeWhiteboard) t.wipeWhiteboard();
   }, []);
 
+  // STANDING LANES (RFC-059 slice 2) — a lane row is born from a spawn and dies at cleanup;
+  // nothing in between kills it. These rows come from the host's run FILES, not this session's
+  // events, so a refresh cannot eat a row whose worktree and branch are still on disk. Refreshed
+  // whenever a lane run moves in this session; the rest of the time the files are the truth.
+  const [standingLanes, setStandingLanes] = useState([]);
+  const refreshLanes = useCallback(() => {
+    const t = transportRef.current;
+    if (t && t.laneRuns)
+      t.laneRuns().then((rows) => setStandingLanes(Array.isArray(rows) ? rows : [])).catch(() => {});
+  }, []);
+  const laneTicks = events.reduce(
+    (n, e) =>
+      n +
+      (e.kind === "run.started" || e.kind === "run.finished" ||
+      (e.kind === "todo.updated" && String(e.source || "").startsWith("lane:"))
+        ? 1
+        : 0),
+    0
+  );
+  useEffect(() => {
+    refreshLanes();
+  }, [events.length > 0, laneTicks, refreshLanes]);
+  // The delete is the user's press, after the row's confirm — this only removes the RECORD; the
+  // worktree and branch go through the project's own git verbs before this is called.
+  const deleteLaneRun = useCallback(async (id) => {
+    const t = transportRef.current;
+    if (t && t.deleteLaneRun) await t.deleteLaneRun(id);
+    refreshLanes();
+  }, [refreshLanes]);
+
   const answer = useCallback((id, allow) => {
     const t = transportRef.current;
     if (t && t.answerPermission) t.answerPermission(id, allow);
@@ -188,6 +218,8 @@ export default function useAgentSession({ projectCode, sessionId = "agent", gate
     answer,
     interrupt,
     wipeWhiteboard,
+    standingLanes,
+    deleteLaneRun,
     compact,
     showSaid,
   };

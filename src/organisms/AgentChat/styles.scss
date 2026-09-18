@@ -3107,14 +3107,15 @@
   margin: 2px 8px 4px;
   font-size: 12px;
   border-radius: 6px;
-  // LIGHT MODE: darker slate, white ink — his call. DARK MODE: his landing, verbatim.
-  background: #363e48; // his number
-  border: 1px solid #46505c;
-  color: #ffffff;
+  // SWAPPED to try: LIGHT MODE gets the whitesmoke surface, DARK MODE the slate — his numbers,
+  // opposite assignments.
+  background: whitesmoke; // #f5f5f5
+  border: 1px solid #d8d8d2;
+  color: #3a4555;
   :root.sv-dark & {
-    background: whitesmoke; // #f5f5f5 — his call, by name
-    border-color: #d8d8d2;
-    color: #3a4555; // his ink, second landing
+    background: #363e48;
+    border-color: #46505c;
+    color: #ffffff;
   }
 }
 .agent-chat__whiteboard-headrow {
@@ -3138,7 +3139,8 @@
   font: inherit;
   text-align: left;
   &:hover { opacity: 1; }
-  :root.sv-dark & { color: #2f9700; opacity: 1; } // his green, dark mode's header
+  color: #2f9700; opacity: 1; // his green rides the whitesmoke surface — now light mode's
+  :root.sv-dark & { color: inherit; opacity: 0.8; }
 }
 .agent-chat__whiteboard-badge { flex: none; font-size: 11px; line-height: 1; opacity: 0.8; }
 .agent-chat__whiteboard-label {
@@ -3564,13 +3566,16 @@
     flex: 0 0 360px;
     order: 99;
   }
-  // His order, left to right: chat, links, TV, board, commands, codebase.
+  // His order, left to right: chat, links, TV, board, commands, codebase — the lane panel slots
+  // in right beside the chat ("still the side of the chat"), so everything after it shifts one.
   > .agent-chat__panel { order: 0; }
-  > .agent-chat__tv { order: 2; }
-  > .agent-chat__links { order: 1; }
-  > .agent-chat__board { order: 3; }
-  > .agent-chat__cmds { order: 4; }
-  > .agent-chat__cbpanel { order: 5; }
+  > .agent-chat__lanepanel-side { order: 1; }
+  > .agent-chat__links { order: 2; }
+  > .agent-chat__tv { order: 3; }
+  > .agent-chat__lanepanel-side.agent-chat__tv { order: 1; } // the wrapper carries both classes
+  > .agent-chat__board { order: 4; }
+  > .agent-chat__cmds { order: 5; }
+  > .agent-chat__cbpanel { order: 6; }
 }
 // Past the middle of the screen the row opens leftward: same row, reversed, hung from the right.
 .agent-chat--flipx:not(.agent-chat--innav) .agent-chat__panel-anchor {
@@ -3673,7 +3678,40 @@
   font-size: 12px;
   border-top: 1px solid var(--sv-line, rgba(128, 128, 128, 0.18));
 }
-.agent-chat__lane-row { display: flex; align-items: center; gap: 8px; }
+// the whole row opens the lane's panel — cursor, hover and chevron all say so
+.agent-chat__lane-row {
+  display: flex; align-items: center; gap: 8px;
+  cursor: pointer;
+  border-radius: 5px;
+  padding: 2px 4px;
+  margin: 0 -4px;
+  &:hover { background: rgba(128, 128, 128, 0.12); }
+}
+.agent-chat__lane-row--open { background: rgba(128, 128, 128, 0.1); }
+.agent-chat__lane-chev { flex: none; font-size: 11px; opacity: 0.55; }
+// the user's cleanup: quiet until hovered, then a real verb
+.agent-chat__lane-del {
+  flex: none;
+  border: none; background: none; padding: 0 2px;
+  font-size: 11px; line-height: 1; cursor: pointer;
+  opacity: 0.35;
+  &:hover { opacity: 1; }
+}
+// the two-step confirm — reads what the delete would destroy and says it before asking
+.agent-chat__lane-confirm {
+  display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
+  padding: 3px 4px 2px 22px;
+  font-size: 11px;
+  color: var(--sv-text-soft, #8a8f98);
+  button {
+    border: 1px solid currentColor; background: none; color: inherit;
+    border-radius: 4px; padding: 0 7px; font: inherit; font-size: 11px; cursor: pointer;
+    opacity: 0.8;
+    &:hover { opacity: 1; }
+    &:first-of-type:hover { color: #e5484d; }
+  }
+}
+.agent-chat__lane-confirm-warn { color: #d0a24a; }
 .agent-chat__lane-icon { flex: none; font-size: 11px; }
 .agent-chat__lane-name { flex: none; font-family: ui-monospace, Menlo, monospace; font-size: 11.5px; font-weight: 700; }
 .agent-chat__lane-bar {
@@ -3691,11 +3729,19 @@
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   font-size: 11px; color: var(--sv-text-soft, #8a8f98);
 }
-.agent-chat__lane-chip {
-  flex: none;
-  border: 1px solid #7fb069; color: #7fb069; background: none;
-  border-radius: 9px; padding: 1px 9px; font-size: 11px; cursor: pointer;
-  &:hover { background: rgba(127, 176, 105, 0.12); }
+
+// FLOATING, the lane panel is a side panel like the others: the `__tv` wrapper is the surface,
+// the panel itself fills it — no strip margins, no 46vh cap, the wrapper's size is the size.
+.agent-chat__lanepanel-side {
+  overflow: hidden;
+  .agent-chat__lanepanel {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+    margin: 0;
+    border: none;
+    border-radius: 0;
+  }
 }
 
 // RFC-059 — the lane panel: the deep look at one lane, in the strip's own area.

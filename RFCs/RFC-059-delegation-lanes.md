@@ -49,6 +49,27 @@ The one load-bearing assumption to verify before building on it: **a spawned sub
 - One lane = one worktree + one branch. The owner reviews before the user sees; landing is the
   user's, through the chip.
 
+## Slice 2 — standing lanes (settled 2026-09-17, second conversation)
+
+The first cut fed lane rows from session events, so a refresh ate the rows while the debris
+survived — worktree, branch, run file, all still on disk with nothing showing them. Backwards:
+the user watched cleanup happen as an agent's *report*, which he cannot verify. The fix is the
+same principle as the `::branch` block: **read the state, don't testify about it.**
+
+- **A lane row is born from a spawn and dies at cleanup — nothing in between kills it.** Not a
+  refresh, not the session ending, not the subagent dying. Rows are fed by standing state: the
+  lane's run file, plus worktree/branch-state read live from git at view time. Live session
+  events overlay the standing row (the crawling bar, the log); they never own its existence.
+- **Delete is the user's, on the row, two-step.** Confirm-then-delete — the whiteboard-wipe
+  pattern — because it destroys real things: worktree removed, branch deleted, run file gone.
+  No agent-side `rm` with a report after the fact.
+- **An unmerged branch is real work — the confirm says so to your face**: "branch not merged —
+  delete anyway?" Same honesty as `git switch` refusing over dirty files.
+- **Verification is absence.** The row read git; when it is gone, the debris is gone.
+
+New pieces: a host door listing/deleting lane runs (autobot), hub verbs `removeWorktree` and
+`deleteBranch` (systemview), and the strip's rows re-sourced from state with events as overlay.
+
 ## What this RFC does not build
 
 - **Steering a lane directly** — v1 routes through the owner ("tell the auth lane…"), chosen
