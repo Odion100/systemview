@@ -478,6 +478,32 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
 
   const skillEnabled = caps ? new Set(asList(caps.skills).map((s) => s.name || String(s))) : null;
 
+  // WHICH SKILLS THE AGENT CARRIES — def.skills, a list of names. Two truths live on each chip:
+  // this one is the CHOICE (edited here, saved through the definition door, lands at the next
+  // re-init); the gray --off above is the REPORT (what the running session actually loaded).
+  // Absent or empty list = carries ALL — today's behavior, so every existing def keeps working.
+  const defSkills = asList(d.skills);
+  const carriesSkill = (name) => !defSkills.length || defSkills.includes(name);
+  const toggleSkill = (name) => {
+    let next;
+    if (!defSkills.length) {
+      // carries-all has no list to edit — the first exclusion materializes the full list minus
+      // this one, so what stays carried is exactly what was carried before.
+      next = (skills || []).map((s) => s.name).filter((n) => n !== name);
+    } else if (defSkills.includes(name)) {
+      next = defSkills.filter((n) => n !== name);
+    } else {
+      next = [...defSkills, name];
+    }
+    // Re-carrying the last exclusion collapses back to "carries all" — the field disappears, so
+    // the def round-trips to exactly what it was (and future skills arrive automatically again).
+    // The same collapse guards the other end: an EMPTY list also reads as "all" (the schema has
+    // no "none"), so excluding the last carried skill lands on all — and the chips show it.
+    const everyName = new Set((skills || []).map((s) => s.name));
+    if (!next.length || [...everyName].every((n) => next.includes(n))) next = undefined;
+    setDef({ skills: next });
+  };
+
   // THE FORM OPENS WHERE THE ROW IS. One shared editor rendered under the whole list meant that
   // clicking edit on the first of ten hooks opened a box ten rows below it — you edit up here and
   // read the result off-screen. Built once, MOUNTED at the row being edited, so a hook expands in
@@ -905,27 +931,52 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
               Shared files (user level or the project's <code>.claude/skills</code>) — editing one
               edits it for every agent that uses it. The agent carries only each skill's name and
               description all session; the <b>description is the trigger</b>, the body loads when it
-              fires. Click to read and edit.
+              fires. Click to read and edit. The little box picks which skills <b>this agent</b>{" "}
+              carries — no exclusions means all of them; a change lands at the next re-init.
             </div>
             {skills === null ? (
               <div className="agent-profile__none">The harness can't answer yet — relaunch the browser to arm the skills API.</div>
             ) : (
               <div className="agent-profile__docs">
-                {skills.map((s) => (
-                  <button
-                    key={`${s.where}:${s.name}`}
-                    className={`agent-profile__doc-chip${skillEnabled && !skillEnabled.has(s.name) ? " agent-profile__doc-chip--off" : ""}`}
-                    title={s.description}
-                    onClick={() =>
-                      typeof onOpenDoc === "function" &&
-                      onOpenDoc({ kind: "skill", agentId: draft.id, name: s.name, where: s.where, label: s.name, text: s.text, orig: s.text })
-                    }
-                  >
-                    <span className="agent-profile__doc-ico">◈</span>
-                    {s.name}
-                    <span className="agent-profile__doc-where">{s.where}</span>
-                  </button>
-                ))}
+                {skills.map((s) => {
+                  // Two truths on one chip, kept apart: `excluded` is the CHOICE (def.skills says
+                  // this agent doesn't carry it — strikethrough, hollow toggle), `liveMissing` is
+                  // the REPORT (the running session didn't load it — the existing gray).
+                  const excluded = !carriesSkill(s.name);
+                  const liveMissing = skillEnabled && !skillEnabled.has(s.name);
+                  return (
+                    <button
+                      key={`${s.where}:${s.name}`}
+                      className={`agent-profile__doc-chip${liveMissing ? " agent-profile__doc-chip--off" : ""}${excluded ? " agent-profile__doc-chip--excluded" : ""}`}
+                      title={`${s.description || ""}${liveMissing ? " — the running session did not load this; re-init to pick up changes" : ""}`}
+                      onClick={() =>
+                        typeof onOpenDoc === "function" &&
+                        onOpenDoc({ kind: "skill", agentId: draft.id, name: s.name, where: s.where, label: s.name, text: s.text, orig: s.text })
+                      }
+                    >
+                      {/* the CONTROL — its own click target; the rest of the chip opens the doc */}
+                      <span
+                        className={`agent-profile__skill-toggle${excluded ? " agent-profile__skill-toggle--off" : ""}`}
+                        role="checkbox"
+                        aria-checked={!excluded}
+                        title={
+                          excluded
+                            ? "not carried — click to carry it; applies at the agent's next re-init"
+                            : "carried — click to stop carrying it; applies at the agent's next re-init"
+                        }
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleSkill(s.name);
+                        }}
+                      >
+                        {excluded ? "" : "✓"}
+                      </span>
+                      <span className="agent-profile__doc-ico">◈</span>
+                      <span className="agent-profile__skill-name">{s.name}</span>
+                      <span className="agent-profile__doc-where">{s.where}</span>
+                    </button>
+                  );
+                })}
                 {!skills.length && <span className="agent-profile__none">No skill files found for this agent's homes.</span>}
                 {/* CREATING ONE IS A VERB NOW. The system could list and edit skills and never make
                     one, so every skill in here arrived by an agent hand-writing a file into a
