@@ -537,6 +537,14 @@
     background: color-mix(in srgb, #e6a23c 12%, transparent);
   }
 
+  // Where a filtered list's results came from — quiet, because it is a caption on the list rather
+  // than a warning about it.
+  &__searchnote {
+    margin: 0 8px 3px;
+    font-size: 10.5px;
+    opacity: 0.6;
+  }
+
   // One scrollbar for the whole nav (RFC-026) — the tree scrolls WITH the services above it, so no
   // inner max-height/overflow here.
   &__tree {
@@ -692,6 +700,24 @@
     font-size: 11px;
     line-height: 1;
     opacity: 0.85;
+  }
+
+  // A folder that is reading itself. Deliberately a few dots on the row rather than a spinner: the
+  // read is usually one frame, and a spinner that flashes reads as an error.
+  &__dir-loading {
+    flex: none;
+    margin-left: 6px;
+    font-size: 10px;
+    letter-spacing: 1px;
+    opacity: 0.5;
+  }
+
+  // "reading…" / "empty" inside an open folder with nothing in it — the two very different nothings.
+  &__dir-note {
+    padding: 2px 8px;
+    font-size: 10.5px;
+    font-style: italic;
+    opacity: 0.45;
   }
 
   // RFC-033 — commit / push, at the top of the lens, where the staging already happens.
