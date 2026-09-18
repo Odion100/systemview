@@ -847,20 +847,93 @@ function walkDir(root, dir, out, cap) {
     }
   }
 }
-async function listFiles(projectCode, { dir, root, max } = {}) {
+// ONE FOLDER, NOT THE WHOLE REPO. `walkDir` above answers "every file under here", which is the
+// right answer for the `.md` scans and the report flows and the WRONG one for a file tree: on a big
+// repo (his buAPI/BUApp) the walk hit the 4000 cap and the alphabetical tail — which is where his
+// CHANGED files happened to live — was silently cut off, so the git panel could name a file the
+// tree could not show. His words: *"We're an IDE. The folder just doesn't have to load every
+// existing file — you can wait till the folder is opened to load its tree."*
+//
+// So: the immediate children of ONE directory, dirs AND files, each saying which it is. Same ignore
+// list, same containment check. Sorted here (folders first, then by name) so the tree does not have
+// to re-sort what disk handed back in whatever order it felt like.
+function listDirShallow(root, dir) {
+  let entries = [];
+  try {
+    entries = fsGit.readdirSync(path_.join(root, dir), { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  const out = [];
+  for (const e of entries) {
+    if (IGNORE_DIRS.has(e.name)) continue;
+    const rel = dir ? `${dir}/${e.name}` : e.name;
+    const isDir = e.isDirectory();
+    const row = { name: e.name, path: rel, dir: isDir };
+    if (!isDir && /^\.systemview\/report\..+\.md$/i.test(rel)) {
+      try { row.mtime = fsGit.statSync(path_.join(root, rel)).mtimeMs; } catch {}
+    }
+    out.push(row);
+  }
+  return out.sort((a, b) => (a.dir === b.dir ? a.name.localeCompare(b.name) : a.dir ? -1 : 1));
+}
+async function listFiles(projectCode, { dir, root, max, shallow } = {}) {
   const cwd = rootOf(projectCode, root);
   if (!cwd) return { ok: false, error: "no folder for this project", files: [] };
   const start = dir && dir !== "." ? dir : "";
   if (start && !inside(cwd, start)) return { ok: false, error: "outside the project folder", files: [] };
   const cap = Number(max) || 4000;
+  // THE SHALLOW ANSWER IS ADDED, NOT SWAPPED IN. Everything that already asks this verb reads
+  // `files` and means "recursively"; changing that under them would move the bug rather than fix it.
+  if (shallow) {
+    const all = listDirShallow(cwd, start);
+    const entries = all.slice(0, cap);
+    return { ok: true, dir: start, shallow: true, entries, truncated: all.length > cap };
+  }
   const out = [];
   walkDir(cwd, start, out, cap);
   return { ok: true, dir: start, files: out, truncated: out.length >= cap };
 }
-async function searchFiles(projectCode, { query, max, root } = {}) {
+// SEARCHING BY NAME IS A DIFFERENT QUESTION FROM SEARCHING BY CONTENT, and the lazy tree needs the
+// first one. The nav's filter box has always matched PATHS — substring, or `*.ext` — against the
+// flat list it held; once the tree only holds what has been opened, filtering that list answers
+// "what have I loaded that matches", which looks exactly like "what is in this repo that matches"
+// and is not it. `git grep` below cannot stand in: it matches file CONTENT, so typing a filename
+// finds everything that imports it and possibly not the file itself.
+//
+// So the walk happens here, on disk, counting MATCHES against the cap rather than files — a repo
+// too big to list is not a repo too big to search, and stopping at 4000 scanned files would
+// reintroduce the cut-off tail this whole change exists to remove.
+function walkMatches(root, dir, query, out, max) {
+  let entries = [];
+  try {
+    entries = fsGit.readdirSync(path_.join(root, dir), { withFileTypes: true });
+  } catch {
+    return;
+  }
+  const ext = query.startsWith("*.") ? query.slice(1).toLowerCase() : null;
+  for (const e of entries) {
+    if (out.length > max) return;
+    if (IGNORE_DIRS.has(e.name)) continue;
+    const rel = dir ? `${dir}/${e.name}` : e.name;
+    if (e.isDirectory()) walkMatches(root, rel, query, out, max);
+    else {
+      const p = rel.toLowerCase();
+      if (ext ? p.endsWith(ext) : p.includes(query)) out.push({ path: rel });
+    }
+  }
+}
+async function searchFiles(projectCode, { query, max, root, names } = {}) {
   const cwd = rootOf(projectCode, root);
   if (!cwd) return { ok: false, error: "no folder for this project", results: [] };
-  if (!String(query || "").trim()) return { ok: true, results: [] };
+  if (!String(query || "").trim()) return { ok: true, results: [], names: !!names };
+  if (names) {
+    const cap = Number(max) || 500;
+    const out = [];
+    // One over the cap, so "there are more" is a fact rather than a guess about a full page.
+    walkMatches(cwd, "", String(query).toLowerCase(), out, cap);
+    return { ok: true, names: true, results: out.slice(0, cap), truncated: out.length > cap };
+  }
   const res = await git(cwd, ["grep", "-n", "-I", "--untracked", "-e", String(query)]);
   // `git grep` exits 1 on "no matches", which is not an error — an empty result is the answer.
   const lines = String(res.out || "").split("\n").filter(Boolean).slice(0, Number(max) || 200);

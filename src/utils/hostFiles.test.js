@@ -83,6 +83,72 @@ describe("what the call sites read", () => {
     expect(l.files[0].path).toBe("a.js");
   });
 
+  // THE OPTION HAS TO MAKE THE TRIP. This bridge hand-wraps every verb, so an option it forgets to
+  // forward is not an error — the call succeeds and the hub answers the DEFAULT question, which
+  // looks exactly like the answer you asked for. The lazy tree is one flag (`shallow`) away from
+  // walking the entire repo again, silently, so the flag is asserted at the wire rather than trusted.
+  it("listFiles forwards shallow, and gives back { entries } with dirs marked", async () => {
+    let sent = null;
+    setHub(
+      hub({
+        listFiles: async (_p, opts) => {
+          sent = opts;
+          return {
+            ok: true,
+            dir: "src",
+            shallow: true,
+            entries: [
+              { name: "atoms", path: "src/atoms", dir: true },
+              { name: "App.js", path: "src/App.js", dir: false },
+            ],
+            truncated: false,
+          };
+        },
+      }),
+    );
+    const l = await hostFiles("p").listFiles({ dir: "src", shallow: true });
+    expect(sent.shallow).toBe(true);
+    expect(sent.dir).toBe("src");
+    expect(l.entries).toEqual([
+      { name: "atoms", path: "src/atoms", dir: true, language: undefined, mtime: undefined },
+      { name: "App.js", path: "src/App.js", dir: false, language: "javascript", mtime: undefined },
+    ]);
+    expect(l.truncated).toBe(false);
+  });
+
+  it("without shallow it is still the recursive { files } shape every other caller reads", async () => {
+    let sent = null;
+    setHub(
+      hub({
+        listFiles: async (_p, opts) => {
+          sent = opts;
+          return { ok: true, dir: "", files: [{ path: "a.js" }], truncated: false };
+        },
+      }),
+    );
+    const l = await hostFiles("p").listFiles({});
+    expect(sent.shallow).toBeUndefined();
+    expect(l.files[0]).toMatchObject({ path: "a.js", language: "javascript" });
+  });
+
+  // The tree's filter asks about NAMES; `search` (git grep) answers about CONTENT. Two questions,
+  // and a partially loaded tree can answer neither on its own.
+  it("searchNames asks the hub by name and keeps truncated — the filter has to be able to say 'first 500'", async () => {
+    let sent = null;
+    setHub(
+      hub({
+        searchFiles: async (_p, opts) => {
+          sent = opts;
+          return { ok: true, names: true, results: [{ path: "deep/in/the/tail/Thing.js" }], truncated: true };
+        },
+      }),
+    );
+    const r = await hostFiles("p").searchNames({ query: "thing", max: 500 });
+    expect(sent).toMatchObject({ query: "thing", max: 500, names: true });
+    expect(r.results[0].path).toBe("deep/in/the/tail/Thing.js");
+    expect(r.truncated).toBe(true);
+  });
+
   it("search gives the rows themselves, not an envelope", async () => {
     const r = await hostFiles("p").search({ query: "x" });
     expect(Array.isArray(r)).toBe(true);

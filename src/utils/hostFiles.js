@@ -112,9 +112,27 @@ export const hostFiles = (projectCode, root) => {
       if (res && res.ok === false) throw new Error(res.error || "could not delete that file");
       return res;
     },
-    listFiles: async ({ dir = "." } = {}) => {
-      const res = await hub().listFiles(projectCode, { dir, root });
+    // EVERY OPTION HAS TO BE FORWARDED BY HAND HERE, and one that isn't is a silent no-op: the call
+    // succeeds, the hub never sees the flag, and you get the default answer looking exactly like the
+    // one you asked for. `shallow` is the lazy tree's whole request — ONE folder's children, dirs
+    // included — so it is listed explicitly rather than spread, which is also how you can see at a
+    // glance that it made the trip.
+    listFiles: async ({ dir = ".", shallow, max } = {}) => {
+      const res = await hub().listFiles(projectCode, { dir, root, shallow, max });
       if (res && res.ok === false) throw new Error(res.error || "could not list that folder");
+      if (shallow)
+        return {
+          dir: res.dir || "",
+          shallow: true,
+          entries: (res.entries || []).map((r) => ({
+            name: r.name || String(r.path).split("/").pop(),
+            path: r.path,
+            dir: !!r.dir,
+            language: r.dir ? undefined : r.language || languageOf(r.path),
+            mtime: r.mtime,
+          })),
+          truncated: !!res.truncated,
+        };
       return {
         dir: res.dir || "",
         files: (res.files || []).map((r) => ({ path: r.path, language: r.language || languageOf(r.path), size: r.size })),
@@ -125,6 +143,15 @@ export const hostFiles = (projectCode, root) => {
       const res = await hub().searchFiles(projectCode, { query, max, root });
       if (res && res.ok === false) throw new Error(res.error || "search did not run");
       return res.results || [];
+    },
+    // BY NAME, ON DISK — what the tree's filter box means, and the one question a partially loaded
+    // tree cannot answer for itself. Same verb as `search`, `names: true`; the envelope is kept here
+    // (unlike `search`) because `truncated` is the difference between "that is all of them" and
+    // "that is the first 500", and the filter has to be able to say which.
+    searchNames: async ({ query, max } = {}) => {
+      const res = await hub().searchFiles(projectCode, { query, max, root, names: true });
+      if (res && res.ok === false) throw new Error(res.error || "search did not run");
+      return { results: res.results || [], truncated: !!res.truncated };
     },
     // GIT COMES FROM THE SHELL, which is where it belongs — his call and the right one: *"why would
     // we need the hub when we're the IDE running in the shell? That's a hack."* It is. The hub

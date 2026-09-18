@@ -41,17 +41,30 @@ const GIT_MARK = {
 };
 
 // Build a nested tree from the flat path list listFiles returns: { dirs: {name: node}, files: [{name, path, language}] }
-function buildTree(files) {
+//
+// A SECOND ARGUMENT, because a folder is no longer only implied by the files inside it. The tree
+// used to be built from one full recursive walk, so every directory that mattered had a file under
+// it; now folders arrive one level at a time and an unopened one has no files yet — it would simply
+// not exist in the tree, which is the one thing a lazy tree must never do. So known directories are
+// planted explicitly, whether or not anything has been loaded inside them.
+function buildTree(files, dirs = []) {
   const rootNode = { dirs: {}, files: [] };
-  files.forEach((f) => {
-    const parts = f.path.split("/");
-    const name = parts.pop();
+  const ensure = (parts) => {
     let node = rootNode;
     for (const seg of parts) {
       if (!node.dirs[seg]) node.dirs[seg] = { dirs: {}, files: [] };
       node = node.dirs[seg];
     }
-    node.files.push({ name, path: f.path, language: f.language });
+    return node;
+  };
+  dirs.forEach((d) => {
+    const parts = String(d).split("/").filter(Boolean);
+    if (parts.length) ensure(parts);
+  });
+  files.forEach((f) => {
+    const parts = f.path.split("/");
+    const name = parts.pop();
+    ensure(parts).files.push({ name, path: f.path, language: f.language });
   });
   return rootNode;
 }
@@ -160,10 +173,14 @@ function DirNode({
   onDropFile,
   dropDir,
   setDropDir,
+  dirState,
 }) {
   const key = `${prefix}${name}`;
   const open = openDirs.has(key);
   const dirNames = Object.keys(node.dirs).sort();
+  // "loading" | "loaded" | "unloaded" — what this folder's own listing is doing. An open folder
+  // with nothing in it has to say WHICH nothing it is: still fetching, or genuinely empty.
+  const state = dirState ? dirState(key) : "loaded";
   // Collapsed folders wear the count of changed files inside — the amber signal survives collapse.
   const changedInside = (changedCounts && changedCounts[key]) || 0;
   return (
@@ -194,6 +211,11 @@ function DirNode({
       >
         <Chevron open={open} />
         <span className={`${CLASSNAME}__dir-name`}>{name}</span>
+        {state === "loading" && (
+          <span className={`${CLASSNAME}__dir-loading`} title="reading this folder…">
+            ···
+          </span>
+        )}
         {!open && changedInside > 0 && (
           <span
             className={`${CLASSNAME}__dir-badge`}
@@ -224,11 +246,28 @@ function DirNode({
               onDropFile={onDropFile}
               dropDir={dropDir}
               setDropDir={setDropDir}
+              dirState={dirState}
             />
           ))}
           {node.files.map((f) => renderFile(f, depth + 1))}
           {/* A new file is named where it will live — last in its folder, indented with the rest. */}
           {renderNewIn && renderNewIn(key, depth + 1)}
+          {state === "loading" && !dirNames.length && !node.files.length && (
+            <div
+              className={`${CLASSNAME}__dir-note`}
+              style={{ paddingLeft: 8 + (depth + 1) * 14 }}
+            >
+              reading…
+            </div>
+          )}
+          {state === "loaded" && !dirNames.length && !node.files.length && (
+            <div
+              className={`${CLASSNAME}__dir-note`}
+              style={{ paddingLeft: 8 + (depth + 1) * 14 }}
+            >
+              empty
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -764,23 +803,65 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
   const realServices = [...(services || []), ...(dynamicServices || [])].filter(
     (x) => !(x && x.system && x.system.connectionData && x.system.connectionData.__hostFiles),
   );
-  const [files, setFiles] = useState(null); // null = not loaded; [] = loaded empty
+  // RFC — THE TREE LOADS A FOLDER AT A TIME. It used to walk the ENTIRE repo on mount and stop at
+  // 4000 files, which on a big one (buAPI/BUApp) silently cut off the alphabetical tail — and his
+  // CHANGED files were in that tail, so the git panel could name a file the tree was physically
+  // unable to show. His words: *"We're an IDE. The folder just doesn't have to load every existing
+  // file — you can wait till the folder is opened to load its tree."*
+  //
+  // `entries` is every row we have actually been told about, keyed by path so a folder can be
+  // re-read without duplicating anything. `files` (the flat list every consumer below still reads)
+  // is derived from it — those consumers now see WHAT IS LOADED instead of the whole repo, which is
+  // correct for the tree and a lie for search; see the disk search further down.
+  const [entries, setEntries] = useState(null); // null = the root has not answered yet
   const [changed, setChanged] = useState(new Map()); // path → { status, staged, partial }
-  const [truncated, setTruncated] = useState(false);
+  // Which folders have been read, which are in flight, and which hit the cap. Refs as well as state
+  // because the loader has to answer "did I already fetch this?" synchronously — two rows opening in
+  // the same tick would otherwise both fire.
+  const loadedDirs = useRef(new Set());
+  const inFlightDirs = useRef(new Set());
+  const [loadedTick, setLoadedTick] = useState(0);
+  const [cappedDirs, setCappedDirs] = useState(new Set());
   const [error, setError] = useState("");
   const [filter, setFilter] = useState("");
   const [openDirs, setOpenDirs] = useState(new Set());
+  // The folders someone asked to blow WIDE open ("expand everything inside"). Held rather than done
+  // once, because with lazy loading the subtree arrives in waves — each wave's new subfolders have
+  // to be opened too, and the request has to outlive the first answer.
+  const [expandAll, setExpandAll] = useState(new Set());
+  // Read by the reload path, which has to re-open what was open WITHOUT taking `openDirs` as a
+  // dependency — a refresh that re-ran every time a folder opened would be a fetch loop.
+  const openDirsRef = useRef(openDirs);
+  openDirsRef.current = openDirs;
+  // The two halves of `entries`, in the shapes the rest of this file already speaks: a flat file
+  // list, and the set of folders we know exist (including ones nothing has been loaded inside yet).
+  const files = useMemo(
+    () => (entries ? [...entries.values()].filter((e) => !e.dir) : null),
+    [entries],
+  );
+  const knownDirs = useMemo(
+    () => (entries ? [...entries.values()].filter((e) => e.dir).map((e) => e.path) : []),
+    [entries],
+  );
   const scrolledTo = useRef(null);
   // A NEW REVEAL SCROLLS, even to the file already selected. The row's own ref scrolls once per
   // file and a selected row is never "revealed" — right for unrelated renders, wrong for the human
   // clicking the file's name after scrolling the tree away (his ask). So a reveal event scrolls
   // the row itself, whatever its state.
+  // THE ROW MAY NOT EXIST YET. With a lazy tree the revealed file's folder is fetched on the way
+  // down, so at the instant the reveal arrives there is nothing to scroll to — and a one-shot effect
+  // keyed only on the reveal would fire into an empty tree and never fire again. It re-runs as rows
+  // land, and the reveal it has already served is remembered so a later render cannot re-scroll.
+  const revealScrolled = useRef(null);
   useEffect(() => {
     if (!revealedPath || !cardRef.current) return;
+    if (revealScrolled.current === revealFile) return;
     const el = cardRef.current.querySelector(`[data-path="${CSS.escape(revealedPath)}"]`);
-    if (el) el.scrollIntoView({ block: "center" });
+    if (!el) return;
+    revealScrolled.current = revealFile;
+    el.scrollIntoView({ block: "center" });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [revealFile]);
+  }, [revealFile, entries]);
   // VERSION CONTROL is a LENS, not a filter. The changed count used to be a pill that hid every
   // unchanged file — which answered "what changed" and nothing else. Flipping the lens replaces the
   // tree with git's own three groups (staged / changes / untracked) and puts stage-unstage on each
@@ -1013,29 +1094,124 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
   // props, different timing — that IS the gap he asked about, and it was mine.
   }, [vcLens, fileHost && fileHost.root]);
 
-  // Load the file list as soon as the host is live (the card is always open now) — the count and
-  // the head doc indicator need it even while the code fold is closed.
+  // ONE FOLDER, ONCE. Everything that opens a folder — a click on its chevron, a reveal from a
+  // document, arriving with a file already open, the folder menu — ends up here, and a folder that
+  // has already answered is never asked again. Held in a ref so the value is always the current one
+  // however stale the closure that calls it is (the same shape `reloadChanged` above uses).
+  const loadDir = useRef(async () => {});
+  loadDir.current = async (dirKey) => {
+    const key = dirKey || "";
+    if (!fileHost) return;
+    if (loadedDirs.current.has(key) || inFlightDirs.current.has(key)) return;
+    inFlightDirs.current.add(key);
+    setLoadedTick((n) => n + 1); // the row says it is reading
+    try {
+      const svc = { Plugin: hostFiles(projectCode, fileHost && fileHost.root) };
+      const res = await svc.Plugin.listFiles({ dir: key || ".", shallow: true });
+      const rows = (res && res.entries) || [];
+      setEntries((prev) => {
+        const next = new Map(prev || []);
+        // A RE-READ REPLACES THE FOLDER, it does not add to it. Renaming or deleting a file bumps
+        // the refresh tick and this runs again; merging alone would leave the old name sitting in
+        // the tree next to the new one, which is the classic "I deleted it and it's still there".
+        const here = new Set(rows.map((r) => r.path));
+        const parentOf = (p) => (p.includes("/") ? p.slice(0, p.lastIndexOf("/")) : "");
+        [...next.keys()].forEach((p) => {
+          if (parentOf(p) !== key || here.has(p)) return;
+          const wasDir = next.get(p).dir;
+          next.delete(p);
+          // A folder that is gone takes everything we knew about its inside with it — otherwise its
+          // files would re-plant it as a ghost the next time the tree is built.
+          if (wasDir)
+            [...next.keys()].forEach((q) => {
+              if (q.startsWith(`${p}/`)) next.delete(q);
+            });
+          if (wasDir)
+            [...loadedDirs.current].forEach((d) => {
+              if (d === p || d.startsWith(`${p}/`)) loadedDirs.current.delete(d);
+            });
+        });
+        rows.forEach((r) => next.set(r.path, { path: r.path, dir: !!r.dir, language: r.language }));
+        return next;
+      });
+      loadedDirs.current.add(key);
+      // A CAP THAT IS STILL HIT NAMES THE FOLDER. The old banner said "big repo — the file list is
+      // capped" about the whole project, which was true of the walk and useless about the thing in
+      // front of you. One folder with 4000 entries in it is a fact about that folder.
+      if (res && res.truncated)
+        setCappedDirs((prev) => (prev.has(key) ? prev : new Set(prev).add(key)));
+      if (key === "") setError("");
+    } catch (e) {
+      // The ROOT failing is "no file access"; a subfolder failing is that subfolder's problem and
+      // must not blank the tree that is already drawn.
+      if (key === "") {
+        setError("file access unavailable");
+        setEntries((prev) => prev || new Map());
+      }
+    } finally {
+      inFlightDirs.current.delete(key);
+      setLoadedTick((n) => n + 1);
+    }
+  };
+  // What a row should say about itself: reading, read, or not yet asked.
+  const dirState = useCallback(
+    (key) =>
+      inFlightDirs.current.has(key) ? "loading" : loadedDirs.current.has(key) ? "loaded" : "unloaded",
+    // loadedTick is the whole point of the dep — the sets are refs and moving them is what re-renders
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [loadedTick],
+  );
+
+  // THE ROOT, as soon as the host is live (the card is always open now) — the count and the head doc
+  // indicator need it even while the code fold is closed. Plus the comment sidecars, which are the
+  // one subtree that still loads whole: they live in `.systemview/code-comments/` mirroring the
+  // source tree, and the 💬 marks are drawn on files ANYWHERE, so lazily discovering them would mean
+  // a file's comment mark appearing only after you opened the folder its sidecar happens to sit in.
+  // It is a small folder and it is the exception that proves the rule.
+  const loadedRoot = useRef(null);
   useEffect(() => {
     if (!fileHost) return;
     let live = true;
+    // A REFRESH RE-READS, IT DOES NOT BLANK. Clearing the tree on every file op made it flicker back
+    // to "loading files…" and collapse to the root; the folders are simply marked unread and fetched
+    // again, and each one replaces itself when it answers. A different PROJECT does start empty —
+    // there the old tree is not stale, it is somebody else's.
+    const hostRoot = (fileHost && fileHost.root) || projectCode;
+    if (loadedRoot.current !== hostRoot) {
+      loadedRoot.current = hostRoot;
+      setEntries(null);
+    }
+    loadedDirs.current = new Set();
+    inFlightDirs.current = new Set();
+    setCappedDirs(new Set());
+    const reopen = [...openDirsRef.current];
     (async () => {
+      await loadDir.current("");
+      if (!live) return;
+      // Everything that was open before a refresh is re-read, so a file op (rename, new file, drop)
+      // redraws the tree the user is actually looking at rather than collapsing it to the root.
+      await Promise.all(reopen.map((k) => loadDir.current(k)));
+      if (!live) return;
       try {
         const svc = { Plugin: hostFiles(projectCode, fileHost && fileHost.root) };
-        const res = await svc.Plugin.listFiles({});
-        if (!live) return;
-        setFiles(res.files || []);
-        setTruncated(!!res.truncated);
-        setError("");
-        try {
-          const ch = svc.Plugin.changedFiles ? await svc.Plugin.changedFiles() : null;
-          // A MAP now, not a set — the tree draws WHICH change, and a plugin too old to report a
-          // status still lands here as plain "modified", so nothing regresses to blank.
-          if (live && ch && ch.files)
-            setChanged(new Map(ch.files.map((f) => [f.path, f.status ? f : { ...f, status: "modified" }])));
-        } catch {}
-      } catch (e) {
-        if (live) setError("file access unavailable");
-      }
+        const cm = await svc.Plugin.listFiles({ dir: ".systemview/code-comments" });
+        if (live && cm && cm.files && cm.files.length)
+          setEntries((prev) => {
+            const next = new Map(prev || []);
+            cm.files.forEach((f) => {
+              if (!next.has(f.path)) next.set(f.path, { path: f.path, dir: false, language: f.language });
+            });
+            return next;
+          });
+      } catch {}
+      try {
+        const svc = { Plugin: hostFiles(projectCode, fileHost && fileHost.root) };
+        const ch = svc.Plugin.changedFiles ? await svc.Plugin.changedFiles() : null;
+        // A MAP now, not a set — the tree draws WHICH change, and a plugin too old to report a
+        // status still lands here as plain "modified", so nothing regresses to blank.
+        if (live && ch && ch.files)
+          setChanged(new Map(ch.files.map((f) => [f.path, f.status ? f : { ...f, status: "modified" }])));
+      } catch {}
     })();
     return () => {
       live = false;
@@ -1045,6 +1221,37 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
     // `sv:refresh` nav-scope command.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fileHost && fileHost.root, refreshTick]);
+
+  // EVERY OPEN FOLDER GETS READ — one effect instead of a fetch call bolted onto each of the five
+  // places that open one (the chevron, the folder menu, the open file's ancestors, a reveal's
+  // ancestors, expand-everything). Whoever puts a path into `openDirs` gets its contents; nobody has
+  // to remember to ask.
+  useEffect(() => {
+    if (!fileHost || !entries) return;
+    openDirs.forEach((k) => loadDir.current(k));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openDirs, entries, fileHost && fileHost.root]);
+
+  // …and the cascade for "expand everything inside": as each wave of subfolders lands, open the ones
+  // under a requested root. That opens them, which loads them, which lands the next wave — it stops
+  // on its own when a wave brings nothing new.
+  useEffect(() => {
+    if (!expandAll.size || !entries) return;
+    setOpenDirs((prev) => {
+      let added = false;
+      const next = new Set(prev);
+      knownDirs.forEach((d) => {
+        if (next.has(d)) return;
+        for (const rootKey of expandAll)
+          if (d.startsWith(`${rootKey}/`)) {
+            next.add(d);
+            added = true;
+            return;
+          }
+      });
+      return added ? next : prev;
+    });
+  }, [expandAll, knownDirs, entries]);
 
   // Auto-expand the folder path DOWN TO the open file (and scroll its row into view once) — the tree
   // shows the selection whenever you arrive with a file already open.
@@ -1414,7 +1621,7 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
   }, []);
   const commented = useMemo(() => commentedPathSet(files), [files]);
 
-  const tree = useMemo(() => (files ? buildTree(files) : null), [files]);
+  const tree = useMemo(() => (files ? buildTree(files, knownDirs) : null), [files, knownDirs]);
   // Rollup: how many changed files live under each directory prefix (for the collapsed-dir badges).
   const changedCounts = useMemo(() => {
     const counts = {};
@@ -1566,35 +1773,43 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
         },
       },
       {
+        // EXPAND EVERYTHING CASCADES NOW, because "everything" is not all loaded yet. Opening the
+        // folders we know about fetches them; the effect below notices the subfolders that arrive
+        // and opens those in turn, until there is nothing new. Deliberately only for a folder you
+        // explicitly asked to blow open — this is the one gesture that reads a whole subtree.
         label: "Expand everything inside",
-        action: () =>
+        action: () => {
+          setExpandAll((prev) => (prev.has(key) ? prev : new Set(prev).add(key)));
           setOpenDirs((prev) => {
             const next = new Set(prev);
             next.add(key);
-            // Every ancestor path of a file under this folder — that IS the set of subfolders.
-            files.forEach((f) => {
-              if (!f.path.startsWith(`${key}/`)) return;
-              const parts = f.path.split("/");
-              parts.pop();
-              let k = "";
-              parts.forEach((seg) => {
-                k = k ? `${k}/${seg}` : seg;
-                next.add(k);
-              });
+            knownDirs.forEach((d) => {
+              if (d.startsWith(`${key}/`)) next.add(d);
             });
             return next;
-          }),
+          });
+        },
       },
       {
         label: "Collapse everything inside",
-        action: () =>
+        action: () => {
+          // Stop the cascade too, or the next folder to answer would re-open what you just shut.
+          setExpandAll((prev) => {
+            if (!prev.size) return prev;
+            const next = new Set(prev);
+            [...next].forEach((k) => {
+              if (k === key || k.startsWith(`${key}/`)) next.delete(k);
+            });
+            return next;
+          });
           setOpenDirs((prev) => {
             const next = new Set(prev);
             [...next].forEach((k) => {
               if (k === key || k.startsWith(`${key}/`)) next.delete(k);
             });
             return next;
-          }),
+          });
+        },
       },
     ];
     if (openInside.length)
@@ -1837,17 +2052,74 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
       ? p.toLowerCase().endsWith(query.slice(1))
       : p.toLowerCase().includes(query));
   const filterActive = !!query || docsOnly || commentsOnly;
-  const filtered =
-    files && filterActive
-      ? files
-          .filter(
-            (f) =>
-              matchText(f.path) &&
-              (!docsOnly || /\.mdx?$/i.test(f.path)) &&
-              (!commentsOnly || commented.has(f.path)),
-          )
-          .slice(0, 200)
-      : null;
+
+  // A SEARCH OVER A PARTIAL TREE HAS TO GO TO DISK. Filtering the flat list was honest while that
+  // list was the whole repo; now it holds only what has been opened, so the same code would answer
+  // "no match" for a file that is sitting right there — the quietest possible lie, and the exact
+  // shape of the bug this change exists to kill. So a query (or the `.md` pill, which is the query
+  // `*.md`) is asked of the hub, which walks the folder itself.
+  //
+  // COMMENTS ARE THE EXCEPTION and do not need disk: the sidecars are loaded whole at mount, so that
+  // set is already complete and filtering it locally is the true answer.
+  const [diskHits, setDiskHits] = useState(null);
+  const [diskTruncated, setDiskTruncated] = useState(false);
+  const [diskState, setDiskState] = useState("idle"); // idle | loading | done | error
+  const diskQuery = commentsOnly ? "" : query || (docsOnly ? "*.md" : "");
+  useEffect(() => {
+    if (!fileHost || !diskQuery) {
+      setDiskHits(null);
+      setDiskTruncated(false);
+      setDiskState("idle");
+      return;
+    }
+    let live = true;
+    setDiskState("loading");
+    // Typing is not a search per keystroke — the walk is real work on a big repo.
+    const t = setTimeout(async () => {
+      try {
+        const api = hostFiles(projectCode, fileHost && fileHost.root);
+        if (!api.searchNames) throw new Error("no name search");
+        const res = await api.searchNames({ query: diskQuery, max: 500 });
+        if (!live) return;
+        setDiskHits(res.results || []);
+        setDiskTruncated(!!res.truncated);
+        setDiskState("done");
+      } catch {
+        if (live) setDiskState("error");
+      }
+    }, 180);
+    return () => {
+      live = false;
+      clearTimeout(t);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [diskQuery, fileHost && fileHost.root, refreshTick]);
+
+  const langOf = (p) => {
+    const e = entries && entries.get(p);
+    return (e && e.language) || undefined;
+  };
+  const filtered = useMemo(() => {
+    if (!files || !filterActive) return null;
+    // Where the candidate paths come from: the complete comment set, the disk answer, or — while
+    // the disk is still walking, or if it could not — what is loaded, which the note below says.
+    const paths = commentsOnly
+      ? [...commented]
+      : diskHits
+        ? diskHits.map((h) => h.path)
+        : files.map((f) => f.path);
+    return [...new Set(paths)]
+      .filter(
+        (p) =>
+          matchText(p) &&
+          (!docsOnly || /\.mdx?$/i.test(p)) &&
+          (!commentsOnly || commented.has(p)),
+      )
+      .sort()
+      .slice(0, 300)
+      .map((p) => ({ path: p, language: langOf(p) }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [files, entries, filterActive, commentsOnly, docsOnly, query, commented, diskHits]);
 
   // The three groups git itself uses. A file that is staged AND edited again since appears in
   // BOTH — that is the honest picture, and it's the state worth seeing twice.
@@ -2012,10 +2284,16 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
             <DocIcon isSaved={files.some((f) => f.path === `${projectCode}.md`)} />
           </span>
         )}
+        {/* THE COUNT IS WHAT IS LOADED, and says so — it used to be the whole repo because the whole
+            repo was walked. A number that silently changed meaning would be read as a number that
+            silently changed. */}
         {files && (
-          <span className={`${CLASSNAME}__cb-count`}>
+          <span
+            className={`${CLASSNAME}__cb-count`}
+            title={`${files.length} file${files.length === 1 ? "" : "s"} loaded so far — folders read themselves when you open them`}
+          >
             {files.length}
-            {truncated ? "+" : ""}
+            {files.length ? "+" : ""}
           </span>
         )}
         <span
@@ -2262,9 +2540,30 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
                   .md
                 </button>
               </div>
-              {truncated && (
+              {/* WHERE THE RESULTS CAME FROM. A filtered list that quietly means "of the folders you
+                  happen to have opened" is worse than no filter, so the list says which question it
+                  answered — and while the walk is running it says that too. */}
+              {filterActive && !commentsOnly && (
+                <div className={`${CLASSNAME}__searchnote`}>
+                  {diskState === "loading" && !diskHits
+                    ? "searching the whole folder…"
+                    : diskState === "error"
+                      ? "⚠ the disk search didn't run — showing only the folders already open"
+                      : diskHits
+                        ? `${filtered ? filtered.length : 0} from disk — the whole folder, not just what's open${
+                            diskTruncated ? " (first 500)" : ""
+                          }`
+                        : "showing only the folders already open"}
+                </div>
+              )}
+              {/* A CAP IS NOW A FACT ABOUT ONE FOLDER, not a verdict on the repo. The old banner —
+                  "big repo, the file list is capped" — was true of a walk that no longer happens,
+                  and it never said what was missing. Nothing is cut off any more unless a SINGLE
+                  folder holds more than the cap, and then it is named. */}
+              {cappedDirs.size > 0 && (
                 <div className={`${CLASSNAME}__truncated`}>
-                  ⚠ big repo — the file list is capped; the alphabetical tail is cut off
+                  ⚠ {[...cappedDirs].map((d) => d || "the project root").join(", ")} — over 4000
+                  entries in that one folder; the rest isn't listed
                 </div>
               )}
               {vcError && <div className={`${CLASSNAME}__vc-error`}>{vcError}</div>}
@@ -2609,6 +2908,7 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
                           onDropFile={onDropFile}
                           dropDir={dropDir}
                           setDropDir={setDropDir}
+                          dirState={dirState}
                         />
                       ))}
                     {tree.files.map((f) => renderFile(f, 0))}
