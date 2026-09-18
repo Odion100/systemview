@@ -95,8 +95,15 @@ const BranchBlock = ({ label, attrs = {} }) => {
         setError("");
         setApplied(true);
         window.dispatchEvent(new Event("sv:git"));
-        // the changes are now a LIST somewhere — ask the surfaces that show one to show it
-        window.dispatchEvent(new Event("sv:openChanges"));
+        // the changes are now a LIST somewhere — ask THIS project's surface to show it. Carried
+        // as detail because the bare event opened every bot's panel at once (his catch: "a bunch
+        // of panels opened up for other people").
+        window.dispatchEvent(new CustomEvent("sv:openChanges", { detail: { projectCode } }));
+        // …and the lane's commit MESSAGE travels with the changes (his catch: the box sat empty).
+        // Same door a ::commit block uses: opens the lens, lands the message, glows — the commit
+        // itself stays his two clicks.
+        const msg = (diff.commits || []).map((c) => c.subject).filter(Boolean).join("; ");
+        if (msg) window.dispatchEvent(new CustomEvent("sv:commitInNav", { detail: { projectCode, message: msg } }));
       }
     } catch (e) {
       setError((e && e.message) || "apply failed");

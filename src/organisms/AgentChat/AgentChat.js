@@ -4266,10 +4266,13 @@ const countdown = (str, now = Date.now()) => {
   // codebase panel, where the git bar shows them. Docked in the nav, the nav's own git area is
   // already visible — nothing to open.
   useEffect(() => {
-    const onChanges = () => { if (!inNav) setCbOpen(true); };
+    // scoped to the project the block belongs to — the bare event opened every bot's panel
+    const onChanges = (e) => {
+      if (!inNav && e && e.detail && e.detail.projectCode === projectCode) setCbOpen(true);
+    };
     window.addEventListener("sv:openChanges", onChanges);
     return () => window.removeEventListener("sv:openChanges", onChanges);
-  }, [inNav]);
+  }, [inNav, projectCode]);
   // HANDING OFF PUTS THE TV AWAY. Opening the file from inside a report is switching location, not
   // opening a second copy of the same thing — his call: "you're switching from one place to the
   // next". So a file chip pressed on the TV closes the TV behind it, and the report stays one press
