@@ -4261,6 +4261,15 @@ const countdown = (str, now = Date.now()) => {
     window.addEventListener("sv:navOpen", onNav);
     return () => window.removeEventListener("sv:navOpen", onNav);
   }, []);
+  // "BRING OVER AS CHANGES" WANTS A CHANGES LIST ON SCREEN (his: "it might as well side panel").
+  // The block announces it made uncommitted changes; a floating chat answers by opening the
+  // codebase panel, where the git bar shows them. Docked in the nav, the nav's own git area is
+  // already visible — nothing to open.
+  useEffect(() => {
+    const onChanges = () => { if (!inNav) setCbOpen(true); };
+    window.addEventListener("sv:openChanges", onChanges);
+    return () => window.removeEventListener("sv:openChanges", onChanges);
+  }, [inNav]);
   // HANDING OFF PUTS THE TV AWAY. Opening the file from inside a report is switching location, not
   // opening a second copy of the same thing — his call: "you're switching from one place to the
   // next". So a file chip pressed on the TV closes the TV behind it, and the report stays one press

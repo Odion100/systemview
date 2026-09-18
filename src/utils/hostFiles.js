@@ -170,6 +170,12 @@ export const hostFiles = (projectCode, root) => {
     // the user's cleanup (RFC-059) — refusals pass through like switchBranch's: they are the answer
     removeWorktree: async ({ path, force } = {}) => hub().removeWorktree(projectCode, { path, force, root }),
     deleteBranch: async ({ name, force } = {}) => hub().deleteBranch(projectCode, { name, force, root }),
+    // land: accept a reviewed branch onto the one you are standing on — a conflict is a refusal
+    mergeBranch: async ({ branch } = {}) => hub().mergeBranch(projectCode, { branch, root }),
+    // land from ON the branch: fast-forward the base up to here; non-ff is the refusal
+    fastForward: async ({ branch, to } = {}) => hub().fastForward(projectCode, { branch, to, root }),
+    // review-first accept: the branch's work arrives as uncommitted changes, his commit on top
+    applyBranch: async ({ branch, base } = {}) => hub().applyBranch(projectCode, { branch, base, root }),
     changedFiles: async () => {
       const res = await hub().changedFiles(projectCode, { root });
       if (res && res.ok === false) throw new Error(res.error || "git did not run");

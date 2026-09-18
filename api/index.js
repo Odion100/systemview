@@ -1134,17 +1134,47 @@ async function branchDiff(projectCode, { branch, base, root } = {}) {
     }
   }
   // three dots: what the BRANCH adds since it forked — the review question — not every way the
-  // two have since diverged
-  const [stat, patch] = await Promise.all([
+  // two have since diverged. The commits ride along because a lane is one piece of work: the
+  // review has to SHOW the commit the way a ::commit block does, or accepting it is signing
+  // something unread (his ask).
+  const [stat, patch, log] = await Promise.all([
     git(cwd, ["diff", "--name-status", `${bs}...${b}`]),
     git(cwd, ["diff", `${bs}...${b}`]),
+    git(cwd, ["log", "--format=%h%s", `${bs}..${b}`]),
   ]);
   if (!stat.ok) return { ok: false, error: stat.error };
   const files = stat.out.split("\n").filter(Boolean).map((l) => {
     const [status, ...p] = l.split(/\t/);
     return { status, path: p[p.length - 1] };
   });
-  return { ok: true, branch: b, base: bs, files, patch: patch.ok ? patch.out : "" };
+  const commits = log.ok
+    ? log.out.split("\n").filter(Boolean).map((l) => { const [hash, subject] = l.split(""); return { hash, subject: subject || "" }; })
+    : [];
+  return { ok: true, branch: b, base: bs, files, patch: patch.ok ? patch.out : "", commits };
+}
+
+// LAND (his design) — accept a reviewed branch onto the branch you are STANDING ON, without a
+// tour of the lane branch: the commits arrive as themselves (fast-forward when possible, a merge
+// commit when histories diverged), which is what keeps branchState's merged-check true afterwards
+// — a squash would land the content and leave the history claiming unmerged forever. A conflict
+// is a REFUSAL: the merge is unwound (`reset --merge`) and the conflict named; nothing is forced
+// and nothing is left half-merged for the user to discover.
+async function mergeBranch(projectCode, { branch, root } = {}) {
+  const cwd = rootOf(projectCode, root);
+  if (!cwd) return { ok: false, error: "no folder for this project" };
+  const b = String(branch || "").trim();
+  if (!b) return { ok: false, error: "which branch?" };
+  return serial(cwd, async () => {
+    const cur = await git(cwd, ["rev-parse", "--abbrev-ref", "HEAD"]);
+    if (cur.ok && cur.out.trim() === b) return { ok: false, error: "you are standing on that branch — land it from the branch it should merge into" };
+    const res = await git(cwd, ["merge", "--no-edit", b]);
+    bustGit(projectCode);
+    if (!res.ok) {
+      await git(cwd, ["reset", "--merge"]); // unwind — a refusal leaves the tree as it was
+      return { ok: false, error: res.error || "merge refused" };
+    }
+    return { ok: true, merged: b, into: cur.ok ? cur.out.trim() : "" };
+  });
 }
 
 // THE JANITOR'S VIEW (RFC-059) — a lane leaves artifacts: a worktree that auto-cleans only when
@@ -1210,6 +1240,52 @@ async function deleteBranch(projectCode, { name, root, force } = {}) {
   bustGit(projectCode);
   if (!res.ok) return { ok: false, error: res.error };
   return { ok: true, deleted: b };
+}
+
+// BRING OVER AS CHANGES (his ask) — the review-first accept: apply the branch's commits to the
+// working tree WITHOUT committing, standing right where you are. The work arrives as uncommitted
+// changes — file list, per-file diffs, the user's own commit on top — because on the branch it is
+// already committed and there is nothing left to review as changes. Conflict or dirty-tree
+// refusals are unwound (`cherry-pick --abort`, then `reset --merge` as the belt-and-braces) and
+// surfaced; nothing is half-applied.
+async function applyBranch(projectCode, { branch, base, root } = {}) {
+  const cwd = rootOf(projectCode, root);
+  if (!cwd) return { ok: false, error: "no folder for this project" };
+  const b = String(branch || "").trim();
+  if (!b) return { ok: false, error: "which branch?" };
+  let bs = String(base || "").trim();
+  if (!bs) {
+    const dh = await git(cwd, ["symbolic-ref", "refs/remotes/origin/HEAD"]);
+    bs = dh.ok ? dh.out.trim().replace("refs/remotes/origin/", "") : "main";
+  }
+  return serial(cwd, async () => {
+    const res = await git(cwd, ["cherry-pick", "--no-commit", `${bs}..${b}`]);
+    bustGit(projectCode);
+    if (!res.ok) {
+      await git(cwd, ["cherry-pick", "--abort"]).catch(() => {});
+      await git(cwd, ["reset", "--merge"]).catch(() => {});
+      return { ok: false, error: res.error || "could not apply the branch's changes" };
+    }
+    // leave nothing staged-by-surprise: the changes sit in the tree for HIS review and commit
+    await git(cwd, ["reset"]);
+    return { ok: true, applied: b };
+  });
+}
+
+// FAST-FORWARD LAND (his ask) — accepting from ON the branch: bring the base up to here without
+// checking it out. `git fetch . <branch>:<base>` moves the base ref only when it is a clean
+// fast-forward and refuses otherwise ("non-fast-forward") — which is the honest answer: the base
+// moved since the fork, go stand on it and land with a real merge.
+async function fastForward(projectCode, { branch, to, root } = {}) {
+  const cwd = rootOf(projectCode, root);
+  if (!cwd) return { ok: false, error: "no folder for this project" };
+  const b = String(branch || "").trim();
+  const t = String(to || "").trim();
+  if (!b || !t) return { ok: false, error: "which branch, onto which?" };
+  const res = await serial(cwd, () => git(cwd, ["fetch", ".", `${b}:${t}`]));
+  bustGit(projectCode);
+  if (!res.ok) return { ok: false, error: res.error || "fast-forward refused" };
+  return { ok: true, forwarded: t, to: b };
 }
 
 async function push(projectCode, { root } = {}) {
@@ -2068,6 +2144,9 @@ module.exports = function launchSystemView(port = 3000) {
       branchState,
       removeWorktree,
       deleteBranch,
+      mergeBranch,
+      fastForward,
+      applyBranch,
       showCommit,
       changedFiles,
       getDiff,

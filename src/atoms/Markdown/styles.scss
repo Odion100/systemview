@@ -2571,6 +2571,8 @@
   border: 1px solid var(--sv-line, rgba(128, 128, 128, 0.25));
   border-radius: 6px;
   font-size: 12.5px;
+  // own ink in both themes — inside the lane side panel this inherited black-on-dark (his catch)
+  color: var(--sv-text, #46506a);
   &--err { padding: 6px 10px; color: var(--sv-text-soft, #8a8f98); border-style: dashed; }
   &__head { display: flex; align-items: center; gap: 8px; padding: 6px 10px; flex-wrap: wrap; }
   &__icon { opacity: 0.8; }
@@ -2591,8 +2593,15 @@
     cursor: pointer;
     &:hover { border-color: currentColor; }
     &--yes { margin-left: 4px; color: #7fb069; }
+    &--land { color: #7fb069; border-color: #7fb069; }
+    // two verbs side by side: only the first rides to the right edge
+    + .md-branch__btn { margin-left: 4px; }
   }
   &__confirm { margin-left: auto; display: flex; align-items: center; gap: 4px; font-size: 11.5px; }
+  // the branch's commits — what landing ACCEPTS, on screen like a ::commit block's message
+  &__commits { list-style: none; margin: 0; padding: 0 10px 4px; }
+  &__commit { font-size: 11.5px; padding: 1px 0; }
+  &__hash { font-family: ui-monospace, Menlo, monospace; color: var(--sv-text-soft, #8a8f98); margin-right: 5px; }
   &__note { padding: 0 10px 6px; color: #7fb069; font-size: 11.5px; }
   &__error { padding: 0 10px 6px; color: #c66; font-size: 11.5px; white-space: pre-wrap; }
   &__files {

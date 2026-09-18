@@ -272,10 +272,25 @@ Rendered, on this repo's own default branch:
 
 ::branch[main]
 
-The header carries the project and the branch; the file rows unfold their patches; the button is
-the human's — **switch to it** moves their real working tree onto the branch (two-step, and `git
-switch` refusing over dirty files is shown, never stashed around), and once on it, **back to** the
-branch they came from. Reading the diff never touches their tree; only the button does.
+The header carries the project and the branch; the block lists the branch's **commits** (a lane is
+one piece of work — landing means accepting exactly that commit, on screen like a `::commit`
+block's message); the file rows unfold their patches. The verbs are the human's:
+
+- **land onto \<current\>** — the accept: merges the branch onto whatever they are standing on,
+  two-step, no switching, no CLI. A conflict is a refusal, shown and unwound — never forced.
+- **switch to it** — the tour, for when they want to walk the branch itself (two-step, and `git
+  switch` refusing over dirty files is shown, never stashed around); then **back to** the branch
+  they came from.
+- **fast-forward \<base\> to here** — the accept from ON the branch, after a walk: brings the base
+  up without checking it out. Only clean when the base has not moved since the fork; a non-ff is
+  shown as the refusal it is.
+- **bring over as changes** — the review-first accept: the branch's work arrives UNCOMMITTED on
+  the branch they are standing on (on the lane branch it is already committed — nothing shows as
+  changes there). File list, per-file diffs, their own commit on top; a changes surface opens to
+  meet it. Their commit replaces the lane's, so the lane branch still reads "not merged" — a
+  warning theirs to override at cleanup.
+
+Reading the diff never touches their tree; only the buttons do.
 
 **Put it at the top of the report.** `::file` and `::diff` blocks read the working tree, so
 switching first is what makes the rest of the document show the branch's actual code. The shape of

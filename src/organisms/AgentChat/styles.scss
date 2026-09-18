@@ -3677,6 +3677,9 @@
   padding: 2px 8px;
   font-size: 12px;
   border-top: 1px solid var(--sv-line, rgba(128, 128, 128, 0.18));
+  // OWN INK (his catch: black-on-black in dark mode) — these surfaces inherited whatever the
+  // container had, which bottoms out at the body default. The token flips with the theme.
+  color: var(--sv-text, #46506a);
 }
 // the whole row opens the lane's panel — cursor, hover and chevron all say so
 .agent-chat__lane-row {
@@ -3755,6 +3758,8 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  // own ink — the side-panel wrapper sets a themed surface but no text color (his catch)
+  color: var(--sv-text, #46506a);
 }
 .agent-chat__lanepanel-head {
   display: flex; align-items: center; gap: 8px;
