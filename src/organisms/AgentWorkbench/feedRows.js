@@ -73,6 +73,7 @@ export const LANE_LOG_CAP = 300;
 export function splitLaneEvents(events) {
   const main = [];
   const lanes = new Map(); // parentId -> { source, brief, events: [] }
+  const briefs = new Map(); // tool_use id -> the prompt that spawned it
   for (const ev of events || []) {
     if (ev && ev.parent) {
       let lane = lanes.get(ev.parent);
@@ -83,19 +84,20 @@ export function splitLaneEvents(events) {
       if (lane.events.length > LANE_LOG_CAP) lane.events.shift();
     } else {
       // THE BRIEF (his ask: "that should be at the top of that window"). The spawning Agent call
-      // sits in the OWNER's feed, and its tool_use id is exactly the parent the lane's events
-      // carry — so the prompt that scoped the lane is captured here, not re-said from memory.
-      if (ev && ev.kind === "tool.call" && ev.id && ev.input && typeof ev.input.prompt === "string") {
-        const lane = lanes.get(String(ev.id));
-        if (lane && !lane.brief) lane.brief = ev.input.prompt;
-        else if (!lanes.has(String(ev.id)) && /agent|task/i.test(String(ev.tool || "")))
-          lanes.set(String(ev.id), { source: "", brief: ev.input.prompt, events: [] });
-      }
+      // sits in the OWNER's feed and its tool_use id is exactly the `parent` the lane's events
+      // carry — so the prompt that scoped a lane is captured, never re-said from memory.
+      //
+      // KEYED BY ID, ATTACHED AFTER — two bugs the first version had, both silent: the spawning
+      // call arrives BEFORE any of the subagent's events, so a lane-lookup at this moment is
+      // always empty; and the event's field is `name`, not `tool`, so the fallback's name test
+      // was never true either. The id match IS the proof a call spawned a lane, so no name test
+      // is needed at all.
+      if (ev && ev.kind === "tool.call" && ev.id && ev.input && typeof ev.input.prompt === "string")
+        briefs.set(String(ev.id), ev.input.prompt);
       main.push(ev);
     }
   }
-  // drop brief-only phantoms (an Agent call that never produced lane events)
-  for (const [k, l] of lanes) if (!l.events.length) lanes.delete(k);
+  for (const [pid, lane] of lanes) if (!lane.brief) lane.brief = briefs.get(String(pid)) || "";
   return { main, lanes };
 }
 

@@ -38,7 +38,9 @@ Context is past 60% of the window. Early is cheap and late is not…
 ## The event vocabulary
 
 A hook can only attach to a moment the system really emits — checked at the **writing** door,
-because a hook on an event that never happens is silent and looks correct in every list. Fields
+because a hook on an event that never happens is silent and looks correct in every list. Hooks fire
+from the same `emit()` that feeds the session's feed, so observability and hookability are one
+surface: a new event source is hookable by being emitted, with nothing to wire. Fields
 with a fixed set of values carry them as presets, so an author copies instead of guessing:
 
 | event | when it fires | fields (presets) |
@@ -77,6 +79,8 @@ equality, an array "any of these", and dotted paths reach nested fields (`input.
 Operators: `equals`, `not`, `contains`, `startsWith`, `endsWith`, `matches` (regex), `in`, `gt`,
 `gte`, `lt`, `lte`, `exists` — the substring operators and `matches` are **case-insensitive**
 (they point at human text; `equals` stays exact), and an unknown operator never silently passes.
+**Whitespace is not normalised**, though: `contains: hooktest` does not match "hook test" — for a
+phrase a human will type loosely, use `matches` with `\s*`.
 The `when` clause is the whole difference between a firehose and a trigger: blanket `tool.call`
 is a nightmare; `tool.call` where `input.command` contains `git push` is a trigger.
 

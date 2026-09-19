@@ -21,6 +21,25 @@ while its file has not changed — so results are labelled, never blended. Markd
 both shelves; the vectors are derived and rebuildable, which is why an edit is always an edit to a
 file, never to an embedding.
 
+## Instructions load whole; reference gets retrieved
+
+**Retrieval is lossy by design.** A corpus answers with the chunks that scored — correct for
+REFERENCE, where missing a section costs a re-read; wrong for INSTRUCTIONS, where a constraint
+sitting in a chunk that did not score *silently does not exist*, and if the work is unattended
+nobody is there to notice. A 0.62 similarity score is not a safety mechanism. So skill files, agent
+docs and job documents load **whole** when they fire; framework references, API docs and
+accumulated history are **chunked and retrieved**.
+
+**The tell that you have it backwards:** corpora are sized for document *sets* (~20 chunks a file,
+several files). A single instruction file is 4–6 chunks and fits in context whole — chunking it to
+answer questions about itself is heavy machinery standing in for "read the file", and every such
+file becomes its own corpus with its own bookkeeping.
+
+**The corollary is the useful half:** what a long-running thing needs retrieval for is its
+*history* — past runs, outcomes, what was learned. That grows without bound, genuinely exceeds
+context, and carries the real question ("has this failed before, and how?"). History as a `working`
+corpus is append-only, so staleness never applies.
+
 ## Writing — `remember`, one concept per note
 
 `remember(text)` is one motion: near-duplicate check, markdown write, embed. One concept per note,
@@ -118,6 +137,19 @@ an agent can ask for lives on the retrieved side instead. CLAUDE.md is **rules, 
 must be true every time anyone works in that repo (the build command, what needs a restart), never
 narrative, never lessons; lessons are notes, and settled knowledge is this corpus's job. The
 always-loaded files are **pointed at, never copied** — a copy in two layers is two copies drifting.
+
+## The freeze — why editing a loaded file changes nothing until a re-init
+
+**The loaded layers are frozen at session open.** Presence, the system context, the agent doc and
+the CLAUDE.md stack are composed ONCE (autobot `sessions.cjs sdkOptionsOf()`) and handed to the SDK
+at query time. Editing any of those files changes nothing for a session already running, and a
+compaction does not help — compaction rewrites the *conversation*, never the system prompt. The one
+route in is a **re-init** (`sessions.reinit()`): the query is torn down and reopened against the
+same SDK session id, so the conversation survives and the options are rebuilt. Staleness is detected
+by comparing the mtimes of every composed input (`compositionOf()`) and offered as a press on the
+profile card — never taken automatically. The same freeze explains a session reporting fewer skills
+than exist on disk, or a capability list missing something added since: what a session reports is
+what existed at *its* open — history, not a fault.
 
 ## Nominations — the closed pipeline from notes to handbook
 

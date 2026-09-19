@@ -7,58 +7,29 @@ import { getHub } from "./hub";
 // is just the old building. His call, and it ends the transition: *"the plugin does not deal with
 // files and git anymore."*
 //
-// So: no marker, no candidates, no picking. A project has a root the shell knows; you ask the
-// shell. The plugin is documentation and tests, which is what it was designed for.
+// So: no marker, no candidates, no picking. A project has a root, and you ask ONE place for it. That
+// place is the hub — it holds the connections registry, the hosted registry AND (since
+// api/shellProjects.js) the shell's own `~/.autobot/projects.json`, so it can answer for a project
+// however that project arrived. The plugin is documentation and tests, which is what it was designed
+// for.
+//
+// WHAT THE SHELL IS STILL FOR, so the name of this file does not mislead: it owns the REGISTRY — it
+// picks the folder, names it, renames it, forgets it. The hub reads that list; it never writes it.
 export const hasHostFiles = () =>
   !!(typeof window !== "undefined" && window.systemview && window.systemview.files);
 
-// The nav asks `listFiles({})` and expects THE WHOLE TREE FLAT — `{ files: [{path, language, size}] }`
-// — because that is what the plugin has always answered. The host's `listFiles(projectCode, dir)`
-// answers ONE directory. That mismatch is why a folder added with + showed a card and no files: not
-// a missing capability, a shape. So the walk happens here, breadth-first, and the ignore list is the
-// obvious one — nobody wants node_modules in the tree and reading it over IPC would take all day.
-const IGNORE = new Set(["node_modules", ".git", ".next", "dist", "coverage", ".cache", "build"]);
-const MAX_FILES = 8000;
+// WHAT THE SHAPE-WALKING USED TO BE. This file once carried a breadth-first `walkAll` over the
+// shell's one-directory-at-a-time bridge, because the nav wanted the whole tree flat and the shell
+// answered one folder. The hub serves files now and answers both shapes itself, so the walk, the
+// ignore list and the row normaliser went with it rather than sitting here as a second way to build
+// a tree that nobody calls. What is left is the one thing still needed on this side: a file's
+// language, which the hub does not have to guess about.
 const EXT_LANG = {
   js: "javascript", jsx: "javascript", mjs: "javascript", cjs: "javascript",
   ts: "typescript", tsx: "typescript", json: "json", md: "markdown", markdown: "markdown",
   scss: "scss", css: "css", html: "html", yml: "yaml", yaml: "yaml", sh: "shell", py: "python", sql: "sql",
 };
 const languageOf = (p) => EXT_LANG[(String(p).split(".").pop() || "").toLowerCase()] || "text";
-
-const rowsOf = (res) => {
-  const raw = Array.isArray(res) ? res : (res && (res.files || res.entries || res.rows)) || [];
-  return raw
-    .map((r) => (typeof r === "string" ? { path: r } : r))
-    .filter((r) => r && r.path);
-};
-
-async function walkAll(files, projectCode) {
-  const out = [];
-  const queue = [""];
-  const seen = new Set();
-  while (queue.length && out.length < MAX_FILES) {
-    const dir = queue.shift();
-    if (seen.has(dir)) continue;
-    seen.add(dir);
-    let rows = [];
-    try {
-      rows = rowsOf(await files.listFiles(projectCode, dir));
-    } catch {
-      continue;
-    }
-    rows.forEach((r) => {
-      const name = String(r.path).split("/").filter(Boolean).pop();
-      const isDir = !!(r.dir || r.isDirectory || r.type === "dir");
-      if (isDir) {
-        if (!IGNORE.has(name)) queue.push(r.path);
-        return;
-      }
-      out.push({ path: r.path, language: r.language || languageOf(r.path), size: r.size, mtime: r.mtime });
-    });
-  }
-  return out;
-}
 
 // The object-arg shape every call site already speaks, mapped onto the host's positional calls.
 // One place, so the two vocabularies meet exactly once.
@@ -68,33 +39,13 @@ export const hostFiles = (projectCode, root) => {
     if (!h) throw new Error("the hub is not connected yet");
     return h;
   };
-  // The shell's bridge if it has the verb, the hub if it does not. NOT a preference between two
-  // equals — the shell is the answer; the hub is what stops a missing verb from blanking a panel.
-  const shellFiles = () => (typeof window !== "undefined" && window.systemview && window.systemview.files) || null;
-  const viaShellOrHub = async (verb, fromShell, fromHub) => {
-    const files = shellFiles();
-    if (files && typeof files[verb] === "function") {
-      // A MISSING VERB IS NOT THE ONLY WAY THE SHELL CAN HAVE NO ANSWER. The shell only knows the
-      // projects that were added TO IT; a project that arrived as a service connection has a folder
-      // in the connections registry and no entry in the shell's list at all — so `gitState("autobot")`
-      // comes back `ok:false` with "unknown project" while the very same folder is sitting right
-      // there. That is why one project's panel had the commit box and another's did not, and it was
-      // the shell-first switch that introduced it. So the fallback catches BOTH shapes of "no
-      // answer": no verb, and a verb that could not resolve the project.
-      try {
-        const res = await fromShell(files);
-        if (!res || res.ok !== false) return res;
-      } catch {
-        /* fall through to the hub — a throwing bridge is a bridge with no answer */
-      }
-    }
-    return fromHub(hub());
-  };
-  const f = () => {
-    const files = typeof window !== "undefined" && window.systemview && window.systemview.files;
-    if (!files) throw new Error("no file host — open SystemView in the desktop shell");
-    return files;
-  };
+  // ONE OWNER, AND THIS IS WHERE THE SECOND ONE USED TO BE STANDING. A `viaShellOrHub` helper sat
+  // here — try `window.systemview.files`, fall back to the hub — written for the mirror-image bug and
+  // never actually wired to a verb. It is gone rather than finally used: the shell's bridge carries
+  // nine verbs of the thirty below, so routing files through it would have made a project added in
+  // the window read its files and still refuse to commit, list a branch or open a file's history.
+  // The hub knows the shell's registry now (api/shellProjects.js), so there is one list of folders
+  // again and every verb here asks exactly one place.
   return {
     readFile: async ({ path } = {}) => {
       const res = await hub().readFile(projectCode, { path, root });
@@ -120,6 +71,27 @@ export const hostFiles = (projectCode, root) => {
     listFiles: async ({ dir = ".", shallow, max } = {}) => {
       const res = await hub().listFiles(projectCode, { dir, root, shallow, max });
       if (res && res.ok === false) throw new Error(res.error || "could not list that folder");
+      // A HUB THAT DOES NOT KNOW `shallow` ANSWERS RECURSIVELY, and says nothing about it — the flag
+      // is simply unread, `entries` is absent, and `files` arrives instead. Reading `entries` off
+      // that answer gave an EMPTY tree on every project with no error anywhere, because the call
+      // succeeded (2026-09-19, live). The two layers arm separately here — a rebuilt bundle against
+      // a not-yet-restarted hub is a normal minute, not an exotic one — so the skew degrades to a
+      // working tree: this folder's own children, derived from the flat list the old hub sent.
+      if (shallow && !res.entries && Array.isArray(res.files)) {
+        const base = res.dir ? `${res.dir}/` : "";
+        const seen = new Map();
+        res.files.forEach((r) => {
+          const rel = String(r.path).startsWith(base) ? String(r.path).slice(base.length) : null;
+          if (!rel) return;
+          const cut = rel.indexOf("/");
+          const name = cut === -1 ? rel : rel.slice(0, cut);
+          const path = `${base}${name}`;
+          if (!seen.has(path))
+            seen.set(path, { name, path, dir: cut !== -1, language: cut === -1 ? r.language || languageOf(path) : undefined });
+        });
+        const entries = [...seen.values()].sort((a, b) => (a.dir === b.dir ? a.name.localeCompare(b.name) : a.dir ? -1 : 1));
+        return { dir: res.dir || "", shallow: true, entries, truncated: !!res.truncated, derived: true };
+      }
       if (shallow)
         return {
           dir: res.dir || "",

@@ -869,14 +869,21 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
   const [vcLens, setVcLens] = useState(
     () => localStorage.getItem("sv.cbNav.vcLens") === "true",
   );
+  // PER PROJECT, NOT GLOBAL (2026-09-19, the afternoon this cost). These two filters persisted
+  // under one key for the whole window, so pressing 💬 on one card silenced the file tree of EVERY
+  // project — across rebuilds, restarts and refreshes, with "no match" as the only clue. A view
+  // choice made on one card belongs to that card. The old global keys are deliberately not read:
+  // anyone holding a stuck `true` is released by this change rather than migrated into it.
+  const docsOnlyKey = `sv.cbNav.docsOnly.${projectCode}`;
+  const commentsOnlyKey = `sv.cbNav.commentsOnly.${projectCode}`;
   const [docsOnly, setDocsOnly] = useState(
-    () => localStorage.getItem("sv.cbNav.docsOnly") === "true",
+    () => localStorage.getItem(docsOnlyKey) === "true",
   );
   // RFC-034 — only the files someone has said something about. Same shape as the `.md` pill beside
   // it; the count rides on it, because "how many files have comments" is half of what you're asking
   // when you reach for this.
   const [commentsOnly, setCommentsOnly] = useState(
-    () => localStorage.getItem("sv.cbNav.commentsOnly") === "true",
+    () => localStorage.getItem(commentsOnlyKey) === "true",
   );
   const flipToggle = (key, value, set) => () => {
     set(!value);
@@ -1006,11 +1013,11 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
     }
     if (docsOnly) {
       setDocsOnly(false);
-      localStorage.setItem("sv.cbNav.docsOnly", "false");
+      localStorage.setItem(docsOnlyKey, "false");
     }
     if (commentsOnly) {
       setCommentsOnly(false);
-      localStorage.setItem("sv.cbNav.commentsOnly", "false");
+      localStorage.setItem(commentsOnlyKey, "false");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [revealedPath]);
@@ -1145,7 +1152,13 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
       // The ROOT failing is "no file access"; a subfolder failing is that subfolder's problem and
       // must not blank the tree that is already drawn.
       if (key === "") {
-        setError("file access unavailable");
+        // SAY WHAT WENT WRONG. This used to swallow the thrown error and print one fixed sentence,
+        // so a hub that was not connected, a project with no folder, and a verb that does not exist
+        // all read identically — and the one thing that could have told anyone which, was in hand
+        // and discarded (2026-09-19: every card said "file access unavailable" and the reason was
+        // sitting in `e`). The surface holds the answer; it may as well give it.
+        const why = (e && e.message) || String(e || "");
+        setError(why ? `file access unavailable — ${why}` : "file access unavailable");
         setEntries((prev) => prev || new Map());
       }
     } finally {
@@ -2525,7 +2538,7 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
                         ? "Back to every file"
                         : `Only the ${commented.size} file${commented.size > 1 ? "s" : ""} with comments`
                     }
-                    onClick={flipToggle("sv.cbNav.commentsOnly", commentsOnly, setCommentsOnly)}
+                    onClick={flipToggle(commentsOnlyKey, commentsOnly, setCommentsOnly)}
                   >
                     💬
                     <span className={`${CLASSNAME}__filter-pill-n`}>{commented.size}</span>
@@ -2535,7 +2548,7 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
                   type="button"
                   className={`${CLASSNAME}__filter-pill ${docsOnly ? `${CLASSNAME}__filter-pill--on` : ""}`}
                   title="Only markdown docs"
-                  onClick={flipToggle("sv.cbNav.docsOnly", docsOnly, setDocsOnly)}
+                  onClick={flipToggle(docsOnlyKey, docsOnly, setDocsOnly)}
                 >
                   .md
                 </button>
@@ -2916,7 +2929,32 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
                   </>
                 )}
                 {filtered && !filtered.length && (
-                  <div className={`${CLASSNAME}__empty`}>no match</div>
+                  // "no match" was the entire message while a filter hid an entire codebase. A
+                  // filter that hides everything has to announce itself, name itself, and carry
+                  // its own undo — anything quieter is a blank panel with a secret.
+                  <div className={`${CLASSNAME}__filtered-out`}>
+                    <span className={`${CLASSNAME}__filtered-out-line`}>
+                      <b>Every file is hidden by a filter.</b>{" "}
+                      {[query && `the search "${query}"`, docsOnly && "the .md filter", commentsOnly && "the 💬 comments filter"]
+                        .filter(Boolean)
+                        .join(" + ")}
+                    </span>
+                    <button
+                      type="button"
+                      className={`${CLASSNAME}__clear-filters`}
+                      onClick={() => {
+                        setFilter("");
+                        setDocsOnly(false);
+                        setCommentsOnly(false);
+                        try {
+                          localStorage.setItem(docsOnlyKey, "false");
+                          localStorage.setItem(commentsOnlyKey, "false");
+                        } catch {}
+                      }}
+                    >
+                      ✕ Show all files
+                    </button>
+                  </div>
                 )}
               </div>
               )}

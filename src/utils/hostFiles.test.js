@@ -160,10 +160,121 @@ describe("what the call sites read", () => {
     expect((await hostFiles("p").readSnapshot({ path: "a.js", sha: "abc1234" })).content).toBe("then");
   });
 
+  // A PROJECT THE SHELL KNOWS AND THE CONNECTIONS DO NOT — the bug he hit with BUStudio, from this
+  // side of the wire. He added a folder in the window; the card and the tree drew, and every file in
+  // it answered "no folder for this project". The card had the root all along (the shell handed it
+  // over) and the agent chat's floating panel never had it, because it calls `hostFiles(projectCode)`
+  // with no second argument — which is exactly the call below.
+  //
+  // So the contract this asserts is: WITH NO ROOT, THE PROJECT CODE IS THE WHOLE QUESTION. The hub
+  // resolves it (api/shellProjects.js put the shell's registry in `projectRoot`'s chain), and the
+  // answer maps into the same shapes as any other project's. If this ever needs a root passed to
+  // work, the two-registries bug is back.
+  describe("a shell-registered project — the hub is asked by CODE, with no root", () => {
+    it("lists shallow and maps the lazy tree's contract", async () => {
+      let sent = null;
+      setHub(
+        hub({
+          listFiles: async (pc, opts) => {
+            sent = { pc, opts };
+            return {
+              ok: true,
+              dir: "",
+              shallow: true,
+              entries: [
+                { name: "docs", path: "docs", dir: true },
+                { name: "README.md", path: "README.md", dir: false },
+              ],
+              truncated: false,
+            };
+          },
+        }),
+      );
+      const l = await hostFiles("BUStudio").listFiles({ dir: "", shallow: true });
+      expect(sent.pc).toBe("BUStudio");
+      expect(sent.opts.root).toBeUndefined(); // the code is the whole question
+      expect(sent.opts.shallow).toBe(true);
+      expect(l).toMatchObject({ dir: "", shallow: true, truncated: false });
+      expect(l.entries).toEqual([
+        { name: "docs", path: "docs", dir: true, language: undefined, mtime: undefined },
+        { name: "README.md", path: "README.md", dir: false, language: "markdown", mtime: undefined },
+      ]);
+    });
+
+    it("reads a file, same as any other project", async () => {
+      let sent = null;
+      setHub(
+        hub({
+          readFile: async (pc, opts) => {
+            sent = { pc, opts };
+            return { ok: true, path: "README.md", content: "# BUStudio" };
+          },
+        }),
+      );
+      const f = await hostFiles("BUStudio").readFile({ path: "README.md" });
+      expect(sent.pc).toBe("BUStudio");
+      expect(sent.opts.root).toBeUndefined();
+      expect(f).toMatchObject({ path: "README.md", content: "# BUStudio", language: "markdown" });
+    });
+
+    // THE STRING HE SAW, and it must keep arriving as a failure. A hub that genuinely cannot place a
+    // project has to say so out loud — silently returning an empty tree would turn "I do not know
+    // where this is" into "this folder is empty", which is the same class of bug the whole file
+    // exists to catch.
+    it("still surfaces the hub's refusal when NOBODY knows the folder", async () => {
+      setHub(hub({ listFiles: async () => ({ ok: false, error: "no folder for this project" }) }));
+      await expect(hostFiles("Nowhere").listFiles({ dir: "", shallow: true })).rejects.toThrow(
+        "no folder for this project",
+      );
+    });
+
+    // The nav DOES know the root and passes it. That path must keep working — it is every
+    // hub-known project on screen today.
+    it("and a root, when a caller has one, is still forwarded", async () => {
+      let sent = null;
+      setHub(hub({ readFile: async (_pc, opts) => ((sent = opts), { ok: true, content: "x" }) }));
+      await hostFiles("BUStudio", "/Users/odionedwards/BUStudio").readFile({ path: "a.js" });
+      expect(sent.root).toBe("/Users/odionedwards/BUStudio");
+    });
+  });
+
   // A FAILURE MUST ARRIVE AS A FAILURE. The whole class of bug above was silent wrong answers, and
   // an `{ ok:false }` that slips through as an empty list is the same bug wearing the same clothes.
   it("throws on ok:false instead of returning something empty and plausible", async () => {
     setHub(hub({ changedFiles: async () => ({ ok: false, error: "git did not run" }) }));
     await expect(hostFiles("p").changedFiles()).rejects.toThrow("git did not run");
+  });
+});
+
+describe("a hub that does not know `shallow` still yields a tree", () => {
+  it("derives this folder's children from the recursive answer", async () => {
+    // The live failure: bundle rebuilt, hub not yet restarted — `shallow` unread, `entries` absent,
+    // `files` sent instead. Reading `entries` off that gave an empty tree on EVERY project, silently.
+    setHub({
+      SystemView: {
+        listFiles: async () => ({
+          ok: true,
+          dir: "",
+          files: [{ path: "README.md" }, { path: "src/a.js" }, { path: "src/deep/b.js" }],
+        }),
+      },
+    });
+    const res = await hostFiles("p").listFiles({ dir: ".", shallow: true });
+    expect(res.derived).toBe(true);
+    expect(res.entries.map((e) => `${e.dir ? "d" : "f"}:${e.name}`)).toEqual(["d:src", "f:README.md"]);
+  });
+
+  it("derives a subfolder's children too, one level only", async () => {
+    setHub({
+      SystemView: {
+        listFiles: async () => ({
+          ok: true,
+          dir: "src",
+          files: [{ path: "src/a.js" }, { path: "src/deep/b.js" }, { path: "src/deep/c.js" }],
+        }),
+      },
+    });
+    const res = await hostFiles("p").listFiles({ dir: "src", shallow: true });
+    expect(res.entries.map((e) => e.path)).toEqual(["src/deep", "src/a.js"]);
   });
 });
