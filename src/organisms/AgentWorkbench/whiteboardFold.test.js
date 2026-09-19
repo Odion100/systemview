@@ -82,6 +82,25 @@ describe("splitLaneEvents — the edges of the lane split", () => {
     expect(lanes.get("t2").events).toHaveLength(1);
   });
 
+  it("carries the spawning call's prompt as the lane's brief", () => {
+    // The Agent call lands in the OWNER's feed BEFORE the lane exists — the first version looked
+    // the lane up at that moment (always empty) and fell back to a `tool` field that is really
+    // called `name`, so the brief silently never arrived. Keyed by id, attached after.
+    const { main, lanes } = splitLaneEvents([
+      ev("tool.call", { id: "t1", name: "Agent", input: { prompt: "go write the docs" } }),
+      ev("tool.call", { name: "mcp__worklist__set", input: { source: "lane:docs/x" }, parent: "t1" }),
+      ev("assistant.text", { text: "on it", parent: "t1" }),
+    ]);
+    expect(lanes.get("t1").brief).toBe("go write the docs");
+    expect(lanes.get("t1").source).toBe("lane:docs/x");
+    expect(main).toHaveLength(1); // the spawning call stays the owner's own event
+  });
+
+  it("a spawning call with no lane events leaves no phantom lane", () => {
+    const { lanes } = splitLaneEvents([ev("tool.call", { id: "t9", name: "Agent", input: { prompt: "x" } })]);
+    expect(lanes.size).toBe(0);
+  });
+
   it("a source without the lane: prefix never becomes the lane's name", () => {
     // A subagent running a skill sends `source: "skill:study"` down the same pipe — that names
     // its procedure, not the lane, and taking it would mislabel the panel.

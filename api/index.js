@@ -10,12 +10,19 @@ const RUNS = new Map();
 const Settings = require("./Settings")();
 const Comments = require("./Comments")();
 const Stage = require("./Stage")();
+const { shellProjects, shellProjectRoot } = require("./shellProjects");
 // WHERE A PROJECT LIVES ON DISK — one resolver, one precedence, used by everything that needs to
 // put a project's data with that project. Order matters: a HOSTED project's directory is known for
 // certain from the registry that stood it up; otherwise we take the root its own plugin reports on
 // the connection (systemview-plugin ≥ 2.16 — `getConnection()` carries it, and refreshConnections
-// re-pulls that, so it arrives on its own). Unknown root = null, and the caller falls back to the
-// hub rather than guessing a path.
+// re-pulls that, so it arrives on its own); LAST, the folders the SHELL was given directly through
+// `+ Add project`, which no connection and no hosted registry has ever heard of. Unknown root =
+// null, and the caller falls back to the hub rather than guessing a path.
+//
+// THE SHELL'S LIST GOES LAST, and the position is the whole safety argument: it can only answer a
+// question the other two already failed, so no project that resolves today can start resolving
+// somewhere else tomorrow. It is the ONLY reason a project added through the window had a card, a
+// tree and no readable file in it.
 function projectRoot(projectCode) {
   if (!projectCode) return null;
   // `fs` is not in this module's scope (only `path` is) — and a bare reference here would throw a
@@ -33,7 +40,7 @@ function projectRoot(projectCode) {
     );
     if (conn) return conn.root;
   } catch {}
-  return null;
+  return shellProjectRoot(projectCode);
 }
 // THE PROJECT SERVES ITS OWN ROOM. `SystemViewChat` lives in the project's process and owns the
 // file; the hub holds a warm client per project plus a subscription to its `chat` event. Kept in a
@@ -759,11 +766,35 @@ function parseStatus(out) {
 // never had any, ends up with no folder on screen while the registry has known its root the whole
 // time. That is why one project sat there with no tree, no git bar and no commit box while the ones
 // beside it were fine: not a different code path, just a card that was never told where it lived.
+// THE SHELL'S FOLDERS ARE IN HERE TOO, at the same precedence `projectRoot` gives them: underneath
+// the connections, so a connected project's own root still wins. Without them the CLI's
+// `projectPlugin` refuses a project added through the window outright ("no folder known for …"),
+// which means an agent cannot write a report into the project the human just added — the same bug
+// as the blank file tree, one layer down.
+//
+// Shell rows are checked against DISK before they are offered. The registry is allowed to name a
+// path from another machine (`bu1 -> /root/buAPI` does), and a project that is listed here but
+// unreadable by every verb downstream is worse than one that was never listed.
 function projectRoots() {
   const out = {};
   try {
+    Object.entries(shellProjects()).forEach(([pc, root]) => {
+      if (root && fsGit.existsSync(root)) out[pc] = root;
+    });
+  } catch {
+    /* no shell on this machine — the connections below are the whole answer, as before */
+  }
+  // FIRST CONNECTION WINS, among connections — unchanged. `fromConn` is what keeps that true now
+  // that the map is not empty when this loop starts: without it the guard would read "a shell row
+  // already claimed this code" as "a connection already did", and the second service on a project
+  // would start overwriting the first.
+  const fromConn = new Set();
+  try {
     ConnectedServices.getAllConnections().forEach((c) => {
-      if (c && c.projectCode && c.root && !out[c.projectCode]) out[c.projectCode] = c.root;
+      if (c && c.projectCode && c.root && !fromConn.has(c.projectCode)) {
+        out[c.projectCode] = c.root;
+        fromConn.add(c.projectCode);
+      }
     });
   } catch {
     /* an unreadable registry is an empty answer, not a thrown one */
@@ -843,6 +874,14 @@ function walkDir(root, dir, out, cap) {
       if (/^\.systemview\/report\..+\.md$/i.test(rel)) {
         try { row.mtime = fsGit.statSync(path_.join(root, rel)).mtimeMs; } catch {}
       }
+      // A COMMENT SIDECAR'S SIZE IS HOW THE UI KNOWS IT IS EMPTY. `commentedPathSet` skips sidecars
+      // under 40 bytes (`{"threads":[]}` is 20) and falls back to COUNTING one whose size is
+      // unreported — and nothing here ever reported it, so a file with every comment deleted still
+      // showed the 💬 mark and still matched the comments filter. His catch: "they all say one
+      // comment when there's no comments" (2026-09-19).
+      if (/^\.systemview\/code-comments\/.+\.json$/i.test(rel)) {
+        try { row.size = fsGit.statSync(path_.join(root, rel)).size; } catch {}
+      }
       out.push(row);
     }
   }
@@ -872,6 +911,10 @@ function listDirShallow(root, dir) {
     const row = { name: e.name, path: rel, dir: isDir };
     if (!isDir && /^\.systemview\/report\..+\.md$/i.test(rel)) {
       try { row.mtime = fsGit.statSync(path_.join(root, rel)).mtimeMs; } catch {}
+    }
+    // and a comment sidecar carries its size, so an emptied one stops counting as a comment
+    if (!isDir && /^\.systemview\/code-comments\/.+\.json$/i.test(rel)) {
+      try { row.size = fsGit.statSync(path_.join(root, rel)).size; } catch {}
     }
     out.push(row);
   }
