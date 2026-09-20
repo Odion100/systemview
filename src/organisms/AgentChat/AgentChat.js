@@ -4467,6 +4467,26 @@ const countdown = (str, now = Date.now()) => {
   // fingerprint and it returns on its own. Completion clears NOTHING — a finished run sits on
   // screen until he presses its ×, which is the only way multiple lists can be seen together.
   const [clearedLists, setClearedLists] = useState({});
+  // A DELETED LANE IS DELETED, AND IT HAS TO SURVIVE A REFRESH — which `clearedLists` could not,
+  // being useState({}). His cleanup removed the worktree, the branch and the run file, and then a
+  // reload replayed the session's own events and drew the row again from the transcript, which is
+  // permanent history nobody can delete. He deleted the same dead lane four times (2026-09-19).
+  // Two differences from the fingerprint above, both deliberate: this persists, and it keys on the
+  // LANE alone — a lane that writes its list again after he killed it must not return under a new
+  // fingerprint. Per project, because a lane belongs to one repo.
+  const deletedLanesKey = `sv.chat.deletedLanes.${projectCode}`;
+  const readDeletedLanes = (k) => {
+    try {
+      return new Set(JSON.parse(window.localStorage.getItem(k) || "[]"));
+    } catch {
+      return new Set();
+    }
+  };
+  const [deletedLanes, setDeletedLanes] = useState(() => readDeletedLanes(deletedLanesKey));
+  useEffect(() => {
+    setDeletedLanes(readDeletedLanes(deletedLanesKey));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deletedLanesKey]);
   // which lane's panel is open — one at a time; the panel is the deep look, the rows are the glance
   const [lanePanel, setLanePanel] = useState(null);
   const listsShown = (work.state.todoLists || []).filter(
@@ -4486,7 +4506,9 @@ const countdown = (str, now = Date.now()) => {
     for (const l of work.state.todoLists || []) {
       if (l.items.length && l.source.startsWith("lane:")) rows.set(l.key, { key: l.key, source: l.source, items: l.items });
     }
-    return [...rows.values()].filter((l) => JSON.stringify(l.items) !== clearedLists[l.key]);
+    return [...rows.values()].filter(
+      (l) => !deletedLanes.has(l.key) && JSON.stringify(l.items) !== clearedLists[l.key]
+    );
   })();
   const todoShown = listsShown.length ? listsShown[listsShown.length - 1].items : null;
   // THE PLAN'S HEADER RIDES THE MINIMISED VIEW ONLY — his correction after I put it on the open
@@ -6217,8 +6239,18 @@ const countdown = (str, now = Date.now()) => {
                 onOpenPanel={() => setLanePanel((cur) => (cur === l.key ? null : l.key))}
                 onDelete={async () => {
                   await work.deleteLaneRun(l.key);
-                  // the session's own event echo of this run must not resurrect the row
-                  setClearedLists((c) => ({ ...c, [l.key]: JSON.stringify(l.items) }));
+                  // the session's own event echo of this run must not resurrect the row — and the
+                  // transcript replays on every refresh, so this has to outlive the page.
+                  setDeletedLanes((prev) => {
+                    const next = new Set(prev);
+                    next.add(l.key);
+                    try {
+                      window.localStorage.setItem(deletedLanesKey, JSON.stringify([...next]));
+                    } catch {
+                      /* private mode — the row stays gone for this page life, as before */
+                    }
+                    return next;
+                  });
                   setLanePanel((cur) => (cur === l.key ? null : cur));
                 }}
               />

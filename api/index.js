@@ -2051,13 +2051,38 @@ function usageReport({ fresh = false } = {}) {
     if (!cli) return resolve({ ok: false, error: "no claude CLI found on this machine" });
     const { spawn } = require("child_process");
     let out = "", err = "";
-    const child = spawn(cli, ["-p", "/usage", "--output-format", "text"], { stdio: ["ignore", "pipe", "pipe"], env: { ...process.env } });
+    // A USAGE POLL IS NOT A CONVERSATION, AND IT WAS LEAVING ONE BEHIND EVERY MINUTE. Spawned with
+    // no session id, the CLI mints one per call and writes a six-line transcript into
+    // ~/.claude/projects/<cwd-slug>/<uuid>.jsonl — 4,346 of them by 2026-09-20, ~500 a day since
+    // August, which is why that folder had thousands of entries nobody could account for. Pinning a
+    // FIXED id does not work: the CLI refuses a session id that already exists ("already in use").
+    // So: mint the id here, which makes the file's path knowable, and delete it when the child
+    // closes. Cwd is pinned to the temp dir for the same reason — the slug is derived from it, and
+    // guessing the hub's cwd would make the unlink miss silently.
+    const os = require("os");
+    const pollId = require("crypto").randomUUID();
+    const pollCwd = (() => {
+      try {
+        return fsGit.realpathSync(os.tmpdir());
+      } catch {
+        return os.tmpdir();
+      }
+    })();
+    const pollTranscript = path.join(
+      os.homedir(), ".claude", "projects", pollCwd.replace(/[^a-zA-Z0-9]/g, "-"), `${pollId}.jsonl`
+    );
+    const child = spawn(cli, ["-p", "/usage", "--output-format", "text", "--session-id", pollId], { stdio: ["ignore", "pipe", "pipe"], env: { ...process.env }, cwd: pollCwd });
     const timer = setTimeout(() => { try { child.kill("SIGKILL"); } catch {} resolve({ ok: false, error: "the CLI took too long to answer" }); }, 45000);
     child.stdout.on("data", (d) => { out += d; });
     child.stderr.on("data", (d) => { err += d; });
     child.on("error", (e) => { clearTimeout(timer); resolve({ ok: false, error: e.message }); });
     child.on("close", () => {
       clearTimeout(timer);
+      try {
+        fsGit.unlinkSync(pollTranscript);
+      } catch {
+        /* never written, or already gone — the poll's answer does not depend on it */
+      }
       const text = String(out || "").trim();
       if (!/\d+%/.test(text)) return resolve({ ok: false, error: (err || text || "empty answer").slice(0, 300) });
       usageCache.text = text; usageCache.ts = Date.now();
