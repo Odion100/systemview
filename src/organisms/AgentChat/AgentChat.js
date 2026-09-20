@@ -28,6 +28,7 @@ import loadServiceWithHeaders from "../../utils/loadService";
 import { hostFiles, hasHostFiles } from "../../utils/hostFiles";
 import { deleteReport as deleteReportFile, reportIndexSets, listReports } from "../../utils/reportOps";
 import SEND_ICON from "../../assets/send.png";
+import { LINKISH, shortUrl, collectLinks } from "./chatLinks";
 import "./styles.scss";
 
 // RFC-028 — agent presence. SEVERAL bots, not one: every connected project has its own bot,
@@ -67,8 +68,8 @@ const STACK = 78; // default vertical spacing per undragged bot
 // in the chat"). `:report[…]` was already a chip; `:file[…]`, `:ns[…]` and `:ui[…]` join it, and the
 // same reference that renders as a chip is what the spotlight lights up. That is the whole pointing
 // feature — no new verbs, and it works minimised because the bubble is the anchor.
-const LINKISH =
-  /:(report|file|ns|ui)\[([^\]]+)\](?:\{([^}]*)\})?|\[([^\]]+)\]\((\/[^)\s]+|https?:\/\/[^)\s]+)\)|(https?:\/\/[^\s]+)/g;
+// The grammar itself lives in `chatLinks` — the collector and this renderer have to mean the same
+// thing by "a link", so there is one copy of it and both read from there.
 
 // The reference chips a bubble can carry. Deliberately the SAME components the markdown renderer
 // uses — a `:file[…]` must mean the identical thing in a chat bubble and in a document, or agents
@@ -147,9 +148,10 @@ function ChatLink({ href, children }) {
     </a>
   );
 }
-// The link scanner — a FLAT array of strings and chip elements. The links collector depends on
-// exactly this shape (it keeps the elements and drops the prose), so it stays its own function
-// rather than getting folded into the markdown pass.
+// The link scanner — a FLAT array of strings and chip elements, for the BUBBLE. The collector no
+// longer reads this shape (it used to, and keeping React elements was what forced it to group a
+// message's links into one row); it scans the same grammar through `chatLinks.linkRefs` and gets
+// plain descriptors back, so one link is one row and a row can be deduped.
 function renderChatText(text, kp = "l") {
   const out = [];
   let last = 0;
@@ -174,10 +176,9 @@ function renderChatText(text, kp = "l") {
         </ChatLink>,
       );
     } else {
-      const short = m[6].replace(/^https?:\/\//, "").replace(/\/$/, "");
       out.push(
         <ChatLink key={`${kp}${k++}`} href={m[6]}>
-          {short.length > 42 ? `${short.slice(0, 40)}…` : short}
+          {shortUrl(m[6])}
         </ChatLink>,
       );
     }
@@ -3589,52 +3590,35 @@ const countdown = (str, now = Date.now()) => {
       setTvOpen(false);
     }
   };
-  // RFC-039 — take a show off the list. Optimistic locally so the row goes at once, then the hub
-  // patches the record (hidden: true) and every open panel re-reads it.
-  const [dropShow, setDropShow] = useState(0);
-  // The verb lives on the hub, so a hub that hasn't restarted since this shipped doesn't have it —
-  // and hiding a row locally that comes back on the next refresh is a lie. Say so instead.
-  const canHide = !!(SystemView && SystemView.chatHide);
+  // RFC-039 — take a record off the list. Optimistic locally so the row goes at once, then the hub
+  // patches the record (hidden: true) and every open panel re-reads it. The links panel's own
+  // two-step remove went with the report rows; the callers left are the message and show menus.
   const hideRecord = (id) => {
     setFullHist((cur) => (cur ? cur.map((m) => (m.id === id ? { ...m, hidden: true } : m)) : cur));
     setMessages((cur) => cur.map((m) => (m.id === id ? { ...m, hidden: true } : m)));
     if (SystemView && SystemView.chatHide)
       SystemView.chatHide(projectCode, { chat, id }).catch(() => {});
   };
-  const collected = React.useMemo(() => {
-    const src = fullHist || messages;
-    const q = linkQ.trim().toLowerCase();
-    const out = [];
-    for (const m of src) {
-      if (m.hidden) continue; // taken off the list by hand, or superseded by a re-push
-      if (m.kind === "command") {
-        if (m.cmd === "show" && m.args && m.args.report) {
-          if (!q || String(m.label || "show").toLowerCase().includes(q) || String(m.args.text).toLowerCase().includes(q))
-            out.push({ kind: "show", m, title: String(m.label || "show") });
-        }
-        continue;
-      }
-      if (m.kind === "system") continue;
-      if (q && !String(m.text || "").toLowerCase().includes(q)) continue;
-      // Chips only — renderChatText returns strings for prose and elements for links/reports.
-      const parts = renderChatText(String(m.text || "")).filter((p) => typeof p !== "string");
-      if (parts.length) out.push({ kind: "links", m, parts });
-    }
-    out.reverse(); // newest first — "I want that link again" is usually a recent one
-    // A SHOW IS ITS TITLE, not its record. Iterating on a board is the behaviour we want from
-    // agents, but every push wrote another record and the collector listed records — so one
-    // systemlynx board appeared FOUR times, and re-showing an edit was indistinguishable from
-    // sending something new. His call: no versions, no history to expand, nothing accumulating —
-    // the newest push of a title simply IS that show. We are already walking newest-first, so the
-    // first one we meet is the one that survives.
-    const seenShow = new Set();
-    return out.filter((e) => {
-      if (e.kind !== "show") return true;
-      if (seenShow.has(e.title)) return false;
-      seenShow.add(e.title);
-      return true;
-    });
-  }, [fullHist, messages, linkQ]);
+  // THE COLLECTOR READS BOTH CONVERSATIONS. It only ever read the ROOM's records, and the room has
+  // not been the conversation since the session took the panel over — so the panel listed links
+  // from a chat he no longer looks at and missed every link the agent he is TALKING to had just
+  // put on his screen. His words: *"the links I see have nothing to do with the recent links that
+  // you just put in the chat."* The room still counts (shows are room records, and another agent
+  // can still write into it), it just isn't the whole of it any more.
+  //
+  // Only while the panel is up: `work.rows` is re-folded on every render, and a streamed answer
+  // renders many times a second.
+  const collected = React.useMemo(
+    () => (linksOpen ? collectLinks({ records: fullHist || messages, rows: work.rows, q: linkQ }) : []),
+    [linksOpen, fullHist, messages, work.rows, linkQ],
+  );
+  // One openable thing, drawn with the SAME component the bubble would have drawn it with — a
+  // `:file[…]` has to mean one thing everywhere or there are two dialects to keep in step.
+  const linkChip = (e) => {
+    if (e.kind === "link") return <ChatLink href={e.href}>{e.label}</ChatLink>;
+    const Ref = REF_BLOCKS[e.kind] || ReportLink;
+    return <Ref label={e.label} attrs={parseAttrs(e.attrs)} />;
+  };
 
   // RESIZABLE — the WHOLE border drags (his call after the corner hotzone failed him three
   // times): sides resize one axis, corners both, the cursor is the handle everywhere. One
@@ -5551,9 +5535,11 @@ const countdown = (str, now = Date.now()) => {
             </div>
           </div>
         )}
-        {/* THE COLLECTOR (his ask: "I want that link again") — a side panel like the TV: every
-            link chip and 📺 show ever sent in this room, newest first, still clickable. A lens
-            over the room's file — no new storage. Slides beside the TV when both are open. */}
+        {/* THE COLLECTOR (his ask: "I want that link again") — ONE list, newest first, of every
+            openable thing dropped in this conversation: reference chips, plain links, pushed
+            reports. His rule for it: *"if you send me something, I don't have to go back up the
+            chat to find it. On the top is the latest link or anything you dropped."* A lens over
+            the session and the room — no new storage. Slides beside the TV when both are open. */}
         {linksOpen && (
           <div
             data-sv="links"
@@ -5575,7 +5561,7 @@ const countdown = (str, now = Date.now()) => {
               onDoubleClick={linksDrag.reset}
             >
               <span className={`${CLASSNAME}__tv-badge`}>🔗</span>
-              <span className={`${CLASSNAME}__tv-title`}>links & shows</span>
+              <span className={`${CLASSNAME}__tv-title`}>links</span>
               <button
                 type="button"
                 className={`${CLASSNAME}__close`}
@@ -5597,52 +5583,22 @@ const countdown = (str, now = Date.now()) => {
             <div className={`${CLASSNAME}__links-body`}>
               {collected.length === 0 ? (
                 <div className={`${CLASSNAME}__links-empty`}>
-                  {linkQ ? "nothing matches" : "no links or shows in this room yet"}
+                  {linkQ ? "nothing matches" : "nothing has been dropped in this conversation yet"}
                 </div>
               ) : (
-                collected.map((e) =>
-                  e.kind === "show" ? (
-                    <div key={e.m.id} className={`${CLASSNAME}__links-item ${CLASSNAME}__links-item--show`}>
-                      <button
-                        type="button"
-                        className={`${CLASSNAME}__links-open`}
-                        title="Put this show back on the TV"
-                        onClick={() => openShow(e.m.id, e.m.label, e.m.args.text, e.m.ts, e.m.args.report ? e.m.args : null)}
-                      >
-                        <span>📺 {e.m.label || "show"}</span>
-                      </button>
-                      <span className={`${CLASSNAME}__links-time`}>{msgTime(e.m.ts)}</span>
-                      {/* HIS ASK, in his words: "I need to be able to delete shit." Two-step, and it
-                          takes it off the LIST — the record stays in the room, because the
-                          transcript is the account of what happened. */}
-                      <button
-                        type="button"
-                        className={`${CLASSNAME}__links-x${dropShow === e.m.id ? ` ${CLASSNAME}__links-x--armed` : ""}`}
-                        disabled={!canHide}
-                        title={
-                          !canHide
-                            ? "this hub predates the verb — restart it and this works"
-                            : dropShow === e.m.id
-                              ? "Take it off the list?"
-                              : "Take this off the list"
-                        }
-                        onBlur={() => setDropShow(0)}
-                        onClick={() => {
-                          if (dropShow !== e.m.id) return setDropShow(e.m.id);
-                          setDropShow(0);
-                          hideRecord(e.m.id);
-                        }}
-                      >
-                        {dropShow === e.m.id ? "remove?" : "✕"}
-                      </button>
+                // EVERY ROW IS ONE OPENABLE THING. Report rows are gone — the TV's own header
+                // lists every report and picking one there is fewer steps than hunting it here.
+                // And the chips are wrapped in the SAME scope the chat bubbles get: FileLink reads
+                // `useMarkdownScope()` for its project, so rendered outside a provider every chip
+                // in this panel resolved to no project and clicking one did nothing at all.
+                <MarkdownScopeProvider value={{ projectCode }}>
+                  {collected.map((e) => (
+                    <div key={e.id} className={`${CLASSNAME}__links-item`}>
+                      <span className={`${CLASSNAME}__links-chips`}>{linkChip(e)}</span>
+                      <span className={`${CLASSNAME}__links-time`}>{rowWhen(e.ts)}</span>
                     </div>
-                  ) : (
-                    <div key={e.m.id} className={`${CLASSNAME}__links-item`}>
-                      <span className={`${CLASSNAME}__links-chips`}>{e.parts}</span>
-                      <span className={`${CLASSNAME}__links-time`}>{msgTime(e.m.ts)}</span>
-                    </div>
-                  ),
-                )
+                  ))}
+                </MarkdownScopeProvider>
               )}
             </div>
           </div>
@@ -7131,7 +7087,7 @@ const countdown = (str, now = Date.now()) => {
         <button
           type="button"
           className={`${CLASSNAME}__minilink${linksOpen ? ` ${CLASSNAME}__minilink--on` : ""}`}
-          title="Links & shows sent in this room"
+          title="Everything dropped in this conversation — newest first"
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => {
             e.stopPropagation();
