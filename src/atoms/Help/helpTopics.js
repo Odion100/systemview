@@ -546,7 +546,7 @@ where it says \`board\` to name it — it's text until you click it.
 Long notes fold; click one to read it whole, and 📋 on a card copies it. Drag the board's header to
 move the whole agent, drag any edge to resize, double-click an edge to put it back.
 
-The panels open side by side in one row — chat, then links & shows, then the TV, then the board —
+The panels open side by side in one row — chat, then links, then the TV, then the board —
 and one click on the agent's face puts all of them away.
 
 It's yours: nothing watches it. When you want an agent to read it, point them at it —
