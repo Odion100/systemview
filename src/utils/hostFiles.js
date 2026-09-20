@@ -151,6 +151,11 @@ export const hostFiles = (projectCode, root) => {
       // the refusal (dirty files, unknown branch) is the ANSWER — pass it through, do not throw
       return r;
     },
+    // WHICH REPO OWNS A BRANCH. A lane row is drawn in the chat of the session that spawned it,
+    // which is not necessarily the repo the lane worked in — so the row has to ask before it acts,
+    // or it sends every git verb to the wrong repository. `projectCode` here is only the caller's
+    // guess; the answer comes back with the real one.
+    branchOwner: async ({ branch } = {}) => hub().branchOwner(projectCode, { branch, root }),
     worktrees: async () => {
       const r = await hub().worktrees(projectCode, { root });
       if (r && r.ok === false) throw new Error(r.error || "could not list worktrees");
