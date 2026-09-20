@@ -832,11 +832,32 @@ function LanePanel({ source, items, laneEvents, brief = "", projectCode, onClose
   const [briefOpen, setBriefOpen] = useState(false);
   const branch = source.slice(5);
   const [arts, setArts] = useState(null);
+  // THE LANE'S REPO, WHICH IS NOT ALWAYS THIS CHAT'S. The panel is drawn in the room of the session
+  // that spawned the lane; the lane may have worked in a different repository — and then the
+  // artifacts read empty and the ::branch block below diffs a branch that is not there, which is
+  // what `main...lane/corpus-kind: unknown revision` actually means. The run record cannot say
+  // (`source: "lane:<branch>"` is a branch name and nothing else), so the hub is asked which project
+  // holds the branch. Until it answers, this chat's project is the assumption — right for the
+  // common case, and the same behaviour as before for everything else.
+  const [repo, setRepo] = useState(projectCode);
+  useEffect(() => {
+    let dead = false;
+    setRepo(projectCode);
+    (async () => {
+      try {
+        const r = await hostFiles(projectCode).branchOwner({ branch });
+        if (!dead && r && r.ok && r.projectCode) setRepo(r.projectCode);
+      } catch {
+        /* older hub, no such verb — the assumption stands */
+      }
+    })();
+    return () => { dead = true; };
+  }, [projectCode, branch]);
   useEffect(() => {
     let dead = false;
     (async () => {
       try {
-        const p = hostFiles(projectCode);
+        const p = hostFiles(repo);
         const [wt, bs] = await Promise.all([
           p.worktrees ? p.worktrees().catch(() => null) : null,
           p.branchState ? p.branchState({ branch }).catch(() => null) : null,
@@ -848,7 +869,7 @@ function LanePanel({ source, items, laneEvents, brief = "", projectCode, onClose
       } catch { if (!dead) setArts({}); }
     })();
     return () => { dead = true; };
-  }, [projectCode, branch]);
+  }, [repo, branch]);
   const done = items.filter((t) => t.state === "done").length;
   const finished = items.length > 0 && done === items.length;
   const died = !finished && items.some((t) => t.state === "active");
@@ -884,7 +905,7 @@ function LanePanel({ source, items, laneEvents, brief = "", projectCode, onClose
         </div>
       )}
       <div className={`${CLASSNAME}__lanepanel-review`}>
-        <BranchBlock label={branch} attrs={{ project: projectCode }} />
+        <BranchBlock key={repo} label={branch} attrs={{ project: repo }} />
       </div>
       <div className={`${CLASSNAME}__lanepanel-log`}>
         <div className={`${CLASSNAME}__lanepanel-logtitle`}>the lane's log — what it actually did</div>
@@ -911,13 +932,30 @@ function LaneRow({ source, items, projectCode, panelOpen, onOpenPanel, onDelete 
   const [confirm, setConfirm] = useState(null); // null | "reading" | {merged, exists, worktree}
   const [delErr, setDelErr] = useState("");
   const [busy, setBusy] = useState(false);
+  // THE ROW'S REPO IS NOT THIS CHAT'S REPO, NECESSARILY. A lane row is drawn in the chat of the
+  // session that spawned it; the lane itself may have worked in another repo — mine ran in autobot
+  // while their rows sat here, and every git verb went to systemview, where `main...lane/corpus-kind`
+  // is an unknown revision because the branch is simply not in that repository. The run record
+  // cannot help: `source: "lane:<branch>"` is a branch name and nothing else. So ask the hub which
+  // project actually has this branch, and act there. Asked of disk, not of the lane — it fixes rows
+  // that are already on disk and does not depend on a subagent having remembered to say.
+  const repoOf = async () => {
+    try {
+      const r = await hostFiles(projectCode).branchOwner({ branch });
+      if (r && r.ok && r.projectCode) return hostFiles(r.projectCode);
+    } catch {
+      /* an older hub has no such verb — fall back to this chat's project, which is right for
+         same-repo lanes and no worse than before for the rest */
+    }
+    return hostFiles(projectCode);
+  };
   const armDelete = async (e) => {
     e.stopPropagation();
     if (confirm) { setConfirm(null); return; }
     setConfirm("reading");
     setDelErr("");
     try {
-      const p = hostFiles(projectCode);
+      const p = await repoOf();
       const [wt, bs] = await Promise.all([
         p.worktrees().catch(() => null),
         p.branchState({ branch }).catch(() => null),
@@ -936,7 +974,7 @@ function LaneRow({ source, items, projectCode, panelOpen, onOpenPanel, onDelete 
     if (!confirm || confirm === "reading") return;
     setBusy(true);
     try {
-      const p = hostFiles(projectCode);
+      const p = await repoOf();
       if (confirm.worktree) {
         const r = await p.removeWorktree({ path: confirm.worktree.path, force: true });
         if (r && r.ok === false) throw new Error(r.error || "could not remove the worktree");

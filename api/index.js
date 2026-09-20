@@ -1239,6 +1239,12 @@ async function branchDiff(projectCode, { branch, base, root } = {}) {
   if (!cwd) return { ok: false, error: "no folder for this project" };
   const b = String(branch || "").trim();
   if (!b) return { ok: false, error: "which branch?" };
+  // IS IT EVEN HERE? Asked for a branch this repo does not have, git answers about the RANGE —
+  // `fatal: ambiguous argument 'main...lane/corpus-kind': unknown revision or path not in the
+  // working tree` — which reads as a broken base and sent two people hunting the wrong bug. The
+  // real answer is simpler and the surface should say it: that branch is in another repository.
+  const here = await git(cwd, ["rev-parse", "--verify", "--quiet", `refs/heads/${b}`]);
+  if (!here.ok) return { ok: false, error: `${projectCode} has no branch named ${b} — it belongs to another repo` };
   // default base: the repo's default branch (origin/HEAD), falling back to main/master
   let bs = String(base || "").trim();
   if (!bs) {
@@ -1334,6 +1340,34 @@ async function branchState(projectCode, { branch, base, root } = {}) {
 // quietly by an agent. Both verbs REFUSE rather than force: a worktree with uncommitted changes
 // and an unmerged branch each need `force: true`, which only the confirm that told the user so
 // sends. The refusal text is the answer we surface.
+// WHICH REPO IS THIS BRANCH IN? A lane row lives in the chat of the project whose session spawned
+// it, but the lane's WORK can be in another repo entirely — mine ran in autobot while their rows sat
+// in systemview's chat. The run record does not say: its keys are owner/items/source/session, and
+// `source: "lane:<branch>"` carries a branch name and nothing else. So every git verb the row
+// offered went to the wrong repository, where the three-dot range `main...lane/corpus-kind` is an
+// unknown revision — the branch is simply not there (2026-09-20, live).
+//
+// ASKED OF DISK, NOT OF THE AGENT. The alternative was to have each lane record its project, which
+// would fix the next lane and none of the ones already on disk, and would make the row's correctness
+// depend on a subagent remembering to say so. A branch either exists in a repo or it does not; that
+// is a fact the hub can read. First match wins, and a repo that also has a WORKTREE checked out on
+// that branch wins over one that merely has the ref, which is the tie-break that matters for lanes.
+async function branchOwner(_projectCode, { branch } = {}) {
+  const b = String(branch || "").trim();
+  if (!b) return { ok: false, error: "which branch?" };
+  const roots = projectRoots();
+  let refOnly = null;
+  for (const [pc, root] of Object.entries(roots)) {
+    const has = await git(root, ["rev-parse", "--verify", "--quiet", `refs/heads/${b}`]);
+    if (!has.ok) continue;
+    const wt = await git(root, ["worktree", "list", "--porcelain"]);
+    if (wt.ok && new RegExp(`^branch refs/heads/${b.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "m").test(wt.out))
+      return { ok: true, projectCode: pc, root, worktree: true };
+    if (!refOnly) refOnly = { ok: true, projectCode: pc, root, worktree: false };
+  }
+  return refOnly || { ok: false, error: `no project here has a branch named ${b}` };
+}
+
 async function removeWorktree(projectCode, { path: wt, root, force } = {}) {
   const cwd = rootOf(projectCode, root);
   if (!cwd) return { ok: false, error: "no folder for this project" };
@@ -2282,6 +2316,7 @@ module.exports = function launchSystemView(port = 3000) {
       switchBranch,
       branchDiff,
       worktrees,
+      branchOwner,
       branchState,
       removeWorktree,
       deleteBranch,
