@@ -1446,8 +1446,17 @@ async function terminalRun(_projectCode, { session, agent, command, timeoutMs = 
   // `\\n` IS TWO CHARACTERS HERE, deliberately: it has to reach the shell as a backslash and an n
   // for printf to turn it into a newline. Writing a real newline into the keystrokes is what broke
   // the line across his prompt the first time.
+  // THE MARKER CARRIES THE CONTEXT, NOT JUST THE CODE (his catch). An agent that gets back only
+  // output and an exit code still has to ASK where it is — and on a terminal that may or may not be
+  // SSH'd into a remote box, "where am I" is the difference between reading the droplet's logs and
+  // reading this laptop's while reporting them as the droplet's. The shell knows both already; one
+  // more printf field is free, and because the SHELL answers, an SSH'd session reports the REMOTE
+  // host and the remote cwd. No labels to set and none to go stale.
   const tag = `sv${Date.now().toString(36)}`;
-  const line = `${cmd}; printf '${tag}:%s\\n' "$?"`;
+  // `~~` RATHER THAN A TAB. The first cut separated the fields with \t and they came back as one
+  // string: `hardcopy` dumps the RENDERED screen, so a tab is already spaces by the time it is read.
+  // Anything the terminal draws differently than it receives is not a delimiter.
+  const line = `${cmd}; printf '${tag}:%s~~%s~~%s\\n' "$?" "$PWD" "\${HOSTNAME:-$(hostname)}"`;
   const sent = require("child_process").spawnSync("screen", ["-S", name, "-p", "0", "-X", "stuff", `${line}\n`], { encoding: "utf8" });
   if (sent.status !== 0)
     return { ok: false, error: (sent.stderr || "screen refused the keystrokes").trim().slice(0, 200) };
@@ -1476,15 +1485,26 @@ async function terminalRun(_projectCode, { session, agent, command, timeoutMs = 
     for (let i = lines.length - 1; i >= 0; i -= 1)
       if (lines[i].startsWith(ended)) { endIdx = i; break; }
     if (endIdx === -1) continue;
-    const code = parseInt(String(lines[endIdx].slice(ended.length)).trim(), 10);
+    const fields = String(lines[endIdx].slice(ended.length)).split("~~");
+    const code = parseInt(String(fields[0] || "").trim(), 10);
+    const cwd = String(fields[1] || "").trim() || null;
+    const host = String(fields[2] || "").trim() || null;
     // THE START IS THE ECHO'S TAIL, NOT THE COMMAND TEXT. Matching the command was the obvious
     // thing and it broke on his very first real use: a two-line prompt wrapped the echoed line, so
     // no single row contained the whole command and the output came back carrying his prompt. The
     // TAG is in the echo too — and whichever row it lands on when wrapped is the last row before
     // the output begins, which is exactly the anchor we want.
+    // THE LAST ROW OF THE ECHO, NOT THE FIRST. His prompt is two lines and wraps the echoed command
+    // across several rows; anchoring on the row that carries the TAG left every row after it — the
+    // tail of the printf — sitting above the real output as though the command had printed it. The
+    // echo's final row is the one ending in the closing `"$?" "$PWD" ...`, so walk forward from the
+    // tag row while the rows are still part of that same echo.
     let startIdx = -1;
     for (let i = endIdx - 1; i >= 0; i -= 1)
       if (lines[i].includes(tag)) { startIdx = i; break; }
+    if (startIdx !== -1)
+      while (startIdx + 1 < endIdx && /HOSTNAME|\$\?|\$PWD|hostname\)/.test(lines[startIdx + 1]))
+        startIdx += 1;
     if (startIdx === -1)
       for (let i = endIdx - 1; i >= 0; i -= 1)
         if (lastCmdLine && lines[i].includes(lastCmdLine)) { startIdx = i; break; }
@@ -1499,7 +1519,7 @@ async function terminalRun(_projectCode, { session, agent, command, timeoutMs = 
     const trimmed = output.length > MAX
       ? `…[${output.length - MAX} characters trimmed from the start]…\n${output.slice(-MAX)}`
       : output;
-    return { ok: true, session: s, agent: who, command: cmd, exit: Number.isFinite(code) ? code : null, output: trimmed };
+    return { ok: true, session: s, agent: who, command: cmd, exit: Number.isFinite(code) ? code : null, cwd, host, output: trimmed };
   }
   // NOT A FAILURE — a command that is still going, or one waiting on an answer. Say which is not
   // knowable from here, so say what IS: it has not finished, and this is what the screen shows.
