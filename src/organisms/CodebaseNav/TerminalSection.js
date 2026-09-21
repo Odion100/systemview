@@ -4,6 +4,9 @@ import lazyLoad from "../../utils/lazyLoad";
 import { hasTerminalHost, terminalHost } from "../Terminal/host";
 import { THEMES, readLook, writeLook } from "../Terminal/themes";
 import { useAppDark } from "../../atoms/appTheme";
+import { listDefs } from "../../utils/hostAgents";
+import { canGrantTerminals, terminalGrants, setTerminalGrant } from "../../utils/hostTerminalGrants";
+import { getHub } from "../../utils/hub";
 
 const Terminal = lazyLoad(() => import("../Terminal/Terminal"));
 
@@ -35,6 +38,54 @@ const TerminalSection = ({ projectCode, CLASSNAME, Chevron, bulk = null }) => {
   const setOpen = (v) => setOpenFold(typeof v === "function" ? v(open) : v);
   const [{ tabs, active }, setTabs] = useState(() => loadTabs(projectCode));
   const [gear, setGear] = useState(false);
+  // WHOSE KEYBOARD THIS IS (2026-09-21, his ask). An agent cannot open a terminal, name a host or
+  // authenticate — it can only type into a session he already started and already handed over. He
+  // is SSH'd into his remote box; the agent inherits that keyboard instead of being given keys.
+  //
+  // The grant is PER TERMINAL because that is the unit that means something: the shell on the
+  // remote is not the shell building the bundle, and sharing one should not share the other.
+  // Its home is the hub's file, never this component — see utils/hostTerminalGrants.
+  const [grants, setGrants] = useState({});
+  const [pick, setPick] = useState(false);
+  const [agents, setAgents] = useState([]);
+  const canGrant = canGrantTerminals();
+  const loadGrants = React.useCallback(async () => {
+    if (!canGrant) return;
+    setGrants(await terminalGrants());
+  }, [canGrant]);
+  useEffect(() => {
+    if (!open || !canGrant) return;
+    loadGrants();
+    // EVERY AGENT, NOT THIS PROJECT'S — his call: "I may want to bring an agent from another project
+    // over." An agent's home repo has nothing to do with which keyboard it can borrow.
+    listDefs().then((d) => setAgents(Array.isArray(d) ? d : []));
+  }, [open, canGrant, loadGrants]);
+  // THE GRANT HAS TO ARRIVE, NOT BE DISCOVERED (his ask: "the communication needs to be seamless").
+  // Nothing in an agent's competence tells it a keyboard was handed over, and an agent that has to
+  // poll to find out does not have it in any useful sense. So the toggle also says so, in that
+  // agent's own room — and says it again when it is taken away, because a capability that goes
+  // quiet is worse than one that was never given.
+  const tellAgent = async (def, session, granted) => {
+    const pc = def && def.projectCode;
+    if (!pc) return;
+    const where = `\`${session}\``;
+    const body = granted
+      ? `You now have terminal ${where} — my own shell, already open and already authenticated. ` +
+        `Run things in it with the systemview MCP's \`terminal\` tool (\`terminals\` lists what you hold). ` +
+        `It is a shared session: a \`cd\` moves my prompt too.`
+      : `Terminal ${where} is no longer yours — I took it back.`;
+    try {
+      await getHub().chatSend(pc, { chat: undefined, from: "you", text: body });
+    } catch {
+      /* the grant still stands; only the notice failed, and `terminals` will still answer */
+    }
+  };
+  const grantTo = async (session, agent, def) => {
+    const r = await setTerminalGrant({ session, agent, by: "the window" });
+    if (r && r.ok === false) return;
+    loadGrants();
+    if (def) tellAgent(def, session, !!agent);
+  };
   // WHAT IS ACTUALLY RUNNING ON THE MACHINE — not what this card has tabs for. His worry, and it was
   // not hypothetical: autobot's first `sessions()` call found EIGHT live shells left over from an
   // evening of testing, none of them visible anywhere. A terminal that survives the window is a
@@ -316,6 +367,14 @@ const TerminalSection = ({ projectCode, CLASSNAME, Chevron, bulk = null }) => {
               onClick={() => setTabs((cur) => ({ ...cur, active: t.id }))}
             >
               shell {t.n}
+              {/* THE TAB SAYS WHOSE IT IS. The dangerous state is not granting, it is FORGETTING you
+                  granted — and a toggle that only exists in a panel you have to open is exactly how
+                  that happens. A shared terminal is legible from the strip. */}
+              {grants[t.id] && grants[t.id].agent && (
+                <span className={`${CLASSNAME}__term-tab-agent`} title={`${grants[t.id].agent} may type in this terminal`}>
+                  🤖
+                </span>
+              )}
               {/* THE ✕ ONLY ON THE TAB YOU ARE ON. His catch: a number and an ✕ jammed together is a
                   target you hit by accident — and closing the tab you were not even looking at is
                   the worst version of that. The rest of the strip is just a label to click. */}
@@ -334,6 +393,69 @@ const TerminalSection = ({ projectCode, CLASSNAME, Chevron, bulk = null }) => {
           ))}
         </div>
       )}
+
+      {open && hosted && canGrant && (() => {
+        // A PILL AND ITS OWN LIST, not a native select. The rest of this app does not use raw form
+        // controls in a surface like this, and a `<select>` dropped into the terminal card reads as
+        // something half-built — which is what it was. The pill follows the header's theme pill:
+        // bordered, round, quiet until it means something.
+        const who = (grants[active] && grants[active].agent) || "";
+        return (
+          <div className={`${CLASSNAME}__term-grant`} style={{ background: skin.background, color: skin.foreground }}>
+            <span className={`${CLASSNAME}__term-grant-label`} style={{ color: skin.foreground }}>
+              {who ? `${who} can type in this terminal` : ""}
+            </span>
+            <button
+              type="button"
+              className={`${CLASSNAME}__term-pill${who ? " is-on" : ""}`}
+              style={{
+                color: skin.foreground,
+                borderColor: skin.selectionBackground || "rgba(127,127,127,0.45)",
+                background: who ? skin.selectionBackground || "rgba(127,127,127,0.25)" : "transparent",
+              }}
+              onClick={() => setPick((v) => !v)}
+              title={who ? `${who} can type in this terminal` : "Hand this terminal to an agent"}
+            >
+              <span className={`${CLASSNAME}__term-pill-face`}>🤖</span>
+              {/* THE LABEL IS AN OFFER, NOT A STATUS. "no agent can type here" states an absence
+                  nobody asked about; the control should say what pressing it DOES. */}
+              {who || "grant access"}
+              <span className={`${CLASSNAME}__term-pill-caret`}>⌄</span>
+            </button>
+            {who && (
+              <button type="button" className={`${CLASSNAME}__term-pill-off`} style={{ color: skin.foreground }} onClick={() => { setPick(false); grantTo(active, "", agents.find((a) => (a.name || a.id) === who)); }}>
+                no access
+              </button>
+            )}
+            {pick && (
+              <div className={`${CLASSNAME}__term-picker`} style={{ background: skin.background, color: skin.foreground, borderColor: skin.selectionBackground || "rgba(127,127,127,0.35)" }}>
+                <div className={`${CLASSNAME}__term-picker-head`}>who may type in shell {(tabs.find((x) => x.id === active) || {}).n}</div>
+                {agents.length === 0 && <div className={`${CLASSNAME}__term-picker-empty`}>no agents are defined</div>}
+                {agents.map((a) => {
+                  const nm = a.name || a.id;
+                  return (
+                    <button
+                      key={a.id}
+                      type="button"
+                      className={`${CLASSNAME}__term-picker-row${nm === who ? " is-on" : ""}`}
+                      style={nm === who ? { background: skin.selectionBackground || "rgba(127,127,127,0.25)", color: skin.foreground } : { color: skin.foreground }}
+                      onClick={() => { setPick(false); grantTo(active, nm, a); }}
+                    >
+                      <span className={`${CLASSNAME}__term-picker-name`}>{nm}</span>
+                      {a.projectCode && <span className={`${CLASSNAME}__term-picker-pc`}>{a.projectCode}</span>}
+                    </button>
+                  );
+                })}
+                {who && (
+                  <button type="button" className={`${CLASSNAME}__term-picker-row ${CLASSNAME}__term-picker-none`} onClick={() => { setPick(false); grantTo(active, "", agents.find((a) => (a.name || a.id) === who)); }}>
+                    no access
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {open && hosted && (
         <Suspense fallback={<div className={`${CLASSNAME}__empty`}>starting a shell…</div>}>

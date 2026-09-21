@@ -17,10 +17,12 @@
   &__screen {
     flex: 1;
     min-height: 0; // without this a flex child refuses to shrink below its content
-    // NO PADDING AT THE BOTTOM (his catch, twice now): the last line should sit on the container's
-    // edge so the shell blends into the card instead of floating in a box. Left only, to keep the
-    // text off the border.
-    padding: 4px 0 0 6px;
+    // A SLIVER AT THE BOTTOM, AND ONLY A SLIVER. It was zero for two rounds because a real gap made
+    // the shell float in a box instead of blending into the card — that still holds. But zero
+    // clipped the prompt: xterm's rows rarely divide evenly into the pane, so a full terminal left
+    // the line he types on cut off along the bottom edge. 6px is enough that descenders and the
+    // cursor clear the border, and small enough that the seam he objected to does not come back.
+    padding: 4px 0 6px 6px;
     .xterm {
       height: 100%;
     }

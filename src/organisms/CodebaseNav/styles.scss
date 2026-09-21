@@ -1804,3 +1804,122 @@
   opacity: 0.8;
   &:hover { opacity: 1; }
 }
+
+// WHOSE KEYBOARD THIS IS — the terminal's grant pill (2026-09-21).
+//
+// A PILL, following the header's theme pill, not a native `<select>`: nothing else in this app uses
+// raw form controls in a surface like this, and one dropped in here read as half-built. Quiet while
+// nobody is granted — an ungranted terminal is the normal state and should not nag — and amber the
+// moment somebody can type, because that is a fact he should catch from across the room.
+.codebase-nav {
+  &__term-grant {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 8px;
+    border-top: 1px solid rgba(127, 127, 127, 0.25);
+  }
+
+  &__term-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border: 1px solid;
+    font-size: 10.5px;
+    padding: 2px 9px;
+    border-radius: 100px;
+    cursor: pointer;
+    white-space: nowrap;
+    opacity: 0.85;
+    &:hover { opacity: 1; }
+
+    // NO PALETTE OF ITS OWN. This bar sits ON the terminal, so it wears the terminal's theme
+    // (midnight / ink / slate / white) the way the tab strip does — colours come from `skin` as
+    // inline style. A fixed amber looked right in light, shouted in dark, and matched none of the
+    // four themes; picking per-mode was solving the wrong problem.
+    &.is-on { font-weight: 600; }
+  }
+
+  &__term-grant-label {
+    flex: 1;
+    font-size: 11px;
+    opacity: 0.85;
+  }
+
+  &__term-pill-face { font-size: 11px; line-height: 1; }
+  &__term-pill-caret { font-size: 11px; line-height: 1; opacity: 0.7; }
+
+  &__term-pill-off {
+    border: none;
+    background: none;
+    font-size: 10.5px;
+    cursor: pointer;
+    text-decoration: underline;
+    opacity: 0.85;
+    &:hover { opacity: 1; }
+  }
+
+  // THE LIST IS OURS, so it can carry the project beside each name — which is the whole point of
+  // being able to bring an agent over from another room.
+  &__term-picker {
+    position: absolute;
+    z-index: 30;
+    bottom: calc(100% + 4px);
+    right: 8px;
+    min-width: 210px;
+    max-height: 260px;
+    overflow: auto;
+    padding: 4px;
+    border: 1px solid;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  }
+
+  &__term-picker-head {
+    padding: 4px 8px 6px;
+    font-size: 10px;
+    color: var(--sv-text-faint);
+  }
+
+  &__term-picker-empty {
+    padding: 6px 8px;
+    font-size: 11px;
+    color: var(--sv-text-faint);
+  }
+
+  &__term-picker-row {
+    opacity: 0.9;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+    padding: 5px 8px;
+    border: none;
+    border-radius: 5px;
+    background: none;
+    font-size: 11.5px;
+    color: var(--sv-text);
+    cursor: pointer;
+    text-align: left;
+    &:hover { background: rgba(127, 127, 127, 0.2); opacity: 1; }
+    &.is-on { font-weight: 600; }
+  }
+
+  &__term-picker-pc { font-size: 10px; color: var(--sv-text-faint); }
+
+  &__term-picker-none {
+    margin-top: 2px;
+    border-top: 1px solid rgba(127, 127, 127, 0.2);
+    border-radius: 0;
+    color: var(--sv-text-faint);
+  }
+
+  // ON THE TAB, because forgetting you granted is the dangerous state — not granting. A GLYPH AND
+  // NOTHING ELSE: no background, no radius, no padding. The tab is a small target already and a
+  // chip inside it competed with the label beside it.
+  &__term-tab-agent {
+    font-size: 9px;
+  }
+}
