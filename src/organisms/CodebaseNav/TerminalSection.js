@@ -399,11 +399,18 @@ const TerminalSection = ({ projectCode, CLASSNAME, Chevron, bulk = null }) => {
         // controls in a surface like this, and a `<select>` dropped into the terminal card reads as
         // something half-built — which is what it was. The pill follows the header's theme pill:
         // bordered, round, quiet until it means something.
+        // THE GRANT IS KEYED BY THE DEF'S **id**, NEVER ITS NAME. The MCP server is built with
+        // `slot: agent.id` (autobot sessions.cjs), so an agent asking "which terminals are mine"
+        // compares against its id — and BUApp's id is `buapp` while its name is `BUApp`. Writing the
+        // name here produced a grant that was real, visible in the file, and invisible to the agent
+        // it was for. It passed my own testing because MY def has id and name identical, which is
+        // the one case where the bug cannot appear.
         const who = (grants[active] && grants[active].agent) || "";
+        const whoName = (agents.find((a) => a.id === who) || {}).name || who;
         return (
           <div className={`${CLASSNAME}__term-grant`} style={{ background: skin.background, color: skin.foreground }}>
             <span className={`${CLASSNAME}__term-grant-label`} style={{ color: skin.foreground }}>
-              {who ? `${who} can type in this terminal` : ""}
+              {who ? `${whoName} can type in this terminal` : ""}
             </span>
             <button
               type="button"
@@ -419,11 +426,11 @@ const TerminalSection = ({ projectCode, CLASSNAME, Chevron, bulk = null }) => {
               <span className={`${CLASSNAME}__term-pill-face`}>🤖</span>
               {/* THE LABEL IS AN OFFER, NOT A STATUS. "no agent can type here" states an absence
                   nobody asked about; the control should say what pressing it DOES. */}
-              {who || "grant access"}
+              {whoName || "grant access"}
               <span className={`${CLASSNAME}__term-pill-caret`}>⌄</span>
             </button>
             {who && (
-              <button type="button" className={`${CLASSNAME}__term-pill-off`} style={{ color: skin.foreground }} onClick={() => { setPick(false); grantTo(active, "", agents.find((a) => (a.name || a.id) === who)); }}>
+              <button type="button" className={`${CLASSNAME}__term-pill-off`} style={{ color: skin.foreground }} onClick={() => { setPick(false); grantTo(active, "", agents.find((a) => a.id === who)); }}>
                 no access
               </button>
             )}
@@ -437,9 +444,9 @@ const TerminalSection = ({ projectCode, CLASSNAME, Chevron, bulk = null }) => {
                     <button
                       key={a.id}
                       type="button"
-                      className={`${CLASSNAME}__term-picker-row${nm === who ? " is-on" : ""}`}
-                      style={nm === who ? { background: skin.selectionBackground || "rgba(127,127,127,0.25)", color: skin.foreground } : { color: skin.foreground }}
-                      onClick={() => { setPick(false); grantTo(active, nm, a); }}
+                      className={`${CLASSNAME}__term-picker-row${a.id === who ? " is-on" : ""}`}
+                      style={a.id === who ? { background: skin.selectionBackground || "rgba(127,127,127,0.25)", color: skin.foreground } : { color: skin.foreground }}
+                      onClick={() => { setPick(false); grantTo(active, a.id, a); }}
                     >
                       <span className={`${CLASSNAME}__term-picker-name`}>{nm}</span>
                       {a.projectCode && <span className={`${CLASSNAME}__term-picker-pc`}>{a.projectCode}</span>}
@@ -447,7 +454,7 @@ const TerminalSection = ({ projectCode, CLASSNAME, Chevron, bulk = null }) => {
                   );
                 })}
                 {who && (
-                  <button type="button" className={`${CLASSNAME}__term-picker-row ${CLASSNAME}__term-picker-none`} onClick={() => { setPick(false); grantTo(active, "", agents.find((a) => (a.name || a.id) === who)); }}>
+                  <button type="button" className={`${CLASSNAME}__term-picker-row ${CLASSNAME}__term-picker-none`} onClick={() => { setPick(false); grantTo(active, "", agents.find((a) => a.id === who)); }}>
                     no access
                   </button>
                 )}
