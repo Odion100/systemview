@@ -11,6 +11,7 @@ const Settings = require("./Settings")();
 const Comments = require("./Comments")();
 const Stage = require("./Stage")();
 const { shellProjects, shellProjectRoot } = require("./shellProjects");
+const termGrants = require("./terminalGrants");
 // WHERE A PROJECT LIVES ON DISK — one resolver, one precedence, used by everything that needs to
 // put a project's data with that project. Order matters: a HOSTED project's directory is known for
 // certain from the registry that stood it up; otherwise we take the root its own plugin reports on
@@ -1352,6 +1353,203 @@ async function branchState(projectCode, { branch, base, root } = {}) {
 // depend on a subagent remembering to say so. A branch either exists in a repo or it does not; that
 // is a fact the hub can read. First match wins, and a repo that also has a WORKTREE checked out on
 // that branch wins over one that merely has the ref, which is the tie-break that matters for lanes.
+// TYPING INTO A TERMINAL HE ALREADY OPENED — RFC pending, built at his ask (2026-09-21).
+//
+// The point is narrow and it is what makes this safe enough to exist: an agent cannot OPEN a
+// terminal here, cannot name a host, cannot authenticate. It can only type into a session a human
+// already started and already granted. He is SSH'd into his remote box; the agent inherits that
+// keyboard rather than being handed credentials. No terminal, no door.
+//
+// The transport is `screen`, which the harness already uses for every terminal tab — detached
+// sessions named `autobot-<project>_<sessionId>`. `screen -X stuff` sends keystrokes into a running
+// session without attaching, so nothing steals his view and his own client keeps working.
+//
+// THE GATE IS THE FILE (api/terminalGrants.js), not the caller. This module surface is reachable by
+// every agent in every room, so a check that lived in the browser would be no check at all.
+function screenSessionFor(session) {
+  const s = String(session || "").trim();
+  if (!s) return null;
+  const res = require("child_process").spawnSync("screen", ["-ls"], { encoding: "utf8" });
+  const lines = String((res && res.stdout) || "").split("\n");
+  const hit = lines.map((l) => (l.match(/^\s*(\d+\.[^\s]+)/) || [])[1]).filter(Boolean)
+    .find((name) => name.endsWith(`_${s}`));
+  return hit || null;
+}
+
+// RUN A COMMAND AND COME BACK WITH THE ANSWER — the shape an agent already knows.
+//
+// The first cut of this made typing and reading two calls, and I defended the split as something to
+// document. His answer: *"I don't want it to be different between them using this and them using a
+// terminal."* He is right, and the split was not a fact about terminals — it was a missing wrapper.
+// Every agent alive has a Bash tool whose contract is: send a command, get stdout and an exit code.
+// Anything else invites the failure this system cares most about — reporting a success nobody
+// observed, because the write returned ok and the read never happened.
+//
+// THE POLLING LIVES HERE. Waiting on the server costs wall-clock; waiting in an agent costs TURNS,
+// and a turn is the expensive unit. So this types, watches, and returns once — one call in, output
+// and exit code out.
+//
+// HOW THE ANSWER IS FOUND: the command is wrapped in markers and read back off `screen -X hardcopy`,
+// which dumps the visible screen as plain text (no escape codes). The exit marker carries `$?`, so
+// the code is the shell's own, not an inference from output. A command that stops to ask something
+// never prints its marker — that returns "still running" with what is on screen, the same way a
+// Bash tool's timeout does.
+//
+// STDOUT AND STDERR ARE ONE STREAM. A pty has no second channel; that is the price of a real
+// terminal, and what it buys is that things like a build print progress instead of detecting a pipe.
+function hardcopyOf(name, withScrollback = false) {
+  const os = require("os");
+  const cp = require("child_process");
+  const out = path.join(os.tmpdir(), `sv-hardcopy-${process.pid}.txt`);
+  try { fsGit.unlinkSync(out); } catch {}
+  // `-h` TAKES THE SCROLLBACK TOO, and it is not a nicety. Without it `hardcopy` dumps only what is
+  // VISIBLE, so a long answer comes back with its top silently cut — a `git status` that scrolled
+  // would return as though the files above the fold were not modified. An agent reading that would
+  // report something it never saw, which is the one failure this whole surface exists to prevent.
+  // TWO DIFFERENT READS, AND THE SECOND ONE IS RARE. Polling asks for the VISIBLE screen, which is
+  // where a fresh marker always lands and is a screenful to read; the scrollback (`-h`) is pulled
+  // ONCE, on the poll that actually finds the marker, and only then to recover output that scrolled
+  // off. The first cut asked for the scrollback every 250ms — thousands of lines re-read hundreds of
+  // times to answer "has it finished yet", which costs no tokens and is still stupid work.
+  cp.spawnSync("screen", ["-S", name, "-p", "0", "-X", "hardcopy", ...(withScrollback ? ["-h"] : []), out], { encoding: "utf8" });
+  try {
+    return fsGit.readFileSync(out, "utf8");
+  } catch {
+    return "";
+  } finally {
+    try { fsGit.unlinkSync(out); } catch {}
+  }
+}
+
+async function terminalRun(_projectCode, { session, agent, command, timeoutMs = 120000 } = {}) {
+  const s = String(session || "").trim();
+  const who = String(agent || "").trim();
+  const cmd = String(command || "").trim();
+  if (!s) return { ok: false, error: "which terminal?" };
+  if (!who) return { ok: false, error: "say which agent is running this — the grant is per agent" };
+  if (!cmd) return { ok: false, error: "nothing to run" };
+  const granted = termGrants.grantedAgent(s);
+  if (!granted) return { ok: false, error: `no agent is allowed to type in ${s} — the toggle on that terminal is off` };
+  if (granted !== who) return { ok: false, error: `${s} is granted to ${granted}, not ${who}` };
+  const name = screenSessionFor(s);
+  if (!name) return { ok: false, error: `no live shell for ${s} — open that terminal first` };
+
+  // WHAT HE WATCHES IS THE COMMAND, NOT THE WRAPPER. The first cut sent the command base64'd inside
+  // an eval with begin/end markers — it worked, and what he saw in his own terminal was a broken
+  // line of gibberish next to his prompt. He is meant to be able to WATCH an agent work here; a
+  // transport that makes the shell unreadable defeats the feature it is serving.
+  //
+  // So the command goes in verbatim, exactly as a person would type it, and one short line follows
+  // it carrying `$?`. His terminal reads normally. The marker is the only thing that is ours, and it
+  // is one line at the end.
+  //
+  // `\\n` IS TWO CHARACTERS HERE, deliberately: it has to reach the shell as a backslash and an n
+  // for printf to turn it into a newline. Writing a real newline into the keystrokes is what broke
+  // the line across his prompt the first time.
+  const tag = `sv${Date.now().toString(36)}`;
+  const line = `${cmd}; printf '${tag}:%s\\n' "$?"`;
+  const sent = require("child_process").spawnSync("screen", ["-S", name, "-p", "0", "-X", "stuff", `${line}\n`], { encoding: "utf8" });
+  if (sent.status !== 0)
+    return { ok: false, error: (sent.stderr || "screen refused the keystrokes").trim().slice(0, 200) };
+
+  // READING IT BACK. The marker line is the end; the start is the ECHO of the command itself, which
+  // is how a human reads a terminal too — everything between what you typed and the next prompt.
+  const ended = `${tag}:`;
+  const lastCmdLine = String(cmd).split("\n").pop();
+  const deadline = Date.now() + Math.max(1000, Math.min(600000, Number(timeoutMs) || 120000));
+  let screenText = "";
+  while (Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, 250));
+    screenText = hardcopyOf(name);
+    // The LAST marker that is not the echo of the line we just sent — the echo contains the tag
+    // inside a printf, the real one is a line that STARTS with it.
+    let lines = screenText.split("\n");
+    let endIdx = -1;
+    for (let i = lines.length - 1; i >= 0; i -= 1)
+      if (lines[i].startsWith(ended)) { endIdx = i; break; }
+    if (endIdx === -1) continue;
+    // FOUND IT — now, and only now, re-read WITH the scrollback, so a long answer whose top scrolled
+    // off the visible screen comes back whole.
+    screenText = hardcopyOf(name, true) || screenText;
+    lines = screenText.split("\n");
+    endIdx = -1;
+    for (let i = lines.length - 1; i >= 0; i -= 1)
+      if (lines[i].startsWith(ended)) { endIdx = i; break; }
+    if (endIdx === -1) continue;
+    const code = parseInt(String(lines[endIdx].slice(ended.length)).trim(), 10);
+    // THE START IS THE ECHO'S TAIL, NOT THE COMMAND TEXT. Matching the command was the obvious
+    // thing and it broke on his very first real use: a two-line prompt wrapped the echoed line, so
+    // no single row contained the whole command and the output came back carrying his prompt. The
+    // TAG is in the echo too — and whichever row it lands on when wrapped is the last row before
+    // the output begins, which is exactly the anchor we want.
+    let startIdx = -1;
+    for (let i = endIdx - 1; i >= 0; i -= 1)
+      if (lines[i].includes(tag)) { startIdx = i; break; }
+    if (startIdx === -1)
+      for (let i = endIdx - 1; i >= 0; i -= 1)
+        if (lastCmdLine && lines[i].includes(lastCmdLine)) { startIdx = i; break; }
+    const output = lines
+      .slice(startIdx === -1 ? Math.max(0, endIdx - 40) : startIdx + 1, endIdx)
+      .join("\n")
+      .replace(/^\n+/, "")
+      .replace(/\s+$/, "");
+    // A CAP, AND IT SAYS SO. Scrollback can be thousands of lines; silently returning the first
+    // 200 would be the same lie in a different direction, so a trimmed answer announces itself.
+    const MAX = 20000;
+    const trimmed = output.length > MAX
+      ? `…[${output.length - MAX} characters trimmed from the start]…\n${output.slice(-MAX)}`
+      : output;
+    return { ok: true, session: s, agent: who, command: cmd, exit: Number.isFinite(code) ? code : null, output: trimmed };
+  }
+  // NOT A FAILURE — a command that is still going, or one waiting on an answer. Say which is not
+  // knowable from here, so say what IS: it has not finished, and this is what the screen shows.
+  return {
+    ok: true,
+    session: s,
+    agent: who,
+    command: cmd,
+    running: true,
+    exit: null,
+    output: String(screenText || "").replace(/\s+$/, ""),
+    note: "still running — no exit marker yet. It may be working, or waiting for an answer typed into the terminal.",
+  };
+}
+
+async function terminalGrants() {
+  return { ok: true, grants: termGrants.grants() };
+}
+
+async function setTerminalGrant(_projectCode, { session, agent, by, on = true } = {}) {
+  return termGrants.setGrant({ session, agent, by, on });
+}
+
+// WHAT THE AGENT CALLS. It says who it is; the file says who may. A mismatch is a refusal with the
+// reason in it, because "nothing happened" is the worst possible answer to a command you believed
+// you sent.
+async function terminalType(_projectCode, { session, agent, text, enter = true } = {}) {
+  const s = String(session || "").trim();
+  const who = String(agent || "").trim();
+  const body = String(text == null ? "" : text);
+  if (!s) return { ok: false, error: "which terminal?" };
+  if (!who) return { ok: false, error: "say which agent is typing — the grant is per agent" };
+  if (!body) return { ok: false, error: "nothing to type" };
+  const granted = termGrants.grantedAgent(s);
+  if (!granted) return { ok: false, error: `no agent is allowed to type in ${s} — the toggle on that terminal is off` };
+  if (granted !== who) return { ok: false, error: `${s} is granted to ${granted}, not ${who}` };
+  const name = screenSessionFor(s);
+  if (!name) return { ok: false, error: `no live shell for ${s} — open that terminal first` };
+  // `stuff` takes the string verbatim; the newline is what makes it a command rather than a draft,
+  // and it is separable because reviewing a line before it runs is a thing he may want.
+  // `-p 0` IS NOT OPTIONAL, and leaving it off is a silent success: screen 4.00.03 (the build macOS
+  // ships) accepts `-X stuff` without a window selected, exits 0, and delivers the keystrokes
+  // nowhere. Verified live — the command reported ok and the file it would have written never
+  // appeared. An agent would have every reason to believe it had run.
+  const res = require("child_process").spawnSync("screen", ["-S", name, "-p", "0", "-X", "stuff", enter ? `${body}\n` : body], { encoding: "utf8" });
+  if (res.status !== 0)
+    return { ok: false, error: (res.stderr || "screen refused the keystrokes").trim().slice(0, 200) };
+  return { ok: true, session: s, screen: name, agent: who, typed: body, enter: !!enter };
+}
+
 async function branchOwner(_projectCode, { branch } = {}) {
   const b = String(branch || "").trim();
   if (!b) return { ok: false, error: "which branch?" };
@@ -2317,6 +2515,10 @@ module.exports = function launchSystemView(port = 3000) {
       branchDiff,
       worktrees,
       branchOwner,
+      terminalGrants,
+      setTerminalGrant,
+      terminalType,
+      terminalRun,
       branchState,
       removeWorktree,
       deleteBranch,
@@ -2376,6 +2578,14 @@ module.exports = function launchSystemView(port = 3000) {
     // dials the hub over HTTP — it is the hub. The published CLI keeps its own face; this is the
     // one an in-process MCP calls (RFC-056).
     .module("Agent", {
+      // THE TERMINAL, ON THE AGENT MODULE. The MCP server posts ONE argument per call
+      // (`{__arguments:[arg]}`), while the SystemView module's verbs take `(projectCode, opts)` —
+      // so the same functions are exposed here in the shape the agent door actually speaks. Same
+      // implementations, same grant file, no second path to keep in step.
+      terminalRun: async (arg = {}) => terminalRun(null, arg),
+      terminalType: async (arg = {}) => terminalType(null, arg),
+      terminalGrants: async () => terminalGrants(),
+
       // PROBE — THE HUB'S OWN CAPABILITY (api/probe.js), and the reason it cannot be the CLI's.
       // `require("../cli/probe")` resolves its session store, cookie jar and manifest from
       // process.cwd(); under the hub that is the SystemView repo, so a call to buAPI read
