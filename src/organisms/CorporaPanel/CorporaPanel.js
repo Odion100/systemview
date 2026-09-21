@@ -124,15 +124,33 @@ export default function CorporaPanel() {
     refresh();
   };
 
-  const runDrop = async (name, kind) => {
-    // A PERMANENT CORPUS IS HIS. The tool refuses this for agents; here it is allowed but asked for
-    // out loud, because the files are untouched either way — this deletes what was embedded.
-    if (kind === "permanent" && !window.confirm(`Drop the embedded chunks for "${name}"?\n\nThe files are not touched — this removes what was indexed, and you can re-index at any time.`)) return;
+  // DELETE IS ONE ACT, because it was two and they did not add up to it. `drop` removed the embedded
+  // chunks; removing the corpus from the config was a THIRD button hidden inside the edit form. So
+  // deleting a corpus meant row → drop, row → edit, form → remove from config, and the button on the
+  // row that looked like delete left a corpus still listed, still pointed at its folder, one press
+  // from coming back. His words after doing exactly that: *"I don't want it dropping it only, remove
+  // it from the vector but not disconnect it from some configuration."*
+  //
+  // The files are never touched by either half, which is what makes one confirm honest.
+  const runDelete = async (name, chunks) => {
+    if (!window.confirm(
+      `Delete the corpus "${name}"?\n\n` +
+      `${chunks ? `Its ${chunks} embedded chunks go, and it` : "It"} is removed from the config — it stops being a corpus.\n\n` +
+      `The files on disk are not touched.`
+    )) return;
     setBusy(`drop:${name}`);
-    const r = await docsDrop(name);
+    let dropped = 0;
+    if (chunks) {
+      const d = await docsDrop(name);
+      if (d.error) { setBusy(""); return setSay(d.error); }
+      dropped = d.dropped || 0;
+    }
+    // EVEN IF THE DROP FOUND NOTHING. A corpus whose chunks are already gone is the exact state that
+    // sent him looking for a delete in the first place — the config entry is the thing that outlives.
+    const r = await saveCorpus({ name, remove: true });
     setBusy("");
     if (r.error) return setSay(r.error);
-    setSay(`dropped ${r.corpus} (${r.dropped} chunks)`);
+    setSay(`deleted ${name}${dropped ? ` — ${dropped} chunks dropped` : ""}`);
     if (open === name) { setOpen(null); setPlan(null); }
     refresh();
   };
@@ -157,14 +175,6 @@ export default function CorporaPanel() {
     setEditing(null);
     setSel(null);
     setSay(`saved ${d.name} — ${sel ? sel.on.size : "all"} file(s). Read the cuts, then index.`);
-    refresh();
-  };
-
-  const remove = async (name) => {
-    if (!window.confirm(`Remove the corpus "${name}" from the config?\n\nThis does not delete files or embedded chunks — drop those separately.`)) return;
-    const r = await saveCorpus({ name, remove: true });
-    if (r.error) return setSay(r.error);
-    setEditing(null);
     refresh();
   };
 
@@ -296,9 +306,6 @@ export default function CorporaPanel() {
           <div className="corpora__formacts">
             <button onClick={save} disabled={busy === "save" || !editing.root}>{busy === "save" ? "saving…" : "save"}</button>
             <button className="corpora__ghost" onClick={() => { setEditing(null); setSel(null); }}>cancel</button>
-            {rows && rows.some((r) => r.name === editing.name) ? (
-              <button className="corpora__danger" onClick={() => remove(editing.name)}>remove from config</button>
-            ) : null}
           </div>
         </div>
       ) : null}
@@ -337,7 +344,9 @@ export default function CorporaPanel() {
                 <button onClick={() => readCuts(c.name)} disabled={busy === `plan:${c.name}`}>{busy === `plan:${c.name}` ? "…" : "read the cuts"}</button>
                 <button onClick={() => runIndex(c.name)} disabled={busy === `index:${c.name}`}>{busy === `index:${c.name}` ? "indexing…" : c.chunks ? "re-index" : "index"}</button>
                 <button className="corpora__ghost" onClick={() => setEditing({ name: c.name, kind: c.kind, root: c.root, glob: c.glob, exclude: "" })}>edit</button>
-                {c.chunks ? <button className="corpora__danger" onClick={() => runDrop(c.name, c.kind)} disabled={busy === `drop:${c.name}`}>drop</button> : null}
+                {/* ALWAYS OFFERED, unlike the old `drop` which hid itself once the chunks were gone —
+                    leaving a corpus that could not be deleted from the row it was listed on. */}
+                <button className="corpora__danger" onClick={() => runDelete(c.name, c.chunks)} disabled={busy === `drop:${c.name}`}>delete</button>
                 </div>
               </td>
             </tr>
