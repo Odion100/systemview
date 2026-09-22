@@ -2372,16 +2372,52 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
               services on top, and the section appears when there are some. */}
           {realServices.length > 0 && (
           <div className={`${CLASSNAME}__services`}>
-            <button
-              type="button"
-              className={`${CLASSNAME}__code-fold`}
-              title={servicesOpen ? "Collapse the services" : "Expand the services"}
-              onClick={flipServices}
-            >
-              <Chevron open={servicesOpen} />
-              <span className={`${CLASSNAME}__code-fold-label`}>services</span>
-              <span className={`${CLASSNAME}__lynx-tag`}>SystemLynx</span>
-            </button>
+            {/* LOGS AND STATS RIDE ON THE SERVICES ROW ITSELF (his layout call). Both are
+                SystemLynx's — what the services did, and how much — so they sit on the line with
+                their subject rather than floating at the top of the window away from it. They are
+                OPENERS, not folds: there is nothing to list here, only a place to go. Siblings of
+                the fold button rather than inside it, because a button inside a button is not a
+                thing. */}
+            <div className={`${CLASSNAME}__services-row`}>
+              <button
+                type="button"
+                className={`${CLASSNAME}__code-fold`}
+                title={servicesOpen ? "Collapse the services" : "Expand the services"}
+                onClick={flipServices}
+              >
+                <Chevron open={servicesOpen} />
+                <span className={`${CLASSNAME}__code-fold-label`}>services</span>
+                <span className={`${CLASSNAME}__lynx-tag`}>SystemLynx</span>
+              </button>
+              <span className={`${CLASSNAME}__section-openers`}>
+                <button
+                  type="button"
+                  className={`${CLASSNAME}__section-opener`}
+                  title={`Open ${projectCode}'s logs in a center tab`}
+                  onClick={() => {
+                    const q = new URLSearchParams(window.location.search);
+                    ["file", "fproj", "fsvc", "flang", "flines", "fside", "help", "rdoc"].forEach((k) => q.delete(k));
+                    q.set("tab", "logs");
+                    history.push({ pathname: `/specs/${projectCode}`, search: q.toString() });
+                  }}
+                >
+                  logs
+                </button>
+                <button
+                  type="button"
+                  className={`${CLASSNAME}__section-opener`}
+                  title={`Open ${projectCode}'s call statistics in a center tab`}
+                  onClick={() => {
+                    const q = new URLSearchParams(window.location.search);
+                    ["file", "fproj", "fsvc", "flang", "flines", "fside", "help", "rdoc"].forEach((k) => q.delete(k));
+                    q.set("tab", "stats");
+                    history.push({ pathname: `/specs/${projectCode}`, search: q.toString() });
+                  }}
+                >
+                  stats
+                </button>
+              </span>
+            </div>
             {!servicesOpen ? null : realServices.length ? (
               realServices.map((s) => (
                 <ServiceNode
@@ -2407,6 +2443,11 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
             )}
           </div>
           )}
+
+          {/* RFC-054, his correction twice over: reports are this CODEBASE'S, and selection
+              happens IN THE NAVIGATION — the row folds open and lists the documents by name, click
+              one and THAT report opens as its tab. Not a detour through a center picker. */}
+          <ReportsFold projectCode={projectCode} CLASSNAME={CLASSNAME} Chevron={Chevron} bulk={bulk} history={history} openRowMenu={openRowMenu} />
 
           {/* RFC-026 — the whole file region sits behind one `code` fold: root indentation, quiet,
               same section-label voice as `project services` above it. Hidden entirely when there is
@@ -2973,26 +3014,6 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
               onDoubleClick={releaseTree}
             />
           )}
-
-          {/* RFC-054, his correction twice over: reports are this CODEBASE'S, and selection
-              happens IN THE NAVIGATION — the row folds open and lists the documents by name, click
-              one and THAT report opens as its tab. Not a detour through a center picker. */}
-          <ReportsFold projectCode={projectCode} CLASSNAME={CLASSNAME} Chevron={Chevron} bulk={bulk} history={history} openRowMenu={openRowMenu} />
-          <div className={`${CLASSNAME}__section-openers`}>
-            <button
-              type="button"
-              className={`${CLASSNAME}__section-opener`}
-              title={`Open ${projectCode}'s logs in a center tab`}
-              onClick={() => {
-                const q = new URLSearchParams(window.location.search);
-                ["file", "fproj", "fsvc", "flang", "flines", "fside", "help", "rdoc"].forEach((k) => q.delete(k));
-                q.set("tab", "logs");
-                history.push({ pathname: `/specs/${projectCode}`, search: q.toString() });
-              }}
-            >
-              logs
-            </button>
-          </div>
 
           {/* RFC-045 — THE LAST SECTION: a shell in this codebase. SystemView renders it; the
               embedding host runs it. In a plain browser tab it says so and stops. */}

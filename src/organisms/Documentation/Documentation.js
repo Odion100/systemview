@@ -9,6 +9,7 @@ import { getTabs, subscribeTabs, openTab, focusTab, closeTab, moveTab, fileKey, 
 import ServiceContext from "../../ServiceContext";
 import { Client } from "../../systemClient";
 import InlineLogs from "../InlineLogs/InlineLogs";
+import Reports from "../../pages/Reports/Reports";
 import { backHelpTopic, setHelpTopic } from "../../atoms/Help/helpStore";
 import HELP_TOPICS from "../../atoms/Help/helpTopics";
 import { raiseError } from "../../atoms/Banner/bannerStore";
@@ -217,6 +218,12 @@ export default function Documentation({
         kind: "logs",
         logs: { serviceId: sService, moduleName: sModule, methodName: sMethod },
       });
+    else if (urlTab === "stats")
+      // STATS IS ONE TAB PER PROJECT, unlike logs. Logs key per service/module/method because
+      // "logs here and logs there" are two different things you are watching; stats is a view OF a
+      // system, and the service filter lives inside it — so a second tab would be the same tab with
+      // a different dropdown position.
+      openTab(tabsPc, { key: `stats:${tabsPc}`, kind: "stats" });
     else if (urlTab === "reports")
       // STAGE IS JUST REPORTS (his correction, mid-build): a report OPEN gets its OWN tab, keyed by
       // its path — multiple reports showing at once, exactly like files. The bare Stage (no rdoc)
@@ -265,6 +272,10 @@ export default function Documentation({
       if (f.language) p.set("flang", f.language);
       if (f.lines && f.lines[0]) p.set("flines", f.lines.join("-"));
       if (f.side) p.set("fside", f.side);
+    } else if (t.kind === "stats") {
+      p.set("tab", "stats");
+      history.push({ pathname: `/specs/${tabsPc}`, search: `?${p.toString()}` });
+      return;
     } else if (t.kind === "logs") {
       p.set("tab", "logs");
       const lg = t.logs || {};
@@ -298,7 +309,8 @@ export default function Documentation({
       (t.kind === "file" && fileLens && codeFile && fileKey(codeFile) === t.key) ||
       (t.kind !== "file" &&
         !fileLens &&
-        ((t.kind === "logs" && urlTab === "logs" && t.key === `logs:${sService || ""}.${sModule || ""}.${sMethod || ""}`) ||
+        ((t.kind === "stats" && urlTab === "stats") ||
+          (t.kind === "logs" && urlTab === "logs" && t.key === `logs:${sService || ""}.${sModule || ""}.${sMethod || ""}`) ||
           (t.kind === "report" && urlTab === "reports" && !!t.report && t.report.path === reportPath) ||
           (t.kind === "doc" && urlTab === "docs" && t.key === `doc:${sService || ""}.${sModule || ""}.${sMethod || ""}`)));
     if (!wasActive) return;
@@ -485,11 +497,14 @@ export default function Documentation({
                 ? !!(fileLens && codeFile && fileKey(codeFile) === t.key)
                 : !fileLens &&
                   ((t.kind === "doc" && (tab === "docs" || (tab === "reports" && !reportPath)) && t.key === `doc:${sService || ""}.${sModule || ""}.${sMethod || ""}`) ||
+                    (t.kind === "stats" && tab === "stats") ||
                     (t.kind === "logs" && tab === "logs" && t.key === `logs:${sService || ""}.${sModule || ""}.${sMethod || ""}`) ||
                     (t.kind === "report" && tab === "reports" && (t.report ? t.report.path === reportPath : !reportPath)));
             const label =
               t.kind === "file"
                 ? (t.file && t.file.path ? t.file.path.split("/").pop() : "file")
+                : t.kind === "stats"
+                ? `Stats · ${tabsPc}`
                 : t.kind === "logs"
                 ? `Logs · ${(t.logs && (t.logs.methodName || t.logs.moduleName || t.logs.serviceId)) || tabsPc}`
                 : t.kind === "report"
@@ -683,6 +698,13 @@ export default function Documentation({
             methodName={fileLens ? undefined : sMethod}
             openName={reportPath}
             onOpen={openReport}
+          />
+        )}
+        {!helpOpen && tab === "stats" && (
+          <Reports
+            projectCode={fileLens ? codeFile.projectCode : sProject}
+            serviceId={fileLens ? undefined : sService}
+            embedded
           />
         )}
         {!helpOpen && tab === "logs" && (

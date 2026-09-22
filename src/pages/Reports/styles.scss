@@ -12,6 +12,49 @@ $bad: #c62828;
   // The header is the shared `.page-header` bar (organisms/PageHeader) — identical to every other page,
   // so NO local override here (that override is what made the Stats header look different).
   background: var(--sv-bg);
+
+  // EMBEDDED IT IS A PAGE INSIDE A TAB, and should read as one — quietly. No background of its own
+  // (the tab's surface is already the surface) and no full-viewport height, which was the page
+  // stretching to a window it no longer owns. What it gets is an edge: a subtle border so the thing
+  // you are reading has boundaries, instead of statistics floating loose in a tab.
+  &--embedded {
+    // WHY THIS NEEDS A CAP AT ALL. The chain above it is broken in the middle:
+    // `.documentation-view__window` is a fixed `height: calc(100vh - 140px)` with `overflow: hidden`,
+    // but `.documentation-view` between them has NO height and NO overflow — so content grows, pushes
+    // down and is simply clipped by the window. His diagnosis exactly: "things get pushed down, they
+    // don't become scrollable."
+    //
+    // The cap is here rather than on `.documentation-view` because that container is shared by every
+    // tab kind, and giving all of them a scroller to fix one is the reckless version of this fix.
+    // The number is the window's own minus this page's chrome — tune it, do not admire it.
+    height: auto;
+    max-height: calc(100vh - 150px);
+    overflow-y: auto;
+    // VERTICAL ONLY. Anything wide in here — a chart, a table, the topology — should be made to fit
+    // rather than push the tab sideways; a horizontal scrollbar on a panel is a layout bug wearing a
+    // control.
+    max-width: 100%;
+    overflow-x: hidden;
+    background: none;
+    border: 1px solid var(--sv-border);
+    // BOTTOM CORNERS ONLY — the top edge meets the tab strip, so rounding it would float the page
+    // away from the tab it belongs to. The page hangs off its tab and closes at the bottom.
+    border-radius: 0 0 8px 8px;
+
+    // THE CONTROLS STAY PUT. Scrolling into the body and losing the range, the refresh and the
+    // switcher means scrolling back up to change what you are looking at — the controls are how you
+    // read the thing, not part of what you read. They need an opaque background of their own or the
+    // numbers slide underneath them.
+    // ONLY THE TOOLBAR STICKS. It is the row you are actually reaching for while reading — the range,
+    // refresh, clear. The switcher under it is navigation between views: pinning it means every stats
+    // view permanently carries a second tab bar under the real one, which is the thing that made
+    // this look like a page stuffed in a tab in the first place.
+    .reports-toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+  }
 }
 
 // the nav unit rides beside the report body — same shape as .row on the other pages
