@@ -21,6 +21,12 @@ args and evaluations).
 - Shared actions live one-per-file at **`specs/actions/<name>.json`**.
 - The top-level `namespace` is what the test is *of* — it decides the file. Main steps may call any
   connected method, but **at least one Main step must match the top-level namespace**.
+- **The entry's `title` and `namespace` are not optional, and losing them fails silently.** A step
+  carries its own namespace — what that step *calls* — so a file copied step-first looks complete and
+  parses fine. But the runner keeps only the tests whose TOP-LEVEL `namespace.serviceId` matches the
+  service it asked (several services can share one specs folder, and without that filter a shared spec
+  runs once per sibling). Entries with no top-level namespace are dropped, and the report reads
+  `<project> has no saved tests` — blaming the project for the shape of the file.
 
 ## Test entry schema
 

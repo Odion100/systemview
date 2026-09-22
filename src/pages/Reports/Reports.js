@@ -110,20 +110,54 @@ const MOCK_TOPO_EDGES = [
 
 const TOPO_H = 520;
 
-export default function Reports() {
+// THE PAGE'S SHELL, AND ONLY WHEN IT IS A PAGE. Standalone, the stats sit in a row with the agent
+// nav down the left and a centre column. Embedded in a tab there is no shell at all: the window
+// around it already has a nav, a tab strip and a chat, so drawing a second set is a page wearing a
+// tab's clothes — which is exactly what it looked like.
+const Chrome = ({ embedded, projectCode, children }) =>
+  embedded ? (
+    <>{children}</>
+  ) : (
+    <div className="reports-row">
+      <AgentNav projectCode={projectCode} />
+      <div className="reports-center">{children}</div>
+    </div>
+  );
+
+// EMBEDDED, THIS IS A CENTER TAB — not a page you navigate to. His call, and the reasoning is the
+// shape of the app rather than a preference: the top nav says WHERE YOU ARE (Code, Agents), while
+// stats is a thing ABOUT A PROJECT, which makes it the codebase card's business and a tab's body.
+// Logs made this move already; stats is the same kind of thing, so it gets the same treatment
+// rather than a page of its own.
+//
+// Three things change when embedded, and only three: the project comes in as a PROP (the Code
+// page's route names the same param, but relying on that coincidence is how a thing breaks the day
+// somebody renames a route), NOTHING is written to the URL (the Code page owns it — a second writer
+// would fight the tab store for the address bar), and the project picker goes, because the card you
+// opened this from already said which project.
+export default function Reports({ projectCode: pcProp = null, serviceId: svcProp = null, embedded = false }) {
   const { SystemViewService } = useContext(ServiceContext);
   const history = useHistory();
   const location = useLocation();
   // A report is always about ONE system = one project. The project lives in the URL path
   // (/reports/:projectCode), the within-project selections in the query — so a refresh lands
   // you exactly where you were. There is no cross-project "all" view; that isn't a thing.
-  const { projectCode } = useParams();
+  const { projectCode: pcFromRoute } = useParams();
+  const projectCode = pcProp || pcFromRoute;
 
   const query = new URLSearchParams(location.search);
   const [connectedProjects, setConnectedProjects] = useState({});
   const [statsByService, setStatsByService] = useState([]); // [{ projectCode, serviceId, snapshot }]
   const [clusters, setClusters] = useState([]); // LB-mode services' getCluster payloads
-  const [filterService, setFilterService] = useState(query.get("service") || "");
+  // SCOPE COMES FROM THE WINDOW, NOT FROM A DROPDOWN IN HERE. That is the difference between a page
+  // and a tab, and it is the detail that makes this feel native rather than transplanted: the nav
+  // already says which service you are looking at, so the tab follows it the way the logs tab does
+  // (`serviceId={sService}`). Keeping the page's own picker meant selecting the same thing twice
+  // and letting the two disagree.
+  const [filterService, setFilterService] = useState(embedded ? svcProp || "" : query.get("service") || "");
+  useEffect(() => {
+    if (embedded) setFilterService(svcProp || "");
+  }, [embedded, svcProp]);
   const [report, setReport] = useState(query.get("report") || "state");
   // Time window over the per-bucket rollups (stats.js keeps per-method counts per minute bucket,
   // 24h retention). "all" = the all-time rollups. Percentiles/status-mix stay all-time either way —
@@ -143,11 +177,13 @@ export default function Reports() {
 
   // No project in the URL yet → drop into the first connected one (never a blended view).
   useEffect(() => {
+    if (embedded) return; // the tab was opened FOR a project; there is nothing to fall back to
     if (!projectCode && projects.length) history.replace(`/reports/${projects[0]}`);
-  }, [projectCode, projects, history]);
+  }, [embedded, projectCode, projects, history]);
 
   // Keep within-project selections (service, report) in the query so refresh restores them.
   useEffect(() => {
+    if (embedded) return; // the Code page owns the address bar while this is a tab
     const params = new URLSearchParams();
     if (filterService) params.set("service", filterService);
     if (report && report !== "state") params.set("report", report);
@@ -155,7 +191,7 @@ export default function Reports() {
     const qs = params.toString();
     const base = projectCode ? `/reports/${projectCode}` : "/reports";
     window.history.replaceState(null, "", base + (qs ? "?" + qs : ""));
-  }, [projectCode, filterService, report, range]);
+  }, [embedded, projectCode, filterService, report, range]);
 
   const projectServices = (projectCode && connectedProjects[projectCode]) || [];
 
@@ -479,18 +515,27 @@ export default function Reports() {
   // you were reading. One resolver (useOpenedFile), one panel, every page.
   // CodePane owns reading, editing and saving the file — the page only says which one is open.
   const [fileDoc, setFileDoc] = useState(null);
-  useOpenedFile(projectCode, setFileDoc);
+  // AND NOT A SECOND SIDE PANEL. Standalone, this page opens a file beside the numbers. Embedded,
+  // the Code page around it already owns that panel, and two listeners on one event means the same
+  // file opens twice.
+  useOpenedFile(embedded ? null : projectCode, setFileDoc);
 
   return (
-    <section className="reports-page">
-      <PageHeader projectCode={projectCode} current="reports" />
+    <section className={`reports-page${embedded ? " reports-page--embedded" : ""}`}>
+      {/* NO PAGE CHROME INSIDE A TAB. Embedded, this renders the app's own header — top nav and
+          all — inside a center tab, which is a page wearing a tab's clothes. A tab is a VIEW; the
+          window around it already exists. */}
+      {!embedded && <PageHeader projectCode={projectCode} current="reports" />}
 
       {/* THE NAV UNIT TRAVELS HERE TOO (his call: "agents should be able to go everywhere") —
           same rail, same dock; without it a docked agent has no home on Stats. */}
-      <div className="reports-row">
-      <AgentNav projectCode={projectCode} />
-      <div className="reports-center">
+      {/* THE PAGE'S FURNITURE STOPS AT THE TAB'S DOOR. Standalone this is a page — a nav down the
+          left, a centre column, a chat dock, a file panel. Embedded it is a VIEW: the window around
+          it already has all four. What travels is the stats; what stays behind is everything that
+          existed only to make them a page. */}
+      <Chrome embedded={embedded} projectCode={projectCode}>
       <div className="reports-toolbar">
+        {!embedded && (
         <select
           value={projectCode || ""}
           onChange={(e) => {
@@ -502,12 +547,15 @@ export default function Reports() {
             <option key={p} value={p}>{p}</option>
           ))}
         </select>
-        <select value={filterService} onChange={(e) => setFilterService(e.target.value)}>
-          <option value="">all services</option>
-          {services.map((s) => (
-            <option key={s} value={s}>{s}</option>
-          ))}
-        </select>
+        )}
+        {!embedded && (
+          <select value={filterService} onChange={(e) => setFilterService(e.target.value)}>
+            <option value="">all services</option>
+            {services.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+        )}
         <label
           className="reports-timerange"
           title="Window the rollups by time (per-minute buckets, 24h retention). Percentiles and the status-code mix stay all-time — bounded rollups keep no per-bucket histograms."
@@ -546,11 +594,16 @@ export default function Reports() {
         ))}
       </div>
 
-      {/* headline verdict — the story in one line */}
-      <div className={`reports-verdict reports-verdict--${overallStatus}`}>
-        <span className={`reports-verdict__dot reports-verdict__dot--${overallStatus}`} />
-        {verdict}
-      </div>
+      {/* THE VERDICT BELONGS TO STATE OF THE SYSTEM, and only to it. It is the headline of that
+          view — calls, error rate, busiest service, what to watch — and it was rendering above the
+          body for all seven, so picking Topology or Coupling still carried the state page's summary
+          at the top. Unmissable once this became a tab, where there is no page length to lose it in. */}
+      {report === "state" && (
+        <div className={`reports-verdict reports-verdict--${overallStatus}`}>
+          <span className={`reports-verdict__dot reports-verdict__dot--${overallStatus}`} />
+          {verdict}
+        </div>
+      )}
 
       <div className="reports-body">
         {!loading && filterService && !statsByService.some((s) => s.serviceId === filterService) ? (
@@ -958,13 +1011,13 @@ export default function Reports() {
           </>
         )}
       </div>
-      </div>
-      {fileDoc && (
+      </Chrome>
+      {!embedded && fileDoc && (
         <DocPanel key={`file:${fileDoc.path}`} doc={fileDoc} onClose={() => setFileDoc(null)} />
       )}
-      </div>
-      {/* RFC-032 — the bots ride the Stats page too: same dock line, same peeks, same TV. */}
-      <AgentChat />
+      {/* RFC-032 — the bots ride the Stats PAGE. Inside a tab the chat is already on screen; a
+          second dock is a second chat. */}
+      {!embedded && <AgentChat />}
     </section>
   );
 }

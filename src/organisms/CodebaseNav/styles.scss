@@ -1812,6 +1812,15 @@
 // nobody is granted — an ungranted terminal is the normal state and should not nag — and amber the
 // moment somebody can type, because that is a fact he should catch from across the room.
 .codebase-nav {
+  // THE SERVICES ROW CARRIES ITS OWN OPENERS — the fold on the left, logs and stats on the right.
+  &__services-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    > button { flex: 1; min-width: 0; }
+  }
+
   &__term-grant {
     position: relative;
     display: flex;

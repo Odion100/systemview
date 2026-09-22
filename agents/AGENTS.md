@@ -93,6 +93,60 @@ section 4 and [markdown.md](markdown.md).
 
 ---
 
+## 1.6 · The plugin — how a SystemLynx service becomes visible
+
+Everything in section 2 assumes SystemView can *see* the service. That is one dependency and four
+lines of wiring, and it is the step most often missed: **a SystemLynx service with no plugin is
+invisible** — no probe, no saved tests, no rendered docs, no logs, no stats. The tests you write for
+it are files nothing runs.
+
+```js
+const SystemViewPlugin = require("systemview-plugin")({
+  connection: process.env.SYSTEMVIEW_HOST,  // default http://localhost:3300/systemview/api
+  specs: "./Profiles/specs",                // where THIS service's tests and docs live
+  projectCode: process.env.PROJECT_CODE || "buAPI",
+  serviceId: "Profiles",
+  module: helpers,                          // optional — a helper module exposed to tests
+  useSystemViewUI: !!process.env.SYSTEMVIEW_HOST,
+});
+App.use(SystemViewPlugin);
+```
+
+`~/buAPI/Profiles/index.js` is the reference — five services, each wiring its own plugin and
+pointing at its own specs. The options worth knowing: `credentials: true` declares a cookie-session
+service (RFC-013), `redact: ["password"]` keeps secrets out of the trace, `trace: (req) => ({…})`
+stamps every call, `exclude` drops a module from observation, `hosted` is for the CLI-hosted case
+([hosted-services.md](hosted-services.md)).
+
+---
+
+## 1.7 · What a service owes — a spec folder beside it
+
+**One service, one `specs/` folder, beside the service it belongs to** — placement is the coupling
+declaration here as everywhere else in the tree:
+
+```
+Profiles/
+  index.js                      ← the plugin is wired here, pointed at ./Profiles/specs
+  specs/
+    tests/   Events.addTeam.json   ONE FILE PER METHOD — an array, one entry per saved test
+    docs/    Events.md             ONE FILE PER MODULE — <Module>.<method>.md when a method earns a page
+    actions/ seedProfile.json      shared setup, referenced as { "use": "Profiles.seedProfile" }
+```
+
+**A SystemLynx service owes a spec.** This is not a coverage target. A method nobody saved a test
+for cannot be run from the window and cannot be run in CI, and its documentation is a description
+with nothing underneath it that would notice when it stopped being true. Write the service, write
+the test, write the doc — in the same change.
+
+**And the doc does not describe the test, it runs it.** `::test[Profiles.Events.addTeam]` inside
+`specs/docs/Events.md` renders that saved test as a thing the reader presses and watches pass or
+fail; `::probe` does the same for a single call. That is why docs live beside specs — the
+explanation and the proof are one artifact. The block vocabulary is [markdown.md](markdown.md); the
+spec format in depth is [tests.md](tests.md).
+
+---
+
 ## 2 · Tests — the engine everything runs on
 
 A test is an **ordered list of named sections**. Built-ins: `before`, `main`, `events`, `after`. Any

@@ -70,13 +70,20 @@ const PageHeader = ({ current, projectCode }) => {
         {/* The agent hub — every bot lives here; parked ones wait here. Sits right before the
             theme pill (his spot). */}
         <BotHub />
-        <button
-          className={`page-header__theme ${dark ? "page-header__theme--dark" : ""}`}
-          title={dark ? "Switch to light" : "Switch to dark"}
-          onClick={toggle}
-        >
-          {dark ? "☀ light" : "☾ dark"}
-        </button>
+        {/* THE THEME PILL IS HIDDEN — the browser hosting this already has the toggle, and it is
+            already wired to us (the `sv-dark` class on <html>). Two controls for one setting is two
+            places to be wrong about which one won. The button stays in the code rather than being
+            deleted: outside the harness, in a plain tab, there is no host toggle to rely on, and
+            that is the case this would have to serve again. */}
+        {false && (
+          <button
+            className={`page-header__theme ${dark ? "page-header__theme--dark" : ""}`}
+            title={dark ? "Switch to light" : "Switch to dark"}
+            onClick={toggle}
+          >
+            {dark ? "☀ light" : "☾ dark"}
+          </button>
+        )}
         <NavLinks projectCode={projectCode} current={current} />
       </span>
     </div>
