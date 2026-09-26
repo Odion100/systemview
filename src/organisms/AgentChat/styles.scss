@@ -3800,3 +3800,14 @@
 .agent-chat__lanepanel-empty { font-size: 11.5px; color: var(--sv-text-soft, #8a8f98); padding: 4px 0 8px; }
 // the lane name is a button now — keep it reading like the label it was
 .agent-chat__lane-name { border: none; background: none; color: inherit; padding: 0; cursor: pointer; &:hover { text-decoration: underline; } }
+
+// RFC-062 — the docked row's recorder readout: state + elapsed, static.
+.agent-chat__rec-clock {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: #c0392b;
+  white-space: nowrap;
+}

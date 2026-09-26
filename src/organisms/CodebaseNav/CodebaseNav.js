@@ -22,6 +22,55 @@ import "./styles.scss";
 // each carrying its FILE SYSTEM (via the RFC-018 plugin file providers) and its PROJECT-DEFINED
 // services (RFC-021 synthesized namespaces; empty on a fresh project — that's the bootstrap state).
 
+// RFC-062 — EVERY SECTION IS RESIZABLE (his spec, verbatim: "each section needs to be
+// resizable"). One mechanism for all of them, the same shape the file tree's grip already has:
+// a slim row-resize grip under the section; dragging caps the section and its content scrolls
+// inside; double-click hands the height back to the content. Per section, per project, remembered.
+// `mode="height"` (the chat) sizes the box itself so the panel can be stretched LARGER than its
+// natural height — a max-height there could only ever shrink it.
+function SectionPane({ pc, name, mode = "max", className = "", children }) {
+  const KEY = `sv.cbNav.size.${pc}.${name}`;
+  const [h, setH] = useState(() => {
+    const v = Number(localStorage.getItem(KEY));
+    return v >= 60 ? v : null;
+  });
+  useEffect(() => {
+    try {
+      if (h) localStorage.setItem(KEY, String(Math.round(h)));
+      else localStorage.removeItem(KEY);
+    } catch {}
+  }, [h, KEY]);
+  const boxRef = useRef(null);
+  const startDrag = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const box = boxRef.current && boxRef.current.getBoundingClientRect();
+    if (!box) return;
+    const move = (ev) => setH(Math.max(60, ev.clientY - box.top));
+    const up = () => {
+      window.removeEventListener("mousemove", move);
+      window.removeEventListener("mouseup", up);
+    };
+    window.addEventListener("mousemove", move);
+    window.addEventListener("mouseup", up);
+  };
+  return (
+    <div
+      ref={boxRef}
+      className={`cbnav-pane${h ? " cbnav-pane--sized" : ""} ${className}`}
+      style={h ? (mode === "height" ? { "--pane-h": `${h}px` } : { maxHeight: h }) : undefined}
+    >
+      <div className="cbnav-pane__body">{children}</div>
+      <div
+        className="cbnav-pane__grip"
+        title="Drag to size this section · double-click to let it size itself"
+        onMouseDown={startDrag}
+        onDoubleClick={() => setH(null)}
+      />
+    </div>
+  );
+}
+
 const CLASSNAME = "codebase-nav";
 // A private type, so only this tree answers a file drag (the test panel's section drag uses the
 // same trick for the same reason).
@@ -989,10 +1038,11 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
     );
   };
 
-  useEffect(() => {
-    if (holdsOpenFile) setCodeOpen(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [holdsOpenFile && openFile.path]);
+  // OPENING A FILE MOVES THE TREE NO MORE (his call: "it should just be showing you the file
+  // right next to you — I don't even see why that was ever a thing"). The file pane shows the
+  // file; the nav stays where he left it. REVEAL (`:file` pointing) is the opposite contract —
+  // its whole job is to move the tree — and it is untouched below. The code fold no longer
+  // forces itself open, and the folder path no longer auto-expands, on an open.
 
   // Same rule the file reveal follows: a namespace reveal has to end up VISIBLE, so it opens the
   // services fold if it was closed.
@@ -1265,25 +1315,6 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
       return added ? next : prev;
     });
   }, [expandAll, knownDirs, entries]);
-
-  // Auto-expand the folder path DOWN TO the open file (and scroll its row into view once) — the tree
-  // shows the selection whenever you arrive with a file already open.
-  useEffect(() => {
-    if (!files || !holdsOpenFile) return;
-    const parts = openFile.path.split("/");
-    parts.pop();
-    if (parts.length)
-      setOpenDirs((prev) => {
-        const next = new Set(prev);
-        let key = "";
-        parts.forEach((seg) => {
-          key = key ? `${key}/${seg}` : seg;
-          next.add(key);
-        });
-        return next;
-      });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [files, holdsOpenFile ? openFile.path : null]);
 
   // Same expansion for a REVEALED file — the tree must open down to the row being pointed at.
   useEffect(() => {
@@ -2330,7 +2361,9 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
               portals itself in here and this side knows nothing about what lands. First rather than
               last on purpose — under an expanded file tree it would be buried. */}
           {agentDocked && (
-            <div className={`${CLASSNAME}__agent`} id={slotId(projectCode)} />
+            <SectionPane pc={projectCode} name="agent" mode="height" className="cbnav-pane--agent">
+              <div className={`${CLASSNAME}__agent`} id={slotId(projectCode)} />
+            </SectionPane>
           )}
           {/* THE FIRST PROMPT, WHERE IT BELONGS. His catch on my earlier answer: *"where is the
               first prompt to you as a new user — do you have to try to open the chat to see the
@@ -2371,6 +2404,7 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
               to hang off; it is not a service and must not be drawn as one. The plugin adds real
               services on top, and the section appears when there are some. */}
           {realServices.length > 0 && (
+          <SectionPane pc={projectCode} name="services">
           <div className={`${CLASSNAME}__services`}>
             {/* LOGS AND STATS RIDE ON THE SERVICES ROW ITSELF (his layout call). Both are
                 SystemLynx's — what the services did, and how much — so they sit on the line with
@@ -2442,12 +2476,15 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
               </div>
             )}
           </div>
+          </SectionPane>
           )}
 
           {/* RFC-054, his correction twice over: reports are this CODEBASE'S, and selection
               happens IN THE NAVIGATION — the row folds open and lists the documents by name, click
               one and THAT report opens as its tab. Not a detour through a center picker. */}
-          <ReportsFold projectCode={projectCode} CLASSNAME={CLASSNAME} Chevron={Chevron} bulk={bulk} history={history} openRowMenu={openRowMenu} />
+          <SectionPane pc={projectCode} name="reports">
+            <ReportsFold projectCode={projectCode} CLASSNAME={CLASSNAME} Chevron={Chevron} bulk={bulk} history={history} openRowMenu={openRowMenu} />
+          </SectionPane>
 
           {/* RFC-026 — the whole file region sits behind one `code` fold: root indentation, quiet,
               same section-label voice as `project services` above it. Hidden entirely when there is
@@ -3017,6 +3054,8 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
 
           {/* RFC-045 — THE LAST SECTION: a shell in this codebase. SystemView renders it; the
               embedding host runs it. In a plain browser tab it says so and stops. */}
+          {/* The terminal keeps its OWN grip (now on its bottom edge) — wrapping it in a second
+              pane gave it two grips, and the outer one could only ever shrink it. */}
           {!noFolder && (
             <TerminalSection projectCode={projectCode} CLASSNAME={CLASSNAME} Chevron={Chevron} bulk={bulk} />
           )}

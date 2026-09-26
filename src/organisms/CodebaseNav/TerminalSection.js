@@ -107,7 +107,7 @@ const TerminalSection = ({ projectCode, CLASSNAME, Chevron, bulk = null }) => {
     dragRef.current = { y: e.clientY, from };
     const move = (ev) => {
       if (!dragRef.current) return;
-      const next = Math.max(90, Math.round(dragRef.current.from + (dragRef.current.y - ev.clientY)));
+      const next = Math.max(90, Math.round(dragRef.current.from + (ev.clientY - dragRef.current.y)));
       setHeight(next);
     };
     const up = () => {
@@ -217,14 +217,6 @@ const TerminalSection = ({ projectCode, CLASSNAME, Chevron, bulk = null }) => {
 
   return (
     <>
-      {open && hosted && (
-        <div
-          className={`${CLASSNAME}__term-grip`}
-          title="Drag to size the terminal · double-click to let it fill what's left"
-          onPointerDown={startDrag}
-          onDoubleClick={releaseHeight}
-        />
-      )}
       <button
         type="button"
         className={`${CLASSNAME}__code-fold`}
@@ -471,6 +463,17 @@ const TerminalSection = ({ projectCode, CLASSNAME, Chevron, bulk = null }) => {
               and history() repaints what happened while you were on the other tab. */}
           <Terminal key={active} projectCode={projectCode} sessionId={active} height={height} />
         </Suspense>
+      )}
+      {/* THE GRIP IS THE SECTION'S BOTTOM EDGE (his correction — it sat on the TOP, so growing
+          the terminal meant grabbing the seam above it and dragging the wrong way; every other
+          section resizes from its bottom, and now so does this one: drag down, it grows). */}
+      {open && hosted && (
+        <div
+          className={`${CLASSNAME}__term-grip`}
+          title="Drag to size the terminal · double-click to let it fill what's left"
+          onPointerDown={startDrag}
+          onDoubleClick={releaseHeight}
+        />
       )}
     </>
   );
