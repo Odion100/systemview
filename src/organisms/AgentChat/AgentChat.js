@@ -584,6 +584,22 @@ const showWhenAbs = (ts) => {
   return m.isValid() ? m.format("MMM D · h:mm A") : "";
 };
 
+// RFC-062 — THE RECORDER IS VISIBLE FROM THE DOCKED ROW. Floating, the mic peek hangs beside the
+// bubble; docked in the card that box lands outside the panel and is clipped — so a recording
+// looked stopped the moment he docked the agent. The row itself wears the state: a red dot and
+// the elapsed time, static on purpose (a cue that lives on screen for minutes must not animate).
+function RecClock({ since, className }) {
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => tick((n) => n + 1), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const sec = Math.max(0, Math.floor((Date.now() - since) / 1000));
+  const mm = String(Math.floor(sec / 60)).padStart(2, "0");
+  const ss = String(sec % 60).padStart(2, "0");
+  return <span className={className} title="The recorder is running">⏺ {mm}:{ss}</span>;
+}
+
 function StatusLine({ status, visitor, tok }) {
   const [i, setI] = useState(0);
   const generic = status === "received";
@@ -1457,6 +1473,13 @@ function BotBubble({ projectCode, index }) {
   // a filter hides the card, the page changes). So it is looked for on a slow tick rather than once
   // — and dropped the moment it leaves the document, which is what puts the bot back on the screen
   // instead of leaving it rendered into a detached node.
+  // RFC-062 — NO MIRRORED STATE. A docked bot already finds its home by LOOKING — the card's
+  // slot, or the rail spot when the nav is collapsed. Tabs view adds exactly one fact, read in
+  // the same look: is the nav open in tabs view right now? If so, a docked bot with no slot on
+  // screen is IN ITS TAB and renders nothing. An event-fed copy of "which tab is active" was the
+  // first version of this, and it went stale the moment anything changed without an event —
+  // collapsing the nav emptied the rail because every bot was acting on the copy.
+  const [navTabsOpen, setNavTabsOpen] = useState(false);
   const [slotEl, setSlotEl] = useState(null);
   useEffect(() => {
     if (!navDocked) return setSlotEl(null) || undefined;
@@ -1468,6 +1491,9 @@ function BotBubble({ projectCode, index }) {
       const card = document.getElementById(slotId(projectCode));
       const el = (card && card.offsetParent !== null ? card : null) || document.getElementById(spotId(projectCode));
       setSlotEl((cur) => (cur === el ? cur : el || null));
+      try {
+        setNavTabsOpen(localStorage.getItem("sv.navOpen") !== "false" && (localStorage.getItem("sv.navView") || "tabs") === "tabs");
+      } catch {}
     };
     look();
     const t = setInterval(look, 400);
@@ -1498,6 +1524,10 @@ function BotBubble({ projectCode, index }) {
   // the input (editable before send), press again to stop. Input only — no TTS, no duplex.
   const recRef = useRef(null);
   const [listening, setListening] = useState(false);
+  const [recSince, setRecSince] = useState(0);
+  useEffect(() => {
+    setRecSince(listening ? Date.now() : 0);
+  }, [listening]);
   // The minimised READING surface keeps itself at the bottom, but only when something new lands —
   // yanking it down on every poll would fight you every time you scrolled up to re-read.
   const peekCountRef = useRef(0);
@@ -1740,6 +1770,42 @@ function BotBubble({ projectCode, index }) {
     }, 250);
     return () => clearTimeout(t);
   }, [pos, projectCode]);
+  // RFC-062 — PULLED OUT BY ITS TAB (his ask: undock from the strip without entering the tab).
+  // The strip only knows project codes; the bot owns its position, so the strip dispatches and
+  // the bot places itself under the pointer and undocks.
+  useEffect(() => {
+    const onPull = (e) => {
+      const d = e.detail || {};
+      if (d.projectCode !== projectCode) return;
+      const p2 = {
+        x: Math.max(DOCK_EDGE, Math.min(Number(d.x) || 80, window.innerWidth - 96 - DOCK_EDGE)),
+        y: Math.max(DOCK_EDGE, Math.min(Number(d.y) || 80, window.innerHeight - 72 - DOCK_EDGE)),
+      };
+      setPos(p2);
+      try { localStorage.setItem(`sv.chatPos.${projectCode}`, JSON.stringify(p2)); } catch {}
+      setNavDocked(projectCode, false);
+      // THE HAND STAYS ON IT (his catch: it "just pops out — it's not like you were dragged").
+      // The pointer that pulled the tab is still down, so the bot keeps following it until
+      // release — the same carry every other drag gives you, just started from the strip.
+      if (d.grab) {
+        const move = (ev) => {
+          setPos({
+            x: Math.max(DOCK_EDGE, Math.min(ev.clientX - 23, window.innerWidth - 96 - DOCK_EDGE)),
+            y: Math.max(DOCK_EDGE, Math.min(ev.clientY - 23, window.innerHeight - 72 - DOCK_EDGE)),
+          });
+        };
+        const drop = () => {
+          window.removeEventListener("pointermove", move);
+          window.removeEventListener("pointerup", drop);
+        };
+        window.addEventListener("pointermove", move);
+        window.addEventListener("pointerup", drop);
+      }
+    };
+    window.addEventListener("sv:pullOut", onPull);
+    return () => window.removeEventListener("sv:pullOut", onPull);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectCode]);
   // How far the open assembly reaches beyond the bot: left (panel + TV + collector) and up (the
   // panel's height). The drag clamp reads this so the row can never be pushed off an edge.
   const extentRef = useRef(() => ({ left: 0, up: 0 }));
@@ -2009,6 +2075,12 @@ function BotBubble({ projectCode, index }) {
     pinning.current = Date.now() + 300;
     el.scrollTop = el.scrollHeight;
   };
+  useEffect(() => {
+    if (!open) return undefined;
+    const f1 = requestAnimationFrame(() => requestAnimationFrame(scrollToEnd));
+    return () => cancelAnimationFrame(f1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slotEl, open]);
   // Opening the panel lands you at the LATEST message — the list mounts on open, so scroll after
   // it exists.
 
@@ -2450,7 +2522,7 @@ function BotBubble({ projectCode, index }) {
       // should drag it into the card") — its own card only.
       const hit = dockTargetOf(ev.clientX, ev.clientY);
       const cardHit = panelCardAt(ev.clientX, ev.clientY);
-      setOverDock(!!hit || !!cardHit);
+      setOverDock(!!hit || !!cardHit || !!openNavAt(ev.clientX, ev.clientY));
       markDockTarget(hit);
       markPanelCard(cardHit);
       // THE WHOLE ASSEMBLY STAYS ON SCREEN — the panel and the docked lane, not just the bot. The
@@ -2476,6 +2548,16 @@ function BotBubble({ projectCode, index }) {
       setOverDock(false);
       markDockTarget(null);
       markPanelCard(null);
+      // DROPPED ON THE OPEN NAVIGATOR: that is docking too (his ask — "drag an agent back into
+      // the code section and drop them back in"). The panel is the agent's home wherever the view
+      // stands: list view, its card; tabs view, its tab — landing there docks it, and if its tab
+      // isn't the active one it goes INTO the tab, which is what docked means there.
+      if (d && d.moved && ev && openNavAt(ev.clientX, ev.clientY)) {
+        suppressClickRef.current = true;
+        setTimeout(() => { suppressClickRef.current = false; }, 0);
+        setNavDocked(projectCode, true);
+        return;
+      }
       // DROPPED ON ITS OWN CARD in the agent panel: that is docking, same as the rail.
       if (d && d.moved && ev && panelCardAt(ev.clientX, ev.clientY)) {
         suppressClickRef.current = true;
@@ -4208,6 +4290,10 @@ const countdown = (str, now = Date.now()) => {
   // beside the rail.
   const inRail = navDocked && !!slotEl && slotEl.id === spotId(projectCode);
   const inNav = navDocked && !!slotEl && !inRail;
+  // RFC-062 — the SAME dock, with ROOM. In tabs view the nav shows one card spanning the panel,
+  // so the docked chat's 420px cap stops making sense there: the panel keeps its own resize
+  // handle and may be dragged as tall as the panel goes. Everywhere else the cap stands.
+  const inTabsNav = inNav && !!(slotEl && typeof slotEl.closest === "function" && slotEl.closest(".system-nav--tabs"));
   const inRailRef = useRef(inRail);
   inRailRef.current = inRail;
   // …and its twin for the CARD dock, so a drag can pull the agent out of the codebase slot exactly
@@ -4235,6 +4321,12 @@ const countdown = (str, now = Date.now()) => {
   };
   // RFC-055 — THE AGENT-PANEL CARD IS A DOCK TARGET (his ask: dragging out works, dragging back
   // in has to work too). This bot's OWN card only — the one whose slot carries its projectCode.
+  const openNavAt = (x, y) => {
+    const el = document.querySelector('[data-sv="nav"]');
+    if (!el || !el.className.includes("nav-panel--open")) return null;
+    const b = el.getBoundingClientRect();
+    return x >= b.left && x <= b.right && y >= b.top && y <= b.bottom ? el : null;
+  };
   const panelCardAt = (x, y) => {
     for (const s of document.querySelectorAll(".agent-panel__slot[data-spot]")) {
       if (s.dataset.spot !== projectCode) continue;
@@ -5661,7 +5753,7 @@ const countdown = (str, now = Date.now()) => {
           // Docked, the COLUMN decides the width — a stored 340 would hang out over the nav's edge.
           style={
             inNav
-              ? { width: "auto", height: Math.min(size.h, 420) }
+              ? { width: "auto", height: inTabsNav ? size.h : Math.min(size.h, 420) }
               : {
                   width: size.w,
                   height: size.h,
@@ -7138,6 +7230,9 @@ const countdown = (str, now = Date.now()) => {
         {/* ALWAYS THERE. It used to disappear the moment the chat opened — on the grounds that the
             input row has its own mic — but this is the row he reaches for, and a control that moves
             depending on what else is open is a control you have to look for. */}
+        {inNav && listening && recSince > 0 && (
+          <RecClock since={recSince} className={`${CLASSNAME}__rec-clock`} />
+        )}
         {micSupported && (
           <button
             type="button"
@@ -7165,9 +7260,18 @@ const countdown = (str, now = Date.now()) => {
             // THE NAVIGATOR MAY NOT BE THERE. Collapsed into its corner, focusing it is a no-op you
             // can't see — so a floating bot shows the codebase itself instead, and only hands the
             // job to the nav when the nav is actually on screen.
-            let navShut = false;
-            try { navShut = localStorage.getItem("sv.navOpen") === "false"; } catch {}
-            if (navShut && !inNav) {
+            // THE RULE (his): if this agent's codebase is SHOWING — list view, or its own tab
+            // active — the nav takes the event. If it is not showing, the bot shows its own
+            // hovering codebase instead of yanking the tab: he can sit on one agent's tab and
+            // still read the other codebases from their floating bots.
+            let navShut = false, viewMode = "tabs", tabPc = "";
+            try {
+              navShut = localStorage.getItem("sv.navOpen") === "false";
+              viewMode = localStorage.getItem("sv.navView") || "tabs";
+              tabPc = localStorage.getItem("sv.navTabPc") || "";
+            } catch {}
+            const cardShowing = !navShut && (viewMode === "list" || tabPc === projectCode);
+            if (!cardShowing && !inNav) {
               setCbOpen((v) => !v);
               return;
             }
@@ -7214,5 +7318,9 @@ const countdown = (str, now = Date.now()) => {
   // RFC-038 — the same bot, rendered somewhere else. A portal rather than a second component, so
   // nothing about its state (the chat, the board, the TV, presence, the roster) is rebuilt or lost
   // by going home.
+  // RFC-062 — docked, tabs view open, no slot on screen: the bot is IN ITS TAB — not floating,
+  // not portaled, not drawn. Every other case is exactly what it always was: slot → card,
+  // rail spot → rail, undocked → floats.
+  if (navTabsOpen && navDocked && !slotEl) return null;
   return inNav || inRail ? createPortal(body, slotEl) : body;
 }

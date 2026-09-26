@@ -15,7 +15,11 @@
   // needs the container's own 15px side padding back, or the title/tabs sit flush against the left edge.
   &__header {
     flex-shrink: 0;
-    padding: 18px 15px 0; // top drops it to line up with the scratchpad header; 15px sides = container's
+    // RFC-062 — the title row and pills are gone, so the padding that made room for them goes
+    // with them: the bar hugs the top and the body starts where the pills used to.
+    // HIS CSS, verbatim — full length, to the corners. (I first swapped the grid's gutters for
+    // my own insets, which was the same mistake wearing different numbers.)
+    padding: 6px 0;
   }
   // The ONLY scroll area (also the .container). Vertical scroll only; x is clipped as a backstop.
   &__body {
@@ -258,4 +262,123 @@
   padding: 3px 7px;
   border-radius: 6px;
   &:hover { color: var(--sv-text); background: color-mix(in srgb, var(--sv-blue) 10%, transparent); }
+}
+
+// ── RFC-062 — the two-view header bar and the agent-tab body ────────────────────────────────────
+// The title row and the Projects/Agents pills are gone; this bar is the whole header. Compact on
+// purpose — the space it frees is the point ("we have a lot of area at the top that we're not using").
+.system-nav__bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  border-bottom: 1px solid var(--sv-border-soft);
+  padding-bottom: 6px;
+  min-width: 0;
+}
+.system-nav__views {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.system-nav__viewbtn {
+  border: none;
+  background: transparent;
+  color: var(--sv-text-muted);
+  font-size: 13px;
+  line-height: 1;
+  padding: 4px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  &:hover { background: var(--sv-hover, rgba(0, 0, 0, 0.05)); }
+  &--active {
+    color: var(--sv-text);
+    background: var(--sv-hover, rgba(0, 0, 0, 0.07));
+  }
+}
+.system-nav__bar-space { flex: 1 1 auto; }
+// The collapse control, rethought: the full-width "‹ Navigator" row became this one chevron.
+// The collapsed rail and the pull-out gesture are untouched — this is only the way IN.
+.system-nav__collapse {
+  border: none;
+  background: transparent;
+  color: var(--sv-text-muted);
+  font-size: 16px;
+  line-height: 1;
+  padding: 2px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  flex-shrink: 0;
+  &:hover { background: var(--sv-hover, rgba(0, 0, 0, 0.05)); color: var(--sv-text); }
+}
+// One tab per agent: face + name (+ live dot). The strip scrolls sideways, bar hidden — tabs
+// never wrap and never push the collapse chevron off the row.
+.system-nav__agenttabs {
+  display: flex;
+  gap: 2px;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; }
+}
+.system-nav__agenttab {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: none;
+  background: transparent;
+  color: var(--sv-text-muted);
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 6px 6px 0 0;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  &:hover { background: var(--sv-hover, rgba(0, 0, 0, 0.05)); }
+  &--active {
+    color: var(--sv-text);
+    background: var(--sv-hover, rgba(108, 116, 221, 0.12));
+    box-shadow: inset 0 -2px 0 var(--sv-accent, #6c74dd);
+    font-weight: 600;
+  }
+}
+.system-nav__agenttab-face { font-size: 13px; line-height: 1; }
+.system-nav__agenttab-name {
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.system-nav__agenttab-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #3fbf6f;
+  flex-shrink: 0;
+}
+
+// The tab body: vertical sections, each resizable by the divider between them. min-height: 0 at
+// every level or the chain breaks and the panel grows instead of scrolling (the stats-tab lesson).
+.system-nav__tabbody {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.snav-cbpane {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  .system-nav__body { flex: 1 1 auto; }
+}
+
+// RFC-062 — the skinny add-row under the strip (tabs view). The button and the input are the
+// list view's own, unchanged — this row only positions them.
+.system-nav__addrow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 16px;
+  .system-nav__newproject { flex: 1 1 auto; margin: 0; }
 }

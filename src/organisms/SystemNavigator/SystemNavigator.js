@@ -1,7 +1,6 @@
 import React, { useEffect, useContext, useRef, useState } from "react";
 import { useHistory } from "react-router-dom";
 import ServiceContext from "../../ServiceContext";
-import Title from "../../atoms/Title/Title";
 import "./styles.scss";
 import { Client, markCredentialed } from "../../systemClient";
 import {
@@ -19,9 +18,9 @@ import {
 } from "../../utils/hostProject";
 import { listHusks, addHusk, removeHusk, reconcileHusks, huskEntry } from "../../utils/husks";
 import CodebaseNav from "../CodebaseNav/CodebaseNav";
-import AgentPanel from "../AgentPanel/AgentPanel";
+import { useDockOrder, orderProjects, isNavDocked } from "../AgentChat/navDock";
+import { liveSessions } from "../../utils/hostAgents";
 import { useAppDark } from "../../atoms/appTheme";
-import Help from "../../atoms/Help/Help";
 
 const ArrowIcon = () => (
   <svg
@@ -70,11 +69,69 @@ const SystemNav = ({
   // RFC-055 — AGENTS IS A TAB IN THIS STRIP, beside Projects (his call: "we already have a
   // navigation tab" — not a second nav, not a second pill row over this one). One navigator,
   // two tabs; the whole thing travels to every page.
-  const [section, setSection] = useState(() => localStorage.getItem("sv.navSection") || "projects");
-  const pickSection = (s) => {
-    setSection(s);
-    localStorage.setItem("sv.navSection", s);
+  // RFC-062 — TWO VIEWS, one panel. "list" is every project stacked (what always existed);
+  // "tabs" is one tab per agent — icon + name — and the whole panel becomes that agent's world.
+  // The Projects/Agents pills are gone: the tab strip IS the agents, and the agent's chat lives
+  // as a section inside its tab, so a second place to look at agents was a second nav.
+  const [view, setView] = useState(() => localStorage.getItem("sv.navView") || "tabs");
+  const pickView = (v) => {
+    setView(v);
+    localStorage.setItem("sv.navView", v);
+    window.dispatchEvent(new CustomEvent("sv:navView"));
   };
+  const [tabPc, setTabPc] = useState(() => localStorage.getItem("sv.navTabPc") || "");
+  const pickTab = (pc) => {
+    setTabPc(pc);
+    localStorage.setItem("sv.navTabPc", pc);
+    window.dispatchEvent(new CustomEvent("sv:navView"));
+  };
+  // Live dots on the tabs — polled at the same cadence the agent cards used, only while the
+  // strip is actually showing.
+  const [livePcs, setLivePcs] = useState(() => new Set());
+  useEffect(() => {
+    if (view !== "tabs") return undefined;
+    let dead = false;
+    const poll = async () => {
+      const l = await liveSessions();
+      if (!dead) setLivePcs(new Set((l || []).map((x) => x.projectCode || x.project).filter(Boolean)));
+    };
+    poll();
+    const t = setInterval(poll, 8000);
+    return () => { dead = true; clearInterval(t); };
+  }, [view]);
+  const dockOrderList = useDockOrder();
+  // THE TAB WEARS THE AGENT ONLY WHILE IT'S HOME (his indicator): pulled out, the face leaves the
+  // tab and only the project name remains — you can see at a glance which agents are out floating.
+  const [, forceDock] = useState(0);
+  useEffect(() => {
+    const on = () => forceDock((n) => n + 1);
+    window.addEventListener("sv:navDock", on);
+    return () => window.removeEventListener("sv:navDock", on);
+  }, []);
+  // THE SELECTED TAB IS VISIBLE, ALWAYS. The strip scrolls sideways, so a switch (a click, a
+  // bot's </>, a commit hand-off) can land on a tab that's off the edge — selected but invisible
+  // reads as "nothing happened". The active tab pulls itself into view on every change.
+  const activeTabRef = useRef(null);
+  useEffect(() => {
+    if (activeTabRef.current) {
+      try { activeTabRef.current.scrollIntoView({ inline: "nearest", block: "nearest", behavior: "smooth" }); } catch {}
+    }
+  });
+  useEffect(() => {
+    // ONE DOOR for every "show project X in the nav" event — the bot's </>, a ::commit block's
+    // hand-off, a :file/:ns chip's reveal. In tabs view the card only exists on its tab, so the
+    // switch IS the first step of all of them; the card's own listeners take it from there.
+    // A new event of this family only has to carry detail.projectCode to get this for free.
+    const toTab = (e) => {
+      const pc = ((e && e.detail) || {}).projectCode;
+      if (!pc) return;
+      if ((localStorage.getItem("sv.navView") || "tabs") === "tabs") pickTab(pc);
+    };
+    const EVENTS = ["sv:codebase", "sv:commitInNav", "sv:revealInNav"];
+    EVENTS.forEach((n) => window.addEventListener(n, toTab));
+    return () => EVENTS.forEach((n) => window.removeEventListener(n, toTab));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [naming, setNaming] = useState(false);
   const [newName, setNewName] = useState("");
   const nameRef = useRef(null);
@@ -374,79 +431,214 @@ const SystemNav = ({
     return unsub;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [Plugin, projectCode]);
+  // The tabs are the projects in the dock's order — same order the cards and the rail keep.
+  const tabPcs = orderProjects(
+    dockOrderList,
+    [...new Set([...husks.map((h) => h.projectCode), ...connectedServices.map((c) => c.projectCode)])],
+  );
+  const activeTabPc = tabPcs.includes(tabPc) ? tabPc : tabPcs[0] || "";
+  // DOCKED STAYS DOCKED ACROSS THE VIEW SWITCH (his correction — the bug was eviction, not
+  // docking: tabs view unmounted every card slot, "slot gone" means float, so flipping the view
+  // spilled every docked agent onto the screen at once). In tabs view a docked agent's home IS
+  // its tab: the active one lands in the chat pane, the rest render nowhere until their tab is
+  // picked. Floating agents are untouched — nobody is forced home. The resolved tab is written
+  // back so a bot never compares against a tab that isn't on screen.
+  useEffect(() => {
+    if (view !== "tabs") return;
+    try { localStorage.setItem("sv.navTabPc", activeTabPc); } catch {}
+    window.dispatchEvent(new CustomEvent("sv:navView"));
+  }, [view, activeTabPc]);
   return (
-    <section className="system-nav">
+    <section className={`system-nav${view === "tabs" ? " system-nav--tabs" : ""}`}>
         {/* Title + tabs are a FIXED header region — they don't scroll. The service tree below is the ONLY
             scroll area (the .container is the scroll body, so bootstrap row gutters are absorbed and there
             is no horizontal scroll / edge clipping). */}
         <div className="system-nav__header">
-          {onCollapse && (
-            <div className="row system-nav__section">
-              <div className="col-12">
-                <span
-                  className="panel-title panel-title--nav"
-                  title="Collapse the navigator"
-                  onClick={onCollapse}
-                >
-                  <span className="panel-title__arrow">‹</span>
-                  <Title text="Navigator" />
-                  <Help topic="navigator" />
-                </span>
-              </div>
+          {/* RFC-062 — ONE BAR. The full-width "‹ Navigator" title row and the Projects/Agents
+              pills were mostly chrome — his call: "we have a lot of area at the top that we're not
+              using." Everything the header still owes fits in one row: the view toggle, the strip
+              (or the + in list view), and a small collapse chevron where the title row used to be. */}
+          <div className="system-nav__bar">
+                <div className="system-nav__views" role="tablist">
+                  <button
+                    type="button"
+                    className={`system-nav__viewbtn${view === "list" ? " system-nav__viewbtn--active" : ""}`}
+                    title="List view — every project"
+                    onClick={() => pickView("list")}
+                  >
+                    ☰
+                  </button>
+                  <button
+                    type="button"
+                    className={`system-nav__viewbtn${view === "tabs" ? " system-nav__viewbtn--active" : ""}`}
+                    title="Tabs view — one agent per tab"
+                    onClick={() => pickView("tabs")}
+                  >
+                    ▥
+                  </button>
+                </div>
+                {view === "tabs" ? (
+                  <div className="system-nav__agenttabs">
+                    {tabPcs.map((pc) => (
+                      <button
+                        key={pc}
+                        type="button"
+                        ref={pc === activeTabPc ? activeTabRef : undefined}
+                        className={`system-nav__agenttab${pc === activeTabPc ? " system-nav__agenttab--active" : ""}`}
+                        title={`${pc} — click to open, drag to pull the agent out`}
+                        onClick={(e) => {
+                          if (e.currentTarget.dataset.pulled === "1") return;
+                          pickTab(pc);
+                        }}
+                        onPointerDown={(e) => {
+                          // DRAG THE TAB = PULL THE AGENT OUT (his ask: no need to enter the tab
+                          // first). Past a small threshold the bot undocks and lands under the
+                          // pointer; the click that would have switched tabs is swallowed.
+                          const btn = e.currentTarget;
+                          btn.dataset.pulled = "";
+                          const sx = e.clientX, sy = e.clientY;
+                          const move = (ev) => {
+                            if (Math.abs(ev.clientX - sx) + Math.abs(ev.clientY - sy) < 10) return;
+                            btn.dataset.pulled = "1";
+                            window.dispatchEvent(new CustomEvent("sv:pullOut", {
+                              detail: { projectCode: pc, x: ev.clientX - 23, y: ev.clientY - 23, grab: true },
+                            }));
+                            up();
+                          };
+                          const up = () => {
+                            window.removeEventListener("pointermove", move);
+                            window.removeEventListener("pointerup", up);
+                            setTimeout(() => { btn.dataset.pulled = ""; }, 100);
+                          };
+                          window.addEventListener("pointermove", move);
+                          window.addEventListener("pointerup", up);
+                        }}
+                      >
+                        {isNavDocked(pc) && <span className="system-nav__agenttab-face">🤖</span>}
+                        <span className="system-nav__agenttab-name">{pc}</span>
+                        {livePcs.has(pc) && <span className="system-nav__agenttab-dot" title="a session is live" />}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      className={`system-nav__tab-add ${naming ? "system-nav__tab-add--open" : ""}`}
+                      title={naming ? "Cancel" : "New project — name it"}
+                      onClick={() => {
+                        setPickErr("");
+                        if (naming) {
+                          setNaming(false);
+                          setNewName("");
+                          return;
+                        }
+                        setNaming(true);
+                      }}
+                    >
+                      {naming ? "✕" : "+"}
+                    </button>
+                    <span className="system-nav__bar-space" />
+                  </>
+                )}
+                {onCollapse && (
+                  <button
+                    type="button"
+                    className="system-nav__collapse"
+                    title="Collapse the navigator"
+                    onClick={onCollapse}
+                  >
+                    ‹
+                  </button>
+                )}
+          </div>
+          {/* RFC-062 — the + doesn't fit the strip (tabs view), but naming a project must not
+              require leaving it. One skinny row, sticky with the header, that is only the +
+              — and the input when pressed. */}
+          {view === "tabs" && (
+            <div className="system-nav__addrow">
+              <button
+                type="button"
+                className={`system-nav__tab-add ${naming ? "system-nav__tab-add--open" : ""}`}
+                title={naming ? "Cancel" : "New project — name it"}
+                onClick={() => {
+                  setPickErr("");
+                  if (naming) {
+                    setNaming(false);
+                    setNewName("");
+                    return;
+                  }
+                  setNaming(true);
+                }}
+              >
+                {naming ? "✕" : "+"}
+              </button>
+              {naming && (
+                <div className="system-nav__newproject">
+                  <input
+                    ref={nameRef}
+                    className="system-nav__newproject-input"
+                    type="text"
+                    placeholder="name the project"
+                    spellCheck={false}
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") createProject();
+                      if (e.key === "Escape") {
+                        setNaming(false);
+                        setNewName("");
+                        setPickErr("");
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="system-nav__newproject-go"
+                    title={newName.trim() ? `Create ${newName.trim()}` : "Give it a name"}
+                    onClick={createProject}
+                    disabled={!newName.trim()}
+                  >
+                    <ArrowIcon />
+                  </button>
+                </div>
+              )}
+              {pickErr && <span className="system-nav__connect-error">{pickErr}</span>}
             </div>
           )}
-          {/* RFC-026 — ONE nav. The unified card (services + files + help) took over everything the
-              old SystemLynx tree did, so the tab strip is just the name and the connect button.
-              "Projects" — that's what the cards are; SystemLynx stays as the tag on the services
-              section inside each card. */}
-          <div className="row system-nav__section">
-            <div className="col-12">
-              <div className="system-nav__tabs">
-                <button
-                  type="button"
-                  className={`system-nav__tab${section === "projects" ? " system-nav__tab--active" : ""}`}
-                  onClick={() => pickSection("projects")}
-                >
-                  Projects
-                </button>
-                <button
-                  type="button"
-                  className={`system-nav__tab${section === "agents" ? " system-nav__tab--active" : ""}`}
-                  onClick={() => pickSection("agents")}
-                >
-                  Agents
-                </button>
-                {section === "projects" && <button
-                  type="button"
-                  className={`system-nav__tab-add ${naming ? "system-nav__tab-add--open" : ""}`}
-                  title={naming ? "Cancel" : "New project — name it"}
-                  onClick={() => {
-                    // ＋ NAMES A PROJECT — that is all it does. His model, verbatim: *"that plus
-                    // button, it just lets you name a project… name the project right there at the
-                    // top, input pops up, boom, project pops up right under."* The folder, the
-                    // services, the agent — all attachments, added later from the husk itself.
-                    setPickErr("");
-                    if (naming) {
-                      setNaming(false);
-                      setNewName("");
-                      return;
-                    }
-                    setNaming(true);
-                  }}
-                >
-                  {naming ? "✕" : "+"}
-                </button>}
-              </div>
-            </div>
-          </div>
         </div>
-        {/* THE AGENTS TAB — the card panel, in the same scroll body the projects use. */}
-        {section === "agents" && (
+        {view === "tabs" && activeTabPc && (
+          <AgentTabBody
+            key={activeTabPc}
+            pc={activeTabPc}
+            services={[...husks.map((h) => huskEntry(h.projectCode)), ...connectedServices].filter(
+              (s) => s.projectCode === activeTabPc,
+            )}
+            navProps={{
+              serviceId,
+              moduleName,
+              methodName,
+              openFile,
+              onOpenFile,
+              reveal,
+              serviceStatus,
+              theme: cbTheme,
+              onHostedOp: handleHostedOp,
+              onDeleteService: handleDeleteService,
+              onDeleteProject: handleDeleteProject,
+              onRenameProject: handleRenameProject,
+              renaming,
+              onRenamingChange: setRenaming,
+              onAttachFolder: attachFolder,
+            }}
+          />
+        )}
+        {view === "tabs" && !activeTabPc && (
           <div className="container system-nav__body">
-            <AgentPanel />
+            <div className="system-nav__connect-error">No projects yet — name one in list view.</div>
           </div>
         )}
-        {section === "projects" && <div className="container system-nav__body">
+        {view === "list" && <div className="container system-nav__body">
           <div className="row system-nav__section">
             <div className="col-12 ">
               {pickErr && <div className="system-nav__connect-error">{pickErr}</div>}
@@ -511,5 +703,31 @@ const SystemNav = ({
     </section>
   );
 };
+
+// RFC-062 — ONE AGENT'S WORLD: the same codebase card list view renders, one project, spanning
+// the panel. The agent docks into the card's own slot exactly as it does everywhere else — the
+// first cut built the chat a second home in a separate pane, which is why docking broke and the
+// chat vanished: the card was already the home. The only thing tabs view changes is ROOM — the
+// docked chat's height cap is lifted here (see AgentChat), so the conversation can take the panel.
+function AgentTabBody({ pc, services, navProps }) {
+  return (
+    <div className="system-nav__tabbody">
+      <div className="container system-nav__body">
+        <div className="row system-nav__section">
+          <div className="col-12">
+            <CodebaseNav
+              connectedServices={services}
+              projectCode={pc}
+              allowDock={true}
+              showHelp={false}
+              {...navProps}
+            />
+          </div>
+        </div>
+        <div className="scroll-buffer"></div>
+      </div>
+    </div>
+  );
+}
 
 export default SystemNav;
