@@ -873,3 +873,15 @@
   opacity: 0.6;
   margin: 6px 0 2px;
 }
+
+// RFC-013 — the opened injected-context receipt: the delivered text, verbatim, quiet.
+.agent-wb__injected-body {
+  font-size: 11px;
+  color: var(--sv-text-muted, #8a8f98);
+  white-space: pre-wrap;
+  margin: 4px 0 2px 20px;
+  padding-left: 8px;
+  border-left: 2px solid var(--sv-border-soft, rgba(0, 0, 0, 0.08));
+  max-height: 220px;
+  overflow-y: auto;
+}

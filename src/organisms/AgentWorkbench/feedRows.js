@@ -962,6 +962,15 @@ export function foldEvents(events) {
       return;
     }
 
+    // RFC-013 — CONTEXT WAS INJECTED. Same law as the hook row above: pushed context nobody
+    // asked for is never silent. The moment and the size are the audit — which shelf delivered,
+    // and how much attention it just spent.
+    if (ev.kind === "context.injected") {
+      closeOpen();
+      rows.push({ key, kind: "injected", moment: ev.moment || "", chars: ev.chars || 0, text: ev.text || "", ts: ev.ts });
+      return;
+    }
+
     // A RE-INIT IS A REAL SEAM IN THE RECORD. It changes what the agent IS — the composition
     // it wears — mid-conversation, without changing a single word of the transcript. Six turns
     // later there is no other way to read why an agent started behaving differently, which is

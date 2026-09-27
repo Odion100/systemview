@@ -154,8 +154,8 @@ const Context = () => {
                   p.set("doc", next.kind === "skill" ? `skill:${next.where}:${next.name}` : next.kind === "def" ? "def:file" : next.kind === "help" ? `help:${next.key}` : `doc:${next.key}`)
                 );
               }}
-              onFilterScope={(scope) => {
-                setFocus((f) => ({ scope, n: (f ? f.n : 0) + 1 }));
+              onFilterScope={(scope, note) => {
+                setFocus((f) => ({ scope, note: note || null, n: (f ? f.n : 0) + 1 }));
                 setUrl((p) => p.set("scope", scope));
               }}
             />

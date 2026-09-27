@@ -16,6 +16,8 @@ import {
   saveHook,
   removeHook,
   contextStats,
+  agentSubs,
+  onDefsChanged,
 } from "../../utils/hostAgents";
 import { collections as loadCollections, records as loadRecords } from "../../utils/hostContext";
 import SvSelect from "../../atoms/SvSelect/SvSelect";
@@ -56,6 +58,10 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
   const doReinitRef = useRef(() => {});
   const [sel, setSel] = useState(null); // selected agent record
   const [draft, setDraft] = useState(null); // editable copy
+  // RFC-013 — the subscriptions rows, RESOLVED (title, size, spent, broken) by the host, and
+  // refreshed the moment the defs dir moves — a subscribe appears here with no page refresh
+  // (his rule: if you subscribe to something, it should just be there).
+  const [subsRows, setSubsRows] = useState([]);
   const [cols, setCols] = useState([]);
   const [docs, setDocs] = useState(null); // null = harness can't answer yet
   const [skills, setSkills] = useState(null);
@@ -196,6 +202,20 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
   };
 
   const setDef = (patch) => setDraft((d) => ({ ...d, def: { ...d.def, ...patch } }));
+  useEffect(() => {
+    if (!draft || !draft.id) return undefined;
+    let dead = false;
+    const load = () => agentSubs(draft.id).then((r) => { if (!dead) setSubsRows(r); });
+    load();
+    const off = onDefsChanged(load);
+    return () => { dead = true; off(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft && draft.id]);
+  const dropSub = async (what) => {
+    const keep = subsRows.filter((r) => r.what !== what).map(({ what: w, when, until, addedAt }) => ({ what: w, when, until, addedAt }));
+    setSubsRows((cur) => cur.filter((r) => r.what !== what)); // the screen moves NOW; the watcher confirms
+    await saveDef({ id: draft.id, name: draft.name, subscriptions: keep });
+  };
 
   // THE PHYSICAL FILE (his ask: "where's the physical document?"). Every def-backed section —
   // tools, mcp wiring, gating — is really ~/.autobot/agents/<id>.json. The ▤ opens that file
@@ -1276,6 +1296,52 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
               <button className="agent-profile__know" onClick={() => typeof onFilterScope === "function" && onFilterScope("system")}>
                 <span className="agent-profile__know-n">{systemNotes ? systemNotes.count : 0}</span> system notes
               </button>
+            </div>
+
+            {/* SUBSCRIPTIONS — context this agent chose to have DELIVERED UNASKED (RFC-013).
+                These rows are LENSES, exactly like the counts above them (his point, made twice):
+                clicking one filters the context table below to that note's scope and reveals the
+                note itself — you read the real context where context lives, not a preview card.
+                Delete ends the preference; the content survives. */}
+            <div className="agent-profile__subs">
+              <div className="agent-profile__subs-head">Subscriptions — delivered unasked · click one to see it below</div>
+              {subsRows.length === 0 && (
+                <div className="agent-profile__empty">none — the agent subscribes itself (subscribe in its context tools)</div>
+              )}
+              {subsRows.map((r) => {
+                const nm = /^note:(.+)@([a-zA-Z0-9._:-]+)$/.exec(r.what || "");
+                const scopeKey = nm ? (nm[2] === "system" ? "system" : nm[2].startsWith("project:") ? "project" : "agent") : null;
+                return (
+                  <div
+                    className={`agent-profile__sub${r.broken ? " agent-profile__sub--broken" : ""}${nm ? " agent-profile__sub--click" : ""}`}
+                    key={r.what}
+                    role={nm ? "button" : undefined}
+                    title={nm ? "Show this note in the context table below" : r.what}
+                    onClick={() => nm && typeof onFilterScope === "function" && onFilterScope(scopeKey, nm[1])}
+                  >
+                    <span className="agent-profile__sub-title">⚡ {r.title || r.what}</span>
+                    <span className="agent-profile__sub-when">{(r.when || []).join(" + ")}</span>
+                    <span className="agent-profile__sub-gate">
+                      {r.until && r.until.turns
+                        ? `${r.spent}/${r.until.turns} spent`
+                        : r.until && r.until.run
+                        ? `until ${r.until.run} closes`
+                        : r.until && r.until.untilTs
+                        ? `until ${new Date(r.until.untilTs).toISOString().slice(0, 10)}`
+                        : "7d"}
+                    </span>
+                    {r.broken && <span className="agent-profile__sub-dead">target gone</span>}
+                    <button
+                      type="button"
+                      className="agent-profile__hook-btn agent-profile__hook-btn--del"
+                      title="End this subscription — the content survives in the store"
+                      onClick={(e) => { e.stopPropagation(); dropSub(r.what); }}
+                    >
+                      delete
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>

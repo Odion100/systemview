@@ -307,3 +307,28 @@ export async function saveCorpus(rec) {
     return { error: String((e && e.message) || e) };
   }
 }
+
+
+// RFC-013 — subscriptions: one agent's rows resolved for display, and the no-refresh channel.
+// Absence-tolerant like everything in this file: an old shell without the doors reads as empty.
+// (the door is `sv().agent` — SINGULAR, like every helper above; guessing `.agents` cost a live
+// round of "why is it empty": the absence-tolerant catch turned the typo into a clean "none")
+export async function agentSubs(id) {
+  try {
+    const a = sv() && sv().agent;
+    if (!a || typeof a.subsOf !== "function") return [];
+    const r = await a.subsOf(id);
+    return Array.isArray(r) ? r : [];
+  } catch {
+    return [];
+  }
+}
+export function onDefsChanged(cb) {
+  try {
+    const a = sv() && sv().agent;
+    if (!a || typeof a.onDefsChanged !== "function") return () => {};
+    return a.onDefsChanged(cb) || (() => {});
+  } catch {
+    return () => {};
+  }
+}
