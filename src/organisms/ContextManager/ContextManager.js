@@ -200,7 +200,21 @@ const ContextManager = ({ projectCode, agentId, focus = null }) => {
   // section). `focus.n` bumps on every click so clicking the same count again still refocuses.
   useEffect(() => {
     if (focus && focus.scope) setScope(focus.scope);
+    // RFC-013 — a subscription row clicked in the profile lands HERE: same lens as the counts,
+    // one note deeper. The reveal waits for the scope's items to load below.
+    if (focus && focus.note) setRevealNote({ id: focus.note, n: focus.n });
   }, [focus]);
+  const [revealNote, setRevealNote] = useState(null);
+  const revealDone = useRef(null);
+  useEffect(() => {
+    if (!revealNote || revealDone.current === revealNote.n) return;
+    const el = document.querySelector(`[data-note-id="${CSS.escape(revealNote.id)}"]`);
+    if (!el) return; // items still loading — re-runs when they land
+    revealDone.current = revealNote.n;
+    el.scrollIntoView({ block: "center", behavior: "smooth" });
+    el.classList.add("ctx-mgr__note--revealed");
+    setTimeout(() => el.classList.remove("ctx-mgr__note--revealed"), 2400);
+  }, [revealNote, items]);
 
   useEffect(() => {
     if (available) loadRecords("mcp-tools").then((r) => setTools((r && r.records) || []));
@@ -514,7 +528,7 @@ const ContextManager = ({ projectCode, agentId, focus = null }) => {
               </div>
             </div>
           ) : (
-            <div key={n.id} className="ctx-mgr__note" onClick={() => beginEdit(n)}>
+            <div key={n.id} data-note-id={n.id} className="ctx-mgr__note" onClick={() => beginEdit(n)}>
               <div className="ctx-mgr__note-head">
                 <span className="ctx-mgr__note-title">{n.title}</span>
                 <span className="ctx-mgr__note-meta">

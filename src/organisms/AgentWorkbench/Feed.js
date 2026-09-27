@@ -195,6 +195,32 @@ export const probeEmbedFor = (row, canRender = true) => {
   return `:::run{title="probe ${ns}"}\n- ${ns}${args}${result}\n:::`;
 };
 
+// RFC-013 — the injected-context receipt, OPENABLE (his catch: "since when is a log only a bar?
+// you click to open it and see what it's about"). Closed it reads like the hook row — the same
+// kind of moment, context arriving unasked — and open it shows exactly what was delivered, the
+// same text the model saw. Whole header toggles, sign always visible: the feed's own fold rules.
+const InjectedRow = ({ row }) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className={`${CLASSNAME}__row ${CLASSNAME}__row--hook`}>
+      <div
+        role="button"
+        tabIndex={0}
+        style={{ display: "flex", alignItems: "center", gap: 6, cursor: row.text ? "pointer" : "default" }}
+        onClick={() => row.text && setOpen(!open)}
+        onKeyDown={(e) => row.text && (e.key === "Enter" || e.key === " ") && setOpen(!open)}
+      >
+        <When ts={row.ts} />
+        <span className={`${CLASSNAME}__hook-mark`}>⚡</span>
+        <span className={`${CLASSNAME}__hook-name`}>injected context</span>
+        <span className={`${CLASSNAME}__hook-on`}>{row.moment}{row.chars ? ` · ${row.chars} chars` : ""}</span>
+        {row.text ? <span className={`${CLASSNAME}__cmd-sign`}>{open ? "▾" : "▸"}</span> : null}
+      </div>
+      {open && row.text && <div className={`${CLASSNAME}__injected-body`}>{row.text}</div>}
+    </div>
+  );
+};
+
 const ToolRow = ({ row, renderText = null }) => {
   const [open, setOpen] = useState(false);
   // THE FILE IS IN THE ROW. His ask, verbatim: the rows that show what an agent ran carry buttons
@@ -656,6 +682,8 @@ const Feed = ({ rows, answered = {}, onAnswer = null, renderText = null }) =>
         {r.to && <span className={`${CLASSNAME}__hook-to`}>→ {r.to}</span>}
         {r.work && <span className={`${CLASSNAME}__hook-work`}>work</span>}
       </div>
+    ) : r.kind === "injected" ? (
+      <InjectedRow key={r.key} row={r} />
     ) : r.kind === "cmdret" ? (
       // A TERMINAL COMMAND'S RECEIPT — /usage, /model, whatever the host ran and answered itself.
       // His ask: *"make a nice display for commands like that that return — it should be showing

@@ -919,3 +919,29 @@
   border-style: solid;
   color: var(--sv-text);
 }
+
+// RFC-013 — the subscriptions region's empty line: the hint's muted voice, one line.
+.agent-profile__empty {
+  color: var(--sv-text-muted, #8a8f98);
+  font-size: 12px;
+  padding: 2px 0 6px;
+}
+
+// RFC-013 — the subscriptions rows: lenses like the counts above them — one line each, clickable.
+.agent-profile__subs { margin-top: 10px; }
+.agent-profile__subs-head { font-size: 12px; font-weight: 600; color: var(--sv-text-muted, #8a8f98); margin-bottom: 4px; }
+.agent-profile__sub {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: 5px;
+  font-size: 12px;
+  &--click { cursor: pointer; }
+  &--click:hover { background: var(--sv-hover, rgba(0, 0, 0, 0.05)); }
+  &--broken { opacity: 0.6; }
+}
+.agent-profile__sub-title { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agent-profile__sub-when, .agent-profile__sub-gate { font-size: 11px; color: var(--sv-text-muted, #8a8f98); white-space: nowrap; }
+.agent-profile__sub-dead { font-size: 11px; color: #c0392b; }
+.agent-profile__sub .agent-profile__hook-btn { margin-left: auto; }
