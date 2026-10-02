@@ -913,8 +913,16 @@ function LanePanel({ source, items, laneEvents, brief = "", projectCode, onClose
             {arts.worktree ? `worktree left behind: ${arts.worktree.path}` : "no worktree left behind"}
           </span>
           {arts.branch && arts.branch.exists && (
-            <span className={arts.branch.merged ? `${CLASSNAME}__lanepanel-art` : `${CLASSNAME}__lanepanel-art--left`}>
-              {arts.branch.merged ? `branch merged into ${arts.branch.base} — deletable` : `branch unmerged vs ${arts.branch.base}`}
+            <span className={arts.branch.merged || (arts.branch.applied && arts.branch.applied.inTree) ? `${CLASSNAME}__lanepanel-art` : `${CLASSNAME}__lanepanel-art--left`}>
+              {arts.branch.merged
+                ? `branch merged into ${arts.branch.base} — deletable`
+                : arts.branch.applied && arts.branch.applied.inTree
+                ? arts.branch.applied.committed
+                  ? `work brought in and committed — branch deletable`
+                  : `work in the tree, not yet committed — a commit is owed`
+                : arts.branch.applied && arts.branch.applied.matching > 0
+                ? `branch unmerged — ${arts.branch.applied.matching}/${arts.branch.applied.total} of its files match the tree`
+                : `branch unmerged vs ${arts.branch.base}`}
             </span>
           )}
           {arts.branch && arts.branch.exists === false && <span className={`${CLASSNAME}__lanepanel-art`}>no branch by this name</span>}
@@ -965,6 +973,36 @@ function LaneRow({ source, items, projectCode, panelOpen, onOpenPanel, onDelete 
     }
     return hostFiles(projectCode);
   };
+  // THE ROW SAYS IT IS SAFE (his ask, 2026-09-27): delegation's bring-in applies the lane's diff
+  // into the tree without merging, so "merged" stays false about work that is entirely present —
+  // and "delete it anytime" still meant asking. branchState.applied is the disk's answer (blob
+  // compare of every file the branch changed), and a finished lane whose work is in the tree
+  // wears it on the row, at a glance. Read from disk, never from a lane's say-so.
+  // "" | "committed" | "tree" — two different levels of safe, and the row says which.
+  const [inTree, setInTree] = useState("");
+  useEffect(() => {
+    let dead = false;
+    let timer = null;
+    if (!finished) return undefined;
+    // KEEPS LISTENING UNTIL IT SETTLES. A bring-in happens while the row is already on screen —
+    // in the chat, by the agent — and a row that only reads on mount would need a refresh to
+    // admit it, which this window never asks for. It keeps reading while the answer is still
+    // "uncommitted", because that state ends with a commit the row should also notice.
+    const read = async () => {
+      try {
+        const p = await repoOf();
+        const bs = await p.branchState({ branch });
+        if (dead) return;
+        const state = !bs ? "" : bs.merged ? "committed"
+          : bs.applied && bs.applied.inTree ? (bs.applied.committed ? "committed" : "tree") : "";
+        setInTree(state);
+        if (state !== "committed") timer = setTimeout(read, 20000);
+      } catch { if (!dead) timer = setTimeout(read, 30000); /* the delete confirm still reads fresh */ }
+    };
+    read();
+    return () => { dead = true; if (timer) clearTimeout(timer); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [finished, branch, panelOpen]);
   const armDelete = async (e) => {
     e.stopPropagation();
     if (confirm) { setConfirm(null); return; }
@@ -979,6 +1017,7 @@ function LaneRow({ source, items, projectCode, panelOpen, onOpenPanel, onDelete 
       setConfirm({
         merged: !!(bs && bs.merged),
         exists: !!(bs && bs.exists),
+        applied: (bs && bs.applied) || null,
         worktree: wt && (wt.worktrees || []).find((w) => !w.main && w.branch === branch),
       });
     } catch {
@@ -1028,6 +1067,16 @@ function LaneRow({ source, items, projectCode, panelOpen, onOpenPanel, onDelete 
           <span className={`${CLASSNAME}__lane-fill`} style={{ width: `${items.length ? Math.round((done / items.length) * 100) : 0}%` }} />
         </span>
         <span className={`${CLASSNAME}__lane-count`}>{done}/{items.length}</span>
+        {inTree && (
+          <span
+            className={`${CLASSNAME}__lane-in${inTree === "tree" ? ` ${CLASSNAME}__lane-in--uncommitted` : ""}`}
+            title={inTree === "committed"
+              ? "the branch's work is in history — deleting this lane can lose nothing"
+              : "the work is in the tree but not committed — delete the lane and the tree is the only copy left"}
+          >
+            {inTree === "committed" ? "✓ committed" : "✓ in tree — uncommitted"}
+          </span>
+        )}
         {!finished && <span className={`${CLASSNAME}__lane-doing`}>{active ? active.text : "starting"}</span>}
         <button type="button" className={`${CLASSNAME}__lane-del`} title="clean up this lane — worktree, branch, record" onClick={armDelete}>🗑</button>
         <span className={`${CLASSNAME}__lane-chev`}>{panelOpen ? "▾" : "▸"}</span>
@@ -1038,9 +1087,18 @@ function LaneRow({ source, items, projectCode, panelOpen, onOpenPanel, onDelete 
             <span>reading what this would destroy…</span>
           ) : (
             <>
-              <span className={confirm.exists && !confirm.merged ? `${CLASSNAME}__lane-confirm-warn` : ""}>
-                {confirm.exists && !confirm.merged
-                  ? `branch not merged — real work dies with it. Delete anyway?`
+              {/* "not merged" alone is a half-truth after a bring-in: the ancestry never learns
+                  what `git apply` did. confirm.applied is the disk's word — all contents present
+                  means deleting loses nothing, and the warning would be the surface lying. */}
+              <span className={confirm.exists && !confirm.merged && !(confirm.applied && confirm.applied.inTree) ? `${CLASSNAME}__lane-confirm-warn` : ""}>
+                {confirm.exists && !confirm.merged && confirm.applied && confirm.applied.inTree
+                  ? confirm.applied.committed
+                    ? `work brought in and committed — deleting loses nothing${confirm.worktree ? "; worktree still on disk" : ""}. Delete the lane?`
+                    : `work is in the tree but NOT COMMITTED — delete this and the tree is the only copy left${confirm.worktree ? "; worktree still on disk" : ""}. Delete the lane?`
+                  : confirm.exists && !confirm.merged
+                  ? confirm.applied && confirm.applied.matching > 0
+                    ? `branch not merged — only ${confirm.applied.matching}/${confirm.applied.total} of its files match the tree. Delete anyway?`
+                    : `branch not merged — real work dies with it. Delete anyway?`
                   : confirm.exists
                   ? `branch merged${confirm.worktree ? ", worktree still on disk" : ""} — delete the lane?`
                   : `no branch left — delete the lane's record${confirm.worktree ? " and worktree" : ""}?`}

@@ -7,6 +7,7 @@ import {
   removeDef,
   listDocs,
   listSkills,
+  listSkillSources,
   createSkill,
   listHelp,
   liveSessions,
@@ -20,6 +21,7 @@ import {
   onDefsChanged,
 } from "../../utils/hostAgents";
 import { collections as loadCollections, records as loadRecords } from "../../utils/hostContext";
+import { groupSkillsBySource, sourceCountLabel, skillDoc } from "./skillSources";
 import SvSelect from "../../atoms/SvSelect/SvSelect";
 import { raiseKeyed, clearKeyed } from "../../atoms/Banner/bannerStore";
 
@@ -65,6 +67,9 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
   const [cols, setCols] = useState([]);
   const [docs, setDocs] = useState(null); // null = harness can't answer yet
   const [skills, setSkills] = useState(null);
+  // WHERE the skills came from — the sources, resolved by the host. Null = the harness can't answer
+  // that door yet; the skills section then renders flat, exactly as it did before sources existed.
+  const [skillSources, setSkillSources] = useState(null);
   const [saving, setSaving] = useState(false);
   const [armedDel, setArmedDel] = useState(false);
   const [newSrv, setNewSrv] = useState({ name: "", url: "" }); // the whitelist add form
@@ -158,9 +163,10 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
     setWiped(null);
     if (typeof onSelect === "function") onSelect(rec.id);
     const ds = await listDocs(rec.id);
-    const sk = await listSkills(rec.id);
+    const [sk, ss] = await Promise.all([listSkills(rec.id), listSkillSources(rec.id)]);
     setDocs(ds);
     setSkills(sk);
+    setSkillSources(ss);
     // URL RESTORE, second half: the doc named in the query string reopens once its content is
     // here. Consumed once — after that, clicks own the panel.
     const want = restoreRef.current.doc;
@@ -173,7 +179,7 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
         if (hit) onOpenDoc({ kind: "doc", agentId: rec.id, key: hit.key, label: hit.label, where: hit.where, text: hit.text, orig: hit.text });
       } else {
         const hit = (sk || []).find((x) => x.name === want.name && x.where === want.where);
-        if (hit) onOpenDoc({ kind: "skill", agentId: rec.id, name: hit.name, where: hit.where, label: hit.name, text: hit.text, orig: hit.text });
+        if (hit) onOpenDoc(skillDoc(rec.id, hit));
       }
     }
   };
@@ -523,6 +529,11 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
     if (!next.length || [...everyName].every((n) => next.includes(n))) next = undefined;
     setDef({ skills: next });
   };
+
+  // ONE ROW PER SOURCE. Which skill belongs to which source, what an unresolved source means, and
+  // when a source can't fire are all decided in ./skillSources as a pure function — the markup
+  // below only draws what it is handed, and the rules are testable without a DOM.
+  const skillRows = skills === null ? [] : groupSkillsBySource(skills, skillSources);
 
   // THE FORM OPENS WHERE THE ROW IS. One shared editor rendered under the whole list meant that
   // clicking edit on the first of ten hooks opened a box ten rows below it — you edit up here and
@@ -951,76 +962,146 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
               Shared files (user level or the project's <code>.claude/skills</code>) — editing one
               edits it for every agent that uses it. The agent carries only each skill's name and
               description all session; the <b>description is the trigger</b>, the body loads when it
-              fires. Click to read and edit. The little box picks which skills <b>this agent</b>{" "}
-              carries — no exclusions means all of them; a change lands at the next re-init.
+              fires. Click to read and edit — or just to read, where the source is read-only. Grouped
+              by <b>source</b>: each header says whether a skill there is yours to edit, whether the
+              folder is even on disk, and whether the Skill tool can discover it at all. The little
+              box picks which skills <b>this agent</b> carries — that one works on every skill,
+              read-only included; no exclusions means all of them, and a change lands at the next
+              re-init.
             </div>
+            {/* GROUPED BY SOURCE, under one roof. The skills are not one pile: some you authored and
+                own, some ship with the CLI and are yours to read only, some sit in a folder the Skill
+                tool never looks at. Each source states its own terms in a header above its chips —
+                not in a second section elsewhere on the page, because the question "can I edit this,
+                and will it fire" is about the skill you are looking at. */}
             {skills === null ? (
               <div className="agent-profile__none">The harness can't answer yet — relaunch the browser to arm the skills API.</div>
             ) : (
-              <div className="agent-profile__docs">
-                {skills.map((s) => {
-                  // Two truths on one chip, kept apart: `excluded` is the CHOICE (def.skills says
-                  // this agent doesn't carry it — strikethrough, hollow toggle), `liveMissing` is
-                  // the REPORT (the running session didn't load it — the existing gray).
-                  const excluded = !carriesSkill(s.name);
-                  const liveMissing = skillEnabled && !skillEnabled.has(s.name);
-                  return (
-                    <button
-                      key={`${s.where}:${s.name}`}
-                      className={`agent-profile__doc-chip${liveMissing ? " agent-profile__doc-chip--off" : ""}${excluded ? " agent-profile__doc-chip--excluded" : ""}`}
-                      title={`${s.description || ""}${liveMissing ? " — the running session did not load this; re-init to pick up changes" : ""}`}
-                      onClick={() =>
-                        typeof onOpenDoc === "function" &&
-                        onOpenDoc({ kind: "skill", agentId: draft.id, name: s.name, where: s.where, label: s.name, text: s.text, orig: s.text })
-                      }
-                    >
-                      {/* the CONTROL — its own click target; the rest of the chip opens the doc */}
-                      <span
-                        className={`agent-profile__skill-toggle${excluded ? " agent-profile__skill-toggle--off" : ""}`}
-                        role="checkbox"
-                        aria-checked={!excluded}
-                        title={
-                          excluded
-                            ? "not carried — click to carry it; applies at the agent's next re-init"
-                            : "carried — click to stop carrying it; applies at the agent's next re-init"
-                        }
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleSkill(s.name);
-                        }}
-                      >
-                        {excluded ? "" : "✓"}
-                      </span>
-                      <span className="agent-profile__doc-ico">◈</span>
-                      <span className="agent-profile__skill-name">{s.name}</span>
-                      <span className="agent-profile__doc-where">{s.where}</span>
-                    </button>
-                  );
-                })}
-                {!skills.length && <span className="agent-profile__none">No skill files found for this agent's homes.</span>}
-                {/* CREATING ONE IS A VERB NOW. The system could list and edit skills and never make
-                    one, so every skill in here arrived by an agent hand-writing a file into a
-                    dotfolder — which is exactly how six copies of a retired CLI skill happened and
-                    nobody noticed. It opens seeded with front matter rather than blank: the
-                    description IS the trigger, and a blank page is how one ships without one. */}
-                <button
-                  className="agent-profile__doc-chip agent-profile__doc-chip--new"
-                  title="Create a new skill at user level"
-                  onClick={async () => {
-                    const name = window.prompt("New skill — lowercase name, dashes for spaces");
-                    if (!name) return;
-                    const r = await createSkill(draft.id, name.trim(), "user");
-                    if (r && r.error) return window.alert(r.error);
-                    const list = await listSkills(draft.id);
-                    setSkills(list);
-                    if (r && r.skill && typeof onOpenDoc === "function")
-                      onOpenDoc({ kind: "skill", agentId: draft.id, name: r.skill.name, where: r.skill.where, label: r.skill.name, text: r.skill.text, orig: r.skill.text });
-                  }}
-                >
-                  <span className="agent-profile__doc-ico">＋</span>
-                  new skill
-                </button>
-              </div>
+              <>
+                {skillRows.map((row) => (
+                  <div className="agent-profile__source" key={row.name || "_flat"}>
+                    {/* An unheaded row is the old harness answering skills but not sources — it
+                        renders as the flat list that was always here. */}
+                    {row.name && (
+                      <div className={`agent-profile__source-head agent-profile__source-head--${row.status}`}>
+                        <span className="agent-profile__source-name">{row.name}</span>
+                        <span
+                          className={`agent-profile__source-mode${row.writable ? "" : " agent-profile__source-mode--ro"}`}
+                          title={
+                            row.writable
+                              ? "yours to edit — a skill here saves from the doc panel"
+                              : "read-only — open any of these to read it in full; the write is refused"
+                          }
+                        >
+                          {row.writable ? "writable" : "read-only"}
+                        </span>
+                        {/* ABSENT, not empty. The folder is not on disk right now — "0 skills" would
+                            describe a folder that exists and holds nothing, which is a different
+                            fact. The shipped source is keyed to the CLI version and a content hash,
+                            so it really does vanish across an upgrade; the row stays to say so. */}
+                        <span className={`agent-profile__source-count${row.unresolved ? " agent-profile__source-count--absent" : ""}`}>
+                          {sourceCountLabel(row)}
+                        </span>
+                        {row.claimed !== null && (
+                          <span className="agent-profile__source-count" title="the source reported a different count than the skills listed here">
+                            source says {row.claimed}
+                          </span>
+                        )}
+                        {/* VISIBLE BUT INERT is the failure this says out loud: the files are here
+                            and readable, and the Skill tool will never discover them, so nothing in
+                            this group can fire. A row that looked armed while being inert was the bug. */}
+                        {!row.discoverable && (
+                          <span
+                            className="agent-profile__source-inert"
+                            title="the Skill tool does not discover this folder — these are readable, but none of them can fire"
+                          >
+                            can't fire — not discovered
+                          </span>
+                        )}
+                        {row.note && <span className="agent-profile__source-note">{row.note}</span>}
+                        {row.pattern && (
+                          <span
+                            className="agent-profile__source-pattern"
+                            title={row.dirs.length ? `resolved to:\n${row.dirs.join("\n")}` : "nothing on disk matches this right now"}
+                          >
+                            {row.pattern}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    <div className="agent-profile__docs">
+                      {row.skills.map((s) => {
+                        // Three truths on one chip, kept apart: `excluded` is the CHOICE (def.skills
+                        // says this agent doesn't carry it — strikethrough, hollow toggle),
+                        // `liveMissing` is the REPORT (the running session didn't load it — the
+                        // existing gray), and `ro` is the source's TERMS (read it, don't edit it).
+                        const excluded = !carriesSkill(s.name);
+                        const liveMissing = skillEnabled && !skillEnabled.has(s.name);
+                        const ro = s.writable === false;
+                        return (
+                          <button
+                            key={`${s.where}:${s.name}`}
+                            className={`agent-profile__doc-chip${liveMissing ? " agent-profile__doc-chip--off" : ""}${excluded ? " agent-profile__doc-chip--excluded" : ""}${ro ? " agent-profile__doc-chip--ro" : ""}`}
+                            title={`${s.description || ""}${ro ? " — read-only: open to read it in full, editing is refused" : ""}${liveMissing ? " — the running session did not load this; re-init to pick up changes" : ""}`}
+                            onClick={() => typeof onOpenDoc === "function" && onOpenDoc(skillDoc(draft.id, s))}
+                          >
+                            {/* THE CONTROL — its own click target; the rest of the chip opens the
+                                doc. It stays live on a read-only skill on purpose: carrying is the
+                                only lever you have over a skill you cannot edit. */}
+                            <span
+                              className={`agent-profile__skill-toggle${excluded ? " agent-profile__skill-toggle--off" : ""}`}
+                              role="checkbox"
+                              aria-checked={!excluded}
+                              title={
+                                excluded
+                                  ? "not carried — click to carry it; applies at the agent's next re-init"
+                                  : "carried — click to stop carrying it; applies at the agent's next re-init"
+                              }
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleSkill(s.name);
+                              }}
+                            >
+                              {excluded ? "" : "✓"}
+                            </span>
+                            <span className="agent-profile__doc-ico">◈</span>
+                            <span className="agent-profile__skill-name">{s.name}</span>
+                            {ro && <span className="agent-profile__skill-ro" title="read-only — the write is refused">read-only</span>}
+                            <span className="agent-profile__doc-where">{s.where}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+                <div className="agent-profile__docs">
+                  {!skills.length && <span className="agent-profile__none">No skill files found for this agent's homes.</span>}
+                  {/* CREATING ONE IS A VERB NOW. The system could list and edit skills and never
+                      make one, so every skill in here arrived by an agent hand-writing a file into a
+                      dotfolder — which is exactly how six copies of a retired CLI skill happened and
+                      nobody noticed. It opens seeded with front matter rather than blank: the
+                      description IS the trigger, and a blank page is how one ships without one. */}
+                  <button
+                    className="agent-profile__doc-chip agent-profile__doc-chip--new"
+                    title="Create a new skill at user level"
+                    onClick={async () => {
+                      const name = window.prompt("New skill — lowercase name, dashes for spaces");
+                      if (!name) return;
+                      const r = await createSkill(draft.id, name.trim(), "user");
+                      if (r && r.error) return window.alert(r.error);
+                      // The sources re-read with the list: a brand-new skill lands in one of them,
+                      // and the source that was unresolved a second ago now resolves.
+                      const [list, srcs] = await Promise.all([listSkills(draft.id), listSkillSources(draft.id)]);
+                      setSkills(list);
+                      setSkillSources(srcs);
+                      if (r && r.skill && typeof onOpenDoc === "function") onOpenDoc(skillDoc(draft.id, r.skill));
+                    }}
+                  >
+                    <span className="agent-profile__doc-ico">＋</span>
+                    new skill
+                  </button>
+                </div>
+              </>
             )}
           </div>
 

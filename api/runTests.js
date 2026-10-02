@@ -13,12 +13,36 @@
 // evaluations themselves rather than a printed transcript.
 const { createClient } = require("systemlynx");
 const { initializeSavedTests } = require("../testing-utilities/transformTests");
+const { serviceClient } = require("./serviceClient");
+
 const FullTestController = require("../testing-utilities/FullTestController");
 const { matchNamespace } = require("../cli/utils/matchNamespace");
 const { headersFor } = require("./probe");
 
 const Client = createClient();
 const { runFullTest } = new FullTestController();
+
+// THE CLIENT THE RUNNER USES CHECKS ITSELF AGAINST THE REGISTRY (api/serviceClient.js).
+// `testing-utilities/` is shared with the BROWSER, which builds a client per page load and so
+// never had this problem — which is exactly why the same saved test passed in the window and
+// failed through the hub. The verification therefore belongs on the client the HUB hands in, and
+// every hub test path inherits it: collecting the specs, resolving actions, and the connection
+// each test opens to execute.
+//
+// PER RUN, not per process, so what it repaired is reported with the run that repaired it.
+function verifiedClientFor(rebuilds) {
+  const c = Object.create(Client);
+  c.createService = (cd) =>
+    serviceClient(Client, cd, {
+      onRebuild: ({ serviceUrl, was, now }) => {
+        // SAID OUT LOUD. A silent self-heal is how this hid for a week: the run would simply start
+        // passing, and nobody would learn the hub had been answering with a stale surface.
+        const recovered = was.filter((m) => !now.includes(m));
+        if (recovered.length) rebuilds.push({ serviceUrl, recovered });
+      },
+    });
+  return c;
+}
 
 const idOf = (s) => s.serviceId || (s.system && s.system.connectionData && s.system.connectionData.serviceId);
 const nsOf = (t) => {
@@ -38,12 +62,12 @@ function headersOf(services, extra = {}) {
 
 // A project's services can share one specs folder, so `getTests` returns the whole folder from every
 // service. Keep only the specs belonging to THIS service, or a shared spec runs once per sibling.
-async function collectTests(services) {
+async function collectTests(services, client) {
   const lists = [];
   const unreachable = [];
   for (const service of services) {
     try {
-      const svc = Client.createService(service.system.connectionData);
+      const svc = client.createService(service.system.connectionData);
       const list = (await svc.Plugin.getTests()) || [];
       lists.push(list.filter((t) => t && t.namespace && t.namespace.serviceId === idOf(service)));
     } catch {
@@ -58,10 +82,10 @@ async function collectTests(services) {
 
 // RFC-020 — a `{ use }` reference carries the service that stores it, so only the services a test
 // actually names are asked, and they are asked at once.
-async function actionsOfService(service) {
+async function actionsOfService(service, client) {
   const out = {};
   try {
-    const svc = Client.createService(service.system.connectionData);
+    const svc = client.createService(service.system.connectionData);
     if (!svc.Plugin || !svc.Plugin.getActions) return out;
     const id = idOf(service);
     for (const a of (await svc.Plugin.getActions()) || []) {
@@ -75,7 +99,7 @@ async function actionsOfService(service) {
   return out;
 }
 
-async function actionMapFor(services, lists) {
+async function actionMapFor(services, lists, client) {
   const wanted = new Set();
   (lists || []).flat().forEach((t) =>
     Object.values((t && t.sections) || {}).forEach((v) => {
@@ -90,7 +114,7 @@ async function actionMapFor(services, lists) {
   });
   const bare = [...wanted].some((r) => !r.includes("."));
   const chosen = services.filter((s) => bare || needed.has(idOf(s)));
-  return Object.assign({}, ...(await Promise.all(chosen.map(actionsOfService))));
+  return Object.assign({}, ...(await Promise.all(chosen.map((s) => actionsOfService(s, client)))));
 }
 
 // ERRORS LIVE ON THE STEP, not on its evaluations. I wrote this reading `evaluations[].error` and the
@@ -120,7 +144,9 @@ async function runTests(
   const services = connections.filter((c) => c.projectCode === projectCode);
   if (!services.length) return { projectCode, error: `no connected services for ${projectCode}` };
 
-  const { lists, unreachable } = await collectTests(services);
+  const rebuilds = [];
+  const client = verifiedClientFor(rebuilds);
+  const { lists, unreachable } = await collectTests(services, client);
   const skips = Array.isArray(skip) ? skip : [skip].filter(Boolean);
   const selected = lists
     .flat()
@@ -160,11 +186,13 @@ async function runTests(
       })),
     };
 
-  const actionMap = await actionMapFor(services, lists);
+  const actionMap = await actionMapFor(services, lists, client);
   const initialized = initializeSavedTests(
     selected,
     services,
-    Client,
+    // the VERIFIED client, so the connection each test executes against is checked against the
+    // registry too — this is the one that actually runs the method under test
+    client,
     headersOf(services, headers),
     (name) => actionMap[name] || null,
   );
@@ -196,6 +224,9 @@ async function runTests(
     ms: Date.now() - started,
     passed: rows.filter((r) => r.passed).length,
     failed: rows.filter((r) => !r.passed).length,
+    // WHAT THE RUN HAD TO REPAIR BEFORE IT COULD RUN. Reported, not swallowed: a run that silently
+    // fixed a stale client is a run that hid the reason the previous one failed.
+    ...(rebuilds.length ? { rebuilt: rebuilds } : {}),
     ...(bail && rows.some((r) => !r.passed) && rows.length < initialized.length
       ? { stoppedEarly: true, notRun: initialized.length - rows.length }
       : {}),

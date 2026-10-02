@@ -69,6 +69,20 @@ export async function listSkills(id) {
   }
 }
 
+// WHERE those skills came FROM. A skill's name never said whether it is yours to edit, or whether
+// the Skill tool can even discover it — so the same door answers the sources themselves: the
+// pattern, what it resolved to on disk, and whether it resolved at all. Same null-vs-empty
+// discipline: null = the harness can't answer (old harness), [] = it answered "none".
+export async function listSkillSources(id) {
+  const a = sv() && sv().agent;
+  if (!a || typeof a.skillSources !== "function") return null;
+  try {
+    return (await a.skillSources(id)) || [];
+  } catch {
+    return null;
+  }
+}
+
 // CREATE and REMOVE are separate verbs from save on purpose: save refuses a name the scan does not
 // know, create refuses one it does. Before these existed the system could list and edit skills and
 // never make one — so every skill entered by hand, through a dotfolder, where nothing could see it.
