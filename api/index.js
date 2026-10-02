@@ -1320,6 +1320,33 @@ async function worktrees(projectCode, { root } = {}) {
   return { ok: true, worktrees: rows };
 }
 
+// THE RECEIPT (RFC-063) — what an agent RECORDED at the moment it brought a lane in, read from the
+// lane's own run record. It is not an answer to "is this in the tree"; derivation answers that. It is
+// a dated record of an act, for the one case derivation cannot reach: a lane brought in and then built
+// upon, whose blobs no longer match and whose patch no longer reverses.
+//
+// ORDERING, AND IT IS THE WHOLE SAFETY PROPERTY: a receipt NEVER outranks `out`. If the patch applies
+// forward cleanly the work is absent, whatever anyone wrote down — so this function returns the
+// receipt as data and refuses to touch the verdict. The decision lives in one pure place
+// (src/organisms/AgentChat/laneVerdict.js), which is also the only place it is tested.
+function laneReceipt(branch) {
+  const b = String(branch || "").trim();
+  if (!b) return null;
+  const dir = path.join(require("os").homedir(), ".autobot", "worklists");
+  let names = [];
+  try { names = fsGit.readdirSync(dir); } catch { return null; }
+  for (const n of names) {
+    if (!n.startsWith("run-") || !n.endsWith(".json")) continue;
+    try {
+      const r = JSON.parse(fsGit.readFileSync(path.join(dir, n), "utf8"));
+      if (String(r.source || "") !== `lane:${b}`) continue;
+      const got = r.broughtIn;
+      if (got && typeof got === "object" && got.ts) return got;
+    } catch {}
+  }
+  return null;
+}
+
 async function branchState(projectCode, { branch, base, root } = {}) {
   const cwd = rootOf(projectCode, root);
   if (!cwd) return { ok: false, error: "no folder for this project" };
@@ -1386,9 +1413,27 @@ async function branchState(projectCode, { branch, base, root } = {}) {
             nfs.writeFileSync(tmp, patch.out);
             const rev = await git(cwd, ["apply", "--reverse", "--check", "--whitespace=nowarn", tmp]);
             if (rev.ok) applied = { ...applied, inTree: true, how: "patch" };
+            else {
+              // PROOF OF ABSENCE, symmetric to the proof of presence. If the patch applies FORWARD
+              // cleanly, the work is definitely not in this tree — there is nothing of it here to
+              // collide with. That is the only way to be sure of a NO.
+              const fwd = await git(cwd, ["apply", "--check", "--whitespace=nowarn", tmp]);
+              applied = { ...applied, provenNotIn: !!fwd.ok };
+            }
           } catch {} finally { try { nfs.unlinkSync(tmp); } catch {} }
         }
       }
+      // THREE STATES, NOT TWO — and the third one is why this exists (found 2026-10-02, on my own
+      // feature). `lane/hooks-end-of-turn` was brought in and committed, then the files it touched
+      // were rewritten on top of it. Its blobs no longer match and its patch no longer reverses, so
+      // the check said "not brought in" about work that was already in — and I was one step from
+      // re-applying it. Neither direction being clean does not mean absent; it means the tree has
+      // MOVED ON since the lane was cut, and the only honest word for that is unknown. Saying "out"
+      // invites a duplicate apply; saying "in" invites deleting a branch whose work is missing.
+      applied.verdict = applied.inTree ? "in" : applied.provenNotIn ? "out" : "unknown";
+      // attached as DATA, never as an input to the verdict above
+      const receipt = laneReceipt(b);
+      if (receipt) applied.broughtIn = receipt;
       // IN THE TREE IS TWO STATES, AND THEY ARE DIFFERENT LEVELS OF SAFE (his call). Committed:
       // the work is in history and deleting the lane can never lose it. Uncommitted: the work is
       // in FILES only, so once the branch goes the tree is the sole copy — one `checkout .` from
@@ -1402,6 +1447,43 @@ async function branchState(projectCode, { branch, base, root } = {}) {
     }
   }
   return { ok: true, branch: b, exists: true, merged, base: bs, ...(applied ? { applied } : {}) };
+}
+
+// EVERY LANE AND WHERE ITS WORK STANDS (RFC-063 §4) — one call, answered where the git already is.
+//
+// The RFC proposed this as an AMBIENT field so a hook could gate on it declaratively. I argued myself
+// out of it: ambient fields are stamped on EVERY event, and deciding `out` needs a forward-apply per
+// lane plus the repo-for-a-branch lookup that lives in this hub — git work and a cross-process hop in
+// the hot path, for a number consulted once a day. So the nudge fires on `idle` and the agent asks
+// THIS, which is proof rather than recall and costs nothing until somebody wants it.
+async function lanes(projectCode, { root } = {}) {
+  const cwd = rootOf(projectCode, root);
+  if (!cwd) return { ok: false, error: "no folder for this project" };
+  const res = await git(cwd, ["branch", "--list", "lane/*", "--format=%(refname:short)"]);
+  const names = res.ok ? res.out.split("\n").map((x) => x.trim()).filter(Boolean) : [];
+  const out = [];
+  for (const branch of names) {
+    const st = await branchState(projectCode, { branch, root });
+    if (!st || st.ok === false) continue;
+    const a = st.applied || {};
+    out.push({
+      branch,
+      // ONE ANSWER PER LANE, and it must be the row's answer. This verb used to report a merged
+      // branch as `verdict: "in"` with `committed` falling through to false, because a merged
+      // branch has no `applied` to read it from — so `lane/lane-receipts`, a branch holding
+      // NOTHING, came back "the work is in the tree, uncommitted" while laneVerdict() called the
+      // same lane "committed". Two doors disagreeing about whether it is safe to delete work is
+      // the one failure this whole feature exists to prevent, and I built it by answering the
+      // question twice. `merged` means the base lacks nothing of this branch: in, and in history.
+      verdict: st.merged ? "in" : a.verdict || "unknown",
+      committed: st.merged || a.committed === true,
+      matching: a.matching || 0,
+      total: a.total || 0,
+      broughtIn: a.broughtIn || null,
+    });
+  }
+  // `notIn` is the count the nudge exists for: PROVEN absent, so no guessing is involved.
+  return { ok: true, projectCode, lanes: out, notIn: out.filter((l) => l.verdict === "out").length };
 }
 
 // THE USER'S CLEANUP (RFC-059 slice 2) — pressed on a lane row after its confirm, never run
@@ -2607,6 +2689,7 @@ module.exports = function launchSystemView(port = 3000) {
       terminalType,
       terminalRun,
       branchState,
+      lanes,
       removeWorktree,
       deleteBranch,
       mergeBranch,

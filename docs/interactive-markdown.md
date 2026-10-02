@@ -291,7 +291,7 @@ This file is on disk, so these are **live** — ticking one rewrites `docs/inter
 - [x] `:::run` — steps written on the fly, plus `::run[name]` for a saved action
 - [x] `::topology` · `::load` — the rest of the Stats page
 - [x] `::::carousel` / `:::slide`
-- [ ] `::cmd` — run a SystemView CLI verb, output inline
+- [x] `:::cmd` — a shell command the document carries and can run
 - [x] media embeds — `::image`, hub-served
 - [ ] `::mermaid` diagrams
 
@@ -614,13 +614,49 @@ put it at the top on its own line.
 Sketches only — these don't exist yet:
 
 ```markdown
-::cmd[systemview test systemview-test]     ← run a SystemView CLI verb, output inline
 ::mermaid                                   ← diagrams
 ```
 
-`::cmd` is the command-line idea: an allowlist of SystemView's own CLI verbs rather than a general
-shell, with two states — unrun (a Run button) and already-run (the recorded transcript an agent
-captured). Also ahead: block-level comments. (Media embeds shipped — see `::image` in section 15.)
+Also ahead: block-level comments. (Media embeds shipped — see `::image` in section 15. `::cmd`
+shipped too, as the container `:::cmd` — see below. It did **not** land as an allowlist of
+SystemView's own CLI verbs, which is what this section used to predict: the command that needed a
+home was the bundle rebuild, which is not a CLI verb at all.)
+
+---
+
+## `:::cmd{title=…}` — a command the document carries
+
+Some commands get run periodically and have nowhere to live. The bundle rebuild is the one that
+started this: it is not an npm script, it is a specific invocation with env vars, so it lived as
+prose in `CLAUDE.md` that someone read and retyped. Written as a block, the document that explains
+the command also carries it:
+
+```markdown
+:::cmd{title="Rebuild the bundle SystemView serves"}
+BUILD_PATH=build.next NODE_OPTIONS=--max-old-space-size=4096 ./node_modules/.bin/react-scripts build && rm -rf build && mv build.next build
+:::
+```
+
+That fence above is **source, and it is inert** — which is the whole rule. Here is a live one:
+
+:::cmd{title="Where am I, and on what?"}
+pwd && git branch --show-current && node -v
+:::
+
+The body **is** the command, character for character — no steps, no substitution, multi-line kept as
+written. It runs in the project's root through the host's terminal, streams its output back into the
+block, and ends on an exit code: `exit 0` is the only green, any other code is red, and a command
+that never reached a shell says *didn't run* rather than borrowing the face of one that failed.
+
+**Opt-in, and only opt-in.** A ```` ```bash ```` fence stays a ```` ```bash ```` fence. This page
+alone shows a dozen commands nobody should be one click away from executing; the difference between
+documentation and a button is something the author typed on purpose.
+
+**It is not `:::run`.** `run` is the SystemLynx test engine — a method call and its assertions. This
+is a process. One word covering both would be one definition quietly becoming two.
+
+**An agent can write it. Only you can press it.** There is no verb anywhere that runs a `:::cmd`
+block, the same deliberate absence that sits behind `::commit`.
 
 ---
 

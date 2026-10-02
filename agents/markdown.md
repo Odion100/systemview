@@ -152,6 +152,34 @@ The point is assembling steps **in the document**, for a human to press Run on:
 - `::run[seedSum]` replays a **saved** action instead, badged differently.
 - **Never auto-runs.** A document is not permission.
 
+## `:::cmd{title=…}` — a shell command the document can run
+
+Some commands get run periodically and have nowhere to live. The bundle rebuild is the example: it
+is not an npm script, it is a specific invocation with env vars, so it survives as prose that
+someone reads and retypes. This block makes the document that explains a command carry it.
+
+```markdown
+:::cmd{title="Rebuild the bundle"}
+BUILD_PATH=build.next NODE_OPTIONS=--max-old-space-size=4096 ./node_modules/.bin/react-scripts build && rm -rf build && mv build.next build
+:::
+```
+
+- **The body IS the command, verbatim.** No steps, no substitution, no variables — what you read and
+  what runs are the same characters. Multi-line bodies run as written.
+- **`:::cmd` is not `:::run`.** `run` is the SystemLynx test engine — a service method and its
+  assertions. This is a process. They share no machinery and never will.
+- **Opt-in only.** A ```` ```bash ```` fence stays inert forever. These documents are full of
+  illustrative shell, and nobody may be one click from executing documentation. Only a block someone
+  deliberately wrote as `:::cmd` runs.
+- **Never auto-runs, and there is no agent-facing verb for it.** An agent writes the block; a human
+  presses it — the same rule `::commit` works under.
+- It runs in the project's own root, through the host's terminal. Output streams into the block,
+  stdout and stderr interleaved exactly as a terminal shows them, and it ends with an **exit code**:
+  `exit 0` is green, any other code is red, and a command that never reached a shell says "didn't
+  run" in its own third face rather than pretending to have failed.
+- `project=` sends it at another project, like any other block.
+- A surface with no terminal host (a plain browser tab) renders it as a stated absence — no button.
+
 ## `- [ ]` — checklists that edit the document
 
 An ordinary task list. Ticking one **writes back into the markdown** — there is no second store.

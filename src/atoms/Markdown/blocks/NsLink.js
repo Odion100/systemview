@@ -3,6 +3,7 @@ import { useHistory, useLocation } from "react-router-dom";
 import ServiceContext from "../../../ServiceContext";
 import { useMarkdownScope } from "../context";
 import { parseTarget, resolveNamespace as resolve } from "../nsResolve";
+import { onCodePage, revealNamespaceInPanel } from "../openRef";
 
 // RFC-025 §4.1 — `:ns[Math.add]`. A namespace reference that NAVIGATES instead of describing.
 // Parsing and live-tree resolution live in ../nsResolve.js, shared with `:::run` steps so a name that
@@ -48,21 +49,24 @@ const NsLink = ({ label, attrs = {} }) => {
   const go = (e) => {
     e.preventDefault();
     e.stopPropagation();
+    const detail = {
+      kind: "namespace",
+      projectCode: t.projectCode,
+      serviceId: t.serviceId,
+      moduleName: t.moduleName,
+      methodName: t.methodName,
+    };
+    // OFF THE CODE PAGE, A CHIP DOES NOT DRAG THE WINDOW TO /specs (his ruling — see ../openRef.js).
+    // A namespace has no document, so the side panel it belongs in is the codebase tree the bot
+    // carries: it expands to the name and marks it, and the page you were reading stays put. If no
+    // tree is on screen to take it, nothing has happened yet — and only then does the old
+    // navigation run, so the chip is never a dead click.
+    if (!onCodePage() && revealNamespaceInPanel(detail)) return;
     const tab = new URLSearchParams(location.search).get("tab");
     history.push(tab ? { pathname: path, search: `?tab=${tab}` } : path);
     // The tree still expands to it and marks it — the reveal rides along with the navigation
     // instead of standing in for it, so you arrive AND you can see where you arrived.
-    window.dispatchEvent(
-      new CustomEvent("sv:revealInNav", {
-        detail: {
-          kind: "namespace",
-          projectCode: t.projectCode,
-          serviceId: t.serviceId,
-          moduleName: t.moduleName,
-          methodName: t.methodName,
-        },
-      })
-    );
+    window.dispatchEvent(new CustomEvent("sv:revealInNav", { detail }));
   };
 
   return (

@@ -96,10 +96,16 @@ export default function useAgentSession({ projectCode, sessionId = "agent", gate
     if (t && t.laneRuns)
       t.laneRuns().then((rows) => setStandingLanes(Array.isArray(rows) ? rows : [])).catch(() => {});
   }, []);
+  // `lane.removed` IS WHY THIS LIST EXISTS. The other three kinds tick when a lane MOVES; nothing
+  // ticked when one was removed, so the only reason a row ever disappeared is that his own press
+  // called refreshLanes() in the callback below. A lane cleared by an agent — now possible through
+  // mcp__systemview__lanes — left a ghost row sitting on a strip whose whole claim is that it reads
+  // state rather than being told. The host announces it to every session in the project now, the
+  // same way wipeWhiteboard announces an erase, so every watcher drops the row together.
   const laneTicks = events.reduce(
     (n, e) =>
       n +
-      (e.kind === "run.started" || e.kind === "run.finished" ||
+      (e.kind === "run.started" || e.kind === "run.finished" || e.kind === "lane.removed" ||
       (e.kind === "todo.updated" && String(e.source || "").startsWith("lane:"))
         ? 1
         : 0),

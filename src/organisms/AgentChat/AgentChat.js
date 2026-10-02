@@ -5,6 +5,7 @@ import { useHistory, useLocation, useParams } from "react-router-dom";
 import ServiceContext from "../../ServiceContext";
 import BLOCKS from "../../atoms/Markdown/registry";
 import { createInterimStore, InterimLine, MicText } from "./interimStore";
+import { laneVerdict, laneChip, laneConfirm } from "./laneVerdict";
 import { MarkdownWriteProvider, MarkdownScopeProvider } from "../../atoms/Markdown/context";
 import ReportLink from "../../atoms/Markdown/blocks/ReportLink";
 import NsLink from "../../atoms/Markdown/blocks/NsLink";
@@ -916,6 +917,8 @@ function LanePanel({ source, items, laneEvents, brief = "", projectCode, onClose
             <span className={arts.branch.merged || (arts.branch.applied && arts.branch.applied.inTree) ? `${CLASSNAME}__lanepanel-art` : `${CLASSNAME}__lanepanel-art--left`}>
               {arts.branch.merged
                 ? `branch merged into ${arts.branch.base} — deletable`
+                : arts.branch.applied && arts.branch.applied.verdict === "unknown"
+                ? `can't tell — the files this lane touched have moved on since it was cut (${arts.branch.applied.matching}/${arts.branch.applied.total} match)`
                 : arts.branch.applied && arts.branch.applied.inTree
                 ? arts.branch.applied.committed
                   ? `work brought in and committed — branch deletable`
@@ -978,8 +981,9 @@ function LaneRow({ source, items, projectCode, panelOpen, onOpenPanel, onDelete 
   // and "delete it anytime" still meant asking. branchState.applied is the disk's answer (blob
   // compare of every file the branch changed), and a finished lane whose work is in the tree
   // wears it on the row, at a glance. Read from disk, never from a lane's say-so.
-  // "" | "committed" | "tree" — two different levels of safe, and the row says which.
+  // laneVerdict()'s state word, plus the chip it resolves to — both come from the pure module.
   const [inTree, setInTree] = useState("");
+  const [chip, setChip] = useState(null);
   useEffect(() => {
     let dead = false;
     let timer = null;
@@ -993,10 +997,15 @@ function LaneRow({ source, items, projectCode, panelOpen, onOpenPanel, onDelete 
         const p = await repoOf();
         const bs = await p.branchState({ branch });
         if (dead) return;
-        const state = !bs ? "" : bs.merged ? "committed"
-          : bs.applied && bs.applied.inTree ? (bs.applied.committed ? "committed" : "tree") : "";
-        setInTree(state);
-        if (state !== "committed") timer = setTimeout(read, 20000);
+        // THE DECISION IS NOT MADE HERE. laneVerdict() is the one place a receipt may meet a
+        // verdict, and the only place that ordering is tested — a receipt answers `unknown` and
+        // never outranks `out`, because `out` is proof and a receipt is a record.
+        const v = laneVerdict(bs);
+        setInTree(v.state);
+        setChip(laneChip(v));
+        // keep watching unless it has settled somewhere terminal; neither `unknown` nor an answered
+        // receipt resolves itself by waiting
+        if (!["committed", "unknown", "answered", "out"].includes(v.state)) timer = setTimeout(read, 20000);
       } catch { if (!dead) timer = setTimeout(read, 30000); /* the delete confirm still reads fresh */ }
     };
     read();
@@ -1067,14 +1076,9 @@ function LaneRow({ source, items, projectCode, panelOpen, onOpenPanel, onDelete 
           <span className={`${CLASSNAME}__lane-fill`} style={{ width: `${items.length ? Math.round((done / items.length) * 100) : 0}%` }} />
         </span>
         <span className={`${CLASSNAME}__lane-count`}>{done}/{items.length}</span>
-        {inTree && (
-          <span
-            className={`${CLASSNAME}__lane-in${inTree === "tree" ? ` ${CLASSNAME}__lane-in--uncommitted` : ""}`}
-            title={inTree === "committed"
-              ? "the branch's work is in history — deleting this lane can lose nothing"
-              : "the work is in the tree but not committed — delete the lane and the tree is the only copy left"}
-          >
-            {inTree === "committed" ? "✓ committed" : "✓ in tree — uncommitted"}
+        {chip && (
+          <span className={`${CLASSNAME}__lane-in ${CLASSNAME}__lane-in--${chip.tone}`} title={chip.title}>
+            {chip.text}
           </span>
         )}
         {!finished && <span className={`${CLASSNAME}__lane-doing`}>{active ? active.text : "starting"}</span>}
@@ -1087,22 +1091,13 @@ function LaneRow({ source, items, projectCode, panelOpen, onOpenPanel, onDelete 
             <span>reading what this would destroy…</span>
           ) : (
             <>
-              {/* "not merged" alone is a half-truth after a bring-in: the ancestry never learns
-                  what `git apply` did. confirm.applied is the disk's word — all contents present
-                  means deleting loses nothing, and the warning would be the surface lying. */}
-              <span className={confirm.exists && !confirm.merged && !(confirm.applied && confirm.applied.inTree) ? `${CLASSNAME}__lane-confirm-warn` : ""}>
-                {confirm.exists && !confirm.merged && confirm.applied && confirm.applied.inTree
-                  ? confirm.applied.committed
-                    ? `work brought in and committed — deleting loses nothing${confirm.worktree ? "; worktree still on disk" : ""}. Delete the lane?`
-                    : `work is in the tree but NOT COMMITTED — delete this and the tree is the only copy left${confirm.worktree ? "; worktree still on disk" : ""}. Delete the lane?`
-                  : confirm.exists && !confirm.merged
-                  ? confirm.applied && confirm.applied.matching > 0
-                    ? `branch not merged — only ${confirm.applied.matching}/${confirm.applied.total} of its files match the tree. Delete anyway?`
-                    : `branch not merged — real work dies with it. Delete anyway?`
-                  : confirm.exists
-                  ? `branch merged${confirm.worktree ? ", worktree still on disk" : ""} — delete the lane?`
-                  : `no branch left — delete the lane's record${confirm.worktree ? " and worktree" : ""}?`}
-              </span>
+              {/* THE TEXT COMES FROM laneConfirm(), not from this markup. The confirm and the
+                  row's chip answering differently about the same lane is how a surface contradicts
+                  itself; one decision, one place, one test. */}
+              {(() => {
+                const c = laneConfirm({ exists: confirm.exists, merged: confirm.merged, applied: confirm.applied || {} }, { worktree: !!confirm.worktree });
+                return <span className={c.warn ? `${CLASSNAME}__lane-confirm-warn` : ""}>{c.text}</span>;
+              })()}
               <button type="button" disabled={busy} onClick={doDelete}>yes, delete</button>
               <button type="button" disabled={busy} onClick={(e) => { e.stopPropagation(); setConfirm(null); }}>no</button>
             </>
@@ -1772,6 +1767,11 @@ function BotBubble({ projectCode, index }) {
       localStorage.setItem(cbOpenKey, String(cbOpen));
     } catch {}
   }, [cbOpen, cbOpenKey]);
+  // WHAT THE PANEL IS POINTED AT. A `:ns[…]` chip clicked off the Code page has nowhere else to
+  // land — there is no navigator on Stats or Agents, and a namespace is not a document, so no doc
+  // panel can hold one. This panel already renders the same `CodebaseNav` the navigator does; it
+  // was simply never told about reveals, so the tree it draws could not be pointed at anything.
+  const [cbReveal, setCbReveal] = useState(null);
   // Resizable and double-click-to-reset like every other panel here. It should never have shipped
   // without this — his point, and it is the right one: these panels share `makeResize`/`resetSize`
   // and a `<ResizeBorder>`, so a new one that skips them is a panel that behaves differently for no
@@ -4467,6 +4467,24 @@ const countdown = (str, now = Date.now()) => {
     window.addEventListener("sv:openFileInNav", handOff);
     return () => window.removeEventListener("sv:openFileInNav", handOff);
   }, [tvOpen]);
+  // A NAMESPACE REFERENCE, OFF THE CODE PAGE, OPENS THE CODEBASE HERE. His ruling: *"reports and
+  // namespaces… should be using the side panel, they shouldn't be navigating me back to the code
+  // tab."* On /specs the real navigator owns the reveal and this must stay out of the way. Marking
+  // the detail `handled` is what tells the chip a tree answered — unanswered, it falls back to the
+  // navigation it always did, so the click is never dead (the mistake reveal-only made).
+  useEffect(() => {
+    const onReveal = (e) => {
+      const d = (e && e.detail) || {};
+      if (inNav || d.kind !== "namespace") return;
+      if (d.projectCode !== projectCode) return; // this panel draws one project's tree
+      if (window.location.pathname.startsWith("/specs/")) return;
+      d.handled = true;
+      setCbOpen(true);
+      setCbReveal(d);
+    };
+    window.addEventListener("sv:revealInNav", onReveal);
+    return () => window.removeEventListener("sv:revealInNav", onReveal);
+  }, [inNav, projectCode]);
   // The card's minimize/expand reaches the agent too — his catch: "it doesn't affect the new agent
   // section, everything was just showing each section minimized". Collapsing closes whatever tab is
   // up; expanding puts the chat back, which is what a section opening should look like.
@@ -4891,6 +4909,7 @@ const countdown = (str, now = Date.now()) => {
                 }
                 theme={appDark ? "dark" : "light"}
                 showHelp={false}
+                reveal={cbReveal}
                 // THIS PANEL IS DRAWN BY THE AGENT, so the agent must not dock into it. The card
                 // renders a slot for a docked agent and the agent portals itself in — fine in the
                 // side nav, circular here, and the rest of the card does not survive the move. It

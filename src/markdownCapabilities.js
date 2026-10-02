@@ -1,4 +1,5 @@
 import { hostFiles } from "./utils/hostFiles";
+import { commandRunner } from "./utils/hostCommand";
 
 // RFC-053 — WHAT THIS HOST GRANTS THE MARKDOWN VOCABULARY.
 //
@@ -19,11 +20,17 @@ import { hostFiles } from "./utils/hostFiles";
 // would be implementing SystemView. What both apps genuinely share is the grammar, the registry,
 // and these two verbs; every other block is HOST VOCABULARY, registered by the app whose world it
 // describes, importing that app's own context like the application code it is.
+// `shell` is the third, and it belongs by the same test the other two pass: it is a HOST verb, not
+// SystemView's model of the world. "Run this command in that project's root" is a sentence any host
+// can answer or refuse — SystemView answers it through the terminal host the shell already provides
+// (`utils/hostCommand.js`), and a surface with no terminal host grants nothing, so a `:::cmd` block
+// there renders as a stated absence instead of a button that cannot work.
 const project = (projectCode) => (projectCode ? hostFiles(projectCode) : null);
 
 export const systemviewCapabilities = {
   files: project,
   git: project,
+  shell: commandRunner,
 };
 
 export default systemviewCapabilities;
