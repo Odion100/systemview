@@ -3730,7 +3730,14 @@
 // the disk's word that the lane's work is in the tree — the row-level "safe to delete".
 // green = committed, nothing can be lost; amber = in files only, the tree is the other copy.
 .agent-chat__lane-in { flex: none; font-size: 10px; color: #3fb950; border: 1px solid rgba(63, 185, 80, 0.35); border-radius: 9px; padding: 1px 7px; white-space: nowrap; }
-.agent-chat__lane-in--uncommitted { color: #d29922; border-color: rgba(210, 153, 34, 0.4); }
+// TONES, named for what they mean rather than for a colour — laneVerdict() picks one and the row
+// never decides. ok = proof it is in. warn = in the tree only, so the branch was the other copy.
+// unknown = no answer at all (deliberately not green or amber: it is not a degree of safety).
+// noted = a receipt answering what derivation cannot — a record, so it reads quieter than proof.
+.agent-chat__lane-in--ok { color: #3fb950; border-color: rgba(63, 185, 80, 0.35); }
+.agent-chat__lane-in--warn { color: #d29922; border-color: rgba(210, 153, 34, 0.4); }
+.agent-chat__lane-in--unknown { color: var(--sv-text-soft, #8a8f98); border-color: rgba(138, 143, 152, 0.4); border-style: dashed; }
+.agent-chat__lane-in--noted { color: #58a6ff; border-color: rgba(88, 166, 255, 0.35); border-style: dashed; }
 .agent-chat__lane-doing {
   flex: 0 1 40%;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;

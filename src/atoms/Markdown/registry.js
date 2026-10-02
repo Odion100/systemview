@@ -18,6 +18,7 @@ import ImageEmbed from "./blocks/ImageEmbed";
 import CommitBlock from "./blocks/CommitBlock";
 import BranchBlock from "./blocks/BranchBlock";
 import Ask from "./blocks/Ask";
+import CmdBlock from "./blocks/CmdBlock";
 
 // `file` is TWO things depending on how it's written — the same split `run` has. Inline is a
 // reference (`:file[path]` → a chip that points at it); block is the thing itself (`::file[path]` →
@@ -54,6 +55,11 @@ export const BLOCKS = {
   test: { Component: TestEmbed },
   image: { Component: ImageEmbed },
   run: { Component: RunBlock },
+  // `:::cmd` — a SHELL command, held verbatim, that the document you read it in can also run. A
+  // separate name from `run` on purpose: `run` is the SystemLynx test engine (a service method and
+  // its assertions), this is a process. One word for both would be one definition becoming two.
+  // Opt-in only — a ```bash fence never becomes a button.
+  cmd: { Component: CmdBlock },
   load: { Component: LoadEmbed },
   topology: { Component: TopologyEmbed },
   logs: { Component: LogsEmbed },

@@ -1,11 +1,14 @@
 import React from "react";
 import { useHistory, useParams } from "react-router-dom";
 import { useMarkdownScope } from "../context";
+import { onCodePage, openReportInPanel } from "../openRef";
 
-// `:report[.systemview/report.<pc>.<Name>.md]{title="…"}` — a link straight to a report on the
-// Stage tab. A report is just a file plus an index entry; this chip is its URL. Clicking NAVIGATES
-// (tab=reports&rdoc=<path>) — unlike :ns/:file there is no reveal-first step, because a report
-// link's whole point is "go read this".
+// `:report[.systemview/report.<pc>.<Name>.md]{title="…"}` — a chip that OPENS a report. A report is
+// just a file plus an index entry, so off the Code page it opens the way any other file does: in
+// the side panel this page owns, leaving you on the page you were reading. It used to push
+// `tab=reports&rdoc=<path>` from wherever you stood, which is the defect in his words — *"they
+// shouldn't be navigating me back to the code tab"*. That URL is still where the chip lands on the
+// Code page, and still the fallback when no panel answers. The rule is in ../openRef.js.
 const ReportLink = ({ label, attrs = {} }) => {
   const history = useHistory();
   const params = useParams();
@@ -36,6 +39,8 @@ const ReportLink = ({ label, attrs = {} }) => {
   const go = (e) => {
     e.preventDefault();
     e.stopPropagation();
+    // The side panel first, everywhere but Code — and only a panel that actually answered counts.
+    if (!onCodePage() && openReportInPanel({ projectCode, path })) return;
     history.push(to);
   };
 
@@ -44,7 +49,7 @@ const ReportLink = ({ label, attrs = {} }) => {
       className="md-chip md-chip--report"
       href={`/specs/${projectCode}?${search.toString()}`}
       onClick={go}
-      title={`Open the report "${title}" on ${projectCode}'s Stage tab`}
+      title={`Open the report "${title}"`}
     >
       <span className="md-chip__kind">report</span>
       {title}

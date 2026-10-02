@@ -30,6 +30,9 @@ import React, { createContext, useContext, useMemo } from "react";
 //
 //   files(projectCode)      readFile / listFiles / getDiff / stageHunk / stageFiles / discardFiles
 //   git(projectCode)        state / commit / push
+//   shell(projectCode)      run — one command, in that project's root, streamed back with its exit
+//                           code. The narrowest verb-set in the bag, and the one most worth being
+//                           absent: a host with no terminal cannot run a `:::cmd` block at all.
 //   services()              the connected services a `:ns[…]` resolves against
 //   stats(projectCode)      the snapshot charts draw from
 //   tests(projectCode)      saved tests a `::test` runs
@@ -55,8 +58,10 @@ export function MarkdownCapabilitiesProvider({ value, children }) {
   // that cost us a render loop in FileEmbed (6,500 reads in five seconds, measured).
   const stable = useMemo(
     () => value || null,
+    // ONE LINE on purpose: `eslint-disable-next-line` covers exactly the next line, so breaking this
+    // array across six would leave five of the deps uncovered and warning.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [value && value.files, value && value.git, value && value.services, value && value.stats, value && value.tests],
+    [value && value.files, value && value.git, value && value.shell, value && value.services, value && value.stats, value && value.tests],
   );
   return <Capabilities.Provider value={stable}>{children}</Capabilities.Provider>;
 }
