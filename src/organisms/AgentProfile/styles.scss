@@ -293,6 +293,101 @@
       color: var(--sv-text-faint);
     }
   }
+  // READ-ONLY, ON THE CHIP. A dashed edge, not a gray one: gray already means "the live session
+  // didn't load this", and these two are different facts that can both be true at once. The chip
+  // still opens — a skill you can't edit is the clearest statement of what's in the kit — and the
+  // carry toggle inside it stays live, because carrying is the only lever left over one of these.
+  &__doc-chip--ro {
+    border-style: dashed;
+  }
+  &__skill-ro {
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--sv-text-faint);
+    border: 1px solid var(--sv-border);
+    border-radius: 3px;
+    padding: 0 4px;
+  }
+
+  // ONE BLOCK PER SOURCE — a header stating that source's terms, then its chips. The group exists
+  // because "where did this come from, can I edit it, will it fire" is a property of the SOURCE and
+  // was previously nowhere on the page.
+  &__source {
+    & + & { margin-top: 12px; }
+  }
+  &__source-head {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0 0 6px;
+    font-size: 11.5px;
+    color: var(--sv-text-muted);
+  }
+  &__source-name {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--sv-text-strong);
+  }
+  &__source-mode {
+    font-size: 9.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--sv-blue);
+    background: color-mix(in srgb, var(--sv-blue) 12%, transparent);
+    border-radius: 3px;
+    padding: 1px 6px;
+    &--ro {
+      color: var(--sv-text-faint);
+      background: transparent;
+      border: 1px solid var(--sv-border);
+    }
+  }
+  &__source-count {
+    font-size: 11px;
+    color: var(--sv-text-faint);
+    // ABSENT IS NOT ZERO. The folder isn't on disk right now (the shipped source is keyed to the CLI
+    // version and a content hash, so it vanishes across an upgrade) — amber, italic, and in words,
+    // because "0 skills" would describe a folder that exists and is empty.
+    &--absent {
+      color: #d9a441;
+      font-style: italic;
+    }
+  }
+  // CANNOT FIRE. Red, and loud enough to catch the eye before you trust the group: these files are
+  // readable and the Skill tool never discovers them, which is the exact state this row exists to
+  // stop looking healthy.
+  &__source-inert {
+    font-size: 9.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: #d64c4c; // the page's own refusal red (the delete arm, the dead subscription)
+    border: 1px solid #d64c4c55;
+    border-radius: 3px;
+    padding: 1px 6px;
+  }
+  &__source-note {
+    font-size: 11.5px;
+    color: var(--sv-text-muted);
+  }
+  &__source-pattern {
+    margin-left: auto;
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 10.5px;
+    color: var(--sv-text-faint);
+    max-width: 42%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  &__source-head--absent {
+    opacity: 0.85;
+  }
   &__doc-badge {
     font-size: 9.5px;
     font-weight: 700;

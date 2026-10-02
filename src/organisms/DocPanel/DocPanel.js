@@ -57,7 +57,12 @@ const DocPanel = ({ doc, onChange, onSave, onClose, saving = false }) => {
           <span className="doc-panel__label">{doc.label}</span>
           <span className="doc-panel__load">
             {doc.kind === "skill"
-              ? "loads on demand"
+              ? // READ-ONLY IS SAID HERE, at the top, before anyone reads a line and plans an edit.
+                // The body below is whole and unclipped — a skill you can't change is still the
+                // clearest statement of what's in the kit — but there is no save control at all.
+                doc.readOnly
+                ? "loads on demand · read-only"
+                : "loads on demand"
               : doc.kind === "def"
               ? "the definition on disk"
               : doc.kind === "file"
@@ -72,8 +77,10 @@ const DocPanel = ({ doc, onChange, onSave, onClose, saving = false }) => {
             <button
               className={`doc-panel__mode${mode === "edit" ? " doc-panel__mode--on" : ""}`}
               onClick={() => setMode("edit")}
+              title={doc.readOnly ? "read the file as written — front matter and all; it cannot be changed from here" : undefined}
             >
-              edit
+              {/* The same pane, honestly named: on a read-only doc it is the SOURCE, not an edit. */}
+              {doc.readOnly ? "source" : "edit"}
             </button>
           )}
           {md && doc.kind !== "file" && (
@@ -99,14 +106,16 @@ const DocPanel = ({ doc, onChange, onSave, onClose, saving = false }) => {
         {doc.kind === "file" ? (
           <CodePane file={{ projectCode: doc.projectCode, serviceId: doc.serviceId || null, path: doc.path, language: doc.language }} onClose={onClose} />
         ) : mode === "edit" || !md ? (
-          <CodeEditor value={doc.text} language={doc.language || "markdown"} dark={dark} onChange={onChange} />
+          <CodeEditor value={doc.text} language={doc.language || "markdown"} dark={dark} onChange={onChange} readOnly={!!doc.readOnly} />
         ) : (
           <div className="doc-panel__preview">
             <Markdown dark={dark}>{doc.text}</Markdown>
           </div>
         )}
       </div>
-      {dirty && (
+      {/* No save control on a read-only doc — the harness refuses the write, and offering a button
+          that will be refused is dishonest. The editor above is read-only too, so it can't go dirty. */}
+      {dirty && !doc.readOnly && (
         <div className="doc-panel__foot">
           <button className="doc-panel__save" onClick={onSave} disabled={saving}>
             {saving ? "Saving…" : "Save"}

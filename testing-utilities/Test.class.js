@@ -64,7 +64,35 @@ module.exports = function Test({
     const args = this.args.map((arg) => arg.value());
 
     this.test_start = moment().toJSON();
-    const Module = this.connection[serviceId][moduleName];
+    // A MISSING METHOD USED TO BE REPORTED BY V8, AND V8 NAMES NOTHING. `await Module[methodName]`
+    // on an absent method throws `Module[methodName] is not a function` — the source expression,
+    // quoted back. Not the service, not the module, not the method, and no hint that the step
+    // which failed might be a Before/After facilitator rather than the method under test.
+    //
+    // It cost another project's agent a day (buapi-7e, 2026-09-30): three successive wrong
+    // theories — a stale client cache, a duplicate registration, the wrong deployed instance —
+    // three methods declared blocked, and one facilitator deleted and rebuilt on other methods
+    // for nothing. Every one of those guesses was an attempt to identify what the error refused
+    // to say. So the runner says it, and lists what the module DOES publish, because the answer
+    // is nearly always a typo or a method on a service that was never restarted.
+    const Service = this.connection[serviceId];
+    const Module = Service && Service[moduleName];
+    const ns = [serviceId, moduleName, methodName].filter(Boolean).join(".");
+    if (!Service)
+      throw new Error(`${ns}: this run holds no connection for service "${serviceId}"`);
+    if (!Module)
+      throw new Error(
+        `${ns}: service "${serviceId}" publishes no module "${moduleName}" — it has ` +
+          `${Object.keys(Service).filter((k) => !k.startsWith("$") && typeof Service[k] === "object").join(", ") || "no modules at all"}`
+      );
+    if (methodName !== "on" && typeof Module[methodName] !== "function")
+      throw new Error(
+        `${ns}: "${moduleName}" publishes no method "${methodName}" — it has ` +
+          `${Object.keys(Module).filter((k) => !k.startsWith("$") && typeof Module[k] === "function").join(", ") || "no methods at all"}. ` +
+          `If the method exists in the source, the service registered with SystemView before it ` +
+          `was added — restart the service. If this step is a Before/After facilitator, the ` +
+          `missing method is the FACILITATOR, not the method under test.`
+      );
     if (methodName === "on") {
       const eventTest = (e) => {
         this.results = e;

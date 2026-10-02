@@ -60,7 +60,9 @@ const Context = () => {
   useOpenedFile(projectCode, setDoc);
 
   const saveOpenDoc = async () => {
-    if (!doc) return;
+    // A read-only doc (a shipped skill — readable in full, not yours to change) has no save control
+    // in the panel; this is the second lock, so no other path can reach a write the host refuses.
+    if (!doc || doc.readOnly) return;
     setSaving(true);
     try {
       let res;

@@ -15,6 +15,7 @@
 const fs = require("fs");
 const path = require("path");
 const { createClient } = require("systemlynx");
+const { serviceClient } = require("./serviceClient");
 // A pure predicate — the same string match both faces must agree on. Sharing a matcher is not
 // sharing an implementation; two copies of "does this namespace match" is how two answers appear.
 const { matchNamespace, nsEquals } = require("../cli/utils/matchNamespace");
@@ -198,7 +199,10 @@ async function probe({ namespace, args, headers = {}, projectCode = null } = {},
   const base = { projectCode: svc.projectCode, serviceId, moduleName, methodName, args: list, ...where };
   const started = Date.now();
   try {
-    const client = Client.createService(conn);
+    // SAME CONDITION AS THE RUNNER (api/serviceClient.js): a cached client in a long-lived hub
+    // can be missing a method its own registry declares, and probe would report that as the
+    // method not existing.
+    const client = serviceClient(Client, conn);
     if (Object.keys(sent).length) client.setHeaders(sent);
     const result = await client[moduleName][methodName](...list);
     return {

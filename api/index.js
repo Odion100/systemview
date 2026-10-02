@@ -1327,14 +1327,81 @@ async function branchState(projectCode, { branch, base, root } = {}) {
   if (!b) return { ok: false, error: "which branch?" };
   let bs = String(base || "").trim();
   if (!bs) {
-    const dh = await git(cwd, ["symbolic-ref", "refs/remotes/origin/HEAD"]);
-    bs = dh.ok ? dh.out.trim().replace("refs/remotes/origin/", "") : "main";
+    // THE BASE IS THE LINE THE TREE IS ON, not origin/HEAD. In a repo whose remote default is an
+    // ancient branch (autobot: origin/HEAD → 2023's master), origin/HEAD makes every comparison
+    // nonsense — the question this verb answers is "is this branch's work in THE TREE IN FRONT OF
+    // YOU", and that tree is HEAD's.
+    const cur = await git(cwd, ["rev-parse", "--abbrev-ref", "HEAD"]);
+    bs = cur.ok && cur.out.trim() && cur.out.trim() !== "HEAD" ? cur.out.trim() : "HEAD";
   }
   const exists = await git(cwd, ["rev-parse", "--verify", "--quiet", b]);
   if (!exists.ok) return { ok: true, branch: b, exists: false, merged: false };
   // merged = no commits on the branch that the base lacks
   const ahead = await git(cwd, ["rev-list", "--count", `${bs}..${b}`]);
-  return { ok: true, branch: b, exists: true, merged: ahead.ok && ahead.out.trim() === "0", base: bs };
+  const merged = ahead.ok && ahead.out.trim() === "0";
+  // BROUGHT IN WITHOUT A MERGE (delegation's bring-in) — the owner applies a lane's diff into the
+  // tree (`git diff base..lane | git apply`), so ancestry never learns and `merged` stays false
+  // forever about work that is entirely present. The confirm then warns "real work dies with it"
+  // — a surface testifying against the disk. So read the DISK: for every file the branch changed,
+  // does the tree hold the branch's content right now? Blob hashes, not `git diff` — an applied
+  // NEW file is untracked, and diff-against-worktree cannot see untracked paths, so it would call
+  // the one case this exists for "missing".
+  let applied;
+  if (!merged) {
+    const ns = await git(cwd, ["diff", "--name-status", `${bs}...${b}`]);
+    const entries = !ns.ok ? [] : ns.out.split("\n").filter(Boolean).map((l) => {
+      const [status, ...p] = l.split(/\t/);
+      return { status: status[0], path: p[p.length - 1] };
+    });
+    if (entries.length) {
+      const nfs = require("fs"); const npath = require("path");
+      const lt = await git(cwd, ["ls-tree", "-r", "-z", b, "--", ...entries.map((e) => e.path)]);
+      const blobOf = {};
+      if (lt.ok) for (const rec of lt.out.split("\0").filter(Boolean)) {
+        const m = rec.match(/^\d+ blob ([0-9a-f]+)\t([\s\S]*)$/);
+        if (m) blobOf[m[2]] = m[1];
+      }
+      // one hash-object call for every file that exists on disk, hashes come back in order
+      const onDisk = entries.filter((e) => blobOf[e.path] && nfs.existsSync(npath.join(cwd, e.path)));
+      const hashes = onDisk.length ? await git(cwd, ["hash-object", "--", ...onDisk.map((e) => e.path)]) : { ok: true, out: "" };
+      const got = hashes.ok ? hashes.out.split("\n").filter(Boolean) : [];
+      const diskHash = {};
+      onDisk.forEach((e, i) => { diskHash[e.path] = got[i] || ""; });
+      let matching = 0;
+      for (const e of entries) {
+        const want = blobOf[e.path];
+        if (!want) { if (!nfs.existsSync(npath.join(cwd, e.path))) matching++; continue; } // deleted in the branch → gone from the tree
+        if (diskHash[e.path] === want) matching++;
+      }
+      applied = { inTree: matching === entries.length, matching, total: entries.length };
+      // DRIFT-TOLERANT CONTAINMENT. A bring-in that 3-way-merged over newer code leaves the
+      // lane's CHANGES in the tree but not its exact blobs — blob equality alone would call the
+      // most normal bring-in "not in". Git's own test for "is this patch applied": the patch
+      // reverses cleanly. Only consulted when blobs already said no.
+      if (!applied.inTree) {
+        const patch = await git(cwd, ["diff", `${bs}...${b}`]);
+        if (patch.ok && patch.out.trim()) {
+          const tmp = npath.join(require("os").tmpdir(), `sv-applied-${process.pid}-${Date.now()}.patch`);
+          try {
+            nfs.writeFileSync(tmp, patch.out);
+            const rev = await git(cwd, ["apply", "--reverse", "--check", "--whitespace=nowarn", tmp]);
+            if (rev.ok) applied = { ...applied, inTree: true, how: "patch" };
+          } catch {} finally { try { nfs.unlinkSync(tmp); } catch {} }
+        }
+      }
+      // IN THE TREE IS TWO STATES, AND THEY ARE DIFFERENT LEVELS OF SAFE (his call). Committed:
+      // the work is in history and deleting the lane can never lose it. Uncommitted: the work is
+      // in FILES only, so once the branch goes the tree is the sole copy — one `checkout .` from
+      // gone. One word covering both is the surface being vague exactly where it was built to be
+      // precise. `status --porcelain` over the branch's own paths answers it in one call and
+      // covers both shapes of dirty: tracked edits and untracked new files.
+      if (applied.inTree) {
+        const dirty = await git(cwd, ["status", "--porcelain", "--", ...entries.map((e) => e.path)]);
+        applied.committed = dirty.ok && !dirty.out.trim();
+      }
+    }
+  }
+  return { ok: true, branch: b, exists: true, merged, base: bs, ...(applied ? { applied } : {}) };
 }
 
 // THE USER'S CLEANUP (RFC-059 slice 2) — pressed on a lane row after its confirm, never run
