@@ -400,7 +400,7 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
     scope: "every-agent",
     do: "",
     kind: "context",
-    guard: "once-per-session",
+    rate: "once-per-session",
     note: "",
     isNew: true,
   });
@@ -413,7 +413,7 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
       scope: h.scope,
       do: h.do,
       kind: h.kind,
-      guard: h.guard || "",
+      rate: h.rate || h.guard || "",
       note: h.note || "",
       isNew: false,
     });
@@ -429,7 +429,7 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
       scope: d.scope,
       do: d.do,
       kind: d.kind,
-      guard: d.guard,
+      rate: d.rate,
       note: d.note,
     });
     if (r && r.error) return setHookErr(r.error);
@@ -664,19 +664,27 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
                   </div>
 
                   <div className="agent-profile__hookform-row">
-                    <label className="agent-profile__hookform-label">guard</label>
+                    <label className="agent-profile__hookform-label">fire rate</label>
                     <SvSelect
-                      value={hookDraft.guard}
-                      onChange={(v) => setHd({ guard: v })}
+                      value={hookDraft.rate}
+                      onChange={(v) => setHd({ rate: v })}
                       options={[
                         { value: "once-per-session", label: "once per session" },
-                        { value: "cooldown:300", label: "at most every 5 min" },
-                        { value: "cooldown:3600", label: "at most every hour" },
-                        { value: "", label: "no guard — every match" },
+                        { value: "cooldown:5m", label: "at most every 5 min" },
+                        { value: "cooldown:1h", label: "at most every hour" },
+                        { value: "cooldown:12h", label: "at most every 12 hours" },
+                        { value: "once-per-day", label: "once a day" },
+                        { value: "cooldown:3d", label: "at most every 3 days" },
+                        { value: "once-per-week", label: "once a week" },
+                        { value: "cooldown:2w", label: "at most every 2 weeks" },
+                        { value: "once-per-month", label: "once a month" },
+                        { value: "", label: "no rate — every match" },
                       ]}
                     />
                     <span className="agent-profile__hookform-note">
-                      an unguarded hook is a context leak that fires forever
+                      a hook with no rate is a context leak that fires forever. "once a
+                      day/week/month" is calendar-anchored — it resets at the boundary; a cooldown
+                      slides from the last fire.
                     </span>
                   </div>
 
@@ -1138,7 +1146,7 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
                       {h.do && <span className="agent-profile__hook-do">→ {h.do}</span>}
                     </div>
                     <div className="agent-profile__hook-tags">
-                      {h.guard && <span className="agent-profile__hook-guard">{h.guard}</span>}
+                      {(h.rate || h.guard) && <span className="agent-profile__hook-guard">{h.rate || h.guard}</span>}
                       {/* A WORK HOOK ACTS; A CONTEXT HOOK WHISPERS. Same wiring up to the branch,
                           different trust past it — so the loud one is labelled loudly. */}
                       {h.kind === "work" && <span className="agent-profile__hook-work">work</span>}

@@ -3032,6 +3032,28 @@
   text-align: left;
   &:hover { color: var(--sv-text); }
 }
+// THE WORKLIST HEADER'S PROGRESS BAR — the same one the lane row wears, same colours, so a plan and
+// a lane read alike at a glance. It does NOT grow like the lane's: the lane row's flexible element is
+// the bar, this row's is the active item's text, and letting the bar take the space would squeeze the
+// one thing the closed header exists to say. Fixed basis, shrinkable, with a floor.
+.agent-chat__worklist-bar {
+  flex: 0 1 72px;
+  min-width: 36px;
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(128, 128, 128, 0.18);
+  overflow: hidden;
+}
+.agent-chat__worklist-fill {
+  display: block;
+  height: 100%;
+  background: #7fb069;
+  border-radius: 3px;
+  transition: width 240ms ease;
+}
+// complete reads brighter, the same way a finished lane does
+.agent-chat__worklist-bar--done .agent-chat__worklist-fill { background: #00c408; }
+
 .agent-chat__worklist-count {
   flex: none;
   font-variant-numeric: tabular-nums;
