@@ -15,7 +15,7 @@ import UiLink from "../../atoms/Markdown/blocks/UiLink";
 import Markdown from "../../atoms/Markdown/Markdown";
 import { spotlight, clearSpotlight, animationMode, setAnimationMode, MODES } from "../../spotlight";
 import { resolveTarget, docRectOf, revealDocLines } from "../../spotlightTargets";
-import { slotId, setNavDocked, useNavDock, railId, spotId, placeInDock, setDockOrder, useDockOrder, dockOrder, orderProjects } from "./navDock";
+import { slotId, setNavDocked, useNavDock, isNavDocked, railId, spotId, placeInDock, setDockOrder, useDockOrder, dockOrder, orderProjects } from "./navDock";
 import { hasHostDictation, startHostRecording } from "../../utils/hostDictation";
 import Feed, { timeOf } from "../AgentWorkbench/Feed";
 import useAgentSession from "../AgentWorkbench/useAgentSession";
@@ -732,6 +732,18 @@ function WorkList({ items, onClear, source = "" }) {
         <span className={`${CLASSNAME}__worklist-count`}>
           {done}/{items.length}
         </span>
+        {/* THE SAME BAR THE LANE ROW WEARS (his ask, 2026-10-03). A fraction is read; a bar is SEEN,
+            and this header is glanced at far more often than it is opened. Nothing else about the
+            row changes — it still opens, still shows the active item, still clears when complete. */}
+        <span
+          className={`${CLASSNAME}__worklist-bar${complete ? ` ${CLASSNAME}__worklist-bar--done` : ""}`}
+          title={`${done} of ${items.length} done`}
+        >
+          <span
+            className={`${CLASSNAME}__worklist-fill`}
+            style={{ width: `${items.length ? Math.round((done / items.length) * 100) : 0}%` }}
+          />
+        </span>
         {/* the run's source — a skill's list is visibly the skill's, not the agent's own plan */}
         {source ? <span className={`${CLASSNAME}__worklist-source`}>{source}</span> : null}
         {/* The ACTIVE item is the line — not "3 tasks", which says nothing about what is happening.
@@ -1355,10 +1367,28 @@ function BotBubble({ projectCode, index }) {
   // panel's open state lived only in memory — so every build closed his chat mid-conversation and
   // he had to find the 💬 again (three times in one evening, once per build). A swap is meant to
   // be invisible; a panel that shuts is the opposite. Remembered per project, like `attached`.
+  //
+  // DOCKED, THE NAVIGATOR'S OWN STATE IS THE DEFAULT (his rule, 2026-10-03) — because docked is two
+  // different places, not one.
+  //
+  // Collapsed, the bots are in the RAIL: the minimised view, a line of glances. A chat open there is
+  // the stack he had to shut one by one, and it arrived by itself — one sticky flag per project meant
+  // a reload, a new tab, or collapsing the navigator restored every docked chat OPEN at once.
+  //
+  // With the navigator OPEN each bot sits in its own project card's section, which is somewhere he is
+  // actually working. There the chat belongs open, and that is the default.
+  //
+  // Either way a docked open is NOT remembered: the sticky flag keeps meaning "the panel he was
+  // typing in", which is the thing worth restoring across a rebuild. Undocked is untouched.
+  const navIsOpen = () => {
+    try { return localStorage.getItem("sv.navOpen") !== "false"; } catch { return true; }
+  };
   const [open, setOpen] = useState(() => {
+    if (isNavDocked(projectCode)) return navIsOpen();
     try { return localStorage.getItem(`sv.chat.open.${projectCode}`) === "1"; } catch { return false; }
   });
   useEffect(() => {
+    if (isNavDocked(projectCode)) return;
     try { localStorage.setItem(`sv.chat.open.${projectCode}`, open ? "1" : "0"); } catch {}
   }, [open, projectCode]);
   const [ctxMenu, setCtxMenu] = useState(false);
@@ -1522,6 +1552,23 @@ function BotBubble({ projectCode, index }) {
     setNavDocked(projectCode, false);
   };
   const navDocked = useNavDock(projectCode);
+  // AND IT FOLLOWS THE NAVIGATOR LIVE, not only on a mount. Docking is a portal move — the bot keeps
+  // every bit of its state deliberately — so collapsing the navigator with chats open would leave
+  // that same stack in the rail by another route, and expanding it again would leave them all shut.
+  // The nav announces both (`sv:navOpen`, `sv:navView`), so this reads the signal rather than polling.
+  const [navOpenNow, setNavOpenNow] = useState(navIsOpen);
+  useEffect(() => {
+    const read = () => setNavOpenNow(navIsOpen());
+    window.addEventListener("sv:navOpen", read);
+    window.addEventListener("sv:navView", read);
+    return () => {
+      window.removeEventListener("sv:navOpen", read);
+      window.removeEventListener("sv:navView", read);
+    };
+  }, []);
+  useEffect(() => {
+    if (navDocked) setOpen(navOpenNow);
+  }, [navDocked, navOpenNow]);
   // The slot is a DOM node owned by the nav, which mounts and unmounts on its own (the panel opens,
   // a filter hides the card, the page changes). So it is looked for on a slow tick rather than once
   // — and dropped the moment it leaves the document, which is what puts the bot back on the screen
