@@ -885,3 +885,48 @@
   max-height: 220px;
   overflow-y: auto;
 }
+
+// A JOB GIVEN BY A HOOK IS NOT A SKILL OFFERED BY ONE (his ask, 2026-10-08: the job *"was supposed
+// to look distinct from just a skill run"*). Amber is already this feed's colour for the loud kind
+// of moment, so a job's row wears it; a REFUSAL goes red, because the one thing that must never
+// read like a success is work that never started.
+.agent-wb__row--hook { flex-wrap: wrap; }
+.agent-wb__row--hookjob {
+  border-left-color: #d19a2e;
+  background: rgba(209, 154, 46, 0.08);
+}
+.agent-wb__row--hookrefused {
+  border-left-color: #c9524b;
+  background: rgba(201, 82, 75, 0.09);
+}
+.agent-wb__hook-verdict {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  color: #1d1708;
+  background: #d19a2e;
+}
+.agent-wb__hook-verdict--no {
+  color: #fff;
+  background: #c9524b;
+}
+
+// THE OPENED HOOK — its own definition and what it delivered. Indented under the header so the
+// fold reads as one thing, like every other openable row in this feed.
+.agent-wb__hook-detail { width: 100%; }
+.agent-wb__hook-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 4px 0 0 20px;
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 10.5px;
+  color: var(--sv-text-faint);
+}
+.agent-wb__hook-note {
+  margin: 3px 0 0 20px;
+  font-size: 11px;
+  font-style: italic;
+  color: var(--sv-text-muted, #8a8f98);
+}

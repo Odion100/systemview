@@ -5,7 +5,7 @@ import { useHistory, useLocation, useParams } from "react-router-dom";
 import ServiceContext from "../../ServiceContext";
 import BLOCKS from "../../atoms/Markdown/registry";
 import { createInterimStore, InterimLine, MicText } from "./interimStore";
-import { laneVerdict, laneChip, laneConfirm } from "./laneVerdict";
+import { laneVerdict, laneChip, laneReceipt, laneConfirm } from "./laneVerdict";
 import { MarkdownWriteProvider, MarkdownScopeProvider } from "../../atoms/Markdown/context";
 import ReportLink from "../../atoms/Markdown/blocks/ReportLink";
 import NsLink from "../../atoms/Markdown/blocks/NsLink";
@@ -27,9 +27,11 @@ import CodebaseNav from "../CodebaseNav/CodebaseNav";
 import { useAppDark } from "../../atoms/appTheme";
 import loadServiceWithHeaders from "../../utils/loadService";
 import { hostFiles, hasHostFiles } from "../../utils/hostFiles";
+import { hasHostJobs, jobRuns, rateJobRun } from "../../utils/hostJobs";
 import { deleteReport as deleteReportFile, reportIndexSets, listReports } from "../../utils/reportOps";
 import SEND_ICON from "../../assets/send.png";
-import { LINKISH, shortUrl, collectLinks } from "./chatLinks";
+import { LINKISH, shortUrl, collectLinks, pathHref } from "./chatLinks";
+import { joinSpoken } from "./spokenJoin";
 import "./styles.scss";
 
 // RFC-028 — agent presence. SEVERAL bots, not one: every connected project has its own bot,
@@ -171,10 +173,19 @@ function renderChatText(text, kp = "l") {
       const Ref = REF_BLOCKS[m[1]] || ReportLink;
       out.push(<Ref key={`${kp}${k++}`} label={m[2]} attrs={attrs} />);
     } else if (m[4] !== undefined) {
+      // A MARKDOWN LINK WHOSE TARGET IS A PATH DRAWS THE FILE CHIP — the same component `:file[...]`
+      // uses, so a reference means one thing however it was written. The decision is `pathHref`'s and
+      // only `pathHref`'s; the collector reads the same rule, or the panel would list a row the
+      // bubble never drew.
+      const asPath = pathHref(m[5]);
       out.push(
-        <ChatLink key={`${kp}${k++}`} href={m[5]}>
-          {m[4]}
-        </ChatLink>,
+        asPath ? (
+          <FileLink key={`${kp}${k++}`} label={asPath} attrs={{}} />
+        ) : (
+          <ChatLink key={`${kp}${k++}`} href={m[5]}>
+            {m[4]}
+          </ChatLink>
+        ),
       );
     } else {
       out.push(
@@ -706,6 +717,169 @@ function useCountUp(target) {
 //
 // CLOSED IT IS ONE LINE: what it is doing now, and how far in. Open, the whole plan. A worklist that
 // costs the conversation five lines forever is a worklist he will collapse once and never see again.
+// A JOB'S RUN IS NOT A SKILL'S LIST (his ask, 2026-10-08: the job *"was supposed to look distinct
+// from just a skill run, so I could see that it was work they executed, and it's waiting for me
+// with a report"*). It used to render as the same `WorkList` with `job:month-close` in the source
+// chip — a label on somebody else's component.
+//
+// THE CARD READS THE RUN RECORD, NOT THE CHAT. The event stream says what the agent did; the record
+// says what happened to the job — its status, the account it filed, the rating. A card built from
+// events alone would be the agent's testimony about its own work, and a job exists precisely so its
+// result is checkable without that. `window.systemview.jobs` has been exposed since RFC-005 §10 and
+// nothing in this app had ever called it.
+//
+// AND FINISHED WORK WAITS. A completed skill plan says "plan complete" and he clears it. A completed
+// JOB has handed something over, so the card's last state is the report sitting there with the
+// rating beside it — the rate verb's own comment has always said *"capturable where the report is
+// READ."* This is that place.
+function JobRun({ items, source, projectCode, onClear }) {
+  const jobId = String(source || "").slice(4);
+  const [open, setOpen] = useState(false);
+  const [rec, setRec] = useState(null);
+  const [rating, setRating] = useState(0);
+  const done = (items || []).filter((t) => t.state === "done").length;
+  const total = (items || []).length;
+  const complete = total > 0 && done === total;
+
+  // Re-read on every change to the list, and once more when it completes — the report is filed in
+  // the same breath as the last item, so a single read at mount would always miss it.
+  useEffect(() => {
+    if (!hasHostJobs()) return;
+    let alive = true;
+    const pull = async () => {
+      const runs = await jobRuns(jobId);
+      if (!alive) return;
+      const rows = Array.isArray(runs) ? runs : [];
+      setRec(rows[0] || null);
+      setRating(Number((rows[0] || {}).rating || 0));
+    };
+    pull();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobId, done, total, complete]);
+
+  const report = rec && rec.report && rec.report.path ? rec.report : null;
+  const state = complete ? "finished" : (rec && rec.status) || "running";
+  const rate = async (n) => {
+    setRating(n);
+    await rateJobRun(jobId, (rec && rec.id) || "", n);
+  };
+
+  if (!total) return null;
+  return (
+    <div className={`${CLASSNAME}__jobrun${complete ? ` ${CLASSNAME}__jobrun--done` : ""}`}>
+      {/* THE WHOLE BAR IS THE DOOR — his catch, 2026-10-12: *"oh, 'cause I gotta click directly on
+          the title."* Exactly: the only targets were the name and the chevron, so a press anywhere
+          else on a row that LOOKS like one button did nothing. Same rule the lane row already
+          follows ("the whole row is the door"). The × stops propagation so clearing never opens
+          the thing it is removing. */}
+      <div
+        className={`${CLASSNAME}__jobrun-head`}
+        role="button"
+        tabIndex={0}
+        title={open ? "collapse this run" : "expand this run — why it fired, its report, its steps"}
+        onClick={() => setOpen(!open)}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen(!open); } }}
+      >
+        <span className={`${CLASSNAME}__jobrun-badge`}>⚙</span>
+        <span className={`${CLASSNAME}__jobrun-name`}>{(rec && rec.job) || jobId}</span>
+        <span className={`${CLASSNAME}__jobrun-state`}>{state}</span>
+        <span className={`${CLASSNAME}__worklist-count`}>{done}/{total}</span>
+        <span className={`${CLASSNAME}__worklist-bar${complete ? ` ${CLASSNAME}__worklist-bar--done` : ""}`}>
+          <span className={`${CLASSNAME}__worklist-fill`} style={{ width: `${Math.round((done / total) * 100)}%` }} />
+        </span>
+        {/* CLOSED, THE BAR STILL CARRIES THE ONE THING THAT NEEDS HIM. Collapsing must not hide a
+            handover — a report filed and never read is the failure this card exists against — so
+            the waiting mark rides the bar itself and the chip is what expanding reveals. */}
+        {!open && report && (
+          <span className={`${CLASSNAME}__jobrun-waiting`} title={`a report is waiting: ${report.label || report.path}`}>
+            report waiting
+          </span>
+        )}
+        {!open && complete && !report && (
+          <span className={`${CLASSNAME}__jobrun-none`} title={rec ? "this run filed no report" : "cannot read the run record from here"}>
+            {rec ? "no report" : "cannot read"}
+          </span>
+        )}
+        {/* WHEN IT RAN. A finished run with no time on it is a row you cannot place in the day —
+            and these sit in a strip beside other runs. Finished time once it is finished, started
+            time while it is still going, because that is the one that is still moving. */}
+        {rec && (rec.finishedAt || rec.startedAt) && (
+          <span
+            className={`${CLASSNAME}__jobrun-when`}
+            title={`${rec.finishedAt ? "finished" : "started"} ${moment(rec.finishedAt || rec.startedAt).format("ddd D MMM, HH:mm:ss")}`}
+          >
+            {moment(rec.finishedAt || rec.startedAt).format("D MMM HH:mm")}
+          </span>
+        )}
+        <span className={`${CLASSNAME}__jobrun-chev`}>{open ? "▾" : "▸"}</span>
+        {complete && onClear && (
+          <button
+            type="button"
+            className={`${CLASSNAME}__worklist-clear ${CLASSNAME}__jobrun-clear`}
+            title="Clear this run from your view"
+            onClick={(e) => { e.stopPropagation(); onClear(); }}
+          >
+            ×
+          </button>
+        )}
+      </div>
+
+      {/* A JOB RUN IS A BAR UNTIL YOU OPEN IT — his call, 2026-10-12, on the first one that ever
+          ran: *"the job needs to be able to show on the chat as just a bar that can be expanded.
+          So what I saw was to me expanded."* He was right and `open` was only ever gating the item
+          list, so a "closed" card was still three rows deep: the head, the `why` sentence, and the
+          report row with its five stars. Everything below this line is now behind the chevron; the
+          bar keeps the progress, the state, and a mark when something is waiting on him. */}
+      {open && rec && rec.why && <div className={`${CLASSNAME}__jobrun-why`}>{rec.why}</div>}
+
+      {/* THE HANDOVER, AS A REAL CHIP — the report already lives in the reports panel, so this is a
+          pointer to it and not a second copy (RFC-066 §5, settled by deleting the alternative). */}
+      {open && report && (
+        <div className={`${CLASSNAME}__jobrun-report`}>
+          <span className={`${CLASSNAME}__jobrun-waiting`}>waiting for you</span>
+          <FileLink label={report.path} attrs={{ project: projectCode }} />
+          <span className={`${CLASSNAME}__jobrun-rate`}>
+            {[1, 2, 3, 4, 5].map((n) => (
+              <button
+                key={n}
+                type="button"
+                className={`${CLASSNAME}__jobrun-star${n <= rating ? ` ${CLASSNAME}__jobrun-star--on` : ""}`}
+                title={`rate this run ${n}/5`}
+                onClick={() => rate(n)}
+              >
+                ★
+              </button>
+            ))}
+          </span>
+        </div>
+      )}
+      {/* FINISHED AND NOTHING FILED IS A FACT, not a blank. A job whose handover never arrived is
+          the case the account exists for, so the card says so rather than looking unfinished.
+          BUT ONLY IF THE RECORD WAS READABLE: without a `jobs:read` grant the shell hands this
+          window no way to look, and "filed no report" would be a claim about a file nobody opened.
+          Not being able to see is its own sentence. */}
+      {open && complete && !report && (
+        <div className={`${CLASSNAME}__jobrun-report`}>
+          <span className={`${CLASSNAME}__jobrun-none`}>
+            {rec ? "finished, and filed no report" : "finished — cannot read the run record from here"}
+          </span>
+        </div>
+      )}
+
+      {open && (
+        <ul className={`${CLASSNAME}__worklist-items`}>
+          {items.map((t) => (
+            <li key={t.id} className={`${CLASSNAME}__worklist-item ${CLASSNAME}__worklist-item--${t.state}`}>
+              <span className={`${CLASSNAME}__worklist-mark`}>{{ done: "✓", active: "▸", pending: "·" }[t.state] || "·"}</span>
+              <span className={`${CLASSNAME}__worklist-text`}>{t.text}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function WorkList({ items, onClear, source = "" }) {
   const [open, setOpen] = useState(false);
   if (!items || !items.length) return null;
@@ -902,10 +1076,32 @@ function LanePanel({ source, items, laneEvents, brief = "", projectCode, onClose
   const done = items.filter((t) => t.state === "done").length;
   const finished = items.length > 0 && done === items.length;
   const died = !finished && items.some((t) => t.state === "active");
+  // The panel already HOLDS the log, so it needs nothing passed to answer the same question.
+  const delegated = !!laneEvents;
   return (
     <div className={`${CLASSNAME}__lanepanel`}>
       <div className={`${CLASSNAME}__lanepanel-head`}>
-        <span className={`${CLASSNAME}__lane-icon`}>🤖</span>
+        {/* 🤖 A SUBAGENT IS IN HERE · 🌿 THIS AGENT'S OWN WORK.
+            Read from whether the lane has a routed event log — a subagent's messages carry
+            `parent_tool_use_id` and get stamped with the lane they belong to.
+            RESTORED 2026-10-12 after I removed it on my own initiative, which was wrong. He asked
+            what the leaf MEANT; nobody said anything was broken. What we built was that a lane no
+            longer HAS to be a subagent's — subagents in lanes are untouched and are most of them,
+            so the robot is the useful half and deleting it threw away the thing he reads the strip
+            for: *"my delegate lanes, robots in there doing work, I can see what they're doing."*
+            KNOWN AND NOT HIDDEN: the log is session memory, so after a shell restart — or once a
+            finished subagent's events age past the log cap — a delegated lane reads 🌿. Making it
+            survive needs delegation stamped on the RUN RECORD at registration, which is a
+            host-side change and is not done. Until then the title says which question this
+            answered, so a leaf is never read as a claim about history. */}
+        <span
+          className={`${CLASSNAME}__lane-icon`}
+          title={delegated
+            ? "a subagent is working in this branch — its log is in the panel"
+            : "no live log for this lane: either this agent's own work, or a subagent whose session has ended"}
+        >
+          {delegated ? "\u{1F916}" : "\u{1F33F}"}
+        </span>
         <span className={`${CLASSNAME}__lanepanel-name`}>{branch}</span>
         <span className={`${CLASSNAME}__lanepanel-run`}>
           {finished ? `run closed · ${done}/${items.length}` : died ? `died at: ${(items.find((t) => t.state === "active") || {}).text}` : `${done}/${items.length}`}
@@ -958,7 +1154,7 @@ function LanePanel({ source, items, laneEvents, brief = "", projectCode, onClose
   );
 }
 
-function LaneRow({ source, items, projectCode, panelOpen, onOpenPanel, onDelete }) {
+function LaneRow({ source, items, projectCode, delegated, panelOpen, onOpenPanel, onDelete }) {
   const branch = source.slice(5); // "lane:" — the suffix IS the branch, by convention
   const done = items.filter((t) => t.state === "done").length;
   const finished = items.length > 0 && done === items.length;
@@ -988,18 +1184,28 @@ function LaneRow({ source, items, projectCode, panelOpen, onOpenPanel, onDelete 
     }
     return hostFiles(projectCode);
   };
-  // THE ROW SAYS IT IS SAFE (his ask, 2026-09-27): delegation's bring-in applies the lane's diff
-  // into the tree without merging, so "merged" stays false about work that is entirely present —
-  // and "delete it anytime" still meant asking. branchState.applied is the disk's answer (blob
-  // compare of every file the branch changed), and a finished lane whose work is in the tree
-  // wears it on the row, at a glance. Read from disk, never from a lane's say-so.
-  // laneVerdict()'s state word, plus the chip it resolves to — both come from the pure module.
-  const [inTree, setInTree] = useState("");
+  // THE ROW CARRIES WHAT SOMEBODY SAID, AND NOTHING IT WORKED OUT ITSELF.
+  //
+  // RETRACTED 2026-10-12, by him, after a lane cut thirty seconds earlier and holding zero commits
+  // drew `files say: in · committed`: *"It still says committed… Committed to me means that it was
+  // brought in and committed. I never had a problem with agents leaving a note. I never really
+  // needed an automatic system… I don't need that extra committed. I don't need no note from the
+  // system. I need a note from the agents."*
+  //
+  // He is right, and the derivation had already been wrong in both directions — `in · committed`
+  // for a branch with nothing on it, `can't tell 4/11` for work that was provably landed. A word
+  // like "committed" costs nothing to print and means something exact to him, so a surface that
+  // prints it on a guess is worse than one that says nothing. Two things remain and both have an
+  // author: the STATEMENT an agent set, and the RECEIPT of an act it recorded.
+  //
+  // DERIVATION IS NOT GONE, IT MOVED TO WHERE IT PROTECTS SOMETHING: the delete confirm still
+  // reads git at the moment of the press (laneConfirm), because "real work dies with it" is the
+  // one place a guess is better than silence. The panel's leftovers row keeps it too, labelled.
   const [chip, setChip] = useState(null);
+  const [receipt, setReceipt] = useState(null);
   useEffect(() => {
     let dead = false;
     let timer = null;
-    if (!finished) return undefined;
     // KEEPS LISTENING UNTIL IT SETTLES. A bring-in happens while the row is already on screen —
     // in the chat, by the agent — and a row that only reads on mount would need a refresh to
     // admit it, which this window never asks for. It keeps reading while the answer is still
@@ -1013,11 +1219,16 @@ function LaneRow({ source, items, projectCode, panelOpen, onOpenPanel, onDelete 
         // verdict, and the only place that ordering is tested — a receipt answers `unknown` and
         // never outranks `out`, because `out` is proof and a receipt is a record.
         const v = laneVerdict(bs);
-        setInTree(v.state);
-        setChip(laneChip(v));
-        // keep watching unless it has settled somewhere terminal; neither `unknown` nor an answered
-        // receipt resolves itself by waiting
-        if (!["committed", "unknown", "answered", "out"].includes(v.state)) timer = setTimeout(read, 20000);
+        // NEITHER OF THESE IS ABOUT THE LANE BEING FINISHED. This read used to sit behind
+        // `if (!finished) return`, which is why a receipt on a lane at 0/4 was invisible
+        // (2026-10-10: *"the only thing I'm waiting to see is a receipt on that empty lane"*).
+        // Somebody said something, or recorded an act; the bar has nothing to do with either.
+        setChip(v.state === "said" ? laneChip(v) : null);
+        setReceipt(laneReceipt(v));
+        // A STATEMENT AND A RECEIPT ARRIVE WHILE THE ROW IS ON SCREEN — an agent sets them mid-turn
+        // and this window never asks for a refresh — so keep reading until one of them exists.
+        // Nothing to wait for once something has an author.
+        if (!v.receipt && v.state !== "said") timer = setTimeout(read, 20000);
       } catch { if (!dead) timer = setTimeout(read, 30000); /* the delete confirm still reads fresh */ }
     };
     read();
@@ -1082,7 +1293,27 @@ function LaneRow({ source, items, projectCode, panelOpen, onOpenPanel, onDelete 
         onClick={onOpenPanel}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpenPanel(); } }}
       >
-        <span className={`${CLASSNAME}__lane-icon`}>🤖</span>
+        {/* 🤖 A SUBAGENT IS IN HERE · 🌿 THIS AGENT'S OWN WORK.
+            Read from whether the lane has a routed event log — a subagent's messages carry
+            `parent_tool_use_id` and get stamped with the lane they belong to.
+            RESTORED 2026-10-12 after I removed it on my own initiative, which was wrong. He asked
+            what the leaf MEANT; nobody said anything was broken. What we built was that a lane no
+            longer HAS to be a subagent's — subagents in lanes are untouched and are most of them,
+            so the robot is the useful half and deleting it threw away the thing he reads the strip
+            for: *"my delegate lanes, robots in there doing work, I can see what they're doing."*
+            KNOWN AND NOT HIDDEN: the log is session memory, so after a shell restart — or once a
+            finished subagent's events age past the log cap — a delegated lane reads 🌿. Making it
+            survive needs delegation stamped on the RUN RECORD at registration, which is a
+            host-side change and is not done. Until then the title says which question this
+            answered, so a leaf is never read as a claim about history. */}
+        <span
+          className={`${CLASSNAME}__lane-icon`}
+          title={delegated
+            ? "a subagent is working in this branch — its log is in the panel"
+            : "no live log for this lane: either this agent's own work, or a subagent whose session has ended"}
+        >
+          {delegated ? "\u{1F916}" : "\u{1F33F}"}
+        </span>
         <span className={`${CLASSNAME}__lane-name`}>{branch}</span>
         <span className={`${CLASSNAME}__lane-bar`}>
           <span className={`${CLASSNAME}__lane-fill`} style={{ width: `${items.length ? Math.round((done / items.length) * 100) : 0}%` }} />
@@ -1091,6 +1322,13 @@ function LaneRow({ source, items, projectCode, panelOpen, onOpenPanel, onDelete 
         {chip && (
           <span className={`${CLASSNAME}__lane-in ${CLASSNAME}__lane-in--${chip.tone}`} title={chip.title}>
             {chip.text}
+          </span>
+        )}
+        {/* BESIDE the statement, never under it — a receipt is the unretractable half. See
+            laneReceipt(): it returns null when the chip already IS the receipt. */}
+        {receipt && (
+          <span className={`${CLASSNAME}__lane-in ${CLASSNAME}__lane-in--${receipt.tone}`} title={receipt.title}>
+            {receipt.text}
           </span>
         )}
         {!finished && <span className={`${CLASSNAME}__lane-doing`}>{active ? active.text : "starting"}</span>}
@@ -2901,7 +3139,11 @@ const countdown = (str, now = Date.now()) => {
       const v = interimStore.get();
       return v && v !== "transcribing…" ? v : "";
     })();
-    const text = [input.trim(), draft.trim()].filter(Boolean).join(" ");
+    // NOT A PLAIN JOIN — see spokenJoin.js. A draft that resolved after its own sentence committed
+    // holds words that are already in the box, and joining blind sent them twice (his report,
+    // 2026-10-10). The host no longer emits those drafts; this is the check at the seam where the
+    // two sources meet, and it fails toward keeping words.
+    const text = joinSpoken(input, draft);
     // A SLASH COMMAND IS NOT A MESSAGE — it goes through the commands door, panel and all.
     if (attached && /^\/\S+/.test(text)) return runSlash(text);
     // PRESSING SEND WHILE THE WORDS ARE STILL LANDING. His bug, and it wasted his time all session:
@@ -4726,6 +4968,16 @@ const countdown = (str, now = Date.now()) => {
   }, [deletedLanesKey]);
   // which lane's panel is open — one at a time; the panel is the deep look, the rows are the glance
   const [lanePanel, setLanePanel] = useState(null);
+  // THE LANE'S RAW LOG, joined once for both render sites. The split stamps a subagent's events
+  // with the spawning Agent call's id, while a row is keyed by its RUN id — so the join is on the
+  // sourced `set` call, which is the only thing both halves carry. A lane an agent registered for
+  // its OWN work has no subagent and therefore no events, which is not an error: the panel's log
+  // is empty and its header still reads the run.
+  const laneLogFor = (source) => {
+    for (const [, lane] of work.lanes || [])
+      if (lane.source === source) return { events: lane.events, brief: lane.brief || "" };
+    return { events: null, brief: "" };
+  };
   const listsShown = (work.state.todoLists || []).filter(
     (l) => l.items.length && JSON.stringify(l.items) !== clearedLists[l.key] && !l.source.startsWith("lane:")
   );
@@ -4971,10 +5223,7 @@ const countdown = (str, now = Date.now()) => {
         {attached && lanePanel && !inNav && (() => {
           const l = lanesShown.find((x) => x.key === lanePanel);
           if (!l) return null;
-          let laneEvents = null, laneBrief = "";
-          for (const [, lane] of work.lanes || []) {
-            if (lane.source === l.source) { laneEvents = lane.events; laneBrief = lane.brief || ""; break; }
-          }
+          const { events: laneEvents, brief: laneBrief } = laneLogFor(l.source);
           return (
             <div className={`${CLASSNAME}__tv ${CLASSNAME}__lanepanel-side`} style={{ width: 460, height: Math.max(380, size.h) }}>
               <LanePanel
@@ -6440,11 +6689,18 @@ const countdown = (str, now = Date.now()) => {
               when the agent stops is a list he can only read while he cannot act on it. */}
           {attached &&
             lanesShown.map((l) => (
+              // A PANEL BELONGS UNDER THE ROW IT WAS OPENED FROM. His report, 2026-10-10:
+              // *"why isn't those lanes opening up right under the fucking lane."* It used to
+              // render after the whole map AND after the worklist/job cards, so with two lanes and
+              // a list open, clicking the first row put its panel four cards down — far enough
+              // that the press read as doing nothing. The row and its panel are one disclosure;
+              // they have to be one element in the list.
+              <React.Fragment key={l.key}>
               <LaneRow
-                key={l.key}
                 source={l.source}
                 items={l.items}
                 projectCode={projectCode}
+                delegated={!!laneLogFor(l.source).events}
                 panelOpen={lanePanel === l.key}
                 onOpenPanel={() => setLanePanel((cur) => (cur === l.key ? null : l.key))}
                 onDelete={async () => {
@@ -6464,39 +6720,45 @@ const countdown = (str, now = Date.now()) => {
                   setLanePanel((cur) => (cur === l.key ? null : cur));
                 }}
               />
+              {/* IN THE NAV the panel expands in place, directly beneath its row. FLOATING, it
+                  goes out to the chat's side with the other panels (his call); that render is in
+                  the panel-anchor row further down. */}
+              {inNav && lanePanel === l.key && (() => {
+                const { events: laneEvents, brief: laneBrief } = laneLogFor(l.source);
+                return (
+                  <LanePanel
+                    source={l.source}
+                    items={l.items}
+                    laneEvents={laneEvents}
+                    brief={laneBrief}
+                    projectCode={projectCode}
+                    onClose={() => setLanePanel(null)}
+                  />
+                );
+              })()}
+              </React.Fragment>
             ))}
           {attached &&
-            listsShown.map((l) => (
-              <WorkList
-                key={l.key}
-                items={l.items}
-                source={l.source}
-                onClear={() => setClearedLists((c) => ({ ...c, [l.key]: JSON.stringify(l.items) }))}
-              />
-            ))}
-          {/* IN THE NAV the panel expands in place — the chat is a column there and has no side.
-              FLOATING, it goes out to the chat's side with the other panels (his call); that
-              render lives in the panel-anchor row below. */}
-          {attached && lanePanel && inNav && (() => {
-            const l = lanesShown.find((x) => x.key === lanePanel);
-            if (!l) return null;
-            // the lane's raw events, routed by the split: key is the run id; the lane map is
-            // keyed by the spawning Agent call's id — join on the sourced set call
-            let laneEvents = null, laneBrief = "";
-            for (const [, lane] of work.lanes || []) {
-              if (lane.source === l.source) { laneEvents = lane.events; laneBrief = lane.brief || ""; break; }
-            }
-            return (
-              <LanePanel
-                source={l.source}
-                items={l.items}
-                laneEvents={laneEvents}
-                brief={laneBrief}
-                projectCode={projectCode}
-                onClose={() => setLanePanel(null)}
-              />
-            );
-          })()}
+            listsShown.map((l) =>
+              // A JOB GETS ITS OWN CARD — see JobRun. The source is the only thing that decides,
+              // which is the same rule the lane rows use one filter above.
+              l.source.startsWith("job:") ? (
+                <JobRun
+                  key={l.key}
+                  items={l.items}
+                  source={l.source}
+                  projectCode={projectCode}
+                  onClear={() => setClearedLists((c) => ({ ...c, [l.key]: JSON.stringify(l.items) }))}
+                />
+              ) : (
+                <WorkList
+                  key={l.key}
+                  items={l.items}
+                  source={l.source}
+                  onClear={() => setClearedLists((c) => ({ ...c, [l.key]: JSON.stringify(l.items) }))}
+                />
+              ),
+            )}
           {/* The whiteboard sits UNDER the list — tried on top, he wants to feel this order
               again. Same area, different job: the list tracks the work, the board holds the
               conversation. The wipe is the host's, so an erase clears it for both of us. */}

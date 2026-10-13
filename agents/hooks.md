@@ -97,19 +97,59 @@ a quota-aware one can back off when the account is throttled.
 
 The quota trio is **absent until the API reports a limit** — nothing invented; `exists` handles absence.
 
-## Guards
+## The fire rate — a different axis from the condition
 
-A badly-scoped hook is a context leak that fires forever, so a hook may declare a guard:
-`once-per-session`, or `cooldown:<seconds>` (`study` uses `cooldown:604800` — once a week).
-Fired-state lives with the session, never globally, so "once per session" cannot quietly mean
-"once per shell". An unknown guard does not block the hook — it is a typo, not a lock.
+A badly-scoped hook is a context leak that fires forever, so a hook declares a **rate**. It is not
+the same question as `when`: `when` is a CONDITION (what must be true right now), the rate is a fact
+about this hook and this agent OVER TIME. "past 60%" and "at most once a day" compose without
+interfering, which is the test that they were ever separate axes. `guard:` is the old spelling and
+still reads; a hook edited once migrates itself, because the writer only ever emits `rate:`.
+
+| family | forms | means |
+|---|---|---|
+| sliding | `cooldown:30m` `cooldown:3d12h` `cooldown:2w` | no sooner than N since the last fire. Bare digits still mean seconds, so old hooks keep their meaning |
+| calendar | `once-per-day` · `once-per-week` · `once-per-month` | once within each period, however the periods fall — fire at 11pm Monday and a sliding day blocks all Tuesday daytime; the calendar one is what the words mean |
+| session | `once-per-session` | once, then never again for this session's life |
+| edge | `once-per-rise` | once per **crossing** of the hook's own `when`, re-armed when the condition goes false again |
+
+**For a hook on a THRESHOLD, `once-per-rise` is almost always the one you want.** `once-per-session`
+on `when: pct >= 60` fires at the first crossing and then stays silent for the rest of the session —
+through every compaction and every refill, because the session's fired map is created at birth and
+nothing clears it. That was a real, reported failure (2026-10-12), not a hypothetical. A rise is
+re-armed by the FALL, so each climb past the line fires exactly once. It is session-scoped and never
+written to disk: a restart is a new context and must find the hook armed. A `once-per-rise` with no
+`when` is refused when you write it — with nothing to go false it would mean `once-per-session`.
+
+**Calendar and sliding rates are PERSISTED** — `~/.autobot/hooks-fired.json`, keyed `<agent>|<hook>`,
+so a shared hook carried by three agents has three cadences instead of the first one silencing the
+rest. A hook's record dies with the hook; nothing accumulates. The session-scoped rates live in the
+session, so "once per session" can never quietly mean "once per shell".
+
+**A malformed rate is REFUSED at the writing door** — reversed from the old rule, which let an
+unrecognised guard through as "a typo, not a lock". Sane for a condition, backwards for a rate:
+`cooldown:2w` parsed as nothing and meant *no limit at all*, so the hook you slowed down became the
+noisiest thing in the system, silently.
 
 ## Carrying — writing is not arming
 
 A hook is a library entry: writing one makes it **exist** for everybody and **fire for nobody**.
-It fires only for an agent that *carries* it, and the carry list lives on the agent's profile —
-the human's to tick. `scope` is only the suggestion the editor pre-fills; carried-or-not is the
-one real mechanism. An agent authoring a hook has proposed wiring, not armed it.
+It fires only for an agent that *carries* it, and the carry list lives on the agent (`def.hooks`).
+`scope` is only the suggestion the editor pre-fills; carried-or-not is the one real mechanism.
+
+**An agent arms its OWN hooks** — `hooksCarry({name, carry})`, settled 2026-10-12. Its own context,
+its own continuation; a human in that loop is a bottleneck approving nothing. It applies immediately,
+because the carry list is read per fire rather than copied onto the session when it opened — so
+ticking a hook never needed a re-init either.
+
+**Another agent's carry list is the human's.** That imposes standing behaviour on context somebody
+else pays for every turn, which is a different act, and the verb refuses it by name rather than being
+silently unable.
+
+The press was never what protected anything: the **writing door** is, and it already refuses an event
+that does not exist, a malformed rate, a `once-per-rise` with no `when`, and a job hook that cannot
+supply what the job declares. Every fire is a feed row naming who wired it, so an armed hook was
+never invisible — and the old rule produced the failure this page calls the worst one there is, a
+hook that looks correct and silently never runs.
 
 ## Kinds
 

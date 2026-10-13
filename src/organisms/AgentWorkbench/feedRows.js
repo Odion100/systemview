@@ -957,6 +957,20 @@ export function foldEvents(events) {
         to: ev.to || "",
         work: ev.hookKind === "work",
         note: ev.note || "",
+        // THE ROW OPENS NOW — his ask, 2026-10-08: *"I should be able to click on the hook and see
+        // what the description and stuff was, the parameters, what it was injected."* Everything
+        // else in the feed that pushed context already expands (see the `injected` row); this one
+        // showed three words and had no click handler at all.
+        text: ev.text || "",
+        cond: ev.when || null,
+        rate: ev.rate || "",
+        // AND A JOB SAYS WHETHER IT WAS GIVEN. A refused job used to be indistinguishable from one
+        // that ran, because the row drew the pointer and not the outcome.
+        job: ev.job || "",
+        given: ev.job ? ev.given === true : null,
+        inputs: ev.inputs || null,
+        missing: ev.missing || null,
+        runId: ev.runId || "",
         ts: ev.ts,
       });
       return;

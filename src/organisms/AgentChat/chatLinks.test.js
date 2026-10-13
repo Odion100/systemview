@@ -32,6 +32,48 @@ describe("linkRefs", () => {
     expect(linkRefs("just words, and a colon: here")).toEqual([]);
     expect(linkRefs(null)).toEqual([]);
   });
+
+  // HIS ASK, 2026-10-05. An agent writing plain markdown writes `[label](src/thing.js)`, because it
+  // is writing markdown and not this app's grammar — *"those links and files, markdown should
+  // work."* It used to match nothing at all and render as literal text.
+  describe("a markdown link to a PATH is a file reference", () => {
+    it("reads a relative target as a file, not a route", () => {
+      const [r] = linkRefs("see [the picker](src/atoms/CodeView/colorPicker.js) for why");
+      expect(r.kind).toBe("file");
+      expect(r.label).toBe("src/atoms/CodeView/colorPicker.js");
+    });
+
+    it("takes a bare filename and a home-relative path too", () => {
+      expect(linkRefs("[detector](colorTokens.js)")[0]).toMatchObject({ kind: "file", label: "colorTokens.js" });
+      expect(linkRefs("[the skill](~/.claude/skills/delegation/SKILL.md)")[0].kind).toBe("file");
+    });
+
+    it("keeps a line range attached to the path", () => {
+      expect(linkRefs("[the resolver](api/index.js#L780-790)")[0].label).toBe("api/index.js#L780-790");
+    });
+
+    // The guard, and the reason it is an EXTENSION rather than a looser rule: an anchor and a
+    // mailto are ordinary markdown and must stay ordinary links, or the chip steals them.
+    it("leaves routes, URLs, anchors and schemes alone", () => {
+      expect(linkRefs("[the spec](/specs/x)")[0]).toMatchObject({ kind: "link", href: "/specs/x" });
+      expect(linkRefs("[chores](#chores)")).toEqual([]);
+      expect(linkRefs("[mail him](mailto:a@b.com)")).toEqual([]);
+      expect(linkRefs("[docs](https://ex.com/a.js)")[0]).toMatchObject({ kind: "link" });
+    });
+
+    it("needs an extension — a word in parentheses is not a file", () => {
+      expect(linkRefs("[the lane](subs-are-hooks)")).toEqual([]);
+    });
+
+    // One identity for one file: the panel must not list the same path twice because it was written
+    // two different ways in two messages.
+    it("is the same row as the directive form of the same path", () => {
+      const a = linkRefs(":file[src/a.js]")[0];
+      const b = linkRefs("[alpha](src/a.js)")[0];
+      expect(b.kind).toBe(a.kind);
+      expect(b.label).toBe(a.label);
+    });
+  });
 });
 
 describe("collectLinks", () => {

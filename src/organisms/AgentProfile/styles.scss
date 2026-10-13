@@ -752,7 +752,19 @@
   border-radius: 7px;
   background: var(--sv-inset);
 }
-.agent-profile__hook--off { opacity: 0.5; }
+// OFF DIMS WHAT THE ROW *IS*, NEVER WHAT YOU ACT WITH.
+//
+// His report, 2026-10-12: *"when hooks are disabled they have opacity but you go to edit it and
+// inside component has opacity too… when I pick the slider to pick the job, it's hard to see
+// because it's see through."* Dead right, and it is the classic opacity trap: `opacity` on a
+// container creates a compositing group, so EVERY descendant is dimmed and a child CANNOT opt back
+// out — `opacity: 1` on the form does nothing. The editor expands inside this row, so a dropdown
+// you have to read was being rendered at half strength.
+//
+// So the dim is scoped to `__hook-main`, which is the hook's identity (name · on · when · do).
+// The tags, the switches, and the whole editor stay at full strength: whether a hook is carried
+// says nothing about how readable the controls for changing that should be.
+.agent-profile__hook--off > .agent-profile__hook-main { opacity: 0.5; }
 .agent-profile__hook-main {
   display: flex;
   align-items: baseline;
@@ -834,7 +846,34 @@
   border-color: #d64c4c55;
   &:hover:not(:disabled) { background: #d64c4c1c; color: #d64c4c; }
 }
+// EVERY ADD BUTTON GETS AIR, ON THE CLASS. He has now reported this twice — once for `+ new chore`
+// sitting flush against the last chore line, and again for `+ new job` doing the identical thing.
+// The first time I fixed the INSTANCE (`.agent-profile__chores + &`, one sibling selector), so the
+// next button added to this class inherited nothing and reproduced the bug immediately. That is the
+// whole lesson: a one-off selector is a fix for one screen, and the class is what the next button
+// reads. Three buttons wear this class today — new chore, new job, new hook — and anything added
+// later now starts correct instead of starting flush.
+// NAMING IN PLACE — the row that replaces a browser prompt box (which Electron does not implement
+// at all, and which this codebase had already rejected for covering the row it asks about).
+.agent-profile__newrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+// NAMING IN PLACE — the row that replaces a browser prompt box, which Electron does not implement
+// and which this codebase had already rejected for covering the row it asks about.
+.agent-profile__newrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
 .agent-profile__hook-add {
+  display: inline-block;
+  margin-top: 12px;
   font-family: inherit;
   font-size: 12px;
   font-weight: 600;
@@ -1040,3 +1079,225 @@
 .agent-profile__sub-when, .agent-profile__sub-gate { font-size: 11px; color: var(--sv-text-muted, #8a8f98); white-space: nowrap; }
 .agent-profile__sub-dead { font-size: 11px; color: #c0392b; }
 .agent-profile__sub .agent-profile__hook-btn { margin-left: auto; }
+
+// THE CHORE BOARD — RFC-067 §4. The lines are editable; the state beside each one is not, because
+// done/not-done is a query over closed runs and there is nothing here to press.
+// THE CHORE BOARD. Rebuilt 2026-10-12 after he said the area was awkward and he was right: it was
+// a FORM, not a board. Two unlabelled dropdowns dominated every row, the status was a 12px "·",
+// the verdict was a wrapping sentence, and the one thing a board exists to answer — how much is
+// outstanding — was not on screen at all.
+//
+// What carries the glance now: a tally above the list, a status PILL per row (own fill, so it
+// reads in light and dark alike), and a left border per state so a column of lines scans without
+// being read. The controls stop shouting because the colour does the work.
+.agent-profile__chores-tally {
+  margin: 0 0 7px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--sv-text-muted);
+}
+.agent-profile__chores-tally--owed { color: #c98a2e; }
+.agent-profile__chores { display: flex; flex-direction: column; gap: 6px; }
+.agent-profile__chore {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 5px 8px;
+  border-radius: 7px;
+  border-left: 3px solid var(--sv-border);
+  background: var(--sv-inset);
+}
+.agent-profile__chore--owed { border-left-color: #e2ad42; }
+.agent-profile__chore--done { border-left-color: #63b98a; }
+.agent-profile__chore--new  { border-left-color: var(--sv-text-faint); border-left-style: dashed; }
+// A PILL, NOT A BULLET — and dark ink on a mid-tone fill is theme-independent by construction.
+.agent-profile__chore-pill {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 3px 7px;
+  border-radius: 5px;
+  color: #22262e;
+  background: var(--sv-border);
+}
+.agent-profile__chore-pill--owed { color: #4a3206; background: #e2ad42; }
+.agent-profile__chore-pill--done { color: #0f2418; background: #63b98a; }
+.agent-profile__chore-pill--new  { color: var(--sv-text-muted); background: none; border: 1px dashed var(--sv-border); }
+// "every" — the word that makes the two controls read as one sentence instead of two inputs.
+.agent-profile__chore-every {
+  font-size: 11px;
+  color: var(--sv-text-muted);
+}
+.agent-profile__chore-state {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 10.5px;
+  color: var(--sv-text-faint);
+  white-space: nowrap;
+}
+// THE CONTROLS SIT AT THE FAR END, and whichever comes first takes the gap. Written as two rules
+// in this order on purpose: the delete claims the gap by default, and a `reset` appearing before it
+// takes the gap instead — later rule, same specificity, so it wins. (The first version of this was
+// four rules contradicting each other, which is how a stylesheet starts lying about its own
+// layout.)
+.agent-profile__chore > .agent-profile__hook-btn--del { margin-left: auto; }
+.agent-profile__chore-reset {
+  margin-left: auto;
+  // Disabled reads as unavailable, not as missing — the whole point of keeping it on screen.
+  &:disabled { opacity: 0.4; cursor: default; }
+}
+.agent-profile__chore-reset + .agent-profile__hook-btn--del { margin-left: 0; }
+// "reset" beside a DUE pill — why it is due, when the answer is "because you said so".
+.agent-profile__chore-wasreset {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 5px;
+  border-radius: 4px;
+  color: var(--sv-text-muted);
+  border: 1px dashed var(--sv-border);
+}
+// (the one-off that used to live here is now on the class itself — see __hook-add)
+
+// A HOOK'S `with:` — one row per name the job's own document declares.
+.agent-profile__hookform-with { display: flex; flex-direction: column; gap: 5px; flex: 1; }
+.agent-profile__hookform-withrow { display: flex; align-items: center; gap: 8px; }
+.agent-profile__hookform-withkey {
+  min-width: 96px;
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 11px;
+  color: #63b98a;
+}
+
+// JOBS — RFC-067 §8.8. Amber, because that is this system's colour for the loud kind of thing: a
+// job is given and it runs, where a skill is offered and the agent decides.
+.agent-profile__jobs { display: flex; flex-direction: column; gap: 10px; }
+.agent-profile__job {
+  padding: 7px 9px;
+  border-radius: 8px;
+  border-left: 3px solid #d19a2e;
+  background: rgba(209, 154, 46, 0.06);
+}
+// Same trap, same fix: the `▸ runs` list expands inside this row, and a parked job's runs are
+// exactly what you came to read. The left border already says "parked" without dimming anything.
+.agent-profile__job--off { border-left-color: var(--sv-text-faint); }
+.agent-profile__job--off > .agent-profile__job-main { opacity: 0.6; }
+.agent-profile__job-main { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.agent-profile__job-name {
+  border: 0;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--sv-text-strong);
+}
+.agent-profile__job-id,
+.agent-profile__job-needs {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 10.5px;
+  color: var(--sv-text-faint);
+}
+.agent-profile__job-needs { color: #63b98a; }
+.agent-profile__job-needs--none { color: var(--sv-text-faint); font-style: italic; }
+.agent-profile__job-chev { margin-left: auto; font-size: 10px; opacity: 0.6; }
+.agent-profile__job-aim {
+  margin: 4px 0 0;
+  font-size: 11.5px;
+  color: var(--sv-text-muted, #8a8f98);
+}
+
+// WHO CAN FIRE IT — green when the hook is actually carried, because a hook nobody carries fires
+// for nobody and that is invisible from the job alone.
+.agent-profile__job-givers { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 5px; }
+.agent-profile__job-giver {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  color: var(--sv-text-faint);
+  background: var(--sv-surface-soft, rgba(0, 0, 0, 0.05));
+}
+.agent-profile__job-giver--on { color: #0f2418; background: #63b98a; font-weight: 700; }
+.agent-profile__job-giver--none { color: #c9524b; font-style: italic; background: none; padding-left: 0; }
+
+.agent-profile__job-open { margin-top: 7px; }
+.agent-profile__job-runs { display: flex; flex-direction: column; gap: 4px; }
+.agent-profile__job-run {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 11px;
+}
+.agent-profile__job-run-state {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--sv-surface-soft, rgba(0, 0, 0, 0.06));
+  color: var(--sv-text-faint);
+}
+.agent-profile__job-run-state--finished { color: #0f2418; background: #63b98a; }
+.agent-profile__job-run-state--running { color: #1d1708; background: #d19a2e; }
+.agent-profile__job-run-when { font-family: ui-monospace, Menlo, monospace; font-size: 10px; color: var(--sv-text-faint); }
+.agent-profile__job-run-why { flex: 1; font-style: italic; color: var(--sv-text-muted, #8a8f98); }
+.agent-profile__job-run-report {
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 10.5px;
+  padding: 1px 7px;
+  border-radius: 4px;
+  color: #0f2418;
+  background: #63b98a;
+}
+.agent-profile__job-run-noreport { font-size: 10.5px; color: #c9524b; }
+.agent-profile__job-run-rate { display: inline-flex; gap: 1px; }
+.agent-profile__job-star {
+  border: 0;
+  background: none;
+  padding: 0 1px;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--sv-border-soft, rgba(0, 0, 0, 0.2));
+}
+.agent-profile__job-star:hover,
+.agent-profile__job-star--on { color: #d19a2e; }
+
+// A SURFACE THAT CANNOT LOOK says so, and it does not look like an empty list — absence stated
+// beats a confident wrong answer, and these are different sentences.
+.agent-profile__none--blind { color: #c9524b; }
+
+// THE WHOLE ROW IS THE TARGET — his catch: the only clickable thing was the name, which is a
+// two-word hit area for the one gesture this section exists for.
+.agent-profile__job-main { cursor: pointer; }
+.agent-profile__job-main:hover .agent-profile__job-name { text-decoration: underline; }
+.agent-profile__job-chev {
+  margin-left: auto;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--sv-text-faint);
+}
+.agent-profile__job-chev:hover { background: var(--sv-surface-soft, rgba(0, 0, 0, 0.06)); }
+.agent-profile__job-read {
+  margin-top: 8px;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 5px;
+  color: #1d1708;
+  background: #d19a2e;
+}

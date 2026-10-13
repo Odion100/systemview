@@ -1227,3 +1227,53 @@ describe("parseMcpResult — context hits carry the note id", () => {
     expect(out.docs[0].body).toContain("delivery block");
   });
 });
+
+describe("a hook's receipt carries what happened, not just what it pointed at", () => {
+  // His ask, 2026-10-08: *"when a hook fires I don't see that, and I should — click on the hook and
+  // see what the description and stuff was, the parameters, what it was injected."* The row could
+  // not show any of it because the fold dropped all of it.
+  it("keeps the injected pointer, the condition, the rate and the note", () => {
+    const [row] = foldEvents([
+      ev("hook.fired", {
+        name: "context-maintenance",
+        on: "usage",
+        to: "skill:context-maintenance",
+        note: "past 60%",
+        text: "<context-hook>The `context-maintenance` skill applies here.</context-hook>",
+        when: { pct: { gte: 60 } },
+        rate: "once-per-session",
+      }),
+    ]);
+    expect(row.kind).toBe("hook");
+    expect(row.text).toContain("applies here");
+    expect(row.cond).toEqual({ pct: { gte: 60 } });
+    expect(row.rate).toBe("once-per-session");
+    expect(row.note).toBe("past 60%");
+  });
+
+  // THE ONE THAT MATTERS. A job refused for a missing input used to be indistinguishable from a job
+  // that ran: the row drew `→ job:x` either way, which is a surface testifying instead of reading.
+  it("says whether a JOB was given, and names what was missing when it was not", () => {
+    const [given] = foldEvents([
+      ev("hook.fired", { name: "close-the-month", on: "user.prompt", to: "job:month-close",
+        job: "month-close", given: true, inputs: { period: "2026-09" }, runId: "r7" }),
+    ]);
+    expect(given.job).toBe("month-close");
+    expect(given.given).toBe(true);
+    expect(given.inputs).toEqual({ period: "2026-09" });
+    expect(given.runId).toBe("r7");
+
+    const [refused] = foldEvents([
+      ev("hook.fired", { name: "close-the-month", on: "user.prompt", to: "job:month-close",
+        job: "month-close", given: false, missing: ["period"] }),
+    ]);
+    expect(refused.given).toBe(false);
+    expect(refused.missing).toEqual(["period"]);
+  });
+
+  it("leaves a skill hook with no verdict at all — there is nothing to be given", () => {
+    const [row] = foldEvents([ev("hook.fired", { name: "study", on: "session.started", to: "skill:study" })]);
+    expect(row.job).toBe("");
+    expect(row.given).toBe(null);
+  });
+});

@@ -56,7 +56,12 @@ const DocPanel = ({ doc, onChange, onSave, onClose, saving = false }) => {
         <div className="doc-panel__title">
           <span className="doc-panel__label">{doc.label}</span>
           <span className="doc-panel__load">
-            {doc.kind === "skill"
+            {doc.kind === "job"
+              ? // A JOB IS NOT LOADED BY ANYBODY — that is what makes it a job. Saying "loads on
+                // demand" would put it in the skills' category, and the whole divide is that a
+                // skill is advertised to be CHOSEN while a job is only ever GIVEN.
+                "never injected · given by a hook or by name · read-only"
+              : doc.kind === "skill"
               ? // READ-ONLY IS SAID HERE, at the top, before anyone reads a line and plans an edit.
                 // The body below is whole and unclipped — a skill you can't change is still the
                 // clearest statement of what's in the kit — but there is no save control at all.

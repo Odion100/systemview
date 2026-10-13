@@ -8,6 +8,7 @@ import CallStats from "../../organisms/CallStats/CallStats";
 import DocPanel from "../../organisms/DocPanel/DocPanel";
 import AgentChat from "../../organisms/AgentChat/AgentChat";
 import { saveDoc, saveSkill, saveDef, saveHelp } from "../../utils/hostAgents";
+import { saveJob } from "../../utils/hostJobs";
 import useOpenedFile from "../../organisms/DocPanel/useOpenedFile";
 import "./styles.scss";
 
@@ -74,6 +75,20 @@ const Context = () => {
         window.dispatchEvent(new CustomEvent("sv:botHub")); // the profile re-reads on this signal
       } else if (doc.kind === "skill") {
         res = await saveSkill(doc.agentId, doc.name, doc.where, doc.text);
+      } else if (doc.kind === "job") {
+        // A JOB IS SAVED FROM HERE NOW (2026-10-13). It used to return early, on the argument that
+        // `job-authoring` into `jobsWrite` is what guarantees the six parts are in it — and that
+        // argument confused AUTHORING with TYPING. He went to write one and found no way in: *"maybe
+        // I got one from somewhere else and I copy and paste it, or write it myself."* Refusing the
+        // paste did not make any job better written; it just meant every job on the machine had to
+        // come through an agent.
+        //
+        // The host still refuses a save with an empty document (`jobs.save`: "a job needs its
+        // document — job.json is a projection of it, not a substitute"), and `requires:` is still
+        // read out of the front matter rather than typed anywhere else. So the guarantees that were
+        // real are still real; what is gone is a lock that only stopped him.
+        res = await saveJob({ id: doc.jobId, doc: doc.text });
+        window.dispatchEvent(new CustomEvent("sv:botHub"));
       } else if (doc.kind === "help") {
         // page-level help — scoped to no agent, one shared file
         res = await saveHelp(doc.key, doc.text);

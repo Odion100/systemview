@@ -195,6 +195,67 @@ export const probeEmbedFor = (row, canRender = true) => {
   return `:::run{title="probe ${ns}"}\n- ${ns}${args}${result}\n:::`;
 };
 
+// A HOOK FIRING, OPENABLE — his ask, 2026-10-08: *"when a hook fires I don't see that, and I
+// should. I should be able to click on the hook and see what the description and stuff was, the
+// parameters, what it was injected. And the same goes for if a hook points to a job."*
+//
+// The text exists and was reaching nobody. `HOOKWRAP` strips the pointer out of the transcript so
+// the mechanism cannot draw as the human typing — correct, and it left the words visible to no one.
+// Hidden from the transcript, available on the row: the same bargain the injected row already made.
+//
+// AND THE HEADLINE IS THE OUTCOME, NOT THE POINTER. A job that fired and was refused for a missing
+// input drew the identical row to one that ran. `given` / `refused` is the first thing on the row
+// now, because the row's job is to say what happened.
+const HookRow = ({ row }) => {
+  const [open, setOpen] = useState(false);
+  const isJob = !!row.job;
+  const refused = isJob && row.given === false;
+  const body = row.text || row.note;
+  return (
+    <div
+      className={`${CLASSNAME}__row ${CLASSNAME}__row--hook${row.work ? ` ${CLASSNAME}__row--hookwork` : ""}${
+        isJob ? ` ${CLASSNAME}__row--hookjob` : ""
+      }${refused ? ` ${CLASSNAME}__row--hookrefused` : ""}`}
+    >
+      <div
+        role="button"
+        tabIndex={0}
+        style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", cursor: body ? "pointer" : "default" }}
+        onClick={() => body && setOpen(!open)}
+        onKeyDown={(e) => body && (e.key === "Enter" || e.key === " ") && setOpen(!open)}
+      >
+        <When ts={row.ts} />
+        <span className={`${CLASSNAME}__hook-mark`}>⇥</span>
+        <span className={`${CLASSNAME}__hook-name`}>{row.name}</span>
+        <span className={`${CLASSNAME}__hook-on`}>on {row.on}</span>
+        {row.to && <span className={`${CLASSNAME}__hook-to`}>→ {row.to}</span>}
+        {isJob && (
+          <span className={`${CLASSNAME}__hook-verdict${refused ? ` ${CLASSNAME}__hook-verdict--no` : ""}`}>
+            {refused ? `refused — needs ${(row.missing || []).join(", ")}` : "given"}
+          </span>
+        )}
+        {row.work && !isJob && <span className={`${CLASSNAME}__hook-work`}>work</span>}
+        {body ? <span className={`${CLASSNAME}__cmd-sign`}>{open ? "▾" : "▸"}</span> : null}
+      </div>
+      {open && (
+        <div className={`${CLASSNAME}__hook-detail`}>
+          {/* THE PARAMETERS HE ASKED FOR — the hook's own definition, which until now lived only on
+              the profile page, three clicks away from the row that was asking about it. */}
+          <div className={`${CLASSNAME}__hook-facts`}>
+            {row.cond && <span>when {JSON.stringify(row.cond)}</span>}
+            {row.rate && <span>rate {row.rate}</span>}
+            {row.inputs && <span>with {Object.entries(row.inputs).map(([k, v]) => `${k}=${v}`).join(", ")}</span>}
+            {row.runId && <span>run {row.runId}</span>}
+          </div>
+          {row.note && <div className={`${CLASSNAME}__hook-note`}>{row.note}</div>}
+          {/* WHAT WAS ACTUALLY INJECTED, verbatim — the words the model got, not a paraphrase. */}
+          {row.text && <div className={`${CLASSNAME}__injected-body`}>{row.text}</div>}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // RFC-013 — the injected-context receipt, OPENABLE (his catch: "since when is a log only a bar?
 // you click to open it and see what it's about"). Closed it reads like the hook row — the same
 // kind of moment, context arriving unasked — and open it shows exactly what was delivered, the
@@ -673,15 +734,8 @@ const Feed = ({ rows, answered = {}, onAnswer = null, renderText = null }) =>
       // A HOOK FIRING IS A THING THAT HAPPENED, so it reads like every other thing that happened —
       // a row in the feed's existing vocabulary, never raw injected text dumped into the chat.
       // The chain has to be traceable end to end: this row is the first link (hook fired), the
-      // skill load is the second, and what the agent did next is the third.
-      <div key={r.key} className={`${CLASSNAME}__row ${CLASSNAME}__row--hook${r.work ? ` ${CLASSNAME}__row--hookwork` : ""}`}>
-        <When ts={r.ts} />
-        <span className={`${CLASSNAME}__hook-mark`}>⇥</span>
-        <span className={`${CLASSNAME}__hook-name`}>{r.name}</span>
-        <span className={`${CLASSNAME}__hook-on`}>on {r.on}</span>
-        {r.to && <span className={`${CLASSNAME}__hook-to`}>→ {r.to}</span>}
-        {r.work && <span className={`${CLASSNAME}__hook-work`}>work</span>}
-      </div>
+      // skill load is the second, and what the agent did next is the third. It OPENS for the rest.
+      <HookRow key={r.key} row={r} />
     ) : r.kind === "injected" ? (
       <InjectedRow key={r.key} row={r} />
     ) : r.kind === "cmdret" ? (

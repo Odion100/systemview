@@ -17,8 +17,41 @@
 // The reference/link grammar a chat bubble can carry. ONE copy — the renderer and the collector
 // have to agree on what a link is, or the panel lists things the chat doesn't draw (and misses
 // things it does).
-export const LINKISH =
-  /:(report|file|ns|ui)\[([^\]]+)\](?:\{([^}]*)\})?|\[([^\]]+)\]\((\/[^)\s]+|https?:\/\/[^)\s]+)\)|(https?:\/\/[^\s]+)/g;
+// A PLAIN MARKDOWN LINK TO A FILE IS A FILE REFERENCE (his ask, 2026-10-05). The target used to have
+// to start with `/` or `http`, so `[the picker](src/atoms/CodeView/colorPicker.js)` — the shape an
+// agent writes when it is just writing markdown — matched NOTHING and rendered as literal text. He
+// refused the alternative out loud: *"Should I correct them? No. Or should it work? ... those links
+// and files, markdown should work."*
+//
+// IT MUST CARRY AN EXTENSION, and that is the whole guard. Accepting any target would swallow
+// `[see](#chores)` and `[the team](mailto:...)` and every ordinary anchor; requiring `name.ext` means
+// the pattern only fires on something that genuinely looks like a file. The cost is a file with no
+// extension (`Makefile`, `LICENSE`) still needing `:file[...]`, which is the right trade: a missed
+// chip is a visible plain link, a wrongly-claimed one is an anchor that stopped working.
+//
+// A LEADING `/` STAYS A ROUTE. `/specs/RFC-067` is this app's own URL and must keep pushing through
+// the router — so only RELATIVE targets (and `~/`) are read as paths. Which side a target fell on is
+// readable from the href itself, so there is no extra capture group: see `pathHref`.
+const ROUTEISH = String.raw`\/[^)\s]+|https?:\/\/[^)\s]+`;
+const FILEISH = String.raw`(?:~\/|\.{1,2}\/)?[\w.@+-]+(?:\/[\w.@+-]+)*\.[A-Za-z]\w{0,8}(?:#L\d+(?:-L?\d+)?|:\d+(?:-\d+)?)?`;
+export const LINKISH = new RegExp(
+  String.raw`:(report|file|ns|ui)\[([^\]]+)\](?:\{([^}]*)\})?` +
+    String.raw`|\[([^\]]+)\]\((` + ROUTEISH + "|" + FILEISH + String.raw`)\)` +
+    String.raw`|(https?:\/\/[^\s]+)`,
+  "g",
+);
+
+/**
+ * The href of a markdown link, IF it is a path rather than a route or a URL — null otherwise.
+ * One rule, read by the renderer and the collector, so a target cannot be a file chip in the bubble
+ * and a link row in the panel.
+ */
+export const pathHref = (href) => {
+  const h = String(href || "");
+  // A leading `/` is a route; anything with a SCHEME (`http:`, `mailto:`, `vscode:`) belongs to
+  // whoever owns that scheme. Everything else written in a link is a path.
+  return h && !/^(?:\/|[a-z][\w+.-]*:)/i.test(h) ? h : null;
+};
 
 // A bare URL wears its host, not its query string — same shortening the bubble does.
 export const shortUrl = (href) => {
@@ -36,8 +69,14 @@ export function linkRefs(text) {
   let m;
   while ((m = LINKISH.exec(s))) {
     if (m[1] !== undefined) out.push({ kind: m[1], label: m[2], attrs: m[3] || "" });
-    else if (m[4] !== undefined) out.push({ kind: "link", label: m[4], href: m[5] });
-    else out.push({ kind: "link", label: shortUrl(m[6]), href: m[6] });
+    else if (m[4] !== undefined) {
+      // A FILE TARGET BECOMES A FILE REF, not a link row — identical to what `:file[...]` produces,
+      // so the panel dedupes `[the picker](src/x.js)` against a `:file[src/x.js]` written elsewhere
+      // instead of listing the same file twice under two kinds. The author's words are dropped on
+      // purpose: a file row is identified by its path, which is also what the chip shows.
+      const p = pathHref(m[5]);
+      out.push(p ? { kind: "file", label: p, attrs: "" } : { kind: "link", label: m[4], href: m[5] });
+    } else out.push({ kind: "link", label: shortUrl(m[6]), href: m[6] });
   }
   return out;
 }

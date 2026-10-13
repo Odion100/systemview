@@ -180,6 +180,23 @@ export async function saveHook(rec) {
   }
 }
 
+// THE CHORE BOARD — `{ rows: [{ what, kind, name, period, since, at, done }], periods }`.
+//
+// A READ, AND THERE IS NO WRITE TO PAIR IT WITH, which is the design rather than an omission:
+// done/not-done is a QUERY over closed run records plus the chore stamps, so nothing can be ticked
+// by hand and nothing can disagree with what happened. The LINES are part of the agent definition
+// and travel through `saveDef` with everything else.
+export async function agentBoard(agentId) {
+  const a = sv() && sv().agent;
+  if (!a || typeof a.board !== "function") return { rows: [], periods: [] };
+  try {
+    const r = await a.board(agentId);
+    return { rows: (r && r.rows) || [], periods: (r && r.periods) || [], error: r && r.error };
+  } catch {
+    return { rows: [], periods: [] };
+  }
+}
+
 export async function removeHook(name) {
   const a = sv() && sv().agent;
   if (!a || typeof a.removeHook !== "function") return false;
