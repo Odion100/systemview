@@ -285,7 +285,7 @@ receipt for the commit it caused.
 
 ## `::branch[name]` — a branch offered for review
 
-The delivery block for work done on a branch — a refinement, a delegated lane, anything the human
+The delivery block for work done on a branch — a refinement, a lane, anything the human
 should review before landing. It is a **live pointer, never a frozen patch**: the diff against the
 repo's default branch is computed when the document is looked at, so it cannot go stale while the
 report sits unread.

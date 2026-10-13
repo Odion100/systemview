@@ -511,3 +511,147 @@
     &:hover::before { opacity: 1; }
   }
 }
+
+// THE COLOUR SWATCH — a chip before every colour literal, and the chip opens the picker.
+//
+// Sized off the line, not in px: the editor's font-size is a user setting, and a fixed swatch either
+// floats above a large line or crowds a small one. `em` tracks it for free.
+.cm-sv-swatch {
+  position: relative;
+  display: inline-block;
+  width: 0.85em;
+  height: 0.85em;
+  margin-right: 0.35em;
+  vertical-align: -0.08em;
+  border-radius: 3px;
+  cursor: pointer;
+  // THE CHECKER IS LOAD-BEARING. It shows through a transparent colour, so 50% alpha looks different
+  // from opaque — without it the swatch lies about what is in the file.
+  background-image:
+    linear-gradient(45deg, rgba(128, 128, 128, 0.45) 25%, transparent 25%, transparent 75%, rgba(128, 128, 128, 0.45) 75%),
+    linear-gradient(45deg, rgba(128, 128, 128, 0.45) 25%, transparent 25%, transparent 75%, rgba(128, 128, 128, 0.45) 75%);
+  background-size: 6px 6px;
+  background-position: 0 0, 3px 3px;
+  // A ring, not a border: a white swatch on a light canvas and a black one on dark both vanish
+  // otherwise, and an invisible swatch reads as "this colour has no picker".
+  box-shadow: 0 0 0 1px rgba(128, 128, 128, 0.55);
+
+  &:hover {
+    box-shadow: 0 0 0 1px rgba(128, 128, 128, 0.9), 0 0 0 3px rgba(128, 128, 128, 0.22);
+  }
+
+  &__chip {
+    position: absolute;
+    inset: 0;
+    border-radius: 3px;
+  }
+}
+
+// THE PICKER — BUStudio's surfaces and gesture, which he already has in his hands. Mounted on
+// `document.body` and positioned in viewport coordinates, so a CodeMirror widget rebuild (which
+// happens on every edit the picker itself makes) cannot destroy the thing being dragged.
+.sv-cp {
+  position: fixed;
+  z-index: 3000;
+  width: 196px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-radius: 6px;
+  background: #1b1d22;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+  // A light canvas still gets the dark picker: the surfaces below ARE colour math — a white
+  // saturation square would wash out the very gradient it exists to show.
+  color: #e6e6e6;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+
+  &__sv {
+    position: relative;
+    height: 110px;
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    cursor: crosshair;
+    // WITHOUT THIS A DRAG SCROLLS THE PANE instead of picking a colour, on any touch or trackpad
+    // gesture the browser decides is a pan.
+    touch-action: none;
+  }
+
+  &__dot {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin: -6px 0 0 -6px;
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6);
+    pointer-events: none;
+  }
+
+  &__hue,
+  &__alpha {
+    position: relative;
+    height: 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    cursor: ew-resize;
+    touch-action: none;
+  }
+
+  &__hue {
+    background: linear-gradient(to right, #f00, #ff0 17%, #0f0 33%, #0ff 50%, #00f 67%, #f0f 83%, #f00);
+  }
+
+  &__alpha {
+    background-image: conic-gradient(rgba(255, 255, 255, 0.18) 0 25%, transparent 0 50%, rgba(255, 255, 255, 0.18) 0 75%, transparent 0);
+    background-size: 8px 8px;
+  }
+
+  &__alpha-g {
+    position: absolute;
+    inset: 0;
+    border-radius: 999px;
+  }
+
+  &__thumb {
+    position: absolute;
+    top: 50%;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    transform: translate(-7px, -7px);
+    background: #2a2d33;
+    border: 2px solid #e6e6e6;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+    pointer-events: none;
+  }
+
+  &__row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  &__hex {
+    flex: 1;
+    min-width: 0;
+    font: inherit;
+    padding: 3px 6px;
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: #14161a;
+    color: inherit;
+  }
+
+  // The notation the edit will be written in. Stated because it is the surprising part: picking on
+  // an `rgba()` writes `rgba()` back, and seeing that beforehand beats discovering it in a diff.
+  &__note {
+    flex: none;
+    opacity: 0.55;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+}

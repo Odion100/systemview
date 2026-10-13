@@ -9,6 +9,8 @@ import { oneDark } from "@codemirror/theme-one-dark";
 import { langExt } from "./languages";
 import { dictateInto, dictationSupported } from "./codeComments";
 import { importBlocks, classifyHit, escapeRe } from "./codeNav";
+import { COLOR_RE, parseColor, formatColor } from "./colorTokens";
+import { openColorPicker } from "./colorPicker";
 import "./styles.scss";
 
 // RFC-018 Phase 4 — the EDITABLE CodeMirror (the editor we always wanted). Powers both the doc editor
@@ -773,6 +775,117 @@ const importLinks = ViewPlugin.fromClass(
   { decorations: (v) => v.decorations },
 );
 
+// ---------------------------------------------------------------------------------------------
+// SEE THE COLOUR, AND PICK IT — his top ask, above everything else said in the same breath:
+// *"I need all colors in the code files to be like a color selector… whether it's in a CSS file,
+// whether it's in a JSX file, wherever."*
+//
+// A WIDGET BEFORE THE LITERAL, not a mark on it. Colouring the text itself is unreadable at the dark
+// end (`#111` on a dark canvas) and it fights the syntax theme for the same span. A swatch sits
+// beside the value, keeps the token's own highlighting intact, and is the thing you click.
+//
+// THE PICKER IS NOT IN HERE — it mounts on `document.body` (see colorPicker.js). The first version
+// put a native `<input type="color">` inside this widget, and that cannot work: the widget's own
+// edit rebuilds its DOM, which detaches the input and kills the OS dialog with it. *"As soon as you
+// try to click it, it closes."* A picker that lives outside the subtree it edits is immune.
+class ColorSwatch extends WidgetType {
+  constructor(raw, from, to, view) {
+    super();
+    this.raw = raw;
+    this.from = from;
+    this.to = to;
+    this.view = view;
+  }
+  // POSITION IS THE IDENTITY, DELIBERATELY NOT THE VALUE. Comparing `raw` too meant that the moment
+  // the picker wrote a new colour, CodeMirror considered this a different widget, destroyed its DOM
+  // and built a fresh one — tearing out the element the pointer was interacting with, mid-drag, on
+  // every frame. Keyed on position alone, the instance survives its own edit and keeps its state in
+  // `raw` (which it mutates as it writes), so the gesture is uninterrupted.
+  eq(other) {
+    return other.from === this.from;
+  }
+  toDOM() {
+    const wrap = document.createElement("span");
+    wrap.className = "cm-sv-swatch";
+    wrap.title = `${this.raw} — click to pick`;
+    // The checker under the chip is what makes alpha visible: a 50%-transparent colour has to look
+    // different from the opaque one, or the swatch lies about what is in the file.
+    const chip = document.createElement("span");
+    chip.className = "cm-sv-swatch__chip";
+    chip.style.background = this.raw;
+    wrap.appendChild(chip);
+
+    // THE RANGE IS RE-FOUND ON EVERY WRITE, not trusted. A stored offset goes stale the moment
+    // anything above the literal changes — and during a drag this widget writes repeatedly, so by the
+    // third move the offsets are its own previous edits' problem. A stale range writes a colour into
+    // the middle of an unrelated line.
+    let raw = this.raw;
+    let from = this.from;
+    const write = (hex, alpha) => {
+      const parsed = parseColor(raw) || { kind: "hex6", alpha: 1 };
+      const text = formatColor(hex, { ...parsed, alpha });
+      if (text === raw) return;
+      const doc = this.view.state.doc;
+      let at = from;
+      if (doc.sliceString(at, at + raw.length) !== raw) {
+        const whole = doc.toString();
+        const near = whole.indexOf(raw, Math.max(0, at - 400));
+        at = near >= 0 ? near : whole.indexOf(raw);
+        if (at < 0) return; // it is genuinely gone — stop rather than write somewhere wrong
+      }
+      this.view.dispatch({ changes: { from: at, to: at + raw.length, insert: text } });
+      from = at;
+      raw = text;
+      this.raw = text;
+      this.to = at + text.length;
+      chip.style.background = text;
+      wrap.title = `${text} — click to pick`;
+    };
+
+    wrap.addEventListener("mousedown", (e) => {
+      // The editor must not take this: a caret move under an opening popover blurs it immediately.
+      e.preventDefault();
+      e.stopPropagation();
+      openColorPicker({
+        anchor: wrap,
+        raw,
+        // LIVE AND FREE — repainting the chip touches no document, so it triggers none of the
+        // editor's value-keyed effects. This is what he watches while dragging.
+        onPreview: (hex, alpha) => {
+          const parsed = parseColor(raw) || { kind: "hex6", alpha: 1 };
+          chip.style.background = formatColor(hex, { ...parsed, alpha });
+        },
+        // ONCE, when the gesture ends.
+        onPick: write,
+      });
+    });
+    return wrap;
+  }
+  // The widget owns its own events; without this CodeMirror treats the press as a document click.
+  ignoreEvent() {
+    return true;
+  }
+}
+
+const colorMarks = new MatchDecorator({
+  regexp: new RegExp(COLOR_RE.source, "g"),
+  decorate: (add, from, to, m, view) => {
+    if (!parseColor(m[0])) return;
+    add(from, from, Decoration.widget({ widget: new ColorSwatch(m[0], from, to, view), side: -1 }));
+  },
+});
+const colorSwatches = ViewPlugin.fromClass(
+  class {
+    constructor(view) {
+      this.decorations = colorMarks.createDeco(view);
+    }
+    update(u) {
+      this.decorations = colorMarks.updateDeco(u, this.decorations);
+    }
+  },
+  { decorations: (v) => v.decorations },
+);
+
 const CodeEditor = ({
   value = "",
   language = "markdown",
@@ -827,7 +940,13 @@ const CodeEditor = ({
   useEffect(() => {
     if (!host.current) return undefined;
     const listener = EditorView.updateListener.of((v) => {
-      if (v.docChanged && onChangeRef.current) onChangeRef.current(v.state.doc.toString());
+      if (v.docChanged && onChangeRef.current) {
+        // WHAT WE SENT UP, REMEMBERED — see the sync effect below. Without this the parent's echo of
+        // our own text is indistinguishable from somebody else's edit.
+        const text = v.state.doc.toString();
+        emittedRef.current = text;
+        onChangeRef.current(text);
+      }
     });
     // DRAG THE NUMBERS TO PICK A RUN — his ask, and it does NOT come for free: CodeMirror's line
     // number gutter has no drag-select, so dragging it only made the BROWSER select the gutter's own
@@ -925,6 +1044,7 @@ const CodeEditor = ({
       stripeClicks, // the stripe itself is the click target — no second gutter
       commentField, // RFC-034 — the file's comments and the one being written
       importLinks, // the import paths, marked as the links they already are
+      colorSwatches, // every colour literal gets a swatch, and the swatch IS the picker
       searchField, // the term's hits, and which of them look like the definition
       EditorView.domEventHandlers({
         // OPEN WHAT THE PATH POINTS AT. On the mark itself, so ordinary clicking still puts the
@@ -1012,9 +1132,24 @@ const CodeEditor = ({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [language, dark, readOnly]);
 
+  // EXTERNAL EDITS ONLY — and telling those apart from our own echo is the whole job here.
+  //
+  // THE BUG THIS FIXES (2026-10-05, his report: *"every time I try to change this color, it just
+  // moves away down the page"* and the pick not sticking). Any rapid run of programmatic edits — the
+  // colour picker writing on every drag frame — races the parent's state: we dispatch, `onChange`
+  // fires, the pane re-renders a frame later, and `value` arrives holding the text from BEFORE the
+  // latest frame. `value !== doc` was then true, so this replaced the WHOLE DOCUMENT with the older
+  // text. That reverted the colour and reset the scroller, which is why it read as the page jumping.
+  //
+  // A full-document replace is also the most destructive write available, which is why it has to be
+  // certain. If `value` is the text we last handed up, the parent is echoing us and there is nothing
+  // to sync.
+  const emittedRef = useRef(null);
   useEffect(() => {
     const view = viewRef.current;
-    if (view && value !== view.state.doc.toString()) {
+    if (!view) return;
+    if (value === emittedRef.current) return;
+    if (value !== view.state.doc.toString()) {
       view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: value } });
     }
   }, [value]);

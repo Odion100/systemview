@@ -776,6 +776,32 @@ function parseStatus(out) {
 // Shell rows are checked against DISK before they are offered. The registry is allowed to name a
 // path from another machine (`bu1 -> /root/buAPI` does), and a project that is listed here but
 // unreadable by every verb downstream is worse than one that was never listed.
+// ---------------------------------------------------------------------------------------------
+// ANY PATH, FROM ANYWHERE, OPENS — the resolver itself lives in `api/resolvePath.js` so it can be
+// tested without standing a server up (`yarn test:api`). It is pure given a root map, and the root
+// map is the one thing only the hub has: `projectRoots()` below folds the shell's folders in with
+// the connections. Hence a one-line shim rather than a copy — a second root map is a second answer
+// to "where is buAPI" that drifts the first time a project moves.
+const { resolveAnyPath: resolveIn } = require("./resolvePath");
+function resolveAnyPath(raw, hint = "") {
+  return resolveIn(raw, hint, projectRoots());
+}
+
+// The door. A chip that cannot resolve a reference itself sends the raw string and gets back the
+// project and the relative path — or a refusal that says WHY, which is what a dead chip should show
+// instead of the word "dead".
+function mountResolve(server) {
+  server.get("/sv-resolve", (req, res) => {
+    try {
+      const r = resolveAnyPath(req.query.path, req.query.project || "");
+      if (!r) return res.status(400).json({ ok: false, error: "no path given" });
+      res.json({ ok: true, ...r });
+    } catch (e) {
+      res.status(500).json({ ok: false, error: String((e && e.message) || e) });
+    }
+  });
+}
+
 function projectRoots() {
   const out = {};
   try {
@@ -1329,7 +1355,10 @@ async function worktrees(projectCode, { root } = {}) {
 // forward cleanly the work is absent, whatever anyone wrote down — so this function returns the
 // receipt as data and refuses to touch the verdict. The decision lives in one pure place
 // (src/organisms/AgentChat/laneVerdict.js), which is also the only place it is tested.
-function laneReceipt(branch) {
+// ONE WALK, BOTH FIELDS. `laneRecord` finds the lane's run file; the receipt and the STATEMENT both
+// live on it, and a second directory scan for the second field would be two readers that can
+// disagree about which run belongs to a branch.
+function laneRecord(branch) {
   const b = String(branch || "").trim();
   if (!b) return null;
   const dir = path.join(require("os").homedir(), ".autobot", "worklists");
@@ -1340,10 +1369,47 @@ function laneReceipt(branch) {
     try {
       const r = JSON.parse(fsGit.readFileSync(path.join(dir, n), "utf8"));
       if (String(r.source || "") !== `lane:${b}`) continue;
-      const got = r.broughtIn;
-      if (got && typeof got === "object" && got.ts) return got;
+      return { file: path.join(dir, n), rec: r };
     } catch {}
   }
+  return null;
+}
+
+// WHAT SOMEBODY SAID ABOUT THIS LANE — free text, dated, attributed. His ruling 2026-10-06: the row
+// should say what is actually happening, from whoever is doing it, and the derived answer becomes a
+// cross-check printed beside it. Derivation was never proof — it called a branch with no commits
+// `in · committed`, and a lane applied-then-reversed `can't tell, 4/11`, both of which the actor knew
+// exactly and had no way to state.
+function laneStatement(branch) {
+  const found = laneRecord(branch);
+  const st = found && found.rec && found.rec.status;
+  return st && typeof st === "object" && st.text ? st : null;
+}
+
+// SET IT, OR CLEAR IT. Writing goes through the same run record the row reads, so there is no second
+// store to keep in step. An EMPTY text clears — a statement nobody can retract is worse than none,
+// which is the hole the receipt had: a bring-in could be recorded and never taken back.
+async function laneStatus(projectCode, { branch = "", text = "", tone = "", by = "" } = {}) {
+  const found = laneRecord(branch);
+  if (!found) return { ok: false, error: `no run record for lane ${branch} — nothing to say it about` };
+  const id = String(found.file.split("/").pop() || "").replace(/^run-/, "").replace(/\.json$/, "");
+  try {
+    const wl = require(path.join(require("os").homedir(), "autobot", "electron", "agents", "worklist.cjs"));
+    const t = String(text || "").trim();
+    const res = wl.markStatus(id, { text: t, tone, by });
+    if (!res) return { ok: false, error: "the run record would not take it" };
+    return { ok: true, projectCode, branch, status: res.cleared ? null : res, cleared: !!res.cleared };
+  } catch (e) {
+    return { ok: false, error: String((e && e.message) || e) };
+  }
+}
+
+function laneReceipt(branch) {
+  const b = String(branch || "").trim();
+  if (!b) return null;
+  const found = laneRecord(b);
+  const got = found && found.rec && found.rec.broughtIn;
+  if (got && typeof got === "object" && got.ts) return got;
   return null;
 }
 
@@ -1373,20 +1439,56 @@ async function branchState(projectCode, { branch, base, root } = {}) {
   // does the tree hold the branch's content right now? Blob hashes, not `git diff` — an applied
   // NEW file is untracked, and diff-against-worktree cannot see untracked paths, so it would call
   // the one case this exists for "missing".
+  // A LANE THAT NEVER COMMITTED STILL HAS WORK, AND THE ROW HAS TO SEE IT (2026-10-04, his catch).
+  // `base...branch` is empty for such a lane, so `merged` came back true, the `!merged` block below
+  // was skipped, and `committed` was answered by `st.merged` WITHOUT EVER LOOKING AT THE FILES. The
+  // row read `in · committed` while the work sat in his tree as changes. The word was right — it
+  // means "brought in as a commit, not as changes" — but nothing had asked the disk.
+  //
+  // So when the branch holds nothing, read the lane's WORKTREE instead: it is where that work lives,
+  // and it answers both halves. Its `status` gives the paths; hashing its copy of each path gives the
+  // content to compare against this tree. No blob exists on the branch to compare — that is exactly
+  // what "did not commit" means — so the worktree is not a fallback, it is the only honest source.
+  let loose = null;
+  if (merged) {
+    const wt = await git(cwd, ["worktree", "list", "--porcelain"]);
+    let dir = "";
+    if (wt.ok) {
+      let cur = "";
+      for (const line of wt.out.split("\n")) {
+        if (line.startsWith("worktree ")) cur = line.slice(9).trim();
+        else if (line.trim() === `branch refs/heads/${b}` && cur !== cwd) dir = cur;
+      }
+    }
+    if (dir) {
+      const st2 = await git(dir, ["status", "--porcelain"]);
+      const paths = !st2.ok ? [] : st2.out.split("\n").filter(Boolean)
+        .map((l) => l.slice(3).trim()).filter((x) => x && !x.includes(" -> "));
+      if (paths.length) loose = { dir, entries: paths.map((path) => ({ status: "M", path })) };
+    }
+  }
   let applied;
-  if (!merged) {
-    const ns = await git(cwd, ["diff", "--name-status", `${bs}...${b}`]);
-    const entries = !ns.ok ? [] : ns.out.split("\n").filter(Boolean).map((l) => {
+  if (!merged || loose) {
+    const ns = loose ? { ok: true, out: "" } : await git(cwd, ["diff", "--name-status", `${bs}...${b}`]);
+    const entries = loose ? loose.entries : !ns.ok ? [] : ns.out.split("\n").filter(Boolean).map((l) => {
       const [status, ...p] = l.split(/\t/);
       return { status: status[0], path: p[p.length - 1] };
     });
     if (entries.length) {
       const nfs = require("fs"); const npath = require("path");
-      const lt = await git(cwd, ["ls-tree", "-r", "-z", b, "--", ...entries.map((e) => e.path)]);
       const blobOf = {};
-      if (lt.ok) for (const rec of lt.out.split("\0").filter(Boolean)) {
-        const m = rec.match(/^\d+ blob ([0-9a-f]+)\t([\s\S]*)$/);
-        if (m) blobOf[m[2]] = m[1];
+      if (loose) {
+        // THE WANTED CONTENT IS THE WORKTREE'S, hashed the same way. `ls-tree` would answer about the
+        // branch, and the branch is precisely what this lane has not written to.
+        const h = await git(loose.dir, ["hash-object", "--", ...entries.map((e) => e.path)]);
+        const want = h.ok ? h.out.split("\n").filter(Boolean) : [];
+        entries.forEach((e, i) => { if (want[i]) blobOf[e.path] = want[i]; });
+      } else {
+        const lt = await git(cwd, ["ls-tree", "-r", "-z", b, "--", ...entries.map((e) => e.path)]);
+        if (lt.ok) for (const rec of lt.out.split("\0").filter(Boolean)) {
+          const m = rec.match(/^\d+ blob ([0-9a-f]+)\t([\s\S]*)$/);
+          if (m) blobOf[m[2]] = m[1];
+        }
       }
       // one hash-object call for every file that exists on disk, hashes come back in order
       const onDisk = entries.filter((e) => blobOf[e.path] && nfs.existsSync(npath.join(cwd, e.path)));
@@ -1475,11 +1577,19 @@ async function lanes(projectCode, { root } = {}) {
       // same lane "committed". Two doors disagreeing about whether it is safe to delete work is
       // the one failure this whole feature exists to prevent, and I built it by answering the
       // question twice. `merged` means the base lacks nothing of this branch: in, and in history.
-      verdict: st.merged ? "in" : a.verdict || "unknown",
-      committed: st.merged || a.committed === true,
+      // `merged` no longer answers alone: a branch with no commits is trivially merged, and for one
+      // of those `applied` now carries the real reading taken off the lane's worktree. Prefer it.
+      verdict: a.verdict || (st.merged ? "in" : "unknown"),
+      // THE DIRTY CHECK IS THE ONLY THING THAT MAY SAY "committed". It means brought in as a COMMIT
+      // rather than as changes, so it has to come from `status` over the lane's own paths — never
+      // from ancestry, which cannot see whether his tree is dirty.
+      committed: a.verdict ? a.committed === true : st.merged,
       matching: a.matching || 0,
       total: a.total || 0,
       broughtIn: a.broughtIn || null,
+      // THE HEADLINE WHEN SOMEBODY SET ONE. null, never undefined — a surface must be able to render
+      // "nobody has said", which is the ordinary case and reads very differently from a verdict.
+      status: laneStatement(branch) || null,
     });
   }
   // `notIn` is the count the nudge exists for: PROVEN absent, so no guessing is involved.
@@ -2583,6 +2693,10 @@ module.exports = function launchSystemView(port = 3000) {
   // bytes, broken image — on a file sitting in a folder the hub can read. Images, PDFs, anything
   // that is not text needs BYTES, not `readFile`'s utf8, so it gets its own door rather than being
   // squeezed through the text one.
+  // ANY PATH RESOLVES, whoever wrote it — see resolveAnyPath. Mounted beside the byte pipe because
+  // both answer the same question (where does this path live) for different consumers.
+  mountResolve(server);
+
   server.get("/sv-file/:pc", (req, res) => {
     try {
       const rel = String(req.query.path || "");
@@ -2690,6 +2804,7 @@ module.exports = function launchSystemView(port = 3000) {
       terminalRun,
       branchState,
       lanes,
+      laneStatus,
       removeWorktree,
       deleteBranch,
       mergeBranch,

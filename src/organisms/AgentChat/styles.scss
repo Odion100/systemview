@@ -3844,3 +3844,116 @@
   color: #c0392b;
   white-space: nowrap;
 }
+
+// A JOB'S RUN — distinct from a skill's list on purpose (his ask, 2026-10-08). Amber is the
+// system's colour for the loud kind of moment; a finished one goes green and leads with the report,
+// because at that point the card is not progress any more, it is work waiting to be read.
+.agent-chat__jobrun {
+  margin: 6px 0;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border-left: 3px solid #d19a2e;
+  background: rgba(209, 154, 46, 0.07);
+}
+.agent-chat__jobrun--done {
+  border-left-color: #63b98a;
+  background: rgba(99, 185, 138, 0.08);
+}
+.agent-chat__jobrun-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+  cursor: pointer; // the whole bar opens it — see the note in JobRun
+}
+.agent-chat__jobrun-badge { font-size: 12px; opacity: 0.85; }
+.agent-chat__jobrun-name {
+  border: 0;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--sv-text-strong);
+}
+// THE STATE BADGE CARRIES ITS OWN CONTRAST — his report, 2026-10-12: *"this status badge,
+// finished, needs to stand out more in light and dark mode. Can barely see it."*
+//
+// It was 10px uppercase inherited text at `opacity: 0.7`, which is the worst of both worlds: the
+// size and the letter-spacing already cost legibility, and then 30% of what was left was thrown
+// away. Worse, it had no colour of its own, so it inherited the bubble's and was dim on BOTH
+// themes rather than being tuned wrong for one.
+//
+// The fix is the one `__jobrun-waiting` below already uses and is the reason that chip is readable:
+// a FILLED PILL with dark ink. A pill supplies its own figure/ground, so it reads identically in
+// light and dark instead of needing a value per theme — and the two states are then distinguishable
+// at a glance by hue rather than by reading a tiny word. Both pairs clear 6:1.
+.agent-chat__jobrun-state {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 5px 8px;
+  margin: 0 5px; // room AROUND the pill as well as inside it — his ask, horizontally
+  border-radius: 5px;
+  // RUNNING — the same amber the card's own left border wears, so the row reads as one state.
+  color: #4a3206;
+  background: #e2ad42;
+}
+// FINISHED — the green the done card already uses, and the state he was squinting at.
+.agent-chat__jobrun--done .agent-chat__jobrun-state {
+  color: #0f2418;
+  background: #63b98a;
+}
+.agent-chat__jobrun-chev { font-size: 10px; opacity: 0.6; }
+// WHEN IT RAN — quiet, monospaced so a column of these lines up, and it never competes with the
+// state pill beside it.
+.agent-chat__jobrun-when {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 10px;
+  color: var(--sv-text-muted, #8a8f98);
+  white-space: nowrap;
+}
+// THE × GOES TO THE FAR END — his ask. `margin-left: auto` on the last item is what pushes it,
+// which also means everything before it keeps its natural spacing instead of being stretched.
+.agent-chat__jobrun-clear { margin-left: auto; }
+.agent-chat__jobrun-why {
+  margin: 3px 0 0 19px;
+  font-size: 11px;
+  font-style: italic;
+  color: var(--sv-text-muted, #8a8f98);
+}
+.agent-chat__jobrun-report {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 5px 0 1px 19px;
+}
+.agent-chat__jobrun-waiting {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  color: #0f2418;
+  background: #63b98a;
+}
+.agent-chat__jobrun-none {
+  font-size: 11px;
+  color: #c9524b;
+}
+// THE RATING, WHERE THE REPORT IS READ — the one place the engine's rate verb was always meant to
+// be captured from. Quiet until hovered, because it is an invitation and not a demand.
+.agent-chat__jobrun-rate { display: inline-flex; gap: 1px; }
+.agent-chat__jobrun-star {
+  border: 0;
+  background: none;
+  padding: 0 1px;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--sv-border-soft, rgba(0, 0, 0, 0.2));
+}
+.agent-chat__jobrun-star:hover { color: #d19a2e; }
+.agent-chat__jobrun-star--on { color: #d19a2e; }

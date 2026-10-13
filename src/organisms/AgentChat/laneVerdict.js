@@ -15,8 +15,29 @@
 // lane look landed when it is not, the human would delete work on its word.
 const ri = (bs) => (bs && bs.applied && bs.applied.broughtIn) || null;
 
+// The derived reading, kept so it can be shown UNDER a statement as the cross-check rather than
+// replaced by it. Same three words as before; it just stopped being the headline.
+const derivedOf = (bs) => {
+  const a = (bs && bs.applied) || {};
+  if (bs && bs.merged) return { word: "in history", matching: a.matching || 0, total: a.total || 0 };
+  if (a.verdict === "in") return { word: a.committed ? "in, committed" : "in, uncommitted", matching: a.matching || 0, total: a.total || 0 };
+  if (a.verdict === "out") return { word: "not in this tree", matching: a.matching || 0, total: a.total || 0 };
+  return { word: "can't tell", matching: a.matching || 0, total: a.total || 0 };
+};
+
+// WHAT SOMEBODY SAID OUTRANKS WHAT THE FILES SUGGEST — his ruling 2026-10-06, reversing the ordering
+// this file shipped with. The premise that failed is that derivation was proof: it reported
+// `in · committed` for a branch holding no commits, and `can't tell, 4/11` for a lane that had been
+// applied and then reversed. Both were facts the actor knew precisely and had no way to state.
+//
+// A STATEMENT IS NOT A VERDICT, which is what keeps the old safety property alive. It is dated,
+// attributed, and rendered AS a statement — and the derived reading is still computed and still shown
+// beside it. So an agent cannot make a lane silently look landed; it can only go on record, and a
+// disagreement between what it said and what the files show is PRINTED rather than resolved.
 export const laneVerdict = (bs) => {
   if (!bs) return { state: "", receipt: null };
+  const st = bs.status && bs.status.text ? bs.status : null;
+  if (st) return { state: "said", said: st, receipt: ri(bs), derived: derivedOf(bs) };
   const a = bs.applied || {};
   const receipt = ri(bs);
   if (bs.merged) return { state: "committed", receipt };
@@ -32,6 +53,18 @@ export const laneVerdict = (bs) => {
 // because the whole value of a receipt is WHEN and against WHAT.
 export const laneChip = (v, fmt = (ts) => new Date(ts).toISOString().slice(0, 10)) => {
   if (!v || !v.state) return null;
+  // THE STATEMENT IS THE CHIP. Its tone is the author's, because they know whether what they did is
+  // safe; and the title carries the derived reading so the two are never more than a hover apart.
+  if (v.state === "said") {
+    const s = v.said || {};
+    const d = v.derived || {};
+    const counts = d.total ? ` (${d.matching}/${d.total} files match)` : "";
+    return {
+      text: s.text,
+      tone: s.tone === "ok" ? "ok" : s.tone === "warn" ? "warn" : "noted",
+      title: `${s.by ? `${s.by} ` : ""}said this ${fmt(s.ts)}. The files themselves read: ${d.word}${counts} — shown so you can see if the two disagree.`,
+    };
+  }
   if (v.state === "committed") return { text: "✓ committed", tone: "ok", title: "the branch's work is in history — deleting this lane can lose nothing" };
   if (v.state === "tree") return { text: "✓ in tree — uncommitted", tone: "warn", title: "the work is in the tree but not committed — delete the lane and the tree is the only copy left" };
   if (v.state === "answered") {
@@ -47,6 +80,44 @@ export const laneChip = (v, fmt = (ts) => new Date(ts).toISOString().slice(0, 10
   if (v.state === "out" && v.contradicted)
     return { text: "⚠ receipt disagrees", tone: "unknown", title: "a receipt claims this was brought in, but the patch applies cleanly to this tree — so the work is NOT here. The proof wins; treat the receipt as wrong." };
   return null; // plain `out` wears no chip — absence is the row's default, not news
+};
+
+// THE RECEIPT GETS ITS OWN MARK, BESIDE THE STATEMENT — never instead of it.
+//
+// THE BUG THIS FIXES (his report, 2026-10-10: *"the only thing I'm waiting to see is a receipt on
+// that empty lane"*): the `said` branch above returns the statement and silently drops `v.receipt`.
+// So a lane carrying BOTH — somebody recorded bringing it in, and somebody also said something
+// about it — showed only the statement, and the receipt became invisible the moment anyone spoke.
+//
+// That is backwards on the one axis that matters here. A STATEMENT IS RETRACTABLE AND A RECEIPT IS
+// NOT: the statement is what somebody chose to say and can clear, the receipt is a record of an ACT
+// that happened at a time against a base. Hiding the unretractable one behind the retractable one
+// means the row's most durable evidence is the easiest to make disappear.
+//
+// It returns null for `answered`, where the chip already IS the receipt — two copies of one fact on
+// one row is its own kind of lie about how much is known.
+export const laneReceipt = (v, fmt = (ts) => new Date(ts).toISOString().slice(0, 10)) => {
+  if (!v || !v.receipt || v.state === "answered") return null;
+  const r = v.receipt;
+  // A BASE THAT IS NOT A COMMIT IS NOT A BASE. Every receipt written before 2026-10-10 recorded a
+  // BRANCH NAME here (`main`, `ElementLocator`) because the host read `gitState.branch` — a name
+  // that moves, so "brought in against this" cannot be checked. Say that on the row rather than
+  // printing it as though it were verifiable.
+  const sha = /^[0-9a-f]{7,40}$/i.test(String(r.base || "")) ? String(r.base) : "";
+  const movable = r.base && !sha ? String(r.base) : "";
+  return {
+    text: `📎 brought in ${fmt(r.ts)}${sha ? ` @ ${sha.slice(0, 7)}` : ""}`,
+    tone: "noted",
+    title: [
+      `A RECEIPT: somebody recorded applying this lane${r.by ? `, ${r.by}` : ""} on ${fmt(r.ts)}${r.repo ? ` in ${r.repo}` : ""}.`,
+      sha
+        ? `Base ${sha} — the commit the work landed on, so this stays checkable after the files move.`
+        : movable
+        ? `Base recorded as "${movable}", which is a BRANCH NAME, not a commit — it moves, so this receipt cannot be verified against anything. Receipts written before 2026-10-10 all have this.`
+        : `No base recorded, so this receipt is a date and nothing more.`,
+      `A receipt cannot be retracted; a statement can. That is why it shows beside one rather than under it.`,
+    ].join(" "),
+  };
 };
 
 // WHAT THE DELETE CONFIRM SAYS — in this module, not in the markup, because the confirm and the chip
