@@ -5030,6 +5030,13 @@ const countdown = (str, now = Date.now()) => {
   const lanesShown = (() => {
     const rows = new Map();
     for (const r of work.standingRuns || []) {
+      // FILTER FOR LANES, which this loop never had to do and now must. It read `standingLanes`,
+      // a list that only ever held `lane:` runs, so widening that list to carry job and skill runs
+      // (2026-10-14) silently handed all of them to the LANE renderer: fourteen rows wearing the
+      // leaf and a trash can, with labels chopped by the `slice(5)` that strips "lane:" — his
+      // paste read `roactive-work` and `:job-authoring`. One rename, two symptoms, and the row he
+      // was most likely to press was a delete.
+      if (!String(r.source || "").startsWith("lane:")) continue;
       const id = String(r.owner || "").slice(4); // "run:<id>"
       if (r.items && r.items.length) rows.set(id, { key: id, source: r.source, items: r.items });
     }
