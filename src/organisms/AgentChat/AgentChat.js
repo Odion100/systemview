@@ -4970,6 +4970,32 @@ const countdown = (str, now = Date.now()) => {
     setClearedListsRaw(readClearedLists(clearedListsKey));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clearedListsKey]);
+  // JUST THE CONVERSATION. His ask, 2026-10-14: *"I need the ability to hide all the runs and the
+  // whiteboard and everything, just like everything, that's not the chat."* The panel accumulates
+  // furniture that has nothing to do with talking — a run row per lane, a card per job and skill, a
+  // whiteboard — and on a long day that is most of its height while he is trying to have a
+  // conversation.
+  //
+  // IT IS A VIEW, NOT A DISMISSAL, and that is the whole distinction from `clearedLists`. Clearing
+  // a card says *this is finished with* and is per-card and permanent. This says *not right now*,
+  // takes everything at once, and is meant to be pressed back — so it is one flag rather than a
+  // sweep over ids, and nothing it hides is forgotten or deleted.
+  //
+  // PERSISTED PER PROJECT, like the dismissals: a view preference that resets on refresh is one he
+  // has to set again every time, which is the same complaint one layer up.
+  const hideWorkKey = `sv.chat.hideWork.${projectCode}`;
+  const [hideWork, setHideWorkRaw] = useState(() => {
+    try { return window.localStorage.getItem(hideWorkKey) === "1"; } catch { return false; }
+  });
+  const setHideWork = (v) =>
+    setHideWorkRaw(() => {
+      try { window.localStorage.setItem(hideWorkKey, v ? "1" : "0"); } catch {}
+      return v;
+    });
+  useEffect(() => {
+    try { setHideWorkRaw(window.localStorage.getItem(hideWorkKey) === "1"); } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hideWorkKey]);
   // A DELETED LANE IS DELETED, AND IT HAS TO SURVIVE A REFRESH — which `clearedLists` could not,
   // being useState({}). His cleanup removed the worktree, the branch and the run file, and then a
   // reload replayed the session's own events and drew the row again from the transcript, which is
@@ -6763,7 +6789,36 @@ const countdown = (str, now = Date.now()) => {
               what the strip is FOR. It scrolls instead — every row still there, the height fixed.
               Both cards already collapse to one header line when closed (`open: false` is their
               initial state), so the common case is short and the bound only bites on a long day. */}
-          {attached && (lanesShown.length > 0 || listsShown.length > 0) && (
+          {/* JUST THE CONVERSATION — ON THE SECTION IT HIDES, NOT IN THE HEADER. His correction,
+              2026-10-14: *"right above, on the right of that section, not at the top."* A control
+              in the title bar is a window control and reads as one; this one acts on the band of
+              runs and whiteboard directly beneath it, so it belongs against that band's top right
+              where the thing it affects is the next thing your eye lands on.
+              IT MUST OUTLIVE WHAT IT HIDES — it is the only way back, so the row renders while
+              there is something to hide OR while something is hidden, never gated on the section
+              it controls. And the count rides the title while it is on: a surface that silently
+              omits is a surface that lies, so "no runs" and "runs, hidden by me" must never look
+              the same. */}
+          {attached &&
+            (hideWork || lanesShown.length > 0 || listsShown.length > 0 || !!work.state.whiteboard) && (
+              <div className={`${CLASSNAME}__viewbar`}>
+                <button
+                  type="button"
+                  className={`${CLASSNAME}__swap${hideWork ? ` ${CLASSNAME}__swap--on` : ""}`}
+                  title={
+                    hideWork
+                      ? `Just the conversation — ${lanesShown.length + listsShown.length} run row${
+                          lanesShown.length + listsShown.length === 1 ? "" : "s"
+                        } and the whiteboard are hidden. Press to bring them back.`
+                      : "Hide the runs and the whiteboard — just the conversation"
+                  }
+                  onClick={() => setHideWork(!hideWork)}
+                >
+                  {hideWork ? "⊞" : "⊟"}
+                </button>
+              </div>
+            )}
+          {attached && !hideWork && (lanesShown.length > 0 || listsShown.length > 0) && (
             <div className={`${CLASSNAME}__strip`}>
           {attached &&
             lanesShown.map((l) => (
@@ -6842,7 +6897,7 @@ const countdown = (str, now = Date.now()) => {
           {/* The whiteboard sits UNDER the list — tried on top, he wants to feel this order
               again. Same area, different job: the list tracks the work, the board holds the
               conversation. The wipe is the host's, so an erase clears it for both of us. */}
-          {attached && (
+          {attached && !hideWork && (
             <Whiteboard text={work.state.whiteboard} writeTs={work.state.whiteboardTs} onWipe={() => work.wipeWhiteboard()} />
           )}
           {/* While the mic listens: the words appear HERE as you speak (interim), then commit

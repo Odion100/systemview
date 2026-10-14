@@ -2216,6 +2216,9 @@
 }
 .agent-chat {
   &__inputrow {
+    // PINNED. The input and its buttons are the last thing on screen that may lose height to a
+    // full strip — see the note on `__strip`.
+    flex: none;
     display: flex;
     align-items: flex-start; // buttons ride the TOP as the input grows (his call)
     gap: 6px;
@@ -2245,6 +2248,7 @@
   }
   // The live transcription line — words appear here AS you speak; the red dot says recording.
   &__interim {
+    flex: none; // pinned with the input: the recording line is part of the composer
     display: flex;
     align-items: baseline;
     gap: 7px;
@@ -2795,6 +2799,7 @@
 
 // RFC-046 — the one press that moves the conversation out of the room and into the agent.
 .agent-chat__attach {
+  flex: none;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -2938,6 +2943,24 @@
   padding: 2px 4px;
   cursor: pointer;
   &:hover { color: #9a7cb8; }
+  // ON, AND IT HAS TO LOOK IT. This modifier is only worn by the hide-the-runs control, and it is
+  // the one control in this header whose effect is that something is MISSING — so the button is
+  // the only evidence left that anything was hidden. A faint icon would read as an empty strip.
+  &--on {
+    color: #9a7cb8;
+    opacity: 1;
+  }
+}
+
+// THE VIEW CONTROL'S OWN ROW, against the top right of the band it acts on. Flush — no padding
+// above and none below — because the band beneath it already carries its own spacing, and a gap
+// here would read as a separator between the conversation and its own control.
+.agent-chat__viewbar {
+  flex: none; // pinned with the composer: it is the door back to everything it hides
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 6px;
+  min-height: 18px;
 }
 
 .agent-chat__nobody {
@@ -3020,8 +3043,21 @@
 // The lane panel opens UNDER its own row (his report, 2026-10-10) and that row now sits inside a
 // scroll container. It stays in the normal flow — not positioned — so it scrolls WITH its row and
 // cannot be clipped away from it.
+//
+// AND THE STRIP IS WHAT YIELDS, NEVER THE COMPOSER. His report, 2026-10-14: *"the chat bar and
+// button should not be in the scroll... the recording stuff should not be in the scroll."* With
+// `flex: none` the strip could not shrink, so in a flex column whose room has run out the browser
+// took the space from whatever COULD — and the only shrinkable children left were the input row
+// and the recording line. The bound was real and the wrong element paid for it: a full strip ate
+// the composer rather than scrolling itself.
+//
+// `0 1 auto` + `min-height: 0` makes this the thing that gives way, and `overflow-y: auto` above
+// means giving way IS scrolling. The feed stops at its own `min-height`, the composer is pinned
+// (`flex: none` on every block from the shots row down), so the order of sacrifice is now: the
+// strip scrolls first, the feed second, and the input never.
 .agent-chat__strip {
-  flex: none;
+  flex: 0 1 auto;
+  min-height: 0;
   max-height: 40vh;
   overflow-y: auto;
   // A gesture that runs out of strip must not then scroll the conversation behind it.
@@ -3668,6 +3704,7 @@
   outline-offset: -4px;
 }
 .agent-chat__drophint {
+  flex: none;
   margin: 0 8px 4px;
   padding: 5px 9px;
   border-radius: 6px;
@@ -3678,6 +3715,7 @@
   text-align: center;
 }
 .agent-chat__shots {
+  flex: none;
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
