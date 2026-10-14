@@ -1963,6 +1963,15 @@
       padding: 4px 0 6px 18px;
       font-size: 11px;
     }
+    // THE FULL SUBJECT — wrapped, because the point is reading it. Not nowrap, not ellipsis.
+    &__commit-subject {
+      font-size: 11px;
+      line-height: 1.45;
+      color: var(--sv-text);
+      white-space: pre-wrap;
+      word-break: break-word;
+      padding-bottom: 2px;
+    }
     &__commit-who {
       color: #a8afc0;
       font-size: 10px;

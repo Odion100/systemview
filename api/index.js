@@ -1057,8 +1057,14 @@ function bustGit(pc) {
 // with it would multiply the payload for data nobody is looking at yet. This is fetched when a row
 // is actually opened, once, and cached by the caller.
 async function showCommit(projectCode, opts = {}) {
-  const cwd = await rootFor(projectCode, opts);
-  if (!cwd) return { ok: false, error: "unknown project" };
+  // `rootFor` HAS NEVER EXISTED. This threw a ReferenceError on every call it ever received — from
+  // CodebaseNav since the day it was written, and from the chat's commit block the first time a log
+  // row was opened (2026-10-14, his click). It was invisible because both callers catch and show
+  // the message, so the only symptom was the words "rootFor is not defined" on screen where a
+  // commit should be. `rootOf(projectCode, root)` is the real resolver and takes the root itself,
+  // not the options object.
+  const cwd = rootOf(projectCode, opts.root);
+  if (!cwd) return { ok: false, error: "no folder for this project" };
   const sha = String(opts.sha || "").trim();
   // Anchored, and no dots: a sha is hex, and anything else here is an argument being smuggled into
   // `git show`. `--` would not save us — the value is the REVISION, not a path.
