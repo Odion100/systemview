@@ -862,6 +862,21 @@
       font-weight: 700;
     }
   }
+  // HOW MANY ARE OPEN. It sits with the title rather than out by the state, because it is a fact
+  // about the board's CONTENTS and not about the panel — and it is the whole truth, since a card is
+  // deleted when its account lands rather than marked done. A pill so the number reads as a count
+  // and not as part of the name.
+  &__board-count {
+    flex: none;
+    min-width: 17px;
+    padding: 1px 5px;
+    border-radius: 9px;
+    font-size: 10px;
+    font-family: "SF Mono", Menlo, monospace;
+    text-align: center;
+    color: var(--sv-text-faint);
+    background: rgba(127, 140, 170, 0.16);
+  }
   &__board-state {
     margin-left: auto;
     font-size: 10px;

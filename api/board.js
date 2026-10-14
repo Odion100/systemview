@@ -56,7 +56,7 @@ function boardOn({ readFile, writeFile }) {
     return res && res.ok !== false ? parseBoard(res.content) : { title: "", cards: [] };
   }
 
-  return async function board({ projectCode, name, add, reply, at, as } = {}) {
+  return async function board({ projectCode, name, add, reply, remove, at, as } = {}) {
     if (!projectCode) return { error: "projectCode required" };
     // AN UNKNOWN PROJECT IS NOT AN EMPTY BOARD. Reading straight through answered `cards: []` for a
     // project the hub has never heard of — the same silent shrug as "no tests to run" standing in
@@ -70,8 +70,8 @@ function boardOn({ readFile, writeFile }) {
     // WHO WROTE IT IS SAID BY THE WRITER. Any agent can write on any board, and nothing in this
     // path can tell who is calling — so a missing signature cannot default to anything. "agent"
     // meant nobody, and defaulting to the board's OWNER would stamp a visitor's answer as his.
-    if (add != null || reply != null) {
-      if (!as) return { ...where, error: "say who you are — every note and reply is signed by its writer" };
+    if (add != null || reply != null || remove != null) {
+      if (!as) return { ...where, error: "say who you are — every note, reply and removal is signed by its writer" };
     }
 
     if (add != null) {
@@ -81,6 +81,51 @@ function boardOn({ readFile, writeFile }) {
       const w = await writeFile(projectCode, { path: boardPath(name), content: serializeBoard(board) });
       if (!w || w.ok === false) return { ...where, error: (w && w.error) || "could not write the board" };
       return { ...where, ok: true, added: board.cards[0].ts, by: as };
+    }
+
+    // TAKING A CARD OFF THE BOARD — his ruling, 2026-10-14, after weighing a `done` state against
+    // deletion and choosing deletion: *"the board is so fluid that if it is lost, it's not a big
+    // deal. If something is still a problem, you might mention it on the board again."* And the
+    // argument that settled it: *"if it was so important it would have never just gone on the
+    // board"* — a card is real-but-not-urgent by construction, so the cost of losing one is small
+    // and the cost of a `done` state is paid by every future reader, forever, re-reading finished
+    // rows to reject them. Deleting keeps the card count equal to the outstanding count, which is
+    // the one number the surface can show honestly.
+    //
+    // ID ONLY — NO POSITIONS, and this is deliberately stricter than `reply` above. That path
+    // accepts a position with a warning because a reply on the wrong card is noise; a REMOVAL on
+    // the wrong card is loss, and positions shift the moment anyone adds a note.
+    //
+    // THE REMOVED TEXT COMES BACK. A caller is meant to delete a card once its account has landed
+    // somewhere — a report, a lane, a commit — so the answer hands the words back, and a removal
+    // can never be the only place the card existed.
+    if (remove != null) {
+      const want = String(remove).trim();
+      if (!want) return { ...where, error: "which card? pass its id" };
+      const card = board.cards.find((c) => String(c.ts) === want);
+      if (!card) {
+        const looksPositional = /^\d{1,4}$/.test(want);
+        return {
+          ...where,
+          error: looksPositional
+            ? `no card with id "${want}" — and a removal will not take a POSITION, because positions shift when anyone adds a note. Pass the id.`
+            : `no card with id "${want}" — the board has ${board.cards.length}`,
+          ids: board.cards.map((c) => c.ts),
+        };
+      }
+      board.cards = board.cards.filter((c) => c !== card);
+      const w = await writeFile(projectCode, { path: boardPath(name), content: serializeBoard(board) });
+      if (!w || w.ok === false) return { ...where, error: (w && w.error) || "could not write the board" };
+      return {
+        ...where,
+        ok: true,
+        removed: card.ts,
+        by: as,
+        open: board.cards.length,
+        // Handed back whole, not truncated: this is the last copy the caller will be offered.
+        text: card.text,
+        ...(card.replies && card.replies.length ? { replies: card.replies.length } : {}),
+      };
     }
 
     if (reply != null) {

@@ -5428,6 +5428,21 @@ const countdown = (str, now = Date.now()) => {
                   {boardTitle || "board"}
                 </span>
               )}
+              {/* HOW MANY ARE OPEN — his ask, 2026-10-14. And the card count IS that number, with
+                  nothing to filter, because the rule he settled in the same conversation is that a
+                  card LEAVES the board when its account lands: no done state, no archive, no
+                  ledger. *"If it was so important it would have never just gone on the board"* —
+                  the board is for real-but-not-urgent, so losing one costs little and a problem
+                  that persists gets written again. Which makes this a count of outstanding work
+                  rather than a count of rows, and the one honest number the surface can show. */}
+              {!!(board && board.length) && (
+                <span
+                  className={`${CLASSNAME}__board-count`}
+                  title={`${board.length} open — everything on the board is outstanding; a card is deleted when its account lands`}
+                >
+                  {board.length}
+                </span>
+              )}
               <span className={`${CLASSNAME}__board-state`}>
                 {board === null ? "opening…" : boardSaved ? "saved" : "saving…"}
               </span>
