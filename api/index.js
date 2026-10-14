@@ -3005,8 +3005,8 @@ module.exports = function launchSystemView(port = 3000) {
       // themselves a shim forwarding straight back to readFile/writeFile. Inside the hub that shim
       // is the hub. Both keep the rule that mattered: a note or a reply is SIGNED by whoever wrote
       // it, never defaulted — defaulting to the board's owner once stamped a visitor's answer as his.
-      board: async ({ projectCode, name, add, replyText, at, as } = {}) =>
-        Board({ projectCode, name, add, reply: replyText, at, as: as || null }),
+      board: async ({ projectCode, name, add, replyText, remove, at, as } = {}) =>
+        Board({ projectCode, name, add, reply: replyText, remove, at, as: as || null }),
       comments: async ({ projectCode, path, replyText, at, as } = {}) =>
         CodeComments({ projectCode, path, reply: replyText, at, as: as || null }),
       // DRIVING THE WINDOW — FOUR METHODS (api/drive.js), not one door with a verb string.
