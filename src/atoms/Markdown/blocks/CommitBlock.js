@@ -537,8 +537,17 @@ const CommitBlock = ({ label, attrs = {}, line }) => {
                           <div className="md-commit__none">{info.error || "could not read that commit"}</div>
                         ) : info ? (
                           <>
+                            {/* THE WHOLE SUBJECT, WRAPPED. The row above clips it with an
+                                ellipsis, and his messages run past 200 characters — so expanding
+                                to read a commit and still not seeing its message is the drawer
+                                failing at the one job it was opened for. CodebaseNav already did
+                                this (`__logsubj-full`); the chat's block did not. */}
+                            <div className="md-commit__commit-subject">{info.subject}</div>
                             <div className="md-commit__commit-who">
-                              {info.author}
+                              {/* `who`, not `author` — showCommit returns who/email/date/when, and
+                                  reading the field name wrong rendered an empty author for every
+                                  commit. Nothing failed; a line was just blank. */}
+                              {info.who}
                               {info.date ? ` · ${info.date}` : ""}
                               {info.parents && info.parents.length > 1 ? " · merge" : ""}
                             </div>
