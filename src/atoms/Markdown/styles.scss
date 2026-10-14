@@ -1943,6 +1943,68 @@
       font-size: 10px;
       color: #a8afc0;
     }
+    // A ROW THAT OPENS HAS TO LOOK LIKE ONE. It was a plain div and read as inert, which is half of
+    // why pressing it felt broken — the other half being that nothing happened.
+    &__logrow {
+      cursor: pointer;
+      &:hover {
+        background: var(--sv-hover, rgba(127, 140, 170, 0.1));
+      }
+    }
+    &__logchev {
+      flex: none;
+      font-size: 10px;
+      opacity: 0.55;
+    }
+    // THE COMMIT ITSELF, under its own row — the same disclosure rule the lane panel follows, for
+    // the same reason: a drawer that opens anywhere but beneath the thing pressed reads as nothing
+    // having happened.
+    &__commit {
+      padding: 4px 0 6px 18px;
+      font-size: 11px;
+    }
+    &__commit-who {
+      color: #a8afc0;
+      font-size: 10px;
+      padding-bottom: 3px;
+    }
+    &__commit-body {
+      margin: 0 0 5px;
+      font-family: inherit;
+      font-size: 10.5px;
+      line-height: 1.45;
+      color: var(--sv-text);
+      white-space: pre-wrap;
+      word-break: break-word;
+      opacity: 0.85;
+    }
+    &__commit-file {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      padding: 1px 0;
+    }
+    &__commit-path {
+      flex: 1 1 auto;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-family: "SF Mono", Menlo, monospace;
+      font-size: 10px;
+      color: var(--sv-text);
+    }
+    &__commit-stat {
+      flex: none;
+      display: flex;
+      gap: 5px;
+      font-family: "SF Mono", Menlo, monospace;
+      font-size: 10px;
+    }
+    &__commit-add { color: #2f9e4f; }
+    &__commit-del { color: #c0493f; }
+    // numstat says "-" for a binary file. +0/−0 would claim nothing changed.
+    &__commit-bin { color: #a8afc0; font-style: italic; }
 
     &__none {
       padding: 4px 12px;

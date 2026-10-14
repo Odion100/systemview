@@ -6750,6 +6750,21 @@ const countdown = (str, now = Date.now()) => {
           {/* THE PLAN OUTLIVES THE TURN THAT WROTE IT. Deliberately not gated on `working`: the
               moment a turn ends is exactly when "what's left" matters, and a list that vanishes
               when the agent stops is a list he can only read while he cannot act on it. */}
+          {/* THE RUN STRIP IS BOUNDED, AND NOTHING LEAVES IT. His report, 2026-10-13: *"when a job
+              is showing, for some reason, it covers up everything under it, including the chat."*
+              Every sourced run of a session draws a row here — twenty of them that day — and the
+              rows were bare siblings of the feed and the input, so there was no element to hang a
+              bound on and the stack grew until the conversation had no room left.
+              `__worklist-items` had already solved this ONE LEVEL DOWN (*"a long plan scrolls
+              itself rather than pushing the conversation off screen"*); the STACK of cards never
+              got the same treatment.
+              NOT by dropping closed runs out, which was the other half of the ask: a row that
+              vanishes because its run finished is a row he cannot find again, and watching them is
+              what the strip is FOR. It scrolls instead — every row still there, the height fixed.
+              Both cards already collapse to one header line when closed (`open: false` is their
+              initial state), so the common case is short and the bound only bites on a long day. */}
+          {attached && (lanesShown.length > 0 || listsShown.length > 0) && (
+            <div className={`${CLASSNAME}__strip`}>
           {attached &&
             lanesShown.map((l) => (
               // A PANEL BELONGS UNDER THE ROW IT WAS OPENED FROM. His report, 2026-10-10:
@@ -6822,6 +6837,8 @@ const countdown = (str, now = Date.now()) => {
                 />
               ),
             )}
+            </div>
+          )}
           {/* The whiteboard sits UNDER the list — tried on top, he wants to feel this order
               again. Same area, different job: the list tracks the work, the board holds the
               conversation. The wipe is the host's, so an erase clears it for both of us. */}
