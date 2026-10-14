@@ -3007,6 +3007,27 @@
 // Sits with the cooking line and reads like it: quiet, one line closed, the plan when opened.
 // NOTHING ANIMATES. It is on screen whenever there is a plan, which is most of the time, and this
 // page has already been through one round of paying for a permanent animation.
+// THE STACK OF RUN ROWS, BOUNDED. One element holding every lane row and every worklist/job card,
+// so the run strip has a ceiling — his report, 2026-10-13: *"when a job is showing it covers up
+// everything under it, including the chat."* Twenty rows in a day, each a sibling of the feed and
+// the input, and nothing to bound them with.
+//
+// vh AND NOT px, deliberately. The failure being fixed is "the conversation has no room left", and
+// a pixel ceiling still produces exactly that on a short window — the bound has to be relative to
+// the space being competed for. Both card types collapse to one header line when closed, so this
+// is slack for a long session rather than a limit anyone meets normally.
+//
+// The lane panel opens UNDER its own row (his report, 2026-10-10) and that row now sits inside a
+// scroll container. It stays in the normal flow — not positioned — so it scrolls WITH its row and
+// cannot be clipped away from it.
+.agent-chat__strip {
+  flex: none;
+  max-height: 40vh;
+  overflow-y: auto;
+  // A gesture that runs out of strip must not then scroll the conversation behind it.
+  overscroll-behavior: contain;
+}
+
 .agent-chat__worklist {
   flex: none;
   padding: 2px 8px 4px;

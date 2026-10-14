@@ -107,5 +107,11 @@
     "server.js",
     "systemview-plugin/",
     "agents/"
-  ]
+  ],
+  "jest": {
+    "transformIgnorePatterns": [
+      "[/\\\\]node_modules[/\\\\](?!(@codemirror|@lezer|@marijn|style-mod|w3c-keyname|crelt|systemlynx-client)[/\\\\]).+\\.(js|mjs|jsx|ts|tsx)$",
+      "^.+\\.module\\.(css|sass|scss)$"
+    ]
+  }
 }

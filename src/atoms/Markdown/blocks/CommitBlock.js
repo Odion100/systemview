@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useCapability, useCapabilityState } from "../capabilities";
 import { useMarkdownScope, useMarkdownWrite } from "../context";
+import { gitNotice } from "./gitNotice";
 
 // RFC-033 — `::commit{message="…"}`. A commit message in a report is a line to copy into a
 // terminal; this makes it a button.
@@ -50,9 +51,35 @@ const CommitBlock = ({ label, attrs = {}, line }) => {
   // do it again, with no receipt anywhere on screen.
   const [localSha, setLocalSha] = useState("");
   const sha = attrs.sha || localSha || "";
+  // A LOG ROW OPENS. His line, 2026-10-03: *"a commit log row looks like it should expand to the
+  // whole commit — file list and diff — and does not."* It looked like it should because it is a
+  // row of a commit, and nothing happened when you pressed it.
+  //
+  // Nothing new was needed to answer it: `showCommit` has been in the hub the whole time, exposed,
+  // wired through `hostFiles`, and already used by CodebaseNav — the chat's block simply never
+  // knocked. Same pattern as that caller on purpose, including the in-flight marker: an empty
+  // drawer while it loads reads as "this commit touched nothing", which is a lie with a delay on it.
+  const [openSha, setOpenSha] = useState("");
+  const [commits, setCommits] = useState({});
   const msgRef = useRef(null);
 
   const svc = () => ({ Plugin: git(host.projectCode) });
+
+  const openCommit = async (at) => {
+    if (openSha === at) return setOpenSha("");
+    setOpenSha(at);
+    if (commits[at]) return;
+    setCommits((m) => ({ ...m, [at]: { loading: true } }));
+    try {
+      const api = svc().Plugin;
+      const info = api.showCommit
+        ? await api.showCommit(at)
+        : { ok: false, error: "this host cannot read a single commit" };
+      setCommits((m) => ({ ...m, [at]: info }));
+    } catch (e) {
+      setCommits((m) => ({ ...m, [at]: { ok: false, error: (e && e.message) || "could not read that commit" } }));
+    }
+  };
 
   const load = async () => {
     if (!host || !git) return;
@@ -60,12 +87,12 @@ const CommitBlock = ({ label, attrs = {}, line }) => {
       if (!svc().Plugin.gitState) throw new Error("no gitState");
       setState(await svc().Plugin.gitState());
       setError("");
-    } catch {
+    } catch (e) {
       setState(null);
-      // GIT IS HUB-SERVED — a failure here means the HUB did not answer (restarting, socket
-      // dropped), not that some plugin is too old. The old wording sent people to upgrade a
-      // package that has nothing to do with it.
-      setError("couldn't read git — the hub didn't answer");
+      // KEEP WHAT THREW. This used to flatten every cause into "the hub didn't answer" — and the
+      // hub had usually answered; it was the project code that was wrong. `gitNotice` decides the
+      // sentence from the evidence, and "no gitState" is a different problem from a dropped socket.
+      setError(gitNotice(null, e, projectCode).text);
     }
   };
 
@@ -440,8 +467,11 @@ const CommitBlock = ({ label, attrs = {}, line }) => {
             </div>
           ) : !state ? (
             <div className="md-commit__none">{error || "reading git…"}</div>
-          ) : !state.repo ? (
-            <div className="md-commit__none">not a git repository</div>
+          ) : gitNotice(state, null, projectCode) ? (
+            // A REFUSAL IS NOT A FACT ABOUT THE REPO. `gitState` returns `{ok:false, error}` for a
+            // project it cannot resolve, and this branch read only `state.repo` — so a code that
+            // matched nothing rendered as "not a git repository", about a folder nothing had found.
+            <div className="md-commit__none">{gitNotice(state, null, projectCode).text}</div>
           ) : (
             <>
               {groupHead("staged", staged, true)}
@@ -479,17 +509,68 @@ const CommitBlock = ({ label, attrs = {}, line }) => {
               const knows = state.log.some((c) => typeof c.pushed === "boolean");
               const isUnpushed = (c, i) =>
                 knows ? !c.pushed : !state.upstream || i < (state.ahead || 0);
-              return state.log.map((c, i) => (
-                <div
-                  key={c.sha}
-                  className={`md-commit__logrow${isUnpushed(c, i) ? " md-commit__logrow--unpushed" : ""}`}
-                  title={isUnpushed(c, i) ? `${c.subject} — not pushed` : c.subject}
-                >
-                  <code className="md-commit__logsha">{c.sha}</code>
-                  <span className="md-commit__logsubj">{c.subject}</span>
-                  <span className="md-commit__logwhen">{c.when}</span>
-                </div>
-              ));
+              return state.log.map((c, i) => {
+                const info = commits[c.sha];
+                const open = openSha === c.sha;
+                return (
+                  <React.Fragment key={c.sha}>
+                    <div
+                      className={`md-commit__logrow${isUnpushed(c, i) ? " md-commit__logrow--unpushed" : ""}${open ? " md-commit__logrow--open" : ""}`}
+                      title={isUnpushed(c, i) ? `${c.subject} — not pushed` : c.subject}
+                      onClick={() => openCommit(c.sha)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && openCommit(c.sha)}
+                    >
+                      <code className="md-commit__logsha">{c.sha}</code>
+                      <span className="md-commit__logsubj">{c.subject}</span>
+                      <span className="md-commit__logwhen">{c.when}</span>
+                      <span className="md-commit__logchev">{open ? "▾" : "▸"}</span>
+                    </div>
+                    {open && (
+                      <div className="md-commit__commit">
+                        {info && info.loading ? (
+                          <div className="md-commit__none">reading that commit…</div>
+                        ) : info && info.ok === false ? (
+                          // THE HUB'S OWN WORDS, same rule as gitNotice: a refusal is not a fact
+                          // about the commit, and "no files" would be the confident zero again.
+                          <div className="md-commit__none">{info.error || "could not read that commit"}</div>
+                        ) : info ? (
+                          <>
+                            <div className="md-commit__commit-who">
+                              {info.author}
+                              {info.date ? ` · ${info.date}` : ""}
+                              {info.parents && info.parents.length > 1 ? " · merge" : ""}
+                            </div>
+                            {info.body ? <pre className="md-commit__commit-body">{info.body}</pre> : null}
+                            {info.files && info.files.length ? (
+                              info.files.map((f) => (
+                                <div key={f.path} className="md-commit__commit-file">
+                                  <span className="md-commit__commit-path">{f.path}</span>
+                                  <span className="md-commit__commit-stat">
+                                    {f.added === null && f.removed === null ? (
+                                      // numstat reports "-" for a binary file. "+0/−0" would say it
+                                      // did not change; it says nothing countable changed.
+                                      <span className="md-commit__commit-bin">binary</span>
+                                    ) : (
+                                      <>
+                                        <span className="md-commit__commit-add">+{f.added}</span>
+                                        <span className="md-commit__commit-del">−{f.removed}</span>
+                                      </>
+                                    )}
+                                  </span>
+                                </div>
+                              ))
+                            ) : (
+                              <div className="md-commit__none">no files in this commit</div>
+                            )}
+                          </>
+                        ) : null}
+                      </div>
+                    )}
+                  </React.Fragment>
+                );
+              });
             })()
           ) : output.length ? null : (
             <div className="md-commit__none">no commits yet</div>
