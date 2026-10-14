@@ -4945,7 +4945,31 @@ const countdown = (str, now = Date.now()) => {
   // keyed by session/run. Same list → stays hidden; that list's next WRITE is a different
   // fingerprint and it returns on its own. Completion clears NOTHING — a finished run sits on
   // screen until he presses its ×, which is the only way multiple lists can be seen together.
-  const [clearedLists, setClearedLists] = useState({});
+  // AND IT HAS TO PERSIST NOW (2026-10-14). It was `useState({})`, which was survivable while a
+  // job row lived only in this session's events — a restart took the row and the dismissal
+  // together. Rows are read off run FILES now, so an in-memory dismissal means every card he
+  // cleared comes back on the next restart and he clears it forever. Exactly the bug `deletedLanes`
+  // below was added for, one row-kind later.
+  const clearedListsKey = `sv.chat.clearedLists.${projectCode}`;
+  const readClearedLists = (k) => {
+    try {
+      const v = JSON.parse(window.localStorage.getItem(k) || "{}");
+      return v && typeof v === "object" && !Array.isArray(v) ? v : {};
+    } catch {
+      return {};
+    }
+  };
+  const [clearedLists, setClearedListsRaw] = useState(() => readClearedLists(clearedListsKey));
+  const setClearedLists = (next) =>
+    setClearedListsRaw((prev) => {
+      const v = typeof next === "function" ? next(prev) : next;
+      try { window.localStorage.setItem(clearedListsKey, JSON.stringify(v)); } catch {}
+      return v;
+    });
+  useEffect(() => {
+    setClearedListsRaw(readClearedLists(clearedListsKey));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clearedListsKey]);
   // A DELETED LANE IS DELETED, AND IT HAS TO SURVIVE A REFRESH — which `clearedLists` could not,
   // being useState({}). His cleanup removed the worktree, the branch and the run file, and then a
   // reload replayed the session's own events and drew the row again from the transcript, which is
@@ -4978,9 +5002,26 @@ const countdown = (str, now = Date.now()) => {
       if (lane.source === source) return { events: lane.events, brief: lane.brief || "" };
     return { events: null, brief: "" };
   };
-  const listsShown = (work.state.todoLists || []).filter(
-    (l) => l.items.length && JSON.stringify(l.items) !== clearedLists[l.key] && !l.source.startsWith("lane:")
-  );
+  // JOB AND SKILL ROWS, FROM THE SAME RUN FILES THE LANES COME FROM. His report, 2026-10-14: *"the
+  // job rows disappeared, I didn't delete them."* They had — this read only `todoLists`, which is
+  // folded from the session's in-memory events, so a shell restart erased every job card while the
+  // lane rows beside them stood. The records were on disk the whole time, which made the strip say
+  // a job never ran while the disk said it did.
+  //
+  // Same merge as `lanesShown`, and the live entry wins for the same reason: while the session is
+  // running its events are fresher than the file. The host bounds what comes back (open at any age,
+  // closed only if recent) — the row count is not this surface's decision.
+  const listsShown = (() => {
+    const rows = new Map();
+    for (const r of work.standingRuns || []) {
+      const src = String(r.source || "");
+      if (src.startsWith("lane:") || !(r.items && r.items.length)) continue;
+      rows.set(String(r.owner || "").slice(4), { key: String(r.owner || "").slice(4), source: src, items: r.items });
+    }
+    for (const l of work.state.todoLists || [])
+      if (l.items.length && !l.source.startsWith("lane:")) rows.set(l.key, { key: l.key, source: l.source, items: l.items });
+    return [...rows.values()].filter((l) => JSON.stringify(l.items) !== clearedLists[l.key]);
+  })();
   // STANDING LANES (RFC-059 slice 2): a lane row is born from a spawn and DIES AT CLEANUP —
   // nothing in between kills it. Rows come from the host's run files, so they outlive refreshes;
   // this session's live lane events overlay them (freshest items win) but never own the row's
@@ -4988,7 +5029,7 @@ const countdown = (str, now = Date.now()) => {
   // the fingerprint is what keeps the session's own event echo from resurrecting the row.
   const lanesShown = (() => {
     const rows = new Map();
-    for (const r of work.standingLanes || []) {
+    for (const r of work.standingRuns || []) {
       const id = String(r.owner || "").slice(4); // "run:<id>"
       if (r.items && r.items.length) rows.set(id, { key: id, source: r.source, items: r.items });
     }
