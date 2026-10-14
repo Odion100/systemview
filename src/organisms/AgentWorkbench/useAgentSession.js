@@ -90,11 +90,16 @@ export default function useAgentSession({ projectCode, sessionId = "agent", gate
   // nothing in between kills it. These rows come from the host's run FILES, not this session's
   // events, so a refresh cannot eat a row whose worktree and branch are still on disk. Refreshed
   // whenever a lane run moves in this session; the rest of the time the files are the truth.
-  const [standingLanes, setStandingLanes] = useState([]);
+  // EVERY KIND OF ROW, NOT JUST LANES (2026-10-14). His report: *"the job rows disappeared, I didn't
+  // delete them."* They had — a job or skill row came only from this session's in-memory events, so
+  // a shell restart erased them while lane rows, read off run FILES, stood. `stripRuns` returns all
+  // three kinds; `laneRuns` is the fallback for a host that predates it, which still draws the lane
+  // rows rather than nothing.
+  const [standingRuns, setStandingRuns] = useState([]);
   const refreshLanes = useCallback(() => {
     const t = transportRef.current;
-    if (t && t.laneRuns)
-      t.laneRuns().then((rows) => setStandingLanes(Array.isArray(rows) ? rows : [])).catch(() => {});
+    const read = t && (t.stripRuns || t.laneRuns);
+    if (read) read.call(t).then((rows) => setStandingRuns(Array.isArray(rows) ? rows : [])).catch(() => {});
   }, []);
   // `lane.removed` IS WHY THIS LIST EXISTS. The other three kinds tick when a lane MOVES; nothing
   // ticked when one was removed, so the only reason a row ever disappeared is that his own press
@@ -224,7 +229,7 @@ export default function useAgentSession({ projectCode, sessionId = "agent", gate
     answer,
     interrupt,
     wipeWhiteboard,
-    standingLanes,
+    standingRuns,
     deleteLaneRun,
     compact,
     showSaid,
