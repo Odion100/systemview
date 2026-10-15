@@ -39,6 +39,10 @@ export const TAB_ICONS = {
   doc: { glyph: "§", kind: "ns" },
   logs: { glyph: "≡", kind: "logs" },
   report: { glyph: "¶", kind: "doc" },
+  board: { glyph: "▤", kind: "doc" }, // his board of note cards — rows on a surface
+  links: { glyph: "⛓", kind: "logs" },
+  cmds: { glyph: "/", kind: "ns" },
+  stats: { glyph: "∿", kind: "logs" },
   sv: { glyph: "❖", kind: "sv" },
 };
 

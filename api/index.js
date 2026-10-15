@@ -2942,7 +2942,19 @@ module.exports = function launchSystemView(port = 3000) {
       // hops to reach a path this process already holds. And `show --file` read the file with
       // fs.readFileSync from the CLI's cwd, which under the hub is the SystemView repo — the same
       // class of bug as probe's session. Here a path is project-relative and containment-checked.
-      show: async function ({ projectCode, text, reportPath: from, clear, as } = {}) {
+      // FILING AND DISPLAYING ARE TWO THINGS, AND `quiet` IS THE SEAM. They were welded: every
+      // report filed through here also seized the TV, so a job that fires at 3am could leave an
+      // account or leave his screen alone, never both — and because `show` is the ONLY verb that
+      // stamps a run's report pointer, the honest choice (don't grab the screen) produced a job
+      // card reading "finished · no report" while the document sat on disk. His report,
+      // 2026-10-14: *"the fucking fact that it says no report."*
+      //
+      // A FLAG RATHER THAN A SECOND VERB, deliberately: the filing is `Reports.write` and the
+      // display is `sendDrive`, two adjacent lines below, and a `file` verb would have to repeat
+      // the first one — a parallel filing path is how two reports of one document start existing.
+      // `show` keeps meaning "put this on his screen"; `quiet` is the explicit opt-out, and it is
+      // the caller who knows whether anyone is in the room.
+      show: async function ({ projectCode, text, reportPath: from, clear, quiet, as } = {}) {
         if (!projectCode) return { ok: false, error: "projectCode required" };
         if (clear) {
           sendDrive.call(this, { cmd: "show", args: { clear: true }, label: "cleared the TV" }, { projectCode, as });
@@ -2966,6 +2978,9 @@ module.exports = function launchSystemView(port = 3000) {
         } catch (e) {
           return { ok: false, error: `could not file the report — ${e.message}. A report is a document; there is nowhere else to put it.` };
         }
+        // QUIET STOPS HERE — filed, indexed, and the path returned so the caller can stamp its run.
+        // Everything above this line has already happened; only the screen is spared.
+        if (quiet) return { ok: true, label, path, quiet: true };
         sendDrive.call(this, { cmd: "show", args: { report: label, path }, label }, { projectCode, as });
         return { ok: true, label, path };
       },

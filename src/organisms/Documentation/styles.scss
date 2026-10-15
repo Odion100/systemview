@@ -390,3 +390,59 @@
   .doc-tabs__ns { margin-left: 0; font-size: inherit; }
   .doc-tabs__ns-seg { font-weight: 600; }
 }
+
+// THE BOARD TAB — the board organism filling the centre instead of a 380px floating popup.
+// SAME FRAME DISCIPLINE AS .inline-logs, and that is the point: his correction, 2026-10-14 —
+// *"look at how logs and stats fit here, neatly, as if they were supposed to fit"*. The first
+// version said `flex: 1` inside a parent that is not a flex column, which computes to nothing: no
+// bounded height, so nothing inside could scroll and the board just ran off the pane. A definite
+// height is what logs and stats actually use, so the board uses it too — the frame holds still,
+// the cards area (`__board-cards`, already `flex: 1; overflow-y: auto`) does the scrolling.
+.doc-board {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 120px);
+  overflow: hidden;
+  // The frame is the document's own box now — border and surface like .doc-pane, so the board
+  // reads as the same kind of thing as every other centre document, not a popup missing its shadow.
+  border: 1px solid var(--sv-border);
+  border-radius: 6px;
+  background: var(--sv-surface);
+
+  // THE HOUSE HEADER, board flavour: the band and chip come from .doc-pane__header/.doc-pane__kind;
+  // these lines only make the board's own header controls (editable title, count, saved-state,
+  // clear) sit in that band the way Edit sits in a doc's.
+  .doc-pane__header--board {
+    cursor: default;
+    .agent-chat__board-title { font-family: "SF Mono", Menlo, monospace; font-size: 11.5px; color: var(--sv-on-header); }
+    .agent-chat__board-state { margin-left: auto; }
+  }
+  .doc-pane__kind--board {
+    background: #7a5ea8; // the board is his surface — purple family, not the doc green
+  }
+}
+
+// THE DOCK SLOTS — chat, links, commands — same frame. The docked AgentChat portals the REAL panel
+// in here (one component, two containers), so this neutralises the panel's popup costume: static,
+// full-size, no shadow, no resize handles — a resizable thing inside the pane is two handles
+// arguing, the same rule the nav dock already applies.
+.doc-dockslot {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 120px);
+  overflow: hidden;
+  padding: 4px 10px 10px;
+
+  > .agent-chat__panel,
+  > .agent-chat__tv,
+  > .agent-chat__board {
+    position: static;
+    flex: 1;
+    min-height: 0;
+    max-height: none;
+    box-shadow: none;
+  }
+  .agent-chat__rz {
+    display: none;
+  }
+}

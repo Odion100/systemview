@@ -15,6 +15,7 @@ import HELP_TOPICS from "../../atoms/Help/helpTopics";
 import { raiseError } from "../../atoms/Banner/bannerStore";
 import ReportsTab from "../Reports/ReportsTab";
 import { iconForTab, TAB_ICONS } from "../../utils/fileIcons";
+import Board from "../Board/Board";
 import RowMenu from "../../atoms/RowMenu/RowMenu";
 
 // Shown in the center when NOTHING is selected in the nav — SystemView's own help, so the Specs area is
@@ -218,6 +219,17 @@ export default function Documentation({
         kind: "logs",
         logs: { serviceId: sService, moduleName: sModule, methodName: sMethod },
       });
+    else if (urlTab === "links" || urlTab === "cmds")
+      // THE CHAT'S OWN SURFACES AS DOCUMENTS (his ruling, 2026-10-14: nothing pops beside a docked
+      // chat). These tabs render a SLOT; the docked AgentChat portals the real panel into it —
+      // one component, no second implementation, the same trick the nav dock itself uses.
+      openTab(tabsPc, { key: `${urlTab}:${tabsPc}`, kind: urlTab });
+    else if (urlTab === "board")
+      // THE BOARD IS ONE TAB PER PROJECT, like stats — it is a view OF the project's one board
+      // file, so a second tab would be the same board twice. His ruling, 2026-10-14: *"I don't
+      // want the board to show up on the side with the chat — I want it to pop up like a
+      // document."* The docked chat's 📋 routes here.
+      openTab(tabsPc, { key: `board:${tabsPc}`, kind: "board" });
     else if (urlTab === "stats")
       // STATS IS ONE TAB PER PROJECT, unlike logs. Logs key per service/module/method because
       // "logs here and logs there" are two different things you are watching; stats is a view OF a
@@ -276,6 +288,16 @@ export default function Documentation({
       p.set("tab", "stats");
       history.push({ pathname: `/specs/${tabsPc}`, search: `?${p.toString()}` });
       return;
+    } else if (t.kind === "links" || t.kind === "cmds") {
+      p.set("tab", t.kind);
+      p.delete("rdoc");
+      history.push({ pathname: `/specs/${tabsPc}`, search: `?${p.toString()}` });
+      return;
+    } else if (t.kind === "board") {
+      p.set("tab", "board");
+      p.delete("rdoc");
+      history.push({ pathname: `/specs/${tabsPc}`, search: `?${p.toString()}` });
+      return;
     } else if (t.kind === "logs") {
       p.set("tab", "logs");
       const lg = t.logs || {};
@@ -310,6 +332,8 @@ export default function Documentation({
       (t.kind !== "file" &&
         !fileLens &&
         ((t.kind === "stats" && urlTab === "stats") ||
+          (t.kind === "board" && urlTab === "board") ||
+          ((t.kind === "links" || t.kind === "cmds") && urlTab === t.kind) ||
           (t.kind === "logs" && urlTab === "logs" && t.key === `logs:${sService || ""}.${sModule || ""}.${sMethod || ""}`) ||
           (t.kind === "report" && urlTab === "reports" && !!t.report && t.report.path === reportPath) ||
           (t.kind === "doc" && urlTab === "docs" && t.key === `doc:${sService || ""}.${sModule || ""}.${sMethod || ""}`)));
@@ -498,6 +522,8 @@ export default function Documentation({
                 : !fileLens &&
                   ((t.kind === "doc" && (tab === "docs" || (tab === "reports" && !reportPath)) && t.key === `doc:${sService || ""}.${sModule || ""}.${sMethod || ""}`) ||
                     (t.kind === "stats" && tab === "stats") ||
+                    (t.kind === "board" && tab === "board") ||
+                    ((t.kind === "links" || t.kind === "cmds") && tab === t.kind) ||
                     (t.kind === "logs" && tab === "logs" && t.key === `logs:${sService || ""}.${sModule || ""}.${sMethod || ""}`) ||
                     (t.kind === "report" && tab === "reports" && (t.report ? t.report.path === reportPath : !reportPath)));
             const label =
@@ -505,6 +531,12 @@ export default function Documentation({
                 ? (t.file && t.file.path ? t.file.path.split("/").pop() : "file")
                 : t.kind === "stats"
                 ? `Stats · ${tabsPc}`
+                : t.kind === "board"
+                ? `Board · ${tabsPc}`
+                : t.kind === "links"
+                ? `Links · ${tabsPc}`
+                : t.kind === "cmds"
+                ? `Commands · ${tabsPc}`
                 : t.kind === "logs"
                 ? `Logs · ${(t.logs && (t.logs.methodName || t.logs.moduleName || t.logs.serviceId)) || tabsPc}`
                 : t.kind === "report"
@@ -699,6 +731,17 @@ export default function Documentation({
             openName={reportPath}
             onOpen={openReport}
           />
+        )}
+        {!helpOpen && (tab === "links" || tab === "cmds") && (
+          <div id={`sv-dock-slot-${tabsPc}-${tab}`} className="doc-dockslot">
+            {/* the docked AgentChat portals the live panel in here; an empty slot means the chat
+                for this project is not docked in the side panel right now */}
+          </div>
+        )}
+        {!helpOpen && tab === "board" && (
+          <div className="doc-board">
+            <Board projectCode={tabsPc} chrome="pane" />
+          </div>
         )}
         {!helpOpen && tab === "stats" && (
           <Reports

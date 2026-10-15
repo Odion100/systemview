@@ -1241,6 +1241,23 @@
     padding: 2px 0 0;
     &:hover { text-decoration: underline; }
   }
+  // THE REPLY TRIGGER ON A CARD. It borrowed __board-more whole and disappeared into the note —
+  // 10px, left-aligned, same blue as every "N more lines" fold. His report, 2026-10-14: *"damn
+  // near invisible in both light and dark — I just know I would have clicked it because I know
+  // it's there."* The row still takes the click (that part he liked once he found it); the WORD
+  // rides the right edge where a control reads as one, a step larger and stronger so it carries
+  // in both themes.
+  &__board-replylink {
+    text-align: right;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 4px 2px;
+    opacity: 0.85;
+    &:hover {
+      opacity: 1;
+      text-decoration: underline;
+    }
+  }
   // ONE answer from the agent, under the note it answers — visibly not his own words.
   &__board-reply {
     margin-top: 5px;
@@ -1548,13 +1565,67 @@
     color: var(--sv-text-faint);
     font-style: italic;
   }
+  // THE DOCUMENT FITS THE TV, WHICH IS NOT THE SAME AS THE TV FITTING. His report, 2026-10-14:
+  // *"when the TV shows and I'm in the side panel, the document stretches outside the space."* The
+  // BOX was always right — docked it is `position: static; width: auto`, so it fills the column —
+  // and the CONTENT was escaping it. `__tv` is a flex column and this had `min-height: 0` but not
+  // `min-width: 0`, so a flex item may not shrink below its own min-content width: one wide table
+  // or one long line in a code fence sets that min-content, and the document spills out past the
+  // side panel's edge. Reports here are mostly tables and fences, so it was every report.
+  //
+  // `min-width: 0` LETS IT SHRINK, and then everything inside FITS. His correction, 2026-10-14:
+  // *"did you just change the size instead of making it flex properly inside the window? There
+  // should be no horizontal movement."* My first pass gave the wide blocks their own sideways
+  // scroll, which bounds the document and is still the wrong answer: a scrollbar is the reader
+  // doing work the layout should have done, and it hides half a table behind a gesture nobody
+  // knows is available.
+  //
+  // SO NOTHING SCROLLS SIDEWAYS IN HERE. The width is not negotiable and the content yields to it:
+  // a fence WRAPS, a table reflows its columns, a long token breaks. Nothing changes the TV's own
+  // width — docked it is `width: auto` filling the column, floating it is whatever you dragged it
+  // to; this is only about what happens to a thing wider than that.
   &__tv-body {
     flex: 1;
     overflow-y: auto;
     min-height: 0;
+    min-width: 0;
     .markdown {
       padding: 10px 12px 10px 26px;
       font-size: 14px;
+      // Prose, long URLs and inline code break rather than push the frame open.
+      overflow-wrap: anywhere;
+      pre,
+      table,
+      img,
+      svg {
+        max-width: 100%;
+      }
+      // A FENCE WRAPS. `pre-wrap` keeps every newline and every run of spaces the author wrote —
+      // the indentation is intact — and only adds breaks where a line would otherwise run past the
+      // edge. `overflow-x: hidden` is the belt: if something unbreakable gets through, it is
+      // clipped rather than given a scrollbar.
+      pre {
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        overflow-x: hidden;
+      }
+      // A TABLE STAYS A TABLE and fits. `width: 100%` with the default auto layout means the
+      // columns are still proportional to their content — they just get allocated out of the
+      // frame's width instead of the content's. The cells have to be allowed to break, or one long
+      // unbroken cell sets a minimum the table cannot go under and we are back to overflowing.
+      table {
+        display: table;
+        width: 100%;
+        table-layout: auto;
+        th,
+        td {
+          overflow-wrap: anywhere;
+          word-break: break-word;
+        }
+      }
+      code {
+        overflow-wrap: anywhere;
+      }
     }
   }
 
@@ -2610,6 +2681,15 @@
   // thing is two handles arguing (his words, and he's right).
   .agent-chat__rz {
     display: none;
+  }
+  // AND THE FRAME CLIPS, DOCKED ONLY. The containment above is the fix; this is the belt, for any
+  // content nobody has thought of yet. It is scoped here because floating, the four resize edges
+  // sit at `-4px` OUTSIDE the box — clipping there would quietly eat half of every grab area.
+  // Docked they are `display: none` one rule up, so there is nothing to lose.
+  .agent-chat__tv,
+  .agent-chat__board,
+  .agent-chat__links {
+    overflow: hidden;
   }
   // NOT HIDDEN — FITTED. The first version of this switched the peek and the status line off, which
   // quietly deleted the two things that tell him something is happening: a visit, and a message
@@ -3933,6 +4013,22 @@
   border-left-color: #63b98a;
   background: rgba(99, 185, 138, 0.08);
 }
+// THE LANES NESTED UNDER THEIR JOB CARD — a left rule and an indent, so they read as the card's
+// produce rather than more siblings; the rows inside are the flat strip's own, untouched.
+.agent-chat__jobrun-lanes {
+  margin: 2px 4px 4px 16px;
+  padding-left: 6px;
+  border-left: 2px solid var(--sv-border, rgba(128, 128, 128, 0.3));
+}
+.agent-chat__jobrun-lanecount {
+  flex: none;
+  font-size: 10px;
+  color: var(--sv-text-faint);
+  border: 1px solid var(--sv-border);
+  border-radius: 8px;
+  padding: 0 5px;
+}
+
 .agent-chat__jobrun-head {
   display: flex;
   align-items: center;
