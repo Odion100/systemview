@@ -830,9 +830,9 @@ function JobRun({ items, source, projectCode, runId, onClear, onLanes, laneChild
         {rec && (rec.finishedAt || rec.startedAt) && (
           <span
             className={`${CLASSNAME}__jobrun-when`}
-            title={`${rec.finishedAt ? "finished" : "started"} ${moment(rec.finishedAt || rec.startedAt).format("ddd D MMM, HH:mm:ss")}`}
+            title={`${rec.finishedAt ? "finished" : "started"} ${moment(rec.finishedAt || rec.startedAt).format("ddd D MMM, h:mm:ss a")}`}
           >
-            {moment(rec.finishedAt || rec.startedAt).format("D MMM HH:mm")}
+            {moment(rec.finishedAt || rec.startedAt).format("D MMM h:mm a")}
           </span>
         )}
         <span className={`${CLASSNAME}__jobrun-chev`}>{open ? "▾" : "▸"}</span>
@@ -6394,6 +6394,7 @@ const countdown = (str, now = Date.now()) => {
                       <button type="button" key={r.path} className={`${CLASSNAME}__reports-row`} title={r.path} onClick={() => openBandReport(r.path)}>
                         {reportsMeta.flags[r.path] ? <span className={`${CLASSNAME}__reports-flag`}>⚑</span> : null}
                         <span className={`${CLASSNAME}__reports-name`}>{r.name}</span>
+                        {r.ts ? <span className={`${CLASSNAME}__reports-when`}>{moment(r.ts).format("D MMM h:mm a")}</span> : null}
                       </button>
                     ))}
                     {reportsMeta.list.length > 30 && (
