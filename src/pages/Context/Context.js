@@ -105,6 +105,7 @@ const Context = () => {
       // universal… look how far the mouse stretches before it pulls"): min 22 made the reopen
       // gate sit a quarter of the row away.
       name: "ctxDoc", side: "right", rowRef, defaultW: 44, min: 15, max: 60, collapseAt: 9,
+      pullGuard: (e) => !!(e.target.closest && e.target.closest(".agent-chat")),
     });
 
   // One writer for the query string — replace, not push, so back still leaves the page cleanly.

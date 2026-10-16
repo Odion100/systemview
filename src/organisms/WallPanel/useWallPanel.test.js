@@ -1,7 +1,7 @@
 // THE PANEL ENGINE'S CLAIMS — extracted precisely because a third hand-copy shipped glitchy (the
 // blink: collapsing in-flow moved the container mid-drag). Nothing renders the pages that mount
 // this in any suite, so the ENGINE carries its own proof: resize, clamp, collapse-past-the-edge,
-// the gesture becoming a pull, the pull's minimum gate, persistence, and the chat guard.
+// the gesture becoming a pull, the pull's open-at-the-line rule, persistence, and the chat guard.
 import React, { useRef } from "react";
 import { render, fireEvent, act } from "@testing-library/react";
 import useWallPanel from "./useWallPanel";
@@ -10,7 +10,7 @@ const RECT = { left: 0, right: 1000, width: 1000, top: 0, bottom: 500, height: 5
 
 function Harness({ side = "right", name = "t" }) {
   const rowRef = useRef(null);
-  const p = useWallPanel({ name, side, rowRef, defaultW: 40, min: 20, max: 60, collapseAt: 10 });
+  const p = useWallPanel({ name, side, rowRef, defaultW: 40, min: 20, max: 60, collapseAt: 10, pullGuard: (e) => !!(e.target.closest && e.target.closest(".agent-chat")) });
   return (
     <div
       ref={(el) => {
@@ -59,6 +59,15 @@ it("a left-side panel measures from the left edge", () => {
   expect(state(r)).toBe("open:30");
 });
 
+it("a BOTTOM band measures height from the bottom edge — the chat strip's axis", () => {
+  const r = render(<Harness name={fresh()} side="bottom" />);
+  fireEvent.mouseDown(r.getByTestId("divider"));
+  act(() => { fireEvent.mouseMove(window, { clientY: 350 }); }); // raw = (500-350)/500 = 30%
+  expect(state(r)).toBe("open:30");
+  act(() => { fireEvent.mouseMove(window, { clientY: 490 }); }); // raw 2 < collapseAt 10 → the label state
+  expect(state(r)).toMatch(/^closed/);
+});
+
 it("dragging past the edge collapses — and the SAME gesture pulls it back out", () => {
   const name = fresh();
   const r = render(<Harness name={name} />);
@@ -73,19 +82,21 @@ it("dragging past the edge collapses — and the SAME gesture pulls it back out"
   expect(state(r)).toBe("open:30");
 });
 
-it("a pull on the collapsed strip opens only past the panel's own minimum", () => {
+it("a pull opens at the collapse line + hysteresis, popping in at the panel's minimum", () => {
   const r = render(<Harness name={fresh()} />);
   fireEvent.mouseDown(r.getByTestId("divider"));
   moveTo(950); // collapse it
   release();
   fireEvent.mouseDown(r.getByTestId("pull"));
-  moveTo(900); // raw 10 < min 20 — opening here would collapse again in the same gesture
+  moveTo(890); // raw 11 < collapseAt 10 + 3 — still closed (the hysteresis hair)
   expect(state(r)).toMatch(/^closed/);
-  moveTo(750); // raw 25 ≥ min → open at 25
+  moveTo(860); // raw 14 clears the line → OPEN, width floored at min 20 (no dead stretch to 20)
+  expect(state(r)).toBe("open:20");
+  moveTo(750); // and from the minimum it tracks the pointer — raw 25
   expect(state(r)).toBe("open:25");
 });
 
-it("a press inside the chat never starts a pull", () => {
+it("a guarded panel ignores pulls starting inside the chat (opt-in per panel)", () => {
   const r = render(<Harness name={fresh()} />);
   fireEvent.mouseDown(r.getByTestId("divider"));
   moveTo(950);
@@ -95,15 +106,35 @@ it("a press inside the chat never starts a pull", () => {
   expect(state(r)).toMatch(/^closed/);
 });
 
-it("only the held divider lights — never the other side's handle", () => {
+it("the light arrives with MOVEMENT, on the held line only — a plain press stays clean (a click must stay a click)", () => {
   const r = render(<Harness name={fresh()} />);
   const divider = r.getByTestId("divider");
   const other = r.getByTestId("pull");
   fireEvent.mouseDown(divider);
+  // Pressed, not moved: nothing lights and the shield is down — this is what keeps click-to-open alive.
+  expect(divider.classList.contains("panel-divider--live")).toBe(false);
+  expect(document.body.classList.contains("panel-resizing")).toBe(false);
+  moveTo(700);
   expect(divider.classList.contains("panel-divider--live")).toBe(true);
   expect(other.classList.contains("panel-divider--live")).toBe(false);
+  expect(document.body.classList.contains("panel-resizing")).toBe(true);
   release();
   expect(divider.classList.contains("panel-divider--live")).toBe(false);
+  expect(document.body.classList.contains("panel-resizing")).toBe(false);
+});
+
+it("a click-open from a dragged-closed sliver snaps to the default — never reopens tiny", () => {
+  const name = fresh();
+  localStorage.setItem(`sv.${name}W`, "20"); // the pass-through height a collapse drag leaves (= min)
+  localStorage.setItem(`sv.${name}Open`, "false");
+  function Opener() {
+    const rowRef = useRef(null);
+    const p = useWallPanel({ name, side: "right", rowRef, defaultW: 40, min: 20, max: 60, collapseAt: 10 });
+    return <button data-testid="open" onClick={() => p.setOpen(true)}>{`${p.open ? "open" : "closed"}:${p.w}`}</button>;
+  }
+  const r = render(<Opener />);
+  fireEvent.click(r.getByTestId("open"));
+  expect(r.getByTestId("open").textContent).toBe("open:40");
 });
 
 it("width and openness come back from storage", () => {

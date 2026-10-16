@@ -3020,7 +3020,7 @@
   color: var(--sv-text-faint);
   font-size: 13px;
   line-height: 1;
-  padding: 2px 4px;
+  padding: 0 4px 1px;
   cursor: pointer;
   &:hover { color: #9a7cb8; }
   // ON, AND IT HAS TO LOOK IT. This modifier is only worn by the hide-the-runs control, and it is
@@ -3039,8 +3039,9 @@
   flex: none; // pinned with the composer: it is the door back to everything it hides
   display: flex;
   justify-content: flex-end;
+  align-items: flex-end; // the symbol hugs the band it acts on — the gap above it read as padding
   padding: 0 6px;
-  min-height: 18px;
+  min-height: 13px;
 }
 
 .agent-chat__nobody {
@@ -3135,10 +3136,224 @@
 // means giving way IS scrolling. The feed stops at its own `min-height`, the composer is pinned
 // (`flex: none` on every block from the shots row down), so the order of sacrifice is now: the
 // strip scrolls first, the feed second, and the input never.
-.agent-chat__strip {
-  flex: 0 1 auto;
+// THE WORK BAND — strip + whiteboard in one resizable container (his design, 2026-10-16: the
+// band resizes instead of toggling; its height is engine state, so the 40vh cap the strip used
+// to carry is retired — the drag IS the bound now, clamped 8–60%).
+.agent-chat__workband {
+  display: flex;
+  flex-direction: column;
   min-height: 0;
-  max-height: 40vh;
+}
+// ONE GLYPH, ROTATED — the wall tabs' own › (his call: the skinny caret was ugly, and two
+// codepoints never weigh the same). › rotated a quarter-turn points down; flipped, up.
+.agent-chat__swap-chev {
+  display: inline-block;
+  font-weight: 700;
+  line-height: 1;
+  transform: rotate(90deg);
+  &--up {
+    transform: rotate(-90deg);
+  }
+}
+.agent-chat__workband-head {
+  flex: none;
+  border: none;
+  background: none;
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end; // the RIGHT side, open or closed — it stopped hopping
+  gap: 6px;
+  text-align: right;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--sv-text-muted);
+  padding: 1px 8px 2px;
+  cursor: pointer;
+  &:hover { background: var(--sv-hover); color: var(--sv-text); }
+}
+// THE MAILBOX — reports as a band section: the head line always visible, counts in your face,
+// the flag up while an approval waits.
+.agent-chat__reports {
+  flex: none;
+  border-top: 1px solid var(--sv-border, #e3e6f2);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.agent-chat__reports-head {
+  border: none;
+  background: none;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--sv-text-muted);
+  padding: 3px 8px;
+  cursor: pointer;
+  &:hover { background: var(--sv-hover); color: var(--sv-text); }
+}
+.agent-chat__reports-flag {
+  margin-left: 8px;
+  color: #c77700;
+  font-weight: 700;
+}
+.agent-chat__reports-list {
+  overflow-y: auto;
+  max-height: 180px;
+  display: flex;
+  flex-direction: column;
+}
+.agent-chat__reports-row {
+  border: none;
+  background: none;
+  text-align: left;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--sv-text);
+  padding: 2px 10px;
+  cursor: pointer;
+  &:hover { background: var(--sv-hover); }
+  .agent-chat__reports-flag { margin-left: 0; }
+}
+.agent-chat__reports-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.agent-chat__reports-more {
+  font-size: 10.5px;
+  font-style: italic;
+  color: var(--sv-text-faint);
+  padding: 2px 10px 4px;
+}
+// ONE GLYPH, ROTATED — the wall tabs' own › (his call: the skinny caret was ugly, and two
+// codepoints never weigh the same). › rotated a quarter-turn points down; flipped, up.
+.agent-chat__swap-chev {
+  display: inline-block;
+  font-weight: 700;
+  line-height: 1;
+  transform: rotate(90deg);
+  &--up {
+    transform: rotate(-90deg);
+  }
+}
+.agent-chat__workband-head {
+  flex: none;
+  border: none;
+  background: none;
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end; // the RIGHT side, open or closed — it stopped hopping
+  gap: 6px;
+  text-align: right;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--sv-text-muted);
+  padding: 1px 8px 2px;
+  cursor: pointer;
+  &:hover { background: var(--sv-hover); color: var(--sv-text); }
+}
+// THE MAILBOX — reports as a band section: the head line always visible, counts in your face,
+// the flag up while an approval waits.
+.agent-chat__reports {
+  flex: none;
+  border-top: 1px solid var(--sv-border, #e3e6f2);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.agent-chat__reports-head {
+  border: none;
+  background: none;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--sv-text-muted);
+  padding: 3px 8px;
+  cursor: pointer;
+  &:hover { background: var(--sv-hover); color: var(--sv-text); }
+}
+.agent-chat__reports-flag {
+  margin-left: 8px;
+  color: #c77700;
+  font-weight: 700;
+}
+.agent-chat__reports-list {
+  overflow-y: auto;
+  max-height: 180px;
+  display: flex;
+  flex-direction: column;
+}
+.agent-chat__reports-row {
+  border: none;
+  background: none;
+  text-align: left;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--sv-text);
+  padding: 2px 10px;
+  cursor: pointer;
+  &:hover { background: var(--sv-hover); }
+  .agent-chat__reports-flag { margin-left: 0; }
+}
+.agent-chat__reports-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.agent-chat__reports-more {
+  font-size: 10.5px;
+  font-style: italic;
+  color: var(--sv-text-faint);
+  padding: 2px 10px 4px;
+}
+.agent-chat__workband-label {
+  // CLOSED, THE ROW IS A GRAB BAR AND MUST SAY SO (his catch: "no drag symbol when it's closed")
+  // — the resize cursor over the whole row; the chevron alone keeps the pointer, it is the click.
+  // And the SEAM shows on hover, like every divider's hover glow — the label has no divider
+  // element, so it wears the line itself along its top edge (his second catch).
+  position: relative;
+  &::before {
+    content: "";
+    position: absolute;
+    top: -2px;
+    left: 0;
+    right: 0;
+    height: 5px;
+    border-radius: 2px;
+    background: transparent;
+    transition: background 0.12s;
+    pointer-events: none;
+  }
+  &:hover::before {
+    background: #c9cfe8;
+  }
+  cursor: row-resize;
+  .agent-chat__workband-head { cursor: row-resize; }
+  .agent-chat__swap-chev { cursor: pointer; }
+
+  position: relative;
+  flex: none;
+  display: flex;
+  justify-content: flex-end;
+  padding: 1px 6px;
+  button {
+    border: none;
+    background: none;
+    font-size: 10.5px;
+    color: var(--sv-text-faint);
+    cursor: pointer;
+    padding: 1px 4px;
+    border-radius: 4px;
+    &:hover { background: var(--sv-hover); color: var(--sv-text); }
+  }
+}
+.agent-chat__strip {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
   // A gesture that runs out of strip must not then scroll the conversation behind it.
   overscroll-behavior: contain;

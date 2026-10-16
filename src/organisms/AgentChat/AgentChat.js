@@ -8,6 +8,8 @@ import { createInterimStore, InterimLine, MicText } from "./interimStore";
 import { laneVerdict, laneChip, laneReceipt, laneConfirm } from "./laneVerdict";
 import { MarkdownWriteProvider, MarkdownScopeProvider } from "../../atoms/Markdown/context";
 import ReportLink from "../../atoms/Markdown/blocks/ReportLink";
+import useWallPanel from "../WallPanel/useWallPanel";
+import { onCodePage, openReportInPanel } from "../../atoms/Markdown/openRef";
 import NsLink from "../../atoms/Markdown/blocks/NsLink";
 import FileLink from "../../atoms/Markdown/blocks/FileLink";
 import BranchBlock from "../../atoms/Markdown/blocks/BranchBlock";
@@ -998,6 +1000,23 @@ function WorkList({ items, onClear, source = "" }) {
 // THE WIPE IS REAL AND MUTUAL. His × calls the host, the host clears the stored board and emits
 // the empty event — every watcher clears together. Not a view-local hide: a shared surface either
 // side may erase, and the other finds out the way anyone does — by looking at it.
+// THE BAND'S HEADER — one definition, worn in BOTH states, pinned RIGHT in both (his calls: "it
+// evolved to what it is — it's a header"; "keep it on the right side"). It counts the things that
+// matter — jobs, lanes, reports — never the whiteboard; the approval flag rides when one waits.
+function WorkbandHead({ open, jobs, lanes, reports, waiting, onToggle }) {
+  const seg = [];
+  if (jobs) seg.push(`${jobs} job${jobs === 1 ? "" : "s"}`);
+  if (lanes) seg.push(`${lanes} lane${lanes === 1 ? "" : "s"}`);
+  if (reports) seg.push(`${reports} report${reports === 1 ? "" : "s"}`);
+  return (
+    <button type="button" className="agent-chat__workband-head" title={open ? "Put the work band down" : "Open the work band"} onClick={onToggle}>
+      {waiting ? <span className="agent-chat__reports-flag">⚑ {waiting} approval waiting</span> : null}
+      <span className="agent-chat__workband-head-text">{seg.join(" · ")}</span>
+      <span className={`agent-chat__swap-chev${open ? "" : " agent-chat__swap-chev--up"}`}>›</span>
+    </button>
+  );
+}
+
 function Whiteboard({ text, writeTs = 0, onWipe }) {
   // CLOSED ON ARRIVAL, OPEN ON LIVE WRITE — his rule, fixed properly the second time: comparing
   // text to its previous value opened on every refresh, because the history batch arrives AFTER
@@ -4797,19 +4816,80 @@ const countdown = (str, now = Date.now()) => {
   //
   // PERSISTED PER PROJECT, like the dismissals: a view preference that resets on refresh is one he
   // has to set again every time, which is the same complaint one layer up.
-  const hideWorkKey = `sv.chat.hideWork.${projectCode}`;
-  const [hideWork, setHideWorkRaw] = useState(() => {
-    try { return window.localStorage.getItem(hideWorkKey) === "1"; } catch { return false; }
+  // THE WORK BAND RESIZES, NOT TOGGLES (his design, ordered for right after 8d1ee73): drag the
+  // seam above it; dragged to nothing it collapses to a LABEL — "like it's closed", the mailbox
+  // face — and the label pulls back out. The ONE engine (organisms/WallPanel), vertical side;
+  // height is a % of the chat column, persisted per project like the old toggle was. hideWork
+  // stays as a derived alias so the ⊟/⊞ control and every condition read exactly as before.
+  const stripRef = useRef(null);
+  // THE BAND DOES NOT TOUCH THE COLUMN'S BOTTOM — the composer sits below it, so measuring the
+  // pointer against the column's bottom carried a composer-sized offset ("your mouse is way
+  // down", his catch). The engine gets a composed rect: the band's OWN bottom (fixed in space
+  // while dragging) as the anchor, the column's height as the scale — the seam tracks 1:1.
+  const stripRow = {
+    get current() {
+      const el = stripRef.current;
+      const col = el && el.parentElement;
+      if (!col) return null;
+      return {
+        getBoundingClientRect: () => {
+          const c = col.getBoundingClientRect();
+          const b = el.getBoundingClientRect();
+          return { top: c.top, left: c.left, right: c.right, width: c.width, height: c.height, bottom: b.bottom };
+        },
+      };
+    },
+  };
+  const { open: stripOpen, setOpen: setStripOpen, w: stripH, setW: setStripH, startDrag: stripDrag, startPull: stripPull } =
+    useWallPanel({ name: `chatStrip-${projectCode}`, side: "bottom", rowRef: stripRow, defaultW: 24, min: 8, max: 60, collapseAt: 4 });
+  const hideWork = !stripOpen;
+  const setHideWork = (v) => setStripOpen(!v);
+
+  // REPORTS IN THE BAND (his design, 2026-10-16): the one list (listReports — same list the nav
+  // fold and the TV picker read), plus the APPROVAL SCAN — a report carrying a :::approval with no
+  // verdict= is a flag up in the mailbox. Scanned over the newest 20 on a slow poll; the files are
+  // the truth, there is no second store to drift.
+  const [reportsMeta, setReportsMeta] = useState({ list: [], waiting: 0, flags: {} });
+  const [reportsOpen, setReportsOpenRaw] = useState(() => {
+    try { return window.localStorage.getItem(`sv.chat.reportsOpen.${projectCode}`) === "1"; } catch { return false; }
   });
-  const setHideWork = (v) =>
-    setHideWorkRaw(() => {
-      try { window.localStorage.setItem(hideWorkKey, v ? "1" : "0"); } catch {}
-      return v;
-    });
+  const setReportsOpen = (v) => {
+    try { window.localStorage.setItem(`sv.chat.reportsOpen.${projectCode}`, v ? "1" : "0"); } catch {}
+    setReportsOpenRaw(v);
+  };
   useEffect(() => {
-    try { setHideWorkRaw(window.localStorage.getItem(hideWorkKey) === "1"); } catch {}
+    let dead = false;
+    const pull = async () => {
+      try {
+        const list = await listReports(projectCode);
+        const files = hostFiles(projectCode);
+        const flags = {};
+        await Promise.all(
+          list.slice(0, 20).map(async (r) => {
+            try {
+              const res = await files.readFile({ path: r.path });
+              const blocks = [...String(res.content || "").matchAll(/:::approval\{([^}]*)\}/g)];
+              if (blocks.some((b) => !/verdict=/.test(b[1]))) flags[r.path] = true;
+            } catch {}
+          })
+        );
+        if (!dead) setReportsMeta({ list, waiting: Object.keys(flags).length, flags });
+      } catch {
+        if (!dead) setReportsMeta({ list: [], waiting: 0, flags: {} });
+      }
+    };
+    pull();
+    const t = setInterval(pull, 30000);
+    return () => { dead = true; clearInterval(t); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hideWorkKey]);
+  }, [projectCode]);
+  const openBandReport = (path) => {
+    if (!onCodePage() && openReportInPanel({ projectCode, path })) return;
+    const q = new URLSearchParams(window.location.search);
+    q.set("tab", "reports");
+    q.set("rdoc", path);
+    history.push({ pathname: `/specs/${projectCode}`, search: `?${q.toString()}` });
+  };
   // A DELETED LANE IS DELETED, AND IT HAS TO SURVIVE A REFRESH — which `clearedLists` could not,
   // being useState({}). His cleanup removed the worktree, the branch and the run file, and then a
   // reload replayed the session's own events and drew the row again from the transcript, which is
@@ -6193,27 +6273,24 @@ const countdown = (str, now = Date.now()) => {
               it controls. And the count rides the title while it is on: a surface that silently
               omits is a surface that lies, so "no runs" and "runs, hidden by me" must never look
               the same. */}
-          {attached &&
-            (hideWork || lanesShown.length > 0 || listsShown.length > 0 || !!work.state.whiteboard) && (
-              <div className={`${CLASSNAME}__viewbar`}>
-                <button
-                  type="button"
-                  className={`${CLASSNAME}__swap${hideWork ? ` ${CLASSNAME}__swap--on` : ""}`}
-                  title={
-                    hideWork
-                      ? `Just the conversation — ${lanesShown.length + listsShown.length} run row${
-                          lanesShown.length + listsShown.length === 1 ? "" : "s"
-                        } and the whiteboard are hidden. Press to bring them back.`
-                      : "Hide the runs and the whiteboard — just the conversation"
-                  }
-                  onClick={() => setHideWork(!hideWork)}
-                >
-                  {hideWork ? "⊞" : "⊟"}
-                </button>
-              </div>
-            )}
-          {attached && !hideWork && (lanesShown.length > 0 || listsShown.length > 0) && (
-            <div className={`${CLASSNAME}__strip`}>
+          {attached && !hideWork && (lanesShown.length > 0 || listsShown.length > 0 || !!work.state.whiteboard) && (
+            <div className={`${CLASSNAME}__workband`} ref={stripRef} style={{ flex: `0 1 ${stripH}%` }}>
+              <div
+                className="panel-divider panel-divider--h"
+                title="Drag to resize · drag to the bottom to close · double-click resets"
+                onMouseDown={stripDrag}
+                onDoubleClick={() => setStripH(24)}
+              />
+              <WorkbandHead
+                open
+                jobs={listsShown.length}
+                lanes={lanesShown.length}
+                reports={reportsMeta.list.length}
+                waiting={reportsMeta.waiting}
+                onToggle={() => setStripOpen(false)}
+              />
+              {(lanesShown.length > 0 || listsShown.length > 0) && (
+              <div className={`${CLASSNAME}__strip`}>
           {/* ONE RENDERER FOR A LANE ROW, flat or nested — the row, its in-place panel, its
               delete. Defined here (not a component) so it closes over every handler the flat strip
               already wired. */}
@@ -6298,12 +6375,51 @@ const countdown = (str, now = Date.now()) => {
             );
           })()}
             </div>
+              )}
+              {/* The whiteboard sits UNDER the list — tried on top, he wants to feel this order
+                  again. Same area, different job: the list tracks the work, the board holds the
+                  conversation. The wipe is the host's, so an erase clears it for both of us. */}
+              <Whiteboard text={work.state.whiteboard} writeTs={work.state.whiteboardTs} onWipe={() => work.wipeWhiteboard()} />
+              {/* THE MAILBOX — reports live IN the band now (his design): the head line always
+                  shows, counts in your face, the flag up when an approval waits. Rows open the
+                  report the way a :report chip does. */}
+              <div className={`${CLASSNAME}__reports`}>
+                <button type="button" className={`${CLASSNAME}__reports-head`} onClick={() => setReportsOpen(!reportsOpen)}>
+                  reports · {reportsMeta.list.length}
+                  {reportsMeta.waiting ? <span className={`${CLASSNAME}__reports-flag`}>⚑ {reportsMeta.waiting} approval waiting</span> : null}
+                </button>
+                {reportsOpen && (
+                  <div className={`${CLASSNAME}__reports-list`}>
+                    {reportsMeta.list.slice(0, 30).map((r) => (
+                      <button type="button" key={r.path} className={`${CLASSNAME}__reports-row`} title={r.path} onClick={() => openBandReport(r.path)}>
+                        {reportsMeta.flags[r.path] ? <span className={`${CLASSNAME}__reports-flag`}>⚑</span> : null}
+                        <span className={`${CLASSNAME}__reports-name`}>{r.name}</span>
+                      </button>
+                    ))}
+                    {reportsMeta.list.length > 30 && (
+                      <div className={`${CLASSNAME}__reports-more`}>+{reportsMeta.list.length - 30} older — the Stage tab lists them all</div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
           )}
-          {/* The whiteboard sits UNDER the list — tried on top, he wants to feel this order
-              again. Same area, different job: the list tracks the work, the board holds the
-              conversation. The wipe is the host's, so an erase clears it for both of us. */}
-          {attached && !hideWork && (
-            <Whiteboard text={work.state.whiteboard} writeTs={work.state.whiteboardTs} onWipe={() => work.wipeWhiteboard()} />
+          {/* Closed, the band IS a label (his words) — the count rides it so "hidden" never looks
+              like "nothing", and the label is the grab bar: pull up and it is already resizing. */}
+          {/* THE WHOLE LABEL IS THE GRAB BAR — a 5px edge sliver was the only pull surface and it
+              sat inside the chat guard's shadow; now any press on the row starts the pull, and a
+              press that never moves is the click that opens. */}
+          {attached && hideWork && (lanesShown.length > 0 || listsShown.length > 0 || !!work.state.whiteboard) && (
+            <div className={`${CLASSNAME}__workband-label`} ref={stripRef} onMouseDown={stripPull}>
+              <WorkbandHead
+                open={false}
+                jobs={listsShown.length}
+                lanes={lanesShown.length}
+                reports={reportsMeta.list.length}
+                waiting={reportsMeta.waiting}
+                onToggle={() => setStripOpen(true)}
+              />
+            </div>
           )}
           {/* While the mic listens: the words appear HERE as you speak (interim), then commit
               into the input as they finalize. The line itself is the recording indicator. */}
