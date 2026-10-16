@@ -48,9 +48,26 @@
 body.panel-resizing {
   cursor: col-resize;
   user-select: none;
-  .panel-divider {
-    background: #c9cfe8;
-  }
+}
+// ONLY THE LINE IN YOUR HAND LIGHTS. This was `body.panel-resizing .panel-divider` — every divider
+// on the page glowed while any one was dragged, so moving the document panel's line made the nav
+// side's handle "come into view" (his catch, 2026-10-16). The engine stamps the held element.
+.panel-divider--live {
+  background: #c9cfe8;
+}
+// Mid-gesture continuity: while a drag is live, the edge handle on the DRAG'S OWN side is lit, so
+// the line survives a collapse under the hand and the pull back is visible. Side-scoped — the
+// opposite wall's handle never glows (the original body-wide rule lit everything).
+body.panel-resizing--left .panel-divider--edge-left,
+body.panel-resizing--right .panel-divider--edge-right {
+  background: #c9cfe8;
+}
+// Mid-gesture continuity: while a drag is live, the edge handle on the DRAG'S OWN side is lit —
+// so the line survives the collapse under your hand and the pull back is visible. Side-scoped,
+// so the opposite wall's handle never glows (the original body-wide rule lit everything).
+body.panel-resizing--left .panel-divider--edge-left,
+body.panel-resizing--right .panel-divider--edge-right {
+  background: #c9cfe8;
 }
 .btn {
   cursor: pointer;
@@ -199,50 +216,6 @@ body.panel-resizing {
 .scratchpad {
   position: relative;
 
-  &__toggle {
-    border: 1px solid #b0bed8;
-    background: var(--sv-hover);
-    color: var(--sv-blue);
-    font-family: Malkor, sans-serif;
-    cursor: pointer;
-    border-radius: 4px;
-    padding: 2px 8px;
-    &:hover {
-      background: #e4eaf8;
-      border-color: var(--sv-blue);
-    }
-  }
-
-  // Open: a small "›" collapse handle floats at the top-right of the panel.
-  &--open .scratchpad__toggle {
-    position: absolute;
-    top: -2px;
-    right: 0;
-    z-index: 5;
-    font-size: 14px;
-    line-height: 1;
-    padding: 2px 7px;
-  }
-
-  // Collapsed: out of the grid flow entirely — a vertical tab pinned to the right edge, in the corner.
-  &--collapsed {
-    position: fixed;
-    right: 0;
-    top: 74px;
-    bottom: 0;
-    z-index: 30;
-    width: auto; // the tab's width, exactly
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-  }
-  &--collapsed .scratchpad__toggle {
-    writing-mode: vertical-rl;
-    padding: 14px 6px;
-    font-size: 13px;
-    border-radius: 6px 0 0 6px;
-    box-shadow: -1px 1px 6px rgba(40, 50, 90, 0.12);
-  }
 }
 
 // The panel TITLE is the collapse control. The arrow sits at the panel's outer end and points toward

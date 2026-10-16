@@ -2,6 +2,7 @@ import React, { useEffect, useContext, useRef, useState } from "react";
 import { useHistory } from "react-router-dom";
 import ServiceContext from "../../ServiceContext";
 import "./styles.scss";
+import "../WallPanel/styles.scss";
 import { Client, markCredentialed } from "../../systemClient";
 import {
   hostProjects,
@@ -544,7 +545,7 @@ const SystemNav = ({
                 {onCollapse && (
                   <button
                     type="button"
-                    className="system-nav__collapse"
+                    className="wall-collapse"
                     title="Collapse the navigator"
                     onClick={onCollapse}
                   >

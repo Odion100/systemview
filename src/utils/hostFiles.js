@@ -31,6 +31,37 @@ const EXT_LANG = {
 };
 const languageOf = (p) => EXT_LANG[(String(p).split(".").pop() || "").toLowerCase()] || "text";
 
+// THE MACHINE DOOR'S PLUGIN (RFC-069) — a file with no project: ("", absolute path). Same
+// object-arg shape as hostFiles so CodePane speaks one language, but it carries ONLY what a
+// machine file has: read, write, delete. No changedFiles, no getDiff, no stageHunk, no
+// fileHistory, no search — git is a property of a repo, and CodePane renders those absent rather
+// than broken (it already guards every one).
+export const machineFiles = () => {
+  const hub = () => {
+    const h = getHub();
+    if (!h) throw new Error("the hub is not connected yet");
+    return h;
+  };
+  return {
+    machine: true,
+    readFile: async ({ path } = {}) => {
+      const res = await hub().readPath({ path });
+      if (res && res.ok === false) throw new Error(res.error || "could not read that file");
+      return { path: res.path || path, content: res.content || "", language: languageOf(path) };
+    },
+    writeFile: async ({ path, content } = {}) => {
+      const res = await hub().writePath({ path, content });
+      if (res && res.ok === false) throw new Error(res.error || "could not write that file");
+      return res;
+    },
+    deleteFile: async ({ path } = {}) => {
+      const res = await hub().deletePath({ path });
+      if (res && res.ok === false) throw new Error(res.error || "could not delete that file");
+      return res;
+    },
+  };
+};
+
 // The object-arg shape every call site already speaks, mapped onto the host's positional calls.
 // One place, so the two vocabularies meet exactly once.
 export const hostFiles = (projectCode, root) => {

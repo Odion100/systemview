@@ -1,0 +1,49 @@
+// RFC-069 slice 4 — THE DOCUMENT AREA on the agents page: the one CenterTabs strip over whichever
+// renderer the active tab needs (CodePane for files, DocPanel for door-backed documents). The
+// area carries the width the old right panel had; the panels inside fill it, so DocPanel's own
+// row-resize costume is neutralised here the same way the dock slots neutralise popup costumes.
+.ctx-docarea {
+  // Width is the PANEL'S OWN state now (inline flex-basis from sv.ctxDocW) — his correction after
+  // this shipped frozen at 44%: a panel here resizes, collapses, and comes back, like every other.
+  position: relative;
+  padding-top: 0.5rem; // the Code page's .documentation-view carries the same — one look above the strip
+  min-width: 320px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0; // FLUSH at the window's wall — a 6px "breathing room" guess read as "not at the
+  // corner" (his catch); the earlier right-side cutoff was the measuring bug, not the edge.
+
+  .doc-tabs {
+    flex: none; // the strip's costume is CenterTabs' own — nothing page-local beyond layout
+  }
+  > .ctx-docarea__body,
+  > .doc-panel {
+    flex: 1 1 auto !important;
+    max-width: none !important;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .ctx-docarea__body > .code-pane {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+  .doc-panel__resize {
+    display: none; // the area owns the width here; two handles argue
+  }
+}
+.ctx-docarea__hint {
+  padding: 18px 14px;
+  font-size: 12px;
+  color: var(--sv-text-faint);
+  font-style: italic;
+  button {
+    border: none;
+    background: none;
+    color: var(--sv-blue);
+    cursor: pointer;
+    font-size: 12px;
+    padding: 0;
+    text-decoration: underline;
+  }
+}

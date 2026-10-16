@@ -2346,17 +2346,28 @@ function BotBubble({ projectCode, index }) {
           p.delete("help");
           p.delete("rdoc"); // …and not behind a report either
           p.set("file", args.file);
-          p.set("fproj", projectCode);
+          // RFC-069 — the hub resolved this file before the command reached us. A machine file has
+          // no project and needs no service; a file the resolver placed in ANOTHER project carries
+          // that project, so the pane asks the right root instead of this room's.
+          if (args.machine) {
+            p.set("fmachine", "1");
+            p.delete("fproj");
+            p.delete("fsvc");
+          } else {
+            p.delete("fmachine");
+            p.set("fproj", args.fileProject || projectCode);
+          }
           // A FILE NEEDS A SERVICE TO COME FROM. The pane fetches through a connected service, and
           // with none it finds no host and CLOSES ITSELF — restoring the tab you came from, which
           // is why every attempt landed back on the Stage with nothing open. The earlier partial
           // success only worked because a different writer happened to supply `fsvc`.
           //
           // Prefer the service the human is standing in; otherwise this project's first one.
-          const svc =
-            (connectedServices || []).find(
-              (x) => x.projectCode === projectCode && x.serviceId === serviceId,
-            ) || (connectedServices || []).find((x) => x.projectCode === projectCode);
+          const svc = args.machine
+            ? null
+            : (connectedServices || []).find(
+                (x) => x.projectCode === projectCode && x.serviceId === serviceId,
+              ) || (connectedServices || []).find((x) => x.projectCode === projectCode);
           if (svc) p.set("fsvc", svc.serviceId);
           p.set("flang", langFromPath(args.file));
           if (args.lines && args.lines[0]) p.set("flines", args.lines.join("-"));
@@ -2381,7 +2392,7 @@ function BotBubble({ projectCode, index }) {
           params.set("tab", "reports");
           // Same rule as the TV hand-off: file params belonging to another project do not travel.
           if (params.get("fproj") && params.get("fproj") !== projectCode)
-            ["file", "fproj", "fsvc", "flang", "flines", "fside"].forEach((k) => params.delete(k));
+            ["file", "fproj", "fsvc", "flang", "flines", "fside", "fmachine"].forEach((k) => params.delete(k));
           // A RANGE MAY STILL BE GLUED TO THE PATH. Older CLIs (and anyone hand-writing a link)
           // send `report.md#L274-L378` whole, which then goes looking for a file literally called
           // that and finds nothing — the report just doesn't open. Split it here, and accept the
@@ -2429,7 +2440,7 @@ function BotBubble({ projectCode, index }) {
         // day removing.
         if (!args.clear && inNav && args.path) {
           const params = new URLSearchParams(window.location.search);
-          ["file", "fproj", "fsvc", "flang", "flines", "fside", "fnav", "ftab", "help"].forEach((k) => params.delete(k));
+          ["file", "fproj", "fsvc", "flang", "flines", "fside", "fnav", "ftab", "help", "fmachine"].forEach((k) => params.delete(k));
           params.set("tab", "reports");
           params.set("rdoc", args.path);
           go({ pathname: `/specs/${projectCode}`, search: `?${params.toString()}` });
@@ -3160,7 +3171,7 @@ const countdown = (str, now = Date.now()) => {
     // centre instead of stacking the column (his "usage or skills" ruling, 2026-10-14).
     if (inNav) {
       const params = new URLSearchParams(window.location.search);
-      ["file", "fproj", "fsvc", "flang", "flines", "fside", "fnav", "ftab", "help", "rdoc"].forEach((k) => params.delete(k));
+      ["file", "fproj", "fsvc", "flang", "flines", "fside", "fnav", "ftab", "help", "rdoc", "fmachine"].forEach((k) => params.delete(k));
       params.set("tab", "cmds");
       go({ pathname: `/specs/${projectCode}`, search: `?${params.toString()}` });
     }
@@ -4600,7 +4611,7 @@ const countdown = (str, now = Date.now()) => {
     // leftover `file=` makes Documentation open the file tab and return before ours exists — the
     // bug that shipped the board as a tabless stack on day one.
     const params = new URLSearchParams(window.location.search);
-    ["file", "fproj", "fsvc", "flang", "flines", "fside", "fnav", "ftab", "help", "rdoc"].forEach((k) => params.delete(k));
+    ["file", "fproj", "fsvc", "flang", "flines", "fside", "fnav", "ftab", "help", "rdoc", "fmachine"].forEach((k) => params.delete(k));
     const route = () => go({ pathname: `/specs/${projectCode}`, search: `?${params.toString()}` });
     if (which === "board") {
       params.set("tab", "board");
@@ -5431,7 +5442,7 @@ const countdown = (str, now = Date.now()) => {
                     // another one leaves the nav showing a foreign file beside the report — which is
                     // what "my reports are not being transferred properly" looks like from outside.
                     if (p.get("fproj") && p.get("fproj") !== projectCode)
-                      ["file", "fproj", "fsvc", "flang", "flines", "fside"].forEach((k) => p.delete(k));
+                      ["file", "fproj", "fsvc", "flang", "flines", "fside", "fmachine"].forEach((k) => p.delete(k));
                     const pathname = window.location.pathname.startsWith(`/specs/${projectCode}`)
                       ? window.location.pathname
                       : `/specs/${projectCode}`;

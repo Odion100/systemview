@@ -1,7 +1,7 @@
-import React, { useCallback, useState } from "react";
+import React, { useRef } from "react";
 import NavRail from "./NavRail";
 import SystemNavigator from "../SystemNavigator/SystemNavigator";
-import usePanelDrag from "./usePanelDrag";
+import useWallPanel from "../WallPanel/useWallPanel";
 
 // RFC-052/RFC-055 — THE NAVIGATOR TRAVELS. Not an "agent nav", not a second side panel with its
 // own rules (his call: "we already have a navigation tab — what the fuck do you need a new nav
@@ -13,12 +13,16 @@ import usePanelDrag from "./usePanelDrag";
 // The collapsed rail holds `#sv-agent-rail`, so docked agents portal in and survive a refresh on
 // any page.
 const AgentNav = ({ projectCode = null }) => {
-  const [open, setOpen] = useState(() => localStorage.getItem("sv.navOpen") !== "false");
-  const toggle = useCallback((next) => {
-    setOpen(next);
-    localStorage.setItem("sv.navOpen", String(next));
-  }, []);
-  const { w, navRef, startDrag, startPull, resetW } = usePanelDrag({ setOpen: toggle });
+  // THE ONE ENGINE (organisms/WallPanel) — this wrapper ran on `usePanelDrag`, an earlier nav-only
+  // extraction of the same logic, which made two engines the day useWallPanel was born. Folded
+  // 2026-10-16; same keys (`sv.navW`/`sv.navOpen`), so nothing about the panel's memory changed.
+  // The row is the panel's parent — measured through a getter so the engine reads it live.
+  const navRef = useRef(null);
+  const rowLike = { get current() { return navRef.current && navRef.current.parentElement; } };
+  const { open, setOpen, w, setW, startDrag, startPull } =
+    useWallPanel({ name: "nav", side: "left", rowRef: rowLike, defaultW: 25, min: 12, max: 45, collapseAt: 7 });
+  const toggle = setOpen;
+  const resetW = () => setW(25);
 
   return (
     <>

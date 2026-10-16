@@ -1,16 +1,24 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useHistory, useLocation } from "react-router-dom";
 import PageHeader from "../../organisms/PageHeader/PageHeader";
 import AgentNav from "../../organisms/AgentNav/AgentNav";
 import AgentProfile from "../../organisms/AgentProfile/AgentProfile";
 import ContextManager from "../../organisms/ContextManager/ContextManager";
 import CallStats from "../../organisms/CallStats/CallStats";
+import CenterTabs, { useOpenByPath } from "../../organisms/CenterTabs/CenterTabs";
 import DocPanel from "../../organisms/DocPanel/DocPanel";
+import CodePane from "../../organisms/CodePane/CodePane";
+import { getTabs, subscribeTabs, openTab, focusTab, closeTab, fileKey } from "../SystemView/tabsStore";
+import { buildRoute } from "../SystemView/tabRoutes";
+import { langOfPath } from "../SystemView/SystemView";
 import AgentChat from "../../organisms/AgentChat/AgentChat";
 import { saveDoc, saveSkill, saveDef, saveHelp } from "../../utils/hostAgents";
 import { saveJob } from "../../utils/hostJobs";
 import useOpenedFile from "../../organisms/DocPanel/useOpenedFile";
+import useWallPanel from "../../organisms/WallPanel/useWallPanel";
+import WallTab from "../../organisms/WallPanel/WallTab";
 import "./styles.scss";
+import "./docarea.scss";
 
 // RFC-055 — ONE PAGE, THREE PANELS (his design): the navigator on the left (the same one Specs
 // has), the agent profile + context store in the middle, and the RIGHT panel is where documents
@@ -45,9 +53,59 @@ const Context = () => {
   // scroll past a notes list to reach it. URL-backed like everything else on this page.
   const [view, setView] = useState(seed.view === "stats" ? "stats" : "agents");
   const [agentId, setAgentId] = useState(seed.agent);
-  const [doc, setDoc] = useState(null); // the doc open on the right: {kind, agentId, key|name, where, label, text, orig}
+  // THE SAME TABS, THE SAME STATE (his correction, twice, 2026-10-15: *"it needs to actually be
+  // the same component everywhere — meaning the same state"*). This view subscribes to the SAME
+  // tabsStore the Code page's center runs on: a document opened here is a tab there and vice
+  // versa — one open set per project, two hosts. Documents WITH a real path open as FILE tabs
+  // through the machine door (RFC-069) in the real CodePane; documents with a SAVE DOOR instead
+  // of a file — the def prompt, the def record, skills, jobs, help — ride as kind "agentdoc",
+  // rendered by DocPanel with the door they always had.
+  const tabsPc = projectCode || "@none";
+  const [tabsState, setTabsState] = useState(() => getTabs(tabsPc));
+  useEffect(() => {
+    setTabsState(getTabs(tabsPc));
+    return subscribeTabs(tabsPc, setTabsState);
+  }, [tabsPc]);
+  const pane = tabsState.panes[0];
+  const [activeKey, setActiveKey] = useState(null);
+  // Blob CONTENT is session state — the store persists the open set (addresses), never text. A
+  // persisted agentdoc tab seen after a reload asks to be reopened from the profile.
+  const [blobDocs, setBlobDocs] = useState({});
+  const doc = (activeKey && blobDocs[activeKey]) || null;
+  const activeTab = pane.tabs.find((t) => t.key === activeKey) || null;
+  const docKeyOf = (d) =>
+    `agentdoc:${d.kind}:${d.agentId || ""}:${d.kind === "skill" ? `${d.where}:${d.name}` : d.kind === "def" ? "def" : d.jobId || d.key || d.name || ""}`;
+  const closeKey = (k) => {
+    const nextKey = closeTab(tabsPc, k);
+    setBlobDocs((cur) => { const { [k]: _gone, ...rest } = cur; return rest; });
+    setActiveKey(nextKey || null);
+    setUrl((p) => p.delete("doc"));
+  };
+  // With tabs standing but nothing focused (a reload), land on the last tab this page can render.
+  useEffect(() => {
+    if (activeKey || !pane.tabs.length) return;
+    const last = [...pane.tabs].reverse().find((t) => t.kind === "file" || t.kind === "agentdoc");
+    if (last) setActiveKey(last.key);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pane.tabs.length]);
+  const plusDoor = useOpenByPath(tabsPc);
   const [focus, setFocus] = useState(() => (seed.scope ? { scope: seed.scope, n: 1 } : null));
   const [saving, setSaving] = useState(false);
+
+  // THE DOCUMENT AREA IS A PANEL, WITH A PANEL'S MANNERS — on the EXTRACTED RFC-052 engine
+  // (organisms/WallPanel), the same hook the Code page's nav and scratchpad run on. His correction,
+  // twice in one day: first *"it's not resizable… you've got to be able to close it… the same
+  // behavior the scratch pad has"*, then — after a hand-rolled copy shipped glitchy and off the
+  // wall — *"we do it on the navigation tab as well… it should be componentized."* Collapsing never
+  // closes tabs; the store keeps the open set.
+  const rowRef = useRef(null);
+  const { open: docOpen, setOpen: setDocOpen, w: docW, setW: setDocW, startDrag: docDrag, startPull: docPull } =
+    useWallPanel({
+      // the scratchpad's exact numbers — right-side panels, one feel (his: "this should be
+      // universal… look how far the mouse stretches before it pulls"): min 22 made the reopen
+      // gate sit a quarter of the row away.
+      name: "ctxDoc", side: "right", rowRef, defaultW: 44, min: 15, max: 60, collapseAt: 9,
+    });
 
   // One writer for the query string — replace, not push, so back still leaves the page cleanly.
   const setUrl = (mut) => {
@@ -57,8 +115,23 @@ const Context = () => {
     history.replace(`${window.location.pathname}${s ? `?${s}` : ""}`);
   };
 
-  // One resolver for every page (see useOpenedFile) — the page only says where the doc lands.
-  useOpenedFile(projectCode, setDoc);
+  // One resolver for every page (see useOpenedFile) — a file clicked anywhere on this page opens
+  // as a FILE TAB in the shared store, machine-addressed when it has no project (RFC-069).
+  useOpenedFile(projectCode, (f) => {
+    const file = {
+      machine: !!f.machine || !f.projectCode || undefined,
+      projectCode: f.machine ? "" : f.projectCode || projectCode || "",
+      path: f.path,
+      serviceId: f.serviceId || undefined,
+      language: f.language || langOfPath(f.path),
+      lines: f.lines || null,
+    };
+    const k = fileKey(file);
+    openTab(tabsPc, { key: k, kind: "file", file });
+    focusTab(tabsPc, k);
+    setActiveKey(k);
+    setDocOpen(true); // a clicked file is asking for the panel
+  });
 
   const saveOpenDoc = async () => {
     // A read-only doc (a shipped skill — readable in full, not yours to change) has no save control
@@ -96,7 +169,7 @@ const Context = () => {
         res = await saveDoc(doc.agentId, doc.key, doc.text);
       }
       if (res && res.ok === false) throw new Error(res.error || "save failed");
-      setDoc((cur) => (cur ? { ...cur, orig: cur.text } : cur));
+      setBlobDocs((cur) => (activeKey && cur[activeKey] ? { ...cur, [activeKey]: { ...cur[activeKey], orig: cur[activeKey].text } } : cur));
     } finally {
       setSaving(false);
     }
@@ -105,7 +178,11 @@ const Context = () => {
   return (
     <section className="system-viewer" data-sv="page">
       <PageHeader projectCode={projectCode} current="context" />
-      <div className="row">
+      {/* The engine measures THE ROW — the one container whose rect stands still while the panel
+          resizes. It sat on .ctx-center for a day, which SHRINKS as the panel grows, so the math
+          went negative over the document: instant collapse, dead pulls — his "doesn't resize and
+          close properly", root cause. */}
+      <div className="row" ref={rowRef}>
         <AgentNav projectCode={projectCode} />
         <div className="center-panel ctx-center">
           <div className="ctx-page">
@@ -138,7 +215,8 @@ const Context = () => {
               urlDoc={seed.doc}
               onSelect={(id) => {
                 setAgentId(id);
-                if (!id) setDoc(null); // unselecting the agent closes its doc too
+                // tabs STAND across agent switches now — each doc carries its own agentId, so
+                // saving still lands on the right agent; closing is the tab's ✕, not a side effect
                 setUrl((p) => {
                   if (id) p.set("agent", id);
                   else {
@@ -148,25 +226,31 @@ const Context = () => {
                 });
               }}
               onOpenDoc={(next) => {
-                // SAME CHIP TOGGLES (his call): clicking the doc that's already open closes the
-                // panel — no trip to the corner ✕.
-                const same =
-                  doc &&
-                  doc.kind === next.kind &&
-                  doc.agentId === next.agentId &&
-                  (next.kind === "skill"
-                    ? doc.name === next.name && doc.where === next.where
-                    : next.kind === "def"
-                    ? true
-                    : doc.key === next.key);
-                // help is scoped to no agent — the same-toggle check above compares agentId, so
-                // normalize both to null for it (a help doc carries no agentId).
-                if (same) {
-                  setDoc(null);
+                // A DOCUMENT WITH A REAL PATH IS A FILE (RFC-069): presence, the system context,
+                // the CLAUDE.md stack all carry their absolute path in `where` — they open as
+                // machine-file tabs in the real CodePane, saving through the machine door. A
+                // document with a SAVE DOOR instead of a path — the def prompt, the def record,
+                // skills, jobs, help — rides as an agentdoc tab and keeps its door.
+                const pathLike =
+                  next.kind === "doc" && next.where && (String(next.where).startsWith("/") || String(next.where).startsWith("~/"));
+                if (pathLike) {
+                  const file = { machine: true, projectCode: "", path: next.where, language: langOfPath(next.where) };
+                  const k = fileKey(file);
+                  if (k === activeKey) return closeKey(k); // SAME CHIP STILL TOGGLES (his call)
+                  openTab(tabsPc, { key: k, kind: "file", file });
+                  focusTab(tabsPc, k);
+                  setActiveKey(k);
+                  setDocOpen(true); // opening a document is asking for the panel
                   setUrl((p) => p.delete("doc"));
                   return;
                 }
-                setDoc(next);
+                const k = docKeyOf(next);
+                if (k === activeKey) return closeKey(k);
+                setDocOpen(true);
+                setBlobDocs((cur) => ({ ...cur, [k]: next }));
+                openTab(tabsPc, { key: k, kind: "agentdoc", adoc: { agentId: next.agentId, kind: next.kind, label: next.label || next.name || next.key } });
+                focusTab(tabsPc, k);
+                setActiveKey(k);
                 setUrl((p) =>
                   p.set("doc", next.kind === "skill" ? `skill:${next.where}:${next.name}` : next.kind === "def" ? "def:file" : next.kind === "help" ? `help:${next.key}` : `doc:${next.key}`)
                 );
@@ -188,18 +272,74 @@ const Context = () => {
             </div>
           </div>
         </div>
-        {doc && (
-          <DocPanel
-            key={`${doc.kind}:${doc.key || doc.name || doc.path || "file"}`}
-            doc={doc}
-            saving={saving}
-            onChange={(text) => setDoc((cur) => (cur ? { ...cur, text } : cur))}
-            onSave={saveOpenDoc}
-            onClose={() => {
-              setDoc(null);
-              setUrl((p) => p.delete("doc"));
-            }}
+        {/* Drag handle: content ⇄ documents. Drag past the edge to collapse; double-click resets. */}
+        {pane.tabs.length > 0 && docOpen && (
+          <div
+            className="panel-divider"
+            title="Drag to resize · double-click to reset"
+            onMouseDown={docDrag}
+            onDoubleClick={() => setDocW(44)}
           />
+        )}
+        {pane.tabs.length > 0 && !docOpen && (
+          <div className="wall-dock wall-dock--slot-1">
+            <WallTab side="right" label="Documents" onPull={docPull} onOpen={() => setDocOpen(true)} />
+          </div>
+        )}
+        {pane.tabs.length > 0 && docOpen && (
+          <div
+            // shrink 1, not 0 — nav can hold 45% and this 60%: past 100% the row used to shove this
+            // panel's right edge (and its × buttons) off-screen; under pressure it gives, to its 320px floor
+            className="ctx-docarea"
+            style={{ flex: `0 1 ${docW}%`, maxWidth: `${docW}%` }}
+          >
+            {/* THE ONE STRIP — the same CenterTabs the Code page mounts, over the same store. This
+                host's meaning: active is local state, a click on a kind this page can render
+                focuses it, anything else routes to the Code page where that kind lives. */}
+            <CenterTabs
+              tabsPc={tabsPc}
+              tabs={pane.tabs}
+              isActive={(t) => t.key === activeKey}
+              onOpen={(t) => {
+                if (t.kind === "file" || t.kind === "agentdoc") {
+                  focusTab(tabsPc, t.key);
+                  setActiveKey(t.key);
+                  return;
+                }
+                history.push(buildRoute(t, tabsPc, ""));
+              }}
+              afterClose={(nextKey, closed) => {
+                if (closed) setBlobDocs((cur) => { const { [closed.key]: _gone, ...rest } = cur; return rest; });
+                setActiveKey(nextKey || null);
+              }}
+              plus={plusDoor}
+              onCollapse={() => setDocOpen(false)}
+            />
+            {activeTab && activeTab.kind === "file" && (
+              <div className="ctx-docarea__body">
+                <CodePane file={activeTab.file} onClose={() => closeKey(activeTab.key)} />
+              </div>
+            )}
+            {activeTab && activeTab.kind === "agentdoc" && (doc ? (
+              <DocPanel
+                doc={doc}
+                saving={saving}
+                onChange={(text) => setBlobDocs((cur) => (cur[activeTab.key] ? { ...cur, [activeTab.key]: { ...cur[activeTab.key], text } } : cur))}
+                onSave={saveOpenDoc}
+                onClose={() => closeKey(activeTab.key)}
+              />
+            ) : (
+              <div className="ctx-docarea__hint">
+                this document's content lives behind its save door — reopen it from the profile on the left
+              </div>
+            ))}
+            {activeTab && activeTab.kind !== "file" && activeTab.kind !== "agentdoc" && (
+              <div className="ctx-docarea__hint">
+                this tab lives on the Code page —{" "}
+                <button type="button" onClick={() => history.push(buildRoute(activeTab, tabsPc, ""))}>open it there</button>
+              </div>
+            )}
+          </div>
         )}
       </div>
       <AgentChat />

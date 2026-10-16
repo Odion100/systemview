@@ -66,10 +66,13 @@ describe("the shapes that already worked keep working", () => {
     assert.strictEqual(hit.path, "index.js");
   });
 
-  test("an absolute path outside every root refuses, and says why", () => {
-    const miss = r("/etc/hosts");
-    assert.strictEqual(miss.resolved, false);
-    assert.match(miss.reason, /outside every known project/);
+  test("an absolute path outside every root RESOLVES now — the machine address (RFC-069 flipped this claim)", () => {
+    // This test used to assert /etc/hosts refuses. That refusal was the design until 2026-10-15:
+    // "we became our own IDE — I should be able to pull up any file in my computer."
+    const got = r("/etc/hosts");
+    assert.strictEqual(got.resolved, true);
+    assert.strictEqual(got.machine, true);
+    assert.strictEqual(got.projectCode, "");
   });
 
   test("`<projectCode>/rest` — the first segment naming the code", () => {
@@ -159,6 +162,37 @@ describe("the hint — a link written inside a document has a home repo", () => 
 
   test("an unknown hint is ignored, not an error", () => {
     assert.strictEqual(r("api/index.js", "no-such-project").projectCode, "systemview-test");
+  });
+});
+
+describe("a machine address — outside every root, the file itself is the identity (RFC-069)", () => {
+  test("an absolute path outside every project resolves as a MACHINE file when it exists", () => {
+    const loose = path.join(tmp, "loose-note.md");
+    write(loose, "outside everything");
+    assert.deepStrictEqual(r(loose), {
+      projectCode: "", path: loose, suffix: "", resolved: true, machine: true,
+    });
+  });
+
+  test("…with a line range, same as any project file", () => {
+    const loose = path.join(tmp, "loose-code.js");
+    write(loose, "x");
+    const got = r(`${loose}#L4-9`);
+    assert.strictEqual(got.machine, true);
+    assert.strictEqual(got.suffix, "#L4-9");
+    assert.strictEqual(got.path, loose);
+  });
+
+  test("a path that exists NOWHERE is still a refusal, with the reason", () => {
+    const got = r(path.join(tmp, "never-written.md"));
+    assert.strictEqual(got.resolved, false);
+    assert.match(got.reason, /no file at that path/);
+  });
+
+  test("inside a known root the richer address still wins — machine is never used where a project can answer", () => {
+    const got = r(path.join(roots["systemview-test"], "api/index.js"));
+    assert.strictEqual(got.projectCode, "systemview-test");
+    assert.strictEqual(got.machine, undefined);
   });
 });
 

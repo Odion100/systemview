@@ -39,7 +39,18 @@ The strip IS the delegation UX: three bars crawl, three chips appear, the user p
 The one load-bearing assumption to verify before building on it: **a spawned subagent's sourced
 `worklist set` really lands as its own run** (file + event). Verified live as part of this work.
 
-## Conventions (the delegation skill carries these)
+## Conventions (MOVED 2026-10-09 — see below)
+
+> **The lane conventions are no longer delegation's.** `lane:<branch>` is now the **registration**
+> that makes a lane a lane, enforced in `sessions.cjs` (the branch must exist, or the write is
+> refused) and in the `lanes` verb (a `lane/*` branch with no run is named as a branch, not listed
+> as a lane). So they belong to the lane, not to the skill that was the only door to one: they are
+> stated in `autobot-docs: runs-and-worklists.md` ("The source IS the address") and
+> `systemview-docs: runs-lanes.md` ("Lanes — work on its own branch, with a row on the screen").
+> `delegation` keeps what is actually its own — slicing, briefing, review, bring-in — and opens by
+> saying a lane is not its to own. The block below is what was true when this RFC was written.
+
+## Conventions (as written — the delegation skill carried these)
 
 - A lane's worklist source is `lane:<branch>` — e.g. `lane:refine/auth-hardening`. The suffix IS
   the branch name, which is what lets the finished row offer `::branch[<branch>]` with no lookup.
@@ -86,3 +97,9 @@ New pieces: a host door listing/deleting lane runs (autobot), hub verbs `removeW
 | verify subagent→run assumption | — | this work |
 | lane rows in the strip | systemview | this work |
 | lane conventions in the delegation skill | skills | this work |
+
+## STATUS — built and lived-in, 2026-10-16
+
+The strip is the daily surface: lane rows with real progress bars, the panel (log, review,
+leftovers), registration enforced both ways, the bring-in recorded. Verified against the running
+window and ten standing lanes, not against this document's memory of itself.

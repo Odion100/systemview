@@ -58,7 +58,7 @@ function splitRange(value) {
   return { path: m[1], lines: [Number(m[2]), Number(m[3] || m[2])], text: `#L${m[2]}${m[3] ? `-${m[3]}` : ""}` };
 }
 
-function nav({ projectCode, namespace, file, report, stats, range, service, tab, topic, agents } = {}, connections = []) {
+function nav({ projectCode, namespace, file, report, stats, range, service, tab, topic, agents, machine, fileProject } = {}, connections = []) {
   if (!projectCode) return { error: "projectCode required" };
   const args = {};
   let label = "";
@@ -91,6 +91,11 @@ function nav({ projectCode, namespace, file, report, stats, range, service, tab,
     const f = splitRange(file);
     args.file = f.path;
     if (f.lines) args.lines = f.lines;
+    // RFC-069 — the hub resolved this before it got here (see index.js nav): a machine file is
+    // addressed as one so the window reads it through the machine door, and a file living in
+    // ANOTHER project carries that project so the pane asks the right root.
+    if (machine) args.machine = true;
+    if (fileProject) args.fileProject = fileProject;
     label = `pulled up ${f.path}${f.text || ""}`;
   } else if (agents) {
     args.agents = true;

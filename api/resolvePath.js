@@ -62,9 +62,13 @@ function resolveAnyPath(raw, hint = "", roots = {}) {
       const [pc, root] = owners[0];
       return hit(pc, path_.relative(root, rel) || path_.basename(rel));
     }
-    // Outside every project. Readable by the shell, but there is no project to address it as, and
-    // saying so beats pretending.
-    return { projectCode: "", path: rel, suffix, resolved: false, reason: "outside every known project root" };
+    // OUTSIDE EVERY PROJECT — A MACHINE ADDRESS, NOT A REFUSAL (RFC-069, approved 2026-10-15).
+    // The file's identity is ("", absolute path): openable, editable, linkable — just not enriched
+    // with git, comments or tests, because those are a project's. A path that exists nowhere is
+    // still a refusal, with the reason; existence is the only gate, because the machine door reads
+    // anything the hub's own process can.
+    if (fsGit.existsSync(rel)) return { projectCode: "", path: rel, suffix, resolved: true, machine: true };
+    return { projectCode: "", path: rel, suffix, resolved: false, reason: "no file at that path, and it is outside every known project root" };
   }
 
   const seg = rel.split("/")[0];

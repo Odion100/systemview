@@ -114,3 +114,33 @@ which is the thing being replaced.
 - the receipt is written by `delegation`'s bring-in step, and dies with the lane on his delete
 - `lanesOut` is stamped ambient, and a hook gating on it fires once a day while any lane is provably out
 - a test proves: a receipt does not survive the lane's deletion, and does not override `out`
+
+---
+
+## STATUS — built, 2026-10-16
+
+`broughtIn` persists on the run record (worklist.cjs), the 📎 receipt renders beside the statement
+and is not retractable, and laneVerdict is the one tested place a receipt meets a verdict. The
+section below is the original reminder, kept for the design trail.
+
+## STATUS (original) — partly built, and this section is the reminder
+
+Shipped 2026-10-02 (systemview `849837a`, autobot `d56ea63`): the receipt field on the run record,
+its retention (it dies with the lane), `laneVerdict`'s ordering rule proven in 17 claims, the
+`in`/`out`/`unknown` verdict, and `SystemView.lanes` returning `notIn`.
+
+**Not built:**
+
+1. **The receipt has no door.** `worklist.markBroughtIn` is defined, exported and tested, and is
+   called by nothing but its own test — no MCP tool, no IPC handler. So no agent can write a
+   receipt and zero receipts exist. The feature cannot demonstrate itself.
+2. **The ambient `lanesOut` nudge.** The hub half is done (`lanes()` returns `notIn`); the ambient
+   field and the hook that gates on it were never wired.
+
+The one lane that needs a receipt is autobot's `lane/hooks-end-of-turn`: its work IS committed in
+`3694745` — markers `TURN_SETTLE_MS`, `armTurnEnd`, `armIdle`, `flushTurnEndHooks`, `idleWakeMs` are
+all in HEAD — but the files were rewritten on top, so derivation reads `unknown` and
+`mcp__systemview__lanes remove=` refuses it. Correctly: it cannot prove what I verified by hand.
+
+**This section stays uncommitted on purpose.** It is the reminder, and unlike an untracked file or a
+standing lane it says *what* is left rather than only that something is.
