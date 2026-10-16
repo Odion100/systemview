@@ -33,6 +33,17 @@
     background: #c9cfe8;
   }
 }
+// The HORIZONTAL divider — same seam, other axis, for the band panels (the chat strip).
+.panel-divider--h {
+  flex: 0 0 5px;
+  margin: -2px 0;
+  cursor: row-resize;
+  width: auto;
+}
+body.panel-resizing--top,
+body.panel-resizing--bottom {
+  cursor: row-resize;
+}
 // RFC-052 — the divider at a COLLAPSED strip's edge: same line, same hover, same drag; it just
 // lives on the strip's outer edge instead of between two open panels.
 .panel-divider--edge {
@@ -45,9 +56,25 @@
 }
 .panel-divider--edge-left { right: -3px; }
 .panel-divider--edge-right { left: -3px; }
+.panel-divider--edge-bottom {
+  left: 0;
+  right: 0;
+  top: -3px;
+  bottom: auto;
+  width: auto;
+  height: 5px;
+  cursor: row-resize;
+}
 body.panel-resizing {
   cursor: col-resize;
   user-select: none;
+  // THE DRAG SHIELD — while a drag is live, nothing under the pointer reacts: rows were stealing
+  // hover (their cursor:pointer beat the body's resize cursor, their hover styles fired mid-drag —
+  // "it changes the cursor… brings over the lane"). The drag itself rides window listeners, so
+  // killing pointer-events costs the gesture nothing.
+  * {
+    pointer-events: none !important;
+  }
 }
 // ONLY THE LINE IN YOUR HAND LIGHTS. This was `body.panel-resizing .panel-divider` — every divider
 // on the page glowed while any one was dragged, so moving the document panel's line made the nav
@@ -59,14 +86,22 @@ body.panel-resizing {
 // the line survives a collapse under the hand and the pull back is visible. Side-scoped — the
 // opposite wall's handle never glows (the original body-wide rule lit everything).
 body.panel-resizing--left .panel-divider--edge-left,
-body.panel-resizing--right .panel-divider--edge-right {
+body.panel-resizing--right .panel-divider--edge-right,
+// …and the band's horizontal seam on a vertical drag — it mounts mid-pull when the band opens,
+// and unlit it read as "the strip doesn't show" (his catch): the line you're dragging must exist.
+body.panel-resizing--top .panel-divider--h,
+body.panel-resizing--bottom .panel-divider--h {
   background: #c9cfe8;
 }
 // Mid-gesture continuity: while a drag is live, the edge handle on the DRAG'S OWN side is lit —
 // so the line survives the collapse under your hand and the pull back is visible. Side-scoped,
 // so the opposite wall's handle never glows (the original body-wide rule lit everything).
 body.panel-resizing--left .panel-divider--edge-left,
-body.panel-resizing--right .panel-divider--edge-right {
+body.panel-resizing--right .panel-divider--edge-right,
+// …and the band's horizontal seam on a vertical drag — it mounts mid-pull when the band opens,
+// and unlit it read as "the strip doesn't show" (his catch): the line you're dragging must exist.
+body.panel-resizing--top .panel-divider--h,
+body.panel-resizing--bottom .panel-divider--h {
   background: #c9cfe8;
 }
 .btn {

@@ -37,9 +37,9 @@ const SystemViewPage = () => {
   // Destructured under the names the rest of this file always used.
   const rowRef = useRef(null);
   const { open: navOpen, setOpen: setNavOpen, w: navW, setW: setNavW, startDrag: navDrag, startPull: navPull } =
-    useWallPanel({ name: "nav", side: "left", rowRef, defaultW: 25, min: 12, max: 45, collapseAt: 7 });
+    useWallPanel({ name: "nav", side: "left", rowRef, defaultW: 25, min: 12, max: 45, collapseAt: 7, pullGuard: (e) => !!(e.target.closest && e.target.closest(".agent-chat")), });
   const { open: scratchOpen, setOpen: setScratchOpen, w: scratchW, setW: setScratchW, startDrag: scratchDrag, startPull: scratchPull } =
-    useWallPanel({ name: "scratch", side: "right", rowRef, defaultW: 25, min: 15, max: 50, collapseAt: 9 });
+    useWallPanel({ name: "scratch", side: "right", rowRef, defaultW: 25, min: 15, max: 50, collapseAt: 9, pullGuard: (e) => !!(e.target.closest && e.target.closest(".agent-chat")), });
   useEffect(() => {
     // The bot's pop-out codebase panel exists only BECAUSE the navigator is away — so it has to know
     // the moment that changes, rather than reading a flag it has no reason to re-check.

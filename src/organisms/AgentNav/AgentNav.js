@@ -20,7 +20,7 @@ const AgentNav = ({ projectCode = null }) => {
   const navRef = useRef(null);
   const rowLike = { get current() { return navRef.current && navRef.current.parentElement; } };
   const { open, setOpen, w, setW, startDrag, startPull } =
-    useWallPanel({ name: "nav", side: "left", rowRef: rowLike, defaultW: 25, min: 12, max: 45, collapseAt: 7 });
+    useWallPanel({ name: "nav", side: "left", rowRef: rowLike, defaultW: 25, min: 12, max: 45, collapseAt: 7, pullGuard: (e) => !!(e.target.closest && e.target.closest(".agent-chat")), });
   const toggle = setOpen;
   const resetW = () => setW(25);
 

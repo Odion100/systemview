@@ -19,7 +19,12 @@ import { useEffect, useRef, useState } from "react";
 // Callers keep their exact variable names by destructuring with aliases, so a rewire is a move:
 //   const { open: navOpen, setOpen: setNavOpen, w: navW, setW: setNavW,
 //           startDrag: navDrag, startPull: navPull } = useWallPanel({ name: "nav", side: "left", ... })
-export default function useWallPanel({ name, side, rowRef, defaultW, min, max, collapseAt }) {
+//
+// SIDES: "left" | "right" are the wall panels; "top" | "bottom" are the BAND panels (the chat's
+// instrument strip was the first — his design: "instead of expanding and de-expanding, it should
+// resize; resized down it becomes a label, like it's closed"). Same engine, same gestures, the
+// measurement just runs on the other axis — w is then a HEIGHT % of the row.
+export default function useWallPanel({ name, side, rowRef, defaultW, min, max, collapseAt, pullGuard }) {
   const clamp = (v) => Math.min(max, Math.max(min, v));
   const [w, setW] = useState(() => {
     const v = parseFloat(localStorage.getItem(`sv.${name}W`));
@@ -36,26 +41,36 @@ export default function useWallPanel({ name, side, rowRef, defaultW, min, max, c
   const dragRef = useRef(null); // "drag" while the divider is held, "pull" while the collapsed strip is
   const liveEl = useRef(null); // THE line in hand — only it lights. A body-wide highlight lit every
   // divider on the page, so dragging one made the other side's handle "come into view" (his catch).
+  // ARMED ON THE PRESS, DRESSED ON THE FIRST MOVE. The shield (pointer-events off) used to arm on
+  // mousedown — which ate the mouseup, so a plain CLICK on a pull surface never fired ("you got
+  // rid of just clicking that little strip to open it", his catch). A press now only remembers;
+  // the shield, the lit line and the body cursor arrive with the first actual movement — a click
+  // is a click and a drag is a drag, decided by the hand, not the handler.
+  const dressed = useRef(false);
   const hold = (e, kind) => {
     e.preventDefault();
     dragRef.current = kind;
     liveEl.current = e.currentTarget;
-    try { liveEl.current.classList.add("panel-divider--live"); } catch {}
+    dressed.current = false;
+  };
+  const dress = () => {
+    if (dressed.current) return;
+    dressed.current = true;
+    try { liveEl.current && liveEl.current.classList.add("panel-divider--live"); } catch {}
     document.body.classList.add("panel-resizing");
     // The drag's SIDE rides the body: when a collapse mid-gesture swaps the divider for the edge
     // handle, the new element mounts ALREADY LIT — the line never vanishes under your hand — and
     // only this side's, so the other wall's handle stays dark (his two catches, same day).
     document.body.classList.add(`panel-resizing--${side}`);
-    // The drag's SIDE rides the body: when a collapse mid-gesture swaps the divider for the edge
-    // handle, the new element mounts ALREADY LIT (the line never vanishes under your hand) — and
-    // only this side's, so the other wall's handle stays dark (his two catches, same day).
-    document.body.classList.add(`panel-resizing--${side}`);
   };
   const startDrag = (e) => hold(e, "drag");
-  // Ignored when the press lands on an agent in the rail — the chat's own gestures win.
+  // `pullGuard` — opt-in: the page panels ignore presses landing on an agent in the rail (the
+  // chat's own gestures win there). It was hard-wired to ".agent-chat" until the chat's own band
+  // joined the engine — whose label lives INSIDE the chat, so every pull on it was eaten at birth
+  // ("you can't drag it open", his catch). The guard belongs to the panels that need it.
   const startPull = (e) => {
     if (e.button !== 0) return;
-    if (e.target.closest && e.target.closest(".agent-chat")) return;
+    if (pullGuard && pullGuard(e)) return;
     hold(e, "pull");
   };
 
@@ -67,21 +82,29 @@ export default function useWallPanel({ name, side, rowRef, defaultW, min, max, c
         try { liveEl.current.classList.remove("panel-divider--live"); } catch {}
         liveEl.current = null;
       }
+      dressed.current = false;
       document.body.classList.remove("panel-resizing");
-      document.body.classList.remove("panel-resizing--left");
-      document.body.classList.remove("panel-resizing--right");
+      ["left", "right", "top", "bottom"].forEach((x) => document.body.classList.remove(`panel-resizing--${x}`));
     };
     const move = (e) => {
       if (!dragRef.current || !rowRef.current) return;
+      dress();
       const rect = rowRef.current.getBoundingClientRect();
       const raw =
         side === "left"
           ? ((e.clientX - rect.left) / rect.width) * 100
-          : ((rect.right - e.clientX) / rect.width) * 100;
+          : side === "right"
+          ? ((rect.right - e.clientX) / rect.width) * 100
+          : side === "top"
+          ? ((e.clientY - rect.top) / rect.height) * 100
+          : ((rect.bottom - e.clientY) / rect.height) * 100;
       if (dragRef.current === "pull") {
-        // Opens only past the panel's own MINIMUM — any earlier and the pointer lands inside the
-        // collapse zone of the resize that follows, so the panel opens and shuts in the same gesture.
-        if (raw < min) return;
+        // Opens at the collapse line plus a hair of hysteresis — the old gate was the panel's own
+        // minimum, which made a dead stretch as wide as the panel ("you still have to pull it way
+        // far out", his second catch). Now the panel pops in at its minimum the moment the pointer
+        // clears the line, and tracks from there; the 3% of hysteresis is what keeps it from
+        // opening and shutting in one spot.
+        if (raw < collapseAt + 3) return;
         setOpen(true);
         dragRef.current = "drag";
       }
@@ -103,5 +126,13 @@ export default function useWallPanel({ name, side, rowRef, defaultW, min, max, c
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [side, min, max, collapseAt]);
 
-  return { open, setOpen, w, setW, startDrag, startPull };
+  // A CLICK-OPEN NEVER RESTORES A SLIVER (his catch): collapsing by drag writes the tiny
+  // pass-through height as the persisted size, so reopening gave back almost nothing. Opening from
+  // at-or-near the minimum snaps to the default; a deliberate small size above that is honored,
+  // and pull-opens are pointer-driven so they bypass this entirely.
+  const openUp = (v) => {
+    if (v) setW((cur) => (cur <= min + 2 ? defaultW : cur));
+    setOpen(v);
+  };
+  return { open, setOpen: openUp, w, setW, startDrag, startPull };
 }

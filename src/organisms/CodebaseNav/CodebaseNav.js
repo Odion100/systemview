@@ -8,8 +8,6 @@ import { setHelpTopic } from "../../atoms/Help/helpStore";
 import RowMenu from "../../atoms/RowMenu/RowMenu";
 import { commentedPathSet } from "../../atoms/CodeView/codeComments";
 import { hostFiles, hasHostFiles } from "../../utils/hostFiles";
-import { listReports } from "../../utils/reportOps";
-import { deleteReport as deleteReportEverywhere } from "../../utils/reportOps";
 import { slotId, useNavDock, useDockOrder, orderProjects, moveInDock } from "../AgentChat/navDock";
 import useFold from "./useFold";
 import TerminalSection from "./TerminalSection";
@@ -684,120 +682,6 @@ function ServiceNode({ service, projectCode, history, selection, onNavigate, rev
 }
 
 // One connected codebase: header, ALL the project's services (real + project-defined), and the file
-// RFC-054 — the reports section of a codebase's card: the index read from the hub, the documents
-// listed by NAME, newest first. Clicking one opens that report's tab in the center — the navigation
-// is where you select, the strip is what's open (his design, said twice before I got it right).
-const reportWhen = (ts) => {
-  const d = new Date(ts);
-  const sameDay = d.toDateString() === new Date().toDateString();
-  const t = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-  return sameDay ? t : `${d.toLocaleDateString([], { month: "short", day: "numeric" })}, ${t}`;
-};
-function ReportsFold({ projectCode, CLASSNAME, Chevron, bulk, history, openRowMenu }) {
-  const [open, flip] = useFold(`sv.cbNav.reports.${projectCode}`, false, bulk);
-  const [reports, setReports] = useState(null);
-  // THE ROW'S OWN TWO-STEP — the SystemView pattern (commit/push above do exactly this): first
-  // click arms the × into "sure?", second click deletes, clicking anything else disarms. The
-  // right-click menu stays for the full verb set; the row carries the QUICK delete.
-  const [armed, setArmed] = useState("");
-  useEffect(() => {
-    if (!open) return undefined;
-    let dead = false;
-    (async () => {
-      try {
-        // THE ONE LIST — shared with the TV picker (reportOps.listReports): index + scan − hidden.
-        const all = await listReports(projectCode);
-        if (!dead) setReports(all);
-      } catch {
-        if (!dead) setReports([]);
-      }
-    })();
-    return () => { dead = true; };
-  }, [open, projectCode]);
-  // EVERYTHING ON THE NAV HAS A RIGHT-CLICK — his rule, flatly stated. A report's verbs: open,
-  // delete (two-step, like every destructive verb here), copy path. Delete removes the file AND its
-  // index entry — half a delete (index only) leaves a ghost file; the other half (file only) leaves
-  // a dead list row that opens nothing.
-  const menuFor = (e, r) => {
-    if (!openRowMenu) return;
-    e.preventDefault();
-    e.stopPropagation();
-    openRowMenu(e, r.name, [
-      { label: "Open", action: () => openReport(r) },
-      {
-        label: "Delete report",
-        danger: true,
-        confirm: `Delete "${r.name}"? (kept in git history)`,
-        action: () => deleteReport(r),
-      },
-      { label: "Copy path", action: () => navigator.clipboard && navigator.clipboard.writeText(r.path) },
-    ]);
-  };
-  const deleteReport = async (r) => {
-    await deleteReportEverywhere(projectCode, r.path); // shared with the TV's list — one delete
-    setArmed("");
-    setReports((cur) => (cur || []).filter((x) => x.path !== r.path));
-  };
-  const openReport = (r) => {
-    const q = new URLSearchParams(window.location.search);
-    ["file", "fproj", "fsvc", "flang", "flines", "fside", "help"].forEach((k) => q.delete(k));
-    q.set("tab", "reports");
-    q.set("rdoc", r.path);
-    history.push({ pathname: `/specs/${projectCode}`, search: q.toString() });
-  };
-  return (
-    <>
-      <button type="button" className={`${CLASSNAME}__code-fold`} title={open ? "Collapse reports" : "This codebase's reports"} onClick={flip}>
-        <Chevron open={open} />
-        <span className={`${CLASSNAME}__code-fold-label`}>reports</span>
-      </button>
-      {open && (
-        <div className={`${CLASSNAME}__reports-list`}>
-          {reports === null && <div className={`${CLASSNAME}__empty`}>reading…</div>}
-          {reports && !reports.length && <div className={`${CLASSNAME}__empty`}>no reports yet</div>}
-          {(reports || []).map((r) => (
-            // THE WHOLE ROW is the surface — his catch: the button hugged its text, so
-            // right-clicking the rest of the line was inspect-element. Row is full width; the
-            // right-click rides the row, the name opens, the × is the quick two-step.
-            <div
-              key={r.path}
-              className={`${CLASSNAME}__report-row${armed === r.path ? ` ${CLASSNAME}__report-row--armed` : ""}`}
-              onContextMenu={(e) => menuFor(e, r)}
-            >
-              <button
-                type="button"
-                className={`${CLASSNAME}__report-name`}
-                title={r.path}
-                onClick={() => {
-                  setArmed("");
-                  openReport(r);
-                }}
-              >
-                {r.name}
-                {/* the day, not just a time — a report list spans weeks (his catch on the TV's list;
-                    this one had nothing at all) */}
-                {r.ts ? <span className={`${CLASSNAME}__report-when`}>{reportWhen(r.ts)}</span> : null}
-              </button>
-              <button
-                type="button"
-                className={`${CLASSNAME}__report-del`}
-                title={armed === r.path ? "Click again to delete (kept in git history)" : "Delete this report"}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (armed === r.path) deleteReport(r);
-                  else setArmed(r.path);
-                }}
-                onBlur={() => setArmed((a) => (a === r.path ? "" : a))}
-              >
-                {armed === r.path ? "sure?" : "×"}
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-    </>
-  );
-}
 
 // tree behind its own fold.
 function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigate, revealFile = null, revealNs = null, serviceStatus = {}, onHostedOp = null, onDeleteService = null, onDeleteProject = null, onRenameProject = null, renaming = null, onStartRename = () => {}, onAttachFolder = null, openRowMenu = null , allowDock = true, reorder = null }) {
@@ -2479,13 +2363,9 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
           </SectionPane>
           )}
 
-          {/* RFC-054, his correction twice over: reports are this CODEBASE'S, and selection
-              happens IN THE NAVIGATION — the row folds open and lists the documents by name, click
-              one and THAT report opens as its tab. Not a detour through a center picker. */}
-          <SectionPane pc={projectCode} name="reports">
-            <ReportsFold projectCode={projectCode} CLASSNAME={CLASSNAME} Chevron={Chevron} bulk={bulk} history={history} openRowMenu={openRowMenu} />
-          </SectionPane>
-
+          {/* The reports fold LEFT this panel (his call, 2026-10-16: "get rid of the other reports
+              section — never needed to keep it there"): reports live in the chat band's mailbox
+              now — counts on its header, approval flags up. RFC-054's fold served until then. */}
           {/* RFC-026 — the whole file region sits behind one `code` fold: root indentation, quiet,
               same section-label voice as `project services` above it. Hidden entirely when there is
               no folder: a fold over nothing is furniture. */}
