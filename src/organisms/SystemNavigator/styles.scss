@@ -299,18 +299,8 @@
 .system-nav__bar-space { flex: 1 1 auto; }
 // The collapse control, rethought: the full-width "‹ Navigator" row became this one chevron.
 // The collapsed rail and the pull-out gesture are untouched — this is only the way IN.
-.system-nav__collapse {
-  border: none;
-  background: transparent;
-  color: var(--sv-text-muted);
-  font-size: 16px;
-  line-height: 1;
-  padding: 2px 8px;
-  border-radius: 4px;
-  cursor: pointer;
-  flex-shrink: 0;
-  &:hover { background: var(--sv-hover, rgba(0, 0, 0, 0.05)); color: var(--sv-text); }
-}
+// The collapse chevron's costume MOVED to organisms/WallPanel/styles.scss (.wall-collapse) —
+// his ruling made it the universal collapse button, and one costume lives in one file.
 // One tab per agent: face + name (+ live dot). The strip scrolls sideways, bar hidden — tabs
 // never wrap and never push the collapse chevron off the row.
 .system-nav__agenttabs {

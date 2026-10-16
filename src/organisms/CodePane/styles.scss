@@ -626,3 +626,11 @@
     background: color-mix(in srgb, #e2a03f 14%, transparent);
   }
 }
+
+// RFC-069 — the machine file's one quiet line (and its header chip says "machine", not "code").
+.code-pane__machine-note {
+  font-size: 10px;
+  color: var(--sv-text-faint);
+  font-style: italic;
+  white-space: nowrap;
+}

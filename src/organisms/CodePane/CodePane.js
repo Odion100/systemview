@@ -1,6 +1,6 @@
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import ServiceContext from "../../ServiceContext";
-import { hostFiles } from "../../utils/hostFiles";
+import { hostFiles, machineFiles } from "../../utils/hostFiles";
 import CodeEditor from "../../atoms/CodeView/CodeEditor";
 import { changeMarksOf, hunksOf, stagedContentFor } from "../../atoms/CodeView/gitLines";
 import { useCodeComments } from "../../atoms/CodeView/codeComments";
@@ -95,7 +95,11 @@ const CodePane = ({ file, onClose }) => {
   // opened from and refused to read anything without it — so clicking a file in a project whose
   // services are down opened nothing at all, on a folder sitting right there on disk. Files come
   // from the hub now; the project code is the whole address.
-  const host = file.projectCode ? { projectCode: file.projectCode } : null;
+  // RFC-069 — A MACHINE FILE: absolute path, no project. It needs no host and must not be closed
+  // for lacking one; everything a project enriches (git, comments, history) renders ABSENT below,
+  // never broken.
+  const isMachine = !!file.machine;
+  const host = isMachine ? { machine: true } : file.projectCode ? { projectCode: file.projectCode } : null;
   // The open file's codebase disconnected/was deleted → close the pane instead of sitting on a dead
   // error. Guarded on connectedServices being loaded (empty at boot ≠ gone).
   useEffect(() => {
@@ -106,9 +110,9 @@ const CodePane = ({ file, onClose }) => {
   // would re-read the sidecar every render.
   const Plugin = useMemo(
     () =>
-      host ? hostFiles(host.projectCode) : null,
+      isMachine ? machineFiles() : host ? hostFiles(host.projectCode) : null,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [host && host.projectCode],
+    [isMachine, host && host.projectCode],
   );
 
   useEffect(() => {
@@ -257,6 +261,7 @@ const CodePane = ({ file, onClose }) => {
   }, [Plugin, content, file.path, savedContent]);
 
   const openHistory = async () => {
+    if (!Plugin || !Plugin.fileHistory) return; // a machine file has no snapshot store — the button is absent too
     if (hist) return setHist(null);
     setHist({ loading: true, snaps: [] });
     try {
@@ -569,7 +574,8 @@ const CodePane = ({ file, onClose }) => {
 
   const [codeMenu, setCodeMenu] = useState(null);
   const { threads, error: commentError, addThread, addReply, removeReply, removeThread, removeAll } =
-    useCodeComments(Plugin, file.path);
+    // a machine file has no comment sidecar — the sidecar lives in a project; absent, not broken
+    useCodeComments(isMachine ? null : Plugin, file.path);
   useEffect(() => {
     // A different file starts clean — its own comments, nothing half-written carried over.
     setDraft(null);
@@ -761,7 +767,15 @@ const CodePane = ({ file, onClose }) => {
             ‹
           </button>
         )}
-        <span className={`${CLASSNAME}__kind`}>code</span>
+        <span className={`${CLASSNAME}__kind`}>{isMachine ? "machine" : "code"}</span>
+        {/* THE ONE QUIET LINE a machine file gets instead of dead git controls (RFC-069 §4.3):
+            outside every project, so nothing project-shaped exists here — said once, in the
+            header, never as a broken button. */}
+        {isMachine && (
+          <span className={`${CLASSNAME}__machine-note`} title={file.path}>
+            outside every project — no git, no comments
+          </span>
+        )}
         {/* Breadcrumb — WHOSE file first (the shared OwnerCrumb: project, then the service the
             file came through), then the path, its file name emphasized. His catch on a
             cross-project nav: a root-level index.js showed one bare segment — no project, no
@@ -858,14 +872,16 @@ const CodePane = ({ file, onClose }) => {
               {preview ? "Edit" : "Preview"}
             </button>
           )}
-          <button
-            type="button"
-            className={`${CLASSNAME}__btn ${hist ? `${CLASSNAME}__btn--pinned` : ""}`}
-            title="Saved versions of this file — click one to restore it (the current version is kept in history too)"
-            onClick={openHistory}
-          >
-            ⏱
-          </button>
+          {!isMachine && (
+            <button
+              type="button"
+              className={`${CLASSNAME}__btn ${hist ? `${CLASSNAME}__btn--pinned` : ""}`}
+              title="Saved versions of this file — click one to restore it (the current version is kept in history too)"
+              onClick={openHistory}
+            >
+              ⏱
+            </button>
+          )}
           <button
             type="button"
             className={`${CLASSNAME}__btn ${CLASSNAME}__btn--save`}
@@ -1253,7 +1269,9 @@ const CodePane = ({ file, onClose }) => {
               className={`${CLASSNAME}__image-img`}
               // Bytes off disk, addressed by PROJECT — /sv-raw went through the project's plugin,
               // which is exactly why images broke the moment files stopped coming from plugins.
-              src={`/sv-file/${encodeURIComponent(file.projectCode)}?path=${encodeURIComponent(file.path)}`}
+              src={isMachine
+                ? `/sv-machine?path=${encodeURIComponent(file.path)}`
+                : `/sv-file/${encodeURIComponent(file.projectCode)}?path=${encodeURIComponent(file.path)}`}
               alt={file.path}
             />
           </div>

@@ -6,11 +6,13 @@ import TestPanel from "../../organisms/TestPanel/TestPanel";
 import PageHeader from "../../organisms/PageHeader/PageHeader";
 import AgentChat from "../../organisms/AgentChat/AgentChat";
 import NavRail from "../../organisms/AgentNav/NavRail";
+import useWallPanel from "../../organisms/WallPanel/useWallPanel";
+import WallTab from "../../organisms/WallPanel/WallTab";
 import "./styles.scss";
 
 // Extension → the editor's language names (see atoms/CodeView/languages.js). Anything unknown is
 // text, honestly, rather than a guess that colors wrong.
-const langOfPath = (p = "") => {
+export const langOfPath = (p = "") => {
   const ext = String(p).split(".").pop().toLowerCase();
   return (
     { js: "javascript", jsx: "javascript", mjs: "javascript", cjs: "javascript", ts: "typescript",
@@ -30,21 +32,19 @@ const SystemViewPage = () => {
     window.addEventListener("sv:railFront", on);
     return () => window.removeEventListener("sv:railFront", on);
   }, []);
-  const [navOpen, setNavOpen] = useState(
-    () => localStorage.getItem("sv.navOpen") !== "false",
-  );
-  const [scratchOpen, setScratchOpen] = useState(
-    () => localStorage.getItem("sv.scratchOpen") !== "false",
-  );
+  // RFC-052 panels, on the EXTRACTED engine (organisms/WallPanel) — same storage keys, same clamps,
+  // same thresholds as the hand-written version this replaces, so a saved layout survives the move.
+  // Destructured under the names the rest of this file always used.
+  const rowRef = useRef(null);
+  const { open: navOpen, setOpen: setNavOpen, w: navW, setW: setNavW, startDrag: navDrag, startPull: navPull } =
+    useWallPanel({ name: "nav", side: "left", rowRef, defaultW: 25, min: 12, max: 45, collapseAt: 7 });
+  const { open: scratchOpen, setOpen: setScratchOpen, w: scratchW, setW: setScratchW, startDrag: scratchDrag, startPull: scratchPull } =
+    useWallPanel({ name: "scratch", side: "right", rowRef, defaultW: 25, min: 15, max: 50, collapseAt: 9 });
   useEffect(() => {
-    localStorage.setItem("sv.navOpen", String(navOpen));
     // The bot's pop-out codebase panel exists only BECAUSE the navigator is away — so it has to know
     // the moment that changes, rather than reading a flag it has no reason to re-check.
     window.dispatchEvent(new CustomEvent("sv:navOpen", { detail: { open: navOpen } }));
   }, [navOpen]);
-  useEffect(() => {
-    localStorage.setItem("sv.scratchOpen", String(scratchOpen));
-  }, [scratchOpen]);
   // RFC-022 — the LENS (SystemLynx services ⇄ Codebase files) and the file open in the Code center
   // live at the PAGE level: the nav picks, the center shows. Both persist across refresh.
   const [navTab, setNavTab] = useState(
@@ -77,7 +77,10 @@ const SystemViewPage = () => {
     if (!path) return null;
     const lines = p.get("flines");
     return {
-      projectCode: p.get("fproj") || undefined,
+      // RFC-069 — a MACHINE file: absolute path, no project. `fproj` is absent on purpose; the
+      // flag is what tells the pane to read through the machine door instead of a project's.
+      machine: p.get("fmachine") === "1" || undefined,
+      projectCode: p.get("fmachine") === "1" ? "" : p.get("fproj") || undefined,
       serviceId: p.get("fsvc") || undefined,
       path,
       // THE LANGUAGE COMES FROM THE FILE, NOT FROM WHICH DOOR OPENED IT. Only some doors set
@@ -97,7 +100,7 @@ const SystemViewPage = () => {
     const p = new URLSearchParams(window.location.search);
     // Closing restores the center tab you were on before the file forced Code (ftab, set on open).
     const ftab = p.get("ftab");
-    ["file", "fproj", "fsvc", "flang", "flines", "fnav", "ftab", "fside"].forEach((k) => p.delete(k));
+    ["file", "fproj", "fsvc", "flang", "flines", "fnav", "ftab", "fside", "fmachine"].forEach((k) => p.delete(k));
     if (ftab) p.set("tab", ftab);
     history.push({ pathname: window.location.pathname, search: p.toString() });
   }, [history]);
@@ -117,8 +120,15 @@ const SystemViewPage = () => {
       p.set("tab", "docs");
       p.delete("help"); // opening a file is explicit navigation — help must not stay over it
       p.set("file", detail.path);
-      if (detail.projectCode) p.set("fproj", detail.projectCode);
-      if (detail.serviceId) p.set("fsvc", detail.serviceId);
+      if (detail.machine) {
+        p.set("fmachine", "1");
+        p.delete("fproj");
+        p.delete("fsvc");
+      } else {
+        p.delete("fmachine");
+        if (detail.projectCode) p.set("fproj", detail.projectCode);
+        if (detail.serviceId) p.set("fsvc", detail.serviceId);
+      }
       // ALWAYS SET, OR ALWAYS CLEAR — never leave the last file's answer behind. Every other param
       // here has its else (`fside` deletes, `flines` drops on a different file); this one did not,
       // so a door that names no language handed the NEW file the OLD file's `flang`. Open a .md,
@@ -246,92 +256,6 @@ const SystemViewPage = () => {
   useEffect(() => {
     setReveal(null);
   }, [projectCode, serviceId, moduleName, methodName]);
-  // RESIZABLE PANELS — drag the divider between nav|center and center|scratchpad. Widths are % of the
-  // row, clamped so nothing can be dragged to death, persisted so the layout comes back.
-  const clampNav = (v) => Math.min(45, Math.max(12, v));
-  const clampScratch = (v) => Math.min(50, Math.max(15, v));
-  const [navW, setNavW] = useState(() => {
-    const v = parseFloat(localStorage.getItem("sv.navW"));
-    return isNaN(v) ? 25 : clampNav(v);
-  });
-  const [scratchW, setScratchW] = useState(() => {
-    const v = parseFloat(localStorage.getItem("sv.scratchW"));
-    return isNaN(v) ? 25 : clampScratch(v);
-  });
-  useEffect(() => {
-    localStorage.setItem("sv.navW", String(navW));
-  }, [navW]);
-  useEffect(() => {
-    localStorage.setItem("sv.scratchW", String(scratchW));
-  }, [scratchW]);
-  const rowRef = useRef(null);
-  const dragRef = useRef(null); // "nav" | "scratch" while a divider is held
-  const startDrag = (which) => (e) => {
-    e.preventDefault();
-    dragRef.current = which;
-    document.body.classList.add("panel-resizing");
-  };
-  // RFC-052 — THE COLLAPSED STRIP IS THE GRAB BAR. Drag it inward and the panel comes back out of
-  // its minimised state, already resizing under the pointer (his: "if you have a handle on it, you
-  // could drag — boom — in and out"). Ignored when the press lands on an agent in the rail.
-  const startPull = (which) => (e) => {
-    if (e.button !== 0) return;
-    if (e.target.closest && e.target.closest(".agent-chat")) return;
-    e.preventDefault();
-    dragRef.current = `pull-${which}`;
-    document.body.classList.add("panel-resizing");
-  };
-  useEffect(() => {
-    const up = () => {
-      dragRef.current = null;
-      document.body.classList.remove("panel-resizing");
-    };
-    const move = (e) => {
-      if (!dragRef.current || !rowRef.current) return;
-      const rect = rowRef.current.getBoundingClientRect();
-      // A pull on a collapsed strip: past a few pixels inward, the panel opens and the drag becomes
-      // an ordinary resize.
-      // It opens once the pointer is past the panel's own MINIMUM width — opening any earlier put
-      // the pointer inside the collapse zone of the resize that follows, so the panel opened and
-      // shut in the same gesture.
-      if (dragRef.current === "pull-nav") {
-        if (((e.clientX - rect.left) / rect.width) * 100 < 12) return;
-        setNavOpen(true);
-        dragRef.current = "nav";
-      } else if (dragRef.current === "pull-scratch") {
-        if (((rect.right - e.clientX) / rect.width) * 100 < 15) return;
-        setScratchOpen(true);
-        dragRef.current = "scratch";
-      }
-      if (dragRef.current === "nav") {
-        const raw = ((e.clientX - rect.left) / rect.width) * 100;
-        // Dragged past the edge → COLLAPSE into the corner tab (another way to minimize). THE
-        // GESTURE DOES NOT END THERE (RFC-052, his rule): the drag turns into a pull, so keeping
-        // hold and coming back out reopens it — one motion, in and out.
-        if (raw < 7) {
-          setNavOpen(false);
-          dragRef.current = "pull-nav";
-          return;
-        }
-        setNavW(clampNav(raw));
-      } else {
-        const raw = ((rect.right - e.clientX) / rect.width) * 100;
-        if (raw < 9) {
-          setScratchOpen(false);
-          dragRef.current = "pull-scratch";
-          return;
-        }
-        setScratchW(clampScratch(raw));
-      }
-    };
-    window.addEventListener("mousemove", move);
-    window.addEventListener("mouseup", up);
-    return () => {
-      window.removeEventListener("mousemove", move);
-      window.removeEventListener("mouseup", up);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
   return (
     <section className="system-viewer" data-sv="page">
       <PageHeader projectCode={projectCode} current="specs" />
@@ -349,7 +273,7 @@ const SystemViewPage = () => {
               label="Navigator"
               onExpand={() => setNavOpen(true)}
               edgeTitle="Drag to pull the navigator out"
-              edgeProps={{ onMouseDown: startPull("nav") }}
+              edgeProps={{ onMouseDown: navPull }}
             />
           )}
           <div
@@ -374,7 +298,7 @@ const SystemViewPage = () => {
           <div
             className="panel-divider"
             title="Drag to resize · double-click to reset"
-            onMouseDown={startDrag("nav")}
+            onMouseDown={navDrag}
             onDoubleClick={() => setNavW(25)}
           />
         )}
@@ -401,7 +325,7 @@ const SystemViewPage = () => {
           <div
             className="panel-divider"
             title="Drag to resize · double-click to reset"
-            onMouseDown={startDrag("scratch")}
+            onMouseDown={scratchDrag}
             onDoubleClick={() => setScratchW(25)}
           />
         )}
@@ -409,25 +333,11 @@ const SystemViewPage = () => {
         {/* Right scratchpad — collapses into the RIGHT corner (its handle sits by "Scratch Pad"). */}
         <div
           data-sv="scratchpad"
-          className={`scratchpad ${scratchOpen ? "col-3 scratchpad--open" : "scratchpad--collapsed"}`}
+          className={scratchOpen ? "scratchpad col-3 scratchpad--open" : "wall-dock wall-dock--slot-1"}
           style={scratchOpen ? { flex: `0 0 ${scratchW}%`, maxWidth: `${scratchW}%` } : undefined}
         >
           {!scratchOpen && (
-            <div
-              className="panel-divider panel-divider--edge panel-divider--edge-right"
-              title="Drag to pull the scratchpad out"
-              onMouseDown={startPull("scratch")}
-            />
-          )}
-          {!scratchOpen && (
-            <button
-              type="button"
-              className="scratchpad__toggle"
-              title="Expand the scratchpad"
-              onClick={() => setScratchOpen(true)}
-            >
-              ‹ Scratchpad
-            </button>
+            <WallTab side="right" label="Scratchpad" onPull={scratchPull} onOpen={() => setScratchOpen(true)} />
           )}
           <div
             className="scratchpad__body"

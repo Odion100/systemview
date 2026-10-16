@@ -66,6 +66,16 @@ outlives the session, and the surface does not read the stamp at all.
 harness stamped an event is state. Delegation must not be the one place where being seen is
 optional, because delegation is the one place where work happens out of his sight by construction.
 
+> **NARROWED 2026-10-09, and read this before quoting the paragraph above.** The target of this
+> RFC is the **undeclared spawn** — an `Agent()` call that produces no row at all — and that stands.
+> What changed is the other half: *registration is now what makes a lane a lane*, so the `lane:`
+> write is the **constitutive act** rather than a courtesy, and it is no longer unverified
+> testimony — `sessions.cjs` checks the branch exists with `git rev-parse` and **refuses** the write
+> otherwise, while the `lanes` verb names any `lane/*` branch that has no run against it instead of
+> listing it. So "an agent said so" and "the world agrees" are both required, which is what this
+> principle was asking for. The gap this RFC still answers: a subagent that never registers
+> anything. A stamp at the spawn is still the only thing that can see that one.
+
 ## The one new piece: the spawn record
 
 Everything else in this RFC is a read. This is the only write.
@@ -319,3 +329,24 @@ Flagging these is cheaper than pretending:
 - **Whether the ledger line and the spawn record should converge later.** They are kept separate
   here on a lifetime argument, which is sound, but two writers at one seam recording the same event
   is a thing to revisit rather than a thing to be pleased about.
+
+---
+
+## STATUS — built, 2026-10-16
+
+Rows read the run FILES (`standingRuns` in AgentChat, project-scoped by the run's session stamp),
+not session events — a refresh cannot eat a row whose record is on disk. The section below is the
+original reminder, kept for the design trail.
+
+## STATUS (original) — not built, and this section is the reminder
+
+**Nothing here exists.** Verified 2026-10-02: no spawn record, no row for a subagent anywhere in the
+harness. `electron/agents/sessions.cjs` knows a subagent only as `parent_tool_use_id` on a message —
+it never stamps a spawn, so there is nothing to draw a row from.
+
+Proof of the gap, same day: eight subagents were spawned from this session to audit RFCs and **not one
+appeared on the strip.** They ran, were killed, and left no row — exactly the hole §"The hole"
+describes.
+
+**The one new piece still owed** is §"The one new piece: the spawn record". Everything after it
+(§1–§6, nesting, retention) depends on it and none of it is started.

@@ -1,0 +1,55 @@
+// THE UNIVERSAL EDGE-COLLAPSE BUTTON — his ruling, 2026-10-16: *"the nav panel['s] — that's the
+// style… I land on that one completely."* These are `.system-nav__collapse`'s bytes, MOVED here
+// (the nav renders this class now; its private copy is deleted) — not retyped: the first cut of
+// this file re-imagined a costume and he caught it on sight. Extraction moves bytes.
+.wall-collapse {
+  border: none;
+  background: transparent;
+  color: var(--sv-text-muted);
+  font-size: 16px;
+  line-height: 1;
+  padding: 2px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  flex-shrink: 0;
+  &:hover { background: var(--sv-hover, rgba(0, 0, 0, 0.05)); color: var(--sv-text); }
+}
+// Placement in the tab strip's tail — layout only, never costume.
+.doc-tabs > .wall-collapse {
+  align-self: center;
+  margin: 0 4px;
+}
+
+// THE WALL-DOCK — where a collapsed panel's tab lives: fixed to the window's wall, flush, out of
+// the grid flow. Slots stack the tabs when a page has more than one (Code: Scratchpad then
+// Documents; Agents: Documents alone takes slot 1).
+.wall-dock {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  width: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+.wall-dock--slot-1 { top: 74px; }
+.wall-dock--slot-2 { top: 174px; }
+
+// THE WALL-TAB — the one vertical tab every collapsed panel wears, original properties untouched.
+.wall-tab {
+  writing-mode: vertical-rl;
+  padding: 14px 6px;
+  font-size: 13px;
+  border: 1px solid #b0bed8;
+  background: var(--sv-hover);
+  color: var(--sv-blue);
+  font-family: Malkor, sans-serif;
+  cursor: pointer;
+  border-radius: 6px 0 0 6px;
+  box-shadow: -1px 1px 6px rgba(40, 50, 90, 0.12);
+  &:hover {
+    background: #e4eaf8;
+    border-color: var(--sv-blue);
+  }
+}

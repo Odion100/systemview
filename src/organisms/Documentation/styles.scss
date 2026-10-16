@@ -446,3 +446,62 @@
     display: none;
   }
 }
+
+// RFC-069 §4.4 — the open-by-path door on the strip. An ADDRESS, never a picker.
+.doc-tabs__plus {
+  flex: none;
+  border: none;
+  // STICKY AT THE ROW'S EDGE, NEVER GONE — his rule (2026-10-16): the + rides right after the last
+  // tab, and when the tabs overflow it pins to the visible edge instead of scrolling away. The
+  // opaque background is load-bearing: tabs slide UNDER it while pinned.
+  position: sticky;
+  right: 0;
+  background: var(--sv-bg, #fff);
+  color: var(--sv-text-faint);
+  font-size: 15px;
+  line-height: 1;
+  padding: 2px 8px;
+  cursor: pointer;
+  &:hover { color: var(--sv-blue); }
+}
+.doc-tabs__plus-pop {
+  position: absolute;
+  z-index: 30;
+  margin-top: 26px;
+  right: 10px;
+  width: min(520px, 60vw);
+  background: var(--sv-surface);
+  border: 1px solid var(--sv-border);
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  padding: 8px;
+}
+.doc-tabs__plus-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--sv-border);
+  border-radius: 6px;
+  background: var(--sv-inset);
+  color: var(--sv-text);
+  font-family: "SF Mono", Menlo, monospace;
+  font-size: 12px;
+  padding: 6px 8px;
+  outline: none;
+  &:focus { border-color: var(--sv-blue); }
+}
+.doc-tabs__plus-err { margin-top: 6px; font-size: 11px; color: #e05252; }
+.doc-tabs__plus-recents { margin-top: 6px; display: flex; flex-direction: column; gap: 2px; }
+.doc-tabs__plus-recent {
+  text-align: left;
+  border: none;
+  background: none;
+  color: var(--sv-text-soft);
+  font-family: "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  padding: 2px 4px;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  &:hover { color: var(--sv-blue); }
+}

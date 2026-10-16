@@ -870,6 +870,69 @@ async function writeFile(projectCode, { path: rel, content, root } = {}) {
     return { ok: false, error: String(e.message || e) };
   }
 }
+// ── THE MACHINE DOOR (RFC-069, approved 2026-10-15) ─────────────────────────────────────────
+// A file outside every project root is a legal address now: ("", absolute path). These verbs are
+// the second door — `inside()` above is untouched, because it guards the PROJECT door against
+// relative-path traversal, and this door has no relative grammar to abuse: absolute only, `~`
+// expanded, normalized. Reads answer anything the hub's own process can read (dotfiles included —
+// his standing ruling: he is approving the system the whole time); writes need the parent to
+// exist; delete unlinks a FILE or an empty directory and refuses a tree by name — `rm`, not
+// `rm -rf` (his call at the RFC review).
+function machinePath(raw) {
+  let p = String(raw || "").trim().replace(/^file:\/\//, "");
+  if (p.startsWith("~/")) p = path_.join(require("os").homedir(), p.slice(2));
+  if (!path_.isAbsolute(p)) return null; // the relative grammar belongs to projects
+  return path_.normalize(p);
+}
+async function readPath({ path: raw } = {}) {
+  const abs = machinePath(raw);
+  if (!abs) return { ok: false, error: "the machine door takes an absolute path — relative paths belong to a project" };
+  try {
+    return { ok: true, path: abs, machine: true, content: fsGit.readFileSync(abs, "utf8") };
+  } catch (e) {
+    return { ok: false, error: String(e.message || e) };
+  }
+}
+async function writePath({ path: raw, content } = {}) {
+  const abs = machinePath(raw);
+  if (!abs) return { ok: false, error: "the machine door takes an absolute path — relative paths belong to a project" };
+  if (!fsGit.existsSync(path_.dirname(abs)))
+    return { ok: false, error: `the folder ${path_.dirname(abs)} does not exist — the machine door creates files, never directory cascades` };
+  try {
+    fsGit.writeFileSync(abs, String(content == null ? "" : content));
+    return { ok: true, path: abs, machine: true };
+  } catch (e) {
+    return { ok: false, error: String(e.message || e) };
+  }
+}
+async function deletePath({ path: raw } = {}) {
+  const abs = machinePath(raw);
+  if (!abs) return { ok: false, error: "the machine door takes an absolute path — relative paths belong to a project" };
+  try {
+    const st = fsGit.statSync(abs);
+    if (st.isDirectory()) {
+      if (fsGit.readdirSync(abs).length)
+        return { ok: false, error: `${abs} is a directory with contents — this door deletes a file or an empty folder, never a tree` };
+      fsGit.rmdirSync(abs);
+    } else {
+      fsGit.unlinkSync(abs);
+    }
+    return { ok: true, path: abs, machine: true };
+  } catch (e) {
+    return { ok: false, error: String(e.message || e) };
+  }
+}
+async function listPath({ path: raw } = {}) {
+  const abs = machinePath(raw);
+  if (!abs) return { ok: false, error: "the machine door takes an absolute path — relative paths belong to a project" };
+  try {
+    const rows = fsGit.readdirSync(abs, { withFileTypes: true }).map((d) => ({ name: d.name, dir: d.isDirectory() }));
+    return { ok: true, path: abs, machine: true, entries: rows };
+  } catch (e) {
+    return { ok: false, error: String(e.message || e) };
+  }
+}
+
 async function deleteFile(projectCode, { path: rel, root } = {}) {
   const cwd = rootOf(projectCode, root);
   if (!cwd) return { ok: false, error: "no folder for this project" };
@@ -2703,6 +2766,26 @@ module.exports = function launchSystemView(port = 3000) {
   // both answer the same question (where does this path live) for different consumers.
   mountResolve(server);
 
+  // THE MACHINE BYTE PIPE (RFC-069) — images, pdfs and media for files outside every project.
+  // Same MIME table, same caching; the only difference is the door: absolute path, no containment,
+  // because the machine door's rule is "anything the hub's own process can read".
+  server.get("/sv-machine", (req, res) => {
+    try {
+      const abs = machinePath(req.query.path);
+      if (!abs || !fsGit.existsSync(abs)) return res.status(404).send("not found");
+      const ext = path_.extname(abs).toLowerCase().slice(1);
+      const MIME = {
+        png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp",
+        svg: "image/svg+xml", ico: "image/x-icon", bmp: "image/bmp", avif: "image/avif",
+        pdf: "application/pdf", mp4: "video/mp4", webm: "video/webm", mp3: "audio/mpeg", wav: "audio/wav",
+      };
+      res.set("Content-Type", MIME[ext] || "application/octet-stream");
+      res.set("Cache-Control", "private, max-age=30");
+      fsGit.createReadStream(abs).pipe(res);
+    } catch (e) {
+      res.status(500).send(String((e && e.message) || e));
+    }
+  });
   server.get("/sv-file/:pc", (req, res) => {
     try {
       const rel = String(req.query.path || "");
@@ -2797,6 +2880,10 @@ module.exports = function launchSystemView(port = 3000) {
       writeFile,
       deleteFile,
       listFiles,
+      readPath,
+      writePath,
+      deletePath,
+      listPath,
       searchFiles,
       gitState,
       branches,
@@ -3037,6 +3124,18 @@ module.exports = function launchSystemView(port = 3000) {
       // read a registry the hub holds in memory. The validation is the capability; it lives in
       // api/drive.js, pure, and the emit happens here where the chat state is.
       nav: function (arg = {}) {
+        // A FILE IS RESOLVED BEFORE IT IS REPORTED (RFC-069 §4.2). This verb used to validate
+        // stats tabs and service names and pass `file:` through blind — answering "navigated →
+        // pulled up <path>" for a file it never checked, which is how an agent told him yes a
+        // minute before his pane said "outside the project folder". A refusal comes back as the
+        // refusal, by name; a machine file comes back addressed as one, so the window knows which
+        // door to read it through.
+        if (arg && arg.file) {
+          const r = resolveAnyPath(arg.file, arg.projectCode || "");
+          if (!r || !r.resolved)
+            return { error: (r && r.reason) || `nothing at "${arg.file}"`, ...(r && r.candidates ? { candidates: r.candidates } : {}) };
+          arg = { ...arg, file: r.path + (r.suffix || ""), ...(r.machine ? { machine: true } : r.projectCode && r.projectCode !== arg.projectCode ? { fileProject: r.projectCode } : {}) };
+        }
         return sendDrive.call(this, Drive.nav(arg, ConnectedServices.getAllConnections() || []), arg);
       },
       refresh: function (arg = {}) {
