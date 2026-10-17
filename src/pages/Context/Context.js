@@ -15,6 +15,7 @@ import AgentChat from "../../organisms/AgentChat/AgentChat";
 import { saveDoc, saveSkill, saveDef, saveHelp } from "../../utils/hostAgents";
 import { saveJob } from "../../utils/hostJobs";
 import useOpenedFile from "../../organisms/DocPanel/useOpenedFile";
+import Board from "../../organisms/Board/Board";
 import useWallPanel from "../../organisms/WallPanel/useWallPanel";
 import WallTab from "../../organisms/WallPanel/WallTab";
 import "./styles.scss";
@@ -118,6 +119,21 @@ const Context = () => {
 
   // One resolver for every page (see useOpenedFile) — a file clicked anywhere on this page opens
   // as a FILE TAB in the shared store, machine-addressed when it has no project (RFC-069).
+  // THE CHAT'S BOARD ICON ASKS THIS PAGE FIRST (his report, 2026-10-17: the links above the chat
+  // "don't open up on the agent page… just open up the document display wherever it is"). Same
+  // offer/handled contract the file door uses; only silence navigates.
+  useEffect(() => {
+    const onKind = (e) => {
+      const d = (e && e.detail) || {};
+      if (d.kind !== "board" || (d.projectCode && d.projectCode !== projectCode)) return;
+      d.handled = true;
+      openTab(tabsPc, { key: `board:${tabsPc}`, kind: "board" });
+      setDocOpen(true);
+    };
+    window.addEventListener("sv:openCenterKind", onKind);
+    return () => window.removeEventListener("sv:openCenterKind", onKind);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectCode, tabsPc]);
   useOpenedFile(projectCode, (f) => {
     const file = {
       machine: !!f.machine || !f.projectCode || undefined,
@@ -334,7 +350,12 @@ const Context = () => {
                 this document's content lives behind its save door — reopen it from the profile on the left
               </div>
             ))}
-            {activeTab && activeTab.kind !== "file" && activeTab.kind !== "agentdoc" && (
+            {activeTab && activeTab.kind === "board" && (
+              <div className="doc-board">
+                <Board projectCode={tabsPc} chrome="pane" />
+              </div>
+            )}
+            {activeTab && activeTab.kind !== "file" && activeTab.kind !== "agentdoc" && activeTab.kind !== "board" && (
               <div className="ctx-docarea__hint">
                 this tab lives on the Code page —{" "}
                 <button type="button" onClick={() => history.push(buildRoute(activeTab, tabsPc, ""))}>open it there</button>

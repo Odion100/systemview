@@ -3397,10 +3397,9 @@
   // helps you see, boom, checked off."
   &--done {
     opacity: 0.55;
-    // NO DECORATION ON THE ROW — that was the whole bug. The row's line-through painted across the
-    // check no matter what the check declared (inline-block "escape" is spec fiction in Chrome), and
-    // he called the fix: separate the styling. The strike belongs to the text span alone.
-    .agent-chat__worklist-text { text-decoration: line-through; }
+    // NO STRIKE AT ALL — his ruling, 2026-10-17, superseding the aligned-strike fix above: *"I
+    // still want to read the line just because it's checked off… I can't really read it once
+    // there's a line through it."* Done is the green check + the quiet row; the text stays legible.
     .agent-chat__worklist-mark { color: #00c408; font-weight: 800; } // HIS green, exactly
   }
 }
@@ -4187,6 +4186,29 @@
   font-weight: 700;
   color: var(--sv-text-strong);
 }
+// THE TOP BLOCK — head row + title line left, the × centered against BOTH rows (his correction:
+// "it doesn't need to be in either row").
+.agent-chat__jobrun-top {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.agent-chat__jobrun-topmain {
+  flex: 1;
+  min-width: 0;
+  cursor: pointer; // the door is the whole block — head row and title line together
+}
+// WHAT THE RUN DID — the record's report label as its own quiet line under the head (his
+// correction, 2026-10-17: in the head row it displaced everything). Truncates, never wraps, so
+// the × and the pills keep their row to themselves.
+.agent-chat__jobrun-title {
+  margin: 1px 6px 0 19px;
+  font-size: 11px;
+  color: var(--sv-text-muted, #8a8f98);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 // THE STATE BADGE CARRIES ITS OWN CONTRAST — his report, 2026-10-12: *"this status badge,
 // finished, needs to stand out more in light and dark mode. Can barely see it."*
 //
@@ -4215,6 +4237,42 @@
 .agent-chat__jobrun--done .agent-chat__jobrun-state {
   color: #0f2418;
   background: #63b98a;
+}
+// FINISHED · LANDED — the state past finished (his walk, 2026-10-16: "so I know we already
+// committed the work and moved on"). A cooler pill than the green: nothing here waits on anyone.
+.agent-chat__jobrun--done .agent-chat__jobrun-state--landed {
+  color: #122033;
+  background: #8fb8e8;
+}
+// WHY IT WAS WORKED ON — the evaluation verdict off the run record, same quiet register as `why`
+// but marked as a judgment, not a trigger.
+.agent-chat__jobrun-verdict {
+  margin: 3px 0 0 19px;
+  font-size: 11px;
+  color: var(--sv-text-muted, #8a8f98);
+}
+// A RECORDED LANE WHOSE ROW ALREADY LEFT — history the live strip forgets: branch, commit, landed.
+.agent-chat__jobrun-reclane {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 2px 0 0 19px;
+  font-size: 11px;
+  color: var(--sv-text-muted, #8a8f98);
+}
+.agent-chat__jobrun-reclane-commit {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 10px;
+}
+.agent-chat__jobrun-landed {
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #122033;
+  background: #8fb8e8;
 }
 .agent-chat__jobrun-chev { font-size: 10px; opacity: 0.6; }
 // WHEN IT RAN — quiet, monospaced so a column of these lines up, and it never competes with the

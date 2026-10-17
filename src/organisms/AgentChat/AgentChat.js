@@ -736,7 +736,7 @@ function useCountUp(target) {
 // JOB has handed something over, so the card's last state is the report sitting there with the
 // rating beside it — the rate verb's own comment has always said *"capturable where the report is
 // READ."* This is that place.
-function JobRun({ items, source, projectCode, runId, onClear, onLanes, laneChildren, laneCount = 0 }) {
+function JobRun({ items, source, projectCode, runId, onClear, onLanes, laneChildren, laneCount = 0, standingLanes = [] }) {
   const jobId = String(source || "").slice(4);
   const [open, setOpen] = useState(false);
   const [rec, setRec] = useState(null);
@@ -777,7 +777,15 @@ function JobRun({ items, source, projectCode, runId, onClear, onLanes, laneChild
   useEffect(() => () => { if (onLanes) onLanes(runId, null); }, [runId, onLanes]);
 
   const report = rec && rec.report && rec.report.path ? rec.report : null;
-  const state = complete ? "finished" : (rec && rec.status) || "running";
+  // THE RECORD'S OWN LANES, AND WHICH ARE ALREADY IN — his walk, 2026-10-16: a card that only
+  // nests lanes still standing in the strip shows history as laneless, and "finished" says nothing
+  // about whether he already committed the work and moved on. A recorded lane whose strip row is
+  // GONE was cleared through the one door that refuses anything not verifiably in the tree — so
+  // row-gone IS the honest signal for landed, with no new derivation invented here.
+  const recLanes = (rec && Array.isArray(rec.lanes) ? rec.lanes : []).filter((l) => l && l.branch);
+  const landedLanes = recLanes.filter((l) => !standingLanes.includes(l.branch));
+  const allLanded = complete && recLanes.length > 0 && landedLanes.length === recLanes.length;
+  const state = complete ? (allLanded ? "finished · landed" : "finished") : (rec && rec.status) || "running";
   const rate = async (n) => {
     setRating(n);
     await rateJobRun(jobId, (rec && rec.id) || "", n);
@@ -791,17 +799,23 @@ function JobRun({ items, source, projectCode, runId, onClear, onLanes, laneChild
           else on a row that LOOKS like one button did nothing. Same rule the lane row already
           follows ("the whole row is the door"). The × stops propagation so clearing never opens
           the thing it is removing. */}
+      {/* THE TOP BLOCK: head row + title line on the left, the × CENTERED against both — his
+          correction, 2026-10-17: "it doesn't need to be in either row." */}
+      <div className={`${CLASSNAME}__jobrun-top`}>
       <div
-        className={`${CLASSNAME}__jobrun-head`}
+        className={`${CLASSNAME}__jobrun-topmain`}
         role="button"
         tabIndex={0}
         title={open ? "collapse this run" : "expand this run — why it fired, its report, its steps"}
         onClick={() => setOpen(!open)}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen(!open); } }}
       >
+      {/* the door is the WHOLE block — head row AND the title line (his catch: "it's only working
+          on the first row") */}
+      <div className={`${CLASSNAME}__jobrun-head`}>
         <span className={`${CLASSNAME}__jobrun-badge`}>⚙</span>
         <span className={`${CLASSNAME}__jobrun-name`}>{(rec && rec.job) || jobId}</span>
-        <span className={`${CLASSNAME}__jobrun-state`}>{state}</span>
+        <span className={`${CLASSNAME}__jobrun-state${allLanded ? ` ${CLASSNAME}__jobrun-state--landed` : ""}`}>{state}</span>
         <span className={`${CLASSNAME}__worklist-count`}>{done}/{total}</span>
         <span className={`${CLASSNAME}__worklist-bar${complete ? ` ${CLASSNAME}__worklist-bar--done` : ""}`}>
           <span className={`${CLASSNAME}__worklist-fill`} style={{ width: `${Math.round((done / total) * 100)}%` }} />
@@ -819,9 +833,9 @@ function JobRun({ items, source, projectCode, runId, onClear, onLanes, laneChild
             {rec ? "no report" : "cannot read"}
           </span>
         )}
-        {!open && laneCount > 0 && (
-          <span className={`${CLASSNAME}__jobrun-lanecount`} title={`this run cut ${laneCount} lane${laneCount === 1 ? "" : "s"} — expand to see them`}>
-            {laneCount} lane{laneCount === 1 ? "" : "s"}
+        {!open && (recLanes.length > 0 || laneCount > 0) && (
+          <span className={`${CLASSNAME}__jobrun-lanecount`} title={`this run cut ${recLanes.length || laneCount} lane${(recLanes.length || laneCount) === 1 ? "" : "s"} — expand to see them`}>
+            {recLanes.length || laneCount} lane{(recLanes.length || laneCount) === 1 ? "" : "s"}
           </span>
         )}
         {/* WHEN IT RAN. A finished run with no time on it is a row you cannot place in the day —
@@ -836,16 +850,22 @@ function JobRun({ items, source, projectCode, runId, onClear, onLanes, laneChild
           </span>
         )}
         <span className={`${CLASSNAME}__jobrun-chev`}>{open ? "▾" : "▸"}</span>
-        {complete && onClear && (
-          <button
-            type="button"
-            className={`${CLASSNAME}__worklist-clear ${CLASSNAME}__jobrun-clear`}
-            title="Clear this run from your view"
-            onClick={(e) => { e.stopPropagation(); onClear(); }}
-          >
-            ×
-          </button>
-        )}
+      </div>
+      {/* WHAT THE RUN DID, as its own quiet line — his correction, 2026-10-17: the work-title in
+          the head row "displaced everything", so the head keeps its original shape and the record's
+          report label rides UNDER it, subtle, truncating. */}
+      {report && report.label ? <div className={`${CLASSNAME}__jobrun-title`} title={report.label}>{report.label}</div> : null}
+      </div>
+      {complete && onClear && (
+        <button
+          type="button"
+          className={`${CLASSNAME}__worklist-clear ${CLASSNAME}__jobrun-clear`}
+          title="Clear this run from your view"
+          onClick={(e) => { e.stopPropagation(); onClear(); }}
+        >
+          ×
+        </button>
+      )}
       </div>
 
       {/* A JOB RUN IS A BAR UNTIL YOU OPEN IT — his call, 2026-10-12, on the first one that ever
@@ -855,6 +875,9 @@ function JobRun({ items, source, projectCode, runId, onClear, onLanes, laneChild
           report row with its five stars. Everything below this line is now behind the chevron; the
           bar keeps the progress, the state, and a mark when something is waiting on him. */}
       {open && rec && rec.why && <div className={`${CLASSNAME}__jobrun-why`}>{rec.why}</div>}
+      {/* WHY IT WAS WORKED ON — his walk, 2026-10-16: the evaluation verdict exists on the board
+          and in the report, but the row never said it. When the record carries one, the card does. */}
+      {open && rec && rec.verdict && <div className={`${CLASSNAME}__jobrun-verdict`}>⚖ {rec.verdict}</div>}
 
       {/* THE HANDOVER, AS A REAL CHIP — the report already lives in the reports panel, so this is a
           pointer to it and not a second copy (RFC-066 §5, settled by deleting the alternative). */}
@@ -896,6 +919,20 @@ function JobRun({ items, source, projectCode, runId, onClear, onLanes, laneChild
           same delete), rendered by the parent and handed in — the record names the branches, the
           strip does the join, and nothing is stored twice. */}
       {open && laneChildren}
+      {/* THE LANES THAT ALREADY LEFT — the record keeps what the live strip forgets. A standing
+          lane renders as its real row above (laneChildren); a recorded lane with no row left was
+          brought in and cleared, and history should still say it existed: branch, commit, landed. */}
+      {open && landedLanes.length > 0 && (
+        <div className={`${CLASSNAME}__jobrun-lanes`}>
+          {landedLanes.map((l) => (
+            <div key={l.branch} className={`${CLASSNAME}__jobrun-reclane`} title={`${l.branch}${l.commit ? ` @ ${l.commit}` : ""} — its row was cleared through the door that only clears work verifiably in the tree`}>
+              <span className={`${CLASSNAME}__jobrun-reclane-branch`}>⌁ {l.branch}</span>
+              {l.commit ? <code className={`${CLASSNAME}__jobrun-reclane-commit`}>{String(l.commit).slice(0, 7)}</code> : null}
+              <span className={`${CLASSNAME}__jobrun-landed`}>landed</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {open && (
         <ul className={`${CLASSNAME}__worklist-items`}>
@@ -4633,6 +4670,14 @@ const countdown = (str, now = Date.now()) => {
     ["file", "fproj", "fsvc", "flang", "flines", "fside", "fnav", "ftab", "help", "rdoc", "fmachine"].forEach((k) => params.delete(k));
     const route = () => go({ pathname: `/specs/${projectCode}`, search: `?${params.toString()}` });
     if (which === "board") {
+      // OFF THE CODE PAGE, OFFER FIRST (his report, 2026-10-17: these icons navigated away from
+      // the Agents page even though its document display can host the board). Same offer/handled
+      // contract as files; only silence navigates.
+      if (!onCodePage()) {
+        const d = { kind: "board", projectCode };
+        window.dispatchEvent(new CustomEvent("sv:openCenterKind", { detail: d }));
+        if (d.handled) return;
+      }
       params.set("tab", "board");
       return route();
     }
@@ -4642,6 +4687,9 @@ const countdown = (str, now = Date.now()) => {
       const fresh = showToOpen();
       const rec = fresh || [...shows].reverse().find((m) => m.args && m.args.path);
       const path = (fresh && fresh.args && fresh.args.path) || (tv && tv.path) || (rec && rec.args.path);
+      // A report is a file — off the Code page it lands in whatever document display this page
+      // owns, and only silence navigates.
+      if (!onCodePage() && path && openReportInPanel({ projectCode, path, language: "markdown" })) return;
       params.set("tab", "reports");
       if (path) params.set("rdoc", path);
       return route();
@@ -4844,6 +4892,38 @@ const countdown = (str, now = Date.now()) => {
     useWallPanel({ name: `chatStrip-${projectCode}`, side: "bottom", rowRef: stripRow, defaultW: 24, min: 8, max: 60, collapseAt: 4 });
   const hideWork = !stripOpen;
   const setHideWork = (v) => setStripOpen(!v);
+  // OPEN TO FIT — his catch, 2026-10-17: a room with one report and no jobs opened to the default
+  // height and showed a band of empty space. After an open, measure what the band actually holds —
+  // the strip's rows (the strip itself stretches, so its CHILDREN carry the natural height), and
+  // the non-stretching siblings (head, whiteboard, mailbox) — and shrink the height to fit when the
+  // default overshoots. Never grows past the default and never under the engine's own floor, and a
+  // height HE dragged is left alone (this runs only on the open transition).
+  const stripWasOpen = useRef(stripOpen);
+  useEffect(() => {
+    const was = stripWasOpen.current;
+    stripWasOpen.current = stripOpen;
+    if (!stripOpen || was) return; // only the closed → open edge
+    requestAnimationFrame(() => {
+      try {
+        const el = stripRef.current;
+        const col = el && el.parentElement;
+        if (!el || !col) return;
+        let need = 14; // seam + paddings
+        for (const child of el.children) {
+          if (child.className && String(child.className).includes("__strip")) {
+            for (const row of child.children) need += row.offsetHeight;
+          } else {
+            need += child.offsetHeight;
+          }
+        }
+        const colH = col.getBoundingClientRect().height || 0;
+        if (!colH) return;
+        const needPct = Math.min(24, Math.max(8, Math.ceil((need / colH) * 100)));
+        if (needPct < stripH) setStripH(needPct);
+      } catch {}
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stripOpen]);
 
   // REPORTS IN THE BAND (his design, 2026-10-16): the one list (listReports — same list the nav
   // fold and the TV picker read), plus the APPROVAL SCAN — a report carrying a :::approval with no
@@ -6354,6 +6434,7 @@ const countdown = (str, now = Date.now()) => {
                         source={l.source}
                         projectCode={projectCode}
                         onLanes={claimLanes}
+                        standingLanes={lanesShown.map(laneOf)}
                         laneCount={(jobLaneClaims[l.key] || []).length && lanesShown.filter((x) => (jobLaneClaims[l.key] || []).includes(laneOf(x))).length}
                         laneChildren={
                           <div className={`${CLASSNAME}__jobrun-lanes`}>
