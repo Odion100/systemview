@@ -2,7 +2,7 @@ import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import BranchBlock from "./BranchBlock";
 import { useCapability, useCapabilityState } from "../capabilities";
-import { useMarkdownScope } from "../context";
+import { useMarkdownScope, useMarkdownWrite } from "../context";
 
 // `::branch[name]` is a POINTER, not a patch — everything it shows is computed from git at view
 // time through the host's git capability. So the tests stand up no git at all: the capability layer
@@ -14,6 +14,7 @@ jest.mock("../capabilities", () => ({
 jest.mock("../context", () => ({
   useMarkdownScope: jest.fn(),
   useDocMembers: jest.fn(() => ({})),
+  useMarkdownWrite: jest.fn(() => ({})),
 }));
 
 const PATCH = [
@@ -211,5 +212,61 @@ describe("accepting a lane records that it was brought in", () => {
     await waitFor(() => expect(screen.getByText(/landed onto main/)).toBeInTheDocument());
     expect(bridge.mergeBranch).toHaveBeenCalled();
     expect(screen.queryByText(/no such door/)).toBeNull(); // the receipt's failure is not his problem
+  });
+});
+
+// WHERE HE CAME FROM HAS TO SURVIVE A REMOUNT — it used to live in React state only, so a refresh
+// or a page hop silently swapped "back to the branch you wrote from" for "back to base", a place he
+// may never have stood. The document is the state, exactly as `::commit` stamps its sha.
+describe("the way back is written into the document", () => {
+  let bridge;
+  beforeEach(() => {
+    jest.clearAllMocks();
+    bridge = {
+      branchDiff: jest.fn().mockResolvedValue({ ok: true, base: "main", branch: "refine/dead-code", files: [], commits: [] }),
+      gitState: jest.fn().mockResolvedValue({ branch: "feature/mine" }),
+      switchBranch: jest.fn().mockResolvedValue({ ok: true }),
+    };
+    useCapability.mockReturnValue(() => bridge);
+    useCapabilityState.mockReturnValue("granted");
+    useMarkdownScope.mockReturnValue({ projectCode: "systemview-test" });
+    useMarkdownWrite.mockReturnValue({});
+  });
+
+  it("stamps camefrom= onto its own line when he switches onto the branch", async () => {
+    const setAttr = jest.fn();
+    useMarkdownWrite.mockReturnValue({ editable: true, setAttr });
+    render(<BranchBlock label="refine/dead-code" line={12} />);
+    fireEvent.click(await screen.findByText("switch to it"));
+    fireEvent.click(screen.getByText("yes"));
+    await waitFor(() => expect(setAttr).toHaveBeenCalledWith(12, "camefrom", "feature/mine"));
+  });
+
+  it("reads it back on mount — the trip home survives a remount", async () => {
+    bridge.gitState.mockResolvedValue({ branch: "refine/dead-code" });
+    render(<BranchBlock label="refine/dead-code" attrs={{ camefrom: "feature/mine" }} line={12} />);
+    expect(await screen.findByText("back to feature/mine")).toBeTruthy();
+    fireEvent.click(screen.getByText("back to feature/mine"));
+    await waitFor(() => expect(bridge.switchBranch).toHaveBeenCalledWith({ name: "feature/mine" }));
+  });
+
+  it("clears the note once he has taken the trip back", async () => {
+    const setAttr = jest.fn();
+    useMarkdownWrite.mockReturnValue({ editable: true, setAttr });
+    bridge.gitState.mockResolvedValue({ branch: "refine/dead-code" });
+    render(<BranchBlock label="refine/dead-code" attrs={{ camefrom: "feature/mine" }} line={7} />);
+    fireEvent.click(await screen.findByText("back to feature/mine"));
+    await waitFor(() => expect(setAttr).toHaveBeenCalledWith(7, "camefrom", null));
+  });
+
+  it("falls back to base when nobody ever stamped a return, and never writes on a read-only doc", async () => {
+    const setAttr = jest.fn();
+    useMarkdownWrite.mockReturnValue({ editable: false, setAttr });
+    bridge.gitState.mockResolvedValue({ branch: "refine/dead-code" });
+    render(<BranchBlock label="refine/dead-code" line={3} />);
+    expect(await screen.findByText("back to main")).toBeTruthy();
+    fireEvent.click(screen.getByText("back to main"));
+    await waitFor(() => expect(bridge.switchBranch).toHaveBeenCalledWith({ name: "main" }));
+    expect(setAttr).not.toHaveBeenCalled();
   });
 });

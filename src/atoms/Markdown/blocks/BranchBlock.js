@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useMarkdownScope, useDocMembers } from "../context";
+import { useMarkdownScope, useDocMembers, useMarkdownWrite } from "../context";
 import { routeResult } from "../docSend";
 import { useCapability, useCapabilityState } from "../capabilities";
 
@@ -14,8 +14,14 @@ import { useCapability, useCapabilityState } from "../capabilities";
 // switch` refusing over dirty files is an answer we show, never a thing we stash around), and
 // BACK returns to the base. The agent that wrote the block gets no button — it delivered a
 // report; what happens to the branch is decided here.
-const BranchBlock = ({ label, attrs = {} }) => {
+const BranchBlock = ({ label, attrs = {}, line }) => {
   const scope = useMarkdownScope();
+  // THE DOCUMENT IS THE STATE — the same rule `::commit` follows when it stamps `sha=` and `ts=`
+  // after a press. Without it, where he came from lived in React state only and a refresh or a
+  // Code⇄Agents hop degraded "back to <the branch he wrote from>" into "back to <base>" — a place
+  // he may never have stood (his catch, raised twice). A read-only document has nowhere to write,
+  // so it keeps the old behaviour rather than pretending.
+  const { editable, setAttr } = useMarkdownWrite() || {};
   const projectCode = attrs.project || scope.projectCode;
   const { docPath = "" } = useDocMembers() || {};
   const branch = label || attrs.name || "";
@@ -42,7 +48,10 @@ const BranchBlock = ({ label, attrs = {} }) => {
   // WHERE YOU CAME FROM. The return trip goes back to the branch you were standing on when you
   // pressed switch — not to the base, which may be a place you never were. Base is only the
   // fallback when the block never saw you arrive.
-  const [cameFrom, setCameFrom] = useState("");
+  // seeded from the document, so the answer survives everything that remounts this block
+  const [cameFrom, setCameFrom] = useState(attrs.camefrom || "");
+  // the attribute is the truth whenever it is there; local state only covers the read-only case
+  const standingFrom = attrs.camefrom || cameFrom;
 
   // A LANE HE ACCEPTED SAYS SO, ON ITS OWN RECORD. His card, 2026-10-16: *"landed, committed work
   // still sat in the strip because clearing a row is a separate act from landing, and `lanes remove`
@@ -169,7 +178,14 @@ const BranchBlock = ({ label, attrs = {} }) => {
   };
 
   const doSwitch = async (name) => {
-    if (name === branch && state && state.branch && state.branch !== branch) setCameFrom(state.branch);
+    // ARRIVING stamps where he was; RETURNING clears it — otherwise the block would keep offering
+    // a trip back to a branch he is already standing on.
+    const arriving = name === branch;
+    const from = state && state.branch ? state.branch : "";
+    if (arriving && from && from !== branch) {
+      setCameFrom(from);
+      if (editable && setAttr && line != null) setAttr(line, "camefrom", from);
+    }
     setBusy(true);
     setArmed(false);
     try {
@@ -177,6 +193,12 @@ const BranchBlock = ({ label, attrs = {} }) => {
       if (!r.ok) setError(r.error || "switch refused");
       else {
         setError("");
+        if (!arriving && standingFrom && name === standingFrom) {
+          // he took the trip back — the note has been used up, and a stale one would point at the
+          // branch he is on
+          setCameFrom("");
+          if (editable && setAttr && line != null) setAttr(line, "camefrom", null);
+        }
         // one surface moving git must tell the others — same broadcast the nav listens to
         window.dispatchEvent(new Event("sv:git"));
       }
@@ -225,8 +247,8 @@ const BranchBlock = ({ label, attrs = {} }) => {
                   fast-forward {diff.base} to here
                 </button>
               )}
-              <button type="button" className="md-branch__btn" disabled={busy} onClick={() => doSwitch(cameFrom || diff.base)}>
-                back to {cameFrom || diff.base}
+              <button type="button" className="md-branch__btn" disabled={busy} onClick={() => doSwitch(standingFrom || diff.base)}>
+                back to {standingFrom || diff.base}
               </button>
             </>
           )
