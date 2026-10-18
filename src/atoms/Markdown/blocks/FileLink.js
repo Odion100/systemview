@@ -83,10 +83,13 @@ const FileLink = ({ label, attrs = {} }) => {
 // control. And being a real `<a href>` is what let the browser treat an app affordance as a web
 // link (that is how every same-origin link ended up in a new tab: RFC-051 round, ChatLink).
 // So: a BUTTON that opens. ⌘-click still opens too — one behaviour, no modifier to learn.
-  const fire = (pc, p) =>
+  const fire = (pc, p, machine) =>
     window.dispatchEvent(
       new CustomEvent("sv:openFileInNav", {
-        detail: { projectCode: pc, serviceId, path: p, language: langOf(p), lines },
+        // THE MACHINE FLAG RIDES — the resolver answers the machine form for ~/absolute paths
+        // (RFC-069), and dropping it here sent a lane-worktree chip through the project door, which
+        // refused with "outside the project folder" (his catch, 2026-10-17).
+        detail: { projectCode: machine ? "" : pc, serviceId: machine ? null : serviceId, path: p, language: langOf(p), lines, machine: machine || undefined },
       }),
     );
 
@@ -107,7 +110,7 @@ const FileLink = ({ label, attrs = {} }) => {
     // already parsed here. The hub strips it too, but sending it would make two components
     // responsible for the same piece of grammar.
     resolveRef(path, projectCode || "").then((r) => {
-      if (r.resolved) return fire(r.projectCode, r.path);
+      if (r.resolved) return fire(r.projectCode, r.path, !!r.machine);
       if (projectCode) return fire(projectCode, path);
       setRefused(r.reason || "cannot resolve that path");
     });

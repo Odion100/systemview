@@ -36,6 +36,11 @@ export async function resolveRef(path, hint = "") {
         ? {
             resolved: !!body.resolved,
             projectCode: body.projectCode || "",
+            // THE MACHINE FLAG RIDES OR THE ANSWER LIES — the hub answers {machine: true} for
+            // ~/absolute paths (RFC-069) and this hand-built copy dropped it, so every caller saw
+            // a machine file wearing an empty project, fell back to the page's, and the project
+            // door refused with "outside the project folder" (his catch, 2026-10-17).
+            machine: !!body.machine,
             path: body.path || p,
             suffix: body.suffix || "",
             reason: body.reason || "",

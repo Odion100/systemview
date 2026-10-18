@@ -14,12 +14,15 @@ export default function useOpenedFile(projectCode, onOpen) {
     const handler = (e) => {
       const d = (e && e.detail) || {};
       if (!d.path) return;
-      const pc = d.projectCode || projectCode;
-      if (!pc) return;
+      // A MACHINE FILE HAS NO PROJECT ON PURPOSE — falling back to the page's project here sent
+      // ~/absolute paths through the project door ("outside the project folder"). It passes
+      // through with its flag; only a project-less, machine-less detail is still nobody's.
+      const pc = d.machine ? "" : d.projectCode || projectCode;
+      if (!pc && !d.machine) return;
       // the dispatcher may have a fallback (the TV's doc button navigates when no panel is
       // here) -- marking the event taken is how it knows a panel answered
       d.handled = true;
-      onOpen({ kind: "file", projectCode: pc, serviceId: d.serviceId || null, path: d.path, label: d.path, language: d.language || null, lines: d.lines || null });
+      onOpen({ kind: "file", projectCode: pc, machine: d.machine || undefined, serviceId: d.serviceId || null, path: d.path, label: d.path, language: d.language || null, lines: d.lines || null });
     };
     window.addEventListener("sv:openFileInNav", handler);
     return () => window.removeEventListener("sv:openFileInNav", handler);
