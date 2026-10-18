@@ -165,6 +165,55 @@ const CodePane = ({ file, onClose }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [file.projectCode, file.serviceId, file.path, !!host]);
 
+  // THE WINDOW KEEPS ITSELF FRESH — his rule, said with heat about this exact pane: *"whenever you
+  // change something like system context, I always have to refresh the fucking page… We should be
+  // watching it for changes."* A slow pulse re-reads the open file and adopts the disk ONLY when
+  // the pane is clean (content === savedContent) — unsaved text outranks the disk until he saves or
+  // reverts, so nothing he typed can ever be swapped out from under him. Page-visible only, 4s, one
+  // small read per open tab: the 154%-CPU scar (a read per browser event) is why this is a pulse
+  // and not a listener on everything.
+  const freshRef = useRef({ content, savedContent });
+  useEffect(() => { freshRef.current = { content, savedContent }; });
+  useEffect(() => {
+    if (!host || isImage) return undefined;
+    let busy = false;
+    const tick = async () => {
+      if (busy || document.visibilityState !== "visible") return;
+      const { content: cur, savedContent: saved } = freshRef.current;
+      if (cur == null || cur !== saved) return; // loading, or dirty — the disk waits
+      busy = true;
+      try {
+        const res = await Plugin.readFile({ path: file.path });
+        const now = freshRef.current;
+        // re-check cleanliness AFTER the await — he may have typed while the read was in flight
+        if (res && typeof res.content === "string" && res.content !== now.savedContent && now.content === now.savedContent) {
+          setContent(res.content);
+          setSavedContent(res.content);
+          // the stripes follow the disk the same way the loader's do
+          try {
+            const ch = Plugin.changedFiles ? await Plugin.changedFiles() : null;
+            const changed = !!(ch && ch.files && ch.files.some((f) => f.path === file.path));
+            setHasDiff(changed);
+            if (changed) {
+              const d = await Plugin.getDiff({ path: file.path });
+              setBase(d.base);
+              setIndex(d.index == null ? null : d.index);
+              setDiffData(d);
+            } else {
+              setBase(null);
+              setIndex(null);
+              setDiffData(null);
+            }
+          } catch {}
+        }
+      } catch {}
+      busy = false;
+    };
+    const t = setInterval(tick, 4000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [file.path, !!host, isImage]);
+
   // Which lines differ from HEAD, recomputed against what's on screen — so a line you just typed
   // marks itself without saving first. Cheap: trimmed prefix/suffix, then LCS on what's left.
   // The arithmetic itself lives in gitLines.js, shared with the file embeds in a document.
