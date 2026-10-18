@@ -1,22 +1,18 @@
-/* eslint-disable jest/valid-expect */
+// Ported from enzyme (2026-10-16). The second original test was a copy-paste that re-asserted the
+// first; it now asserts what its title always meant to — the text renders.
 import React from "react";
-import { expect } from "chai";
-import { shallow, render } from "enzyme";
-import Enzyme from "enzyme";
-import Adapter from "enzyme-adapter-react-16";
+import { render } from "@testing-library/react";
 import DescriptionText from "./DescriptionText";
 
-Enzyme.configure({ adapter: new Adapter() });
-
 describe("<DescriptionText/>", () => {
-  it("renders a p tag wrapped in a dive with class name description-text__text", () => {
-    const wrapper = shallow(<DescriptionText />);
-    expect(wrapper.find("div.description-text")).to.have.a.lengthOf(1);
-    expect(wrapper.find("p.description-text__text")).to.have.a.lengthOf(1);
+  it("renders a p with class description-text__text inside div.description-text", () => {
+    const { container } = render(<DescriptionText />);
+    expect(container.querySelectorAll("div.description-text")).toHaveLength(1);
+    expect(container.querySelectorAll("p.description-text__text")).toHaveLength(1);
   });
 
-  it("use the tableClassName prop to add additional class name to table", () => {
-    const wrapper = shallow(<DescriptionText text={"test"} />);
-    expect(wrapper.find("p.description-text__text")).to.have.a.lengthOf(1);
+  it("renders the text prop", () => {
+    const { container } = render(<DescriptionText text="test" />);
+    expect(container.querySelector("p.description-text__text").textContent).toBe("test");
   });
 });

@@ -54,6 +54,12 @@ export const machineFiles = () => {
       if (res && res.ok === false) throw new Error(res.error || "could not write that file");
       return res;
     },
+    // ONE directory's children by absolute/~ address — the machine half of the + door's browse.
+    listDir: async ({ path } = {}) => {
+      const res = await hub().listPath({ path });
+      if (res && res.ok === false) throw new Error(res.error || "could not list that folder");
+      return (res && res.entries) || [];
+    },
     deleteFile: async ({ path } = {}) => {
       const res = await hub().deletePath({ path });
       if (res && res.ok === false) throw new Error(res.error || "could not delete that file");

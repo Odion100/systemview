@@ -1,18 +1,22 @@
-/* eslint-disable jest/valid-expect */
+// Ported from enzyme (2026-10-16). The original rendered into a div and asserted NOTHING — its
+// title claimed the isSaved switch; now the test does.
 import React from "react";
-import ReactDom from "react-dom";
-import { render, cleanup, screen } from "@testing-library/react";
-import "@testing-library/jest-dom/extend-expect";
+import { render } from "@testing-library/react";
 import TestsIcon from "./TestsIcon";
 
-import Enzyme from "enzyme";
-import Adapter from "enzyme-adapter-react-16";
-
-Enzyme.configure({ adapter: new Adapter() });
-
 describe("<TestsIcon/>", () => {
-  it("renders test-saved.png if isSaved prop equals true", () => {
-    const div = document.createElement("div");
-    ReactDom.render(<TestsIcon />, div);
+  it("shows the saved icon when isSaved, the missing icon otherwise", () => {
+    const saved = render(<TestsIcon isSaved />);
+    const missing = render(<TestsIcon />);
+    const savedSrc = saved.container.querySelector("img.doc-icon__img").getAttribute("src");
+    const missingSrc = missing.container.querySelector("img.doc-icon__img").getAttribute("src");
+    expect(savedSrc).toContain("test-saved");
+    expect(missingSrc).toContain("test-missing");
+    expect(savedSrc).not.toBe(missingSrc);
+  });
+
+  it("carries a className through to the img", () => {
+    const { container } = render(<TestsIcon className="mine" />);
+    expect(container.querySelector("img.doc-icon__img").classList.contains("mine")).toBe(true);
   });
 });

@@ -1,26 +1,20 @@
-/* eslint-disable jest/valid-expect */
+// Ported from enzyme (2026-10-16) — claims unchanged.
 import React from "react";
-
-import { expect } from "chai";
-import { shallow, render } from "enzyme";
-
+import { render } from "@testing-library/react";
 import List from "./List";
-
-import Enzyme from "enzyme";
-import Adapter from "enzyme-adapter-react-16";
-Enzyme.configure({ adapter: new Adapter() });
 
 describe("<List/>", () => {
   it("renders a div tag with class list", () => {
-    const wrapper = shallow(<List />);
-    expect(wrapper.find("div.list")).to.have.a.lengthOf(1);
+    const { container } = render(<List />);
+    expect(container.querySelectorAll("div.list")).toHaveLength(1);
   });
-  it("renders a div tag children", () => {
-    const wrapper = shallow(
+
+  it("renders its children inside the list", () => {
+    const { container } = render(
       <List>
         <div className="test"></div>
       </List>
     );
-    expect(wrapper.find("div.list > div.test")).to.have.a.lengthOf(1);
+    expect(container.querySelectorAll("div.list > div.test")).toHaveLength(1);
   });
 });

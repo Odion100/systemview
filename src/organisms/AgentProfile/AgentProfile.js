@@ -495,6 +495,29 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
     note: "",
     isNew: true,
   });
+  // DUPLICATE — a new draft wearing an existing hook's everything. His card: per-agent fire rates
+  // are the whole answer to "don't let the agents I ignore work as often as the ones I use daily",
+  // and that means one hook copied per agent — which until now meant authoring from scratch.
+  // `wasName: ""` makes the save a CREATE, and the name is pre-filled to the first free
+  // `<name>-copy[-n]` so a lazy save can never land on the original and overwrite it. Everything
+  // still goes through the same writing door with all its refusals.
+  const duplicateHook = (h) => {
+    const taken = new Set((hooks || []).map((x) => x.name));
+    let name = `${h.name}-copy`;
+    for (let n = 2; taken.has(name); n++) name = `${h.name}-copy-${n}`;
+    setHookDraft({
+      name,
+      wasName: "",
+      on: h.on,
+      rows: whenRows(h.when),
+      scope: h.scope,
+      do: h.do,
+      with: { ...(h.with || {}) },
+      rate: h.rate || h.guard || "",
+      note: h.note || "",
+      isNew: true,
+    });
+  };
   const editHook = (h) =>
     setHookDraft({
       name: h.name,
@@ -1985,6 +2008,9 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
                         {on ? "enabled" : "disabled"}
                       </button>
                       <button type="button" className="agent-profile__hook-btn" onClick={() => editHook(h)}>edit</button>
+                      {/* a copy opens as a NEW draft under the list, name pre-filled free —
+                          per-agent cadences are one duplicate + one rate change now */}
+                      <button type="button" className="agent-profile__hook-btn" title="Start a new hook as a copy of this one" onClick={() => duplicateHook(h)}>duplicate</button>
                       <button type="button" className="agent-profile__hook-btn agent-profile__hook-btn--del" onClick={() => dropHook(h.name)}>delete</button>
                     </div>
                     {/* expands right here, under the row you clicked */}

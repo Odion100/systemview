@@ -36,6 +36,7 @@ const UI_URL = `http://localhost:${DEFAULT_PORT}`;
 // process.exit() truncates buffered stdout when stdout is a pipe (agents/CI, and large `--json`
 // output). Drain stdout + stderr first, then exit — otherwise big results get cut off mid-stream.
 function flushAndExit(code = 0) {
+  completionGuard.disarm();
   let pending = 2;
   const done = () => {
     if (--pending === 0) process.exit(code);
@@ -43,6 +44,8 @@ function flushAndExit(code = 0) {
   process.stdout.write("", done);
   process.stderr.write("", done);
 }
+
+const completionGuard = require("./completionGuard");
 
 const connectedUrls = new Set();
 
@@ -114,6 +117,7 @@ async function startApp() {
 async function startTest() {
   const project_code = input[1];
   const namespace = input[2];
+  completionGuard.arm(); // from here, only flushAndExit may end this process at 0
   try {
     await launchApp(DEFAULT_PORT);
     await bootServices();

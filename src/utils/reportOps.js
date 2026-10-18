@@ -58,7 +58,7 @@ export async function listReports(projectCode) {
   const known = new Set(listed.map((r) => r.path));
   let scanned = [];
   try {
-    const res = await files.listFiles({ glob: ".systemview/report.*.md" });
+    const res = await files.listFiles({ dir: ".systemview" }); // listFiles has NO glob option — it was silently dropped and the whole project walked; dir scopes the walk to this folder
     scanned = ((res && (res.files || res)) || [])
       .map((f) => ({ path: (f && f.path) || f, ts: (f && (f.mtime || f.ts)) || 0 }))
       .filter((f) => f.path && /\.systemview\/report\..+\.md$/i.test(f.path))

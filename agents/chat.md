@@ -5,14 +5,17 @@ panel attaches to **your live session**. When the human types there, he is talki
 conversation* — not into a room you have to enter, and not through a relay. Your reply **is** the
 message. Siblings: [AGENTS.md](AGENTS.md), [markdown.md](markdown.md).
 
+Everything here is **tools** — `mcp__systemview__*` for the window, the harness's own messaging for
+other agents. The `systemview` CLI still exists for a human at a terminal and for CI; it is not how
+you work, and an older version of this page that taught its verbs as your workflow is retired with
+them.
+
 ## The model, in one paragraph
 
-You are attached. His messages arrive in your context (through your hook, or directly when the
-panel drives the session). You answer by replying — plain text, markdown, and the interactive
-blocks all render in the chat. The panel reads your cooking state straight off the session, so
-there is no status to set for him and nothing to keep alive. The CLI verbs below exist for
-everything that is *not* talking to him: reaching **another** agent, managing who hears a room,
-and driving the window.
+You are attached. His messages arrive in your context, pushed by the harness — there is no inbox to
+drain, no hook to install, no polling. You answer by replying — plain text, markdown, and the
+interactive blocks all render in the chat. The panel reads your cooking state straight off the
+session, so there is no status to set for him and nothing to keep alive.
 
 ## What arrives
 
@@ -59,142 +62,49 @@ Notes that matter:
 - **Underscores are never italic** and `a * b` is never italic — identifiers and math stay literal.
 - **Link the thing you're talking about.** "The report is ready" without a `:report` chip is a
   missed click. A report about a file opens with a `:file` chip.
-- **Long content and choices go on the TV** (`systemview show`), with one short line in the chat.
+- **Long content and choices go on the TV** (`mcp__systemview__show`), with one short line in the
+  chat.
 - **Never tell him to reload.** Tabs update themselves.
 
-## The hook — ONLY for sessions the harness doesn't attach
+## Reaching another agent
 
-**Check first: are his messages already appearing in your conversation?** Then you are ATTACHED —
-the harness delivers directly, there is no pipeline, and none of this section applies to you.
-Installing a drain you don't need is how an agent ends up describing a plumbing that stopped
-existing (it happened; the confusion outlived the plumbing by weeks).
+Another agent is another session, and reaching one is the **harness's** messaging, not a SystemView
+verb: `ListAgents` shows who is reachable, `SendMessage` speaks to one by name. The message lands
+inside their conversation as a turn, attributed to you; replies arrive back in yours the same way —
+pushed, never polled. The old room verbs (`message-agent`, `join`, `leave`, `kick`, `visitors`,
+`read`, `inbox`, `status`) are retired for agents; [AGENTS.md](AGENTS.md)'s retirement table is the
+record.
 
-A session the harness does NOT attach (a bare terminal) wires itself with a hook that drains the
-room at its turn boundary:
-
-```bash
-#!/bin/bash
-# .claude/hooks/sv-inbox.sh — drain quietly, speak only when there are messages
-OUT=$(systemview inbox <projectCode> 2>/dev/null | grep '^\[' | tail -1)
-if [ -n "$OUT" ] && [ "$OUT" != "[]" ]; then
-  echo "SystemView UI chat — messages from the user (answer them now, in your reply): $OUT"
-fi
-exit 0
-```
-
-```json
-{ "hooks": { "UserPromptSubmit": [{ "matcher": "", "hooks": [{ "type": "command",
-    "command": "bash .claude/hooks/sv-inbox.sh" }] }] } }
-```
-
-Drained messages are things to answer NOW, in your reply — and in the document's own thread when
-the message is about a document. Messages delivered from rooms you have joined arrive the same way.
-
-## Talking to another agent — `message-agent`
-
-```bash
-systemview message-agent <theirProject> "<text>" --as <yourProject>
-systemview message-agent <theirProject> --file notes.md --as <yourProject>   # long messages
-```
-
-- **`--as` is required and must be a project that exists.** Every verb checks it at the front door.
-- **It cannot be you.** `--as` must differ from the target; there is no form of this command that
-  addresses your own room. Talking to the human? He is in this conversation — reply.
-- **It does not subscribe you.** A message opens a **15-minute reply window**: the room's replies
-  are delivered back to you for that window, then it closes. On the third windowed exchange the
-  receipt tells you this is a conversation — `join` if you want to stay in it.
-- **The receipt names the audience**: `✓ delivered → buAPI (as systemview-test) · in the room: autobot
-  (reply window open 15m)`. Delivery is the write; whether anyone was standing there is not a fact
-  about your message.
-- If their panel is attached, your message lands **inside their conversation** as a turn, attributed
-  to you. If not, it waits for them.
-
-This is the one sanctioned channel between agents, because it enforces identity and leaves a record
-the human can follow. The harness's raw session-to-session socket enforces nothing and may never
-surface in any chat — it is the emergency line when the hub is down, and nothing else.
-
-## Who hears a room — `join`, `leave`, `kick`
-
-```bash
-systemview join <project> --as <yourProject>     # on that room's list: the hub delivers its conversation to yours
-systemview leave <project> --as <yourProject>    # off the list; delivery stops, records stay
-systemview kick <yourProject> <who>              # remove someone from YOUR room's list — only your own room
-systemview visitors <project>                    # who is on a room's list (reply windows show as "window")
-systemview read <project> --limit 20             # read a conversation you are in
-systemview read <project> --since <mark>         # only what is new (the mark is printed for you)
-```
-
-- **Joining is deliberate and instant.** It puts you on a list; no process stays behind, nothing
-  is held open, nothing is re-armed. Speaking never joins for you.
-- **Any agent may join or leave any room on its own initiative** — "go talk to X" is one trigger,
-  not a permission gate. Their change broke your tests? You need an answer only they have? Go.
-- **A room's list is its own agent's.** You kick from your room; nobody kicks from a third room;
-  the human does anything from the UI.
-- **Leave when the errand is over.** Rooms you never leave pile up until every agent hears every
-  room and the roster means nothing.
-
-**What arrives when you are in a room** lands in your conversation, prefixed with where it came from:
-
-```
-[in systemview-test] a message from that project's agent
-[in systemview-test · human] a message from the human himself, speaking in that room
-```
-
-That `· human` matters — answer him like a person, and answer **in that room** (`message-agent
-<thatProject> … --as <you>`), because that is the window he is watching. The conversation stays
-where the introduction happened; don't drag it home.
-
-Blocks in a message resolve against the **room's** repo: a `::file` lifted from your repo into
-someone else's room renders empty, which looks like a broken renderer. Use their paths, or pin yours
-with `{project=<yourPc>}` — which works on the inline chip too, so
-`:file[cli/index.js]{project=systemview-test}` in someone else's room points at YOUR file and opens
-it there. Absolute paths are refused on purpose; the project attribute is the way across.
-
-## Cooking lines — `status`
-
-The attached panel draws your cooking line from your session. In a room you **visit**, set one
-before anything slow, so your work is visible there too:
-
-```bash
-systemview status <room> "running the Math tests" --as <yourProject>   # "" clears it
-```
-
-Every identity in a room has its own line; narrate freely, you cannot overwrite anyone.
+One rendering rule survives from the room era, because messages still render as documents in the
+reader's chat: **blocks resolve against the READER's project.** A `::file` lifted from your repo
+into someone else's session renders empty, which looks like a broken renderer. Use their paths, or
+pin yours with `{project=<yourPc>}` — which works on the inline chip too, so
+`:file[cli/index.js]{project=systemview-test}` points at YOUR file from anywhere.
 
 ## Driving the window — nav, highlight, refresh, act, show
 
-A command is a record in the chat; the open UI executes it the moment it arrives, and the human
-SEES the window move and who moved it.
+A command moves the window the human is looking at, the moment it lands — he SEES it move and who
+moved it.
 
-```bash
-systemview nav <pc> Math.add                        # NAVIGATE (real selection): route + center + scratchpad follow
-systemview nav <pc> center --report <path>          # open a report on the Stage tab
-systemview nav <pc> center --file cli/index.js#L40-80   # open a file in the Code tab
-systemview nav <pc> center --tab docs|reports|logs  # switch the center tab
-systemview nav <pc> center --topic chat             # open a help topic over the page
-systemview nav <pc> stats                           # the Stats page (their tab/range/filter untouched)
-systemview nav <pc> stats load --range 1h --service TestService
-systemview highlight <pc> Math.add                  # POINT, don't navigate
-systemview highlight <pc> --file api/Chats.js
-systemview refresh <pc> docs|reports|nav|stats|all  # panes re-read their data — never a page reload
-systemview act <pc> test Math.add                   # run a saved test where the human is LOOKING
-systemview act <pc> test "Wrong expected value (failure demo)"   # by TITLE
-systemview act <pc> test all
-systemview act <pc> run "Prove it works"            # press a :::run block's play in the OPEN document
-systemview show <pc> --text "## Look\n::chart{report=throughput}"   # THE TV, beside the chat
-systemview show <pc> --file scratch/demo.md
-systemview show <pc> --clear
+```js
+mcp__systemview__nav({ projectCode, namespace: "Math.add" })        // NAVIGATE (real selection)
+mcp__systemview__nav({ projectCode, report: ".systemview/report.<pc>.<Name>.md" })
+mcp__systemview__nav({ projectCode, file: "cli/index.js#L40-80" })  // open a file in the Code tab
+mcp__systemview__nav({ projectCode, file: "~/.autobot/jobs/x/job.md" }) // a MACHINE file — any
+                                                                    // absolute path opens (RFC-069)
+mcp__systemview__nav({ projectCode, stats: "load" })                // the Stats page
+mcp__systemview__highlight({ projectCode, namespace: "Math.add", say: "…" })  // POINT, don't navigate
+mcp__systemview__refresh({ projectCode, scope: "docs" })            // panes re-read — never a reload
+mcp__systemview__act({ projectCode, test: "Math.add", say: "…" })   // run where the human is LOOKING
+mcp__systemview__show({ projectCode, text: "## Look\n::chart{report=throughput}" })  // the TV
+mcp__systemview__show({ projectCode, reportPath: ".systemview/report.<pc>.<Name>.md" })
+mcp__systemview__show({ projectCode, clear: true })
 ```
 
-**`--say "…"` works on every one of these, and you should use it** — it is what your bot says while
-it stands next to the thing the command pointed at. Without it the trip is a receipt that says WHAT
-happened and never WHY.
-
-**"Show me…" is a command.** They are looking at the window, so put it on the window. `#L<a>-<b>`
-works on files and on rendered documents alike (the range lands on whatever block it covers).
-
-**You can drive any room you are in.** Address the command to the project that OWNS the thing and
-speak as yourself (`--as`); a name is resolved inside the project you addressed.
+`nav` is **kind-explicit** — exactly one of `namespace`, `file`, `report`, `stats`, `agents` — and
+it **resolves before it reports**: a path that exists nowhere comes back as the refusal, by name,
+never as "pulled up". `say` rides `highlight` and `act` — it is what your bot says while standing
+next to the thing; without it the trip is a receipt that says WHAT and never WHY.
 
 Rules the live driving sessions taught:
 
@@ -203,16 +113,15 @@ Rules the live driving sessions taught:
   is mounted.
 - **act routing — the run lands where the human is looking**: a doc block showing the target test
   claims the run; otherwise it runs in the saved-tests area. Target by title when ambiguous.
-- **The already-ran block**: run in the CLI (`test <pc> --json`), write the output to
-  `.systemview/runs/<name>.json` (add `ranAt`), embed `::test[Math.add]{ran="<run-file>"}`.
-- **The live-edit loop**: edit on disk → `refresh <scope>` → it's on their screen.
+- **The live-edit loop**: edit on disk → `refresh` the scope → it's on their screen.
 - **Every nav rides with a link in the chat.** The window moves once; the chip is the way back.
 - **Never move the window as a surprise.**
 - **Commands never come back to you** — only the human's messages do.
 - **Their view stamp + the open doc = your eyes.** Use both before acting on "this"/"that".
 - **TV first — reports only when the human asks for one.** Read his answers on the TV with
-  `systemview tv <yourProject>` (`::question{… answer=…}`, `:::approval{verdict=…}`, `:::reply` in
-  threads). His typed replies there are questions to YOU and sit silently until you look.
+  `mcp__systemview__tv({ projectCode, show })` (`::question{… answer=…}`, `:::approval{verdict=…}`,
+  `:::reply` in threads). His typed replies there are questions to YOU and sit silently until you
+  look.
 
 ## Pointing — references in your sentence
 
@@ -233,12 +142,13 @@ message lands (up to three per message):
 
 ## Answering where he asked
 
-- Short answers: your reply. Another room: `message-agent`.
+- Short answers: your reply. Another agent's session: `SendMessage`.
 - A note on the CODE gets its reply on the line it was left:
-  `systemview comments <pc> <path> --at <n> --reply "…" --as <you>`.
-- His board: `systemview board <pc> --reply "…" --at <id> --as <you>`.
-- A document's thread: `systemview reply <pc> <report> <thread-id> "…" --as <you>`, and anything
-  about a document also as a `:::reply{author=agent}` there ([markdown.md](markdown.md)).
+  `mcp__systemview__comments({ projectCode, path, at, replyText })`.
+- His board: `mcp__systemview__board({ projectCode, at, replyText })` — pass the note's `id`, never
+  its position; the list reorders the moment he adds a note.
+- A document's thread: `mcp__systemview__reply({ projectCode, report, threadId, text })`, and
+  anything about a document also as a `:::reply{author=agent}` there ([markdown.md](markdown.md)).
 - **The human's message is the only trigger.** Clicks and comments accumulate silently — respond to
   what he SAID.
 

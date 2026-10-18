@@ -31,22 +31,25 @@ export async function resolveRef(path, hint = "") {
     const qs = `path=${encodeURIComponent(p)}${hint ? `&project=${encodeURIComponent(hint)}` : ""}`;
     const res = await fetch(`/sv-resolve?${qs}`);
     const body = await res.json();
+    // THE ANSWER TRAVELS WHOLE — his structural call, 2026-10-17, after the machine flag was lost
+    // at four hand-built copies in one day: a transcription drops whatever field it was not told
+    // about, so the hub's answer is SPREAD over safe defaults instead. A field the hub adds
+    // tomorrow arrives everywhere with zero edits here.
     answer =
       body && body.ok
         ? {
+            resolved: false,
+            projectCode: "",
+            path: p,
+            suffix: "",
+            reason: "",
+            candidates: [],
+            ...body,
             resolved: !!body.resolved,
-            projectCode: body.projectCode || "",
-            // THE MACHINE FLAG RIDES OR THE ANSWER LIES — the hub answers {machine: true} for
-            // ~/absolute paths (RFC-069) and this hand-built copy dropped it, so every caller saw
-            // a machine file wearing an empty project, fell back to the page's, and the project
-            // door refused with "outside the project folder" (his catch, 2026-10-17).
             machine: !!body.machine,
-            path: body.path || p,
-            suffix: body.suffix || "",
-            reason: body.reason || "",
-            candidates: body.candidates || [],
           }
         : { resolved: false, reason: (body && body.error) || `the hub answered ${res.status}` };
+    delete answer.ok;
   } catch {
     // A FAILED LOOKUP IS NOT CACHED — the hub restarts (an `api/` change arms only on a restart), and
     // caching "unreachable" would keep every chip dead until the window itself reloaded.

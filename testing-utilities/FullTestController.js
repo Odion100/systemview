@@ -10,10 +10,24 @@ module.exports = function FullTestController({ FullTest, connectedServices } = {
     const { sections = {}, order = [] } = test || {};
     const flat = order.reduce((all, name) => all.concat(sections[name] || []), []);
 
+    // A REJECTED TEST MUST NOT KILL THE PROCESS. This chain had no catch, so one rejection —
+    // observed live: a stale cached client answering "Plugin publishes no method clearMockEvents" —
+    // became an unhandled rejection and Node killed THE HUB mid-run: 56 silent respawns in one log,
+    // every one a 1–2 minute outage and a truncated test sweep (gaps/SYSTEMVIEW_HUB_DROPS…, cause
+    // found 2026-10-18 by reading the launcher's filed stdout). The run continues past a rejected
+    // test — the test records its own failure state; a crash records nothing.
     await new Promise((resolve) => {
       function recursiveRunTest(tests, i = 0) {
         if (i === tests.length) resolve();
-        else tests[i].runTest().then(() => recursiveRunTest(tests, i + 1));
+        else
+          tests[i]
+            .runTest()
+            .catch((error) => {
+              // the resolution-phase throws (missing module/method) escape before Test.class's own
+              // recorder — mirror it, so the run report shows the error instead of losing it
+              try { tests[i].results = error; tests[i].response_type = "error"; } catch {}
+            })
+            .then(() => recursiveRunTest(tests, i + 1));
       }
       recursiveRunTest(flat);
     });
