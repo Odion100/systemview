@@ -296,6 +296,25 @@
   // for each other, and two different agents in one conversation must not be mistaken for each
   // other either (his rule from the room: same colour for everyone is no help at all). `--vis` is
   // set per row from the identity; plum is the fallback when nobody named themselves.
+  // THE CMD RECEIPT — a :::cmd press reporting back. One mono line in the cmd block's own slate,
+  // the reserved name in the prompt green: the same identity, the same coat, wherever it speaks.
+  &__cmdrow {
+    margin-top: 8px;
+    padding: 4px 10px;
+    border-radius: 7px;
+    background: #2e3347;
+    color: #d6dbe8;
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 11.5px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    // the left border carries the OUTCOME — the same three faces the block itself wears
+    border-left: 3px solid #8a8f98;
+    &--ok { border-left-color: #7fb069; }
+    &--fail { border-left-color: #c66; }
+  }
+  &__cmdrow-name { color: #7fb069; font-weight: 700; margin: 0 8px 0 6px; }
+
   &__row--visit {
     border-left: 2px solid var(--vis, #9a7cb8);
     background: color-mix(in srgb, var(--vis, #9a7cb8) 10%, transparent);

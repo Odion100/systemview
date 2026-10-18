@@ -128,6 +128,9 @@ const Context = () => {
       if (d.kind !== "board" || (d.projectCode && d.projectCode !== projectCode)) return;
       d.handled = true;
       openTab(tabsPc, { key: `board:${tabsPc}`, kind: "board" });
+      // AND BRING IT TO FRONT — opening a tab you then have to go find is adding, not opening
+      // (his catch: "it just adds the tab"). This page's active is local state, so the door sets it.
+      setActiveKey(`board:${tabsPc}`);
       setDocOpen(true);
     };
     window.addEventListener("sv:openCenterKind", onKind);
@@ -318,7 +321,10 @@ const Context = () => {
               tabs={pane.tabs}
               isActive={(t) => t.key === activeKey}
               onOpen={(t) => {
-                if (t.kind === "file" || t.kind === "agentdoc") {
+                // board joined the renderable kinds with the 14-lane land, but this list wasn't
+                // told — so clicking a board tab navigated to the Code page while the render
+                // branch below sat unreachable (his catch). One list, kept beside the branches.
+                if (t.kind === "file" || t.kind === "agentdoc" || t.kind === "board") {
                   focusTab(tabsPc, t.key);
                   setActiveKey(t.key);
                   return;

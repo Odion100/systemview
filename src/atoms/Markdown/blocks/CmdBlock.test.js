@@ -13,6 +13,7 @@ jest.mock("../capabilities", () => ({
 }));
 jest.mock("../context", () => ({
   useMarkdownScope: jest.fn(),
+  useMarkdownWrite: jest.fn(() => ({})),
 }));
 
 const BUILD =
@@ -154,5 +155,75 @@ describe("the three absences read as three different sentences", () => {
     useCapability.mockReturnValue(() => null);
     render(<CmdBlock src={"yarn test"} attrs={{}} />);
     expect(screen.getByText(/no shell for systemview/)).toBeInTheDocument();
+  });
+});
+
+// `dir=` — the machine-address form: run anywhere, the way ::file takes `~/…`. The default stays
+// the room's project root; the dir only AIMS, it never becomes part of the command.
+describe("dir= aims the shell at a machine path", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    useCapabilityState.mockReturnValue("granted");
+    useMarkdownScope.mockReturnValue({ projectCode: "systemview" });
+  });
+
+  it("hands the capability the dir, and keeps the project for session identity", () => {
+    const factory = jest.fn(() => ({ run: jest.fn(() => ({ done: new Promise(() => {}), cancel: jest.fn() })) }));
+    useCapability.mockReturnValue(factory);
+    render(<CmdBlock src={"ls"} attrs={{ dir: "~/Systemly/lanes" }} />);
+    expect(factory).toHaveBeenCalledWith("systemview", "~/Systemly/lanes");
+  });
+
+  it("the prompt wears the folder, not the project, when a dir aims the run", () => {
+    useCapability.mockReturnValue(() => ({ run: jest.fn() }));
+    const { container } = render(<CmdBlock src={"ls"} attrs={{ dir: "~/Systemly/lanes" }} />);
+    expect(container.querySelector(".md-cmd__prompt").textContent).toBe("~/Systemly/lanes $ ");
+  });
+
+  it("a dir block outside any project still offers run", () => {
+    const factory = jest.fn(() => ({ run: jest.fn() }));
+    useCapability.mockReturnValue(factory);
+    useMarkdownScope.mockReturnValue({});
+    render(<CmdBlock src={"ls"} attrs={{ dir: "/tmp" }} />);
+    expect(screen.getByText("run")).toBeInTheDocument();
+    expect(factory).toHaveBeenCalledWith("machine", "/tmp");
+  });
+});
+
+// THE TELL — a block pressed in the chat reports back through the write context's optional
+// `tellRun`. Surfaces that don't implement it (documents, the default) hear nothing and break nothing.
+describe("a finished run is told to the surface that offered it", () => {
+  const { useMarkdownWrite } = require("../context");
+  let rig;
+  beforeEach(() => {
+    jest.clearAllMocks();
+    useCapabilityState.mockReturnValue("granted");
+    useMarkdownScope.mockReturnValue({ projectCode: "systemview" });
+    rig = makeRunner();
+    useCapability.mockReturnValue(() => rig.runner);
+  });
+
+  it("tells the result — title and exit, NEVER the output (the transcript lives on disk)", async () => {
+    const tellRun = jest.fn();
+    useMarkdownWrite.mockReturnValue({ tellRun });
+    render(<CmdBlock src={"yarn test"} attrs={{ title: "Run the suite" }} />);
+    fireEvent.click(screen.getByText("run"));
+    rig.emit({ text: "1 failing" });
+    rig.finish({ started: true, code: 1 });
+    await waitFor(() => expect(tellRun).toHaveBeenCalled());
+    const told = tellRun.mock.calls[0][0];
+    expect(told.title).toBe("Run the suite");
+    expect(told.exit).toBe(1);
+    expect(told.started).toBe(true);
+    expect(told.tail).toBeUndefined();
+    expect(JSON.stringify(told)).not.toContain("1 failing");
+  });
+
+  it("a surface with no tellRun hears nothing and nothing breaks", async () => {
+    useMarkdownWrite.mockReturnValue({});
+    const { container } = render(<CmdBlock src={"yarn test"} attrs={{}} />);
+    fireEvent.click(screen.getByText("run"));
+    rig.finish({ started: true, code: 0 });
+    await waitFor(() => expect(container.firstChild.className).toContain("md-cmd--ok"));
   });
 });

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useLayoutEffect, useEffect, useContext, Suspense } from "react";
 import { visStyle } from "./visitorColor";
+import { receiptTone } from "./cmdReceipt";
 import { parseMcpResult } from "./feedRows";
 import ServiceContext from "../../ServiceContext";
 import lazyLoad from "../../utils/lazyLoad";
@@ -690,6 +691,16 @@ const Feed = ({ rows, answered = {}, onAnswer = null, renderText = null }) =>
         {`${r.ok ? "done" : "stopped"}${r.turns ? ` · ${r.turns} turns` : ""}${
           r.durationMs ? ` · ${Math.round(r.durationMs / 1000)}s` : ""
         }${money(r.costUsd) ? ` · ${money(r.costUsd)}` : ""}`}
+      </div>
+    ) : r.kind === "mine" && r.as === "cmd" ? (
+      // A COMMAND'S REPORT IS A LOG LINE, NOT A CHAT BUBBLE (his call: one row, and the visitor
+      // costume's hash colour was wrong for a machine). "cmd" is a reserved identity — the row
+      // wears the :::cmd block's own slate, the name sits inline in the prompt green, and the text
+      // stays plain: a one-line receipt, never a paragraph.
+      <div key={r.key} data-row={r.key} className={`${CLASSNAME}__row ${CLASSNAME}__cmdrow ${CLASSNAME}__cmdrow--${receiptTone(r.text)}`}>
+        <When ts={r.ts} />
+        <span className={`${CLASSNAME}__cmdrow-name`}>cmd</span>
+        <span className={`${CLASSNAME}__cmdrow-text`}>{r.text}</span>
       </div>
     ) : r.kind === "mine" ? (
       // His own turns, so a resumed conversation reads like a conversation and not a monologue.
