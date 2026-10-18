@@ -3570,6 +3570,32 @@ $sv-board-states: (
   overflow-y: auto;
   // A gesture that runs out of strip must not then scroll the conversation behind it.
   overscroll-behavior: contain;
+  // AND IT NEVER SCROLLS SIDEWAYS (his catch: *"why am I able to scroll horizontally? that's
+  // wrong… oh, that's because I opened it"*). An expanded job card carries a file chip whose label
+  // is the report's full path — ~75 characters with no bound — so the row's intrinsic width pushed
+  // the whole strip wider than its column. The strip is a fixed column by construction; anything
+  // too wide for it has to truncate, which is what the rules below do.
+  overflow-x: hidden;
+}
+// Chips inside the strip truncate instead of widening it — the path is already in the chip's
+// `title`, so nothing is lost by not printing all of it. Scoped to the strip on purpose: a chip in
+// a DOCUMENT has the width of the page and should keep showing its whole path.
+.agent-chat__strip {
+  .md-chip {
+    max-width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+  }
+}
+.agent-chat__jobrun-report {
+  // a flex row only shrinks its items when they are allowed to — without this the chip keeps its
+  // intrinsic width and the `max-width: 100%` above never bites
+  min-width: 0;
+  > * { min-width: 0; }
 }
 
 .agent-chat__worklist {
