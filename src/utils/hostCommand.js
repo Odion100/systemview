@@ -118,7 +118,7 @@ const CAP = 400000;
 
 // THE RUNNER. Returns immediately with a handle: `done` settles once, `cancel()` is the human's stop
 // button. Nothing here auto-runs and nothing here retries.
-export function runCommand({ terminal, projectCode, cwd, command, onOutput }) {
+export function runCommand({ terminal, projectCode, sessionId, cwd, command, onOutput }) {
   let raw = "";
   let settled = false;
   let transport = null;
@@ -152,7 +152,7 @@ export function runCommand({ terminal, projectCode, cwd, command, onOutput }) {
     try {
       // Wide on purpose: at 80 columns a build's output hard-wraps in the pty and no amount of CSS
       // can put it back together.
-      transport = await terminal.open({ projectCode, cwd, cols: 200, rows: 50 });
+      transport = await terminal.open({ projectCode, sessionId, cwd, cols: 200, rows: 50 });
     } catch (e) {
       return finish({ started: false, error: (e && (e.message || String(e))) || "the host refused to open a shell" });
     }
@@ -189,6 +189,16 @@ export function runCommand({ terminal, projectCode, cwd, command, onOutput }) {
 
   return {
     done,
+    // THE VIEW LETS GO, THE RUN KEEPS GOING — dispose detaches this window's subscription and
+    // nothing else (the transport contract's own split: dispose ≠ kill). The block that remounts
+    // adopts the surviving session through resumeCommand and picks the transcript back up.
+    detach: () => {
+      if (settled) return;
+      settled = true;
+      try { offData && offData(); offExit && offExit(); } catch {}
+      try { transport && transport.dispose && transport.dispose(); } catch {}
+      settle({ started: readTranscript(raw).started, detached: true });
+    },
     // Ctrl-C first — the command's own chance to stop — and the shell exits on its own once it has.
     // If it doesn't, the host's optional killSession ends the session; disposing alone would only
     // detach the view and leave the process running, which is the contract's explicit warning.
@@ -202,7 +212,7 @@ export function runCommand({ terminal, projectCode, cwd, command, onOutput }) {
       setTimeout(() => {
         if (settled) return;
         try {
-          if (terminal && typeof terminal.killSession === "function") terminal.killSession(projectCode);
+          if (terminal && typeof terminal.killSession === "function") terminal.killSession(projectCode, sessionId);
         } catch {
           /* optional verb */
         }
@@ -212,18 +222,112 @@ export function runCommand({ terminal, projectCode, cwd, command, onOutput }) {
   };
 }
 
+// THE REMOUNT'S HALF (his catch: *"he pressed a command in chat, hopped to the agent tab, came
+// back to no connection"* while the screen session kept running). A block that mounts and finds a
+// LIVE session under its own key adopts it: `open` on an existing (projectCode, sessionId) returns
+// the survivor without wiping its log, the history seeds the transcript, and the stream continues
+// to the real exit. Returns null when nothing survived — a command that FINISHED while the page
+// was away has no session left to adopt (its log is wiped on the key's next open), and the block
+// stays honestly cold rather than inventing a result.
+export async function resumeCommand({ terminal, projectCode, sessionId, cwd, onOutput }) {
+  if (!terminal || typeof terminal.sessions !== "function") return null;
+  const key = `${projectCode}:${sessionId}`;
+  let alive = [];
+  try { alive = (await terminal.sessions()) || []; } catch { return null; }
+  if (!alive.some((s) => s && s.key === key)) return null;
+
+  let raw = "";
+  let settled = false;
+  let transport = null;
+  let offData = null;
+  let offExit = null;
+  let settle = () => {};
+  const done = new Promise((res) => { settle = res; });
+  const finish = (result) => {
+    if (settled) return;
+    settled = true;
+    try { offData && offData(); offExit && offExit(); } catch {}
+    try { transport && transport.dispose && transport.dispose(); } catch {}
+    settle(result);
+  };
+
+  try {
+    transport = await terminal.open({ projectCode, sessionId, cwd, cols: 200, rows: 50 });
+  } catch {
+    return null; // it died between the list and the open — nothing to adopt
+  }
+  if (!transport) return null;
+
+  const push = () => {
+    if (raw.length > CAP) raw = `${BEGIN_MARK}\n… earlier output trimmed …\n${raw.slice(raw.length - CAP)}`;
+    const state = readTranscript(raw);
+    if (onOutput) onOutput(state);
+    if (state.exit !== null) finish({ started: true, code: state.exit, resumed: true });
+    return state;
+  };
+
+  offData = transport.onData((chunk) => { raw += chunk; push(); });
+  if (typeof transport.onExit === "function")
+    offExit = transport.onExit((info = {}) => {
+      const state = readTranscript(raw);
+      if (!state.started) finish({ started: false, resumed: true, error: `the shell exited (code ${info.code == null ? "?" : info.code})` });
+      else finish({ started: true, resumed: true, code: state.exit !== null ? state.exit : info.code, signal: info.signal });
+    });
+
+  // the history the survivor already wrote — fed through the same reader, so a sentinel that
+  // landed while nobody watched settles immediately
+  try { raw = (await transport.history()) || ""; } catch {}
+  const seeded = push();
+  if (!seeded.started) {
+    // a live session under this key with no BEGIN mark is not this block's run — let it be
+    finish({ started: false, resumed: true, foreign: true });
+    return null;
+  }
+
+  return {
+    done,
+    // what the survivor has already said — the remount paints this before the next chunk arrives,
+    // so a silent build doesn't resume as an empty pane
+    state: () => readTranscript(raw),
+    detach: () => {
+      if (settled) return;
+      settled = true;
+      try { offData && offData(); offExit && offExit(); } catch {}
+      try { transport && transport.dispose && transport.dispose(); } catch {}
+      settle({ started: true, detached: true });
+    },
+    cancel: () => {
+      try {
+        transport && transport.write(String.fromCharCode(3));
+        transport && transport.write("exit\n");
+      } catch {}
+      setTimeout(() => {
+        if (settled) return;
+        try { if (terminal && typeof terminal.killSession === "function") terminal.killSession(projectCode, sessionId); } catch {}
+        finish({ started: readTranscript(raw).started, cancelled: true });
+      }, 1500);
+    },
+  };
+}
+
 // RFC-053 — SystemView's implementation of the `shell` capability. A projectCode and a terminal host
 // or nothing: absent means this surface genuinely cannot run a command, and the block says so.
-export const commandRunner = (projectCode, cwd) => {
+export const commandRunner = (projectCode, cwd, sessionId) => {
   const terminal = terminalHost();
   if ((!projectCode && !cwd) || !terminal) return null;
   // `cwd` is left to the host on purpose — it resolves a project's root from the hub, and the
   // browser is deliberately not told where projects live. An explicit cwd (a `:::cmd{dir=…}`
   // machine address) rides through and WINS at the host, `~` included — expansion is the host's
   // too, for the same reason: the browser doesn't know where home is.
+  // `sessionId` gives each block's run its OWN session: two blocks stop interleaving one shell,
+  // and a refresh can find its run again by the same name.
+  const pc = projectCode || "machine";
   return {
     run: ({ command, onOutput }) =>
-      runCommand({ terminal, projectCode: projectCode || "machine", cwd: cwd || undefined, command, onOutput }),
+      runCommand({ terminal, projectCode: pc, sessionId: sessionId || undefined, cwd: cwd || undefined, command, onOutput }),
+    resume: sessionId
+      ? ({ onOutput }) => resumeCommand({ terminal, projectCode: pc, sessionId, cwd: cwd || undefined, onOutput })
+      : undefined,
   };
 };
 

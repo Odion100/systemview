@@ -5,7 +5,16 @@
 .ctx-docarea {
   // Width is the PANEL'S OWN state now (inline flex-basis from sv.ctxDocW) — his correction after
   // this shipped frozen at 44%: a panel here resizes, collapses, and comes back, like every other.
-  position: relative;
+  // THE PANE OWNS ITS SCROLL (his catch: scrolling an open file scrolled the PROFILE behind it, so
+  // leaving the file left the page at the bottom). A DEFINITE height is what engages CodePane's own
+  // scroller — an unbounded flex column never overflows, so the wheel chains to the page instead —
+  // and the height comes from THE ROW, which this area is a stretched flex item of: the row is
+  // `flex: 1` inside the 100vh shell, so `100%` here IS the available height. It was
+  // `calc(100vh - 140px)` for one afternoon and that guess left every document short of the window
+  // (his catch) — a borrowed allowance from the Code page, measuring a different box.
+  // overscroll-behavior keeps the wheel here at the ends instead of chaining to the page.
+  height: 100%;
+  overscroll-behavior: contain;
   padding-top: 0.5rem; // the Code page's .documentation-view carries the same — one look above the strip
   min-width: 320px;
   display: flex;

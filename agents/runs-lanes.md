@@ -62,12 +62,30 @@ Settled 2026-10-08. Two steps, both taken by whoever is doing the work:
 
 Both steps are enforced, in opposite directions:
 
-- **A `lane:` source whose branch does not exist is REFUSED by name**, and writes nothing. A row
-  points at work; a row pointing at nothing is worse than no row. (It happened: a lane briefed
-  `lane:lane/job-authoring` drove a complete 9/9 list addressed to a branch nobody ever cut.)
+- **A `lane:` source whose branch does not exist is REFUSED by name**, and writes nothing — and the
+  check looks in the session's own repo first, then every other root the project registry knows,
+  because coupled work routinely cuts its branch in the other repo. (The dead `lane/` spelling —
+  slash, no colon — is refused the same way.)
 - **A `lane/*` branch with no run against it is not a lane.** `lanes({projectCode})` names it
   separately — *"N lane/\* branches not registered"* — rather than listing it or hiding it. It has
   no row and nobody is watching it.
+- **And a standing lane is not a license.** Lanes outlive their verdicts: a design can be retracted
+  while its worktree stands (it happened — a retracted mechanism stood fifteen days and nearly rode
+  a batch back in). Before integrating any lane you did not just cut, `context()` its subject.
+
+The machinery's own handbook — the store, the source protocol, what rides a run record — is
+`docs/runs-and-worklists.md` in the autobot corpus; this page is the window-and-agent half.
+
+## The job card — a run's face in the strip
+
+A job run gets a **card** in the same strip: name, state, a real progress bar off its run list, the
+report chip, and the lanes it cut nested under it (the job's record names the branches; the strip
+does the join). The card reads **its own** run record by id — never the newest as a stand-in — and
+its states are `running`, `finished`, and `finished · landed` (every lane the record names is
+verifiably in the tree). "no report" is a fact about the record's pointer, not the disk: the stamp
+rides `show`'s filing (`quiet: true` for unattended runs), so a report written straight to disk
+leaves a card that honestly says nothing was filed. The whole machinery — the giving, the sidecar
+identity, the stamp — is `docs/jobs.md` in the autobot corpus.
 
 ## The bring-in is the delivery, and it must say what happened
 
