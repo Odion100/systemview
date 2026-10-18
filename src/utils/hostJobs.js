@@ -57,3 +57,20 @@ export const saveJob = (rec) => safe((j) => j.save(rec), { error: "no shell to w
 /** His rating, where he read the report. `rating` is a number; `note` is optional. */
 export const rateJobRun = (id, runId, rating, note = "") =>
   safe((j) => j.rate(id, runId, { rating, note }), null);
+
+/**
+ * HIS OWN MARK on a run — "walked it", "approved" — free text, `""` clears it. Returns the updated
+ * record, or null when this shell has no such door (an older shell: the card then shows the derived
+ * word with nothing to press, which is the honest degradation — a selector that cannot save is
+ * worse than no selector).
+ */
+export const markJobState = (id, runId, state) => safe((j) => j.state(id, runId, state), null);
+
+/** The vocabulary the window offers first — the shell's list, never a copy kept here. */
+export const jobStates = () => safe((j) => j.states(), []);
+
+/** Whether this shell can record his mark at all — asked before the chip offers a press. */
+export const hasJobState = () => {
+  const j = api();
+  return !!(j && typeof j.state === "function");
+};

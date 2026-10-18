@@ -5393,3 +5393,58 @@ $sv-board-states: (
   .agent-chat__unseen-kind { border-color: #ff8a80; color: #ff8a80; }
   .agent-chat__unseen-why { color: #ff8a80; }
 }
+
+// HIS MARK ON A JOB RUN — the chip keeps its costume (same size, same uppercase, same radius) and
+// gains a press. A button carries browser chrome by default, so every one of those is reset here:
+// the point is that the row looks identical whether the word is his or derived.
+.agent-chat__jobrun-statewrap { position: relative; display: inline-flex; flex: none; }
+button.agent-chat__jobrun-state {
+  border: none;
+  font-family: inherit;
+  line-height: inherit;
+}
+.agent-chat__jobrun-state--pressable {
+  cursor: pointer;
+  &:hover { filter: brightness(1.08); }
+}
+// HIS word reads differently from a derived one — indigo, because the chip is now a statement with
+// an author and the amber/green pair is what the DISK says.
+.agent-chat__jobrun-state--mine {
+  color: #e8e9ff;
+  background: #4a4aa8;
+}
+.agent-chat__jobrun--done .agent-chat__jobrun-state--mine { color: #e8e9ff; background: #4a4aa8; }
+// The menu: a small custom list, anchored under the chip. Not a native select (his preference) —
+// and `z-index` above the strip's own rows so it is not clipped by the card below it.
+.agent-chat__jobrun-statemenu {
+  position: absolute;
+  top: calc(100% + 3px);
+  left: 4px;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  min-width: 132px;
+  padding: 3px;
+  border-radius: 7px;
+  border: 1px solid var(--sv-border);
+  background: var(--sv-panel, #1b1d24);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.45);
+}
+.agent-chat__jobrun-stateopt {
+  border: none;
+  background: none;
+  color: var(--sv-text, #d7d9e0);
+  font: inherit;
+  font-size: 11px;
+  text-align: left;
+  padding: 5px 7px;
+  border-radius: 5px;
+  cursor: pointer;
+  &:hover { background: rgba(74, 74, 168, 0.28); }
+}
+.agent-chat__jobrun-stateopt--clear {
+  color: var(--sv-text-faint, #8a8f98);
+  border-top: 1px solid var(--sv-border);
+  margin-top: 2px;
+  font-style: italic;
+}
