@@ -162,9 +162,8 @@ const CmdBlock = ({ src, attrs = {} }) => {
     >
       <div className="md-cmd__head">
         <span className="md-cmd__kind">cmd</span>
-        {/* WHERE IT WILL RUN, up front — this presses a key and a process starts somewhere. Which
-            repo that is cannot be a footnote, so it sits beside the badge like ::commit's does. */}
-        {projectCode && <span className="md-cmd__scope">{projectCode}</span>}
+        {/* WHERE IT WILL RUN is not a badge anymore — the terminal prompt below carries it, once,
+            where a shell says it (his call: the prompt made the badge a second copy). */}
         <span className="md-cmd__title">{title}</span>
         <span className="md-cmd__state">{state}</span>
         {busy ? (
@@ -172,31 +171,48 @@ const CmdBlock = ({ src, attrs = {} }) => {
             stop
           </button>
         ) : (
-          <button
-            type="button"
-            className="md-cmd__btn"
-            title={`Run in ${projectCode || "this project"}`}
-            onClick={start}
-          >
-            {run ? "run again" : "run"}
-          </button>
+          <>
+            {/* CLEAR — back to the unrun block, output gone (his ask: wipe before running again).
+                Only once there is something to wipe; the state honestly returns to "not run". */}
+            {run && (
+              <button type="button" className="md-cmd__btn md-cmd__btn--quiet" onClick={() => setRun(null)}>
+                clear
+              </button>
+            )}
+            <button
+              type="button"
+              className="md-cmd__btn"
+              title={`Run in ${projectCode || "this project"}`}
+              onClick={start}
+            >
+              {run ? "run again" : "run"}
+            </button>
+          </>
         )}
       </div>
-      {/* The command itself, verbatim and always on screen — what you press and what you read are
-          the same characters, and that is the whole reason this block exists. */}
-      <pre className="md-cmd__command">{command}</pre>
-      {run && (
-        <div className="md-cmd__out" ref={outRef}>
-          {run.error ? <div className="md-cmd__error">{run.error}</div> : null}
-          {run.text ? (
-            <pre className="md-cmd__text">{run.text}</pre>
-          ) : (
-            <div className="md-cmd__quiet">
-              {busy ? "waiting for output…" : run.started ? "(no output)" : "nothing ran"}
-            </div>
-          )}
-        </div>
-      )}
+      {/* THE TERMINAL FACE — his ask: the command should read as a command LINE, not a paragraph
+          of code. One dark pane, a prompt naming the folder it runs in, the command after it, and
+          the output printing into the SAME pane underneath — the shape of the session it actually
+          is. The prompt is CHROME, not content: it lives outside __command (and is unselectable in
+          css) so what you read there is still exactly what runs, verbatim. */}
+      <div className="md-cmd__term">
+        <pre className="md-cmd__line">
+          <span className="md-cmd__prompt">{projectCode || "~"} $ </span>
+          <span className="md-cmd__command">{command}</span>
+        </pre>
+        {run && (
+          <div className="md-cmd__out" ref={outRef}>
+            {run.error ? <div className="md-cmd__error">{run.error}</div> : null}
+            {run.text ? (
+              <pre className="md-cmd__text">{run.text}</pre>
+            ) : (
+              <div className="md-cmd__quiet">
+                {busy ? "waiting for output…" : run.started ? "(no output)" : "nothing ran"}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

@@ -417,12 +417,13 @@ with that project's services down. **The project you name must be connected** (a
 is enough, no live service needed); if it isn't, the panel says so and names the project rather than
 quietly reading the same path out of a different repo.
 
-A path that belongs to no project at all — something under `/tmp`, a file outside every repo — is a
-**machine address** since RFC-069: `nav {file: "/abs/path"}` opens it, the tab strip's `+` door opens
-it, and the pane renders it (no git, no comments — absent, with the pane saying why). What a machine
-path is NOT, yet, is an **embed**: `::file`/`::image` read bytes through the project door
-(`Plugin.readFile`, `/sv-file/<pc>`), which has no machine branch — so inside a document, outside-repo
-content still goes in a fenced block, or you open the file itself as a machine tab.
+A path that belongs to no project at all — something under `/tmp`, a lane worktree, a file outside
+every repo — is a **machine address** since RFC-069: `nav {file: "/abs/path"}` opens it, the tab
+strip's `+` door opens it, and the pane renders it (no git, no comments — absent, with the pane
+saying why). **Embeds take machine addresses too** (since the 14-lane land, e1c90bd): `:file[~/…]`
+chips open them and `::file[~/…]` renders them inline through the machine door — no git halves, no
+Diff button (nothing to diff against), and a report can embed its lane-worktree deliverables
+directly. The address travels whole through one opener; a machine file never wears a project.
 
 ## Unknown blocks
 

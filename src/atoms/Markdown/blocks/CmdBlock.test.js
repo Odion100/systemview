@@ -91,6 +91,20 @@ describe("a :::cmd block runs one command through the shell capability", () => {
     expect(container.querySelector(".md-cmd__text").textContent).toBe("1 failing");
   });
 
+  it("clear wipes a finished run back to the unrun block — and is not offered before one exists", async () => {
+    const { container } = render(<CmdBlock src={"yarn test"} attrs={{}} />);
+    expect(screen.queryByText("clear")).toBeNull(); // nothing to wipe yet
+    fireEvent.click(screen.getByText("run"));
+    rig.emit({ started: true, text: "2 passing", exit: 0 });
+    rig.finish({ started: true, code: 0 });
+    await waitFor(() => expect(container.firstChild.className).toContain("md-cmd--ok"));
+    fireEvent.click(screen.getByText("clear"));
+    expect(container.querySelector(".md-cmd__text")).toBeNull();
+    expect(screen.getByText("not run")).toBeInTheDocument();
+    expect(screen.getByText("run")).toBeInTheDocument(); // "run", not "run again" — the slate is clean
+    expect(container.firstChild.className).not.toContain("md-cmd--ok");
+  });
+
   it("NEVER RAN is its own face, not a failed run", async () => {
     const { container } = render(<CmdBlock src={"yarn test"} attrs={{}} />);
     fireEvent.click(screen.getByText("run"));
