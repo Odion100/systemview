@@ -52,11 +52,12 @@ import rfcRows, { rfcLine } from "./rfcRows";
 import gapRows, { gapLine } from "./gapRows";
 // eslint-disable-next-line import/no-cycle
 import Board from "../Board/Board";
-import { hasHostJobs, jobRuns, rateJobRun } from "../../utils/hostJobs";
+import { hasHostJobs, jobRuns, rateJobRun, markJobState, jobStates, hasJobState } from "../../utils/hostJobs";
 import { bandTabs, bandLabel, readBandTab, writeBand, TAB_KEY } from "./bandTabs";
 import NudgeCog from "./NudgeCog";
 import { flagsFrom } from "./approvalWaiting";
 import { unseenSubagents } from "./unseenSubagents";
+import { chipFor, menuFor } from "./jobState";
 import { deleteReport as deleteReportFile, reportIndexSets, listReports } from "../../utils/reportOps";
 import SEND_ICON from "../../assets/send.png";
 import { LINKISH, shortUrl, collectLinks, pathHref } from "./chatLinks";
@@ -856,6 +857,16 @@ function JobRun({ items, source, projectCode, runId, onClear, onLanes, laneChild
   const [open, setOpen] = useState(false);
   const [rec, setRec] = useState(null);
   const [rating, setRating] = useState(0);
+  // the mark's menu, and the words it offers — read from the shell, never a copy kept here
+  const [menu, setMenu] = useState(false);
+  const [vocab, setVocab] = useState([]);
+  const canMark = hasJobState() && !!rec;
+  useEffect(() => {
+    if (!menu || vocab.length) return;
+    let live = true;
+    jobStates().then((v) => live && setVocab(Array.isArray(v) ? v : []));
+    return () => { live = false; };
+  }, [menu, vocab.length]);
   const done = (items || []).filter((t) => t.state === "done").length;
   const total = (items || []).length;
   const complete = total > 0 && done === total;
@@ -906,10 +917,20 @@ function JobRun({ items, source, projectCode, runId, onClear, onLanes, laneChild
   const recLanes = (rec && Array.isArray(rec.lanes) ? rec.lanes : []).filter((l) => l && l.branch);
   const landedLanes = recLanes.filter((l) => !standingLanes.includes(l.branch));
   const allLanded = complete && recLanes.length > 0 && landedLanes.length === recLanes.length;
-  const state = complete ? (allLanded ? "finished · landed" : "finished") : (rec && rec.status) || "running";
+  // THE CHIP IS HIS, WHEN HE SAYS SO — see ./jobState.js for which of the three facts wins and why.
+  const chip = chipFor(rec, { complete, allLanded });
+  const state = chip.label;
   const rate = async (n) => {
     setRating(n);
     await rateJobRun(jobId, (rec && rec.id) || "", n);
+  };
+  // HIS MARK — optimistic on the record the card already holds, then the disk's answer replaces it,
+  // so a shell that refuses cannot leave the chip lying about what was saved.
+  const mark = async (word) => {
+    setMenu(false);
+    setRec((cur) => (cur ? { ...cur, state: word } : cur));
+    const saved = await markJobState(jobId, (rec && rec.id) || "", word);
+    if (saved) setRec(saved);
   };
 
   if (!total) return null;
@@ -936,7 +957,42 @@ function JobRun({ items, source, projectCode, runId, onClear, onLanes, laneChild
       <div className={`${CLASSNAME}__jobrun-head`}>
         <span className={`${CLASSNAME}__jobrun-badge`}>⚙</span>
         <span className={`${CLASSNAME}__jobrun-name`}>{(rec && rec.job) || jobId}</span>
-        <span className={`${CLASSNAME}__jobrun-state${allLanded ? ` ${CLASSNAME}__jobrun-state--landed` : ""}`}>{state}</span>
+        {/* THE WORD IS A DOOR when this shell can record his mark — a CUSTOM menu, not a native
+            select (his call: *"it doesn't have to be a built-in selector if that doesn't style
+            nicely. I prefer custom ones."*). It keeps the chip's own costume either way, so the
+            row reads the same whether the mark is his or derived. stopPropagation: the chip sits
+            inside the card's expand door, and pressing it must not also open the card. */}
+        {canMark ? (
+          <span className={`${CLASSNAME}__jobrun-statewrap`}>
+            <button
+              type="button"
+              className={`${CLASSNAME}__jobrun-state${allLanded ? ` ${CLASSNAME}__jobrun-state--landed` : ""}${chip.mine ? ` ${CLASSNAME}__jobrun-state--mine` : ""} ${CLASSNAME}__jobrun-state--pressable`}
+              title={chip.title}
+              onClick={(e) => { e.stopPropagation(); setMenu((m) => !m); }}
+            >
+              {state}
+            </button>
+            {menu && (
+              <span className={`${CLASSNAME}__jobrun-statemenu`} onClick={(e) => e.stopPropagation()}>
+                {menuFor(vocab, chip.mine ? state : "").map((row) => {
+                  const clear = typeof row !== "string" && row.clear;
+                  return (
+                    <button
+                      key={clear ? "__clear" : row}
+                      type="button"
+                      className={`${CLASSNAME}__jobrun-stateopt${clear ? ` ${CLASSNAME}__jobrun-stateopt--clear` : ""}`}
+                      onClick={() => mark(clear ? "" : row)}
+                    >
+                      {clear ? row.label : row}
+                    </button>
+                  );
+                })}
+              </span>
+            )}
+          </span>
+        ) : (
+          <span className={`${CLASSNAME}__jobrun-state${allLanded ? ` ${CLASSNAME}__jobrun-state--landed` : ""}${chip.mine ? ` ${CLASSNAME}__jobrun-state--mine` : ""}`} title={chip.title}>{state}</span>
+        )}
         <span className={`${CLASSNAME}__worklist-count`}>{done}/{total}</span>
         <span className={`${CLASSNAME}__worklist-bar${complete ? ` ${CLASSNAME}__worklist-bar--done` : ""}`}>
           <span className={`${CLASSNAME}__worklist-fill`} style={{ width: `${Math.round((done / total) * 100)}%` }} />
