@@ -417,8 +417,12 @@ with that project's services down. **The project you name must be connected** (a
 is enough, no live service needed); if it isn't, the panel says so and names the project rather than
 quietly reading the same path out of a different repo.
 
-A path that belongs to no project at all — something under `/tmp`, a file outside every repo — is
-not an embed. Put its content in the show itself, or paste it in a fenced block.
+A path that belongs to no project at all — something under `/tmp`, a file outside every repo — is a
+**machine address** since RFC-069: `nav {file: "/abs/path"}` opens it, the tab strip's `+` door opens
+it, and the pane renders it (no git, no comments — absent, with the pane saying why). What a machine
+path is NOT, yet, is an **embed**: `::file`/`::image` read bytes through the project door
+(`Plugin.readFile`, `/sv-file/<pc>`), which has no machine branch — so inside a document, outside-repo
+content still goes in a fenced block, or you open the file itself as a machine tab.
 
 ## Unknown blocks
 

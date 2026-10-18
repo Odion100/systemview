@@ -1,6 +1,7 @@
 import React from "react";
 import { useMarkdownScope } from "../context";
 import { resolveRef } from "../../../utils/resolveRef";
+import { openAddress } from "../openRef";
 
 // RFC-025 §4.1 — `:file[cli/stage.js#L40-70]`. Codebase connections (RFC-022) made a file reference
 // a real, resolvable thing, so a doc can point AT the code instead of quoting it.
@@ -83,15 +84,10 @@ const FileLink = ({ label, attrs = {} }) => {
 // control. And being a real `<a href>` is what let the browser treat an app affordance as a web
 // link (that is how every same-origin link ended up in a new tab: RFC-051 round, ChatLink).
 // So: a BUTTON that opens. ⌘-click still opens too — one behaviour, no modifier to learn.
+  // ONE OPENER (openAddress) — this chip no longer rebuilds the address it was handed; the
+  // machine/project normalisation lives in exactly one place.
   const fire = (pc, p, machine) =>
-    window.dispatchEvent(
-      new CustomEvent("sv:openFileInNav", {
-        // THE MACHINE FLAG RIDES — the resolver answers the machine form for ~/absolute paths
-        // (RFC-069), and dropping it here sent a lane-worktree chip through the project door, which
-        // refused with "outside the project folder" (his catch, 2026-10-17).
-        detail: { projectCode: machine ? "" : pc, serviceId: machine ? null : serviceId, path: p, language: langOf(p), lines, machine: machine || undefined },
-      }),
-    );
+    openAddress({ projectCode: pc, serviceId, path: p, language: langOf(p), lines, machine });
 
   const open = (e) => {
     e.preventDefault();

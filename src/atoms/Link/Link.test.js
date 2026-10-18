@@ -1,33 +1,40 @@
-/* eslint-disable jest/valid-expect */
+// Ported from enzyme (2026-10-16). The atom changed under the dead suite: it is a react-router
+// <Link> now, so it renders inside a router here. Two old claims died with the change and are
+// recorded rather than faked: add_class is accepted but never rendered (dead prop), and the
+// bare-anchor shape is gone.
 import React from "react";
-
-import { expect } from "chai";
-import { shallow, render } from "enzyme";
-
+import { render, fireEvent } from "@testing-library/react";
+import { MemoryRouter, Route } from "react-router-dom";
 import Link from "./Link";
 
-import Enzyme from "enzyme";
-import Adapter from "enzyme-adapter-react-16";
-Enzyme.configure({ adapter: new Adapter() });
+const mount = (ui, at = "/") => {
+  let loc = null;
+  const r = render(
+    <MemoryRouter initialEntries={[at]}>
+      {ui}
+      <Route path="*" render={({ location }) => ((loc = location), null)} />
+    </MemoryRouter>
+  );
+  return { ...r, loc: () => loc };
+};
 
 describe("<Link/>", () => {
-  it("renders a tag with class link", () => {
-    const wrapper = shallow(<Link />);
-    expect(wrapper.find("a.link")).to.have.a.lengthOf(1);
+  it("renders an anchor with class link carrying the text", () => {
+    const { container } = mount(<Link link="/test" text="test" />);
+    const a = container.querySelector("a.link");
+    expect(a).not.toBeNull();
+    expect(a.textContent).toBe("test");
+    expect(a.getAttribute("href")).toBe("/test");
   });
 
-  it("renders text with the link when text prop is used", () => {
-    const wrapper = render(<Link text="test" />);
-    expect(wrapper.text()).to.equal("test");
+  it("carries the current ?tab= along", () => {
+    const { container } = mount(<Link link="/specs/pc" text="t" />, "/somewhere?tab=logs");
+    expect(container.querySelector("a.link").getAttribute("href")).toBe("/specs/pc?tab=logs");
   });
 
-  it("should additional classname to the container <a> tag when add_class prop", () => {
-    const wrapper = shallow(<Link add_class="test" />);
-    expect(expect(wrapper.find("a.link").props().className).to.equal("link test"));
-  });
-
-  it("should use link prop to add href", () => {
-    const wrapper = shallow(<Link link="/test" />);
-    expect(expect(wrapper.find("a.link").props().href).to.equal("/test"));
+  it("clicking while already active deselects to /specs", () => {
+    const { container, loc } = mount(<Link link="/here" text="t" />, "/here");
+    fireEvent.click(container.querySelector("a.link"));
+    expect(loc().pathname).toBe("/specs");
   });
 });

@@ -829,6 +829,21 @@ function projectRoots() {
   return out;
 }
 
+// THE REPORTS BACKSTOP — ./reportJanitor.js holds the rule (old AND unpointed, both halves of the
+// delete); this is only the cadence: once at boot, then daily, over every root the hub knows.
+// Relevance sweeps by agents are the real exit for reports; this clock is the floor behind them.
+const { collectReports } = require("./reportJanitor");
+function sweepReports() {
+  try {
+    Object.entries(projectRoots()).forEach(([pc, root]) => {
+      const res = collectReports(root);
+      if (res.deleted.length) console.log(`[reports backstop] ${pc}: collected ${res.deleted.length} past the clock — ${res.deleted.join(", ")}`);
+    });
+  } catch { /* a janitor must never take the hub down */ }
+}
+setTimeout(sweepReports, 15 * 1000); // after boot settles, not during it
+setInterval(sweepReports, 24 * 60 * 60 * 1000);
+
 // FILES, SERVED BY THE HUB — the same owner as git, which is the entire point. His question, and it
 // was the right one to ask: *"is it better for you to use the hub?"* Yes, for one reason that has
 // nothing to do with taste: THE HUB KNOWS EVERY PROJECT'S FOLDER. The shell only knows the projects
@@ -870,68 +885,9 @@ async function writeFile(projectCode, { path: rel, content, root } = {}) {
     return { ok: false, error: String(e.message || e) };
   }
 }
-// ── THE MACHINE DOOR (RFC-069, approved 2026-10-15) ─────────────────────────────────────────
-// A file outside every project root is a legal address now: ("", absolute path). These verbs are
-// the second door — `inside()` above is untouched, because it guards the PROJECT door against
-// relative-path traversal, and this door has no relative grammar to abuse: absolute only, `~`
-// expanded, normalized. Reads answer anything the hub's own process can read (dotfiles included —
-// his standing ruling: he is approving the system the whole time); writes need the parent to
-// exist; delete unlinks a FILE or an empty directory and refuses a tree by name — `rm`, not
-// `rm -rf` (his call at the RFC review).
-function machinePath(raw) {
-  let p = String(raw || "").trim().replace(/^file:\/\//, "");
-  if (p.startsWith("~/")) p = path_.join(require("os").homedir(), p.slice(2));
-  if (!path_.isAbsolute(p)) return null; // the relative grammar belongs to projects
-  return path_.normalize(p);
-}
-async function readPath({ path: raw } = {}) {
-  const abs = machinePath(raw);
-  if (!abs) return { ok: false, error: "the machine door takes an absolute path — relative paths belong to a project" };
-  try {
-    return { ok: true, path: abs, machine: true, content: fsGit.readFileSync(abs, "utf8") };
-  } catch (e) {
-    return { ok: false, error: String(e.message || e) };
-  }
-}
-async function writePath({ path: raw, content } = {}) {
-  const abs = machinePath(raw);
-  if (!abs) return { ok: false, error: "the machine door takes an absolute path — relative paths belong to a project" };
-  if (!fsGit.existsSync(path_.dirname(abs)))
-    return { ok: false, error: `the folder ${path_.dirname(abs)} does not exist — the machine door creates files, never directory cascades` };
-  try {
-    fsGit.writeFileSync(abs, String(content == null ? "" : content));
-    return { ok: true, path: abs, machine: true };
-  } catch (e) {
-    return { ok: false, error: String(e.message || e) };
-  }
-}
-async function deletePath({ path: raw } = {}) {
-  const abs = machinePath(raw);
-  if (!abs) return { ok: false, error: "the machine door takes an absolute path — relative paths belong to a project" };
-  try {
-    const st = fsGit.statSync(abs);
-    if (st.isDirectory()) {
-      if (fsGit.readdirSync(abs).length)
-        return { ok: false, error: `${abs} is a directory with contents — this door deletes a file or an empty folder, never a tree` };
-      fsGit.rmdirSync(abs);
-    } else {
-      fsGit.unlinkSync(abs);
-    }
-    return { ok: true, path: abs, machine: true };
-  } catch (e) {
-    return { ok: false, error: String(e.message || e) };
-  }
-}
-async function listPath({ path: raw } = {}) {
-  const abs = machinePath(raw);
-  if (!abs) return { ok: false, error: "the machine door takes an absolute path — relative paths belong to a project" };
-  try {
-    const rows = fsGit.readdirSync(abs, { withFileTypes: true }).map((d) => ({ name: d.name, dir: d.isDirectory() }));
-    return { ok: true, path: abs, machine: true, entries: rows };
-  } catch (e) {
-    return { ok: false, error: String(e.message || e) };
-  }
-}
+// ── THE MACHINE DOOR (RFC-069) lives in ./machineDoors.js — extracted whole so a suite can
+// hold its claims without booting the hub; behavior unchanged, this require is the only seam.
+const { machinePath, readPath, writePath, deletePath, listPath } = require("./machineDoors");
 
 async function deleteFile(projectCode, { path: rel, root } = {}) {
   const cwd = rootOf(projectCode, root);
@@ -961,7 +917,7 @@ function walkDir(root, dir, out, cap) {
       const row = { path: rel };
       // Reports list by TIME ("everyone doesn't even have a time next to it" — scanned, unindexed
       // files carried none). One stat, only for the files whose lists sort by it.
-      if (/^\.systemview\/report\..+\.md$/i.test(rel)) {
+      if (/^\.systemview\/report\..+\.md$/i.test(rel) || rel === ".systemview/reports.index.json") {
         try { row.mtime = fsGit.statSync(path_.join(root, rel)).mtimeMs; } catch {}
       }
       // A COMMENT SIDECAR'S SIZE IS HOW THE UI KNOWS IT IS EMPTY. `commentedPathSet` skips sidecars

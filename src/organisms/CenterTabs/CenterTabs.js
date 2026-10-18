@@ -1,9 +1,12 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import RowMenu from "../../atoms/RowMenu/RowMenu";
+import { openAddress } from "../../atoms/Markdown/openRef";
 import { getTabs, closeTab, moveTab, closeRight, closeOthers, closeAll, countRight } from "../../pages/SystemView/tabsStore";
 import { iconForTab, TAB_ICONS } from "../../utils/fileIcons";
 import { labelOfTab } from "../../pages/SystemView/tabRoutes";
 import "../WallPanel/styles.scss";
+import { hostFiles, machineFiles } from "../../utils/hostFiles";
+import { browseSplit, browseMatch, browseJoin } from "./browse";
 
 // THE CENTER TAB STRIP — the one component, extracted from Documentation (RFC-069 slice 4) after
 // his correction landed twice in one day: *"that's not the same component… it needs to actually be
@@ -182,20 +185,54 @@ export default function CenterTabs({ tabsPc, tabs = [], isActive, onOpen, afterC
           <div className="doc-tabs__plus-pop">
             <input
               autoFocus
+              onBlur={() => plus.setOpen(false)} // a click anywhere else dismisses (his catch: it only closed on refresh); popup buttons keep focus via mousedown-preventDefault
               className="doc-tabs__plus-input"
               placeholder="/any/path/on/this/machine  ·  ~/works  ·  or a repo-relative path"
               value={plus.path}
               onChange={(e) => plus.setPath(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter") plus.submit(plus.path);
+                const n = (plus.found || []).length;
+                if (e.key === "ArrowDown" && n) { e.preventDefault(); plus.setSel((plus.sel + 1) % n); return; }
+                if (e.key === "ArrowUp" && n) { e.preventDefault(); plus.setSel((plus.sel - 1 + n) % n); return; }
+                if (e.key === "Tab" && n) {
+                  // Complete, never open: a directory descends, a file's name lands in the input.
+                  e.preventDefault();
+                  const f = plus.found[Math.min(plus.sel, n - 1)];
+                  if (f.dir) plus.pick(f);
+                  else plus.setPath(browseJoin(browseSplit(plus.path).dir, f.name));
+                  return;
+                }
+                if (e.key === "Enter") {
+                  if (n) plus.pick(plus.found[Math.min(plus.sel, n - 1)]);
+                  else plus.submit(plus.path);
+                  return;
+                }
                 if (e.key === "Escape") plus.setOpen(false);
               }}
             />
             {plus.err && <div className="doc-tabs__plus-err">{plus.err}</div>}
-            {plus.recents && plus.recents.length > 0 && (
+            {/* THE LISTING — what the typed directory holds, fragment-filtered, dirs first. A click
+                behaves like Enter on that row: descend a folder, open a file. */}
+            {plus.found && plus.found.length > 0 && (
+              <div className="doc-tabs__plus-found">
+                {plus.found.map((f, i) => (
+                  <button
+                    key={f.name}
+                    type="button"
+                    className={`doc-tabs__plus-entry${i === plus.sel ? " doc-tabs__plus-entry--sel" : ""}${f.dir ? " doc-tabs__plus-entry--dir" : ""}`}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onMouseEnter={() => plus.setSel(i)}
+                    onClick={() => plus.pick(f)}
+                  >
+                    {f.dir ? `${f.name}/` : f.name}
+                  </button>
+                ))}
+              </div>
+            )}
+            {(!plus.found || !plus.found.length) && plus.recents && plus.recents.length > 0 && (
               <div className="doc-tabs__plus-recents">
                 {plus.recents.map((rp) => (
-                  <button key={rp} type="button" className="doc-tabs__plus-recent" title={rp} onClick={() => plus.submit(rp)}>
+                  <button key={rp} type="button" className="doc-tabs__plus-recent" title={rp} onMouseDown={(e) => e.preventDefault()} onClick={() => plus.submit(rp)}>
                     {rp}
                   </button>
                 ))}
@@ -216,6 +253,44 @@ export function useOpenByPath(tabsPc) {
   const [open, setOpen] = useState(false);
   const [path, setPath] = useState("");
   const [err, setErr] = useState("");
+  // THE BROWSE HALF (his direction: "navigate through files nicely"). The typed string's directory
+  // part lists — project paths through the lazy tree's own shallow door, absolute/~ through the
+  // machine door — and the basename fragment filters. A stale answer must never land on a newer
+  // input, so each listing carries its ticket.
+  const [found, setFound] = useState([]); // matched entries for the CURRENT input
+  const [sel, setSel] = useState(0);
+  const ticket = useRef(0);
+  useEffect(() => {
+    if (!open) return;
+    const { dir, frag, machine } = browseSplit(path);
+    if (dir == null) { setFound([]); setSel(0); return; } // empty input: recents' moment
+    const t = ++ticket.current;
+    (async () => {
+      try {
+        let entries;
+        if (machine) entries = await machineFiles().listDir({ path: dir });
+        else {
+          const res = await hostFiles(tabsPc).listFiles({ dir, shallow: true });
+          entries = ((res && res.entries) || []).map((e) => ({ name: e.name, dir: !!e.dir }));
+        }
+        if (ticket.current !== t) return;
+        setFound(browseMatch(entries, frag));
+        setSel(0);
+      } catch {
+        if (ticket.current === t) { setFound([]); setSel(0); }
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [path, open, tabsPc]);
+  // A pick: a directory descends (and relists, via the effect); a file opens.
+  const pick = useCallback((entry) => {
+    const { dir } = browseSplit(path);
+    const joined = browseJoin(dir, entry.name);
+    if (entry.dir) setPath(`${joined}/`);
+    else submitRef.current(joined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [path]);
+  const submitRef = useRef(null);
   const recents = (() => {
     try { return JSON.parse(localStorage.getItem("sv.openByPath.recents") || "[]"); } catch { return []; }
   })();
@@ -234,11 +309,7 @@ export function useOpenByPath(tabsPc) {
         } catch {}
         setOpen(false);
         setPath("");
-        window.dispatchEvent(
-          new CustomEvent("sv:openFileInNav", {
-            detail: r.machine ? { machine: true, projectCode: "", path: r.path } : { projectCode: r.projectCode, path: r.path },
-          })
-        );
+        openAddress({ machine: r.machine, projectCode: r.projectCode, path: r.path }); // one opener — no hand-built detail
       } catch (e) {
         setErr(String((e && e.message) || e));
       }
@@ -246,5 +317,6 @@ export function useOpenByPath(tabsPc) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [tabsPc, recents]
   );
-  return { open, setOpen, path, setPath, err, recents, submit };
+  submitRef.current = submit;
+  return { open, setOpen, path, setPath, err, recents, submit, found, sel, setSel, pick };
 }

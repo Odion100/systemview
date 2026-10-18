@@ -44,6 +44,19 @@ const offer = (name, detail) => {
 export const openReportInPanel = (detail) =>
   offer("sv:openFileInNav", { language: "markdown", ...detail });
 
+// THE ONE OPENER — his call, 2026-10-17, after the machine flag died at four hand-built dispatch
+// sites in a day: every surface that opens a file address calls THIS, and nothing else dispatches
+// sv:openFileInNav. The detail is normalised in exactly one place: a machine address sheds its
+// project and service (two identities on one file is the bug this exists to kill), a project
+// address keeps them. Callers hand over whatever they resolved; they do not rebuild it.
+export const openAddress = (detail = {}) => {
+  const d = detail.machine
+    ? { ...detail, machine: true, projectCode: "", serviceId: null }
+    : { ...detail, machine: undefined };
+  window.dispatchEvent(new CustomEvent("sv:openFileInNav", { detail: d }));
+  return d;
+};
+
 // A NAMESPACE IS NOT A DOCUMENT, so there is no doc panel for it and inventing one to be symmetric
 // would be a fourth surface nobody asked for. The only thing that draws a namespace is the codebase
 // tree — on the Code page that is the navigator, and off it, the one the bot carries. A reveal is

@@ -25,13 +25,15 @@ when: {"pct":{"gte":60}}
 scope: agent:systemview-test
 do: skill:context-maintenance
 kind: context
-guard: once-per-session
+rate: once-per-rise
 ---
 
 Context is past 60% of the window. Early is cheap and late is not…
 ```
 
-`do` is a pointer — `skill:<name>` today — never a procedure. `author` records who wrote it
+`do` is a pointer — `skill:<name>` (offered; the agent decides) or `job:<id>` (GIVEN; the job's
+declared inputs ride the hook's `with:`, and a hook that cannot supply them is refused at the
+writing door) — never a procedure. `author` records who wrote it
 (`user`, or `agent:<slot>`); an agent may overwrite only its own, the operator anything. No
 `author` means hand-written before attribution existed and reads as the operator's.
 
@@ -56,6 +58,7 @@ with a fixed set of values carry them as presets, so an author copies instead of
 | `file.changed` | a file under the session's cwd changed | `path` |
 | `permission.request` | the agent asked before acting | `title`, `detail` |
 | `usage` | token usage reported — end of a turn, a safe place to hook | `pct`, `contextTokens`, `contextWindow`, `inputTokens`, `outputTokens` |
+| `idle` | the session has been quiet since it last handed the turn back — the moment for work that must never compete with the human | `quietMin` |
 | `compaction.after` | a compaction finished; the reasoning behind the summary is gone | `trigger` (auto \| manual), `preTokens`, `postTokens` |
 | `todo.updated` | the worklist changed | `source`, `run` |
 | `run.started` | a procedure's execution opened its own worklist | `source`, `id` |
@@ -168,7 +171,7 @@ Every firing also emits a `hook.fired` receipt into the feed, so an unattended t
 
 Agents author through the context MCP: `hooksList` first — the real event vocabulary and who
 wrote each existing hook — then `hooksWrite`; the authoring rules live on those tools. A frequent
-event wants a guard, and a rename is a move, not a copy.
-Four hooks exist today: `context-retrieval-cold` (`session.started`, origin cold),
-`context-retrieval` (`compaction.after`), `context-maintenance` (`usage`, pct ≥ 60), and `study`
-(`session.started`, origin cold, weekly cooldown).
+event wants a rate, and a rename is a move, not a copy.
+Which hooks exist right now is STATE, so it is read, never recalled: `hooksList` answers with
+the live set, who authored each, and the real event vocabulary — this page had a list of four here
+once, and it was wrong by four within the week.

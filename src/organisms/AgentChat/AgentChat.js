@@ -1040,9 +1040,13 @@ function WorkList({ items, onClear, source = "" }) {
 // THE BAND'S HEADER — one definition, worn in BOTH states, pinned RIGHT in both (his calls: "it
 // evolved to what it is — it's a header"; "keep it on the right side"). It counts the things that
 // matter — jobs, lanes, reports — never the whiteboard; the approval flag rides when one waits.
-function WorkbandHead({ open, jobs, lanes, reports, waiting, onToggle }) {
+function WorkbandHead({ open, jobs, lists = 0, lanes, reports, waiting, onToggle }) {
   const seg = [];
+  // "JOBS" COUNTS JOBS — his catch, 2026-10-16: the header said "18 jobs" over 13 job cards,
+  // because the count took every standing worklist. Skill and session lists get their own word
+  // when any stand; usually none do, and the header simply stops lying.
   if (jobs) seg.push(`${jobs} job${jobs === 1 ? "" : "s"}`);
+  if (lists) seg.push(`${lists} list${lists === 1 ? "" : "s"}`);
   if (lanes) seg.push(`${lanes} lane${lanes === 1 ? "" : "s"}`);
   if (reports) seg.push(`${reports} report${reports === 1 ? "" : "s"}`);
   return (
@@ -4937,12 +4941,33 @@ const countdown = (str, now = Date.now()) => {
     try { window.localStorage.setItem(`sv.chat.reportsOpen.${projectCode}`, v ? "1" : "0"); } catch {}
     setReportsOpenRaw(v);
   };
+  // THE GATE — his challenge, 2026-10-16: *"isn't polling inefficient? …you have to justify it."*
+  // The justified shape: one cheap listing per tick fingerprints every report file AND the index by
+  // (path, mtime). Unchanged fingerprint → the tick ends at that single call; nothing is re-read
+  // and the state already on screen stays. Changed → the real pull runs (the list, the 20 approval
+  // reads). A verdict press bumps its file's mtime and a filing/delete changes the path set, so
+  // both arrive within a tick — the gate skips only the ticks where nothing happened, which is
+  // most of them.
+  const reportsPrint = useRef("");
   useEffect(() => {
     let dead = false;
     const pull = async () => {
+      const files = hostFiles(projectCode);
+      try {
+        const res = await files.listFiles({ dir: ".systemview" }); // dir-scoped walk — glob was never a real option on this door
+        const print = ((res && (res.files || res)) || [])
+          .map((f) => ({ path: (f && f.path) || f, ts: (f && (f.mtime || f.ts)) || 0 }))
+          .filter((f) => f.path && (/\.systemview\/report\..+\.md$/i.test(f.path) || /reports\.index\.json$/.test(f.path)))
+          .map((f) => `${f.path}@${f.ts}`)
+          .sort()
+          .join("|");
+        if (print === reportsPrint.current) return; // a quiet tick costs exactly this one listing
+        reportsPrint.current = print;
+      } catch {
+        reportsPrint.current = ""; // an unreadable listing never gates — fall through to the pull
+      }
       try {
         const list = await listReports(projectCode);
-        const files = hostFiles(projectCode);
         const flags = {};
         await Promise.all(
           list.slice(0, 20).map(async (r) => {
@@ -5009,8 +5034,13 @@ const countdown = (str, now = Date.now()) => {
   // a job never ran while the disk said it did.
   //
   // Same merge as `lanesShown`, and the live entry wins for the same reason: while the session is
-  // running its events are fresher than the file. The host bounds what comes back (open at any age,
-  // closed only if recent) — the row count is not this surface's decision.
+  // running its events are fresher than the file. The host bounds what comes back and the row
+  // count is not this surface's decision — but it no longer bounds it BY AGE. `stripRuns` carried a
+  // 24-hour window on closed job and skill runs until 2026-10-14, which quietly reversed the strip's
+  // own ruling one scroll below (*"a row that vanishes because its run finished is a row he cannot
+  // find again"*); it was hiding fifteen closed runs here when it came out. What bounds it now is
+  // `pruneRuns` deleting the record at fourteen days, and `clearedLists` remembering the ✕ he
+  // pressed.
   const listsShown = (() => {
     const rows = new Map();
     for (const r of work.standingRuns || []) {
@@ -6363,7 +6393,8 @@ const countdown = (str, now = Date.now()) => {
               />
               <WorkbandHead
                 open
-                jobs={listsShown.length}
+                jobs={listsShown.filter((l) => l.source.startsWith("job:")).length}
+                lists={listsShown.filter((l) => !l.source.startsWith("job:")).length}
                 lanes={lanesShown.length}
                 reports={reportsMeta.list.length}
                 waiting={reportsMeta.waiting}
@@ -6495,7 +6526,8 @@ const countdown = (str, now = Date.now()) => {
             <div className={`${CLASSNAME}__workband-label`} ref={stripRef} onMouseDown={stripPull}>
               <WorkbandHead
                 open={false}
-                jobs={listsShown.length}
+                jobs={listsShown.filter((l) => l.source.startsWith("job:")).length}
+                lists={listsShown.filter((l) => !l.source.startsWith("job:")).length}
                 lanes={lanesShown.length}
                 reports={reportsMeta.list.length}
                 waiting={reportsMeta.waiting}

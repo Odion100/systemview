@@ -3,6 +3,7 @@ import { useCapability, useCapabilityState } from "../capabilities";
 import ServiceContext from "../../../ServiceContext";
 import loadServiceWithHeaders from "../../../utils/loadService";
 import { useMarkdownScope } from "../context";
+import { openAddress } from "../openRef";
 import { parseFileSpec } from "./FileLink";
 import CodeEditor from "../../CodeView/CodeEditor";
 import DiffView from "../../DiffView/DiffView";
@@ -211,14 +212,8 @@ const Embed = ({ label, attrs = {}, opens }) => {
 // So: a BUTTON that opens. ⌘-click still opens too — one behaviour, no modifier to learn.
   const open = () => {
     if (!host) return;
-    window.dispatchEvent(
-      new CustomEvent("sv:openFileInNav", {
-        // THE MACHINE FLAG RIDES HERE TOO — the embed's own header link was the last spot still
-        // dressing a machine file in a project (his catch: job.md already open as machine, the
-        // header press opened a SECOND one keyed to the project — two identities, two tabs).
-        detail: { projectCode: host.projectCode, machine: host.machine || undefined, path, language: langOf(path), lines },
-      })
-    );
+    // ONE OPENER — the header press hands its address over; normalisation happens in openAddress.
+    openAddress({ projectCode: host.projectCode, machine: host.machine, path, language: langOf(path), lines });
   };
 
   // The same right-click the file has in the codebase panel, on the same file — same verbs, same
