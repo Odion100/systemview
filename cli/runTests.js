@@ -37,6 +37,26 @@ function formatTruncated(value, indent = 0) {
 }
 const { runFullTest } = new FullTestController();
 
+// DEAD WIRE, NAMED — the hub runner's rule, shared (api/runTests.js isDeadWire): when a probe says
+// a service never answered, a test whose every error is connection noise did not RUN. The CLI face
+// probes aliveness itself because unlike the hub it never collects per-service test lists.
+const { isDeadWire } = require("../api/runTests");
+const http = require("http");
+const https = require("https");
+function socketAlive(serviceUrl) {
+  return new Promise((resolve) => {
+    let u;
+    try { u = new URL(serviceUrl); } catch { return resolve(false); }
+    const mod = u.protocol === "https:" ? https : http;
+    const req = mod.get({ host: u.hostname, port: u.port || (u.protocol === "https:" ? 443 : 80), path: "/", timeout: 1500 }, (res) => {
+      res.resume();
+      resolve(true); // ANY response — even a 404 — means somebody is listening
+    });
+    req.on("timeout", () => { req.destroy(); resolve(false); });
+    req.on("error", () => resolve(false));
+  });
+}
+
 const chalk = require("chalk");
 const DIVIDER = chalk.dim("  " + "─".repeat(60));
 const SUITE_DIVIDER = chalk.cyan("  " + "─".repeat(60));
@@ -131,8 +151,20 @@ module.exports = async function runTests(
     return 0;
   }
 
+  // who is actually listening — a dead socket the registry still announces is the one lie this
+  // run can catch before it becomes four tests' connection noise
+  const unreachable = [];
+  await Promise.all(
+    (connectedServices || []).map(async (s) => {
+      const at = s && s.system && s.system.connectionData && s.system.connectionData.serviceUrl;
+      if (at && !(await socketAlive(at)))
+        unreachable.push({ serviceId: s.serviceId || (s.system.connectionData || {}).serviceId, at });
+    })
+  );
+
   const jsonOutput = json ? { projectCode: project_code, passed: 0, failed: 0, tests: [] } : null;
   let totalFailed = 0;
+  let totalNotRun = 0;
   const serviceSummaries = [];
   const allFailures = [];
 
@@ -150,25 +182,36 @@ module.exports = async function runTests(
         verbose,
         { bail, phaseFilter, indexFilter }
       );
-      totalFailed += failed;
+      // a failed test whose every error is wire noise against a dead, named socket did not run
+      const flatErrors = (f) =>
+        (f.failedPhases || []).flatMap((ph) => (ph.actions || []).flatMap((a) => (a.errors || []).map((e) => ({ message: typeof e === "string" ? e : JSON.stringify(e) }))));
+      const deadWireFailures = unreachable.length ? failures.filter((f) => isDeadWire(flatErrors(f), unreachable)) : [];
+      const realFailures = failures.filter((f) => !deadWireFailures.includes(f));
+      const notRun = deadWireFailures.length;
+      const realFailed = failed - notRun;
+      totalFailed += realFailed;
+      totalNotRun += notRun;
 
       if (json) {
         jsonOutput.passed += passed;
-        jsonOutput.failed += failed;
+        jsonOutput.failed += realFailed;
+        if (notRun) jsonOutput.notRun = (jsonOutput.notRun || 0) + notRun;
         jsonOutput.tests.push(...jsonTests);
       } else {
-        serviceSummaries.push({ serviceId, passed, failed });
-        allFailures.push(...failures);
+        serviceSummaries.push({ serviceId, passed, failed: realFailed, notRun });
+        allFailures.push(...realFailures);
       }
 
-      if (bail && failed > 0) break;
+      if (bail && realFailed > 0) break;
     } catch (error) {
       log.error(`Unexpected error for ${serviceId}: ${error.message}`);
     }
   }
 
   if (collect) {
-    return { ...jsonOutput, exitCode: totalFailed > 0 ? 1 : 0 };
+    if (unreachable.length) jsonOutput.notUp = unreachable.map((u) => u.serviceId);
+    // not-run tests are not passes — the exit stays honest while the words stop lying
+    return { ...jsonOutput, exitCode: totalFailed > 0 || totalNotRun > 0 ? 1 : 0 };
   }
   if (json) {
     process.stdout.write(JSON.stringify(jsonOutput, null, 2) + "\n");
@@ -177,12 +220,16 @@ module.exports = async function runTests(
     log.info("TEST COMPLETE");
     console.log("");
 
-    serviceSummaries.forEach(({ serviceId, passed, failed }) => {
-      const total = passed + failed;
+    serviceSummaries.forEach(({ serviceId, passed, failed, notRun }) => {
+      const total = passed + failed + (notRun || 0);
       log[failed ? "error" : "success"](
-        `${serviceId}: ${total} tests, ${passed} passed, ${failed} failed`
+        `${serviceId}: ${total} tests, ${passed} passed, ${failed} failed${notRun ? `, ${notRun} not run` : ""}`
       );
     });
+    if (totalNotRun > 0)
+      log.warn(
+        `${unreachable.map((u) => u.serviceId).join(", ")} not up — ${totalNotRun} test${totalNotRun === 1 ? "" : "s"} not run (died dialing a dead socket, not failed)`
+      );
 
     if (allFailures.length) {
       console.log("");
@@ -201,7 +248,7 @@ module.exports = async function runTests(
     }
   }
 
-  return totalFailed > 0 ? 1 : 0;
+  return totalFailed > 0 || totalNotRun > 0 ? 1 : 0;
 };
 
 const runAllTests = async (savedTests, url, project_code, json, verbose, opts = {}) => {

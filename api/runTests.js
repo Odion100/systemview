@@ -122,6 +122,25 @@ async function actionMapFor(services, lists, client) {
 // been believed. The runner attaches `errors` to each step; that is the only thing to count.
 const countErrors = (steps) => (steps || []).reduce((n, s) => n + ((s && s.errors ? s.errors.length : 0)), 0);
 
+
+// DEAD WIRE, NAMED — not failed. When the registry itself says a service never answered
+// (`unreachable`, above), a test whose every failure is connection noise did not RUN: it died
+// dialing a socket the run already knew was dead. Counting that as "failed" buried four chat tests
+// in standing red for weeks — a real regression would have been invisible inside it (the gap file
+// gaps/CHAT_SUITE_ASSERTS_A_RETIRED_GATE_AND_SPRAYS_LIVE_ROOMS.md carries the chain). Two gates,
+// both required: the registry must NAME an unreachable service, and every failure on the row must
+// read as the wire, not the work — either the raw connect-error shapes or the dead service's own
+// address. One real assertion failure on the row keeps the whole row failed.
+const WIRE_NOISE = /AggregateError|ECONNREFUSED|ECONNRESET|ENOTFOUND|EHOSTUNREACH|ETIMEDOUT|socket hang up|Network Error|connect/i;
+function isDeadWire(failures, unreachable) {
+  if (!(unreachable || []).length || !(failures || []).length) return false;
+  const addrs = unreachable.map((u) => String(u.at || "").replace(/^https?:\/\//, "")).filter(Boolean);
+  return failures.every((f) => {
+    const msg = String((f && f.message) || "");
+    return WIRE_NOISE.test(msg) || addrs.some((a) => a && msg.includes(a));
+  });
+}
+
 // The failing comparison itself, not a rendered transcript — an agent can act on the values.
 function failuresOf(sections, order) {
   const out = [];
@@ -146,7 +165,7 @@ function failuresOf(sections, order) {
  * `specs` are on-disk shape (`{ namespace, title, Before, Main, …, sections, run }`); each comes back
  * as a row with its namespace, pass/fail, duration and — only when it failed — the comparisons.
  */
-async function executeSpecs(specs, { services, client, actionMap = {}, headers = {}, bail = false } = {}) {
+async function executeSpecs(specs, { services, client, actionMap = {}, headers = {}, bail = false, unreachable = [] } = {}) {
   const initialized = initializeSavedTests(
     specs,
     services,
@@ -169,17 +188,24 @@ async function executeSpecs(specs, { services, client, actionMap = {}, headers =
     const at = Date.now();
     await runFullTest({ sections, order });
     const failures = failuresOf(sections, order);
+    // CLASSIFIED WHERE THE ROW IS BUILT, so a document's run block gets the dead-wire rule for free
+    // rather than only the saved-test face. The row keeps its failures either way — classification
+    // changes the COUNT, never the evidence.
+    const deadWire = isDeadWire(failures, unreachable);
     rows.push({
       namespace: nsOf(spec),
       title: title || spec.title || "",
       passed: !failures.length,
+      ...(deadWire ? { deadWire: true } : {}),
       ms: Date.now() - at,
       // WHERE THE SPEC CAME FROM, when the collector attached one — a document's run block has no
       // file in `specs/tests/`, so without this a failing proof row names nothing a reader can open.
       ...(spec.at ? { at: spec.at } : {}),
       ...(failures.length ? { failures } : {}),
     });
-    if (bail && failures.length) break;
+    // A DEAD WIRE DOES NOT STOP THE RUN. Bailing on it would end a suite on a socket nobody was
+    // testing, which is the opposite of what the classification is for.
+    if (bail && failures.length && !deadWire) break;
   }
   return { rows, ms: Date.now() - started, ran: rows.length, total: initialized.length };
 }
@@ -235,18 +261,29 @@ async function runTests(
     };
 
   const actionMap = await actionMapFor(services, lists, client);
-  const { rows, ms, total } = await executeSpecs(selected, { services, client, actionMap, headers, bail });
+  const { rows, ms, total } = await executeSpecs(selected, { services, client, actionMap, headers, bail, unreachable });
 
   return {
     ...where,
     ms,
     passed: rows.filter((r) => r.passed).length,
-    failed: rows.filter((r) => !r.passed).length,
+    failed: rows.filter((r) => !r.passed && !r.deadWire).length,
+    // the honest third number: tests that never really ran because a named service was down.
+    // `unreachable` (in `where`, above) says who; this says how much it cost.
+    ...(rows.some((r) => r.deadWire)
+      ? {
+          notRun: rows.filter((r) => r.deadWire).length,
+          notUp: [...new Set((unreachable || []).map((u) => u.serviceId).filter(Boolean))],
+        }
+      : {}),
     // WHAT THE RUN HAD TO REPAIR BEFORE IT COULD RUN. Reported, not swallowed: a run that silently
     // fixed a stale client is a run that hid the reason the previous one failed.
     ...(rebuilds.length ? { rebuilt: rebuilds } : {}),
-    ...(bail && rows.some((r) => !r.passed) && rows.length < total
-      ? { stoppedEarly: true, notRun: total - rows.length }
+    ...(bail && rows.some((r) => !r.passed && !r.deadWire) && rows.length < total
+      ? {
+          stoppedEarly: true,
+          notRun: total - rows.length + rows.filter((r) => r.deadWire).length,
+        }
       : {}),
     tests: rows,
   };
@@ -261,4 +298,5 @@ module.exports = {
   verifiedClientFor,
   headersOf,
   idOf,
+  isDeadWire,
 };
