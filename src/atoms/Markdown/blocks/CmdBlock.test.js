@@ -171,7 +171,7 @@ describe("dir= aims the shell at a machine path", () => {
     const factory = jest.fn(() => ({ run: jest.fn(() => ({ done: new Promise(() => {}), cancel: jest.fn() })) }));
     useCapability.mockReturnValue(factory);
     render(<CmdBlock src={"ls"} attrs={{ dir: "~/Systemly/lanes" }} />);
-    expect(factory).toHaveBeenCalledWith("systemview", "~/Systemly/lanes");
+    expect(factory).toHaveBeenCalledWith("systemview", "~/Systemly/lanes", expect.stringMatching(/^cmd-/));
   });
 
   it("the prompt wears the folder, not the project, when a dir aims the run", () => {
@@ -186,7 +186,7 @@ describe("dir= aims the shell at a machine path", () => {
     useMarkdownScope.mockReturnValue({});
     render(<CmdBlock src={"ls"} attrs={{ dir: "/tmp" }} />);
     expect(screen.getByText("run")).toBeInTheDocument();
-    expect(factory).toHaveBeenCalledWith("machine", "/tmp");
+    expect(factory).toHaveBeenCalledWith("machine", "/tmp", expect.stringMatching(/^cmd-/));
   });
 });
 
@@ -225,5 +225,42 @@ describe("a finished run is told to the surface that offered it", () => {
     fireEvent.click(screen.getByText("run"));
     rig.finish({ started: true, code: 0 });
     await waitFor(() => expect(container.firstChild.className).toContain("md-cmd--ok"));
+  });
+});
+
+describe("a remount finds its run again", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    useMarkdownScope.mockReturnValue({ projectCode: "systemview" });
+    useCapabilityState.mockReturnValue("granted");
+  });
+
+  it("adopts a surviving session on mount: seeded text, running state, then the real exit", async () => {
+    let resolveDone;
+    const handle = {
+      done: new Promise((r) => (resolveDone = r)),
+      state: () => ({ started: true, text: "half the build already printed", exit: null }),
+      detach: jest.fn(),
+      cancel: jest.fn(),
+    };
+    const runner = { run: jest.fn(), resume: jest.fn(async () => handle) };
+    useCapability.mockReturnValue(() => runner);
+    render(<CmdBlock src={BUILD} attrs={{ title: "Rebuild" }} />);
+    // the survivor is adopted without any press
+    await waitFor(() => expect(runner.resume).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByText(/half the build already printed/)).toBeInTheDocument());
+    expect(screen.getByText(/running/)).toBeInTheDocument();
+    // …and the stream settles to the real exit
+    await act(async () => resolveDone({ started: true, code: 0, resumed: true }));
+    await waitFor(() => expect(screen.getByText(/exit 0/)).toBeInTheDocument());
+  });
+
+  it("stays honestly cold when nothing survived — no invented result, no receipt", async () => {
+    const resume = jest.fn(async () => null);
+    useCapability.mockReturnValue(() => ({ run: jest.fn(), resume }));
+    render(<CmdBlock src={BUILD} attrs={{ title: "Rebuild" }} />);
+    await waitFor(() => expect(resume).toHaveBeenCalled());
+    expect(screen.queryByText(/running/)).toBeNull();
+    expect(screen.queryByText(/exit/)).toBeNull();
   });
 });

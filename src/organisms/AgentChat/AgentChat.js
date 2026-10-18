@@ -928,6 +928,9 @@ function JobRun({ items, source, projectCode, runId, onClear, onLanes, laneChild
           {landedLanes.map((l) => (
             <div key={l.branch} className={`${CLASSNAME}__jobrun-reclane`} title={`${l.branch}${l.commit ? ` @ ${l.commit}` : ""} — its row was cleared through the door that only clears work verifiably in the tree`}>
               <span className={`${CLASSNAME}__jobrun-reclane-branch`}>⌁ {l.branch}</span>
+              {l.repo && (
+                <span className={`${CLASSNAME}__lane-repo`} title={`cut in ${l.repo}`}>{String(l.repo).split("/").pop()}</span>
+              )}
               {l.commit ? <code className={`${CLASSNAME}__jobrun-reclane-commit`}>{String(l.commit).slice(0, 7)}</code> : null}
               <span className={`${CLASSNAME}__jobrun-landed`}>landed</span>
             </div>
@@ -1244,7 +1247,7 @@ function LanePanel({ source, items, laneEvents, brief = "", projectCode, onClose
   );
 }
 
-function LaneRow({ source, items, projectCode, delegated, panelOpen, onOpenPanel, onDelete }) {
+function LaneRow({ source, items, projectCode, repo, delegated, panelOpen, onOpenPanel, onDelete }) {
   const branch = source.slice(5); // "lane:" — the suffix IS the branch, by convention
   const done = items.filter((t) => t.state === "done").length;
   const finished = items.length > 0 && done === items.length;
@@ -1405,6 +1408,12 @@ function LaneRow({ source, items, projectCode, delegated, panelOpen, onOpenPanel
           {delegated ? "\u{1F916}" : "\u{1F33F}"}
         </span>
         <span className={`${CLASSNAME}__lane-name`}>{branch}</span>
+        {/* WHICH REPO holds the branch — his catch: autobot and systemview lanes read identically,
+            so the strip could not answer "is this repo clean". Shown only when it is NOT this
+            chat's own project; stamped on the run record at registration, so it survives restarts. */}
+        {repo && repo !== projectCode && (
+          <span className={`${CLASSNAME}__lane-repo`} title={`this lane's branch lives in ${repo}`}>{repo}</span>
+        )}
         <span className={`${CLASSNAME}__lane-bar`}>
           <span className={`${CLASSNAME}__lane-fill`} style={{ width: `${items.length ? Math.round((done / items.length) * 100) : 0}%` }} />
         </span>
@@ -5098,10 +5107,18 @@ const countdown = (str, now = Date.now()) => {
       // was most likely to press was a delete.
       if (!String(r.source || "").startsWith("lane:")) continue;
       const id = String(r.owner || "").slice(4); // "run:<id>"
-      if (r.items && r.items.length) rows.set(id, { key: id, source: r.source, items: r.items });
+      // THE REPO RIDES THE ROW, and it can only come from the FILE: the record is stamped at
+      // registration, while the live `todo.updated` event carries items and nothing else. Dropping
+      // it here is what made the chip never appear however correct both halves were (his catch:
+      // *"the lanes as they are displayed below the chat do not"*) — the field existed on disk, on
+      // the row's props, and in the CSS, with nothing joining them.
+      if (r.items && r.items.length) rows.set(id, { key: id, source: r.source, items: r.items, repo: r.repo || "" });
     }
     for (const l of work.state.todoLists || []) {
-      if (l.items.length && l.source.startsWith("lane:")) rows.set(l.key, { key: l.key, source: l.source, items: l.items });
+      // the live overlay wins on ITEMS and must not erase what only the file knows — a lane
+      // registered in this very session is exactly the case where the event is fresher and emptier
+      if (l.items.length && l.source.startsWith("lane:"))
+        rows.set(l.key, { key: l.key, source: l.source, items: l.items, repo: (rows.get(l.key) || {}).repo || "" });
     }
     return [...rows.values()].filter(
       (l) => !deletedLanes.has(l.key) && JSON.stringify(l.items) !== clearedLists[l.key]
@@ -6425,6 +6442,7 @@ const countdown = (str, now = Date.now()) => {
                 source={l.source}
                 items={l.items}
                 projectCode={projectCode}
+                repo={l.repo || ""}
                 delegated={!!laneLogFor(l.source).events}
                 panelOpen={lanePanel === l.key}
                 onOpenPanel={() => setLanePanel((cur) => (cur === l.key ? null : l.key))}

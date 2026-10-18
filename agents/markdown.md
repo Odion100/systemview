@@ -112,7 +112,9 @@ badge. Play re-runs it fresh.
 ::diff[api/index.js]{project=systemview-test}
 ```
 
-Read-only in a document.
+Read-only in a document. **Not for reports** (his ruling, 2026-10-18): a `::file` embed already
+carries the diff view and reads better — every `::diff` in a report makes him switch to the file
+anyway. Reach for `::diff` only where the diff IS the subject and no file stands behind it.
 
 ## `::image[path]{caption=…}` — an image
 

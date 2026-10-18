@@ -799,8 +799,13 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
   // unchanged file — which answered "what changed" and nothing else. Flipping the lens replaces the
   // tree with git's own three groups (staged / changes / untracked) and puts stage-unstage on each
   // row, because "what's staged" was the question the whole thing existed to answer.
+  // PER PROJECT, like the two filters below it — the 2026-09-19 fix landed three lines down and
+  // missed this one, so "changes" pressed on one project silently filtered every other project's
+  // tree (his catch, 2026-10-18: "where the fuck are my files? …I wasn't filtering changes here").
+  // The old global key is deliberately not read: a stuck lens is released, not migrated.
+  const vcLensKey = `sv.cbNav.vcLens.${projectCode}`;
   const [vcLens, setVcLens] = useState(
-    () => localStorage.getItem("sv.cbNav.vcLens") === "true",
+    () => localStorage.getItem(vcLensKey) === "true",
   );
   // PER PROJECT, NOT GLOBAL (2026-09-19, the afternoon this cost). These two filters persisted
   // under one key for the whole window, so pressing 💬 on one card silenced the file tree of EVERY
@@ -943,7 +948,7 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
     setFilter("");
     if (vcLens) {
       setVcLens(false);
-      localStorage.setItem("sv.cbNav.vcLens", "false");
+      localStorage.setItem(vcLensKey, "false");
     }
     if (docsOnly) {
       setDocsOnly(false);
@@ -1503,7 +1508,7 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
       delete window.__svCommitHandoff; // handled here — no other surface should replay it on mount
       setCodeOpen(true);
       setVcLens(true);
-      localStorage.setItem("sv.cbNav.vcLens", "true");
+      localStorage.setItem(vcLensKey, "true");
       setVcTab("changes");
       setArmed("");
       if (d.message != null) setMessage(d.message);
@@ -2410,7 +2415,7 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
                   e.stopPropagation();
                   setCodeOpen(true);
                   setVcLens(true);
-                  localStorage.setItem("sv.cbNav.vcLens", "true");
+                  localStorage.setItem(vcLensKey, "true");
                 }}
               >
                 <BranchIcon />
@@ -2475,7 +2480,7 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
                         ? "Back to the file tree"
                         : `Version control — ${changed.size} file${changed.size > 1 ? "s" : ""} changed vs git HEAD, staged and unstaged`
                     }
-                    onClick={flipToggle("sv.cbNav.vcLens", vcLens, setVcLens)}
+                    onClick={flipToggle(vcLensKey, vcLens, setVcLens)}
                   >
                     <BranchIcon />
                     <span className={`${CLASSNAME}__filter-pill-n`}>{changed.size}</span>

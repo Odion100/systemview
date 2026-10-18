@@ -30,6 +30,16 @@ import { parseCommand, summarize, isRunnable } from "./cmdSource";
 // why it is the terminal seam and not a hub verb). A surface with no shell says so and offers
 // nothing to press.
 
+// ONE RUN, ONE NAME — stable across refreshes, distinct per block: the same command in the same
+// place always maps to the same session, so a remount can find a run that is still going. djb2,
+// base36, enough to tell blocks apart; collisions would only merge two IDENTICAL commands.
+const sessionIdFor = (command, dir) => {
+  const s = `${command}|${dir || ""}`;
+  let h = 5381;
+  for (let i = 0; i < s.length; i += 1) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0;
+  return `cmd-${h.toString(36)}`;
+};
+
 const fmt = (ms) => {
   const s = Math.round(ms / 1000);
   return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, "0")}s`;
@@ -65,10 +75,60 @@ const CmdBlock = ({ src, attrs = {} }) => {
     liveRef.current = true;
     return () => {
       liveRef.current = false;
-      // Navigating away does NOT abandon a shell: cancel what this block started, or a build keeps
-      // running with nothing left on screen that can stop it.
-      if (handleRef.current) handleRef.current.cancel();
+      // Navigating away lets the VIEW go, never the run (his catch: a page hop killed a build that
+      // the refresh case proved could survive). The session keeps running, the strip's terminal
+      // list still names it, and the block that remounts adopts it below — so nothing runs with
+      // no door back to it. The deliberate stop is the block's own cancel press.
+      if (handleRef.current) (handleRef.current.detach || handleRef.current.cancel)();
     };
+  }, []);
+
+  // THE REMOUNT FINDS ITS RUN AGAIN. A refresh or a page hop used to leave a running command with
+  // no view — the screen session alive on disk, the block back at "nothing ran". On mount, the
+  // block asks for its own session by name; a survivor is adopted, its history replayed through
+  // the same transcript reader, and the stream continues to the real exit. No survivor = stay
+  // cold: a command that finished while nobody watched has no session left, and inventing its
+  // result is worse than saying nothing.
+  useEffect(() => {
+    if (!runner || typeof runner.resume !== "function" || run) return undefined;
+    let live = true;
+    (async () => {
+      const handle = await runner.resume({
+        onOutput: (state) =>
+          liveRef.current && setRun((prev) => (prev && prev.busy ? { ...prev, ...state } : prev)),
+      });
+      if (!handle || !live) { if (handle && !live) handle.detach(); return; }
+      const at = Date.now(); // the original start is in the session, not here — the clock resumes from now
+      const seeded = (typeof handle.state === "function" && handle.state()) || {};
+      setRun({ at, busy: true, started: true, text: seeded.text || "", exit: null, error: "", resumed: true });
+      handleRef.current = handle;
+      handle.done.then((result = {}) => {
+        handleRef.current = null;
+        if (result.detached) return;
+        if (typeof tellRun === "function" && !result.foreign)
+          tellRun({
+            title,
+            exit: result.code === undefined ? null : result.code,
+            ms: Date.now() - at,
+            started: result.started !== false,
+            cancelled: !!result.cancelled,
+            error: result.error || "",
+          });
+        if (!liveRef.current) return;
+        setRun((prev) => ({
+          ...(prev || { at: Date.now(), text: "" }),
+          busy: false,
+          ms: Date.now() - ((prev && prev.at) || Date.now()),
+          started: result.started !== false,
+          exit: result.code === undefined ? (prev && prev.exit) ?? null : result.code,
+          cancelled: !!result.cancelled,
+          error: result.error || "",
+        }));
+      });
+    })();
+    return () => { live = false; };
+    // mount-only on purpose: this is the remount's one look back
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // A long command must not look hung. The transcript streams, and this ticks the elapsed clock even
@@ -90,7 +150,8 @@ const CmdBlock = ({ src, attrs = {} }) => {
   // Asked at render, not at click: "there is no shell here" is something the block has to SAY
   // before it offers a button, not after someone presses one. A dir block still hands the project
   // over for session identity; "machine" stands in only when the room names no project at all.
-  const runner = shell ? shell(projectCode || (dir ? "machine" : ""), dir || undefined) : null;
+  const sessionId = sessionIdFor(command, dir);
+  const runner = shell ? shell(projectCode || (dir ? "machine" : ""), dir || undefined, sessionId) : null;
 
   const start = () => {
     if (!runner || (run && run.busy)) return;
@@ -104,6 +165,9 @@ const CmdBlock = ({ src, attrs = {} }) => {
     handleRef.current = handle;
     handle.done.then((result = {}) => {
       handleRef.current = null;
+      // A detach is the view letting go, not an ending — no receipt, no state write; the run is
+      // still going and the next mount picks it back up.
+      if (result.detached) return;
       // NEVER the output — the full transcript already lives in the host's session log on disk,
       // and the agent reads it there instead of having it re-said into the conversation.
       if (typeof tellRun === "function")

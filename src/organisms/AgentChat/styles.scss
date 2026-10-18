@@ -4032,6 +4032,13 @@
 .agent-chat__lane-confirm-warn { color: #d0a24a; }
 .agent-chat__lane-icon { flex: none; font-size: 11px; }
 .agent-chat__lane-name { flex: none; font-family: ui-monospace, Menlo, monospace; font-size: 11.5px; font-weight: 700; }
+// the repo chip — worn when the branch lives in another repo than this chat's project (standing
+// rows), and on a job card's lane history (where it names the cut's repo)
+.agent-chat__lane-repo {
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+  padding: 0 5px; border: 1px solid currentColor; border-radius: 7px; opacity: 0.6;
+  margin-left: 6px; flex: none;
+}
 .agent-chat__lane-bar {
   flex: 1 1 auto;
   height: 5px;
