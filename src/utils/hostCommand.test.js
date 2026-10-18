@@ -8,6 +8,15 @@ const begun = () => `\r\n${BEGIN_MARK}\r\n`;
 const ended = (code) => `\r\n__sv_cmd_exit:${code}__\r\n`;
 
 describe("scriptFor", () => {
+  it("runs the command in a SUBSHELL, so an `exit 7` ends the command and not the wrapper", () => {
+    // Eval'd bare, the exit killed the shell before the sentinel printed, and the host's hardcoded
+    // code-0 death report turned "exit 7" into "exit 0" in the chat (caught live, 2026-10-18).
+    expect(scriptFor("exit 7")).toContain('( eval "$(');
+    const after = scriptFor("exit 7").split('( eval "$(')[1];
+    expect(after).toContain(')" )'); // the subshell closes before the sentinel line
+  });
+
+
   it("is ONE line, whatever the command — one prompt, one read", () => {
     expect(scriptFor("a\nb\nc").indexOf("\n")).toBe(-1);
   });

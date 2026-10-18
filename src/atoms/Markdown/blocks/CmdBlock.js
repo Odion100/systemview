@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useCapability, useCapabilityState } from "../capabilities";
-import { useMarkdownScope } from "../context";
+import { useMarkdownScope, useMarkdownWrite } from "../context";
 import { parseCommand, summarize, isRunnable } from "./cmdSource";
 
 // `:::cmd{title="…"}` — A COMMAND THE DOCUMENT THAT EXPLAINS IT CAN ALSO RUN.
@@ -38,8 +38,16 @@ const fmt = (ms) => {
 const CmdBlock = ({ src, attrs = {} }) => {
   const scope = useMarkdownScope();
   const projectCode = attrs.project || scope.projectCode || "";
+  // `dir=` — the MACHINE-ADDRESS form (his call, asked twice: "the project has nothing to do with
+  // being able to run cmd"). A folder anywhere on the machine, the way ::file takes `~/…`. The
+  // project stays the preferred form in documents — a code survives the repo moving; a path doesn't.
+  const dir = attrs.dir || "";
   const shell = useCapability("shell");
   const grant = useCapabilityState("shell");
+  // THE CHAT HEARS THE RESULT (his call: "that way you know automatically if it fails"). `tellRun`
+  // is OPTIONAL on the write context — the chat implements it, documents don't — so a block pressed
+  // in a reply reports to the agent that offered it, and a press while reading pings nobody.
+  const { tellRun } = useMarkdownWrite() || {};
 
   const command = parseCommand(src);
   const title = attrs.title || summarize(command);
@@ -80,12 +88,14 @@ const CmdBlock = ({ src, attrs = {} }) => {
   }, [run && run.text, run && run.busy]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Asked at render, not at click: "there is no shell here" is something the block has to SAY
-  // before it offers a button, not after someone presses one.
-  const runner = shell ? shell(projectCode) : null;
+  // before it offers a button, not after someone presses one. A dir block still hands the project
+  // over for session identity; "machine" stands in only when the room names no project at all.
+  const runner = shell ? shell(projectCode || (dir ? "machine" : ""), dir || undefined) : null;
 
   const start = () => {
     if (!runner || (run && run.busy)) return;
-    setRun({ at: Date.now(), busy: true, started: false, text: "", exit: null, error: "" });
+    const at = Date.now();
+    setRun({ at, busy: true, started: false, text: "", exit: null, error: "" });
     const handle = runner.run({
       command,
       onOutput: (state) =>
@@ -94,6 +104,17 @@ const CmdBlock = ({ src, attrs = {} }) => {
     handleRef.current = handle;
     handle.done.then((result = {}) => {
       handleRef.current = null;
+      // NEVER the output — the full transcript already lives in the host's session log on disk,
+      // and the agent reads it there instead of having it re-said into the conversation.
+      if (typeof tellRun === "function")
+        tellRun({
+          title,
+          exit: result.code === undefined ? null : result.code,
+          ms: Date.now() - at,
+          started: result.started !== false,
+          cancelled: !!result.cancelled,
+          error: result.error || "",
+        });
       if (!liveRef.current) return;
       setRun((prev) => ({
         ...(prev || { at: Date.now(), text: "" }),
@@ -127,9 +148,9 @@ const CmdBlock = ({ src, attrs = {} }) => {
           ? "this surface can't run commands"
           : // Three absences, three sentences. A document that never said which project it belongs
             // to is a fixable mistake and must not read as "this app can't do that".
-            !projectCode
-          ? "this document names no project — add project=<code>"
-          : `no shell for ${projectCode}`}
+            !projectCode && !dir
+          ? "this document names no project — add project=<code> or dir=<folder>"
+          : `no shell for ${dir || projectCode}`}
       </div>
     );
   if (!isRunnable(command))
@@ -182,7 +203,7 @@ const CmdBlock = ({ src, attrs = {} }) => {
             <button
               type="button"
               className="md-cmd__btn"
-              title={`Run in ${projectCode || "this project"}`}
+              title={`Run in ${dir || projectCode || "this project"}`}
               onClick={start}
             >
               {run ? "run again" : "run"}
@@ -197,7 +218,7 @@ const CmdBlock = ({ src, attrs = {} }) => {
           css) so what you read there is still exactly what runs, verbatim. */}
       <div className="md-cmd__term">
         <pre className="md-cmd__line">
-          <span className="md-cmd__prompt">{projectCode || "~"} $ </span>
+          <span className="md-cmd__prompt">{dir || projectCode || "~"} $ </span>
           <span className="md-cmd__command">{command}</span>
         </pre>
         {run && (

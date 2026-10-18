@@ -23,6 +23,7 @@ import Feed, { timeOf } from "../AgentWorkbench/Feed";
 import useAgentSession from "../AgentWorkbench/useAgentSession";
 import { CTX_WARN, CTX_DUE, tokensShort, parseUsageLines, foldEvents } from "../AgentWorkbench/feedRows";
 import { visStyle } from "../AgentWorkbench/visitorColor";
+import { formatReceipt } from "../AgentWorkbench/cmdReceipt";
 import { readImagesFrom, readImageFile, hasImages } from "../../utils/imageAttach";
 import { canListTranscripts, listAgents, listTranscripts, transcriptTail } from "../../utils/hostAgent";
 import CodebaseNav from "../CodebaseNav/CodebaseNav";
@@ -2634,6 +2635,16 @@ function BotBubble({ projectCode, index }) {
       // something back is a real answer, and a surface that forbids it just means the correction
       // arrives as a sentence instead, which is worse for both of us.
       editable: !!attached,
+      // A `:::cmd` PRESSED IN THE CHAT REPORTS BACK — always, no attribute (his call: a block in a
+      // reply is the agent asking, so the press is the answer, same as a commit's). ONE LINE, both
+      // ways — never the output: the full transcript is already on disk in the host's session log
+      // (~/.autobot/terminals/) and the agent reads it there (his call: "if the log is on disk and
+      // you already know, don't inject it"). Spoken AS "cmd", not as him — the run is a non-human
+      // speaker and the row should say so. Documents don't implement this; presses there ping nobody.
+      tellRun: (outcome) => {
+        if (!attached) return;
+        work.send(formatReceipt(outcome), "cmd");
+      },
       setAttr: (line, key, value) => {
         if (!attached) return;
         // NAME WHAT WAS ANSWERED. `answered "157"` arrived on its own and meant nothing to either of
@@ -3471,7 +3482,9 @@ const countdown = (str, now = Date.now()) => {
         const subs = new Set((subscribed || []).map((v) => (typeof v === "string" ? v : v && v.identity)));
         const seen = new Map();
         (work.rows || []).slice(-SPOKE_TAIL).forEach((r) => {
-          if (r.as && !subs.has(r.as) && !(spokeCleared[r.as] && (r.ts || 0) <= spokeCleared[r.as]))
+          // "cmd" is the machine's reserved voice (a :::cmd press reporting back), not a visitor —
+          // a receipt must never grow a "jump to what cmd said" chip.
+          if (r.as && r.as !== "cmd" && !subs.has(r.as) && !(spokeCleared[r.as] && (r.ts || 0) <= spokeCleared[r.as]))
             seen.set(r.as, r.key);
         });
         return [...seen].map(([as, key]) => ({ as, key }));

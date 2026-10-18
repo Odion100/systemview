@@ -51,7 +51,10 @@ export function scriptFor(command) {
   return [
     "stty -echo 2>/dev/null",
     `printf '\\n__sv_cmd'""'_begin__\\n'`,
-    `eval "$(${decode})"`,
+    // A SUBSHELL, so a command that says \`exit 7\` ends the COMMAND and not the wrapper. Eval'd
+    // bare, an exit killed the shell before the sentinel line printed — and the host reports every
+    // session death as code 0, so "exit 7" told the chat "exit 0" (caught live, 2026-10-18).
+    `( eval "$(${decode})" )`,
     `__svx=$?`,
     `printf '\\n__sv_cmd'""'_exit:%s__\\n' "$__svx"`,
     "exit $__svx",
@@ -211,13 +214,16 @@ export function runCommand({ terminal, projectCode, cwd, command, onOutput }) {
 
 // RFC-053 — SystemView's implementation of the `shell` capability. A projectCode and a terminal host
 // or nothing: absent means this surface genuinely cannot run a command, and the block says so.
-export const commandRunner = (projectCode) => {
+export const commandRunner = (projectCode, cwd) => {
   const terminal = terminalHost();
-  if (!projectCode || !terminal) return null;
+  if ((!projectCode && !cwd) || !terminal) return null;
   // `cwd` is left to the host on purpose — it resolves a project's root from the hub, and the
-  // browser is deliberately not told where projects live.
+  // browser is deliberately not told where projects live. An explicit cwd (a `:::cmd{dir=…}`
+  // machine address) rides through and WINS at the host, `~` included — expansion is the host's
+  // too, for the same reason: the browser doesn't know where home is.
   return {
-    run: ({ command, onOutput }) => runCommand({ terminal, projectCode, command, onOutput }),
+    run: ({ command, onOutput }) =>
+      runCommand({ terminal, projectCode: projectCode || "machine", cwd: cwd || undefined, command, onOutput }),
   };
 };
 

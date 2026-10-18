@@ -176,8 +176,19 @@ BUILD_PATH=build.next NODE_OPTIONS=--max-old-space-size=4096 ./node_modules/.bin
 - It runs in the project's own root, through the host's terminal. Output streams into the block,
   stdout and stderr interleaved exactly as a terminal shows them, and it ends with an **exit code**:
   `exit 0` is green, any other code is red, and a command that never reached a shell says "didn't
-  run" in its own third face rather than pretending to have failed.
+  run" in its own third face rather than pretending to have failed. A finished run can be
+  **cleared** back to the untouched block — output gone, state honestly "not run".
+- **In the chat, the result reports back to the agent automatically** — no attribute: a block in a
+  reply is the agent asking, so the press is the answer. One line, spoken as `cmd` rather than as
+  the human: `ran "…" — exit 7 · 41s`. Never the output — the full transcript is on disk in the
+  host's session log (autobot: `~/.autobot/terminals/autobot-<project>_main.log`), and an agent
+  that needs the error reads it there. Presses in documents report to nobody.
 - `project=` sends it at another project, like any other block.
+- `dir=` aims it at a machine path instead — `:::cmd{dir=~/Systemly/lanes}` runs anywhere on the
+  machine, the way `::file[~/…]` embeds anywhere; the terminal prompt shows the folder. Prefer the
+  project form in documents: a code survives the repo moving to a new folder, a path doesn't.
+  (`~` expands host-side — arms with the autobot shell restart after 2026-10-18; absolute paths
+  work on any host build.)
 - A surface with no terminal host (a plain browser tab) renders it as a stated absence — no button.
 
 ## `- [ ]` — checklists that edit the document
