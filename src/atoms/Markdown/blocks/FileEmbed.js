@@ -11,6 +11,7 @@ import { changeMarksOf, hunksOf, stagedContentFor, fileGitState } from "../../Co
 import { useCodeComments } from "../../CodeView/codeComments";
 import { useEditorDark } from "../../CodeView/editorTheme";
 import { canGit, hasPlugin, pickHost } from "../../../utils/pluginHost";
+import { machineFiles } from "../../../utils/hostFiles";
 import Markdown from "../Markdown";
 
 // RFC-025 — the two story-pane kinds a document was still missing: a FILE pane and a DIFF pane.
@@ -44,23 +45,35 @@ const langOf = (p) => EXT_LANG[(String(p).split(".").pop() || "").toLowerCase()]
 // simply refused to render. That is why a `::file[...]` block dropped into the chat showed nothing
 // while the very same file was open in the code panel beside it. Files come from the hub now, which
 // knows every project's folder; the only question left is which PROJECT the document belongs to.
-function useFileHost(attrs, scope) {
-  const projectCode = attrs.project || scope.projectCode;
+function useFileHost(attrs, scope, machinePath) {
+  const projectCode = machinePath ? "" : attrs.project || scope.projectCode;
   // ONE OBJECT PER PROJECT, not one per render. A fresh `{ projectCode }` every render gave the
   // comment store a fresh `Plugin` every render, which re-read the sidecar, which set state, which
   // rendered again — 6,500 readFile calls in five seconds, the page pinned at 100%, the box at a
   // load average of 600 (measured). The identity is the project; it changes when the project does.
-  return useMemo(() => (projectCode ? { projectCode } : null), [projectCode]);
+  // A ~/ABSOLUTE PATH IS A MACHINE ADDRESS (RFC-069) — the lane-worktree embeds in reports are
+  // exactly this. The host says so instead of hunting a project that cannot hold the file.
+  return useMemo(
+    () => (machinePath ? { machine: true, projectCode: "" } : projectCode ? { projectCode } : null),
+    [projectCode, machinePath],
+  );
 }
 
 const Embed = ({ label, attrs = {}, opens }) => {
   const scope = useMarkdownScope();
+  const rawSpec = label || attrs.path || "";
+  const specPath = rawSpec ? parseFileSpec(rawSpec).path : "";
+  const isMachinePath = specPath.startsWith("/") || specPath.startsWith("~");
   const projectCode = attrs.project || scope.projectCode;
-  const host = useFileHost(attrs, scope);
+  const host = useFileHost(attrs, scope, isMachinePath);
   const [editorDark] = useEditorDark("docs");
   const raw = label || attrs.path || "";
   const { path, lines } = parseFileSpec(raw);
-  const [view, setView] = useState(opens);
+  // NEVER OPENS AS A DIFF — his rule, 2026-10-17: *"there's no reason to even show diffs because
+  // all the files are ready. You can always click it if you want. It should never default to
+  // diff."* `::diff` stays a legal name (documents already carry it) but the embed opens on the
+  // file; the Diff button is the reader's, not the writer's.
+  const [view, setView] = useState("file");
   // AN EMBEDDED `.md` IS A DOCUMENT, NOT A LISTING — his catch: "embedded markdown should be able to
   // show it in preview". A file open in the pane already opens rendered; the same file dropped into
   // a document showed its raw source, which is the one place markdown is worth LESS than its text.
@@ -91,7 +104,7 @@ const Embed = ({ label, attrs = {}, opens }) => {
   const files = useCapability("files");
   const filesState = useCapabilityState("files");
   const Plugin = useMemo(
-    () => (host && files ? files(host.projectCode) : null),
+    () => (host && host.machine ? machineFiles() : host && files ? files(host.projectCode) : null),
     [host, files],
   );
   const data = file && file.key === key ? file : null;
@@ -106,7 +119,10 @@ const Embed = ({ label, attrs = {}, opens }) => {
     // The diff is best-effort: no git, no stripes, but the file still reads.
     const [f, g] = await Promise.all([
       Plugin.readFile({ path }).catch((e) => ({ __err: (e && e.message) || "could not read the file" })),
-      Plugin.getDiff({ path }).catch(() => null),
+      // A HOST WITHOUT getDiff IS A NULL DIFF, NOT A DEAD EMBED — machineFiles() has no git, and
+      // calling an undefined verb threw synchronously past the .catch, so the file never rendered
+      // ("getDiff is not a function" under a spinner — his report, 2026-10-17).
+      Plugin.getDiff ? Plugin.getDiff({ path }).catch(() => null) : Promise.resolve(null),
     ]);
     if (f && f.__err) setErr({ key, file: f.__err });
     else {
@@ -197,7 +213,10 @@ const Embed = ({ label, attrs = {}, opens }) => {
     if (!host) return;
     window.dispatchEvent(
       new CustomEvent("sv:openFileInNav", {
-        detail: { projectCode: host.projectCode, path, language: langOf(path), lines },
+        // THE MACHINE FLAG RIDES HERE TOO — the embed's own header link was the last spot still
+        // dressing a machine file in a project (his catch: job.md already open as machine, the
+        // header press opened a SECOND one keyed to the project — two identities, two tabs).
+        detail: { projectCode: host.projectCode, machine: host.machine || undefined, path, language: langOf(path), lines },
       })
     );
   };
@@ -293,14 +312,18 @@ const Embed = ({ label, attrs = {}, opens }) => {
             {mdPreview ? "Source" : "Preview"}
           </button>
         )}
-        <button
-          type="button"
-          className={`md-embed__view ${diffOn ? "md-embed__view--on" : ""}`}
-          title={diffOn ? "Showing the diff against HEAD — click for the file" : "Show what changed against HEAD"}
-          onClick={() => setView(diffOn ? "file" : "diff")}
-        >
-          Diff
-        </button>
+        {/* NO BUTTON WHERE NOTHING CAN DIFF — a machine file has no HEAD to stand against, and a
+            toggle to an empty pane is a dead end wearing a control. */}
+        {Plugin && Plugin.getDiff && (
+          <button
+            type="button"
+            className={`md-embed__view ${diffOn ? "md-embed__view--on" : ""}`}
+            title={diffOn ? "Showing the diff against HEAD — click for the file" : "Show what changed against HEAD"}
+            onClick={() => setView(diffOn ? "file" : "diff")}
+          >
+            Diff
+          </button>
+        )}
       </div>
       {note && <div className="md-embed__note">{note}</div>}
       <div
