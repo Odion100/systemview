@@ -95,11 +95,31 @@ function reportsOn({ readFile, writeFile }) {
     return { error: `no report "${report}" in ${projectCode} (looked for ${path})`, known: await list(projectCode) };
   }
 
+  // AN INDEXED NAME IS A CLAIM, NOT A REPORT. This answered straight out of the index, so a report
+  // deleted outside this door — by hand, by git, by a lane's cleanup — was still offered by name in
+  // every teaching error (`nothing on the TV, here is what exists`) and the agent that took the
+  // offer got a miss. A name is only handed over while its file answers.
+  //
+  // A REFUSAL IS ABSENCE; A THROW IS NOT. `ok === false` is the door saying the file is not there,
+  // which is the whole point of the check — but a door that threw knows nothing about the file, and
+  // pruning on that would turn one bad read into "this project has no reports".
   async function list(projectCode) {
     try {
       const res = await readFile(projectCode, { path: REPORT_INDEX });
       if (!res || res.ok === false) return [];
-      return ((JSON.parse(res.content) || {})[projectCode] || []).map((r) => r.name);
+      const rows = ((JSON.parse(res.content) || {})[projectCode] || []).filter((r) => r && r.name);
+      const kept = await Promise.all(
+        rows.map(async (r) => {
+          if (!r.path) return r.name; // an entry from before paths were indexed — nothing to check
+          try {
+            const f = await readFile(projectCode, { path: r.path });
+            return f && f.ok !== false ? r.name : null;
+          } catch {
+            return r.name;
+          }
+        }),
+      );
+      return kept.filter(Boolean);
     } catch {
       return [];
     }
