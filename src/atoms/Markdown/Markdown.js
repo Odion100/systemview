@@ -1,4 +1,5 @@
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import ErrorBoundary from "../ErrorBoundary/ErrorBoundary";
 import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { dracula } from "react-syntax-highlighter/dist/cjs/styles/prism";
@@ -63,10 +64,17 @@ const SvBlock = ({ dname, dtype, dattrs, dlabel, dline, dend, dsrc, children }) 
     );
   }
   const Component = entry.Component;
+  // ONE BAD BLOCK IS NOT A BAD DOCUMENT. Every directive renders arbitrary component code against
+  // attributes a human typed, so a missing field in a `{…}` is one `undefined.foo` away from
+  // unmounting the whole window — which is exactly how it went twice on 2026-10-19. Contained
+  // here, the block becomes one line saying it could not be drawn and the prose around it keeps
+  // reading. `quiet` because a document is not the place for a panel-sized notice.
   const block = (
-    <Component name={dname} kind={dtype} attrs={attrs} label={dlabel} line={dline} src={dsrc}>
-      {children}
-    </Component>
+    <ErrorBoundary label={`The ${dname} block`} quiet>
+      <Component name={dname} kind={dtype} attrs={attrs} label={dlabel} line={dline} src={dsrc}>
+        {children}
+      </Component>
+    </ErrorBoundary>
   );
   // An inline directive (`:ns[…]`) sits INSIDE a paragraph — its paragraph already carries the range,
   // and wrapping it in a div would break the line. A leaf or container block gets its own range, so

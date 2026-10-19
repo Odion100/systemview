@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useContext, useMemo, useCallback } from "react";
+import ErrorBoundary from "../../atoms/ErrorBoundary/ErrorBoundary";
 import { createPortal } from "react-dom";
 import moment from "moment";
 import { useHistory, useLocation, useParams } from "react-router-dom";
@@ -6613,16 +6614,22 @@ const countdown = (str, now = Date.now()) => {
                 off it, so the board travels with the rest instead of being the one panel you
                 cannot move. The content itself lives in organisms/Board now; docked, there is no
                 panel at all — navPick routes 📋 to the centre's board tab. */}
-            <Board
-              projectCode={projectCode}
-              headerDrag={{ onPointerDown: onBotPointerDown, onDoubleClick: boardReset }}
-              onClose={() => setBoardOpen(false)}
-              onHandToChat={(handed) => {
-                setInput((cur) => (cur ? `${cur}\n${handed}` : handed));
-                setOpen(true);
-                openRef.current = true;
-              }}
-            />
+            {/* THE PANEL THAT ACTUALLY CRASHED (twice, 2026-10-19: a status tooltip read `.by` on
+                a card with no account). It renders his own raw text in a dozen shapes, so it is the
+                likeliest thing in the chat to throw — and a throw here must cost him the board, not
+                the conversation beside it. */}
+            <ErrorBoundary label="The board">
+              <Board
+                projectCode={projectCode}
+                headerDrag={{ onPointerDown: onBotPointerDown, onDoubleClick: boardReset }}
+                onClose={() => setBoardOpen(false)}
+                onHandToChat={(handed) => {
+                  setInput((cur) => (cur ? `${cur}\n${handed}` : handed));
+                  setOpen(true);
+                  openRef.current = true;
+                }}
+              />
+            </ErrorBoundary>
           </div>
         )}
         {/* THE TV — the show-and-tell surface beside the panel: one show at a time (the Canvas

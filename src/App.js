@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import ErrorBoundary from "./atoms/ErrorBoundary/ErrorBoundary";
 import SystemView from "./pages/SystemView/SystemView";
 import Reports from "./pages/Reports/Reports";
 import Context from "./pages/Context/Context";
@@ -140,20 +141,28 @@ function App({ SystemViewService }) {
         <DebugRouter>
           <Switch>
             <Route path="/reports/:projectCode?" exact>
-              <Reports />
+              <ErrorBoundary label="The reports page">
+                <Reports />
+              </ErrorBoundary>
             </Route>
             <Route path="/context/:projectCode?" exact>
-              <Context />
+              <ErrorBoundary label="The context page">
+                <Context />
+              </ErrorBoundary>
             </Route>
             <Route path="/agents/:projectCode?" exact>
-              <Context />
+              <ErrorBoundary label="The agents page">
+                <Context />
+              </ErrorBoundary>
             </Route>
             {/* The /ide pages are gone — the transition landed IN /specs (the husk model, the
                 codebase card, the attached agent), so the "build it beside, swap when ready" page
                 was superseded by never needing the swap. It preached the retired model ("a project
                 here is a folder you picked and named") and nothing linked to it. */}
             <Route path="/specs/:projectCode?/:serviceId?/:moduleName?/:methodName?">
-              <SystemView />
+              <ErrorBoundary label="The code page">
+                <SystemView />
+              </ErrorBoundary>
             </Route>
             <Redirect to="/specs" />
           </Switch>
