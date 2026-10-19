@@ -56,17 +56,29 @@ export async function listReports(projectCode) {
     .flatMap(([, v]) => (Array.isArray(v) ? v : []))
     .filter((r) => r && r.path);
   const known = new Set(listed.map((r) => r.path));
+  // THE WALK IS THE TRUTH, AND IT IS ALSO THE EXISTENCE CHECK. `onDisk` is null when the listing
+  // failed and a Set of real report paths when it worked — the difference matters, because an
+  // unreadable listing is not a mass deletion.
+  let onDisk = null;
   let scanned = [];
   try {
     const res = await files.listFiles({ dir: ".systemview" }); // listFiles has NO glob option — it was silently dropped and the whole project walked; dir scopes the walk to this folder
-    scanned = ((res && (res.files || res)) || [])
+    const found = ((res && (res.files || res)) || [])
       .map((f) => ({ path: (f && f.path) || f, ts: (f && (f.mtime || f.ts)) || 0 }))
-      .filter((f) => f.path && /\.systemview\/report\..+\.md$/i.test(f.path))
+      .filter((f) => f.path && /\.systemview\/report\..+\.md$/i.test(f.path));
+    onDisk = new Set(found.map((f) => f.path));
+    scanned = found
       .filter((f) => !known.has(f.path) && !hidden.has(f.path))
       .map((f) => {
         const m = String(f.path).match(/report\.[^.]+\.(.+)\.md$/);
         return { ...f, name: m ? m[1].replace(/-/g, " ") : f.path.split("/").pop() };
       });
   } catch {}
-  return [...listed, ...scanned].filter((r) => !hidden.has(r.path)).sort((a, b) => (b.ts || 0) - (a.ts || 0));
+  // AN INDEX ENTRY WITHOUT A FILE IS NOT A REPORT. The index was handed out verbatim, so a report
+  // deleted outside this door — by hand, by git, by a lane's cleanup — kept a row in the TV picker
+  // and the nav fold that opened nothing. His report: *"the TV button at the top of the chat opens
+  // up to files that don't exist anymore."* A pointer is only offered while the thing it points at
+  // is there; the index is a cache, and the walk above is the disk.
+  const real = onDisk ? listed.filter((r) => onDisk.has(r.path)) : listed;
+  return [...real, ...scanned].filter((r) => !hidden.has(r.path)).sort((a, b) => (b.ts || 0) - (a.ts || 0));
 }
