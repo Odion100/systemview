@@ -31,7 +31,7 @@ const boardPath = (name) => `${ROOT}/${name || "board"}.md`;
 // and `answered` only parsed if you already knew the card had been a question — which is knowledge
 // the reader should never need. The line beside the state says whether it was code or a cause
 // written down; the state says it is over.
-const STATES = ["resolved", "partial", "blocked"];
+const STATES = ["resolved", "reviewed", "partial", "blocked"];
 // DONE is narrower than "has a status", and that gap is the whole safety of a bulk delete: a
 // `partial` or `blocked` card carries an account precisely because work is still outstanding on
 // it, so clearing by "has an account" would delete exactly the cards that must survive.
@@ -357,7 +357,16 @@ function boardOn({ readFile, writeFile }) {
     if (state) {
       const want = String(state).trim().toLowerCase();
       if (want !== "open" && !STATES.includes(want))
-        return { ...where, error: `no state "${want}" — one of ${STATES.join(", ")}, or "open" for the cards with no account yet`, states: STATES };
+        return {
+          ...where,
+          error: `no state "${want}" — one of ${STATES.join(", ")}, or "open" for the cards nobody has even read yet`,
+          states: STATES,
+        };
+      // `open` IS THE ONLY DERIVED STATE, and it is derived from an ABSENCE — no account at all.
+      // Everything else is stamped by whoever did the thing, which is the only way either of them
+      // can trust it. I had `review` derived from "untitled and unsigned" for about ten minutes;
+      // his answer killed it: *"how can I derive that you actually reviewed it?"* A title proves
+      // somebody typed a title. Only a stamp proves somebody read the card.
       const cards = board.cards.filter((c) => {
         const st = c.status && c.status.text ? c.status.state : null;
         return want === "open" ? !st : st === want;

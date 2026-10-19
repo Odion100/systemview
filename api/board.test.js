@@ -250,7 +250,7 @@ test("a clear can name one state, and an unknown state is refused with the vocab
   assert.deepEqual(read().map((c) => c.ts), [2000, 3000]);
   const bad = await api({ projectCode: "p", removeSettled: "done", as: "systemview-test" });
   assert.match(bad.error, /no state "done"/);
-  assert.deepEqual(bad.states, ["resolved", "partial", "blocked"]);
+  assert.deepEqual(bad.states, ["resolved", "reviewed", "partial", "blocked"]);
 });
 
 test("a stateless account is never swept by a clear — it is unmanaged, not finished", async () => {
@@ -333,4 +333,26 @@ test("a card already on the board can be named, renamed, and un-named", async ()
   assert.equal((await api({ projectCode: "p", at: "status picker", title: "the picker", as: "me" })).was, "the status picker");
   assert.equal((await api({ projectCode: "p", at: 1000, title: "", as: "me" })).title, null);
   assert.ok(!("title" in read()[0]));
+});
+
+// `reviewed` IS STAMPED, NOT DERIVED — the correction that ended the derived version: *"how can I
+// derive that you actually reviewed it?"* A title proves a title was typed; only the stamp proves
+// the card was read. So `open` means no account at all, and nothing else is inferred.
+test("`open` is an absence and `reviewed` is a claim — a title alone changes neither", async () => {
+  const CARDS = [
+    { ts: 1000, by: "", text: "a voice dump" },
+    { ts: 2000, by: "systemview-test", text: "an agent's card" },
+  ];
+  const { api } = fake(CARDS);
+  await api({ projectCode: "p", at: 1000, title: "the post-commit hook he wants", as: "systemview-test" });
+  assert.deepEqual(
+    (await api({ projectCode: "p", state: "open" })).cards.map((c) => c.ts),
+    [1000, 2000],
+    "titling it did NOT make it reviewed — it is still an absence",
+  );
+  const r = await api({ projectCode: "p", at: "post-commit", status: "reviewed — he wants a per-project post-commit hook", as: "systemview-test" });
+  assert.equal(r.state, "reviewed");
+  assert.equal(r.done, 0, "reviewed is not finished and a clear must never take it");
+  assert.deepEqual((await api({ projectCode: "p", state: "reviewed" })).cards.map((c) => c.ts), [1000]);
+  assert.deepEqual((await api({ projectCode: "p", state: "open" })).cards.map((c) => c.ts), [2000]);
 });

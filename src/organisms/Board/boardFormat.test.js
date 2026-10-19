@@ -109,3 +109,18 @@ describe("the card's title", () => {
     expect("title" in parseBoard(old)[0]).toBe(false);
   });
 });
+
+// `reviewed` is a WORD, read off the front of the account like every other state — not something
+// the surface works out for itself. Both copies, or the panel and the hub disagree about who read
+// what.
+describe("the reviewed state", () => {
+  it("is read off the account in both copies", () => {
+    expect(stateOf("reviewed — this is about the hook he wants after a commit")).toBe("reviewed");
+    expect(hub.stateOf("reviewed — this is about the hook he wants after a commit")).toBe("reviewed");
+  });
+  it("is not finished — a clear must never take it", () => {
+    expect(DONE).toEqual(["resolved"]);
+    expect(hub.DONE).toEqual(["resolved"]);
+    expect(STATES).toEqual(hub.STATES);
+  });
+});
