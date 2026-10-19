@@ -841,6 +841,8 @@
   flex-wrap: wrap;
   gap: 6px;
   margin: 2px 0 6px;
+  // Right, like every other picture in the app — one rule, both halves of the conversation.
+  justify-content: flex-end;
 }
 .agent-wb__shot {
   padding: 0;
