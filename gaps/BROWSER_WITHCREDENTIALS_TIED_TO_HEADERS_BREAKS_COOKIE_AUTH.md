@@ -3,6 +3,27 @@
 > **STATUS (2026-07-17): fix implemented as RFC-013** (`RFCs/RFC-013-cookie-credentialed-services.md`)
 > — `credentials: true` plugin flag, carried plugin → connect/manifest/getConnection → getProjects →
 > browser marking. UI rebuilt. Pending: host restart + browser verification, then move to `resolved/`.
+>
+> **STATUS (2026-10-19): the whole chain is verified except the browser's own network call, and
+> buAPI has adopted the flag.** Measured, not read:
+>
+> - the live registry: **9 of 20** registered services declare `credentials: true` — buAPI's five
+>   and bu1's four. The field is present on all 20, so every service has an answer rather than a
+>   silence;
+> - the RUNNING hub serves it: `POST /systemview/api/SystemView/getProjects` returns
+>   `credentials: true` on those same nine entries, so the flag reaches the browser;
+> - every window call site passes it — all eleven `loadServiceWithHeaders(connectionData, headers,
+>   credentials)` callers were checked one by one, because a single caller dropping the third
+>   argument looks identical to a working chain until that one surface is used;
+> - and the marking rule now has **8 claims** (`src/utils/loadService.test.js`): a plain service
+>   stays unmarked (wildcard CORS + credentials is illegal and would break every plain service), a
+>   header profile marks, `credentials: true` marks the cookie-only case, marking is per ORIGIN and
+>   does not cross a port or a scheme, a host-backed folder never marks anything.
+>
+> **What is left is one browser check nobody can assert from here:** sign in to buAPI from the
+> window and confirm the `[sv-cred]` diagnostic prints `withCredentials=true` for those origins and
+> the session survives a gated call. That is the last inch, and when it passes this file moves to
+> `gaps/resolved/`.
 
 The browser UI decides whether to send credentials by whether a service declared **auth headers**:
 `src/utils/loadService.js` calls `markCredentialed(serviceUrl)` only when the service's header profile

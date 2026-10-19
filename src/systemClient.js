@@ -29,8 +29,19 @@ export function markCredentialed(url) {
   if (origin) credentialedOrigins.add(origin);
 }
 
-function sendsCredentials(url) {
+// EXPORTED FOR ITS CLAIMS, and it is read-only on purpose. The rule it answers — which origins the
+// browser may send a session cookie to — had no test at all, while being the exact thing that
+// decides whether a cookie-authenticated project can be used from the window
+// (gaps/BROWSER_WITHCREDENTIALS_TIED_TO_HEADERS_BREAKS_COOKIE_AUTH). Nothing outside should mark an
+// origin except `markCredentialed` at load time; asking is free.
+export function sendsCredentials(url) {
   return credentialedOrigins.has(originOf(url));
+}
+
+// For tests only: the marking is process-wide by design (origins are marked once, at load), which
+// means one test's marking would otherwise leak into the next.
+export function __resetCredentialed() {
+  credentialedOrigins.clear();
 }
 
 function createBrowserHttpClient() {
