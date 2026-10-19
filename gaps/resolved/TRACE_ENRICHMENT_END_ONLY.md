@@ -35,3 +35,28 @@ reused. Each entry gets its own fresh snapshot, which:
   anomaly you'd want visible.
 
 The compute is cheap (a session/id read), so there's no reason to cache it across the entries.
+
+---
+
+## RESOLVED — verified 2026-10-19, fixed before this file was re-read
+
+The fix direction asked for: *call the `trace` function at each entry — start, end and error — not
+once with the result reused.* That is what the plugin does now, and it goes one further than the
+gap asked:
+
+```
+systemview-plugin/index.js:126   function svCtx(req)      — one helper, fresh per call, try/catch'd
+systemview-plugin/index.js:269   ctx: svCtx(req)          — the meta handed to MANUAL logs in a request
+systemview-plugin/index.js:329   ctx: svCtx(req)          — start
+systemview-plugin/index.js:344   ctx: svCtx(req)          — error  (the one this gap was filed for)
+systemview-plugin/index.js:375   ctx: svCtx(req)          — end
+```
+
+`makeBaseRecord` spreads `meta.ctx` onto every record, so the enrichment reaches **manual logs made
+inside a request** as well as the three auto-traces — an errored request now carries `user_id` on
+its `start`, its `error` and on anything the handler logged by hand before it threw. A throwing
+enrichment function costs its own context, not the trace (`svCtx` swallows it).
+
+**Not covered by a suite.** No harness mounts the plugin's hooks, so this is verified by reading
+the five call sites and the record builder, not by a claim. Making those hooks testable is real work
+and it is on the board rather than pretended here.
