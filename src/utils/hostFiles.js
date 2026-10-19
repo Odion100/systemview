@@ -227,6 +227,11 @@ export const hostFiles = (projectCode, root) => {
     fastForward: async ({ branch, to } = {}) => hub().fastForward(projectCode, { branch, to, root }),
     // review-first accept: the branch's work arrives as uncommitted changes, his commit on top
     applyBranch: async ({ branch, base } = {}) => hub().applyBranch(projectCode, { branch, base, root }),
+    // A BRING-IN HE DID HIMSELF, ON RECORD. The three accept verbs above change the tree and said
+    // nothing about it, so a lane he landed had no receipt and the removal door later refused it for
+    // lack of proof. Fire-and-forget by design: a receipt that failed to write must never make the
+    // land look like it failed — the work is already in the tree by then.
+    laneBroughtIn: async ({ branch, by } = {}) => hub().laneBroughtIn(projectCode, { branch, by, root }),
     changedFiles: async () => {
       const res = await hub().changedFiles(projectCode, { root });
       if (res && res.ok === false) throw new Error(res.error || "git did not run");

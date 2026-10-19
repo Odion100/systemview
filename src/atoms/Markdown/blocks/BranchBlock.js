@@ -44,6 +44,33 @@ const BranchBlock = ({ label, attrs = {} }) => {
   // fallback when the block never saw you arrive.
   const [cameFrom, setCameFrom] = useState("");
 
+  // A LANE HE ACCEPTED SAYS SO, ON ITS OWN RECORD. His card, 2026-10-16: *"landed, committed work
+  // still sat in the strip because clearing a row is a separate act from landing, and `lanes remove`
+  // REFUSED four provably-landed lanes with can't tell."* Both halves were this one missing write.
+  //
+  // Derivation DECAYS — a lane reads "in" only while its files still match, and the normal flow
+  // (accept it, then keep working on those files) breaks the match within minutes. The removal door
+  // already accepts a decayed verdict when a RECEIPT backs it, and an agent bringing a lane in is
+  // required to write one. These three presses wrote nothing, so the lanes he landed HIMSELF were
+  // exactly the ones with no fallback.
+  //
+  // FIRE AND FORGET, DELIBERATELY. By the time this runs the work is already in the tree: a receipt
+  // that fails to write must not make a successful land report as a failure. It is recorded for the
+  // delete decision later, not for this press's answer.
+  //
+  // ONLY LANES. A `::branch` block can point at any branch — a refinement, a feature, somebody's
+  // spike — and only `lane/*` has a run record to write on; the hub refuses the rest by name, so
+  // asking would be noise on every ordinary branch.
+  const recordBringIn = async () => {
+    if (!/^lane\//.test(branch)) return;
+    try {
+      const p = git(projectCode);
+      if (p && p.laneBroughtIn) await p.laneBroughtIn({ branch, by: "you" });
+    } catch {
+      /* the land stands; the receipt is a record of it, not a condition on it */
+    }
+  };
+
   const load = async () => {
     if (!projectCode || !git || !branch) return;
     try {
@@ -80,6 +107,7 @@ const BranchBlock = ({ label, attrs = {} }) => {
         setError("");
         setLanded(diff.base);
         window.dispatchEvent(new Event("sv:git"));
+        recordBringIn();
       }
     } catch (e) {
       setError((e && e.message) || "fast-forward failed");
@@ -99,6 +127,7 @@ const BranchBlock = ({ label, attrs = {} }) => {
         // RFC-073 slice 8 — the apply's completion, routed to whoever the block names (c56).
         routeResult({ subscribe: attrs.subscribe, project: projectCode, docPath, summary: `applied ${branch} as uncommitted changes` });
         window.dispatchEvent(new Event("sv:git"));
+        recordBringIn();
         // the changes are now a LIST somewhere — ask THIS project's surface to show it. Carried
         // as detail because the bare event opened every bot's panel at once (his catch: "a bunch
         // of panels opened up for other people").
@@ -131,6 +160,7 @@ const BranchBlock = ({ label, attrs = {} }) => {
         setError("");
         setLanded(r.into || "your branch");
         window.dispatchEvent(new Event("sv:git"));
+        recordBringIn();
       }
     } catch (e) {
       setError((e && e.message) || "merge failed");

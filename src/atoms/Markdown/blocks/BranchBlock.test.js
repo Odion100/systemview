@@ -137,3 +137,79 @@ describe("a ::branch block reviews a live branch through the git capability", ()
     expect(screen.getByText("switch to it")).toBeTruthy();
   });
 });
+
+// A BRING-IN HE DID HIMSELF LEAVES A RECEIPT. The reason this is worth four claims: derivation
+// decays (a lane reads "in" only while its files still match, and the normal flow breaks the match
+// within minutes), the removal door accepts a decayed verdict only when a receipt backs it, and
+// these presses used to write nothing at all — so the lanes he landed personally were exactly the
+// ones that later got refused with "can't tell".
+describe("accepting a lane records that it was brought in", () => {
+  let bridge;
+  const laneBridge = (over = {}) => ({
+    branchDiff: jest.fn().mockResolvedValue({
+      ok: true,
+      base: "main",
+      files: [{ path: "src/a.js", status: "M" }],
+      commits: [{ sha: "abc1234", subject: "the lane's work" }],
+      patch: "diff --git a/src/a.js b/src/a.js\n@@ -1 +1 @@\n-a\n+b\n",
+    }),
+    gitState: jest.fn().mockResolvedValue({ branch: "main" }),
+    switchBranch: jest.fn().mockResolvedValue({ ok: true }),
+    mergeBranch: jest.fn().mockResolvedValue({ ok: true, into: "main" }),
+    applyBranch: jest.fn().mockResolvedValue({ ok: true }),
+    laneBroughtIn: jest.fn().mockResolvedValue({ ok: true }),
+    ...over,
+  });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    useMarkdownScope.mockReturnValue({ projectCode: "systemview" });
+    useCapabilityState.mockReturnValue("granted");
+    bridge = laneBridge();
+    useCapability.mockReturnValue(() => bridge);
+  });
+
+  const landIt = async (name = "lane/a-thing") => {
+    render(<BranchBlock label={name} attrs={{ base: "main" }} />);
+    await waitFor(() => expect(bridge.branchDiff).toHaveBeenCalled());
+    fireEvent.click(await screen.findByText(/land onto/));
+    fireEvent.click(await screen.findByText("yes"));
+  };
+
+  it("writes the receipt after a successful land, attributed to him", async () => {
+    await landIt();
+    await waitFor(() => expect(bridge.laneBroughtIn).toHaveBeenCalled());
+    expect(bridge.laneBroughtIn).toHaveBeenCalledWith({ branch: "lane/a-thing", by: "you" });
+  });
+
+  it("writes it after bringing the work over as changes, too — that is a bring-in as much as a merge is", async () => {
+    render(<BranchBlock label="lane/a-thing" attrs={{ base: "main" }} />);
+    await waitFor(() => expect(bridge.branchDiff).toHaveBeenCalled());
+    fireEvent.click(await screen.findByText(/bring over as changes/));
+    fireEvent.click(await screen.findByText("yes"));
+    await waitFor(() => expect(bridge.laneBroughtIn).toHaveBeenCalledWith({ branch: "lane/a-thing", by: "you" }));
+  });
+
+  it("writes NOTHING when the merge was refused — a receipt for work that never landed is the dangerous one", async () => {
+    bridge = laneBridge({ mergeBranch: jest.fn().mockResolvedValue({ ok: false, error: "merge conflict" }) });
+    useCapability.mockReturnValue(() => bridge);
+    await landIt();
+    await waitFor(() => expect(screen.getByText(/merge conflict/)).toBeInTheDocument());
+    expect(bridge.laneBroughtIn).not.toHaveBeenCalled();
+  });
+
+  it("asks nothing for an ordinary branch — only a lane has a record to write on", async () => {
+    await landIt("refine/dead-code");
+    await waitFor(() => expect(bridge.mergeBranch).toHaveBeenCalled());
+    expect(bridge.laneBroughtIn).not.toHaveBeenCalled();
+  });
+
+  it("still lands when the receipt door is missing or throws — the work is already in the tree", async () => {
+    bridge = laneBridge({ laneBroughtIn: jest.fn().mockRejectedValue(new Error("no such door")) });
+    useCapability.mockReturnValue(() => bridge);
+    await landIt();
+    await waitFor(() => expect(screen.getByText(/landed onto main/)).toBeInTheDocument());
+    expect(bridge.mergeBranch).toHaveBeenCalled();
+    expect(screen.queryByText(/no such door/)).toBeNull(); // the receipt's failure is not his problem
+  });
+});
