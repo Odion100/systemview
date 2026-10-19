@@ -13,8 +13,10 @@ import { buildRoute } from "../SystemView/tabRoutes";
 import { fileForDoc } from "./openAs";
 import { langOfPath } from "../SystemView/SystemView";
 import AgentChat from "../../organisms/AgentChat/AgentChat";
-import { saveDoc, saveSkill, saveDef, saveHelp } from "../../utils/hostAgents";
-import { saveJob } from "../../utils/hostJobs";
+import { saveDoc, saveSkill, saveDef, saveHelp, getDef, listSkills, listDocs, listHelp } from "../../utils/hostAgents";
+import { saveJob, getJob } from "../../utils/hostJobs";
+import { skillDoc } from "../../organisms/AgentProfile/skillSources";
+import rehydrateDoc from "./rehydrateDoc";
 import useOpenedFile from "../../organisms/DocPanel/useOpenedFile";
 import Board from "../../organisms/Board/Board";
 import HowWeWork from "../../organisms/HowWeWork/HowWeWork";
@@ -84,6 +86,31 @@ const Context = () => {
     setActiveKey(nextKey || null);
     setUrl((p) => p.delete("doc"));
   };
+  // A STANDING TAB BRINGS ITS DOCUMENT BACK (his card). Blob content is session state by design —
+  // text belongs to its door, not to the tab store — so after a refresh an agentdoc tab stood there
+  // with nothing in it. Now the address is re-read through the same doors the profile uses; a tab
+  // that still cannot be resolved falls through to the pane's honest line rather than a blank.
+  // `tried` makes this once-per-tab: a door that answers null must not be asked again every paint.
+  const triedRef = useRef({});
+  useEffect(() => {
+    const standing = pane.tabs.filter(
+      (tb) => tb.kind === "agentdoc" && tb.adoc && !blobDocs[tb.key] && !triedRef.current[tb.key]
+    );
+    if (!standing.length) return;
+    let live = true;
+    standing.forEach((tb) => {
+      triedRef.current[tb.key] = true;
+      rehydrateDoc(
+        { ...tb.adoc, key: tb.adoc.docKey || tb.adoc.key },
+        { getDef, listSkills, listDocs, listHelp, getJob, skillDoc }
+      ).then((d) => {
+        if (live && d) setBlobDocs((cur) => (cur[tb.key] ? cur : { ...cur, [tb.key]: d }));
+      });
+    });
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pane.tabs, projectCode]);
+
   // With tabs standing but nothing focused (a reload), land on the last tab this page can render.
   useEffect(() => {
     if (activeKey || !pane.tabs.length) return;
@@ -292,7 +319,23 @@ const Context = () => {
                 if (k === activeKey) return closeKey(k);
                 setDocOpen(true);
                 setBlobDocs((cur) => ({ ...cur, [k]: next }));
-                openTab(tabsPc, { key: k, kind: "agentdoc", adoc: { agentId: next.agentId, kind: next.kind, label: next.label || next.name || next.key } });
+                // THE ADDRESS HAS TO BE ENOUGH TO FIND IT AGAIN — it carried only agentId/kind/label,
+                // which cannot locate a skill (needs name+where), a doc or help page (needs key) or
+                // a job (needs jobId). Those are what make a standing tab rehydratable after a
+                // refresh instead of a pane that can only say "reopen it from the profile".
+                openTab(tabsPc, {
+                  key: k,
+                  kind: "agentdoc",
+                  adoc: {
+                    agentId: next.agentId,
+                    kind: next.kind,
+                    label: next.label || next.name || next.key,
+                    name: next.name,
+                    where: next.where,
+                    docKey: next.key,
+                    jobId: next.jobId,
+                  },
+                });
                 focusTab(tabsPc, k);
                 setActiveKey(k);
                 setUrl((p) =>
