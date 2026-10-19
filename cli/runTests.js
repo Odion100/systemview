@@ -319,12 +319,23 @@ const runAllTests = async (savedTests, url, project_code, json, verbose, opts = 
 };
 
 function logPhase(tests, section, verbose = false, compact = false, isMain = false) {
-  tests.forEach(({ errors, results, namespace, title, args }) => {
+  const { claimsOf } = require("../testing-utilities/stepClaims");
+  tests.forEach(({ errors, results, namespace, title, args, savedEvaluations }) => {
     const { serviceId, moduleName, methodName } = namespace;
     const failed = errors && errors.length;
 
+    // WHAT THIS STEP ACTUALLY ASSERTED, on the line. The gap's cheapest shape, and it would have
+    // caught the whole thing on its own: "✓ … (0 assertions)" is self-evidently not a pass, while
+    // the output used to read identically whether four evaluations ran or none did. An action step
+    // says nothing — a Before-phase facilitator has no assertions to count and the number would
+    // just be noise on every row.
+    const claims = claimsOf({ savedEvaluations });
+    const count = claims.declared
+      ? chalk.dim(` (${claims.asserted} assertion${claims.asserted === 1 ? "" : "s"}${claims.asserted < claims.declared ? ` of ${claims.declared} declared` : ""})`)
+      : "";
+
     const label = isMain ? chalk.bold.green(section) : chalk.blue(section);
-    console.log(`    ${label}: ${chalk.dim(title)}`);
+    console.log(`    ${label}: ${chalk.dim(title)}${count}`);
     if (failed) {
       console.log("  " + chalk.bold.red(`${serviceId}.${moduleName}.${methodName}(...)`));
     } else if (isMain) {
