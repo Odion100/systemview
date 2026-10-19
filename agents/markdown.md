@@ -321,7 +321,10 @@ block's message); the file rows unfold their patches. The verbs are the human's:
   two-step, no switching, no CLI. A conflict is a refusal, shown and unwound — never forced.
 - **switch to it** — the tour, for when they want to walk the branch itself (two-step, and `git
   switch` refusing over dirty files is shown, never stashed around); then **back to** the branch
-  they came from.
+  they came from. That return is written into the document: switching stamps `camefrom=<branch>`
+  onto the block's own line (and taking the trip back clears it), so the way home survives a
+  refresh and a page hop instead of degrading to `base` — which is often somewhere they never
+  stood. A read-only document has nowhere to stamp, so there it still offers `base`.
 - **fast-forward \<base\> to here** — the accept from ON the branch, after a walk: brings the base
   up without checking it out. Only clean when the base has not moved since the fork; a non-ff is
   shown as the refusal it is.
