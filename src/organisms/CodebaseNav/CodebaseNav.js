@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import React, { useContext, useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useHistory, useLocation } from "react-router-dom";
 import { canPickThenName, canRenameHostProject, isHostProject } from "../../utils/hostProject";
 import DocIcon from "../../atoms/DocsIcon/DocsIcon";
@@ -7,6 +7,7 @@ import HELP_TOPICS from "../../atoms/Help/helpTopics";
 import { setHelpTopic } from "../../atoms/Help/helpStore";
 import RowMenu from "../../atoms/RowMenu/RowMenu";
 import { commentedPathSet } from "../../atoms/CodeView/codeComments";
+import ServiceContext from "../../ServiceContext";
 import { hostFiles, hasHostFiles } from "../../utils/hostFiles";
 import { slotId, useNavDock, useDockOrder, orderProjects, moveInDock } from "../AgentChat/navDock";
 import useFold from "./useFold";
@@ -1554,6 +1555,39 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
   }, []);
   const commented = useMemo(() => commentedPathSet(files), [files]);
 
+  // RFC-071 — WHICH DOCUMENTS HAVE MEMBERS, and who is behind on them. Asked of the HUB, which is
+  // standing in the folder: answering it here would mean reading every markdown file in the project
+  // through a door meant for one file at a time. Re-asked when the tree refreshes, because a send
+  // or an edit changes the answer and a stale pill would filter to a world that moved.
+  const { SystemViewService } = useContext(ServiceContext);
+  const [memberDocs, setMemberDocs] = useState({ byPath: {}, members: [], behind: new Set() });
+  useEffect(() => {
+    let dead = false;
+    (async () => {
+      try {
+        const svc = SystemViewService && SystemViewService.Agent;
+        if (!svc || !svc.documents) return;
+        const r = await svc.documents({ projectCode });
+        if (dead) return;
+        const byPath = {};
+        const members = new Set();
+        const behind = new Set();
+        ((r && r.documents) || []).forEach((d) => {
+          byPath[d.path] = d;
+          (d.who || []).forEach((m) => members.add(m));
+          if ((d.behind || []).length) behind.add(d.path);
+        });
+        setMemberDocs({ byPath, members: [...members].sort(), behind });
+      } catch {
+        if (!dead) setMemberDocs({ byPath: {}, members: [], behind: new Set() });
+      }
+    })();
+    return () => { dead = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectCode, SystemViewService, refreshTick]);
+  const memberOnlyKey = `sv.cbNav.memberOnly.${projectCode}`;
+  const [memberOnly, setMemberOnly] = useState(() => localStorage.getItem(memberOnlyKey) || "");
+
   const tree = useMemo(() => (files ? buildTree(files, knownDirs) : null), [files, knownDirs]);
   // Rollup: how many changed files live under each directory prefix (for the collapsed-dir badges).
   const changedCounts = useMemo(() => {
@@ -2046,13 +2080,16 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
         (p) =>
           matchText(p) &&
           (!docsOnly || /\.mdx?$/i.test(p)) &&
-          (!commentsOnly || commented.has(p)),
+          (!commentsOnly || commented.has(p)) &&
+          // RFC-071 — "what is buAPI on?" narrows the tree like every other pill; it never
+          // replaces it, so the text box and `.md` still compose on top.
+          (!memberOnly || (memberDocs.byPath[p] && memberDocs.byPath[p].who.includes(memberOnly))),
       )
       .sort()
       .slice(0, 300)
       .map((p) => ({ path: p, language: langOf(p) }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [files, entries, filterActive, commentsOnly, docsOnly, query, commented, diskHits]);
+  }, [files, entries, filterActive, commentsOnly, docsOnly, query, commented, diskHits, memberOnly, memberDocs]);
 
   // The three groups git itself uses. A file that is staged AND edited again since appears in
   // BOTH — that is the honest picture, and it's the state worth seeing twice.
@@ -2062,7 +2099,10 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
   // nothing at all, so the two halves of the row looked like they belonged to different panels.
   const vcGroups = useMemo(() => {
     const keep = (path) =>
-      matchText(path) && (!docsOnly || /\.mdx?$/i.test(path)) && (!commentsOnly || commented.has(path));
+      matchText(path) &&
+      (!docsOnly || /\.mdx?$/i.test(path)) &&
+      (!commentsOnly || commented.has(path)) &&
+      (!memberOnly || (memberDocs.byPath[path] && memberDocs.byPath[path].who.includes(memberOnly)));
     const staged = [];
     const unstaged = [];
     const untracked = [];
@@ -2486,6 +2526,34 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
                     <span className={`${CLASSNAME}__filter-pill-n`}>{changed.size}</span>
                   </button>
                 )}
+                {/* RFC-071 — WHO IS ON WHAT. One pill per member the project's documents name, so
+                    "what is buAPI on?" is a press rather than a search. Same rule as every other
+                    control here: it stays on screen while it is ON, or turning it on with the last
+                    matching document would leave no way back out. */}
+                {(memberDocs.members.length > 0 || memberOnly) &&
+                  memberDocs.members.map((m) => (
+                    <button
+                      type="button"
+                      key={m}
+                      className={`${CLASSNAME}__filter-pill ${CLASSNAME}__filter-pill--member ${
+                        memberOnly === m ? `${CLASSNAME}__filter-pill--on` : ""
+                      }`}
+                      title={memberOnly === m ? "Back to every file" : `Only the documents ${m} is on`}
+                      onClick={() => {
+                        const next = memberOnly === m ? "" : m;
+                        setMemberOnly(next);
+                        try {
+                          if (next) localStorage.setItem(memberOnlyKey, next);
+                          else localStorage.removeItem(memberOnlyKey);
+                        } catch {}
+                      }}
+                    >
+                      {m}
+                      <span className={`${CLASSNAME}__filter-pill-n`}>
+                        {Object.values(memberDocs.byPath).filter((d) => d.who.includes(m)).length}
+                      </span>
+                    </button>
+                  ))}
                 {/* Only files that have comments on them — the same icon they wear in the tree, and
                     the count of them. Drawn only when there ARE any: a 0 pill is a dead control. */}
                 {/* Same rule — and I had just rebuilt the same trap here: delete the last comment

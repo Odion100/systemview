@@ -18,6 +18,7 @@ import ImageEmbed from "./blocks/ImageEmbed";
 import CommitBlock from "./blocks/CommitBlock";
 import BranchBlock from "./blocks/BranchBlock";
 import Ask from "./blocks/Ask";
+import Members from "./blocks/Members";
 import CmdBlock from "./blocks/CmdBlock";
 
 // `file` is TWO things depending on how it's written — the same split `run` has. Inline is a
@@ -54,6 +55,9 @@ export const BLOCKS = {
   chart: { Component: ChartEmbed },
   test: { Component: TestEmbed },
   image: { Component: ImageEmbed },
+  // RFC-071 — `::members{who=a|b}` — who is on this document. Leaf, at the top; the chips are the
+  // membership itself, not a view of one kept somewhere else.
+  members: { Component: Members },
   run: { Component: RunBlock },
   // `:::cmd` — a SHELL command, held verbatim, that the document you read it in can also run. A
   // separate name from `run` on purpose: `run` is the SystemLynx test engine (a service method and

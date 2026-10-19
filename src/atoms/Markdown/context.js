@@ -80,3 +80,16 @@ export function InThreadProvider({ children }) {
 export function useInThread() {
   return useContext(InThread);
 }
+
+// RFC-071 — THE DOCUMENT'S MEMBERS, in scope for everything inside it. A thread inherits the
+// document's membership unless it names its own, so the thread has to be able to see it — and the
+// document's `::members` block is parsed once by the atom rather than re-scanned per thread.
+const MarkdownMembers = createContext([]);
+
+export function MarkdownMembersProvider({ value, children }) {
+  return <MarkdownMembers.Provider value={value}>{children}</MarkdownMembers.Provider>;
+}
+
+export function useDocMembers() {
+  return useContext(MarkdownMembers);
+}

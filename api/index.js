@@ -2128,6 +2128,9 @@ function chatCommand(projectCode, { chat, from, cmd, args, label, say } = {}) {
 const Reports = { ...ReportsLib.reportsOn({ readFile, writeFile }), replyInto: ReportsLib.replyInto };
 const Board = require("./board").boardOn({ readFile, writeFile });
 const CodeComments = require("./codeComments").commentsOn({ readFile, writeFile, listFiles });
+// RFC-071 — "what is buAPI on?" and "how many documents have updates nobody has sent?" are
+// questions about a FOLDER, which is where the hub already stands.
+const DocumentMembers = require("./documentMembers").documentMembersOn({ listFiles, readFile });
 
 // WHERE THE FOUR DRIVE METHODS LAND. api/drive.js decides WHAT to send (and refuses, with why);
 // this emits it, because the chat state and the socket live here. `say` rides the trip and is
@@ -3096,6 +3099,10 @@ module.exports = function launchSystemView(port = 3000) {
         }
         return r;
       },
+      // RFC-071 — the documents in this project that carry membership, and which of them have
+      // updates nobody has sent. One door, two consumers: the navigator filters by `member`, the
+      // band counts `withUpdates`.
+      documents: async ({ projectCode, member, root } = {}) => DocumentMembers({ projectCode, member, root }),
       comments: async ({ projectCode, path, replyText, at, as } = {}) =>
         CodeComments({ projectCode, path, reply: replyText, at, as: as || null }),
       // DRIVING THE WINDOW — FOUR METHODS (api/drive.js), not one door with a verb string.
