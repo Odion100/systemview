@@ -1,4 +1,5 @@
 const moment = require("moment");
+const { claimsOf, assertedNothing, unknownValidations } = require("./stepClaims");
 const {
   arr,
   obj,
@@ -118,6 +119,26 @@ function validateResults() {
     if (e.save) addEvaluation(evaluate(value, namespace, e, undefined, resolveRef));
   });
 
+  // A STEP THAT MEANT TO ASSERT AND DIDN'T IS NOT A PASS.
+  //
+  // Only `save: true` evaluations run (the loop above), so a step whose evaluations are all unsaved
+  // ends with zero errors and is reported green — against any code at all. buAPI's agent found it
+  // the only way it can be found: two regression guards that passed with the fixes REVERTED
+  // (gaps/UNSAVED_EVALUATIONS_MAKE_A_STEP_PASS_VACUOUSLY, 2026-09-28).
+  //
+  // ONLY OUTSIDE EDIT MODE. The authoring UI builds steps with unsaved evaluations on purpose —
+  // that is what the checkboxes are — so enforcing there would paint a test red while it is being
+  // written. The runner path initializes with `editMode: false` (transformTests.initializeSavedTests),
+  // which is exactly the path whose green anyone believes.
+  //
+  // A step with NO evaluations is untouched: that is an ACTION (a Before-phase facilitator, a setup
+  // call), it is legitimate, and failing those would turn every real suite red. The error is for the
+  // combination that is never intentional — evaluations declared, none saved.
+  if (!editMode) {
+    const claims = claimsOf({ savedEvaluations });
+    if (claims.vacuous) errors.push({ ...assertedNothing(claims), namespace: response_type || "results" });
+  }
+
   Object.assign(this, {
     evaluations: evaluations.sort((e1, e2) => e1.namespace.localeCompare(e2.namespace)),
     errors,
@@ -135,21 +156,28 @@ function getErrors({ type, value, validations, expected_type }) {
         .map(({ name, value: expected }) => ({ name, expected, received: value })),
     ];
 
+  // A VALIDATION NOBODY IMPLEMENTS IS NOT A PASSING VALIDATION. Each validator below is a reduce
+  // that ignores names it does not match, so `{name: "equals"}` on a number — the name is
+  // `numEquals` — asserted nothing and the step went green. Same hazard as the unsaved-evaluation
+  // one this file now also catches, through a third door, and it is the one an author meets by
+  // typo rather than by default.
+  const unknown = unknownValidations(type, validations);
+
   switch (type) {
     case "number":
-      return validateNumber(value, validations);
+      return [...unknown, ...validateNumber(value, validations)];
     case "date":
-      return validateDate(value, validations);
+      return [...unknown, ...validateDate(value, validations)];
     case "string":
-      return validateString(value, validations);
+      return [...unknown, ...validateString(value, validations)];
     case "array":
-      return validateArray(value, validations);
+      return [...unknown, ...validateArray(value, validations)];
     case "boolean":
-      return validateBoolean(value, validations);
+      return [...unknown, ...validateBoolean(value, validations)];
     case "null":
     case "undefined":
     default:
-      return [];
+      return [...unknown];
   }
 }
 

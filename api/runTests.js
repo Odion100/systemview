@@ -13,6 +13,7 @@
 // evaluations themselves rather than a printed transcript.
 const { createClient } = require("systemlynx");
 const { initializeSavedTests } = require("../testing-utilities/transformTests");
+const { claimsOf } = require("../testing-utilities/stepClaims");
 const { serviceClient } = require("./serviceClient");
 
 const FullTestController = require("../testing-utilities/FullTestController");
@@ -192,11 +193,24 @@ async function executeSpecs(specs, { services, client, actionMap = {}, headers =
     // rather than only the saved-test face. The row keeps its failures either way — classification
     // changes the COUNT, never the evidence.
     const deadWire = isDeadWire(failures, unreachable);
+    // HOW MANY ASSERTIONS RAN, in the answer. An agent reading `passed: true` cannot tell four
+    // assertions from none, and a step whose evaluations are all unsaved used to produce exactly
+    // the same row as one that asserted everything (gaps/UNSAVED_EVALUATIONS…). The engine now
+    // refuses that combination outright; this is the number that makes the refusal legible — and
+    // that shows a suite quietly asserting less than its author thinks.
+    //
+    // COUNTED WHERE THE ROW IS BUILT, for the same reason the dead-wire rule is: a document's run
+    // block is executed through this function too, so its proof rows carry the count for free.
+    const asserted = (order || []).reduce(
+      (n, name) => n + (sections[name] || []).reduce((m, s) => m + claimsOf(s).asserted, 0),
+      0,
+    );
     rows.push({
       namespace: nsOf(spec),
       title: title || spec.title || "",
       passed: !failures.length,
       ...(deadWire ? { deadWire: true } : {}),
+      assertions: asserted,
       ms: Date.now() - at,
       // WHERE THE SPEC CAME FROM, when the collector attached one — a document's run block has no
       // file in `specs/tests/`, so without this a failing proof row names nothing a reader can open.
