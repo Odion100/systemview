@@ -5,7 +5,11 @@ const { createCookieHttpClient } = require("../cli/cookieClient");
 // (refreshConnections) also carries operator-authored headers. A gated service would otherwise
 // silently drop out of the UI on every refresh.
 const Client = createClient(createCookieHttpClient());
-const LOCAL_STORAGE = `${__dirname}/connections.json`;
+// THE REGISTRY'S FILE, AND A PIN FOR IT. Fixed at `api/connections.json` until now, which made the
+// store the one piece of hub state no test could exercise without writing HIS live registry — and a
+// suite that crashes mid-fixture would have left it holding the fixture. Same shape as the other
+// stores' pins (AUTOBOT_LEDGER_DIR, AUTOBOT_WORKLISTS_DIR): absent in production, set by tests.
+const LOCAL_STORAGE = process.env.SYSTEMVIEW_CONNECTIONS_FILE || `${__dirname}/connections.json`;
 
 // The connections store is a gitignored runtime file — absent on a fresh clone and until the first
 // save. Read it defensively so a missing/empty/corrupt file reads as "no connections yet" instead of
@@ -124,11 +128,79 @@ module.exports = function ConnectedServices() {
     return newConnections;
   };
 
+  // A URL NOBODY CAN CALL IS NOT A REGISTRATION. Measured on his machine 2026-10-19:
+  // `https://ballersunited.global:undefined/bu/api/mocks` had been sitting in the registry, handed
+  // out by `getProjects` to every caller — an agent reading it cannot tell a deployment it has no
+  // code for from a URL that was never callable, and the registry is the one place that can tell
+  // the difference. So the store refuses it at the door, by name, rather than keeping junk that
+  // every reader has to re-diagnose.
+  const urlFault = (url) => {
+    const s = String(url || "");
+    if (!s) return "no serviceUrl";
+    if (/:undefined|:NaN|:null/.test(s)) return "its port is literally undefined — the registering service sent no port";
+    try {
+      const u = new URL(s);
+      if (!u.hostname) return "no host";
+    } catch {
+      return "it does not parse as a URL";
+    }
+    return "";
+  };
+
+  // SAVING IS IDEMPOTENT, because `connect` is a read-modify-write on one file and services boot in
+  // parallel. Two registrations arriving together both read a store without their entry and both
+  // appended — his `bu1` held two copies of Profiles and two of Networking, identical in every
+  // field, and a refresh then re-pushed one copy per stored entry, so the duplicates sustained
+  // themselves forever. Dropping any entry that addresses the same thing before appending makes a
+  // double write converge instead of accumulating, which is what the find-then-save pattern can
+  // never guarantee on its own.
+  const addresses = (a, b) => {
+    const url = (r) => ((r.system && r.system.connectionData && r.system.connectionData.serviceUrl) || "");
+    if (a.projectCode !== b.projectCode) return false;
+    return url(a) === url(b) || (!!a.serviceId && a.serviceId === b.serviceId);
+  };
+
   this.save = (serviceData, index) => {
+    const fault = urlFault(
+      serviceData && serviceData.system && serviceData.system.connectionData
+        ? serviceData.system.connectionData.serviceUrl
+        : "",
+    );
+    // a DYNAMIC (project-defined) service legitimately has no live URL — RFC-021 — so it is the one
+    // shape allowed through without one
+    if (fault && !(serviceData && serviceData.dynamic))
+      throw new Error(
+        `refusing to register ${(serviceData && serviceData.projectCode) || "?"}.${(serviceData && serviceData.serviceId) || "?"}: ${fault}`,
+      );
     const connections = readConnections();
     if (typeof index === "number") connections[index] = serviceData;
-    else connections.push(serviceData);
+    else {
+      const deduped = connections.filter((r) => !addresses(r, serviceData));
+      deduped.push(serviceData);
+      fs.writeFileSync(LOCAL_STORAGE, JSON.stringify(deduped), "utf8");
+      return;
+    }
     fs.writeFileSync(LOCAL_STORAGE, JSON.stringify(connections), "utf8");
+  };
+
+  // WHAT THE STORE IS HOLDING THAT IT SHOULD NOT — the duplicates and dead URLs that predate the
+  // rules above. Returns what it removed so a caller can say so out loud instead of tidying quietly.
+  this.sweep = () => {
+    const connections = readConnections();
+    const kept = [];
+    const dropped = [];
+    for (const r of connections) {
+      const url = (r.system && r.system.connectionData && r.system.connectionData.serviceUrl) || "";
+      const fault = r.dynamic ? "" : urlFault(url);
+      if (fault) { dropped.push({ projectCode: r.projectCode, serviceId: r.serviceId, url, why: fault }); continue; }
+      if (kept.some((k) => addresses(k, r))) {
+        dropped.push({ projectCode: r.projectCode, serviceId: r.serviceId, url, why: "duplicate of an entry already kept" });
+        continue;
+      }
+      kept.push(r);
+    }
+    if (dropped.length) fs.writeFileSync(LOCAL_STORAGE, JSON.stringify(kept), "utf8");
+    return { dropped, kept: kept.length };
   };
 
   this.findService = (url, code, id) => {
