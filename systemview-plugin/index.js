@@ -10,23 +10,12 @@ const { getSpecList, ensureDir } = require("./utils");
 // (a chat append would have been logged and counted as one of their calls).
 const SKIP_MODULES = ["Plugin", "SystemView", "SystemViewChat"];
 
-function redactClone(data, paths) {
-  if (!paths.length || data == null) return data;
-  const clone = JSON.parse(JSON.stringify(data));
-  paths.forEach((p) => {
-    const keys = p
-      .replace(/\[(\w+)\]/g, ".$1")
-      .split(".")
-      .filter(Boolean);
-    let node = clone;
-    for (let i = 0; i < keys.length - 1; i++) {
-      if (node == null) return;
-      node = node[keys[i]];
-    }
-    if (node != null && keys.length) node[keys[keys.length - 1]] = "[REDACTED]";
-  });
-  return clone;
-}
+// A TRACE PAYLOAD IS CLONED SAFELY OR IT TAKES THE SERVICE DOWN — see systemview-plugin/safeClone.js
+// for the crash this replaces (a Mongoose Query's topology cycle, encoded at emit time, killing the
+// host on the ERROR path). `redactClone` returned the caller's RAW object whenever no redact paths
+// were configured, which made the default configuration the dangerous one.
+const { safeClone } = require("./safeClone");
+const { safeEmit } = require("./safeEmit");
 
 module.exports = function ({
   connection = "http://localhost:3300/systemview/api",
@@ -138,7 +127,7 @@ module.exports = function ({
       try {
         fs.appendFileSync(LOG_FILE, JSON.stringify(record) + "\n");
       } catch {}
-      this.emit("log", record);
+      safeEmit(this, record, "trace");
     }
 
     // manual log levels: first arg can be object {scope?, ...data} or string; data goes into "log" key
@@ -164,7 +153,7 @@ module.exports = function ({
       try {
         fs.appendFileSync(LOG_FILE, JSON.stringify(record) + "\n");
       } catch {}
-      this.emit("log", record);
+      safeEmit(this, record, "log");
     }
 
     function warn(scope, logData, meta) {
@@ -172,7 +161,7 @@ module.exports = function ({
       try {
         fs.appendFileSync(LOG_FILE, JSON.stringify(record) + "\n");
       } catch {}
-      this.emit("log", record);
+      safeEmit(this, record, "warn");
     }
 
     function error(scope, logData, meta) {
@@ -180,7 +169,7 @@ module.exports = function ({
       try {
         fs.appendFileSync(LOG_FILE, JSON.stringify(record) + "\n");
       } catch {}
-      this.emit("log", record);
+      safeEmit(this, record, "error");
     }
 
     function debug(scope, logData, meta) {
@@ -188,7 +177,7 @@ module.exports = function ({
       try {
         fs.appendFileSync(LOG_FILE, JSON.stringify(record) + "\n");
       } catch {}
-      this.emit("log", record);
+      safeEmit(this, record, "debug");
     }
 
     function getLog({ limit: requestedLimit } = {}) {
@@ -315,7 +304,7 @@ module.exports = function ({
             sv.trace(
               "error",
               {
-                arguments: redactClone(req.arguments, redact),
+                arguments: safeClone(req.arguments, { redact }),
                 error: {
                   message: err && err.message,
                   status: (err && err.status) || 500,
@@ -336,7 +325,7 @@ module.exports = function ({
         if (sv && traceConfig !== false) {
           sv.trace(
             "start",
-            { arguments: redactClone(req.arguments, redact) },
+            { arguments: safeClone(req.arguments, { redact }) },
             {
               moduleName: req.module_name,
               methodName: req.fn,
@@ -364,8 +353,8 @@ module.exports = function ({
           sv.trace(
             "end",
             {
-              arguments: redactClone(req.arguments, redact),
-              returnValue: redactClone(req.returnValue, redact),
+              arguments: safeClone(req.arguments, { redact }),
+              returnValue: safeClone(req.returnValue, { redact }),
               duration: Date.now() - req._svStart,
             },
             {

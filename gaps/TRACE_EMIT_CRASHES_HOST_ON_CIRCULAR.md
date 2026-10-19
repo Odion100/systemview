@@ -95,3 +95,48 @@ so on our side a Query now serializes to its filter conditions and traces are bo
 That is complementary, not a substitute: it fixes one known payload in one codebase. The plugin still
 needs (1)+(2) so that *any* caller, passing *anything*, gets a degraded trace instead of a downed
 service.
+
+---
+
+## FIXED — 2026-10-19, both layers, as the fix direction asked
+
+**Layer 1 — `systemview-plugin/safeClone.js`.** `redactClone` is gone. The new clone:
+
+- **always clones** — `if (!paths.length) return data` is what made the DEFAULT configuration the
+  dangerous one;
+- honours a value's own **`toJSON` first**, so a Mongoose document renders as its plain form and a
+  caller who taught `Query.prototype` a toJSON (as buAPI did) is honoured rather than second-guessed
+  — and a `toJSON` that throws still cannot throw out of here;
+- names a cycle by **where it pointed**: `[Circular ~.arguments[0]]`, because a bare `[Circular]`
+  cannot say what repeated;
+- renders non-JSON leaves as short honest strings — `[Function name]`, `[Buffer 1.2kB]`, `[Socket]`,
+  `Infinity`, `10n` — instead of the `{}` that `JSON.stringify` silently produces;
+- survives a **getter that throws** (`[Threw on read: …]`), which is the same class of value as the
+  rest of this gap;
+- **bounds the walk** by depth (8) and node count (2000). The topology in the diagram above is both
+  deep and wide; a trace is a breadcrumb, and an unbounded walk on the error path is its own outage.
+  For the Mongoose shape the depth bound is what ends the walk, before the cycle marker is needed.
+
+**Layer 2 — `systemview-plugin/safeEmit.js`.** Every `this.emit("log", record)` in
+`trace`/`log`/`warn`/`error`/`debug` goes through it. A synchronous throw from the encoder is
+caught at the call site (which is exactly where a `RangeError` from `hasBinary` lands), costs ONE
+TRACE, and warns **once per level** on stderr — never through the plugin's own log, which would be
+the recursion this gap is about.
+
+**A third thing this fixes, unnamed in the gap:** the file write was already wrapped in
+`try/catch`, so a circular record was being silently dropped from the service's `.logs` file too.
+Sanitizing means the record lands in both the file and the socket.
+
+**Proven, not argued:** 18 new claims (`safeClone` 12, `safeEmit` 6) including the Mongoose topology
+built to this file's own diagram — asserted to throw as a live object and to serialize after
+cloning. Two bugs in the first cut were caught by those claims rather than by reading: `Buffer` has
+its own `toJSON` that expands to a byte array (so a 1MB upload became a million-element array), and
+a class instance reports `[object Object]`, so the name fallback never fired for sockets and streams.
+
+The plugin's suites now run with `yarn test:api`, which globbed `api/` only — the plugin had no
+tests and no way to run one.
+
+| | |
+|---|---|
+| **lane** | systemview `lane/observability-cannot-kill-the-observed` |
+| **not verified** | a live service throwing with a real Mongoose `Query` in `req.arguments`. That is buAPI's rig; the claims build the same object shape and the same cycle. Their caller-side `toJSON` remains complementary — this makes ANY caller's payload safe. |
