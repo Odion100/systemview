@@ -257,7 +257,7 @@ module.exports = {
     try {
       const dir = path.join(process.cwd(), ".systemview", "chats");
       for (const suffix of [".jsonl", ".ack.json", ".tv.json"]) {
-        try { fs.unlinkSync(path.join(dir, `${pc}.${chat}${suffix}`)); } catch {}
+        try { fs.unlinkSync(path.join(dir, `${roomPc}.${chat}${suffix}`)); } catch {}
       }
       fs.unlinkSync(abs);
     } catch {}
@@ -281,11 +281,23 @@ module.exports = {
   // sent), and a visitor could fire into a room it had never entered. Both must refuse, and the
   // two honest paths — the home agent, and a visitor that entered — must stay open.
   async chatSpeakingGate() {
+    const fs = require("fs");
+    const path = require("path");
     const SystemView = await hub();
     const pc = "systemview-test";
-    const chat = "self-test";
+    // ITS OWN ROOM PER RUN — this suite's probes used to share "self-test", so a visitor one probe
+    // entered lingered for every later test, and each of their messages relayed into that project's
+    // LIVE session ("driveby" reached two real conversations, 2026-10-18). A throwaway room dies
+    // with the run and the chain dies with it.
     const stamp = Date.now();
-    // A service error crosses the wire in a few shapes; dig out the sentence the hub wrote.
+    const chat = `gate-${stamp}`;
+    // THE ROOM BELONGS TO THE FIXTURE, NOT TO THE LIVE PROJECT. A throwaway room was not enough:
+    // a visitor speaking in ANY room of `systemview-test` is relayed to that project's live
+    // session, so the probe's own line landed in his conversation again ("enters-by-speaking …",
+    // 2026-10-18). Inverted, nobody is listening: the room is the fixture project's, whose agent
+    // has no session, and the VISITOR identity is this project — which never receives its own
+    // message (the self-loop guard), so the probe reaches no human anywhere.
+    const roomPc = "systemview-logtest";
     const msgOf = (err) => {
       if (!err) return "";
       if (typeof err === "string") return err;
@@ -304,35 +316,159 @@ module.exports = {
         return msgOf(err);
       }
     };
-    // 1. An identity that is not a connected project at all.
-    const unknown = await refusal(() =>
-      SystemView.chatSend(pc, { chat, from: "agent", as: `ghost-${stamp}`, text: `ghost ${stamp}` }),
-    );
-    // 2. A real project that never entered THIS room (buAPI never enters the self-test chat, so
-    //    this stays a true drive-by across runs).
-    const driveBy = await refusal(() =>
-      SystemView.chatSend(pc, { chat, from: "agent", as: "buAPI", text: `driveby ${stamp}` }),
-    );
-    // 3. A cooking line is speech too — the ghost-cooking bug ("it says they're cooking and
-    //    they're not even in the room") is the same gap.
-    const driveByCooking = await refusal(() =>
-      SystemView.chatStatus(pc, { chat, text: `cooking ${stamp}`, as: "buAPI" }),
-    );
-    // 4. The home agent always speaks in its own room (file-mode agents hold no line at all).
-    const homeAgent = await refusal(() =>
-      SystemView.chatSend(pc, { chat, from: "agent", as: pc, text: `gate-home ${stamp}` }),
-    );
-    // 5. Enter, then speak — the visitor path that must stay open.
-    await SystemView.chatDrain(pc, { chat, listener: `gate:${stamp}`, as: "systemview-logtest" });
-    const enteredVisitor = await refusal(() =>
-      SystemView.chatSend(pc, { chat, from: "agent", as: "systemview-logtest", text: `gate-visitor ${stamp}` }),
-    );
-    return {
-      unknownIdentityRefused: /not a connected project/.test(unknown || ""),
-      driveByRefused: /is not in .* room/.test(driveBy || ""),
-      cookingDriveByRefused: /is not in .* room/.test(driveByCooking || ""),
-      homeAgentAllowed: homeAgent === null,
-      enteredVisitorAllowed: enteredVisitor === null,
+    // THE TEST STANDS UP ITS OWN VISITOR. Two earlier shapes of this were both wrong: hard-coding
+    // `systemview-logtest` (which nothing boots — a hand-started fixture, so the door refused it
+    // exactly as it refuses a ghost, and the test failed on its own premise) and then picking
+    // whichever project happened to be connected (his ruling, 2026-10-18: *"a test cannot rely on
+    // random agents"* — a proof that depends on what else is running proves nothing, and the
+    // reliably-connected codes are REAL conversations a probe must never wear).
+    //
+    // So the fixture is this test's own: `test/LogSuite/index.js` registers under
+    // `systemview-logtest` and nothing else uses that code. Started here, waited for, and taken
+    // back down in the `finally` below — including its registration, or the next run inherits a
+    // dead entry that makes the door's answer depend on history.
+    const { spawn } = require("child_process");
+    const visitor = "systemview-logtest";
+    // ABSOLUTE, FROM THIS FILE. `process.cwd()` is whatever directory the hub's service was started
+    // from, so a relative path spawned a node that could not find the script — and with stdio
+    // ignored the failure was invisible, surfacing only as `fixtureUp: false`.
+    const repoRoot = path.resolve(__dirname, "..", "..");
+    let fixtureError = "";
+    const fixture = spawn(process.execPath, [path.join(repoRoot, "test", "LogSuite", "index.js")], {
+      cwd: repoRoot,
+      env: { ...process.env, LOGSUITE_PORT: process.env.LOGSUITE_PORT || "5558" },
+      stdio: "ignore",
+    });
+    fixture.on("error", (e) => { fixtureError = (e && e.message) || String(e); });
+    const known = async () => {
+      const projects = (await SystemView.getProjects()) || {};
+      return Object.keys(projects).includes(visitor);
     };
+    let fixtureUp = false;
+    let probePc = "";
+    for (let i = 0; i < 40 && !fixtureUp; i += 1) {
+      // its registration is the readiness signal — not a port probe and not a sleep: the door the
+      // test is about reads the connections store, so that is the thing worth waiting for
+      await new Promise((r) => setTimeout(r, 250));
+      try { fixtureUp = await known(); } catch {}
+    }
+
+    // AND THE PROBE GETS ITS OWN IDENTITY — registered, so the door accepts it; sessionless, so
+    // nothing it says can reach a human. Draining as THIS PROJECT made systemview-test a visitor
+    // of the fixture's room, and `relayToVisitors` then delivered every line of that room into his
+    // live conversation ("[in systemview-logtest] gate-home …", 2026-10-18). The fix is not a
+    // quieter room, it is an identity with nobody behind it: the fixture's own live service,
+    // registered a second time under a throwaway project code that exists for this run only.
+    let probeError = "";
+    try {
+      const projects = (await SystemView.getProjects()) || {};
+      const entries = projects[visitor];
+      const fx = (Array.isArray(entries) ? entries : [])[0];
+      if (!fx || !fx.system) probeError = `no registration to clone for ${visitor}: ${JSON.stringify(entries).slice(0, 160)}`;
+      else {
+        probePc = `gate-probe-${stamp}`;
+        await SystemView.connect({
+          system: fx.system,
+          projectCode: probePc,
+          serviceId: "LogSuiteProbe",
+          specList: fx.specList || [],
+          credentials: false,
+          dynamic: false,
+        });
+      }
+    } catch (e) {
+      probePc = "";
+      probeError = (e && (e.message || JSON.stringify(e))) || String(e);
+    }
+
+
+    try {
+    // 1. An identity that is not a connected project at all — the ONE refusal the door still has.
+    const unknown = await refusal(() =>
+      SystemView.chatSend(roomPc, { chat, from: "agent", as: `ghost-${stamp}`, text: `ghost ${stamp}` }),
+    );
+    // 2. ARRIVING IS ENTERING (the design this test used to deny): a known project that never
+    //    opened this room's door SPEAKS — it is delivered, and the room records the arrival. The
+    //    probe speaks as the log-test fixture, never as a live peer: a probe wearing a real
+    //    project's name is a real message in their session.
+    const spoke = await refusal(() =>
+      SystemView.chatSend(roomPc, { chat, from: "agent", as: probePc, text: `enters-by-speaking ${stamp}` }),
+    );
+    const history = (await SystemView.chatHistory(roomPc, chat, 0)) || [];
+    const delivered = history.some((r) => r && r.text === `enters-by-speaking ${stamp}`);
+    // WHAT "ENTERING" ACTUALLY IS HERE, and the earlier version of this test asserted a record the
+    // design never writes: `enterBySpeaking` MARKS the identity as entered and writes no line —
+    // only a drain or a join announces an arrival, and a drain announces one ONLY for an identity
+    // that had not entered recently. So the observable consequence of "speaking is arriving" is
+    // precisely this: after speaking, the same identity's drain must produce NO joined line.
+    const joinedLines = (rows) =>
+      rows.filter(
+        (r) => r && (r.from === "system" || r.kind === "system") && String(r.text || r.event || "").includes(probePc),
+      ).length;
+    const joinedBeforeDrain = joinedLines(history);
+    // 3. A status line is speech too — same door, same auto-entry, no ghost-cooking from unknowns.
+    const unknownCooking = await refusal(() =>
+      SystemView.chatStatus(roomPc, { chat, text: `cooking ${stamp}`, as: `ghost-${stamp}` }),
+    );
+    // 4. The home agent always speaks in its own room.
+    const homeAgent = await refusal(() =>
+      SystemView.chatSend(roomPc, { chat, from: "agent", as: roomPc, text: `gate-home ${stamp}` }),
+    );
+    // 5. Enter-then-speak stays open — a drain is an arrival, and the visitor talks after it.
+    await SystemView.chatDrain(roomPc, { chat, listener: `gate:${stamp}`, as: probePc });
+    const afterDrain = (await SystemView.chatHistory(roomPc, chat, 0)) || [];
+    // the drain found it already entered, so it announced nothing new
+    const drainAnnouncedAnyway = joinedLines(afterDrain) > joinedBeforeDrain;
+    const enteredVisitor = await refusal(() =>
+      SystemView.chatSend(roomPc, { chat, from: "agent", as: probePc, text: `gate-visitor ${stamp}` }),
+    );
+    // The throwaway room goes away with its run — same rule every chat fixture here follows. Two
+    // bugs lived in this one block and both left litter: it deleted `${pc}.…` while the room
+    // belongs to the FIXTURE now, and it resolved the directory from `process.cwd()`, which is
+    // wherever the hub's service was started. Seven rooms were on disk before this was fixed.
+    try {
+      const dir = path.join(repoRoot, ".systemview", "chats");
+      for (const suffix of [".jsonl", ".ack.json", ".tv.json"]) {
+        try { fs.unlinkSync(path.join(dir, `${roomPc}.${chat}${suffix}`)); } catch {}
+      }
+    } catch {}
+    return {
+      // the fixture came up and registered — if this is false the two visitor claims below are
+      // UNPROVEN, and they say so by failing rather than by going vacuously green
+      fixtureUp,
+      fixtureError, // why it never registered, when it didn't — silence here was the whole bug
+      roomOwner: roomPc,
+      probeRegistered: !!probePc,
+      probeError, // swallowing this is what made a dead `connect` look like a failing door
+      visitorIdentity: probePc, // a registered identity with no session behind it
+      delivered,
+      drainAnnouncedAnyway,
+      unknownIdentityRefused: /not a connected project/.test(unknown || ""),
+      // delivered AND marked entered — the mark proven by the drain staying silent afterwards
+      speakingEnters: !!probePc && spoke === null && delivered && !drainAnnouncedAnyway,
+      unknownCookingRefused: /not a connected project/.test(unknownCooking || ""),
+      homeAgentAllowed: homeAgent === null,
+      // WITHOUT AN IDENTITY THESE CANNOT BE TRUE. `as: ""` collapses to the room's own agent, so
+      // both probes would be ALLOWED and read green while proving nothing about a visitor.
+      enteredVisitorAllowed: !!probePc && enteredVisitor === null,
+    };
+    } finally {
+      // THE FIXTURE LEAVES NOTHING BEHIND — the process, then its registration. A dead entry left
+      // in the store would make `systemview-logtest` count as "known" on every later run, so the
+      // door's own refusal could never be tested again.
+      try { fixture.kill("SIGTERM"); } catch {}
+      try { await SystemView.deleteService(visitor, "LogSuite"); } catch {}
+      if (probePc) {
+        try { await SystemView.deleteService(probePc, "LogSuiteProbe"); } catch {}
+        // the throwaway identity's own relay room — a visitor gets room files written for it, and
+        // those are this run's litter like anything else it created
+        try {
+          const dir = path.join(repoRoot, ".systemview", "chats");
+          for (const f of fs.readdirSync(dir)) if (f.startsWith(`${probePc}.`)) {
+            try { fs.unlinkSync(path.join(dir, f)); } catch {}
+          }
+        } catch {}
+      }
+    }
   },
 };

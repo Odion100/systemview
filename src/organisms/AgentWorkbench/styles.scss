@@ -1,3 +1,4 @@
+@import "../../atoms/Markdown/chat-md";
 // RFC-046 — the workbench. It sits inside the codebase card next to the terminal, so it borrows the
 // nav's tokens rather than inventing a palette: one card, one surface.
 .agent-wb {
@@ -214,6 +215,14 @@
 // that's very helpful to me as a reader?"* The direct chat renders documents, not bubbles, so its
 // blocks get real vertical rhythm.
 .agent-wb__row--say, .agent-wb__row--mine {
+  // THE CHAT MARKDOWN RULES HAVE TO BE HERE AT ALL. This file styled a handful of `chat-md__*`
+  // classes — paragraphs, headings, lists, fences — and never included the mixin that DEFINES
+  // them, so everything the mixin alone carries was unstyled in the feed: the whole table rule set,
+  // and `--md-line`/`--md-ink` themselves. A table in his chat therefore rendered with browser
+  // defaults — no rules, no padding, a crushed header — which is exactly what he reported while I
+  // kept restyling renderers he was not reading. Included FIRST so the row's own overrides below
+  // (block paragraphs, document rhythm) still win.
+  @include chat-md;
   .chat-md__p {
     display: block;
     margin: 0 0 11px;

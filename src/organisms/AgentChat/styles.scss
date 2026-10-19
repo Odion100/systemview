@@ -3143,6 +3143,11 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
+  // THE DRAWER'S TOP EDGE IS VISIBLE EVEN WHEN YOUR POINTER IS NOWHERE NEAR IT. The resize handle
+  // (`.panel-divider--h`) only paints on hover, which means finding the grab line was a hunt —
+  // his words: *"it's hard to see where you resize that sometimes."* A hairline says where the
+  // drawer starts; the hover seam still does the louder job once you are on it.
+  border-top: 1px solid var(--sv-border, #e3e6f2);
 }
 // ONE GLYPH, ROTATED — the wall tabs' own › (his call: the skinny caret was ugly, and two
 // codepoints never weigh the same). › rotated a quarter-turn points down; flipped, up.
@@ -3202,7 +3207,34 @@
   display: flex;
   flex-direction: column;
 }
+// A REPORT ROW IN THE BAND — the door and its delete, and the row spans the strip. It used to BE
+// the button, which shrink-wrapped to its text: the hover and the hit area both ended mid-row, so
+// you had to be on the letters to open a report (*"the line doesn't go flex all the way to the
+// end"*). The row owns the width and the hover; the button inside owns the press.
 .agent-chat__reports-row {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  box-sizing: border-box;
+  &:hover { background: var(--sv-hover); }
+  &.is-armed { background: var(--sv-hover); }
+  .agent-chat__reports-del {
+    flex: none;
+    border: none;
+    background: none;
+    color: inherit;
+    font-size: 11px;
+    opacity: 0;
+    cursor: pointer;
+    padding: 2px 8px;
+  }
+  &:hover .agent-chat__reports-del,
+  &.is-armed .agent-chat__reports-del { opacity: 1; }
+  &.is-armed .agent-chat__reports-del { color: #e05252; font-weight: 700; }
+}
+.agent-chat__reports-open {
+  flex: 1 1 auto;
+  min-width: 0;
   border: none;
   background: none;
   text-align: left;
@@ -3213,8 +3245,17 @@
   color: var(--sv-text);
   padding: 2px 10px;
   cursor: pointer;
-  &:hover { background: var(--sv-hover); }
   .agent-chat__reports-flag { margin-left: 0; }
+}
+// WHO FILED IT, quietly — the same weight as a time stamp, because it is the same kind of fact.
+.agent-chat__reports-who {
+  flex: none;
+  font-size: 10px;
+  color: var(--sv-text-faint);
+  border: 1px solid var(--sv-border, #e3e6f2);
+  border-radius: 3px;
+  padding: 0 4px;
+  white-space: nowrap;
 }
 .agent-chat__reports-name {
   white-space: nowrap;
@@ -3690,9 +3731,13 @@
     max-height: 220px;
     overflow: auto;
   }
-  .chat-md__table {
-    font-size: 10.5px;
-  }
+  // AND NOTHING HERE PINS A TABLE'S FONT SIZE. This block carried `font-size: 10.5px` — same
+  // specificity as the mixin's own rule and later in the build, so it WON silently: every size
+  // the mixin set was dead on arrival, and a table was the smallest text in the chat while the
+  // stylesheet said otherwise. That is what made this unfixable from the mixin — three rebuilds
+  // in a row shipped a number nobody could see, which reads exactly like "you did nothing".
+  // The sizes live in `chat-md.scss`, one place; shrink a table HERE again and it breaks the same
+  // way, invisibly.
 }
 
 // RFC-052 — IN THE RAIL. A small form drawn for a 44px strip: the face with its ring, the unread
@@ -4332,3 +4377,82 @@
 }
 .agent-chat__jobrun-star:hover { color: #d19a2e; }
 .agent-chat__jobrun-star--on { color: #d19a2e; }
+
+// THE HEAD KEEPS ITS FACE. His correction, 2026-10-19: *"you weren't supposed to change the style
+// of the headers. You're just supposed to make them clickable."* So nothing here paints anything —
+// the segments inherit the head's own type and colour and carry only a cursor, and the head's
+// layout rules are the originals (right-aligned, baseline, same padding, same hover). The only
+// reason the head is no longer one <button> is that a button cannot contain buttons, and the
+// counts had to become real ones.
+.agent-chat__workband-head {
+  flex: none;
+  border: none;
+  background: none;
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end; // the RIGHT side, open or closed — it stopped hopping
+  gap: 6px;
+  text-align: right;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--sv-text-muted);
+  padding: 1px 8px 2px;
+  cursor: pointer;
+  &:hover { background: var(--sv-hover); color: var(--sv-text); }
+}
+.agent-chat__workband-head-text { display: inline; }
+// A COUNT IS A DOOR AND LOOKS LIKE TEXT — no pill, no padding, no weight of its own. Which tab is
+// showing is said in the tab bar, which is new furniture; the head says what it always said.
+.agent-chat__workband-seg,
+.agent-chat__workband-fold {
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  padding: 0;
+  cursor: pointer;
+}
+.agent-chat__workband-sep { color: inherit; }
+.agent-chat__workband-reports { color: inherit; }
+
+// THE TAB BAR — drawn only when there is more than one kind to split, because a single tab over
+// its own rows is a label pretending to be a choice.
+.agent-chat__bandtabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 6px 0;
+  flex: none;
+  // the tabs SIT ON A LINE, so the selected one has something to break — his call: *"put a border
+  // under the selected tab, I think that'll help."* Without the row's hairline an underline is just
+  // a floating dash; with it, selection reads at a glance.
+  border-bottom: 1px solid var(--sv-border);
+}
+.agent-chat__bandtab {
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 11px;
+  // Lighter than it was — 700 read as shouting on a row of three, and nothing here needs to shout:
+  // the row is navigation, and the underline below says which one you are on.
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  // `--sv-text-muted` and not `-faint`: faint is for hints, and these are navigation.
+  color: var(--sv-text-muted);
+  padding: 2px 9px 3px;
+  border-bottom: 2px solid transparent; // the line's own space, held open so nothing shifts
+  cursor: pointer;
+  &:hover { color: var(--sv-text); }
+}
+// SELECTION IS A LINE, NOT A COLOUR. His correction, twice: he asked for *"a border under the
+// selected tab"* and got an indigo pill with white text — *"you made them call for attention."*
+// A tab row is navigation furniture: it should be legible and otherwise silent. So the selected tab
+// gains the underline and full-strength text, and loses every fill.
+.agent-chat__bandtab--on {
+  color: var(--sv-text);
+  background: none;
+  border-color: transparent;
+  border-bottom: 2px solid var(--sv-indigo);
+  margin-bottom: -1px;
+}

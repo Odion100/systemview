@@ -6,6 +6,11 @@
 @mixin chat-md {
   --md-ink: #5e6ade52;
   --md-line: rgba(0, 0, 0, 0.18);
+  // A SECOND, QUIETER LINE. The column rules in a table have to be visible without turning it
+  // into a grid, and reusing `--md-line` for both axes made every table look boxed. One token per
+  // weight: `--md-line` separates rows and carries the header rule, `--md-line-soft` separates
+  // columns and is roughly half of it. Both get handed back lighter on dark (bottom of this file).
+  --md-line-soft: rgba(0, 0, 0, 0.055);
   .chat-md__p {
     display: inline;
   }
@@ -108,24 +113,53 @@
   }
   .chat-md__table {
     border-collapse: collapse;
-    font-size: 0.92em;
-    // Cells decide their own width; `pre-wrap` on the bubble would otherwise stretch them.
-    white-space: nowrap;
+    // NO OUTER FRAME. Tried one at his ask and he looked at it and sent it back: *"let's go back
+    // borderless."* The rules inside do the work; a frame around them turns a table in a sentence
+    // into a widget in a sentence.
+    // BIGGER THAN THE PROSE, NOT SMALLER. A table is read by scanning — eyes crossing a row and
+    // dropping down a column — so it is the last thing in a chat that should be set small, and it
+    // was the smallest thing in it: 0.95em here, and a hard 10.5px pin in `AgentChat/styles.scss`
+    // that beat it anyway. ~14px against a 12.5px row, which is the step that is actually visible.
+    font-size: 1.12em;
+    line-height: 1.5;
     th,
     td {
-      padding: 3px 8px 3px 0;
+      // Symmetric padding, because the gutter now has a line down the middle of it.
+      padding: 7px 13px;
       text-align: left;
       vertical-align: top;
+      // CELLS WRAP. `white-space: nowrap` sat on the whole table, so a cell with a sentence in it
+      // could not break and every table with prose became a sideways scroll in a narrow bubble —
+      // the single biggest reason these were hard to read.
+      white-space: normal;
     }
     th {
-      font-weight: 700;
-      border-bottom: 1px solid var(--md-line);
-      padding-bottom: 4px;
+      // 700 was shouting; the rule under the header is what says "header".
+      font-weight: 600;
+      border-bottom: 2px solid var(--md-line);
+      padding-bottom: 7px;
+      // a header that wraps makes every column under it look misaligned, so headers alone stay on
+      // one line
+      white-space: nowrap;
     }
     tbody tr + tr td {
-      border-top: 1px solid var(--md-ink);
+      // A HAIRLINE, NOT INK. This was `--md-ink` — a member of the TEXT colour family — so every
+      // row was separated by a near-text-weight rule and the table read as a stack of dark lines
+      // instead of as rows of information.
+      border-top: 1px solid var(--md-line);
     }
-    // Last column keeps no trailing gap, so a two-column table reads tight in a narrow bubble.
+    // COLUMNS GET A RULE TOO, at half the weight of the row rule. Padding alone leaves the eye to
+    // guess where a column ends, which is fine in a wide page and not in a narrow bubble.
+    th + th,
+    td + td {
+      border-left: 1px solid var(--md-line-soft);
+    }
+    // Borderless, so the outer edges carry no padding either — the first column lines up with the
+    // paragraph above it instead of sitting indented inside an invisible box.
+    th:first-child,
+    td:first-child {
+      padding-left: 0;
+    }
     th:last-child,
     td:last-child {
       padding-right: 0;
@@ -135,10 +169,26 @@
     opacity: 0.7;
   }
   // DARK: the translucent ink comes back — the lavender wash is a light-mode color.
+  //
+  // AND SO DO THE LINES. `--md-line` was black-on-translucent and NOTHING handed it back for dark
+  // mode, so every line the chat markdown paints — table row rules, the header rule, the column
+  // rules, a quote's bar, a `---` — was black laid on a dark panel: present in the stylesheet and
+  // invisible on screen. His report, and the reason he kept saying there were no lines in the
+  // table at all: *"in dark mode you can barely see those lines."* A line is only a line if it is
+  // lighter than what it sits on.
   :root.sv-dark & {
+    --md-line: rgba(255, 255, 255, 0.3);
+    --md-line-soft: rgba(255, 255, 255, 0.075);
     .chat-md__code,
     .chat-md__fence {
       background: var(--md-ink);
+      // AND THE CODE CHIP KEEPS NO OUTLINE ON DARK. Its border is `--md-line` too, and that
+      // border had been invisible on dark for as long as the token was black — so inline code
+      // has always read as a quiet FILL, and brightening the token to make table rules visible
+      // switched an outline on around every piece of inline code at once. His catch, immediately:
+      // *"you changed the code blocks everywhere to ugly effect… it never called out to me."*
+      // The fill is what says "code" here; the lines belong to tables and quotes.
+      border-color: transparent;
     }
   }
   // Chips ride inside narrow bubbles — let a long title wrap instead of overflowing.

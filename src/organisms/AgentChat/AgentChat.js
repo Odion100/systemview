@@ -33,6 +33,7 @@ import { hostFiles, hasHostFiles } from "../../utils/hostFiles";
 // eslint-disable-next-line import/no-cycle
 import Board from "../Board/Board";
 import { hasHostJobs, jobRuns, rateJobRun } from "../../utils/hostJobs";
+import { bandTabs, bandLabel, readBandTab, writeBand, TAB_KEY } from "./bandTabs";
 import { deleteReport as deleteReportFile, reportIndexSets, listReports } from "../../utils/reportOps";
 import SEND_ICON from "../../assets/send.png";
 import { LINKISH, shortUrl, collectLinks, pathHref } from "./chatLinks";
@@ -1044,21 +1045,57 @@ function WorkList({ items, onClear, source = "" }) {
 // THE BAND'S HEADER — one definition, worn in BOTH states, pinned RIGHT in both (his calls: "it
 // evolved to what it is — it's a header"; "keep it on the right side"). It counts the things that
 // matter — jobs, lanes, reports — never the whiteboard; the approval flag rides when one waits.
-function WorkbandHead({ open, jobs, lists = 0, lanes, reports, waiting, onToggle }) {
-  const seg = [];
-  // "JOBS" COUNTS JOBS — his catch, 2026-10-16: the header said "18 jobs" over 13 job cards,
-  // because the count took every standing worklist. Skill and session lists get their own word
-  // when any stand; usually none do, and the header simply stops lying.
-  if (jobs) seg.push(`${jobs} job${jobs === 1 ? "" : "s"}`);
-  if (lists) seg.push(`${lists} list${lists === 1 ? "" : "s"}`);
-  if (lanes) seg.push(`${lanes} lane${lanes === 1 ? "" : "s"}`);
-  if (reports) seg.push(`${reports} report${reports === 1 ? "" : "s"}`);
+// THE BAND HEAD IS A ROW OF DOORS, NOT A SENTENCE. His ask, 2026-10-19: *"when you click the
+// headers, which say one job, three lanes, it opens up into that particular tab."* So each count is
+// its own button that selects that tab (and opens the band if it was down), the chevron keeps the
+// open/close it always had, and the ☰/▥ pair from the navigator lives here too — same icons, same
+// meaning, because a second vocabulary for one idea is how a surface stops being learnable.
+//
+// "JOBS" COUNTS JOBS — his catch, 2026-10-16: the header said "18 jobs" over 13 job cards, because
+// the count took every standing worklist. Skill and session lists get their own word when any
+// stand; usually none do, and the header simply stops lying.
+function WorkbandHead({ open, jobs, lists = 0, lanes, reports, waiting, onToggle, onPick }) {
+  const seg = [
+    ["jobs", jobs, bandLabel("jobs", jobs)],
+    ["lists", lists, bandLabel("lists", lists)],
+    ["lanes", lanes, bandLabel("lanes", lanes)],
+    // Reports count was the one segment that was not a door — it read the same and did nothing,
+    // which is worse than not being there. Now it opens its own tab like the rest.
+    ["reports", reports, bandLabel("reports", reports)],
+  ].filter(([, n]) => n > 0);
   return (
-    <button type="button" className="agent-chat__workband-head" title={open ? "Put the work band down" : "Open the work band"} onClick={onToggle}>
+    // THE HEAD IS WHAT IT WAS, with doors in it. His correction: *"you weren't supposed to change
+    // the style of the headers. You're just supposed to make them clickable."* It reads exactly as
+    // before — right-aligned muted counts joined by · with the chevron at the end — and the only
+    // structural change is that it is no longer a single <button>, because a button cannot contain
+    // the buttons the counts had to become. Which tab is showing is said by the tab bar, not here.
+    <div className="agent-chat__workband-head" onClick={onToggle} role="presentation">
       {waiting ? <span className="agent-chat__reports-flag">⚑ {waiting} approval waiting</span> : null}
-      <span className="agent-chat__workband-head-text">{seg.join(" · ")}</span>
+      <span className="agent-chat__workband-head-text">
+        {seg.map(([kind, , label], i) => (
+          <React.Fragment key={kind}>
+            {i ? <span className="agent-chat__workband-sep"> · </span> : null}
+            <button
+              type="button"
+              className="agent-chat__workband-seg"
+              title={open ? "Put the work band down" : `Open the ${kind}`}
+              // A COUNT IS A WAY IN, NOT A SWITCH. His correction, 2026-10-19: *"clicking opens it
+              // and closes it — once it's open it just closes it. You already got the tabs once
+              // it's open."* Exactly: while the band is open the tab row is the switch, so the head
+              // has one job left and every press in it means the same thing.
+              onClick={(e) => {
+                e.stopPropagation();
+                if (open) onToggle();
+                else if (onPick) onPick(kind);
+              }}
+            >
+              {label}
+            </button>
+          </React.Fragment>
+        ))}
+      </span>
       <span className={`agent-chat__swap-chev${open ? "" : " agent-chat__swap-chev--up"}`}>›</span>
-    </button>
+    </div>
   );
 }
 
@@ -4173,6 +4210,10 @@ const countdown = (str, now = Date.now()) => {
   const deleteReportRow = async (r) => {
     try { await deleteReportFile(projectCode, r.path); } catch {}
     setAllReports((cur) => (cur || []).filter((x) => x.path !== r.path));
+    // …and the BAND's list, which is a second poll of the same files. Without this the row he
+    // just deleted sat there until the next 30s tick — a surface disagreeing with the disk about
+    // something he did himself.
+    setReportsMeta((m) => ({ ...m, list: m.list.filter((x) => x.path !== r.path), flags: m.flags }));
     // …and every show RECORD carrying this report goes hidden with it — leaving them was the
     // zombie's other half: the restore found an unhidden record for a file that no longer existed.
     (fullHist || messages || []).forEach((m) => {
@@ -4217,6 +4258,9 @@ const countdown = (str, now = Date.now()) => {
   // the file and the index entry go, then the show record hides; text-only: the record hides.
   // Deleting what's ON the TV puts the TV away.
   const [tvArmed, setTvArmed] = useState("");
+  // The band's reports tab arms its own row — same two-step every deletable row in this app has,
+  // kept separate from the TV picker's so arming one never lights the other.
+  const [repArmed, setRepArmed] = useState("");
   const deleteShow = async (s) => {
     const a = s.args || {};
     const path = a.path || (a.report && reportPathFor(a.report));
@@ -4956,13 +5000,6 @@ const countdown = (str, now = Date.now()) => {
   // verdict= is a flag up in the mailbox. Scanned over the newest 20 on a slow poll; the files are
   // the truth, there is no second store to drift.
   const [reportsMeta, setReportsMeta] = useState({ list: [], waiting: 0, flags: {} });
-  const [reportsOpen, setReportsOpenRaw] = useState(() => {
-    try { return window.localStorage.getItem(`sv.chat.reportsOpen.${projectCode}`) === "1"; } catch { return false; }
-  });
-  const setReportsOpen = (v) => {
-    try { window.localStorage.setItem(`sv.chat.reportsOpen.${projectCode}`, v ? "1" : "0"); } catch {}
-    setReportsOpenRaw(v);
-  };
   // THE GATE — his challenge, 2026-10-16: *"isn't polling inefficient? …you have to justify it."*
   // The justified shape: one cheap listing per tick fingerprints every report file AND the index by
   // (path, mtime). Unchanged fingerprint → the tick ends at that single call; nothing is re-read
@@ -5039,6 +5076,17 @@ const countdown = (str, now = Date.now()) => {
   }, [deletedLanesKey]);
   // which lane's panel is open — one at a time; the panel is the deep look, the rows are the glance
   const [lanePanel, setLanePanel] = useState(null);
+  // THE BAND IS TABS, FULL STOP (his call once he saw the toggle: *"just make it tabs"*). `bandTab`
+  // is only a PREFERENCE: which tab actually shows is decided in bandTabs.js from what has rows, so
+  // the band never shows an empty pane while work sits on another tab.
+  const [bandTab, setBandTab] = useState(() => readBandTab());
+  const pickBandTab = (k) => {
+    setBandTab(k);
+    writeBand(TAB_KEY, k);
+    // pressing a count in the head is also how you OPEN the band — his flow: the head says
+    // "3 lanes", you press it, you are looking at the lanes
+    setStripOpen(true);
+  };
   // THE LANE'S RAW LOG, joined once for both render sites. The split stamps a subagent's events
   // with the spawning Agent call's id, while a row is keyed by its RUN id — so the join is on the
   // sourced `set` call, which is the only thing both halves carry. A lane an agent registered for
@@ -5124,6 +5172,14 @@ const countdown = (str, now = Date.now()) => {
       (l) => !deletedLanes.has(l.key) && JSON.stringify(l.items) !== clearedLists[l.key]
     );
   })();
+  // WHICH TABS THE BAND HAS, and which one is showing — decided from what has rows (see
+  // bandTabs.js), so the head's highlight and the pane below can never disagree.
+  const bandJobs = listsShown.filter((l) => l.source.startsWith("job:"));
+  const bandLists = listsShown.filter((l) => !l.source.startsWith("job:"));
+  const bandShown = bandTabs(
+    { jobs: bandJobs.length, lists: bandLists.length, lanes: lanesShown.length, reports: reportsMeta.list.length },
+    bandTab,
+  );
   const todoShown = listsShown.length ? listsShown[listsShown.length - 1].items : null;
   // THE PLAN'S HEADER RIDES THE MINIMISED VIEW ONLY — his correction after I put it on the open
   // panel's cooking line too: *"the worklist is already showing inside the chat."* Open, the list
@@ -6413,7 +6469,7 @@ const countdown = (str, now = Date.now()) => {
               it controls. And the count rides the title while it is on: a surface that silently
               omits is a surface that lies, so "no runs" and "runs, hidden by me" must never look
               the same. */}
-          {attached && !hideWork && (lanesShown.length > 0 || listsShown.length > 0 || !!work.state.whiteboard) && (
+          {attached && !hideWork && (lanesShown.length > 0 || listsShown.length > 0 || reportsMeta.list.length > 0 || !!work.state.whiteboard) && (
             <div className={`${CLASSNAME}__workband`} ref={stripRef} style={{ flex: `0 1 ${stripH}%` }}>
               <div
                 className="panel-divider panel-divider--h"
@@ -6428,10 +6484,87 @@ const countdown = (str, now = Date.now()) => {
                 lanes={lanesShown.length}
                 reports={reportsMeta.list.length}
                 waiting={reportsMeta.waiting}
+                onPick={pickBandTab}
                 onToggle={() => setStripOpen(false)}
               />
-              {(lanesShown.length > 0 || listsShown.length > 0) && (
+              {/* THE TAB BAR — one tab per kind that HAS rows, drawn only in tabs view. The head's
+                  counts are the other door into exactly these; both set the same state, so they
+                  cannot disagree about what is showing. */}
+              {/* THE TAB ROW — one tab per TYPE of work that has rows. No toggle and no stacked
+                  view: the band is tabs (his call). A single type still gets its tab, because the
+                  tab is the type's name, not a choice between kinds. */}
+              {bandShown.tabs.length > 0 && (
+                <div className={`${CLASSNAME}__bandtabs`}>
+                  {bandShown.tabs.map((tb) => (
+                    <button
+                      key={tb.key}
+                      type="button"
+                      className={`${CLASSNAME}__bandtab${bandShown.active === tb.key ? ` ${CLASSNAME}__bandtab--on` : ""}`}
+                      onClick={() => pickBandTab(tb.key)}
+                    >
+                      {bandLabel(tb.key, tb.n)}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {(lanesShown.length > 0 || listsShown.length > 0 || reportsMeta.list.length > 0) && (
               <div className={`${CLASSNAME}__strip`}>
+          {/* THE REPORTS TAB — the mailbox's rows, in the strip with every other kind of work.
+              Same rows, same press (opens the report the way a :report chip does), same flag on an
+              approval that waits; what is gone is the fold, because the tab IS the fold now. */}
+          {attached && bandShown.active === "reports" && (
+            <>
+              {reportsMeta.list.slice(0, 30).map((r) => (
+                <div
+                  key={r.path}
+                  className={`${CLASSNAME}__reports-row${repArmed === r.path ? " is-armed" : ""}`}
+                >
+                  {/* THE WHOLE ROW IS THE DOOR, FULL WIDTH. As a shrink-to-fit button the hit area
+                      and the hover both stopped at the end of the text — his catch: *"the line
+                      doesn't go flex all the way to the end, you gotta be over the fucking
+                      text."* */}
+                  <button
+                    type="button"
+                    className={`${CLASSNAME}__reports-open`}
+                    title={r.path}
+                    onClick={() => openBandReport(r.path)}
+                  >
+                    {reportsMeta.flags[r.path] ? <span className={`${CLASSNAME}__reports-flag`}>⚑</span> : null}
+                    <span className={`${CLASSNAME}__reports-name`}>{r.name}</span>
+                    {/* WHO FILED IT — the file name carries the agent and the list never said so,
+                        which matters the moment two agents file into one room. */}
+                    {(() => {
+                      const who = String(r.path || "").match(/report\.([^.]+)\./);
+                      return who ? <span className={`${CLASSNAME}__reports-who`}>{who[1]}</span> : null;
+                    })()}
+                    {r.ts ? <span className={`${CLASSNAME}__reports-when`}>{moment(r.ts).format("D MMM h:mm a")}</span> : null}
+                  </button>
+                  {/* AND A REPORT CAN BE DELETED FROM HERE. The band had no delete at all, so the
+                      only way to clear a read report was the nav fold or the TV picker — this
+                      presses the SAME verb (file + index entry + any show record carrying it). */}
+                  <button
+                    type="button"
+                    className={`${CLASSNAME}__reports-del`}
+                    title={repArmed === r.path ? "Click again — deletes the report file too (kept in git history)" : "Delete this report"}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (repArmed === r.path) {
+                        setRepArmed("");
+                        deleteReportRow(r);
+                      } else setRepArmed(r.path);
+                    }}
+                  >
+                    {repArmed === r.path ? "sure?" : "×"}
+                  </button>
+                </div>
+              ))}
+              {reportsMeta.list.length > 30 && (
+                <div className={`${CLASSNAME}__reports-more`}>
+                  +{reportsMeta.list.length - 30} older — the Stage tab lists them all
+                </div>
+              )}
+            </>
+          )}
           {/* ONE RENDERER FOR A LANE ROW, flat or nested — the row, its in-place panel, its
               delete. Defined here (not a component) so it closes over every handler the flat strip
               already wired. */}
@@ -6485,9 +6618,16 @@ const countdown = (str, now = Date.now()) => {
             const laneOf = (l) => String(l.source || "").slice(5);
             return (
               <>
-                {attached && lanesShown.filter((l) => !claimed.has(laneOf(l))).map(renderLaneRow)}
+                {/* IN TABS VIEW a kind shows alone; in LIST view everything stacks, which is
+                    exactly what the band always did — the toggle picks between them and nothing
+                    else changes. A job card still nests the lanes it cut on the jobs tab: that
+                    relation is the job's, not the lane tab's. */}
+                {attached && bandShown.active === "lanes" &&
+                  lanesShown.filter((l) => !claimed.has(laneOf(l))).map(renderLaneRow)}
                 {attached &&
-                  listsShown.map((l) =>
+                  listsShown
+                    .filter((l) => bandShown.active === (l.source.startsWith("job:") ? "jobs" : "lists"))
+                    .map((l) =>
                     l.source.startsWith("job:") ? (
                       <JobRun
                         key={l.key}
@@ -6523,29 +6663,6 @@ const countdown = (str, now = Date.now()) => {
                   again. Same area, different job: the list tracks the work, the board holds the
                   conversation. The wipe is the host's, so an erase clears it for both of us. */}
               <Whiteboard text={work.state.whiteboard} writeTs={work.state.whiteboardTs} onWipe={() => work.wipeWhiteboard()} />
-              {/* THE MAILBOX — reports live IN the band now (his design): the head line always
-                  shows, counts in your face, the flag up when an approval waits. Rows open the
-                  report the way a :report chip does. */}
-              <div className={`${CLASSNAME}__reports`}>
-                <button type="button" className={`${CLASSNAME}__reports-head`} onClick={() => setReportsOpen(!reportsOpen)}>
-                  reports · {reportsMeta.list.length}
-                  {reportsMeta.waiting ? <span className={`${CLASSNAME}__reports-flag`}>⚑ {reportsMeta.waiting} approval waiting</span> : null}
-                </button>
-                {reportsOpen && (
-                  <div className={`${CLASSNAME}__reports-list`}>
-                    {reportsMeta.list.slice(0, 30).map((r) => (
-                      <button type="button" key={r.path} className={`${CLASSNAME}__reports-row`} title={r.path} onClick={() => openBandReport(r.path)}>
-                        {reportsMeta.flags[r.path] ? <span className={`${CLASSNAME}__reports-flag`}>⚑</span> : null}
-                        <span className={`${CLASSNAME}__reports-name`}>{r.name}</span>
-                        {r.ts ? <span className={`${CLASSNAME}__reports-when`}>{moment(r.ts).format("D MMM h:mm a")}</span> : null}
-                      </button>
-                    ))}
-                    {reportsMeta.list.length > 30 && (
-                      <div className={`${CLASSNAME}__reports-more`}>+{reportsMeta.list.length - 30} older — the Stage tab lists them all</div>
-                    )}
-                  </div>
-                )}
-              </div>
             </div>
           )}
           {/* Closed, the band IS a label (his words) — the count rides it so "hidden" never looks
@@ -6553,7 +6670,7 @@ const countdown = (str, now = Date.now()) => {
           {/* THE WHOLE LABEL IS THE GRAB BAR — a 5px edge sliver was the only pull surface and it
               sat inside the chat guard's shadow; now any press on the row starts the pull, and a
               press that never moves is the click that opens. */}
-          {attached && hideWork && (lanesShown.length > 0 || listsShown.length > 0 || !!work.state.whiteboard) && (
+          {attached && hideWork && (lanesShown.length > 0 || listsShown.length > 0 || reportsMeta.list.length > 0 || !!work.state.whiteboard) && (
             <div className={`${CLASSNAME}__workband-label`} ref={stripRef} onMouseDown={stripPull}>
               <WorkbandHead
                 open={false}
@@ -6562,6 +6679,7 @@ const countdown = (str, now = Date.now()) => {
                 lanes={lanesShown.length}
                 reports={reportsMeta.list.length}
                 waiting={reportsMeta.waiting}
+                onPick={pickBandTab}
                 onToggle={() => setStripOpen(true)}
               />
             </div>

@@ -1,42 +1,108 @@
 [
   {
-    "title": "The speaking gate: you must be in a room to talk in it",
-    "namespace": { "serviceId": "SystemViewCore", "moduleName": "Api", "methodName": "chatSpeakingGate" },
+    "title": "The speaking door: unknowns are refused, a known project that speaks has entered",
+    "namespace": {
+      "serviceId": "SystemViewCore",
+      "moduleName": "Api",
+      "methodName": "chatSpeakingGate"
+    },
     "Before": [],
     "Main": [
       {
-        "title": "unknown identities and drive-bys are refused; home agents and entered visitors speak",
-        "namespace": { "serviceId": "SystemViewCore", "moduleName": "Api", "methodName": "chatSpeakingGate" },
+        "title": "unknown identities are refused; a known project speaking is delivered and recorded as entered",
+        "namespace": {
+          "serviceId": "SystemViewCore",
+          "moduleName": "Api",
+          "methodName": "chatSpeakingGate"
+        },
         "args": [],
         "savedEvaluations": [
           {
+            "namespace": "results.fixtureUp",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.delivered",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.probeRegistered",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
             "namespace": "results.unknownIdentityRefused",
             "expected_type": "boolean",
-            "validations": [{ "name": "boolEquals", "value": true }],
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
             "save": true
           },
           {
-            "namespace": "results.driveByRefused",
+            "namespace": "results.speakingEnters",
             "expected_type": "boolean",
-            "validations": [{ "name": "boolEquals", "value": true }],
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
             "save": true
           },
           {
-            "namespace": "results.cookingDriveByRefused",
+            "namespace": "results.unknownCookingRefused",
             "expected_type": "boolean",
-            "validations": [{ "name": "boolEquals", "value": true }],
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
             "save": true
           },
           {
             "namespace": "results.homeAgentAllowed",
             "expected_type": "boolean",
-            "validations": [{ "name": "boolEquals", "value": true }],
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
             "save": true
           },
           {
             "namespace": "results.enteredVisitorAllowed",
             "expected_type": "boolean",
-            "validations": [{ "name": "boolEquals", "value": true }],
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
             "save": true
           }
         ]
