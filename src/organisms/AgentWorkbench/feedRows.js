@@ -1509,8 +1509,18 @@ export const contextWindowFor = (model, seen = 0, stated = 0) => {
   return seen > byModel ? Math.max(CTX_WINDOW_LARGE, seen) : byModel;
 };
 
-// WHEN A COMPACTION IS DUE — autobot's thresholds, same reason as the ruler. Amber is "soon", red is
-// "now"; below that the conversation is simply healthy and the bar should say nothing at all.
+// WHEN A COMPACTION IS DUE. Three marks, because there are three different things to say.
+//
+// CTX_MARK IS OUR PRACTICE, NOT THE MODEL'S LIMIT. We compact around 60% — early, on purpose: the
+// maintenance pass that prepares a handover costs little at 60 and gets swallowed by the boundary
+// at 95. His card, 2026-10-19: *"we usually try to do context at 60, and at 60 it's still gray…
+// I'm not saying 60 needs to be red red red, but it shouldn't still be gray."* Exactly right — a
+// bar that reads healthy at the number we act on is a bar that cannot tell him when to act.
+//
+// So 60 is BLUE: our mark, informational, the colour this app uses for "this is a thing you do".
+// Amber at 75 is the model's own pressure arriving, red at 90 is late. Below 60 the conversation
+// is healthy and the bar should say nothing at all.
+export const CTX_MARK = 0.6;
 export const CTX_WARN = 0.75;
 export const CTX_DUE = 0.9;
 

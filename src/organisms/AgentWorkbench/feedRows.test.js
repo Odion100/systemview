@@ -1,4 +1,4 @@
-import { foldEvents, foldState, pathsWritten, parseVisitorTurn, parseUsageReport, CTX_DUE, CTX_WARN } from "./feedRows";
+import { foldEvents, foldState, pathsWritten, parseVisitorTurn, parseUsageReport, CTX_DUE, CTX_MARK, CTX_WARN } from "./feedRows";
 
 const ev = (kind, rest = {}) => ({ kind, ts: 1, ...rest });
 
@@ -1467,5 +1467,26 @@ describe("run.nudged — the wake leaves a row", () => {
     expect(foldEvents([ev("run.nudged", { source: "skill:x", count: 3, finalNotice: true })])[0].finalNotice).toBe(true);
     expect(foldEvents([ev("run.nudged", { source: "skill:x", count: 3, gaveUp: true })])[0].finalNotice).toBe(true);
     expect(foldEvents([ev("run.nudged", { source: "skill:x", count: 1 })])[0].finalNotice).toBe(false);
+  });
+});
+
+// HIS CARD, 2026-10-19: *"we usually try to do context at 60, and at 60 it's still gray… I'm not
+// saying 60 needs to be red red red, but it shouldn't still be gray."* The bar had two marks — the
+// model's pressure (75) and late (90) — and none at the number WE act on.
+describe("the context marks say three different things", () => {
+  it("puts our compaction practice below the model's pressure, not on top of it", () => {
+    expect(CTX_MARK).toBe(0.6);
+    expect(CTX_MARK).toBeLessThan(CTX_WARN);
+    expect(CTX_WARN).toBeLessThan(CTX_DUE);
+  });
+
+  // The whole complaint in one claim: 60% must not fall into the healthy band any more.
+  it("60% is past our mark, and still short of the model's", () => {
+    const at = (pct) => (pct >= CTX_DUE ? "due" : pct >= CTX_WARN ? "warn" : pct >= CTX_MARK ? "mark" : "healthy");
+    expect(at(0.59)).toBe("healthy");
+    expect(at(0.6)).toBe("mark");
+    expect(at(0.74)).toBe("mark");
+    expect(at(0.75)).toBe("warn");
+    expect(at(0.95)).toBe("due");
   });
 });

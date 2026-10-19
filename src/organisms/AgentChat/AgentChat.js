@@ -35,7 +35,7 @@ import { announce, claim as claimSpeaker, nextSpeakerId } from "../../molecules/
 import { takeIfNew } from "../../molecules/SpeakReply/autoSpeak";
 import Feed, { timeOf } from "../AgentWorkbench/Feed";
 import useAgentSession from "../AgentWorkbench/useAgentSession";
-import { CTX_WARN, CTX_DUE, tokensShort, parseUsageLines, foldEvents, laneLog } from "../AgentWorkbench/feedRows";
+import { CTX_MARK, CTX_WARN, CTX_DUE, tokensShort, parseUsageLines, foldEvents, laneLog } from "../AgentWorkbench/feedRows";
 import laneCook from "./laneCook";
 import { parseRetain, retainLine } from "../../atoms/Markdown/blocks/retention";
 import { visStyle } from "../AgentWorkbench/visitorColor";
@@ -7250,6 +7250,8 @@ const countdown = (str, now = Date.now()) => {
                   ? "compact now"
                   : work.state.ctx >= work.state.ctxWindow * CTX_WARN
                   ? "compact soon"
+                  : work.state.ctx >= work.state.ctxWindow * CTX_MARK
+                  ? "past our mark — this is where we compact"
                   : "healthy"
               }${work.state.model ? ` · ${work.state.model}` : ""}`}
             >
@@ -7259,6 +7261,8 @@ const countdown = (str, now = Date.now()) => {
                     ? ` ${CLASSNAME}__meter-fill--due`
                     : work.state.ctx >= work.state.ctxWindow * CTX_WARN
                     ? ` ${CLASSNAME}__meter-fill--warn`
+                    : work.state.ctx >= work.state.ctxWindow * CTX_MARK
+                    ? ` ${CLASSNAME}__meter-fill--mark`
                     : ""
                 }`}
                 style={{ width: `${Math.min(100, (work.state.ctx / work.state.ctxWindow) * 100)}%` }}
@@ -8342,14 +8346,22 @@ const countdown = (str, now = Date.now()) => {
                     // about the week. Every string carries its own tone, computed from its own
                     // percentage; the fill keeps its own continuous shading, unrelated to these.
                     const toneOf = (n) => (n >= 90 ? "due" : n >= 75 ? "warn" : "");
-                    const unit = (key, text, n) => (
-                      <span
-                        key={key}
-                        className={`${CLASSNAME}__usageline-unit${toneOf(n) ? ` ${CLASSNAME}__usageline-unit--${toneOf(n)}` : ""}`}
-                      >
-                        {text}
-                      </span>
-                    );
+                    // CONTEXT HAS ONE MORE MARK THAN A PLAN METER DOES, and it is ours rather than
+                    // the model's: we compact around 60%. A plan at 60% is fine and says nothing;
+                    // a conversation at 60% is exactly where we act, so the number stops reading
+                    // as plain text there (his card: *"at 60 it's still gray… it shouldn't be"*).
+                    const ctxToneOf = (n) => toneOf(n) || (n >= CTX_MARK * 100 ? "mark" : "");
+                    const unit = (key, text, n, tone = null) => {
+                      const t = tone || toneOf(n);
+                      return (
+                        <span
+                          key={key}
+                          className={`${CLASSNAME}__usageline-unit${t ? ` ${CLASSNAME}__usageline-unit--${t}` : ""}`}
+                        >
+                          {text}
+                        </span>
+                      );
+                    };
                     const meter = (b, name) =>
                       unit(
                         name,
@@ -8366,7 +8378,8 @@ const countdown = (str, now = Date.now()) => {
                     if (first) parts.push(meter(first[1], first[0]));
                     else if (top) parts.push(meter(top, /fable/i.test(top.label) ? "fable" : /all models/i.test(top.label) ? "week" : "session"));
                     listed.filter((x) => x !== first).forEach(([name, b]) => parts.push(meter(b, name)));
-                    if (barPrefs.ctx && ctxPct !== null) parts.push(unit("ctx", `ctx ${ctxPct}%`, ctxPct));
+                    if (barPrefs.ctx && ctxPct !== null)
+                      parts.push(unit("ctx", `ctx ${ctxPct}%`, ctxPct, ctxToneOf(ctxPct)));
                     if (barPrefs.tokens) {
                       const live = work.state.state === "working" && work.state.liveChars ? Math.round(work.state.liveChars / 4) : work.state.turnOut || 0;
                       if (live) parts.push(unit("tok", `${work.state.state === "working" ? "≈" : ""}${live.toLocaleString()} tok`, 0));

@@ -1185,6 +1185,9 @@ $sv-board-states: (
   &__usageline-text { flex: none; white-space: nowrap; font-variant-numeric: tabular-nums; }
   // ONE UNIT PER STRING: the meter tied to the bar carries its reset with it, every other meter is
   // its own. A unit warms only on its OWN percentage.
+  // OUR MARK — the number turns the app's blue at 60%, where we compact. Informational, not an
+  // alarm: amber and red still belong to the model's own pressure.
+  &__usageline-unit--mark { color: var(--sv-blue, #5b8def); }
   &__usageline-unit--warn { color: #d19a2e; }
   &__usageline-unit--due { color: #e05252; }
   &__usageline-sep { color: var(--sv-text-faint); }
@@ -1987,7 +1990,12 @@ $sv-board-states: (
   &__meter-fill {
     height: 100%;
     background: color-mix(in srgb, var(--sv-text-faint) 55%, transparent);
-    transition: width 0.4s ease;
+    transition: width 0.4s ease, background 0.3s ease;
+    // OUR MARK (60%) — blue, and a touch taller than the hairline so it registers in the corner of
+    // his eye without being an alarm. Amber and red still mean what they meant.
+    &--mark {
+      background: var(--sv-blue, #5b8def);
+    }
     &--warn {
       background: #d19a2e;
     }
