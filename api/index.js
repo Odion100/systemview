@@ -1451,6 +1451,47 @@ async function laneStatus(projectCode, { branch = "", text = "", tone = "", by =
   }
 }
 
+// HIS OWN PRESS LEAVES A RECEIPT — the hole in his card (2026-10-16): *"landed, committed work still
+// sat in the strip because clearing a row is a separate act from landing, and `lanes remove` REFUSED
+// four provably-landed lanes with can't tell."*
+//
+// Both halves of that were one missing write. An AGENT bringing a lane in records the act (the lanes
+// verb demands it), and the removal door already accepts `unknown + receipt` because derivation
+// decays within minutes of the files moving on. But the BranchBlock's own presses — land, apply,
+// fast-forward — recorded nothing at all, so the lanes HE landed himself were precisely the ones with
+// no receipt to fall back on. The verdict decayed to "can't tell" and the door refused work that he
+// had personally landed, which is how he ended up clearing them by hand.
+//
+// THE BASE IS RESOLVED HERE, NOT PASSED IN. Every receipt written before 2026-10-10 stored a BRANCH
+// NAME (`main`, `ElementLocator`) because the caller read gitState.branch — a name that moves, so the
+// receipt could never be verified against anything. HEAD is a fact on this disk and this is the thing
+// standing on the disk; the browser is not asked.
+//
+// IT IS A RECORD, NOT A VERDICT. Written at the moment of the act, dated, attributed to `you` when a
+// press made it — and `laneVerdict` still refuses to let any receipt outrank `out`. Nothing here can
+// make a lane look landed when the patch proves it absent.
+async function laneBroughtIn(projectCode, { branch = "", by = "you", root } = {}) {
+  const b = String(branch || "").trim();
+  if (!b) return { ok: false, error: "which lane? pass its branch" };
+  const found = laneRecord(b);
+  if (!found) return { ok: false, error: `no run record for lane ${b} — a branch nobody registered has no receipt to write on` };
+  const id = String(found.file.split("/").pop() || "").replace(/^run-/, "").replace(/\.json$/, "");
+  const cwd = rootOf(projectCode, root);
+  let base = "";
+  if (cwd) {
+    const head = await git(cwd, ["rev-parse", "HEAD"]);
+    if (head.ok) base = head.out.trim().slice(0, 40);
+  }
+  try {
+    const wl = require(path.join(require("os").homedir(), "autobot", "electron", "agents", "worklist.cjs"));
+    const res = wl.markBroughtIn(id, { base, repo: projectCode, by: String(by || "you").slice(0, 80) });
+    if (!res) return { ok: false, error: "the run record would not take it" };
+    return { ok: true, projectCode, branch: b, broughtIn: res };
+  } catch (e) {
+    return { ok: false, error: String((e && e.message) || e) };
+  }
+}
+
 function laneReceipt(branch) {
   const b = String(branch || "").trim();
   if (!b) return null;
@@ -2898,6 +2939,7 @@ module.exports = function launchSystemView(port = 3000) {
       branchState,
       lanes,
       laneStatus,
+      laneBroughtIn,
       removeWorktree,
       deleteBranch,
       mergeBranch,
