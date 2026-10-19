@@ -1350,7 +1350,10 @@ const CodePane = ({ file, onClose }) => {
           <div className={`md-view md-view--${editorDark ? "dark" : "light"}`}>
             <Markdown
               dark={editorDark}
-              scope={{ projectCode: file.projectCode, serviceId: file.serviceId }}
+              // RFC-071 — `docPath` rides in scope so `::members` knows which document it is on;
+              // nothing else needs it, and a block that had to be TOLD its own file would be a block
+              // every surface has to remember to configure.
+              scope={{ projectCode: file.projectCode, serviceId: file.serviceId, docPath: file.path }}
               commentKey={`file-${file.path}`}
               // A checklist toggled in Preview saves the file — same writeFile the editor uses.
               onSourceChange={

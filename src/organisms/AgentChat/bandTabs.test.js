@@ -48,3 +48,22 @@ describe("the work band is tabs — one per type of work", () => {
     expect(() => writeBand(TAB_KEY, "lanes", hostile)).not.toThrow();
   });
 });
+
+// RFC-071 — a document with members and an unsent update is work waiting on him.
+describe("documents take their turn in the band", () => {
+  it("has no tab when no document is waiting — the rule every kind lives by", () => {
+    const { tabs } = bandTabs({ jobs: 1, documents: 0 });
+    expect(tabs.map((t) => t.key)).toEqual(["jobs"]);
+  });
+  it("appears when one is, and speaks the band's plural", () => {
+    const { tabs } = bandTabs({ documents: 2 });
+    expect(tabs.map((t) => t.key)).toEqual(["documents"]);
+    expect(bandLabel("documents", 1)).toBe("1 document");
+    expect(bandLabel("documents", 2)).toBe("2 documents");
+  });
+  it("comes last, so a surface nobody has lived with yet cannot steal the opening tab", () => {
+    const { tabs, active } = bandTabs({ jobs: 1, documents: 3 });
+    expect(tabs.map((t) => t.key)).toEqual(["jobs", "documents"]);
+    expect(active).toBe("jobs");
+  });
+});

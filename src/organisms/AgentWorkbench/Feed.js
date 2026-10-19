@@ -283,6 +283,59 @@ const InjectedRow = ({ row }) => {
   );
 };
 
+// RFC-071 — A MEMBERSHIP DELIVERY, OPENABLE. A reply in a thread you are on, or a document you
+// are a member of changing, arrives as a turn — and it used to be a flat "✉ message landed…" line
+// cut at 140 characters, which is a receipt you can read and nothing else. His: *"why isn't that
+// thread log expandable like most logs so you can see details?"*
+//
+// Closed: who moved what. Open: the thread, the whole delivered text, and the document itself —
+// one press opens the file in the navigator, because the first thing you want after reading that a
+// thread moved is to be IN it.
+const LandedDocRow = ({ row }) => {
+  const [open, setOpen] = useState(false);
+  const file = String(row.path || "").split("/").pop();
+  const openDoc = (e) => {
+    e.stopPropagation();
+    window.dispatchEvent(
+      new CustomEvent("sv:openFileInNav", {
+        detail: { projectCode: row.project || undefined, path: row.path },
+      }),
+    );
+  };
+  return (
+    <div className={`${CLASSNAME}__row ${CLASSNAME}__row--hook`}>
+      <div
+        role="button"
+        tabIndex={0}
+        style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}
+        onClick={() => setOpen(!open)}
+        onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setOpen(!open)}
+      >
+        <When ts={row.ts} />
+        <span className={`${CLASSNAME}__hook-mark`}>✉</span>
+        <span className={`${CLASSNAME}__hook-name`}>{row.thread ? `thread ${row.thread} moved` : "document updated"}</span>
+        <span className={`${CLASSNAME}__hook-on`}>
+          {file}
+          {row.from ? ` · by ${row.from}` : ""}
+        </span>
+        <span className={`${CLASSNAME}__cmd-sign`}>{open ? "▾" : "▸"}</span>
+      </div>
+      {open && (
+        <div className={`${CLASSNAME}__injected-body`}>
+          <div>
+            <button type="button" className={`${CLASSNAME}__tool-btn`} onClick={openDoc} title="open this document">
+              {row.project ? `${row.project}:` : ""}
+              {row.path}
+            </button>
+          </div>
+          {row.summary ? <div>{row.summary}</div> : null}
+          {row.text ? <div>{row.text}</div> : null}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const ToolRow = ({ row, renderText = null }) => {
   const [open, setOpen] = useState(false);
   // THE FILE IS IN THE ROW. His ask, verbatim: the rows that show what an agent ran carry buttons
@@ -823,6 +876,8 @@ const Feed = ({ rows, answered = {}, onAnswer = null, renderText = null }) =>
           </div>
         ) : null}
       </div>
+    ) : r.kind === "landed-doc" ? (
+      <LandedDocRow key={r.key} row={r} />
     ) : r.kind === "note" ? (
       // A compaction — the moment the conversation he is reading lost its middle. It is an event,
       // not a silence, so it says so. The receipt gets its own mark and colour, matching the browser

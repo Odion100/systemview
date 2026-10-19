@@ -1277,3 +1277,44 @@ describe("a hook's receipt carries what happened, not just what it pointed at", 
     expect(row.given).toBe(null);
   });
 });
+
+// RFC-071 — A MEMBERSHIP DELIVERY IS A ROW THAT OPENS. His, 2026-10-19: *"why isn't that thread log
+// expandable like most logs so you can see details?"* The landing used to be one `note` line with a
+// 140-character preview, which threw away the document, the thread and what was actually said.
+describe("a document landing carries what landed, not a sentence about it", () => {
+  it("becomes its own openable row with the document, the thread and the whole text", () => {
+    const [row] = foldEvents([
+      ev("message.landed", {
+        from: "you",
+        preview: "A thread you are in moved — systemview-test:RFCs/RFC-071.md, thread t1.",
+        doc: {
+          project: "systemview-test",
+          path: "RFCs/RFC-071.md",
+          thread: "t1",
+          summary: "reply in thread t1: TAS TAS TAS",
+          text: "A thread you are in moved — …\n\nRead the file rather than trusting this line",
+        },
+      }),
+    ]);
+    expect(row.kind).toBe("landed-doc");
+    expect(row.path).toBe("RFCs/RFC-071.md");
+    expect(row.project).toBe("systemview-test");
+    expect(row.thread).toBe("t1");
+    expect(row.summary).toContain("TAS TAS TAS");
+    // The full delivered text, not the preview — that is the whole point of opening it.
+    expect(row.text).toContain("Read the file rather than trusting this line");
+  });
+
+  // Agent↔agent messages keep the quiet one-liner they have always had: there is no document to open.
+  it("leaves every other landing as the quiet note line", () => {
+    const [row] = foldEvents([ev("message.landed", { from: "buapi", preview: "have a look at the rig" })]);
+    expect(row.kind).toBe("note");
+    expect(row.text).toContain("✉ message landed from buapi");
+  });
+
+  // A landing with no path cannot open anything, so it must not pretend to be openable.
+  it("falls back to the note line when the receipt carries no path", () => {
+    const [row] = foldEvents([ev("message.landed", { from: "you", doc: { project: "p", thread: "t1" } })]);
+    expect(row.kind).toBe("note");
+  });
+});

@@ -11,11 +11,15 @@
 // folded mailbox: *"reports are supposed to be a tab in the drawer, the strip, whatever"*). So the
 // mailbox fold is gone and reports take their turn beside the other kinds, under the same rules:
 // no reports, no tab.
+// RFC-071 — DOCUMENTS ARE A TAB TOO, for the same reason reports became one: a document with
+// members and an unsent update is work waiting on him, and work waiting on him belongs where the
+// rest of it is. The row is the document; the press is its send.
 export const BAND_KINDS = [
   { key: "jobs", label: "job" },
   { key: "lanes", label: "lane" },
   { key: "lists", label: "list" },
   { key: "reports", label: "report" },
+  { key: "documents", label: "document" },
 ];
 
 export const TAB_KEY = "sv.chat.bandTab";

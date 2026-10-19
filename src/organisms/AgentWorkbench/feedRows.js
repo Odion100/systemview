@@ -862,6 +862,24 @@ export function foldEvents(events) {
     // harness emits this when a cross-session message arrives in the agent's turn — the receipt,
     // rendered as its own quiet line so agent↔agent traffic is traceable on both ends.
     if (ev.kind === "message.landed") {
+      // RFC-071 — A DOCUMENT LANDING IS A ROW THAT OPENS. His, 2026-10-19: *"why isn't that thread
+      // log expandable like most logs so you can see details?"* A membership delivery has details
+      // worth seeing — which document, which thread, what was said — and a flat note line threw all
+      // of them away at 140 characters. Any OTHER landing keeps the quiet line it always had.
+      if (ev.doc && ev.doc.path) {
+        rows.push({
+          key,
+          kind: "landed-doc",
+          from: ev.from || "",
+          project: ev.doc.project || "",
+          path: ev.doc.path,
+          thread: ev.doc.thread || "",
+          summary: ev.doc.summary || "",
+          text: ev.doc.text || "",
+          ts: ev.ts,
+        });
+        return;
+      }
       rows.push({
         key,
         kind: "note",

@@ -264,6 +264,10 @@ Three things that have each cost a real mistake:
 
 `id=` is what makes a thread survive edits above it; without one it falls back to the source line.
 
+**A thread can carry its own members** — `::::thread{id=t3 members=buapi}` — which is a narrower
+subscription than the document's, with its own dirtiness and its own auto list. See `::members`
+below; the attributes live on the thread's opening line.
+
 - **`author=agent` renders in the agent look.** That is the whole API for answering: a `:::reply`
   block inside the thread you are answering.
 - The UI widens `:::thread` to `::::` for you when it writes the first reply; writing by hand, start
@@ -274,6 +278,69 @@ Three things that have each cost a real mistake:
   pre-wrapping sections "in case" is noise they have to delete.
 - **The exception:** surfaces with no file — the hub and help topics are JS constants — keep replies
   in `.systemview/comments.<key>.json`, because there is no document to write into.
+
+## `::members{who=…}` — who is on this document
+
+```markdown
+::members{who=buapi|systemlynx sent=buapi:1evgm2o auto=buapi}
+```
+
+One line at the top of a document naming the **project codes** that are on it. A member is a room,
+not a person — the same code the commit block takes — because delivery already works in rooms, and a
+chip aimed at a project that is not connected is refused at the press rather than sent to nobody.
+
+**Membership lives in the markdown** for the same reason replies do: the document says who is on it,
+it travels with the file, and you see it change in a diff. There is no second store to consult.
+
+| attribute | what it is |
+|---|---|
+| `who` | the members, `\|` or `,` separated |
+| `sent` | `code:hash` per member — the version each was last told about. Written by the surface |
+| `auto` | the members told automatically once the document settles. A LIST, not a switch |
+
+**Two levels.** This block is the document's subscription; `::::thread{id=t3 members=buapi}` is a
+narrower one, carrying its own `sent=` and `auto=` on the thread's own opening line. A member can be
+on both and be told about only one — that is the point of the split.
+
+**Dirty means "has not heard about THIS version."** The document's hash deliberately ignores its own
+`::members` line: sending rewrites that line, so hashing the whole file would make every send
+instantly dirty again and the surface could never say anything else. A thread hashes **its own
+body**, so a reply in `t3` makes `t3`'s members behind and leaves the document's alone. A member
+with no hash has never been told, which is dirty by construction rather than exempt.
+
+**What an agent writes, and what it must not.** Adding a member is a normal markdown edit — write or
+extend `who=`. **Never hand-write `sent=`**: it is the receipt of a send that happened, and
+inventing one silently marks somebody as told. Editing the body is how members become behind, and
+that is correct.
+
+On a surface with nothing to save to (the chat's renderer, a help topic) the block renders the chips
+and says `read-only here` rather than pretending to save.
+
+## The pinned update row — the only send, and the door to what moved
+
+Nothing in the document sends. A pinned row sits at the **top-right of the document** whatever the
+scroll position, holding one pill per subscription that has somebody behind: `document`, and
+`💬 <thread id>` for each thread. Separate pills on purpose — the audiences differ, and one row of
+mixed chips makes a press look like it tells everybody shown.
+
+- **A chip** tells that one member and stamps that subscription's own line; `all N` tells everyone
+  behind on that pill.
+- **Pressing the pill anywhere else** goes to what it is about — the thread, or the document's
+  members line — and flashes it.
+- **The row disappears when nobody is behind**, which is also how a press confirms itself: tell
+  `buapi` and `buapi`'s chip leaves.
+
+Beside the membership itself there is only a **⚙**: who is `auto` at that level. Two levels, two
+lists, because "every version of this plan" and "when this argument moves" are different
+subscriptions.
+
+**A reply does not announce itself.** It makes the thread's members behind; the `auto` ones are told
+once it settles, everyone else waits for a press.
+
+**Delivery needs no hook.** The window observes the press and the HOST emits an ambient
+`document.updated`; every session whose project is named receives it as a turn, and the landing
+renders as a row that opens. See autobot's `hooks.md` — the event exists for hooks to match on, but
+membership is the subscription on its own.
 
 ## `::commit{message=…}` — a commit you press
 

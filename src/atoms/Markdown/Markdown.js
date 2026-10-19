@@ -5,10 +5,14 @@ import { dracula } from "react-syntax-highlighter/dist/cjs/styles/prism";
 import remarkGfm from "remark-gfm";
 import remarkDirective from "remark-directive";
 import remarkSvBlocks from "./directives";
+import { splitWho } from "./docMembers";
+import MembersPin from "./blocks/MembersPin";
+import { addMemberPlan, addThreadMemberPlan, membersBlockOf, threadBlocksOf } from "./docMembers";
 import {
   MarkdownScopeProvider,
   MarkdownWriteProvider,
   MarkdownCommentsProvider,
+  MarkdownMembersProvider,
   useMarkdownWrite,
   useInThread,
 } from "./context";
@@ -199,6 +203,10 @@ const DRAWER_TITLE = {
   chart: "Which report?",
   file: "Which file?",
   diff: "Which changed file?",
+  // RFC-071 — adding a member is PICKING one, not typing a line. His: *"where's my ability to add
+  // members to the document?"*
+  members: "Who should hear about this document?",
+  "thread-members": "Who is in this thread?",
 };
 
 // One drawer: the options for a block that needs a target, filtered as you type. It lives inside the
@@ -238,7 +246,7 @@ const Drawer = ({ name, options, loading, onPick, onBack }) => {
   );
 };
 
-const DocMenu = ({ at, onPick, onClose, canThread, openDrawer, drawer }) => {
+const DocMenu = ({ at, onPick, onClose, canThread, canAddMember, openDrawer, drawer }) => {
   const [armed, setArmed] = useState(false); // two-step confirm on removal
   const rootRef = useRef(null);
   useEffect(() => {
@@ -302,10 +310,29 @@ const DocMenu = ({ at, onPick, onClose, canThread, openDrawer, drawer }) => {
           {armed ? `Really remove this ${at.block.name}?` : `🗑 Remove this ${at.block.name}`}
         </button>
       ) : null}
-      {at.thread ? (
-        <button type="button" className="md-menu__item md-menu__item--lead" onClick={() => onPick({ kind: "unthread" })}>
-          💬 Remove this thread <span className="md-menu__hint">keeps the content</span>
+      {/* RFC-071 — MEMBERSHIP IS THE DOCUMENT'S, so this sits above the per-block verbs and lands at
+          the top of the file wherever you right-clicked. Offered once: a second members line would
+          be a second answer to one question. */}
+      {canAddMember ? (
+        <button type="button" className="md-menu__item md-menu__item--lead" onClick={() => openDrawer("members")}>
+          👥 Add a member to this document <span className="md-menu__hint">who hears when it changes</span>
+          <span className="md-menu__more">›</span>
         </button>
+      ) : null}
+      {at.thread ? (
+        <>
+          <button type="button" className="md-menu__item md-menu__item--lead" onClick={() => onPick({ kind: "unthread" })}>
+            💬 Remove this thread <span className="md-menu__hint">keeps the content</span>
+          </button>
+          {/* THREAD MEMBERS — who this conversation is for, as opposed to who watches the file. A
+              thread with none inherits the document's, which is why this says "just this thread".
+              REMOVING is on the chips, not here: *"you can't remove one person from the thread"* —
+              this menu's clear-all wiped the list in one press and the × on each chip replaces it. */}
+          <button type="button" className="md-menu__item" onClick={() => openDrawer("thread-members")}>
+            👥 Add a member to this thread <span className="md-menu__hint">just this conversation</span>
+            <span className="md-menu__more">›</span>
+          </button>
+        </>
       ) : at.start && canThread ? (
         <button type="button" className="md-menu__item md-menu__item--lead" onClick={() => onPick({ kind: "thread" })}>
           💬 Start a thread here
@@ -708,7 +735,26 @@ const Markdown = ({ children, dark = false, scope = null, onSourceChange = null,
       const next = wrapLines(src, menu.start, menu.end, choice.open);
       if (next != null) save(next);
     } else if (choice.kind === "insert") save(insertAfterLine(src, at, choice.text));
-    else if (choice.kind === "insert-from") {
+    else if (choice.kind === "insert-from" && choice.drawer === "members") {
+      // THE PLAN IS CLAIMED (docMembers.addMemberPlan) — it decides WHERE and WHAT, this only
+      // writes. That split exists because the first version of this lived here untested and put
+      // the member on the thread below the members line.
+      const plan = addMemberPlan(src, choice.value);
+      if (plan && plan.already) {
+        /* already on it — a press that would change nothing writes nothing */
+      } else if (plan && plan.line) {
+        const next = setDirectiveAttr(src, plan.line, "who", plan.who);
+        if (next != null) save(next);
+      } else if (plan) save(insertAfterLine(src, plan.insertAfter, plan.text));
+    } else if (choice.kind === "insert-from" && choice.drawer === "thread-members") {
+      // And the thread's write REFUSES any line that is not a thread's opening line, so "add to
+      // the document" and "add to this thread" cannot ever land on each other.
+      const plan = menu.thread && addThreadMemberPlan(src, menu.thread.start, choice.value);
+      if (plan && !plan.already) {
+        const next = setDirectiveAttr(src, plan.line, "members", plan.members);
+        if (next != null) save(next);
+      }
+    } else if (choice.kind === "insert-from") {
       const make = TEMPLATES[choice.drawer];
       if (make) save(insertAfterLine(src, at, make(choice.value)));
     }
@@ -720,6 +766,22 @@ const Markdown = ({ children, dark = false, scope = null, onSourceChange = null,
   // the project's plugin. Opening the menu shouldn't cost a round trip; opening a drawer can.
   const openDrawer = (name) => {
     if (!name) return setDrawer(null);
+    // RFC-071 — the members drawer offers the CONNECTED PROJECTS, because a member names a room and
+    // a chip pointing at nobody is worse than no chip. Already-on members are filtered out of the
+    // document's list: offering to add somebody who is already there is a press that does nothing.
+    if (name === "members" || name === "thread-members") {
+      const src = String(children || "");
+      const onDoc = (src.match(/^\s*::members\{[^}]*\bwho=([^}\s]*)/m) || [])[1] || "";
+      const already = name === "members" ? splitWho(onDoc.replace(/^["']|["']$/g, "")) : [];
+      const codes = [...new Set(connectedServices.map((x) => x.projectCode).filter(Boolean))]
+        .filter((c) => !already.includes(c))
+        .sort();
+      setDrawer({
+        name,
+        options: codes.map((c) => ({ label: c, value: c })),
+      });
+      return;
+    }
     if (name === "chart") {
       setDrawer({
         name,
@@ -742,15 +804,52 @@ const Markdown = ({ children, dark = false, scope = null, onSourceChange = null,
     }
   };
 
+  // RFC-071 — the document's members, read once off its own `::members` line and put in scope, so
+  // a thread can inherit them without every thread re-scanning the source.
+  const docMembers = useMemo(() => {
+    // ONE PARSE of the members line — where it is and what it says — so the block, every thread and
+    // the pinned update row all act on the same three attributes and the same line number.
+    const block = membersBlockOf(children);
+    // EVERY THREAD'S OWN SUBSCRIPTION, parsed once beside the document's — the pinned row draws
+    // both levels and a thread cannot see its siblings from inside its own slice.
+    const threads = threadBlocksOf(children);
+    return {
+      threads,
+      members: block ? splitWho(block.who) : [],
+      // WHETHER THE DOCUMENT HAS A `::members` BLOCK AT ALL — separate from who is on it, because
+      // an empty block is still membership in play. A thread offers its own member row only on a
+      // document where membership exists (*"if there's already a member's block in the document"*).
+      hasMembers: !!block,
+      block,
+      // The whole document, so `::members` can hash what it is a member OF. A block cannot see
+      // past its own slice, and "has this document changed since you were told" is a question
+      // about the document.
+      source: String(children || ""),
+      // WHICH document, and whose. Carried here rather than read from the markdown scope, so the
+      // block needs no router to mount — the one surface in this app that cannot be tested is the
+      // markdown renderer, and a block that drags a router in joins it.
+      docPath: (scope && scope.docPath) || "",
+      projectCode: (scope && scope.projectCode) || "",
+    };
+  }, [children, scope]);
+
   return (
     <MarkdownScopeProvider value={scope}>
       <MarkdownWriteProvider value={writeApi}>
+      <MarkdownMembersProvider value={docMembers}>
       <MarkdownCommentsProvider value={comments}>
       <div className={`markdown${dark ? " markdown--dark" : ""}`} onContextMenu={openMenu}>
+        {/* RFC-071 — who has not heard about this version, pinned top-right so the press is reachable
+            from anywhere in the document rather than only from its head. */}
+        <MembersPin />
         {menu ? (
           <DocMenu
             at={menu}
             canThread={threadable}
+            // Offered only where it can be WRITTEN, and only once per document.
+            // Adding a member needs somewhere to write it; the drawer itself refuses when no
+            // project is connected, so this only asks whether the surface can save at all.
+            canAddMember={writeApi.editable}
             drawer={drawer}
             openDrawer={openDrawer}
             onPick={pickMenu}
@@ -770,6 +869,7 @@ const Markdown = ({ children, dark = false, scope = null, onSourceChange = null,
         </ReactMarkdown>
       </div>
       </MarkdownCommentsProvider>
+      </MarkdownMembersProvider>
       </MarkdownWriteProvider>
     </MarkdownScopeProvider>
   );

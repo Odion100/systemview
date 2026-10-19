@@ -2784,3 +2784,506 @@
   0%, 100% { opacity: 1; }
   50% { opacity: 0.45; }
 }
+
+// RFC-071 — `::members{who=…}` — the document's membership, drawn as chips at its head. Quiet until
+// you look at it: membership is state you check, not state that should shout while you read.
+.md-members {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 2px 0 14px;
+  font-size: 11px;
+  opacity: 0.55;
+  transition: opacity 0.12s ease;
+  &:hover { opacity: 1; }
+  &__kind {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--sv-dim, #8a8f9e);
+  }
+  &__chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 1px 7px;
+    border: 1px solid var(--sv-border, #e3e6f2);
+    border-radius: 9px;
+    background: var(--sv-inset, rgba(0, 0, 0, 0.03));
+    font-weight: 600;
+    color: var(--sv-text);
+  }
+  &__drop {
+    border: none;
+    background: none;
+    padding: 0;
+    cursor: pointer;
+    font-size: 11px;
+    line-height: 1;
+    color: var(--sv-dim, #8a8f9e);
+    &:hover { color: #d9534f; }
+  }
+  &__none,
+  &__ro {
+    color: var(--sv-dim, #8a8f9e);
+    font-style: italic;
+  }
+  // THE GEAR — the only control left beside a membership now that sending lives in the pinned row.
+  &__gear {
+    border: none;
+    background: none;
+    padding: 0 2px;
+    cursor: pointer;
+    font-size: 12px;
+    line-height: 1;
+    opacity: 0.7;
+    color: var(--sv-dim, #8a8f9e);
+    &:hover { opacity: 1; color: var(--sv-blue, #5b8def); }
+  }
+  &__add,
+  &__pick {
+    border: 1px dashed var(--sv-border, #c9ccd8);
+    background: none;
+    border-radius: 9px;
+    padding: 1px 7px;
+    font-family: inherit;
+    font-size: 11px;
+    cursor: pointer;
+    color: var(--sv-dim, #8a8f9e);
+    &:hover { color: var(--sv-text); border-color: var(--sv-blue, #5b8def); }
+  }
+  // A REFUSAL IS SAID WHERE THE PRESS WAS, not swallowed — a member that is not a connected project
+  // would be delivered to nobody and still look sent.
+  &__refusal {
+    color: #d9534f;
+    font-style: italic;
+  }
+}
+
+// THE STACK SLIDES OUT TO THE RIGHT when it is tucked — the same motion a panel makes going to the
+// wall, so the corner behaves like the rest of the window rather than inventing a third idiom.
+@keyframes sv-pin-tab-in {
+  from { transform: translateX(14px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+.md-members-pin {
+  position: sticky;
+  // TIGHT AT REST, CLEAR WHEN PINNED. One `top` could never do both — the row is the first thing in
+  // ONE GAP, BOTH STATES — his: *"it's just have the same shoulder padding that it does when it's
+  // floating sticky."* The row rests AFTER the document's padding (`.md-view` 10px + `.markdown`
+  // 10px = 22px below the pane edge) and sticks at `top`, so the two only agree if the margin
+  // cancels the difference: -14 + 22 = 8, the same 8 the stuck offset uses. It never moves.
+  top: 8px;
+  margin-top: -14px;
+  z-index: 6;
+  // NO SPACE IN THE FLOW, but `stretch` on a zero-height flex parent collapsed the row's content
+  // box to nothing: the pill painted its padding at zero height while the label and the chips fell
+  // OUTSIDE it — *"the flex is still stretched across and the update is not even sitting inside."*
+  // flex-start lets the row keep its own height and hang below.
+  height: 0;
+  display: flex;
+  // A COLUMN, because each subscription is its own pill: the document's and every thread's stack
+  // down the corner rather than running together into one row of chips.
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+  pointer-events: none;
+  padding-right: 2px;
+  // THE DOCK — pointer and pills side by side. The container is a COLUMN (pills stack), so the
+  // handle has to live in a row of its own or it becomes another pill-height row and pushes the
+  // whole stack down the page.
+  &__dock {
+    display: flex;
+    align-items: flex-start;
+    gap: 3px;
+  }
+  &__stack {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 5px;
+  }
+  // THE POINTER — it points the way the stack goes. Sits in the air the pills already occupy and
+  // adds no height of its own.
+  &__tuck {
+    // THE WHOLE CORNER IS `pointer-events: none` so clicks fall through to the document — the pills
+    // hand it back for themselves, and this button has to do the same or it is a picture of a
+    // control. That is exactly how it shipped unpressable: *"it doesn't hide it, it's not even
+    // clickable."*
+    pointer-events: auto;
+    border: none;
+    background: none;
+    padding: 1px 3px;
+    margin-top: 3px;
+    line-height: 1;
+    // Plain ink rather than a tint — it has to read at this size without becoming decoration.
+    font-size: 17px;
+    font-weight: 700;
+    cursor: pointer;
+    color: var(--sv-text-strong, #3b4460);
+    opacity: 0.75;
+    transition: opacity 0.12s ease, transform 0.12s ease;
+    &:hover { opacity: 1; transform: translateX(2px); }
+    &:focus-visible { outline: 2px solid var(--sv-blue, #5b8def); outline-offset: 2px; }
+  }
+  // THE TUCKED TAB — the window's own vertical costume, in miniature, at the document's right edge.
+  &__tab {
+    pointer-events: auto;
+    writing-mode: vertical-rl;
+    padding: 10px 5px;
+    border: 1px solid var(--sv-border, #b0bed8);
+    border-right: none;
+    border-radius: 6px 0 0 6px;
+    background: var(--sv-surface, #fff);
+    color: var(--sv-blue, #5b8def);
+    font-family: inherit;
+    font-size: 11px;
+    cursor: pointer;
+    box-shadow: -1px 1px 6px rgba(40, 50, 90, 0.12);
+    animation: sv-pin-tab-in 0.22s ease-out;
+    &:hover { border-color: var(--sv-blue, #5b8def); }
+  }
+
+  // A THREAD'S PILL IS NOT THE DOCUMENT'S. Same frame, different edge — two presses that go to
+  // different people about different things must not read as one control.
+  &__row--thread { border-left: 3px solid var(--sv-blue, #5b8def); }
+  // The pill is pressable as a whole (it takes you to what it is about), so it has to look it.
+  // Tucked: the pills travel right and leave only the tab.
+  &--tucked &__stack { transform: translateX(130%); opacity: 0; pointer-events: none; }
+  &__stack { transition: transform 0.22s ease, opacity 0.18s ease; }
+  &__row {
+    cursor: pointer;
+    &:focus-visible { outline: 2px solid var(--sv-blue, #5b8def); outline-offset: 2px; }
+  }
+
+  // Pinned over prose wants a deeper shadow than pinned over the document's own head — that is the
+  // ONLY difference between the two states now.
+  &--stuck .md-members-pin__row { box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2); }
+  &__sentinel {
+    display: block;
+    height: 1px;
+    margin-bottom: -1px;
+  }
+  &__row {
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    // NOTHING IN HERE SHRINKS. As a flex item everything was shrinkable by default, so in a narrow
+    // pane the chips squeezed the label to less than its own text and sat on top of it — his:
+    // *"the update label's flexing and sitting behind the chips."* It wraps to a second line now
+    // rather than overlapping, because two lines are readable and an overlap is not.
+    flex: 0 0 auto;
+    max-width: 100%;
+    flex-wrap: wrap;
+    > * { flex: 0 0 auto; }
+    padding: 5px 9px;
+    // IT FLOATS OVER PROSE, so it cannot borrow the page's contrast — it has to bring its own: a
+    // solid surface, a border you can see, and a shadow that lifts it off the words underneath.
+    border: 1px solid var(--sv-border, #d7dbe6);
+    border-radius: 10px;
+    // TRANSLUCENT, because it floats over his words and a solid card hides a line of the document
+    // it is reporting on. Blurred so the text under it stays unreadable-as-noise rather than
+    // fighting the chips, and solid on hover — the moment you are aiming at it, it stops being
+    // scenery.
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.14);
+    transition: background 0.12s ease;
+    &:hover { background: rgba(255, 255, 255, 0.97); }
+    font-size: 11px;
+    .md-members__kind {
+      // The row's own label is the one word that says what the chips do — dim was wrong for it, and
+      // it must never be narrower than the word itself.
+      color: var(--sv-text-strong, #3b4460);
+      white-space: nowrap;
+    }
+  }
+  // The chips here are PRESSES, not labels — the row says "update" and pressing one tells that
+  // member. (On the block itself a chip opens the picker instead: an invisible send on something
+  // that reads as a label was the first version of this and it was wrong.)
+  &__chip {
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+    color: var(--sv-text-strong, #3b4460);
+    background: var(--sv-bg, #f7f8fb);
+    border-color: var(--sv-blue, #5b8def);
+    &:hover {
+      background: rgba(91, 141, 239, 0.14);
+      color: var(--sv-blue, #5b8def);
+    }
+    &:disabled { opacity: 0.6; cursor: default; }
+  }
+}
+
+// ARRIVED HERE FROM THE CORNER — a flash on the block the pinned row sent you to, so landing in a
+// long document does not mean hunting for what moved.
+.md-block--revealed {
+  animation: sv-revealed 1.6s ease-out;
+  border-radius: 8px;
+}
+@keyframes sv-revealed {
+  0% { box-shadow: 0 0 0 3px rgba(91, 141, 239, 0.55); background: rgba(91, 141, 239, 0.12); }
+  100% { box-shadow: 0 0 0 0 rgba(91, 141, 239, 0); background: transparent; }
+}
+
+// RFC-071 — A THREAD'S OWN MEMBERS use the document block's chips exactly: his *"why the hell don't
+// they have the same button functionality?"* is answered by one control reused, so this is a
+// modifier on `.md-members` and not a second row with its own look to drift. The document's
+// membership is never drawn in here — *"that's implicit."*
+
+// RFC-071 — MEMBERSHIP IN DARK MODE. The light look leaned on `opacity: 0.55` and a near-black
+// inset, which is a legible grey on white and a smudge on #21252b: his *"I need some colour
+// improvement — contrast against this background, which is the document."* On dark the chips carry
+// their own light wash instead of borrowing the page, and the row sits at 0.8 rather than 0.55,
+// because quiet has to stay READABLE or it is just absent.
+.markdown--dark {
+  .md-members {
+    opacity: 0.8;
+    &:hover { opacity: 1; }
+  }
+  .md-members__kind { color: #9aa3b8; }
+  .md-members__chip {
+    background: rgba(255, 255, 255, 0.07);
+    border-color: #4a5160;
+    color: #d7dce9;
+  }
+  .md-members__drop { color: #9aa3b8; }
+  .md-members__gear { color: #9aa3b8; }
+  .md-members__none,
+  .md-members__ro { color: #949db2; }
+  .md-members__add,
+  .md-members__pick {
+    border-color: #4a5160;
+    color: #9aa3b8;
+    &:hover { color: #d7dce9; }
+  }
+  .md-members-pin__row {
+    background: rgba(33, 37, 43, 0.72);
+    border-color: #4a5160;
+    box-shadow: 0 6px 22px rgba(0, 0, 0, 0.5);
+    &:hover { background: rgba(33, 37, 43, 0.97); }
+  }
+  .md-members-pin__tuck { color: #e6ebf7; }
+  .md-members-pin__tab { background: rgba(33, 37, 43, 0.92); border-color: #4a5160; }
+  .md-members-pin__chip {
+    background: rgba(91, 141, 239, 0.18);
+    border-color: #7aa3f5;
+    color: #e6ebf7;
+    &:hover {
+      background: rgba(91, 141, 239, 0.3);
+      color: #fff;
+    }
+  }
+}
+
+.md-members--thread {
+  margin: 0 0 6px;
+  font-size: 10px;
+  opacity: 0.75;
+}
+
+// HIS t2 ON RFC-071: *"keeping in mind that the thread now may need to become scrollable and stuff,
+// just a little bit more neat."* A thread that is a meeting is a thread with twenty replies in it,
+// and twenty replies inline push the document off the screen. The exchange scrolls inside its own
+// box; the document keeps its shape however long the conversation gets.
+.md-thread__replies {
+  max-height: 340px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  &::-webkit-scrollbar { width: 7px; }
+  &::-webkit-scrollbar-thumb {
+    background: var(--sv-border, #e3e6f2);
+    border-radius: 4px;
+  }
+}
+
+// RFC-071 — BEHIND, AND THE PRESS THAT FIXES IT. A member who has not been told about this version
+// carries a dot and is clickable on its own; `send update` takes everybody behind in one press.
+// Both are quiet: this sits at the top of a document he is reading, and a loud row there would be
+// a banner he learns to look past.
+.md-members__chip--dirty {
+  border-color: var(--sv-blue, #5b8def);
+  cursor: pointer;
+  &:hover { background: rgba(91, 141, 239, 0.1); }
+}
+.md-members__mark {
+  color: var(--sv-blue, #5b8def);
+  font-size: 13px;
+  line-height: 1;
+}
+.md-members__send {
+  border: 1px solid var(--sv-blue, #5b8def);
+  background: none;
+  border-radius: 9px;
+  padding: 1px 8px;
+  font-family: inherit;
+  font-size: 10.5px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--sv-blue, #5b8def);
+  &:hover { background: rgba(91, 141, 239, 0.1); }
+  &:disabled { opacity: 0.5; cursor: default; }
+}
+
+// RFC-071 — the auto toggle. Off by design and quiet when off: this is the control that spends
+// somebody else's turn without being asked, so it has to be visibly ON when it is.
+.md-members__auto {
+  border: 1px solid var(--sv-border, #e3e6f2);
+  background: none;
+  border-radius: 9px;
+  padding: 1px 7px;
+  font-family: inherit;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  color: var(--sv-dim, #8a8f9e);
+  &:hover { color: var(--sv-text); }
+  &--on {
+    color: #fff;
+    background: var(--sv-blue, #5b8def);
+    border-color: var(--sv-blue, #5b8def);
+  }
+}
+
+// RFC-071 — WHO THIS SEND GOES TO. A small panel off the members line, not a dialog: the decision
+// is "these two, not that one", and it belongs beside the chips it is about.
+.md-members__panel {
+  position: relative;
+  z-index: 5;
+  flex: 1 1 100%;
+  margin-top: 4px;
+  padding: 7px 9px;
+  border: 1px solid var(--sv-border, #e3e6f2);
+  border-radius: 8px;
+  background: var(--sv-bg, #fff);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.09);
+}
+.md-members__panel-head {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--sv-dim, #8a8f9e);
+  margin-bottom: 5px;
+}
+.md-members__row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 2px 0;
+  cursor: pointer;
+  font-size: 11px;
+  input { cursor: pointer; }
+}
+.md-members__row-name { font-weight: 600; }
+.md-members__row-state {
+  margin-left: auto;
+  font-size: 9.5px;
+  color: var(--sv-dim, #8a8f9e);
+}
+// AUTO, PER MEMBER. Quiet when off; the app's blue when on, because it is the one control here
+// that spends somebody's turn without being asked again.
+.md-members__row-auto {
+  border: 1px solid var(--sv-border, #e3e6f2);
+  background: none;
+  border-radius: 8px;
+  padding: 0 6px;
+  font-family: inherit;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  color: var(--sv-dim, #8a8f9e);
+  &--on {
+    color: #fff;
+    background: var(--sv-blue, #5b8def);
+    border-color: var(--sv-blue, #5b8def);
+  }
+}
+.md-members__panel-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 7px;
+}
+.md-members__cancel {
+  border: none;
+  background: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: 10.5px;
+  cursor: pointer;
+  color: var(--sv-dim, #8a8f9e);
+  &:hover { color: var(--sv-text); }
+}
+// The standing auto mark on a chip — small, lowercase, never competing with the behind dot.
+.md-members__auto-mark {
+  font-size: 8.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--sv-blue, #5b8def);
+}
+
+// RFC-071 — A SECTION WITH SOMETHING NEW IN IT. The rule is on the thread's own edge, so you see
+// it scanning the document rather than hunting corner buttons; the count rides the 💬.
+.md-thread--new {
+  box-shadow: inset 2px 0 0 var(--sv-blue, #5b8def);
+}
+.md-thread__new {
+  display: inline-block;
+  min-width: 14px;
+  margin-left: 3px;
+  padding: 0 4px;
+  border-radius: 7px;
+  background: var(--sv-blue, #5b8def);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 14px;
+  text-align: center;
+}
+
+// The `members` label is the way into the panel — so auto is reachable even when nobody is behind
+// and the send press is not on screen.
+.md-members__kind--press {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sv-dim, #8a8f9e);
+  cursor: pointer;
+  &:hover { color: var(--sv-blue, #5b8def); }
+}
+
+// HIS CATCH, 2026-10-19: the 💬 on a thread sits over whatever the thread's background happens to
+// be — a callout, a table, a tinted block — and unhovered it was nearly invisible. It gets its own
+// ground now: a small opaque disc that owns its contrast wherever it lands, rather than inheriting
+// the contrast of the thing it is sitting on.
+.md-thread__toggle {
+  background: var(--sv-bg, #fff);
+  border: 1px solid var(--sv-border, #d8dcea);
+  border-radius: 12px;
+  padding: 1px 7px;
+  line-height: 1.5;
+  opacity: 1;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  &:hover {
+    border-color: var(--sv-blue, #5b8def);
+  }
+}

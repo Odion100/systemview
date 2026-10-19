@@ -5047,6 +5047,31 @@ const countdown = (str, now = Date.now()) => {
     return () => { dead = true; clearInterval(t); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectCode]);
+  // RFC-071 — DOCUMENTS WITH UNSENT UPDATES. The hub walks the folder (api/documentMembers.js),
+  // because "which documents have members" is a question about a project, not about the file that
+  // happens to be open. Only documents where somebody is BEHIND become rows: a document whose
+  // members are all current is not work waiting on him, and a row that can only say "nothing to do"
+  // is the furniture the band already refuses everywhere else.
+  const [docsMeta, setDocsMeta] = useState({ list: [] });
+  useEffect(() => {
+    let dead = false;
+    const pull = async () => {
+      try {
+        const svc = SystemViewService && SystemViewService.Agent;
+        if (!svc || !svc.documents) return;
+        const r = await svc.documents({ projectCode });
+        const list = ((r && r.documents) || []).filter((d) => (d.behind || []).length);
+        if (!dead) setDocsMeta({ list });
+      } catch {
+        if (!dead) setDocsMeta({ list: [] });
+      }
+    };
+    pull();
+    const t = setInterval(pull, 30000);
+    return () => { dead = true; clearInterval(t); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectCode, SystemViewService]);
+
   const openBandReport = (path) => {
     if (!onCodePage() && openReportInPanel({ projectCode, path })) return;
     const q = new URLSearchParams(window.location.search);
@@ -5177,7 +5202,13 @@ const countdown = (str, now = Date.now()) => {
   const bandJobs = listsShown.filter((l) => l.source.startsWith("job:"));
   const bandLists = listsShown.filter((l) => !l.source.startsWith("job:"));
   const bandShown = bandTabs(
-    { jobs: bandJobs.length, lists: bandLists.length, lanes: lanesShown.length, reports: reportsMeta.list.length },
+    {
+      jobs: bandJobs.length,
+      lists: bandLists.length,
+      lanes: lanesShown.length,
+      reports: reportsMeta.list.length,
+      documents: docsMeta.list.length,
+    },
     bandTab,
   );
   const todoShown = listsShown.length ? listsShown[listsShown.length - 1].items : null;
