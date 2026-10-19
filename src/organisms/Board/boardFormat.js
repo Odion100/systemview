@@ -25,10 +25,18 @@
 // cannot be managed by anything. So the state leads the line (`implemented — reports are a band tab
 // now`), the hub refuses an account without one, and this copy must read it identically or the
 // panel's next save strips it. Mirrors api/board.js; boardFormat.test.js fails if they diverge.
-// Four words, each one a thing he does next: `open` (untouched, the nudge), `partial` (started),
-// `blocked` (waiting on HIM — the only one that is a request), `resolved` (finished — read the
-// line, delete the card). Mirrors api/board.js; boardFormat.test.js fails if they diverge.
-export const STATES = ["resolved", "partial", "blocked"];
+// FIVE WORDS, ONE OF THEM DERIVED FROM AN ABSENCE. `open` is a card with no account at all —
+// nobody has even read it. The other four are STAMPED by whoever did the thing:
+//   reviewed  an agent read it and says so   → it is understood, not yet worked
+//   partial   started, half of it is real
+//   blocked   waiting on HIM — the only one that is a request
+//   resolved  finished — he reads one line and deletes it
+//
+// `reviewed` was derived for about ten minutes (untitled + unsigned = unread) and his answer ended
+// it: *"how can I derive that you actually reviewed it?"* A title proves somebody typed a title.
+// Only a stamp proves somebody read the card. Mirrors api/board.js; boardFormat.test.js fails if
+// the two ever disagree.
+export const STATES = ["resolved", "reviewed", "partial", "blocked"];
 export const DONE = ["resolved"];
 export // A HYPHEN IS NOT A SEPARATOR HERE: `implemented-ish, sort of` is not the word `implemented`,
 // and reading it as one would file a hedge as finished. A spaced ` - ` still splits on the space.

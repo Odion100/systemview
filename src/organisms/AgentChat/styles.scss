@@ -1,3 +1,15 @@
+// THE STATES AND THEIR COLOURS — written once, read by the filter marks, the chip on the card,
+// and the account's left rule. Green is the only one that means finished; blue is the app's own,
+// for the thing you are meant to act on; violet is read-but-not-worked; amber is in progress;
+// red is waiting on him.
+$sv-board-states: (
+  resolved: #5a9e5a,
+  reviewed: #7c4dff,
+  partial: #c9962a,
+  blocked: #d9534f,
+  open: #5b8def,
+);
+
 @import "../../atoms/Markdown/chat-md";
 // RFC-028 — the BOT bubble + chat panel. The bubble is an identity (several will coexist): a
 // translucent circle with the bot face centered and its project label under it. It floats free —
@@ -949,13 +961,14 @@
     color: #c9962a;
     padding: 0 4px;
     &:hover { opacity: 0.75; }
-    &--implemented, &--answered { color: #5a9e5a; }
-    &--partial { color: #c9962a; }
-    &--blocked { color: #d9534f; }
-    // OPEN IS THE APP'S OWN BLUE. It was orange first (a second red beside `blocked`), then
-    // violet (mine, not the app's) — `--sv-blue` is the colour this window already uses for the
-    // thing you are meant to act on, and an unaccounted card is exactly that.
-    &--open { color: var(--sv-blue, #5b8def); }
+    // ONE COLOUR TABLE FOR BOTH SURFACES — `$sv-board-states`, defined above. The filter and the
+    // chip on the card each had their own list, so renaming the vocabulary renamed one of them:
+    // `resolved` had no rule here and fell through to the base amber while the card's chip was
+    // green, which he spotted immediately — *"why is the filter a different colour than the
+    // status?"* A state's colour is one fact; it gets written once.
+    @each $state, $colour in $sv-board-states {
+      &--#{$state} { color: $colour; }
+    }
     // PICKED LOOKS PICKED — a subtle rounded ground under the mark, nothing more. An underline
     // read as a link rather than a selection; a filled pill was the redesign he already rejected.
     // The mark keeps its own colour, so the row still tells states apart at a glance.
@@ -1010,29 +1023,23 @@
     padding: 1px 5px;
     border-radius: 3px;
     color: #fff;
-    background: #5a9e5a;
-    .agent-chat__board-status--partial & { background: #c9962a; }
-    .agent-chat__board-status--blocked & { background: #d9534f; }
-    .agent-chat__board-status--open & { background: var(--sv-blue, #5b8def); }
+    background: map-get($sv-board-states, resolved);
+    @each $state, $colour in $sv-board-states {
+      .agent-chat__board-status--#{$state} & { background: $colour; }
+    }
   }
 
   // THE STATE, IN COLOUR — so the board is scannable down its left edge. Green reads as finished
   // and is the only one that does; amber says an account exists and the work does not, red says it
   // is stuck. A card that is not finished must not look finished at a glance, which is the whole
   // reason the tick is not used for all of them.
-  &__board-status--open {
-    border-left-color: var(--sv-blue, #5b8def);
-    background: rgba(91, 141, 239, 0.07);
+  @each $state, $colour in $sv-board-states {
+    &__board-status--#{$state} {
+      border-left-color: $colour;
+      background: rgba($colour, 0.07);
+    }
   }
-  &__board-status--partial,
-  &__board-status--blocked {
-    border-left-color: #c9962a;
-    background: rgba(201, 150, 42, 0.08);
-  }
-  &__board-status--blocked {
-    border-left-color: #d9534f;
-    background: rgba(217, 83, 79, 0.08);
-  }
+
   // No state at all — a legacy account written before the state was required. Grey, because
   // nothing about it says whether the work is done, and it must not borrow the tick's meaning.
   &__board-status:not([class*="--"]) {

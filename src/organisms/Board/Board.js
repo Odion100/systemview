@@ -207,6 +207,9 @@ export default function Board({ projectCode, headerDrag, onClose, onHandToChat, 
   // written to the file (nothing is stamped on his behalf) — it is what no account MEANS, drawn
   // loudly so the untouched ones are the first thing the eye lands on.
   const OPEN = "open";
+  // OPEN IS AN ABSENCE, and the only state nobody writes: no account at all means nobody has even
+  // read the card. Everything else is stamped by whoever did it — including `reviewed`, because a
+  // state the surface DERIVES is a state nobody can be held to.
   const stateOfCard = (c) =>
     (c.status && c.status.text ? c.status.state || stateOf(c.status.text) : null) || OPEN;
   // THE STATE IS LIFTED OUT OF THE LINE, OR IT IS NOT A STATE. Rendering the raw account put the
@@ -221,8 +224,12 @@ export default function Board({ projectCode, headerDrag, onClose, onHandToChat, 
   };
   // What the header shows: every state present, with its count. A board with nothing finished still
   // has to SAY what it is carrying — the press disappearing is how he lost sight of it.
-  // Ordered, never by insertion: the row must not reshuffle itself as cards change state.
-  const ORDER = [...DONE, "partial", "blocked", OPEN];
+  // THE ROW READS AS THE WORKFLOW — his ask, and it is the right order: a card arrives unread,
+  // gets read, gets worked, maybe gets stuck, and ends finished. Left to right is the life of a
+  // card, so the eye travels the same way the work does and the delete batch sits at the end,
+  // where you arrive after everything else. Ordered explicitly, never by insertion: the row must
+  // not reshuffle itself as cards change state.
+  const ORDER = [OPEN, "reviewed", "partial", "blocked", ...DONE];
   const tally = (board || []).reduce((acc, c) => {
     const k = stateOfCard(c);
     acc[k] = (acc[k] || 0) + 1;
