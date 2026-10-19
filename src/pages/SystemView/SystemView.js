@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import ErrorBoundary from "../../atoms/ErrorBoundary/ErrorBoundary";
 import { useParams, useHistory, useLocation } from "react-router-dom";
 import SystemNavigator from "../../organisms/SystemNavigator/SystemNavigator";
 import Documentation from "../../organisms/Documentation/Documentation";
@@ -280,16 +281,21 @@ const SystemViewPage = () => {
             className="nav-panel__body"
             style={{ display: navOpen ? "block" : "none" }}
           >
-            <SystemNavigator
-              projectCode={projectCode}
-              serviceId={serviceId}
-              moduleName={moduleName}
-              methodName={methodName}
-              onCollapse={() => setNavOpen(false)}
-              openFile={codeFile}
-              onOpenFile={openFile}
-              reveal={reveal}
-            />
+            {/* ONE COLUMN AT A TIME. A throw in the navigator used to take the centre, the
+                scratchpad and the chat with it — now it greys its own column and the document you
+                were reading stays on screen. */}
+            <ErrorBoundary label="The navigator">
+              <SystemNavigator
+                projectCode={projectCode}
+                serviceId={serviceId}
+                moduleName={moduleName}
+                methodName={methodName}
+                onCollapse={() => setNavOpen(false)}
+                openFile={codeFile}
+                onOpenFile={openFile}
+                reveal={reveal}
+              />
+            </ErrorBoundary>
           </div>
         </div>
 
@@ -310,14 +316,16 @@ const SystemViewPage = () => {
           className={`center-panel col-${12 - (navOpen ? 3 : 0) - (scratchOpen ? 3 : 0)} ${!navOpen ? "center-panel--nav-collapsed" : ""} ${!scratchOpen ? "center-panel--scratch-collapsed" : ""}`}
           style={{ flex: "1 1 0%", maxWidth: "none", width: "auto", minWidth: 0 }}
         >
-          <Documentation
-            projectCode={projectCode}
-            serviceId={serviceId}
-            moduleName={moduleName}
-            methodName={methodName}
-            codeFile={codeFile}
-            onCloseFile={closeFile}
-          />
+          <ErrorBoundary label="The document">
+            <Documentation
+              projectCode={projectCode}
+              serviceId={serviceId}
+              moduleName={moduleName}
+              methodName={methodName}
+              codeFile={codeFile}
+              onCloseFile={closeFile}
+            />
+          </ErrorBoundary>
         </div>
 
         {/* Drag handle: center ⇄ scratchpad. Drag past the edge to collapse; double-click resets. */}
@@ -343,19 +351,26 @@ const SystemViewPage = () => {
             className="scratchpad__body"
             style={{ display: scratchOpen ? "block" : "none" }}
           >
-            <TestPanel
-              projectCode={projectCode}
-              serviceId={serviceId}
-              moduleName={moduleName}
-              methodName={methodName}
-              onCollapse={() => setScratchOpen(false)}
-            />
+            <ErrorBoundary label="The scratchpad">
+              <TestPanel
+                projectCode={projectCode}
+                serviceId={serviceId}
+                moduleName={moduleName}
+                methodName={methodName}
+                onCollapse={() => setScratchOpen(false)}
+              />
+            </ErrorBoundary>
           </div>
         </div>
       </div>
       {/* RFC-028 — the agent bots: one per connected project, visible at ALL times (never tied to
           the namespace you're standing on); presence-true rings, view-stamped messages. */}
-      <AgentChat />
+      {/* THE CHAT IS THE ONE HE CANNOT AFFORD TO LOSE — it holds the conversation. Both crashes
+          on 2026-10-19 started in a panel INSIDE it (a board card with no account), so it carries
+          its own boundary as well as the per-panel ones in the band. */}
+      <ErrorBoundary label="The agent chat">
+        <AgentChat />
+      </ErrorBoundary>
     </section>
   );
 };

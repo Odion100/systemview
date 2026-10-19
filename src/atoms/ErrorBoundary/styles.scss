@@ -1,0 +1,58 @@
+// A CONTAINED CRASH LOOKS LIKE A HOLE, ON PURPOSE. It must not look like a loading state or an
+// empty panel: this box is the window telling him something broke here and nowhere else.
+.sv-boundary {
+  border: 1px solid #d9534f55;
+  border-left: 3px solid #d9534f;
+  border-radius: 8px;
+  background: rgba(217, 83, 79, 0.05);
+  padding: 10px 12px;
+  margin: 8px;
+  font-size: 12px;
+  color: var(--sv-text, #46506a);
+
+  &__head {
+    font-weight: 700;
+    color: #d9534f;
+    margin-bottom: 4px;
+  }
+  &__why {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+    opacity: 0.85;
+    word-break: break-word;
+  }
+  &__foot {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  &__retry {
+    border: 1px solid #d9534f;
+    background: none;
+    border-radius: 8px;
+    padding: 1px 8px;
+    font-family: inherit;
+    font-size: 11px;
+    cursor: pointer;
+    color: #d9534f;
+    &:hover { background: rgba(217, 83, 79, 0.12); }
+  }
+  &__note {
+    opacity: 0.6;
+    font-style: italic;
+  }
+
+  // IN A DOCUMENT, a failed block is one line where the block would have been — the prose around
+  // it keeps reading.
+  &--quiet {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin: 0;
+    padding: 1px 7px;
+    border-left-width: 1px;
+    border-radius: 9px;
+    font-size: 11px;
+  }
+}
