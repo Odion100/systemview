@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useDocMembers, useMarkdownWrite } from "../context";
-import { everyoneBehind, hashOf, parseSent, pendingOf, serializeSent, summarize, threadSummary } from "../docMembers";
+import { everyoneBehind, hashOf, parseSent, pendingOf, serializeSent, summarize, threadSummary, lastReplyAuthorOf } from "../docMembers";
 import { sendUpdateTo } from "../docSend";
 import { readTucked, writeTucked } from "../pinTucked";
 import { revealBlock } from "../revealBlock";
@@ -56,6 +56,9 @@ const MembersPin = () => {
       // watching the file — the shape of the change is.
       summary: scope.kind === "thread" ? threadSummary(scope.id, scope.body) : summarize(source, false),
       threads: scope.kind === "thread" ? 1 : (String(source).match(/^\s*:{3,}\s*thread\b/gm) || []).length,
+      // WHO WROTE IT — this row is the only send in the surface, so if the author is not named
+      // here it is not named anywhere, and the harness goes back to guessing from the thread field.
+      by: (scope.kind === "thread" && lastReplyAuthorOf(scope.body)) || "you",
     });
     setSending(0);
     if (!r.ok) {

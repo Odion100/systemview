@@ -16,6 +16,7 @@ import {
   everyoneBehind,
   lastReplyOf,
   threadSummary,
+  lastReplyAuthorOf,
   pendingOf,
 } from "./docMembers";
 
@@ -625,5 +626,42 @@ describe("fenceHealth — a document that cannot self-heal says where", () => {
   });
   it("fences in code blocks are examples, not structure", () => {
     expect(fenceHealth("```md\n:::\n```").ok).toBe(true);
+  });
+});
+
+// WHO WROTE THE LAST REPLY — the field that keeps a send away from its own author.
+//
+// This exists because `by` was always the literal "you", so the harness could not tell "autobot
+// answered" from "you answered" and guessed with `!e.thread` — which woke an agent with its own
+// reply, and is the one thing between hub-side auto and an A-replies-A-is-woken loop.
+describe("lastReplyAuthorOf — a send has to know whose news it is", () => {
+  const body = [
+    ":::reply{author=systemview-test ts=1}", "first", ":::",
+    ":::reply{author=autobot ts=2}", "an answer", ":::",
+  ].join("\n");
+
+  it("names the author of the LAST reply, not the first", () => {
+    expect(lastReplyAuthorOf(body)).toBe("autobot");
+  });
+
+  it("is empty when nobody has replied — so no member is skipped on a guess", () => {
+    expect(lastReplyAuthorOf("just the argument")).toBe("");
+    expect(lastReplyAuthorOf("")).toBe("");
+  });
+
+  it("survives a quoted author and extra attributes", () => {
+    expect(lastReplyAuthorOf(':::reply{ts=9 author="systemview-test"}\nx\n:::')).toBe("systemview-test");
+  });
+
+  // A reply fence gains colons when it sits inside a deeper block, the same way a thread's does.
+  it("reads a reply at any fence depth", () => {
+    expect(lastReplyAuthorOf("::::reply{author=buapi ts=3}\nx\n::::")).toBe("buapi");
+  });
+
+  // THE PAIR THAT MATTERS: the author is the one member a thread send must NOT reach, and
+  // everybody else still has to.
+  it("is the member a send must skip, while the rest stay behind", () => {
+    expect(dirtyMembers(["systemview-test", "autobot"], {}, body)).toEqual(["systemview-test", "autobot"]);
+    expect(lastReplyAuthorOf(body)).toBe("autobot");
   });
 });

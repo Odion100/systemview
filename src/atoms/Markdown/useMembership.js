@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMarkdownWrite, useDocMembers } from "./context";
-import { dirtyMembers, hashOf, parseSent, serializeSent, splitWho, summarize, threadSummary } from "./docMembers";
+import { dirtyMembers, hashOf, parseSent, serializeSent, splitWho, summarize, threadSummary, lastReplyAuthorOf } from "./docMembers";
 import { sendUpdateTo } from "./docSend";
 
 // RFC-071 — WHO IS BEHIND, AND THE PRESS THAT TELLS THEM. One definition, used by two controls:
@@ -67,6 +67,11 @@ export default function useMembership({ who = [], sent = "", auto = "", line = 0
           : summarize(source, to.every((m) => sentMap[m])),
       ...(override && override.decision ? { decision: true } : {}),
       threads: thread ? 1 : (String(source).match(/^\s*:{3,}\s*thread\b/gm) || []).length,
+      // WHO WROTE THE CHANGE, so the harness can keep the news away from its author. A thread send
+      // is about a reply and the reply says who wrote it; a document send is the file moving, which
+      // is his editing, so "you" stays right there. Without this the harness guessed from whether
+      // the send named a thread, and that guess woke agents with their own replies.
+      by: (thread && lastReplyAuthorOf(subject)) || "you",
     });
     setSending(false);
     if (!r.ok) {
