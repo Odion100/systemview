@@ -898,6 +898,156 @@
       font-weight: 700;
     }
   }
+  // CLEAR THE SETTLED ONES — beside `clear`, and deliberately NOT red until it is armed: the
+  // green tick is the count of cards that have an account, which is a good number to see, while
+  // `clear` is the destructive one that means everything.
+  &__board-settled {
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 10px;
+    font-weight: 600;
+    color: #5a9e5a;
+    padding: 0 4px;
+    &:hover { color: #3f7f3f; }
+    &--armed {
+      color: #d9534f;
+      font-weight: 700;
+    }
+  }
+  // THE ACCOUNT ON A CARD. Quiet, one line, never clamped — the point is that reading it is
+  // cheaper than reading the card, so anything that makes it work to read defeats it.
+  &__board-status {
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+    // It LEADS the card now, so its margin leads too — tight to the note it introduces.
+    margin: 0 0 5px;
+    padding: 3px 6px;
+    border-left: 2px solid #5a9e5a;
+    background: rgba(90, 158, 90, 0.07);
+    border-radius: 0 4px 4px 0;
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--sv-text);
+  }
+  // THE HEADER'S STATE GROUPS — a press each, beside `✓ N`. Quiet until armed, then red and
+  // wordy, the same two-step every destructive press in this panel uses.
+  // THE STATE ROW — the same little marks that were always up here. He asked for filtering and
+  // said, in the same breath, *"I like the fact that it's these little things at the top, I don't
+  // really want to change that too much"* — and I redesigned them into filled pills anyway. This
+  // is the original weight and colour, with nothing added but the one thing he asked for: a
+  // picked chip is underlined. No fills, no borders, no new shapes.
+  &__board-tally {
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 10px;
+    font-weight: 600;
+    color: #c9962a;
+    padding: 0 4px;
+    &:hover { opacity: 0.75; }
+    &--implemented, &--answered { color: #5a9e5a; }
+    &--partial { color: #c9962a; }
+    &--blocked { color: #d9534f; }
+    // OPEN IS THE APP'S OWN BLUE. It was orange first (a second red beside `blocked`), then
+    // violet (mine, not the app's) — `--sv-blue` is the colour this window already uses for the
+    // thing you are meant to act on, and an unaccounted card is exactly that.
+    &--open { color: var(--sv-blue, #5b8def); }
+    // PICKED LOOKS PICKED — a subtle rounded ground under the mark, nothing more. An underline
+    // read as a link rather than a selection; a filled pill was the redesign he already rejected.
+    // The mark keeps its own colour, so the row still tells states apart at a glance.
+    &--on {
+      background: var(--sv-inset, rgba(0, 0, 0, 0.06));
+      border-radius: 9px;
+      padding: 1px 7px;
+    }
+  }
+
+  // THE CARD'S NAME. A header, not a label — it is the first thing read and the thing he says
+  // out loud to point at a card. An unnamed card shows the invitation at a whisper, because a
+  // board full of grey "name this card" would be worse than no titles at all.
+  &__board-card-title {
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    color: var(--sv-text);
+    margin: 0 0 3px;
+    cursor: text;
+    &--none {
+      font-weight: 500;
+      color: var(--sv-dim, #a9afbd);
+      opacity: 0.45;
+    }
+  }
+  &__board-card-title-edit {
+    width: 100%;
+    font-family: inherit;
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--sv-text);
+    background: var(--sv-inset, rgba(0, 0, 0, 0.04));
+    border: 1px solid var(--sv-border, #e3e6f2);
+    border-radius: 4px;
+    padding: 2px 5px;
+    margin: 0 0 3px;
+  }
+
+  // THE STATE, AS A CHIP — the piece that was missing when he looked. The word was lifted out of
+  // the account and then rendered as a bare span, so on screen it read as the first word of a
+  // sentence: *"there's no distinction… it just looks like regular text."* It is a label, and it
+  // has to look like one — small, upper, boxed, in the row's own colour — or scanning the board by
+  // state is still reading the board.
+  &__board-status-chip {
+    flex: 0 0 auto;
+    align-self: center;
+    font-size: 8.5px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: #fff;
+    background: #5a9e5a;
+    .agent-chat__board-status--partial & { background: #c9962a; }
+    .agent-chat__board-status--blocked & { background: #d9534f; }
+    .agent-chat__board-status--open & { background: var(--sv-blue, #5b8def); }
+  }
+
+  // THE STATE, IN COLOUR — so the board is scannable down its left edge. Green reads as finished
+  // and is the only one that does; amber says an account exists and the work does not, red says it
+  // is stuck. A card that is not finished must not look finished at a glance, which is the whole
+  // reason the tick is not used for all of them.
+  &__board-status--open {
+    border-left-color: var(--sv-blue, #5b8def);
+    background: rgba(91, 141, 239, 0.07);
+  }
+  &__board-status--partial,
+  &__board-status--blocked {
+    border-left-color: #c9962a;
+    background: rgba(201, 150, 42, 0.08);
+  }
+  &__board-status--blocked {
+    border-left-color: #d9534f;
+    background: rgba(217, 83, 79, 0.08);
+  }
+  // No state at all — a legacy account written before the state was required. Grey, because
+  // nothing about it says whether the work is done, and it must not borrow the tick's meaning.
+  &__board-status:not([class*="--"]) {
+    border-left-color: var(--sv-border, #c9ccd8);
+    background: rgba(128, 128, 128, 0.06);
+  }
+  &__board-status-mark {
+    flex: none;
+    color: #5a9e5a;
+    font-weight: 700;
+  }
+  &__board-status-text {
+    min-width: 0;
+    .chat-md__p { display: inline; }
+  }
   &__board-x {
     margin-left: auto;
     border: none;

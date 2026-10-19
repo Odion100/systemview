@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
+import ServiceContext from "../../ServiceContext";
 import moment from "moment";
 import { MarkdownScopeProvider } from "../../atoms/Markdown/context";
 import { hasHostDictation, startHostRecording } from "../../utils/hostDictation";
@@ -12,6 +13,7 @@ import { renderChatMessage } from "../AgentChat/AgentChat";
 // The board's styles still live in the chat's sheet under `.agent-chat__board-*` — MOVED here they
 // would be a rename of ~60 selectors for zero behaviour; imported here so the tab can stand alone.
 import "../AgentChat/styles.scss";
+import { parseBoard, parseTitle, serializeBoard, DONE, stateOf } from "./boardFormat";
 
 const CLASSNAME = "agent-chat";
 
@@ -28,6 +30,7 @@ const CLASSNAME = "agent-chat";
 // `onHandToChat` is optional on purpose — in the tab there is no chat in scope, so 💬 falls back to
 // a window event the chat listens for, and the note still lands in the input box either way.
 export default function Board({ projectCode, headerDrag, onClose, onHandToChat, chrome }) {
+  const { SystemViewService } = useContext(ServiceContext);
   const micSupported =
     !!(window.SpeechRecognition || window.webkitSpeechRecognition) || hasHostDictation();
   const hand = (handed) => {
@@ -36,6 +39,8 @@ export default function Board({ projectCode, headerDrag, onClose, onHandToChat, 
   };
   const [board, setBoard] = useState(null); // null = not read yet · else [{ ts, text }]
   const [boardSaved, setBoardSaved] = useState(true);
+  const boardSavedRef = useRef(true);
+  boardSavedRef.current = boardSaved;
   const [boardDraft, setBoardDraft] = useState("");
   // AN OPTIONAL TITLE. His: "sometimes I want a title so you know something" — the board is where he
   // accumulates thoughts for an agent to be pointed at later, and a word at the top is the cheapest
@@ -55,58 +60,6 @@ export default function Board({ projectCode, headerDrag, onClose, onHandToChat, 
     () => (hasHostFiles() ? hostFiles(projectCode) : null),
     [projectCode],
   );
-  // ON DISK IT IS STILL ONE MARKDOWN FILE — cards are separated by an HTML comment carrying the
-  // time. Invisible in any renderer, so the file reads like notes rather than like a database, and
-  // every block this app has still works inside a card.
-  // A card, and OPTIONALLY one answer from the agent under it — his ask: "you could make one
-  // response to a note". It lives in the same file, right under the note it answers, so reading the
-  // file is reading the conversation.
-  // RFC-039 — A NOTE HOLDS A CONVERSATION. One reply that got REPLACED on the next write meant
-  // nothing said back and forth survived ("I reply to you and then my reply goes on the note").
-  // Replies are a list now, each stamped with who wrote it. `<!--reply-->` with no author is the
-  // old single-reply form and still reads — as the agent's, which is the only thing it ever was.
-  const parseBoard = (text) => {
-    const out = [];
-    String(text || "")
-      .split(/<!--card (\d+)(?: by=([^\s>]+))?-->/)
-      .forEach((part, i, arr) => {
-        if (i % 3 !== 1) return;
-        const by = arr[i + 1] || "";
-        const bits = String(arr[i + 2] || "").split(/<!--reply(?: ([^>]*?))?-->/);
-        const replies = [];
-        for (let b = 1; b < bits.length; b += 2) {
-          const attrs = String(bits[b] || "");
-          const body = String(bits[b + 1] || "").trim();
-          if (!body) continue;
-          replies.push({
-            by: (attrs.match(/by=([^\s]+)/) || [])[1] || "",
-            ts: Number((attrs.match(/ts=(\d+)/) || [])[1]) || 0,
-            text: body,
-          });
-        }
-        out.push({ ts: Number(part), by, text: bits[0].trim(), replies });
-      });
-    return out;
-  };
-  // The title rides at the top as a plain `# heading`, before the first card — so the file opens as
-  // a titled note anywhere else that reads markdown, and an untitled board has no heading at all
-  // rather than an empty one.
-  const parseTitle = (text) => {
-    const head = String(text || "").split(/<!--card /)[0];
-    const m = head.match(/^\s*#\s+(.+)\s*$/m);
-    return m ? m[1].trim() : "";
-  };
-  const serializeBoard = (cards, title) =>
-    `${title ? `# ${title}\n\n` : ""}${cards
-      .map(
-        (c) =>
-          `<!--card ${c.ts}${c.by ? ` by=${c.by}` : ""}-->\n${c.text}\n` +
-          (c.replies || [])
-            .map((r) => `<!--reply${r.by ? ` by=${r.by}` : ""}${r.ts ? ` ts=${r.ts}` : ""}-->\n${r.text}\n`)
-            .join(""),
-      )
-      .join("\n")}`;
-
   // EVERY TIME IT OPENS, not just the first — a reply written while the board was shut was invisible
   // until he reloaded the whole page, which is not a thing anyone should have to do to read an answer.
   useEffect(() => {
@@ -129,6 +82,8 @@ export default function Board({ projectCode, headerDrag, onClose, onHandToChat, 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [boardPlugin]);
 
+
+
   const saveBoard = async (cards, title = boardTitle) => {
     setBoard(cards);
     setBoardSaved(false);
@@ -140,10 +95,23 @@ export default function Board({ projectCode, headerDrag, onClose, onHandToChat, 
       // first time I tried it. Replies are the agent's half and the UI never edits them, so re-read
       // and carry them over rather than trusting what was in memory.
       let keep = {};
+      let keepStatus = {};
+      // A READ THAT NEVER ANSWERED IS NOT AN EMPTY BOARD. The disk only gets to be authoritative
+      // about statuses when it actually spoke — otherwise a transient read failure would strip
+      // every status on the next save, which is the same mistake as treating a failed listing as a
+      // mass deletion.
+      let diskSpoke = false;
       try {
         const fresh = await boardPlugin.readFile({ path: boardPath });
+        diskSpoke = true;
         parseBoard(fresh.content).forEach((c) => {
           if ((c.replies || []).length) keep[c.ts] = c.replies;
+          // A STATUS IS THE AGENT'S HALF TOO, and this is the trap the whole lane turns on: this
+          // panel holds the board in memory and writes the WHOLE file, so a status written by an
+          // agent between the read and the save is erased by his next keystroke — which is how
+          // replies used to vanish before they got this same merge. The panel never writes a
+          // status; it carries whatever the disk says.
+          if (c.status && c.status.text) keepStatus[c.ts] = c.status;
         });
       } catch {}
       // Union by (ts, text): an agent may have appended a reply since this panel read the file, and
@@ -151,6 +119,18 @@ export default function Board({ projectCode, headerDrag, onClose, onHandToChat, 
       cards = cards.map((c) => {
         const disk = keep[c.ts] || [];
         const mine = c.replies || [];
+        // The status the disk holds wins over whatever this panel happens to be carrying — it is
+        // not the panel's field to have an opinion about. Including its ABSENCE: an agent that
+        // cleared a status must not have it restored by his next keystroke.
+        if (diskSpoke) {
+          const onDisk = keepStatus[c.ts];
+          if (onDisk) {
+            if (!(c.status && c.status.ts === onDisk.ts)) c = { ...c, status: onDisk };
+          } else if (c.status) {
+            const { status, ...rest } = c;
+            c = rest;
+          }
+        }
         if (!disk.length) return c;
         const seen = new Set(mine.map((r) => `${r.ts}|${r.text}`));
         const merged = [...disk.filter((r) => !seen.has(`${r.ts}|${r.text}`)), ...mine].sort(
@@ -208,6 +188,58 @@ export default function Board({ projectCode, headerDrag, onClose, onHandToChat, 
   const [boardInterim, setBoardInterim] = useState("");
   // Clearing the whole board is two-step, the same as every other destructive thing in this app.
   const [boardArmed, setBoardArmed] = useState(false);
+  // …and so is clearing just the settled ones, on its own arm, because the two buttons sit beside
+  // each other and one armed state for both would let a press aimed at "settled" clear everything.
+  // WHICH GROUP IS ARMED, by name — not a boolean. Every state in the header is its own press, so
+  // a single `armed` flag would arm all of them at once and a press aimed at `partial` would read
+  // as a press on `done`.
+  const [settledArmed, setSettledArmed] = useState(null);
+  // TWO COUNTS, AND THE GAP BETWEEN THEM IS THE POINT. `settled` is how many cards carry an
+  // account; `done` is how many are FINISHED (implemented, answered) — and only those are what a
+  // press clears. A `partial` or `blocked` card carries an account precisely to say work is still
+  // outstanding on it, so a clear that ran on "has an account" would delete the cards that most
+  // need to survive. The board is meant to be manageable without being re-read, which means a
+  // press has to be safe without being re-read either.
+  // EVERY CARD HAS A STATE — his ruling, 2026-10-19: *"everything should have a status, even the
+  // ones that don't have a status, meaning it should be a default status… and those defaults
+  // should be provoking."* A card nobody has accounted for is the most interesting card on the
+  // board, and rendering it as an absence made it the quietest. `open` is that default: it is not
+  // written to the file (nothing is stamped on his behalf) — it is what no account MEANS, drawn
+  // loudly so the untouched ones are the first thing the eye lands on.
+  const OPEN = "open";
+  const stateOfCard = (c) =>
+    (c.status && c.status.text ? c.status.state || stateOf(c.status.text) : null) || OPEN;
+  // THE STATE IS LIFTED OUT OF THE LINE, OR IT IS NOT A STATE. Rendering the raw account put the
+  // word inline — `partial — agents can set one` — and he read it back as "that still just looks
+  // like regular text, there's no distinction". He was right: a state you have to read a sentence
+  // to find cannot be scanned, which is the only thing it was for. So the word renders as its own
+  // chip and the prose that follows it renders as the account, from the SAME one line on disk.
+  const statusLine = (c) => {
+    const st = stateOfCard(c);
+    const t = String((c.status && c.status.text) || "");
+    return st ? t.replace(new RegExp(`^\\s*${st}\\s*[—:-]?\\s*`, "i"), "") : t;
+  };
+  // What the header shows: every state present, with its count. A board with nothing finished still
+  // has to SAY what it is carrying — the press disappearing is how he lost sight of it.
+  // Ordered, never by insertion: the row must not reshuffle itself as cards change state.
+  const ORDER = [...DONE, "partial", "blocked", OPEN];
+  const tally = (board || []).reduce((acc, c) => {
+    const k = stateOfCard(c);
+    acc[k] = (acc[k] || 0) + 1;
+    return acc;
+  }, {});
+  const settledCount = (board || []).filter((c) => c.status && c.status.text).length;
+  const doneCards = (board || []).filter((c) => DONE.includes(stateOfCard(c)));
+  const doneCount = doneCards.length;
+  // THE CHIPS ARE A FILTER, NOT A DELETE. They were a two-step delete for about an hour, and he
+  // caught the collision immediately: *"it's hard to just filter or click, because when you click
+  // again, that's the way to close it… as soon as you click again, you put it on filter."* A
+  // second press on a selected chip has to mean "unselect", which leaves no gesture for "confirm
+  // the deletion". So selection lives on the chips and deletion lives on ONE press at the end of
+  // the row — `clear` — which takes the selected state, or everything when nothing is selected.
+  const [pick, setPick] = useState(null);
+  const [editingTitle, setEditingTitle] = useState(null);
+  const shown = pick ? (board || []).filter((c) => stateOfCard(c) === pick) : board;
   // ORDER IS HIS. Cards arrive newest-first, but a board is a thing you arrange — so the stamp bar
   // on each card is a drag handle and dropping one on another puts it there. The saved file IS the
   // order, so what you arrange is what you come back to. A private MIME, the same trick the file
@@ -219,6 +251,38 @@ export default function Board({ projectCode, headerDrag, onClose, onHandToChat, 
   const [openCards, setOpenCards] = useState([]);
   // Which note is being EDITED (its ts). Rendered markdown by default; the textarea only while editing.
   const [editingCard, setEditingCard] = useState(null);
+  // THIS EFFECT LIVES HERE, NOT WITH THE OTHER READS, and the position is load-bearing: it reads
+  // `editingCard` and `editingTitle`, so declared above them it is a temporal-dead-zone
+  // ReferenceError on every render — which is exactly what it was, and the board would not open at
+  // all. Keep it below every value it names.
+  // IT IS A FILE, SO IT STAYS FRESH. His catch, 2026-10-19 — he had the board open while I wrote
+  // 28 titles and 28 accounts into it, and the panel showed none of them: it read the file once, on
+  // mount, and nothing told it the file had moved. On the surface whose entire purpose is carrying
+  // things between him and an agent, that is the worst possible place to read a stale copy.
+  //
+  // The hub emits `board-updated:<project>` after any write through its door; this re-reads. It
+  // does NOT re-read while he is mid-edit — a card open in the editor, a title being typed, or an
+  // unsaved change in flight — because pulling the disk's copy in underneath him would take the
+  // sentence he is writing. Those land when the edit settles, which is the same rule the reply
+  // merge follows.
+  useEffect(() => {
+    const SystemView = SystemViewService && SystemViewService.SystemView;
+    if (!SystemView || !boardPlugin) return undefined;
+    const off = SystemView.on(`board-updated:${projectCode}`, async () => {
+      if (editingCard !== null || editingTitle !== null || !boardSavedRef.current) return;
+      try {
+        const res = await boardPlugin.readFile({ path: boardPath });
+        setBoard(parseBoard(res.content));
+        setBoardTitle(parseTitle(res.content));
+      } catch {}
+    });
+    return () => {
+      try {
+        if (typeof off === "function") off();
+      } catch {}
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [SystemViewService, boardPlugin, projectCode, editingCard, editingTitle]);
   // RFC-039 — his half of a note's thread: which card is being replied to, and the draft.
   const [replying, setReplying] = useState(0);
   const [replyDraft, setReplyDraft] = useState("");
@@ -419,24 +483,70 @@ export default function Board({ projectCode, headerDrag, onClose, onHandToChat, 
                   {board.length}
                 </span>
               )}
-              <span className={`${CLASSNAME}__board-state`}>
-                {board === null ? "opening…" : boardSaved ? "saved" : "saving…"}
-              </span>
+              {/* THE STATE ROW — his, and he asked that it stay what it is: *"I like the fact that
+                  it's these little things at the top, I don't want to change that too much. It
+                  should all work there, but filtering should be involved."* So the counts kept
+                  their place and gained the one gesture they were missing: press one and the board
+                  shows only those, press it again and the filter lifts. Colour carries the state;
+                  the number carries the weight. Every state the board holds appears, including
+                  `open` — the cards nobody has accounted for, which are the ones worth provoking. */}
+              {ORDER.filter((k) => tally[k]).map((k) => (
+                <button
+                  type="button"
+                  key={k}
+                  className={`${CLASSNAME}__board-tally ${CLASSNAME}__board-tally--${k}${
+                    pick === k ? ` ${CLASSNAME}__board-tally--on` : ""
+                  }`}
+                  title={
+                    pick === k
+                      ? `showing the ${k} ones — press again to show everything`
+                      : `${tally[k]} ${k} — press to show only those`
+                  }
+                  onClick={() => {
+                    setBoardArmed(false);
+                    setPick((cur) => (cur === k ? null : k));
+                  }}
+                >
+                  {k === "blocked" ? "✗" : DONE.includes(k) ? "✓" : k === "open" ? "•" : "~"} {tally[k]}
+                </button>
+              ))}
+              {/* AT THE END OF THE LIST, IN THE PICKED STATE'S COLOUR — his instruction, twice:
+                  the clear belongs at the end of the row of marks and applies to whatever is
+                  selected, with the colour saying which. It sat out at the far right beside
+                  `saved`, which made it read as the whole board's button and nothing else. */}
               {!!(board && board.length) && (
                 <button
                   type="button"
-                  className={`${CLASSNAME}__board-clear${boardArmed ? ` ${CLASSNAME}__board-clear--armed` : ""}`}
-                  title="Take everything off the board"
+                  className={`${CLASSNAME}__board-clear${pick ? ` ${CLASSNAME}__board-tally--${pick}` : ""}${
+                    boardArmed ? ` ${CLASSNAME}__board-clear--armed` : ""
+                  }`}
+                  // ONE DELETE, AT THE END OF THE ROW, AND IT TAKES WHAT YOU PICKED. *"To the
+                  // right of the entire list you show a clear, which we already do — clear all.
+                  // If you select one of those, it would clear one of those."* So the selection
+                  // does the aiming and this does the deleting: nothing selected means the whole
+                  // board, exactly as before, and a selected state means those and only those.
+                  // The two-step arm stays, because this is the one press that loses things.
+                  title={pick ? `Take the ${pick} cards off the board` : "Take everything off the board"}
                   onClick={() => {
                     if (!boardArmed) return setBoardArmed(true);
                     setBoardArmed(false);
-                    saveBoard([]);
+                    if (pick) {
+                      saveBoard((board || []).filter((c) => stateOfCard(c) !== pick));
+                      setPick(null);
+                    } else saveBoard([]);
                   }}
                   onBlur={() => setBoardArmed(false)}
                 >
-                  {boardArmed ? "clear it all?" : "clear"}
+                  {/* AT REST IT IS JUST `clear` — the arm already says what it will take, and
+                      saying it twice made the row wider for no new information. His call, after
+                      trying it: *"when you click it, it says clear the particular thing."* The
+                      colour is what carries the aim before the press. */}
+                  {boardArmed ? (pick ? `clear ${tally[pick]} ${pick}?` : "clear it all?") : "clear"}
                 </button>
               )}
+              <span className={`${CLASSNAME}__board-state`}>
+                {board === null ? "opening…" : boardSaved ? "saved" : "saving…"}
+              </span>
               {onClose && (
                 <button
                   type="button"
@@ -502,7 +612,9 @@ export default function Board({ projectCode, headerDrag, onClose, onHandToChat, 
                   nothing on the board yet — speak one or type one
                 </div>
               ) : (
-                board.map((c) => (
+                // FILTERED, NOT HIDDEN — `shown` is the board when nothing is picked, so the
+                // default view is still the whole board and the filter is a lens you take off.
+                shown.map((c) => (
                   <div
                     key={c.ts}
                     className={`${CLASSNAME}__board-card${dropCard === c.ts ? ` ${CLASSNAME}__board-card--drop` : ""}`}
@@ -607,6 +719,90 @@ export default function Board({ projectCode, headerDrag, onClose, onHandToChat, 
                               default, same renderer as the bubble, scoped to this project so any
                               block resolves against the right repo; click the text to edit it in
                               place (the textarea comes back, autofocused), blur to read again. */}
+                          {/* THE ACCOUNT, WHERE HE IS ALREADY LOOKING. His ask, 2026-10-16: *"it
+                              could be saying implemented, it could tell me what you did in one
+                              status, and whether it's done. Then I could come, see what it is and
+                              delete all of them."* So it is not a badge and not a lifecycle state
+                              to filter by — it is one line saying what happened, under the card's
+                              own words and above the thread, so deleting the card needs no re-read
+                              of it and no trip to a report. Never clamped: a status you have to
+                              unfold is a status you did not read.
+                              ABOVE THE NOTE, not under it — his correction, 2026-10-19. The whole
+                              claim of the account is that reading it is cheaper than reading the
+                              card; printed underneath, you have already read the card by the time
+                              you reach it, and a card whose text is clamped put the account below
+                              a "7 more lines" fold where it could not be scanned at all. */}
+                          {/* THE CARD'S NAME, ABOVE EVERYTHING. A real field (his call), so it
+                              is deliberate rather than read out of the prose — and it is what
+                              makes a card SAYABLE: "the status picker" now resolves, for him out
+                              loud and for an agent through `at`. Click to write or change it;
+                              a card without one simply has no header, exactly as before. */}
+                          {editingTitle === c.ts ? (
+                            <input
+                              className={`${CLASSNAME}__board-card-title-edit`}
+                              autoFocus
+                              defaultValue={c.title || ""}
+                              placeholder="name this card"
+                              onBlur={(e) => {
+                                const v = e.target.value.trim();
+                                setEditingTitle(null);
+                                saveBoard(
+                                  (board || []).map((x) =>
+                                    x.ts === c.ts ? (v ? { ...x, title: v } : (({ title, ...rest }) => rest)(x)) : x,
+                                  ),
+                                );
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") e.target.blur();
+                                if (e.key === "Escape") setEditingTitle(null);
+                              }}
+                            />
+                          ) : (
+                            <div
+                              className={`${CLASSNAME}__board-card-title${c.title ? "" : ` ${CLASSNAME}__board-card-title--none`}`}
+                              title="Click to name this card"
+                              onClick={() => setEditingTitle(c.ts)}
+                            >
+                              {c.title || "name this card"}
+                            </div>
+                          )}
+                          {/* DRAWN EVEN WITH NO ACCOUNT, because `open` IS the account then —
+                              a bare chip, no line. A card nobody has spoken for should say so in
+                              the same place every other card says what happened to it. */}
+                          {true && (
+                            <div
+                              className={`${CLASSNAME}__board-status ${CLASSNAME}__board-status--${stateOfCard(c)}`}
+                              // GUARDED, because this row draws for a card with NO account too —
+                              // that is what `open` is. Dereferencing c.status here threw on every
+                              // unaccounted card, which is most of the board, so it could not open
+                              // and typing a note re-rendered straight back into the throw.
+                              title={
+                                c.status
+                                  ? `${c.status.by || projectCode}${c.status.ts ? ` · ${moment(c.status.ts).format("MMM D, h:mm A")}` : ""}`
+                                  : "nobody has accounted for this one yet"
+                              }
+                            >
+                              {/* THE STATE, AS THE THING YOU SCAN. The word leads the account on
+                                  disk; here it is lifted out as its own mark so the board can be
+                                  read down the left edge without reading a single line of prose,
+                                  and so a card that is NOT finished cannot hide behind a tick. */}
+                              {/* THE CHIP ALONE. The mark beside it said the same thing twice —
+                                  I saw that in the first photograph of this and it was mine to
+                                  cut. A tick survives only where it adds something the word does
+                                  not: that this one is FINISHED. */}
+                              {DONE.includes(stateOfCard(c)) && (
+                                <span className={`${CLASSNAME}__board-status-mark`}>✓</span>
+                              )}
+                              <span className={`${CLASSNAME}__board-status-chip`}>{stateOfCard(c)}</span>
+                              {!!(c.status && c.status.text) && (
+                                <span className={`${CLASSNAME}__board-status-text`}>
+                                  <MarkdownScopeProvider value={{ projectCode }}>
+                                    {renderChatMessage(statusLine(c))}
+                                  </MarkdownScopeProvider>
+                                </span>
+                              )}
+                            </div>
+                          )}
                           {editingCard === c.ts ? (
                             <textarea
                               className={`${CLASSNAME}__board-card-text ${CLASSNAME}__board-card-text--open`}

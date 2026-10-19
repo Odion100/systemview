@@ -3069,8 +3069,33 @@ module.exports = function launchSystemView(port = 3000) {
       // themselves a shim forwarding straight back to readFile/writeFile. Inside the hub that shim
       // is the hub. Both keep the rule that mattered: a note or a reply is SIGNED by whoever wrote
       // it, never defaulted — defaulting to the board's owner once stamped a visitor's answer as his.
-      board: async ({ projectCode, name, add, replyText, remove, at, as } = {}) =>
-        Board({ projectCode, name, add, reply: replyText, remove, at, as: as || null }),
+      // EVERY DOOR THE CAPABILITY HAS, OR THE PARAMETER IS SILENTLY GONE. `status` and
+      // `removeSettled` landed in api/board.js with claims and then stopped HERE: this
+      // destructuring names the parameters it knows, so a status arrived, was dropped on the floor,
+      // and the call fell through to the plain board READ at the bottom of board.js — answering a
+      // successful-looking board with the card untouched. He pressed that step of the walk and the
+      // card read exactly as before, with nothing anywhere saying why. A parity claim in
+      // api/board.test.js now reads this line against the capability's own signature, so the next
+      // door added to board.js cannot stop at the hub.
+      // THE BOARD IS A FILE, AND A FILE THAT CHANGED SHOULD SAY SO. His catch, 2026-10-19: *"it's
+      // not updated in real time — isn't that something we already have with other files? Isn't
+      // that a file at the end of the day?"* The panel read it once on mount, so every card, reply,
+      // status and title an agent wrote was invisible until he closed and reopened the tab — on the
+      // one surface whose whole job is carrying things to him between sessions.
+      //
+      // The emit rides HERE rather than in api/board.js because this is where the socket is, the
+      // same split the chat verbs use; board.js stays a pure capability over a file layer.
+      board: async function boardVerb({ projectCode, name, add, replyText, remove, removeSettled, status, state, title, at, as } = {}) {
+        const r = await Board({ projectCode, name, add, reply: replyText, remove, removeSettled, status, state, title, at, as: as || null });
+        // Only a WRITE announces itself — a read that emitted would make every agent's poll look
+        // like a change and send every open panel back to the disk for nothing.
+        if (r && r.ok) {
+          try {
+            this.emit(`board-updated:${projectCode}`, { board: name || "board", by: as || null });
+          } catch {}
+        }
+        return r;
+      },
       comments: async ({ projectCode, path, replyText, at, as } = {}) =>
         CodeComments({ projectCode, path, reply: replyText, at, as: as || null }),
       // DRIVING THE WINDOW — FOUR METHODS (api/drive.js), not one door with a verb string.

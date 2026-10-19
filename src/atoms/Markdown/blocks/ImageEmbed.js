@@ -12,13 +12,20 @@ import { useMarkdownScope } from "../context";
 // Services DON'T all share a root (hosted repos differ) and some run plugins too old to serve
 // bytes — each image tries the project's services IN ORDER until one answers.
 
+// WHERE THE BYTES COME FROM. A project-relative path reads through the project's folder; an
+// ABSOLUTE one reads through the machine pipe (RFC-069 `/sv-machine`), which has existed the whole
+// time and which this block never used. That gap is why a screenshot filed outside every project —
+// `~/.autobot/shots/…png`, exactly where the harness puts them — rendered as a broken image: the
+// path was pasted into a project route that could never contain it.
+export const srcFor = (p, projectCode) => {
+  const raw = String(p || "").trim().replace(/^file:\/\//, "");
+  if (/^[~/]/.test(raw)) return `/sv-machine?path=${encodeURIComponent(raw)}`;
+  return `/sv-file/${encodeURIComponent(projectCode)}?path=${encodeURIComponent(raw)}`;
+};
+
 const OneImage = ({ relPath, projectCode, candidates, width, alt, onZoom }) => {
   const [idx, setIdx] = useState(0);
-  // ONE PROJECT, ONE FOLDER, ONE ROUTE. This used to walk the project's SERVICES in order, hoping
-  // one had a plugin new enough to serve bytes — so an image in a project with no services, or with
-  // services down, rendered as a dead box. The hub reads the folder directly; there is nothing to
-  // try in order any more.
-  const src = `/sv-file/${encodeURIComponent(projectCode)}?path=${encodeURIComponent(relPath)}`;
+  const src = srcFor(relPath, projectCode);
   return (
     <img
       key={src}
@@ -45,6 +52,10 @@ const ImageEmbed = ({ label, attrs = {} }) => {
     .filter(Boolean);
   const firstProject = connectedServices.length ? connectedServices[0].projectCode : null;
   const projectCode = attrs.project || scope.projectCode || firstProject;
+  // A MACHINE PATH BELONGS TO NO PROJECT, so it must not be held to one. The connection check below
+  // is about reading a project's folder; an absolute path reads through the machine pipe and is
+  // none of that check's business — holding it to one turned every screenshot into "not connected".
+  const machine = paths.every((p) => /^(~|\/|file:\/\/)/.test(p));
   const candidates = [
     ...connectedServices.filter(
       (s) => s.projectCode === projectCode && attrs.service && s.serviceId === attrs.service,
@@ -56,7 +67,7 @@ const ImageEmbed = ({ label, attrs = {} }) => {
   ].filter((s, i, arr) => arr.findIndex((o) => o.serviceId === s.serviceId) === i);
 
   if (!paths.length) return <div className="md-embed md-embed--dead">::image — no path named</div>;
-  if (!candidates.length)
+  if (!machine && !candidates.length)
     return (
       <div className="md-embed md-embed--dead">::image — {projectCode || "project"} not connected</div>
     );
@@ -64,11 +75,11 @@ const ImageEmbed = ({ label, attrs = {} }) => {
   const gallery = paths.length > 1;
   return (
     <figure className={`md-image${gallery ? " md-image--gallery" : ""}`}>
-      <div className="md-embed__head">
-        <span className="md-embed__kind">{gallery ? `gallery · ${paths.length}` : "image"}</span>
-        <span className="md-embed__title">{gallery ? paths[0].replace(/[^/]*$/, "…") : paths[0]}</span>
-        <span className="md-embed__scope">{projectCode}</span>
-      </div>
+      {/* NO HEAD. An image used to arrive wearing the embed chrome every other block wears — a
+          kind badge reading "image", the path, and the project chip — above a picture that says
+          all three by being a picture. His ruling, 2026-10-19, holding his phone's chat beside
+          this one: *"it doesn't need to be wrapped in a bubble… it just needs to render like
+          image."* A caption still renders, because that is something the picture does NOT say. */}
       <div className="md-image__row">
         {paths.map((p) => (
           <OneImage

@@ -2487,11 +2487,15 @@
   .md-embed__head {
     margin-bottom: 6px;
   }
+  // PICTURES SIT RIGHT, EVERYWHERE. His ruling, 2026-10-19: *"I wish the images would align to the
+  // right and not the left. In all cases."* A picture is not a paragraph — prose reads from the
+  // left margin and an image hanging off it fights the text it sits in.
   &__row {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
     align-items: flex-start;
+    justify-content: flex-end;
   }
   &__img {
     display: block;

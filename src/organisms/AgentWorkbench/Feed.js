@@ -295,8 +295,23 @@ const ToolRow = ({ row, renderText = null }) => {
   // an opened probe row draws the same runnable the docs use — press play, see the live result —
   // instead of a "code" button pointed at a namespace as if it were a file (his catch).
   const probeEmbed = probeEmbedFor(row, !!renderText);
+  // A TOOL THAT FILED A PICTURE OPENS AS THE PICTURE. His ruling, 2026-10-19: *"if I expand the
+  // log, it's supposed to show me the screenshot"* — and then, seeing the block in a message:
+  // *"obviously that means you can use the same markdown in the logs."* So it does, literally —
+  // `::image` is the renderer, not a second one written for this row, which is the same reason a
+  // read opens as `::file` and a write as `::diff`.
+  //
+  // The path is taken from the row's own `image` when the feed carried one, and otherwise read
+  // out of the output text. Both, because the row field is the better answer and the text is the
+  // one that cannot be lost between the harness, the hub and here.
+  const shotPath = (() => {
+    if (row.image) return String(row.image);
+    const m = String(row.output == null ? "" : row.output).match(/(\/[^\s"']+\.(?:png|jpe?g|gif|webp))/i);
+    return m ? m[1] : null;
+  })();
   const embed =
     probeEmbed ||
+    (renderText && shotPath ? `::image[${shotPath}]` : null) ||
     (renderText && row.rel
       ? row.wrote
         ? `::diff[${row.rel}]`
@@ -662,6 +677,40 @@ const Said = ({ row, render, clamp = false }) => {
   );
 };
 
+// WHAT HE ATTACHED, on the turn he attached it to. Thumbnails only — the full bytes went to the
+// model and were never kept here. Its own component because it holds state: the zoom. `Feed` is a
+// map, not a component, so a hook cannot live there.
+const Attachments = ({ row }) => {
+  const [zoom, setZoom] = useState(null);
+  const ims = row.images || [];
+  if (!ims.length) return null;
+  return (
+    <div className={`${CLASSNAME}__shots`}>
+      {ims.map((im, n) => (
+        <button
+          type="button"
+          key={`${row.key}-im${n}`}
+          className={`${CLASSNAME}__shot`}
+          title={im.name || "image"}
+          // ZOOM, NEVER NAVIGATE. This opened the thumbnail in a new view — his: *"the images I
+          // send navigate me to a page instead of using the magnifying glass that makes me see it
+          // closer."* Leaving the conversation to read a picture that is already in it is the
+          // opposite of looking closer, and it is the same lightbox the markdown image block uses,
+          // so both halves of a conversation enlarge the same way.
+          onClick={(e) => { e.stopPropagation(); if (im.thumb) setZoom(im.thumb); }}
+        >
+          {im.thumb ? <img src={im.thumb} alt={im.name || "attachment"} /> : <span>{im.name || "image"}</span>}
+        </button>
+      ))}
+      {zoom && (
+        <div className="md-image__lightbox" onClick={() => setZoom(null)}>
+          <img src={zoom} alt={row.name || "zoom"} />
+        </div>
+      )}
+    </div>
+  );
+};
+
 const Feed = ({ rows, answered = {}, onAnswer = null, renderText = null }) =>
   rows.map((r) =>
     r.kind === "tool" ? (
@@ -721,24 +770,7 @@ const Feed = ({ rows, answered = {}, onAnswer = null, renderText = null }) =>
             {r.as}
           </span>
         )}
-        {/* WHAT HE ATTACHED, on the turn he attached it to. Thumbnails only — the full bytes went
-            to the model and were never kept here. Click opens the picture full size in a new view;
-            a screenshot you cannot enlarge is a screenshot you cannot read. */}
-        {(r.images || []).length > 0 && (
-          <div className={`${CLASSNAME}__shots`}>
-            {r.images.map((im, n) => (
-              <button
-                type="button"
-                key={`${r.key}-im${n}`}
-                className={`${CLASSNAME}__shot`}
-                title={im.name || "image"}
-                onClick={() => im.thumb && window.open(im.thumb, "_blank", "noopener")}
-              >
-                {im.thumb ? <img src={im.thumb} alt={im.name || "attachment"} /> : <span>{im.name || "image"}</span>}
-              </button>
-            ))}
-          </div>
-        )}
+        <Attachments row={r} />
         <Said row={r} render={renderText} clamp={!r.as} />
       </div>
     ) : r.kind === "hook" ? (
