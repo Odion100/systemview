@@ -3092,9 +3092,18 @@ module.exports = function launchSystemView(port = 3000) {
         );
       },
       // Logs and stats, served structured — the internal MCP renders them human-readable.
+      // ONE TIMELINE, AND IT USED TO BE A LIE. The sort here was
+      // `(a.timestamp || 0) - (b.timestamp || 0)` over ISO STRINGS (what the plugin writes), which
+      // is NaN — a comparator's way of saying "equal" — so nothing moved, and `.slice(-limit)` then
+      // returned the tail of a per-service concatenation. Measured: service A [01:00, 05:00] plus
+      // service B [03:00, 04:00], asked for 2, answered 03:00 and 04:00 — the newest entry in the
+      // project was missing from the answer. The merge is one tested function now (api/logMerge.js),
+      // shared with the CLI, because this is the second time the same rule was wrong in two places
+      // in two different ways.
       getLogs: async ({ projectCode, level, limit = 100, namespace } = {}) => {
+        const { mergeLog } = require("./logMerge");
         const services = getServices(projectCode) || [];
-        const all = [];
+        const batches = [];
         for (const s of services) {
           try {
             const svc = Client.createService(s.system.connectionData);
@@ -3104,11 +3113,10 @@ module.exports = function launchSystemView(port = 3000) {
               entries = entries.filter((e) =>
                 `${e.serviceId || ""}.${e.moduleMethod || ""}`.toLowerCase().includes(String(namespace).toLowerCase())
               );
-            all.push(...entries.map((e) => ({ ...e, serviceId: e.serviceId || s.serviceId })));
+            batches.push(entries.map((e) => ({ ...e, serviceId: e.serviceId || s.serviceId })));
           } catch {}
         }
-        all.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
-        return { projectCode, entries: all.slice(-Math.max(1, Number(limit) || 100)) };
+        return { projectCode, entries: mergeLog(batches, { limit: Math.max(1, Number(limit) || 100) }) };
       },
       // STATISTICS — the shared core (api/stats.js). This one was never a terminal program
       // pretending to be a library: under the printing it is arithmetic the page and the agent must
