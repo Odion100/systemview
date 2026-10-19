@@ -355,6 +355,23 @@ export const threadMembersAttr = (next = [], docWho = []) => {
   return splitWho(Array.isArray(docWho) ? docWho.join("|") : docWho).length ? "" : null;
 };
 
+// WHO WROTE THE LAST REPLY — the field that decides whether a send is news to you or your own echo.
+//
+// Without it, `by` on a send is always the literal string "you" (docSend's default, overridden by
+// nobody), so the harness cannot tell "autobot answered" from "you answered" and `deliverToMembers`
+// had to guess with `!e.thread`: skip the owning project on document sends, never on thread ones.
+// That guess is wrong in both directions — it wakes an agent with its own reply, and it is the only
+// thing standing between hub-side auto and an unbounded A-replies-A-is-woken loop.
+//
+// Absent is "" rather than "you": a thread whose opening argument moved with no reply in it has no
+// author to name, and claiming one would skip a member who should have been told.
+export const lastReplyAuthorOf = (body) => {
+  const opens = String(body || "").match(/^\s*:{3,}\s*reply\b[^\n]*$/gm) || [];
+  if (!opens.length) return "";
+  const m = /\bauthor=("[^"]*"|[^\s}]*)/.exec(opens[opens.length - 1]);
+  return m ? m[1].replace(/^"|"$/g, "").trim() : "";
+};
+
 // WHAT A THREAD MEMBER IS BEING TOLD. The reply IS the news — a thread member is in the
 // conversation, so the words are the point, not a count of them.
 export const lastReplyOf = (body) => {
