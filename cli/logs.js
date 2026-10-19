@@ -346,9 +346,15 @@ module.exports = async function logsCommand(
   }
 
   if (current) {
-    const allEntries = [];
-    // Each service owns its own log file (systemview.<serviceId>.logs), so getLog returns only that
-    // service's records — merging across services just concatenates distinct sets, no duplication.
+    // ONE TIMELINE, NOT BLOCK AFTER BLOCK. Each service owns its own log file
+    // (systemview.<serviceId>.logs), so this is N fetches of distinct records — and they were
+    // printed in fetch order, which reads as "all of service A, then all of service B" the moment a
+    // project has two. The gap buAPI's agent filed (LOGS_CROSS_SERVICE_MERGE_UNSORTED): the whole
+    // point of a project view is one chronology, and this was the one view that did not have it.
+    // The limit now lands AFTER the merge too — per service it was `limit × services` entries with
+    // the wrong ones surviving.
+    const { mergeLog } = require("../api/logMerge");
+    const batches = [];
     for (const { svc } of connected) {
       try {
         let entries = await svc.SystemView.getLog({ limit });
@@ -360,9 +366,10 @@ module.exports = async function logsCommand(
         if (andFilters.length || orFiltersParsed.length)
           entries = entries.filter((e) => matchesFilters(e, andFilters, orFiltersParsed));
         if (level) entries = entries.filter((e) => e.level === level);
-        allEntries.push(...entries);
+        batches.push(entries);
       } catch {}
     }
+    const allEntries = mergeLog(batches, { limit: Math.max(1, Number(limit) || 0) });
     if (allEntries.length) {
       console.log(chalk.dim(`  ── current (${allEntries.length}) ──`));
       allEntries.forEach((entry) => {

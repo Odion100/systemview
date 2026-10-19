@@ -62,3 +62,47 @@ allEntries.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 Clock skew across machines is the only wrinkle, and that's a production concern — real deployments are
 NTP-synced, so trusting wall-clock is fine. No sequence/ingest-clock design needed here. If a true
 project-level `limit` is wanted, apply it after the sort (`.slice(-limit)`).
+
+---
+
+## FIXED — 2026-10-19, and the hub was worse than the CLI
+
+The filed gap is right and narrower than it looks: of the three readers, only `cli/logs.js` was
+unsorted. `src/organisms/InlineLogs` was already correct (it parses with `new Date`, sorts, slices,
+reverses) — verified before touching anything, as the gap asked.
+
+**But `api/index.js getLogs` — the door agents read through `mcp__systemview__logs` — carried the
+same bug wearing a sort.** It ran:
+
+```js
+all.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+return { entries: all.slice(-limit) };
+```
+
+The plugin writes `timestamp: new Date().toISOString()`, and subtracting two strings is `NaN`, which
+a comparator treats as "equal" — so nothing ever moved. Then `.slice(-limit)` took the tail of a
+per-service concatenation. Measured:
+
+| | |
+|---|---|
+| service A | `01:00`, `05:00` |
+| service B | `03:00`, `04:00` |
+| asked for the newest **2** | answered `03:00`, `04:00` |
+| the actual newest 2 | `04:00`, **`05:00`** |
+
+So the project's newest entry was silently absent from the answer. A sort that cannot work is worse
+than no sort: unsorted at least *reads* as grouped blocks, while this read as a timeline and was not
+one.
+
+**The fix is one tested function, shared.** `api/logMerge.js` — flatten, place by `Date.parse` (ISO
+strings and legacy numeric ms both land), stable for equal stamps, entries with no usable timestamp
+KEPT at the end rather than filed as the oldest thing that ever happened, and the limit applied
+**after** the merge so it means "the newest N in the project" instead of "N per service, whichever
+survive". `cli/logs.js` and `api/index.js` both call it. 8 claims in `api/logMerge.test.js`.
+
+**Not verified live.** This project has three services and only `SystemViewCore` is up, so a
+multi-service read here returns one batch and the symptom cannot be reproduced on this machine. It
+bites where it was filed — buAPI, five services. The claims carry the arithmetic; a buAPI `logs`
+read after this lands is what retires this file.
+
+**lane** systemview `lane/one-timeline-across-services`. `api/` + `cli/` — needs the hub restart.
