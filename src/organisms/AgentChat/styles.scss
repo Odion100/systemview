@@ -5328,3 +5328,48 @@ $sv-board-states: (
     &:disabled { cursor: default; opacity: 0.6; }
   }
 }
+
+// ── NO SUBAGENT RUNS UNSEEN (his rule) ────────────────────────────────────────────────────────
+// A subagent that never registered a lane has no row anywhere — it runs, spends and writes with the
+// strip silent. These are those rows. DIM on purpose: it is not a kind of work, it is work that
+// failed to announce itself, and it must not read as a peer of the registered lanes beside it.
+.agent-chat__unseen {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  font-size: 11px;
+  opacity: 0.72;
+  &:hover { opacity: 1; }
+}
+.agent-chat__unseen-kind {
+  flex: none;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--sv-text-faint);
+  border: 1px dashed var(--sv-border);   // dashed, because the row itself is the thing that is missing
+  border-radius: 3px;
+  padding: 1px 5px 2px;
+}
+// THE BRIEF IS THE NAME IT NEVER GOT. One line, ellipsed — the full prompt is the row's title.
+.agent-chat__unseen-brief {
+  color: var(--sv-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.agent-chat__unseen-last {
+  flex: none;
+  color: var(--sv-text-muted);
+  font-family: var(--sv-mono, monospace);
+  font-size: 10px;
+}
+// WHY IT HAS NO ROW, on the row. The two causes need different answers, so neither is implied.
+.agent-chat__unseen-why {
+  flex: none;
+  margin-left: auto;
+  color: var(--sv-text-faint);
+  font-size: 10px;
+}
