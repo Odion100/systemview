@@ -99,3 +99,48 @@ describe("ordering and shapes it must survive", () => {
     expect(unseenSubagents(m, ["", null, undefined])).toHaveLength(1);
   });
 });
+
+describe("running or finished — the difference that makes the row worth seeing", () => {
+  it("reads running when the spawning call has not returned", () => {
+    const m = new Map([["a", lane({ events: [ev()] })]]);
+    const r = unseenSubagents(m, [])[0];
+    expect(r.state).toBe("running");
+    expect(r.ended).toBe(false);
+  });
+
+  it("reads finished once the spawning call returned", () => {
+    const m = new Map([["a", lane({ events: [ev()], ended: { ok: true, ts: 50 } })]]);
+    const r = unseenSubagents(m, [])[0];
+    expect(r.state).toBe("finished");
+    expect(r.ended).toBe(true);
+    expect(r.failed).toBe(false);
+    expect(r.endedTs).toBe(50);
+  });
+
+  it("reads failed when it returned an error, because that is a different thing to look at", () => {
+    const m = new Map([["a", lane({ events: [ev()], ended: { ok: false, ts: 9 } })]]);
+    expect(unseenSubagents(m, [])[0].state).toBe("failed");
+    expect(unseenSubagents(m, [])[0].failed).toBe(true);
+  });
+
+  // SILENCE IS NOT AN ENDING. A subagent thinking for two minutes emits nothing and is very much
+  // alive, so the state comes only from the spawning call's result — never from events drying up.
+  it("does not call a quiet subagent finished", () => {
+    const m = new Map([["a", lane({ events: [] })]]);
+    expect(unseenSubagents(m, [])[0].state).toBe("running");
+  });
+
+  it("an ended record with ts 0 still counts as ended — a result is a result", () => {
+    const m = new Map([["a", lane({ events: [ev()], ended: { ok: true, ts: 0 } })]]);
+    expect(unseenSubagents(m, [])[0].state).toBe("finished");
+  });
+
+  // A LIVE ONE OUTRANKS A FINISHED ONE however recently the finished one stopped.
+  it("puts running ahead of finished, whatever the clock says", () => {
+    const m = new Map([
+      ["done", lane({ events: [ev({ ts: 999 })], ended: { ok: true, ts: 999 } })],
+      ["live", lane({ events: [ev({ ts: 1 })] })],
+    ]);
+    expect(unseenSubagents(m, []).map((r) => r.parent)).toEqual(["live", "done"]);
+  });
+});

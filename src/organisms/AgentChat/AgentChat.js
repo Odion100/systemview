@@ -7985,11 +7985,20 @@ const countdown = (str, now = Date.now()) => {
                     without being legible. */}
                 {attached && bandShown.active === "lanes" &&
                   unseenShown.map((u) => (
-                    <div key={`unseen-${u.parent}`} className={`${CLASSNAME}__row ${CLASSNAME}__unseen`} title={u.fullBrief || u.why}>
-                      <span className={`${CLASSNAME}__unseen-kind`}>subagent</span>
+                    <div
+                      key={`unseen-${u.parent}`}
+                      className={`${CLASSNAME}__row ${CLASSNAME}__unseen ${CLASSNAME}__unseen--${u.state}`}
+                      title={u.fullBrief || u.why}
+                    >
+                      {/* RUNNING OR FINISHED, on the row. "It existed" and "it is spending right
+                          now" are different facts and only one of them is urgent — a finished
+                          subagent that looks live is the same lie as an invisible one. */}
+                      <span className={`${CLASSNAME}__unseen-kind`}>{u.state === "running" ? "subagent ·" : "subagent"}</span>
                       <span className={`${CLASSNAME}__unseen-brief`}>{u.brief || u.parent}</span>
                       {u.last ? <span className={`${CLASSNAME}__unseen-last`}>{u.last}</span> : null}
-                      <span className={`${CLASSNAME}__unseen-why`}>{u.why}</span>
+                      <span className={`${CLASSNAME}__unseen-why`}>
+                        {u.state === "running" ? "running" : u.state === "failed" ? "failed" : "finished"} · {u.why}
+                      </span>
                     </div>
                   ))}
                 {attached &&
