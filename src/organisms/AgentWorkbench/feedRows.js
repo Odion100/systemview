@@ -74,6 +74,7 @@ export function splitLaneEvents(events) {
   const main = [];
   const lanes = new Map(); // parentId -> { source, brief, events: [] }
   const briefs = new Map(); // tool_use id -> the prompt that spawned it
+  const ends = new Map();   // tool_use id -> { ok, ts } when the spawning call returned
   for (const ev of events || []) {
     if (ev && ev.parent) {
       let lane = lanes.get(ev.parent);
@@ -94,10 +95,27 @@ export function splitLaneEvents(events) {
       // is needed at all.
       if (ev && ev.kind === "tool.call" && ev.id && ev.input && typeof ev.input.prompt === "string")
         briefs.set(String(ev.id), ev.input.prompt);
+      // AND THE END. A subagent's events carry the spawning call's id as `parent`; that same call's
+      // RESULT carries it as `id` — so the moment a subagent finished is already on screen and
+      // nothing in the harness has to tell us. Without this a row can prove a subagent existed and
+      // never that it stopped, which is half of "nothing runs invisibly": a finished subagent looks
+      // exactly like one still spending.
+      //
+      // KEYED BY ID AND ATTACHED AFTER, the same shape the brief above uses and for the same reason
+      // — the result may arrive in any order relative to the lane entry being created, and a lookup
+      // at this moment would simply be empty.
+      if (ev && ev.kind === "tool.result" && ev.id) ends.set(String(ev.id), { ok: ev.ok !== false, ts: ev.ts || 0 });
       main.push(ev);
     }
   }
-  for (const [pid, lane] of lanes) if (!lane.brief) lane.brief = briefs.get(String(pid)) || "";
+  for (const [pid, lane] of lanes) {
+    if (!lane.brief) lane.brief = briefs.get(String(pid)) || "";
+    // ABSENT MEANS STILL RUNNING, and that is the honest default: the spawning call has not
+    // returned, so nothing has said it stopped. It is never inferred from the events going quiet —
+    // a subagent thinking for two minutes is silent and very much alive.
+    const end = ends.get(String(pid));
+    if (end) lane.ended = end;
+  }
   return { main, lanes };
 }
 

@@ -5373,3 +5373,23 @@ $sv-board-states: (
   color: var(--sv-text-faint);
   font-size: 10px;
 }
+
+// RUNNING, FINISHED, FAILED — three different things to do about it, so three different weights.
+// A live subagent is the only one that is urgent; a finished one is a record, and a failed one is
+// something to go and read.
+.agent-chat__unseen--running {
+  opacity: 1;
+  .agent-chat__unseen-kind { border-style: solid; color: var(--sv-text); }
+  .agent-chat__unseen-why { color: var(--sv-text-muted); }
+}
+.agent-chat__unseen--finished { opacity: 0.6; }
+.agent-chat__unseen--failed {
+  opacity: 1;
+  .agent-chat__unseen-kind { border-style: solid; border-color: #b3261e; color: #b3261e; }
+  .agent-chat__unseen-why { color: #b3261e; }
+}
+.markdown--dark .agent-chat__unseen--failed,
+.agent-chat--dark .agent-chat__unseen--failed {
+  .agent-chat__unseen-kind { border-color: #ff8a80; color: #ff8a80; }
+  .agent-chat__unseen-why { color: #ff8a80; }
+}

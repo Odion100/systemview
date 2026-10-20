@@ -66,12 +66,22 @@ export function unseenSubagents(laneMap, rowSources = []) {
       // WHAT IT HAS BEEN DOING, for a row that has no name to show. A subagent with no brief and no
       // source would otherwise be an id and a number, which is visible without being legible.
       last: lastDoing(events),
+      // RUNNING OR FINISHED — the difference between "this is spending right now" and "this already
+      // stopped", which is the whole point of seeing it at all. `ended` is set by the split from the
+      // spawning call's RESULT; absent means still running, and that is never inferred from the
+      // events going quiet, because a subagent thinking for two minutes is silent and alive.
+      ended: !!(lane.ended && lane.ended.ts !== undefined),
+      failed: !!(lane.ended && lane.ended.ok === false),
+      endedTs: (lane.ended && Number(lane.ended.ts)) || 0,
+      state: !lane.ended ? "running" : lane.ended.ok === false ? "failed" : "finished",
       // WHY IT HAS NO ROW, said out loud rather than left to be inferred — the two causes need
       // different answers from him.
       why: source ? "registered, but no row — its run record is missing" : "never registered a lane",
     });
   }
-  return out.sort((a, b) => b.ts - a.ts);
+  // RUNNING FIRST, whatever the clock says. A live subagent spending tokens outranks a finished one
+  // that happens to have stopped more recently.
+  return out.sort((a, b) => Number(a.ended) - Number(b.ended) || b.ts - a.ts);
 }
 
 /** The most recent thing it did, in a few words. Tool calls first — they are what it is spending. */
