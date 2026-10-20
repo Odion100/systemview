@@ -8,6 +8,7 @@ import remarkDirective from "remark-directive";
 import remarkSvBlocks from "./directives";
 import { splitWho } from "./docMembers";
 import MembersPin from "./blocks/MembersPin";
+import VerdictChips from "./blocks/VerdictChips";
 import { addMemberPlan, addThreadMemberPlan, membersBlockOf, threadBlocksOf, clearAllThreads, fenceHealth } from "./docMembers";
 import { LEAF_KINDS, leafLineNo, addLeafPlan } from "./registrationLeaf";
 import { growProof } from "./claims";
@@ -578,9 +579,20 @@ const Markdown = ({ children, dark = false, scope = null, onSourceChange = null,
     if (!can || !text) return;
     save(`${String(src).replace(/\s*$/, "")}\n\n${text}\n`);
   }, []);
+  // INSERTING A BLOCK THE DOCUMENT DOES NOT HAVE YET. Everything else here edits something already
+  // on the page; this is the one door for a control that has to CREATE its block before it can
+  // write into it — the corner verdict chips, whose whole point is that nothing lives in the draft
+  // until he decides. Same shape as the others: the live source, the real save, refused when the
+  // surface is read-only.
+  const insertAt = useCallback((after, text) => {
+    const { source: src, onSourceChange: save, editable: can } = live.current;
+    if (!can || after == null || !text) return;
+    const next = insertAfterLine(src, after, text);
+    if (next != null) save(next);
+  }, []);
   const writeApi = useMemo(
-    () => ({ editable, setAttr, setAttrs, startThread, threadable, appendInside, removeBlock, appendEnd }),
-    [editable, setAttr, setAttrs, startThread, threadable, appendInside, removeBlock, appendEnd]
+    () => ({ editable, setAttr, setAttrs, startThread, threadable, appendInside, removeBlock, appendEnd, insertAt }),
+    [editable, setAttr, setAttrs, startThread, threadable, appendInside, removeBlock, appendEnd, insertAt]
   );
 
   const components = useMemo(
@@ -860,7 +872,18 @@ const Markdown = ({ children, dark = false, scope = null, onSourceChange = null,
             </div>
           );
         })()}
-        <MembersPin />
+        {/* ONE CORNER, TWO CONTROLS. The members pin's sticky offsets were tuned against five of his
+            corrections ("the same shoulder padding that it does when it's floating sticky") and are
+            NOT re-derived here — they move to this wrapper verbatim, and the pin keeps its own
+            column, gap and pointer-events rules untouched. Two separately-sticky elements in one
+            corner would simply overlap.
+            RFC-071 — who has not heard about this version. RFC-070 t1+t5 — a verdict without
+            scrolling to the block. Both are "work waiting on him", which is why they share a corner
+            rather than each inventing one. */}
+        <div className="md-corner">
+          <VerdictChips />
+          <MembersPin />
+        </div>
         {menu ? (
           <DocMenu
             at={menu}

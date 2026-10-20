@@ -2924,30 +2924,113 @@
   to { transform: translateX(0); opacity: 1; }
 }
 
-.md-members-pin {
+// ONE CORNER FOR EVERYTHING WAITING ON HIM. The offsets here are the members pin's own, moved up
+// rather than re-derived: the `top` / lift pair is what makes the row sit identically whether the
+// document is scrolled to the head or stuck at the top, and it took five corrections to land
+// ("it's just have the same shoulder padding that it does when it's floating sticky"). Nothing
+// about them is recalculated for a second occupant.
+//
+// A ROW, not a column: the verdict chips sit to the LEFT of the update pills, so a growing stack of
+// pills pushes down the corner while the chips stay where they are.
+.md-corner {
   position: sticky;
+  // THE MARGIN LIFT WOULD BE DEAD HERE TOO. `.markdown > *:first-child { margin-top: 0 !important }`
+  // sits above this file's own reset, and the CORNER is now the first child — so a `margin-top` set
+  // on it computes to 0 exactly as it always did on the pin (measured in his window: `marginTop:
+  // "0px"` while the rule said -22px; nothing failed loudly, the number simply never arrived).
+  //
+  // So the lift is a TRANSFORM, which no reset touches and which costs no layout on a zero-height
+  // element. TOP AND TRANSFORM ARE THE SAME NUMBER, and that pairing is the whole trick: at rest
+  // the static position wins and the transform lifts the row clear of the first block; once stuck,
+  // sticky holds it at `scrollport + 18` and the transform takes it back to `scrollport + 0` —
+  // flush with the top edge rather than 18px above it, where the scroller would clip it.
+  top: 18px;
+  transform: translateY(-18px);
+  z-index: 6;
+  height: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 6px;
+  pointer-events: none;
+}
+
+// ── A VERDICT WITHOUT SCROLLING TO THE BLOCK (RFC-070 t1+t5) ──────────────────────────────────
+// The container claims no pointer events (see .md-corner), so every child here must take them back
+// or it is a picture of a button — the exact bug the pin's tuck handle shipped with.
+.md-verdict {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  pointer-events: auto;
+}
+.md-verdict__chip {
+  border: 1px solid var(--sv-border);
+  background: var(--sv-bg, #fff);
+  font: inherit;
+  font-size: 11px;
+  line-height: 1;
+  color: var(--sv-text-faint);
+  border-radius: 10px;
+  padding: 3px 8px 4px;
+  cursor: pointer;
+  opacity: 0.75;            // quiet until wanted — it is furniture, not an alarm
+  &:hover { opacity: 1; color: var(--sv-text); }
+}
+// THE CURRENT VERDICT IS VISIBLE HERE, because this corner is the only place you can see one
+// without scrolling to the block.
+.md-verdict__chip--yes.is-on {
+  opacity: 1;
+  color: #0a7f3f;
+  border-color: #0a7f3f;
+}
+.md-verdict__chip--no.is-on {
+  opacity: 1;
+  color: #b3261e;
+  border-color: #b3261e;
+}
+.md-verdict__goto {
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 11px;
+  line-height: 1;
+  color: var(--sv-text-faint);
+  padding: 3px 2px 4px;
+  cursor: pointer;
+  pointer-events: auto;
+  &:hover { color: var(--sv-text); }
+}
+// A REFUSAL IS SAID WHERE THE PRESS WAS. A chip that looks pressed and wrote nothing is the worst
+// outcome available here.
+.md-verdict__refusal {
+  pointer-events: auto;
+  font-size: 10px;
+  line-height: 1.3;
+  max-width: 220px;
+  color: #b3261e;
+  background: var(--sv-bg, #fff);
+  border: 1px solid #b3261e;
+  border-radius: 4px;
+  padding: 2px 6px 3px;
+}
+.markdown--dark {
+  .md-verdict__chip { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.14); }
+  .md-verdict__chip--yes.is-on { color: #5bd68f; border-color: #5bd68f; }
+  .md-verdict__chip--no.is-on { color: #ff8a80; border-color: #ff8a80; }
+  .md-verdict__refusal { background: rgba(0, 0, 0, 0.35); color: #ff8a80; border-color: #ff8a80; }
+}
+
+.md-members-pin {
+  // POSITIONING MOVED TO .md-corner — the sticky offsets are shared now, and duplicating them here
+  // would be two tunings to keep in step. Everything below is the pin's own and unchanged.
+  position: relative;
   // TIGHT AT REST, CLEAR WHEN PINNED. One `top` could never do both — the row is the first thing in
   // ONE GAP, BOTH STATES — his: *"it's just have the same shoulder padding that it does when it's
   // floating sticky."* The row rests AFTER the document's padding (`.md-view` 10px + `.markdown`
   // 10px = 22px below the pane edge) and sticks at `top`, so the two only agree if the margin
   // cancels the difference: -14 + 22 = 8, the same 8 the stuck offset uses. It never moves.
-  // THE MARGIN HERE WAS ALWAYS DEAD. `.markdown > :first-child { margin-top: 0 !important }` sits
-  // above this file's own reset, and the pin IS the first child — so every `margin-top` ever set
-  // on it computed to 0, including the one whose arithmetic the old comment here explained in
-  // detail. Measured in his window: `marginTop: "0px"` while the rule said -22px. Nothing failed
-  // loudly; the number simply never arrived.
-  //
-  // So the lift is a TRANSFORM, which no reset touches and which costs no layout on a zero-height
-  // element. Measured positions at rest: the tab ran 155→175 and the arc began at 163, a 12px
-  // overlap, with 20px of genuinely empty band above it (scrollport top 135, content top 155).
-  //
-  // TOP AND TRANSFORM ARE THE SAME NUMBER, and that pairing is the whole trick. At rest the static
-  // position wins and the transform lifts the tab clear of the first block. Once stuck, sticky
-  // holds it at `scrollport + 14` and the transform takes it back to `scrollport + 0` — flush with
-  // the top edge rather than 14px above it, where the scroller would clip it while he reads.
-  top: 18px;
-  transform: translateY(-18px);
-  z-index: 6;
   // NO SPACE IN THE FLOW, but `stretch` on a zero-height flex parent collapsed the row's content
   // box to nothing: the pill painted its padding at zero height while the label and the chips fell
   // OUTSIDE it — *"the flex is still stretched across and the update is not even sitting inside."*
