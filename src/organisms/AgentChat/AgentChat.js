@@ -55,6 +55,7 @@ import Board from "../Board/Board";
 import { hasHostJobs, jobRuns, rateJobRun } from "../../utils/hostJobs";
 import { bandTabs, bandLabel, readBandTab, writeBand, TAB_KEY } from "./bandTabs";
 import NudgeCog from "./NudgeCog";
+import { flagsFrom } from "./approvalWaiting";
 import { deleteReport as deleteReportFile, reportIndexSets, listReports } from "../../utils/reportOps";
 import SEND_ICON from "../../assets/send.png";
 import { LINKISH, shortUrl, collectLinks, pathHref } from "./chatLinks";
@@ -5821,8 +5822,8 @@ const countdown = (str, now = Date.now()) => {
   // THE GATE — his challenge, 2026-10-16: *"isn't polling inefficient? …you have to justify it."*
   // The justified shape: one cheap listing per tick fingerprints every report file AND the index by
   // (path, mtime). Unchanged fingerprint → the tick ends at that single call; nothing is re-read
-  // and the state already on screen stays. Changed → the real pull runs (the list, the 20 approval
-  // reads). A verdict press bumps its file's mtime and a filing/delete changes the path set, so
+  // and the state already on screen stays. Changed → the real pull runs (the list, and a read of
+  // EVERY report — the old cap of 20 was silent and there are already 23). A verdict press bumps its file's mtime and a filing/delete changes the path set, so
   // both arrive within a tick — the gate skips only the ticks where nothing happened, which is
   // most of them.
   const reportsPrint = useRef("");
@@ -5850,19 +5851,32 @@ const countdown = (str, now = Date.now()) => {
           // older hub that does not send it leaves every report in the plain tab, which is right
           subtype: (r.state && r.state.subtype) || "",
         }));
-        const flags = {};
-        await Promise.all(
-          list.slice(0, 20).map(async (r) => {
+        // EVERY REPORT, NOT THE FIRST TWENTY. The cap was silent, and measured 2026-10-19 there were
+        // 23 — so three documents were never read and the band could say nothing was waiting while
+        // one waited in the 21st. A bound that drops work without naming it reads as "covered
+        // everything", which is the one thing a count must not do. The mtime gate above is what
+        // makes reading them all affordable: a quiet tick costs one listing and no reads at all.
+        let unread = 0;
+        const read = await Promise.all(
+          list.map(async (r) => {
             try {
               const res = await files.readFile({ path: r.path });
-              const blocks = [...String(res.content || "").matchAll(/:::approval\{([^}]*)\}/g)];
-              if (blocks.some((b) => !/verdict=/.test(b[1]))) flags[r.path] = true;
-            } catch {}
+              return { path: r.path, content: String((res && res.content) || "") };
+            } catch {
+              // COUNTED, NOT SWALLOWED — the surface can say "unreadable" instead of implying it
+              // looked at everything.
+              unread += 1;
+              return null;
+            }
           })
         );
-        if (!dead) setReportsMeta({ list, waiting: Object.keys(flags).length, flags });
+        // The predicate itself lives in approvalWaiting.js, where it is testable: nothing importing
+        // this file can be mounted under jest, and the fence-depth bug it fixes is exactly the kind
+        // that only a test catches.
+        const { flags, waiting } = flagsFrom(read.filter(Boolean), unread);
+        if (!dead) setReportsMeta({ list, waiting, flags, unread });
       } catch {
-        if (!dead) setReportsMeta({ list: [], waiting: 0, flags: {} });
+        if (!dead) setReportsMeta({ list: [], waiting: 0, flags: {}, unread: 0 });
       }
     };
     pull();
