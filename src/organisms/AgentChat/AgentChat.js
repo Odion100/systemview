@@ -56,6 +56,7 @@ import { hasHostJobs, jobRuns, rateJobRun } from "../../utils/hostJobs";
 import { bandTabs, bandLabel, readBandTab, writeBand, TAB_KEY } from "./bandTabs";
 import NudgeCog from "./NudgeCog";
 import { flagsFrom } from "./approvalWaiting";
+import { unseenSubagents } from "./unseenSubagents";
 import { deleteReport as deleteReportFile, reportIndexSets, listReports } from "../../utils/reportOps";
 import SEND_ICON from "../../assets/send.png";
 import { LINKISH, shortUrl, collectLinks, pathHref } from "./chatLinks";
@@ -6186,6 +6187,22 @@ const countdown = (str, now = Date.now()) => {
       (l) => !deletedLanes.has(l.key) && JSON.stringify(l.items) !== clearedLists[l.key]
     );
   })();
+
+  // NO SUBAGENT RUNS UNSEEN (his rule: *"you shouldn't be able to spawn subagents without me
+  // seeing it"*). `laneLogFor` joins a row to its log through `lane.source`, which exists only if
+  // the subagent registered a lane. One that never did has no source, no run record and therefore
+  // NO ROW AT ALL: it runs, spends tokens and writes files with the strip silent.
+  //
+  // THE KNOWN SET IS SOURCES, NOT BRANCHES. `lane.source` is `lane:lane/x`; the render's own
+  // `laneOf` strips that prefix, so passing it here would match nothing and report every registered
+  // subagent as unseen — louder than the bug it was meant to find.
+  //
+  // AFTER `lanesShown` AND `listsShown` ON PURPOSE: both are `const` IIFEs, so reading them above
+  // their own definition is a temporal-dead-zone throw at render, not a lint warning.
+  const unseenShown = unseenSubagents(work.lanes, [
+    ...lanesShown.map((l) => String(l.source || "")),
+    ...listsShown.map((l) => String(l.source || "")),
+  ]);
   // WHICH TABS THE BAND HAS, and which one is showing — decided from what has rows (see
   // bandTabs.js), so the head's highlight and the pane below can never disagree.
   const bandJobs = listsShown.filter((l) => l.source.startsWith("job:"));
@@ -7962,6 +7979,19 @@ const countdown = (str, now = Date.now()) => {
                     relation is the job's, not the lane tab's. */}
                 {attached && bandShown.active === "lanes" &&
                   lanesShown.filter((l) => !claimed.has(laneOf(l))).map(renderLaneRow)}
+                {/* RUNNING, AND ACCOUNTED FOR BY NOTHING ELSE ON SCREEN. Dim, because it is not a
+                    lane — it is a subagent that never became one. The row carries the brief that
+                    scoped it and the last thing it did, because an id and an event count is visible
+                    without being legible. */}
+                {attached && bandShown.active === "lanes" &&
+                  unseenShown.map((u) => (
+                    <div key={`unseen-${u.parent}`} className={`${CLASSNAME}__row ${CLASSNAME}__unseen`} title={u.fullBrief || u.why}>
+                      <span className={`${CLASSNAME}__unseen-kind`}>subagent</span>
+                      <span className={`${CLASSNAME}__unseen-brief`}>{u.brief || u.parent}</span>
+                      {u.last ? <span className={`${CLASSNAME}__unseen-last`}>{u.last}</span> : null}
+                      <span className={`${CLASSNAME}__unseen-why`}>{u.why}</span>
+                    </div>
+                  ))}
                 {attached &&
                   listsShown
                     .filter((l) => bandShown.active === (l.source.startsWith("job:") ? "jobs" : "lists"))
