@@ -201,3 +201,61 @@ test("withUpdates counts somebody waiting on a THREAD, not only on the document"
   assert.ok(r.documents[0].threads[0].behind.includes("buapi"));
   assert.equal(r.withUpdates, 1, "a thread with somebody waiting read as nothing waiting");
 });
+
+// ── PARITY WITH THE WINDOW ──────────────────────────────────────────────────────────────────
+//
+// TWO IMPLEMENTATIONS OF ONE RULE IS THE FAILURE MODE THIS WHOLE FILE KEEPS HITTING. The hub
+// cannot import from `src/` — different build, no shared module — so membership parsing exists
+// twice, and BOTH of the bugs fixed in this lane were drift between the copies:
+//
+//   · the id captured as `([^}]+)` swallowed `members=`/`sent=` the moment RFC-071 added them;
+//   · `bodyOf` hashed thread openers on one side while the other deliberately excluded them.
+//
+// Neither showed up as a failure anywhere, because each copy's own tests agreed with itself. So
+// this reads the WINDOW'S SOURCE and checks the rules it encodes, the same way api/board.test.js
+// reads the hub's destructuring against the capability's signature — a claim about the pair, not
+// about either half. The precedent is deliberate: a parameter that landed in board.js and stopped
+// at the hub answered a successful-looking call with nothing done.
+const fs = require("node:fs");
+const path = require("node:path");
+const THREAD_SRC = fs.readFileSync(path.join(__dirname, "documentMembers.js"), "utf8");
+const WINDOW = fs.readFileSync(path.join(__dirname, "..", "src", "atoms", "Markdown", "docMembers.js"), "utf8");
+
+test("PARITY: both sides match a thread opener at THREE-or-more colons, never exactly four", () => {
+  // A container nests by GAINING colons. Matching a fixed depth missed precisely the threads on
+  // well-built documents, where the content worth discussing is code beside its explanation.
+  // Asserted against the exact source fragments, not a loose substring: a claim that passes on
+  // almost anything is worse than no claim, because it reads as cover.
+  assert.ok(WINDOW.includes("(:{3,})\\s*thread"), "the window's thread opener is no longer an open-ended fence");
+  assert.ok(THREAD_SRC.includes("/^(:{3,})\\s*thread\\{id="), "the hub's thread opener is no longer an open-ended fence");
+});
+
+test("PARITY: neither side treats a thread's opening line as part of its body", () => {
+  // Stamping `sent=` rewrites that line; hashing it would make the act of telling somebody its own
+  // change. The window excludes it with `lines.slice(i + 1, end)`; the hub does the same.
+  assert.match(WINDOW, /slice\(i \+ 1, end\)/, "the window stopped excluding the opener from a thread body");
+  assert.ok(
+    fs.readFileSync(path.join(__dirname, "documentMembers.js"), "utf8").includes("lines.slice(i + 1, end)"),
+    "the hub stopped excluding the opener from a thread body"
+  );
+});
+
+test("PARITY: both sides strip the ::members line out of the hash", () => {
+  // Adding somebody, or recording that somebody was told, must not make everyone ELSE behind.
+  const rule = /!\/\^\\s\*::members\\b\/\.test\(l\)/;
+  assert.match(WINDOW, rule, "the window stopped excluding ::members from its body hash");
+  assert.match(fs.readFileSync(path.join(__dirname, "documentMembers.js"), "utf8"), rule, "the hub did");
+});
+
+// THE ONE PLACE THEY DO NOT MATCH YET, pinned deliberately so nobody mistakes it for parity.
+// The hub normalises a thread opener to its id before hashing; the window does not, so in the
+// window a thread's `sent=` stamp still re-dirties every document member. It is not fixed here
+// because `src/atoms/Markdown/docMembers.js` is uncommitted in his tree and a lane cut from HEAD
+// would collide with the commit he is about to make. When that lands and the window is fixed, this
+// claim FAILS — and that failure is the reminder to delete it and widen the parity above.
+test("KNOWN DIVERGENCE: the window has not got the thread-opener normalisation yet", () => {
+  assert.ok(
+    !WINDOW.includes("thread\\{id=[^}\\s]+"),
+    "the window now normalises thread openers — delete this claim and add it to the parity set above"
+  );
+});
