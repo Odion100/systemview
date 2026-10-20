@@ -82,3 +82,122 @@ test("auto names WHICH members are told automatically, not whether the document 
   const none = fake({ "b.md": "::members{who=buapi}\n# x\n" });
   assert.deepEqual((await none({ projectCode: "p" })).documents[0].auto, []);
 });
+
+// BOTH LEVELS, OR THE VERB LIES ABOUT A SUBSCRIPTION.
+//
+// Found by use, 2026-10-20: `documents` read only the `::members` line, so a project brought into
+// ONE THREAD was invisible to the only verb that answers "what am I on?" — while the document
+// itself said they were on it. The delivery message sends members here to check, which is what
+// turned a quiet asymmetry into a verb that contradicts the file it is reading.
+const { threadsOf } = require("./documentMembers");
+
+const WITH_THREAD = [
+  "::members{who=systemview-test}",
+  "# a plan",
+  "::::thread{id=t1 members=buapi}",
+  "the argument",
+  "::::",
+].join("\n");
+
+test("a thread-only member is visible — the case that was invisible", () => {
+  const m = membersOf(WITH_THREAD);
+  assert.deepEqual(m.everyone, ["systemview-test", "buapi"]);
+  assert.deepEqual(m.threads.map((t) => t.id), ["t1"]);
+  assert.deepEqual(m.threads[0].who, ["buapi"]);
+  assert.deepEqual(m.threads[0].behind, ["buapi"]);
+});
+
+test("a document whose membership lives only on its threads is still a document", () => {
+  const only = ["# no members line", "::::thread{id=t1 members=buapi}", "x", "::::"].join("\n");
+  const m = membersOf(only);
+  assert.ok(m, "it used to answer null and vanish from the list entirely");
+  assert.deepEqual(m.who, []);
+  assert.deepEqual(m.everyone, ["buapi"]);
+});
+
+test("a file with no membership anywhere is still not a document", () => {
+  assert.equal(membersOf("# just prose\n\nnothing here\n"), null);
+  assert.equal(membersOf(""), null);
+});
+
+// HIS RULE: document membership means all threads. The document's hash is the whole source, so
+// being current on it covers every thread by construction.
+test("a member current on the document is behind on no thread", () => {
+  // Built the way the window builds it: stamp the hash of the finished document. `hashOf` ignores
+  // the ::members line, so writing the stamp cannot change the value being stamped.
+  const shape = ["::members{who=sv sent=sv:HASH}", "# a", "::::thread{id=t1 members=sv}", "x", "::::"].join("\n");
+  const doc = shape.replace("HASH", hashOf(shape));
+  assert.deepEqual(membersOf(doc).behind, [], "the stamp did not take — check hashOf ignores ::members");
+  assert.deepEqual(membersOf(doc).threads[0].behind, []);
+});
+
+// TELLING SOMEBODY IS NOT A CHANGE TO THE DOCUMENT. Stamping `sent=` on a thread opener used to
+// move the document's hash, so telling ONE thread member made EVERY document member behind again —
+// every time, forever, on any document whose threads were actually in use.
+test("a thread's sent= stamp does not re-dirty the document's own members", () => {
+  const before = ["::members{who=sv}", "# a", "::::thread{id=t1 members=buapi}", "x", "::::"].join("\n");
+  const after = before.replace("members=buapi}", "members=buapi sent=buapi:abc}");
+  assert.equal(hashOf(before), hashOf(after));
+});
+
+test("neither does adding a member to a thread", () => {
+  const before = ["::members{who=sv}", "# a", "::::thread{id=t1 members=buapi}", "x", "::::"].join("\n");
+  const after = before.replace("members=buapi}", "members=buapi|systemlynx}");
+  assert.equal(hashOf(before), hashOf(after));
+});
+
+// BUT A NEW THREAD IS A REAL CHANGE, which is why the opener is normalised to its id rather than
+// dropped — dropping it would make adding a whole conversation invisible to everyone watching.
+test("a NEW thread does dirty the document", () => {
+  const before = ["::members{who=sv}", "# a", "::::thread{id=t1 members=buapi}", "x", "::::"].join("\n");
+  const after = [before, "::::thread{id=t2 members=sv}", "y", "::::"].join("\n");
+  assert.notEqual(hashOf(before), hashOf(after));
+});
+
+test("and so does editing what a thread says", () => {
+  const before = ["::members{who=sv}", "# a", "::::thread{id=t1 members=buapi}", "x", "::::"].join("\n");
+  assert.notEqual(hashOf(before), hashOf(before.replace("\nx\n", "\nx CHANGED\n")));
+});
+
+// HIS OLDER RULE SURVIVES: behind on the document, still reachable thread by thread.
+test("a member behind on the document still appears under each thread", () => {
+  const m = membersOf(["::members{who=sv}", "# a", "::::thread{id=t1 members=sv}", "x", "::::"].join("\n"));
+  assert.deepEqual(m.behind, ["sv"]);
+  assert.deepEqual(m.threads[0].behind, ["sv"]);
+});
+
+// THE FENCE AND THE ID — the two rules the window learned the hard way, copied deliberately.
+test("finds a thread at a deeper fence and reads the id as the FIRST attribute", () => {
+  const deep = [":::::thread{id=t2 members=a|b sent=a:zz}", "body", ":::::"].join("\n");
+  const [t] = threadsOf(deep);
+  assert.equal(t.id, "t2");
+  assert.deepEqual(t.who, ["a", "b"]);
+  assert.equal(t.sent.a, "zz");
+});
+
+test("the thread's opening line is not part of its body, so a stamp is not its own change", () => {
+  const [t] = threadsOf("::::thread{id=t1 members=a}\nbody\n::::");
+  assert.equal(t.body, "body");
+});
+
+test("a thread naming nobody is not carried as a subscription", () => {
+  assert.deepEqual(threadsOf("::::thread{id=t1}\nbody\n::::"), []);
+});
+
+// THE FOLDER-LEVEL CLAIMS — the gate and the count, both of which decided the answer silently.
+test("the member filter matches a thread-only membership", async () => {
+  const api = fake({ "a.md": WITH_THREAD });
+  const mine = await api({ projectCode: "p", member: "buapi" });
+  assert.equal(mine.documents.length, 1, "buapi is on a thread and was filtered out entirely");
+  const theirs = await api({ projectCode: "p", member: "nobody" });
+  assert.equal(theirs.documents.length, 0);
+});
+
+test("withUpdates counts somebody waiting on a THREAD, not only on the document", async () => {
+  const src = ["::members{who=sv sent=sv:H}", "# a", "::::thread{id=t1 members=buapi}", "x", "::::"].join("\n");
+  const api = fake({ "a.md": src.replace("H", hashOf(src.replace("H", hashOf(src)))) });
+  const r = await api({ projectCode: "p" });
+  assert.equal(r.documents.length, 1);
+  assert.ok(r.documents[0].threads[0].behind.includes("buapi"));
+  assert.equal(r.withUpdates, 1, "a thread with somebody waiting read as nothing waiting");
+});
