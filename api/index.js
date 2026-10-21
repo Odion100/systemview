@@ -2206,6 +2206,7 @@ const DocumentsRegistry = require("./documentsRegistry").documentsRegistryOn({ r
 // RFC-076 §4.6 — the reader's attention is the hub's own fact: first-open stamps, in the hub's
 // own ledger file, joined onto the registry rows at read time.
 const StampOpened = require("./documentsRegistry").stampOpened;
+const DocMembers = require("./documentMembers");
 
 // WHERE THE FOUR DRIVE METHODS LAND. api/drive.js decides WHAT to send (and refuses, with why);
 // this emits it, because the chat state and the socket live here. `say` rides the trip and is
@@ -3209,7 +3210,17 @@ module.exports = function launchSystemView(port = 3000) {
         // A STAMP THAT CANNOT BE MADE MUST NOT LOSE THE REPLY — the words are the point, the stamp
         // is bookkeeping, so a refusal falls through to the unstamped content rather than failing.
         const stamped = Reports.stampSent(r.content, threadId, author);
-        const content = stamped.error ? r.content : stamped.content;
+        const threadStamped = stamped.error ? r.content : stamped.content;
+        // AND ONE LINE UP, ON THE DOCUMENT. The thread stamp alone left the author owing himself an
+        // update about his own words — his: *"in a document where I am the only member that is
+        // where your '1 update owed' keeps coming from."* Hashed AFTER the thread stamp, because
+        // the thread's opening line is part of the document's body and stamping it moved the hash;
+        // the `::members` line is not, so this write cannot re-dirty what it just settled.
+        //
+        // Refusals here are ordinary and silent by design: most reports have no `::members` line at
+        // all, and a replier who is not on the document must not be added to it by writing a reply.
+        const docStamped = DocMembers.stampDocSent(threadStamped, author);
+        const content = docStamped.error ? threadStamped : docStamped.content;
         const w = await writeFile(projectCode, { path: doc.path, content });
         if (!w || w.ok === false) return { ok: false, error: (w && w.error) || "could not write the reply" };
         // If a show in the room points at this document, keep its fallback copy in step — otherwise

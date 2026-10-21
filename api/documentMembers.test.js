@@ -259,3 +259,91 @@ test("KNOWN DIVERGENCE: the window has not got the thread-opener normalisation y
     "the window now normalises thread openers — delete this claim and add it to the parity set above"
   );
 });
+
+// ── stampDocSent — a reply makes its author current on the DOCUMENT too ──────────────────────────
+//
+// His, 2026-10-20: "a reply now makes its author current on the THREAD, but not on the document.
+// So after I write a reply the document's ::members line still has me behind, and in a document
+// where I am the only member that is where your '1 update owed' keeps coming from."
+
+const { stampDocSent } = require("./documentMembers");
+
+const doc = (sent = "") =>
+  [
+    "# A document with people on it",
+    "",
+    `::members{who=odion|autobot${sent ? ` sent=${sent}` : ""}}`,
+    "",
+    "::::thread{id=a}",
+    "something said",
+    "::::",
+    "",
+  ].join("\n");
+
+test("the author is recorded against the version they just wrote", () => {
+  const out = stampDocSent(doc(), "odion");
+  assert.equal(out.error, undefined);
+  const after = membersOf(out.content);
+  assert.equal(after.sent.odion, hashOf(out.content));
+});
+
+test("stamping the members line does not re-dirty the document it just settled", () => {
+  // bodyOf strips ::members, so the write cannot move the hash — which is the whole reason this
+  // can be stamped last.
+  const before = hashOf(doc());
+  const out = stampDocSent(doc(), "odion");
+  assert.equal(hashOf(out.content), before);
+});
+
+test("everyone else stays behind — a stamp is one person's state, never a broadcast", () => {
+  const out = stampDocSent(doc(), "odion");
+  const after = membersOf(out.content);
+  assert.equal(after.sent.autobot, undefined);
+  assert.ok(after.behind.includes("autobot"));
+});
+
+test("another member's existing stamp survives — merge, never replace", () => {
+  const out = stampDocSent(doc("autobot:deadbeef"), "odion");
+  const after = membersOf(out.content);
+  assert.equal(after.sent.autobot, "deadbeef");
+  assert.ok(after.sent.odion);
+});
+
+test("a second reply re-stamps in place rather than duplicating the entry", () => {
+  const once = stampDocSent(doc(), "odion").content;
+  const twice = stampDocSent(once, "odion").content;
+  const line = twice.split("\n").find((l) => l.includes("::members"));
+  assert.equal((line.match(/odion:/g) || []).length, 1);
+});
+
+test("a replier who is not on the document is REFUSED, not quietly added", () => {
+  const out = stampDocSent(doc(), "stranger");
+  assert.match(out.error, /not a member/);
+  assert.equal(out.content, undefined);
+});
+
+test("a document with no ::members line refuses — there is nothing to be current on", () => {
+  const out = stampDocSent("# just a report\n", "odion");
+  assert.match(out.error, /no ::members line/);
+});
+
+test("it refuses with no member named rather than stamping an empty name", () => {
+  assert.match(stampDocSent(doc(), "").error, /needs the member/);
+});
+
+// THE PHANTOM, END TO END. One member, one document: after their own reply they should owe nothing.
+test("a solo-member document owes zero updates after its own author replies", () => {
+  const solo = ["::members{who=odion}", "", "::::thread{id=a}", "hi", "::::", ""].join("\n");
+  const replied = solo.replace("hi", "hi\n:::reply{author=odion ts=1}\nmore\n:::");
+  assert.ok(membersOf(replied).behind.includes("odion"), "behind before the stamp");
+  const out = stampDocSent(replied, "odion");
+  assert.deepEqual(membersOf(out.content).behind, []);
+});
+
+test("the members line match stops at the end of its own line", () => {
+  // `\s*$` under /m ran past the newline and ate the blank line below, which made a stamp change
+  // the body it had just hashed.
+  const before = ["::members{who=odion}", "", "prose", ""].join("\n");
+  const out = stampDocSent(before, "odion");
+  assert.equal(out.content.split("\n")[1], "", "the blank line below survives the stamp");
+});

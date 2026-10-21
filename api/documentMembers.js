@@ -10,7 +10,14 @@
 // reason nobody builds this feature.
 
 // `::members{who=a|b sent=a:hash|b:hash}` — the same line the window writes.
-const LINE = /^\s*::members\{([^}]*)\}\s*$/m;
+//
+// `[ \t]`, NOT `\s`, AT BOTH ENDS. Under /m, `\s*$` matches newlines too, so the match ran past
+// the end of the line and swallowed the blank line after it — invisible while this regex was only
+// ever READ from (`membersOf` takes the attributes and throws the rest away), and immediately
+// destructive the moment anything rewrote the match in place: stamping the line deleted the blank
+// line below it, which changed the document's body, which moved the hash the stamp had just been
+// computed from. A document that re-dirties itself on being settled.
+const LINE = /^[ \t]*::members\{([^}]*)\}[ \t]*$/m;
 
 const attrOf = (attrs, key) => {
   const m = new RegExp(`\\b${key}=("[^"]*"|[^\\s}]*)`).exec(attrs || "");
@@ -210,4 +217,52 @@ function documentMembersOn({ listFiles, readFile }) {
   };
 }
 
-module.exports = { documentMembersOn, membersOf, threadsOf, hashOf, bodyOf, listOf };
+// WRITING IS BEING TOLD — AT BOTH LEVELS. `stampSent` in api/reports.js makes a reply's author
+// current on the THREAD; this is the same sentence one line up, on the document's own `::members`.
+//
+// WITHOUT IT THE SURFACE INVENTS AN UPDATE OUT OF NOTHING. A reply changes the document, so every
+// document member goes behind — including the person who just wrote it. In a document whose only
+// member is the agent, nobody can ever clear that: he presses the pinned row and the send quotes
+// the agent's own reply back at the agent. His words: *"in a document where I am the only member
+// that is where your '1 update owed' keeps coming from."*
+//
+// THE ORDER IS THE SUBTLE PART AND IT IS WHY THIS TAKES A HASH. `bodyOf` strips `::members` lines,
+// so stamping this line does NOT change the document's hash — but the THREAD opener is part of the
+// body, so `stampSent` does. Hash after the thread stamp, never before, or the author is recorded
+// against a version that stopped existing one line earlier.
+//
+// THREE REFUSALS, each because the alternative is a lie:
+//   - no `::members` line  → there is no document membership to be current on
+//   - the member is not on `who` → stamping would claim somebody heard a document they are not on,
+//     and ADDING them would quietly put a replier onto a document nobody invited them to
+//   - no member named     → there is nobody to stamp
+function stampDocSent(docText, member, hash) {
+  const who_ = String(member || "").trim();
+  if (!who_) return { error: "stampDocSent needs the member being stamped" };
+  const text = String(docText || "");
+  const m = LINE.exec(text);
+  if (!m) return { error: "this document has no ::members line" };
+  const roster = listOf(attrOf(m[1], "who"));
+  if (!roster.includes(who_))
+    return { error: `"${who_}" is not a member of this document` };
+
+  const stamp = hash === undefined || hash === null ? hashOf(text) : String(hash);
+  // MERGE, NEVER REPLACE — another member's stamp is their state, not ours.
+  const map = sentOf(attrOf(m[1], "sent"));
+  map[who_] = stamp;
+  const serialized = Object.entries(map)
+    .map(([k, v]) => `${k}:${v}`)
+    .join("|");
+
+  const attrs = m[1];
+  const found = /\bsent=("[^"]*"|[^\s}]*)/.exec(attrs);
+  const attr = `sent=${serialized}`;
+  const nextAttrs = found
+    ? attrs.slice(0, found.index) + attr + attrs.slice(found.index + found[0].length)
+    : `${attrs.trimEnd()} ${attr}`;
+  const line = m[0];
+  const indent = (line.match(/^\s*/) || [""])[0];
+  return { content: text.replace(line, `${indent}::members{${nextAttrs}}`) };
+}
+
+module.exports = { documentMembersOn, membersOf, threadsOf, hashOf, bodyOf, listOf, stampDocSent };
