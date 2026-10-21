@@ -19,6 +19,7 @@ import { spotlight, clearSpotlight, animationMode, setAnimationMode, MODES } fro
 import { resolveTarget, docRectOf, revealDocLines } from "../../spotlightTargets";
 import { slotId, setNavDocked, useNavDock, isNavDocked, railId, spotId, placeInDock, setDockOrder, useDockOrder, dockOrder, orderProjects } from "./navDock";
 import { hasHostDictation, startHostRecording } from "../../utils/hostDictation";
+import VoiceMode from "../../molecules/SpeakReply/VoiceMode";
 import Feed, { timeOf } from "../AgentWorkbench/Feed";
 import useAgentSession from "../AgentWorkbench/useAgentSession";
 import { CTX_WARN, CTX_DUE, tokensShort, parseUsageLines, foldEvents } from "../AgentWorkbench/feedRows";
@@ -6471,6 +6472,19 @@ const countdown = (str, now = Date.now()) => {
               instead. The one line that says whether anything is happening is the one line he must
               never have to go looking for. It names the tool in flight and falls back to the room's
               cycling words when there is nothing specific to name. */}
+          {/* WHAT THE AGENT READS BACK — AT THE FOOT OF THE CONVERSATION, HOVERING OVER IT.
+              It belongs to the CONVERSATION rather than to a reply (*"now I want it on
+              everything… we're not having a conversation, I just probably want callout"*), so
+              there is one of these instead of one per message.
+              IT IS NOT A ROW. Placed here as an ordinary block it stretched the full width of the
+              chat and became a band in the stack — his: *"it was a row… it should just be a pill."*
+              So this wrapper has NO HEIGHT and the pill inside it is lifted out, overlaying the
+              bottom of the conversation. Nothing below it moves, and it adds nothing to the
+              column. (It belongs in the chat, not in the bottom drawer area — that was the other
+              thing I got wrong.) */}
+          <div className={`${CLASSNAME}__voicebar`}>
+            <VoiceMode className={`${CLASSNAME}__voice`} scope={projectCode} />
+          </div>
           {attached && (work.state.state === "working" || work.state.state === "waiting") && (
             <CookLine doing={work.state.doing} state={work.state.state} liveChars={work.state.liveChars} />
           )}

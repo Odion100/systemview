@@ -142,20 +142,30 @@ const SPOKEN = {
   },
   // A callout is what he needs to KNOW, one weight down from ask. Same shape of announcement.
   callout: ({ body }) => (body ? `Worth knowing. ${body}` : ""),
-  // The agent writes it, only the human presses it — so the message is the whole point, and the
-  // fact that it is pressable is the other half.
-  commit: ({ attrs }) =>
-    attrs.message ? `A commit you can press, with the message: ${attrs.message}.` : "",
+  // THE LABEL AND THE ATTRIBUTE ARE THE SAME FIELD, and reading only one of them is how a block
+  // goes silent. `::commit[the message]` and `::commit{message="the message"}` both render — the
+  // component reads `label || attrs.message` — and this read only the attribute, so every commit
+  // written in the label form spoke NOTHING. He found it by listening: *"nothing was said."*
+  // Measured across the registry: branch, run, file, image, test and report have the same pair,
+  // and every one of them is handled the same way below.
+  commit: ({ label, attrs }) => {
+    const message = label || attrs.message;
+    return message ? `A commit you can press, with the message: ${message}.` : "";
+  },
   // THE BODY OF A `:::cmd` IS NEVER SPOKEN. It is verbatim shell, which is the single least
   // speakable thing in the vocabulary — and he is the one who presses it, so what he needs in his
   // ear is that it is there and what it is for.
   cmd: ({ attrs }) =>
     attrs.title ? `A command you can run, for ${attrs.title}.` : "A command you can run.",
-  run: ({ attrs, body }) => {
-    const head = attrs.title ? `A set of steps to run, ${attrs.title}.` : "A set of steps to run.";
+  run: ({ label, attrs, body }) => {
+    const what = attrs.title || label || attrs.use;
+    const head = what ? `A set of steps to run, ${what}.` : "A set of steps to run.";
     return body ? `${head} ${body}` : head;
   },
-  branch: ({ label }) => (label ? `A branch offered for review, ${label}.` : "A branch offered for review."),
+  branch: ({ label, attrs }) => {
+    const name = label || attrs.name;
+    return name ? `A branch offered for review, ${name}.` : "A branch offered for review.";
+  },
   approval: ({ body }) => (body ? `Asking you to decide on this. ${body}` : "Asking you to decide."),
   question: ({ label, attrs }) => {
     const q = String(label || attrs.q || attrs.prompt || "").trim();
@@ -173,20 +183,31 @@ const SPOKEN = {
     body ? `${attrs.author === "agent" ? "The agent" : attrs.author || "Someone"} replied. ${body}` : "",
   // A file is its name. Inline it is mid-sentence, so it stays a bare noun; as a block the whole
   // file is on screen and the name is the announcement.
-  file: ({ label, kind }) => {
-    const b = basename(label);
+  file: ({ label, attrs, kind }) => {
+    const b = basename(label || attrs.path);
     if (!b) return "";
     return kind === "inline" ? b : `The file ${b}, shown here.`;
   },
-  diff: ({ label }) => (basename(label) ? `The changes to ${basename(label)}.` : "A diff."),
-  image: ({ label, attrs }) =>
-    attrs.caption ? `An image: ${attrs.caption}.` : `An image${basename(label) ? `, ${basename(label)}` : ""}.`,
+  diff: ({ label, attrs }) => {
+    const b = basename(label || attrs.path);
+    return b ? `The changes to ${b}.` : "A diff.";
+  },
+  image: ({ label, attrs }) => {
+    const b = basename(label || attrs.of);
+    return attrs.caption ? `An image: ${attrs.caption}.` : `An image${b ? `, ${b}` : ""}.`;
+  },
   chart: ({ attrs }) => (attrs.title ? `A chart: ${attrs.title}.` : "A chart."),
-  test: ({ label }) => (label ? `A saved test, ${label}.` : "A saved test."),
+  test: ({ label, attrs }) => {
+    const what = label || attrs.of;
+    return what ? `A saved test, ${what}.` : "A saved test.";
+  },
   logs: () => "The log viewer.",
   load: () => "A chart of the service load.",
   topology: () => "A map of the services.",
-  report: ({ label, kind }) => (label ? (kind === "inline" ? label : `The report, ${label}.`) : ""),
+  report: ({ label, attrs, kind }) => {
+    const what = label || attrs.path;
+    return what ? (kind === "inline" ? what : `The report, ${what}.`) : "";
+  },
   help: ({ label }) => (label ? `the help topic ${label}` : ""),
   // A namespace and a region of the window are both already words. They read mid-sentence as
   // themselves, which is how he says them out loud too.
@@ -205,6 +226,57 @@ const SPOKEN = {
   carousel: ({ body }) => body,
   slide: ({ attrs, body }) => (attrs.label && body ? `${attrs.label}. ${body}` : body),
 };
+
+// ── WHAT A PERSON CAN CHOOSE TO HEAR ───────────────────────────────────────────────────────────
+//
+// The settings surface needs to offer blocks by NAME, and the names are not the words he uses:
+// nobody ticks a box labelled `approval`. So each one carries the sentence it becomes — which is
+// also the honest way to pick, because what you are choosing is the spoken form, not the block.
+//
+// IT LIVES HERE, BESIDE `SPOKEN`, FOR ONE REASON: a block that is offered and has no spoken form
+// is a tick box that does nothing, and a block with a spoken form that is never offered is unheard
+// work. One file, one list, and `spokenForm.test.js` asserts every offered name has an entry.
+//
+// `visual` is not a second-class group — it is the honest label. A chart, a diff and an image are
+// ANNOUNCED ("a chart: landing order") rather than read, because the content is on screen and the
+// only useful thing in the ear is whether to look. Offering them is right; pretending they read
+// aloud would not be.
+export const BLOCK_VOICES = [
+  { name: "ask", label: "Ask", says: "the one thing I need from you", group: "says" },
+  { name: "callout", label: "Callout", says: "a caveat that changes what you would do", group: "says" },
+  { name: "question", label: "Question", says: "a decision, with its options", group: "says" },
+  { name: "approval", label: "Approval", says: "something waiting on your decision", group: "says" },
+  { name: "commit", label: "Commit", says: "a commit you can press, and its message", group: "says" },
+  { name: "branch", label: "Branch", says: "a branch offered for review", group: "says" },
+  { name: "cmd", label: "Command", says: "that there is a command to run, and what for", group: "says" },
+  { name: "run", label: "Run", says: "a set of steps to run", group: "says" },
+  { name: "thread", label: "Thread", says: "a conversation, and what is in it", group: "says" },
+  { name: "reply", label: "Reply", says: "who replied, and what they said", group: "says" },
+  { name: "details", label: "Fold", says: "the summary, and what is folded under it", group: "says" },
+  { name: "members", label: "Members", says: "who is on the document", group: "says" },
+  { name: "file", label: "File", says: "that a file is shown, by name", group: "visual" },
+  { name: "diff", label: "Diff", says: "which file changed", group: "visual" },
+  { name: "image", label: "Image", says: "its caption, or that there is one", group: "visual" },
+  { name: "chart", label: "Chart", says: "its title", group: "visual" },
+  { name: "test", label: "Test", says: "which saved test", group: "visual" },
+  { name: "report", label: "Report", says: "which report", group: "visual" },
+  { name: "logs", label: "Logs", says: "that the log viewer is here", group: "visual" },
+  { name: "load", label: "Load", says: "that a service-load chart is here", group: "visual" },
+  { name: "topology", label: "Topology", says: "that a service map is here", group: "visual" },
+];
+
+/** PROSE is a choice like any block — it is the text outside every block, and it is the lever
+ *  between "read me the decisions" and "read me everything". Named rather than implied so the
+ *  settings surface can list it in the same column as the rest. */
+export const PROSE = "prose";
+
+/** The set that reads a whole reply: every block plus the prose between them. */
+export const EVERYTHING = [PROSE, ...BLOCK_VOICES.map((b) => b.name)];
+
+/** The default, and it is deliberately narrow. Auto-speech that reads everything is a thing he
+ *  turns off once and never turns back on; one that reads only what was aimed at him is one he
+ *  leaves on. Widening it is a tick box away, which is the right direction for that door to open. */
+export const AIMED_AT_YOU = ["ask", "callout", "question", "approval", "commit", "branch"];
 
 // A block nobody has written a sentence for speaks its own label and never its colons. This is the
 // line that keeps the feature from decaying every time the registry grows.
@@ -285,13 +357,24 @@ const sentence = (text) => {
 
 // ── the walk ───────────────────────────────────────────────────────────────────────────────────
 
-function walk(lines) {
+// `only` is null for "read all of it" — the press-to-listen path, unchanged. Otherwise it is
+// { blocks: Set, prose: boolean } and this walk becomes a SIEVE.
+//
+// THE PART THAT IS NOT OBVIOUS: an unselected CONTAINER is descended into, not dropped. A
+// `:::thread` he never ticked can hold the `::ask` he did, and a sieve that threw the thread away
+// would silently swallow the one block the whole feature exists to deliver. So an unselected
+// container contributes nothing of its own and its body is walked with the same sieve; a SELECTED
+// container speaks in full, body and all, because ticking it means wanting what is in it.
+function walk(lines, only = null) {
   const out = [];
   let para = [];
+  const wantBlock = (name) => !only || only.blocks.has(name);
+  const wantProse = !only || only.prose;
   const flushPara = () => {
     if (!para.length) return;
     const joined = para.join(" ");
     para = [];
+    if (!wantProse) return;
     const s = sentence(joined);
     if (s) out.push(s);
   };
@@ -299,6 +382,12 @@ function walk(lines) {
     flushPara();
     const s = sentence(text);
     if (s) out.push(s);
+  };
+  // Prose, headings, lists, tables and code all ride on the same choice — they are the reply's own
+  // words rather than a block's, and `prose` is the single tick that governs them.
+  const pushProse = (text) => {
+    if (!wantProse) { flushPara(); return; }
+    push(text);
   };
 
   for (let i = 0; i < lines.length; i += 1) {
@@ -313,7 +402,7 @@ function walk(lines) {
       let j = i + 1;
       while (j < lines.length && !new RegExp(`^\\s*${mark}{3,}\\s*$`).test(lines[j])) j += 1;
       const n = j - i - 1;
-      push(`A ${lang ? `${sayLang(lang)} ` : ""}code block, ${count(n, "line", "lines")}`);
+      pushProse(`A ${lang ? `${sayLang(lang)} ` : ""}code block, ${count(n, "line", "lines")}`);
       i = j;
       continue;
     }
@@ -333,16 +422,24 @@ function walk(lines) {
         j += 1;
       }
       if (close !== -1) {
-        const body = walk(lines.slice(i + 1, close)).join(" ");
-        push(
-          sayBlock({
-            name: open[2],
-            label: open[3],
-            attrs: parseAttrs(open[4]),
-            body,
-            kind: "container",
-          }),
-        );
+        const inner = lines.slice(i + 1, close);
+        if (wantBlock(open[2])) {
+          // SELECTED: speak it whole. The body is walked UNFILTERED — ticking a thread means
+          // wanting the thread, not wanting a sieved version of its contents.
+          push(
+            sayBlock({
+              name: open[2],
+              label: open[3],
+              attrs: parseAttrs(open[4]),
+              body: walk(inner).join(" "),
+              kind: "container",
+            }),
+          );
+        } else {
+          // NOT selected: the wrapper says nothing, but whatever he DID tick inside it survives.
+          flushPara();
+          for (const s2 of walk(inner, only)) out.push(s2);
+        }
         i = close;
         continue;
       }
@@ -351,7 +448,9 @@ function walk(lines) {
     // A LEAF — `::name[label]{attrs}` alone on its line.
     const leaf = line.match(LEAF_RE);
     if (leaf) {
-      push(sayBlock({ name: leaf[2], label: leaf[3], attrs: parseAttrs(leaf[4]), kind: "leaf" }));
+      if (wantBlock(leaf[2]))
+        push(sayBlock({ name: leaf[2], label: leaf[3], attrs: parseAttrs(leaf[4]), kind: "leaf" }));
+      else flushPara();
       continue;
     }
 
@@ -364,7 +463,7 @@ function walk(lines) {
       let j = i + 2;
       while (j < lines.length && lines[j].indexOf("|") !== -1 && lines[j].trim()) j += 1;
       const rows = j - i - 2;
-      push(`A table, ${count(cols, "column", "columns")} and ${count(rows, "row", "rows")}`);
+      pushProse(`A table, ${count(cols, "column", "columns")} and ${count(rows, "row", "rows")}`);
       i = j - 1;
       continue;
     }
@@ -374,7 +473,7 @@ function walk(lines) {
     const h = line.match(H_RE);
     if (h) {
       flushPara();
-      const head = sentence(h[2]);
+      const head = wantProse ? sentence(h[2]) : "";
       if (head) {
         if (out.length) out.push(PAUSE);
         out.push(head);
@@ -385,7 +484,7 @@ function walk(lines) {
     const task = line.match(TASK_RE);
     if (task) {
       const done = task[1].toLowerCase() === "x";
-      push(`${done ? "Done" : "Still to do"}, ${task[2]}`);
+      pushProse(`${done ? "Done" : "Still to do"}, ${task[2]}`);
       continue;
     }
 
@@ -393,7 +492,7 @@ function walk(lines) {
     const ol = line.match(OL_RE);
     // A LIST ITEM IS A SENTENCE OF ITS OWN. Run together they are one unbroken breath and he cannot
     // hear where one point ends — the bullet is visual, the sentence boundary is its spoken form.
-    if (ul || ol) { push((ul || ol)[ol ? 2 : 1]); continue; }
+    if (ul || ol) { pushProse((ul || ol)[ol ? 2 : 1]); continue; }
 
     const q = line.match(QUOTE_RE);
     if (q) { if (q[1].trim()) para.push(q[1]); else flushPara(); continue; }
@@ -419,8 +518,22 @@ function walk(lines) {
 export const MAX_SPOKEN = 3600;
 export const CUT_NOTICE = "That is as far as I will read. The rest of this reply is on screen.";
 
-export function spokenForm(markdown, { maxChars = MAX_SPOKEN } = {}) {
-  const sentences = walk(String(markdown || "").split("\n"));
+/**
+ * `only` is what makes one reply two different recitals. Omitted (the press-to-listen path) the
+ * whole reply is read, exactly as before. Given a list of names — block names plus the literal
+ * `prose` — ONLY those are spoken, which is what auto-speech uses: he picks what is worth
+ * interrupting him for, and everything else stays on screen where he reads it.
+ *
+ * An EMPTY list is a real answer and returns "", never the whole reply. "Read me nothing" has to
+ * be expressible, or the only way to stop the reading is to turn the feature off — and `only: []`
+ * arriving from a settings surface with every box unticked must not become "read everything",
+ * which is the loudest possible interpretation of a request for silence.
+ */
+export function spokenForm(markdown, { maxChars = MAX_SPOKEN, only = null } = {}) {
+  const sieve = Array.isArray(only)
+    ? { blocks: new Set(only.filter((n) => n !== PROSE)), prose: only.includes(PROSE) }
+    : null;
+  const sentences = walk(String(markdown || "").split("\n"), sieve);
   if (!sentences.length) return "";
 
   let text = sentences.join(" ");

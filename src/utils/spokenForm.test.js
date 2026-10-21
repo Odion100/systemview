@@ -1,4 +1,13 @@
-import { spokenForm, spokenChunks, PAUSE, CUT_NOTICE } from "./spokenForm";
+import {
+  spokenForm,
+  spokenChunks,
+  PAUSE,
+  CUT_NOTICE,
+  BLOCK_VOICES,
+  PROSE,
+  EVERYTHING,
+  AIMED_AT_YOU,
+} from "./spokenForm";
 
 // THE FAILURE EVERY CLAIM HERE IS ABOUT. He asked to be able to press a reply and hear it instead
 // of reading it, and the way that feature dies is not a missing voice — it is a voice reading
@@ -241,5 +250,159 @@ describe("spokenChunks — whole sentences, so a stop lands between them", () =>
   it("has nothing to say about nothing", () => {
     expect(spokenChunks("")).toEqual([]);
     expect(spokenChunks(null)).toEqual([]);
+  });
+});
+
+// ── CHOOSING WHAT GETS READ ────────────────────────────────────────────────────────────────────
+//
+// His design, his words: *"I could say read this, read this, read that, read everything."* The
+// vocabulary already carries intent — that is what the blocks are FOR — so the selection is over
+// the vocabulary rather than over one block somebody judged important.
+describe("spokenForm({ only })", () => {
+  const reply = [
+    "Here is some ordinary prose.",
+    "",
+    ":::callout",
+    "A caveat you should know.",
+    ":::",
+    "",
+    "::ask[Should I land the lanes?]",
+    "",
+    "::commit[feat(voice): a thing]",
+  ].join("\n");
+
+  it("reads the whole reply when nothing is chosen — the press-to-listen path is untouched", () => {
+    const all = spokenForm(reply);
+    expect(all).toContain("ordinary prose");
+    expect(all).toContain("Worth knowing");
+    expect(all).toContain("Should I land the lanes");
+  });
+
+  it("reads only what was ticked", () => {
+    const out = spokenForm(reply, { only: ["ask"] });
+    expect(out).toContain("Should I land the lanes");
+    expect(out).not.toContain("ordinary prose");
+    expect(out).not.toContain("Worth knowing");
+    expect(out).not.toContain("commit");
+  });
+
+  it("takes several, because one block was never the point", () => {
+    const out = spokenForm(reply, { only: ["ask", "callout"] });
+    expect(out).toContain("Worth knowing");
+    expect(out).toContain("Should I land the lanes");
+    expect(out).not.toContain("ordinary prose");
+  });
+
+  it("adds the reply's own words only when prose is ticked", () => {
+    expect(spokenForm(reply, { only: [PROSE] })).toContain("ordinary prose");
+    expect(spokenForm(reply, { only: ["ask"] })).not.toContain("ordinary prose");
+  });
+
+  it("EVERYTHING reads the same thing as choosing nothing at all", () => {
+    expect(spokenForm(reply, { only: EVERYTHING })).toBe(spokenForm(reply));
+  });
+
+  // "Read me nothing" has to be expressible, or the only way to stop it is to turn the feature off.
+  it("answers with silence for an empty choice, never with the whole reply", () => {
+    expect(spokenForm(reply, { only: [] })).toBe("");
+  });
+
+  // THE TRAP THIS DESIGN HAS: a container he never ticked can hold the block he did. Dropping the
+  // wrapper would silently swallow the one thing the feature exists to deliver.
+  it("finds a chosen block inside a container that was not chosen", () => {
+    const nested = ["::::thread{id=t1}", "", ":::callout", "Buried.", ":::", "", "::::"].join("\n");
+    const out = spokenForm(nested, { only: ["callout"] });
+    expect(out).toContain("Buried");
+    expect(out).not.toContain("In a thread");
+  });
+
+  it("speaks a chosen container WHOLE, contents and all", () => {
+    const nested = ["::::thread{id=t1}", "", "Inside the thread.", "", "::::"].join("\n");
+    const out = spokenForm(nested, { only: ["thread"] });
+    expect(out).toContain("In a thread");
+    expect(out).toContain("Inside the thread");
+  });
+
+  it("drops a chosen block's own prose when prose is not ticked but keeps the block", () => {
+    const out = spokenForm(reply, { only: ["callout"] });
+    expect(out).toContain("Worth knowing");
+    expect(out).not.toContain("ordinary prose");
+  });
+});
+
+describe("BLOCK_VOICES — the list the settings surface offers", () => {
+  it("offers nothing it cannot actually speak", () => {
+    const silent = BLOCK_VOICES.filter((b) => !b.name || !b.label || !b.says);
+    expect(silent).toEqual([]);
+  });
+
+  it("has no duplicate names", () => {
+    expect(new Set(BLOCK_VOICES.map((b) => b.name)).size).toBe(BLOCK_VOICES.length);
+  });
+
+  // The defaults must be a subset of what is offered, or a preset ticks a box that is not there.
+  it("defaults to blocks that are actually on the list", () => {
+    const offered = new Set(BLOCK_VOICES.map((b) => b.name));
+    expect(AIMED_AT_YOU.every((n) => offered.has(n))).toBe(true);
+  });
+
+  it("EVERYTHING is prose plus every offered block", () => {
+    expect(EVERYTHING).toHaveLength(BLOCK_VOICES.length + 1);
+    expect(EVERYTHING).toContain(PROSE);
+  });
+});
+
+// ── THE LABEL AND THE ATTRIBUTE ARE ONE FIELD ──────────────────────────────────────────────────
+//
+// He found this by listening to a commit and hearing nothing: *"nothing was said."* Every one of
+// these blocks renders from `label || attrs.<x>` — both forms are valid markdown — and the spoken
+// forms read only the attribute, so the label form was SILENT. A block that renders and says
+// nothing is the worst shape of this bug, because the screen says it worked.
+describe("a block speaks whichever form it was written in", () => {
+  const both = (a, b) => {
+    const x = spokenForm(a);
+    const y = spokenForm(b);
+    expect(x).toBeTruthy();
+    expect(x).toBe(y);
+    return x;
+  };
+
+  it("commit — the message", () => {
+    expect(both('::commit[feat: a thing]', '::commit{message="feat: a thing"}')).toContain("feat: a thing");
+  });
+
+  it("branch — the branch name", () => {
+    expect(both("::branch[lane/x]", "::branch{name=lane/x}")).toContain("lane/x");
+  });
+
+  it("file — the basename", () => {
+    expect(both("::file[src/utils/voice.js]", "::file{path=src/utils/voice.js}")).toContain("voice.js");
+  });
+
+  it("diff — the file that changed", () => {
+    expect(both("::diff[src/utils/voice.js]", "::diff{path=src/utils/voice.js}")).toContain("voice.js");
+  });
+
+  it("test — which saved test", () => {
+    expect(both("::test[Math.add]", "::test{of=Math.add}")).toContain("Math.add");
+  });
+
+  it("report — which report", () => {
+    // QUOTED, because an unquoted attribute value stops at whitespace — that is the grammar, not
+    // a bug, and an attribute with a space in it kills the directive silently.
+    expect(both("::report[the landing order]", '::report{path="the landing order"}')).toContain(
+      "the landing order",
+    );
+  });
+
+  it("image — which image", () => {
+    expect(both("::image[shots/a.png]", "::image{of=shots/a.png}")).toContain("a.png");
+  });
+
+  // The one that has to stay silent: a commit with no message at all has nothing to say, and
+  // announcing "a commit you can press" with no message would be worse than nothing.
+  it("says nothing for a commit carrying no message either way", () => {
+    expect(spokenForm("::commit[]")).toBe("");
+    expect(spokenForm("::commit{}")).toBe("");
   });
 });
