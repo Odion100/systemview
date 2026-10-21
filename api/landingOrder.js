@@ -103,6 +103,36 @@ function mergeCheck(run, a, b) {
   return { conflicts: true, files: [...new Set(files)] };
 }
 
+
+/**
+ * STALE FIRST, AND IT IS NOT OPTIONAL — this was got wrong once and the wrong number was published.
+ *
+ * A lane that no longer applies to `base` conflicts with EVERY pair it appears in, because the
+ * merge between it and any newer lane includes all the work that landed in between. Reported
+ * without this partition, six stale branches turned thirty-six lanes into one knot of thirty-three
+ * and produced a confident recommendation to "land these four first" — when the four were simply
+ * the stale ones, and the right advice was "rebase them".
+ *
+ * The obvious correction is also wrong, which is worth recording: forcing every pair's base to
+ * `base` manufactures conflicts between a lane and its own DESCENDANT, because both diffs then
+ * contain the parent's work and git sees the same lines added twice. Measured the same day — it
+ * reported 263 collisions including a lane against the lane it was cut from.
+ *
+ * So: partition against `base`, then let each surviving pair use its own true ancestor.
+ */
+function partitionStale(run, branches = [], base = "HEAD") {
+  const stale = [];
+  const applies = [];
+  const unknown = [];
+  branches.forEach((b) => {
+    const r = mergeCheck(run, base, b);
+    if (r.unknown) unknown.push({ branch: b, why: r.why || "git could not answer" });
+    else if (r.conflicts) stale.push({ branch: b, files: r.files });
+    else applies.push(b);
+  });
+  return { stale, applies, unknown };
+}
+
 /** Every pair, checked. O(n²) merges — fine for tens of branches, and each one is in-memory. */
 function surveyLanes(run, branches = []) {
   const pairs = [];
@@ -125,4 +155,4 @@ function surveyLanes(run, branches = []) {
   return { map, pairs, unknown, collisions: pairs.filter((p) => p.conflicts) };
 }
 
-module.exports = { conflictMapFrom, clustersOf, landingOrder, mergeCheck, surveyLanes };
+module.exports = { conflictMapFrom, clustersOf, landingOrder, mergeCheck, surveyLanes, partitionStale };

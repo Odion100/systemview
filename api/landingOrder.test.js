@@ -3,7 +3,7 @@
 // git's merge.
 const assert = require("node:assert");
 const { test, describe } = require("node:test");
-const { conflictMapFrom, clustersOf, landingOrder, mergeCheck, surveyLanes } = require("./landingOrder");
+const { conflictMapFrom, clustersOf, landingOrder, mergeCheck, surveyLanes, partitionStale } = require("./landingOrder");
 
 const pairs = (...rows) => rows.map(([a, b, conflicts]) => ({ a, b, conflicts }));
 
@@ -112,5 +112,51 @@ describe("the survey", () => {
     const { pairs: all, map } = surveyLanes(() => ({ code: 0, out: "" }), ["only"]);
     assert.strictEqual(all.length, 0);
     assert.deepStrictEqual(clustersOf(map), [["only"]]);
+  });
+});
+
+describe("stale lanes are separated BEFORE any pair is measured", () => {
+  // THIS IS THE CLAIM THAT EXISTS BECAUSE THE NUMBER WAS PUBLISHED WRONG. Six lanes that no longer
+  // applied to HEAD conflicted with every pair they appeared in, which read as one knot of 33 and
+  // produced the advice "land these four first" when the right advice was "rebase them".
+  const runWhere = (conflicting) => (args) => {
+    const [a, b] = args.slice(-2);
+    const hit = conflicting.some(([x, y]) => (x === a && y === b) || (x === b && y === a));
+    return hit ? { code: 1, out: "sha\nsrc/x.js" } : { code: 0, out: "sha" };
+  };
+
+  test("a branch that conflicts with the base is stale, not a collision", () => {
+    const { stale, applies } = partitionStale(runWhere([["HEAD", "old"]]), ["old", "fresh"]);
+    assert.deepStrictEqual(stale.map((s) => s.branch), ["old"]);
+    assert.deepStrictEqual(applies, ["fresh"]);
+  });
+
+  test("a stale branch names the files it is stale on, which is what a rebase has to resolve", () => {
+    const { stale } = partitionStale(runWhere([["HEAD", "old"]]), ["old"]);
+    assert.deepStrictEqual(stale[0].files, ["src/x.js"]);
+  });
+
+  test("a branch git cannot read is unknown — neither stale nor applying", () => {
+    const run = (args) => (args.includes("ghost") ? { code: 1, out: "not something we can merge" } : { code: 0, out: "sha" });
+    const { stale, applies, unknown } = partitionStale(run, ["ghost", "fine"]);
+    assert.deepStrictEqual(applies, ["fine"]);
+    assert.strictEqual(stale.length, 0);
+    assert.strictEqual(unknown.length, 1);
+  });
+
+  test("nothing stale means every branch survives to be paired", () => {
+    const { stale, applies } = partitionStale(() => ({ code: 0, out: "sha" }), ["a", "b", "c"]);
+    assert.strictEqual(stale.length, 0);
+    assert.deepStrictEqual(applies, ["a", "b", "c"]);
+  });
+
+  // The second error, recorded so nobody "fixes" the base back: pinning every pair to the base
+  // makes a lane conflict with the lane it was cut from, because both diffs carry the parent's
+  // work. surveyLanes must therefore NOT pass a merge-base and let git use the true ancestor.
+  test("surveyLanes asks git for the pair's own ancestor, never a pinned base", () => {
+    const seen = [];
+    surveyLanes((args) => { seen.push(args.join(" ")); return { code: 0, out: "sha" }; }, ["a", "b"]);
+    assert.ok(seen.length > 0);
+    assert.ok(!seen.some((a) => a.includes("--merge-base")), "a pinned base conflates a lane with its descendant");
   });
 });
