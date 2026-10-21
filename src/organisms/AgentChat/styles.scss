@@ -1068,6 +1068,32 @@ $sv-board-states: (
   // The `/` popup — the model menu's box, opening UPWARD from the composer so it never covers
   // what you are typing. The row it hangs from has to be positioned for that.
   &__inputrow { position: relative; }
+
+  // PINNED TO THE BOX, OUT OF THE FLOW. In the flow it was a passenger — the cooking line
+  // appearing shrinks the list and shoved this up the screen mid-conversation. Anchored to the
+  // input row it cannot move, whatever appears or disappears above it, and the z-index lets the
+  // status lines pass BEHIND it rather than displace it.
+  // A PILL HOVERING AT THE FOOT OF THE CONVERSATION — not a row, and not down in the drawers.
+  //
+  // ZERO HEIGHT is the whole trick: the wrapper sits in the column where the conversation ends but
+  // occupies none of it, and the pill is lifted out of flow on top of the last reply. As an
+  // ordinary block it stretched the chat's full width and became a band in the stack, which is the
+  // thing he kept objecting to — *"it was a row… it should just be a pill."* Nothing below it
+  // moves, and the column is exactly as tall as it was without it.
+  &__voicebar {
+    position: relative;
+    height: 0;
+    z-index: 30;
+    pointer-events: none; // the invisible strip must not eat clicks meant for the conversation
+
+    & > * {
+      position: absolute;
+      right: 8px;
+      bottom: 6px;
+      width: max-content;
+      pointer-events: auto;
+    }
+  }
   // TWO CLASSES, so this outranks the base menu's `top: 100%` regardless of where in the sheet it
   // sits. With one class the base won on source order and BOTH top and bottom applied — the popup
   // rendered with all seven rows crushed into a 10px sliver at the foot of the panel: measured in

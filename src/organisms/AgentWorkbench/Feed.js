@@ -925,7 +925,7 @@ const Feed = ({ rows, answered = {}, onAnswer = null, renderText = null }) =>
         )}
         {r.settled && <When ts={r.ts} />}
         <Said row={r} render={renderText} />
-        {r.settled && <SpeakReply text={r.text} />}
+        {r.settled && <SpeakReply text={r.text} rowKey={r.key} ts={r.ts} />}
       </div>
     ),
   );
