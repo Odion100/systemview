@@ -423,3 +423,79 @@ describe("Reports.write registers the report", () => {
     assert.ok(doc.content.startsWith('::report{id="two words"}'), doc.content.slice(0, 60));
   });
 });
+
+// ── a report on disk is never invisible ─────────────────────────────────────────────────────────
+//
+// FOUND BY USE, 2026-10-21: 32 report files in .systemview/, 30 index rows, SEVEN files the panel
+// could never show. `list` read the index and nothing else, and the index write is wrapped in a
+// catch that swallows its own failure precisely so a report is not lost — which is how they were
+// lost. The file's own comment said it: "a report that skips it exists on disk and nowhere a human
+// looks."
+const REPORTS = {
+  ".systemview/reports.index.json": JSON.stringify({
+    p: [{ name: "Indexed and present", path: ".systemview/report.p.Indexed-and-present.md", ts: 2 },
+        { name: "Indexed but deleted", path: ".systemview/report.p.Indexed-but-deleted.md", ts: 1 }],
+  }),
+  ".systemview/report.p.Indexed-and-present.md": "# Indexed and present\n\nbody\n",
+  ".systemview/report.p.Never-indexed.md": "# Never indexed\n\nits index write failed\n",
+  ".systemview/report.p.Also-never-indexed.md": "# Also never indexed\n\nsame\n",
+};
+
+const doors = (files, { noListFiles = false, listThrows = false } = {}) => ({
+  readFile: async (_p, { path }) =>
+    files[path] === undefined ? { ok: false, error: "no such file" } : { ok: true, content: files[path] },
+  writeFile: async () => ({ ok: true }),
+  ...(noListFiles
+    ? {}
+    : {
+        listFiles: async () => {
+          if (listThrows) throw new Error("folder unreadable");
+          return { files: Object.keys(files).map((path) => ({ path })) };
+        },
+      }),
+});
+
+test("a report whose index write failed is still listed", async () => {
+  const { list } = reportsOn(doors(REPORTS));
+  const names = await list("p");
+  assert.ok(names.includes("Never indexed"));
+  assert.ok(names.includes("Also never indexed"));
+});
+
+test("it is known by its own heading, not by a slugged filename", async () => {
+  const { list } = reportsOn(doors(REPORTS));
+  assert.ok((await list("p")).includes("Never indexed"));
+});
+
+test("the index still leads — indexed reports come first, in index order", async () => {
+  const { list } = reportsOn(doors(REPORTS));
+  assert.equal((await list("p"))[0], "Indexed and present");
+});
+
+// The other direction was already right and must stay right: an indexed name is a CLAIM, and a
+// name handed to an agent that cannot be opened teaches it a report that is not there.
+test("an index row whose file is gone still disappears", async () => {
+  const { list } = reportsOn(doors(REPORTS));
+  assert.ok(!(await list("p")).includes("Indexed but deleted"));
+});
+
+test("a report is never listed twice when it is both indexed and on disk", async () => {
+  const { list } = reportsOn(doors(REPORTS));
+  const names = await list("p");
+  assert.equal(names.filter((n) => n === "Indexed and present").length, 1);
+});
+
+test("a folder that cannot be walked leaves the index's answer standing", async () => {
+  const { list } = reportsOn(doors(REPORTS, { listThrows: true }));
+  assert.deepEqual(await list("p"), ["Indexed and present"]);
+});
+
+test("a caller wired without the folder door still works exactly as before", async () => {
+  const { list } = reportsOn(doors(REPORTS, { noListFiles: true }));
+  assert.deepEqual(await list("p"), ["Indexed and present"]);
+});
+
+test("a project with nothing at all answers empty rather than throwing", async () => {
+  const { list } = reportsOn(doors({}));
+  assert.deepEqual(await list("p"), []);
+});
