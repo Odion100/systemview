@@ -67,5 +67,30 @@ export const DECIDING = { approval: "verdict", question: "answer", task: "checke
 export const isDecision = (kind, key) =>
   !!kind && Object.prototype.hasOwnProperty.call(DECIDING, kind) && DECIDING[kind] === key;
 
-const decisions = { decisionSummary, isDecision, DECIDING };
+
+// THE WORDS A TICKED TASK IS ABOUT. An approval has `ask=` and a question has its label; a GFM
+// checklist has neither — it is `- [ ] rebuild the bundle`, with the text in the line rather than
+// in an attribute. So the label is read off the source line, using the SAME shape `toggleTaskLine`
+// matches, because a label that disagreed with what was toggled would quote the wrong task.
+//
+// Markdown is stripped rather than rendered: this ends up inside a sentence pushed into somebody's
+// session, where `**bold**` and a link's brackets are noise. The text is what was decided; the
+// formatting was for the page it came from.
+const TASK = /^(\s*(?:[-*+]|\d+[.)])\s+)\[([ xX])\]\s*(.*)$/;
+
+export function taskLabelOf(source, line) {
+  const lines = String(source || "").split("\n");
+  const i = Number(line) - 1;
+  if (!Number.isInteger(i) || i < 0 || i >= lines.length) return "";
+  const m = TASK.exec(lines[i]);
+  if (!m) return ""; // not a task line — say nothing rather than quote a paragraph
+  return String(m[3] || "")
+    .replace(/`([^`]*)`/g, "$1")
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/(\*\*|__|\*|_|~~)/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+const decisions = { decisionSummary, isDecision, DECIDING, taskLabelOf };
 export default decisions;

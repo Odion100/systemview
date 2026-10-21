@@ -24,6 +24,7 @@ import { expectThread } from "./threadFocus";
 import { namespaceOptions, testOptions, fileOptions, TEMPLATES } from "./menuOptions";
 import ServiceContext from "../../ServiceContext";
 import BLOCKS from "./registry";
+import TaskItem from "./blocks/TaskItem";
 
 import "./styles.scss";
 import { normalizeFences, wrapLines, wrapLinesInThread } from "./docEdit";
@@ -616,18 +617,13 @@ const Markdown = ({ children, dark = false, scope = null, onSourceChange = null,
           const rest = React.Children.toArray(children).filter(
             (c) => !(React.isValidElement(c) && c.type === "input")
           );
+          // TaskItem rather than the markup inline, because ticking a task is a DECISION and has
+          // to tell the document's members — and this file cannot do that itself: it is the
+          // component that provides the member context, so it cannot consume it.
           return (
-            <li className={`md-task${checked ? " md-task--done" : ""}${editable ? " md-task--live" : ""}`}>
-              <input
-                type="checkbox"
-                className="md-task__box"
-                checked={checked}
-                disabled={!editable}
-                onChange={() => onToggle(line)}
-                title={editable ? "Toggling this edits the document" : "Read-only here — this surface has nothing to save to"}
-              />
-              <span className="md-task__text">{rest}</span>
-            </li>
+            <TaskItem line={line} checked={checked} editable={editable} onToggle={onToggle}>
+              {rest}
+            </TaskItem>
           );
         }
         return (

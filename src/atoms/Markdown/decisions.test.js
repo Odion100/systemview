@@ -81,3 +81,54 @@ describe("which writes are decisions at all", () => {
     expect(Object.keys(DECIDING).sort()).toEqual(["approval", "question", "task"]);
   });
 });
+
+describe("the words a ticked task is about", () => {
+  const { taskLabelOf } = require("./decisions");
+  const doc = [
+    "# a plan",
+    "",
+    "- [ ] rebuild the bundle",
+    "- [x] press the **commit**",
+    "   - [ ] a nested one",
+    "1. [ ] an ordered task",
+    "- [ ] read `api/reports.js` and the [RFC](RFCs/RFC-072.md)",
+    "- [ ]",
+    "just a paragraph",
+    "",
+  ].join("\n");
+
+  it("reads the task's own words", () => {
+    expect(taskLabelOf(doc, 3)).toBe("rebuild the bundle");
+  });
+
+  it("reads a ticked one as well as an unticked one", () => {
+    expect(taskLabelOf(doc, 4)).toBe("press the commit");
+  });
+
+  it("handles a nested task and an ordered one — the same shape toggleTaskLine matches", () => {
+    expect(taskLabelOf(doc, 5)).toBe("a nested one");
+    expect(taskLabelOf(doc, 6)).toBe("an ordered task");
+  });
+
+  // This ends up inside a sentence pushed into somebody's session; brackets and asterisks are noise.
+  it("strips markdown rather than pushing syntax into somebody's session", () => {
+    expect(taskLabelOf(doc, 7)).toBe("read api/reports.js and the RFC");
+  });
+
+  it("answers empty for a task with no words, rather than inventing some", () => {
+    expect(taskLabelOf(doc, 8)).toBe("");
+  });
+
+  // A label that disagreed with what was toggled would quote the wrong task.
+  it("says nothing for a line that is not a task", () => {
+    expect(taskLabelOf(doc, 9)).toBe("");
+    expect(taskLabelOf(doc, 1)).toBe("");
+  });
+
+  it("survives a line number that is not in the document", () => {
+    expect(taskLabelOf(doc, 0)).toBe("");
+    expect(taskLabelOf(doc, 999)).toBe("");
+    expect(taskLabelOf("", 1)).toBe("");
+    expect(taskLabelOf(undefined, undefined)).toBe("");
+  });
+});
