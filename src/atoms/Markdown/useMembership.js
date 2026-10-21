@@ -46,7 +46,7 @@ export default function useMembership({ who = [], sent = "", auto = "", line = 0
   // THE SEND. The window observes the press and the HOST emits the event — nothing here announces
   // anything itself (see files-host.cjs). Afterwards the line records the hash each member was told
   // about, so the next change is dirty for them and nothing else is.
-  const send = async (targets) => {
+  const send = async (targets, override = null) => {
     const to = (targets || []).filter(Boolean);
     if (!to.length) return;
     setSending(true);
@@ -57,7 +57,15 @@ export default function useMembership({ who = [], sent = "", auto = "", line = 0
       thread,
       // A THREAD MEMBER IS IN THE CONVERSATION, so the reply itself is the news. A document member
       // is watching the file, so the shape of the change is.
-      summary: thread ? threadSummary(thread, subject) : summarize(source, to.every((m) => sentMap[m])),
+      // A DECISION SAYS WHAT IT WAS. Everything else describes the shape of the change, because
+      // that is all a diff can honestly say — but a press is one complete fact and the caller is
+      // holding it, so it hands the sentence down rather than making this guess at it.
+      summary: override
+        ? override.summary
+        : thread
+          ? threadSummary(thread, subject)
+          : summarize(source, to.every((m) => sentMap[m])),
+      ...(override && override.decision ? { decision: true } : {}),
       threads: thread ? 1 : (String(source).match(/^\s*:{3,}\s*thread\b/gm) || []).length,
     });
     setSending(false);

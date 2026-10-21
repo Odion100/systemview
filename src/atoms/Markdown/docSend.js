@@ -5,7 +5,10 @@
 // It lives alone because three controls make this call now — the document's block, a thread's row,
 // and the pinned update row that carries both — and a second copy of the payload is a second
 // answer to "what does a landing look like".
-export const sendUpdateTo = async ({ path, project, members, summary, threads = 1, thread = "", by = "you" }) => {
+// `decision` RIDES THE PAYLOAD rather than being inferred from the summary's wording. The host
+// picks the headline, and a host that had to pattern-match prose to know what kind of event this
+// was would be guessing at the one thing the sender already knows for certain.
+export const sendUpdateTo = async ({ path, project, members, summary, threads = 1, thread = "", by = "you", decision = false }) => {
   const bridge = typeof window !== "undefined" && window.systemview && window.systemview.documents;
   if (!bridge || !bridge.sendUpdate)
     return { ok: false, error: "this window cannot announce a send — the host door is not granted here" };
@@ -18,6 +21,7 @@ export const sendUpdateTo = async ({ path, project, members, summary, threads = 
       summary,
       threads,
       ...(thread ? { thread } : {}),
+      ...(decision ? { decision: true } : {}),
     });
     if (!r || r.ok === false) return { ok: false, error: (r && r.error) || "the send was refused" };
     return { ok: true };

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useMarkdownWrite } from "../context";
+import useDecisionTell from "../useDecisionTell";
 
 // `:::approval{id=…}` — the story APPROVAL verdict, as a wrapper.
 //
@@ -14,14 +15,26 @@ import { useMarkdownWrite } from "../context";
 const Approval = ({ attrs = {}, line, children }) => {
   const { editable, setAttr } = useMarkdownWrite();
   const [local, setLocal] = useState(null);
+  // A PRESS IS NEWS. Who hears it and where the stamp lands is one rule for every deciding
+  // block, so it lives in the hook rather than here.
+  const tell = useDecisionTell();
   const verdict = local != null ? local : attrs.verdict || "";
   const label = attrs.ask || attrs.label || "Approval needed";
 
+  // THE WRITE FIRST, ALWAYS. The decision is the point and the telling is bookkeeping, so a send
+  // that refuses — no host door, nobody on the document, a hub that is down — must never cost the
+  // verdict. That ordering is the whole safety property here, and it is why the send is not
+  // awaited before the document is changed.
   const decide = (value) => {
     if (!editable) return;
     const next = verdict === value ? "" : value;
     setLocal(next);
     setAttr(line, "verdict", next || null);
+
+    // A PRESS JUMPS THE QUIET PERIOD. Prose waits twenty seconds and then his send, because an
+    // unfinished paragraph is not a decision — a press is complete the instant it happens and is
+    // usually the thing the others were waiting on. His: "maybe it should notify you right away."
+    tell("approval", attrs, next);
   };
 
   return (
