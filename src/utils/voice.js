@@ -37,24 +37,28 @@
 // part of the surface: a caller that cannot see `local` cannot honour it.
 
 import { spokenChunks } from "./spokenForm";
+import { chooseVoice, qualityOf } from "./voiceChoice";
+import { readVoicePref } from "./voicePref";
 
 const synth = () =>
   (typeof window !== "undefined" && window.speechSynthesis) || null;
 
 // ── the built-in engine ────────────────────────────────────────────────────────────────────────
 
-// ALL THINGS BEING EQUAL, PICK A VOICE THAT SOUNDS LIKE A PERSON. `default: true` is not good
-// enough to trust: the same machine reports Samantha as default in Chrome and ALBERT in Electron,
-// and Albert is the robot voice from 1991. This list is a HINT, in order, and every entry is
-// optional — the fallbacks below are what make it platform-independent. Nothing breaks on a
-// machine that has none of these; it just takes the first local voice for the language.
-const PREFERRED = [
-  "Samantha", "Karen", "Moira", "Tessa", "Daniel", "Rishi", // macOS
-  "Microsoft Aria", "Microsoft Jenny", "Microsoft Guy", "Microsoft Zira", // Windows
-  "English (America)", "English (Great Britain)", // common espeak/Linux naming
-];
+// WHICH VOICE — the judgement lives in `voiceChoice.js` so it can be proven without a browser,
+// and his saved pick in `voicePref.js` so it survives a reload. Three rules, in order: a voice he
+// chose himself wins outright; otherwise quality wins (a downloaded Premium beats anything that
+// shipped); otherwise novelty voices lose. The old flat name list could do none of that — it put
+// Samantha first, so a Premium download would have changed nothing.
 
-const asVoice = (v) => ({ id: v.voiceURI || v.name, name: v.name, lang: v.lang, local: !!v.localService, raw: v });
+const asVoice = (v) => ({
+  id: v.voiceURI || v.name,
+  name: v.name,
+  lang: v.lang,
+  local: !!v.localService,
+  quality: qualityOf(v.name),
+  raw: v,
+});
 
 // Chrome populates the list asynchronously — the first call after a cold load returns []. The
 // caller is expected to re-ask (the button does, on `voiceschanged`), so this stays a plain read
@@ -64,19 +68,6 @@ function builtinVoices() {
   if (!s || typeof s.getVoices !== "function") return [];
   // LOCAL ONLY. This single filter is the entire "works offline, sends nothing" claim.
   return (s.getVoices() || []).map(asVoice).filter((v) => v.local);
-}
-
-function pick(list, lang) {
-  if (!list.length) return null;
-  const want = String(lang || (typeof navigator !== "undefined" && navigator.language) || "en-US");
-  const base = want.split("-")[0].toLowerCase();
-  const sameLang = list.filter((v) => String(v.lang || "").toLowerCase().startsWith(base));
-  const pool = sameLang.length ? sameLang : list;
-  for (const name of PREFERRED) {
-    const hit = pool.find((v) => v.name === name) || pool.find((v) => v.name.startsWith(name));
-    if (hit) return hit;
-  }
-  return pool.find((v) => v.raw && v.raw.default) || pool[0];
 }
 
 const builtin = {
@@ -106,7 +97,11 @@ const builtin = {
     }
 
     const chunks = spokenChunks(body);
-    const chosen = opts.voice || pick(builtinVoices(), opts.lang);
+    // READ AT PRESS TIME, never cached: the picker writes the preference and nothing has to tell
+    // this file about it, which is also what lets a second window honour a choice made in the first.
+    const chosen =
+      opts.voice ||
+      chooseVoice(builtinVoices(), { lang: opts.lang, preferId: opts.preferId || readVoicePref() });
     let done = false;
     let started = false;
     // EXACTLY ONCE, whatever happens. The button's state is this callback; a path that forgets it
