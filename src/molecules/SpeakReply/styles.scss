@@ -1,0 +1,87 @@
+// Quiet until it is doing something, and unmistakable while it is. Rides the theme tokens, so it
+// follows dark mode with the rest of the app and nothing here is tuned for one surface.
+.speak-reply {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  padding: 2px 8px;
+  border: 1px solid var(--sv-border-soft);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--sv-text-faint);
+  font-size: 11px;
+  line-height: 16px;
+  cursor: pointer;
+  opacity: 0.65;
+  transition: opacity 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+
+  &:hover {
+    opacity: 1;
+    color: var(--sv-blue);
+    border-color: var(--sv-border);
+    background: var(--sv-hover);
+  }
+
+  &:focus-visible {
+    outline: 1px solid var(--sv-blue);
+    outline-offset: 1px;
+  }
+
+  &__mark {
+    font-size: 9px;
+  }
+
+  // SPEAKING IS A STATE YOU CANNOT MISS. Full opacity, the brand blue, a tinted fill — and the
+  // bars, which are the part that reads as live in a feed full of static text.
+  &--on {
+    opacity: 1;
+    color: var(--sv-blue);
+    border-color: var(--sv-blue);
+    background: var(--sv-hover);
+  }
+
+  &__wave {
+    display: inline-flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 10px;
+    margin-left: 2px;
+
+    & i {
+      width: 2px;
+      height: 3px;
+      border-radius: 1px;
+      background: currentColor;
+      animation: speak-reply-bar 0.9s ease-in-out infinite;
+    }
+    & i:nth-child(2) {
+      animation-delay: 0.15s;
+    }
+    & i:nth-child(3) {
+      animation-delay: 0.3s;
+    }
+  }
+}
+
+@keyframes speak-reply-bar {
+  0%,
+  100% {
+    height: 3px;
+    opacity: 0.55;
+  }
+  50% {
+    height: 10px;
+    opacity: 1;
+  }
+}
+
+// He turns animation off for the whole window from the agent hub, and the system-level preference
+// is the same request made once for every app. A bar that keeps bouncing through either is the
+// setting not being honoured.
+@media (prefers-reduced-motion: reduce) {
+  .speak-reply__wave i {
+    animation: none;
+    height: 7px;
+  }
+}

@@ -12,6 +12,9 @@ import ServiceContext from "../../../ServiceContext";
 // the DOCUMENT's members, which he struck out: *"it shouldn't even be showing that from the
 // document, that's implicit."*
 //
+// The second half of that was REVERSED on 2026-10-20, when a bare thread began inheriting the
+// document's list — see the claim below, which carries both rulings and why the newer one wins.
+//
 // These are the claims that keep both from coming back. Mounting is possible because the block
 // imports no markdown renderer (react-markdown is ESM and jest will not parse it) — the renderer
 // itself still cannot be mounted, which is its own card on the board.
@@ -41,12 +44,72 @@ describe("the thread's own members", () => {
     expect(screen.getByText("systemlynx")).toBeTruthy();
   });
 
-  // The row he told me to stop rendering. Inheritance is real for delivery and silent on screen.
-  it("never draws the document's members as the thread's", () => {
+  // ── THE ONE CLAIM THIS CHANGE REVERSED (2026-10-20) ─────────────────────────────────────────
+  // It read "never draws the document's members as the thread's", for his 2026-10-19 ruling:
+  // *"it shouldn't even be showing that from the document, that's implicit. It should only show if
+  // there's members on the thread."* That was aimed at a dimmed, uncontrollable "from the document"
+  // ROW, and it held while inheritance was only a delivery rule nobody could touch.
+  //
+  // It cannot hold now. His 2026-10-20 ruling makes a bare thread inherit the document's list —
+  // *"I have to individually attach you to each thread, even though you're a member on the entire
+  // document"* — WITH the removal that makes it safe: *"I still have the ability to delete them if
+  // I wanted to make it different."* A × needs a chip to press. So the document's people are drawn
+  // as what they now are, this thread's members, and marked inherited because × on them narrows the
+  // thread rather than editing a list. The old row is still gone: there is no second row and no
+  // "from the document" caption, which is what he was actually objecting to.
+  it("draws the document's people on a thread that names none — the chore this removes", () => {
     mount({ docMembers: ["buapi", "systemlynx"] });
-    expect(screen.queryByText("buapi")).toBeNull();
+    expect(screen.getByText("buapi")).toBeTruthy();
+    expect(screen.getByText("systemlynx")).toBeTruthy();
     expect(screen.queryByText("from the document")).toBeNull();
+    expect(screen.queryByText("nobody on this thread yet")).toBeNull();
+  });
+
+  it("marks an inherited chip, because × on one does something different", () => {
+    mount({ docMembers: ["buapi"] });
+    expect(screen.getByTitle(/buapi is on this document, so they are in this thread/)).toBeTruthy();
+    expect(screen.getByTitle("narrow this thread to everybody but buapi")).toBeTruthy();
+  });
+
+  // NARROWING, FROM THE OTHER SIDE: a thread that names people inherits nothing, so the document's
+  // other members are not in this conversation and are not drawn in it.
+  it("a thread that names somebody shows only them, document or no document", () => {
+    mount({ members: "buapi", docMembers: ["buapi", "systemlynx"] });
+    expect(screen.getByText("buapi")).toBeTruthy();
+    expect(screen.queryByText("systemlynx")).toBeNull();
+  });
+
+  it("says nobody only when there is nobody — no document members and none of its own", () => {
+    mount({ docMembers: [] });
     expect(screen.getByText("nobody on this thread yet")).toBeTruthy();
+  });
+
+  // THE PRESS THAT HAS NOTHING TO REMOVE FROM, and the one a future change is most likely to break.
+  // An inherited thread has no `members=` to edit, so × MATERIALISES the narrowed list: everyone
+  // inherited, minus the one dropped, written onto this thread's own opener. From that write on the
+  // thread carries an explicit list and inherits nothing — the narrowing rule doing the work.
+  it("× on an inherited chip writes the narrowed list onto the thread's own line", () => {
+    const { setAttr } = mount({ docMembers: ["buapi", "systemlynx"] });
+    fireEvent.click(screen.getByTitle("narrow this thread to everybody but buapi"));
+    expect(setAttr).toHaveBeenCalledWith(12, "members", "systemlynx");
+  });
+
+  // AND IT MUST NOT LOOK BROKEN: clearing the attribute would hand the document's people back on
+  // the next render — press ×, they reappear. An emptied list is written as `members=""`, which is
+  // present and names nobody.
+  it("× on the LAST inherited chip means nobody, not inheriting all over again", () => {
+    const { setAttr } = mount({ docMembers: ["buapi"] });
+    fireEvent.click(screen.getByTitle("narrow this thread to everybody but buapi"));
+    expect(setAttr).toHaveBeenCalledWith(12, "members", "");
+  });
+
+  // …and adding to an inheriting thread materialises it the same way, through the same write: the
+  // people it already had, plus the new one, so the + cannot silently drop the inherited list.
+  it("adding to an inheriting thread keeps the people it inherited", () => {
+    const { setAttr } = mount({ docMembers: ["buapi"] });
+    fireEvent.click(screen.getByTitle("add a member to this thread"));
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "systemlynx" } });
+    expect(setAttr).toHaveBeenCalledWith(12, "members", "buapi|systemlynx");
   });
 
   // "If there's already a member's block in the document" — that is what the row hangs on, so an

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMarkdownWrite, useDocMembers } from "./context";
-import { dirtyMembers, hashOf, lastReplyOf, parseSent, serializeSent, splitWho, summarize } from "./docMembers";
+import { dirtyMembers, hashOf, parseSent, serializeSent, splitWho, summarize, threadSummary } from "./docMembers";
 import { sendUpdateTo } from "./docSend";
 
 // RFC-071 — WHO IS BEHIND, AND THE PRESS THAT TELLS THEM. One definition, used by two controls:
@@ -11,6 +11,13 @@ import { sendUpdateTo } from "./docSend";
 // Two controls writing one attribute is exactly where a second copy of this logic would go wrong,
 // which is why there is none: both read the same `sent=` map, both compute dirty the same way, and
 // both stamp through the same `setAttr`.
+// `who` IS THE RESOLVED LIST, inherited people included (RFC-071, 2026-10-20): a thread with no
+// `members=` is about the document's people, and they are members here for every purpose — behind
+// when a reply lands, eligible for `auto=`, and stamped into `sent=` on the thread's own opener
+// when they are told. So a thread line can carry `sent=buapi:1a2b` while naming nobody. That is
+// not a contradiction to fix: `members=` says who is ON the thread, `sent=` says who has been TOLD
+// about this version of it, and only the first of those is inherited.
+//
 // `body` is WHAT THIS SUBSCRIPTION IS ABOUT — the whole document for the `::members` block, a
 // thread's own slice for a thread. Dirtiness is measured against it, so a reply in t1 makes t1's
 // members behind and leaves the document's alone. `thread` rides on the event so the landing says
@@ -50,9 +57,7 @@ export default function useMembership({ who = [], sent = "", auto = "", line = 0
       thread,
       // A THREAD MEMBER IS IN THE CONVERSATION, so the reply itself is the news. A document member
       // is watching the file, so the shape of the change is.
-      summary: thread
-        ? `reply in thread ${thread}: ${lastReplyOf(subject)}`
-        : summarize(source, to.every((m) => sentMap[m])),
+      summary: thread ? threadSummary(thread, subject) : summarize(source, to.every((m) => sentMap[m])),
       threads: thread ? 1 : (String(source).match(/^\s*:{3,}\s*thread\b/gm) || []).length,
     });
     setSending(false);

@@ -119,7 +119,7 @@ describe("thread updates ride in the same corner, in their own pill", () => {
   const WITH_THREAD = [
     "# A plan",
     "",
-    `::members{who=buapi sent=buapi:HASH}`,
+    `::members{who=systemlynx sent=systemlynx:HASH}`,
     "",
     "::::thread{id=t1 members=buapi}",
     "the argument",
@@ -129,8 +129,15 @@ describe("thread updates ride in the same corner, in their own pill", () => {
     "::::",
     "",
   ].join("\n");
-  // The document is CURRENT and only the thread is behind — so the corner must show one pill, the
-  // thread's, and nothing about the document.
+  // BUAPI WAS BROUGHT IN FOR ONE CONVERSATION — on the thread, on no document line — so nothing
+  // about the document can ever cover them, and the corner must show one pill, the thread's.
+  //
+  // This fixture used to put buapi on BOTH levels with the document current, and read that as the
+  // thread still being behind. His rule of 2026-10-20 retired that reading: the document's hash is
+  // the whole source, so a member current on the document has been told about the threads too, and
+  // a pill claiming otherwise would be the surface lying about a subscription. The claims below are
+  // about the two levels RENDERING distinctly and a press staying surgical, which is what they were
+  // always worth — so they keep their intent on a fixture the rule allows.
   const src = WITH_THREAD.replace("HASH", hashOf(WITH_THREAD));
 
   const mountBoth = (bridge = jest.fn(async () => ({ ok: true }))) => {

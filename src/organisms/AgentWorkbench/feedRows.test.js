@@ -1317,4 +1317,27 @@ describe("a document landing carries what landed, not a sentence about it", () =
     const [row] = foldEvents([ev("message.landed", { from: "you", doc: { project: "p", thread: "t1" } })]);
     expect(row.kind).toBe("note");
   });
+
+  // A MERGED LANDING GREW; IT DID NOT ARRIVE. The harness folds a delivery into one still sitting
+  // unread rather than pushing a second turn, so a log that draws both the same way claims an
+  // interruption that was never spent — the overwhelm walking back in through the receipt.
+  const landing = (over = {}) =>
+    ev("message.landed", {
+      from: "you",
+      doc: { project: "systemview-test", path: "meetings/m.md", thread: "bugs", summary: "x", text: "y" },
+      ...over,
+    });
+
+  it("marks a landing the harness merged, from either half of the receipt", () => {
+    expect(foldEvents([landing({ merged: true })])[0].merged).toBe(true);
+    expect(
+      foldEvents([
+        landing({ doc: { project: "p", path: "m.md", thread: "bugs", summary: "", text: "", merged: true } }),
+      ])[0].merged
+    ).toBe(true);
+  });
+
+  it("is false — never undefined — on an ordinary landing, so the surface can branch on it", () => {
+    expect(foldEvents([landing()])[0].merged).toBe(false);
+  });
 });

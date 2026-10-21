@@ -4,6 +4,7 @@ import { receiptTone } from "./cmdReceipt";
 import { parseMcpResult } from "./feedRows";
 import ServiceContext from "../../ServiceContext";
 import lazyLoad from "../../utils/lazyLoad";
+import SpeakReply from "../../molecules/SpeakReply/SpeakReply";
 import "./styles.scss";
 
 // THE RUN IS A HANDLE, DISPLAYED (his design: "we have a handle on it and we display it" — no
@@ -312,8 +313,18 @@ const LandedDocRow = ({ row }) => {
         onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setOpen(!open)}
       >
         <When ts={row.ts} />
-        <span className={`${CLASSNAME}__hook-mark`}>✉</span>
-        <span className={`${CLASSNAME}__hook-name`}>{row.thread ? `thread ${row.thread} moved` : "document updated"}</span>
+        {/* A MERGED LANDING GREW RATHER THAN ARRIVED — the harness folded it into a delivery still
+            sitting unread instead of spending a second turn. Two rows that look identical would put
+            the interruptions back in the log after we removed them from the session, so the mark
+            and the words both say which happened: ✉ is post, ⊕ is "the one you have got bigger". */}
+        <span className={`${CLASSNAME}__hook-mark`}>{row.merged ? "⊕" : "✉"}</span>
+        <span className={`${CLASSNAME}__hook-name`}>
+          {row.merged
+            ? `${row.thread ? `thread ${row.thread}` : "this document"} folded into a delivery you had not read`
+            : row.thread
+              ? `thread ${row.thread} moved`
+              : "document updated"}
+        </span>
         <span className={`${CLASSNAME}__hook-on`}>
           {file}
           {row.from ? ` · by ${row.from}` : ""}
@@ -914,6 +925,7 @@ const Feed = ({ rows, answered = {}, onAnswer = null, renderText = null }) =>
         )}
         {r.settled && <When ts={r.ts} />}
         <Said row={r} render={renderText} />
+        {r.settled && <SpeakReply text={r.text} />}
       </div>
     ),
   );

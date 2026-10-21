@@ -876,6 +876,13 @@ export function foldEvents(events) {
           thread: ev.doc.thread || "",
           summary: ev.doc.summary || "",
           text: ev.doc.text || "",
+          // A MERGED LANDING IS NOT A SECOND INTERRUPTION. The harness now folds a new delivery into
+          // one still sitting unread rather than pushing another turn — so the row it belongs to
+          // GREW, it did not arrive. Drawing the two the same way would put the interruptions back
+          // in the log after we took them out of the session, and the log would be claiming turns
+          // that were never spent. The fact comes from the harness; saying it is this surface's job,
+          // because the agent chat is this window and not autobot's chrome.
+          merged: !!(ev.merged || ev.doc.merged),
           ts: ev.ts,
         });
         return;

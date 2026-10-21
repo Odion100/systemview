@@ -1,12 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useCommentsContext, InThreadProvider, useMarkdownWrite, useDocMembers } from "../context";
 import { claimThread } from "../threadFocus";
-import { splitWho } from "./Members";
 import MemberAdd from "./MemberAdd";
 import MemberSettings from "./MemberSettings";
 import useMembership from "../useMembership";
 import { AUTO_QUIET_MS } from "./Members";
-import { hashOf } from "../docMembers";
+import { hashOf, threadMembers, threadMembersAttr } from "../docMembers";
 import { readSeen, writeSeen, replyStamps, unseenCount, newestOf } from "../threadSeen";
 import useDictation from "../../../utils/useDictation";
 
@@ -35,35 +34,45 @@ import useDictation from "../../../utils/useDictation";
 const Thread = ({ attrs = {}, line, src, children }) => {
   const { threads, writable: storeWritable, addReply, removeReply, error } = useCommentsContext();
   const { editable, appendInside, setAttr } = useMarkdownWrite();
-  // RFC-071 — WHO THIS THREAD IS FOR. `members=` on the thread names its own people; absent, a
-  // reply still reaches the DOCUMENT's members, because the common case is "everyone on this
-  // document is in this conversation" and making that explicit on every thread is noise nobody
-  // maintains.
+  // RFC-071 — WHO THIS THREAD IS FOR. A thread with no `members=` INHERITS the document's list;
+  // one that carries `members=` narrows to exactly those people and inherits nothing. His, both
+  // halves, 2026-10-20: *"I have to individually attach you to each thread, even though you're a
+  // member on the entire document… it should be more accommodating towards the way I actually use
+  // it"* — and *"I still have the ability to delete them if I wanted to make it different."* A
+  // thread is a convenience for wrapping one part of a document to say something about it, not a
+  // membership ceremony, so the default is what he actually does.
   //
-  // INHERITANCE IS NOT DRAWN. It used to render as a dimmed "from the document" row, and his
-  // ruling, 2026-10-19: *"it shouldn't even be showing that from the document, that's implicit. It
-  // should only show if there's members on the thread."* So the row below is the thread's OWN list
-  // and nothing else — inheritance stays true in `members`, which is what the reply sends to.
-  const { hasMembers = false, docPath = "" } = useDocMembers() || {};
-  const own = splitWho(attrs.members);
-  // INHERITANCE IS NOT A SEPARATE PATH ANY MORE, and nothing was lost: a reply changes the
-  // document's body too, so everybody on the DOCUMENT goes behind on the document and hears about
-  // it through the document's own pill. A thread's `members=` is the narrower subscription on top
-  // of that — these people, about this argument, now.
+  // THE INHERITED PEOPLE ARE DRAWN. They used to be deliberately invisible — his 2026-10-19 ruling
+  // against a dimmed "from the document" row: *"it shouldn't even be showing that from the
+  // document, that's implicit"* — and that held while inheritance was only a delivery rule. It
+  // cannot hold now: the × that narrows a thread has to have a chip to press. So they are drawn as
+  // what they are, chips of this thread, marked inherited because × means something different on
+  // them (it MATERIALISES the narrowed list rather than editing one).
+  const { hasMembers = false, docPath = "", members: docWho = [] } = useDocMembers() || {};
+  const { who: onThread, inherited } = threadMembers(attrs.members, docWho);
+  // ONE WRITE FOR BOTH CONTROLS — the + and the ×, through `threadMembersAttr`, which decides
+  // between a list, "" (narrowed to nobody, on purpose) and removing the attribute. Dropping an
+  // inherited chip therefore writes everyone inherited MINUS that one, and the thread stops
+  // inheriting from that moment on — the narrowing rule doing the work, not a second code path.
+  //
   // THE SAME WRITE `:::approval` MAKES — the thread's own opening line, which is the line this
   // block was mounted on, so it can never land on the document's members line or the thread below.
-  const writeMembers = (next) => setAttr && setAttr(line, "members", next.length ? next.join("|") : null);
+  const writeMembers = (next) => setAttr && setAttr(line, "members", threadMembersAttr(next, docWho));
   // The row exists once the document has a `::members` block (*"if there's already a member's block
   // in the document"*) — empty, with just the `+`, so a thread's list can be STARTED from a chip
   // rather than from the right-click menu. A document with no membership at all says nothing about
   // it on its threads, and a read-only surface draws the list only when there is one.
-  const showMembers = own.length > 0 || (editable && hasMembers);
+  const showMembers = onThread.length > 0 || (editable && hasMembers);
   // A THREAD IS ITS OWN SUBSCRIPTION — dirtiness measured over the thread's OWN body, so a reply
   // here makes these people behind and leaves the document's membership alone. His: *"let's get
   // dirty"* — a reply no longer tells anybody on the spot; it makes them behind, the auto ones are
   // told when it settles, and the rest are a press in the pinned row at the top.
   const { dirty, isAuto, setAuto, send } = useMembership({
-    who: own,
+    // INHERITED OR NAMED, IT IS THE SAME MEMBERSHIP HERE: a reply makes these people behind on this
+    // thread, `auto=` may name any of them, and telling one stamps `sent=` on this thread's opener
+    // — a stamp for somebody the line need not list, which is right, because `sent=` records who
+    // was TOLD about this version and only `members=` says who is on it.
+    who: onThread,
     sent: attrs.sent,
     auto: attrs.auto,
     line,
@@ -154,31 +163,49 @@ const Thread = ({ attrs = {}, line, src, children }) => {
       {showMembers && (
         <div className="md-members md-members--thread">
           <span className="md-members__kind">in this thread</span>
-          {own.map((m) => (
-            <span className="md-members__chip" key={m} title={`${m} hears every reply in this thread`}>
+          {onThread.map((m) => (
+            <span
+              className={`md-members__chip${inherited ? " md-members__chip--inherited" : ""}`}
+              key={m}
+              title={
+                inherited
+                  ? `${m} is on this document, so they are in this thread — × narrows the thread to the rest`
+                  : `${m} hears every reply in this thread`
+              }
+            >
               {m}
               {editable && (
                 <button
                   type="button"
                   className="md-members__drop"
-                  title={`take ${m} out of this thread`}
-                  onClick={() => writeMembers(own.filter((x) => x !== m))}
+                  // TWO DIFFERENT ACTS BEHIND ONE GLYPH, so the title has to say which: taking a
+                  // named member off a list, or narrowing an inheriting thread for the first time.
+                  title={
+                    inherited
+                      ? `narrow this thread to everybody but ${m}`
+                      : `take ${m} out of this thread`
+                  }
+                  onClick={() => writeMembers(onThread.filter((x) => x !== m))}
                 >
                   ×
                 </button>
               )}
             </span>
           ))}
-          {/* No own list means the document's people are the audience — said in words rather than
-              by drawing their chips here, which is the row he told me to stop rendering. */}
-          {!own.length && <span className="md-members__none">nobody on this thread yet</span>}
+          {/* Nobody at all: either a document with no members to inherit, or a thread narrowed to
+              nobody on purpose (`members=""`), which is a state he chose and must stay in. */}
+          {!onThread.length && <span className="md-members__none">nobody on this thread yet</span>}
           {editable && (
-            <MemberAdd already={own} onPick={(code) => writeMembers([...own, code])} title="add a member to this thread" />
+            <MemberAdd
+              already={onThread}
+              onPick={(code) => writeMembers([...onThread, code])}
+              title="add a member to this thread"
+            />
           )}
           {/* The same gear the document's membership carries, for THIS conversation's auto list —
               two levels, two lists, because "every version of the plan" and "when this argument
               moves" are different subscriptions. */}
-          {editable && !!own.length && (
+          {editable && !!onThread.length && (
             <button
               type="button"
               className="md-members__gear"
@@ -190,7 +217,7 @@ const Thread = ({ attrs = {}, line, src, children }) => {
           )}
           {editable && settings && (
             <MemberSettings
-              who={own}
+              who={onThread}
               dirty={dirty}
               isAuto={isAuto}
               setAuto={setAuto}

@@ -7,6 +7,7 @@ import { EditorThemeToggle, useEditorDark } from "../../atoms/CodeView/editorThe
 import OwnerCrumb from "../../atoms/OwnerCrumb/OwnerCrumb";
 import { raiseError } from "../../atoms/Banner/bannerStore";
 import "./styles.scss";
+import { reportScope } from "./reportScope";
 
 // The REPORTS tab — namespace-scoped documents that are NOT part of the project's documentation.
 //
@@ -553,7 +554,13 @@ const ReportsTab = ({ projectCode, serviceId, moduleName, methodName, openName, 
           <div className={`md-view md-view--${editorDark ? "dark" : "light"}`}>
             <Markdown
               dark={editorDark}
-              scope={{ projectCode, serviceId: host.serviceId, moduleName, methodName }}
+              // THE PATH IS THE SEND DOOR. Without it the members corner draws every chip and
+              // every press is refused with "no document path" — a surface claiming a subscription
+              // nothing can honour, which is the exact failure RFC-071 exists to prevent, one layer
+              // up. Measured 2026-10-20: a meeting opened here looked completely live and could not
+              // tell a single member anything. Only the code pane passed it, so the feature worked
+              // or not depending on which door the document came through.
+              scope={reportScope({ projectCode, host, moduleName, methodName, doc })}
               commentKey={`report-${slug(nsKey)}-${slug(doc.name)}`}
               onSourceChange={save}
             >

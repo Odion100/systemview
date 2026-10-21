@@ -56,7 +56,11 @@ function setDirectiveAttr(source, line, key, value) {
     lines[i] = next2;
     return lines.join("\n");
   }
-  const pair = `${key}=${/[\s"']/.test(String(value)) ? JSON.stringify(String(value)) : value}`;
+  // AN EMPTY VALUE MUST STILL BE QUOTED. `thread{members=}` is not a directive at all — the
+  // attribute parse fails and the whole block renders as plain text — so a deliberately empty
+  // attribute (RFC-071: a thread narrowed to nobody) is written `members=""`, which parses back as
+  // present-and-empty. That difference is the only way a document can say "nobody, on purpose".
+  const pair = `${key}=${value === "" || /[\s"']/.test(String(value)) ? JSON.stringify(String(value)) : value}`;
   let next;
   if (!braces) {
     next = `${row}{${pair}}`;
@@ -749,7 +753,13 @@ const Markdown = ({ children, dark = false, scope = null, onSourceChange = null,
     } else if (choice.kind === "insert-from" && choice.drawer === "thread-members") {
       // And the thread's write REFUSES any line that is not a thread's opening line, so "add to
       // the document" and "add to this thread" cannot ever land on each other.
-      const plan = menu.thread && addThreadMemberPlan(src, menu.thread.start, choice.value);
+      //
+      // THE DOCUMENT'S LIST RIDES ALONG because a bare thread inherits it (RFC-071, 2026-10-20):
+      // adding one member to a thread that names nobody must write the inherited people plus the
+      // new one, or this door would narrow the thread to a single person and drop the rest. Read
+      // off the fresh source — the same text being written.
+      const docWho = splitWho((membersBlockOf(src) || {}).who);
+      const plan = menu.thread && addThreadMemberPlan(src, menu.thread.start, choice.value, docWho);
       if (plan && !plan.already) {
         const next = setDirectiveAttr(src, plan.line, "members", plan.members);
         if (next != null) save(next);
