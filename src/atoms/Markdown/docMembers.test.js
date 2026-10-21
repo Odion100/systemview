@@ -10,7 +10,12 @@ import {
   addThreadMemberPlan,
   membersBlockOf,
   threadBlocksOf,
+  threadMembers,
+  threadMembersAttr,
+  splitWho,
+  everyoneBehind,
   lastReplyOf,
+  threadSummary,
   pendingOf,
 } from "./docMembers";
 
@@ -142,6 +147,25 @@ describe("a thread's members are the thread's", () => {
     expect(addThreadMemberPlan(withOne, 5, "buapi").members).toBe("systemlynx|buapi");
   });
 
+  // THE RIGHT-CLICK DOOR MUST NOT NARROW BY ACCIDENT. Since a bare thread inherits the document's
+  // people, writing only the picked name would drop everybody who was in the conversation — the
+  // same "press it and they vanish" bug the × was built to avoid, through the other door.
+  it("adds the picked member to the people a bare thread INHERITED, not instead of them", () => {
+    const plan = addThreadMemberPlan(DOC, 5, "buapi", ["a", "systemlynx"]);
+    expect(plan.members).toBe("a|systemlynx|buapi");
+  });
+
+  it("still appends to the thread's OWN list when it narrows, inheriting nothing", () => {
+    const withOne = DOC.replace(":::thread{id=t1}", ":::thread{id=t1 members=systemlynx}");
+    expect(addThreadMemberPlan(withOne, 5, "buapi", ["a"]).members).toBe("systemlynx|buapi");
+  });
+
+  it("is idempotent against the inherited list too — adding somebody already in it writes nothing new", () => {
+    const plan = addThreadMemberPlan(DOC, 5, "a", ["a"]);
+    expect(plan.already).toBe(true);
+    expect(plan.members).toBe("a");
+  });
+
   it("REFUSES a line that is not a thread — the guard against the document's line being hit", () => {
     expect(addThreadMemberPlan(DOC, 3, "buapi")).toBe(null); // line 3 is ::members
     expect(addThreadMemberPlan(DOC, 1, "buapi")).toBe(null); // line 1 is the title
@@ -199,6 +223,157 @@ describe("threadBlocksOf — every thread, its line, its people, its body", () =
   });
 });
 
+// ── A BARE THREAD IS ABOUT THE DOCUMENT'S PEOPLE (RFC-071, his 2026-10-20) ────────────────────
+// *"I have to individually attach you to each thread, even though you're a member on the entire
+// document… it should be more accommodating towards the way I actually use it."* He makes threads
+// to wrap one part of a document and say something about it — a dozen of them in a sitting — and
+// every one of them was asking him to re-attach the people who were already on the file.
+describe("a thread with no members of its own inherits the document's", () => {
+  const DOC = [
+    "# A plan",                          // 1
+    "",                                  // 2
+    "::members{who=buapi|systemlynx}",   // 3
+    "",                                  // 4
+    "::::thread{id=bare}",               // 5
+    "wrapping a paragraph to say something about it",
+    "::::",
+    "",
+    "::::thread{id=narrow members=buapi}",  // 9
+    "between the two of us",
+    "::::",
+  ].join("\n");
+  const docWho = splitWho(membersBlockOf(DOC).who);
+
+  it("hands a bare thread the document's list, so attaching nobody is the common case working", () => {
+    const [bare] = threadBlocksOf(DOC);
+    const { who, inherited } = threadMembers(bare.members, docWho);
+    expect(who).toEqual(["buapi", "systemlynx"]);
+    expect(inherited).toBe(true);
+  });
+
+  it("a thread that NAMES people narrows to exactly those and inherits nothing", () => {
+    const narrow = threadBlocksOf(DOC)[1];
+    const { who, inherited } = threadMembers(narrow.members, docWho);
+    expect(who).toEqual(["buapi"]);
+    expect(inherited).toBe(false);
+  });
+
+  // The rhythm this exists for: *"I typically like to make multiple threads and then send you an
+  // update."* Inheritance has to hold for every one of them, not just the first.
+  it("holds across every bare thread in the document, however many he makes", () => {
+    const many = [
+      "::members{who=sv|autobot}",
+      "# meeting",
+      "::::thread{id=a}",
+      "a",
+      "::::",
+      "::::thread{id=b}",
+      "b",
+      "::::",
+      "::::thread{id=c}",
+      "c",
+      "::::",
+    ].join("\n");
+    const who = splitWho(membersBlockOf(many).who);
+    expect(threadBlocksOf(many).map((t) => threadMembers(t.members, who).who)).toEqual([
+      ["sv", "autobot"],
+      ["sv", "autobot"],
+      ["sv", "autobot"],
+    ]);
+  });
+
+  // INHERITING NOBODY IS NOBODY. A document with no `::members` line has no audience to lend, and
+  // a thread on it must not invent one — this is most markdown in the repo.
+  it("gives a bare thread nobody when the document has no members line at all", () => {
+    const plain = "# notes\n\n:::thread{id=t1}\nq\n:::\n";
+    expect(membersBlockOf(plain)).toBe(null);
+    const [t1] = threadBlocksOf(plain);
+    expect(threadMembers(t1.members, []).who).toEqual([]);
+  });
+
+  // SOMEBODY BROUGHT IN FOR ONE CONVERSATION is the case narrowing serves: the thread's list is
+  // the whole list, whether or not those people are on the document.
+  it("keeps a member the thread names and the document does not", () => {
+    const src = ["::members{who=sv}", "# d", "::::thread{id=t1 members=buapi}", "x", "::::"].join("\n");
+    const [t1] = threadBlocksOf(src);
+    expect(threadMembers(t1.members, splitWho(membersBlockOf(src).who)).who).toEqual(["buapi"]);
+  });
+
+  // THE DIFFERENCE INHERITANCE TURNS ON, and the reason the row carries `members` as well as `who`:
+  // "" is what `who` says for a thread that names nobody AND for one narrowed to nobody on purpose.
+  it("tells a line that says nothing from a line that says nobody", () => {
+    const src = ["::members{who=a|b}", '::::thread{id=none members=""}', "x", "::::", "::::thread{id=bare}", "y", "::::"].join("\n");
+    const [none, bare] = threadBlocksOf(src);
+    expect(none.members).toBe("");
+    expect(bare.members).toBe(null);
+    expect(threadMembers(none.members, ["a", "b"])).toEqual({ who: [], inherited: false });
+    expect(threadMembers(bare.members, ["a", "b"]).who).toEqual(["a", "b"]);
+  });
+});
+
+// REMOVAL IS THE HALF A FUTURE CHANGE WILL BREAK, because the obvious implementation of × on an
+// inherited chip — "remove them from the list" — has no list to remove from. His requirement,
+// 2026-10-20: *"I still have the ability to delete them if I wanted to make it different."*
+describe("threadMembersAttr — dropping an inherited chip materialises the narrowed list", () => {
+  it("writes everyone inherited MINUS the one dropped, so the thread stops inheriting", () => {
+    // the × on buapi, in a thread inheriting buapi|systemlynx
+    expect(threadMembersAttr(["systemlynx"], ["buapi", "systemlynx"])).toBe("systemlynx");
+  });
+
+  // THE BUG THIS PREVENTS: clear the attribute on the last one and the next render hands the
+  // document's people straight back — press ×, they reappear, and the control looks broken.
+  it("emptying it means NOBODY, not inheriting again", () => {
+    expect(threadMembersAttr([], ["buapi", "systemlynx"])).toBe("");
+  });
+
+  // …but there is nothing to inherit on a document with no members, so the attribute is removed
+  // rather than left saying "" — the same write the right-click clear-all always made.
+  it("removes the attribute instead when the document has nobody to inherit", () => {
+    expect(threadMembersAttr([], [])).toBe(null);
+  });
+
+  it("round-trips: what it writes is what threadMembers reads back", () => {
+    const narrowed = threadMembersAttr(["systemlynx"], ["buapi", "systemlynx"]);
+    expect(threadMembers(narrowed, ["buapi", "systemlynx"])).toEqual({ who: ["systemlynx"], inherited: false });
+    const emptied = threadMembersAttr([], ["buapi"]);
+    expect(threadMembers(emptied, ["buapi"])).toEqual({ who: [], inherited: false });
+  });
+
+  it("de-duplicates and ignores blanks rather than writing a member twice", () => {
+    expect(threadMembersAttr(["a", "a", "", "b"], [])).toBe("a|b");
+  });
+});
+
+// INHERITANCE IS ABOUT WHO IS ON A THREAD, NOT ABOUT WHO IS BEHIND — and a row is the narrower
+// subscription, so inheritance must not manufacture one. The arithmetic: a bare thread's people are
+// the document's, so they are either current on the document (behind on nothing, by the rule above)
+// or already standing in the document's own row. A row per bare thread would tell them the same
+// news a second time and cost the flood this file was given to kill — four rows, four presses, four
+// separate wakes for one agent, measured live 2026-10-20.
+describe("pendingOf — an inheriting thread adds no row of its own", () => {
+  const SRC = ["::members{who=sv|autobot}", "# meeting", "::::thread{id=a}", "a", "::::", "::::thread{id=b}", "b", "::::"].join("\n");
+
+  it("draws the document's row only, however many bare threads he has made", () => {
+    const pending = pendingOf(membersBlockOf(SRC), threadBlocksOf(SRC), SRC);
+    expect(pending.map((p) => p.kind)).toEqual(["document"]);
+    expect(pending[0].behind).toEqual(["sv", "autobot"]);
+  });
+
+  // NARROWING IS WHAT MAKES A ROW. The moment a thread names its own people it is a subscription he
+  // can press on its own, which is the rule that was already law.
+  it("gives the narrowed thread a row of its own, beside the document's", () => {
+    const narrowed = SRC.replace("::::thread{id=b}", "::::thread{id=b members=autobot}");
+    const pending = pendingOf(membersBlockOf(narrowed), threadBlocksOf(narrowed), narrowed);
+    expect(pending.map((p) => p.kind)).toEqual(["document", "thread"]);
+    expect(pending[1].id).toBe("b");
+  });
+
+  it("a thread narrowed to nobody is on nobody's row", () => {
+    const empty = SRC.replace("::::thread{id=b}", '::::thread{id=b members=""}');
+    expect(pendingOf(membersBlockOf(empty), threadBlocksOf(empty), empty).map((p) => p.kind)).toEqual(["document"]);
+  });
+});
+
 describe("lastReplyOf — a thread member is told what was said", () => {
   it("takes the last reply's words, not a count of them", () => {
     const body = [":::reply{author=you ts=1}", "first", ":::", ":::reply{author=you ts=2}", "Let's get dirty.", ":::"].join("\n");
@@ -235,5 +410,116 @@ describe("pendingOf — every pending update in the document, both levels, disti
     const src = ["::members{who=buapi sent=buapi:x}", ":::thread{id=t9}", "nobody here", ":::"].join("\n");
     const pending = pendingOf(membersBlockOf(src), threadBlocksOf(src), src);
     expect(pending.every((p) => p.kind !== "thread")).toBe(true);
+  });
+});
+
+// A CREATION IS NOT A MOVE — measured live 2026-10-20 on this meeting's first send.
+describe("threadSummary — the first send on a thread is a creation, not a reply", () => {
+  it("says you were added when nothing has been said yet", () => {
+    expect(threadSummary("bugs", "Anything that did not work, the moment it did not work.")).toBe(
+      "added to thread bugs — nothing said in it yet"
+    );
+  });
+
+  it("never produces a dangling colon, which is what shipped", () => {
+    expect(threadSummary("bugs", "")).not.toMatch(/:\s*$/);
+    expect(threadSummary("bugs", null)).not.toMatch(/:\s*$/);
+  });
+
+  it("carries the reply itself once there is one — the words are the news", () => {
+    const body = "prompt\n:::reply{author=autobot ts=1}\nthe verb could not reach me\n:::";
+    expect(threadSummary("bugs", body)).toBe("reply in thread bugs: the verb could not reach me");
+  });
+
+  it("carries the LAST reply when a thread has several", () => {
+    const body = ":::reply{author=a ts=1}\nfirst\n:::\n:::reply{author=b ts=2}\nsecond\n:::";
+    expect(threadSummary("t", body)).toBe("reply in thread t: second");
+  });
+
+  // A THREAD WHOSE ONLY REPLY IS EMPTY is still a creation as far as the reader is concerned —
+  // there is nothing to go and read, so the sentence must not claim there is.
+  it("treats a blank reply as nothing said rather than announcing emptiness", () => {
+    expect(threadSummary("t", ":::reply{author=a ts=1}\n\n:::")).toBe("added to thread t — nothing said in it yet");
+  });
+});
+
+// DOCUMENT MEMBERSHIP MEANS ALL THREADS — his rule, 2026-10-20, and the flood it was given for.
+describe("pendingOf — a document member is told once, not once per row", () => {
+  // THE LIVE CASE: the meeting had four rows and two members, so bringing autobot current cost
+  // four separate wakes, each a whole turn landing cold in the middle of unrelated work.
+  const FLOOD = [
+    "::members{who=sv|autobot}",
+    "# meeting",
+    "::::thread{id=obj-1 members=sv|autobot}",
+    "a",
+    "::::",
+    "::::thread{id=bugs members=sv|autobot}",
+    "b",
+    "::::",
+    "::::thread{id=procedure members=sv|autobot}",
+    "c",
+    "::::",
+  ].join("\n");
+
+  it("shows four rows when nobody has been told anything", () => {
+    const pending = pendingOf(membersBlockOf(FLOOD), threadBlocksOf(FLOOD), FLOOD);
+    expect(pending.map((p) => p.kind)).toEqual(["document", "thread", "thread", "thread"]);
+  });
+
+  it("ONE press on the document clears every row — four wakes become one", () => {
+    const block = membersBlockOf(FLOOD);
+    const told = { [block.line]: { sv: hashOf(FLOOD), autobot: hashOf(FLOOD) } };
+    expect(pendingOf(block, threadBlocksOf(FLOOD), FLOOD, told)).toEqual([]);
+  });
+
+  it("clears the rows per member — telling one leaves the other on all of them", () => {
+    const block = membersBlockOf(FLOOD);
+    const told = { [block.line]: { sv: hashOf(FLOOD) } };
+    const pending = pendingOf(block, threadBlocksOf(FLOOD), FLOOD, told);
+    expect(pending.every((p) => p.behind.length === 1 && p.behind[0] === "autobot")).toBe(true);
+    expect(pending).toHaveLength(4);
+  });
+
+  // HIS OLDER RULE SURVIVES: a member BEHIND on the document is still reachable thread by thread.
+  it("keeps the thread rows for a member who is behind on the document", () => {
+    const pending = pendingOf(membersBlockOf(FLOOD), threadBlocksOf(FLOOD), FLOOD);
+    expect(pending.filter((p) => p.kind === "thread").map((p) => p.id)).toEqual(["obj-1", "bugs", "procedure"]);
+  });
+
+  // A STALE DOCUMENT STAMP IS NOT CURRENT. Told about an older version, a reply lands — they are
+  // behind again everywhere, which is the whole point of hashing the source rather than a flag.
+  it("a document stamp from an older version does not cover the threads", () => {
+    const block = membersBlockOf(FLOOD);
+    const told = { [block.line]: { autobot: hashOf("something else entirely") } };
+    const pending = pendingOf(block, threadBlocksOf(FLOOD), FLOOD, told);
+    expect(pending.filter((p) => p.kind === "thread")).toHaveLength(3);
+  });
+
+  // SOMEONE BROUGHT IN FOR ONE CONVERSATION is on no document line at all, so nothing about the
+  // document can ever cover them. This is the case a thread row exists to serve.
+  it("a thread-only member is never covered by the document", () => {
+    const src = ["::members{who=sv}", "# d", "::::thread{id=t1 members=buapi}", "x", "::::"].join("\n");
+    const block = membersBlockOf(src);
+    const told = { [block.line]: { sv: hashOf(src) } };
+    const pending = pendingOf(block, threadBlocksOf(src), src, told);
+    expect(pending.map((p) => p.kind)).toEqual(["thread"]);
+    expect(pending[0].behind).toEqual(["buapi"]);
+  });
+});
+
+// THE PERSON IS THE UNIT, NOT THE ROW — what the "tell everyone" press counts at him.
+describe("everyoneBehind — counts people, not controls", () => {
+  it("counts a person once however many rows they are behind on", () => {
+    const pending = [{ behind: ["sv", "autobot"] }, { behind: ["autobot"] }, { behind: ["sv"] }];
+    expect(everyoneBehind(pending)).toEqual(["sv", "autobot"]);
+  });
+
+  it("is empty when nothing is pending", () => {
+    expect(everyoneBehind([])).toEqual([]);
+    expect(everyoneBehind()).toEqual([]);
+  });
+
+  it("survives a malformed scope rather than taking the pin down", () => {
+    expect(everyoneBehind([null, {}, { behind: null }, { behind: ["a"] }])).toEqual(["a"]);
   });
 });

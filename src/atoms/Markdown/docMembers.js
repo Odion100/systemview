@@ -131,14 +131,22 @@ export const addMemberPlan = (src, code) => {
   return { insertAfter: membersInsertAfter(src), text: `::members{who=${name}}` };
 };
 
-// A THREAD'S OWN LIST, on the thread's opening line. Never the document's: these are two different
+// A THREAD'S OWN LIST, on the thread's opening line — the right-click door to the write the chip
+// `+` makes. It lands on the THREAD's line and never the document's: those are two different
 // subscriptions, and merging them is the bug this pair exists to make impossible.
-export const addThreadMemberPlan = (src, threadLine, code) => {
+//
+// `docWho` IS THE DOCUMENT'S LIST, and passing it is how this door stops being destructive. Since
+// 2026-10-20 a bare thread INHERITS those people (see `threadMembers`), so adding one member to a
+// thread that names nobody has to write the inherited list PLUS the new name — write just the name
+// and the thread narrows to one person, silently dropping everybody who was in the conversation a
+// moment ago. Omit it and the old behaviour stands, which is correct for a document with no members
+// and is what every caller before inheritance meant.
+export const addThreadMemberPlan = (src, threadLine, code, docWho = []) => {
   const name = String(code || "").trim();
   if (!name || !threadLine) return null;
   const row = String(src).split("\n")[threadLine - 1] || "";
   if (!/^\s*:{3,}\s*thread\b/.test(row)) return null; // not a thread's opening line — refuse
-  const list = whoOnLine(row, "members").split(/[|,]/).map((x) => x.trim()).filter(Boolean);
+  const { who: list } = threadMembers(/\bmembers=/.test(row) ? whoOnLine(row, "members") : null, docWho);
   if (list.includes(name)) return { line: threadLine, members: list.join("|"), already: true };
   return { line: threadLine, members: [...list, name].join("|") };
 };
@@ -197,6 +205,11 @@ export const threadBlocksOf = (src) => {
       line: i + 1, // 1-based, the line setDirectiveAttr writes to
       id: whoOnLine(row, "id") || `line-${i + 1}`,
       who: whoOnLine(row, "members"),
+      // THE SAME LIST, BUT PRESENCE-AWARE — the raw attribute when the opener carries one, `null`
+      // when it carries none. `who` cannot answer that question: it is "" for a thread that says
+      // nothing AND for one that says `members=""`, and the whole inheritance rule below turns on
+      // telling those two apart.
+      members: /\bmembers=/.test(row) ? whoOnLine(row, "members") : null,
       sent: whoOnLine(row, "sent"),
       auto: whoOnLine(row, "auto"),
       // The body EXCLUDES the opening line, which is where `sent=` is stamped — so telling someone
@@ -206,6 +219,56 @@ export const threadBlocksOf = (src) => {
     });
   }
   return out;
+};
+
+// ── A BARE THREAD IS ABOUT THE DOCUMENT'S PEOPLE ──────────────────────────────────────────────
+// His, 2026-10-20: *"I have to individually attach you to each thread, even though you're a member
+// on the entire document… it should be more accommodating towards the way I actually use it."* A
+// thread is a convenience for wrapping one part of a document to say something ABOUT it — not a
+// membership ceremony — so the default has to be what he actually does: everybody on the document
+// is in the conversation, and attaching them again is a chore nobody keeps up with.
+//
+// NARROWING IS THE OTHER HALF. A thread that DOES carry `members=` means exactly those people and
+// inherits nothing — that is how he says "this argument is between the two of you", and it is also
+// what makes removal expressible (see `threadMembersAttr`).
+//
+// THE DECISION IS PRESENCE, NOT EMPTINESS. No `members=` at all → the document's list. `members=`
+// with anything in it → that list. `members=""` → present, and says nobody: DELIBERATELY EMPTY,
+// which is the only way a thread can record that it was emptied on purpose. (Drop the attribute
+// instead and the next render hands the document's people straight back — press ×, they reappear,
+// and the control looks broken.)
+//
+// AN INHERITED MEMBER IS A MEMBER FOR EVERY PURPOSE: the thread's chip row draws them, a reply
+// makes them behind on this thread, `auto=` can name them, and telling them stamps `sent=` on the
+// thread's OWN opener. So a thread can carry `sent=buapi:1a2b` while naming nobody — a stamp for
+// somebody the line does not list. That is not a contradiction: `members=` says who is on the
+// thread and `sent=` says who has been told about this version of it, and only the first one is
+// inherited.
+//
+// `raw` is the attribute AS WRITTEN — a string when the opener carries it (including ""), and
+// null/undefined when it does not. `inherited` is not a kind of membership; it says only which
+// LINE the list came from, which is the one thing the × has to know.
+export const threadMembers = (raw, docWho = []) =>
+  raw == null
+    ? { who: splitWho(Array.isArray(docWho) ? docWho.join("|") : docWho), inherited: true }
+    : { who: splitWho(raw), inherited: false };
+
+// WHAT TO WRITE WHEN A THREAD'S LIST CHANGES — one decision, so the × and the + cannot disagree.
+//
+// Pressing × on an INHERITED chip cannot simply remove: there is nothing on that line to remove
+// from. It MATERIALISES the narrowed list — everyone inherited, minus the one dropped, written onto
+// the thread's own opener — after which the thread carries an explicit list and the narrowing rule
+// above does the rest. His requirement, 2026-10-20: *"I still have the ability to delete them if I
+// wanted to make it different."*
+//
+// AND EMPTYING MUST MEAN NOBODY, not inheriting again, so an emptied list is written as the empty
+// string: present, and naming no one. The exception is a document with nobody on it — there is
+// nothing to inherit, so the attribute is REMOVED and the line stays clean, which is the same write
+// the right-click clear-all always made.
+export const threadMembersAttr = (next = [], docWho = []) => {
+  const list = splitWho(Array.isArray(next) ? next.join("|") : next);
+  if (list.length) return list.join("|");
+  return splitWho(Array.isArray(docWho) ? docWho.join("|") : docWho).length ? "" : null;
 };
 
 // WHAT A THREAD MEMBER IS BEING TOLD. The reply IS the news — a thread member is in the
@@ -219,21 +282,74 @@ export const lastReplyOf = (body) => {
     .slice(0, 200);
 };
 
+// A CREATION IS NOT A MOVE, and a member can only tell the difference by spending a turn finding
+// out. Measured live 2026-10-20: the first send on this meeting's `bugs` thread produced
+// `reply in thread bugs: ` — a dangling colon, because `lastReplyOf` returns "" when nothing has
+// been said yet — and the member was summoned to read a thread that still held only its prompt.
+// autobot wrote it up from the receiving end: *"a summons to an empty thread is the one case that
+// rule exists to prevent."*
+//
+// The FIRST send on a thread is always this case, so it is the common one, not the edge. Both
+// senders in the surface share this so the two controls can never word it differently.
+export const threadSummary = (id, body) => {
+  const last = lastReplyOf(body);
+  return last ? `reply in thread ${id}: ${last}` : `added to thread ${id} — nothing said in it yet`;
+};
+
+// EVERYONE WHO IS BEHIND ON ANYTHING, counted once. His rhythm, 2026-10-20: *"I typically like to
+// make multiple threads and then send you an update"* — the unit is the PERSON, not the row. A head
+// that says "tell all 4 rows" is counting its own controls at him; "tell both of them" is counting
+// the thing he actually means.
+export const everyoneBehind = (pending = []) => [...new Set((pending || []).flatMap((p) => (p && p.behind) || []))];
+
 // EVERY PENDING UPDATE IN THE DOCUMENT, both levels, in one list — which is exactly what the pinned
 // row draws. The document first (it is the whole file), then the threads in the order they appear.
+// DOCUMENT MEMBERSHIP MEANS ALL THREADS. His rule, 2026-10-20: *"even if you add it on the document
+// level, that just means you add it to all threads."*
+//
+// THE FLOOD IT FIXES: this meeting had four rows and two members, so bringing one agent up to date
+// cost FOUR separate wakes — four whole turns pushed into its session, each landing cold in the
+// middle of unrelated work. Measured live the same day, from the receiving end.
+//
+// AND IT MUST NOT COST HIS OTHER RULE: *"I might have you subscribed on multiple levels, but only
+// want to send you the thread update."* Those two only look like a contradiction. The document's
+// hash is the WHOLE SOURCE — a reply in any thread already changes it — so a member stamped current
+// on the DOCUMENT has, by construction, been told about the file as it stands, threads included.
+// They are behind on nothing, and they appear on no row.
+//
+// A member who is BEHIND on the document still appears on the thread rows, which is exactly the
+// case his older rule protects: he can tell them about one thread and leave them behind on the
+// document. So one press on the document clears everything, a press on a thread stays surgical, and
+// neither rule is traded for the other.
 export const pendingOf = (block, threads = [], source = "", stamped = {}) => {
   const out = [];
   const behindOf = (who, sentRaw, body, line) => {
     const map = { ...parseSent(sentRaw), ...(stamped[line] || {}) };
-    return dirtyMembers(splitWho(who), map, body);
+    return dirtyMembers(who, map, body);
   };
-  if (block && block.who) {
-    const behind = behindOf(block.who, block.sent, source, block.line);
+  const onDocument = block && block.who ? splitWho(block.who) : [];
+  if (onDocument.length) {
+    const behind = behindOf(onDocument, block.sent, source, block.line);
     if (behind.length) out.push({ kind: "document", id: "", line: block.line, body: null, sent: block.sent || "", behind });
   }
+  // Current on the document = told about the whole file, threads and all.
+  const docMap = block ? { ...parseSent(block.sent), ...(stamped[block.line] || {}) } : {};
+  const whole = hashOf(source);
   (threads || []).forEach((t) => {
-    if (!t.who) return;
-    const behind = behindOf(t.who, t.sent, t.body, t.line);
+    // INHERITANCE NEVER MANUFACTURES A ROW. A thread that names nobody is about the DOCUMENT's
+    // audience, and its people are therefore either current on the document (behind on nothing, by
+    // the rule above) or already standing in the document's own row — a row per thread would be
+    // strictly redundant and would cost the exact flood this function was written to kill: four
+    // rows, four presses, four separate wakes for one agent. A row is for the NARROWER
+    // subscription: these people, about this argument, now.
+    //
+    // `members` is the presence-aware attribute; a row from an older shape still answers through
+    // its own list rather than silently telling nobody.
+    const { who, inherited } = threadMembers(t.members !== undefined ? t.members : t.who || null, onDocument);
+    if (inherited || !who.length) return;
+    const own = who.filter((m) => docMap[m] !== whole);
+    if (!own.length) return;
+    const behind = behindOf(own, t.sent, t.body, t.line);
     if (behind.length) out.push({ kind: "thread", id: t.id, line: t.line, body: t.body, sent: t.sent || "", behind });
   });
   return out;

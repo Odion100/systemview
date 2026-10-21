@@ -2906,6 +2906,27 @@
     align-items: flex-end;
     gap: 5px;
   }
+  // ONE PRESS FOR EVERYBODY — sits above the pills because it is about all of them. It counts
+  // PEOPLE, not rows: *"I typically like to make multiple threads and then send you an update."*
+  // Quieter than a pill on purpose — the pills are the precise controls and this is the shortcut,
+  // so it must not read as the thing to press when you meant to tell one person about one thread.
+  &__all {
+    pointer-events: auto;
+    border: 1px solid var(--sv-border, #d6dbe6);
+    border-radius: 11px;
+    background: var(--sv-surface, #fff);
+    padding: 1px 9px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    line-height: 1.7;
+    cursor: pointer;
+    color: var(--sv-text-dim, #5a6378);
+    transition: color 0.12s ease, border-color 0.12s ease;
+    &:hover:not(:disabled) { color: var(--sv-blue, #5b8def); border-color: var(--sv-blue, #5b8def); }
+    &:disabled { opacity: 0.55; cursor: default; }
+    &:focus-visible { outline: 2px solid var(--sv-blue, #5b8def); outline-offset: 2px; }
+  }
   // THE POINTER — it points the way the stack goes. Sits in the air the pills already occupy and
   // adds no height of its own.
   &__tuck {
@@ -3073,6 +3094,7 @@
   }
   .md-members-pin__tuck { color: #e6ebf7; }
   .md-members-pin__tab { background: rgba(33, 37, 43, 0.92); border-color: #4a5160; }
+  .md-members-pin__all { background: rgba(33, 37, 43, 0.92); border-color: #4a5160; color: #aeb7c9; }
   .md-members-pin__chip {
     background: rgba(91, 141, 239, 0.18);
     border-color: #7aa3f5;
@@ -3110,6 +3132,13 @@
 // carries a dot and is clickable on its own; `send update` takes everybody behind in one press.
 // Both are quiet: this sits at the top of a document he is reading, and a loud row there would be
 // a banner he learns to look past.
+// RFC-071 — AN INHERITED CHIP IS NOT AN EXPLICIT ONE, and the × on it does something different:
+// it narrows the thread for the first time rather than editing a list that is already there. The
+// difference is worth one dashed edge and a title, no more — it is the same membership, drawn in
+// the same row, so a new control here would be a new concept for a default.
+.md-members__chip--inherited {
+  border-style: dashed;
+}
 .md-members__chip--dirty {
   border-color: var(--sv-blue, #5b8def);
   cursor: pointer;

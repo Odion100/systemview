@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useDocMembers, useMarkdownWrite } from "../context";
-import { hashOf, lastReplyOf, parseSent, pendingOf, serializeSent, summarize } from "../docMembers";
+import { everyoneBehind, hashOf, parseSent, pendingOf, serializeSent, summarize, threadSummary } from "../docMembers";
 import { sendUpdateTo } from "../docSend";
 import { readTucked, writeTucked } from "../pinTucked";
 import { revealBlock } from "../revealBlock";
@@ -54,10 +54,7 @@ const MembersPin = () => {
       thread: scope.kind === "thread" ? scope.id : "",
       // A thread member is in the conversation — the reply is the news. A document member is
       // watching the file — the shape of the change is.
-      summary:
-        scope.kind === "thread"
-          ? `reply in thread ${scope.id}: ${lastReplyOf(scope.body)}`
-          : summarize(source, false),
+      summary: scope.kind === "thread" ? threadSummary(scope.id, scope.body) : summarize(source, false),
       threads: scope.kind === "thread" ? 1 : (String(source).match(/^\s*:{3,}\s*thread\b/gm) || []).length,
     });
     setSending(0);
@@ -76,6 +73,15 @@ const MembersPin = () => {
   };
 
   const behindCount = pending.reduce((n, p) => n + p.behind.length, 0);
+  // THE PERSON IS THE UNIT, NOT THE ROW. Walking the rows one press at a time is what turned
+  // bringing one agent up to date into four separate wakes, each a whole turn landing cold in the
+  // middle of its unrelated work. Document membership now covers the threads, so this is usually a
+  // single scope — but when somebody is on one thread only, they still have a row of their own, and
+  // this is the press that does not make him hunt for it.
+  const people = everyoneBehind(pending);
+  const tellEveryone = async () => {
+    for (const scope of pending) await tell(scope, scope.behind);
+  };
 
   return (
     <div className={`md-members-pin${tucked ? " md-members-pin--tucked" : ""}`}>
@@ -95,6 +101,17 @@ const MembersPin = () => {
       {!tucked && (
         <div className="md-members-pin__dock">
           <div className="md-members-pin__stack">
+            {pending.length > 1 && (
+              <button
+                type="button"
+                className="md-members-pin__all"
+                title="tell everyone everything they are behind on — one press, not one per row"
+                disabled={!!sending}
+                onClick={tellEveryone}
+              >
+                {sending ? "telling…" : `tell ${people.length === 1 ? people[0] : `all ${people.length}`}`}
+              </button>
+            )}
       {pending.map((scope) => (
         <div
           className={`md-members-pin__row md-members-pin__row--${scope.kind}`}

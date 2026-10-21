@@ -2125,7 +2125,11 @@ function chatCommand(projectCode, { chat, from, cmd, args, label, say } = {}) {
   this.emit(`chat-updated:${projectCode}`, { chat: chatName, record });
   return record;
 }
-const Reports = { ...ReportsLib.reportsOn({ readFile, writeFile }), replyInto: ReportsLib.replyInto };
+const Reports = {
+  ...ReportsLib.reportsOn({ readFile, writeFile }),
+  replyInto: ReportsLib.replyInto,
+  stampSent: ReportsLib.stampSent,
+};
 const Board = require("./board").boardOn({ readFile, writeFile });
 const CodeComments = require("./codeComments").commentsOn({ readFile, writeFile, listFiles });
 // RFC-071 — "what is buAPI on?" and "how many documents have updates nobody has sent?" are
@@ -3056,14 +3060,24 @@ module.exports = function launchSystemView(port = 3000) {
         const author = as || projectCode;
         const r = Reports.replyInto(doc.text, threadId, text, author);
         if (r.error) return { ok: false, error: `${r.error} — ${doc.path}`, ...(r.threads ? { threads: r.threads } : {}) };
-        const w = await writeFile(projectCode, { path: doc.path, content: r.content });
+        // WRITING IS BEING TOLD. The author of a reply has, by construction, heard the version they
+        // just wrote — so the stamp goes on BEFORE the write, not as a second pass over the file.
+        // Without it the surface owes the author an update about their own words, and in a document
+        // whose only member is the agent writing it, nobody but him could ever clear that: he
+        // pressed the button and the send quoted the agent's own reply back at the agent.
+        //
+        // A STAMP THAT CANNOT BE MADE MUST NOT LOSE THE REPLY — the words are the point, the stamp
+        // is bookkeeping, so a refusal falls through to the unstamped content rather than failing.
+        const stamped = Reports.stampSent(r.content, threadId, author);
+        const content = stamped.error ? r.content : stamped.content;
+        const w = await writeFile(projectCode, { path: doc.path, content });
         if (!w || w.ok === false) return { ok: false, error: (w && w.error) || "could not write the reply" };
         // If a show in the room points at this document, keep its fallback copy in step — otherwise
         // the TV and the file show two versions of one report.
         try {
           const state = chatGetTv(projectCode, { show: doc.name });
           if (state && state.args && state.args.report === doc.name)
-            chatSetTv.call(this, projectCode, { state: { id: state.id, label: state.label, text: r.content } });
+            chatSetTv.call(this, projectCode, { state: { id: state.id, label: state.label, text: content } });
         } catch {}
         return { ok: true, path: doc.path, threadId, signedAs: author, unsigned: !as };
       },

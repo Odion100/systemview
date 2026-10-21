@@ -75,3 +75,299 @@ describe("Reports.list — a name is offered only while its file answers", () =>
     assert.deepStrictEqual(await R.list("sv"), []);
   });
 });
+
+// REPLYING INTO A THREAD THAT CARRIES MEMBERS — the shape RFC-071 introduced and no test data had.
+//
+// Measured live 2026-10-20: autobot was delivered a `document.updated` for the meeting's `bugs`
+// thread, read the file as instructed, and then could not answer in it. Four addressings, four
+// refusals. The cause was not addressing at all — `id=([^}]+)` captured every attribute up to the
+// brace, so the id compared was `bugs members=systemview-test|autobot sent=...`. The first real
+// meeting was a document no agent could speak in.
+//
+// The reason it survived: every thread in `.systemview/` is a bare `::::thread{id=x}`, and only a
+// meeting carries members. The old shape kept passing, so the suite kept agreeing.
+const { replyInto } = require("./reports");
+
+const MEETING = [
+  "# Meeting 001",
+  "",
+  "::members{who=systemview-test|autobot}",
+  "",
+  "::::thread{id=bugs members=systemview-test|autobot sent=systemview-test:1jqt6sb|autobot:1jqt6sb}",
+  "Anything that did not work, the moment it did not work.",
+  "::::",
+  "",
+  "::::thread{id=procedure members=systemview-test|autobot}",
+  "A move that worked and should happen again.",
+  "::::",
+].join("\n");
+
+describe("replyInto — the id is the first attribute, not the whole brace", () => {
+  test("answers in a thread that carries members, sent and auto", () => {
+    const r = replyInto(MEETING, "bugs", "the reply verb could not reach me", "autobot");
+    assert.equal(r.error, undefined);
+    assert.match(r.content, /:::reply\{author=autobot ts=\d+\}/);
+    assert.match(r.content, /the reply verb could not reach me/);
+  });
+
+  test("splices BEFORE the thread's close, not after it", () => {
+    const lines = replyInto(MEETING, "bugs", "inside", "autobot").content.split("\n");
+    const reply = lines.findIndex((l) => l.startsWith(":::reply{"));
+    const close = lines.findIndex((l, i) => i > reply && l.trim() === "::::");
+    const nextOpen = lines.findIndex((l) => l.includes("id=procedure"));
+    assert.ok(reply > 0 && close > reply && close < nextOpen, `reply ${reply}, close ${close}, next ${nextOpen}`);
+  });
+
+  // STILL TRUE OF `replyInto` ITSELF, and deliberately so: splicing a reply is one decision and
+  // stamping its author is another. The stamp is `stampSent`, claimed below — api/index.js composes
+  // the two and writes once.
+  test("leaves the opener's own attributes untouched — sent= is state, not ours to rewrite", () => {
+    const r = replyInto(MEETING, "bugs", "x", "autobot");
+    assert.match(r.content, /::::thread\{id=bugs members=systemview-test\|autobot sent=systemview-test:1jqt6sb\|autobot:1jqt6sb\}/);
+  });
+
+  // THE BARE FORM IS THE ONE THAT NEVER BROKE, and it is the one every existing report uses.
+  test("still answers a bare thread, the shape every report has", () => {
+    const bare = ["::::thread{id=t1}", "body", "::::"].join("\n");
+    assert.match(replyInto(bare, "t1", "hi", "sv").content, /:::reply\{author=sv/);
+  });
+
+  // A CONTAINER NESTS BY GAINING COLONS, and members ride on the deeper fence too.
+  test("answers at a deeper fence with members on it", () => {
+    const deep = [":::::thread{id=t2 members=a|b}", "body", ":::::"].join("\n");
+    const r = replyInto(deep, "t2", "hi", "a");
+    assert.equal(r.error, undefined);
+    assert.match(r.content, /:::reply\{author=a/);
+  });
+
+  // THE TEACHING ERROR IS THE OTHER HALF. Listing `bugs members=...|autobot sent=...` as an
+  // available id hands the caller a string it can never successfully pass back — which is worse
+  // than listing nothing, because it reads like an answer.
+  test("an unknown id is refused with the REAL ids, not the swollen ones", () => {
+    const r = replyInto(MEETING, "nope", "x", "sv");
+    assert.match(r.error, /no thread "nope"/);
+    assert.deepEqual(r.threads, ["bugs", "procedure"]);
+  });
+
+  test("a document with no threads says so rather than listing nothing", () => {
+    const r = replyInto("# just prose\n", "t1", "x", "sv");
+    assert.match(r.hint, /no threads/);
+  });
+
+  test("an unclosed thread is named rather than spliced into", () => {
+    const r = replyInto("::::thread{id=t1 members=a}\nbody\n", "t1", "x", "a");
+    assert.match(r.error, /never closed/);
+  });
+});
+
+// ── WRITING IS BEING TOLD ─────────────────────────────────────────────────────────────────────
+// His, 2026-10-20: *"if there's only me and you in the document, there's no one to update."* A
+// reply left its own AUTHOR behind on the thread they had just written, so a document whose only
+// member is the agent writing it showed "1 update owed" forever and the only person who could
+// clear it was him — pressing a button to tell an agent about words that agent wrote. He pressed
+// it, and because a thread's summary is its LAST reply, the send quoted the agent's own reply back
+// at the agent.
+//
+// THE STAMP IS ONLY WORTH ANYTHING IF THE WINDOW AGREES WITH IT. `sent=<member>:<hash>` is read by
+// src/atoms/Markdown/docMembers.js to decide who is behind; a hash the window would not have
+// computed is not a record of anything, it is a value that can never match and a member who is
+// permanently dirty. So the window's own hash is TRANSCRIBED below and the two are asserted equal
+// on the same body — the one claim that cannot be replaced by reading the hub's code.
+const fs = require("node:fs");
+const path = require("node:path");
+const { stampSent, threadBodyOf } = require("./reports");
+
+// ── THE WINDOW'S IMPLEMENTATION, COPIED ───────────────────────────────────────────────────────
+// Transcribed from src/atoms/Markdown/docMembers.js, which is ESM and cannot be required from a
+// node:test. Copied ON PURPOSE: the point is to compare two independent implementations, and a
+// shared import would make the comparison vacuous. `WINDOW_SOURCE_UNCHANGED` below is what keeps
+// the copy honest.
+const winBodyOf = (src) =>
+  String(src || "")
+    .split("\n")
+    .filter((l) => !/^\s*::members\b/.test(l))
+    .join("\n");
+
+const winHashOf = (src) => {
+  const s = winBodyOf(src);
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i += 1) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h.toString(36);
+};
+
+// `threadBlocksOf`, reduced to the one thing this is about: WHICH LINES ARE THE BODY. The slice is
+// `lines.slice(i + 1, end)` — the opening line excluded, because that is where `sent=` is stamped.
+const winThreadBodyOf = (src, id) => {
+  const lines = String(src || "").split("\n");
+  for (let i = 0; i < lines.length; i += 1) {
+    const open = /^(:{3,})\s*thread\b/.exec(lines[i]);
+    if (!open) continue;
+    const n = open[1].length;
+    const opener = new RegExp(`^:{${n},}\\s*\\w`);
+    const closer = new RegExp(`^:{${n}}\\s*$`);
+    let depth = 1;
+    let end = lines.length;
+    for (let j = i + 1; j < lines.length; j += 1) {
+      if (opener.test(lines[j])) depth += 1;
+      else if (closer.test(lines[j])) {
+        depth -= 1;
+        if (!depth) {
+          end = j;
+          break;
+        }
+      }
+    }
+    const on = (lines[i].match(/\bid=("[^"]*"|[^\s}]*)/) || [])[1];
+    if (on && on.replace(/^"|"$/g, "") === id) return lines.slice(i + 1, end).join("\n");
+  }
+  return null;
+};
+
+// The attribute as the window reads it, so these claims assert against the string the surface will
+// actually parse rather than against a regex of their own.
+const attrOn = (src, id, key) => {
+  const row = String(src)
+    .split("\n")
+    .find((l) => l.includes(`thread{id=${id}`));
+  const m = row && row.match(new RegExp(`\\b${key}=("[^"]*"|[^\\s}]*)`));
+  return m ? m[1].replace(/^"|"$/g, "") : null;
+};
+
+// HOW THE HUB WIRES IT (api/index.js, the `reply:` verb): reply, then stamp the author with the new
+// body's hash, then ONE write. Mirrored here so the claims are about the composition that ships.
+const replyAndStamp = (src, id, text, author) => {
+  const r = replyInto(src, id, text, author);
+  assert.equal(r.error, undefined);
+  const s = stampSent(r.content, id, author);
+  assert.equal(s.error, undefined);
+  return s.content;
+};
+
+describe("stampSent — a reply tells its own author", () => {
+  test("the author carries the hash of the version they just wrote", () => {
+    const out = replyAndStamp(MEETING, "bugs", "the reply verb could not reach me", "autobot");
+    assert.equal(attrOn(out, "bugs", "sent").includes("autobot:"), true, attrOn(out, "bugs", "sent"));
+    const sent = Object.fromEntries(attrOn(out, "bugs", "sent").split("|").map((p) => p.split(":")));
+    assert.equal(sent.autobot, winHashOf(winThreadBodyOf(out, "bugs")));
+  });
+
+  // THE WHOLE POINT, AS A NUMBER: the author is not behind on their own reply. `dirtyMembers` is
+  // `sentMap[m] !== hashOf(body)`, so this is that comparison with nothing in between.
+  test("the author is NOT behind on the thread afterwards — the case he hit", () => {
+    const out = replyAndStamp(MEETING, "bugs", "written by me, about me", "autobot");
+    const sent = Object.fromEntries(attrOn(out, "bugs", "sent").split("|").map((p) => p.split(":")));
+    const now = winHashOf(winThreadBodyOf(out, "bugs"));
+    assert.deepEqual(
+      ["systemview-test", "autobot"].filter((m) => sent[m] !== now),
+      ["systemview-test"],
+      "only the member who did NOT write it is owed an update",
+    );
+  });
+
+  // SENT= IS THE RECORD OF WHO HEARD WHICH VERSION. Clobbering the map would tell the document
+  // somebody was told who was not — the one failure mode of this write that is worse than no write.
+  test("another member's stamp survives untouched", () => {
+    const out = replyAndStamp(MEETING, "bugs", "x", "autobot");
+    assert.equal(attrOn(out, "bugs", "sent").includes("systemview-test:1jqt6sb"), true, attrOn(out, "bugs", "sent"));
+  });
+
+  test("a second reply by the same author re-stamps rather than duplicating", () => {
+    const once = replyAndStamp(MEETING, "bugs", "first", "autobot");
+    const twice = replyAndStamp(once, "bugs", "second", "autobot");
+    const sent = attrOn(twice, "bugs", "sent");
+    assert.equal(sent.split("|").filter((p) => p.startsWith("autobot:")).length, 1, sent);
+    assert.notEqual(
+      sent.split("|").find((p) => p.startsWith("autobot:")),
+      attrOn(once, "bugs", "sent").split("|").find((p) => p.startsWith("autobot:")),
+      "a new reply is a new version — the stamp has to move",
+    );
+    assert.equal(sent.includes("systemview-test:1jqt6sb"), true, sent);
+  });
+
+  // A BARE THREAD IS LEGAL AND NORMAL — it INHERITS the document's people. Writing a `members=`
+  // while stamping would narrow the conversation to whoever happened to reply, silently dropping
+  // everybody who was in it a moment ago.
+  test("a bare thread gets a stamp and does NOT gain members=", () => {
+    const bare = ["::members{who=sv}", "", "::::thread{id=t1}", "body", "::::"].join("\n");
+    const out = replyAndStamp(bare, "t1", "hi", "sv");
+    assert.match(out, /::::thread\{id=t1 sent=sv:[0-9a-z]+\}/);
+    assert.equal(/thread\{[^}]*\bmembers=/.test(out), false, out);
+  });
+
+  test("the opener's other attributes ride untouched — id, members and auto are not ours", () => {
+    const src = ["::::thread{id=t1 members=a|b auto=a}", "body", "::::"].join("\n");
+    const out = stampSent(src, "t1", "a").content;
+    assert.equal(attrOn(out, "t1", "members"), "a|b");
+    assert.equal(attrOn(out, "t1", "auto"), "a");
+    assert.match(out, /^::::thread\{id=t1 members=a\|b auto=a sent=a:[0-9a-z]+\}$/m);
+  });
+
+  // STAMPING MUST NOT BE ITS OWN CHANGE. The body excludes the opening line precisely so that
+  // writing `sent=` on that line cannot make the thread dirty again — hash it after the stamp and
+  // the answer has to be the same string that was stamped. This is the bug the window's comment
+  // warns about, claimed from the hub's side.
+  test("the hash does not move when the stamp is written, because the opener is not in the body", () => {
+    const out = replyAndStamp(MEETING, "bugs", "x", "autobot");
+    const sent = Object.fromEntries(attrOn(out, "bugs", "sent").split("|").map((p) => p.split(":")));
+    assert.equal(sent.autobot, winHashOf(winThreadBodyOf(out, "bugs")));
+    const again = stampSent(out, "bugs", "autobot").content;
+    assert.equal(again, out, "a second stamp of the same body is a no-op");
+  });
+
+  // THE HUB AND THE WINDOW HASH THE SAME BODY, proved on the shapes that differ: a thread with
+  // members, a bare one, a deeper fence, and one holding a nested block whose closer is shallower.
+  test("the hub's body and the window's body are the same string, at every fence", () => {
+    const deep = [
+      ":::::thread{id=t2 members=a|b}",
+      "lead",
+      "::::columns",
+      "left",
+      "::::",
+      ":::reply{author=a ts=1}",
+      "said",
+      ":::",
+      ":::::",
+      "after",
+    ].join("\n");
+    assert.equal(threadBodyOf(deep, "t2"), winThreadBodyOf(deep, "t2"));
+    assert.equal(threadBodyOf(MEETING, "bugs"), winThreadBodyOf(MEETING, "bugs"));
+    assert.equal(threadBodyOf(MEETING, "procedure"), winThreadBodyOf(MEETING, "procedure"));
+    const stamp = stampSent(deep, "t2", "a").content;
+    assert.equal(attrOn(stamp, "t2", "sent"), `a:${winHashOf(winThreadBodyOf(deep, "t2"))}`);
+  });
+
+  // THE COPY ABOVE IS A LIABILITY THE MOMENT THE WINDOW MOVES. This is the cheapest honest guard:
+  // the three things the hash depends on, read off the real file. If one of them is gone, the
+  // transcription is stale and the equality claims are agreeing with a ghost.
+  test("the window still hashes the way this file says it does", () => {
+    const src = fs.readFileSync(path.join(__dirname, "..", "src", "atoms", "Markdown", "docMembers.js"), "utf8");
+    assert.equal(src.includes("lines.slice(i + 1, end).join"), true, "the body no longer excludes the opening line");
+    assert.equal(src.includes("0x811c9dc5") && src.includes("0x01000193"), true, "FNV-1a constants moved");
+    assert.equal(src.includes('!/^\\s*::members\\b/.test(l)'), true, "bodyOf no longer drops the members line");
+    assert.equal(src.includes("h.toString(36)"), true, "the hash is no longer base 36");
+  });
+
+  // A HASH THE WINDOW ITSELF WROTE, PINNED. The transcription above and the drift guard below both
+  // argue from the window's SOURCE; this argues from its OUTPUT. `sent=systemview-test:1jqt6sb` is
+  // the stamp the surface put on the `bugs` thread of meetings/2026-10-19-goals-in-parallel.md, and
+  // the line below is that thread's body, verbatim, as it stood when the send happened. The hub has
+  // to say `1jqt6sb` about it or every stamp it writes is a value the window can never match — a
+  // member marked permanently behind, which is the exact symptom this whole change removes.
+  test("the hub reproduces a stamp the WINDOW wrote, on the body it wrote it about", () => {
+    const body = "Anything that did not work, the moment it did not work. One line, by whoever hit it.";
+    const src = [`::::thread{id=bugs members=systemview-test|autobot}`, body, "::::"].join("\n");
+    assert.equal(threadBodyOf(src, "bugs"), body);
+    assert.equal(attrOn(stampSent(src, "bugs", "autobot").content, "bugs", "sent"), "autobot:1jqt6sb");
+  });
+
+  test("a thread that is not there is refused, not stamped onto something else", () => {
+    assert.match(stampSent(MEETING, "nope", "a").error, /no thread "nope"/);
+  });
+
+  test("an unstamped member is refused rather than written as an empty name", () => {
+    assert.match(stampSent(MEETING, "bugs", "").error, /needs the member/);
+  });
+});
