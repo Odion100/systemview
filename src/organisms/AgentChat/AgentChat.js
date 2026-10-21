@@ -5,6 +5,7 @@ import moment from "moment";
 import { useHistory, useLocation, useParams } from "react-router-dom";
 import ServiceContext from "../../ServiceContext";
 import BLOCKS from "../../atoms/Markdown/registry";
+import { fenceLangOf } from "./chatFence";
 import { createInterimStore, InterimLine, MicText } from "./interimStore";
 import { createSticking } from "./sticking";
 import { laneVerdict, laneChip, laneReceipt, laneConfirm } from "./laneVerdict";
@@ -376,6 +377,7 @@ export function renderChatMessage(text, base = 0) {
       if (/^\s*```/.test(line)) {
         out.push(
           <pre key={`f${k++}`} className="chat-md__fence" {...span(fence.from, at(i))}>
+            {fence.lang ? <span className="chat-md__fence-tag">{fence.lang}</span> : null}
             {fence.lines.join("\n")}
           </pre>,
         );
@@ -385,7 +387,12 @@ export function renderChatMessage(text, base = 0) {
     }
     if (/^\s*```/.test(line)) {
       flushAll();
-      fence = { lines: [], from: at(i) };
+      // THE INFO STRING WAS BEING THROWN AWAY. ```` ```md ```` opened a fence that could never say
+      // what it was, which is the whole of his complaint: *"what are you supposed to be rendering
+      // in it?"* A fence holding our own block syntax (`::::thread`, `:::reply`) is the case that
+      // bites — it looks like a block that failed to render rather than a sample being shown
+      // literally, and the only thing that can settle which is the label the author already wrote.
+      fence = { lines: [], from: at(i), lang: fenceLangOf(line) };
       continue;
     }
     // A table claims its own lines, so it is checked before the single-line block matchers.
@@ -502,6 +509,7 @@ export function renderChatMessage(text, base = 0) {
   if (fence)
     out.push(
       <pre key={`f${k++}`} className="chat-md__fence" {...span(fence.from, at(lines.length - 1))}>
+        {fence.lang ? <span className="chat-md__fence-tag">{fence.lang}</span> : null}
         {fence.lines.join("\n")}
       </pre>,
     );

@@ -118,6 +118,26 @@
     white-space: pre;
     overflow: auto;
     max-height: 180px;
+    // Room for the tag to sit in, so the first line of code is never under it.
+    position: relative;
+    padding-top: 16px;
+  }
+  // WHAT THIS FENCE IS, said quietly. It is deliberately small, uppercase and faint: the answer
+  // to "is this a live block or a sample" has to be available without competing with the code for
+  // attention. A fence with no info string gets NO tag — inventing a language would be a worse
+  // lie than saying nothing.
+  .chat-md__fence-tag {
+    position: absolute;
+    top: 2px;
+    right: 6px;
+    font-family: inherit;
+    font-size: 9px;
+    line-height: 12px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    opacity: 0.55;
+    user-select: none;
+    pointer-events: none;
   }
   .chat-md__h {
     display: block;
