@@ -2189,7 +2189,7 @@ function chatCommand(projectCode, { chat, from, cmd, args, label, say } = {}) {
   return record;
 }
 const Reports = {
-  ...ReportsLib.reportsOn({ readFile, writeFile }),
+  ...ReportsLib.reportsOn({ readFile, writeFile, listFiles }),
   replyInto: ReportsLib.replyInto,
   stampSent: ReportsLib.stampSent,
 };

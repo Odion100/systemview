@@ -180,7 +180,7 @@ function registered(content, name) {
   return `::report{id=${/[\s"]/.test(id) ? JSON.stringify(id) : id}}\n\n${content.replace(/^\n+/, "")}`;
 }
 
-function reportsOn({ readFile, writeFile }) {
+function reportsOn({ readFile, writeFile, listFiles }) {
   // INDEXED, not walked — the Reports tab lists the index, so a report that skips it exists on disk
   // and nowhere a human looks.
   async function write(projectCode, name, content) {
@@ -257,8 +257,51 @@ function reportsOn({ readFile, writeFile }) {
           }
         }),
       );
-      return kept.filter(Boolean);
+      const named = kept.filter(Boolean);
+
+      // AND THE REPORTS THE INDEX NEVER HEARD OF. The index is written in a `catch` that
+      // deliberately swallows its own failure so a failed index entry cannot lose the report —
+      // except that reading only the index is exactly how it lost them: the document sits in
+      // `.systemview/` and the panel, which lists the index, can never show it. Measured
+      // 2026-10-21 on this project: 32 report files, 30 index rows, SEVEN files unindexed,
+      // including real handovers nobody had ever been able to open.
+      //
+      // So the folder is the other half of the answer. The index still leads — it carries the
+      // name a report was filed under and the order it was filed in — and the walk only ADDS what
+      // the index is missing. The reverse direction is untouched: an index row whose file is gone
+      // still disappears, because an indexed name is a claim and not a report.
+      const found = await fromFolder(projectCode);
+      const seen = new Set(named);
+      return [...named, ...found.filter((n) => !seen.has(n))];
     } catch {
+      return [];
+    }
+  }
+
+  // A report's NAME is its first heading — the same rule `labelFor` already applies, so a file
+  // recovered by the walk is known by exactly the name it would have been indexed under rather
+  // than by a slugged filename nobody typed.
+  async function fromFolder(projectCode) {
+    if (typeof listFiles !== "function") return []; // an older caller wired without the door
+    try {
+      const res = await listFiles(projectCode, { dir: ".systemview" });
+      const files = ((res && (res.files || res)) || [])
+        .map((f) => (f && f.path) || f)
+        .filter((p) => typeof p === "string" && /\.systemview\/report\..+\.md$/i.test(p));
+      const names = await Promise.all(
+        files.map(async (path) => {
+          try {
+            const f = await readFile(projectCode, { path });
+            if (!f || f.ok === false) return null;
+            return labelFor(f.content || "", path);
+          } catch {
+            return null;
+          }
+        }),
+      );
+      return names.filter(Boolean);
+    } catch {
+      // A folder that cannot be walked is NOT "there are no reports" — the index's answer stands.
       return [];
     }
   }
