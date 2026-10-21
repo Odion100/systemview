@@ -403,12 +403,14 @@ Three things that have each cost a real mistake:
   the host document's real outline — one RFC ended up with eight phantom sections.
 - **A container nests by gaining colons.** A thread wrapping a `::::columns` block opens with
   **five**, and it closes on a line of the same fence.
+- **A thread's floor is FOUR colons.** It holds `:::reply` blocks and must out-fence them: at
+  three, the first reply closes it and `reply` never matches it. It fails silently — the thread
+  renders, invites an answer, refuses every one.
 
 `id=` is what makes a thread survive edits above it; without one it falls back to the source line.
 
-**A thread can carry its own members** — `::::thread{id=t3 members=buapi}` — which is a narrower
-subscription than the document's, with its own dirtiness and its own auto list. See `::members`
-below; the attributes live on the thread's opening line.
+**Members:** no `members=` inherits the document's; writing it narrows. See **Membership at two
+levels**.
 
 - **`author=agent` renders in the agent look.** That is the whole API for answering: a `:::reply`
   block inside the thread you are answering.
@@ -440,9 +442,8 @@ it travels with the file, and you see it change in a diff. There is no second st
 | `sent` | `code:hash` per member — the version each was last told about. Written by the surface |
 | `auto` | the members told automatically once the document settles. A LIST, not a switch |
 
-**Two levels.** This block is the document's subscription; `::::thread{id=t3 members=buapi}` is a
-narrower one, carrying its own `sent=` and `auto=` on the thread's own opening line. A member can be
-on both and be told about only one — that is the point of the split.
+**Two levels.** This block is the document's subscription and a thread can carry a narrower one.
+How they relate — and why you should almost never write the lower one — is its own section below.
 
 **Dirty means "has not heard about THIS version."** The document's hash deliberately ignores its own
 `::members` line: sending rewrites that line, so hashing the whole file would make every send
@@ -450,13 +451,36 @@ instantly dirty again and the surface could never say anything else. A thread ha
 body**, so a reply in `t3` makes `t3`'s members behind and leaves the document's alone. A member
 with no hash has never been told, which is dirty by construction rather than exempt.
 
-**What an agent writes, and what it must not.** Adding a member is a normal markdown edit — write or
-extend `who=`. **Never hand-write `sent=`**: it is the receipt of a send that happened, and
-inventing one silently marks somebody as told. Editing the body is how members become behind, and
-that is correct.
+**Never hand-write `sent=`**: it is the receipt of a send that happened, and inventing one silently
+marks somebody as told. Editing the body is how members become behind, and that is correct.
 
 On a surface with nothing to save to (the chat's renderer, a help topic) the block renders the chips
 and says `read-only here` rather than pretending to save.
+
+## Membership at two levels — a thread inherits the document's people
+
+**Putting somebody on the document puts them on every thread in it.** His rule, and the reason this
+is the default: *"even if you add it on the document level, that just means you add it to all
+threads."* A document member is on every conversation in the file for every purpose — behind when a
+reply lands, eligible for `auto=`, and stamped into the thread's own `sent=` when told.
+
+**A thread that writes `members=` NARROWS, and inherits nothing.** `::::thread{id=t3 members=buapi}`
+is for the case where one thread is genuinely a smaller room than the document. It then carries its
+own dirtiness and its own auto list.
+
+**`members=""` means deliberately nobody** — present, naming no one. That is the difference between
+*I have not said* (the attribute is absent, so it inherits) and *I have said: nobody*. Without it,
+removing the last person from a narrowed thread would silently re-inherit the whole document.
+
+**So a thread can carry `sent=` while naming nobody**, and that is not a contradiction to tidy up:
+`members=` says who is ON the thread, `sent=` says who has been TOLD about this version of it, and
+only the first is inherited.
+
+**What this means for an agent writing one.** Add people to the document — write or extend `who=` on
+the `::members` block. Writing `members=` onto a thread is for narrowing, never for joining, and
+doing it per thread is exactly the work inheritance exists to remove. His complaint that produced
+this: *"I have to individually attach you to each thread, even though you're a member on the entire
+document."*
 
 ## The pinned update row — the only send, and the door to what moved
 
@@ -468,8 +492,14 @@ mixed chips makes a press look like it tells everybody shown.
 
 - **A chip** tells that one member and stamps that subscription's own line; `all N` tells everyone
   behind on that pill.
-- **Pressing a THREAD pill anywhere else** goes to that thread and flashes it. The `all threads`
-  pill is not a door — it is nowhere in particular, so it only sends.
+- **One press for the whole document.** When more than one pill is pending, the row grows a single
+  `tell all N` — and **N counts PEOPLE, not rows.** His rhythm is the reason: *"I typically like to
+  make multiple threads and then send you an update."* A document with four pending rows and two
+  members says `tell all 2`, and the press is one wake per member rather than four. Counting rows
+  there was measured costing a single agent four separate interruptions to bring it up to date on
+  one document.
+- **Pressing the pill anywhere else** goes to what it is about — the thread, or the document's
+  members line — and flashes it.
 - **The row disappears when nobody is behind**, which is also how a press confirms itself: tell
   `buapi` and `buapi`'s chip leaves.
 
