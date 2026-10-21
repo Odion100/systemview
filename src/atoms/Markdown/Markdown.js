@@ -26,6 +26,7 @@ import ServiceContext from "../../ServiceContext";
 import BLOCKS from "./registry";
 
 import "./styles.scss";
+import { normalizeFences, wrapLines, wrapLinesInThread } from "./docEdit";
 
 // RFC-025 — this atom is the ONE renderer behind every markdown surface in the app: the
 // Documentation tab, help topics, story markdown panes, story .md file panes, agent notes on test
@@ -487,79 +488,8 @@ export function insertAfterLine(source, line, text) {
 // any structurally-sound write comes out consistent no matter how deep it landed. Fences inside
 // code blocks are examples, not structure — untouched. An unbalanced document is returned as-is:
 // guessing at repair could eat someone's writing.
-export function normalizeFences(source) {
-  const lines = String(source).split("\n");
-  let inCode = false;
-  const stack = [];
-  const roots = [];
-  for (let n = 0; n < lines.length; n++) {
-    if (/^\s*(```|~~~)/.test(lines[n])) {
-      inCode = !inCode;
-      continue;
-    }
-    if (inCode) continue;
-    if (/^\s*:{3,}\s*[a-zA-Z]/.test(lines[n])) {
-      const node = { open: n, close: -1, children: [] };
-      (stack.length ? stack[stack.length - 1].children : roots).push(node);
-      stack.push(node);
-    } else if (/^\s*:{3,}\s*$/.test(lines[n])) {
-      if (!stack.length) return source; // unbalanced
-      stack.pop().close = n;
-    }
-  }
-  if (stack.length || inCode) return source; // unbalanced
-  const apply = (node) => {
-    let maxChild = 0;
-    node.children.forEach((c) => {
-      maxChild = Math.max(maxChild, apply(c));
-    });
-    const len = Math.max(3, maxChild + 1);
-    lines[node.open] = lines[node.open].replace(/:{3,}/, ":".repeat(len));
-    lines[node.close] = lines[node.close].replace(/:{3,}/, ":".repeat(len));
-    return len;
-  };
-  roots.forEach(apply);
-  return lines.join("\n");
-}
 
-// Wrap a source LINE RANGE in any container directive — the general form of "start a thread here".
-export function wrapLines(source, startLine, endLine, openLine, closeLine = ":::") {
-  const lines = String(source).split("\n");
-  const a = startLine - 1;
-  const b = endLine - 1;
-  if (a < 0 || b >= lines.length || b < a) return null;
-  return normalizeFences(
-    [
-      ...lines.slice(0, a),
-      openLine,
-      ...lines.slice(a, b + 1),
-      closeLine,
-      "",
-      ...lines.slice(b + 1),
-    ].join("\n"),
-  );
-}
-
-// Wrap a source LINE RANGE in a `:::thread{id=…}` container — this is "start a thread here", the
-// click affordance in the margin. It's an ordinary document edit, not a new store: the wrapper lands
-// in the markdown, so the thread travels with the text it's about and any editor sees it.
-export function wrapLinesInThread(source, startLine, endLine) {
-  const lines = String(source).split("\n");
-  const a = startLine - 1;
-  const b = endLine - 1;
-  if (a < 0 || b >= lines.length || b < a) return null;
-  // An id that can't collide with one already in the file, and stays stable once written.
-  let n = 1;
-  while (source.includes(`id=t${n}`)) n++;
-  const before = lines.slice(0, a);
-  const body = lines.slice(a, b + 1);
-  const after = lines.slice(b + 1);
-  // A container directive needs blank lines around it to parse as a block. normalizeFences settles
-  // the widths — wrapping inside a columns/col (or any container) widens the enclosing fences.
-  return normalizeFences(
-    [...before, `:::thread{id=t${n}}`, ...body, ":::", "", ...after].join("\n"),
-  );
-}
+export { normalizeFences, wrapLines, wrapLinesInThread };
 
 const Markdown = ({ children, dark = false, scope = null, onSourceChange = null, commentKey = null }) => {
   const source = typeof children === "string" ? children : "";
@@ -618,7 +548,7 @@ const Markdown = ({ children, dark = false, scope = null, onSourceChange = null,
     const next = wrapLinesInThread(src, from, to || from);
     if (next == null) return;
     // Whatever id the wrapper just claimed is the one that should open itself.
-    const m = next.slice(0).match(/:::thread\{id=(t\d+)\}/g);
+    const m = next.slice(0).match(/:{3,}thread\{id=(t\d+)\}/g);
     const id = m && m.length ? m[m.length - 1].match(/id=(t\d+)/)[1] : null;
     if (id) expectThread(id);
     save(next);
