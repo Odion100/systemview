@@ -71,10 +71,15 @@ export function useCommentsContext() {
 
 // "Am I already inside a thread?" — set by the Thread block around its own children, so the
 // start-a-thread affordance in the margin doesn't offer to wrap something that's already wrapped.
-const InThread = createContext(false);
+//
+// IT NOW CARRIES WHICH THREAD, not just whether. A decision pressed inside a thread belongs to
+// that conversation, so it has to reach the thread's people and stamp the thread's own `sent=` —
+// and a boolean cannot say which line to write to. Still falsy outside a thread, which is the
+// only thing the original consumer asked of it.
+const InThread = createContext(null);
 
-export function InThreadProvider({ children }) {
-  return <InThread.Provider value={true}>{children}</InThread.Provider>;
+export function InThreadProvider({ value = null, children }) {
+  return <InThread.Provider value={value}>{children}</InThread.Provider>;
 }
 
 export function useInThread() {

@@ -235,7 +235,7 @@ const Thread = ({ attrs = {}, line, src, children }) => {
         </div>
       )}
       <div className="md-thread__body">
-        <InThreadProvider>{children}</InThreadProvider>
+        <InThreadProvider value={{ id, line, who: onThread, sent: attrs.sent || "" }}>{children}</InThreadProvider>
       </div>
       <button
         type="button"

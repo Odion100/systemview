@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useMarkdownWrite } from "../context";
+import useDecisionTell from "../useDecisionTell";
 
 // RFC-025 §4.5 — INPUT blocks. The document asks *you* something, and your answer lands back in the
 // document (§4.6): the block rewrites its own attribute in the source and the surface saves it. No
@@ -24,6 +25,7 @@ export const Question = ({ label, attrs = {}, line }) => {
   const unquoted = strays.length > 0 && options.length <= 1;
   // Optimistic local answer so the click feels instant; the file is the durable copy.
   const [local, setLocal] = useState(null);
+  const tell = useDecisionTell();
   const answer = local != null ? local : attrs.answer || "";
 
   // Clicking the chosen option again CLEARS it. A question you can't un-answer forces a position —
@@ -35,6 +37,10 @@ export const Question = ({ label, attrs = {}, line }) => {
     const next = answer === opt ? "" : opt;
     setLocal(next);
     setAttr(line, "answer", next || null);
+    // ANSWERING IS DECIDING, and it reaches the document's members the same way a verdict does —
+    // his frame exactly: "it's not just approval… you got to think about them following the same
+    // system." The write happens first; the telling cannot cost the answer.
+    tell("question", attrs, next);
   };
 
   return (
