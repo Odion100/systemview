@@ -102,14 +102,77 @@ describe("what cannot be spoken is announced, not read", () => {
     expect(spoken).not.toMatch(/const/);
   });
 
-  // FOUR HUNDRED LINES OF TABLE IS THE THING THIS FILE EXISTS TO PREVENT. The shape is the
-  // message; the cells are on screen.
-  it("announces a table by its shape and reads no cells at all", () => {
+  // A TABLE IS READ NOW, AND IT DID NOT USED TO BE. It was announced and skipped — "a table, three
+  // columns and two rows" — on the reasoning that a grid is for eyes. His correction: *"there's no
+  // reason we should be skipping over a table instead of reading the table."* The old reasoning
+  // survives for the OTHER kind of table, below: four hundred lines of cells read aloud is still
+  // the thing this file exists to prevent. The size decides, and the size is announced either way.
+  it("reads a small table row by row, each cell under its own column heading", () => {
     const spoken = spokenForm(
       "Results:\n\n| name | lang | local |\n| :--- | :-: | ---: |\n| Samantha | en-US | yes |\n| Albert | en-US | yes |\n\nDone.",
     );
-    expect(spoken).toBe("Results: A table, 3 columns and 2 rows. Done.");
-    expect(spoken).not.toMatch(/Samantha/);
+    expect(spoken).toMatch(/A table, 3 columns and 2 rows/);
+    expect(spoken).toMatch(/Samantha\. lang: en-US\. local: yes/);
+    expect(spoken).toMatch(/Albert\. lang: en-US\. local: yes/);
+    expect(spoken.endsWith("Done.")).toBe(true);
+  });
+
+  // THE LABEL-COLUMN IDIOM, which is how most tables in this system are actually written: the first
+  // heading is deliberately blank because the first cell IS the label. So the first cell is said
+  // bare — reading it under the word "blank" would be reading the formatting.
+  it("says the first cell bare when its column has no heading", () => {
+    expect(
+      spokenForm("| | what it is |\n| --- | --- |\n| slice | a landing unit |\n| claim | a statement you check |"),
+    ).toBe(
+      "A table, 2 columns and 2 rows. slice. what it is: a landing unit. claim. what it is: a statement you check.",
+    );
+  });
+
+  // AND THE ONE THAT STAYS ANNOUNCED. Past the point where a person could hold it by ear it is a
+  // dataset, and the useful thing to say about a dataset is how big it is.
+  it("announces a table too large to follow by ear and reads no cells", () => {
+    const rows = Array.from({ length: 14 }, (_, k) => `| row${k} | ${k} |`).join("\n");
+    const spoken = spokenForm(`| name | n |\n| --- | --- |\n${rows}`);
+    expect(spoken).toBe("A table, 2 columns and 14 rows.");
+    expect(spoken).not.toMatch(/row0/);
+  });
+
+  // Width counts too: five columns is unfollowable however few rows there are.
+  it("announces a table that is too wide, however short it is", () => {
+    expect(spokenForm("| a | b | c | d | e |\n| - | - | - | - | - |\n| 1 | 2 | 3 | 4 | 5 |")).toBe(
+      "A table, 5 columns and 1 row.",
+    );
+  });
+
+  // INLINE CODE IS PART OF THE SENTENCE. The old rule required `^[\w.$-]+$`, which every term in
+  // this system's own vocabulary fails — so a paragraph about blocks came out as "some code, some
+  // code, some code" and the subject of each clause was gone. His correction: an inline span is
+  // inline, and that is not the same thing as a code block.
+  it("reads an inline code span as the word it is, not as 'some code'", () => {
+    expect(spokenForm("The `::objective` block carries `state=open` and `{kind, ref, project}`.")).toBe(
+      "The objective block carries state equals open and kind, ref, project.",
+    );
+    // An underscore has no spoken form, so a tool name loses its separators and gains spaces —
+    // "mcp worklist attach" is how a person says this out loud, and that is the right answer.
+    expect(spokenForm("Call `mcp__worklist__attach` on any list.")).toBe(
+      "Call mcp worklist attach on any list.",
+    );
+    expect(spokenForm("An `attachments[]` field on the run.")).toBe("An attachments field on the run.");
+  });
+
+  // AND THE ONE THAT STAYS ANNOUNCED, because the original reasoning holds for an invocation:
+  // forty characters of flags read aloud is a minute of noise nobody can act on.
+  it("still announces an inline span that is really a shell invocation", () => {
+    expect(
+      spokenForm("Run `BUILD_PATH=build.next NODE_OPTIONS=--max-old-space-size=4096 react-scripts build` first."),
+    ).toBe("Run some code first.");
+    expect(spokenForm("Use `yarn test --watchAll=false` here.")).toBe("Use some code here.");
+  });
+
+  // A path in backticks was already right and must stay right — the basename is the part a person
+  // would say out loud.
+  it("keeps saying a path's basename when the span is a path", () => {
+    expect(spokenForm("See `src/utils/spokenForm.js` for it.")).toBe("See spokenForm.js for it.");
   });
 
   // A sentence with a pipe in it is not a table — the separator row is what proves one, the same

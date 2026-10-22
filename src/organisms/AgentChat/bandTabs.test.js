@@ -29,7 +29,7 @@ describe("the work band is tabs — one per type of work", () => {
   // the band can now stand on reports ALONE — a room whose only work is filed reports.
   it("gives reports a tab of their own, and shows it when nothing else stands", () => {
     expect(bandTabs({ jobs: 0, lanes: 0, lists: 0, reports: 4 })).toEqual({
-      tabs: [{ key: "reports", label: "report", n: 4 }],
+      tabs: [{ key: "reports", label: "report", n: 4, family: "document" }],
       active: "reports",
     });
   });
@@ -49,21 +49,53 @@ describe("the work band is tabs — one per type of work", () => {
   });
 });
 
-// RFC-071 — a document with members and an unsent update is work waiting on him.
-describe("documents take their turn in the band", () => {
-  it("has no tab when no document is waiting — the rule every kind lives by", () => {
-    const { tabs } = bandTabs({ jobs: 1, documents: 0 });
+// RFCs TOOK THE DOCUMENTS TAB'S PLACE. That tab counted "documents somebody has not been pinged
+// about", and the premise did not survive being played out: an agent reads a document when it
+// works, so it is never meaningfully behind on one. An RFC with an unpressed approval IS a thing
+// waiting on him, and nothing else in the band shows it.
+describe("RFCs take their turn in the band", () => {
+  it("has no tab when there are none — the rule every kind lives by", () => {
+    const { tabs } = bandTabs({ jobs: 1, rfcs: 0 });
     expect(tabs.map((t) => t.key)).toEqual(["jobs"]);
   });
-  it("appears when one is, and speaks the band's plural", () => {
-    const { tabs } = bandTabs({ documents: 2 });
-    expect(tabs.map((t) => t.key)).toEqual(["documents"]);
-    expect(bandLabel("documents", 1)).toBe("1 document");
-    expect(bandLabel("documents", 2)).toBe("2 documents");
+  it("appears when there are some, and speaks the band's plural", () => {
+    const { tabs } = bandTabs({ rfcs: 2 });
+    expect(tabs.map((t) => t.key)).toEqual(["rfcs"]);
+    expect(bandLabel("rfcs", 1)).toBe("1 RFC");
+    expect(bandLabel("rfcs", 2)).toBe("2 RFCs");
   });
   it("comes last, so a surface nobody has lived with yet cannot steal the opening tab", () => {
-    const { tabs, active } = bandTabs({ jobs: 1, documents: 3 });
-    expect(tabs.map((t) => t.key)).toEqual(["jobs", "documents"]);
+    const { tabs, active } = bandTabs({ jobs: 1, rfcs: 3 });
+    expect(tabs.map((t) => t.key)).toEqual(["jobs", "rfcs"]);
     expect(active).toBe("jobs");
+  });
+  // The tab it replaced must be gone from the vocabulary, not merely unrendered — a key nothing
+  // draws is how a count ends up over an empty pane, which is the bug this replaced.
+  it("no longer knows the word documents at all", () => {
+    expect(bandTabs({ documents: 5 }).tabs).toEqual([]);
+  });
+});
+
+// TWO FAMILIES IN ONE BAND. Work that is running, and documents in a folder — the second group is
+// the one that becomes configurable, and the band has to carry the distinction before anything can
+// render it. Reports sits in it by default because of where it lives, not because it is special.
+describe("a tab says which family it belongs to", () => {
+  it("calls jobs, lists and lanes work", () => {
+    const { tabs } = bandTabs({ jobs: 1, lists: 1, lanes: 1 });
+    expect(tabs.map((t) => t.family)).toEqual(["work", "work", "work"]);
+  });
+
+  it("calls reports, RFCs and arcs documents — reports included", () => {
+    const { tabs } = bandTabs({ reports: 1, rfcs: 1, arcs: 1 });
+    expect(tabs.map((t) => [t.key, t.family])).toEqual([
+      ["reports", "document"],
+      ["rfcs", "document"],
+      ["arcs", "document"],
+    ]);
+  });
+
+  it("carries the family through alongside the count, so the render needs no second lookup", () => {
+    const [tab] = bandTabs({ arcs: 4 }).tabs;
+    expect(tab).toMatchObject({ key: "arcs", n: 4, family: "document" });
   });
 });

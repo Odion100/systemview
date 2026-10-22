@@ -19,6 +19,9 @@ import CommitBlock from "./blocks/CommitBlock";
 import BranchBlock from "./blocks/BranchBlock";
 import Ask from "./blocks/Ask";
 import Members from "./blocks/Members";
+import Objective from "./blocks/Objective";
+import Arc from "./blocks/Arc";
+import Progress from "./blocks/Progress";
 import CmdBlock from "./blocks/CmdBlock";
 
 // `file` is TWO things depending on how it's written — the same split `run` has. Inline is a
@@ -77,6 +80,16 @@ export const BLOCKS = {
   thread: { Component: Thread },
   // one reply, written INTO the document inside its thread
   reply: { Component: Reply },
+  // RFC-072 — AN ARC IS A DOCUMENT OF OBJECTIVES, and these two are what make it one. `::arc` is a
+  // leaf at the top that makes the document self-describing (no filename convention, no index);
+  // `::objective` is a container whose attributes the machine addresses and whose content a person
+  // reads. There is no issue store behind either: the block IS the record, so pressing an
+  // objective's state writes into the file.
+  arc: { Component: Arc },
+  objective: { Component: Objective },
+  // Both RECOUNT from the objectives in their own document on every render — there is no stored
+  // total anywhere, so neither can disagree with the blocks above it.
+  progress: { Component: Progress },
   // decision — a story's approve/reject verdict, wrapped around whatever is being proposed
   approval: { Component: Approval },
   // RFC-033 — a commit message you press instead of copy. An agent writes it, a human clicks it;

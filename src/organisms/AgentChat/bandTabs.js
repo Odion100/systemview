@@ -14,12 +14,24 @@
 // RFC-071 — DOCUMENTS ARE A TAB TOO, for the same reason reports became one: a document with
 // members and an unsent update is work waiting on him, and work waiting on him belongs where the
 // rest of it is. The row is the document; the press is its send.
+// TWO FAMILIES, AND THEY ARE DIFFERENT KINDS OF THING. `jobs`, `lists` and `lanes` are WORK that
+// is running — a procedure's own list, a branch somebody is building on. `reports`, `rfcs` and
+// `arcs` are DOCUMENTS on disk: a folder, a filename pattern, and a row per file. The second group
+// is the one that becomes configurable — reports is only in it by default because it lives in
+// `.systemview`, not because the word "report" means anything to the band.
+//
+// The families are told apart by COLOUR and nothing else (his call: *"could be a different colour
+// of the type, like you're overthinking it"*). Not a glyph, not a separator, not a second row —
+// those all say "these are two lists" when the truth is one band holding two kinds of thing.
 export const BAND_KINDS = [
-  { key: "jobs", label: "job" },
-  { key: "lanes", label: "lane" },
-  { key: "lists", label: "list" },
-  { key: "reports", label: "report" },
-  { key: "documents", label: "document" },
+  { key: "jobs", label: "job", family: "work" },
+  { key: "lanes", label: "lane", family: "work" },
+  { key: "lists", label: "list", family: "work" },
+  { key: "reports", label: "report", family: "document" },
+  { key: "rfcs", label: "RFC", family: "document" },
+  // RFC-072 §7 — AN ARC IS WORK THE PROJECT IS CARRYING, so it sits beside the rest of it rather
+  // than behind a path only an agent knows. Same rule as every other kind: no arcs, no tab.
+  { key: "arcs", label: "arc", family: "document" },
 ];
 
 export const TAB_KEY = "sv.chat.bandTab";

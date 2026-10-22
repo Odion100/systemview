@@ -4,6 +4,8 @@ import { AIMED_AT_YOU, spokenForm } from "../../utils/spokenForm";
 import { available, ready as engineReady, speak, stop, voices } from "../../utils/voice";
 import { readVoicePref, readVoiceSettings } from "../../utils/voicePref";
 import { takeIfNew } from "./autoSpeak";
+import { enqueue, cutIn, done as queueDone, drop as queueDrop, setPaused } from "./speechQueue";
+import { behind, register } from "./lineUp";
 import { useMarkdownScope } from "../../atoms/Markdown/context";
 import { announce, claim, isOwner, nextSpeakerId, subscribe } from "./speaker";
 
@@ -87,6 +89,12 @@ const SpeakReply = ({ text, className = "", rowKey = "", ts = 0 }) => {
   // the listener is gone with the engine it belonged to.
 
 
+  // A ROW THAT GOES AWAY LEAVES THE LINE. The queue holds a `start()` closing over this
+  // component — so a row unmounted by a chat switch, a filter or a navigation would otherwise sit
+  // in the line waiting to speak a reply from somewhere he is no longer looking, setting state on
+  // something that no longer exists. Queued-but-gone is the stale conflict; this is the cleanup.
+  useEffect(() => () => queueDrop(rowKey), [rowKey]);
+
   // ── SPEAKING ON ITS OWN ──────────────────────────────────────────────────────────────────────
   //
   // Runs ONCE per row, on mount, and `takeIfNew` is what makes that safe — it answers false for
@@ -113,79 +121,125 @@ const SpeakReply = ({ text, className = "", rowKey = "", ts = 0 }) => {
     const only = s.mode === "all" ? null : s.blocks === null ? AIMED_AT_YOU : s.blocks;
     const body = spokenForm(text, only ? { only } : {});
     if (!body) return;
-    const token = (seq.current += 1);
-    claim(id);
-    setSpeaking(true);
-    setWarming(!engineReady());
-    announce(true);
-    handle.current = speak(body, {
-      // THE SCOPE IS PASSED, NEVER LEFT AMBIENT. `voice.js` falls back to reading the saved voice
-      // and speed itself, and it has no way to know which chat is asking — so a scoped caller must
-      // say. Leaving it out is how a per-chat setting silently becomes a global one again.
-      preferId: readVoicePref(projectCode),
-      rate: s.speed,
-      onposition: (p) => seq.current === token && setAt(p),
-      onstart: () => seq.current === token && setWarming(false),
-      onend: (err) => {
-        if (seq.current !== token) return;
-        handle.current = null;
-        if (isOwner(id)) {
-          setSpeaking(false);
-          setWarming(false);
-          setAt(null);
-          announce(false);
-        }
-        if (err) setFailed(String((err && err.message) || "the voice could not load"));
+    // IT JOINS THE LINE. This used to call `speak()` directly, which cancels whatever is talking —
+    // correct for a press, wrong for a reply that simply ARRIVED. A long answer was reliably cut
+    // off by the next one, and there was no way to get it back.
+    enqueue({
+      key: rowKey,
+      label: body.replace(/\s+/g, " ").slice(0, 70),
+      start: () => {
+        const token = (seq.current += 1);
+        claim(id);
+        setSpeaking(true);
+        setWarming(!engineReady());
+        announce(true);
+        handle.current = speak(body, {
+          // THE SCOPE IS PASSED, NEVER LEFT AMBIENT. `voice.js` falls back to reading the saved
+          // voice and speed itself, and it has no way to know which chat is asking — so a scoped
+          // caller must say. Leaving it out is how a per-chat setting silently becomes global.
+          preferId: readVoicePref(projectCode),
+          rate: s.speed,
+          onposition: (p) => seq.current === token && setAt(p),
+          onstart: () => seq.current === token && setWarming(false),
+          onend: (err) => {
+            // THE LINE MOVES ON EVEN WHEN THIS ONE FAILED — a queue that only advances on success
+            // stops dead at the first reply the engine could not load, and everything behind it
+            // is silently lost.
+            queueDone(rowKey);
+            if (seq.current !== token) return;
+            handle.current = null;
+            if (isOwner(id)) {
+              setSpeaking(false);
+              setWarming(false);
+              setAt(null);
+              announce(false);
+            }
+            if (err) setFailed(String((err && err.message) || "the voice could not load"));
+          },
+        });
+        return handle.current;
       },
     });
     // Mount only: a row is considered once, and `takeIfNew` enforces that even if React disagrees.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ONE DESCRIPTION OF HOW THIS ROW TALKS, used by the press and by the reading window that fills
+  // the line behind it. Two copies would drift the first time either changed, which is the same
+  // reason `speaker.js` and `speechQueue.js` each exist once.
+  const listenItem = useCallback(() => {
+    const chat = readVoiceSettings(projectCode);
+    return {
+        key: rowKey,
+        label: String(spoken || "").replace(/\s+/g, " ").slice(0, 70),
+        start: () => {
+          const token = (seq.current += 1);
+          claim(id);
+          setSpeaking(true);
+          setFailed("");
+          setWarming(!engineReady());
+          announce(true);
+          handle.current = speak(spoken, {
+            preferId: readVoicePref(projectCode),
+            rate: chat.speed,
+            onposition: (p) => seq.current === token && setAt(p),
+            onstart: () => seq.current === token && setWarming(false),
+            onend: (err) => {
+              queueDone(rowKey);
+              if (seq.current !== token) return;
+              handle.current = null;
+              // Only the owner clears the state — a stale callback from a reply that was
+              // interrupted must not switch off the one that interrupted it.
+              if (isOwner(id)) {
+                setSpeaking(false);
+                setWarming(false);
+                setAt(null);
+                announce(false);
+              }
+              if (err) setFailed(String((err && err.message) || "the voice could not load"));
+            },
+          });
+          return handle.current;
+        },
+      };
+  }, [id, rowKey, spoken, projectCode]);
+
+  // A REPLY SAYS HOW IT SPEAKS, so the row he pressed can queue the ones after it without any of
+  // them being mounted differently. Unregistering on unmount keeps a row that left the render from
+  // being queued as though it were still there.
+  useEffect(() => register(rowKey, listenItem), [rowKey, listenItem]);
+
   const press = useCallback(
     (e) => {
       e.stopPropagation();
       e.preventDefault();
       if (speaking) {
+        // STOP MEANS STOP, AND THE LINE GOES WITH IT. Leaving queued replies to start talking a
+        // second later is not stopping; it is a pause he never asked for.
         seq.current += 1;
-        if (handle.current) handle.current.stop();
-        else stop();
+        cutIn(null);
         handle.current = null;
         setSpeaking(false);
         setAt(null);
         announce(false);
         return;
       }
-      const token = (seq.current += 1);
-      claim(id);
-      setSpeaking(true);
-      setFailed("");
-      setWarming(!engineReady());
-      announce(true);
-      const chat = readVoiceSettings(projectCode);
-      handle.current = speak(spoken, {
-        preferId: readVoicePref(projectCode),
-        rate: chat.speed,
-        onposition: (p) => seq.current === token && setAt(p),
-        onstart: () => seq.current === token && setWarming(false),
-        onend: (err) => {
-          if (seq.current !== token) return;
-          handle.current = null;
-          // Only the owner clears the state — a stale callback from a reply that was interrupted
-          // must not switch off the one that interrupted it.
-          if (isOwner(id)) {
-            setSpeaking(false);
-            setWarming(false);
-            setAt(null);
-            announce(false);
-          }
-          // SAID, NOT SWALLOWED. With no system voice underneath, an unreported failure is
-          // indistinguishable from a reply that simply had nothing to read.
-          if (err) setFailed(String((err && err.message) || "the voice could not load"));
-        },
-      });
+      // A PRESS CUTS IN AND EMPTIES THE LINE — choosing this reply means choosing it INSTEAD of
+      // what was queued. Anything else would resume, a minute later, on something he moved past.
+      cutIn(listenItem());
+      // AND IT LINES UP WHAT FOLLOWS. *"If I go back and I click, the queue should be showing
+      // multiple things ahead of it."* The order is read off the render, from this row outward, at
+      // the moment of the press — no stored order, no flag, nothing that can be left set.
+      const mine = e.currentTarget.closest("[data-row]");
+      const scope = mine && mine.parentElement;
+      if (scope) {
+        const order = Array.prototype.slice
+          .call(scope.querySelectorAll("[data-row]"))
+          .map((n) => n.dataset.row);
+        behind(rowKey, order).forEach((item) => enqueue(item));
+      }
     },
-    [id, speaking, spoken, projectCode],
+    [listenItem, rowKey, speaking],
   );
 
   if (!spoken || !available() || !voices().length) return null;
@@ -210,8 +264,16 @@ const SpeakReply = ({ text, className = "", rowKey = "", ts = 0 }) => {
           e.stopPropagation();
           e.preventDefault();
           if (!handle.current) return;
-          if (paused) handle.current.resume();
-          else handle.current.pause();
+          // THE LINE HAS TO KNOW. A pause holds the current item forever, so a queue stalled
+          // behind one is indistinguishable from a queue working — which is the state he got
+          // stuck in without being told.
+          if (paused) {
+            handle.current.resume();
+            setPaused(rowKey, false);
+          } else {
+            handle.current.pause();
+            setPaused(rowKey, true);
+          }
         }}
         aria-label={paused ? "Resume reading" : "Pause reading"}
         title={paused ? "Resume" : "Pause"}

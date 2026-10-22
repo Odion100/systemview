@@ -12,6 +12,7 @@ hook, which is an arming decision per agent. Built on his direct instruction (*"
 go ahead and start implementing"*); the approval block below is unpressed.
 
 
+
 ::members{who=systemview-test sent=systemview-test:1evgm2o}
 ## 1 · What this is, and what it refuses to be
 
