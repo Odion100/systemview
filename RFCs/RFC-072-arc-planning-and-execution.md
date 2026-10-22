@@ -207,7 +207,7 @@ claims a subscription nobody honours is the failure this system refuses everywhe
 ```
 
 Attributes carry what the machine addresses — `id`, `owner`, `state`, `needs`. The content carries
-what a person reads — the what, the **why**, the **test**. Exact spelling is settled when the block
+what a person reads — the what, the **why**, the **requirements**. Exact spelling is settled when the block
 is built; what matters is the split.
 
 ::::thread{id=t3}
@@ -592,4 +592,212 @@ a person — setting them (§6). The slices in §11 land one at a time, cross-re
 
 The piece most worth rejecting is §3. If progress should live in a run record rather than be read
 out of the document, everything below it changes shape.
+:::
+
+## Claims
+
+### §2 · What an arc is, and where the two documents live
+
+1. Open the planning document for a round of arc planning; there is exactly one, at
+   `planning/<date>-<subject>.md` in the lead's repo, and every project in the round writes into
+   that one file rather than its own copy.
+2. Plan a goal that touches three projects; three arc documents come out, one per project, each at
+   `RFCs/arcs/ARC-<nnn>-<kebab-subject>.md` in that project's own repo.
+3. Plan a goal where one project ends up with no objectives; that project gets no arc document at
+   all, rather than an empty one.
+4. Plan a goal where one project ends up with exactly one objective; that project still gets its own
+   arc document, rather than the objective being parked in another project's.
+5. Open an arc that depends on another project's work; the dependency is named by repo and arc
+   address inside this document, and no objective owned by another project appears in it.
+6. Check who authored each arc in a round: each is written by the owning project's own agent, and
+   the lead's repo holds no arc for a project other than its own.
+7. Read the planning document after the arcs are written; it reaches each arc from there — one
+   embedded with `::file[…]`, several as `:file[…]` links — rather than restating their objectives
+   inline.
+8. Number a new arc; the `ARC-` sequence is its own and continues across `RFCs/arcs/`, separate from
+   the `RFC-` numbers in `RFCs/`, and the folder sits under `RFCs/` so "plans live in `RFCs/`" still
+   finds it.
+
+### §3 · The arc document IS the state
+
+9. Edit an objective's state in the arc file; every surface showing that objective changes with no
+   other write anywhere.
+10. Search the run records and every store outside the arc file for an objective's state or text;
+    there is no second copy of it to drift.
+
+### §4 · An objective has an address, and is a block
+
+11. Read any objective written by `arc-planning`; it carries an address of the form `ARC-004-O2` —
+    arc number and objective number — assigned as the objective was written, not afterwards.
+12. Read an objective in an arc; it is an `::objective{…}` fenced block, not a dash-and-prose line.
+13. Read an `::objective` block; `id`, `owner`, `state` and `needs` are attributes, while the what,
+    the `why` and the `requirements` are content a person reads.
+14. Grep for a parser of objectives; there is exactly one, the markdown block registry — no separate
+    regex over objective prose anywhere.
+15. Read the top of an arc document; an `::arc{…}` block names the arc, so a reader learns which arc
+    it is from the document itself, with no filename convention and no index.
+16. Wrap an objective in a thread inside an arc document and reply to that thread; the reply reaches
+    it, because the thread's fence opens with more colons than the objective, which opens with more
+    than the blocks inside it.
+17. Read every objective in a written arc; each one states a `why`, and none ships with that part
+    blank.
+18. Read any objective's `why`; it says what the work is in aid of and never how to do it.
+19. Take `arc-planning` an objective whose `why` cannot be stated; it comes back as a defect in the
+    plan rather than being written with the `why` left for later.
+20. Hand a written objective to three agents with no knowledge of this project and ask each what
+    finished looks like; all three describe the same finished state, and it is the right one — judged
+    on the end state and the `why`, never on method.
+21. Give an agent an objective whose ground has moved; it acts toward the `why`, and the divergence
+    is recorded on the objective where the next reader finds it.
+22. Give an agent an objective it cannot do; it reports what blocks it, what would unblock it and who
+    owns that, then picks up the next piece of work — it does not end its run on the blocker.
+23. Write `needs=ARC-004-O1` on one objective and `needs=autobot/ARC-002-O1` on another; one resolver
+    handles both, the cross-repo form included.
+24. Point `needs` at an address that does not exist; the surface says the address does not resolve,
+    rather than showing the objective as having no dependency.
+25. Search the arc vocabulary and the surfaces for milestones, phases or swimlanes; there are none,
+    and ordering is expressed only by `needs` on the objective that is blocked.
+
+### §5 · Attachments — the general fix
+
+26. Open a run record; it carries an attachments list whose entries are `{ kind, ref, by, ts }`, and
+    the kinds include a report, a document, a branch and an arc objective.
+27. Look for a job run's report-pointer field and a lane run's branch field; both are now attachment
+    kinds on that one list rather than fields of their own.
+28. Open a report attached to a job run and a report attached to a skill run from the same surface;
+    one opener handles both, because the attachment shape is the same.
+29. Call `attach({projectCode, run, kind, ref})` on a skill run; it attaches, and the call pushes
+    nothing to his TV.
+30. Attach an arc objective; what is stored is `{ kind: "arc", ref: "ARC-004-O2", project: "<code>" }`
+    — address and project, with no file path in it.
+31. Rename the kebab title of an arc file; every attachment pointing into it still resolves, because
+    the path is derived from the number (`RFCs/arcs/ARC-004-*.md`) in the stored project's repo.
+32. Press an arc attachment on a lane row, a card or a run; it opens that arc at that objective.
+33. Ask the arc what carries `ARC-004-O2`; the lanes, cards and runs serving it come back from the
+    attachments themselves, with no second index maintained anywhere.
+34. Look for a dedicated `arc` field on a card, a lane or a run; there is none — all three carry it
+    as an attachment of kind `arc`.
+35. Attach something to a lane run, a job run and a skill run; all three take it, and no rule
+    anywhere says one kind of list can carry attachments and another cannot.
+36. Attach an objective to a job run, then read the job's definition; the definition carries no arc —
+    only the run does.
+37. Read a run record written before attachments existed; it reads as having none rather than
+    failing.
+
+### §6 · The dispatch sets it, never a person
+
+38. Finish an `arc-planning` dispatch; the lane registered for each objective carries that
+    objective's address from the moment the lane exists, with nobody typing it in.
+39. Raise a card for an objective; it is created with the objective already attached.
+40. Open a run on a lane that carries an objective; the run inherits the attachment.
+41. Cut a lane for something he asked for directly; it carries no arc, and "no arc" reads as a true
+    answer rather than a missing value.
+42. Ask what is happening on `ARC-004`; the answer is that arc's own work and nothing else.
+43. Look for machinery that compensates for an agent not setting an arc, or not updating the arc
+    document; there is none — the gap stays visible in the run record and is fixed in the procedure.
+
+### §7 · The surface — in the document, and in the band
+
+44. Put a `::progress` block in an arc; it reports how many of that document's objectives are done
+    and by whom, read from the `::objective` blocks above it.
+45. Delete every run record for an arc; `::progress` still counts correctly, because it reads the
+    document.
+46. Read the order in an arc: the objectives appear ordered by `needs`, so what is waiting on what
+    is visible, and an objective whose need cannot be resolved is FLAGGED on its row rather than
+    dropped from the list. (The design put this in a `::timeline` block of its own; it was folded
+    into `::progress` on 2026-10-22 — same derivation, same claim, one block.)
+47. Open the band in a project with arcs; arcs are a tab in `BAND_KINDS`, beside jobs, lanes, lists,
+    reports and documents.
+48. Open the band in a project with no arcs; there is no arcs tab, under the existing rule that a
+    kind with no rows gets none.
+49. Finish an objective; the arc document moves because its owner moved it as a step of the
+    procedure — no surface derives "done" on its own.
+
+### §8 · What this does not add
+
+50. Grep for the dispatch's four questions; they live in `arc-planning` only, and no second document
+    restates them.
+51. Look for a meeting object with create, join or archive verbs; there is none — an arc planning
+    meeting is the same procedure with more than one project writing in the document.
+52. Look for a store of arcs shared across projects; there is none.
+
+### §9 · `arc-execution` — its own procedure
+
+53. Look for the skill that executes an objective; `arc-execution` exists, separate from
+    `arc-planning`, which still ends at dispatch.
+54. Run `arc-execution`; the objective is attached to the lane or run before any building starts, so
+    the arc shows it being worked while it happens rather than afterwards.
+55. Run `arc-execution` on an objective whose `needs` has not landed; it is treated as not startable
+    and says so, rather than being built into a half-feature.
+56. Finish an objective through `arc-execution`; moving the objective in the arc document is a step
+    of the skill, and any divergence from the written `what` is recorded on the objective rather than
+    in a report.
+57. Read the `proactive-development` job document; it holds no copy of the execution procedure — it
+    points at `arc-execution`.
+
+### §10 · Which layer carries this to an agent
+
+58. Read the always-loaded system context; it has a short arcs section saying arcs exist, that an arc
+    is a document of numbered objectives, that work done for one carries its address, and that the
+    arc is updated as it executes — and nothing about how to write one.
+59. Read the planning reference (`agents/meetings.md`, renamed); it carries the shape — planning
+    documents, threads, members, and what an arc looks like — and it is what the dispatch points at.
+60. Look for a new "arc execution" job; there is none — `proactive-development` gained a door in its
+    §3.1 instead.
+61. Open an agent's profile; it reports its owned open objectives — "owns 3 open objectives across 2
+    arcs" — read from its own project's `RFCs/arcs/` at that moment.
+62. Look for an "assigned to an arc" state anywhere; there is none, and ownership is read from
+    `owner=` on the objective.
+63. Read how the profile words it; it reads as outstanding owned work, never as a state the agent is
+    in.
+64. Start a session; no list of owned objectives is injected at session start, and none is paid for
+    on every turn.
+65. Leave an open objective of yours sitting in another arc's `needs`; that one is delivered to you
+    unasked, as a subscription with that trigger.
+66. Let `proactive-development` fire on idle; an objective owned by this project that carries no
+    attachment ranks high among its doors, not last.
+
+### §11 · Slices and landing order
+
+67. Walk the history: the slices land one at a time in §11's order, with the `::objective` and
+    `::arc` blocks (slice 4) before the blocks that read them (slice 5) and before the band tab
+    (slice 6).
+68. Find `arc-execution` in the history; it lands last, after the verbs it tells agents to call
+    exist.
+69. Open autobot `electron/agents/worklist.cjs`; `attachments[]` is carried through `save()`'s key
+    list the way `selfDirected` is.
+70. Find a slice that needed both repos; it landed as two lanes with the landing order named, both
+    built in this project rather than handed to another project's agent.
+71. Re-index the handbook after slice 8; the renamed planning reference is in the indexed corpus.
+
+### §12 · Not waiting on this
+
+72. Run `arc-planning` with none of §11 built; it still runs to dispatch — planning is not gated on
+    this RFC.
+
+### Open in the document, so not claimed
+
+- **Does an attachment ever get REMOVED, or is it append-only with a `detached` stamp?** §5 says
+  "STILL OPEN … Undecided", and the `attachments` thread restates it. Nothing here claims either
+  behaviour, so detaching is unchecked in both directions.
+- **The exact spelling of the `::objective` block's parts.** §4 settles only the split — attributes
+  for the machine, content for the person — and says outright that "exact spelling is settled when
+  the block is built". So claim 13 checks which parts sit on which side, and no claim names the
+  markers for `why` and `requirements` inside the content.
+- **The vocabulary of `state`.** `state=open` appears in §4's example and `::progress` counts what is
+  "done", but the document never enumerates the set. No claim asserts which states exist.
+- **What `::progress` and `::timeline` look like.** §7 says "a bar rather than a sentence", but §11
+  slice 5 puts the claims "on the derivation, not on the render" — so claims 44–46 check the numbers
+  and the ordering, and none checks the bar.
+- **Which part of updating the arc automates.** §9 says "part of this automates — an attachment
+  appearing says work started, a lane landing says more — and part cannot," without naming a
+  transition. Claim 49 therefore checks only that "done" is never derived.
+
+:::approval{ask="Is this the complete list of claims for RFC-072?" verdict=approved}
+Pressing this makes the list the contract: a behaviour missing from it is one we agreed not to
+check, so the thing to read for is what is NOT here — the open question at the foot especially, since
+each line there is a deliberate hole. The two I am least sure belong are 69 (the `save()` key list
+is slice-level mechanics in another repo, which may be a commit's business rather than a claim's) and
+20 (the three-strangers test is runnable, but judging "the same finished state" is the one claim here
+whose answer depends on who walks it).
 :::

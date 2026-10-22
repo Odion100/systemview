@@ -1,4 +1,9 @@
-# Meetings — a document with people on it
+# Planning — a document with people on it, and the arc it produces
+
+RFC-072 renamed this from `meetings.md`. The document and the people on it were never the point on
+their own: a planning document exists to produce an **arc**, and an arc is a document too. Keeping
+them in two references meant the dispatch pointed at one and the thing it dispatched lived in the
+other.
 
 A meeting here is not an event, a room, or a call. It is a **markdown document with members**: the
 threads carry the conversation, and the pinned row in the document's top-right corner tells each
@@ -24,7 +29,7 @@ needs him, say so in the chat, not by expecting a notification to reach him.
 
 **What an arc is.** The deliverable. An arc is an **RFC** — `RFCs/RFC-<nnn>-<slug>.md` in the
 project that owns the work, written after the room agrees a piece, carrying the ownable breakdown
-(objectives, each with an owner, a test, and what to read first) and an `:::approval` block for his
+(objectives, each with an owner, its requirements, and what to read first) and an `:::approval` block for his
 verdict. The meeting embeds it back with `::file[…]` so it reads inline — **relative when the arc
 is in this repo, absolute when it is in another**, which is the common case for a cross-repo goal.
 
@@ -190,7 +195,7 @@ somebody's summary is the weakest evidence here.
   reads the section instead of the whole thread. Every rewrite makes the members *behind* (their
   corner lights up), which is how anyone knows to come back.
 - **An objective that becomes definitive is written down the moment it is definitive** — one line:
-  what, its owner, its test. Never planned in advance, never a list of what the meeting ought to
+  what, its owner, its requirements. Never planned in advance, never a list of what the meeting ought to
   decide.
 - **Nothing about the mapping is rigid.** An objective can cover two goals; a goal can need three;
   a goal can need none.
@@ -247,6 +252,67 @@ their own threads — which is what makes the dispatch auditable.
 
 A close where only the conductor wrote anything is a meeting that produced one agent's homework.
 
+## What an arc looks like
+
+The planning document is where a shape is argued. The **arc** is what comes out of it: the epic that
+holds the objectives, at `RFCs/arcs/ARC-<nnn>-<kebab-subject>.md`, in the repo that will build it.
+Every project that has work gets its own — projects are separate repos, and an arc written somewhere
+central is one its builder does not have, cannot commit and will not find.
+
+**The arc document IS the state.** No run record holds how far along it is, nothing mirrors it on a
+board. That is what makes an arc trackable rather than a plan somebody has to go and ask about — and
+it is why an arc says its own state from its first version rather than from the day somebody wires
+a surface to it.
+
+```markdown
+::arc{id=ARC-004 owner=systemview-test title="Arcs become trackable"}
+
+::progress
+::timeline
+
+:::objective{id=O1 owner=systemview-test state=done}
+**what** — the attachment shape: `{kind, ref, project}`.
+**requirements** — an arc attachment round-trips on a run record.
+**for** — slices 2 and 3 both depend on it.
+:::
+
+:::objective{id=O2 owner=autobot state=open needs=ARC-004-O1}
+**what** — attachments carried on the run record.
+**requirements** — a skill run with an attached report opens it from the row.
+**for** — nine of his lists show steps and no way to reach what they made.
+:::
+```
+
+- **`::arc`** is a LEAF — one line, the same shape as `::members`. It says which arc this is.
+- **`::objective`** is a CONTAINER — it wraps the prose a person reads, so it opens at three colons
+  and closes. Getting those two the wrong way round is the commonest mistake against this
+  vocabulary.
+- **`::progress`** recounts the objectives in its own document every time, so it cannot disagree
+  with the blocks above it. **`::timeline`** orders them by `needs`, so the reading order is the
+  doing order; a circular dependency is emitted and says so rather than looping or vanishing.
+
+### The address is the identity
+
+`ARC-004-O2` — the arc's id and the objective's. The kebab title in the filename is **cosmetic** and
+will be renamed the first time somebody sharpens the wording, which is why nothing ever stores the
+path. Work points at the address: `attach({ kind: "arc", ref: "ARC-004-O2", project })` on the run
+doing it, and the arc answers "what is serving O2" from the attachments, with no second index.
+
+### `needs` has four answers, not two
+
+`met` · `waiting` · `elsewhere` (another project — this document cannot know, and says so) ·
+`unresolved` (nothing answers to that address). The fourth is the one that matters: an address that
+does not resolve must SAY so rather than read as "no dependency", because a dependency that quietly
+evaporates lets work start in the wrong order — and the one measured consequence of wrong order here
+is a half-feature that reads as BROKEN rather than pending.
+
+### Who does what
+
+**`arc-planning`** conducts the discussion and ends at dispatch. **`arc-execution`** begins there and
+is run by agents who were never in the planning: claim the objective, read the `why` before the
+`what`, check `needs`, build, and move the state in the document. Blocked is a finding, never an
+ending.
+
 ## Writing the skill from one
 
 Write a meeting skill from a meeting you **ran**, never from this page. The `procedure` thread in
@@ -279,7 +345,9 @@ single section is the next chapter down — write it here, repeated.>>
 
 ## Objectives, as they become definitive
 
-<<Nothing here at the start. One line each as they settle: what, owner, test.>>
+<<Nothing here at the start. One `::objective` block each as they settle — see "What an arc looks
+like" below for the shape. A line could only be read by eye; a block carries an ADDRESS, which is
+what lets the work point back at it.>>
 
 ## Arcs
 

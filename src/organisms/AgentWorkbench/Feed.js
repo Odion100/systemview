@@ -910,6 +910,7 @@ const Feed = ({ rows, answered = {}, onAnswer = null, renderText = null }) =>
     ) : (
       <div
         key={r.key}
+        data-row={r.key}
         className={`${CLASSNAME}__row ${CLASSNAME}__row--say${r.toRoom ? ` ${CLASSNAME}__row--toroom` : ""}`}
       >
         {/* SENT, NOT SAID. A message this agent put in its own room arrives here through `showSaid`

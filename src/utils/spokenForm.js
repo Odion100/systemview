@@ -56,16 +56,34 @@ const looksLikePath = (s) => PATHY.test(String(s || "").trim());
 const SYMBOLS =
   /[\u2000-\u206f\u2190-\u2bff\u2e00-\u2e7f\u3000-\u303f\u2600-\u27bf\u00b7\ufe00-\ufe0f\u{1f000}-\u{1faff}]/gu;
 
-// An identifier is worth hearing; a shell invocation is not. `yarn test` and `localService` read
-// fine. `BUILD_PATH=build.next NODE_OPTIONS=--max-old-space-size=4096` is a minute of noise.
-const WORDY = /^[\w.$-]+$/;
+// INLINE CODE IS INLINE, AND THAT IS THE WHOLE DISTINCTION. His correction, 2026-10-21: *"you say
+// some code, some code, some code — an inline code block is inline, that's not the same thing as
+// code blocks."* A fenced block is an object on screen and announcing it is right. A backtick span
+// is a WORD IN THE SENTENCE the author chose to mark, so replacing it with "some code" deletes the
+// subject of the clause — and the rule it replaced required `^[\w.$-]+$`, which every term in this
+// system's own vocabulary fails: `::objective`, `{kind, ref, project}`, `state=open`,
+// `attachments[]` all came out as "some code" in one breath.
+//
+// So the default FLIPS: an inline span is READ. Only a genuine shell invocation is still announced,
+// because `BUILD_PATH=build.next NODE_OPTIONS=--max-old-space-size=4096` is a minute of noise.
 const sayCode = (code) => {
   const s = String(code || "").trim();
   if (!s) return "";
   if (looksLikePath(s)) return basename(s);
-  if (s.length <= 40 && WORDY.test(s)) return s;
-  if (s.length <= 40 && /^[\w.$-]+(\s+[\w.$-]+){0,2}$/.test(s)) return s;
-  return "some code";
+  // The punctuation that is how a term is TYPED rather than how it is said. A block is written
+  // `::objective` and spoken "objective"; `{kind, ref}` is its field names, not its braces; an
+  // attribute is said the way a person says it, with the word "equals".
+  const said = s
+    .replace(/^:{1,4}/, "")
+    .replace(/\[\]/g, "")
+    .replace(/[{}`]/g, "")
+    .replace(/\s*=\s*/g, " equals ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!said) return "";
+  // Past a phrase's length, or carrying shell plumbing, it is an invocation and the old rule holds.
+  if (said.length > 60 || /--|\|\||&&|\$\(/.test(said)) return "some code";
+  return said;
 };
 
 // ── the grammar ────────────────────────────────────────────────────────────────────────────────
@@ -100,6 +118,35 @@ const splitRow = (line) => {
 };
 const isTableSep = (line) =>
   !!line && line.indexOf("|") !== -1 && splitRow(line).every((c) => /^:?-+:?$/.test(c));
+
+// WHICH TABLES GET READ, AND WHICH STAY ANNOUNCED. A table was announced and skipped until
+// 2026-10-21 — *"there's no reason we should be skipping over a table instead of reading the
+// table."* He is right about the tables he actually writes: two or three columns of label and
+// meaning, which read aloud the way a person would say them. The original reasoning was right about
+// the OTHER kind — four hundred lines of cells read aloud is the failure this whole file exists to
+// prevent — so the SHAPE decides rather than a blanket rule, and the size is said first either way
+// so he knows what he is getting before he gets it.
+const TABLE_MAX_COLS = 4;
+const TABLE_MAX_ROWS = 12;
+const readableTable = (head, body) =>
+  body.length > 0 && body.length <= TABLE_MAX_ROWS && head.length <= TABLE_MAX_COLS;
+
+// ONE ROW, SAID THE WAY A PERSON READS A TABLE OUT LOUD: the first cell names the row and every
+// cell after it is said under its own column heading. Dropping the headings would leave a
+// three-column row as three unlabelled fragments, which is worse than the announcement it replaced.
+//
+// An empty heading is common and deliberate — his label columns are written `| | what it is |` — so
+// a cell whose heading is blank is read bare rather than under the word "blank". An empty CELL is
+// said by saying nothing, because "blank" is not what the gap means.
+const sayRow = (head, cells) => {
+  const parts = [];
+  cells.forEach((cell, k) => {
+    if (!cell) return;
+    const label = k === 0 ? "" : head[k] || "";
+    parts.push(label ? `${label}: ${cell}` : cell);
+  });
+  return parts.join(". ");
+};
 
 // "js" read aloud is "jay ess". A fence's language is a word he says out loud, so it is spoken as
 // one; anything unlisted is said as written, which is right for `go`, `rust`, `ruby`, `swift`.
@@ -455,15 +502,21 @@ function walk(lines, only = null) {
     }
 
     // A TABLE, and it is only a table once a separator row proves it — otherwise a sentence with a
-    // pipe in it becomes a one-cell grid. THE SHAPE IS THE MESSAGE: he needs to know there is a
-    // table and how big, so he can decide to look. Four hundred lines of cells read aloud is the
-    // failure this whole file exists to prevent.
+    // pipe in it becomes a one-cell grid. The size is announced first (he needs to know what is
+    // coming), and then a table small enough to follow by ear is READ — see `readableTable`.
+    // Each row is pushed on its own, which also makes it its own seekable chunk in the transport.
     if (line.indexOf("|") !== -1 && isTableSep(lines[i + 1])) {
-      const cols = splitRow(line).length;
+      const head = splitRow(line);
+      const body = [];
       let j = i + 2;
-      while (j < lines.length && lines[j].indexOf("|") !== -1 && lines[j].trim()) j += 1;
-      const rows = j - i - 2;
-      pushProse(`A table, ${count(cols, "column", "columns")} and ${count(rows, "row", "rows")}`);
+      while (j < lines.length && lines[j].indexOf("|") !== -1 && lines[j].trim()) {
+        body.push(splitRow(lines[j]));
+        j += 1;
+      }
+      pushProse(
+        `A table, ${count(head.length, "column", "columns")} and ${count(body.length, "row", "rows")}`
+      );
+      if (readableTable(head, body)) body.forEach((cells) => pushProse(sayRow(head, cells)));
       i = j - 1;
       continue;
     }

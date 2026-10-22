@@ -4639,3 +4639,158 @@ $sv-board-states: (
   border-bottom: 2px solid var(--sv-indigo);
   margin-bottom: -1px;
 }
+
+// THE MARK ON THE TAB. A band whose rows carry a flag the tab bar hides makes him open every tab
+// to find the one thing waiting — so the tab says it before it is opened.
+.agent-chat__bandtab-flag {
+  margin-right: 4px;
+  color: var(--sv-amber, #c88a2e);
+  font-size: 10px;
+}
+
+// THE TWO FAMILIES, TOLD APART BY COLOUR. `jobs`, `lists` and `lanes` are work that is running;
+// `reports`, `rfcs` and `arcs` are documents in a folder. One band, two kinds of thing — and the
+// difference is worth seeing before you read the word.
+.agent-chat__bandtab--document:not(.agent-chat__bandtab--on) { color: var(--sv-blue, #5b8def); }
+
+// THE SPEECH LINE — what is queued behind the reply being read. It hangs in the same corner as the
+// voice pill and, like the pill, adds no row to the chat: the bar is zero-height and its children
+// are absolutely placed, so a queue appearing never pushes the conversation around.
+.speech-line {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  max-width: 420px;
+
+  &__stop {
+    padding: 2px 8px;
+    border: 1px solid var(--sv-border-soft);
+    border-radius: 999px;
+    background: var(--sv-surface);
+    color: var(--sv-text-muted);
+    font: inherit;
+    font-size: 10px;
+    cursor: pointer;
+    &:hover { border-color: var(--sv-danger, #c0504d); color: var(--sv-danger, #c0504d); }
+  }
+
+  // THE LIST SCROLLS, THE TRANSPORT DOES NOT. His, watching it fill: *"it should be scrollable, so
+  // it doesn't have to grow too tall."* A line of twelve replies would otherwise climb the
+  // conversation it is sitting over, and the thing it covers is the thing he is reading. Five rows
+  // is the cap; past that the line scrolls inside itself and stop and forward stay where they were.
+  &__list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-height: 104px;
+    overflow-y: auto;
+    overscroll-behavior: contain; // scrolling the end of the line must not then scroll the chat
+    scrollbar-width: thin;
+  }
+
+  &__row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 6px 2px 8px;
+    border: 1px solid var(--sv-border-soft);
+    border-radius: 6px;
+    background: var(--sv-surface);
+    font-size: 10px;
+    color: var(--sv-text-faint);
+  }
+
+  // The label is the opening words of the reply — enough to know which one, never the whole thing.
+  &__text {
+    max-width: 320px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__drop {
+    border: 0;
+    background: none;
+    color: var(--sv-text-faint);
+    font: inherit;
+    line-height: 1;
+    cursor: pointer;
+    &:hover { color: var(--sv-danger, #c0504d); }
+  }
+}
+
+.speech-line__head { display: flex; align-items: center; gap: 4px; }
+.speech-line__skip {
+  padding: 2px 7px;
+  border: 1px solid var(--sv-border-soft);
+  border-radius: 999px;
+  background: var(--sv-surface);
+  color: var(--sv-text-muted);
+  font: inherit;
+  font-size: 10px;
+  cursor: pointer;
+  &:hover { border-color: var(--sv-blue, #5b8def); color: var(--sv-blue, #5b8def); }
+}
+// A STALLED LINE LOOKS STALLED. Paused is the one state where silence is not the absence of work.
+.speech-line__stop.is-paused { border-color: var(--sv-amber, #c88a2e); color: var(--sv-amber, #c88a2e); }
+
+// THE QUEUE SITS ABOVE THE PILL, NOT UNDER IT. `__voicebar > *` absolutely positions EVERY child
+// at the same right/bottom, so the speech line and the voice pill were stacked on the one spot and
+// the pill won — *"the cue is sitting right behind the voice settings button… it disappears behind
+// stuff."* It needs its own offset and a z-index above its sibling, not a different corner: the
+// corner is right, the layering was not.
+//
+// And the container paints NOTHING. Only the rows carry a background, because they carry text that
+// has to stay legible over the conversation — the frame around them should not be visible at all.
+.agent-chat__voicebar > .speech-line {
+  bottom: 34px;
+  z-index: 2;
+  background: transparent;
+}
+
+// A ROW'S LABEL IN THE SPEECH LINE IS A DOOR. It reads as text and behaves as a button, because the
+// line is the only surface that knows which reply is talking — so it is the only one that can take
+// him to it.
+.speech-line__text--go {
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover { color: var(--sv-text); text-decoration: underline; }
+  &:disabled { cursor: default; text-decoration: none; }
+}
+
+// THE MARK BREATHES, AND NOTHING ELSE DOES. His rule for it: *"it shouldn't draw too much attention
+// — but at least the play button can be something, could be visual, glowing or something."* So the
+// glow is on the ▶ alone, slow and low-contrast; the row it sits on stays as quiet as its
+// neighbours.
+@keyframes sv-speech-pulse {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 1; }
+}
+
+.speech-line__row--reading .speech-line__mark {
+  color: var(--sv-blue, #5b8def);
+  animation: sv-speech-pulse 1.8s ease-in-out infinite;
+}
+
+.speech-line__row--reading.is-paused .speech-line__mark { animation: none; }
+
+// WHERE HE JUST ASKED TO GO. Long enough to find with his eye, short enough that it is not a
+// highlight he then has to dismiss.
+.agent-wb__row--went {
+  box-shadow: inset 2px 0 0 var(--sv-blue, #5b8def);
+  transition: box-shadow 220ms ease-out;
+}

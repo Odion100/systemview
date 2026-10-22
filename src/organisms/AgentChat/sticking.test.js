@@ -1,0 +1,111 @@
+import { verdict, nearBottom, createSticking } from "./sticking";
+
+const geo = (sh, st, ch) => ({ scrollHeight: sh, scrollTop: st, clientHeight: ch });
+
+describe("following the conversation", () => {
+  it("follows when he is near the bottom and leaves when he is not", () => {
+    expect(nearBottom(geo(10000, 9344, 656))).toBe(true);
+    expect(nearBottom(geo(10000, 8000, 656))).toBe(false);
+  });
+
+  // THE BUG, as it was measured in his window. The drawer is a sibling below the list and the list
+  // absorbs the space, so opening it takes 122px out of clientHeight with scrollTop untouched.
+  it("does not stop following because the drawer took the viewport", () => {
+    const s = createSticking();
+    s.scrolled(geo(9810, 9032, 778));          // 9810 - 778 = at the bottom, drawer shut
+    expect(s.following).toBe(true);
+    s.resized(geo(9810, 9032, 656));           // drawer opens: 122px of viewport gone
+    s.scrolled(geo(9810, 9032, 656));          // now reads 122 from the bottom, untouched
+    expect(s.following).toBe(true);
+  });
+
+  it("nor because the content grew under a stationary scrollTop", () => {
+    const s = createSticking();
+    s.scrolled(geo(9810, 9032, 778));
+    [9830, 9849, 9869, 9888, 9908, 9927, 9947, 9966, 9990].forEach((sh) => {
+      s.resized(geo(sh, 9032, 656));
+      s.scrolled(geo(sh, 9032, 656));
+    });
+    expect(s.following).toBe(true);
+  });
+
+  // The other half has to keep working, or the fix is just "always follow" — which yanks the view
+  // out of what he is reading, the disrespect in the other direction.
+  it("stops following when HE scrolls up, the box unchanged", () => {
+    const s = createSticking();
+    s.scrolled(geo(10000, 9344, 656));
+    expect(s.following).toBe(true);
+    s.scrolled(geo(10000, 5000, 656));
+    expect(s.following).toBe(false);
+  });
+
+  it("follows again when he scrolls back down to it", () => {
+    const s = createSticking();
+    s.scrolled(geo(10000, 5000, 656));
+    expect(s.following).toBe(false);
+    s.scrolled(geo(10000, 9344, 656));
+    expect(s.following).toBe(true);
+  });
+
+  it("gives our own pin no vote — one bad frame must not switch following off for the session", () => {
+    const s = createSticking();
+    s.scrolled(geo(10000, 9344, 656));
+    s.pin(geo(10000, 9344, 656), 1000);
+    s.scrolled(geo(10000, 4000, 656), 1100);
+    expect(s.following).toBe(true);
+  });
+
+  it("and the pin expires, so a real scroll after it still counts", () => {
+    const s = createSticking();
+    s.scrolled(geo(10000, 9344, 656));
+    s.pin(geo(10000, 9344, 656), 1000);
+    s.scrolled(geo(10000, 4000, 656), 1400);
+    expect(s.following).toBe(false);
+  });
+
+  it("sending resets it — he just spoke, so the bottom is where he is", () => {
+    const s = createSticking();
+    s.scrolled(geo(10000, 2000, 656));
+    expect(s.following).toBe(false);
+    s.reset();
+    expect(s.following).toBe(true);
+  });
+
+  it("says nothing at all about an event where nothing moved", () => {
+    expect(verdict(geo(10000, 5000, 656), geo(10000, 5000, 656))).toBe("keep");
+  });
+
+  it("decides from the geometry alone on the very first event, with nothing to compare", () => {
+    expect(verdict(null, geo(10000, 9344, 656))).toBe("follow");
+    expect(verdict(null, geo(10000, 1000, 656))).toBe("leave");
+  });
+});
+
+// THE VOICE TAKES THE VIEW. Reading an old reply means he is deliberately not at the bottom, and
+// arriving replies must not drag him off it — the one case where something other than a scroll or
+// a resize decides.
+describe("when the reading takes the view", () => {
+  it("stops following while the voice reads an older reply", () => {
+    const s = createSticking();
+    s.scrolled(geo(10000, 9344, 656));
+    expect(s.following).toBe(true);
+    s.aim(false);
+    expect(s.following).toBe(false);
+  });
+
+  it("follows again when the voice reaches the newest one", () => {
+    const s = createSticking();
+    s.scrolled(geo(10000, 2000, 656));
+    expect(s.following).toBe(false);
+    s.aim(true);
+    expect(s.following).toBe(true);
+  });
+
+  it("forgets the geometry it aimed from, so the next scroll is judged fresh", () => {
+    const s = createSticking();
+    s.scrolled(geo(10000, 9344, 656));
+    s.aim(false);
+    s.scrolled(geo(10000, 9344, 656));
+    expect(s.following).toBe(true);
+  });
+});

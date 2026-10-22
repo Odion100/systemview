@@ -5,11 +5,12 @@ import { useHistory, useLocation, useParams } from "react-router-dom";
 import ServiceContext from "../../ServiceContext";
 import BLOCKS from "../../atoms/Markdown/registry";
 import { createInterimStore, InterimLine, MicText } from "./interimStore";
+import { createSticking } from "./sticking";
 import { laneVerdict, laneChip, laneReceipt, laneConfirm } from "./laneVerdict";
 import { MarkdownWriteProvider, MarkdownScopeProvider } from "../../atoms/Markdown/context";
 import ReportLink from "../../atoms/Markdown/blocks/ReportLink";
 import useWallPanel from "../WallPanel/useWallPanel";
-import { onCodePage, openReportInPanel } from "../../atoms/Markdown/openRef";
+import { onCodePage, openReportInPanel, openAddress } from "../../atoms/Markdown/openRef";
 import NsLink from "../../atoms/Markdown/blocks/NsLink";
 import FileLink from "../../atoms/Markdown/blocks/FileLink";
 import BranchBlock from "../../atoms/Markdown/blocks/BranchBlock";
@@ -20,6 +21,7 @@ import { resolveTarget, docRectOf, revealDocLines } from "../../spotlightTargets
 import { slotId, setNavDocked, useNavDock, isNavDocked, railId, spotId, placeInDock, setDockOrder, useDockOrder, dockOrder, orderProjects } from "./navDock";
 import { hasHostDictation, startHostRecording } from "../../utils/hostDictation";
 import VoiceMode from "../../molecules/SpeakReply/VoiceMode";
+import SpeechLine from "../../molecules/SpeakReply/SpeechLine";
 import Feed, { timeOf } from "../AgentWorkbench/Feed";
 import useAgentSession from "../AgentWorkbench/useAgentSession";
 import { CTX_WARN, CTX_DUE, tokensShort, parseUsageLines, foldEvents } from "../AgentWorkbench/feedRows";
@@ -31,6 +33,8 @@ import CodebaseNav from "../CodebaseNav/CodebaseNav";
 import { useAppDark } from "../../atoms/appTheme";
 import loadServiceWithHeaders from "../../utils/loadService";
 import { hostFiles, hasHostFiles } from "../../utils/hostFiles";
+import arcRows, { arcLine } from "./arcRows";
+import rfcRows, { rfcLine } from "./rfcRows";
 // eslint-disable-next-line import/no-cycle
 import Board from "../Board/Board";
 import { hasHostJobs, jobRuns, rateJobRun } from "../../utils/hostJobs";
@@ -1055,7 +1059,7 @@ function WorkList({ items, onClear, source = "" }) {
 // "JOBS" COUNTS JOBS — his catch, 2026-10-16: the header said "18 jobs" over 13 job cards, because
 // the count took every standing worklist. Skill and session lists get their own word when any
 // stand; usually none do, and the header simply stops lying.
-function WorkbandHead({ open, jobs, lists = 0, lanes, reports, waiting, onToggle, onPick }) {
+function WorkbandHead({ open, jobs, lists = 0, lanes, reports, waiting, blocked = 0, onToggle, onPick }) {
   const seg = [
     ["jobs", jobs, bandLabel("jobs", jobs)],
     ["lists", lists, bandLabel("lists", lists)],
@@ -1071,7 +1075,16 @@ function WorkbandHead({ open, jobs, lists = 0, lanes, reports, waiting, onToggle
     // structural change is that it is no longer a single <button>, because a button cannot contain
     // the buttons the counts had to become. Which tab is showing is said by the tab bar, not here.
     <div className="agent-chat__workband-head" onClick={onToggle} role="presentation">
+      {/* THE HEADER IS THE LEGEND. A mark on a tab only reads because the words up here say what it
+          means — his: *"the reason I know it's an approval is because it says it above. How do I
+          know it's blocked?"* So every mark the band can draw is spelled out in one place, and a
+          new kind of attention has to earn a line here before it earns a glyph down there. */}
       {waiting ? <span className="agent-chat__reports-flag">⚑ {waiting} approval waiting</span> : null}
+      {blocked ? (
+        <span className="agent-chat__reports-flag">
+          ⊘ {blocked} objective{blocked === 1 ? "" : "s"} blocked
+        </span>
+      ) : null}
       <span className="agent-chat__workband-head-text">
         {seg.map(([kind, , label], i) => (
           <React.Fragment key={kind}>
@@ -2604,16 +2617,17 @@ function BotBubble({ projectCode, index }) {
     } catch {}
   };
 
-  // A programmatic scroll fires a scroll EVENT, and the handler below reads that event to decide
-  // whether he is still pinned to the bottom. Left ungated, our own pin could measure itself
-  // mid-layout, decide he had scrolled away, and switch sticking off for the rest of the session —
-  // one bad frame and the chat never follows anything again.
-  const pinning = useRef(0);
+  // WHETHER THE CONVERSATION FOLLOWS LIVES IN `sticking` — see sticking.js for why a distance test
+  // alone could not answer it. A programmatic scroll fires a scroll EVENT, so our own pin has to be
+  // declared or the handler below reads it mid-layout and switches following off for the session.
+  const sticking = useRef(null);
+  if (!sticking.current) sticking.current = createSticking();
+  const geoOf = (el) => ({ scrollHeight: el.scrollHeight, scrollTop: el.scrollTop, clientHeight: el.clientHeight });
   const scrollToEnd = () => {
     const el = listRef.current;
     if (!el) return;
-    pinning.current = Date.now() + 300;
     el.scrollTop = el.scrollHeight;
+    sticking.current.pin(geoOf(el));
   };
   useEffect(() => {
     if (!open) return undefined;
@@ -2756,11 +2770,10 @@ function BotBubble({ projectCode, index }) {
     [attached],
   );
 
-  const stick = useRef(true);
   // ARRIVING IS ALWAYS THE BOTTOM. Opening the panel, switching chats, attaching a session — every
   // one of those is an arrival, and nobody arrives at a conversation to read the top of it.
   useEffect(() => {
-    stick.current = true;
+    sticking.current.reset();
     scrollToEnd();
     const t = [10, 60, 200, 500].map((ms) => setTimeout(scrollToEnd, ms));
     return () => t.forEach(clearTimeout);
@@ -2770,9 +2783,17 @@ function BotBubble({ projectCode, index }) {
   // `attached`, so the room's chat never followed a new message at all. That gate was the bug he
   // reported twice: *"it doesn't scroll down as new messages come in."*
   useEffect(() => {
-    if (stick.current) scrollToEnd();
+    if (sticking.current.following) scrollToEnd();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages.length, work.rows.length]);
+
+  // NO AUTOMATIC FOLLOW. It was here — the view jumped to whatever row started reading — and his
+  // ruling after living with it: *"maybe all those scrolling can go away, because I didn't see it
+  // work anyway… I was already down, it was all the way up and it was playing. Maybe I want to go
+  // right to it."* A scroll that happens TO him is a guess about where he wants to be; the line
+  // already says what is reading, so the press on that row is the way there (`onGo` below) and it
+  // is his to make. One door, not a door and a shove.
+
   // AND THE OTHER HALF: height that arrives AFTER the rows do. Markdown, file embeds, images and a
   // streaming answer all grow the list milliseconds — sometimes seconds — after React is finished,
   // so a one-shot scroll lands short and then just sits there. Following the content beats guessing
@@ -2788,10 +2809,13 @@ function BotBubble({ projectCode, index }) {
     // the input, on a feature neither of us had touched.
     let frame = 0;
     const bump = () => {
-      if (!stick.current || frame) return;
+      // A RESIZE IS NOT A DECISION, it is news. Recording the new geometry is what stops the next
+      // scroll event from reading the drawer's 122px as "he scrolled away" — the bug this fixes.
+      sticking.current.resized(geoOf(el));
+      if (!sticking.current.following || frame) return;
       frame = requestAnimationFrame(() => {
         frame = 0;
-        if (stick.current) scrollToEnd();
+        if (sticking.current.following) scrollToEnd();
       });
     };
     // TWO OBSERVERS, because the list grows in two different ways and a count-based effect sees
@@ -3397,7 +3421,7 @@ const countdown = (str, now = Date.now()) => {
     // was doing a moment ago. His catch, exactly: *"like when I send a message, not when the
     // messages come through."* Once this flag is back on, the list observers carry the rest — the
     // echo row, the answer streaming in, and the cooking line under it.
-    stick.current = true;
+    sticking.current.reset();
     scrollToEnd();
     // SENDING MEANS YOU'VE SEEN WHAT'S THERE. Without this, sending from the CLOSED chat left the
     // unread count standing — nothing stamps "seen" except opening the panel — so the next poll
@@ -5053,28 +5077,105 @@ const countdown = (str, now = Date.now()) => {
   // happens to be open. Only documents where somebody is BEHIND become rows: a document whose
   // members are all current is not work waiting on him, and a row that can only say "nothing to do"
   // is the furniture the band already refuses everywhere else.
-  const [docsMeta, setDocsMeta] = useState({ list: [] });
+  // THE RFCs IN THE BAND — and the reason this is here instead of a `documents` tab. That tab
+  // counted "documents somebody has not been pinged about", which failed his test: an agent reads a
+  // document when it works, so it is never meaningfully behind on one. He named the replacement —
+  // *"you got arcs, you got RFCs… and RFCs have approvals."* An unpressed approval is a decision
+  // waiting on HIM, nothing else in the band shows it, and the derivation is `rfcRows.js`.
+  const [rfcsMeta, setRfcsMeta] = useState({ list: [], waiting: 0 });
   useEffect(() => {
     let dead = false;
     const pull = async () => {
       try {
-        const svc = SystemViewService && SystemViewService.Agent;
-        if (!svc || !svc.documents) return;
-        const r = await svc.documents({ projectCode });
-        const list = ((r && r.documents) || []).filter((d) => (d.behind || []).length);
-        if (!dead) setDocsMeta({ list });
+        const files = hostFiles(projectCode);
+        if (!files || !files.listFiles) return;
+        const r = await files.listFiles({ dir: "RFCs" });
+        const paths = ((r && r.files) || [])
+          .map((f) => (typeof f === "string" ? f : f && f.path) || "")
+          // The arcs live under `RFCs/arcs` and have their own tab; listing them twice would make
+          // two rows for one document say different things about it.
+          .filter((pth) => /\/RFC-\d+[^/]*\.md$/i.test(pth) && !/\/arcs\//i.test(pth));
+        if (!paths.length) {
+          if (!dead) setRfcsMeta({ list: [], waiting: 0 });
+          return;
+        }
+        const docs = await Promise.all(
+          paths.map(async (pth) => {
+            try {
+              const f = await files.readFile({ path: pth });
+              return f && f.ok !== false ? { path: pth, text: f.content || "" } : null;
+            } catch {
+              return null;
+            }
+          }),
+        );
+        const list = rfcRows(docs.filter(Boolean));
+        if (!dead) setRfcsMeta({ list, waiting: list.reduce((n, x) => n + (x.waiting || 0), 0) });
       } catch {
-        if (!dead) setDocsMeta({ list: [] });
+        if (!dead) setRfcsMeta({ list: [], waiting: 0 });
       }
     };
     pull();
     const t = setInterval(pull, 30000);
     return () => { dead = true; clearInterval(t); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectCode, SystemViewService]);
+  }, [projectCode]);
+
+  // RFC-072 §7 — ARCS IN THE BAND. The arc document IS the state (§3), so this reads the folder
+  // and counts the `::objective` blocks every time rather than keeping a number anywhere. A stored
+  // count would be a second answer to "how far along is ARC-004", and it would be wrong the moment
+  // somebody ticked an objective by hand — which is the normal way an objective gets ticked.
+  //
+  // The derivation is `arcRows.js` and is tested without a window; this effect only fetches.
+  const [arcsMeta, setArcsMeta] = useState({ list: [] });
+  useEffect(() => {
+    let dead = false;
+    const pull = async () => {
+      try {
+        const files = hostFiles(projectCode);
+        if (!files || !files.listFiles) return;
+        const r = await files.listFiles({ dir: "RFCs/arcs" });
+        const paths = ((r && r.files) || [])
+          .map((f) => (typeof f === "string" ? f : f && f.path) || "")
+          .filter((pth) => /\/ARC-\d+[^/]*\.md$/i.test(pth));
+        // A FOLDER THAT IS NOT THERE IS NOT AN ERROR — most projects have no arcs, and the band's
+        // rule already says a kind with no rows gets no tab.
+        if (!paths.length) {
+          if (!dead) setArcsMeta({ list: [] });
+          return;
+        }
+        const docs = await Promise.all(
+          paths.map(async (pth) => {
+            try {
+              const f = await files.readFile({ path: pth });
+              return f && f.ok !== false ? { path: pth, text: f.content || "" } : null;
+            } catch {
+              return null;
+            }
+          }),
+        );
+        if (!dead) setArcsMeta({ list: arcRows(docs.filter(Boolean)) });
+      } catch {
+        if (!dead) setArcsMeta({ list: [] });
+      }
+    };
+    pull();
+    const t = setInterval(pull, 30000);
+    return () => { dead = true; clearInterval(t); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectCode]);
 
   const openBandReport = (path) => {
     if (!onCodePage() && openReportInPanel({ projectCode, path })) return;
+    // A BAND ROW OPENS ITS OWN TAB — it never takes over the document you are reading. On the code
+    // page this used to push `?rdoc=`, which swaps the CENTRE: press an arc while reading an RFC
+    // and the RFC is gone, with no tab to go back to. `?file=` is the door that becomes a tab
+    // (Documentation opens one per `fileKey`), and an arc or an RFC is a markdown file like any
+    // other — the reports view was the only reason this went the other way.
+    if (onCodePage()) {
+      openAddress({ projectCode, path, language: "markdown" });
+      return;
+    }
     const q = new URLSearchParams(window.location.search);
     q.set("tab", "reports");
     q.set("rdoc", path);
@@ -5202,13 +5303,25 @@ const countdown = (str, now = Date.now()) => {
   // bandTabs.js), so the head's highlight and the pane below can never disagree.
   const bandJobs = listsShown.filter((l) => l.source.startsWith("job:"));
   const bandLists = listsShown.filter((l) => !l.source.startsWith("job:"));
+  // WHAT EACH TAB WANTS FROM HIM, so the flag can sit ON the tab rather than only inside it. His:
+  // *"you can't see from the tab — before you even open it, put the symbol by the tab as well."*
+  // A band whose rows carry a mark the tab bar hides makes him open every tab to find the one
+  // thing waiting, which is the opposite of what a tab bar is for.
+  const bandWants = {
+    reports: reportsMeta.waiting,
+    rfcs: rfcsMeta.waiting,
+    // An arc wants him when an objective is BLOCKED — a different thing from an approval, which is
+    // why it gets its own mark below rather than sharing one.
+    arcs: arcsMeta.list.filter((a) => a.blocked).length,
+  };
   const bandShown = bandTabs(
     {
       jobs: bandJobs.length,
       lists: bandLists.length,
       lanes: lanesShown.length,
       reports: reportsMeta.list.length,
-      documents: docsMeta.list.length,
+      rfcs: rfcsMeta.list.length,
+      arcs: arcsMeta.list.length,
     },
     bandTab,
   );
@@ -6349,10 +6462,9 @@ const countdown = (str, now = Date.now()) => {
             className={`${CLASSNAME}__list`}
             ref={listRef}
             onScroll={(e) => {
-              // Our own pin does not get a vote on whether he scrolled away.
-              if (Date.now() < pinning.current) return;
-              const el = e.currentTarget;
-              stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+              // The keeper owns both refusals: our own pin gets no vote, and neither does a scroll
+              // event whose geometry changed — that is layout moving, not him.
+              sticking.current.scrolled(geoOf(e.currentTarget));
             }}
           >
             {/* THE ROOM IS GONE FROM THE PANEL. Not hidden behind a session — gone. His call once
@@ -6483,6 +6595,25 @@ const countdown = (str, now = Date.now()) => {
               column. (It belongs in the chat, not in the bottom drawer area — that was the other
               thing I got wrong.) */}
           <div className={`${CLASSNAME}__voicebar`}>
+            {/* The line only draws when something is waiting behind what is being read. */}
+            <SpeechLine
+              onGo={(key) => {
+                const el = listRef.current;
+                if (!el) return;
+                const row = el.querySelector(`[data-row="${key}"]`);
+                if (!row) return;
+                row.scrollIntoView({ block: "center" });
+                // GOING THERE IS A CHOICE, so following stops unless he landed on the last row —
+                // otherwise the next arriving reply would pull him straight back off it.
+                const rows = el.querySelectorAll("[data-row]");
+                sticking.current.aim(rows.length > 0 && rows[rows.length - 1] === row);
+                sticking.current.pin(geoOf(el));
+                // A BRIEF MARK, because a jump with no confirmation leaves him working out whether
+                // anything happened — the row he asked for says so, then stops saying it.
+                row.classList.add("agent-wb__row--went");
+                setTimeout(() => row.classList.remove("agent-wb__row--went"), 1400);
+              }}
+            />
             <VoiceMode className={`${CLASSNAME}__voice`} scope={projectCode} />
           </div>
           {attached && (work.state.state === "working" || work.state.state === "waiting") && (
@@ -6528,7 +6659,8 @@ const countdown = (str, now = Date.now()) => {
                 lists={listsShown.filter((l) => !l.source.startsWith("job:")).length}
                 lanes={lanesShown.length}
                 reports={reportsMeta.list.length}
-                waiting={reportsMeta.waiting}
+                waiting={reportsMeta.waiting + rfcsMeta.waiting}
+                blocked={bandWants.arcs}
                 onPick={pickBandTab}
                 onToggle={() => setStripOpen(false)}
               />
@@ -6544,9 +6676,21 @@ const countdown = (str, now = Date.now()) => {
                     <button
                       key={tb.key}
                       type="button"
-                      className={`${CLASSNAME}__bandtab${bandShown.active === tb.key ? ` ${CLASSNAME}__bandtab--on` : ""}`}
+                      className={`${CLASSNAME}__bandtab ${CLASSNAME}__bandtab--${tb.family || "work"}${bandShown.active === tb.key ? ` ${CLASSNAME}__bandtab--on` : ""}`}
                       onClick={() => pickBandTab(tb.key)}
                     >
+                      {bandWants[tb.key] ? (
+                        <span
+                          className={`${CLASSNAME}__bandtab-flag`}
+                          title={
+                            tb.key === "arcs"
+                              ? `${bandWants[tb.key]} objective blocked`
+                              : `${bandWants[tb.key]} waiting for your approval`
+                          }
+                        >
+                          {tb.key === "arcs" ? "⊘" : "⚑"}
+                        </span>
+                      ) : null}
                       {bandLabel(tb.key, tb.n)}
                     </button>
                   ))}
@@ -6557,6 +6701,68 @@ const countdown = (str, now = Date.now()) => {
           {/* THE REPORTS TAB — the mailbox's rows, in the strip with every other kind of work.
               Same rows, same press (opens the report the way a :report chip does), same flag on an
               approval that waits; what is gone is the fold, because the tab IS the fold now. */}
+          {/* RFC-072 §7 — THE ARC ROW SAYS ITS OWN STATE, read out of the document every time.
+              What it carries is the pair that decides what he does next: how far along, and how
+              many objectives are BLOCKED. 2 of 7 moving and 2 of 7 waiting are the same progress
+              and not the same situation, which is why the second number is on the row rather
+              than inside. Pressing opens the arc where it is written — the document is the
+              record, so there is nowhere else to go. */}
+          {attached && bandShown.active === "arcs" && (
+            <>
+              {arcsMeta.list.slice(0, 30).map((a) => (
+                <div key={a.key} className={`${CLASSNAME}__reports-row`}>
+                  <button
+                    type="button"
+                    className={`${CLASSNAME}__reports-open`}
+                    title={a.path}
+                    onClick={() => openBandReport(a.path)}
+                  >
+                    {/* ⊘, NOT ⚑. The flag means "a decision is waiting on you" on reports and
+                        RFCs; an arc with a blocked objective is a different situation and sharing
+                        one mark made the band unreadable — *"I don't know what the other one is."* */}
+                    {a.blocked ? (
+                      <span className={`${CLASSNAME}__reports-flag`} title={`${a.blocked} objective blocked`}>
+                        ⊘
+                      </span>
+                    ) : null}
+                    <span className={`${CLASSNAME}__reports-name`}>
+                      {a.id}
+                      {a.title ? ` — ${a.title}` : ""}
+                    </span>
+                    {a.owner ? <span className={`${CLASSNAME}__reports-who`}>{a.owner}</span> : null}
+                    <span className={`${CLASSNAME}__reports-when`}>{arcLine(a)}</span>
+                  </button>
+                </div>
+              ))}
+            </>
+          )}
+          {attached && bandShown.active === "rfcs" && (
+            <>
+              {rfcsMeta.list.slice(0, 30).map((r) => (
+                <div key={r.key} className={`${CLASSNAME}__reports-row`}>
+                  <button
+                    type="button"
+                    className={`${CLASSNAME}__reports-open`}
+                    title={r.path}
+                    onClick={() => openBandReport(r.path)}
+                  >
+                    {/* The same flag the reports rows use for an approval waiting — one mark for one
+                        meaning, wherever a decision is sitting undone. */}
+                    {r.state === "waiting" ? (
+                      <span className={`${CLASSNAME}__reports-flag`} title={`${r.waiting} waiting for your approval`}>
+                        ⚑
+                      </span>
+                    ) : null}
+                    <span className={`${CLASSNAME}__reports-name`}>
+                      {r.id}
+                      {r.title ? ` — ${r.title}` : ""}
+                    </span>
+                    <span className={`${CLASSNAME}__reports-when`}>{rfcLine(r)}</span>
+                  </button>
+                </div>
+              ))}
+            </>
+          )}
           {attached && bandShown.active === "reports" && (
             <>
               {reportsMeta.list.slice(0, 30).map((r) => (
@@ -6723,7 +6929,8 @@ const countdown = (str, now = Date.now()) => {
                 lists={listsShown.filter((l) => !l.source.startsWith("job:")).length}
                 lanes={lanesShown.length}
                 reports={reportsMeta.list.length}
-                waiting={reportsMeta.waiting}
+                waiting={reportsMeta.waiting + rfcsMeta.waiting}
+                blocked={bandWants.arcs}
                 onPick={pickBandTab}
                 onToggle={() => setStripOpen(true)}
               />

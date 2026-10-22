@@ -268,11 +268,25 @@ describe("tucking the stack to the edge", () => {
 
   beforeEach(() => window.localStorage.clear());
 
+  // THE TAB IS JUST THE COUNT. Set vertically and spelling out "‹ 1 update", it ran down the right
+  // edge and straight through the arc block's title — *"the tab blocks part of the arc title."* So
+  // the label is the number and the sentence lives in the tooltip, which is why this is found by
+  // its TITLE and the wording asserted separately: a test keyed to the visible words has to be
+  // rewritten every time the label gets smaller, and would not notice the meaning going missing.
+  const tab = () => screen.getByTitle(/waiting to be told/);
+
+  it("says the whole thing in its tooltip while showing only the count", () => {
+    mountOne();
+    fireEvent.click(screen.getByTitle("tuck these to the edge"));
+    expect(tab().getAttribute("title")).toBe("1 waiting to be told — bring them back");
+    expect(tab().textContent.replace(/\s+/g, " ").trim()).toBe("‹ 1");
+  });
+
   it("tucks the WHOLE stack, leaving the tab a collapsed panel leaves", () => {
     mountOne();
     fireEvent.click(screen.getByTitle("tuck these to the edge"));
-    expect(screen.getByText("‹ 1 update")).toBeTruthy();
-    fireEvent.click(screen.getByText("‹ 1 update"));
+    expect(tab()).toBeTruthy();
+    fireEvent.click(tab());
     expect(screen.getByText("document")).toBeTruthy();
   });
 
@@ -291,7 +305,7 @@ describe("tucking the stack to the edge", () => {
       </MarkdownWriteProvider>,
     );
     expect(screen.queryByText("document")).toBeNull();
-    expect(screen.getByText("‹ 1 update")).toBeTruthy();
+    expect(tab()).toBeTruthy();
   });
 
   // AND THE OTHER HALF: a reload used to lose it.
@@ -300,7 +314,7 @@ describe("tucking the stack to the edge", () => {
     fireEvent.click(screen.getByTitle("tuck these to the edge"));
     first.unmount();
     mountOne();
-    expect(screen.getByText("‹ 1 update")).toBeTruthy();
+    expect(tab()).toBeTruthy();
     expect(screen.queryByText("document")).toBeNull();
     // Another document is another corner — tucking one must not tuck them all.
     first.unmount && null;

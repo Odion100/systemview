@@ -95,7 +95,10 @@ const MembersPin = () => {
           title={`${behindCount} waiting to be told — bring them back`}
           onClick={() => tuck(false)}
         >
-          ‹ {behindCount} update{behindCount === 1 ? "" : "s"}
+          {/* JUST THE COUNT. Set vertically, "‹ 2 updates" is a tall strip down the right edge and
+              it landed on top of the arc's own title — *"the tab blocks part of the arc title."*
+              The sentence it used to spell out is in the `title` above, where it costs no pixels. */}
+          ‹ {behindCount}
         </button>
       )}
       {!tucked && (
