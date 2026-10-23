@@ -688,3 +688,43 @@
   line-height: 1;
   opacity: 0.8;
 }
+
+// BACK AND FORWARD, A SENTENCE AT A TIME. Same size and weight as the pause between them — three
+// controls doing one job, so they read as a transport rather than as a pause with decorations.
+.speak-reply__step {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  // THE SAME RING THE QUEUE LINE'S FORWARD WEARS — `.speech-line__skip`, copied in shape rather
+  // than reinvented, because it is the same control said at a smaller grain. A pill, not a fixed
+  // circle, so the glyph decides its own width.
+  padding: 0 7px 0 5px;
+  border: 1px solid var(--sv-border-soft);
+  border-radius: 999px;
+  background: var(--sv-surface);
+  color: var(--sv-text-muted);
+  font: inherit;
+  // BIG ENOUGH TO READ AS A SHAPE. It was 8px, matched to the pause beside it, and at that size a
+  // doubled triangle is a smudge — his catch: *"it's really small, you barely see the shape of
+  // it."* A glyph that IS the control has to be legible as a glyph; matching the neighbour's size
+  // was consistency serving nothing.
+  font-size: 13px;
+  line-height: 16px;
+  cursor: pointer;
+  // THE TWO TRIANGLES TOUCH. Pulled together so they read as one fast-forward mark rather than two
+  // marks side by side — the trailing padding above puts back the space this takes off the end.
+  letter-spacing: -3px;
+
+  &:hover:not(:disabled) {
+    border-color: var(--sv-blue, #5b8def);
+    color: var(--sv-blue, #5b8def);
+  }
+
+  // AT EITHER END IT SAYS SO rather than silently doing nothing — the first sentence has no back
+  // and the last has no forward, and a control that looks live and is not is worse than a dim one.
+  &:disabled {
+    cursor: default;
+    opacity: 0.3;
+  }
+}

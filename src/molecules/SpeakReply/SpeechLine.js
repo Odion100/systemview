@@ -1,17 +1,21 @@
 import React, { useEffect, useState } from "react";
-import { subscribe, view, drop, clear, skip } from "./speechQueue";
+import { subscribe, view, drop, clear, skip, setPaused, jumpTo } from "./speechQueue";
+import { pause as voicePause, resume as voiceResume } from "../../utils/voice";
 
 // WHAT IS TALKING, AND WHAT IS NEXT. A queue you cannot see is a slower kind of surprise: replies
 // start speaking minutes after they arrived and nothing says why, or how many more are coming.
 //
-// IT IS THERE WHEN THERE IS A LINE — and the fix for *"I want to move forward"* was NOT to show
-// forward all the time. That was the wrong half: a forward button with nothing behind it moves to
-// nothing. His correction: *"it's nice when you have a forward button, but there's nothing to move
-// forward to… the problem was, there's no new queue."* Pressing a reply now fills the line behind
-// it (`lineUp.js`), so forward has somewhere to go, and this draws when that line exists.
+// TWO RULES, AND THEY ARE ABOUT DIFFERENT THINGS. Collapsing them into one is a mistake already
+// made twice here:
 //
-// AND WHEN IT DRAWS, THE ONE TALKING IS ON IT. *"One item on the queue is the item on the queue."*
-// Listing only what WAITED meant the line could never say what it was reading.
+//   1. THE LINE DRAWS WHENEVER SOMETHING IS TALKING. *"One item in the job queue — one person
+//      speaking with nothing else behind — shows up in the queue."* The thing being read IS an item
+//      on the queue, so a line holding exactly one is a line, and listing only what WAITED meant it
+//      could never say what it was reading.
+//   2. FORWARD IS CONDITIONAL, not the line. *"It's nice when you have a forward button, but there's
+//      nothing to move forward to."* A skip with an empty line behind it moves to nothing.
+//
+// So: draw on `playing || waiting`, and render forward only when something is actually behind it.
 const SpeechLine = ({ className = "", onGo = null }) => {
   const [q, setQ] = useState(view);
   useEffect(() => subscribe(setQ), []);
@@ -20,25 +24,60 @@ const SpeechLine = ({ className = "", onGo = null }) => {
   // because a pause holds the line forever and silence with no explanation is the state he got
   // stuck in: replies arriving, nothing reading them, and no way to tell why.
   const stalled = !!(q.playing && q.playing.paused);
-  if (!q.waiting.length && !stalled) return null;
+  // LOADING BELONGS HERE TOO. *"Sometimes you're not… you press the button or you highlight and you
+  // press the button. They're just waiting."* On a cold machine the first utterance waits on an
+  // 86MB model, and the ROW that was pressed is the only thing that says so — useless for a box
+  // selection, which has no row, and for a reply he has scrolled away from. Silence with no account
+  // is the exact state this line exists to end.
+  const warming = !!(q.playing && q.playing.warming && !stalled);
+  if (!q.playing && !q.waiting.length) return null;
   // Everything the line is holding, the one talking included — that IS the line.
   const inLine = (q.playing ? 1 : 0) + q.waiting.length;
 
   return (
     <div className={`speech-line ${className}`.trim()}>
       <div className="speech-line__head">
+        {/* PAUSE LIVES HERE TOO, and that is the point of the line. The transport is on the ROW, so
+            scrolling away from the reply being read took pause with it — his words: *"there's
+            definitely times you scroll away from the play button… you can't pause it, you could
+            only stop it. The queue should have the full functionality of whatever is playing so
+            that you don't have to have it in view."*
+            It does not need the row's handle: `voice.pause()` acts on whatever is currently
+            speaking, which is exactly what the line is about. */}
+        {q.playing && (
+          <button
+            type="button"
+            className={`speech-line__pause${stalled ? " is-paused" : ""}`}
+            title={stalled ? "Resume" : "Pause"}
+            aria-label={stalled ? "Resume reading" : "Pause reading"}
+            onClick={() => {
+              if (stalled) {
+                voiceResume();
+                setPaused(q.playing.key, false);
+              } else {
+                voicePause();
+                setPaused(q.playing.key, true);
+              }
+            }}
+          >
+            {stalled ? "▶" : "❙❙"}
+          </button>
+        )}
         {/* SKIP, and it is the escape from a pause. Resuming would carry on with something he has
-            moved past; stop would throw away everything that arrived while he was stuck. */}
-        <button type="button" className="speech-line__skip" title="Skip to the next one" onClick={() => skip()}>
-          ⏭
-        </button>
+            moved past; stop would throw away everything that arrived while he was stuck. Drawn only
+            when there is a next one — forward to nothing is a control that lies. */}
+        {q.waiting.length > 0 && (
+          <button type="button" className="speech-line__skip" title="Skip to the next one" onClick={() => skip()}>
+            ⏭
+          </button>
+        )}
         <button
           type="button"
           className={`speech-line__stop${stalled ? " is-paused" : ""}`}
           title="Stop reading and empty the line"
           onClick={() => clear()}
         >
-          ■ {stalled ? "paused" : ""} {inLine ? `${inLine} in line` : ""}
+          ■ {stalled ? "paused" : warming ? "loading" : ""} {inLine ? `${inLine} in line` : ""}
         </button>
       </div>
       <ul className="speech-line__list">
@@ -50,20 +89,24 @@ const SpeechLine = ({ className = "", onGo = null }) => {
         {q.playing && (
           <li
             key={q.playing.key}
-            className={`speech-line__row speech-line__row--reading${stalled ? " is-paused" : ""}`}
+            className={`speech-line__row speech-line__row--reading${stalled ? " is-paused" : ""}${
+              warming ? " is-warming" : ""
+            }`}
           >
             <span className="speech-line__mark" aria-hidden="true">
-              {stalled ? "⏸" : "▶"}
+              {stalled ? "⏸" : warming ? "◌" : "▶"}
             </span>
             {/* CLICK IT TO GO TO IT. His: *"the queue shows what's playing, so you need to be able
                 to click on it and navigate to that… it was all the way up and it was playing, maybe
                 I want to go right to it."* The line is the only place that knows what is reading, so
                 it is the only place that can take him there — and a deliberate press beats a scroll
                 that happens TO him, which is why this exists at all. */}
+            {/* The one TALKING has nowhere to jump to, so its label keeps the go-to door — the
+                reading is already here, only the view can move. */}
             <button
               type="button"
               className="speech-line__text speech-line__text--go"
-              title="Go to this reply"
+              title="Go to this reply in the conversation"
               onClick={() => onGo && onGo(q.playing.key)}
               disabled={!onGo}
             >
@@ -86,14 +129,29 @@ const SpeechLine = ({ className = "", onGo = null }) => {
         )}
         {q.waiting.map((w) => (
           <li key={w.key} className="speech-line__row">
+            {/* THE LABEL MOVES THE READING. *"Clicking a queue item — jump to it, forward to it."*
+                He was explicit that this is DISTINCT from going to the reply, and I had collapsed
+                the two: pressing a row used to only scroll the view. A press on a queue row means
+                "read this one now", the way it does in any line of things waiting to play. */}
             <button
               type="button"
-              className="speech-line__text speech-line__text--go"
-              title="Go to this reply"
+              className="speech-line__text speech-line__text--jump"
+              title="Read this one now"
+              onClick={() => jumpTo(w.key)}
+            >
+              {w.label || "a reply"}
+            </button>
+            {/* AND GOING TO IT KEEPS ITS OWN DOOR, because it is its own act: this moves the VIEW
+                and leaves the reading alone, where the label moves the reading and leaves the view
+                alone. One click cannot mean both. */}
+            <button
+              type="button"
+              className="speech-line__goto"
+              title="Go to this reply in the conversation"
               onClick={() => onGo && onGo(w.key)}
               disabled={!onGo}
             >
-              {w.label || "a reply"}
+              ⤴
             </button>
             {/* Taking one OUT of the line is not stopping — what is being read keeps reading. */}
             <button

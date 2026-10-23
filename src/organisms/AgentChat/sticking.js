@@ -20,19 +20,27 @@ export const NEAR = 120;
 export const nearBottom = ({ scrollHeight = 0, scrollTop = 0, clientHeight = 0 } = {}, near = NEAR) =>
   scrollHeight - scrollTop - clientHeight < near;
 
-const same = (a, b) => a.scrollHeight === b.scrollHeight && a.clientHeight === b.clientHeight;
-
 /**
  * The verdict on one scroll event.
  * @returns {"follow"|"leave"|"keep"} — keep means this event says nothing; do not touch the flag.
  */
 export const verdict = (prev, next, near = NEAR) => {
   if (!prev) return nearBottom(next, near) ? "follow" : "leave";
-  // The box changed size or the content grew: this is layout, not him. Say nothing.
-  if (!same(prev, next)) return "keep";
-  // Same box, same content, and he has not moved either — nothing happened worth a verdict.
-  if (prev.scrollTop === next.scrollTop) return "keep";
-  return nearBottom(next, near) ? "follow" : "leave";
+  // HE MOVED IT: `scrollTop` changed, so this is his scroll and it gets judged — whatever else
+  // changed alongside it.
+  //
+  // THE FIRST VERSION ASKED THE WRONG QUESTION. It suppressed the verdict whenever the box or the
+  // content had changed at all, which is true on EVERY frame of a streaming reply — so scrolling
+  // back down mid-stream was classified as layout and ignored, and following could never be
+  // regained while anything was arriving. His report: *"it doesn't scroll like it used to,
+  // literally as it streamed in… it used to scroll as you went."* Geometry moving alongside him is
+  // the normal case, not a reason to disbelieve him.
+  if (prev.scrollTop !== next.scrollTop) return nearBottom(next, near) ? "follow" : "leave";
+  // HE DIDN'T: `scrollTop` is where he left it and only the box or the content moved. That is
+  // layout — the work drawer taking 122px, a late image, the voice line appearing — and layout gets
+  // no vote. This is the drawer fix, and it survives the rule above because the drawer does not
+  // move `scrollTop`.
+  return "keep";
 };
 
 /** A small stateful keeper, so the component holds one object instead of three refs. */
@@ -52,16 +60,6 @@ export const createSticking = (near = NEAR) => {
     /** He sent a message, or the panel just opened: the bottom is where he is. */
     reset() {
       following = true;
-      last = null;
-    },
-    /**
-     * SOMETHING ELSE TOOK THE VIEW DELIBERATELY — the voice moving to the row it is reading. That
-     * is a choice, not a scroll, so it SETS following rather than being measured for it: reading
-     * an old reply must not be yanked to the bottom by the next thing that arrives, and reading
-     * the newest one must not stop following just because we scrolled to it.
-     */
-    aim(on) {
-      following = !!on;
       last = null;
     },
     /** A scroll event arrived. */

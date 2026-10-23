@@ -4794,3 +4794,66 @@ $sv-board-states: (
   box-shadow: inset 2px 0 0 var(--sv-blue, #5b8def);
   transition: box-shadow 220ms ease-out;
 }
+
+// PAUSE ON THE LINE. Same shape as stop and forward beside it — the line is the full transport for
+// whatever is reading, so its controls read as one set rather than one borrowed control.
+.speech-line__pause {
+  padding: 2px 7px;
+  border: 1px solid var(--sv-border-soft);
+  border-radius: 999px;
+  background: var(--sv-surface);
+  color: var(--sv-text-muted);
+  font: inherit;
+  font-size: 10px;
+  cursor: pointer;
+
+  &:hover { border-color: var(--sv-amber, #c88a2e); color: var(--sv-amber, #c88a2e); }
+  &.is-paused { border-color: var(--sv-amber, #c88a2e); color: var(--sv-amber, #c88a2e); }
+}
+
+// A WAITING ROW'S LABEL MOVES THE READING, and reads as the primary act on the row — the way a row
+// in any list of things waiting to play does.
+.speech-line__text--jump {
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover { color: var(--sv-text); }
+}
+
+// AND GOING TO THE REPLY IS A SECOND, SMALLER DOOR. Distinct on purpose: one moves what he hears,
+// the other moves what he sees, and he was explicit that they are not the same press.
+.speech-line__goto {
+  flex: 0 0 auto;
+  padding: 0 2px;
+  border: 0;
+  background: none;
+  color: var(--sv-text-faint);
+  font: inherit;
+  font-size: 9px;
+  line-height: 1;
+  cursor: pointer;
+
+  &:hover { color: var(--sv-blue, #5b8def); }
+  &:disabled { cursor: default; opacity: 0.4; }
+}
+
+// LOADING, ON THE LINE. The mark breathes faster than the reading pulse and sits in the blue the
+// voice uses — it is the same thing happening, one step earlier, so it should not look like a
+// different state.
+@keyframes sv-speech-warm {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 0.9; }
+}
+
+.speech-line__row--reading.is-warming .speech-line__mark {
+  animation: sv-speech-warm 0.9s ease-in-out infinite;
+}
