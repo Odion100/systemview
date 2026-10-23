@@ -1,4 +1,4 @@
-import { enqueue, cutIn, done, drop, clear, skip, setPaused, view, subscribe, _reset } from "./speechQueue";
+import { enqueue, cutIn, done, drop, clear, skip, setPaused, view, subscribe, _reset, jumpTo, playFirst } from "./speechQueue";
 
 // THE FAILURE: a reply arriving mid-sentence truncated the one being read, because auto-speech
 // went through the same door as a press and a press is SUPPOSED to cancel. Every claim here is
@@ -164,5 +164,93 @@ describe("getting past the one that is reading", () => {
     enqueue(item("a"));
     expect(setPaused("b", true)).toBe(false);
     expect(view().playing.paused).toBe(false);
+  });
+});
+
+// JUMPING THE LINE — *"clicking a queue item, jump to it, forward to it."* Distinct from going to
+// the reply in the conversation: that moves the view, this moves the reading.
+describe("jumping the line to one of its own items", () => {
+  const made = [];
+  const row = (key) => ({ key, label: key, start: () => { made.push(key); return { stop: () => {} }; } });
+
+  beforeEach(() => { made.length = 0; cutIn(null); });
+
+  it("starts the one he picked, now", () => {
+    cutIn(row("a"));
+    enqueue(row("b"));
+    enqueue(row("c"));
+    expect(jumpTo("c")).toBe(true);
+    expect(view().playing.key).toBe("c");
+    expect(made).toEqual(["a", "c"]);
+  });
+
+  it("goes FORWARD — what sat ahead of it is dropped, never held to rewind into", () => {
+    cutIn(row("a"));
+    ["b", "c", "d"].forEach((k) => enqueue(row(k)));
+    jumpTo("d");
+    expect(view().playing.key).toBe("d");
+    expect(view().waiting).toEqual([]);
+  });
+
+  it("keeps what sat behind it", () => {
+    cutIn(row("a"));
+    ["b", "c", "d"].forEach((k) => enqueue(row(k)));
+    jumpTo("c");
+    expect(view().waiting.map((w) => w.key)).toEqual(["d"]);
+  });
+
+  it("does nothing for the one already talking — there is nowhere to jump", () => {
+    cutIn(row("a"));
+    enqueue(row("b"));
+    expect(jumpTo("a")).toBe(false);
+    expect(view().playing.key).toBe("a");
+    expect(view().waiting.map((w) => w.key)).toEqual(["b"]);
+  });
+
+  it("refuses a key that is not in the line rather than emptying it", () => {
+    cutIn(row("a"));
+    enqueue(row("b"));
+    expect(jumpTo("nope")).toBe(false);
+    expect(view().playing.key).toBe("a");
+    expect(view().waiting.map((w) => w.key)).toEqual(["b"]);
+  });
+});
+
+// THE FRONT OF THE LINE — *"it's not added to the back of the queue, it's added to the front."*
+// Nothing removed, nothing replaced: that is what separates it from `cutIn`.
+describe("playing something first without emptying the line", () => {
+  const spoke = [];
+  const row = (key) => ({ key, label: key, start: () => { spoke.push(key); return { stop: () => {} }; } });
+
+  beforeEach(() => { spoke.length = 0; cutIn(null); });
+
+  it("plays it now and leaves what was waiting exactly where it was", () => {
+    cutIn(row("reply"));
+    enqueue(row("b"));
+    enqueue(row("c"));
+    playFirst(row("selection"));
+    expect(view().playing.key).toBe("selection");
+    expect(view().waiting.map((w) => w.key)).toEqual(["reply", "b", "c"]);
+  });
+
+  it("puts the interrupted one at the HEAD, so it picks up again next", () => {
+    cutIn(row("reply"));
+    enqueue(row("b"));
+    playFirst(row("selection"));
+    done("selection");
+    expect(view().playing.key).toBe("reply");
+    expect(spoke).toEqual(["reply", "selection", "reply"]);
+  });
+
+  it("just plays when nothing was reading", () => {
+    playFirst(row("selection"));
+    expect(view().playing.key).toBe("selection");
+    expect(view().waiting).toEqual([]);
+  });
+
+  it("refuses something that cannot speak rather than silencing the line", () => {
+    cutIn(row("reply"));
+    expect(playFirst({ key: "x" })).toBe(false);
+    expect(view().playing.key).toBe("reply");
   });
 });

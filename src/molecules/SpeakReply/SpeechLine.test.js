@@ -1,7 +1,7 @@
 import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import SpeechLine from "./SpeechLine";
-import { cutIn, enqueue, setPaused, view } from "./speechQueue";
+import { cutIn, enqueue, setPaused, setWarming, view } from "./speechQueue";
 
 const row = (key) => ({ key, label: key, start: () => ({ stop: () => {} }) });
 
@@ -12,11 +12,23 @@ describe("the line draws when there is a line", () => {
   // forward"* — his correction: *"it's nice when you have a forward button, but there's nothing to
   // move forward to… the problem was, there's no new queue."* Filling the queue is the fix;
   // drawing a control that leads nowhere is not.
-  it("draws nothing while one reply reads alone — forward would have nowhere to go", () => {
-    cutIn(row("r1"));
+  // ONE ITEM IS A LINE. *"One person speaking with nothing else behind shows up in the queue."*
+  it("draws with one row while a reply reads alone", () => {
+    cutIn(row("only-one"));
     const { container } = render(<SpeechLine />);
     expect(view().waiting).toEqual([]);
-    expect(container.querySelector(".speech-line")).toBeNull();
+    expect(container.querySelector(".speech-line")).not.toBeNull();
+    expect(container.querySelectorAll(".speech-line__row")).toHaveLength(1);
+    expect(screen.getByText("only-one")).toBeInTheDocument();
+  });
+
+  // AND FORWARD IS THE PART THAT WAITS. A skip with nothing behind it moves to nothing.
+  it("withholds forward until there is something to move forward to", () => {
+    cutIn(row("r1"));
+    expect(screen.queryByTitle("Skip to the next one")).toBeNull();
+    const { container } = render(<SpeechLine />);
+    expect(container.querySelector(".speech-line__skip")).toBeNull();
+    expect(container.querySelector(".speech-line__stop")).not.toBeNull();
   });
 
   it("appears with forward and stop the moment something is behind it", () => {
@@ -113,29 +125,116 @@ describe("clicking a row goes to that reply", () => {
     expect(went).toEqual(["up-at-the-top"]);
   });
 
-  it("and of a row that is only waiting", () => {
+  // SUPERSEDED. A waiting row's label used to navigate; he was explicit that a queue press moves
+  // the READING — *"I was being distinct from that. Clearly. Purposely."* Going to the reply keeps
+  // its own ⤴ door on the row.
+  it("reaches a waiting row's reply through its own go-to door, not its label", () => {
+    const went = [];
+    cutIn(row("r1"));
+    enqueue(row("later-one"));
+    const { container } = render(<SpeechLine onGo={(k) => went.push(k)} />);
+    fireEvent.click(container.querySelector(".speech-line__goto"));
+    expect(went).toEqual(["later-one"]);
+  });
+
+  it("and pressing that row's LABEL moves the reading instead, leaving the view alone", () => {
     const went = [];
     cutIn(row("r1"));
     enqueue(row("later-one"));
     render(<SpeechLine onGo={(k) => went.push(k)} />);
     fireEvent.click(screen.getByText("later-one"));
-    expect(went).toEqual(["later-one"]);
+    expect(view().playing.key).toBe("later-one");
+    expect(went).toEqual([]);
   });
 
-  it("does not offer the door when nothing can open it", () => {
+  it("does not offer the go-to door when nothing can open it", () => {
     cutIn(row("r1"));
     enqueue(row("r2"));
     const { container } = render(<SpeechLine />);
-    const doors = [...container.querySelectorAll(".speech-line__text--go")];
-    expect(doors.length).toBe(2);
-    expect(doors.every((d) => d.disabled)).toBe(true);
+    expect(container.querySelector(".speech-line__text--go").disabled).toBe(true);
+    expect(container.querySelector(".speech-line__goto").disabled).toBe(true);
   });
 
-  it("going to a row does not remove it from the line", () => {
+  it("going to a row does not remove it from the line, nor start it", () => {
     cutIn(row("r1"));
     enqueue(row("r2"));
-    render(<SpeechLine onGo={() => {}} />);
-    fireEvent.click(screen.getByText("r2"));
+    const { container } = render(<SpeechLine onGo={() => {}} />);
+    fireEvent.click(container.querySelector(".speech-line__goto"));
     expect(view().waiting.map((w) => w.key)).toEqual(["r2"]);
+    expect(view().playing.key).toBe("r1");
+  });
+});
+
+// THE LINE IS THE FULL TRANSPORT. *"There's definitely times you scroll away from the play button…
+// you can't pause it, you could only stop it. The queue should have the full functionality of
+// whatever is playing so that you don't have to have it in view."*
+describe("pause lives on the line, not only on the row", () => {
+  it("offers pause whenever something is reading, with nothing behind it", () => {
+    cutIn(row("r1"));
+    const { container } = render(<SpeechLine />);
+    expect(container.querySelector(".speech-line__pause")).not.toBeNull();
+  });
+
+  it("pressing it puts the line into paused, which is what says why it is silent", () => {
+    cutIn(row("r1"));
+    const { container } = render(<SpeechLine />);
+    fireEvent.click(container.querySelector(".speech-line__pause"));
+    expect(view().playing.paused).toBe(true);
+    setPaused("r1", false);
+  });
+
+  it("and pressing it again resumes, rather than needing stop", () => {
+    cutIn(row("r1"));
+    const { container } = render(<SpeechLine />);
+    fireEvent.click(container.querySelector(".speech-line__pause"));
+    fireEvent.click(container.querySelector(".speech-line__pause"));
+    expect(view().playing.paused).toBe(false);
+  });
+
+  it("shows nothing to pause when nothing is reading", () => {
+    cutIn(null);
+    const { container } = render(<SpeechLine />);
+    expect(container.querySelector(".speech-line__pause")).toBeNull();
+  });
+});
+
+// HIS CASE: *"in some cases you may be scrolled away from the thing that's loading"* — and a box
+// selection has no row at all. The row's own "Loading" label cannot help in either, so the line
+// has to say it.
+describe("loading shows on the line, not only on the row", () => {
+  it("says loading while whatever is playing is still warming up", () => {
+    cutIn(row("sel-1"));
+    setWarming("sel-1", true);
+    const { container } = render(<SpeechLine />);
+    expect(container.querySelector(".speech-line__stop").textContent).toContain("loading");
+    expect(container.querySelector(".speech-line__row--reading.is-warming")).not.toBeNull();
+    setWarming("sel-1", false);
+  });
+
+  it("stops saying it the moment the first sound arrives", () => {
+    cutIn(row("sel-1"));
+    setWarming("sel-1", true);
+    const { container, rerender } = render(<SpeechLine />);
+    setWarming("sel-1", false);
+    rerender(<SpeechLine />);
+    expect(container.querySelector(".speech-line__stop").textContent).not.toContain("loading");
+  });
+
+  it("paused outranks loading — a pause is the thing he needs explained", () => {
+    cutIn(row("sel-1"));
+    setWarming("sel-1", true);
+    setPaused("sel-1", true);
+    const { container } = render(<SpeechLine />);
+    expect(container.querySelector(".speech-line__stop").textContent).toContain("paused");
+    expect(container.querySelector(".speech-line__stop").textContent).not.toContain("loading");
+    setPaused("sel-1", false);
+    setWarming("sel-1", false);
+  });
+
+  it("ignores a warming report for something that is not playing", () => {
+    cutIn(row("a"));
+    expect(setWarming("someone-else", true)).toBe(false);
+    const { container } = render(<SpeechLine />);
+    expect(container.querySelector(".speech-line__stop").textContent).not.toContain("loading");
   });
 });

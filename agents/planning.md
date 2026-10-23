@@ -308,10 +308,16 @@ is a half-feature that reads as BROKEN rather than pending.
 
 ### Who does what
 
-**`arc-planning`** conducts the discussion and ends at dispatch. **`arc-execution`** begins there and
-is run by agents who were never in the planning: claim the objective, read the `why` before the
-`what`, check `needs`, build, and move the state in the document. Blocked is a finding, never an
-ending.
+**`arc-planning`** conducts the discussion and ends at dispatch. **`arc-development`** — a JOB, not
+a skill — begins there and is run by agents who were never in the planning: claim the objective,
+read the `why` before the `what`, check `needs`, build, and move the state in the document. Blocked
+is a finding, never an ending.
+
+It is a job because a job is the only thing a hook can AIM. A hook supplies `with: { project, arc }`,
+and a job whose inputs cannot be supplied is refused by name rather than firing at nothing — so an
+arc can be driven unattended, by a hook pointed at that arc, with the run record to prove it ran.
+A skill has no such door: its description is injected into every session, so the work could only
+ever be CHOSEN, never given.
 
 ## Writing the skill from one
 

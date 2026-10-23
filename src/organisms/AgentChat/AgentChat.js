@@ -22,6 +22,15 @@ import { slotId, setNavDocked, useNavDock, isNavDocked, railId, spotId, placeInD
 import { hasHostDictation, startHostRecording } from "../../utils/hostDictation";
 import VoiceMode from "../../molecules/SpeakReply/VoiceMode";
 import SpeechLine from "../../molecules/SpeakReply/SpeechLine";
+import BoxSelect from "../../molecules/BoxSelect/BoxSelect";
+import "../../molecules/BoxSelect/styles.scss";
+// A BOX SELECTION SPEAKS THROUGH THE SAME DOORS A REPLY DOES — one engine, one queue, one
+// microphone mute. A second path to the speaker would drift the first time either changed.
+import { spokenForm } from "../../utils/spokenForm";
+import { speak, ready as engineReady } from "../../utils/voice";
+import { readVoicePref, readVoiceSettings } from "../../utils/voicePref";
+import { playFirst, done as queueDone, setWarming as queueWarming } from "../../molecules/SpeakReply/speechQueue";
+import { announce } from "../../molecules/SpeakReply/speaker";
 import Feed, { timeOf } from "../AgentWorkbench/Feed";
 import useAgentSession from "../AgentWorkbench/useAgentSession";
 import { CTX_WARN, CTX_DUE, tokensShort, parseUsageLines, foldEvents } from "../AgentWorkbench/feedRows";
@@ -1113,15 +1122,24 @@ function WorkbandHead({ open, jobs, lists = 0, lanes, reports, waiting, blocked 
   );
 }
 
-function Whiteboard({ text, writeTs = 0, onWipe }) {
+function Whiteboard({ text, writeTs = 0, onWipe, shown = null, onShow = null }) {
+  // THE TOGGLE CAN LIVE SOMEWHERE ELSE. It now has a button at the end of the band's tab row, which
+  // is where he asked for it — *"put a button at the end of the tabs for the whiteboard, whiteboard
+  // icon, so show and hide it"* — and two toggles for one fold is how a surface starts disagreeing
+  // with itself. When `shown` is supplied this is controlled and the head stops being a button.
+  const controlled = typeof shown === "boolean";
   // CLOSED ON ARRIVAL, OPEN ON LIVE WRITE — his rule, fixed properly the second time: comparing
   // text to its previous value opened on every refresh, because the history batch arrives AFTER
   // mount and reads as a change. The write's own clock settles it: a stamp older than this view
   // is history, a newer one is the agent writing while you watch.
-  const [open, setOpen] = useState(false);
+  const [ownOpen, setOwnOpen] = useState(false);
+  const open = controlled ? shown : ownOpen;
+  const setOpen = controlled ? (v) => onShow && onShow(v) : setOwnOpen;
   const mountedAt = useRef(Date.now());
   useEffect(() => {
-    if (text && writeTs > mountedAt.current) setOpen(true);
+    if (controlled) return; // whoever owns the toggle owns the live-write rule too
+    if (text && writeTs > mountedAt.current) setOwnOpen(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [text, writeTs]);
   // Wiping is two-step, the same as every other destructive thing in this app — the armed ×
   // becomes "wipe? yes/no" in place. window.confirm was wrong here and is banned in this codebase
@@ -1131,16 +1149,23 @@ function Whiteboard({ text, writeTs = 0, onWipe }) {
   return (
     <div className={`${CLASSNAME}__whiteboard`}>
       <div className={`${CLASSNAME}__whiteboard-headrow`}>
-        <button
-          type="button"
-          className={`${CLASSNAME}__whiteboard-head`}
-          onClick={() => setOpen(!open)}
-          title={open ? "Fold the whiteboard" : "Show the whiteboard"}
-        >
-          <span className={`${CLASSNAME}__whiteboard-badge`}>▦</span>
-          <span className={`${CLASSNAME}__whiteboard-label`}>whiteboard</span>
-          <span className={`${CLASSNAME}__whiteboard-chev`}>{open ? "▾" : "▸"}</span>
-        </button>
+        {controlled ? (
+          <span className={`${CLASSNAME}__whiteboard-head ${CLASSNAME}__whiteboard-head--static`}>
+            <span className={`${CLASSNAME}__whiteboard-badge`}>▦</span>
+            <span className={`${CLASSNAME}__whiteboard-label`}>whiteboard</span>
+          </span>
+        ) : (
+          <button
+            type="button"
+            className={`${CLASSNAME}__whiteboard-head`}
+            onClick={() => setOpen(!open)}
+            title={open ? "Fold the whiteboard" : "Show the whiteboard"}
+          >
+            <span className={`${CLASSNAME}__whiteboard-badge`}>▦</span>
+            <span className={`${CLASSNAME}__whiteboard-label`}>whiteboard</span>
+            <span className={`${CLASSNAME}__whiteboard-chev`}>{open ? "▾" : "▸"}</span>
+          </button>
+        )}
         {onWipe && !armed && (
           <button
             type="button"
@@ -2782,10 +2807,22 @@ function BotBubble({ projectCode, index }) {
   // NEW ROWS PULL THE VIEW DOWN — in the ROOM as well as in a session. The old effect was gated on
   // `attached`, so the room's chat never followed a new message at all. That gate was the bug he
   // reported twice: *"it doesn't scroll down as new messages come in."*
+  // AND `events`, NOT JUST `rows` — this is the one that follows a STREAM, and its absence is why
+  // observers were ever bolted on here.
+  //
+  // `useAgentSession` appends to `events` on every transport event and folds `rows` out of it. A
+  // streaming reply arrives as a run of deltas that fold into the SAME row, so `rows.length` does
+  // not move for the whole reply — and an effect watching it fires once at the start and never
+  // again. Measured in his window: the content grew 19px at a time for thirteen seconds with
+  // `scrollTop` frozen, while `following` was on the entire time. Nothing was deciding wrongly;
+  // nothing was being asked.
+  //
+  // `events.length` moves on every delta, which is exactly the original behaviour of this panel —
+  // it scrolled from the subscription that delivered the message, with no observer anywhere.
   useEffect(() => {
     if (sticking.current.following) scrollToEnd();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages.length, work.rows.length]);
+  }, [messages.length, work.rows.length, work.events.length]);
 
   // NO AUTOMATIC FOLLOW. It was here — the view jumped to whatever row started reading — and his
   // ruling after living with it: *"maybe all those scrolling can go away, because I didn't see it
@@ -2801,48 +2838,38 @@ function BotBubble({ projectCode, index }) {
   useEffect(() => {
     const el = listRef.current;
     if (!el) return undefined;
-    // COALESCED TO ONE PER FRAME. `scrollToEnd` reads `scrollHeight`, which forces a synchronous
-    // layout — and the MutationObserver below watches characterData across the whole subtree, so a
-    // streaming answer fires it on every few characters. Un-throttled that is a forced reflow per
-    // mutation over a list that can hold hundreds of messages, and the whole panel goes gummy: the
-    // symptom he noticed was dictation showing interim words but taking a beat to commit them into
-    // the input, on a feature neither of us had touched.
-    let frame = 0;
+    // ONE OBSERVER, AND IT COVERS THE ONE CASE AN EVENT COUNT CANNOT: height that arrives LATER
+    // than the event that delivered the content. An image finishing its load, an embed measuring
+    // itself, a block settling — none of those are transport events, so `work.events.length` never
+    // moves for them and nothing else would scroll.
+    //
+    // A MUTATION OBSERVER USED TO SIT HERE TOO, watching `characterData` across the whole subtree
+    // to hear a streaming reply character by character. That was compensation for the effect above
+    // watching `rows.length`, which does not move during a stream — and it cost more than it
+    // bought: it handed this ResizeObserver every element it saw added, hundreds over one reply,
+    // and the delivery churn starved the frame loop that was doing the scrolling. Measured in his
+    // window: following ON throughout, resize callbacks firing every 300–500ms, and the frame
+    // callback running ONCE in thirteen seconds. With the stream's own count as the trigger there
+    // is nothing left for it to hear.
+    //
+    // Throttled by the clock rather than a frame, for the same reason: a timestamp cannot be
+    // starved, and the geometry read below is a layout read.
+    let last = 0;
     const bump = () => {
-      // A RESIZE IS NOT A DECISION, it is news. Recording the new geometry is what stops the next
-      // scroll event from reading the drawer's 122px as "he scrolled away" — the bug this fixes.
+      if (!sticking.current.following) return;
+      const now = Date.now();
+      if (now - last < 16) return;
+      last = now;
       sticking.current.resized(geoOf(el));
-      if (!sticking.current.following || frame) return;
-      frame = requestAnimationFrame(() => {
-        frame = 0;
-        if (sticking.current.following) scrollToEnd();
-      });
+      if (sticking.current.following) scrollToEnd();
     };
-    // TWO OBSERVERS, because the list grows in two different ways and a count-based effect sees
-    // NEITHER of them. Rows arriving is the easy case. The ones that were actually failing him:
-    // a streamed answer growing character by character, an embed or image measuring itself late,
-    // and the COOKING LINE appearing — *"when you're cooking, I don't see you cooking at the
-    // bottom."* None of those change a message count, so nothing was firing.
     const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(bump) : null;
     if (ro) {
       ro.observe(el);
       Array.from(el.children).forEach((c) => ro.observe(c));
     }
-    const mo =
-      typeof MutationObserver !== "undefined"
-        ? new MutationObserver((recs) => {
-            if (ro)
-              recs.forEach((r) =>
-                Array.from(r.addedNodes).forEach((n) => n.nodeType === 1 && ro.observe(n)),
-              );
-            bump();
-          })
-        : null;
-    if (mo) mo.observe(el, { childList: true, subtree: true, characterData: true });
     return () => {
-      if (frame) cancelAnimationFrame(frame);
       if (ro) ro.disconnect();
-      if (mo) mo.disconnect();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, attached]);
@@ -6461,12 +6488,50 @@ const countdown = (str, now = Date.now()) => {
           <div
             className={`${CLASSNAME}__list`}
             ref={listRef}
+            style={{ position: "relative" }}
             onScroll={(e) => {
               // The keeper owns both refusals: our own pin gets no vote, and neither does a scroll
               // event whose geometry changed — that is layout moving, not him.
               sticking.current.scrolled(geoOf(e.currentTarget));
             }}
           >
+            {/* DRAG A BOX AND HEAR JUST THAT PART. It lives INSIDE the list so its coordinates are
+                the list's own — a box drawn at one scroll position would otherwise sit over the
+                wrong words the moment anything moved.
+                The press hands the text to the FRONT of the line and the box disappears: the audio
+                outlives the box, because *"you don't want to scroll away and turn it off"*, and
+                the line is where a playing thing can be seen and paused. */}
+            <BoxSelect
+              scopeRef={listRef}
+              blockSelector="[data-row], .agent-wb__row"
+              onPlay={(text) => {
+                const say = spokenForm(text);
+                if (!say) return;
+                const id = `sel-${Date.now()}`;
+                playFirst({
+                  key: id,
+                  label: say.replace(/\s+/g, " ").slice(0, 70),
+                  start: () => {
+                    announce(true);
+                    // A SELECTION HAS NO ROW TO SAY "LOADING" FOR IT, so it says so itself. On a
+                    // cold machine the first utterance waits on the model, and without this the
+                    // press produces silence with nothing anywhere explaining why.
+                    queueWarming(id, !engineReady());
+                    const h = speak(say, {
+                      preferId: readVoicePref(projectCode),
+                      rate: (readVoiceSettings(projectCode) || {}).speed,
+                      onstart: () => queueWarming(id, false),
+                      onend: () => {
+                        queueWarming(id, false);
+                        queueDone(id);
+                        announce(false);
+                      },
+                    });
+                    return h;
+                  },
+                });
+              }}
+            />
             {/* THE ROOM IS GONE FROM THE PANEL. Not hidden behind a session — gone. His call once
                 visiting worked: *"I don't need to see that old chat between me and you anymore, I
                 don't need to see this whole back-to-the-room and resume shit at the bottom. If none
@@ -6603,10 +6668,12 @@ const countdown = (str, now = Date.now()) => {
                 const row = el.querySelector(`[data-row="${key}"]`);
                 if (!row) return;
                 row.scrollIntoView({ block: "center" });
-                // GOING THERE IS A CHOICE, so following stops unless he landed on the last row —
-                // otherwise the next arriving reply would pull him straight back off it.
-                const rows = el.querySelectorAll("[data-row]");
-                sticking.current.aim(rows.length > 0 && rows[rows.length - 1] === row);
+                // PINNED, NOT AIMED. Our own scroll must not get a vote — without the pin, moving
+                // the view to an older row reads as him having scrolled away and following latches
+                // off. But the press must not DECIDE following either: an earlier version set it
+                // false here, on the reasoning that going somewhere is a choice. He never asked for
+                // that, and the effect was that one press of the line stopped the chat following
+                // for the rest of the session. Going to a row is a scroll, not a policy.
                 sticking.current.pin(geoOf(el));
                 // A BRIEF MARK, because a jump with no confirmation leaves him working out whether
                 // anything happened — the row he asked for says so, then stops saying it.
@@ -6664,9 +6731,6 @@ const countdown = (str, now = Date.now()) => {
                 onPick={pickBandTab}
                 onToggle={() => setStripOpen(false)}
               />
-              {/* THE TAB BAR — one tab per kind that HAS rows, drawn only in tabs view. The head's
-                  counts are the other door into exactly these; both set the same state, so they
-                  cannot disagree about what is showing. */}
               {/* THE TAB ROW — one tab per TYPE of work that has rows. No toggle and no stacked
                   view: the band is tabs (his call). A single type still gets its tab, because the
                   tab is the type's name, not a choice between kinds. */}

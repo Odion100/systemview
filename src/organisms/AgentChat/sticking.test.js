@@ -81,31 +81,51 @@ describe("following the conversation", () => {
   });
 });
 
-// THE VOICE TAKES THE VIEW. Reading an old reply means he is deliberately not at the bottom, and
-// arriving replies must not drag him off it — the one case where something other than a scroll or
-// a resize decides.
-describe("when the reading takes the view", () => {
-  it("stops following while the voice reads an older reply", () => {
+// NOTHING BUT A SCROLL OR A RESET DECIDES FOLLOWING. There was an `aim()` here that let a caller
+// SET it — written for the automatic voice-follow, then used by the press that goes to a queue row,
+// where it meant one press stopped the chat following for the rest of the session. He never asked
+// for that. A deliberate move pins (so our own scroll gets no vote) and leaves following alone.
+describe("following is not something a caller gets to set", () => {
+  it("has no aim — a view move pins instead, and following survives it", () => {
     const s = createSticking();
     s.scrolled(geo(10000, 9344, 656));
     expect(s.following).toBe(true);
-    s.aim(false);
-    expect(s.following).toBe(false);
+    expect(s.aim).toBeUndefined();
+    s.pin(geo(10000, 9344, 656), 1000);
+    s.scrolled(geo(10000, 3000, 656), 1100); // our own scroll to an older row
+    expect(s.following).toBe(true);
   });
+});
 
-  it("follows again when the voice reaches the newest one", () => {
+// HIS REPORT: *"it doesn't scroll like it used to, literally as it streamed in."* The first rule
+// suppressed every verdict while geometry was moving — which is every frame of a stream — so a
+// deliberate scroll back to the bottom mid-stream was read as layout and thrown away.
+describe("he can take following back while a reply is streaming", () => {
+  it("judges his scroll even though the content grew in the same breath", () => {
     const s = createSticking();
     s.scrolled(geo(10000, 2000, 656));
     expect(s.following).toBe(false);
-    s.aim(true);
+    // content is still arriving — scrollHeight moves AND he scrolls to the bottom
+    s.resized(geo(10400, 2000, 656));
+    s.scrolled(geo(10400, 9744, 656));
     expect(s.following).toBe(true);
   });
 
-  it("forgets the geometry it aimed from, so the next scroll is judged fresh", () => {
+  it("and lets him leave mid-stream too, not just rejoin", () => {
     const s = createSticking();
     s.scrolled(geo(10000, 9344, 656));
-    s.aim(false);
-    s.scrolled(geo(10000, 9344, 656));
+    s.resized(geo(10400, 9344, 656));
+    s.scrolled(geo(10400, 1000, 656));
+    expect(s.following).toBe(false);
+  });
+
+  // The drawer fix has to survive the new rule — and it does, because a drawer never moves scrollTop.
+  it("still ignores the drawer, which changes the box without him touching it", () => {
+    const s = createSticking();
+    s.scrolled(geo(9810, 9032, 778));
+    expect(s.following).toBe(true);
+    s.resized(geo(9810, 9032, 656));
+    s.scrolled(geo(9810, 9032, 656));
     expect(s.following).toBe(true);
   });
 });

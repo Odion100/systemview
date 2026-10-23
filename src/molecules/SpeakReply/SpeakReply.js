@@ -4,7 +4,7 @@ import { AIMED_AT_YOU, spokenForm } from "../../utils/spokenForm";
 import { available, ready as engineReady, speak, stop, voices } from "../../utils/voice";
 import { readVoicePref, readVoiceSettings } from "../../utils/voicePref";
 import { takeIfNew } from "./autoSpeak";
-import { enqueue, cutIn, done as queueDone, drop as queueDrop, setPaused } from "./speechQueue";
+import { enqueue, cutIn, done as queueDone, drop as queueDrop, setPaused, setWarming as queueWarming } from "./speechQueue";
 import { behind, register } from "./lineUp";
 import { useMarkdownScope } from "../../atoms/Markdown/context";
 import { announce, claim, isOwner, nextSpeakerId, subscribe } from "./speaker";
@@ -132,6 +132,7 @@ const SpeakReply = ({ text, className = "", rowKey = "", ts = 0 }) => {
         claim(id);
         setSpeaking(true);
         setWarming(!engineReady());
+        queueWarming(rowKey, !engineReady());
         announce(true);
         handle.current = speak(body, {
           // THE SCOPE IS PASSED, NEVER LEFT AMBIENT. `voice.js` falls back to reading the saved
@@ -140,7 +141,11 @@ const SpeakReply = ({ text, className = "", rowKey = "", ts = 0 }) => {
           preferId: readVoicePref(projectCode),
           rate: s.speed,
           onposition: (p) => seq.current === token && setAt(p),
-          onstart: () => seq.current === token && setWarming(false),
+          onstart: () => {
+              if (seq.current !== token) return;
+              setWarming(false);
+              queueWarming(rowKey, false);
+            },
           onend: (err) => {
             // THE LINE MOVES ON EVEN WHEN THIS ONE FAILED — a queue that only advances on success
             // stops dead at the first reply the engine could not load, and everything behind it
@@ -178,12 +183,17 @@ const SpeakReply = ({ text, className = "", rowKey = "", ts = 0 }) => {
           setSpeaking(true);
           setFailed("");
           setWarming(!engineReady());
+          queueWarming(rowKey, !engineReady());
           announce(true);
           handle.current = speak(spoken, {
             preferId: readVoicePref(projectCode),
             rate: chat.speed,
             onposition: (p) => seq.current === token && setAt(p),
-            onstart: () => seq.current === token && setWarming(false),
+            onstart: () => {
+              if (seq.current !== token) return;
+              setWarming(false);
+              queueWarming(rowKey, false);
+            },
             onend: (err) => {
               queueDone(rowKey);
               if (seq.current !== token) return;
@@ -254,6 +264,21 @@ const SpeakReply = ({ text, className = "", rowKey = "", ts = 0 }) => {
   const played = at ? at.index : 0;
   const buffered = (at && at.buffered) || 0;
 
+  // BACK AND FORWARD, AND THE INTERVAL IS A SENTENCE because that is the engine's own unit. His:
+  // *"a forward and backward button next to the listen button, to move back and forward specific
+  // intervals — whatever intervals make sense."* Seconds would have been the obvious guess and the
+  // wrong one: a reply is generated a sentence at a time, so its duration does not exist until the
+  // whole thing has been made, while the sentence COUNT is known the instant the text is chunked.
+  // Seeking is an assignment to that index, and every generated sentence is kept — so back is
+  // instant and forward never re-generates anything already made.
+  const step = (by) => (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (!handle.current || !handle.current.seek) return;
+    const next = Math.max(0, Math.min(total - 1, played + by));
+    if (next !== played) handle.current.seek(next);
+  };
+
   // THE TRANSPORT, and it exists only while something is coming out of the speakers.
   const transport = speaking && !warming && total > 1 && (
     <span className={`${CN}__transport`}>
@@ -280,6 +305,29 @@ const SpeakReply = ({ text, className = "", rowKey = "", ts = 0 }) => {
       >
         {paused ? "▶" : "❙❙"}
       </button>
+      {/* BACK AND FORWARD FLANK THE SLIDER, not the pause. His correction: *"shouldn't the forward
+          and back button be on either side of the slider?"* — and they should, because all three
+          are the same act at different grain: the slider moves you anywhere in the reply, these
+          move you one sentence. Grouping them with pause made them read as a second kind of thing.
+          TWO PLAIN TRIANGLES, TOUCHING. His design, and it solves both problems at once: *"the
+          triangles could just be put touching each other to make that without the line."*
+          THE LINE IS WHAT MADE ⏭ WRONG HERE — a bar-terminated triangle means "skip to the next
+          THING", which is the queue line's job, not this one. This moves WITHIN the reply.
+          AND THE PRE-COMPOSED DOUBLES ARE EMOJI. ⏪ ⏩ ⏮ ⏭ are emoji codepoints, so the font paints
+          them as colour glyphs — which is exactly what he was reacting to when he called them
+          "stupid bullshit emoji", a complaint I answered three times without once working out what
+          was actually wrong. ⏴ and ⏵ are plain text triangles, so doubling them gets the
+          fast-forward shape in the chat's own ink, with no bar and nothing coloured. */}
+      <button
+        type="button"
+        className={`${CN}__step`}
+        title="Back a sentence"
+        aria-label="Back a sentence"
+        disabled={played <= 0}
+        onClick={step(-1)}
+      >
+        ⏴⏴
+      </button>
 
       {/* THE SCRUBBER IS OVER SENTENCES, which is the only timeline that is honest here: the
           sentence COUNT is known the instant the reply is chunked, while its duration in seconds
@@ -298,6 +346,16 @@ const SpeakReply = ({ text, className = "", rowKey = "", ts = 0 }) => {
         title={`Sentence ${played + 1} of ${total}`}
         style={{ "--sv-buffered": `${total > 1 ? (buffered / total) * 100 : 0}%` }}
       />
+      <button
+        type="button"
+        className={`${CN}__step`}
+        title="Forward a sentence"
+        aria-label="Forward a sentence"
+        disabled={played >= total - 1}
+        onClick={step(1)}
+      >
+        ⏵⏵
+      </button>
     </span>
   );
 
