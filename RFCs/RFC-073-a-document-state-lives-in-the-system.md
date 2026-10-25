@@ -48,6 +48,9 @@ holds *that `ARC-004` exists, is systemview's, and its body is at this path.*
 :::reply{author=you ts=1792923525363}
 Look, you say the registry never holds content, right? But the truth is the registry should probably never That our registry should probably never. Relay on content or the system should never rely on registry content. But there's things that actually it may need to rely on. Right now every RFC is going to be open. How do you know if it's closed? One should it disappear from your list. arcs have objectives. You know, the system probably shouldn't rely on that as the final state. Maybe it's just have dates of when things were updated or something. maybe a button too. to make sure that it's updated. When you're looking at it, if it looks stale, maybe a system that automatically when showing the display. without obviously overwhelming the system, consistently read the state. for me. Again, if you're looking at it like a list of arcs, a list of RFCs, how many objectives it has, open, whatever, like that list, you can see the date. When there's opportunity for the system to know that it's still and update it. Again, it's not a big deal if it's still. the user could update it too, but you could also get ahead of it. Like if you're looking at a long list, again, without just flooding the system, obviously.
 :::
+:::reply{author=you ts=1792937324811}
+For example approval Approval waiting. Approved. and implement it. eventually removed from the registry.
+:::
 ::::
 
 

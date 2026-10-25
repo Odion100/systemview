@@ -23,6 +23,38 @@
   //
   // The fix is the box, not the blocks: nothing may be wider than the bubble, anything with its own
   // minimum (a code fence, a wide table) scrolls inside itself rather than pushing the panel open.
+  // KARAOKE (RFC-074): the element the voice is reading. The chat is not under `.markdown`, so the
+  // mark lives in this mixin too. A paragraph is an INLINE span here (the chat's typography — his,
+  // untouched), so it takes a soft tint that follows the text across its lines; the block elements
+  // take the blue edge the document renderer's blocks take. Fades, never flashes — it moves every
+  // few seconds.
+  .md-karaoke {
+    background: color-mix(in srgb, var(--sv-blue, #4a7bd0) 9%, transparent);
+    transition: background-color 0.25s, box-shadow 0.25s;
+  }
+  // His, watching it: rounder, room on the left, the words a touch bigger — "make it pop up a
+  // bit" — and NO negative margin (he took it out in the inspector and preferred it): the padding
+  // is allowed to push the words, the mark is meant to be felt.
+  .chat-md__p.md-karaoke {
+    border-radius: 7px;
+    padding: 2px 6px 2px 8px;
+    font-size: 1.04em;
+    color: var(--sv-text);
+    // A border, not a shadow (his, after seeing both): the edge says "this one" without lifting it.
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--sv-blue, #4a7bd0) 45%, transparent);
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+  }
+  .chat-md__list.md-karaoke,
+  .chat-md__fence.md-karaoke,
+  .chat-md__tablewrap.md-karaoke,
+  .chat-md__block.md-karaoke,
+  .chat-md__h.md-karaoke,
+  .chat-md__quote.md-karaoke {
+    box-shadow: inset 3px 0 0 var(--sv-blue, #4a7bd0);
+    border-radius: 0 4px 4px 0;
+  }
+
   .chat-md__block {
     display: block;
     max-width: 100%;

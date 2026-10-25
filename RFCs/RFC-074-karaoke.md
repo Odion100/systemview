@@ -1,6 +1,6 @@
 # RFC-074 — Karaoke: the sentence being read is shown
 
-**Status: draft** · 2026-10-25 · extends the voice queue (`speechQueue.js`) and the spoken form
+**Status: approved** · 2026-10-25 · extends the voice queue (`speechQueue.js`) and the spoken form
 (`spokenForm.js`); touches nothing the engine does not already report
 
 ## The problem, as what it costs now
@@ -82,10 +82,13 @@ place of `reading · <label>`, no ticker needed — it is wide.
 ### 1.4 The chat lights the paragraph
 
 The say row that owns the reply (`AgentChat.js`, `r.key === playing.key`) reads
-`playing.position.lines`. An effect on the row's container finds the rendered block covering those
-lines — `[data-md-start]` elements where `start ≤ from && end ≥ to`, innermost match — and sets
-`.md-karaoke` on it; the previous one loses it; `null` lines (the cut notice, nothing playing) clear
-it. A `scrollIntoView({ block: "nearest" })` keeps it visible while he is not scrolling himself (the
+`playing.position.lines`. An effect on the row's container picks, first, the one innermost block
+covering the whole chunk (`start ≤ from && end ≥ to`) — a callout announced as one sentence spanning
+its fences lights WHOLE, not the paragraph inside it. Only when nothing covers it does it fall back
+to every innermost block the chunk touches (`start ≤ to && end ≥ from`): the engine groups whole
+sentences to ~240 chars, so a chunk routinely runs from the end of one paragraph into the next, and
+without the fallback those sentences lit nothing. Blocks no longer touched lose the mark; `null`
+lines (the cut notice, nothing playing) clear it. A `scrollIntoView({ block: "nearest" })` keeps it visible while he is not scrolling himself (the
 chat's existing "he scrolled" guard, the one the stream uses).
 
 `.md-karaoke` is a left edge in `--sv-blue` and a faint tint, the same vocabulary as a hook's `--on`
@@ -116,8 +119,54 @@ green on its own and the first two are invisible.
   same field; the TV has no row to light yet.
 - **Any engine change.** `speechEngine` already reports what is needed.
 
-:::approval{ask="Approve RFC-074 — karaoke: the sentence being read, shown?"}
+:::approval{ask="Approve RFC-074 — karaoke: the sentence being read, shown?" verdict=approved}
 Approving commits to: the spoken form keeping source lines per sentence and a chunk map aligned to the engine's own chunking (§1.1); the queue carrying `position` on the playing item, set by every caller of `speak()` (§1.2); the compact row showing the sentence as a subtitle with a one-pass ticker when it overflows, the full line showing it in place of the label (§1.3); the owning say row lighting the paragraph or block covering the sentence's lines, paragraph granularity, following with nearest-scroll unless he is scrolling (§1.4).
 
 The piece most worth rejecting is §1.2 — the caller owning the map. If the engine should carry lines itself (speak a structured list instead of a string), the map moves into `speechEngine` and every engine has to learn markdown, which §1 of `voice.js` forbids.
 :::
+
+## Claims
+
+Each one checked against the build of 2026-10-25 (`main.40baede7.js`). **met** — checked, it does
+that. **not checked** — nobody has looked yet; never the same as met.
+
+1. `spokenMap(md).map(text).join(" ")` equals `spokenForm(md)` for any reply → the recital is
+   unchanged by the map. — **met** (`spokenForm.test.js`, "reads exactly what spokenForm reads")
+2. A paragraph written over lines 1–2 → its sentence carries `lines: [1, 2]`; a list item, a task
+   and a `::leaf` carry their one line; a heading's pause and the heading share its line. — **met**
+3. A `:::container` spans its fences; a container he did not tick still hands out its body's own
+   lines, offset to the outer text. — **met**
+4. A code fence → one announced sentence spanning the fence lines. — **met**
+5. A reply over `MAX_SPOKEN` → the cut notice carries `lines: null`; the kept sentences keep theirs.
+   — **met**
+6. `chunkMap` with one chunk per sentence → each chunk's lines; one chunk covering three sentences →
+   first sentence's `from` to last sentence's `to`; a sentence split at a word → both halves carry
+   the same paragraph. — **met**
+7. `setPosition(key, pos)` on the playing key → `view().playing.position` is `{index, total, text,
+   lines}` and every subscriber hears it; on a key that is not playing → `false`, nothing changes.
+   — **met** (`speechQueue.test.js`)
+8. Press listen, auto-read, the closed-chat reader, and box-select each pass `onposition` into the
+   line. — **met** by reading (`SpeakReply.js` ×2, `AgentChat.js` ×2); **not checked** live
+9. Box-select → subtitle text, `lines` absent, nothing lights. — **not checked**
+10. Reading, docked → the peek's row shows the sentence being spoken; loading or waiting → the
+    reply's first words. — **not checked** on screen
+11. Reading, hovering → the row under the bubble shows the sentence; one that overflows slides
+    through once, ~40px/s after a 0.8s hold, and the next sentence starts from the left. —
+    **not checked** on screen
+12. Reading with the chat open → the full line's go-to button reads the sentence instead of the
+    label. — **not checked** on screen
+13. Reading a reply in this chat → the one innermost block covering the sentence's lines wears
+    `.md-karaoke` (a callout lights whole); a chunk no block covers lights every block it touches;
+    blocks no longer touched lose it; the end of the reading clears it. — **met** on screen
+    2026-10-25 for the covering case; the straddle fallback built after his catch, not yet seen
+14. A `::ask` or a table being announced → the whole block lights. — **not checked**
+15. Another agent's reading → nothing lights in this chat (scope mismatch). — **not checked**
+16. The chat is following → the lit block is scrolled to with `nearest`, pinned so it does not
+    count as him scrolling away; he has scrolled off → nothing moves. — **not checked**
+
+:::approval{ask="Is this the complete list of claims for RFC-074?" verdict=approved}
+Pressing this makes the list the contract. A behaviour missing from it is one we agreed not to
+check — so the thing to read for is what is NOT here.
+:::
+
+## STATUS — built 2026-10-25, claims 8/16 met, 8 not checked (on-screen behaviours; the first live reading checks them)
