@@ -4,7 +4,7 @@
 and execution) · the word `subscribe` is also RFC-051's, and §2 settles that
 
 
-::members{who=systemview-test}
+::members{who=systemview-test sent=systemview-test:11tg4nw}
 ## The problem, as what it costs now
 
 **Everything a document knows is computed at paint time, so the answer exists only while somebody is
@@ -38,20 +38,13 @@ the whole design:
 
 | | holds | lives in |
 |---|---|---|
-| **identity** | `{ id, kind, path, project }` — and nothing else, ever | the registry |
+| **identity** | `{ id, kind, path, project }` — and, beside it, a derived `state` the parse may rewrite and anyone may wipe (§1.4) | the registry |
 | **body** | objectives, prose, verdicts, state — everything you would read | the document |
 
-::::thread{id=t2}
-**The registry never holds content.** No objective list, no progress count, no copy of any prose.
-The moment it holds something the document also holds there are two answers and a sync problem. It
-holds *that `ARC-004` exists, is systemview's, and its body is at this path.*
-:::reply{author=you ts=1792923525363}
-Look, you say the registry never holds content, right? But the truth is the registry should probably never That our registry should probably never. Relay on content or the system should never rely on registry content. But there's things that actually it may need to rely on. Right now every RFC is going to be open. How do you know if it's closed? One should it disappear from your list. arcs have objectives. You know, the system probably shouldn't rely on that as the final state. Maybe it's just have dates of when things were updated or something. maybe a button too. to make sure that it's updated. When you're looking at it, if it looks stale, maybe a system that automatically when showing the display. without obviously overwhelming the system, consistently read the state. for me. Again, if you're looking at it like a list of arcs, a list of RFCs, how many objectives it has, open, whatever, like that list, you can see the date. When there's opportunity for the system to know that it's still and update it. Again, it's not a big deal if it's still. the user could update it too, but you could also get ahead of it. Like if you're looking at a long list, again, without just flooding the system, obviously.
-:::
-:::reply{author=you ts=1792937324811}
-For example approval Approval waiting. Approved. and implement it. eventually removed from the registry.
-:::
-::::
+**The registry never holds content as truth.** No copy of any prose, no objective list anyone reads
+as the answer. What it holds as identity is *that `ARC-004` exists, is systemview's, and its body is
+at this path* — and beside that, a derived `state` the parse rewrites and anyone may wipe (§1.4),
+which is a cache with a timestamp, never a second answer.
 
 
 **Loading the document through markdown IS the state load.** So nothing caches state: ask the
@@ -75,6 +68,7 @@ derived state that can be deleted without losing a hook.
 **Read uncached**, for the reason `hooks.cjs:300` gives about its own directory: *"premature caching
 here is how an edited hook stops taking effect and nobody can work out why."*
 
+
 ### 1.2 · The registration leaves
 
 `::arc{id=ARC-004 owner=… title=…}` exists. Two more, same shape:
@@ -87,31 +81,70 @@ here is how an edited hook stops taking effect and nobody can work out why."*
 `::rfc`'s `arc=` is the relationship as state — so *"what is being built for this arc"* is a read
 rather than a grep. Both are leaves at the top of the document, like `::arc` and `::members`.
 
+**And a fourth: `::gap{id=…}`.** A gap is written INTO ANOTHER PROJECT'S REPO by the agent who hit
+it there — a bug, or a feature that project is missing, found while doing work that needed it. It is
+not the owner's own note (that is the board); it is a message from outside, filed where the fix
+lives, for that project's owner to pick up. Same shape, one registry row in the project it was
+written into; `kind` is a string, so the cost is the leaf and a line in `blocks.cjs` saying what DONE
+means for it (§1.4). The body is free-form and may be one line: a gap needs only its leaf and its
+completion (`resolved=`).
 
-::::thread{id=t3}
+
 **New entries in `src/atoms/Markdown/registry.js`**, components beside `Arc.js`: `Rfc.js` and
 `Report.js`, each a one-line self-describing header. They render the id and the relationship; they
 have no press and no state of their own.
-:::reply{author=you ts=1792930888076}
-I just thought of another type of document that's going to end up needing to be registered and that's tickets. Or, you know, we haven't gotten that far yet, but once we actually working in a system, Maybe that's just already gaps. We already have gaps. And that's how we need to just refer to them. A gap can be a ticket or an improvement, and I like that. but they usually come from elsewhere. So yeah, maybe we need to build our register gaps. Meanwhile, they go have any folder they want now.
-:::
-::::
 
 
 ### 1.3 · Folders
 
-::::thread{id=t1}
 **Folder conventions stop existing.** Not configurable — gone. The two `listFiles({dir})` calls in
 `AgentChat.js` that find RFCs and arcs by directory are replaced by a registry read, and
 `bandTabs.js`'s document family (`reports`, `rfcs`, `arcs`) is counted from the registry.
-:::reply{author=you ts=1792923360144}
-Don't forget it. All existing reports will disappear for every agent. So we got to think about this process. I think that... Fold if still exists, so it's not a problem. I can always tell each agent. I can always tell each agent to... So to parse their stuffed and delete once not relevant and modify it.
-:::
-::::
 
 
 A document with no leaf is **not** a kind. It is a file, findable the way any file is findable, and
 that is the honest answer — better than a tab inferred from a path that happens to match.
+
+### 1.4 · Lifecycle, and the one cache that is allowed to be stale
+
+**Every kind declares what DONE means for it**, in `blocks.cjs` beside the grammar — an RFC is done
+at `verdict=` (and built at its `STATUS`), an arc when every objective is `state=done`, a gap at
+`resolved=`, a report never (it is a view; it only gets old). The parse yields that answer like any
+other; nothing in the registry says it.
+
+**A list of forty documents cannot open forty files per paint**, so each registry row carries,
+beside its identity, a `state` object the parse derives: done-ness, verdict, open objective count,
+approvals waiting, and `parsed` (when). **One file, two kinds of field, and the boundary is the
+field, not the file**: identity (`id kind path project at`) is written only by registration and
+never derived from content; `state` is derived only by the parse, may lag, says when it was parsed,
+and can be wiped (`state: null`) without losing the document. Nothing reads `state` as truth — only
+as *what the last parse saw, at that time*. It is rebuilt by the parse that already happens on every
+write (§3), so it lags only for a document edited where no parse ran — and that lag is **visible**:
+`parsed` older than the file's mtime. A list re-parses stale rows lazily, bounded to what is on
+screen; a refresh press re-parses one row on demand (his: *"the user could update it too, but you
+could also get ahead of it"*). This is the caching he asked for, placed where `hooks.cjs:300`'s
+warning does not apply — that warning is about caching a DEFINITION, which goes stale invisibly;
+derived state keyed to the file says when it is stale.
+
+**Retirement is the document's to say** — a `retired` attribute on its leaf, or the file going. The
+registry row leaves only with the file; the lists filter on the state. "Approval waiting → approved →
+built → retired" is four answers read off one document, never four rows written anywhere.
+
+**When a row leaves.** A row whose `path` no longer exists is removed at the next check that touches
+it — the list's `stat` (claim 4) or the session-start sweep — and the drawer's counts drop with it.
+No timer for that: a deleted file is noticed the next time anything looks, which is the next time
+it could matter.
+
+**Done is not gone — there is a window, per kind.** A document that just completed stays IN THE
+LIST for a while, drawn as done and still findable (his: *"keep it there, meaning you can still find
+it in the list"*): a report for days, an RFC for weeks, an arc about as long — the window is one
+number per kind in `blocks.cjs`, beside the done attribute. When the window passes, the document
+leaves the list (`retired`, written by the sweep job of §4.2 or by hand) and is only reachable as a
+file; and eventually the file goes — the sweep deletes a report, and an RFC or an arc is his to
+delete. Three moves — done, out of the list, gone — and only the first is the document's own word;
+the other two are the clock and the sweep. The counts at the bottom — approvals waiting, open arcs —
+are read off `state`, so a document leaving a state leaves the count in the same parse, before any
+window.
 
 ## 2 · `subscribe` — and the two meanings it already has
 
@@ -154,12 +187,20 @@ delivery.**
 in the room for it. So a block never has to name its own audience to have one: a question inside a
 thread gets the thread's, a question at the top level gets the document's.
 
+**And the thread SHOWS who is in the room, inherited or not.** Today a thread draws its people on
+its edge (*in this thread: …*), and that is the part worth keeping: an audience you cannot see is
+one you cannot trust. A thread with no `subscribe=` draws the document's members on its edge the
+same way, marked as inherited (quieter, *from the document*); adding or removing a name there writes
+`subscribe=` and the thread becomes explicit. The fallback is a rule for the engine and a chip row
+for him — never an invisible default.
+
 **A THREAD HAS `subscribe=`, NOT `members=`.** Membership exists for the gated channel — the pin, the
 press, "behind" — and that channel exists for prose edits, the changes that do not fire. A thread has
 no such changes: everything that happens in one is a reply, and a reply fires. There is nothing in a
 thread for a gated channel to gate, so RFC-071's thread `members=` (and its `sent=`) retire in favour
 of one attribute: who hears what lands here. The document keeps both words because it is the one
-place with changes nobody is woken for.
+place with changes nobody is woken for. **Nothing already written breaks**: a thread still
+carrying `members=` is read as `subscribe=` with the same names, and the next write rewrites it.
 
 **It is an override, not a filter.** `subscribe=buapi` on a document with three members means buapi
 and nobody else, and it names a non-member just as happily. **The list is names; whether any of them
@@ -180,6 +221,7 @@ correct rather than a gap.
 no press to wait for. `auto=` says the same thing about a member. One concept, two scopes. The
 **plain member is the only human-gated path**, and that is what `MembersPin` is for.
 
+
 ### 2.2 · Which blocks fire, and what each one's answer is
 
 Read off the attribute each block already writes:
@@ -191,11 +233,24 @@ Read off the attribute each block already writes:
 | `:::objective` | `state=done` | `O2 is done — <first line of what>` |
 | `::commit` | `sha=` appears | `committed 3c5fe32 — <message>` |
 | `:::reply` | the block exists and is untold — its audience is its **thread's**, never its own | `buapi replied in t1 — <first line>` |
+| `::gap` | `resolved=` appears | `gap resolved — <title>` |
+| `::claim` | `state=` appears (`met` / `unmet`) | `c34 met — <statement>` · `c9 not met — <note>` |
 
-**Result blocks do not fire and do not queue:** `:::cmd`, `::run`, `::test`, `::branch` write
-nothing into the document — their transcript lives in the host's session log — so there is no
-durable answer to deliver later. They answer immediately by nature. `subscribe=` on them is
-out of scope here (§6).
+The *fires when* column is the same list `blocks.cjs` keeps as each block's **answer attribute** —
+one table, read by the parse for firing and by §1.4 for done-ness. **A claim's mark is tracked the
+same way as everything else here**: `subscribe=` on a claim names who hears its mark, the document's
+members are the fallback, `told=` is its receipt — an agent marking `c34 met` in a file announces it
+like a verdict does, and an RFC whose claims are being walked is readable from
+anywhere as *which are met, by whom*, off `::claims` (§1.4's state carries the count).
+
+**Result blocks fire from the event the host already sends**. `:::cmd`, `::run`, `::test`,
+`::branch` and `::commit` write nothing into the document and never will — their transcript is the
+host's log. But when one finishes, the host **already emits an event to the chat** carrying the
+result (a run's exit and log lines; `committed <sha> — <message>`). That event is the fire. Delivery
+is routing the same event to the block's `subscribe=` names as a second recipient, beside the chat
+it already reaches. No attribute, no detection, no parse: a recipient added to an event that exists.
+Opt-in by `subscribe=`; nobody else is woken. Slice 8.
+
 
 **Everything else has no audience:** pointers (`:ns` `:file` `:ui` `:help` `:report`), embeds
 (`::diff` `::chart` `::image` `::logs` `::load` `::topology`), recounts (`::arc` `::progress`),
@@ -232,12 +287,14 @@ false problem — each one became a moment the engine parses:**
 
 | the concern | what parses, and therefore fires |
 |---|---|
+| every write would cost a parse | **the registry is the filter**: the host sees the path in the tool call or the watcher's event, asks the registry *is this one of ours* — a Map hit — and parses only a registered document. Everything else costs a lookup |
 | nobody has the document open | the session watcher parses on the agent's write; the sweep parses on session start |
 | agents write with Bash, not through a door | the watcher — `sessions.cjs:992`, gated on tools-in-flight, and **every** `tool_use` counts (`:1221`), Bash included |
 | his press in the window is not a tool in flight | the render parses it, and `files:write` is the host's own door |
 | no session is live for that project | the **session-start sweep** — a session asks the registry what is undelivered and addressed to it |
 | do not monitor the world | **no new watcher.** The one that exists was built for *"a shell sed, a git checkout, an MCP tool writing files"* and is gated so it cannot be mistaken for watching him |
 | the chat has no file | **the chat is parsed by the same engine** — the one thing parse-time adds |
+
 
 The watcher, the write door, the render and the sweep are not the mechanism. They are the reasons a
 parse happens. **Write is one cause of a parse; render is another; a session arriving is another.**
@@ -253,8 +310,12 @@ On a parse, in order:
 3. **Deliver, then stamp.** The host builds the event through `documentUpdate.cjs` — the existing
    builder, taking the block's own one-line summary instead of `summarize()` — hands it to the
    session router (`sessions.cjs:828`, which already delivers by `members`), then writes `told=`
-   back where the block lives. **Stamp only on a successful hand-off**, or a failed delivery becomes
+   back where the block lives. **The event points back at the thing**: it carries the document's
+   `project` and `path`, the registry `kind` and `id`, the block's `line` and name, and the
+   summary — a receiver that cannot open what fired is holding a sentence, not a notification. A
+   fired chat block points at the message instead (its row key), same shape. **Stamp only on a successful hand-off**, or a failed delivery becomes
    a silent one — and an undelivered fire stays visible to the next parse, which is the sweep's job.
+
 
 **Idempotent by construction.** Parse the same approved block a hundred times — the window
 re-renders, the watcher fires, the sweep runs — and it delivers once, because the receipt is in the
@@ -286,7 +347,7 @@ in the same process that owns it.
 | platform — `electron/markdown/` | app |
 |---|---|
 | `parse.cjs` — the directive grammar, every block with its name, kind, attributes, line | the React component that draws each block |
-| `write.cjs` — *set this attribute on this line of this file*. Today that is `setDirectiveAttr` in SystemView's `Markdown.js`; it is the write that puts `verdict=`, `state=`, `sha=` and `told=` into a document, and it must not have two implementations | the surfaces: the band, the pin, the composer's queue |
+| `write.cjs` — *set this attribute on this line of this file*. Today that is `setDirectiveAttr` in SystemView's `Markdown.js`; it is the write that puts `verdict=`, `state=`, `sha=`, `told=` and a claim's `state= by= at= note=` into a document, and it must not have two implementations. **It is also the agent's door**: an agent marks a claim or moves an objective through it (an MCP verb over `write.cjs`), not by hand-editing the line — one writer, so a mark written by an agent is the same write a press makes | the surfaces: the band, the pin, the composer's queue |
 | `blocks.cjs` — **what the grammar is**: which blocks exist, leaf or container, and which attribute is a block's *answer*. RFC-053 drew this line — *one implementation of the grammar* — and this RFC moves the list across it. `registry.js` keeps only the component mapping | — |
 
 **Every app's render is a parse by autobot's parser.** That sentence is the whole reason the chat, the
@@ -312,9 +373,16 @@ turn carrying four answers, not four turns each landing cold. And it is better f
 just cheaper: an answer arriving with the next sentence has the context it was about, where
 `answer=b` arriving alone is a fact with no question attached.
 
+
 So the window keeps the pending answers and the composer shows what is riding along, with each one
 removable before send. **The queue is not a second feature** — it is what delivery looks like when
 the audience is the conversation it is already in.
+
+**Queue is the default, not the law**. A block may say `wake=now` — an approval you want landing
+the second it is pressed — and the queue itself carries a *send now*, so the choice is his at the
+moment rather than the author's in advance. **And the same queue is where a message typed during a
+compaction goes**: it rides the next turn the agent can take instead of being lost or bounced — the
+cue he has wanted since compaction first ate a sentence, and it costs nothing once the queue exists.
 
 **Detection in the chat is not special.** A `::question{subscribe=buapi}` in a reply fires at parse
 like one in an arc, because the chat is rendered by the same engine. What *is* different is where the
@@ -330,15 +398,17 @@ five, and all five must be written down or agents will invent a sixth:
 
 1. **An authoring skill writes the leaf** into the document it just created — `rfc-authoring` writes
    `::rfc`, `arc-planning` writes `::arc`.
-2. **`show()` registers a report automatically** when it files one. Reports are produced by many
-   skills and no skill should have to remember; `mcp__systemview__show` is the single door they all
-   go through.
+2. **Filing a report registers it; showing it only opens it** (show is navigation and has
+   nothing to do with whether a document exists). Whatever writes `.systemview/report.*.md` — the
+   host's write door, which every agent path goes through — stamps `::report{id=}`; no skill has to
+   remember. `show()` retiring into nav/open is its own cleanup and does not touch this.
 3. **He inserts the block by right-click** and fills its parameters. The insert menu already does
    this for other kinds — `::rfc` and `::report` join that list, with fields for `id` and `arc=`.
 4. **The host registers on write** whenever it sees a leaf, whoever wrote it and however.
 5. **Re-registering is a no-op.** The block is in the file, so writing it again says the same thing.
    Nothing needs to guard against it, and an agent re-registering a document somebody else
    registered is not an error.
+
 
 ### 4.1 · Where the procedure is written, and why it is not a new skill
 
@@ -348,9 +418,16 @@ you just wrote"* is a step inside a procedure that already exists. A skill for i
 procedure nobody invokes, and its description would compete with the skills that actually do the
 work.
 
+
 So: **`how-we-work/registration.md`** — the five ways, the leaf shapes, and the rule that the
 registry never holds content — retrieved by `context()` like every other chapter there, and indexed
-with `docsIndex`.
+with `docsIndex`. The MUST is not optional and does not live in the chapter: it is a step in each
+authoring skill (`rfc-authoring` §3, `arc-planning` §5, the report writer itself), which fire at the
+moment the document is made.
+
+**No registration skill**. Existing documents are registered by their own agents when he says
+so — a leaf written by hand, with the chapter saying what shape. The one new skill is
+`gap-authoring`, because its outcome is a document: a `::gap` written into another project's repo.
 
 ### 4.2 · The skills this changes
 
@@ -361,6 +438,9 @@ with `docsIndex`.
 | `arc-development` (job) | §3.2's doors stop being folder reads. §3.5's "tell the members" becomes mostly automatic — moving an objective to `done` fires it — and the job says so rather than instructing a send that now happens by itself |
 | `doc-maintenance` | the handbook gains `registration.md`; the chapter is this RFC's §4 |
 | `context-maintenance` | nothing. Named here so the next pass does not go looking |
+| `gap-authoring` (new) | an agent working in project A hits a bug or a missing feature in project B → writes a `::gap{id=}` document INTO B's repo, in B's owner's terms: what was needed, what happened instead, what done looks like. B's owner finds it in B's list; `resolved=` closes it |
+| `report-authoring` (new) | the shape of a report, the way `rfc-authoring` is the shape of an RFC: what it is for (a disposable view, never the artifact), its `::report{id=}` leaf, what it points at, and that it expires — so every skill that files one files the same thing |
+| `document-sweep` (new job, on a chore line) | the judgment exit the reports backstop (`api/reportJanitor.js`) is only the floor under: each agent walks its own registered documents on a period, keeps what still speaks, retires or deletes the rest — never an RFC or arc, never a report a run record points at, never a document with an unanswered approval. Reads the registry's `state` (§1.4) instead of folders, so it is written after slice 1; his first pass by hand before slice 2 is the same job run once |
 
 **`proof-authoring`, `delegation`, `study`, `chore-round`, `skill-authoring` are untouched** — said
 explicitly so scope is not re-argued.
@@ -393,10 +473,20 @@ explicitly so scope is not re-argued.
 7. **`registration.md` and the skill updates.** Last on purpose: a skill that tells an agent to write
    `::rfc` before slice 1 lands is a skill teaching a verb that does nothing.
 
+8. **Result blocks: route the existing completion event to `subscribe=`**. `::commit` first —
+   the event exists today and is the one we can prove (it currently lands in the chat dressed as a
+   message he sent rather than as a log line, which this fixes on the way) — then the same routing
+   for `:::cmd`, `::run`, `::test`, `::branch`. Nothing written into the document; nothing above
+   depends on it.
+
+**Slice 2 waits for his pass, not for a sweep**. Nothing stamps a leaf into a document nobody
+looked at: he tells each agent, each one walks its own reports and RFCs, writes the leaf on what is
+worth keeping and deletes the rest. The folder reads go only after that.
+
 ## 6 · What this does NOT add
 
-- **No `subscribe=` on result blocks** (`:::cmd`, `::run`, `::test`, `::branch`). They produce
-  information, not decisions, and nothing is written into the document to detect.
+- **No output written into the document by result blocks** — ever. Their completion is delivered
+  from the host's existing event (§2.2, slice 8), not from anything in the file.
 - **No roles.** `subscribe=reviewer` outlives `subscribe=buapi` and is the right end state, but
   nothing in the system resolves a role to an agent, so it would be a string that looks like it
   works.
@@ -416,168 +506,182 @@ explicitly so scope is not re-argued.
   development-app assumption sitting in a platform record. A business suite will have things that are
   not repos — a client, a quarter, a ledger. `kind` is already a string, so those are cheap when they
   come; what `project` becomes for them is its own decision and not this one.
-- **No new kinds beyond arc, RFC and report.** Planning documents, lanes and jobs are left alone;
-  `kind` is a string in the registry, so a fourth costs one leaf and one registry entry when
-  somebody wants it.
+- **No new kinds beyond arc, RFC, report and gap.** Planning documents, lanes and jobs are left
+  alone; `kind` is a string in the registry, so a fifth costs one leaf, one `blocks.cjs` line, and
+  nothing else.
 
 ## 7 · The piece most worth rejecting
 
-**That the registry holds identity and a pointer and nothing else.**
+**That the registry's identity is never derived from content, and its `state` is never read as truth.**
 
-If it holds anything you would read — an objective count, a verdict, a title cached for a list — then
-every surface gets faster and the system gains a second answer to every question, which has to be
-kept in sync by something, which is the monitor this design was built to avoid. The whole thing rests
-on *parse the document when you need to know*, and the cost of that is a full read per write and a
-parse per question answered.
+If `state` is ever treated as the answer — a list that trusts the cached verdict without looking at
+`parsed` — the system has a second answer to every question, kept in sync by nothing, which is the
+monitor this design was built to avoid. The whole thing rests on *parse the document when you need
+to know*; the cache only saves the parse when the file has not moved since, and says so.
 
 If that cost is wrong, §1.1 and §3 change shape completely.
 
 
 ## What approving commits to
 
-1. **§1.1** — a registry at `~/.autobot/documents.json` holding `{id, kind, path, project}` and
-   never content, deletable and rebuilt from documents.
-2. **§1.2** — `::rfc{id= arc=}` and `::report{id=}` leaves beside the existing `::arc`, as registry
-   entries in `src/atoms/Markdown/registry.js`.
-3. **§1.3** — folder conventions for RFCs, arcs and reports are REMOVED, not made configurable. A
+1. **§1.1** — a registry at `~/.autobot/documents.json` holding `{id, kind, path, project}` as
+   identity, never derived from content, deletable and rebuilt from documents.
+2. **§1.2** — `::rfc{id= arc=}`, `::report{id=}` and `::gap{id= from=}` leaves beside the existing
+   `::arc`, as registry entries in `src/atoms/Markdown/registry.js`.
+3. **§1.4** — every kind declares its DONE attribute in `blocks.cjs`; each registry row carries a
+   derived `state` beside its identity, stamped with when it was parsed, wipeable, re-parsed lazily
+   when stale; identity fields are never derived from content.
+4. **§1.3** — folder conventions for RFCs, arcs and reports are REMOVED, not made configurable. A
    document with no leaf is not a kind.
-4. **§2** — `subscribe` is one concept with three `what`s; a block's `subscribe=` is an override
+5. **§2** — `subscribe` is one concept with three `what`s; a block's `subscribe=` is an override
    naming exactly who, agnostic to membership, with `::members{who=}` as the fallback.
-5. **§2.3** — the delivery receipt is `told=` IN the block, so a fire is self-describing and no
+6. **§2.3** — the delivery receipt is `told=` IN the block, so a fire is self-describing and no
    baseline is stored anywhere.
-6. **§3** — the PARSE is the fire: the engine emits `block.fired` for a block with an answer, an
+7. **§3** — the PARSE is the fire: the engine emits `block.fired` for a block with an answer, an
    audience, and no covering `told=`; the host routes it through the existing `documentUpdate.cjs`
    builder and session router, then stamps. The session watcher, `files:write`, the render and the
    session-start sweep are the parses that already happen — no new watcher.
-7. **§3.1** — the grammar capability is autobot's: `parse.cjs`, `write.cjs` (the attribute
+8. **§3.1** — the grammar capability is autobot's: `parse.cjs`, `write.cjs` (the attribute
    write-back) and `blocks.cjs` (what the grammar is) under `electron/markdown/`. SystemView's renderer
    imports them and keeps only components and surfaces; the regexes in `documentUpdate.cjs` are
    removed. One parser, one write-back, one block list — the platform's.
-8. **§3.2** — in the chat a press QUEUES and rides the next message; it never opens a turn.
-9. **§4** — five registration paths, written into `how-we-work/registration.md`, with `rfc-authoring`,
-   `arc-planning` and the `arc-development` job updated. No new skill.
-10. **§5** — seven slices in that order, registration first, the sweep before `subscribe=`, and
-    the skill updates last.
+9. **§3.2** — in the chat a press QUEUES and rides the next message; it never opens a turn.
+10. **§4** — five registration paths, written into `how-we-work/registration.md`, with `rfc-authoring`,
+   `arc-planning` and the `arc-development` job updated; two new skills, `gap-authoring` and
+   `report-authoring`, because each one's outcome is a document kind.
+11. **§5** — eight slices in that order, registration first, slice 2 only after his agents have
+    registered what they keep, the session sweep before `subscribe=`, the skill updates after the
+    core, result-block routing last.
 
 ## Claims
 
-Each one is *do this → this should happen*. Grouped by the commitment it checks.
+::claims
 
-**§1.1 — the registry holds identity and a pointer, nothing else**
+Each one is *where you stand → what you do → what you should see*. Grouped by where you'll be
+standing when you check it, and each slice in §5 names the ones it makes checkable.
 
-1. Save a document carrying `::arc{id=ARC-004}` through `files:write` → `~/.autobot/documents.json`
-   gains one row `{ id, kind, path, project, at }` for it — and no title, count, or content field.
-2. Move that file to another folder and save it → the row's `path` changes and there is still exactly
-   one row for `ARC-004`.
-3. Delete `documents.json`, then save any registered document → the file is rebuilt with that
-   document in it, and nothing in the window errored while it was gone.
-4. Grep the registry writer for a field other than `id`, `kind`, `path`, `project`, `at` → none.
+**In the window — the band and the drawer** (slices 2, 3)
 
-**§1.2 — the leaves**
+::claim[Put a markdown document carrying a `::rfc` leaf in `docs/designs/` → it appears on the band's RFC tab with no configuration anywhere. The leaf is what makes it an RFC; the folder is nothing.]{id=c1}
 
-5. Write `::rfc{id=RFC-073 arc=ARC-004}` at the top of a document → it renders as a one-line header
-   naming the RFC and its arc, with nothing to press.
-6. Write `::report{id=subscribe-and-registration}` → the same, for a report.
-7. Register an RFC with `arc=ARC-004` → asking the registry for `ARC-004`'s RFCs returns it.
+::claim[Put a file in `RFCs/` with no leaf → it does not appear as an RFC. It is a file.]{id=c2}
 
-**§1.3 — folders are gone**
+::claim[Write a `:::approval` into any registered document and save → the drawer's *approvals waiting* count rises by one without a reload. Approve it → it drops by one, without a reload. Reopen the window → the same number. The count is read off the parse of registered documents — that is the whole list it counts; an approval in the chat is answered in place and is not in it.]{id=c3}
 
-8. Put an RFC carrying a `::rfc` leaf in `docs/designs/` → it appears on the band's RFC tab with no
-   configuration anywhere.
-9. Put a file in `RFCs/` with no leaf → it does not appear as an RFC. It is a file.
-10. Grep `AgentChat.js` and `bandTabs.js` for `listFiles({dir` → zero hits for document kinds.
+::claim[Open the RFC or arc list → every row shows when it was last parsed. A row whose file is newer than that (edited where no session ran) re-parses while it is on screen and updates in place; a row whose file is not newer does not parse at all — the list costs one `stat` per row on screen, never a parse, never a timer (§1.4). An arc row draws its objectives as a progress bar, done over total, from the same state.]{id=c4}
 
-**§2 — subscribe is an override; members are the fallback**
+::claim[Set `retired` on a document's leaf → it leaves the active lists; `documents.json` still has its row until the file is deleted (§1.4).]{id=c5}
+::claim[Delete a registered document's file → the next list open or session start drops its row from `documents.json`, and the drawer's counts drop with it; nothing waited on a timer.]{id=c6}
+::claim[Approve and build an RFC → it stays in the RFC list drawn as done, findable, for its kind's window; after the window the sweep writes `retired` and it leaves the list; the drawer's approvals count dropped at the approval, not at the window.]{id=c7}
 
-11. Approve a `:::approval` with no `subscribe=` on a document with members `buapi|systemlynx` →
-    both receive one `document.updated`.
-12. The same with `subscribe=buapi` → buapi receives it; systemlynx receives nothing.
-13. The same with `subscribe=reviewer-x`, who is not a member → reviewer-x receives it.
-14. Approve on a document with no members and no `subscribe=` → nobody receives anything, and
-    nothing errors or refuses.
-15. Edit a paragraph so that no block fires → nothing is delivered by this mechanism; the pin's
-    behind-count moves exactly as it does today.
+**In a document — what you write, and what appears on its line** (slices 1, 3, 5)
 
-**§2.3 — the receipt is in the block**
+::claim[Write `::rfc{id=RFC-073 arc=ARC-004}` at the top of a document → it renders as a one-line header naming the RFC and its arc, with nothing to press.]{id=c8}
 
-16. After a delivery → the fired block's line carries `told=` naming who was delivered to.
-17. Save the document again with `told=` covering the audience → no second delivery.
-18. Hand-edit `told=` off the block and save → it delivers again. There is no other baseline.
-19. Grep the host for any stored previous-state of a document's blocks → none.
+::claim[Write `::report{id=subscribe-and-registration}`, or `::gap{id=G-12}` → the same, for a report and a gap.]{id=c9}
 
-**§3 — the write is the fire**
+::claim[Right-click in any document → *insert* lists every registration leaf — `::arc`, `::rfc`, `::report`, `::gap` — each with its fields (`id`, and `arc=` for an RFC); pick one → the leaf lands at the top of the document, filled; save → the registry has the row. No typing of a block by hand.]{id=c10}
 
-20. An agent writes `verdict=approved` into a file with a **Bash heredoc** — not Edit — with no
-    window open anywhere → the members receive `document.updated` with a summary naming the ask.
-21. The summary reads `approved — <ask>` for an approval, `answered "<answer>" — <label>` for a
-    question, `O2 is done — <first line of what>` for an objective, `committed <sha> — <message>`
-    for a commit, `<by> replied in <thread> — <first line>` for a reply.
-22. Make the session router fail the hand-off → `told=` is NOT stamped, and the next save delivers
-    again.
+::claim[Approve a `:::approval` with no `subscribe=` on a document with members `buapi|systemlynx` → both receive one `document.updated`; afterwards the block's line carries `told=buapi|systemlynx`.]{id=c11}
 
-**§3.1 — one parser**
+::claim[The same with `subscribe=buapi` → buapi receives it; systemlynx receives nothing.]{id=c12}
 
-23. Grep `documentUpdate.cjs` for `LINE(` and the attribute regex → gone; `membersIn` and `arcIn`
-    read `parse.js`'s output.
-24. Put a `:::approval` — a container — in a document and approve it with no window → it fires.
-25. `electron/markdown/parse.cjs`, `write.cjs` and `blocks.cjs` import no React and nothing from
-    SystemView; `node -e "require('<path>/parse.cjs')"` parses a fixture containing a leaf, a
-    container and an inline directive; SystemView's `directives.js` imports the parse and
-    `Markdown.js` calls `write.cjs` for every attribute it sets, carrying neither of its own.
+::claim[The same with `subscribe=reviewer-x`, who is not a member → reviewer-x receives it.]{id=c13}
+::claim[Mark a `::claim{subscribe=buapi}` met → buapi receives `cN met — <statement>`; the document's other members receive nothing; the claim's line gains `told=buapi`.]{id=c14}
 
-**§3.2 — in the chat, a press queues**
+::claim[Approve on a document with no members and no `subscribe=` → nobody receives anything, and nothing errors or refuses.]{id=c15}
 
-26. Press two questions and an approval in the chat, then send one message → the agent receives one
-    turn carrying all three answers, and no turn opened at any press.
-27. Before sending → the composer shows the pending answers; remove one → it is not sent.
+::claim[Edit a paragraph so that no block fires → nothing is delivered by this mechanism; the pin's behind-count moves exactly as it does today.]{id=c16}
 
-**§4 — five registration paths, written down**
+::claim[Save the document again with `told=` covering the audience → no second delivery.]{id=c17}
 
-28. `show()` files a report → `documents.json` gains a `report` row with nobody having written a leaf.
-29. Right-click → insert → `::rfc` → the block appears with fields for `id` and `arc`.
-30. Save a document whose leaf is already registered → one row, no error, no second row.
-31. `how-we-work/registration.md` exists, is indexed, and `context("how do I register an RFC")`
-    returns it.
-32. `rfc-authoring` §3 instructs writing `::rfc{id= arc=}`; `arc-planning` §5 says `::arc`
-    registers; `arc-development` §3.5 says the move fires by itself rather than instructing a send.
+::claim[Hand-edit `told=` off the block and save → it delivers again. There is no other baseline.]{id=c18}
 
-**§5 — the slice order held**
+::claim[Answer a `::question` with no `subscribe=` inside a `::::thread{subscribe=buapi}` on a document whose members are `systemlynx|buapi` → buapi alone receives it. The thread's audience won.]{id=c19}
 
-33. Read the commits → registration landed before any surface read the registry, and the skill
-    updates landed last.
+::claim[A `:::reply` carrying its own `subscribe=` → ignored; the thread decides who hears a reply.]{id=c20}
 
-**§6 — what was not added**
+::claim[Open a document whose thread still says `members=buapi` → the thread behaves as `subscribe=buapi`; the next save rewrites the attribute; nobody lost their audience.]{id=c21}
+::claim[Open a thread with no `subscribe=` on a document with members `buapi|systemlynx` → the thread's edge shows both names, marked inherited; add `reviewer-x` there → the thread's line gains `subscribe=buapi|systemlynx|reviewer-x` and the chips read as its own.]{id=c22}
 
-34. Put `subscribe=buapi` on a `:::cmd` and run it → nothing is delivered.
-35. Grep the host for a second `fs.watch` or any `setInterval` over documents → none beyond the
-    session watcher that already exists at `sessions.cjs:992`, unchanged.
+**In the chat — press, queue, send** (slice 6)
 
-**§3 — the parse is the fire**
+::claim[Press two questions and an approval in the chat, then send one message → the agent receives one turn carrying all three answers, and no turn opened at any press.]{id=c23}
 
-36. Render an approved block whose `told=` already covers its audience, then save it, then start a
-    new session → exactly one delivery ever happened, and it was before all three.
-37. Approve a block in a project with **no live session**, then start one for that project → it
-    receives the fire on start, with no write having happened in between.
-38. Put `::question[…]{options="a|b" subscribe=buapi}` in a **chat reply** and answer it → buapi
-    receives it, and the receipt is an event beside the message in the transcript, not an attribute.
+::claim[Before sending → the composer shows the pending answers as chips; remove one → it is not sent and its block is unanswered again; *remove all* clears the queue in one press.]{id=c24}
 
-**§3.1 — one suite, several faces**
+::claim[Press a block carrying `wake=now`, or press *send now* on the queue → that answer lands as its own turn, immediately.]{id=c25}
 
-39. A second app on the platform reads `documents.json`, calls `parse.cjs` on `ARC-004`'s body, and
-    renders the objectives its own way → it shows the same objectives in the same states SystemView
-    shows, and approving one there fires `block.fired` to the same audience with no code in SystemView
-    involved.
+::claim[Type a message while the agent is compacting → it sits in the queue and arrives on the next turn the agent can take; nothing is lost.]{id=c26}
 
-**§2.1 — the audience resolves upward**
+::claim[Put `::question[…]{options="a|b" subscribe=buapi}` in a **chat reply** and answer it → buapi receives it, and the receipt is an event beside the message in the transcript, not an attribute.]{id=c27}
 
-40. Answer a `::question` with no `subscribe=` inside a `:::thread{subscribe=buapi}` on a document
-    whose members are `systemlynx|buapi` → buapi alone receives it. The thread's audience won, not
-    the document's.
-41. A `:::reply` carrying its own `subscribe=` → the attribute is ignored; the thread decides who hears
-    a reply, never the reply.
-42. Grep the renderer and the host for a thread's `members=` or `sent=` → gone; a thread carries
-    `subscribe=` and its replies carry `told=`.
+**On the host, with no window open** (slices 3, 4)
+
+::claim[An agent writes `verdict=approved` into a file with a **Bash heredoc** — not Edit — with no window open anywhere → the members receive `document.updated` carrying the summary naming the ask AND the document's project, path, kind, id and the block's line — enough to open it at the block without a search.]{id=c28}
+
+::claim[The summary reads `approved — <ask>` for an approval, `answered "<answer>" — <label>` for a question, `O2 is done — <first line of what>` for an objective, `committed <sha> — <message>` for a commit, `<by> replied in <thread> — <first line>` for a reply, `gap resolved — <title>` for a gap.]{id=c29}
+
+::claim[Make the session router fail the hand-off → `told=` is NOT stamped, and the next save delivers again.]{id=c30}
+
+::claim[Render an approved block whose `told=` already covers its audience, then save it, then start a new session → exactly one delivery ever happened, and it was before all three.]{id=c31}
+
+::claim[Approve a block in a project with **no live session**, then start one for that project → it receives the fire on start, with no write having happened in between.]{id=c32}
+
+::claim[Write to a file that is not in the registry → the host does a lookup and no parse; write to one that is → one parse.]{id=c33}
+
+::claim[Put a `:::approval` — a container — in a document and approve it with no window → it fires.]{id=c34}
+::claim[An agent marks a claim through the write verb — `state=met by=<code> at= note=` — with no window open → the members receive `c34 met — <statement>`, and the document's `::claims` count moves; a mark written without `note=` is refused by the verb.]{id=c35}
+
+**In the files — the registry, the cache, the greps** (slices 1, 2, 3)
+
+::claim[Save a document carrying `::arc{id=ARC-004}` through `files:write` → `~/.autobot/documents.json` gains one row for it — `{ id, kind, path, project, at }` and a `state` the parse filled, with no title or prose in either.]{id=c36}
+
+::claim[Move that file to another folder and save it → the row's `path` changes and there is still exactly one row for `ARC-004`.]{id=c37}
+
+::claim[Delete `documents.json`, then save any registered document → the file is rebuilt with that document in it, and nothing in the window errored while it was gone.]{id=c38}
+
+::claim[Set a row's `state` to `null` in `documents.json` → nothing breaks; the next parse rebuilds it; the row's identity fields are untouched (§1.4).]{id=c39}
+
+::claim[Grep the registration writer for a field other than `id`, `kind`, `path`, `project`, `at` → none; `state` is written by the parse alone.]{id=c40}
+
+::claim[Grep `AgentChat.js` and `bandTabs.js` for `listFiles({dir` → zero hits for document kinds.]{id=c41}
+
+::claim[Grep `documentUpdate.cjs` for `LINE(` and the attribute regex → gone; `membersIn` and `arcIn` read the parser's output.]{id=c42}
+
+::claim[`electron/markdown/parse.cjs`, `write.cjs` and `blocks.cjs` import no React and nothing from SystemView; `node -e "require('<path>/parse.cjs')"` parses a fixture containing a leaf, a container and an inline directive; SystemView's `directives.js` imports the parse and `Markdown.js` calls `write.cjs` for every attribute it sets, carrying neither of its own.]{id=c43}
+::claim[Grep the renderer and the agent tools for a second writer of block attributes → one: `write.cjs`; a press and an agent's mark go through the same function.]{id=c44}
+
+::claim[Grep the host for any stored previous-state of a document's blocks → none.]{id=c45}
+
+::claim[Grep the renderer and the host for a thread's `members=` or `sent=` as a live path → gone except the one-line read-as-`subscribe=` migration.]{id=c46}
+
+::claim[Grep the host for a second `fs.watch` or any `setInterval` over documents → none beyond the session watcher that already exists at `sessions.cjs:992`, unchanged.]{id=c47}
+
+::claim[Read the commits → registration landed before any surface read the registry; the folder reads went only after the agents' own registration pass; the skill updates landed last.]{id=c48}
+
+**In the skills and the handbook** (slice 7)
+
+::claim[File a report through the host's write door with no leaf written by anyone → `documents.json` gains a `report` row.]{id=c49}
+
+::claim[Save a document whose leaf is already registered → one row, no error, no second row.]{id=c50}
+
+::claim[`how-we-work/registration.md` exists, is indexed, and `context("how do I register an RFC")` returns it.]{id=c51}
+
+::claim[`rfc-authoring` §3 instructs writing `::rfc{id= arc=}`; `arc-planning` §5 says `::arc` registers; `arc-development` §3.5 says the move fires by itself rather than instructing a send.]{id=c52}
+
+::claim[`gap-authoring` exists as a skill and its outcome is a `::gap` document in the registry.]{id=c53}
+
+**Another app, same platform** (after slice 3)
+
+::claim[A second app on the platform reads `documents.json`, calls `parse.cjs` on `ARC-004`'s body, and renders the objectives its own way → it shows the same objectives in the same states SystemView shows, and approving one there fires `block.fired` to the same audience with no code in SystemView involved.]{id=c54}
+
+**Result blocks — the host's own event, routed** (slice 8)
+
+::claim[Press a `::commit{subscribe=buapi}` → the chat shows `committed <sha> — <message>` as a log line (not as a message he sent), and buapi receives the same event; the document is unchanged.]{id=c55}
+
+::claim[Run a `:::cmd{subscribe=buapi}` → buapi receives the completion event the chat received, with the exit and the log lines; nothing is written into the document. The same for `::run`, `::test`, `::branch`.]{id=c56}
 
 :::approval{ask="Approve RFC-073 — a document's state lives in the system?"}
-The piece most worth rejecting is §1.1: the registry never holds content.
+The piece most worth rejecting is §1.1 with §1.4: identity never derived from content, and a derived `state` that is never read as truth.
 :::

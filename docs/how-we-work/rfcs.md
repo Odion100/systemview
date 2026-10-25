@@ -117,23 +117,33 @@ commitments producing twelve claims is normal and healthy.
 
 ## The claims list, and the press under it
 
-The list is appended **after** the verdict block, under `## Claims`, numbered, with its own
-approval block beneath it. The press decides one thing and it is not quality: **is this list
+The list is appended **after** the verdict block, under `## Claims`, **one `::claim` block per
+claim** with `::claims` on top, and its own approval block beneath it. A numbered line can be read
+and never marked; a block can be pressed, and the press writes who checked it, when, and what they
+saw into the line. The press under the list decides one thing and it is not quality: **is this list
 complete?** Once pressed, the list is the contract, and anything a reader later finds missing is a
 gap both parties accepted rather than one that disappeared.
 
 ```markdown
 ## Claims
 
-1. Attach a report to a lane's run and to a card — both take it.
-2. Detach it; the attachment stays on the record with a `detached` stamp rather than vanishing.
-3. …
+::claims
+
+**In the window** (where you stand to check these)
+
+::claim[Attach a report to a lane's run and to a card → both take it.]{id=c1}
+::claim[Detach it → the attachment stays on the record with a `detached` stamp rather than vanishing.]{id=c2}
 
 :::approval{ask="Is this the complete list of claims for RFC-072?"}
 Pressing this makes the list the contract. A behaviour missing from it is one we agreed not to
 check — so the thing to read for is what is NOT here.
 :::
 ```
+
+The number a reader sees is the block's place in the document — never write one into the
+statement; `id=` is the stable address. Group the blocks by **where somebody stands** to check them
+(the window, a document, the chat, the host with no window, the files), because the reader walking
+the claims after a slice lands walks one place at a time.
 
 **Why the press is worth its own moment:** the cost this whole mechanism exists to remove is
 re-reading six hundred lines of argument to invent the test list yourself, at the worst moment, and
@@ -142,15 +152,20 @@ it is the only point at which the design is both settled and still in someone's 
 
 ## Checking the claims once the work has landed
 
-Walk the list in order. Each claim gets one of three answers, written into the list:
+Walk the list in order and **mark each block**. A press in the window, or for an agent the four
+attributes written onto the line:
 
-- **met** — it was checked and it does that.
-- **not met** — it was checked and it does not. This is the valuable outcome and it is why the list
-  exists; record what actually happened beside it.
-- **not checked** — nobody has looked. Honest, and never the same as met.
+- **met** — `state=met by=<you|projectCode> at=<ms> note="what was done, and what was seen"`.
+- **not met** — `state=unmet … note="what happens instead"`. This is the valuable outcome and it is
+  why the list exists.
+- **unchecked** — no attributes. Nobody has looked. Honest, and never the same as met.
 
-An unchecked claim left blank reads as met to the next person, which is the one failure that makes
-the list worse than no list at all. **Silence is not a pass.**
+**An agent's mark carries a statement, or it is not a mark.** An agent's word is only as good as
+what it rests on, so `by=<projectCode>` without `note=` counts as unchecked. The human's press is
+its own evidence — he looked — and his note is optional. An agent marks the claims it can check
+itself — the greps, the host with no window — before the human gets there; the human marks the ones
+that need eyes. Both read off the same document, so opening it shows which claims were verified, by
+whom, and on what. An unmarked claim reads **unchecked**, visibly — **silence is not a pass.**
 
 ## A claim is not an objective, a slice, or a test
 
@@ -168,10 +183,13 @@ into the code — the claim is the only one still readable as *what we agreed th
 
 ## The STATUS section
 
-Once the claims have been walked, the RFC says what is true, dated, under `## STATUS`:
+Once the claims have been walked, the RFC says what is true, dated, under `## STATUS` — and the
+count under it is **derived**, drawn by `::claims` off the marks above, never typed:
 
 ```markdown
-## STATUS — built 2026-10-21, claims 11/12 met
+## STATUS — built 2026-10-21
+
+::claims
 ```
 
 One heading, one spelling, at the end of the file. Where a claim was not met, say which and what

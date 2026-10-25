@@ -191,6 +191,17 @@ const SPOKEN = {
   },
   // A callout is what he needs to KNOW, one weight down from ask. Same shape of announcement.
   callout: ({ body }) => (body ? `Worth knowing. ${body}` : ""),
+  // A claim is read as the statement it is, with its mark — unchecked is said out loud, because a
+  // claim nobody looked at must never sound like one that passed.
+  claim: ({ label, attrs }) => {
+    const t = String(label || "").trim();
+    if (!t) return "";
+    const st = String(attrs.state || "").toLowerCase();
+    const word = st === "met" ? "met" : st === "unmet" || st === "not-met" ? "not met" : "unchecked";
+    return `A claim, ${word}. ${t}${attrs.note ? ` ${attrs.note}` : ""}`;
+  },
+  // The recount is on screen; by ear it is only an announcement.
+  claims: () => "The claims count.",
   // THE LABEL AND THE ATTRIBUTE ARE THE SAME FIELD, and reading only one of them is how a block
   // goes silent. `::commit[the message]` and `::commit{message="the message"}` both render — the
   // component reads `label || attrs.message` — and this read only the attribute, so every commit
@@ -295,6 +306,7 @@ export const BLOCK_VOICES = [
   { name: "callout", label: "Callout", says: "a caveat that changes what you would do", group: "says" },
   { name: "question", label: "Question", says: "a decision, with its options", group: "says" },
   { name: "approval", label: "Approval", says: "something waiting on your decision", group: "says" },
+  { name: "claim", label: "Claim", says: "a statement to check, and whether it was met", group: "says" },
   { name: "commit", label: "Commit", says: "a commit you can press, and its message", group: "says" },
   { name: "branch", label: "Branch", says: "a branch offered for review", group: "says" },
   { name: "cmd", label: "Command", says: "that there is a command to run, and what for", group: "says" },

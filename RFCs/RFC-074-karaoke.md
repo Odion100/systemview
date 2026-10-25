@@ -127,46 +127,32 @@ The piece most worth rejecting is §1.2 — the caller owning the map. If the en
 
 ## Claims
 
-Each one checked against the build of 2026-10-25 (`main.40baede7.js`). **met** — checked, it does
-that. **not checked** — nobody has looked yet; never the same as met.
+::claims
 
-1. `spokenMap(md).map(text).join(" ")` equals `spokenForm(md)` for any reply → the recital is
-   unchanged by the map. — **met** (`spokenForm.test.js`, "reads exactly what spokenForm reads")
-2. A paragraph written over lines 1–2 → its sentence carries `lines: [1, 2]`; a list item, a task
-   and a `::leaf` carry their one line; a heading's pause and the heading share its line. — **met**
-3. A `:::container` spans its fences; a container he did not tick still hands out its body's own
-   lines, offset to the outer text. — **met**
-4. A code fence → one announced sentence spanning the fence lines. — **met**
-5. A reply over `MAX_SPOKEN` → the cut notice carries `lines: null`; the kept sentences keep theirs.
-   — **met**
-6. `chunkMap` with one chunk per sentence → each chunk's lines; one chunk covering three sentences →
-   first sentence's `from` to last sentence's `to`; a sentence split at a word → both halves carry
-   the same paragraph. — **met**
-7. `setPosition(key, pos)` on the playing key → `view().playing.position` is `{index, total, text,
-   lines}` and every subscriber hears it; on a key that is not playing → `false`, nothing changes.
-   — **met** (`speechQueue.test.js`)
-8. Press listen, auto-read, the closed-chat reader, and box-select each pass `onposition` into the
-   line. — **met** by reading (`SpeakReply.js` ×2, `AgentChat.js` ×2); **not checked** live
-9. Box-select → subtitle text, `lines` absent, nothing lights. — **not checked**
-10. Reading, docked → the peek's row shows the sentence being spoken; loading or waiting → the
-    reply's first words. — **not checked** on screen
-11. Reading, hovering → the row under the bubble shows the sentence; one that overflows slides
-    through once, ~40px/s after a 0.8s hold, and the next sentence starts from the left. —
-    **not checked** on screen
-12. Reading with the chat open → the full line's go-to button reads the sentence instead of the
-    label. — **not checked** on screen
-13. Reading a reply in this chat → the one innermost block covering the sentence's lines wears
-    `.md-karaoke` (a callout lights whole); a chunk no block covers lights every block it touches;
-    blocks no longer touched lose it; the end of the reading clears it. — **met** on screen
-    2026-10-25 for the covering case; the straddle fallback built after his catch, not yet seen
-14. A `::ask` or a table being announced → the whole block lights. — **not checked**
-15. Another agent's reading → nothing lights in this chat (scope mismatch). — **not checked**
-16. The chat is following → the lit block is scrolled to with `nearest`, pinned so it does not
-    count as him scrolling away; he has scrolled off → nothing moves. — **not checked**
+Each one checked against the build of 2026-10-25. A mark carries who, when, and what was seen; an unmarked claim is unchecked, never met.
+
+::claim[`spokenMap(md).map(text).join(" ")` equals `spokenForm(md)` for any reply → the recital is unchanged by the map.]{id=c1 state=met by=systemview-test at=1792958045531 note="`spokenForm.test.js`, 'reads exactly what spokenForm reads'"}
+::claim[A paragraph written over lines 1–2 → its sentence carries `lines: [1, 2]`; a list item, a task and a `::leaf` carry their one line; a heading's pause and the heading share its line.]{id=c2 state=met by=systemview-test at=1792958045531 note="checked against the build of 2026-10-25"}
+::claim[A `:::container` spans its fences; a container he did not tick still hands out its body's own lines, offset to the outer text.]{id=c3 state=met by=systemview-test at=1792958045531 note="checked against the build of 2026-10-25"}
+::claim[A code fence → one announced sentence spanning the fence lines.]{id=c4 state=met by=systemview-test at=1792958045531 note="checked against the build of 2026-10-25"}
+::claim[A reply over `MAX_SPOKEN` → the cut notice carries `lines: null`; the kept sentences keep theirs.]{id=c5 state=met by=systemview-test at=1792958045531 note="checked against the build of 2026-10-25"}
+::claim[`chunkMap` with one chunk per sentence → each chunk's lines; one chunk covering three sentences → first sentence's `from` to last sentence's `to`; a sentence split at a word → both halves carry the same paragraph.]{id=c6 state=met by=systemview-test at=1792958045531 note="checked against the build of 2026-10-25"}
+::claim[`setPosition(key, pos)` on the playing key → `view().playing.position` is `{index, total, text, lines}` and every subscriber hears it; on a key that is not playing → `false`, nothing changes.]{id=c7 state=met by=systemview-test at=1792958045531 note="`speechQueue.test.js`"}
+::claim[Press listen, auto-read, the closed-chat reader, and box-select each pass `onposition` into the line.]{id=c8 state=met by=systemview-test at=1792958045531 note="by reading (`SpeakReply.js` ×2, `AgentChat.js` ×2) and live"}
+::claim[Box-select → subtitle text, `lines` absent, nothing lights.]{id=c9}
+::claim[Reading, docked → the peek's row shows the sentence being spoken; loading or waiting → the reply's first words.]{id=c10 state=met by=systemview-test at=1792958045531 note=", seen by him 2026-10-25 (chat closed, docked and hovering"}
+::claim[Reading, hovering → the row under the bubble shows the sentence; one that overflows slides through once, ~40px/s after a 0.8s hold, and the next sentence starts from the left.]{id=c11 state=met by=systemview-test at=1792958045531 note=", seen by him 2026-10-25 (hovering"}
+::claim[Reading with the chat open → the full line's go-to button reads the sentence instead of the label.]{id=c12 state=met by=systemview-test at=1792958045531 note=", seen by him 2026-10-25"}
+::claim[Reading a reply in this chat → the one innermost block covering the sentence's lines wears `.md-karaoke` (a callout lights whole); a chunk no block covers lights every block it touches; blocks no longer touched lose it; the end of the reading clears it.]{id=c13 state=met by=systemview-test at=1792958045531 note="on screen 2026-10-25 for the covering case; the straddle fallback built after his catch, not yet seen"}
+::claim[A `::ask` or a table being announced → the whole block lights.]{id=c14 state=met by=systemview-test at=1792958045531 note="the callout, seen by him: 'it looked really nice when it was grabbing the entire callout'"}
+::claim[Another agent's reading → nothing lights in this chat (scope mismatch).]{id=c15}
+::claim[The chat is following → the lit block is scrolled to with `nearest`, pinned so it does not count as him scrolling away; he has scrolled off → nothing moves.]{id=c16 state=met by=systemview-test at=1792958045531 note=", seen by him 2026-10-25 (chat closed, docked and hovering"}
 
 :::approval{ask="Is this the complete list of claims for RFC-074?" verdict=approved}
 Pressing this makes the list the contract. A behaviour missing from it is one we agreed not to
 check — so the thing to read for is what is NOT here.
 :::
 
-## STATUS — built 2026-10-25, claims 8/16 met, 8 not checked (on-screen behaviours; the first live reading checks them)
+## STATUS — built 2026-10-25
+
+::claims

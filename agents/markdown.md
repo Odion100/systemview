@@ -240,6 +240,38 @@ makes it a decision record. This is the opposite: one sentence to be looked at, 
 Wrap what you are proposing and read `verdict=approved|rejected` back off the document later. That
 is the entire handshake — there is nowhere else to check.
 
+## `::claim[…]{id=…}` — a statement somebody can check, and the mark
+
+```markdown
+::claim[Approve an approval on a document with members buapi|systemlynx → both receive one document.updated]{id=c9}
+```
+
+The claim an RFC used to end in as a numbered line, made pressable. The statement goes in the
+brackets — *do this → this should happen* — and `id=` is its address (the number you see is derived
+from its place in the document, so never write one into the text). A press marks it **met** or
+**not met**, or clears a mark you gave ("I take that back"); the mark is written INTO the line:
+
+```markdown
+::claim[…]{id=c9 state=met by=you at=1792956000000 note="pressed approve with two sessions up; both got document.updated"}
+```
+
+**A press in the window is its own evidence** — he looked — so ✓ writes `state= by=you at=` at
+once and `note=` is optional (a *+ what you saw* afterwards). **An agent's mark is not.** An agent
+marks by writing the attributes onto the line itself, `by=<projectCode>`, and **a mark without a
+`note=` is no mark** — `met` must say what was done and seen, `unmet` what happens instead; the
+word is only as good as what it rests on. An unmarked claim reads **unchecked** — visibly, and never
+the same as met.
+
+## `::claims` — the count, derived
+
+```markdown
+::claims
+```
+
+Recounts every `::claim` in the same document on each render: met / not met / unchecked, and a bar.
+Stored nowhere, so it cannot disagree with the blocks under it — this is what replaces a typed
+"claims 11/12 met" in an RFC's STATUS line. Unchecked is its own count, never folded into either side.
+
 ## `::::thread{id=…}` and `:::reply{…}` — a conversation in the document
 
 ```markdown

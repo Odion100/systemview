@@ -21,10 +21,13 @@ const TYPES = {
 
 // The bracketed label (`:ns[Math.add]`) flattened to a plain string. Blocks want the raw text —
 // a namespace, a file path — not React children.
+// INLINE CODE IS TEXT TOO. `::claim[Put a document carrying a \`::rfc\` leaf in \`docs/\`]` lost
+// both code spans — a text-only visit skips `inlineCode` nodes, so the statement read "carrying a
+// leaf in". Their value joins the label in document order.
 function labelOf(node) {
   let out = "";
-  visit(node, "text", (t) => {
-    out += t.value;
+  visit(node, (t) => {
+    if (t.type === "text" || t.type === "inlineCode") out += t.value;
   });
   return out;
 }
