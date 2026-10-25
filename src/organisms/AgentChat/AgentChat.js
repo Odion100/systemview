@@ -302,7 +302,7 @@ export function parseAttrs(src) {
 
 // One directive → one registry component. Unknown names render as the literal text they were, so a
 // sentence that merely looks like a directive is never swallowed.
-function SvChatBlock({ name, label, attrs, line, children, kind = "leaf", src = "" }) {
+function SvChatBlock({ name, label, attrs, line, from = 0, to = 0, children, kind = "leaf", src = "" }) {
   const [dark] = useAppDark();
   const entry = BLOCKS[name];
   if (!entry || !entry.Component) return null;
@@ -317,7 +317,7 @@ function SvChatBlock({ name, label, attrs, line, children, kind = "leaf", src = 
     // right for the TV and wrong here: adding the class without its `--dark` twin is what pinned a
     // white card into a dark chat. A chat is not a document; it follows the app, like the panel
     // around it does.
-    <div className={`chat-md__block markdown${dark ? " markdown--dark" : ""}`}>
+    <div className={`chat-md__block markdown${dark ? " markdown--dark" : ""}`} {...(from ? { "data-md-start": from, "data-md-end": to } : {})}>
       <Component name={name} kind={kind} src={src} label={label} attrs={attrs} line={line} node={null}>
         {children}
       </Component>
@@ -325,17 +325,25 @@ function SvChatBlock({ name, label, attrs, line, children, kind = "leaf", src = 
   );
 }
 
-export function renderChatMessage(text) {
+// EVERY ELEMENT CARRIES ITS SOURCE LINES — `data-md-start/end`, 1-based, the same stamp the
+// document renderer puts on its blocks. It is what lets anything point at a paragraph of a reply:
+// karaoke (RFC-074) lights the block the voice is reading by exactly these. `base` is where this
+// text sits in the outer message, so a container's body stamps absolute lines, not its own.
+export function renderChatMessage(text, base = 0) {
   const lines = String(text || "").split("\n");
   const out = [];
   let para = [];
-  let list = null; // { ordered, items: [] }
-  let fence = null; // { lines: [] }
+  let paraFrom = 0;
+  let paraTo = 0;
+  let list = null; // { ordered, items: [], from, to }
+  let fence = null; // { lines: [], from }
   let k = 0;
+  const at = (i) => base + i + 1;
+  const span = (from, to) => ({ "data-md-start": from, "data-md-end": to });
   const flushPara = () => {
     if (!para.length) return;
     out.push(
-      <span key={`p${k++}`} className="chat-md__p">
+      <span key={`p${k++}`} className="chat-md__p" {...span(paraFrom, paraTo)}>
         {renderInline(para.join("\n"), `p${k}-`)}
       </span>,
     );
@@ -345,7 +353,7 @@ export function renderChatMessage(text) {
     if (!list) return;
     const Tag = list.ordered ? "ol" : "ul";
     out.push(
-      <Tag key={`l${k++}`} className="chat-md__list">
+      <Tag key={`l${k++}`} className="chat-md__list" {...span(list.from, list.to)}>
         {list.items.map((it, i) => (
           <li key={i}>{renderInline(it, `l${k}i${i}-`)}</li>
         ))}
@@ -362,7 +370,7 @@ export function renderChatMessage(text) {
     if (fence) {
       if (/^\s*```/.test(line)) {
         out.push(
-          <pre key={`f${k++}`} className="chat-md__fence">
+          <pre key={`f${k++}`} className="chat-md__fence" {...span(fence.from, at(i))}>
             {fence.lines.join("\n")}
           </pre>,
         );
@@ -372,12 +380,13 @@ export function renderChatMessage(text) {
     }
     if (/^\s*```/.test(line)) {
       flushAll();
-      fence = { lines: [] };
+      fence = { lines: [], from: at(i) };
       continue;
     }
     // A table claims its own lines, so it is checked before the single-line block matchers.
     if (line.indexOf("|") !== -1 && isTableSep(lines[i + 1])) {
       flushAll();
+      const tFrom = at(i);
       const head = splitRow(line);
       const aligns = splitRow(lines[i + 1]).map(alignOf);
       const rows = [];
@@ -390,7 +399,7 @@ export function renderChatMessage(text) {
       const tk = k++;
       out.push(
         // A div, not a span: `<table>` is flow content and has no business inside phrasing.
-        <div key={`tw${tk}`} className="chat-md__tablewrap">
+        <div key={`tw${tk}`} className="chat-md__tablewrap" {...span(tFrom, at(i))}>
           <table className="chat-md__table">
             <thead>
               <tr>
@@ -425,6 +434,8 @@ export function renderChatMessage(text) {
       flushAll();
       const [, fence, name, dlabel, dattrs] = dir;
       const attrs = parseAttrs(dattrs);
+      const dFrom = at(i);
+      const bodyBase = base + i + 1;
       let body = null;
       if (fence === ":::") {
         const close = [];
@@ -437,8 +448,8 @@ export function renderChatMessage(text) {
         i = j; // the loop's own increment steps past the closing fence
       }
       out.push(
-        <SvChatBlock key={`d${k++}`} name={name} label={dlabel || ""} attrs={attrs} line={i + 1} kind={fence === ":::" ? "container" : "leaf"} src={body || ""}>
-          {body ? renderChatMessage(body) : null}
+        <SvChatBlock key={`d${k++}`} name={name} label={dlabel || ""} attrs={attrs} line={i + 1} from={dFrom} to={at(Math.min(i, lines.length - 1))} kind={fence === ":::" ? "container" : "leaf"} src={body || ""}>
+          {body ? renderChatMessage(body, bodyBase) : null}
         </SvChatBlock>,
       );
       continue;
@@ -451,7 +462,8 @@ export function renderChatMessage(text) {
       flushPara();
       const ordered = !!ol;
       if (list && list.ordered !== ordered) flushList();
-      if (!list) list = { ordered, items: [] };
+      if (!list) list = { ordered, items: [], from: at(i), to: at(i) };
+      list.to = at(i);
       list.items.push(ul ? ul[1] : ol[2]);
       continue;
     }
@@ -459,30 +471,32 @@ export function renderChatMessage(text) {
     if (h) {
       flushPara();
       out.push(
-        <span key={`h${k++}`} className="chat-md__h">
+        <span key={`h${k++}`} className="chat-md__h" {...span(at(i), at(i))}>
           {renderInline(h[2], `h${k}-`)}
         </span>,
       );
     } else if (q) {
       flushPara();
       out.push(
-        <span key={`q${k++}`} className="chat-md__quote">
+        <span key={`q${k++}`} className="chat-md__quote" {...span(at(i), at(i))}>
           {renderInline(q[1], `q${k}-`)}
         </span>,
       );
     } else if (/^\s*(-{3,}|\*{3,}|_{3,})\s*$/.test(line)) {
       flushPara();
-      out.push(<span key={`r${k++}`} className="chat-md__rule" />);
+      out.push(<span key={`r${k++}`} className="chat-md__rule" {...span(at(i), at(i))} />);
     } else if (!line.trim()) {
       flushPara(); // a blank line ENDS a paragraph; spacing comes from CSS, not empty lines
     } else {
+      if (!para.length) paraFrom = at(i);
+      paraTo = at(i);
       para.push(line);
     }
   }
   // An unterminated fence still shows its content — a half-typed message shouldn't vanish.
   if (fence)
     out.push(
-      <pre key={`f${k++}`} className="chat-md__fence">
+      <pre key={`f${k++}`} className="chat-md__fence" {...span(fence.from, at(lines.length - 1))}>
         {fence.lines.join("\n")}
       </pre>,
     );
@@ -2043,37 +2057,55 @@ function BotBubble({ projectCode, index }) {
   // seconds — re-rendering a long conversation per sentence would cost more than the voice.
   // Following: a nearest-scroll keeps it in view while the chat is following him, pinned so our
   // own scroll does not read as him scrolling away; once he has scrolled off, nothing moves.
-  const karaokeEl = useRef(null);
+  // EVERY BLOCK THE CHUNK TOUCHES, not the one block that contains it. The engine groups whole
+  // sentences up to ~240 characters, so a chunk routinely runs from the end of one paragraph into
+  // the start of the next — its lines span both, no single block covers both, and "the innermost
+  // block covering the range" lit NOTHING for exactly the sentences he stepped to with forward and
+  // back (his catch: *"it jumps to someplace that's not selected"*). So the mark is a SET: each
+  // innermost block overlapping the range, which is one paragraph in the common case and two
+  // across a boundary.
+  const karaokeEls = useRef([]);
   useEffect(() => {
     const p = speechQ.playing;
     const lines = p && p.scope === projectCode && p.position ? p.position.lines : null;
-    const prev = karaokeEl.current;
-    let next = null;
+    const prev = karaokeEls.current;
+    let next = [];
     if (lines) {
       const list = listRef.current;
       const row = list && list.querySelector(`[data-row="${String(p.key).replace(/"/g, '\\"')}"]`);
       if (row) {
         const [from, to] = lines;
-        let span = Infinity;
-        for (const b of row.querySelectorAll("[data-md-start]")) {
-          const s = Number(b.getAttribute("data-md-start"));
-          const e = Number(b.getAttribute("data-md-end"));
-          if (s <= from && e >= to && e - s < span) { next = b; span = e - s; }
+        const all = [...row.querySelectorAll("[data-md-start]")].map((b) => ({
+          b,
+          s: Number(b.getAttribute("data-md-start")),
+          e: Number(b.getAttribute("data-md-end")),
+        }));
+        // FIRST CHOICE: the one innermost block that covers the whole chunk. A callout is announced
+        // as one sentence spanning its fences, and this is what lights the WHOLE callout rather than
+        // the paragraph inside it (his: *"it looked really nice when it was grabbing the entire
+        // callout"*). Only when nothing covers it — the chunk straddles two blocks — fall back to
+        // every innermost block it touches.
+        const covering = all.filter((x) => x.s <= from && x.e >= to).sort((a, b) => a.e - a.s - (b.e - b.s))[0];
+        if (covering) next = [covering.b];
+        else {
+          const hit = all.filter((x) => x.s <= to && x.e >= from).map((x) => x.b);
+          next = hit.filter((b) => !hit.some((o) => o !== b && b.contains(o)));
         }
       }
     }
-    if (prev && prev !== next) prev.classList.remove("md-karaoke");
-    if (next && next !== prev) {
-      next.classList.add("md-karaoke");
+    for (const el of prev) if (!next.includes(el)) el.classList.remove("md-karaoke");
+    const fresh = next.filter((el) => !prev.includes(el));
+    for (const el of fresh) el.classList.add("md-karaoke");
+    if (fresh.length) {
       const list = listRef.current;
       if (list && sticking.current && sticking.current.following) {
-        next.scrollIntoView({ block: "nearest" });
+        fresh[0].scrollIntoView({ block: "nearest" });
         sticking.current.pin(geoOf(list));
       }
     }
-    karaokeEl.current = next;
+    karaokeEls.current = next;
   }, [speechQ, projectCode]);
-  useEffect(() => () => { if (karaokeEl.current) karaokeEl.current.classList.remove("md-karaoke"); }, []);
+  useEffect(() => () => { for (const el of karaokeEls.current) el.classList.remove("md-karaoke"); }, []);
   // THE TAB STRIP HEARS THE STATE. The navigator draws one tab per agent and cannot see inside a
   // chat; this announces working/idle so the tab can wear the cooking mark (his: *"the tab should
   // already be blinking when the agent's cooking"*). One event, no polling.
