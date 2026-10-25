@@ -1,6 +1,38 @@
-import React, { useEffect, useState } from "react";
-import { subscribe, view, drop, clear, skip, setPaused, jumpTo } from "./speechQueue";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { subscribe, view, drop, clear, skip, setPaused, jumpTo, release } from "./speechQueue";
 import { pause as voicePause, resume as voiceResume } from "../../utils/voice";
+
+// THE SUBTITLE SCROLLS, ONCE PER SENTENCE (RFC-074). The compact row under a hovering bot is
+// narrow and a sentence rarely fits; cutting it with an ellipsis would show the first four words
+// of every sentence, which is not a subtitle. So a sentence that overflows slides through its box
+// one time — left, at reading pace — and the next sentence starts from the left again. Measured,
+// not assumed: the slide only runs when `scrollWidth` beats the box, and `tick` (the sentence
+// index) restarts it so the same text read twice slides twice. Reduced-motion keeps the ellipsis.
+const Ticker = ({ className = "", title = "", text = "", tick = -1 }) => {
+  const box = useRef(null);
+  const inner = useRef(null);
+  const [over, setOver] = useState(0);
+  useLayoutEffect(() => {
+    const b = box.current;
+    const s = inner.current;
+    if (!b || !s) return;
+    const extra = Math.max(0, s.scrollWidth - b.clientWidth);
+    setOver(extra);
+  }, [text, tick]);
+  const dur = over ? `${Math.max(2, over / 40)}s` : "0s"; // ~40px per second
+  return (
+    <span ref={box} className={`${className}${over ? " is-ticking" : ""}`} title={title}>
+      <span
+        key={`${tick}:${text}`}
+        ref={inner}
+        className="speech-line__tick"
+        style={over ? { "--tick-over": `-${over}px`, animationDuration: dur } : undefined}
+      >
+        {text}
+      </span>
+    </span>
+  );
+};
 
 // WHAT IS TALKING, AND WHAT IS NEXT. A queue you cannot see is a slower kind of surprise: replies
 // start speaking minutes after they arrived and nothing says why, or how many more are coming.
@@ -16,9 +48,20 @@ import { pause as voicePause, resume as voiceResume } from "../../utils/voice";
 //      nothing to move forward to."* A skip with an empty line behind it moves to nothing.
 //
 // So: draw on `playing || waiting`, and render forward only when something is actually behind it.
-const SpeechLine = ({ className = "", onGo = null }) => {
-  const [q, setQ] = useState(view);
-  useEffect(() => subscribe(setQ), []);
+// `scope` — draw only this project's readings. The queue is one for the whole window; without a
+// scope the line shows everyone's, which is right for a surface that owns no project and wrong for
+// a chat's own bubble. An item lined up with no scope is nobody's in particular and shows everywhere.
+const SpeechLine = ({ className = "", onGo = null, scope = "", compact = false }) => {
+  const [raw, setRaw] = useState(view);
+  useEffect(() => subscribe(setRaw), []);
+  // EXACT when scoped: a chat's line draws its own project's readings and nothing else — an
+  // unlabelled item is not "anyone's", it is simply not this chat's.
+  const q = scope
+    ? {
+        playing: raw.playing && raw.playing.scope === scope ? raw.playing : null,
+        waiting: raw.waiting.filter((w) => w.scope === scope),
+      }
+    : raw;
 
   // Nothing queued behind it is the ordinary case, and it draws nothing — EXCEPT while paused,
   // because a pause holds the line forever and silence with no explanation is the state he got
@@ -33,6 +76,77 @@ const SpeechLine = ({ className = "", onGo = null }) => {
   if (!q.playing && !q.waiting.length) return null;
   // Everything the line is holding, the one talking included — that IS the line.
   const inLine = (q.playing ? 1 : 0) + q.waiting.length;
+
+  const togglePause = () => {
+    if (!q.playing) return;
+    if (stalled) {
+      voiceResume();
+      setPaused(q.playing.key, false);
+    } else {
+      voicePause();
+      setPaused(q.playing.key, true);
+    }
+  };
+
+  // THE COMPACT FORM — for the minimised chat (his call: *"the line that plays and stops doesn't
+  // need to sit the same way; it's off and awkward"*). One row: the pulsing mark, the state word,
+  // the first words of what is being read, pause, stop — and "+N" only when more are waiting. No
+  // list, no go-to: there is no conversation on screen to go to.
+  if (compact) {
+    const word = stalled ? "paused" : warming ? "loading" : q.playing ? "reading" : "waiting";
+    const label = q.playing ? q.playing.label : q.waiting[0] ? q.waiting[0].label : "";
+    // THE SUBTITLE (RFC-074): while reading, the sentence being spoken; loading or waiting there
+    // is no sentence yet, so the reply's first words stand in.
+    const pos = q.playing && !warming ? q.playing.position : null;
+    const said = pos && pos.text ? pos.text : label;
+    const more = q.playing ? q.waiting.length : Math.max(0, q.waiting.length - 1);
+    return (
+      <div
+        className={`speech-line speech-line--compact${stalled ? " is-paused" : ""}${warming ? " is-warming" : ""} ${className}`.trim()}
+        role="group"
+        aria-label="What is being read"
+      >
+        <span className={`speech-line__mark${q.playing && !stalled && !warming ? " speech-line__mark--live" : ""}`} aria-hidden="true">
+          {stalled ? "⏸" : warming ? "◌" : "▶"}
+        </span>
+        <span className="speech-line__word">{word}</span>
+        <Ticker className="speech-line__clabel" title={label} text={said} tick={pos ? pos.index : -1} />
+        {more > 0 && <span className="speech-line__more">+{more}</span>}
+        {/* THE SAME TRANSPORT AS THE FULL LINE — its pause, its skip, its stop. Not a second set of
+            buttons (his catch): one transport, learned once, wherever the line is drawn. */}
+        {/* WAITING: lined up while he was elsewhere and this agent is set to wait — the play starts it */}
+        {!q.playing && q.waiting.length > 0 && (
+          <button type="button" className="speech-line__pause" title="Read it now" aria-label="Start reading" onClick={() => release()}>
+            ▶
+          </button>
+        )}
+        {q.playing && (
+          <button
+            type="button"
+            className={`speech-line__pause${stalled ? " is-paused" : ""}`}
+            title={stalled ? "Resume" : "Pause"}
+            aria-label={stalled ? "Resume reading" : "Pause reading"}
+            onClick={togglePause}
+          >
+            {stalled ? "▶" : "❙❙"}
+          </button>
+        )}
+        {q.waiting.length > 0 && (
+          <button type="button" className="speech-line__skip" title="Skip to the next one" onClick={() => skip()}>
+            ⏭
+          </button>
+        )}
+        <button
+          type="button"
+          className={`speech-line__stop${stalled ? " is-paused" : ""}`}
+          title="Stop reading and empty the line"
+          onClick={() => clear()}
+        >
+          ■
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className={`speech-line ${className}`.trim()}>
@@ -77,7 +191,10 @@ const SpeechLine = ({ className = "", onGo = null }) => {
           title="Stop reading and empty the line"
           onClick={() => clear()}
         >
-          ■ {stalled ? "paused" : warming ? "loading" : ""} {inLine ? `${inLine} in line` : ""}
+          {/* THE LINE SAYS SOMETHING IS HAPPENING. A static queue reads as nothing going on, and
+              then a voice starts "out of nowhere" (his words) — so while one is being read the
+              head says so, and the playing row's mark pulses. */}
+          ■ {stalled ? "paused" : warming ? "loading" : q.playing ? "reading" : ""} {inLine ? `${inLine} in line` : ""}
         </button>
       </div>
       <ul className="speech-line__list">
@@ -110,7 +227,9 @@ const SpeechLine = ({ className = "", onGo = null }) => {
               onClick={() => onGo && onGo(q.playing.key)}
               disabled={!onGo}
             >
-              {q.playing.label || "a reply"}
+              {/* The sentence being spoken while it reads (RFC-074); the reply's first words
+                  until the engine has started on one. */}
+              {(q.playing.position && q.playing.position.text) || q.playing.label || "a reply"}
             </button>
             {/* AND IT TAKES AN × LIKE EVERY OTHER ROW. His: *"the queue needs to make sure that
                 there are × buttons all, to the end."* It was the one row without one, on the

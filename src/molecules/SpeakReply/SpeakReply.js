@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./styles.scss";
-import { AIMED_AT_YOU, spokenForm } from "../../utils/spokenForm";
-import { available, ready as engineReady, speak, stop, voices } from "../../utils/voice";
+import { AIMED_AT_YOU, spokenPositions } from "../../utils/spokenForm";
+import { available, ready as engineReady, speak, voices } from "../../utils/voice";
 import { readVoicePref, readVoiceSettings } from "../../utils/voicePref";
 import { takeIfNew } from "./autoSpeak";
-import { enqueue, cutIn, done as queueDone, drop as queueDrop, setPaused, setWarming as queueWarming } from "./speechQueue";
+import { enqueue, cutIn, done as queueDone, setPaused, setPosition as queuePosition, setWarming as queueWarming } from "./speechQueue";
 import { behind, register } from "./lineUp";
 import { useMarkdownScope } from "../../atoms/Markdown/context";
 import { announce, claim, isOwner, nextSpeakerId, subscribe } from "./speaker";
@@ -63,22 +63,22 @@ const SpeakReply = ({ text, className = "", rowKey = "", ts = 0 }) => {
   // PRESSING LISTEN READS THE WHOLE REPLY. That is the deal and it does not change: the button is
   // "read me this", and a button that silently read a third of what is on screen would be the
   // worst kind of setting — invisible, and only discoverable by missing something.
-  const spoken = useMemo(() => spokenForm(text), [text]);
+  // …and with every sentence's source lines beside it (RFC-074), so the position the engine
+  // reports can be put on the line as a subtitle and a lit paragraph.
+  const recital = useMemo(() => spokenPositions(text), [text]);
+  const spoken = recital.text;
 
   useEffect(() => {
     const off = subscribe((who) => {
       if (who !== id) setSpeaking(false);
     });
+    // THE READING OUTLIVES THE ROW (his rule, 2026-10-25: *"why should it stop reading if I close
+    // it? why should it stop if I pull it out?"*). This cleanup used to stop the voice on unmount,
+    // because a reply scrolled off screen would otherwise keep talking with nothing to stop it —
+    // true then; now the speech line draws the reading wherever the chat is, open or closed, with
+    // its own stop. So closing the panel, docking, undocking or a filter no longer cuts a sentence.
     return () => {
       off();
-      // UNMOUNTING MID-SENTENCE MUST NOT LEAVE A VOICE RUNNING. The feed re-renders constantly;
-      // a reply scrolled out of the list while reading would otherwise keep talking with nothing
-      // on screen to stop it.
-      if (isOwner(id)) {
-        stop();
-        announce(false);
-      }
-      if (handle.current) handle.current.stop();
     };
   }, [id]);
 
@@ -89,11 +89,10 @@ const SpeakReply = ({ text, className = "", rowKey = "", ts = 0 }) => {
   // the listener is gone with the engine it belonged to.
 
 
-  // A ROW THAT GOES AWAY LEAVES THE LINE. The queue holds a `start()` closing over this
-  // component — so a row unmounted by a chat switch, a filter or a navigation would otherwise sit
-  // in the line waiting to speak a reply from somewhere he is no longer looking, setting state on
-  // something that no longer exists. Queued-but-gone is the stale conflict; this is the cleanup.
-  useEffect(() => () => queueDrop(rowKey), [rowKey]);
+  // A ROW THAT GOES AWAY STAYS IN THE LINE. It used to be dropped on unmount — a reply queued
+  // from somewhere he was no longer looking — but the line is now visible from the closed chat
+  // too, and a reply lined up while the panel was open must still be read after it is closed. The
+  // `start()` closes over this component's setters; on an unmounted row they are no-ops.
 
   // ── SPEAKING ON ITS OWN ──────────────────────────────────────────────────────────────────────
   //
@@ -119,13 +118,14 @@ const SpeakReply = ({ text, className = "", rowKey = "", ts = 0 }) => {
     if (typeof document !== "undefined" && document.hidden) return;
     // `all` is the whole reply, which is exactly what passing no sieve means.
     const only = s.mode === "all" ? null : s.blocks === null ? AIMED_AT_YOU : s.blocks;
-    const body = spokenForm(text, only ? { only } : {});
+    const { text: body, chunks: positions } = spokenPositions(text, only ? { only } : {});
     if (!body) return;
     // IT JOINS THE LINE. This used to call `speak()` directly, which cancels whatever is talking —
     // correct for a press, wrong for a reply that simply ARRIVED. A long answer was reliably cut
     // off by the next one, and there was no way to get it back.
     enqueue({
       key: rowKey,
+      scope: projectCode, // STAMPED, like every other path — an unstamped reading is drawn by no bot
       label: body.replace(/\s+/g, " ").slice(0, 70),
       start: () => {
         const token = (seq.current += 1);
@@ -140,7 +140,11 @@ const SpeakReply = ({ text, className = "", rowKey = "", ts = 0 }) => {
           // caller must say. Leaving it out is how a per-chat setting silently becomes global.
           preferId: readVoicePref(projectCode),
           rate: s.speed,
-          onposition: (p) => seq.current === token && setAt(p),
+          onposition: (p) => {
+            if (seq.current !== token) return;
+            setAt(p);
+            queuePosition(rowKey, { ...p, ...(positions[p.index] || {}) });
+          },
           onstart: () => {
               if (seq.current !== token) return;
               setWarming(false);
@@ -176,6 +180,7 @@ const SpeakReply = ({ text, className = "", rowKey = "", ts = 0 }) => {
     const chat = readVoiceSettings(projectCode);
     return {
         key: rowKey,
+        scope: projectCode, // whose reading this is — the chat's own line draws only its own
         label: String(spoken || "").replace(/\s+/g, " ").slice(0, 70),
         start: () => {
           const token = (seq.current += 1);
@@ -188,7 +193,11 @@ const SpeakReply = ({ text, className = "", rowKey = "", ts = 0 }) => {
           handle.current = speak(spoken, {
             preferId: readVoicePref(projectCode),
             rate: chat.speed,
-            onposition: (p) => seq.current === token && setAt(p),
+            onposition: (p) => {
+              if (seq.current !== token) return;
+              setAt(p);
+              queuePosition(rowKey, { ...p, ...(recital.chunks[p.index] || {}) });
+            },
             onstart: () => {
               if (seq.current !== token) return;
               setWarming(false);
@@ -212,7 +221,7 @@ const SpeakReply = ({ text, className = "", rowKey = "", ts = 0 }) => {
           return handle.current;
         },
       };
-  }, [id, rowKey, spoken, projectCode]);
+  }, [id, rowKey, spoken, recital, projectCode]);
 
   // A REPLY SAYS HOW IT SPEAKS, so the row he pressed can queue the ones after it without any of
   // them being mounted differently. Unregistering on unmount keeps a row that left the render from

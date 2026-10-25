@@ -101,6 +101,7 @@ const VoiceSettings = ({ scope = "" }) => {
   // set itself playing — so without this, interrupting A would blank the control that B just lit
   // and the stop button would vanish from a voice that is still talking.
   const seq = useRef(0);
+  const wasOpen = useRef(false); // the popover's last open state — halt fires on open→closed only
 
   const list = useMemo(() => (open ? sortVoices(voices()) : []), [open]);
 
@@ -172,14 +173,18 @@ const VoiceSettings = ({ scope = "" }) => {
     };
   }, [open]);
 
+  // HALT STOPS ONLY WHAT THIS WIDGET STARTED. It used to fall back to the global `stop()` when it
+  // had no preview handle — which silenced a reply being read, since this widget mounts (and its
+  // "closed → halt" effect fires) every time the chat panel remounts: docking, undocking, reopening.
+  // Measured 2026-10-25: *"when I dock you back, you stop speaking."*
   const halt = useCallback(() => {
     seq.current += 1;
     if (handle.current) handle.current.stop();
-    else stop();
+    else if (isOwner(id)) stop();
     handle.current = null;
     setPlaying("");
-    announce(false);
-  }, []);
+    if (isOwner(id)) announce(false);
+  }, [id]);
 
   // Dismiss exactly as SvSelect does — away-click and Escape — and SILENCE ON THE WAY OUT. A panel
   // that closes while still talking leaves a voice playing with nothing on screen to stop it.
@@ -213,7 +218,9 @@ const VoiceSettings = ({ scope = "" }) => {
   }, [open]);
 
   useEffect(() => {
-    if (!open) halt();
+    // only on a real close — mounting closed is not closing
+    if (wasOpen.current && !open) halt();
+    wasOpen.current = open;
   }, [open, halt]);
 
   useEffect(() => {
@@ -321,6 +328,20 @@ const VoiceSettings = ({ scope = "" }) => {
                 </button>
               ))}
             </span>
+            {/* ELSEWHERE — what happens when a reply lands and this agent is not on screen (his
+                design): wait for him, or pop the chat out and read. A background reading is never
+                a background: if it speaks, it comes out where its controls are. */}
+            {settings.mode !== "off" && (
+              <button
+                type="button"
+                className={`${CN}__elsewhere${settings.background ? ` ${CN}__elsewhere--on` : ""}`}
+                title={settings.background ? "When you are on another agent: pops out and reads. Click to make it wait for you." : "When you are on another agent: lines the reply up and waits for you. Click to make it pop out and read."}
+                aria-pressed={!!settings.background}
+                onClick={() => save({ background: !settings.background })}
+              >
+                {settings.background ? "elsewhere: pop out & read" : "elsewhere: wait"}
+              </button>
+            )}
             {load === "loading" && <span className={`${CN}__loading`}>downloading the voice — {pct}%</span>}
             {load === "failed" && (
               <span className={`${CN}__failed`}>

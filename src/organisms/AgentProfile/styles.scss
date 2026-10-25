@@ -751,20 +751,29 @@
   border-left: 3px solid #6a74c4;
   border-radius: 7px;
   background: var(--sv-inset);
+  // the slight transition — the enabled colour eases in and out when the hook is flipped
+  transition: background-color 0.25s ease, border-color 0.25s ease;
 }
-// OFF DIMS WHAT THE ROW *IS*, NEVER WHAT YOU ACT WITH.
-//
-// His report, 2026-10-12: *"when hooks are disabled they have opacity but you go to edit it and
-// inside component has opacity too… when I pick the slider to pick the job, it's hard to see
-// because it's see through."* Dead right, and it is the classic opacity trap: `opacity` on a
-// container creates a compositing group, so EVERY descendant is dimmed and a child CANNOT opt back
-// out — `opacity: 1` on the form does nothing. The editor expands inside this row, so a dropdown
-// you have to read was being rendered at half strength.
-//
-// So the dim is scoped to `__hook-main`, which is the hook's identity (name · on · when · do).
-// The tags, the switches, and the whole editor stay at full strength: whether a hook is carried
-// says nothing about how readable the controls for changing that should be.
-.agent-profile__hook--off > .agent-profile__hook-main { opacity: 0.5; }
+// THE BLINK WHERE A FLIPPED HOOK LANDS — one beat, then the row is just a row again.
+.agent-profile__hook--moved { animation: agent-profile-hook-landed 0.6s ease-out 1; }
+@keyframes agent-profile-hook-landed {
+  0%   { box-shadow: 0 0 0 0 rgba(99, 185, 138, 0); }
+  25%  { box-shadow: 0 0 0 3px rgba(99, 185, 138, 0.55); }
+  100% { box-shadow: 0 0 0 0 rgba(99, 185, 138, 0); }
+}
+// TWO COLOURS, NOT A DIM. Disabled used to be half-opacity on the row's identity, and opacity on a
+// container dims every descendant — the editor that expands inside the row was being read at half
+// strength. Now the state is a colour on the whole card and nothing is dimmed.
+// A hook this agent does not carry keeps the row's ORIGINAL look (the indigo edge, full ink);
+// the carried one wears the enabled colour on its edge AND its card, so the state is the whole
+// row and not a line.
+.agent-profile__hook--on {
+  border-left-color: #63b98a;
+  border-color: rgba(99, 185, 138, 0.45);
+  border-left-color: #63b98a;
+  background: color-mix(in srgb, #63b98a 9%, var(--sv-inset));
+}
+.agent-profile__hook-btn--open { color: var(--sv-text); border-color: var(--sv-text-muted); }
 .agent-profile__hook-main {
   display: flex;
   align-items: baseline;
@@ -1111,6 +1120,32 @@
 .agent-profile__chore--owed { border-left-color: #e2ad42; }
 .agent-profile__chore--done { border-left-color: #63b98a; }
 .agent-profile__chore--new  { border-left-color: var(--sv-text-faint); border-left-style: dashed; }
+// THE THINKING DEFAULT sits on the gating row's shape — label, pick, note — plus a budget, a plain
+// number input styled like the pick beside it.
+.agent-profile__thinking-budget {
+  width: 84px;
+  padding: 3px 7px;
+  border: 1px solid var(--sv-border);
+  border-radius: 6px;
+  background: var(--sv-surface);
+  color: var(--sv-text);
+  font: inherit;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  // "adaptive" is the VALUE when nothing is set, not a hint — it reads in the normal ink
+  &::placeholder { color: var(--sv-text); font-style: italic; }
+}
+.agent-profile__thinking-cap { display: inline-flex; align-items: center; gap: 2px; }
+.agent-profile__thinking-reset {
+  border: none;
+  background: transparent;
+  color: var(--sv-text-faint);
+  font-size: 13px;
+  line-height: 1;
+  padding: 2px 4px;
+  cursor: pointer;
+  &:hover { color: var(--sv-text); }
+}
 // A PILL, NOT A BULLET — and dark ink on a mid-tone fill is theme-independent by construction.
 .agent-profile__chore-pill {
   font-size: 10px;

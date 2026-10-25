@@ -18,7 +18,7 @@ import UiLink from "../../atoms/Markdown/blocks/UiLink";
 import Markdown from "../../atoms/Markdown/Markdown";
 import { spotlight, clearSpotlight, animationMode, setAnimationMode, MODES } from "../../spotlight";
 import { resolveTarget, docRectOf, revealDocLines } from "../../spotlightTargets";
-import { slotId, setNavDocked, useNavDock, isNavDocked, railId, spotId, placeInDock, setDockOrder, useDockOrder, dockOrder, orderProjects } from "./navDock";
+import { slotId, pinId, setNavDocked, useNavDock, isNavDocked, railId, spotId, placeInDock, setDockOrder, useDockOrder, dockOrder, orderProjects } from "./navDock";
 import { hasHostDictation, startHostRecording } from "../../utils/hostDictation";
 import VoiceMode from "../../molecules/SpeakReply/VoiceMode";
 import SpeechLine from "../../molecules/SpeakReply/SpeechLine";
@@ -26,11 +26,12 @@ import BoxSelect from "../../molecules/BoxSelect/BoxSelect";
 import "../../molecules/BoxSelect/styles.scss";
 // A BOX SELECTION SPEAKS THROUGH THE SAME DOORS A REPLY DOES — one engine, one queue, one
 // microphone mute. A second path to the speaker would drift the first time either changed.
-import { spokenForm } from "../../utils/spokenForm";
-import { speak, ready as engineReady } from "../../utils/voice";
+import { spokenPositions, AIMED_AT_YOU } from "../../utils/spokenForm";
+import { speak, ready as engineReady, available as voiceAvailable } from "../../utils/voice";
 import { readVoicePref, readVoiceSettings } from "../../utils/voicePref";
-import { playFirst, done as queueDone, setWarming as queueWarming } from "../../molecules/SpeakReply/speechQueue";
-import { announce } from "../../molecules/SpeakReply/speaker";
+import { playFirst, enqueue as queueEnqueue, done as queueDone, setWarming as queueWarming, setPosition as queuePosition, view as speechView, subscribe as speechSubscribe } from "../../molecules/SpeakReply/speechQueue";
+import { announce, claim as claimSpeaker, nextSpeakerId } from "../../molecules/SpeakReply/speaker";
+import { takeIfNew } from "../../molecules/SpeakReply/autoSpeak";
 import Feed, { timeOf } from "../AgentWorkbench/Feed";
 import useAgentSession from "../AgentWorkbench/useAgentSession";
 import { CTX_WARN, CTX_DUE, tokensShort, parseUsageLines, foldEvents } from "../AgentWorkbench/feedRows";
@@ -577,6 +578,15 @@ const dockAllBots = () => window.dispatchEvent(new Event("sv:dockAll"));
 // `claude-` prefix and the trailing date, and KEEP the `[1m]` marker — the long-context variant is
 // a different thing to be talking to, not a build detail. The date is stripped even when the marker
 // sits after it, which a naive `-\d{8}$` misses.
+// THE THINKING KNOB'S SETTINGS — the host's thinkingDisplay modes, in the order he would reach for
+// them. `null` is the raw stream: everything, as it is thought.
+const THINKING_MODES = [
+  { display: null, label: "think: full", why: "the whole reasoning, as it streams" },
+  { display: "highlights", label: "think: highlights", why: "the turning points, as they happen" },
+  { display: "summarized", label: "think: summary", why: "one line for what is being turned over" },
+  { display: "omitted", label: "think: off", why: "no reasoning shown — only what is done" },
+];
+const thinkLabel = (t) => (THINKING_MODES.find((m) => m.display === ((t || {}).display || null)) || THINKING_MODES[0]).label;
 const shortModel = (m) =>
   String(m || "")
     .replace(/^claude-/, "")
@@ -632,7 +642,9 @@ function RecClock({ since, className }) {
   return <span className={className} title="The recorder is running">⏺ {mm}:{ss}</span>;
 }
 
-function StatusLine({ status, visitor, tok }) {
+// `onStop` — the stop square on the cooking line itself (his call: one cooking line, with the stop
+// ON it, not a second line under it carrying the stop).
+function StatusLine({ status, visitor, tok, onStop = null }) {
   const [i, setI] = useState(0);
   const generic = status === "received";
   useEffect(() => {
@@ -663,6 +675,17 @@ function StatusLine({ status, visitor, tok }) {
       </span>
       {/* The live token count, after the dots — same place it rides on the panel's cooking line. */}
       {tok && <span className="agent-chat__cooking-tok">{tok}</span>}
+      {onStop && (
+        <button
+          type="button"
+          className="agent-chat__stop"
+          title="Stop"
+          onClick={(e) => { e.stopPropagation(); onStop(); }}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <span className="agent-chat__stop-sq" />
+        </button>
+      )}
     </div>
   );
 }
@@ -1534,7 +1557,7 @@ function LaneRow({ source, items, projectCode, repo, delegated, panelOpen, onOpe
   );
 }
 
-function CookLine({ doing, state, liveChars = 0 }) {
+function CookLine({ doing, state, liveChars = 0, onStop = null }) {
   const text = useCookWord(doing, state);
   const counted = useCountUp(Math.round(liveChars / 4));
   // TOKENS, WITH THE TURN THEY BELONG TO. The count of what is being generated rides the cooking
@@ -1565,6 +1588,18 @@ function CookLine({ doing, state, liveChars = 0 }) {
       {/* The count climbs AFTER the dots — his: "it should be on the other side of that dancing
           ellipsis, and it would be going up and up as you worked." */}
       {tok && <span className={`${CLASSNAME}__cooking-tok`}>{tok}</span>}
+      {/* STOP, ON THE LINE THAT SAYS I AM WORKING — far right. His: *"the only time I could stop you
+          is when you're cooking… I'll be having to slide the chat all the way back up."* This row
+          sits outside the scroll, so it is on screen whenever there is something to stop, however
+          the pane is sized. The earlier objection to a stop here was a TEXT button in the middle of
+          the sentence; this is the header's 9px square at the edge of the row, the sentence untouched.
+          Moved, not duplicated — the one beside the close button is gone (his: *"I'm not going up
+          there to click it anymore"*). */}
+      {onStop && (state === "working" || state === "waiting") && (
+        <button type="button" className={`${CLASSNAME}__stop`} title="Stop what it's doing" onClick={onStop}>
+          <span className={`${CLASSNAME}__stop-sq`} />
+        </button>
+      )}
     </div>
   );
 }
@@ -1865,6 +1900,7 @@ function BotBubble({ projectCode, index }) {
     return () => window.removeEventListener("sv:chooseConversation", onAsk);
   }, [projectCode]);
   const [modelMenu, setModelMenu] = useState(false);
+  const [thinkMenu, setThinkMenu] = useState(false); // the thinking knob's menu, beside the model's
   const [picker, setPicker] = useState(false);
   const [sendErr, setSendErr] = useState("");
   const [transcripts, setTranscripts] = useState(null);
@@ -1994,6 +2030,121 @@ function BotBubble({ projectCode, index }) {
   // collapsing the nav emptied the rail because every bot was acting on the copy.
   const [navTabsOpen, setNavTabsOpen] = useState(false);
   const [slotEl, setSlotEl] = useState(null);
+  // the pinned targets above the column's scroller (tabs view) — null when there are none on screen
+  const [pinEls, setPinEls] = useState(null);
+  // WHAT THE VOICE IS DOING — read here so the CLOSED chat can know whether there is anything to
+  // draw a transport for; the SpeechLine itself gates on the same view.
+  const [speechQ, setSpeechQ] = useState(speechView);
+  useEffect(() => speechSubscribe(setSpeechQ), []);
+  // KARAOKE (RFC-074): the block the voice is reading wears `.md-karaoke`, in this chat's own
+  // rows only. The line carries the sentence's source lines; every rendered block carries its
+  // range (`data-md-start/end`); the innermost block covering the sentence is the one lit. It is a
+  // class on the DOM, not state, because the reply is rendered once and the mark moves every few
+  // seconds — re-rendering a long conversation per sentence would cost more than the voice.
+  // Following: a nearest-scroll keeps it in view while the chat is following him, pinned so our
+  // own scroll does not read as him scrolling away; once he has scrolled off, nothing moves.
+  const karaokeEl = useRef(null);
+  useEffect(() => {
+    const p = speechQ.playing;
+    const lines = p && p.scope === projectCode && p.position ? p.position.lines : null;
+    const prev = karaokeEl.current;
+    let next = null;
+    if (lines) {
+      const list = listRef.current;
+      const row = list && list.querySelector(`[data-row="${String(p.key).replace(/"/g, '\\"')}"]`);
+      if (row) {
+        const [from, to] = lines;
+        let span = Infinity;
+        for (const b of row.querySelectorAll("[data-md-start]")) {
+          const s = Number(b.getAttribute("data-md-start"));
+          const e = Number(b.getAttribute("data-md-end"));
+          if (s <= from && e >= to && e - s < span) { next = b; span = e - s; }
+        }
+      }
+    }
+    if (prev && prev !== next) prev.classList.remove("md-karaoke");
+    if (next && next !== prev) {
+      next.classList.add("md-karaoke");
+      const list = listRef.current;
+      if (list && sticking.current && sticking.current.following) {
+        next.scrollIntoView({ block: "nearest" });
+        sticking.current.pin(geoOf(list));
+      }
+    }
+    karaokeEl.current = next;
+  }, [speechQ, projectCode]);
+  useEffect(() => () => { if (karaokeEl.current) karaokeEl.current.classList.remove("md-karaoke"); }, []);
+  // THE TAB STRIP HEARS THE STATE. The navigator draws one tab per agent and cannot see inside a
+  // chat; this announces working/idle so the tab can wear the cooking mark (his: *"the tab should
+  // already be blinking when the agent's cooking"*). One event, no polling.
+  useEffect(() => {
+    try {
+      window.dispatchEvent(new CustomEvent("sv:agentState", { detail: { projectCode, state: work.state.state || "idle" } }));
+    } catch {}
+  }, [work.state.state, projectCode]);
+  // THE CONVERSATION LINES UP ITS OWN REPLIES TO BE READ — not only the reply's row. The row's
+  // auto-speak runs when the row MOUNTS, and a closed chat mounts no rows, so with the panel shut
+  // nothing was ever read (his test, 2026-10-25: *"no speaking"*). This walks the same fold the
+  // panel draws and applies the same rules — new since the page armed, once per key, voice on,
+  // tab visible, the blocks he ticked — and lines the reply up with this project's scope. When
+  // the panel IS open the row's own effect runs first (children's effects do) and takes the key,
+  // so nothing is lined up twice; this is the path that exists for when it is not.
+  const autoReader = useRef(null);
+  // read by the effect below at the moment a reply lands — set further down, once the dock state
+  // for this render is known (the effect runs after render, so the ref is current by then)
+  const onScreenRef = useRef(true);
+  const pullOutRef = useRef(null);
+  useEffect(() => {
+    const rows = work.rows || [];
+    for (const r of rows) {
+      if (r.kind !== "say" || r.replay || !r.settled) continue;
+      if (!takeIfNew(r.key, r.ts)) continue;
+      const s = readVoiceSettings(projectCode);
+      if (s.mode === "off" || !voiceAvailable()) continue;
+      if (typeof document !== "undefined" && document.hidden) continue;
+      const only = s.mode === "all" ? null : s.blocks === null ? AIMED_AT_YOU : s.blocks;
+      const { text: body, chunks: positions } = spokenPositions(r.text, only ? { only } : {});
+      if (!body) continue;
+      const key = r.key;
+      // ELSEWHERE — this agent is not on screen (docked in a tab that is not up, or in the rail).
+      // `background` on: pop the chat out and read, because a reading he cannot see or stop is not
+      // a background, it is a surprise. Off (the default): line it up HELD — the row says waiting
+      // and he starts it when he comes back.
+      const elsewhere = !onScreenRef.current;
+      const hold = elsewhere && !s.background;
+      // …and it comes out CLOSED — the bubble with the voice row under it, not the whole chat
+      // (his: *"more polite if it doesn't come out with the chat open"*).
+      if (elsewhere && s.background && pullOutRef.current) {
+        openRef.current = false;
+        setOpen(false);
+        pullOutRef.current();
+      }
+      queueEnqueue({
+        key,
+        scope: projectCode,
+        label: body.replace(/\s+/g, " ").slice(0, 70),
+        start: () => {
+          if (autoReader.current == null) autoReader.current = nextSpeakerId();
+          claimSpeaker(autoReader.current);
+          queueWarming(key, !engineReady());
+          announce(true);
+          return speak(body, {
+            preferId: readVoicePref(projectCode),
+            rate: s.speed,
+            onstart: () => queueWarming(key, false),
+            // WHERE THE VOICE IS, onto the line (RFC-074) — the subtitle and the lit paragraph
+            // both read it from there.
+            onposition: (p) => queuePosition(key, { ...p, ...(positions[p.index] || {}) }),
+            onend: () => {
+              queueWarming(key, false);
+              queueDone(key);
+              announce(false);
+            },
+          });
+        },
+      }, { hold });
+    }
+  }, [work.rows, projectCode]);
   // EVERYTHING THAT POPS, POPS AS A DOCUMENT (his ruling, 2026-10-14: *"anything that might pop
   // up… I don't even want the chat here"*). Docked, the column renders the agent's ROW and nothing
   // else — the chat panel, the collector and the commands/usage panel PORTAL into a centre tab
@@ -2037,6 +2188,16 @@ function BotBubble({ projectCode, index }) {
       const card = document.getElementById(slotId(projectCode));
       const el = (card && card.offsetParent !== null ? card : null) || document.getElementById(spotId(projectCode));
       setSlotEl((cur) => (cur === el ? cur : el || null));
+      // THE PINNED TOP, found the same way: the targets exist only in tabs view, for the tab's own
+      // project, and only count while on screen. Both or nothing — half a pin is a torn header.
+      const pinBot = document.getElementById(pinId(projectCode, "bot"));
+      const pinTop = document.getElementById(pinId(projectCode, "top"));
+      // the targets are `display: contents` (no box of their own), and a contents element has NO
+      // offsetParent — so "on screen" is asked of the pinned region that holds them, which has one.
+      // Measured 2026-10-25: asking the target itself answered null forever and nothing pinned.
+      const pinRegion = pinBot && pinBot.parentElement;
+      const pins = pinBot && pinTop && pinRegion && pinRegion.offsetParent !== null ? { bot: pinBot, top: pinTop } : null;
+      setPinEls((cur) => (cur && pins && cur.bot === pins.bot && cur.top === pins.top ? cur : pins));
       try {
         setNavTabsOpen(localStorage.getItem("sv.navOpen") !== "false" && (localStorage.getItem("sv.navView") || "tabs") === "tabs");
       } catch {}
@@ -4593,10 +4754,42 @@ const countdown = (str, now = Date.now()) => {
   // beside the rail.
   const inRail = navDocked && !!slotEl && slotEl.id === spotId(projectCode);
   const inNav = navDocked && !!slotEl && !inRail;
+  // ON SCREEN = floating (bubble visible, open or not) or docked in the tab that is up. Docked in a
+  // tab that is not up, or in the rail, is "elsewhere" for the voice.
+  onScreenRef.current = !navDocked || inNav;
+  pullOutRef.current = pullOut;
+  // THE RAIL ALWAYS STARTS CLOSED (his rule). The mount-time default already knew this — a docked
+  // bot opens closed when the navigator is collapsed — but collapsing the navigator LIVE moved every
+  // docked bot into the rail carrying whatever it had open, so the strip he had just minimised
+  // turned into a stack of open chats (*"you close into the edge tab and other tabs happen to have
+  // the chat open — it all opens"*). Entering the rail shuts everything; coming back to the card
+  // restores the card's own default, which is open.
+  const wasRail = useRef(inRail);
+  useEffect(() => {
+    if (inRail && !wasRail.current) {
+      openRef.current = false;
+      setOpen(false);
+      setTvOpen(false);
+      setBoardOpen(false);
+      setLinksOpen(false);
+      setCbOpen(false);
+      setCmdsOpen(false);
+    } else if (!inRail && wasRail.current && inNav) {
+      openRef.current = true;
+      setOpen(true);
+    }
+    wasRail.current = inRail;
+  }, [inRail, inNav]);
   // RFC-062 — the SAME dock, with ROOM. In tabs view the nav shows one card spanning the panel,
   // so the docked chat's 420px cap stops making sense there: the panel keeps its own resize
   // handle and may be dragged as tall as the panel goes. Everywhere else the cap stands.
   const inTabsNav = inNav && !!(slotEl && typeof slotEl.closest === "function" && slotEl.closest(".system-nav--tabs"));
+  // PINNED — the top of the docked chat (avatar row, head, meter, roster) rendered above the column's
+  // scroller instead of in the card, so it holds still while the column scrolls (his ask: *"everything
+  // from this conversation and up shouldn't move"*). Only in the tab's own card: a floating bot has
+  // no column to pin to. The rows are the same elements with the same handlers — they are portaled,
+  // not copied — and CSS makes the two halves read as the one card they were.
+  const pinned = inTabsNav && pinEls ? pinEls : null;
   const inRailRef = useRef(inRail);
   inRailRef.current = inRail;
   // …and its twin for the CARD dock, so a drag can pull the agent out of the codebase slot exactly
@@ -5431,6 +5624,27 @@ const countdown = (str, now = Date.now()) => {
   // UNATTACHED, THERE IS NOTHING TO PREVIEW. The room is no longer in the panel, so previewing its
   // messages offered him a door into a conversation that would not be there when he opened it.
   const peekUnread = attached ? sessionUnread : 0;
+  // THE NOW-LINE: the closed chat's controls (his ask — *"I should still be able to see what's
+  // speaking, and stop it, and that goes for the hovering chat too"*). Speaking → the queue line
+  // with its transport; cooking → the cooking row with its stop. Null when neither is live, so the
+  // box that holds it is never drawn empty. Clicks inside must not open the chat — the peek it may
+  // sit in opens on click, and a press on stop is not a request to open anything.
+  // ONLY THIS PROJECT'S READINGS COUNT — the queue is shared by every chat in the window, and the
+  // match is EXACT: an unlabelled reading is nobody's, not everybody's (his catch — it was drawing
+  // on autobot's bubble while systemview-test was the one talking).
+  const mine = (it) => !!it && it.scope === projectCode;
+  const speechLive = !!(mine(speechQ.playing) || (speechQ.waiting && speechQ.waiting.some(mine)));
+  // SPEAKING, RIGHT NOW — the hovering bot wears a ring while this is true (his design: *"if you're
+  // speaking you should pop out… borders that make it eye-catching"*). Paused is not speaking.
+  const speakingNow = mine(speechQ.playing) && !speechQ.playing.paused;
+  // THE VOICE ONLY. The stop for cooking rides the peek's own cooking line (StatusLine's `onStop`) —
+  // a second cooking line here just to carry a stop was the "two cooking lines" he kept seeing.
+  const nowLine = !open && speechLive ? (
+    <div className={`${CLASSNAME}__now`} onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
+      {/* the one-row form in both homes — in the peek docked, under the bubble hovering */}
+      <SpeechLine scope={projectCode} compact />
+    </div>
+  ) : null;
   // THE PEEK SHOWS ONLY WHEN IT HAS SOMETHING TO SAY. It was gated on `p.status` being truthy while
   // the lines inside were filtered for being blank — so a status that was present but EMPTY opened
   // an empty bubble and parked it at the top of his screen while nothing was happening. One list,
@@ -5440,7 +5654,9 @@ const countdown = (str, now = Date.now()) => {
     .filter((s) => s && String(s.text || "").trim());
   // ONE ANSWER TO "IS THERE ANYTHING TO SHOW". Every branch inside the bubble reads from this list,
   // and so does the gate that decides whether to draw it at all.
-  const peekHas = hasBrief || sessionCooking || peekUnread > 0 || roomLines.length > 0;
+  // A READING IS A REASON FOR THE PEEK TO EXIST — the voice row lives inside it, and an idle chat
+  // being read aloud had no peek, so minimised it had nowhere to show the queue (his test).
+  const peekHas = hasBrief || sessionCooking || peekUnread > 0 || roomLines.length > 0 || speechLive;
   const peekShowing = !open && (listening || (!animating && peekHas));
   const iconsLeft = peekShowing && leftHalf;
   // The docked pill is 150px centred under a 46px bubble, so near either edge half of it lands off
@@ -5511,7 +5727,7 @@ const countdown = (str, now = Date.now()) => {
   const body = (
     <div
       ref={rootRef}
-      className={`${CLASSNAME} ${topHalf ? `${CLASSNAME}--top` : ""} ${leftHalf ? `${CLASSNAME}--left` : ""} ${flip && !inRail ? `${CLASSNAME}--flipx` : ""} ${docked ? `${CLASSNAME}--docked` : ""}${saying ? ` ${CLASSNAME}--errand` : ""}${iconsLeft ? ` ${CLASSNAME}--iconsleft` : ""}${inNav ? ` ${CLASSNAME}--innav` : ""}${inRail ? ` ${CLASSNAME}--rail` : ""}${inRail && (open || tvOpen || linksOpen || boardOpen || cbOpen || cmdsOpen) ? ` ${CLASSNAME}--rail-open` : ""}${overDock ? ` ${CLASSNAME}--overdock` : ""}`}
+      className={`${CLASSNAME} ${topHalf ? `${CLASSNAME}--top` : ""} ${leftHalf ? `${CLASSNAME}--left` : ""} ${flip && !inRail ? `${CLASSNAME}--flipx` : ""} ${docked ? `${CLASSNAME}--docked` : ""}${saying ? ` ${CLASSNAME}--errand` : ""}${speakingNow ? ` ${CLASSNAME}--speaking` : ""}${iconsLeft ? ` ${CLASSNAME}--iconsleft` : ""}${inNav ? ` ${CLASSNAME}--innav` : ""}${inRail ? ` ${CLASSNAME}--rail` : ""}${inRail && (open || tvOpen || linksOpen || boardOpen || cbOpen || cmdsOpen) ? ` ${CLASSNAME}--rail-open` : ""}${overDock ? ` ${CLASSNAME}--overdock` : ""}`}
       style={inNav ? undefined : inRail ? { zIndex: z } : style}
       // Touch any part of a bot — its bubble, panel, or TV — and it comes to the FRONT (his
       // ask: "if I click on it, I'm trying to be in that chat").
@@ -6068,6 +6284,12 @@ const countdown = (str, now = Date.now()) => {
           }
         >
           <ResizeBorder start={panelResize} onReset={panelReset} />
+          {/* THE PANEL'S TOP — head, meter, usage, roster — is one chunk, and when the chat is pinned
+              (tabs view) the chunk is portaled above the scroller inside a panel-shaped shell. Same
+              elements either way; only where they land differs. The IIFE is so the 450 lines below
+              are written once and placed twice. */}
+          {(() => {
+          const panelTop = (<>
           {/* The open chat drags by its HEADER (his ask) — same move/dock behavior as dragging
               the bot; buttons in the header stay clickable. */}
           <div
@@ -6119,16 +6341,8 @@ const countdown = (str, now = Date.now()) => {
                 not mean, a long tool run — had no way out from here. It sits beside the close
                 button because that is where the controls for THIS WINDOW live; hanging it off the
                 cooking line put a text button in the middle of a sentence. */}
-            {attached && (work.state.state === "working" || work.state.state === "waiting") && (
-              <button
-                type="button"
-                className={`${CLASSNAME}__stop`}
-                title="Stop what it's doing"
-                onClick={() => work.interrupt()}
-              >
-                <span className={`${CLASSNAME}__stop-sq`} />
-              </button>
-            )}
+            {/* The stop used to be here, beside the close button. It lives on the cooking line now
+                (see CookLine) — the row that says "working" is the row you stop from. */}
             {/* WHICH MODEL IS ANSWERING — always, not only when the bar goes red. His catch:
                 *"I have no other way of seeing which agent is being used."* It was buried in a
                 tooltip and in the red label, so at every healthy moment the one fact he most wanted
@@ -6206,6 +6420,53 @@ const countdown = (str, now = Date.now()) => {
                   {shortModel(work.state.model)}
                 </span>
               )
+            )}
+            {/* HOW MUCH OF MY THINKING YOU SEE — his knob, beside the model because it is the same kind
+                of fact: what this session is running on right now. His reason, exactly: *"if I could
+                see what you were thinking… we wouldn't have the touch bases all the time."* Four
+                settings, which are the host's thinkingDisplay modes: full (the raw stream), highlights,
+                summary, off. Same shape as the model switch — a request, and the chip flips on the
+                host's `session.thinking` event, never on the send. Absent on a shell without the door,
+                and absence draws nothing rather than a control that looks live. The agent's DEFAULT is
+                `thinking` on its definition (the Agents page's record); this overrides it per session. */}
+            {attached && work.thinkingSwitchable && (
+              <span className={`${CLASSNAME}__model-wrap`}>
+                <button
+                  type="button"
+                  className={`${CLASSNAME}__model ${CLASSNAME}__model--pick${work.thinkingPending ? ` ${CLASSNAME}__model--switching` : ""}`}
+                  title="How much of the thinking you see — click to change"
+                  onClick={() => setThinkMenu((v) => !v)}
+                >
+                  {thinkLabel(work.thinkingPending || work.state.thinking)}{work.thinkingPending ? "…" : ""}
+                </button>
+                {thinkMenu && (
+                  <>
+                    <div className={`${CLASSNAME}__ctx-overlay`} onClick={() => setThinkMenu(false)} />
+                    <div className={`${CLASSNAME}__model-menu`}>
+                      {THINKING_MODES.map((mode) => {
+                        const cur = ((work.state.thinking || {}).display || null) === mode.display;
+                        return (
+                          <button
+                            key={String(mode.display)}
+                            type="button"
+                            className={`${CLASSNAME}__model-item${cur ? ` ${CLASSNAME}__model-item--current` : ""}`}
+                            title={mode.why}
+                            onClick={() => {
+                              setThinkMenu(false);
+                              // ALWAYS SEND — same rule as the model menu: a control gated by what we
+                              // believe is current refuses in silence when the belief is stale.
+                              work.switchThinking({ display: mode.display, budget: (work.state.thinking || {}).budget ?? null });
+                            }}
+                          >
+                            <span className={`${CLASSNAME}__model-item-name`}>{mode.label}</span>
+                            <span className={`${CLASSNAME}__model-item-id`}>{mode.why}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </span>
             )}
             <button
               type="button"
@@ -6485,6 +6746,18 @@ const countdown = (str, now = Date.now()) => {
               )}
             </div>
           )}
+          </>);
+          return pinned
+            ? createPortal(
+                <div className={`${CLASSNAME} ${CLASSNAME}--innav ${CLASSNAME}--pintop`}>
+                  <div className={`${CLASSNAME}__panel ${CLASSNAME}__panel--pintop${listening ? ` ${CLASSNAME}__panel--recording` : ""}`}>
+                    {panelTop}
+                  </div>
+                </div>,
+                pinned.top,
+              )
+            : panelTop;
+          })()}
           <div
             className={`${CLASSNAME}__list`}
             ref={listRef}
@@ -6505,11 +6778,14 @@ const countdown = (str, now = Date.now()) => {
               scopeRef={listRef}
               blockSelector="[data-row], .agent-wb__row"
               onPlay={(text) => {
-                const say = spokenForm(text);
+                // The selection is text lifted out of the DOM, not one row's markdown — so its
+                // sentences get a subtitle and no lines: there is no paragraph to light honestly.
+                const { text: say, chunks: said } = spokenPositions(text);
                 if (!say) return;
                 const id = `sel-${Date.now()}`;
                 playFirst({
                   key: id,
+                  scope: projectCode,
                   label: say.replace(/\s+/g, " ").slice(0, 70),
                   start: () => {
                     announce(true);
@@ -6521,6 +6797,8 @@ const countdown = (str, now = Date.now()) => {
                       preferId: readVoicePref(projectCode),
                       rate: (readVoiceSettings(projectCode) || {}).speed,
                       onstart: () => queueWarming(id, false),
+                      onposition: (p) =>
+                        queuePosition(id, { index: p.index, total: p.total, text: (said[p.index] || {}).text || "" }),
                       onend: () => {
                         queueWarming(id, false);
                         queueDone(id);
@@ -6662,6 +6940,7 @@ const countdown = (str, now = Date.now()) => {
           <div className={`${CLASSNAME}__voicebar`}>
             {/* The line only draws when something is waiting behind what is being read. */}
             <SpeechLine
+              scope={projectCode}
               onGo={(key) => {
                 const el = listRef.current;
                 if (!el) return;
@@ -6684,7 +6963,7 @@ const countdown = (str, now = Date.now()) => {
             <VoiceMode className={`${CLASSNAME}__voice`} scope={projectCode} />
           </div>
           {attached && (work.state.state === "working" || work.state.state === "waiting") && (
-            <CookLine doing={work.state.doing} state={work.state.state} liveChars={work.state.liveChars} />
+            <CookLine doing={work.state.doing} state={work.state.state} liveChars={work.state.liveChars} onStop={() => work.interrupt()} />
           )}
           {/* THE PLAN OUTLIVES THE TURN THAT WROTE IT. Deliberately not gated on `working`: the
               moment a turn ends is exactly when "what's left" matters, and a list that vanishes
@@ -7511,11 +7790,23 @@ const countdown = (str, now = Date.now()) => {
                       <i />
                     </span>
                     {peekTok && <span className={`${CLASSNAME}__cooking-tok`}>{peekTok}</span>}
+                    {/* the stop rides this line when it is the cooking line on show */}
+                    {sessionCooking && (
+                      <button
+                        type="button"
+                        className={`${CLASSNAME}__stop`}
+                        title="Stop"
+                        onClick={(e) => { e.stopPropagation(); work.interrupt(); }}
+                        onPointerDown={(e) => e.stopPropagation()}
+                      >
+                        <span className={`${CLASSNAME}__stop-sq`} />
+                      </button>
+                    )}
                   </div>
                 )}
                 {/* Only when there is nothing real yet — a turn that has started and produced
                     neither a sentence nor a command still has to prove it is alive. */}
-                {!brief.cmd && sessionCooking && <StatusLine status={peekCookWord} tok={peekTok} />}
+                {!brief.cmd && sessionCooking && <StatusLine status={peekCookWord} tok={peekTok} onStop={() => work.interrupt()} />}
                 {peekTodo && (
                   <div className={`${CLASSNAME}__cooking-todo`}>
                     <span className={`${CLASSNAME}__worklist-badge`}>📋</span> {peekTodo}
@@ -7525,7 +7816,7 @@ const countdown = (str, now = Date.now()) => {
             ) : sessionCooking ? (
               // THE PEEK'S OWN COMPONENT, unchanged — only where the sentence comes from changed.
               <>
-                <StatusLine status={peekCookWord} tok={peekTok} />
+                <StatusLine status={peekCookWord} tok={peekTok} onStop={() => work.interrupt()} />
                 {peekTodo && (
                   <div className={`${CLASSNAME}__cooking-todo`}>
                     <span className={`${CLASSNAME}__worklist-badge`}>📋</span> {peekTodo}
@@ -7642,6 +7933,18 @@ const countdown = (str, now = Date.now()) => {
             </div>
             </>
           )}
+          {inNav && nowLine}
+        </div>
+      )}
+      {/* THE NOW-LINE — the closed chat's controls. The closed chat kept showing that something was
+          happening (the peek, the cooking words) and kept none of the controls — stop, and the
+          voice transport — so a minimised chat had to be opened to be stopped (his ask). TWO HOMES,
+          HIS CALL: DOCKED it sits at the foot of the peek, one box (above); HOVERING it is its own
+          box UNDERNEATH the bubble. The first cut put the box under both and the docked peek drew
+          two cooking lines. */}
+      {!open && !animating && !inNav && nowLine && (
+        <div className={`${CLASSNAME}__nowbox`}>
+          {nowLine}
         </div>
       )}
       {/* THE DIALOGUE BOX — the bot's speech while it's on an errand. Deliberately its own thing
@@ -7686,6 +7989,8 @@ const countdown = (str, now = Date.now()) => {
       {/* WHICH bot. Several projects are open at once, each with its own icon in the DOM, and a bare
           [data-sv="bot"] lookup finds whichever mounted first — so the line came out of buAPI's icon
           while systemview-test was the one talking. */}
+      {(() => {
+      const botRow = (
       <div
         data-sv="bot"
         data-sv-pc={projectCode}
@@ -7873,6 +8178,9 @@ const countdown = (str, now = Date.now()) => {
         {/* THE CODEBASE, from the name tag — his ask, after the recorder. `</>` because that's what
             code looks like, and it's the one button here that opens something outside the bot: one
             click brings the tree up, the next puts it away. */}
+        {/* NOT IN THE DOCKED ROW (his call): docked, the codebase IS the card the row sits in, so
+            a button to open it is a button to open where you are. Floating, it is the way in. */}
+        {!inNav && (
         <button
           type="button"
           className={`${CLASSNAME}__minicode${cbOpen ? ` ${CLASSNAME}__minicode--on` : ""}`}
@@ -7905,6 +8213,7 @@ const countdown = (str, now = Date.now()) => {
         >
           &lt;/&gt;
         </button>
+        )}
         {/* THE BOARD — 📋, his ask, next to the rest. One press opens it, one puts it away. */}
         <button
           type="button"
@@ -7921,7 +8230,9 @@ const countdown = (str, now = Date.now()) => {
         </button>
         {/* PULL IT BACK OUT. Dragging the row works too, but a gesture you have to already know is
             not a way out — the arrow says there is one. */}
-        {(inNav || inRail) && (
+        {/* Docked in the card the arrow is gone (his call — dragging and double-click are the way
+            out there); in the rail it stays, the rail row being too small to read a gesture into. */}
+        {inRail && (
           <button
             type="button"
             className={`${CLASSNAME}__pullout`}
@@ -7936,6 +8247,13 @@ const countdown = (str, now = Date.now()) => {
           </button>
         )}
       </div>
+      );
+      // pinned, the avatar row sits above the scroller too — first of the pinned targets, so it stays
+      // the first thing under the card's head, exactly where it was
+      return pinned
+        ? createPortal(<div className={`${CLASSNAME} ${CLASSNAME}--innav ${CLASSNAME}--pintop`}>{botRow}</div>, pinned.bot)
+        : botRow;
+      })()}
     </div>
   );
   // RFC-038 — the same bot, rendered somewhere else. A portal rather than a second component, so

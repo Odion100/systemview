@@ -47,7 +47,7 @@ describe("the rest of the voice settings", () => {
   beforeEach(() => window.localStorage.clear());
 
   it("starts at speed 1, mode off, and NO block choice made", () => {
-    expect(readVoiceSettings()).toEqual({ speed: 1, mode: "off", blocks: null });
+    expect(readVoiceSettings()).toEqual({ speed: 1, mode: "off", blocks: null, background: false });
   });
 
   // `null` is "never chosen" and an empty array is "read me nothing". Conflating them would turn
@@ -61,7 +61,7 @@ describe("the rest of the voice settings", () => {
   it("merges, so a caller can change one field without resending the others", () => {
     writeVoiceSettings({ blocks: ["ask"], speed: 1.2 });
     writeVoiceSettings({ mode: "set" });
-    expect(readVoiceSettings()).toEqual({ speed: 1.2, mode: "set", blocks: ["ask"] });
+    expect(readVoiceSettings()).toEqual({ speed: 1.2, mode: "set", blocks: ["ask"], background: false });
   });
 
   // The engine multiplies by this. A zero is silence and a negative is a crash somewhere nobody
@@ -74,7 +74,7 @@ describe("the rest of the voice settings", () => {
 
   it("reads a corrupted settings key as the defaults rather than throwing", () => {
     window.localStorage.setItem(SETTINGS_KEY, "{not json");
-    expect(readVoiceSettings()).toEqual({ speed: 1, mode: "off", blocks: null });
+    expect(readVoiceSettings()).toEqual({ speed: 1, mode: "off", blocks: null, background: false });
   });
 
   it("keeps the voice id in its own key, so a pick made before this existed survives", () => {
@@ -98,7 +98,7 @@ describe("scoped to one chat", () => {
 
   it("keeps two chats' settings apart", () => {
     writeVoiceSettings({ mode: "set", blocks: ["ask"] }, "alpha");
-    expect(readVoiceSettings("beta")).toEqual({ speed: 1, mode: "off", blocks: null });
+    expect(readVoiceSettings("beta")).toEqual({ speed: 1, mode: "off", blocks: null, background: false });
     expect(readVoiceSettings("alpha").blocks).toEqual(["ask"]);
   });
 

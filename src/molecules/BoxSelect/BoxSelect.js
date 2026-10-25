@@ -29,6 +29,7 @@ const BoxSelect = ({ scopeRef, blockSelector = "[data-row]", onPlay, className =
   const [box, setBox] = useState(null); // live drag rect, in scope coordinates
   const [caught, setCaught] = useState(null); // { anchor, text, count }
   const [place, setPlace] = useState(null); // where the panel actually fits, measured
+  const [copied, setCopied] = useState(false);
   const panelRef = useRef(null);
   const from = useRef(null);
   const dragging = useRef(false);
@@ -74,7 +75,7 @@ const BoxSelect = ({ scopeRef, blockSelector = "[data-row]", onPlay, className =
     if (!scope) return undefined;
 
     const onDown = (e) => {
-      if (e.button !== 0 || e.shiftKey) return; // shift-drag stays the browser's
+      if (e.button !== 0) return;
       // A press on something pressable is that thing's press, not the start of a box.
       // `closest` only exists on an Element — a mousedown can arrive with a non-element target, and
       // an unguarded call there takes the whole panel down.
@@ -134,6 +135,28 @@ const BoxSelect = ({ scopeRef, blockSelector = "[data-row]", onPlay, className =
       window.removeEventListener("mouseup", onUp);
     };
   }, [scopeRef, blocksOf, clear]);
+
+  // NATIVE SELECTION IS OFF WHERE THE BOX IS ON, and this component is what turns it off — in its
+  // OWN scope, on mount, removed on unmount. Two reasons it lives here rather than in the chat's
+  // stylesheet: a half-highlighted paragraph fighting the band is the thing the box replaced, and a
+  // rule written somewhere else is one somebody has to remember to keep in sync with where the box
+  // is mounted. Everywhere the box is NOT used keeps its selection untouched.
+  // The tick is a moment, not a state to clean up: it shows, then the panel takes itself away.
+  useEffect(() => {
+    if (!copied) return undefined;
+    const t = setTimeout(() => {
+      setCopied(false);
+      clear();
+    }, 650);
+    return () => clearTimeout(t);
+  }, [copied, clear]);
+
+  useEffect(() => {
+    const scope = scopeRef && scopeRef.current;
+    if (!scope) return undefined;
+    scope.classList.add("box-select-scope");
+    return () => scope.classList.remove("box-select-scope");
+  }, [scopeRef]);
 
   // WHERE THE PANEL FITS, MEASURED RATHER THAN ASSUMED. Its height depends on how much was caught
   // (one line or the four-line clamp), so the only honest way to know whether it fits below the drag
@@ -222,6 +245,34 @@ const BoxSelect = ({ scopeRef, blockSelector = "[data-row]", onPlay, className =
             }}
           >
             ▶
+          </button>
+          {/* COPY, BESIDE PLAY — the compensation for turning native selection off. Selecting text
+              by hand in here is gone, so the gesture that replaced it has to be able to hand the
+              words over and not only read them aloud. It copies what the box caught: the rendered
+              text, which is what is on screen and what play reads. The markdown source is not in
+              the DOM, so nothing here could copy it honestly.
+              IT CONFIRMS, THEN GOES. A copy with no feedback is a press you cannot verify, and the
+              clipboard says nothing back — so the glyph becomes a tick for a moment and the panel
+              dismisses itself the way play's does. */}
+          <button
+            type="button"
+            className="box-select__copy"
+            title={caught.count > 1 ? `Copy these ${caught.count}` : "Copy this"}
+            aria-label="Copy this selection"
+            onClick={async () => {
+              const text = caught.text;
+              try {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                  await navigator.clipboard.writeText(text);
+                }
+              } catch {
+                /* a refused clipboard is not a crash — the tick is withheld instead */
+                return;
+              }
+              setCopied(true);
+            }}
+          >
+            {copied ? "✓" : "⧉"}
           </button>
         </div>
       )}

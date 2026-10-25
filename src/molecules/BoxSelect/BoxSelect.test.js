@@ -64,14 +64,6 @@ describe("dragging a box over the conversation", () => {
     expect(container.querySelector(".box-select__caught")).toBeNull();
   });
 
-  it("shift-drag is left to the browser, so copy is not traded away", () => {
-    const scope = render(<Host onPlay={() => {}} />).container.querySelector('[data-testid="scope"]');
-    fireEvent.mouseDown(scope, { clientX: 10, clientY: 5, button: 0, shiftKey: true });
-    fireEvent.mouseMove(scope, { clientX: 120, clientY: 60 });
-    fireEvent.mouseUp(window, { clientX: 120, clientY: 60, button: 0 });
-    expect(document.querySelector(".box-select__caught")).toBeNull();
-  });
-
   it("goes away on a click elsewhere, with nothing to dismiss", () => {
     const { container } = render(<Host onPlay={() => {}} />);
     drag(screen.getByTestId("scope"), { x: 10, y: 5 }, { x: 120, y: 60 });
@@ -142,5 +134,37 @@ describe("where the panel lands", () => {
     const top = Number.parseInt(panel.style.top, 10);
     expect(top).toBeGreaterThanOrEqual(0);
     expect(top + 95).toBeLessThanOrEqual(100 + 2);
+  });
+});
+
+// TURNING NATIVE SELECTION OFF IS THIS COMPONENT'S JOB, and copy is what compensates for it.
+describe("the box owns selection in its scope", () => {
+  beforeEach(stubRects);
+
+  it("marks its own scope, and unmarks it when it goes", () => {
+    const { unmount, getByTestId } = render(<Host />);
+    const scope = getByTestId("scope");
+    expect(scope.classList.contains("box-select-scope")).toBe(true);
+    unmount();
+    expect(scope.classList.contains("box-select-scope")).toBe(false);
+  });
+
+  it("shift-drag is a drag like any other now — there is no native selection to defer to", () => {
+    const { getByTestId } = render(<Host />);
+    const scope = getByTestId("scope");
+    fireEvent.mouseDown(scope, { clientX: 5, clientY: 5, button: 0, shiftKey: true });
+    fireEvent.mouseMove(scope, { clientX: 150, clientY: 60 });
+    fireEvent.mouseUp(window, { clientX: 150, clientY: 60, button: 0 });
+    expect(screen.getByLabelText("Read this selection")).toBeInTheDocument();
+  });
+
+  it("copy puts what was caught on the clipboard", async () => {
+    const writeText = jest.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    const { getByTestId } = render(<Host />);
+    drag(getByTestId("scope"), { x: 5, y: 5 }, { x: 150, y: 60 });
+    const copy = screen.getByLabelText("Copy this selection");
+    await fireEvent.click(copy);
+    expect(writeText).toHaveBeenCalledWith("first block\n\nsecond block");
   });
 });

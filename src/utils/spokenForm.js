@@ -131,9 +131,11 @@ const TABLE_MAX_ROWS = 12;
 const readableTable = (head, body) =>
   body.length > 0 && body.length <= TABLE_MAX_ROWS && head.length <= TABLE_MAX_COLS;
 
-// ONE ROW, SAID THE WAY A PERSON READS A TABLE OUT LOUD: the first cell names the row and every
-// cell after it is said under its own column heading. Dropping the headings would leave a
-// three-column row as three unlabelled fragments, which is worse than the announcement it replaced.
+// ONE ROW, SAID THE WAY A PERSON READS A TABLE OUT LOUD: every cell under its own column heading —
+// the FIRST one included. It used to skip the first heading on the theory that the first cell names
+// the row, and that was a bug he heard: a table headed `you said | where it landed` read the first
+// cell bare and the second under its word, as if only one column had a name. The heading is read
+// whenever there is one. Dropping headings leaves a row as unlabelled fragments.
 //
 // An empty heading is common and deliberate — his label columns are written `| | what it is |` — so
 // a cell whose heading is blank is read bare rather than under the word "blank". An empty CELL is
@@ -142,7 +144,7 @@ const sayRow = (head, cells) => {
   const parts = [];
   cells.forEach((cell, k) => {
     if (!cell) return;
-    const label = k === 0 ? "" : head[k] || "";
+    const label = head[k] || "";
     parts.push(label ? `${label}: ${cell}` : cell);
   });
   return parts.join(". ");
@@ -412,29 +414,47 @@ const sentence = (text) => {
 // would silently swallow the one block the whole feature exists to deliver. So an unselected
 // container contributes nothing of its own and its body is walked with the same sieve; a SELECTED
 // container speaks in full, body and all, because ticking it means wanting what is in it.
-function walk(lines, only = null) {
+//
+// EVERY SENTENCE REMEMBERS WHERE IT CAME FROM. `walkMap` returns `{ text, lines: [from, to] }` —
+// 1-based source lines, inclusive — and `walk` is the same thing with the lines dropped. The lines
+// are what lets a surface point at the paragraph the voice is reading (RFC-074): the renderer
+// already stamps every block with `data-md-start/end`, so a sentence that knows its lines knows its
+// block. A paragraph spans its first line to its last; a block spans its fences; a table's
+// announcement is the header row and each spoken row is its own line.
+function walkMap(lines, only = null, base = 0) {
   const out = [];
   let para = [];
+  let paraFrom = 0;
+  let paraTo = 0;
   const wantBlock = (name) => !only || only.blocks.has(name);
   const wantProse = !only || only.prose;
+  const at = (i) => base + i + 1; // array index → 1-based source line
+  const emit = (text, from, to) => {
+    const s = sentence(text);
+    if (s) out.push({ text: s, lines: [from, to] });
+  };
   const flushPara = () => {
     if (!para.length) return;
     const joined = para.join(" ");
+    const [from, to] = [paraFrom, paraTo];
     para = [];
     if (!wantProse) return;
-    const s = sentence(joined);
-    if (s) out.push(s);
+    emit(joined, from, to);
   };
-  const push = (text) => {
+  const addPara = (text, i) => {
+    if (!para.length) paraFrom = at(i);
+    paraTo = at(i);
+    para.push(text);
+  };
+  const push = (text, from, to) => {
     flushPara();
-    const s = sentence(text);
-    if (s) out.push(s);
+    emit(text, from, to);
   };
   // Prose, headings, lists, tables and code all ride on the same choice — they are the reply's own
   // words rather than a block's, and `prose` is the single tick that governs them.
-  const pushProse = (text) => {
+  const pushProse = (text, from, to) => {
     if (!wantProse) { flushPara(); return; }
-    push(text);
+    push(text, from, to);
   };
 
   for (let i = 0; i < lines.length; i += 1) {
@@ -449,7 +469,7 @@ function walk(lines, only = null) {
       let j = i + 1;
       while (j < lines.length && !new RegExp(`^\\s*${mark}{3,}\\s*$`).test(lines[j])) j += 1;
       const n = j - i - 1;
-      pushProse(`A ${lang ? `${sayLang(lang)} ` : ""}code block, ${count(n, "line", "lines")}`);
+      pushProse(`A ${lang ? `${sayLang(lang)} ` : ""}code block, ${count(n, "line", "lines")}`, at(i), at(Math.min(j, lines.length - 1)));
       i = j;
       continue;
     }
@@ -481,11 +501,14 @@ function walk(lines, only = null) {
               body: walk(inner).join(" "),
               kind: "container",
             }),
+            at(i),
+            at(close),
           );
         } else {
-          // NOT selected: the wrapper says nothing, but whatever he DID tick inside it survives.
+          // NOT selected: the wrapper says nothing, but whatever he DID tick inside it survives —
+          // with its own lines, offset by where the body sits in the outer text.
           flushPara();
-          for (const s2 of walk(inner, only)) out.push(s2);
+          for (const s2 of walkMap(inner, only, base + i + 1)) out.push(s2);
         }
         i = close;
         continue;
@@ -496,7 +519,7 @@ function walk(lines, only = null) {
     const leaf = line.match(LEAF_RE);
     if (leaf) {
       if (wantBlock(leaf[2]))
-        push(sayBlock({ name: leaf[2], label: leaf[3], attrs: parseAttrs(leaf[4]), kind: "leaf" }));
+        push(sayBlock({ name: leaf[2], label: leaf[3], attrs: parseAttrs(leaf[4]), kind: "leaf" }), at(i), at(i));
       else flushPara();
       continue;
     }
@@ -513,10 +536,17 @@ function walk(lines, only = null) {
         body.push(splitRow(lines[j]));
         j += 1;
       }
+      // "Here's a table, five rows." — the way a person leads into one. His words. No width: the
+      // column count was formatting read aloud, and a too-wide table just says it is not being read.
+      const readable = readableTable(head, body);
       pushProse(
-        `A table, ${count(head.length, "column", "columns")} and ${count(body.length, "row", "rows")}`
+        readable
+          ? `Here's a table, ${count(body.length, "row", "rows")}`
+          : `Here's a table, ${count(body.length, "row", "rows")}, too big to read aloud`,
+        at(i),
+        at(j - 1),
       );
-      if (readableTable(head, body)) body.forEach((cells) => pushProse(sayRow(head, cells)));
+      if (readable) body.forEach((cells, k) => pushProse(sayRow(head, cells), at(i + 2 + k), at(i + 2 + k)));
       i = j - 1;
       continue;
     }
@@ -528,8 +558,8 @@ function walk(lines, only = null) {
       flushPara();
       const head = wantProse ? sentence(h[2]) : "";
       if (head) {
-        if (out.length) out.push(PAUSE);
-        out.push(head);
+        if (out.length) out.push({ text: PAUSE, lines: [at(i), at(i)] });
+        out.push({ text: head, lines: [at(i), at(i)] });
       }
       continue;
     }
@@ -537,7 +567,7 @@ function walk(lines, only = null) {
     const task = line.match(TASK_RE);
     if (task) {
       const done = task[1].toLowerCase() === "x";
-      pushProse(`${done ? "Done" : "Still to do"}, ${task[2]}`);
+      pushProse(`${done ? "Done" : "Still to do"}, ${task[2]}`, at(i), at(i));
       continue;
     }
 
@@ -545,18 +575,20 @@ function walk(lines, only = null) {
     const ol = line.match(OL_RE);
     // A LIST ITEM IS A SENTENCE OF ITS OWN. Run together they are one unbroken breath and he cannot
     // hear where one point ends — the bullet is visual, the sentence boundary is its spoken form.
-    if (ul || ol) { pushProse((ul || ol)[ol ? 2 : 1]); continue; }
+    if (ul || ol) { pushProse((ul || ol)[ol ? 2 : 1], at(i), at(i)); continue; }
 
     const q = line.match(QUOTE_RE);
-    if (q) { if (q[1].trim()) para.push(q[1]); else flushPara(); continue; }
+    if (q) { if (q[1].trim()) addPara(q[1], i); else flushPara(); continue; }
 
     if (!line.trim()) { flushPara(); continue; }
-    para.push(line);
+    addPara(line, i);
   }
 
   flushPara();
-  return out.filter(Boolean);
+  return out.filter((e) => e && e.text);
 }
+
+const walk = (lines, only = null) => walkMap(lines, only).map((e) => e.text);
 
 // ── the public surface ─────────────────────────────────────────────────────────────────────────
 
@@ -583,30 +615,83 @@ export const CUT_NOTICE = "That is as far as I will read. The rest of this reply
  * which is the loudest possible interpretation of a request for silence.
  */
 export function spokenForm(markdown, { maxChars = MAX_SPOKEN, only = null } = {}) {
+  return spokenMap(markdown, { maxChars, only }).map((s) => s.text).join(" ");
+}
+
+/**
+ * The same recital as `spokenForm`, one entry per sentence, each carrying the source lines it was
+ * made from — `{ text, lines: [from, to] }`, 1-based, inclusive. The cut notice, when the reply is
+ * cut, carries `lines: null`: it came from nowhere on screen. `spokenMap(...).map(text).join(" ")`
+ * is `spokenForm(...)` exactly, which is what lets a surface map the engine's sentence index back
+ * to a paragraph (see `chunkMap`).
+ */
+export function spokenMap(markdown, { maxChars = MAX_SPOKEN, only = null } = {}) {
   const sieve = Array.isArray(only)
     ? { blocks: new Set(only.filter((n) => n !== PROSE)), prose: only.includes(PROSE) }
     : null;
-  const sentences = walk(String(markdown || "").split("\n"), sieve);
-  if (!sentences.length) return "";
+  const sentences = walkMap(String(markdown || "").split("\n"), sieve);
+  if (!sentences.length) return [];
 
-  let text = sentences.join(" ");
-  if (text.length <= maxChars) return text;
+  const text = sentences.map((s) => s.text).join(" ");
+  if (text.length <= maxChars) return sentences;
 
   const kept = [];
   let used = 0;
   for (const s of sentences) {
-    if (used + s.length + 1 > maxChars) break;
+    if (used + s.text.length + 1 > maxChars) break;
     kept.push(s);
-    used += s.length + 1;
+    used += s.text.length + 1;
   }
   // A single sentence longer than the whole budget still has to be cut somewhere; a word boundary
   // is the worst acceptable place, and it is better than a syllable.
   if (!kept.length) {
     const head = text.slice(0, maxChars);
-    kept.push(`${head.slice(0, head.lastIndexOf(" ") > 0 ? head.lastIndexOf(" ") : maxChars)}.`);
+    kept.push({
+      text: `${head.slice(0, head.lastIndexOf(" ") > 0 ? head.lastIndexOf(" ") : maxChars)}.`,
+      lines: sentences[0].lines,
+    });
   }
-  text = `${kept.join(" ")} ${CUT_NOTICE}`;
-  return text;
+  kept.push({ text: CUT_NOTICE, lines: null });
+  return kept;
+}
+
+/**
+ * Align the engine's chunks to the map. `speechEngine` re-chunks the joined string with
+ * `spokenChunks` (whole sentences grouped to ~240 chars, long ones split at a word), and reports a
+ * position by chunk index — so the caller computes the same chunks and this gives each one the
+ * lines it covers: from the first sentence it overlaps to the last. A chunk nothing can be found
+ * for (it should not happen; the chunker only ever re-spaces) gets `lines: null`.
+ */
+export function chunkMap(map, chunks) {
+  const joined = map.map((s) => s.text).join(" ");
+  // Where each sentence starts and ends in the joined string.
+  const spans = [];
+  let pos = 0;
+  for (const s of map) {
+    spans.push({ from: pos, to: pos + s.text.length, lines: s.lines });
+    pos += s.text.length + 1;
+  }
+  let cursor = 0;
+  return chunks.map((chunk) => {
+    const text = String(chunk || "");
+    // The chunker trims and re-spaces, so the chunk's words are the joined string's words in order;
+    // its first and last words locate it.
+    const words = text.split(/\s+/).filter(Boolean);
+    if (!words.length) return { text, lines: null };
+    const start = joined.indexOf(words[0], cursor);
+    if (start === -1) return { text, lines: null };
+    let end = start;
+    for (const w of words) {
+      const k = joined.indexOf(w, end);
+      if (k === -1) { end = -1; break; }
+      end = k + w.length;
+    }
+    if (end === -1) return { text, lines: null };
+    cursor = end;
+    const hit = spans.filter((sp) => sp.lines && sp.from < end && sp.to > start);
+    if (!hit.length) return { text, lines: null };
+    return { text, lines: [hit[0].lines[0], hit[hit.length - 1].lines[1]] };
+  });
 }
 
 // SPEAK IT IN PIECES, so a stop is instant. An engine handed one 3,000-character utterance cannot
@@ -635,6 +720,17 @@ export function spokenChunks(text, { maxChars = 240 } = {}) {
   }
   flush();
   return out;
+}
+
+/**
+ * What a caller of `speak()` needs to report positions (RFC-074), in one call: the text to hand the
+ * engine and, per engine chunk, the sentence and its lines. `chunks[p.index]` is the position the
+ * engine's `onposition({ index })` is talking about.
+ */
+export function spokenPositions(markdown, opts = {}) {
+  const map = spokenMap(markdown, opts);
+  const text = map.map((s) => s.text).join(" ");
+  return { text, chunks: chunkMap(map, spokenChunks(text)) };
 }
 
 export default spokenForm;

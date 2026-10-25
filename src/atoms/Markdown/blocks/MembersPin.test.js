@@ -329,3 +329,39 @@ describe("tucking the stack to the edge", () => {
     expect(container.textContent).toBe("");
   });
 });
+
+// CAUGHT UP WITHOUT BEING TOLD. There was a press to SEND an update and none to CLEAR one — and
+// "behind" is derived from a hash, so every save makes everybody behind again. On a document a group
+// is editing together the count climbs on their own collaboration: *"I'm not sending you guys every
+// little update."*
+describe("caught up", () => {
+  it("stamps this version for everybody behind", () => {
+    const { setAttr } = mount();
+    fireEvent.click(screen.getByTitle("they are caught up — stamp this version and tell nobody"));
+    const [line, attr, value] = setAttr.mock.calls[0];
+    expect(line).toBe(3); // the ::members line
+    expect(attr).toBe("sent");
+    const stamp = hashOf(SRC);
+    expect(value).toBe(`buapi:${stamp}|systemlynx:${stamp}`);
+  });
+
+  it("TELLS NOBODY — that is the whole difference from the send", () => {
+    const { bridge } = mount();
+    fireEvent.click(screen.getByTitle("they are caught up — stamp this version and tell nobody"));
+    expect(bridge).not.toHaveBeenCalled();
+  });
+
+  it("the row goes once nobody is behind, exactly as it does after a send", async () => {
+    mount();
+    fireEvent.click(screen.getByTitle("they are caught up — stamp this version and tell nobody"));
+    await waitFor(() => expect(screen.queryByText("document")).toBeNull());
+  });
+
+  it("leaves the same record a send leaves, so a later change is behind again for them", () => {
+    const { setAttr } = mount();
+    fireEvent.click(screen.getByTitle("they are caught up — stamp this version and tell nobody"));
+    const value = setAttr.mock.calls[0][2];
+    // the stamp is of THIS version — a hash of a different body would not match it
+    expect(value).not.toContain(hashOf(`${SRC}more\n`));
+  });
+});

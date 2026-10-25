@@ -546,3 +546,43 @@
   outline-offset: 1px;
   transition: outline-color 0.4s ease;
 }
+
+// THE NOTES SCROLL INSIDE THEIR OWN BOX. The tools index sits directly under this list, and a
+// list that grows with the scope pushed it off the page by thousands of pixels (his: *"don't you
+// realize there's a tool index right underneath? It's supposed to be scrollable."*). Bounded at
+// most of the viewport, scrolling within; the page keeps every section in reach.
+.ctx-mgr__notes {
+  max-height: min(68vh, 760px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  padding-right: 4px;
+  margin-bottom: 18px;
+  .ctx-mgr__section-head {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    margin: 0 0 8px; // the 20px top margin would open a gap above a sticky head inside the box
+    padding: 8px 0 4px;
+    background: var(--sv-bg);
+  }
+}
+
+// THE PAGE'S EDGE — the row under the last rendered note. It is the scroll sentinel and a button
+// at once: more notes arrive when it scrolls into view, or when it is pressed.
+.ctx-mgr__more {
+  display: block;
+  width: 100%;
+  padding: 10px 14px;
+  margin: 2px 0 8px;
+  border: 1px dashed var(--sv-border);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--sv-text-muted);
+  font: inherit;
+  font-size: 12px;
+  text-align: center;
+  cursor: pointer;
+  &:hover { border-color: var(--sv-blue); color: var(--sv-text); }
+  &--all { border-style: solid; cursor: default; &:hover { border-color: var(--sv-border); color: var(--sv-text-muted); } }
+}

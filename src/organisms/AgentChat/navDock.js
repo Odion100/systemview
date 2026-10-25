@@ -14,6 +14,11 @@ import { useEffect, useState } from "react";
 const KEY = (pc) => `sv.navDock.${pc}`;
 
 export const slotId = (pc) => `sv-agent-slot-${pc}`;
+// THE PINNED TOP (tabs view). The column scrolls; the card's head and the agent's top rows do not.
+// They portal into two targets above the scroller — `bot` (the avatar row) then `top` (the panel's
+// head, meter and roster) — in that fixed order, so the pinned section reads exactly as the card
+// read when it was all one scroll.
+export const pinId = (pc, part) => `sv-agent-pin-${pc}-${part}`;
 // RFC-052 — THE RAIL. When the navigator is collapsed its card (and slot) is gone; the docked agents
 // move to the thin strip that is left, instead of vanishing. One slot for all of them.
 export const railId = "sv-agent-rail";

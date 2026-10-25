@@ -2078,6 +2078,16 @@
     }
   }
 
+  // KARAOKE (RFC-074): the block the voice is reading. A blue edge and a faint tint, the same
+  // vocabulary as an enabled hook's edge — not a highlighter pen. It moves every few seconds, so it
+  // fades rather than flashes.
+  .md-karaoke {
+    box-shadow: inset 3px 0 0 var(--sv-blue, #4a7bd0);
+    background: color-mix(in srgb, var(--sv-blue, #4a7bd0) 7%, transparent);
+    border-radius: 0 4px 4px 0;
+    transition: background-color 0.25s, box-shadow 0.25s;
+  }
+
   // Block wrapper carrying the source line-range as data for the right-click menu ("start a
   // thread here"). Purely structural — the old hover-💬 margin button is gone (his call).
   .md-commentable {
@@ -2953,6 +2963,27 @@
     &:disabled { opacity: 0.55; cursor: default; }
     &:focus-visible { outline: 2px solid var(--sv-blue, #5b8def); outline-offset: 2px; }
   }
+  // CAUGHT UP — the other answer to a pile of pending updates, and the quieter of the two: telling
+  // is what the row exists for, so this reads as the alternative rather than as a second main press.
+  &__square {
+    pointer-events: auto;
+    border: 1px solid transparent;
+    border-radius: 11px;
+    background: none;
+    padding: 1px 8px;
+    font-size: 10px;
+    font-family: inherit;
+    line-height: 1.7;
+    cursor: pointer;
+    color: var(--sv-text-dim, #8b93a5);
+    transition: color 0.12s ease, border-color 0.12s ease;
+    &:hover:not(:disabled) {
+      color: var(--sv-text-strong, #3b4460);
+      border-color: var(--sv-border, #d6dbe6);
+    }
+    &:disabled { opacity: 0.45; cursor: default; }
+    &:focus-visible { outline: 2px solid var(--sv-blue, #5b8def); outline-offset: 2px; }
+  }
   // THE POINTER — it points the way the stack goes. Sits in the air the pills already occupy and
   // adds no height of its own.
   &__tuck {
@@ -3124,6 +3155,10 @@
   .md-members-pin__tuck { color: #e6ebf7; }
   .md-members-pin__tab { background: rgba(33, 37, 43, 0.92); border-color: #4a5160; }
   .md-members-pin__all { background: rgba(33, 37, 43, 0.92); border-color: #4a5160; color: #aeb7c9; }
+  .md-members-pin__square {
+    color: #8b93a5;
+    &:hover:not(:disabled) { color: #e6ebf7; border-color: #4a5160; }
+  }
   .md-members-pin__chip {
     background: rgba(91, 141, 239, 0.18);
     border-color: #7aa3f5;

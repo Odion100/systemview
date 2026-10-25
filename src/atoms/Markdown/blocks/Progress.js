@@ -62,7 +62,7 @@ const Progress = ({ attrs = {} }) => {
           missing from this list would read as "no such work", the worst answer available. */}
       {rows.length ? (
         <>
-          <div className="md-progress__label md-progress__label--order">In order</div>
+          <div className="md-progress__label md-progress__label--order">Objectives</div>
           <ol className="md-timeline">
             {rows.map((o, i) => {
               const unseen = (o.blockedBy || []).filter((b) => b.status === "unresolved" || b.status === "elsewhere");

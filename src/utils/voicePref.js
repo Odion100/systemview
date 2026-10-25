@@ -114,7 +114,10 @@ export function writeVoicePref(id, scope) {
 export const MODES = ["off", "set", "all"];
 export const nextMode = (m) => MODES[(MODES.indexOf(m) + 1) % MODES.length] || "off";
 
-const DEFAULTS = { speed: 1, mode: "off", blocks: null };
+// `background` — when a reply lands and this agent is NOT on screen (its tab is not up, its chat
+// not hovering): false = line it up and wait for him; true = pop the chat out and read. Off by
+// default (his habit: he moves to another agent and does not want the first one talking at once).
+const DEFAULTS = { speed: 1, mode: "off", blocks: null, background: false };
 const clampSpeed = (v) => {
   const n = Number(v);
   if (!Number.isFinite(n)) return 1;
@@ -140,6 +143,7 @@ export function readVoiceSettings(scope) {
       // somebody's voice off is indistinguishable from the feature breaking.
       mode: MODES.includes(raw.mode) ? raw.mode : raw.auto ? "set" : "off",
       blocks: Array.isArray(raw.blocks) ? raw.blocks.map(String) : null,
+      background: raw.background === true,
     };
   } catch {
     return { ...DEFAULTS };
@@ -153,6 +157,7 @@ export function writeVoiceSettings(patch = {}, scope) {
   next.mode = MODES.includes(next.mode) ? next.mode : "off";
   delete next.auto;
   next.blocks = Array.isArray(next.blocks) ? next.blocks.map(String) : null;
+  next.background = next.background === true;
   const s = store();
   if (s) {
     try {

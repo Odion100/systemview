@@ -25,6 +25,9 @@ import CorporaPanel from "../CorporaPanel/CorporaPanel";
 //                 the next pass; the seam is here (a section list), the reader is not wired yet.
 //
 // He asked for it to not need to be perfect: this is the working surface, structure upgrades later.
+// how many notes a scope renders at once — more come as the list is scrolled
+const NOTES_PAGE = 20;
+
 const SCOPES = [
   { key: "system", label: "System", hint: "harness & SystemView conventions — every agent" },
   { key: "project", label: "Project", hint: "this repo's facts" },
@@ -204,17 +207,39 @@ const ContextManager = ({ projectCode, agentId, focus = null }) => {
     // one note deeper. The reveal waits for the scope's items to load below.
     if (focus && focus.note) setRevealNote({ id: focus.note, n: focus.n });
   }, [focus]);
+  // A PAGE AT A TIME, MORE AS HE SCROLLS. The scope's notes were rendered whole, all of them: 153
+  // notes made a 34,000-pixel column (his: *"loading way too many… needs to be scrollable or
+  // something, more as it goes"*). The page already scrolls; what it needed was not to carry every
+  // note at once. Twenty render; a sentinel under the last one adds twenty more when it comes into
+  // view. The count resets when the scope changes — a new scope starts at its first page.
+  const [shown, setShown] = useState(NOTES_PAGE);
+  useEffect(() => { setShown(NOTES_PAGE); }, [scope]);
+  const moreRef = useRef(null);
+  useEffect(() => {
+    const el = moreRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") return undefined; // the row is also a button
+    const io = new IntersectionObserver(
+      (entries) => { if (entries.some((e) => e.isIntersecting)) setShown((s) => s + NOTES_PAGE); },
+      { rootMargin: "240px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [shown, items.length, scope]);
+
   const [revealNote, setRevealNote] = useState(null);
   const revealDone = useRef(null);
   useEffect(() => {
     if (!revealNote || revealDone.current === revealNote.n) return;
+    // a note past the rendered page is not in the DOM yet — bring the page out to it first
+    const at = items.findIndex((n) => n.id === revealNote.id);
+    if (at >= shown) { setShown(at + 1 + NOTES_PAGE); return; }
     const el = document.querySelector(`[data-note-id="${CSS.escape(revealNote.id)}"]`);
     if (!el) return; // items still loading — re-runs when they land
     revealDone.current = revealNote.n;
     el.scrollIntoView({ block: "center", behavior: "smooth" });
     el.classList.add("ctx-mgr__note--revealed");
     setTimeout(() => el.classList.remove("ctx-mgr__note--revealed"), 2400);
-  }, [revealNote, items]);
+  }, [revealNote, items, shown]);
 
   useEffect(() => {
     if (available) loadRecords("mcp-tools").then((r) => setTools((r && r.records) || []));
@@ -484,7 +509,7 @@ const ContextManager = ({ projectCode, agentId, focus = null }) => {
           {activeScope.label} — {activeScope.hint}
         </div>
         {!items.length && <div className="ctx-mgr__none">No notes in this scope yet.</div>}
-        {items.map((n) =>
+        {items.slice(0, shown).map((n) =>
           editing && editing.id === n.id ? (
             <div key={n.id} className="ctx-mgr__note ctx-mgr__note--editing">
               <input
@@ -542,6 +567,19 @@ const ContextManager = ({ projectCode, agentId, focus = null }) => {
             </div>
           )
         )}
+        {items.length > shown ? (
+          <button
+            type="button"
+            ref={moreRef}
+            className="ctx-mgr__more"
+            onClick={() => setShown((s) => s + NOTES_PAGE)}
+            title="More load as you scroll — or press"
+          >
+            {shown} of {items.length} · more as you scroll
+          </button>
+        ) : items.length > NOTES_PAGE ? (
+          <div className="ctx-mgr__more ctx-mgr__more--all">all {items.length}</div>
+        ) : null}
       </div>
       )}
       </>

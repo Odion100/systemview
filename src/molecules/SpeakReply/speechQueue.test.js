@@ -1,4 +1,4 @@
-import { enqueue, cutIn, done, drop, clear, skip, setPaused, view, subscribe, _reset, jumpTo, playFirst } from "./speechQueue";
+import { enqueue, cutIn, done, drop, clear, skip, setPaused, view, subscribe, _reset, jumpTo, playFirst, release } from "./speechQueue";
 
 // THE FAILURE: a reply arriving mid-sentence truncated the one being read, because auto-speech
 // went through the same door as a press and a press is SUPPOSED to cancel. Every claim here is
@@ -252,5 +252,74 @@ describe("playing something first without emptying the line", () => {
     cutIn(row("reply"));
     expect(playFirst({ key: "x" })).toBe(false);
     expect(view().playing.key).toBe("reply");
+  });
+});
+
+// HELD — a reply that landed while he was on another agent, and that agent is set to wait for him.
+// It joins the line without starting; the play on the "waiting" row (release) starts it.
+describe("a held reply waits for him", () => {
+  it("joins the line without speaking when nothing else is playing", () => {
+    const a = item("a");
+    enqueue(a, { hold: true });
+    expect(spoken).toEqual([]);
+    expect(view().playing).toBeNull();
+    expect(view().waiting.map((w) => w.key)).toEqual(["a"]);
+  });
+
+  it("release() starts the line standing still, and is a no-op otherwise", () => {
+    const a = item("a");
+    enqueue(a, { hold: true });
+    expect(release()).toBe(true);
+    expect(spoken).toEqual(["a"]);
+    expect(view().playing.key).toBe("a");
+    expect(release()).toBe(false); // already playing
+    done("a");
+    expect(release()).toBe(false); // nothing waiting
+  });
+
+  it("a held reply is read after whatever is playing finishes — the line moves on its own", () => {
+    const a = item("a");
+    const b = item("b");
+    enqueue(a);
+    enqueue(b, { hold: true });
+    expect(spoken).toEqual(["a"]);
+    done("a");
+    expect(spoken).toEqual(["a", "b"]);
+  });
+
+  it("carries the project it belongs to, so a chat's line can draw only its own", () => {
+    enqueue({ ...item("a"), scope: "alpha" });
+    enqueue({ ...item("b"), scope: "beta" }, { hold: true });
+    expect(view().playing.scope).toBe("alpha");
+    expect(view().waiting[0].scope).toBe("beta");
+  });
+});
+
+// KARAOKE (RFC-074): the playing item carries where the voice is, so a row that never saw the
+// reply can still show the sentence and the chat can light the paragraph.
+describe("the playing item carries its position", () => {
+  const { setPosition } = require("./speechQueue");
+
+  it("is null until the engine reports, then the sentence and its lines", () => {
+    enqueue(item("a"));
+    expect(view().playing.position).toBeNull();
+    setPosition("a", { index: 1, total: 3, text: "Beta two.", lines: [3, 4] });
+    expect(view().playing.position).toEqual({ index: 1, total: 3, text: "Beta two.", lines: [3, 4] });
+  });
+
+  it("only the playing item can report — a stale callback from the one before is ignored", () => {
+    enqueue(item("a"));
+    enqueue(item("b"));
+    expect(setPosition("b", { index: 0, total: 1, text: "x" })).toBe(false);
+    expect(view().playing.position).toBeNull();
+  });
+
+  it("announces each move to the line's subscribers", () => {
+    enqueue(item("a"));
+    const seen = [];
+    subscribe((snap) => seen.push(snap.playing && snap.playing.position && snap.playing.position.index));
+    setPosition("a", { index: 0, total: 2, text: "one." });
+    setPosition("a", { index: 1, total: 2, text: "two." });
+    expect(seen).toEqual([0, 1]);
   });
 });

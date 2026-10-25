@@ -19,26 +19,9 @@ import {
 } from "../../utils/hostProject";
 import { listHusks, addHusk, removeHusk, reconcileHusks, huskEntry } from "../../utils/husks";
 import CodebaseNav from "../CodebaseNav/CodebaseNav";
-import { useDockOrder, orderProjects, isNavDocked } from "../AgentChat/navDock";
+import { useDockOrder, orderProjects, isNavDocked, pinId } from "../AgentChat/navDock";
 import { liveSessions } from "../../utils/hostAgents";
 import { useAppDark } from "../../atoms/appTheme";
-
-const ArrowIcon = () => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="15"
-    height="15"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="3"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <line x1="5" y1="12" x2="19" y2="12" />
-    <polyline points="12 5 19 12 12 19" />
-  </svg>
-);
 
 const SystemNav = ({
   projectCode,
@@ -74,12 +57,19 @@ const SystemNav = ({
   // "tabs" is one tab per agent — icon + name — and the whole panel becomes that agent's world.
   // The Projects/Agents pills are gone: the tab strip IS the agents, and the agent's chat lives
   // as a section inside its tab, so a second place to look at agents was a second nav.
-  const [view, setView] = useState(() => localStorage.getItem("sv.navView") || "tabs");
-  const pickView = (v) => {
-    setView(v);
-    localStorage.setItem("sv.navView", v);
-    window.dispatchEvent(new CustomEvent("sv:navView"));
-  };
+  // LIST VIEW IS GONE (his call, 2026-10-25: *"just get rid of list view on the side panel"*). The
+  // panel is the tabs view, full stop; the toggle and the stacked-projects body with it. The stored
+  // preference is pinned to "tabs" so everything that still reads `sv.navView` (the chat's dock
+  // logic) agrees without needing to know the list ever existed.
+  const view = "tabs";
+  useEffect(() => {
+    try {
+      if (localStorage.getItem("sv.navView") !== "tabs") {
+        localStorage.setItem("sv.navView", "tabs");
+        window.dispatchEvent(new CustomEvent("sv:navView"));
+      }
+    } catch {}
+  }, []);
   const [tabPc, setTabPc] = useState(() => localStorage.getItem("sv.navTabPc") || "");
   const pickTab = (pc) => {
     setTabPc(pc);
@@ -100,6 +90,25 @@ const SystemNav = ({
     const t = setInterval(poll, 8000);
     return () => { dead = true; clearInterval(t); };
   }, [view]);
+  // WHO IS COOKING — announced by each chat (`sv:agentState`) as its state changes; the tab wears
+  // the mark. Not polled: the chats already know, and the strip only has to listen.
+  const [cookingPcs, setCookingPcs] = useState(() => new Set());
+  useEffect(() => {
+    const on = (e) => {
+      const d = (e && e.detail) || {};
+      if (!d.projectCode) return;
+      setCookingPcs((cur) => {
+        const cooking = d.state === "working" || d.state === "waiting";
+        if (cur.has(d.projectCode) === cooking) return cur;
+        const n = new Set(cur);
+        if (cooking) n.add(d.projectCode);
+        else n.delete(d.projectCode);
+        return n;
+      });
+    };
+    window.addEventListener("sv:agentState", on);
+    return () => window.removeEventListener("sv:agentState", on);
+  }, []);
   const dockOrderList = useDockOrder();
   // THE TAB WEARS THE AGENT ONLY WHILE IT'S HOME (his indicator): pulled out, the face leaves the
   // tab and only the project name remains — you can see at a glance which agents are out floating.
@@ -460,24 +469,6 @@ const SystemNav = ({
               using." Everything the header still owes fits in one row: the view toggle, the strip
               (or the + in list view), and a small collapse chevron where the title row used to be. */}
           <div className="system-nav__bar">
-                <div className="system-nav__views" role="tablist">
-                  <button
-                    type="button"
-                    className={`system-nav__viewbtn${view === "list" ? " system-nav__viewbtn--active" : ""}`}
-                    title="List view — every project"
-                    onClick={() => pickView("list")}
-                  >
-                    ☰
-                  </button>
-                  <button
-                    type="button"
-                    className={`system-nav__viewbtn${view === "tabs" ? " system-nav__viewbtn--active" : ""}`}
-                    title="Tabs view — one agent per tab"
-                    onClick={() => pickView("tabs")}
-                  >
-                    ▥
-                  </button>
-                </div>
                 {view === "tabs" ? (
                   <div className="system-nav__agenttabs">
                     {tabPcs.map((pc) => (
@@ -517,30 +508,70 @@ const SystemNav = ({
                       >
                         {isNavDocked(pc) && <span className="system-nav__agenttab-face">🤖</span>}
                         <span className="system-nav__agenttab-name">{pc}</span>
-                        {livePcs.has(pc) && <span className="system-nav__agenttab-dot" title="a session is live" />}
+                        {livePcs.has(pc) && (
+                          <span
+                            className={`system-nav__agenttab-dot${cookingPcs.has(pc) ? " system-nav__agenttab-dot--cooking" : ""}`}
+                            title={cookingPcs.has(pc) ? "working right now" : "a session is live"}
+                          />
+                        )}
                       </button>
                     ))}
                   </div>
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      className={`system-nav__tab-add ${naming ? "system-nav__tab-add--open" : ""}`}
-                      title={naming ? "Cancel" : "New project — name it"}
-                      onClick={() => {
-                        setPickErr("");
-                        if (naming) {
+                ) : null}
+                {/* THE + LIVES IN THE STRIP, right before the collapse chevron (his ask) — the
+                    skinny row it used to own under the strip is gone, so the pinned card top sits
+                    straight under the tabs. AND THE NAME IS TAKEN IN THE STRIP TOO: pressing +
+                    turns it into the input where it stood (Enter creates, Escape or ✕ puts the +
+                    back). A row that reappears while you type is the same gap wearing a hat. */}
+                {view === "tabs" && !naming && (
+                  <button
+                    type="button"
+                    className="system-nav__tab-add system-nav__tab-add--strip"
+                    title="New project — name it"
+                    onClick={() => { setPickErr(""); setNaming(true); }}
+                  >
+                    +
+                  </button>
+                )}
+                {view === "tabs" && naming && (
+                  <div className="system-nav__newproject system-nav__newproject--strip" title={pickErr || undefined}>
+                    <input
+                      ref={nameRef}
+                      className={`system-nav__newproject-input${pickErr ? " system-nav__newproject-input--err" : ""}`}
+                      type="text"
+                      placeholder={pickErr || "name the project"}
+                      spellCheck={false}
+                      value={newName}
+                      onChange={(e) => { setPickErr(""); setNewName(e.target.value); }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") createProject();
+                        if (e.key === "Escape") {
                           setNaming(false);
                           setNewName("");
-                          return;
+                          setPickErr("");
                         }
-                        setNaming(true);
                       }}
+                    />
+                    {/* CREATE IS A +, not an arrow — the same mark you pressed to get here, at the
+                        same weight (his call): the first + opened the field, this + commits it. */}
+                    <button
+                      type="button"
+                      className="system-nav__newproject-go system-nav__newproject-go--plus"
+                      title={newName.trim() ? `Create ${newName.trim()}` : "Give it a name"}
+                      onClick={createProject}
+                      disabled={!newName.trim()}
                     >
-                      {naming ? "✕" : "+"}
+                      +
                     </button>
-                    <span className="system-nav__bar-space" />
-                  </>
+                    <button
+                      type="button"
+                      className="system-nav__newproject-x"
+                      title="Cancel"
+                      onClick={() => { setNaming(false); setNewName(""); setPickErr(""); }}
+                    >
+                      ✕
+                    </button>
+                  </div>
                 )}
                 {onCollapse && (
                   <button
@@ -553,60 +584,6 @@ const SystemNav = ({
                   </button>
                 )}
           </div>
-          {/* RFC-062 — the + doesn't fit the strip (tabs view), but naming a project must not
-              require leaving it. One skinny row, sticky with the header, that is only the +
-              — and the input when pressed. */}
-          {view === "tabs" && (
-            <div className="system-nav__addrow">
-              <button
-                type="button"
-                className={`system-nav__tab-add ${naming ? "system-nav__tab-add--open" : ""}`}
-                title={naming ? "Cancel" : "New project — name it"}
-                onClick={() => {
-                  setPickErr("");
-                  if (naming) {
-                    setNaming(false);
-                    setNewName("");
-                    return;
-                  }
-                  setNaming(true);
-                }}
-              >
-                {naming ? "✕" : "+"}
-              </button>
-              {naming && (
-                <div className="system-nav__newproject">
-                  <input
-                    ref={nameRef}
-                    className="system-nav__newproject-input"
-                    type="text"
-                    placeholder="name the project"
-                    spellCheck={false}
-                    value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") createProject();
-                      if (e.key === "Escape") {
-                        setNaming(false);
-                        setNewName("");
-                        setPickErr("");
-                      }
-                    }}
-                  />
-                  <button
-                    type="button"
-                    className="system-nav__newproject-go"
-                    title={newName.trim() ? `Create ${newName.trim()}` : "Give it a name"}
-                    onClick={createProject}
-                    disabled={!newName.trim()}
-                  >
-                    <ArrowIcon />
-                  </button>
-                </div>
-              )}
-              {pickErr && <span className="system-nav__connect-error">{pickErr}</span>}
-            </div>
-          )}
         </div>
         {view === "tabs" && activeTabPc && (
           <AgentTabBody
@@ -639,68 +616,6 @@ const SystemNav = ({
             <div className="system-nav__connect-error">No projects yet — name one in list view.</div>
           </div>
         )}
-        {view === "list" && <div className="container system-nav__body">
-          <div className="row system-nav__section">
-            <div className="col-12 ">
-              {pickErr && <div className="system-nav__connect-error">{pickErr}</div>}
-              {/* NAMING A PROJECT, AT THE TOP, IN ITS OWN FIELD. Deliberately NOT the loadService
-                  input below — his correction: *"not that same input that was doing services, not
-                  the same button that was attached to it."* Those are different acts and reusing
-                  one control for both is what made adding a project feel like connecting a service.
-                  Escape abandons it and nothing was ever created. */}
-              {naming && (
-                <div className={`system-nav__newproject`}>
-                  <input
-                    ref={nameRef}
-                    className="system-nav__newproject-input"
-                    type="text"
-                    placeholder="name the project"
-                    spellCheck={false}
-                    value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") createProject();
-                      if (e.key === "Escape") {
-                        setNaming(false);
-                        setNewName("");
-                        setPickErr("");
-                      }
-                    }}
-                  />
-                  <button
-                    type="button"
-                    className="system-nav__newproject-go"
-                    title={newName.trim() ? `Create ${newName.trim()}` : "Give it a name"}
-                    onClick={createProject}
-                    disabled={!newName.trim()}
-                  >
-                    <ArrowIcon />
-                  </button>
-                </div>
-              )}
-              <CodebaseNav
-                connectedServices={[...husks.map((h) => huskEntry(h.projectCode)), ...connectedServices]}
-                projectCode={projectCode}
-                serviceId={serviceId}
-                moduleName={moduleName}
-                methodName={methodName}
-                openFile={openFile}
-                onOpenFile={onOpenFile}
-                reveal={reveal}
-                serviceStatus={serviceStatus}
-                theme={cbTheme}
-                onHostedOp={handleHostedOp}
-                onDeleteService={handleDeleteService}
-                onDeleteProject={handleDeleteProject}
-                onRenameProject={handleRenameProject}
-                renaming={renaming}
-                onRenamingChange={setRenaming}
-                onAttachFolder={attachFolder}
-              />
-            </div>
-          </div>
-          <div className="scroll-buffer"></div>
-        </div>}
     </section>
   );
 };
@@ -711,8 +626,28 @@ const SystemNav = ({
 // chat vanished: the card was already the home. The only thing tabs view changes is ROOM — the
 // docked chat's height cap is lifted here (see AgentChat), so the conversation can take the panel.
 function AgentTabBody({ pc, services, navProps }) {
+  // THE PINNED TOP. The column is the scroller, and the card's head plus the docked agent's top rows
+  // (avatar row · head · meter · roster) should not move with it (his ask). They cannot be made
+  // sticky: between them and this scroller sit the card (overflow clip), the agent's sized pane
+  // (its own scroller) and the chat panel (overflow hidden), and sticky pins against the nearest of
+  // those, not against the column. So they are rendered up here instead — portaled, same elements,
+  // same handlers — into three targets in fixed order, and the CSS makes the pinned section and
+  // the card below it read as one card (the top edge moves up here; the card loses its own).
+  // Same grid wrapper as the body so the edges line up to the pixel.
+  const [pinHead, setPinHead] = useState(null);
   return (
-    <div className="system-nav__tabbody">
+    <div className={`system-nav__tabbody${pinHead ? " system-nav__tabbody--pinned" : ""}`}>
+      <div className="container system-nav__pinwrap">
+        <div className="row system-nav__section">
+          <div className="col-12">
+            <div className="system-nav__pinned">
+              <div className="system-nav__pinned-cbhead" ref={setPinHead} />
+              <div className="system-nav__pinned-bot" id={pinId(pc, "bot")} />
+              <div className="system-nav__pinned-top" id={pinId(pc, "top")} />
+            </div>
+          </div>
+        </div>
+      </div>
       <div className="container system-nav__body">
         <div className="row system-nav__section">
           <div className="col-12">
@@ -721,6 +656,7 @@ function AgentTabBody({ pc, services, navProps }) {
               projectCode={pc}
               allowDock={true}
               showHelp={false}
+              pinEl={pinHead}
               {...navProps}
             />
           </div>
