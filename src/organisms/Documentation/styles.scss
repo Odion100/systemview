@@ -524,3 +524,41 @@
   white-space: nowrap;
   &:hover { color: var(--sv-blue); }
 }
+
+// THE DOCUMENT REACHES THE BOTTOM OF THE WINDOW. Measured 2026-10-25 (his catch: *"documents used
+// to go all the way to the bottom"*): the code pane's body is capped at `calc(100vh - 178px)` — a
+// constant from the light/dark commit — while the chrome above it is 135px (header 62, tab strip
+// 38, pane header 34), so every document stopped 43px short. No new constant: the centre panel is
+// 978px tall because the row is `flex: 1` in the 100vh shell, so the chain below it FILLS instead
+// of guessing — each link a flex column with `min-height: 0`, the body with its cap lifted. The
+// body is already `overflow: auto`, so a long document scrolls inside it exactly as before. Scoped
+// to the centre panel's own `.documentation`; the Context page's doc area fills the same way on
+// its own (`docarea.scss`).
+.center-panel > .documentation {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  // NOT FLUSH — a slight gap, his memory of how it sat: the same 8px the strip keeps from the
+  // header above (`.documentation-view { padding-top: .5rem }`), mirrored at the bottom.
+  padding-bottom: 8px;
+  > .documentation-view {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    > .documentation-view__data-table {
+      flex: 1 1 auto;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      > .code-pane {
+        flex: 1 1 auto;
+        min-height: 0;
+        > .code-pane__body {
+          max-height: none;
+        }
+      }
+    }
+  }
+}

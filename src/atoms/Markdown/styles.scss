@@ -246,6 +246,16 @@
     max-width: 100%;
     overflow-x: auto;
   }
+  // …BUT NOT ON LIST ITEMS. `overflow-x: auto` makes `overflow-y` auto too, and an `li` that is not
+  // `overflow: visible` CLIPS ITS OWN MARKER — every numbered list in every document lost its
+  // numbers (his catch, RFC-073's claims: *"there's no counts"*). The marker sits outside the box;
+  // the box must not clip. A long unwrapped line in a list item wraps or spills, which is the
+  // lesser evil.
+  & li,
+  & ol,
+  & ul {
+    overflow: visible;
+  }
 
   & hr {
     border: 0 none;
@@ -3725,4 +3735,127 @@
 
   &__body { padding: 9px 11px; }
   &__blocked { margin: 9px 11px 0; }
+}
+
+// ── `::claim` and `::claims` — a statement you can check, and the count ─────────────────────────
+// Same family as an approval: a left edge that takes the colour of the mark, nothing loud. The
+// number is derived from the block's place in the document; the stamp under the statement is who,
+// when, and the statement every mark must carry.
+.md-claim {
+  margin: 6px 0;
+  padding: 6px 10px 6px 8px;
+  border: 1px solid var(--sv-border-soft);
+  border-left: 4px solid #b0b7c9;
+  border-radius: 6px;
+  // THE STATEMENT IS BODY TEXT. It was 13px against the document's 15px and he found the list
+  // harder to read than the numbered one it replaced — same font, same size, bold count.
+  font-size: inherit;
+  line-height: 1.5;
+  &--met { border-left-color: #3f9e6a; }
+  &--unmet { border-left-color: #e05757; }
+
+  &__row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+  &__n {
+    flex: none;
+    min-width: 22px;
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 0.95em;
+    font-weight: 700; // bold, and the size back up — his; the colour stays muted
+    color: var(--sv-text-muted);
+    text-align: right;
+  }
+  &__statement { flex: 1 1 auto; min-width: 0; color: var(--sv-text); }
+  &__state {
+    flex: none;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    padding: 1px 6px;
+    border-radius: 3px;
+    color: #fff;
+    background: #b0b7c9;
+    &--met { background: #3f9e6a; }
+    &--unmet { background: #e05757; }
+  }
+  &__actions { flex: none; display: inline-flex; gap: 4px; }
+  &__btn {
+    border: 1px solid var(--sv-border);
+    background: var(--sv-surface);
+    color: var(--sv-text);
+    font-size: 11px;
+    line-height: 1;
+    padding: 3px 7px;
+    border-radius: 4px;
+    cursor: pointer;
+    &:hover { background: var(--sv-bg); }
+    &:disabled { opacity: 0.45; cursor: default; }
+    &--met.is-on { border-color: #3f9e6a; color: #3f9e6a; }
+    &--unmet.is-on { border-color: #e05757; color: #e05757; }
+    &--go { border-color: var(--sv-blue, #4a7bd0); color: var(--sv-blue, #4a7bd0); }
+    &--note { font-size: 10.5px; padding: 1px 6px; color: var(--sv-text-muted); border-style: dashed; }
+  }
+  &__ask {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 6px 0 2px 30px;
+    flex-wrap: wrap;
+  }
+  &__note-input {
+    flex: 1 1 260px;
+    min-width: 0;
+    font: inherit;
+    font-size: 12.5px;
+    padding: 4px 8px;
+    border: 1px solid var(--sv-border);
+    border-radius: 4px;
+    background: var(--sv-surface);
+    color: var(--sv-text);
+  }
+  &__rule { font-size: 11px; color: var(--sv-text-muted); font-style: italic; }
+  &__stamp {
+    margin: 4px 0 0 30px;
+    font-size: 12px;
+    color: var(--sv-text-muted);
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  &__by { font-weight: 600; color: var(--sv-text); }
+  &__note { color: var(--sv-text); }
+}
+
+.md-claims {
+  margin: 8px 0 14px;
+  padding: 8px 10px;
+  border: 1px solid var(--sv-border-soft);
+  border-radius: 8px;
+  font-size: 12px;
+  &--empty { color: var(--sv-text-muted); font-style: italic; }
+  &__head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; }
+  &__label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--sv-text-muted); }
+  &__count { font-weight: 600; color: var(--sv-text); }
+  &__tag {
+    font-size: 11px;
+    padding: 1px 6px;
+    border-radius: 3px;
+    background: var(--sv-inset, #f1f3f8);
+    color: var(--sv-text-muted);
+    &--unmet { color: #e05757; }
+  }
+  &__pct { margin-left: auto; color: var(--sv-text-muted); }
+  &__bar {
+    position: relative;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--sv-inset, #e9ecf3);
+    overflow: hidden;
+    display: flex;
+  }
+  &__fill { display: block; height: 100%; background: #3f9e6a; }
+  &__fill--unmet { background: #e05757; }
 }

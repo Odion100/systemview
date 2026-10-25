@@ -567,11 +567,20 @@ const Markdown = ({ children, dark = false, scope = null, onSourceChange = null,
     if (next != null) save(next);
   }, []);
 
+  // ONE ATTRIBUTE, OR SEVERAL IN ONE WRITE. `setAttr(line, key, value)` is the original door; a
+  // block that has to land `state= by= at= note=` together (`::claim`) passes an object instead —
+  // four sequential calls would each start from the source as it was BEFORE the save and clobber
+  // each other, because the surface hands the new source back only after it saved.
   const setAttr = useCallback((line, key, value) => {
     const { source: src, onSourceChange: save, editable: can } = live.current;
     if (!can || !line) return;
-    const next = setDirectiveAttr(src, line, key, value);
-    if (next != null) save(next);
+    const pairs = key && typeof key === "object" ? Object.entries(key) : [[key, value]];
+    let next = src;
+    for (const [k, v] of pairs) {
+      const n = setDirectiveAttr(next, line, k, v);
+      if (n != null) next = n;
+    }
+    if (next !== src) save(next);
   }, []);
   const startThread = useCallback((from, to) => {
     const { source: src, onSourceChange: save, editable: can } = live.current;

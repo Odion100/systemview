@@ -2266,7 +2266,9 @@ $sv-board-states: (
     flex: 1;
     min-height: 120px;
     overflow-y: auto;
-    padding: 10px;
+    // A little more under the last bubble than beside it — his: the last word sat flush with the
+    // bottom, under the voice pill. Just enough air; not much.
+    padding: 10px 10px 20px;
     display: flex;
     flex-direction: column;
     gap: 6px;

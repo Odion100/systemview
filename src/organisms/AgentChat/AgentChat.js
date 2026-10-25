@@ -2485,7 +2485,28 @@ function BotBubble({ projectCode, index }) {
   // picks its own light/dark), so the app's state must be passed down explicitly.
   const [appDark] = useAppDark();
   const [presence, setPresence] = useState({});
-  const [input, setInput] = useState("");
+  // THE DRAFT SURVIVES A SWAP. The window replaces itself when a build lands and he is idle — and
+  // "idle" missed him once while he was dictating a long message, so the reload took the text he
+  // had lined up (2026-10-25: *"that's crazy — I had a whole bunch of stuff lined up to say"*). The
+  // composer's text is kept per project in sessionStorage on every change and restored on mount,
+  // so whatever the swap's timing does, it can never again cost him words. Cleared on send.
+  const DRAFT_KEY = `sv.draft.${projectCode}`;
+  const [input, setInputRaw] = useState(() => {
+    try { return sessionStorage.getItem(DRAFT_KEY) || ""; } catch { return ""; }
+  });
+  const setInput = useCallback((v) => {
+    setInputRaw((prev) => {
+      const next = typeof v === "function" ? v(prev) : v;
+      try {
+        if (next) sessionStorage.setItem(DRAFT_KEY, next);
+        else sessionStorage.removeItem(DRAFT_KEY);
+      } catch { /* a draft that cannot be kept is still a draft */ }
+      // DICTATION IS ACTIVITY. Text arriving from the mic fires no keydown and no input event, so
+      // the self-update's idle clock never saw him talking. Say so.
+      try { window.dispatchEvent(new CustomEvent("sv:activity")); } catch { /* no window */ }
+      return next;
+    });
+  }, [DRAFT_KEY]);
   // Unread = agent replies that arrived while the panel was closed (green count on the bubble).
   const [unread, setUnread] = useState(0);
   const openRef = useRef(false);

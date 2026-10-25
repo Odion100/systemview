@@ -67,7 +67,9 @@ function useSelfUpdate() {
     const touched = () => { lastTouch = Date.now(); };
     // `capture` and `passive`: this must see the interaction without being able to affect it —
     // a listener that could swallow a scroll would be a worse bug than the one it is fixing.
-    const EVENTS = ["keydown", "pointerdown", "pointermove", "wheel", "scroll", "input"];
+    // `sv:activity` is the composer saying text arrived by other means — dictation fires none of the
+    // DOM events, and the swap once reloaded him mid-sentence because of it.
+    const EVENTS = ["keydown", "pointerdown", "pointermove", "wheel", "scroll", "input", "sv:activity"];
     for (const e of EVENTS) window.addEventListener(e, touched, { capture: true, passive: true });
 
     const swap = async (key) => {

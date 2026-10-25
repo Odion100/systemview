@@ -22,6 +22,8 @@ import Members from "./blocks/Members";
 import Objective from "./blocks/Objective";
 import Arc from "./blocks/Arc";
 import Progress from "./blocks/Progress";
+import Claim from "./blocks/Claim";
+import Claims from "./blocks/Claims";
 import CmdBlock from "./blocks/CmdBlock";
 
 // `file` is TWO things depending on how it's written — the same split `run` has. Inline is a
@@ -90,6 +92,12 @@ export const BLOCKS = {
   // Both RECOUNT from the objectives in their own document on every render — there is no stored
   // total anywhere, so neither can disagree with the blocks above it.
   progress: { Component: Progress },
+  // CLAIMS — a statement somebody can check, and the mark written back into its line. `::claim[…]`
+  // is the numbered claim an RFC used to end in, made pressable: met / not met / unchecked, each
+  // mark carrying who, when and — required — a statement of what was done and seen. `::claims`
+  // recounts them, so the status at the top of a document is derived, never typed. See claims.js.
+  claim: { Component: Claim },
+  claims: { Component: Claims },
   // decision — a story's approve/reject verdict, wrapped around whatever is being proposed
   approval: { Component: Approval },
   // RFC-033 — a commit message you press instead of copy. An agent writes it, a human clicks it;
