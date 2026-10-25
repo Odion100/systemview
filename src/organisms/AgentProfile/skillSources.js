@@ -95,6 +95,12 @@ export const skillDoc = (agentId, s) => ({
   agentId,
   name: s.name,
   where: s.where,
+  // THE FILE IT IS. The scan already returns it (`definitions.cjs` → `path: p`) and this builder
+  // dropped it, which is what forced a skill to open as a blob behind a save door instead of as
+  // the file it has always been — and a blob cannot survive a refresh, because the only thing the
+  // URL can keep is an address.
+  path: s.path || "",
+  dir: s.dir || "",
   label: s.name,
   text: s.text,
   orig: s.text,

@@ -63,6 +63,25 @@ const MembersPin = () => {
       return;
     }
     setRefusal("");
+    stampTold(scope, targets);
+  };
+
+  // CAUGHT UP WITHOUT BEING TOLD — the press that was missing. There was a way to SEND an update and
+  // no way to CLEAR one, and "behind" is derived rather than stored: `sent=` holds the hash each
+  // member last heard about, so every save makes everyone behind again. On a document a group is
+  // co-editing, the count then climbs on work they are all doing together and stops meaning
+  // anything — *"I'm not sending you guys every little update."*
+  //
+  // It stamps exactly what a send stamps and emits NOTHING. One press says they were told; this one
+  // says they were there. Same record, because the record is only ever "they know about this
+  // version" — which is why both go through `stampTold` rather than through two copies of it.
+  const square = (scope, targets) => {
+    setRefusal("");
+    stampTold(scope, targets);
+  };
+
+  const stampTold = (scope, targets) => {
+    const subject = scope.body == null ? source : scope.body;
     const stamp = hashOf(subject);
     const next = { ...parseSent(scope.sent), ...(stamped[scope.line] || {}) };
     targets.forEach((m) => {
@@ -81,6 +100,9 @@ const MembersPin = () => {
   const people = everyoneBehind(pending);
   const tellEveryone = async () => {
     for (const scope of pending) await tell(scope, scope.behind);
+  };
+  const squareEveryone = () => {
+    pending.forEach((scope) => square(scope, scope.behind));
   };
 
   return (
@@ -115,6 +137,19 @@ const MembersPin = () => {
                 {sending ? "telling…" : `tell ${people.length === 1 ? people[0] : `all ${people.length}`}`}
               </button>
             )}
+            {/* THE OTHER ANSWER TO THE SAME ROW. Not every pile of pending updates wants sending —
+                a document several people are editing together makes everybody behind on every
+                save, and the honest resolution is often that they were in it. Quieter than the
+                tell, because telling is what the row is for. */}
+            <button
+              type="button"
+              className="md-members-pin__square"
+              title="they are caught up — stamp this version and tell nobody"
+              disabled={!!sending}
+              onClick={squareEveryone}
+            >
+              ✓ caught up
+            </button>
       {pending.map((scope) => (
         <div
           className={`md-members-pin__row md-members-pin__row--${scope.kind}`}

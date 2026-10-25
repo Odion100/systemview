@@ -136,6 +136,15 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
   // event's own fields in every when-condition
   const [hookAmbient, setHookAmbient] = useState([]);
   const [hookDraft, setHookDraft] = useState(null);
+  // THE HOOK THAT JUST MOVED. Flipping one re-sorts the list, so the row lands somewhere else; a
+  // one-beat blink at the new spot is what keeps the eye from losing it (his: *"a slight blink as
+  // it moves so you don't get thrown off"*). Cleared after the blink has played.
+  const [movedHook, setMovedHook] = useState("");
+  useEffect(() => {
+    if (!movedHook) return undefined;
+    const t = setTimeout(() => setMovedHook(""), 900);
+    return () => clearTimeout(t);
+  }, [movedHook]);
   const [hookErr, setHookErr] = useState("");
   // WHAT THIS AGENT PAYS EVERY TURN, before it is asked anything. The store's numbers answer
   // "is this note earning its place"; these layers are never retrieved, so frequency means
@@ -433,6 +442,7 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
     else next.add(name);
     const hooksNext = [...next];
     setDef({ hooks: hooksNext }); // optimistic — the switch must move under the finger
+    setMovedHook(name); // the row re-sorts on this write — blink where it lands
     try {
       const base = sel.def || {};
       await saveDef({
@@ -697,6 +707,20 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
   // doc, the tools or the skills — which is exactly the bug a whole-draft save would introduce
   // here. And chores are not composed into any system prompt, so this write leaves every live
   // session fresh rather than stale (see composedStamp in sessions.cjs).
+  // HOW MUCH OF ITS THINKING THIS AGENT SHOWS BY DEFAULT — `def.thinking = {display, budget}`, what
+  // a session opens on; the chat header's `think:` chip overrides it for one session. It sits on the
+  // gating row and behaves like gating: a SESSION setting, staged on the draft, written by Save,
+  // applied at the next session. `display` null = the whole stream, which is why "full" stages `{}`
+  // rather than a value — the record has no word for it, and `{}` is what clears a stored one.
+  const thinking = d.thinking && typeof d.thinking === "object" ? d.thinking : {};
+  const stageThinking = (patch) => {
+    const next = { ...thinking, ...patch };
+    const rec = {};
+    if (["summarized", "highlights", "omitted"].includes(next.display)) rec.display = next.display;
+    if (next.budget != null && next.budget !== "" && Number.isFinite(Number(next.budget))) rec.budget = Number(next.budget);
+    setDef({ thinking: rec });
+  };
+
   const writeChores = async (rows) => {
     // `resetAt` RIDES ALONG. Dropping it here would mean changing a line's period silently
     // un-resets it — the field is on the line, so every write has to carry the whole line.
@@ -865,6 +889,9 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
     onOpenDoc({
       kind: "job",
       jobId: j.id,
+      // `~/.autobot/jobs/<id>/job.md` — the hub hands over `dir`, so the document has a real path
+      // and opens as the file it is rather than as text held in this page's memory.
+      path: j.dir ? `${j.dir}/job.md` : "",
       label: j.name && j.name !== j.id ? `${j.name} (${j.id})` : j.id,
       text: j.doc || "",
       orig: j.doc || "",
@@ -1205,6 +1232,66 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
                   ]}
                 />
                 <span className="agent-profile__gating-note">must it ask before acting? · applies at next session</span>
+              </div>
+              {/* THINKING, BESIDE GATING — the other session setting (his: *"wouldn't it be next to
+                  gating at the top?"*). How much of its reasoning a session shows by default; the
+                  chat header's `think:` chip overrides it for the session it is in. */}
+              <div className="agent-profile__gating agent-profile__thinking">
+                <span className="agent-profile__gating-label">thinking</span>
+                <SvSelect
+                  value={thinking.display || ""}
+                  onChange={(v) => stageThinking({ display: v || null })}
+                  options={[
+                    { value: "", label: "full — the whole reasoning" },
+                    { value: "highlights", label: "highlights — the turning points" },
+                    { value: "summarized", label: "summary — one line per thought" },
+                    { value: "omitted", label: "off — only what is done" },
+                  ]}
+                />
+                {/* THE BUDGET RESTS ON ITS DEFAULT AND SAYS SO. Unset, the SDK runs `adaptive` — the
+                    model picks how much to think, turn by turn — and that is a WORD, not a number,
+                    so this is a text field reading "adaptive", never an empty number box: the first
+                    one filled itself with 1024 the moment he brushed its spinner, turning "no cap"
+                    into a cap he never chose. Type a number to cap it; clear it (or ×) and it reads
+                    adaptive again. */}
+                <span className="agent-profile__thinking-cap">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    className={`agent-profile__thinking-budget${thinking.budget == null ? " agent-profile__thinking-budget--adaptive" : ""}`}
+                    placeholder="adaptive"
+                    defaultValue={thinking.budget != null ? thinking.budget : ""}
+                    key={`budget-${thinking.budget == null ? "adaptive" : thinking.budget}`}
+                    title="Thinking tokens per turn. Adaptive = the model decides; type a number to cap it"
+                    onBlur={(e) => {
+                      const v = e.target.value.trim();
+                      const cur = thinking.budget == null ? "" : String(thinking.budget);
+                      if (v === cur) return;
+                      if (v === "") { stageThinking({ budget: null }); return; }
+                      // THE API'S FLOOR IS 1024 thinking tokens; anything under it is refused at the
+                      // call, so it is refused here — put the old value back and say why, never
+                      // clamp to a number he did not type.
+                      if (!/^\d+$/.test(v) || Number(v) < 1024) {
+                        e.target.value = cur;
+                        raiseKeyed("thinking-budget", `A thinking budget is at least 1024 tokens — "${v}" was not kept.`);
+                        return;
+                      }
+                      stageThinking({ budget: v });
+                    }}
+                    onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+                  />
+                  {thinking.budget != null && (
+                    <button
+                      type="button"
+                      className="agent-profile__thinking-reset"
+                      title="Back to adaptive — the model decides"
+                      onClick={() => stageThinking({ budget: null })}
+                    >
+                      ×
+                    </button>
+                  )}
+                </span>
+                <span className="agent-profile__gating-note">how much of its reasoning shows · applies at next session</span>
               </div>
               <div className="agent-profile__sub">
                 {selRuns ? `${selRuns.runs} recorded session${selRuns.runs === 1 ? "" : "s"} · last active ${ago(selRuns.lastActive)}` : "no recorded sessions"}
@@ -1967,10 +2054,17 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
             {hookErr && <div className="agent-profile__hook-err">{hookErr}</div>}
 
             <div className="agent-profile__hooks">
-              {hooks.map((h) => {
+              {/* ENABLED FIRST — his ask. The sort is stable, so within each half the written order
+                  holds. No transition on the move: a slide that also fired when the edit form opened
+                  read as blinking, and he judged the whole effect not worth it. */}
+              {[...hooks].sort((a, b) => Number(carriesHook(b.name)) - Number(carriesHook(a.name))).map((h) => {
                 const on = carriesHook(h.name);
+                const editingThis = !!(hookDraft && !hookDraft.isNew && hookDraft.wasName === h.name);
                 return (
-                  <div className={`agent-profile__hook${on ? "" : " agent-profile__hook--off"}`} key={h.name}>
+                  <div
+                    className={`agent-profile__hook${on ? " agent-profile__hook--on" : " agent-profile__hook--off"}${movedHook === h.name ? " agent-profile__hook--moved" : ""}`}
+                    key={h.name}
+                  >
                     <div className="agent-profile__hook-main">
                       <span className="agent-profile__hook-name">{h.name}</span>
                       <span className="agent-profile__hook-on">on {h.on}</span>
@@ -2007,7 +2101,16 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
                       >
                         {on ? "enabled" : "disabled"}
                       </button>
-                      <button type="button" className="agent-profile__hook-btn" onClick={() => editHook(h)}>edit</button>
+                      {/* EDIT IS A TOGGLE — the same button closes what it opened. Before, closing
+                          meant scrolling to the form's foot for Cancel (his: *"you click edit, then
+                          you got to go scroll down and click cancel"*). */}
+                      <button
+                        type="button"
+                        className={`agent-profile__hook-btn${editingThis ? " agent-profile__hook-btn--open" : ""}`}
+                        onClick={() => { if (editingThis) { setHookDraft(null); setHookErr(""); } else editHook(h); }}
+                      >
+                        {editingThis ? "close" : "edit"}
+                      </button>
                       {/* a copy opens as a NEW draft under the list, name pre-filled free —
                           per-agent cadences are one duplicate + one rate change now */}
                       <button type="button" className="agent-profile__hook-btn" title="Start a new hook as a copy of this one" onClick={() => duplicateHook(h)}>duplicate</button>

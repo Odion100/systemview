@@ -28,11 +28,22 @@ const shout = () => {
 };
 
 /** What a surface draws: who is talking and who is in line. A copy, so nobody mutates the queue. */
+// `scope` is WHOSE reading it is — the project code of the chat that lined it up. One queue serves
+// every chat in the window, and a surface that draws the queue without asking whose item it is draws
+// another agent's reading beside its own bubble (measured 2026-10-25: pause on autobot's bubble
+// paused systemview-test's reply). Items that were lined up without a scope stay visible everywhere.
 export const view = () => ({
   playing: playing
-    ? { key: playing.key, label: playing.label, paused: !!playing.paused, warming: !!playing.warming }
+    ? {
+        key: playing.key,
+        label: playing.label,
+        paused: !!playing.paused,
+        warming: !!playing.warming,
+        scope: playing.scope || "",
+        position: playing.position || null,
+      }
     : null,
-  waiting: waiting.map((w) => ({ key: w.key, label: w.label })),
+  waiting: waiting.map((w) => ({ key: w.key, label: w.label, scope: w.scope || "" })),
 });
 
 export const subscribe = (fn) => {
@@ -44,7 +55,7 @@ const begin = (item) => {
   // `start` is kept on `playing` so an interrupted item can be put BACK on the line — `playFirst`
   // needs to be able to restart what it interrupted, and a playing record that forgot how to speak
   // could only ever be dropped.
-  playing = { key: item.key, label: item.label, stop: null, start: item.start };
+  playing = { key: item.key, label: item.label, stop: null, start: item.start, scope: item.scope || "" };
   shout();
   // `start()` may finish synchronously in a test, so the handle is attached after — and `done()`
   // clears `playing` either way.
@@ -66,15 +77,25 @@ const next = () => {
  * Join the line. Speaks immediately when nothing is talking, otherwise waits.
  * The same key twice is ONE entry — a row that re-mounts must not queue itself again.
  */
-export function enqueue(item) {
+export function enqueue(item, { hold = false } = {}) {
   if (!item || !item.key || typeof item.start !== "function") return false;
   if (playing && playing.key === item.key) return false;
   if (waiting.some((w) => w.key === item.key)) return false;
-  if (!playing) begin(item);
+  // HELD: lined up but not started — a reply that landed while he was not looking at this agent and
+  // the agent is set to wait for him. It sits at the head of the line until `release()` or until
+  // something else finishes and the line moves on its own.
+  if (!playing && !hold) begin(item);
   else {
     waiting.push(item);
     shout();
   }
+  return true;
+}
+
+/** Start the line when it is standing still — the play on a "waiting" row. */
+export function release() {
+  if (playing || !waiting.length) return false;
+  next();
   return true;
 }
 
@@ -198,6 +219,21 @@ export function setWarming(key, on) {
   const was = !!playing.warming;
   playing.warming = !!on;
   if (was !== playing.warming) shout();
+  return true;
+}
+
+/**
+ * WHERE THE VOICE IS, for anyone drawing the line (RFC-074). The engine reports a sentence index;
+ * the caller — the one that has the markdown — turns it into `{ index, total, text, lines }` and
+ * puts it here, so the compact row can show the sentence as a subtitle and the chat can light the
+ * paragraph it came from, neither of them needing the reply in hand. `null` clears it.
+ */
+export function setPosition(key, pos) {
+  if (!playing || playing.key !== String(key)) return false;
+  playing.position = pos
+    ? { index: pos.index, total: pos.total, text: pos.text || "", lines: pos.lines || null }
+    : null;
+  shout();
   return true;
 }
 

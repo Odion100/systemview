@@ -395,6 +395,11 @@ export const shortModelName = (m) =>
     .replace(/-\d{8}(?=(\[|$))/, "")
     .replace(/-latest(?=(\[|$))/, "");
 
+// The knob's four positions, in the words the chip uses — the receipt and the chip must agree or
+// the reader has two names for one thing.
+export const thinkingName = (display) =>
+  ({ summarized: "summary", highlights: "highlights", omitted: "off" })[display || ""] || "full";
+
 export const parseVisitorTurn = (text) => {
   const raw = String(text || "");
   const m = XSESSION.exec(raw);
@@ -521,6 +526,9 @@ export function foldEvents(events) {
   let openCmd = null;
   // The model the conversation was last running on — a change in it is its own event.
   let lastModel = null;
+  // the thinking display the conversation is on — `undefined` until the host has said, so the first
+  // statement (session.started's default) is a baseline and never a receipt
+  let lastThinking;
 
   (events || []).forEach((ev, i) => {
     if (!ev || !ev.kind) return;
@@ -857,6 +865,31 @@ export function foldEvents(events) {
       }
       lastModel = ev.model;
     }
+    // THE SAME RECEIPT FOR THE THINKING KNOB. His question the first time he turned it: *"Do I see
+    // a log that it switched in a chat? Like I do when I switch a model."* He did not. The chip
+    // flipped and the thread said nothing, so a reader could not tell where the reasoning rows
+    // stopped being the full stream and started being one line each. `session.thinking` is the
+    // host CONFIRMING a switch (the SDK accepted it), so the row lands at the moment it is true —
+    // not at the press. `session.started` carries the display the session opened on; that is a
+    // baseline and draws nothing, same as the model the conversation opened on.
+    if (ev.kind === "session.started" && ev.thinking !== undefined && lastThinking === undefined) {
+      lastThinking = (ev.thinking && ev.thinking.display) || null;
+    }
+    if (ev.kind === "session.thinking") {
+      const to = ev.display || null;
+      if (lastThinking !== undefined && to !== lastThinking) {
+        rows.push({
+          key,
+          kind: "note",
+          thinking: true,
+          from: lastThinking,
+          to,
+          text: `thinking — ${thinkingName(lastThinking)} → ${thinkingName(to)}`,
+          ts: ev.ts,
+        });
+      }
+      lastThinking = to;
+    }
 
     // A MESSAGE LANDED (RFC-056, his requirement: sends were visible, landings weren't). The
     // harness emits this when a cross-session message arrives in the agent's turn — the receipt,
@@ -1061,7 +1094,7 @@ export function foldState(events) {
   // content: it belongs to the session, arrives on the session's stream, and every surface watching
   // that session draws the same list. Null until a harness actually sends one, so a host without
   // the capability shows nothing rather than an empty checklist that looks like a bug.
-  const s = { state: "idle", model: null, exited: null, cost: 0, turns: 0, doing: null, todo: null, todoSource: "", todoLists: [], whiteboardTs: 0, whiteboard: "", ctx: 0, ctxWindow: 0, compactions: 0, visitors: [], usage: null, tokIn: 0, tokOut: 0, turnOut: 0, liveChars: 0, lastUsage: null };
+  const s = { state: "idle", model: null, thinking: null, exited: null, cost: 0, turns: 0, doing: null, todo: null, todoSource: "", todoLists: [], whiteboardTs: 0, whiteboard: "", ctx: 0, ctxWindow: 0, compactions: 0, visitors: [], usage: null, tokIn: 0, tokOut: 0, turnOut: 0, liveChars: 0, lastUsage: null };
   // ONE FIELD, ONE CONSUMER — autobot's synthesis after we each corrected the other's half-rule, and
   // it is better than either. They said clamp at the SOURCE; I said that shrinks the RECORD to fit
   // the label, so clamp at the STATUS; they answered that a rule every future call site has to
@@ -1121,6 +1154,10 @@ export function foldState(events) {
         // declaring its own model is authoritative; see contextWindowFor.
         modelDeclared = true;
       }
+      // HOW MUCH OF ITS THINKING THIS SESSION SHOWS rides session.started (the agent's default) and
+      // changes on session.thinking (his knob). Folded like model: the chip reads the state, never
+      // the send. `undefined` means an older host that does not say — leave what we had.
+      if (ev.thinking !== undefined) s.thinking = ev.thinking || null;
       const w = Number(ev.contextWindow || ev.context_window) || 0;
       if (w > 0) hostWindow = w;
       // ANNOUNCED, NOT YET SHIPPING (see the failure branch in foldEvents). When it arrives this is
@@ -1168,6 +1205,8 @@ export function foldState(events) {
       if (!ev.replay && ev.input) {
         try { s.liveChars += JSON.stringify(ev.input).length; } catch {}
       }
+    } else if (ev.kind === "session.thinking") {
+      s.thinking = { display: ev.display ?? null, budget: ev.budget ?? null };
     } else if (ev.kind === "assistant.thinking" || ev.kind === "thinking-delta") {
       s.state = "working";
       // Thinking is generated output as well — it climbs the same count.

@@ -44,9 +44,28 @@
   -webkit-line-clamp: 4;
 }
 
-// THE PLAY, IN THE CORNER. *"A little play button in the corner."* It is the only pressable thing on
-// the box, because the box's whole lifetime is one decision: this, or nothing.
-.box-select__play {
+// NATIVE SELECTION IS OFF WHERE THE BOX IS ON. The class is applied by the component to its own
+// scope, so it cannot drift from where the box is actually mounted. Inputs keep theirs: a composer
+// or a code editor inside the scope would otherwise become untypable-into for no reason anyone
+// could see.
+.box-select-scope {
+  user-select: none;
+  -webkit-user-select: none;
+
+  input,
+  textarea,
+  [contenteditable="true"],
+  .cm-editor {
+    user-select: text;
+    -webkit-user-select: text;
+  }
+}
+
+// THE PLAY AND THE COPY, IN THE CORNER. *"A little play button in the corner."* Copy joined it when
+// native selection went off in here — the box took the gesture over, so it owes you both things you
+// used to do with a highlight: hear it, or take it.
+.box-select__play,
+.box-select__copy {
   flex: 0 0 auto;
   width: 20px;
   height: 20px;
@@ -62,5 +81,18 @@
   &:hover {
     background: var(--sv-blue, #5b8def);
     color: #fff;
+  }
+}
+
+// Copy reads as the quieter of the two: play is the thing the box was built for.
+.box-select__copy {
+  border-color: var(--sv-border, #3a3a3a);
+  color: var(--sv-text-dim, #9a9a9a);
+  font-size: 10px;
+
+  &:hover {
+    background: var(--sv-text-dim, #9a9a9a);
+    border-color: var(--sv-text-dim, #9a9a9a);
+    color: var(--sv-surface);
   }
 }

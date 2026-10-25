@@ -111,9 +111,9 @@ describe("what cannot be spoken is announced, not read", () => {
     const spoken = spokenForm(
       "Results:\n\n| name | lang | local |\n| :--- | :-: | ---: |\n| Samantha | en-US | yes |\n| Albert | en-US | yes |\n\nDone.",
     );
-    expect(spoken).toMatch(/A table, 3 columns and 2 rows/);
-    expect(spoken).toMatch(/Samantha\. lang: en-US\. local: yes/);
-    expect(spoken).toMatch(/Albert\. lang: en-US\. local: yes/);
+    expect(spoken).toMatch(/Here's a table, 2 rows/);
+    expect(spoken).toMatch(/name: Samantha\. lang: en-US\. local: yes/);
+    expect(spoken).toMatch(/name: Albert\. lang: en-US\. local: yes/);
     expect(spoken.endsWith("Done.")).toBe(true);
   });
 
@@ -124,7 +124,7 @@ describe("what cannot be spoken is announced, not read", () => {
     expect(
       spokenForm("| | what it is |\n| --- | --- |\n| slice | a landing unit |\n| claim | a statement you check |"),
     ).toBe(
-      "A table, 2 columns and 2 rows. slice. what it is: a landing unit. claim. what it is: a statement you check.",
+      "Here's a table, 2 rows. slice. what it is: a landing unit. claim. what it is: a statement you check.",
     );
   });
 
@@ -133,14 +133,14 @@ describe("what cannot be spoken is announced, not read", () => {
   it("announces a table too large to follow by ear and reads no cells", () => {
     const rows = Array.from({ length: 14 }, (_, k) => `| row${k} | ${k} |`).join("\n");
     const spoken = spokenForm(`| name | n |\n| --- | --- |\n${rows}`);
-    expect(spoken).toBe("A table, 2 columns and 14 rows.");
+    expect(spoken).toBe("Here's a table, 14 rows, too big to read aloud.");
     expect(spoken).not.toMatch(/row0/);
   });
 
   // Width counts too: five columns is unfollowable however few rows there are.
   it("announces a table that is too wide, however short it is", () => {
     expect(spokenForm("| a | b | c | d | e |\n| - | - | - | - | - |\n| 1 | 2 | 3 | 4 | 5 |")).toBe(
-      "A table, 5 columns and 1 row.",
+      "Here's a table, 1 row, too big to read aloud.",
     );
   });
 
@@ -467,5 +467,82 @@ describe("a block speaks whichever form it was written in", () => {
   it("says nothing for a commit carrying no message either way", () => {
     expect(spokenForm("::commit[]")).toBe("");
     expect(spokenForm("::commit{}")).toBe("");
+  });
+});
+
+// KARAOKE (RFC-074): every sentence knows the source lines it came from, and the engine's chunks
+// can be mapped back to them — so a surface can light the paragraph the voice is reading. The
+// failure these guard: a sentence index that points at the wrong paragraph, which is worse than no
+// highlight because it moves confidently.
+describe("the spoken map keeps the source lines", () => {
+  const { spokenMap, chunkMap, spokenPositions } = require("./spokenForm");
+  const md = ["First paragraph line one", "line two.", "", "## A heading", "", "- a point", "- another", "", '::ask[Go?]{why="it is time"}', "", "Last one."].join("\n");
+
+  it("reads exactly what spokenForm reads", () => {
+    expect(spokenMap(md).map((s) => s.text).join(" ")).toBe(spokenForm(md));
+  });
+
+  it("a paragraph spans its first line to its last; a list item and a leaf are one line each", () => {
+    const m = spokenMap(md);
+    expect(m[0]).toEqual({ text: "First paragraph line one line two.", lines: [1, 2] });
+    expect(m.find((s) => /^a point/i.test(s.text)).lines).toEqual([6, 6]);
+    expect(m.find((s) => s.text.startsWith("A question")).lines).toEqual([9, 9]);
+    expect(m[m.length - 1]).toEqual({ text: "Last one.", lines: [11, 11] });
+  });
+
+  it("a heading's pause and the heading share its line", () => {
+    const m = spokenMap(md);
+    const i = m.findIndex((s) => s.text === "A heading.");
+    expect(m[i].lines).toEqual([4, 4]);
+    expect(m[i - 1]).toEqual({ text: PAUSE, lines: [4, 4] });
+  });
+
+  it("a container spans its fences; an unselected container's body keeps its own lines", () => {
+    const src = ["intro.", ":::callout", "inside the box.", ":::", "after."].join("\n");
+    expect(spokenMap(src)[1].lines).toEqual([2, 4]);
+    const sieved = spokenMap(src, { only: [PROSE] });
+    expect(sieved.map((s) => s.lines)).toEqual([[1, 1], [3, 3], [5, 5]]);
+  });
+
+  it("a code fence spans the fence lines", () => {
+    const src = ["before.", "```js", "x", "y", "```", "after."].join("\n");
+    expect(spokenMap(src)[1]).toEqual({ text: "A JavaScript code block, 2 lines.", lines: [2, 5] });
+  });
+
+  it("the cut notice comes from nowhere on screen", () => {
+    const m = spokenMap("one. two. three.", { maxChars: 9 });
+    expect(m[m.length - 1]).toEqual({ text: CUT_NOTICE, lines: null });
+    expect(m[0].lines).toEqual([1, 1]);
+  });
+
+  it("chunks map back to the sentences they cover", () => {
+    const map = [
+      { text: "Alpha one.", lines: [1, 1] },
+      { text: "Beta two.", lines: [3, 4] },
+      { text: "Gamma three.", lines: [6, 6] },
+    ];
+    const text = map.map((s) => s.text).join(" ");
+    // force one chunk per sentence
+    const per = chunkMap(map, spokenChunks(text, { maxChars: 12 }));
+    expect(per.map((c) => c.lines)).toEqual([[1, 1], [3, 4], [6, 6]]);
+    // one chunk holding all three spans first to last
+    const one = chunkMap(map, spokenChunks(text, { maxChars: 400 }));
+    expect(one).toEqual([{ text, lines: [1, 6] }]);
+  });
+
+  it("a sentence split at a word keeps its paragraph on both halves", () => {
+    const long = `${"word ".repeat(80).trim()}.`;
+    const map = [{ text: long, lines: [2, 3] }];
+    const chunks = spokenChunks(long, { maxChars: 100 });
+    expect(chunks.length).toBeGreaterThan(1);
+    expect(chunkMap(map, chunks).every((c) => c.lines[0] === 2 && c.lines[1] === 3)).toBe(true);
+  });
+
+  it("spokenPositions hands a caller the engine's text and one position per chunk", () => {
+    const p = spokenPositions(md);
+    expect(p.text).toBe(spokenForm(md));
+    expect(p.chunks.length).toBe(spokenChunks(p.text).length);
+    // the sample fits one engine chunk, so the one position spans the whole reply
+    expect(p.chunks[0].lines).toEqual([1, 11]);
   });
 });

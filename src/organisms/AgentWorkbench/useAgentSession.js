@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { openAgent, hasAgentHost, listModels, setModel as hostSetModel } from "../../utils/hostAgent";
+import { openAgent, hasAgentHost, listModels, setModel as hostSetModel, setThinking as hostSetThinking, canSetThinking } from "../../utils/hostAgent";
 import { foldEvents, foldState, splitLaneEvents } from "./feedRows";
 
 // RFC-046 — ONE SESSION, SUBSCRIBED FROM WHEREVER IT IS BEING WATCHED. A hook rather than a
@@ -189,6 +189,19 @@ export default function useAgentSession({ projectCode, sessionId = "agent", gate
     return ok;
   }, []);
 
+  // THE THINKING KNOB — same shape as the model switch: a request, and the chip flips on the host's
+  // `session.thinking` event rather than on the send. Absent on a shell without the door.
+  const [thinkingPending, setThinkingPending] = useState(null);
+  const switchThinking = useCallback(async (t) => {
+    const tr = transportRef.current;
+    if (!tr) return false;
+    setThinkingPending(t);
+    const ok = await hostSetThinking(tr, t);
+    if (!ok) setThinkingPending(null);
+    return ok;
+  }, []);
+  const thinkingSwitchable = canSetThinking(transportRef.current);
+
   // THE PENDING FLAG DIES WHEN THE HOST CONFIRMS, and only then. The confirming `session.started`
   // carries the new model, so the moment the folded state names it, the switch really happened.
   // the split happens before the folds so a lane's activity can't puppet the owner's cooking
@@ -200,6 +213,11 @@ export default function useAgentSession({ projectCode, sessionId = "agent", gate
     const now = String(state.model || "");
     if (now && (now === switching || now.includes(switching) || switching.includes(now))) setSwitching(null);
   }, [state.model, switching]);
+  useEffect(() => {
+    if (!thinkingPending) return;
+    const now = state.thinking || {};
+    if ((now.display || null) === (thinkingPending.display || null)) setThinkingPending(null);
+  }, [state.thinking, thinkingPending]);
 
   // A MESSAGE TO THE ROOM IS NOT A SENTENCE IN THE SESSION. This pushed a bare settled "text" event,
   // so the panel drew this agent's own room message as ordinary speech — nothing marking it as
@@ -225,6 +243,9 @@ export default function useAgentSession({ projectCode, sessionId = "agent", gate
     models,
     switchModel,
     switching,
+    switchThinking,
+    thinkingPending,
+    thinkingSwitchable,
     send,
     answer,
     interrupt,

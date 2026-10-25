@@ -32,6 +32,21 @@ export default function Ask({ attrs = {}, label, children }) {
   // "which folder?" are the same kind of block — both are the one thing needed from the human —
   // but they do not read the same, and a question mark on an instruction reads as hedging.
   const asking = /\?\s*$/.test(question);
+  // AN EMPTY ASK IS THE SURFACE LYING, so it says what went wrong instead. `::ask{question="…"}`
+  // is the mistake that gets you here — the text goes in the LABEL and `why=` is the only
+  // attribute — and what that used to paint was a band with an arrow and nothing beside it, which
+  // reads as a broken UI rather than as a malformed block. An unknown block already names itself
+  // (RFC-025 §8); the one thing needed from the human is not allowed to be blank and silent.
+  if (!question && !children) {
+    return (
+      <span
+        className="md-chip md-chip--unknown"
+        title={'`::ask` takes its text in the label — `::ask[the one thing you need]`. `why=` is its only attribute.'}
+      >
+        <span className="md-chip__kind">empty ask</span>
+      </span>
+    );
+  }
   return (
     <div className={`md-ask${asking ? "" : " md-ask--do"}`} role="note">
       <span className="md-ask__mark" aria-hidden="true">

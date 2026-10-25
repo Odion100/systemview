@@ -337,22 +337,23 @@
   // in the same voice as the section labels. Root indentation, no color.
   // SECTION HEADERS STAY PUT. Services, code, reports and the terminal all share ONE scroll, so
   // scrolling deep into a file list used to carry its own heading off the top and leave you with
-  // rows belonging to a section you could no longer name. Sticky under the filter row (which owns
-  // top: 0), so at any scroll position the thing you are looking at still says what it is.
+  // rows belonging to a section you could no longer name. THE HEADER PINS FIRST — top: 0 — and the
+  // filter row pins under it; the first cut had them the other way round (filter at 0, header at
+  // 28) so the filter stuck and the header slid in beneath it (his: *"the thing under it becomes
+  // sticky first — that's dumb"*).
   &__code-fold {
     position: sticky;
-    top: 28px;
-    z-index: 1;
-    // OPAQUE, or it is not a header — it is a line with the list sliding under it. `--sv-surface`
-    // is not defined in this stylesheet's scope, so it resolved to nothing and the rows showed
-    // straight through. Same literal the card's own header uses.
+    top: 0;
+    z-index: 3;
+    // OPAQUE, or it is not a header — it is a line with the list sliding under it. Same literal the
+    // card's own header uses. (A `background: none` lower in this very rule used to cancel this and
+    // left words hovering over words — measured rgba(0,0,0,0) on every section header.)
     background: #f8f9fc;
     display: flex;
     align-items: center;
     gap: 4px;
     width: 100%;
     border: none;
-    background: none;
     cursor: pointer;
     text-align: left;
     padding: 4px 10px 2px 8px;
@@ -411,9 +412,9 @@
     gap: 4px;
     padding: 2px 10px 4px;
     position: sticky;
-    top: 0;
+    top: 18px; // under the pinned `code` header (its measured height), never above it
     z-index: 2;
-    background: var(--sv-surface);
+    background: #f8f9fc; // the card's surface, so the pair reads as one pinned strip
   }
   &__filter-wrap {
     position: relative;
@@ -1995,3 +1996,43 @@
     min-height: 0;
   }
 }
+
+// PINNED (tabs view): the card's top edge lives above the scroller now, so the card itself has none
+// — no top border, square top corners, no top padding — and the column scrolls straight out from
+// under the pinned part. See `.system-nav__pinned`.
+.system-nav__tabbody--pinned .codebase-nav__codebase--current {
+  border-top: none;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  > .codebase-nav__cb-body { padding-top: 0; }
+}
+
+// DARK — the pieces the light literals above broke the first time they met it (his shot, 2026-10-25:
+// the section headers and the pinned card top drew as white bars). Two reasons, two fixes:
+// 1. the section header had no dark background of its own (only its hover did), so the opaque light
+//    surface it now carries showed through dark mode untouched;
+// 2. the card's head is PORTALED above the scroller in tabs view, out from under `.codebase-nav--dark`,
+//    so every dark rule keyed on that ancestor stopped reaching it. These are keyed on the root's
+//    theme class instead, which is the only ancestor a portaled element is guaranteed to keep.
+.codebase-nav--dark .codebase-nav__code-fold { background: #21252b; }
+:root.sv-dark .system-nav__pinned {
+  background: #21252b;
+  border-color: #181a1f;
+  .codebase-nav__cb-head { background: #282c34; &:hover { background: #2c313a; } }
+  .codebase-nav__cb-name { color: #d7dae0; }
+  .codebase-nav__cb-badge { background: #61afef; color: #1b1f27; }
+  .codebase-nav__cb-count { color: #5c6370; }
+}
+
+// CLOSED SECTIONS READ ALIKE. The services section kept its open-state rule (a bottom line and
+// padding) while folded, so a closed services row had a dark line and a gap under it that the
+// closed code and terminal rows do not. Folded, it is one row like the others.
+.codebase-nav__services--closed {
+  border-bottom: none;
+  padding-bottom: 0;
+  margin-bottom: 0;
+}
+// …and the agent section's grip exists only while the chat is open — a collapsed agent row is a
+// row, not a thing you can drag taller. The card does not know the chat's open state (the chat
+// portals in), so the pane reads it off the panel's presence, as the sized height already does.
+.cbnav-pane--agent:not(:has(.agent-chat__panel)) > .cbnav-pane__grip { display: none; }

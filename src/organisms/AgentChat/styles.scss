@@ -1915,6 +1915,13 @@ $sv-board-states: (
     z-index: 30;
     margin-top: 4px;
     min-width: 210px;
+    // NEVER WIDER THAN THE CHAT. The thinking menu's descriptions ("one line for what is being
+    // turned over") were set to never wrap, so the menu grew to fit them and ran past the chat's
+    // right edge, half of it unreadable. His: *"the text push out of it and they push out the
+    // boundaries of the chat… this needs to be able to be shown properly even if it's larger."*
+    // The menu is anchored to the header's right, so the room it has is the header's width —
+    // `calc(100vw - 24px)` is the floor for a narrow window; the header itself is the ceiling.
+    max-width: min(420px, calc(100vw - 24px));
     padding: 4px;
     border: 1px solid var(--sv-border);
     border-radius: 8px;
@@ -1948,10 +1955,15 @@ $sv-board-states: (
     white-space: nowrap;
   }
   &__model-item-id {
-    flex: none;
+    // the model id is short and monospace; the thinking menu's `why` is a sentence. Both wrap
+    // rather than widen the menu — the id never needs to, the sentence sometimes does.
+    flex: 0 1 auto;
+    min-width: 0;
     font-family: "SF Mono", Menlo, monospace;
     font-size: 10px;
     color: var(--sv-text-muted);
+    white-space: normal;
+    text-align: right;
   }
   &__meter {
     position: relative;
@@ -3259,14 +3271,20 @@ $sv-board-states: (
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 2px 4px;
-  border: none;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto; // a long cooking line must not squeeze the ring into an oval
+  padding: 0;
+  // A LIGHT GREY RING, his ask — the square alone read as a mark on the row, not a thing to press.
+  // The ring says "button" without colouring the row; the square inside stays the stop colour.
+  border: 1px solid color-mix(in srgb, var(--sv-text-muted) 45%, transparent);
+  border-radius: 50%;
   background: none;
   cursor: pointer;
   color: #d9736a;
   opacity: .8;
 
-  &:hover { opacity: 1; }
+  &:hover { opacity: 1; border-color: var(--sv-text-muted); }
   &-sq {
     width: 9px;
     height: 9px;
@@ -3280,6 +3298,9 @@ $sv-board-states: (
   // as a flex child, and without it a flex child shrinks. Everything else is exactly as it was.
   flex: none;
   display: flex;
+  // The stop square rides the far right of this row — the one place that is on screen whenever
+  // there is something to stop. Everything before it keeps its place.
+  .agent-chat__stop { margin-left: auto; }
   align-items: center;
   gap: 6px;
   padding: 4px 8px;
@@ -4856,4 +4877,120 @@ $sv-board-states: (
 
 .speech-line__row--reading.is-warming .speech-line__mark {
   animation: sv-speech-warm 0.9s ease-in-out infinite;
+}
+
+// PINNED TOP (tabs view) — the avatar row and the panel's head/meter/roster portaled above the
+// column's scroller. The wrapper carries the docked classes so every docked rule still matches;
+// `column` undoes the docked column-reverse, because up here each wrapper holds one thing.
+.agent-chat--pintop {
+  flex-direction: column;
+  height: auto;
+}
+// The pinned shell is the panel's TOP: side and top borders, top corners, no bottom edge — and no
+// clip, so the model and visitor menus that drop out of the head are not cut off by a short box.
+.agent-chat--innav .agent-chat__panel--pintop {
+  margin: 0 6px 0;
+  height: auto !important;
+  max-height: none;
+  border-bottom: none;
+  border-radius: 10px 10px 0 0;
+  overflow: visible;
+}
+// …and the panel that stays in the card is the panel's BOTTOM: it starts where the pinned shell
+// ends — no top edge, square top corners, flush against it.
+.system-nav__tabbody--pinned .agent-chat--innav .agent-chat__panel:not(.agent-chat__panel--pintop) {
+  margin-top: 0;
+  border-top: none;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+// THE NOW-LINE — the closed chat's controls. What is being read (with its transport) and what is
+// cooking (with its stop), as one short stack at the foot of the peek, or in the peek's place when
+// there is no peek. Same components the open panel draws; nothing here is a second version.
+.agent-chat__now {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  cursor: default;
+  .agent-chat__cooking { padding: 2px 4px; }
+}
+// Floating: a box directly UNDER the bubble (his call), the peek's surface and width cap. It is
+// absolute off the bot's own box, so it follows the bubble wherever it is parked.
+.agent-chat__nowbox {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 12;
+  width: max-content;
+  max-width: 300px;
+  padding: 4px 6px;
+  border: 1px solid var(--sv-border);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--sv-surface) 88%, transparent);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.18);
+}
+// Docked: a row in the column under the agent's row, like the peek and the status line there.
+.agent-chat--innav .agent-chat__nowbox {
+  position: static;
+  width: auto;
+  max-width: none;
+  margin: 4px 6px 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: var(--sv-surface);
+}
+// at the peek's foot the line is separated from the preview by a hairline, edge to edge — the way
+// it first landed, which he liked; an inset version read as wrong and he said so
+.agent-chat__peek .agent-chat__now {
+  border-top: 1px solid color-mix(in srgb, var(--sv-border) 60%, transparent);
+  margin: 4px 0 0;
+  padding-top: 3px;
+}
+
+// THE STOP ON THE COOKING LINE ITSELF (closed chat). The status line and the brief's command row
+// stretch to the peek's width so the square sits at the far right, where the open panel keeps it.
+.agent-chat__peek .agent-chat__status,
+.agent-chat__peek .agent-chat__brief-cmd {
+  display: flex;
+  width: 100%;
+  align-self: stretch;
+  .agent-chat__stop { margin-left: auto; }
+}
+
+// THE HAIRLINE SEPARATES THE PREVIEW FROM THE COOKING LINE — the cooking line is the one with the
+// stop now, so the cut goes above IT (his: "from the preview text to the existing cooking line"),
+// not between it and the voice row. `:not(:first-child)` so a peek that is only a cooking line
+// does not open with a stray rule.
+.agent-chat__peek .agent-chat__status:not(:first-child),
+.agent-chat__peek .agent-chat__brief-cmd:not(:first-child) {
+  border-top: 1px solid color-mix(in srgb, var(--sv-border) 60%, transparent);
+  margin-top: 4px;
+  padding-top: 5px;
+}
+.agent-chat__peek .agent-chat__now {
+  border-top: none;
+  margin-top: 2px;
+  padding-top: 0;
+}
+
+// SPEAKING WEARS A RING (hovering only — docked, the row in the peek says it). The bubble and the
+// voice box under it both take the reading colour, present the moment he glances; a slow breath on
+// the bubble's ring so it reads as live rather than as a stuck outline.
+.agent-chat--speaking:not(.agent-chat--innav) {
+  .agent-chat__fab {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--sv-blue, #5b8def) 70%, transparent), 0 6px 18px rgba(0, 0, 0, 0.2);
+    animation: agent-chat-speaking 1.6s ease-in-out infinite;
+  }
+  .agent-chat__nowbox {
+    border-color: var(--sv-blue, #5b8def);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--sv-blue, #5b8def) 45%, transparent), 0 8px 22px rgba(0, 0, 0, 0.18);
+  }
+}
+@keyframes agent-chat-speaking {
+  0%, 100% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--sv-blue, #5b8def) 70%, transparent), 0 6px 18px rgba(0, 0, 0, 0.2); }
+  50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--sv-blue, #5b8def) 35%, transparent), 0 6px 18px rgba(0, 0, 0, 0.2); }
 }

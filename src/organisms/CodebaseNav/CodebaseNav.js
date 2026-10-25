@@ -1,4 +1,5 @@
 import React, { useContext, useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useHistory, useLocation } from "react-router-dom";
 import { canPickThenName, canRenameHostProject, isHostProject } from "../../utils/hostProject";
 import DocIcon from "../../atoms/DocsIcon/DocsIcon";
@@ -27,7 +28,10 @@ import "./styles.scss";
 // inside; double-click hands the height back to the content. Per section, per project, remembered.
 // `mode="height"` (the chat) sizes the box itself so the panel can be stretched LARGER than its
 // natural height — a max-height there could only ever shrink it.
-function SectionPane({ pc, name, mode = "max", className = "", children }) {
+// A CLOSED SECTION IS NOT RESIZABLE (his catch: a collapsed services row could be dragged, and read
+// different from the other closed rows — an extra line and a gap under it). `open=false` renders the
+// children plain: no grip, no stored height applied. The height is kept for when it opens again.
+function SectionPane({ pc, name, mode = "max", className = "", open = true, children }) {
   const KEY = `sv.cbNav.size.${pc}.${name}`;
   const [h, setH] = useState(() => {
     const v = Number(localStorage.getItem(KEY));
@@ -56,16 +60,18 @@ function SectionPane({ pc, name, mode = "max", className = "", children }) {
   return (
     <div
       ref={boxRef}
-      className={`cbnav-pane${h ? " cbnav-pane--sized" : ""} ${className}`}
-      style={h ? (mode === "height" ? { "--pane-h": `${h}px` } : { maxHeight: h }) : undefined}
+      className={`cbnav-pane${open && h ? " cbnav-pane--sized" : ""} ${className}`}
+      style={open && h ? (mode === "height" ? { "--pane-h": `${h}px` } : { maxHeight: h }) : undefined}
     >
       <div className="cbnav-pane__body">{children}</div>
-      <div
-        className="cbnav-pane__grip"
-        title="Drag to size this section · double-click to let it size itself"
-        onMouseDown={startDrag}
-        onDoubleClick={() => setH(null)}
-      />
+      {open && (
+        <div
+          className="cbnav-pane__grip"
+          title="Drag to size this section · double-click to let it size itself"
+          onMouseDown={startDrag}
+          onDoubleClick={() => setH(null)}
+        />
+      )}
     </div>
   );
 }
@@ -685,7 +691,7 @@ function ServiceNode({ service, projectCode, history, selection, onNavigate, rev
 // One connected codebase: header, ALL the project's services (real + project-defined), and the file
 
 // tree behind its own fold.
-function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigate, revealFile = null, revealNs = null, serviceStatus = {}, onHostedOp = null, onDeleteService = null, onDeleteProject = null, onRenameProject = null, renaming = null, onStartRename = () => {}, onAttachFolder = null, openRowMenu = null , allowDock = true, reorder = null }) {
+function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigate, revealFile = null, revealNs = null, serviceStatus = {}, onHostedOp = null, onDeleteService = null, onDeleteProject = null, onRenameProject = null, renaming = null, onStartRename = () => {}, onAttachFolder = null, openRowMenu = null , allowDock = true, reorder = null, pinEl = null }) {
   const { projectCode, fileHost, services, dynamicServices } = entry;
   const history = useHistory();
   // Reveals scoped to THIS card. A file reveal always names its host project; a namespace reveal
@@ -2145,6 +2151,10 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
     >
       {/* The header NAVIGATES — project-level docs/tests — it does not toggle (RFC-026: the card
           is the project's whole nav and stays open; the `code` fold below owns collapsing). */}
+      {/* PINNED (tabs view): the same head, portaled above the column's scroller so it holds still
+          while the card scrolls under it. `pinEl` is the target; without one it renders here. */}
+      {(() => {
+      const cbHead = (
       <button
         type="button"
         className={`${CLASSNAME}__cb-head`}
@@ -2282,6 +2292,9 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
           {bulk && bulk.mode === "collapse" ? "▸" : "▾"}
         </span>
       </button>
+      );
+      return pinEl ? createPortal(cbHead, pinEl) : cbHead;
+      })()}
       <div
         className={`${CLASSNAME}__cb-body`}
         style={treeMax ? { "--sv-tree-max": `${treeMax}px` } : undefined}
@@ -2333,8 +2346,8 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
               to hang off; it is not a service and must not be drawn as one. The plugin adds real
               services on top, and the section appears when there are some. */}
           {realServices.length > 0 && (
-          <SectionPane pc={projectCode} name="services">
-          <div className={`${CLASSNAME}__services`}>
+          <SectionPane pc={projectCode} name="services" open={servicesOpen}>
+          <div className={`${CLASSNAME}__services${servicesOpen ? "" : ` ${CLASSNAME}__services--closed`}`}>
             {/* LOGS AND STATS RIDE ON THE SERVICES ROW ITSELF (his layout call). Both are
                 SystemLynx's — what the services did, and how much — so they sit on the line with
                 their subject rather than floating at the top of the window away from it. They are
@@ -3047,6 +3060,8 @@ const CodebaseNav = ({
   renaming = null,
   onRenamingChange = () => {},
   onAttachFolder = null,
+  // tabs view — the element the card's head portals into, above the column's scroller
+  pinEl = null,
 }) => {
   // ONE context menu for the whole nav: { x, y, title, items } or null.
   const [menu, setMenu] = useState(null);
@@ -3110,6 +3125,7 @@ const CodebaseNav = ({
         orderedCodebases.map((cb) => (
           <Codebase
             allowDock={allowDock}
+            pinEl={pinEl}
             key={cb.projectCode}
             entry={cb}
             reorder={{

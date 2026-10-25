@@ -155,6 +155,29 @@ export const setModel = async (transport, value) => {
   }
 };
 
+// HOW MUCH OF ITS THINKING THE SESSION SHOWS — his knob. `{ display, budget }`: display is the host's
+// thinkingDisplay ("summarized" | "highlights" | "omitted" | null for the raw stream). Unlike a model
+// switch this takes effect at once and the host says so with a `session.thinking` event, so there is
+// no next-turn truth to wait for — but the chip still flips on the EVENT, not on the send.
+export const getThinking = async (transport) => {
+  if (!transport || typeof transport.thinking !== "function") return null;
+  try {
+    return (await transport.thinking()) || null;
+  } catch {
+    return null;
+  }
+};
+export const setThinking = async (transport, t) => {
+  if (!transport || typeof transport.setThinking !== "function") return false;
+  try {
+    await transport.setThinking(t || {});
+    return true;
+  } catch {
+    return false;
+  }
+};
+export const canSetThinking = (transport) => !!(transport && typeof transport.setThinking === "function");
+
 export const GATED = "default";
 export const OPEN = "bypassPermissions";
 

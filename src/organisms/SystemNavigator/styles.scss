@@ -372,3 +372,120 @@
   min-height: 16px;
   .system-nav__newproject { flex: 1 1 auto; margin: 0; }
 }
+
+// THE PINNED TOP (tabs view) — the card's top edge, lifted above the scroller. It wears the card's
+// own chrome (border, corners, surface — the same literals the card uses) with no bottom edge, and
+// the card in the scroller below gives up its top edge, so the two read as one card with the
+// column scrolling THROUGH it. At scroll 0 the join is invisible by construction: same border, same
+// background, zero gap.
+.system-nav__pinwrap {
+  flex: none;
+}
+.system-nav__pinned {
+  border: 1px solid #c9cfe8;
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  background: #f8f9fc;
+  overflow: clip;
+  display: flex;
+  flex-direction: column;
+}
+.system-nav__pinned-cbhead,
+.system-nav__pinned-bot,
+.system-nav__pinned-top {
+  display: contents; // targets only — the portaled rows are the children that lay out
+}
+// No gap at the join: the section rows carry 10px of vertical margin each side, which put a strip
+// of panel background between the pinned part and the card under it. Zero on both sides of the seam.
+// …and none above it either: the pinned card top sits straight under the + row. The 10px top
+// margin the section row carries was the whole gap he measured — it is the only vertical space in
+// that chain (the container pads sideways only; the column has none).
+.system-nav__pinwrap .system-nav__section { margin-top: 0; margin-bottom: 0; }
+.system-nav__tabbody--pinned .system-nav__body > .system-nav__section:first-child { margin-top: 0; }
+// Same right edge as the scroller: `.system-nav__body` drops the container's right padding, so the
+// pinned wrapper must too — measured 15px short on the right the first time, a visibly narrower top.
+.system-nav__pinwrap { padding-right: 0 !important; }
+// The + in the tab strip (tabs view): same costume as the list view's +, placed at the strip's tail
+// before the collapse chevron. No bottom nudge — the strip is a row, not a tab edge.
+// TWO GLYPHS, ONE BOX. The + and the ‹ beside it were different sizes in different boxes with
+// different padding, so the chevron's point sat ~2px below the +'s crossing and the two read as
+// strangers (his: *"the point does not line up with the cross… the distance between them is a bit
+// weird"*). Same 22px box, same 19px glyph, no padding, flush — and the chevron lifted by the 2px
+// its ink sits low in Arial (measured: + ink mid 0.2px high of centre, ‹ ink mid 2.3px low).
+.system-nav__tab-add--strip,
+.system-nav__bar .wall-collapse {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  margin: 0;
+  flex-shrink: 0;
+  font-size: 19px;
+  line-height: 1;
+}
+.system-nav__tab-add--strip { margin-left: auto; }
+.system-nav__bar .wall-collapse {
+  // flush against the +: the bar's 6px gap is cancelled, so the two boxes touch and the two marks
+  // read as a pair (ink to ink ~15px) while each keeps its full 22px target
+  margin-left: -6px;
+  > * { display: contents; }
+  transform: translateY(-2px);
+}
+// The name input IN THE STRIP — the + turns into this where it stood. Compact: no bottom margin,
+// a fixed width so the tabs beside it do not jump, and the ✕ at its tail puts the + back.
+.system-nav__newproject--strip {
+  flex: none;
+  width: 220px;
+  margin: 0 0 0 auto;
+  padding: 1px 2px 1px 6px;
+  gap: 3px;
+  .system-nav__newproject-input { font-size: 12px; }
+  .system-nav__newproject-go { width: 20px; height: 20px; border-radius: 5px; }
+  // the create + — same glyph, same face as the strip's + (19px Arial), on the go button's fill
+  // NOT IN A BOX (his call — the filled square read as a primitive). The same bare blue + as the
+  // strip's: no fill, no border; grey until there is a name to create.
+  .system-nav__newproject-go--plus {
+    font-family: Arial, sans-serif;
+    font-size: 19px;
+    line-height: 1;
+    padding: 0 0 1px; // the + ink sits a hair high in a 20px box; one pixel brings its crossing to centre
+    background: transparent;
+    border: none;
+    color: var(--sv-blue);
+    &:hover:not(:disabled) { color: var(--sv-blue-deep); background: transparent; }
+    &:disabled { color: var(--sv-text-faint); background: transparent; cursor: default; }
+  }
+}
+// The ✕ that puts the + back — the go arrow's twin: same 20px box, same corner, a quiet glyph. The
+// first cut reused the strip's 19px + costume and it sat there huge and grey beside a small arrow.
+.system-nav__newproject-x {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--sv-text-muted);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  &:hover { background: var(--sv-hover, rgba(0, 0, 0, 0.06)); color: var(--sv-text); }
+}
+.system-nav__newproject-input--err::placeholder { color: #c0504d; }
+
+// THE TAB WEARS THE COOKING — the live dot breathes while that agent is working, so you can tell
+// from any tab who is busy. Idle, it is the still green dot it always was.
+.system-nav__agenttab-dot--cooking {
+  background: #e2ad42;
+  animation: system-nav-cooking 1.2s ease-in-out infinite;
+}
+@keyframes system-nav-cooking {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.7); }
+}

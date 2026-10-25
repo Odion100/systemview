@@ -26,114 +26,74 @@ import { buildRoute } from "../../pages/SystemView/tabRoutes";
 // `:help[…]` chip opens that topic in this same panel.
 const SYSTEMVIEW_HELP = `# SystemView
 
-A documentation + testing surface for your **SystemLynx** services — and, increasingly, any codebase.
-This page is the **hub**: what each panel does, and what the app can currently do. Pick a topic chip
-to go deeper, or select something on the left to start working.
+**This is development as plan → execute.** You say what you want; the plan is a document; agents
+build it; you review and press. Nothing here is a chat log you scroll — the work is conducted in
+documents that *do things* when you press them, and this page is one of those documents.
 
-:help[navigator] :help[scratchpad] :help[actions] :help[chat] :help[markdown] :help[events]
+Nothing is open yet. That is why you are reading this. Pick anything on the left and it takes over;
+click it again to come back here.
 
-## The three panels
+## How we work here
 
-| Panel | What it's for |
-|---|---|
-| **Navigator** (left) | Two lenses: **SystemLynx** (projects → services → modules → methods) and **Codebases** (your files). |
-| **Center** | **Documentation** · **Logs** · **Stage** (reports) for whatever is selected — or a file, in the Codebases lens. |
-| **Scratch Pad** (right) | Build, run and save tests; the **Actions** tab holds reusable shared setups. |
+Not rules — the shape the work tends to take. Plenty happens outside it: a fix you ask for lands
+straight in your tree, a question gets answered in the chat, a document gets edited where it sits.
 
-## What's here — by area
+1. **A goal becomes an arc.** You state the goal in your words to an agent (:ui[chat]). The agent
+   researches how the project actually works, writes a planning document, and the two of you — or
+   several projects' agents — converge in it. What is agreed becomes **objectives**, each with an
+   owner and requirements, and the arc that contains them.
+2. **An arc becomes RFCs.** An arc says *who builds what*. An RFC says *how* — the implementation
+   detail, the slices in landing order, the claims you can check later. Approving one is a press
+   inside it.
+3. **Agents build; you commit.** Most work lands directly in your tree, **unstaged**, where you
+   review everything else. Work an agent *delegates* — or runs unattended — goes in a **lane** instead:
+   its own branch and worktree, a row you can watch and a record you can discard, brought into your
+   tree the same way when it is done. Either way **the commit is yours.** An agent never commits for you.
+4. **Everything is a document, and documents act.** A \`::commit\` is a button. A \`:::cmd\` runs. An
+   \`:::approval\` records your verdict where the proposal is. The same markdown renders in a doc, a
+   report, an RFC and the chat — one grammar, every surface.
 
-::::tabs
+## What you can do here
 
-:::tab{label="Documents"}
-Docs are markdown files that live in your repo (\`specs/docs/\`, and \`<projectCode>.md\` at the root for
-a project-level doc). Since RFC-025 they are **interactive** — same renderer everywhere, so a block
-works in a doc, a story pane, an agent note, a help topic and the codebase preview alike.
+**Bring in a project.** The :ui[navigator] lists what SystemView knows. A repo with no services yet is
+one command away from a hosted testing service:
 
-- [x] \`:ns[Math.add]\` — namespace chips that navigate, resolved against the live connection tree
-- [x] \`:file[path#L40-70]\` — open a file in the codebase surface at a line range
-- [x] \`:help[markdown]\` — open a help topic (the chips at the top of this page)
-- [x] \`:::callout{type=info|warn|danger|success}\` and \`:::details{summary=…}\`
-- [x] \`::::tabs\` / \`:::tab{label=…}\` and \`::::columns\` / \`:::col\`
-- [x] \`::chart{report=throughput|errors|latency}\` — live Stats inside prose
-- [x] \`::test[Math.chainUse]\` — a saved test, runnable in place
-- [x] \`::topology\` / \`::load\` — the rest of the Stats page, inline
-- [x] \`::logs[Math.chainUse]{limit=50}\` — the Logs viewer, scoped by the block
-- [x] \`::file[path#L20-46]\` / \`::diff[path]\` — a story's file and diff panes, in prose
-- [x] task lists that **write back to the document** when the surface can save
-- [x] \`:::run\` — steps written on the fly; \`::run[name]\` replays a saved action
-- [x] \`::question\` — inputs whose answers persist into the document
-- [x] \`::::carousel\` / \`:::slide\`
-- [x] \`:::thread{id=…}\` — a reply thread on whatever it wraps
-- [x] \`:::approval{ask=…}\` — approve/reject, written into the document
-- [ ] \`::cmd\`, \`::mermaid\`, media and external embeds
+\`\`\`
+systemview init
+\`\`\`
 
-**Live, right here** — these are the real blocks, not a list of them:
+run in the repo's folder — see :help[navigator] for the tree it produces.
 
-:ns[Math.chainUse] :file[src/atoms/Markdown/registry.js] :help[markdown]
+**Talk to an agent.** The :ui[chat] is an agent's live session, not a mailbox: it is working in this
+window with you, and its replies are interactive. Say the goal; it does the rest, and asks you one
+thing at a time when it has to. :help[chat]
 
-:::callout{type=success}
-A callout, inside a tab, inside the hub. Every surface, same vocabulary.
+**Plan an arc.** Tell the agent *"here's the goal — plan it out."* It opens the arc meeting as a
+document, researches the landscape, and writes its opening proposal for you to push back on.
+
+**Build, run, watch.** Tests are built in the :ui[scratchpad] and saved beside the code; the Stage
+holds reports; Statistics shows what the services are doing. :help[scratchpad] · :help[actions] ·
+:help[events]
+
+**Run a command from a document** — the body is the command, verbatim, and the output lands in the
+block with its exit code. Press this one:
+
+:::cmd{title="What the CLI can do" dir=~}
+systemview --help
 :::
 
-:::thread{id=hub-threads}
-And this block has a **thread** — the 💬 in its corner is the same one a story pane carries. Leave a
-reply and it saves beside the connected project, so it's here when you come back.
+## The grammar, in one place
 
-::chart{report=throughput range=1h height=70}
+Every block that can appear in a document — references like \`:ns[Math.add]\` and \`:file[path#L40-70]\`,
+containers like \`:::callout\` and \`:::thread\`, the acting ones like \`::commit\`, \`:::approval\`, \`::ask\`
+and \`:::cmd\` — is in :help[markdown]. An agent writes them; you press them.
+
+:::callout{type=info}
+This page is a built-in, so its checklists and blocks are read-only. In a real document, ticking a
+box edits the file.
 :::
 
-Full vocabulary, all of it runnable: :help[markdown]
-:::
-
-:::tab{label="Tests"}
-A test is an **ordered list of named sections** — Before / Main / Events / After, plus any shared
-**actions** you drop in.
-
-- Build them in the Scratch Pad; **Run** any step, section, or the whole thing; **Save** writes
-  \`specs/tests/<Module>.<method>.json\` next to your code.
-- **Shared actions** (Actions tab) insert as sections and store as \`{use}\` references — edit the
-  action once and every test that uses it follows.
-- **Reference earlier output** anywhere in an argument or an expected value:
-  \`tv(test.before[0].results.sum)\`. \`random(6)\` makes a value unique per run.
-- Run everything from the terminal too: \`systemview test <project>\`.
-
-:help[scratchpad] · :help[actions] · :help[events]
-:::
-
-:::tab{label="Stage"}
-The **Stage** tab holds **reports** — full markdown documents in \`.systemview/\`, scoped to a
-namespace: write-ups, plans, reviews, findings. Every interactive block works in them (embedded
-files, diffs, runnable tests), so a report answers "what changed, and how do I know it works?"
-live. :help[markdown]
-:::
-
-:::tab{label="Stats"}
-Services running the plugin report bounded rollups of every call. The **Stats** page turns them into
-reports: state of the system, load & scaling, reliability, surface coverage, change, **topology**
-(who calls whom, from real cross-service traces) and **module coupling** (the in-process map).
-
-A time-range control windows the numbers, and charts have a hover crosshair. The same charts embed
-into any document with \`::chart\`.
-:::
-
-:::tab{label="Codebase"}
-The **Codebases** lens opens your files directly — edit-first, with a rendered Preview for markdown,
-a git **Diff** toggle for anything that differs from HEAD, and ⌘S to save.
-
-Opening a file is now a real **history entry**, so the browser back button returns you to where you
-were, and a file view can be linked to directly.
-:::
-
-::::
-
-## Tips
-
-- Click a **selected** nav item again to **deselect** and come back to this page.
-- Small **?** icons around the UI open the matching topic right here.
-- The checklists above are read-only — this page is a built-in, not a file on disk. In a real
-  document, ticking a box **edits the document**.
-
-_Select something on the left to dive in._`;
+_This is the development half of one suite. The rest of it ties in here._`;
 
 export default function Documentation({
   projectCode,
@@ -519,9 +479,14 @@ export default function Documentation({
               // off scope — his catch: a lingering scope slipped a namespace body under a
               // "SystemView" label, which is worse than either alone. Strip empty = the manual,
               // whole; anything else = the tab's own document.
+              // AND ONLY THE STRIP BEING EMPTY. `|| !sService` used to be in all three of these, and it
+              // put the manual under a tab that names a different document: after a restart the tab
+              // is restored before its scope resolves, so for that window sService is "" and the page
+              // read "SystemView" with a tab above it saying otherwise (his report, 2026-10-25). A tab
+              // whose scope has not landed is loading, not the manual.
               readOnly={pane.tabs.length === 0 || !sService}
-              label={pane.tabs.length === 0 || !sService ? "SystemView" : sMethod ? `${sService}.${sModule}.${sMethod}` : sModule ? `${sService}.${sModule}` : sService}
-              helpText={pane.tabs.length === 0 || !sService ? SYSTEMVIEW_HELP : null}
+              label={pane.tabs.length === 0 ? "SystemView" : !sService ? "…" : sMethod ? `${sService}.${sModule}.${sMethod}` : sModule ? `${sService}.${sModule}` : sService}
+              helpText={pane.tabs.length === 0 ? SYSTEMVIEW_HELP : null}
             />
           </div>
         )}

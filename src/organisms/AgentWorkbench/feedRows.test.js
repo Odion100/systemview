@@ -1341,3 +1341,68 @@ describe("a document landing carries what landed, not a sentence about it", () =
     expect(foldEvents([landing()])[0].merged).toBe(false);
   });
 });
+
+// HOW MUCH OF ITS THINKING THE SESSION SHOWS — folded like the model: from session.started (the
+// agent's default) and from session.thinking (his knob), and the chip reads the state, never the send.
+describe("thinking display rides the session state", () => {
+  it("starts from the agent's default on session.started and changes on session.thinking", () => {
+    const s = foldState([
+      ev("session.started", { model: "m", thinking: { display: "summarized", budget: null } }),
+      ev("session.thinking", { display: "highlights", budget: 4000 }),
+    ]);
+    expect(s.thinking).toEqual({ display: "highlights", budget: 4000 });
+  });
+  it("an older host that says nothing leaves it null — absence is not a mode", () => {
+    expect(foldState([ev("session.started", { model: "m" })]).thinking).toBeNull();
+  });
+  it("null display is a real setting (the raw stream), not a missing one", () => {
+    const s = foldState([ev("session.thinking", { display: null, budget: null })]);
+    expect(s.thinking).toEqual({ display: null, budget: null });
+  });
+});
+
+// His question the first time he turned the knob: *"Do I see a log that it switched in a chat? Like
+// I do when I switch a model."* Same receipt, same reason: the chip says what is true now, the row
+// says where it changed — and it lands when the HOST confirms, never at the press.
+describe("a thinking-display change is a moment in the conversation", () => {
+  it("draws a receipt when the host confirms a switch", () => {
+    const rows = foldEvents([
+      ev("session.started", { model: "claude-fable-5", thinking: null }),
+      ev("assistant.text", { text: "hi", done: true }),
+      ev("session.thinking", { display: "summarized", budget: null }),
+    ]);
+    expect(rows.find((r) => r.thinking)).toMatchObject({ kind: "note", text: "thinking — full → summary" });
+  });
+
+  it("names every position the way the chip does", () => {
+    const rows = foldEvents([
+      ev("session.started", { thinking: { display: "omitted" } }),
+      ev("session.thinking", { display: "highlights" }),
+      ev("session.thinking", { display: null }),
+    ]);
+    expect(rows.filter((r) => r.thinking).map((r) => r.text)).toEqual([
+      "thinking — off → highlights",
+      "thinking — highlights → full",
+    ]);
+  });
+
+  it("does not announce the display the conversation opened on", () => {
+    const rows = foldEvents([ev("session.started", { thinking: { display: "summarized" } })]);
+    expect(rows.some((r) => r.thinking)).toBe(false);
+  });
+
+  it("says nothing when the host confirms the display it was already on", () => {
+    const rows = foldEvents([
+      ev("session.started", { thinking: null }),
+      ev("session.thinking", { display: null }),
+    ]);
+    expect(rows.some((r) => r.thinking)).toBe(false);
+  });
+
+  it("a host that never stated a baseline gets no receipt — there is nothing to say it changed FROM", () => {
+    // a session.started with no `thinking` field is a shell from before the knob; it cannot emit
+    // session.thinking either, so a receipt here would be naming a transition nobody observed.
+    const rows = foldEvents([ev("session.started", { model: "x" }), ev("session.thinking", { display: "omitted" })]);
+    expect(rows.find((r) => r.thinking)).toBeUndefined();
+  });
+});

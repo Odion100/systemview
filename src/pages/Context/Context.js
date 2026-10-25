@@ -10,6 +10,7 @@ import DocPanel from "../../organisms/DocPanel/DocPanel";
 import CodePane from "../../organisms/CodePane/CodePane";
 import { getTabs, subscribeTabs, openTab, focusTab, closeTab, fileKey } from "../SystemView/tabsStore";
 import { buildRoute } from "../SystemView/tabRoutes";
+import { fileForDoc } from "./openAs";
 import { langOfPath } from "../SystemView/SystemView";
 import AgentChat from "../../organisms/AgentChat/AgentChat";
 import { saveDoc, saveSkill, saveDef, saveHelp } from "../../utils/hostAgents";
@@ -108,6 +109,17 @@ const Context = () => {
       name: "ctxDoc", side: "right", rowRef, defaultW: 44, min: 15, max: 60, collapseAt: 9,
       pullGuard: (e) => !!(e.target.closest && e.target.closest(".agent-chat")),
     });
+  // THE DOCUMENT PANEL STARTS CLOSED EVERY TIME YOU COME TO THIS PAGE. `useWallPanel` remembers
+  // `open` in localStorage, which is right for a scratchpad and wrong here: he came back to the
+  // Agents page with a document still fully open from last time, and the agents were behind it with
+  // nothing to say so — *"you won't know that the agent stuff is hidden behind the document."* The
+  // width still persists; only the open state is reset on mount. Opening a document (a click, or a
+  // `?doc=` restore) still opens the panel — that is a deliberate act, not a leftover.
+  useEffect(() => {
+    setDocOpen(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
 
   // One writer for the query string — replace, not push, so back still leaves the page cleanly.
   const setUrl = (mut) => {
@@ -246,15 +258,22 @@ const Context = () => {
                 });
               }}
               onOpenDoc={(next) => {
-                // A DOCUMENT WITH A REAL PATH IS A FILE (RFC-069): presence, the system context,
-                // the CLAUDE.md stack all carry their absolute path in `where` — they open as
-                // machine-file tabs in the real CodePane, saving through the machine door. A
-                // document with a SAVE DOOR instead of a path — the def prompt, the def record,
-                // skills, jobs, help — rides as an agentdoc tab and keeps its door.
-                const pathLike =
-                  next.kind === "doc" && next.where && (String(next.where).startsWith("/") || String(next.where).startsWith("~/"));
-                if (pathLike) {
-                  const file = { machine: true, projectCode: "", path: next.where, language: langOfPath(next.where) };
+                // IF IT IS A FILE, POINT AT THE FILE (RFC-069). *"You can pull up that file and
+                // that will work everywhere."* Presence, the system context and the CLAUDE.md stack
+                // carry their path in `where`; a SKILL carries `path` and a JOB is `<dir>/job.md` —
+                // all of them open as machine-file tabs in the real CodePane and save through the
+                // machine door.
+                //
+                // THE POINT IS NOT TIDINESS, IT IS THAT AN ADDRESS SURVIVES AND A BLOB DOES NOT.
+                // An agentdoc tab holds its text in this page's memory while the store persists
+                // only the open set, so a refresh or a back/forward restored the TAB and had
+                // nothing to put in it — *"the document is gone"*, under a hint telling him to
+                // reopen it from the profile. A path is re-read, so there is nothing to restore.
+                // What is left behind a save door is only what has no file: the definition prompt
+                // and the def record.
+                const filePath = fileForDoc(next);
+                if (filePath) {
+                  const file = { machine: true, projectCode: "", path: filePath, language: langOfPath(filePath) };
                   const k = fileKey(file);
                   if (k === activeKey) return closeKey(k); // SAME CHIP STILL TOGGLES (his call)
                   openTab(tabsPc, { key: k, kind: "file", file });

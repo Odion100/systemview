@@ -728,3 +728,81 @@
     opacity: 0.3;
   }
 }
+
+// READING IS VISIBLE — the compact line's mark pulses while the voice is going. (The full line's
+// row already pulses its mark with the chat's own keyframe; this one is for the compact form.)
+@keyframes speech-line-reading {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.85); }
+}
+
+// THE COMPACT LINE — the minimised chat's form. One row, quiet, the words first and the two
+// controls at the end; the mark pulses while reading (same keyframe as the row above).
+// `.speech-line.speech-line--compact`, two classes on purpose: the base `.speech-line` (a column,
+// right-aligned) is declared in the CHAT's stylesheet, which loads after this one — a single-class
+// rule here loses to it on order alone, and the row came out stacked and centred twice running.
+.speech-line.speech-line--compact {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-start;
+  align-items: center;
+  max-width: none;
+  gap: 6px;
+  min-width: 0;
+  padding: 2px 2px 2px 4px;
+  font-size: 11.5px;
+  color: var(--sv-text-muted);
+  .speech-line__mark { flex: none; font-size: 11px; }
+  .speech-line__mark--live { animation: speech-line-reading 1.1s ease-in-out infinite; }
+  .speech-line__word { flex: none; font-weight: 700; letter-spacing: 0.02em; text-transform: lowercase; }
+  .speech-line__clabel {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--sv-text);
+    font-style: italic;
+  }
+  // THE SUBTITLE SLIDES THROUGH ONCE when it overflows (RFC-074) — a short hold on the first words,
+  // then left at reading pace to the end, where it stays until the next sentence.
+  .speech-line__tick { display: inline-block; white-space: nowrap; }
+  .speech-line__clabel.is-ticking {
+    text-overflow: clip;
+    .speech-line__tick {
+      animation-name: speech-line-tick;
+      animation-timing-function: linear;
+      animation-delay: 0.8s;
+      animation-fill-mode: forwards;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .speech-line__clabel.is-ticking { text-overflow: ellipsis; }
+    .speech-line__clabel.is-ticking .speech-line__tick { animation: none; }
+  }
+  .speech-line__more { flex: none; font-family: ui-monospace, Menlo, monospace; font-size: 10px; }
+  // the transport is the full line's own — `.speech-line__pause`, `__skip`, `__stop` — styled where
+  // the full line styles them; nothing of its own here
+  .speech-line__pause, .speech-line__skip, .speech-line__stop { flex: none; }
+  &.is-paused .speech-line__word { color: var(--sv-amber, #c88a2e); }
+}
+
+// "elsewhere: wait / pop out & read" — the one switch beside the modes, same pill family
+.voice-settings__elsewhere {
+  margin-left: 8px;
+  padding: 2px 8px;
+  border: 1px solid var(--sv-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--sv-text-muted);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  &:hover { color: var(--sv-text); border-color: var(--sv-text-muted); }
+  &--on { color: var(--sv-blue); border-color: var(--sv-blue); }
+}
+
+@keyframes speech-line-tick {
+  from { transform: translateX(0); }
+  to { transform: translateX(var(--tick-over, 0)); }
+}
