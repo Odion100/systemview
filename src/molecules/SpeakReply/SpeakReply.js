@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./styles.scss";
-import { AIMED_AT_YOU, spokenPositions } from "../../utils/spokenForm";
+import { AIMED_AT_YOU, spokenPositions, spokenPassageMap } from "../../utils/spokenForm";
+import { recitalSegments } from "../../utils/readAloud";
+import { hostFiles } from "../../utils/hostFiles";
 import { available, ready as engineReady, speak, voices } from "../../utils/voice";
 import { readVoicePref, readVoiceSettings } from "../../utils/voicePref";
 import { takeIfNew } from "./autoSpeak";
@@ -67,6 +69,10 @@ const SpeakReply = ({ text, className = "", rowKey = "", ts = 0 }) => {
   // reports can be put on the line as a subtitle and a lit paragraph.
   const recital = useMemo(() => spokenPositions(text), [text]);
   const spoken = recital.text;
+  // THE MARKDOWN IS THE INSTRUCTION (his ruling): a reply carrying `::file{voice}` reads its
+  // passage AT ITS PLACE whenever the reply is read — on arrival AND on this press. The segments
+  // play inside this one queue item, chained, so rows queued behind still follow the whole thing.
+  const segments = useMemo(() => recitalSegments(text), [text]);
 
   useEffect(() => {
     const off = subscribe((who) => {
@@ -190,38 +196,112 @@ const SpeakReply = ({ text, className = "", rowKey = "", ts = 0 }) => {
           setWarming(!engineReady());
           queueWarming(rowKey, !engineReady());
           announce(true);
-          handle.current = speak(spoken, {
-            preferId: readVoicePref(projectCode),
-            rate: chat.speed,
-            onposition: (p) => {
-              if (seq.current !== token) return;
-              setAt(p);
-              queuePosition(rowKey, { ...p, ...(recital.chunks[p.index] || {}) });
-            },
-            onstart: () => {
-              if (seq.current !== token) return;
+          const finish = (err) => {
+            queueDone(rowKey);
+            if (seq.current !== token) return;
+            handle.current = null;
+            // Only the owner clears the state — a stale callback from a reply that was
+            // interrupted must not switch off the one that interrupted it.
+            if (isOwner(id)) {
+              setSpeaking(false);
               setWarming(false);
-              queueWarming(rowKey, false);
-            },
-            onend: (err) => {
+              setAt(null);
+              announce(false);
+            }
+            if (err) setFailed(String((err && err.message) || "the voice could not load"));
+          };
+          // THE SEGMENTS PLAY IN ORDER inside this one item — say, passage, say — so the queue and
+          // the rows lined up behind see one reply, and stopping stops whichever part is talking.
+          const playFrom = (i) => {
+            if (seq.current !== token) return;
+            if (i >= segments.length) return finish();
+            const seg = segments[i];
+            if (seg.kind === "file") {
+              (async () => {
+                try {
+                  const res = await hostFiles(projectCode).readFile({ path: seg.path });
+                  if (seq.current !== token) return;
+                  const pm = spokenPassageMap(res && res.content, seg.lines, seg.path);
+                  if (!pm.text) return playFrom(i + 1);
+                  handle.current = speak(pm.text, {
+                    preferId: readVoicePref(projectCode),
+                    rate: chat.speed,
+                    // `file:` rides the position so the embed showing this file can follow the
+                    // voice even though the queue item is the reply's, not the passage's.
+                    onposition: (p) => {
+                      if (seq.current !== token) return;
+                      queuePosition(rowKey, { ...p, ...(pm.chunks[p.index] || {}), file: seg.path });
+                    },
+                    onstart: () => {
+                      if (seq.current !== token) return;
+                      setWarming(false);
+                      queueWarming(rowKey, false);
+                    },
+                    onend: (err) => (err ? finish(err) : playFrom(i + 1)),
+                  });
+                } catch {
+                  playFrom(i + 1); // an unreadable file is a skipped passage, never a dead reply
+                }
+              })();
+              return;
+            }
+            handle.current = speak(seg.text, {
+              preferId: readVoicePref(projectCode),
+              rate: chat.speed,
+              onposition: (p) => {
+                if (seq.current !== token) return;
+                setAt(p);
+                queuePosition(rowKey, { ...p, ...(seg.chunks[p.index] || {}) });
+              },
+              onstart: () => {
+                if (seq.current !== token) return;
+                setWarming(false);
+                queueWarming(rowKey, false);
+              },
+              onend: (err) => (err ? finish(err) : playFrom(i + 1)),
+            });
+          };
+          // One segment and no files is yesterday's reply, spoken exactly as before.
+          if (segments.length === 1 && segments[0].kind === "say") {
+            handle.current = speak(spoken, {
+              preferId: readVoicePref(projectCode),
+              rate: chat.speed,
+              onposition: (p) => {
+                if (seq.current !== token) return;
+                setAt(p);
+                queuePosition(rowKey, { ...p, ...(recital.chunks[p.index] || {}) });
+              },
+              onstart: () => {
+                if (seq.current !== token) return;
+                setWarming(false);
+                queueWarming(rowKey, false);
+              },
+              onend: finish,
+            });
+            return handle.current;
+          }
+          playFrom(0);
+          return {
+            stop: () => {
+              // THE CHAIN DIES WITH THE STOP. Stopping only the current utterance let onend advance
+              // to the next segment — audio restarting in the background after he killed the queue
+              // (measured, 2026-10-26). Bumping the token is what every playFrom checks first.
+              seq.current += 1;
+              try {
+                if (handle.current && handle.current.stop) handle.current.stop();
+              } catch {}
               queueDone(rowKey);
-              if (seq.current !== token) return;
-              handle.current = null;
-              // Only the owner clears the state — a stale callback from a reply that was
-              // interrupted must not switch off the one that interrupted it.
               if (isOwner(id)) {
                 setSpeaking(false);
                 setWarming(false);
                 setAt(null);
                 announce(false);
               }
-              if (err) setFailed(String((err && err.message) || "the voice could not load"));
             },
-          });
-          return handle.current;
+          };
         },
       };
-  }, [id, rowKey, spoken, recital, projectCode]);
+  }, [id, rowKey, spoken, recital, segments, projectCode]);
 
   // A REPLY SAYS HOW IT SPEAKS, so the row he pressed can queue the ones after it without any of
   // them being mounted differently. Unregistering on unmount keeps a row that left the render from

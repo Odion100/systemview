@@ -46,6 +46,21 @@ Steps 3 and 4 are **two separate presses on two separate days' worth of thinking
 them is the commonest way this goes wrong: a claims list written before the design is settled is a
 list of proposals, and proposals cannot be checked.
 
+**Built is landed AND still moving** — reviewed, amended, proofs pressed: a LIVING spec (RFC-075
+§1.5), kept true against a system that keeps changing under it. **Then it SETTLES** (his, round
+two): the modification stops because nothing is left to modify, declared with `settled=<date>` on
+the registration leaf — never derived from quiet, because a document nobody touched out of neglect
+would read as settled. The rfc trail is draft → approved → built → settled → retired, where
+**retired** means leaving active service, not being wrong. A failing proof on a met claim is the
+moment a spec stops describing the system — on a SETTLED spec it is the sharpest alarm the design
+produces — and the answer is one of three: update the spec (it lives again), supersede it
+(`superseded=RFC-nnn` on its leaf, so the pointer survives), or retire it (`retired=<date>`).
+Without proofs that moment is invisible; with them it costs a press.
+
+**All claims met is a moment, never a silent jump.** The `::claims` bar says "all met — awaiting
+STATUS" and offers one press that writes the dated `## STATUS` heading; the registry re-derives and
+the trail advances to built through a dated line, never behind anyone's back.
+
 ## The verdict block
 
 An RFC ends with an approval block carrying what approving commits to, and the press writes the
@@ -90,7 +105,8 @@ Six properties, each doing work:
   by the time anybody walks the list, the argument has gone cold and the document is long.
 - **The set is the contract.** Completeness is what the press under the list decides. A claim
   missing from an approved list is a gap that was accepted, not one that silently ate a feature.
-- **Checked by a person. It carries no proof.** A claim names no test and resolves to no assertion.
+- **Checked by a person.** A claim names no test and resolves to no assertion — but it may carry a
+  **proof**: the check made pressable, folded inside the claim (RFC-075, its own section below).
 
 The word is deliberately the ordinary English one. A test assertion is a claim about the code; this
 is a claim about the design. Same shape of statement, different checker — and when a claim later
@@ -166,6 +182,94 @@ its own evidence — he looked — and his note is optional. An agent marks the 
 itself — the greps, the host with no window — before the human gets there; the human marks the ones
 that need eyes. Both read off the same document, so opening it shows which claims were verified, by
 whom, and on what. An unmarked claim reads **unchecked**, visibly — **silence is not a pass.**
+
+## A claim can carry its proof
+
+**A proof is a claim's check made pressable** (RFC-075). A mark's `note=` is a sentence about work
+that evaporated the moment it was done — to believe it next month somebody re-derives the check. The
+proof is that check written down where the mark will be doubted: the claim grows a container —
+
+```markdown
+:::claim[Save a registered document → its row's state is re-derived]{id=c36 state=met by=you at=…}
+:::cmd
+node -e "…read the registry row…"
+:::
+:::
+```
+
+— rendered as the same one-line claim with a `proof ▸` fold. The children are **ordinary result
+blocks** run in place (`:::cmd` holds its exit and log, `:::run` its steps, `::test` its verdict);
+the claim adds no execution machinery, only an address. Right-click a leaf claim → *add a proof*
+rewrites it as the container with an empty body — nobody retypes a statement.
+
+**The sequence is verify → mark → proof, and the proof is written for the human.** Proof-first is
+the unit-test trap reborn: the agent runs the thing it just authored and calls the exit code a
+check. Verification stays primary and may be ugly — three greps and a file read; the proof is the
+distilled one-press version of a check that already happened. And it audits the mark for free: an
+agent that marks `met` and cannot say what you would press to see it made a softer check than its
+`note=` claimed.
+
+**The mark is mandatory; the proof is earned.** Write proofs where re-checking will matter —
+load-bearing mechanisms, claims that can rot, anything somebody will want to press in three months.
+Requiring proofs on every claim grows ceremonial proofs, which is the code-validating-code smell
+this design exists to kill. A proof **passing is evidence, never a mark** — somebody still says met,
+silence is still never a pass, and no runner or scheduler re-runs proofs: they run when pressed.
+
+## Writing a proof — the approach
+
+**Think outside the harness:**
+
+- **The live system is the fixture.** Reach for a door before a harness: pass the object into a
+  SystemLynx context and the method you could not test becomes a call. buAPI verifies itself this
+  way systematically.
+- **A claim that RESISTS a proof is a finding about the system.** It is pointing at a missing
+  observable, and building that door through SystemLynx IS proof-writing — proof-pressure is how
+  the system grows doors.
+- **Readable-first.** The proof convinces the person outside the code, or it is a unit test wearing
+  a fold. These documents are specs; the reader is not inside the code.
+
+**What a proof can be** — every shape already renders and runs; the claim is only the place they
+stand: a SystemLynx call (`:::run`), a command or a grep written down instead of retyped (`:::cmd`),
+**a pointer at the lines** (an inline `:file[path#Lx-y]` link — a chip, never a wall of code in the
+fold; `project=` reaches another repo), **a screenshot** (`::file` at an image), a wrapped test with
+its pass/fail shown (`::test`), human instructions in the fold where the "run" is a press and eyes —
+and most often a **composite** of several: *here's the thing* (link, screenshot) → *here's it doing
+it* (cmd) → *here's the record it left* (a read).
+
+**Lead with what the reader can see; a suite run is a supplement, never the proof** (his, round
+one: *"this test doesn't do nothing for me"*). A test command convinces the person who can read the
+test file — the exact unit-test trap this design exists to kill — so it rides LAST in the fold, for
+the code-side reader, under an artifact the human can judge. When a cmd runs a test, anchor it with
+a `:file` link at the lines it tests, and let the cmd follow. The anchor is a LINK, not an embed
+(his reversal, round one, same day it was proposed): embedding the mechanism puts a wall of code in
+the fold — the unit-test trap wearing a viewer. The chip points; the reader presses if they care.
+
+**A screenshot is a MOMENT; a command is a RE-CHECK.** The screenshot says "this is what it looked
+like when it was marked" and rots silently; the cmd answers *now*. The best folds carry one of
+each. And a proof screenshot never points at `~/.autobot/shots/` — that folder prunes itself, so
+the pointer dies in days. Copy it into the repo beside the RFC (`RFCs/proofs/`).
+
+## A failing proof, and a delegated one
+
+**A failing proof on a met claim is a finding, not an unmark.** It says the world moved under a mark
+that was true when made — exactly the staleness the `::claims` recount cannot see, surfaced for the
+cost of a press. For a **living** spec (see the lifecycle) that moment demands one of three answers:
+update the spec, supersede it (`superseded=RFC-nnn` on the leaf), or retire it.
+
+**A claim can declare its reviewers** — `reviewers=buapi` on the claim line. Each declared name
+renders as a hollow badge until its signature lands in `by=`, the human's badge is always offered
+implicitly, and `reviewers=` joins the claim's fire audience, so being named is being told. Use it
+where writer ≠ verifier matters: the agent that built marks with its note; a *different* agent's
+unfilled badge stands there until they have independently signed. **The reviewer is a PEER agent,
+never a subagent of the builder** — a subagent is the builder's own context wearing a different
+hat, so its signature is the same word twice; a peer has its own session and project code, and its
+badge filling means a second mind looked. The authoring and execution skills both instruct naming
+one on the load-bearing claims.
+
+**Proof-writing may be delegated; verification may not.** A subagent is permitted, never required —
+briefed with the claim, its mark, its `note=`, THIS section, and the project's door inventory; never
+tools alone, or it writes harness-shaped proofs instead of doors. Writer ≠ verifier strengthens the
+audit: a subagent that cannot produce a clean one-press proof has exposed a soft mark.
 
 ## A claim is not an objective, a slice, or a test
 

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { useMarkdownScope } from "../context";
+import { useMarkdownScope, useDocMembers } from "../context";
+import { routeResult } from "../docSend";
 import { useCapability, useCapabilityState } from "../capabilities";
 
 // `::branch[refine/dead-code]{base=main}` — a branch offered for REVIEW, as a live pointer.
@@ -16,6 +17,7 @@ import { useCapability, useCapabilityState } from "../capabilities";
 const BranchBlock = ({ label, attrs = {} }) => {
   const scope = useMarkdownScope();
   const projectCode = attrs.project || scope.projectCode;
+  const { docPath = "" } = useDocMembers() || {};
   const branch = label || attrs.name || "";
   const git = useCapability("git");
   const gitGrant = useCapabilityState("git");
@@ -94,6 +96,8 @@ const BranchBlock = ({ label, attrs = {} }) => {
       else {
         setError("");
         setApplied(true);
+        // RFC-073 slice 8 — the apply's completion, routed to whoever the block names (c56).
+        routeResult({ subscribe: attrs.subscribe, project: projectCode, docPath, summary: `applied ${branch} as uncommitted changes` });
         window.dispatchEvent(new Event("sv:git"));
         // the changes are now a LIST somewhere — ask THIS project's surface to show it. Carried
         // as detail because the bare event opened every bot's panel at once (his catch: "a bunch

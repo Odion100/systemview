@@ -894,6 +894,30 @@ export function foldEvents(events) {
     // A MESSAGE LANDED (RFC-056, his requirement: sends were visible, landings weren't). The
     // harness emits this when a cross-session message arrives in the agent's turn — the receipt,
     // rendered as its own quiet line so agent↔agent traffic is traceable on both ends.
+    // THE NUDGE'S RECEIPT (RFC-075 §3, his: "you are getting nudged and I am not seeing any
+    // logs"). The harness woke the agent and pointed it back at an unfinished run — a turn was
+    // SPENT with nobody typing, and a wake with no row is work running invisibly. Expandable like
+    // a landed document: the row says which run and how far along; the fold shows the exact words
+    // the agent was woken with, so the message itself can be read and critiqued.
+    if (ev.kind === "run.nudged") {
+      rows.push({
+        key,
+        kind: "nudged",
+        source: ev.source || "",
+        active: ev.active || "",
+        done: Number(ev.done) || 0,
+        total: Number(ev.total) || 0,
+        count: Number(ev.count) || 1,
+        // THE CYCLE'S LAST WORD (was `gaveUp` — nudging no longer stops on a count; the final
+        // notice names the exits and the cycle resets). Old events still fold: gaveUp reads as the
+        // final notice it was.
+        finalNotice: !!(ev.finalNotice || ev.gaveUp),
+        text: ev.text || "",
+        ts: ev.ts,
+      });
+      return;
+    }
+
     if (ev.kind === "message.landed") {
       // RFC-071 — A DOCUMENT LANDING IS A ROW THAT OPENS. His, 2026-10-19: *"why isn't that thread
       // log expandable like most logs so you can see details?"* A membership delivery has details
@@ -916,6 +940,11 @@ export function foldEvents(events) {
           // that were never spent. The fact comes from the harness; saying it is this surface's job,
           // because the agent chat is this window and not autobot's chrome.
           merged: !!(ev.merged || ev.doc.merged),
+          // A HELD LANDING HAS NOT WOKEN ANYBODY YET. The wake fix holds a delivery that arrives
+          // mid-turn and pushes it at the turn's end, where it starts its own turn — so this row
+          // saying "landed" while the agent is still working would be the surface testifying to a
+          // wake the disk cannot show. `held` says what is true: received, waiting for the boundary.
+          held: !!(ev.held || ev.doc.held),
           ts: ev.ts,
         });
         return;

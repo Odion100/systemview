@@ -316,14 +316,20 @@ const LandedDocRow = ({ row }) => {
         {/* A MERGED LANDING GREW RATHER THAN ARRIVED — the harness folded it into a delivery still
             sitting unread instead of spending a second turn. Two rows that look identical would put
             the interruptions back in the log after we removed them from the session, so the mark
-            and the words both say which happened: ✉ is post, ⊕ is "the one you have got bigger". */}
-        <span className={`${CLASSNAME}__hook-mark`}>{row.merged ? "⊕" : "✉"}</span>
+            and the words both say which happened: ✉ is post, ⊕ is "the one you have got bigger".
+            And a HELD landing has not woken anybody yet — the wake fix holds a delivery that
+            arrives mid-turn and pushes it at the turn's end, where it starts its own turn. Saying
+            "landed" while the agent is still working would be this surface testifying to a wake
+            the harness never made, so ⧖ says what is true: received, waiting for the boundary. */}
+        <span className={`${CLASSNAME}__hook-mark`}>{row.merged ? "⊕" : row.held ? "⧖" : "✉"}</span>
         <span className={`${CLASSNAME}__hook-name`}>
           {row.merged
             ? `${row.thread ? `thread ${row.thread}` : "this document"} folded into a delivery you had not read`
-            : row.thread
-              ? `thread ${row.thread} moved`
-              : "document updated"}
+            : row.held
+              ? `${row.thread ? `thread ${row.thread}` : "document"} update held — wakes when this turn ends`
+              : row.thread
+                ? `thread ${row.thread} moved`
+                : "document updated"}
         </span>
         <span className={`${CLASSNAME}__hook-on`}>
           {file}
@@ -341,6 +347,44 @@ const LandedDocRow = ({ row }) => {
           </div>
           {row.summary ? <div>{row.summary}</div> : null}
           {row.text ? <div>{row.text}</div> : null}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// THE NUDGE'S RECEIPT (his: "you are getting nudged and I am not seeing any logs"). A turn was
+// spent with nobody typing — the harness woke the agent and pointed it back at an unfinished run.
+// The row says which run and how far it stood; the fold holds the exact words the agent was woken
+// with, there to be read and critiqued.
+const NudgedRow = ({ row }) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className={`${CLASSNAME}__row ${CLASSNAME}__row--hook`}>
+      <div
+        role="button"
+        tabIndex={0}
+        style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}
+        onClick={() => setOpen(!open)}
+        onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setOpen(!open)}
+      >
+        <When ts={row.ts} />
+        <span className={`${CLASSNAME}__hook-mark`}>⏰</span>
+        <span className={`${CLASSNAME}__hook-name`}>
+          nudged — {row.source || "an unfinished run"} at {row.done}/{row.total}
+        </span>
+        <span className={`${CLASSNAME}__hook-on`}>
+          ×{row.count}
+          {/* The cycle's last word — nudging does not stop here (his rule): the count resets and
+              it continues until the run is done, or declared abandoned WITH its account attached. */}
+          {row.finalNotice ? " · final notice — finish it, or attach the account and mark it abandoned" : ""}
+        </span>
+        <span className={`${CLASSNAME}__cmd-sign`}>{open ? "▾" : "▸"}</span>
+      </div>
+      {open && (
+        <div className={`${CLASSNAME}__injected-body`}>
+          {row.active ? <div>left active: {row.active}</div> : null}
+          {row.text ? <div>{row.text}</div> : <div>an older shell did not record the message text</div>}
         </div>
       )}
     </div>
@@ -889,6 +933,8 @@ const Feed = ({ rows, answered = {}, onAnswer = null, renderText = null }) =>
       </div>
     ) : r.kind === "landed-doc" ? (
       <LandedDocRow key={r.key} row={r} />
+    ) : r.kind === "nudged" ? (
+      <NudgedRow key={r.key} row={r} />
     ) : r.kind === "note" ? (
       // A compaction — the moment the conversation he is reading lost its middle. It is an event,
       // not a silence, so it says so. The receipt gets its own mark and colour, matching the browser

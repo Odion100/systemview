@@ -615,6 +615,44 @@ const walk = (lines, only = null) => walkMap(lines, only).map((e) => e.text);
 export const MAX_SPOKEN = 3600;
 export const CUT_NOTICE = "That is as far as I will read. The rest of this reply is on screen.";
 
+// A FILE read aloud — his: *"if I say read this file, why would it not read it?"* A `::file` chip
+// carrying `voice` reads its passage through the same queue as everything else. Deliberate, so the
+// cap is generous where a chat reply's is protective: a reply hits MAX_SPOKEN because walls arrive
+// by accident; a voiced file was asked for, and it is stoppable at any sentence.
+export const MAX_SPOKEN_FILE = 50000;
+
+/**
+ * The spoken text of a file's passage: the `#L40-70` slice when the spec carried one, the whole
+ * file otherwise. Markdown goes through the spoken form (fences summarized, blocks named);
+ * anything else is read as plain text with its whitespace collapsed — code read aloud is already a
+ * choice the reader made, and collapsing is what keeps indentation from becoming silence.
+ */
+export function spokenPassage(content, lines, path, opts) {
+  return spokenPassageMap(content, lines, path, opts).text;
+}
+
+/**
+ * The passage WITH its positions — `{ text, chunks }`, the same shape `spokenPositions` answers for
+ * a reply, except the chunk lines are FILE-ABSOLUTE (the range offset applied), so the embed showing
+ * that file can light the line being spoken and keep it in view. Plain text has no line map —
+ * `chunks` is empty and the read is voice-only.
+ */
+export function spokenPassageMap(content, lines, path, { maxChars = MAX_SPOKEN_FILE } = {}) {
+  const all = String(content == null ? "" : content).split("\n");
+  const from = lines ? Math.max(0, lines[0] - 1) : 0;
+  const slice = lines ? all.slice(from, lines[1]).join("\n") : all.join("\n");
+  if (/\.(md|markdown)$/i.test(String(path || ""))) {
+    const map = spokenMap(slice, { maxChars }).map((s) => ({
+      ...s,
+      lines: s.lines ? [s.lines[0] + from, s.lines[1] + from] : null,
+    }));
+    const text = map.map((s) => s.text).join(" ");
+    return { text, chunks: chunkMap(map, spokenChunks(text)) };
+  }
+  const text = slice.replace(/\s+/g, " ").trim().slice(0, maxChars);
+  return { text, chunks: [] };
+}
+
 /**
  * `only` is what makes one reply two different recitals. Omitted (the press-to-listen path) the
  * whole reply is read, exactly as before. Given a list of names — block names plus the literal

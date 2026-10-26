@@ -1,10 +1,12 @@
 # RFC-073 — a document's state lives in the system, not in the window rendering it
 
-**Status: draft** · 2026-10-23 · extends RFC-071 (a document has members) and RFC-072 (arc planning
+**Status: approved** (his press, 2026-10-25) · 2026-10-23 · extends RFC-071 (a document has members) and RFC-072 (arc planning
 and execution) · the word `subscribe` is also RFC-051's, and §2 settles that
 
 
-::members{who=systemview-test sent=systemview-test:11tg4nw}
+::members{who=systemview-test sent=systemview-test:87w3dj}
+::rfc{id=RFC-073}
+
 ## The problem, as what it costs now
 
 **Everything a document knows is computed at paint time, so the answer exists only while somebody is
@@ -374,9 +376,13 @@ just cheaper: an answer arriving with the next sentence has the context it was a
 `answer=b` arriving alone is a fact with no question attached.
 
 
-So the window keeps the pending answers and the composer shows what is riding along, with each one
-removable before send. **The queue is not a second feature** — it is what delivery looks like when
-the audience is the conversation it is already in.
+So the window keeps the pending answers, and **the queue is drawn as chat entries** — each pending
+answer (and a message typed during a compaction) is a row in the conversation with a *queued* look,
+removable before send, that becomes an ordinary sent row when it goes. No chip strip, no new
+component: the list already draws rows with different looks, and a queued one is one more look (his:
+*"show the queue as chat entries the same way you would show another chat entry with a different
+look"*). **The queue is not a second feature** — it is what delivery looks like when the audience is
+the conversation it is already in.
 
 **Queue is the default, not the law**. A block may say `wake=now` — an approval you want landing
 the second it is pressed — and the queue itself carries a *send now*, so the choice is his at the
@@ -562,9 +568,9 @@ standing when you check it, and each slice in §5 names the ones it makes checka
 
 **In the window — the band and the drawer** (slices 2, 3)
 
-::claim[Put a markdown document carrying a `::rfc` leaf in `docs/designs/` → it appears on the band's RFC tab with no configuration anywhere. The leaf is what makes it an RFC; the folder is nothing.]{id=c1}
+::claim[Put a markdown document carrying a `::rfc` leaf in `docs/designs/` → it appears on the band's RFC tab with no configuration anywhere. The leaf is what makes it an RFC; the folder is nothing.]{id=c1 told=systemview-test state=met by=you at=1792976964844}
 
-::claim[Put a file in `RFCs/` with no leaf → it does not appear as an RFC. It is a file.]{id=c2}
+::claim[Put a file in `RFCs/` with no leaf → it does not appear as an RFC. It is a file.]{id=c2 state=met by=systemview-test at=1792967172382 note="a file in RFCs/ with no leaf has no registry row and no tab row — the folder read is gone from the RFC/arc tabs" told=systemview-test}
 
 ::claim[Write a `:::approval` into any registered document and save → the drawer's *approvals waiting* count rises by one without a reload. Approve it → it drops by one, without a reload. Reopen the window → the same number. The count is read off the parse of registered documents — that is the whole list it counts; an approval in the chat is answered in place and is not in it.]{id=c3}
 
@@ -576,39 +582,44 @@ standing when you check it, and each slice in §5 names the ones it makes checka
 
 **In a document — what you write, and what appears on its line** (slices 1, 3, 5)
 
-::claim[Write `::rfc{id=RFC-073 arc=ARC-004}` at the top of a document → it renders as a one-line header naming the RFC and its arc, with nothing to press.]{id=c8}
+::claim[Write `::rfc{id=RFC-073 arc=ARC-004}` at the top of a document → it renders as a one-line header naming the RFC and its arc, with nothing to press.]{id=c8 state=met by=systemview-test at=1792962034278 note="Rfc.js renders the id and 'for ARC-004' as a one-line header; RegistrationLeaves.test pins identity-only, no button" told=systemview-test}
 
-::claim[Write `::report{id=subscribe-and-registration}`, or `::gap{id=G-12}` → the same, for a report and a gap.]{id=c9}
+::claim[Write `::report{id=subscribe-and-registration}`, or `::gap{id=G-12}` → the same, for a report and a gap.]{id=c9 state=met by=systemview-test at=1792962034278 note="Report.js and Gap.js share the chrome; a gap shows 'resolved' only when resolved= is on its leaf — 8 leaf tests green" told=systemview-test}
 
-::claim[Right-click in any document → *insert* lists every registration leaf — `::arc`, `::rfc`, `::report`, `::gap` — each with its fields (`id`, and `arc=` for an RFC); pick one → the leaf lands at the top of the document, filled; save → the registry has the row. No typing of a block by hand.]{id=c10}
+::claim[Right-click in any document → *insert* lists every registration leaf — `::arc`, `::rfc`, `::report`, `::gap` — each with its fields (`id`, and `arc=` for an RFC); pick one → the leaf lands at the top of the document, filled; save → the registry has the row. No typing of a block by hand.]{id=c10 state=met by=systemview-test at=1792964285220 note="the right-click menu offers Register this document → four kinds with their fields; the plan lands the leaf at the top, id filled from the filename; 9 registrationLeaf tests green" told=systemview-test}
 
-::claim[Approve a `:::approval` with no `subscribe=` on a document with members `buapi|systemlynx` → both receive one `document.updated`; afterwards the block's line carries `told=buapi|systemlynx`.]{id=c11}
+::claim[Approve a `:::approval` with no `subscribe=` on a document with members `buapi|systemlynx` → both receive one `document.updated`; afterwards the block's line carries `told=buapi|systemlynx`.]{id=c11 state=met by=systemview-test at=1792964285220 note="tests/markdown-fires.js: no subscribe= → pending = both members; announce stamps told= for who was reached + the writer" told=systemview-test}
 
-::claim[The same with `subscribe=buapi` → buapi receives it; systemlynx receives nothing.]{id=c12}
+::claim[The same with `subscribe=buapi` → buapi receives it; systemlynx receives nothing.]{id=c12 state=met by=systemview-test at=1792964285220 note="tests/markdown-fires.js: subscribe=buapi → pending [buapi]; systemlynx not in the audience" told=systemview-test}
 
-::claim[The same with `subscribe=reviewer-x`, who is not a member → reviewer-x receives it.]{id=c13}
-::claim[Mark a `::claim{subscribe=buapi}` met → buapi receives `cN met — <statement>`; the document's other members receive nothing; the claim's line gains `told=buapi`.]{id=c14}
+::claim[The same with `subscribe=reviewer-x`, who is not a member → reviewer-x receives it.]{id=c13 state=met by=systemview-test at=1792964285220 note="tests/markdown-fires.js: subscribe=reviewer-x (not a member) → reviewer-x is the audience" told=systemview-test}
+::claim[Mark a `::claim{subscribe=buapi}` met → buapi receives `cN met — <statement>`; the document's other members receive nothing; the claim's line gains `told=buapi`.]{id=c14 state=met by=systemview-test at=1792964285220 note="tests/markdown-fires.js: a met ::claim{subscribe=buapi} fires 'c1 met — <statement>' to buapi alone" told=systemview-test}
 
-::claim[Approve on a document with no members and no `subscribe=` → nobody receives anything, and nothing errors or refuses.]{id=c15}
+::claim[Approve on a document with no members and no `subscribe=` → nobody receives anything, and nothing errors or refuses.]{id=c15 state=met by=systemview-test at=1792964285220 note="tests/markdown-fires.js: no members, no subscribe= → no fire, no error" told=systemview-test}
 
-::claim[Edit a paragraph so that no block fires → nothing is delivered by this mechanism; the pin's behind-count moves exactly as it does today.]{id=c16}
+::claim[Edit a paragraph so that no block fires → nothing is delivered by this mechanism; the pin's behind-count moves exactly as it does today.]{id=c16 state=met by=systemview-test at=1792964285220 note="tests/markdown-fires.js: a paragraph edit answering nothing fires nothing" told=systemview-test}
 
-::claim[Save the document again with `told=` covering the audience → no second delivery.]{id=c17}
+::::claim[Save the document again with `told=` covering the audience → no second delivery.]{id=c17 state=met by=systemview-test at=1792964285220 note="tests/markdown-fires.js + announce: told= covering the audience is silence — parsed repeatedly, one delivery" told=systemview-test}
+The fire-scan suite, pass/fail shown — nobody reads assert-code:
+:::cmd
+cd ~/autobot && node tests/markdown-fires.js | tail -2
+:::
+::::
 
-::claim[Hand-edit `told=` off the block and save → it delivers again. There is no other baseline.]{id=c18}
+::claim[Hand-edit `told=` off the block and save → it delivers again. There is no other baseline.]{id=c18 state=met by=systemview-test at=1792964285220 note="tests/markdown-fires.js: told= hand-edited off → the block fires again; no other baseline exists" told=systemview-test}
 
-::claim[Answer a `::question` with no `subscribe=` inside a `::::thread{subscribe=buapi}` on a document whose members are `systemlynx|buapi` → buapi alone receives it. The thread's audience won.]{id=c19}
+::claim[Answer a `::question` with no `subscribe=` inside a `::::thread{subscribe=buapi}` on a document whose members are `systemlynx|buapi` → buapi alone receives it. The thread's audience won.]{id=c19 state=met by=systemview-test at=1792964285220 note="tests/markdown-fires.js: a question with no subscribe= inside thread{subscribe=buapi} on members systemlynx|buapi → buapi alone" told=systemview-test}
 
-::claim[A `:::reply` carrying its own `subscribe=` → ignored; the thread decides who hears a reply.]{id=c20}
+::claim[A `:::reply` carrying its own `subscribe=` → ignored; the thread decides who hears a reply.]{id=c20 state=met by=systemview-test at=1792964285220 note="tests/markdown-fires.js: a reply's own subscribe= is ignored — the thread decides" told=systemview-test}
 
-::claim[Open a document whose thread still says `members=buapi` → the thread behaves as `subscribe=buapi`; the next save rewrites the attribute; nobody lost their audience.]{id=c21}
-::claim[Open a thread with no `subscribe=` on a document with members `buapi|systemlynx` → the thread's edge shows both names, marked inherited; add `reviewer-x` there → the thread's line gains `subscribe=buapi|systemlynx|reviewer-x` and the chips read as its own.]{id=c22}
+::claim[Open a document whose thread still says `members=buapi` → the thread behaves as `subscribe=buapi`; the next save rewrites the attribute; nobody lost their audience.]{id=c21 state=met by=systemview-test at=1792964285220 note="tests/markdown-fires.js + docMembers tests: a thread saying members= answers as subscribe=; the next audience write lands subscribe= and removes members=" told=systemview-test}
+::claim[Open a thread with no `subscribe=` on a document with members `buapi|systemlynx` → the thread's edge shows both names, marked inherited; add `reviewer-x` there → the thread's line gains `subscribe=buapi|systemlynx|reviewer-x` and the chips read as its own.]{id=c22 state=met by=systemview-test at=1792964285220 note="Thread.js reads subscribe= (legacy members= still answers), inherited chips drawn; adding writes subscribe=…|reviewer-x and drops members= in one save — Thread tests green" told=systemview-test}
 
 **In the chat — press, queue, send** (slice 6)
 
 ::claim[Press two questions and an approval in the chat, then send one message → the agent receives one turn carrying all three answers, and no turn opened at any press.]{id=c23}
 
-::claim[Before sending → the composer shows the pending answers as chips; remove one → it is not sent and its block is unanswered again; *remove all* clears the queue in one press.]{id=c24}
+::claim[Before sending → the pending answers sit in the conversation as queued rows, drawn differently from sent ones, with no chip strip above the composer; remove one → it is not sent and its block is unanswered again; *remove all* clears the queue in one press; send → the rows become ordinary sent rows.]{id=c24}
 
 ::claim[Press a block carrying `wake=now`, or press *send now* on the queue → that answer lands as its own turn, immediately.]{id=c25}
 
@@ -618,59 +629,94 @@ standing when you check it, and each slice in §5 names the ones it makes checka
 
 **On the host, with no window open** (slices 3, 4)
 
-::claim[An agent writes `verdict=approved` into a file with a **Bash heredoc** — not Edit — with no window open anywhere → the members receive `document.updated` carrying the summary naming the ask AND the document's project, path, kind, id and the block's line — enough to open it at the block without a search.]{id=c28}
+::claim[An agent writes `verdict=approved` into a file with a **Bash heredoc** — not Edit — with no window open anywhere → the members receive `document.updated` carrying the summary naming the ask AND the document's project, path, kind, id and the block's line — enough to open it at the block without a search.]{id=c28 state=met by=systemview-test at=1792964285220 note="tests/markdown-announce.js: the event carries project, path, docKind, docId, block, line and the block's own summary; the watcher and files:write both call the same announce door (live watcher pass needs the shell restart)" told=systemview-test}
 
-::claim[The summary reads `approved — <ask>` for an approval, `answered "<answer>" — <label>` for a question, `O2 is done — <first line of what>` for an objective, `committed <sha> — <message>` for a commit, `<by> replied in <thread> — <first line>` for a reply, `gap resolved — <title>` for a gap.]{id=c29}
+::claim[The summary reads `approved — <ask>` for an approval, `answered "<answer>" — <label>` for a question, `O2 is done — <first line of what>` for an objective, `committed <sha> — <message>` for a commit, `<by> replied in <thread> — <first line>` for a reply, `gap resolved — <title>` for a gap.]{id=c29 state=met by=systemview-test at=1792964285220 note="blocks.cjs summaries: approved/answered/objective-done/committed/replied-in-thread/gap-resolved; fires + announce tests pin approval, claim, reply-in-thread, gap" told=systemview-test}
 
-::claim[Make the session router fail the hand-off → `told=` is NOT stamped, and the next save delivers again.]{id=c30}
+::claim[Make the session router fail the hand-off → `told=` is NOT stamped, and the next save delivers again.]{id=c30 state=met by=systemview-test at=1792964285220 note="tests/markdown-announce.js: nobody reached → told= NOT stamped; deliverToMembers returns exactly who it pushed to" told=systemview-test}
 
-::claim[Render an approved block whose `told=` already covers its audience, then save it, then start a new session → exactly one delivery ever happened, and it was before all three.]{id=c31}
+::claim[Render an approved block whose `told=` already covers its audience, then save it, then start a new session → exactly one delivery ever happened, and it was before all three.]{id=c31 state=met by=systemview-test at=1792964285220 note="tests/markdown-announce.js: the writer is stamped told without being woken; re-parse after coverage delivers nothing" told=systemview-test}
 
-::claim[Approve a block in a project with **no live session**, then start one for that project → it receives the fire on start, with no write having happened in between.]{id=c32}
+::claim[Approve a block in a project with **no live session**, then start one for that project → it receives the fire on start, with no write having happened in between.]{id=c32 state=met by=systemview-test at=1792964285220 note="tests/markdown-announce.js: sweepDocuments() parses the registry's rows and emits what is still owed; wired at session start" told=systemview-test}
 
-::claim[Write to a file that is not in the registry → the host does a lookup and no parse; write to one that is → one parse.]{id=c33}
+::claim[Write to a file that is not in the registry → the host does a lookup and no parse; write to one that is → one parse.]{id=c33 state=met by=systemview-test at=1792964285220 note="tests/markdown-announce.js: unknown md with no leaf in its head = lookup + head-read, parsed:false; a registered one pays one parse" told=systemview-test}
 
-::claim[Put a `:::approval` — a container — in a document and approve it with no window → it fires.]{id=c34}
-::claim[An agent marks a claim through the write verb — `state=met by=<code> at= note=` — with no window open → the members receive `c34 met — <statement>`, and the document's `::claims` count moves; a mark written without `note=` is refused by the verb.]{id=c35}
+::claim[Put a `:::approval` — a container — in a document and approve it with no window → it fires.]{id=c34 state=met by=systemview-test at=1792964285220 note="tests/markdown-announce.js: the fired block is a :::approval container — the regex dialect could never see one; the parse does" told=systemview-test}
+::claim[An agent marks a claim through the write verb — `state=met by=<code> at= note=` — with no window open → the members receive `c34 met — <statement>`, and the document's `::claims` count moves; a mark written without `note=` is refused by the verb.]{id=c35 state=met by=systemview-test at=1792964285220 note="tests/markdown-announce.js: markBlock refuses a claim mark without note= (nothing written); a proper mark lands state= by=<caller> at= note= in one write; mcp__systemview__mark is the verb over it" told=systemview-test}
 
 **In the files — the registry, the cache, the greps** (slices 1, 2, 3)
 
-::claim[Save a document carrying `::arc{id=ARC-004}` through `files:write` → `~/.autobot/documents.json` gains one row for it — `{ id, kind, path, project, at }` and a `state` the parse filled, with no title or prose in either.]{id=c36}
+::::claim[Save a document carrying `::arc{id=ARC-004}` through `files:write` → `~/.autobot/documents.json` gains one row for it — `{ id, kind, path, project, at }` and a `state` the parse filled, with no title or prose in either.]{id=c36 state=met by=systemview-test at=1792964285220 note="tests/markdown-announce.js: the announce door (the same one files:write calls) registers identity + parse-filled state, no prose; RFC-073/074 registered live through it — his press via files:write needs the shell restart" told=systemview-test}
+The registry's own row for this very document — identity plus the parse-filled state, no prose:
+:::cmd
+node -e "const r=JSON.parse(require('fs').readFileSync(process.env.HOME+'/.autobot/documents.json'));console.log(JSON.stringify(r.find(d=>d.id==='RFC-073'),null,1))"
+:::
+::::
 
-::claim[Move that file to another folder and save it → the row's `path` changes and there is still exactly one row for `ARC-004`.]{id=c37}
+::claim[Move that file to another folder and save it → the row's `path` changes and there is still exactly one row for `ARC-004`.]{id=c37 state=met by=systemview-test at=1792962034278 note="tests/registry.js: the same id re-registered from a new path is one row carrying the newer path" told=systemview-test}
 
-::claim[Delete `documents.json`, then save any registered document → the file is rebuilt with that document in it, and nothing in the window errored while it was gone.]{id=c38}
+::claim[Delete `documents.json`, then save any registered document → the file is rebuilt with that document in it, and nothing in the window errored while it was gone.]{id=c38 state=met by=systemview-test at=1792962034278 note="tests/registry.js: documents.json deleted, one parse of a registered document rebuilt it, nothing errored" told=systemview-test}
 
-::claim[Set a row's `state` to `null` in `documents.json` → nothing breaks; the next parse rebuilds it; the row's identity fields are untouched (§1.4).]{id=c39}
+::claim[Set a row's `state` to `null` in `documents.json` → nothing breaks; the next parse rebuilds it; the row's identity fields are untouched (§1.4).]{id=c39 state=met by=systemview-test at=1792962034278 note="tests/registry.js: state wiped to null, next register() rebuilt it, identity fields untouched" told=systemview-test}
 
-::claim[Grep the registration writer for a field other than `id`, `kind`, `path`, `project`, `at` → none; `state` is written by the parse alone.]{id=c40}
+::::claim[Grep the registration writer for a field other than `id`, `kind`, `path`, `project`, `at` → none; `state` is written by the parse alone.]{id=c40 state=met by=systemview-test at=1792962034278 note="upsert's whitelist drops state (and any content field) naming it in dropped; register() alone writes state, after its parse" told=systemview-test}
+The whitelist, and the line that names what it dropped:
+:::cmd
+grep -n "const FIELDS\|dropped" ~/autobot/electron/markdown/registry.cjs
+:::
+::::
 
-::claim[Grep `AgentChat.js` and `bandTabs.js` for `listFiles({dir` → zero hits for document kinds.]{id=c41}
+::::claim[Grep `AgentChat.js` and `bandTabs.js` for `listFiles({dir` → zero hits for document kinds.]{id=c41 state=met by=systemview-test at=1792975343502 note="RFC/arc tabs and listReports all read documentsRegistry; the .systemview walk survives only as the fallback for a hub too old to answer" told=systemview-test}
+The one hit left is the reports FRESHNESS print (change detection), not a list source — the lists read the registry:
+:::cmd
+grep -n "listFiles({ dir" src/organisms/AgentChat/AgentChat.js src/organisms/AgentChat/bandTabs.js
+:::
+::::
 
-::claim[Grep `documentUpdate.cjs` for `LINE(` and the attribute regex → gone; `membersIn` and `arcIn` read the parser's output.]{id=c42}
+::::claim[Grep `documentUpdate.cjs` for `LINE(` and the attribute regex → gone; `membersIn` and `arcIn` read the parser's output.]{id=c42 state=met by=systemview-test at=1792964285220 note="documentUpdate.cjs: LINE()/attrOf gone; membersIn/arcIn parse the head through electron/markdown/parse.cjs; tests/documents.js 20 green" told=systemview-test}
+The one hit is the comment announcing the retirement — the live code parses through `electron/markdown/parse.cjs`:
+:::cmd
+grep -n "LINE\|attrOf" ~/autobot/electron/apps/documentUpdate.cjs
+:::
+::::
 
 ::claim[`electron/markdown/parse.cjs`, `write.cjs` and `blocks.cjs` import no React and nothing from SystemView; `node -e "require('<path>/parse.cjs')"` parses a fixture containing a leaf, a container and an inline directive; SystemView's `directives.js` imports the parse and `Markdown.js` calls `write.cjs` for every attribute it sets, carrying neither of its own.]{id=c43}
-::claim[Grep the renderer and the agent tools for a second writer of block attributes → one: `write.cjs`; a press and an agent's mark go through the same function.]{id=c44}
+::::claim[Grep the renderer and the agent tools for a second writer of block attributes → one: `write.cjs`; a press and an agent's mark go through the same function.]{id=c44 state=unmet by=systemview-test at=1792964285220 note="two writers still exist: write.cjs (host) and setDirectiveAttr (renderer) — kept one IN BEHAVIOUR by tests/markdown-write.js until RFC-053 §4's npm package lets the renderer import the platform's; both now target the end-of-line attr bag" told=systemview-test}
+The fixture that keeps the two writers one in behaviour — until RFC-053 §4's package seam retires the renderer's copy:
+:::cmd
+cd ~/autobot && node tests/markdown-write.js | tail -3
+:::
+::::
 
-::claim[Grep the host for any stored previous-state of a document's blocks → none.]{id=c45}
+::::claim[Grep the host for any stored previous-state of a document's blocks → none.]{id=c45 state=met by=systemview-test at=1792964285220 note="grep electron/markdown + documentUpdate for stored previous-state → none; told= on the block is the only baseline" told=systemview-test}
+Zero hits is the answer — told= on the block is the only baseline:
+:::cmd
+grep -rn "previousState\|prevBlocks\|lastBlocks" ~/autobot/electron/markdown ~/autobot/electron/apps/documentUpdate.cjs || echo "none"
+:::
+::::
 
-::claim[Grep the renderer and the host for a thread's `members=` or `sent=` as a live path → gone except the one-line read-as-`subscribe=` migration.]{id=c46}
+::claim[Grep the renderer and the host for a thread's `members=` or `sent=` as a live path → gone except the one-line read-as-`subscribe=` migration.]{id=c46 state=unmet by=systemview-test at=1792964285220 note="the audience half is done (threads read+write subscribe=, members= answers as legacy) but thread sent= is still the live behind-tracking — it retires with slice 2's registration pass, since fires only cover registered documents" told=systemview-test}
 
-::claim[Grep the host for a second `fs.watch` or any `setInterval` over documents → none beyond the session watcher that already exists at `sessions.cjs:992`, unchanged.]{id=c47}
+::::claim[Grep the host for a second `fs.watch` or any `setInterval` over documents → none beyond the session watcher that already exists at `sessions.cjs:992`, unchanged.]{id=c47 state=met by=systemview-test at=1792964285220 note="grep → no new fs.watch, no setInterval over documents; the one watcher is sessions.cjs's existing tools-in-flight-gated one" told=systemview-test}
+The document machinery holds no watcher and no timer of its own — and the whole shell's fs.watch list is the terminal's log tail, the agent-definitions reload, and the session watcher that already existed:
+:::cmd
+grep -rn "fs.watch(\|setInterval" ~/autobot/electron/markdown ~/autobot/electron/apps/documentUpdate.cjs || echo "none — the session watcher is the only eye"; grep -rn "fs.watch(" ~/autobot/electron --include='*.cjs' | grep -v node_modules
+:::
+::::
 
 ::claim[Read the commits → registration landed before any surface read the registry; the folder reads went only after the agents' own registration pass; the skill updates landed last.]{id=c48}
 
 **In the skills and the handbook** (slice 7)
 
-::claim[File a report through the host's write door with no leaf written by anyone → `documents.json` gains a `report` row.]{id=c49}
+::claim[File a report through the host's write door with no leaf written by anyone → `documents.json` gains a `report` row.]{id=c49 state=met by=systemview-test at=1792975299444 note="reports.js write() ensures the leaf AND upserts the registry row (api/documentsRegistry.upsertRow, same whitelist; state left to the shell's parse) — .systemview is watcher-blind so this door registers or nobody does; 30 hub tests incl. the suite-isolation fix" told=systemview-test}
 
-::claim[Save a document whose leaf is already registered → one row, no error, no second row.]{id=c50}
+::claim[Save a document whose leaf is already registered → one row, no error, no second row.]{id=c50 state=met by=systemview-test at=1792962034278 note="tests/registry.js: re-registering an already-registered document is one row, no error, updated=true" told=systemview-test}
 
-::claim[`how-we-work/registration.md` exists, is indexed, and `context("how do I register an RFC")` returns it.]{id=c51}
+::claim[`how-we-work/registration.md` exists, is indexed, and `context("how do I register an RFC")` returns it.]{id=c51 state=met by=systemview-test at=1792964285220 note="docs/how-we-work/registration.md written and indexed; context(\\"how do I register an RFC\\") returns its chunks (and markdown.md's leaves section)"}
 
-::claim[`rfc-authoring` §3 instructs writing `::rfc{id= arc=}`; `arc-planning` §5 says `::arc` registers; `arc-development` §3.5 says the move fires by itself rather than instructing a send.]{id=c52}
+::claim[`rfc-authoring` §3 instructs writing `::rfc{id= arc=}`; `arc-planning` §5 says `::arc` registers; `arc-development` §3.5 says the move fires by itself rather than instructing a send.]{id=c52 state=met by=systemview-test at=1792964285220 note="rfc-authoring §3 opens the file with ::rfc{id= arc=}; arc-planning says ::arc registers; arc-development §3.5 rewritten — the move fires by itself, no send step" told=systemview-test}
 
-::claim[`gap-authoring` exists as a skill and its outcome is a `::gap` document in the registry.]{id=c53}
+::claim[`gap-authoring` exists as a skill and its outcome is a `::gap` document in the registry.]{id=c53 state=met by=systemview-test at=1792964285220 note="gap-authoring created through definitions.createSkill; its outcome is a ::gap document in the OTHER project's repo, done at resolved=" told=systemview-test}
 
 **Another app, same platform** (after slice 3)
 
@@ -682,6 +728,18 @@ standing when you check it, and each slice in §5 names the ones it makes checka
 
 ::claim[Run a `:::cmd{subscribe=buapi}` → buapi receives the completion event the chat received, with the exit and the log lines; nothing is written into the document. The same for `::run`, `::test`, `::branch`.]{id=c56}
 
-:::approval{ask="Approve RFC-073 — a document's state lives in the system?"}
+:::approval{ask="Approve RFC-073 — a document's state lives in the system?" verdict=approved told=systemview-test}
 The piece most worth rejecting is §1.1 with §1.4: identity never derived from content, and a derived `state` that is never read as truth.
 :::
+
+## STATUS — built 2026-10-25 (slices 1, 3, 4, 5, 6, 8, the skills of 7, and slice 2's RFC/arc cutover — his ruling: the registered list IS the honest list)
+
+::claims
+
+Walked the same day it was built. Three marked NOT MET say where the seams are: two writers until
+RFC-053 §4's package (c44), thread `sent=` stays as the behind-tracking until slice 2 registers the
+documents it would replace it on (c46), and a report filed through the hub lands outside every door
+the registry hears (c49). Unchecked claims are the live passes still owed: the window's queue under
+his hands (c23–c26), chat blocks parsed by the host (c27), two live sessions receiving one fire
+(c11's second half), the registration pass filling the list back out (c48), the reports tab's cutover (c49's seam), and a second app on the platform (c54). The
+watcher/files:write paths run the new code only after a shell restart.

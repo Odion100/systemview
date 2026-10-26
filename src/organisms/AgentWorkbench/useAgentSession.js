@@ -110,7 +110,10 @@ export default function useAgentSession({ projectCode, sessionId = "agent", gate
   const laneTicks = events.reduce(
     (n, e) =>
       n +
-      (e.kind === "run.started" || e.kind === "run.finished" || e.kind === "lane.removed" ||
+      // `run.updated` is a status or attachment landing on a run file — the strip reads those
+      // files, so the write has to tick a re-read or a declared "abandoned" wears yesterday's
+      // face (his catch, 2026-10-26: the run he watched get declared showed nothing).
+      (e.kind === "run.started" || e.kind === "run.finished" || e.kind === "lane.removed" || e.kind === "run.updated" ||
       (e.kind === "todo.updated" && String(e.source || "").startsWith("lane:"))
         ? 1
         : 0),

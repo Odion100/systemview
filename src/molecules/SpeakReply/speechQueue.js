@@ -231,7 +231,17 @@ export function setWarming(key, on) {
 export function setPosition(key, pos) {
   if (!playing || playing.key !== String(key)) return false;
   playing.position = pos
-    ? { index: pos.index, total: pos.total, text: pos.text || "", lines: pos.lines || null }
+    ? {
+        index: pos.index,
+        total: pos.total,
+        text: pos.text || "",
+        lines: pos.lines || null,
+        // WHICH FILE is being spoken, when the utterance is a reply replaying its voiced chip —
+        // the embed's only way to recognise a passage playing under the reply's key. This
+        // whitelist silently dropping it was measured: the replay read the passage and the
+        // document never lit (2026-10-26).
+        file: pos.file || null,
+      }
     : null;
   shout();
   return true;

@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useCapability, useCapabilityState } from "../capabilities";
 import ServiceContext from "../../../ServiceContext";
 import loadServiceWithHeaders from "../../../utils/loadService";
@@ -14,6 +14,8 @@ import { useEditorDark } from "../../CodeView/editorTheme";
 import { canGit, hasPlugin, pickHost } from "../../../utils/pluginHost";
 import { machineFiles } from "../../../utils/hostFiles";
 import Markdown from "../Markdown";
+import { passageKey } from "../../../utils/readAloud";
+import { subscribe as speechSubscribe, view as speechView } from "../../../molecules/SpeakReply/speechQueue";
 
 // RFC-025 — the two story-pane kinds a document was still missing: a FILE pane and a DIFF pane.
 //
@@ -112,6 +114,87 @@ const Embed = ({ label, attrs = {}, opens }) => {
   const gitData = git && git.key === key ? git : null;
   const error = err.key === key ? err.file : null;
   const content = data ? data.content || "" : null;
+  // A VOICED CHIP NEVER READS ITSELF — his rule, after three old chips read the backlog at him on
+  // every refresh: *"I don't need it to try to read automatically on load at all."* The markdown is
+  // the instruction, and it executes when the reply ARRIVES (the chat's reader) and when the reply
+  // is PRESSED (SpeakReply replays the segments) — never when a chip merely renders. This component
+  // keeps the follow (below) and the grip; it starts no audio.
+
+  // THE DOCUMENT KEEPS UP WITH THE VOICE (his: *"will the document scroll to keep with the
+  // highlight? Definitely should."*) — whoever is reading this file's passage (the chat's reader or
+  // this chip), the queue carries file-absolute lines per position; this lights the covering block
+  // INSIDE the embed and scrolls the embed's own box, never the page. Markdown preview only — the
+  // rendered body carries data-md-start/end; plain text reads voice-only.
+  const followRef = useRef(null);
+  useEffect(() => {
+    const key = passageKey(host.projectCode || host.machine || "", path, lines);
+    const clear = () => {
+      const box = followRef.current;
+      if (box) box.querySelectorAll(".md-karaoke").forEach((el) => el.classList.remove("md-karaoke"));
+    };
+    const un = speechSubscribe(() => {
+      const box = followRef.current;
+      if (!box) return;
+      const v = speechView();
+      const raw = v.playing ? v.playing.position : null;
+      // Two ways this file can be the one talking: its own queue item (arrival read, key match) or
+      // inside a reply's replay, where the position carries `file:` instead (the markdown is the
+      // instruction — a press replays the chip too).
+      const mine = v.playing && (v.playing.key === key || (raw && raw.file === path));
+      const pos = mine ? raw : null;
+      clear();
+      if (!pos || !pos.lines) return;
+      const at = pos.lines[0];
+      let best = null;
+      let span = Infinity;
+      box.querySelectorAll("[data-md-start]").forEach((el) => {
+        const a = Number(el.getAttribute("data-md-start"));
+        const b = Number(el.getAttribute("data-md-end")) || a;
+        if (a <= at && at <= b && b - a < span) {
+          best = el;
+          span = b - a;
+        }
+      });
+      if (best) {
+        best.classList.add("md-karaoke");
+        // IN-BOX ONLY. scrollIntoView climbs every scrollable ancestor, so a read dragged his chat
+        // list back to the embed — *"I don't want to go back. Period."* The math below moves the
+        // embed's own scrollbox and nothing else; if the embed is off his screen, it stays off.
+        try {
+          const boxR = box.getBoundingClientRect();
+          const elR = best.getBoundingClientRect();
+          if (elR.top < boxR.top || elR.bottom > boxR.bottom) {
+            box.scrollTop += elR.top - boxR.top - Math.max(0, (boxR.height - elR.height) / 2);
+          }
+        } catch {}
+      }
+    });
+    return () => {
+      un();
+      clear();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [path, lines && lines.join("-")]);
+
+  // RESIZE BY PULLING THE BOTTOM (his). The body is height-capped and scrollable — which is also
+  // what lets the karaoke-follow scroll INSIDE the embed instead of dragging the chat around — and
+  // the grip under it drags the cap. Per-mount state: a size is a reading posture, not a document
+  // property.
+  const [bodyH, setBodyH] = useState(null);
+  const dragRef = useRef(null);
+  const startDrag = (e) => {
+    e.preventDefault();
+    const box = dragRef.current;
+    const fromY = e.clientY;
+    const fromH = box ? box.getBoundingClientRect().height : 420;
+    const move = (ev) => setBodyH(Math.max(120, fromH + (ev.clientY - fromY)));
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
   const base = gitData ? gitData.base : null;
   const index = gitData ? gitData.index : null;
 
@@ -323,6 +406,11 @@ const Embed = ({ label, attrs = {}, opens }) => {
       {note && <div className="md-embed__note">{note}</div>}
       <div
         className="md-embed__file-body"
+        ref={(el) => {
+          followRef.current = el;
+          dragRef.current = el;
+        }}
+        style={bodyH ? { maxHeight: bodyH } : undefined}
         // Only the line-number column — `closest` because the gutter is a stack of elements and the
         // thing under the pointer is usually the number itself, not the column.
         onContextMenu={(e) => {
@@ -384,6 +472,9 @@ const Embed = ({ label, attrs = {}, opens }) => {
           />
         )}
       </div>
+      {isMd && mdPreview ? (
+        <div className="md-embed__grip" title="Drag to resize" onPointerDown={startDrag} />
+      ) : null}
       <RowMenu menu={menu} onClose={() => setMenu(null)} />
     </div>
   );

@@ -11,6 +11,8 @@ a **pointer**; the agent still decides whether to pull it. Skills stay the singl
 procedure (a hook has nothing to drift with); the only difference is who pulls the trigger: the
 model's judgment for a skill, an event for a hook. **Same body, two doors.**
 
+
+::rfc{id=}
 ## The hook file
 
 A hook is a markdown file in `~/.autobot/hooks/` — editable, diffable, no database in the middle.

@@ -2350,6 +2350,61 @@ $sv-board-states: (
     }
   }
   // The time, tucked in the bubble's corner (his ask: "we need to see the time").
+  // RFC-073 §3.2 — A QUEUED ROW: his bubble's shape wearing the not-yet-sent look. Same component
+  // family as every other row (his: no new component), told apart by a dashed edge, a ghosted fill
+  // and the tag naming what it is waiting for. The × removes it before it ever goes (c24).
+  &__msg--queued {
+    position: relative;
+    background: color-mix(in srgb, #575fc1 18%, transparent);
+    color: var(--sv-text);
+    border: 1px dashed color-mix(in srgb, #575fc1 55%, transparent);
+    padding-right: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  &__queued-tag {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: color-mix(in srgb, #575fc1 80%, var(--sv-text) 20%);
+  }
+  &__queued-text {
+    white-space: pre-wrap;
+  }
+  &__queued-x {
+    position: absolute;
+    top: 4px;
+    right: 6px;
+    border: none;
+    background: none;
+    color: var(--sv-text-faint);
+    font-size: 13px;
+    line-height: 1;
+    cursor: pointer;
+    &:hover { color: #c0392b; }
+  }
+  // The queue's own two verbs, right-aligned under the queued rows — quiet text buttons, not a bar
+  // that shouts. `send now` is one turn carrying everything above it (c25).
+  &__queue-bar {
+    align-self: flex-end;
+    display: flex;
+    gap: 10px;
+  }
+  &__queue-send,
+  &__queue-clear {
+    border: none;
+    background: none;
+    padding: 0;
+    font-size: 11px;
+    color: color-mix(in srgb, #575fc1 80%, var(--sv-text) 20%);
+    cursor: pointer;
+    &:hover { text-decoration: underline; }
+  }
+  &__queue-clear {
+    color: var(--sv-text-faint);
+  }
   &__msg-time {
     display: block;
     text-align: right;
@@ -3538,6 +3593,22 @@ $sv-board-states: (
   // WHERE ONE LIST BEGINS — his ask, after clicking a header he could not see the edge of:
   // a subtle rule at the top of each list, so stacked lists read as separate things.
   border-top: 1px solid var(--sv-line, rgba(128, 128, 128, 0.18));
+}
+// THE SESSION'S OWN PLAN wears a FILLED "default" badge (his revision, 2026-10-26 — the first cut
+// was a background wash on the row and he swapped it: "get rid of the color and put a badge…
+// a fill compared to the other badges that don't have a fill"). Solid = working memory, the
+// session's own; hollow source badges = a tracked run's promise. Same grammar the claim badges
+// taught: the fill is the statement.
+.agent-chat__worklist-source--default {
+  border-color: transparent;
+  // ONE SOLID BLUE, IDENTICAL IN BOTH THEMES (his settlement, two passes: "more solid blue in dark
+  // mode… it can have white text in white mode too if it's the right blue — the same across each").
+  // Pinned rather than var(--sv-blue), deliberately: that token FLIPS per theme (#6886ba light,
+  // pale #7d99cc dark — too washed to carry white text), and "the same across each" is the ask.
+  // #5a76a8 is the brand family's pressed step — saturated enough for white text on either ground.
+  background: #5a76a8;
+  color: #fff;
+  opacity: 1;
 }
 .agent-chat__worklist-headrow {
   display: flex;
@@ -4996,3 +5067,169 @@ $sv-board-states: (
   0%, 100% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--sv-blue, #5b8def) 70%, transparent), 0 6px 18px rgba(0, 0, 0, 0.2); }
   50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--sv-blue, #5b8def) 35%, transparent), 0 6px 18px rgba(0, 0, 0, 0.2); }
 }
+
+// The nudge countdown on a run row — only ever drawn while the shell's quiet clock is ticking.
+.agent-chat__worklist-nudgeeta {
+  flex: none;
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 10px;
+  padding: 0 6px;
+  border: 1px dashed var(--sv-border);
+  border-radius: 999px;
+  color: var(--sv-text-muted);
+  white-space: nowrap;
+}
+
+// THE DECLARED ENDING, WORN. A run marked abandoned with its account attached is an honest ending
+// (solid, muted); the word without the record is a declaration the nudging rightly ignores — it
+// stays dashed, the unfulfilled-invitation grammar the claim badges already taught.
+.agent-chat__worklist-abandoned {
+  flex: none;
+  font-size: 10px;
+  padding: 0 6px;
+  border: 1px solid color-mix(in srgb, var(--sv-red, #e5534b) 45%, var(--sv-border));
+  border-radius: 999px;
+  color: color-mix(in srgb, var(--sv-red, #e5534b) 70%, var(--sv-text-muted));
+  white-space: nowrap;
+
+  &--bare {
+    border-style: dashed;
+    color: var(--sv-text-muted);
+  }
+}
+
+// WHAT THE RUN POINTS AT — attachments at the top of the expanded list (his: "it should be at the
+// top when I expand, a link to it"). A report chip opens; other kinds name themselves.
+.agent-chat__worklist-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px 2px 26px;
+}
+.agent-chat__worklist-attachment {
+  font-size: 11px;
+  color: var(--sv-text-muted);
+  border: 1px solid var(--sv-border);
+  border-radius: 999px;
+  padding: 0 6px;
+  white-space: nowrap;
+}
+
+// ── THE WORKLIST SETTINGS COG (his ask: "on the right side of the tabs all the way at the end") ──
+//
+// IT COSTS NO HEIGHT, which is the one rule the band's row cannot bend: `margin-left: auto` pushes
+// it to the far end of the existing flex row rather than adding a child that claims a line. The
+// document pin learned this the hard way — a column container turned its tuck handle into a new
+// row and pushed the whole stack down.
+//
+// AND IT IS SILENT. The tab row is navigation furniture (his correction, twice: an indigo pill
+// "made them call for attention"), so the cog matches the unselected tabs and only gains strength
+// on hover or while its panel is open.
+.agent-chat__bandcog {
+  margin-left: auto;   // the far end of the row, claiming no line of its own
+  position: relative;  // the panel hangs off it
+  flex: none;
+  display: flex;
+  align-items: center;
+}
+.agent-chat__bandcog-btn {
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 11px;
+  line-height: 1;
+  color: var(--sv-text-faint);
+  padding: 2px 6px 3px;
+  border-bottom: 2px solid transparent; // the same held-open line the tabs keep, so nothing shifts
+  cursor: pointer;
+  &:hover { color: var(--sv-text); }
+}
+.agent-chat__bandcog-btn--on { color: var(--sv-text); }
+
+// THE PANEL OPENS UPWARD. The band sits at the bottom of the chat column, so a panel dropping down
+// would open off-screen — the one layout fact that decides this.
+.agent-chat__bandcog-panel {
+  position: absolute;
+  right: 0;
+  bottom: 100%;
+  margin-bottom: 6px;
+  z-index: 40;
+  width: 320px;
+  padding: 8px 10px 9px;
+  background: var(--sv-bg-raised, var(--sv-bg));
+  border: 1px solid var(--sv-border);
+  border-radius: 6px;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.18);
+  font-size: 11px;
+  color: var(--sv-text);
+}
+.agent-chat__bandcog-head {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--sv-text-muted);
+  padding-bottom: 6px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--sv-border);
+}
+.agent-chat__bandcog-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 2px 8px;
+  padding: 5px 0;
+  & + & { border-top: 1px solid var(--sv-border-faint, var(--sv-border)); }
+}
+.agent-chat__bandcog-label { font-weight: 500; }
+// THE HELP LINE IS NOT A TOOLTIP. Every knob here changes when an agent gets interrupted, and a
+// hover-only explanation is one nobody reads before changing it.
+.agent-chat__bandcog-help {
+  grid-column: 1 / -1;
+  color: var(--sv-text-faint);
+  line-height: 1.35;
+}
+.agent-chat__bandcog-num {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+  input {
+    width: 58px;
+    font: inherit;
+    text-align: right;
+    color: var(--sv-text);
+    background: var(--sv-bg);
+    border: 1px solid var(--sv-border);
+    border-radius: 3px;
+    padding: 1px 4px;
+  }
+  em { font-style: normal; color: var(--sv-text-faint); }
+}
+.agent-chat__bandcog-sources { display: inline-flex; gap: 4px; }
+.agent-chat__bandcog-src {
+  border: 1px solid var(--sv-border);
+  background: none;
+  font: inherit;
+  font-size: 10px;
+  color: var(--sv-text-faint);
+  border-radius: 10px;
+  padding: 1px 8px 2px;
+  cursor: pointer;
+  &:hover { color: var(--sv-text); }
+}
+.agent-chat__bandcog-src--on {
+  color: var(--sv-text);
+  border-color: var(--sv-text-muted);
+}
+// A SAVE IN FLIGHT IS VISIBLE. The value shown is whatever the harness said it stored, so the only
+// honest state between press and answer is "asking".
+.agent-chat__bandcog-row--saving { opacity: 0.55; }
+.agent-chat__bandcog-foot {
+  margin-top: 7px;
+  padding-top: 6px;
+  border-top: 1px solid var(--sv-border);
+  color: var(--sv-text-muted);
+}
+// ABSENCE STATED, never a panel of knobs that write nowhere.
+.agent-chat__bandcog-absent { color: var(--sv-text-faint); line-height: 1.4; }

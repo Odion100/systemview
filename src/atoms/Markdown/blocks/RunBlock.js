@@ -2,7 +2,8 @@ import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
 import loadServiceWithHeaders from "../../../utils/loadService";
 import ServiceContext from "../../../ServiceContext";
 import { SavedTestItem } from "../../../organisms/SavedTests/SavedTests";
-import { useMarkdownScope } from "../context";
+import { useMarkdownScope, useDocMembers } from "../context";
+import { routeResult } from "../docSend";
 import { resolveNamespace } from "../nsResolve";
 
 // RFC-025 §4.2 — `::run`, in two forms, and the difference matters:
@@ -213,6 +214,7 @@ const RunBlock = ({ kind, label, attrs = {}, src }) => {
   // happens to be up. A `::run` that EXECUTES against a project nobody named is the confident-wrong
   // shape this seam exists to end: it changes when a service restarts, with nothing he did.
   const projectCode = attrs.project || scope.projectCode;
+  const { docPath = "" } = useDocMembers() || {};
   const savedName = (label || attrs.use || attrs.action || "").trim();
   const inline = kind === "container";
 
@@ -384,7 +386,14 @@ const RunBlock = ({ kind, label, attrs = {}, src }) => {
           nsLabel={inline ? null : savedName}
           showTitle={false}
           status={status}
-          onResult={(_i, st) => setStatus(st === undefined ? _i : st)}
+          onResult={(_i, st) => {
+            const next = st === undefined ? _i : st;
+            setStatus(next);
+            // RFC-073 slice 8 — a finished run is routed to whoever the block names; "running" and
+            // "pending" are not endings and route nothing (c56).
+            if (next === "pass" || next === "fail" || next === "error")
+              routeResult({ subscribe: attrs.subscribe, project: projectCode, docPath, summary: `${attrs.title || savedName || "run"} — ${next}` });
+          }}
           connectedServices={connectedServices}
           recorded={recorded}
           // OPEN, not folded: a run of one step, or one that arrives already ran, has nothing to

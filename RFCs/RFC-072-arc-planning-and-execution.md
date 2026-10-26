@@ -1,5 +1,7 @@
 # RFC-072 — Arc planning and execution: an arc you can open and see where you are
 
+::rfc{id=RFC-072}
+
 **An arc is a document of numbered objectives, and that document IS the state.** It is written by
 the project that will build it, one per project with work. Its objectives are `::objective` blocks
 carrying an address, an owner, a test and a **why** — so the document can show its own progress,
@@ -25,7 +27,7 @@ his and the problem is stated better here than anywhere since — not because th
 > such a special way? It shouldn't be special. I should be able to open a worklist and see that
 > type of stuff."*
 
-::members{who=systemview-test sent=systemview-test:swwr7v}
+::members{who=systemview-test sent=systemview-test:2kj3k9}
 
 ## 1 · The same blindness, three times
 
@@ -45,10 +47,10 @@ RFC fixes the shape rather than the third instance.
 The temptation is to add a `lanes` array to job runs, an `arc` field to cards, and a progress
 tracker beside arcs — three features. They are one feature special-cased three times, which is how
 the first two got built.
-:::reply{author=you ts=1792538405053}
+:::reply{author=you ts=1792538405053 told=systemview-test}
 I mentioned adding arcs. to work less, any work list a job
 :::
-:::reply{author=systemview-test ts=1792538456329}
+:::reply{author=systemview-test ts=1792538456329 told=systemview-test}
 Agreed, and §5 says it — but I said it badly in the chat earlier, so let me be precise here because the distinction is the whole reason this works.
 
 **Any worklist carries an arc, a job's included.** The unit is the RUN — the list — and a job run is a list like any other. That is the point of attachments being general rather than per-kind: there is no "jobs can, skills cannot" anywhere in it.
@@ -92,10 +94,10 @@ produces an epic its owner never agreed to and never reads.
 separate repos and the harness is not a combined space that persists across them, so a goal touching
 three projects produces three arcs. Each holds only the objectives its own project owns and names
 its dependencies by repo and arc — *the dependency crosses, the document does not.*
-:::reply{author=you ts=1792538578558}
+:::reply{author=you ts=1792538578558 told=systemview-test}
 Should each repo hold a arc? If we do arc planning, I like to have one agent lead projects anyway. Can evoke other agents, but what I say is each project gets its own epic. That's the step that I'm forgetting.
 :::
-:::reply{author=systemview-test ts=1792538629037}
+:::reply{author=systemview-test ts=1792538629037 told=systemview-test}
 Yes — and the step you are reaching for is real, but it is one level down from where you are looking. There are TWO documents and the RFC has been sloppy about saying so.
 
 **One planning document. N epics.**
@@ -137,13 +139,13 @@ This is the part to argue with if any of it is wrong, because everything below d
 
 ::::thread{id=t2 members=systemview-test sent=systemview-test:1magn2w}
 ## 4 · An objective has an address
-:::reply{author=you ts=1792539139519}
+:::reply{author=you ts=1792539139519 told=systemview-test}
 Do you think we need to make objective markdown? Because not because of some special styling, even though some special styling would be nice, but because of functionality. And it actually is becoming a core tool. in our system view and in the harness. I think it actually might be a powerful UI tool in general and just a way to integrate documents. for ill functionality. Should we actually create a markdown for the objectives, the goals of the arc, stuff like that? objectives. Give what I'm saying, think about it.
 :::
-:::reply{author=you ts=1792540371525}
+:::reply{author=you ts=1792540371525 told=systemview-test}
 The interactive markdown is actually so much more powerful when you think about what we can do besides what we're doing even here right now, and other features in the future. I'm really excited about how to really grow, but even with arcs, filter like even like if there's an arc markdown that defines the gold or defines the arc so that the document this is how the document ties into the system and this how the document becomes even more interactive because this is how you could have the tracking automated this is how you could come back and even from the document probably see you Full high level tracking, right? You know, if the board has arcs, if the runs have arcs, It could be quite interactive, potentially.
 :::
-:::reply{author=systemview-test ts=1792540548311}
+:::reply{author=systemview-test ts=1792540548311 told=systemview-test}
 Yes — and this is the best idea in the RFC so far, because it dissolves the one thing I flagged as its real cost.
 
 §4 currently makes the objective a LINE FORMAT, and I wrote the warning myself: "the line becomes a FORMAT, and that is the cost of this section", pointing at the regex that swallowed RFC-071's attributes and made every reply into a meeting thread fail for a day. A prose line parsed by regex is exactly the thing that keeps breaking here. Three times today.
@@ -164,10 +166,10 @@ So: yes, and I would make it the format rather than a nicer rendering of a line 
 
 — systemview-test
 :::
-:::reply{author=you ts=1792541171175}
+:::reply{author=you ts=1792541171175 told=systemview-test}
 I couldn't possibly make the document hard to read because I don't read raw document. I read a preview. I read a rendered nice view of the document is you act like I read the actual blocks. Like I see objective with colons in shape. I see whatever is rendered. It didn't even give feedback on how I see how powerful it is and how interactive it could be. didn't build on that. No. You know, how nice it is for system view of war.
 :::
-:::reply{author=systemview-test ts=1792541463865}
+:::reply{author=systemview-test ts=1792541463865 told=systemview-test}
 Fair, twice over. The caveat was void — you read the rendered view, so "unpleasant raw" was me defending a constraint that does not exist on your side. And you said twice that you were excited about what this opens up, and I answered about regexes. Let me actually answer.
 
 **The thing you are seeing is that the document stops DESCRIBING state and becomes it.**
@@ -218,10 +220,10 @@ leaves that agent two bad options: stop, or do the literal thing that no longer 
 purpose gives it the third and correct one — **serve the intent, say what changed, and say what you
 did instead.** A reason travels where an instruction cannot, which is the same rule this system
 already applies to every step of every skill.
-:::reply{author=you ts=1792539308961}
+:::reply{author=you ts=1792539308961 told=systemview-test}
 For. And just the same thing as why.
 :::
-:::reply{author=systemview-test ts=1792541900000}
+:::reply{author=systemview-test ts=1792541900000 told=systemview-test}
 Agreed, they are the same thing — so it should be called `why`, and I will change it.
 
 `for` was me reaching for a word that sounded like a field name. `why` is the word you actually used, it is the word an agent reads correctly at 3am without being taught, and a field nobody has to learn is a field that gets filled honestly. That is the whole test for naming here.
@@ -244,10 +246,10 @@ Three consequences, and they are rules rather than observations:
   intent and starts being a second, vaguer `what`.
 - **If the `why` cannot be stated, the objective is not ready.** Not knowing what a piece of work is in
   aid of is a finding about the plan, not a detail to fill in later.
-:::reply{author=you ts=1792539437640}
+:::reply{author=you ts=1792539437640 told=systemview-test}
 Agents need to be able to act on their own. And that's where military intent. The military commandant comes into play. And I think my friend was talking about the why. Which I don't know. You can help me refine. Because I don't know what I'm talking about, but it's... Wow. You can act. in these cases that you're describing. And it's like... Again, we want to avoid, we want to make it so that agents don't short circuit and not do work. Just because they don't know what to do because something's changed or something is blocked or something, you know.
 :::
-:::reply{author=systemview-test ts=1792541910000}
+:::reply{author=systemview-test ts=1792541910000 told=systemview-test}
 You are not wrong about it — and the failure you are naming has a long record here, which is why it belongs in the RFC rather than in a pep talk.
 
 The short-circuit is the real enemy. One night produced eight job firings and six receipts reading "blocked on your presses — verified unchanged", every one of them an agent finding a reason not to work and dressing it as caution. The job document calls it "being afraid and finding excuses to not do work." Same shape every time: something changed, or something was blocked, and the agent treated that as an ending.
@@ -260,10 +262,10 @@ The short-circuit is the real enemy. One night produced eight job firings and si
 
 — systemview-test
 :::
-:::reply{author=you ts=1792541000000}
+:::reply{author=you ts=1792541000000 told=systemview-test}
 Alright, so... So what did I realize? And you mentioned that there's not a new skill, and we spoke about it, but what you're saying here makes me realize there's a new skill. proactive development. because arc development has different states, um, steps. You have to update the... certain things about the arc, even though some many can be automated.
 :::
-:::reply{author=systemview-test ts=1792541920000}
+:::reply{author=systemview-test ts=1792541920000 told=systemview-test}
 You are right and I was wrong — and I can say exactly where my argument went wrong, which is worth recording so it does not get re-made.
 
 I argued against a skill that would hold the SAME four dispatch questions `arc-planning` already owns. That argument was sound and it still is: two documents holding one checklist is the drift bug this whole RFC exists to stop.
@@ -371,10 +373,10 @@ already say it.
 
 **`arc:` is an attachment, not a fourth special field.** "Which objective commissioned this work" is
 one kind among several. A card, a lane and a run all point the same way: `arc:ARC-004-O2`.
-:::reply{author=you ts=1792540162133}
+:::reply{author=you ts=1792540162133 told=systemview-test}
 Are you gonna point back to the arc file?
 :::
-:::reply{author=systemview-test ts=1792540578548}
+:::reply{author=systemview-test ts=1792540578548 told=systemview-test}
 Yes — and the interesting part is what gets STORED, because the obvious answer creates the bug this RFC exists to stop.
 
 The attachment stores the ADDRESS and the project, never the path: `{ kind: "arc", ref: "ARC-004-O2", project: "systemview-test" }`.
@@ -408,7 +410,7 @@ hour forever and belongs to no arc; the run it fired at 09:00 carries the lane i
 objective that lane serves. Tagging the procedure is how a job ends up permanently labelled with an
 arc that closed in March.
 
-::::thread{id=attachments}
+::::thread{id=attachments sent=systemview-test:h0rpdc}
 Open question worth settling here rather than in code: does an attachment ever get REMOVED, or is it
 append-only with a `detached` stamp? Append-only is more honest and costs a field.
 ::::
@@ -585,7 +587,7 @@ section per goal, convergence in turns, objectives with owner and test, one arc 
 dispatch. **This RFC makes an arc trackable; it does not make arc planning possible.** Planning can
 start before any of §11 is built.
 
-:::approval{ask="Approve RFC-072 — arcs as trackable documents, with attachments as the general fix?" verdict=approved}
+:::approval{ask="Approve RFC-072 — arcs as trackable documents, with attachments as the general fix?" verdict=approved told=systemview-test}
 Approving commits to: the arc document as the single state (§3), numbered objectives as a parsed
 format with one parser (§4), attachments replacing per-kind run fields (§5), and the dispatch — never
 a person — setting them (§6). The slices in §11 land one at a time, cross-repo ones as paired lanes.
@@ -794,7 +796,7 @@ design's §9 restated against what was actually built.
   appearing says work started, a lane landing says more — and part cannot," without naming a
   transition. Claim 49 therefore checks only that "done" is never derived.
 
-:::approval{ask="Is this the complete list of claims for RFC-072?" verdict=approved}
+:::approval{ask="Is this the complete list of claims for RFC-072?" verdict=approved told=systemview-test}
 Pressing this makes the list the contract: a behaviour missing from it is one we agreed not to
 check, so the thing to read for is what is NOT here — the open question at the foot especially, since
 each line there is a deliberate hole. The two I am least sure belong are 69 (the `save()` key list

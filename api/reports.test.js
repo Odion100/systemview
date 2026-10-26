@@ -5,6 +5,11 @@
 //
 // The door is INJECTED here, exactly as api/index.js injects it, so these claims are about the
 // rule and not about a filesystem.
+// THE SUITE LEAVES HIS STORE ALONE. reports.write() registers the filed document in the registry
+// (RFC-073); without this override the suite writes rows into the REAL ~/.autobot/documents.json —
+// measured 2026-10-25: three junk report rows and RFC-073's row overwritten by a fixture.
+process.env.AUTOBOT_DOCUMENTS = require("path").join(require("os").tmpdir(), `sv-reports-test-${process.pid}.json`);
+
 const assert = require("node:assert");
 const { test, describe } = require("node:test");
 const { reportsOn, REPORT_INDEX } = require("./reports");
@@ -369,5 +374,52 @@ describe("stampSent — a reply tells its own author", () => {
 
   test("an unstamped member is refused rather than written as an empty name", () => {
     assert.match(stampSent(MEETING, "bugs", "").error, /needs the member/);
+  });
+});
+
+// RFC-073 §4, REGISTRATION PATH 2 — `show()` registers what it files. A report is a report because it
+// says so at the top, and `.systemview/` is a folder the session watcher ignores on purpose, so the
+// write door is the only place the leaf can come from.
+describe("Reports.write registers the report", () => {
+  const capturing = () => {
+    const wrote = [];
+    const R = reportsOn({
+      readFile: async () => ({ ok: false, error: "not found" }),
+      writeFile: async (_pc, { path: p, content }) => {
+        wrote.push({ path: p, content });
+        return { ok: true };
+      },
+    });
+    return { R, wrote };
+  };
+
+  test("a plain document gets `::report{id=<name>}` at the top — the name is the id", async () => {
+    const { R, wrote } = capturing();
+    await R.write("sv", "alive", "# alive\n\nbody\n");
+    const doc = wrote.find((w) => w.path.endsWith(".md"));
+    assert.ok(doc.content.startsWith("::report{id=alive}\n\n# alive"), doc.content.slice(0, 60));
+  });
+
+  test("a document that already says what it is — an RFC shown as a report — is left alone", async () => {
+    const { R, wrote } = capturing();
+    const rfc = "# A design\n\n::rfc{id=RFC-073 arc=ARC-004}\n\nbody\n";
+    await R.write("sv", "a design", rfc);
+    const doc = wrote.find((w) => w.path.endsWith(".md"));
+    assert.strictEqual(doc.content, rfc);
+  });
+
+  test("a `::report` quoted in a code fence lower down is an example, not an identity — the leaf is still added", async () => {
+    const { R, wrote } = capturing();
+    const body = "# notes\n\n" + "x\n".repeat(2500) + "```md\n::report{id=example}\n```\n";
+    await R.write("sv", "notes", body);
+    const doc = wrote.find((w) => w.path.endsWith(".md"));
+    assert.ok(doc.content.startsWith("::report{id=notes}"), doc.content.slice(0, 60));
+  });
+
+  test("a name with a space is quoted, so the attribute survives the parse", async () => {
+    const { R, wrote } = capturing();
+    await R.write("sv", "two words", "# t\n");
+    const doc = wrote.find((w) => w.path.endsWith(".md"));
+    assert.ok(doc.content.startsWith('::report{id="two words"}'), doc.content.slice(0, 60));
   });
 });

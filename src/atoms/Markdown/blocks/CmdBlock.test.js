@@ -14,6 +14,7 @@ jest.mock("../capabilities", () => ({
 jest.mock("../context", () => ({
   useMarkdownScope: jest.fn(),
   useMarkdownWrite: jest.fn(() => ({})),
+  useDocMembers: jest.fn(() => ({})),
 }));
 
 const BUILD =

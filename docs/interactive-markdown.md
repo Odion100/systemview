@@ -518,6 +518,13 @@ Takes `width=` and, like every block, `{project=<pc>}` to show another repo's im
 
 ---
 
+**`voice` on a `::file` reads the passage aloud** — `::file[docs/notes.md#L40-70]{voice}` queues
+that slice behind whatever is speaking, same line and transport as any reply. Markdown goes through
+the spoken form; anything else reads as plain text. It reads when the reply arrives and when the
+reply's Listen is pressed — never on a reload or a re-render — and it reads even when ambient voice
+mode is off. Whole documents are fine — the cap is
+generous and stopping is one press.
+
 ## `::::thread{id=…}` / `:::reply{…}` — reply on a block
 
 Wrap anything you want to talk about and it gets the **same reply thread a story pane has** — the 💬

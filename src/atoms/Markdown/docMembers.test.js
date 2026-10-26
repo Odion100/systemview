@@ -350,27 +350,37 @@ describe("threadMembersAttr — dropping an inherited chip materialises the narr
 // or already standing in the document's own row. A row per bare thread would tell them the same
 // news a second time and cost the flood this file was given to kill — four rows, four presses, four
 // separate wakes for one agent, measured live 2026-10-20.
-describe("pendingOf — an inheriting thread adds no row of its own", () => {
+describe("pendingOf — every thread can be pressed on its own (his reversal, 2026-10-26)", () => {
   const SRC = ["::members{who=sv|autobot}", "# meeting", "::::thread{id=a}", "a", "::::", "::::thread{id=b}", "b", "::::"].join("\n");
 
-  it("draws the document's row only, however many bare threads he has made", () => {
+  // *"Per-thread should still be able to work"* — a bare thread inherits its people AND gets a row,
+  // so a surgical thread-send exists whether or not somebody typed members=.
+  it("bare threads get rows beside the document's — the per-thread send works on inherited threads", () => {
     const pending = pendingOf(membersBlockOf(SRC), threadBlocksOf(SRC), SRC);
-    expect(pending.map((p) => p.kind)).toEqual(["document"]);
+    expect(pending.map((p) => p.kind)).toEqual(["document", "thread", "thread"]);
     expect(pending[0].behind).toEqual(["sv", "autobot"]);
   });
 
-  // NARROWING IS WHAT MAKES A ROW. The moment a thread names its own people it is a subscription he
-  // can press on its own, which is the rule that was already law.
+  // THE FLOOD GUARD THAT SURVIVES THE REVERSAL: anyone current on the DOCUMENT appears on no
+  // thread row, so one document press still clears everything.
+  it("a member current on the document is on no thread row, however bare the threads", () => {
+    const whole = hashOf(SRC);
+    const current = SRC.replace("::members{who=sv|autobot}", `::members{who=sv|autobot sent=sv:${whole}|autobot:${whole}}`);
+    const pending = pendingOf(membersBlockOf(current), threadBlocksOf(current), current);
+    expect(pending).toEqual([]);
+  });
+
   it("gives the narrowed thread a row of its own, beside the document's", () => {
     const narrowed = SRC.replace("::::thread{id=b}", "::::thread{id=b members=autobot}");
     const pending = pendingOf(membersBlockOf(narrowed), threadBlocksOf(narrowed), narrowed);
-    expect(pending.map((p) => p.kind)).toEqual(["document", "thread"]);
-    expect(pending[1].id).toBe("b");
+    expect(pending.map((p) => p.kind)).toEqual(["document", "thread", "thread"]);
+    expect(pending[2].id).toBe("b");
   });
 
-  it("a thread narrowed to nobody is on nobody's row", () => {
+  it("a thread narrowed to nobody is on nobody's row — but its bare sibling keeps one", () => {
     const empty = SRC.replace("::::thread{id=b}", '::::thread{id=b members=""}');
-    expect(pendingOf(membersBlockOf(empty), threadBlocksOf(empty), empty).map((p) => p.kind)).toEqual(["document"]);
+    const kinds = pendingOf(membersBlockOf(empty), threadBlocksOf(empty), empty);
+    expect(kinds.filter((p) => p.kind === "thread").map((p) => p.id)).toEqual(["a"]);
   });
 });
 
@@ -406,10 +416,12 @@ describe("pendingOf — every pending update in the document, both levels, disti
     expect(pending[0].behind).toEqual(["buapi"]);
   });
 
-  it("leaves out a thread nobody is on, however much it has moved", () => {
+  it("an inherited thread's row carries the document's people when they are behind", () => {
     const src = ["::members{who=buapi sent=buapi:x}", ":::thread{id=t9}", "nobody here", ":::"].join("\n");
     const pending = pendingOf(membersBlockOf(src), threadBlocksOf(src), src);
-    expect(pending.every((p) => p.kind !== "thread")).toBe(true);
+    const row = pending.find((p) => p.kind === "thread");
+    expect(row && row.id).toBe("t9");
+    expect(row.behind).toEqual(["buapi"]);
   });
 });
 
@@ -521,5 +533,97 @@ describe("everyoneBehind — counts people, not controls", () => {
 
   it("survives a malformed scope rather than taking the pin down", () => {
     expect(everyoneBehind([null, {}, { behind: null }, { behind: ["a"] }])).toEqual(["a"]);
+  });
+});
+
+describe("RFC-073 §2.1 — a thread's audience is subscribe=, and members= still answers", () => {
+  const doc = [
+    "::members{who=buapi|systemlynx}",
+    "",
+    "::::thread{id=t1 subscribe=buapi}",
+    "x",
+    "::::",
+    "",
+    "::::thread{id=t2 members=systemlynx}",
+    "y",
+    "::::",
+  ].join("\n");
+  it("threadBlocksOf reads subscribe= first and legacy members= as the same thing (c21)", () => {
+    const [t1, t2] = threadBlocksOf(doc);
+    expect(t1.members).toBe("buapi");
+    expect(t2.members).toBe("systemlynx");
+  });
+  it("addThreadMemberPlan grows a subscribe= audience without dropping it", () => {
+    const plan = addThreadMemberPlan(doc, 3, "reviewer-x", ["buapi", "systemlynx"]);
+    expect(plan).toEqual({ line: 3, members: "buapi|reviewer-x" });
+  });
+});
+
+// RFC-075 round two — clear ALL threads: wrappers and their replies go, the wrapped content stays.
+describe("clearAllThreads — the conversations go, the writing stays", () => {
+  const { clearAllThreads } = require("./docMembers");
+  const DOC = [
+    "# Title",
+    "",
+    "::::thread{id=t1 subscribe=buapi}",
+    "The paragraph the thread wrapped.",
+    ":::reply{author=you ts=1}",
+    "a reply that goes",
+    ":::",
+    "::::",
+    "",
+    "plain prose between",
+    "",
+    ":::thread{id=t2}",
+    "another wrapped line",
+    ":::",
+    "",
+    "```markdown",
+    ":::thread{id=example}",
+    "never touched — it is a quotation",
+    ":::",
+    "```",
+  ].join("\n");
+
+  it("removes every wrapper and every reply, keeps the wrapped content and the fenced example", () => {
+    const next = clearAllThreads(DOC);
+    expect(next).toContain("The paragraph the thread wrapped.");
+    expect(next).toContain("another wrapped line");
+    expect(next).toContain(":::thread{id=example}"); // the quotation survives
+    expect(next).not.toContain("thread{id=t1");
+    expect(next).not.toContain("thread{id=t2");
+    expect(next).not.toContain("a reply that goes");
+    expect(next).not.toContain(":::reply");
+  });
+
+  it("a document with no threads answers null — a no-op is not a change", () => {
+    expect(clearAllThreads("# just prose\n\nwords")).toBe(null);
+  });
+
+  it("an unbalanced thread is left alone rather than guessed at", () => {
+    const broken = "::::thread{id=t1}\nwords with no closer";
+    expect(clearAllThreads(broken)).toBe(null);
+  });
+});
+
+// RFC-075 round two — the jam detector: one orphan fence used to disable self-healing silently.
+describe("fenceHealth — a document that cannot self-heal says where", () => {
+  const { fenceHealth } = require("./docMembers");
+  it("a balanced document is ok", () => {
+    expect(fenceHealth("::::thread{id=t}\n:::reply{a=b}\nhi\n:::\n::::").ok).toBe(true);
+  });
+  it("an orphan close names its line", () => {
+    const fh = fenceHealth("fine\n:::\nmore");
+    expect(fh.ok).toBe(false);
+    expect(fh.line).toBe(2);
+    expect(fh.why).toContain("nothing open");
+  });
+  it("a container that never closes names its opening line", () => {
+    const fh = fenceHealth(":::thread{id=t}\nwords forever");
+    expect(fh.ok).toBe(false);
+    expect(fh.line).toBe(1);
+  });
+  it("fences in code blocks are examples, not structure", () => {
+    expect(fenceHealth("```md\n:::\n```").ok).toBe(true);
   });
 });

@@ -21,6 +21,9 @@ import Ask from "./blocks/Ask";
 import Members from "./blocks/Members";
 import Objective from "./blocks/Objective";
 import Arc from "./blocks/Arc";
+import Rfc from "./blocks/Rfc";
+import Report from "./blocks/Report";
+import Gap from "./blocks/Gap";
 import Progress from "./blocks/Progress";
 import Claim from "./blocks/Claim";
 import Claims from "./blocks/Claims";
@@ -88,6 +91,12 @@ export const BLOCKS = {
   // reads. There is no issue store behind either: the block IS the record, so pressing an
   // objective's state writes into the file.
   arc: { Component: Arc },
+  // RFC-073 §1.2 — the other two registration leaves. A document is an RFC or a report because it
+  // SAYS so at the top, wherever it lives; the folder it sits in stopped meaning anything. Identity
+  // only — the components render it and press nothing.
+  rfc: { Component: Rfc },
+  report: { Component: Report },
+  gap: { Component: Gap },
   objective: { Component: Objective },
   // Both RECOUNT from the objectives in their own document on every render — there is no stored
   // total anywhere, so neither can disagree with the blocks above it.

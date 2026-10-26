@@ -380,13 +380,20 @@
 // background, zero gap.
 .system-nav__pinwrap {
   flex: none;
+  // The head up here still owns its dropdowns (model, thinking, visitor), and they drop DOWN over
+  // the scroller below. The wrapper must be a stacking context above that sibling or the chat body
+  // paints over the menu — measured: only the menu's top sliver showed, the rest hidden behind the
+  // conversation.
+  position: relative;
+  z-index: 5;
 }
 .system-nav__pinned {
   border: 1px solid #c9cfe8;
   border-bottom: none;
   border-radius: 8px 8px 0 0;
   background: #f8f9fc;
-  overflow: clip;
+  // NOT clip — the model/thinking menus hang below this box, and clip cut them at the card's edge.
+  overflow: visible;
   display: flex;
   flex-direction: column;
 }

@@ -2,7 +2,8 @@ import React, { Suspense } from "react";
 import lazyLoad from "../../../utils/lazyLoad";
 import { useContext } from "react";
 import ServiceContext from "../../../ServiceContext";
-import { useMarkdownScope } from "../context";
+import { useMarkdownScope, useDocMembers } from "../context";
+import { routeResult } from "../docSend";
 
 // RFC-025 §4.2 — `::test{Math.chainUse}` · `::test{GatedService.Auth.getSession}` · `::test{Math.add:1}`
 //
@@ -33,6 +34,7 @@ function parseTarget(label, scope) {
 
 const TestEmbed = ({ label, attrs = {} }) => {
   const scope = useMarkdownScope();
+  const { docPath = "" } = useDocMembers() || {};
   // HOST VOCABULARY, not a capability — his cutback: a saved test is a SystemView idea, so this
   // block imports SystemView's own context like the app code it is. Only files/git stay in the bag.
   const { connectedServices = [] } = useContext(ServiceContext);
@@ -73,7 +75,18 @@ const TestEmbed = ({ label, attrs = {} }) => {
         <span className="md-embed__scope">{projectCode}</span>
       </div>
       <Suspense fallback={<div className="report-chart-empty">loading test…</div>}>
-        <TestPane target={{ ...target, serviceId }} projectCode={projectCode} ranFile={attrs.ran || null} />
+        <TestPane
+          target={{ ...target, serviceId }}
+          projectCode={projectCode}
+          ranFile={attrs.ran || null}
+          // RFC-073 slice 8 — a finished test is routed to whoever the block names (c56); nothing
+          // is written anywhere for it.
+          onOutcome={
+            attrs.subscribe
+              ? (st) => routeResult({ subscribe: attrs.subscribe, project: projectCode, docPath, summary: `${nsLabel} — ${st}` })
+              : null
+          }
+        />
       </Suspense>
     </div>
   );

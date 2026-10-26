@@ -93,6 +93,16 @@ export const hostFiles = (projectCode, root) => {
     writeFile: async ({ path, content } = {}) => {
       const res = await hub().writeFile(projectCode, { path, content, root });
       if (res && res.ok === false) throw new Error(res.error || "could not write that file");
+      // RFC-073 §3 — HIS PRESS REACHES THE SHELL. The hub wrote the file in its own process, so the
+      // shell's parse-on-write (registration, fires, told=) never saw it; in the shell-hosted tab
+      // the bridge carries the note across. Fire-and-forget: announcing is derived behaviour and
+      // must never make a save fail. Outside the shell there is no bridge and no announce — honest.
+      try {
+        const sv = typeof window !== "undefined" && window.systemview;
+        if (sv && sv.files && sv.files.noteDocument && /\.(md|markdown)$/i.test(String(path))) {
+          sv.files.noteDocument(projectCode, path);
+        }
+      } catch {}
       return res;
     },
     deleteFile: async ({ path } = {}) => {

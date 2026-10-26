@@ -166,12 +166,32 @@ function replyInto(docText, threadId, body, author) {
   return { content: [...lines.slice(0, at.close), ...block, ...lines.slice(at.close)].join("\n") };
 }
 
+// Does the head of the document already carry a registration leaf? Head only — a leaf is a line at
+// the top, and a `::report` quoted in a code fence further down is an example, not an identity.
+const LEAF = /^\s*::(arc|rfc|report|gap)\{[^}]*\bid=/m;
+const LEAF_ID = /^\s*::(arc|rfc|report|gap)\{[^}]*\bid=("[^"]*"|[^\s}]*)/m;
+const { upsertRow } = require("./documentsRegistry");
+function registered(content, name) {
+  const head = content.slice(0, 4000);
+  if (LEAF.test(head)) return content;
+  // the name IS the id — it is what the index keys on and what `show` is asked for by
+  const id = String(name || "").trim();
+  if (!id) return content;
+  return `::report{id=${/[\s"]/.test(id) ? JSON.stringify(id) : id}}\n\n${content.replace(/^\n+/, "")}`;
+}
+
 function reportsOn({ readFile, writeFile }) {
   // INDEXED, not walked — the Reports tab lists the index, so a report that skips it exists on disk
   // and nowhere a human looks.
   async function write(projectCode, name, content) {
     const path = reportPath(projectCode, name);
-    const w = await writeFile(projectCode, { path, content });
+    // RFC-073 §4, REGISTRATION PATH 2 — `show()` REGISTERS THE REPORT, so no skill has to remember.
+    // A document is a report because it says `::report{id=…}` at the top, not because of the folder
+    // it lands in — and `.systemview/` is a folder the session watcher ignores by design, so this
+    // door is the ONLY way a report ever gets its leaf. Left alone when the document already says
+    // what it is (an RFC or an arc shown as a report is still an RFC or an arc).
+    const body = registered(String(content == null ? "" : content), name);
+    const w = await writeFile(projectCode, { path, content: body });
     if (!w || w.ok === false) throw new Error((w && w.error) || "could not write the report");
     let index = {};
     try {
@@ -179,6 +199,15 @@ function reportsOn({ readFile, writeFile }) {
       if (res && res.ok !== false) index = JSON.parse(res.content) || {};
     } catch {
       /* no index yet is the normal case */
+    }
+    // RFC-073 — the write door is also the REGISTRATION door for reports: `.systemview/` is
+    // invisible to the shell's watcher by design, so the leaf this write ensured registers HERE or
+    // nowhere, and the lists (which read the registry now) would never show a filed report.
+    try {
+      const m = body.slice(0, 4000).match(LEAF_ID);
+      if (m) upsertRow({ id: m[2].replace(/^"|"$/g, ""), kind: m[1], path, project: projectCode });
+    } catch {
+      /* a failed registration must not lose the document */
     }
     const rows = (index[projectCode] || []).filter((r) => r.name !== name);
     index[projectCode] = [{ name, path, ts: Date.now() }, ...rows];

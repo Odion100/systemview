@@ -7,7 +7,12 @@
 // panel went silent for every project. Git is a LOCAL operation on a folder the hub already runs
 // beside, so the hub is the one place that cannot be out of step with itself.
 let hub = null;
+let agent = null;
 export const setHub = (svc) => {
   hub = (svc && svc.SystemView) || null;
+  // RFC-073 — the registry door (documentsRegistry) lives on the Agent module; reportOps needs it
+  // from plain-module land for the same reason hostFiles needs SystemView.
+  agent = (svc && svc.Agent) || null;
 };
 export const getHub = () => hub;
+export const getAgent = () => agent;
