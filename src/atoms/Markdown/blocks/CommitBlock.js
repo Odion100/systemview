@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useCapability, useCapabilityState } from "../capabilities";
-import { useMarkdownScope, useMarkdownWrite } from "../context";
+import { useMarkdownScope, useMarkdownWrite, useDocMembers } from "../context";
+import { sendUpdateTo } from "../docSend";
 import { gitNotice } from "./gitNotice";
 
 // RFC-033 — `::commit{message="…"}`. A commit message in a report is a line to copy into a
@@ -25,6 +26,7 @@ const MARK = {
 
 const CommitBlock = ({ label, attrs = {}, line }) => {
   const scope = useMarkdownScope();
+  const { docPath = "" } = useDocMembers() || {};
   const { editable, setAttr } = useMarkdownWrite();
   // ADDRESSED BY PROJECT, SERVED BY THE HUB — same as every other file surface. This hunted the
   // project's SERVICES for one whose plugin was new enough to do version control, so on a project
@@ -147,6 +149,18 @@ const CommitBlock = ({ label, attrs = {}, line }) => {
         if (editable) {
           setAttr(line, "sha", res.sha);
           setAttr(line, "ts", String(Date.now()));
+        }
+        // RFC-073 §5 slice 8 — THE RESULT IS ROUTED, NOT RECORDED. `subscribe=` on a result block
+        // names who hears the completion event the chat already gets; nothing new is written into
+        // the document for it (c55). The host's send door does the routing — the same event, the
+        // block's own summary.
+        if (attrs.subscribe && res.sha) {
+          sendUpdateTo({
+            path: docPath || "chat",
+            project: projectCode,
+            members: String(attrs.subscribe).split(/[|,]/).map((x) => x.trim()).filter(Boolean),
+            summary: `committed ${String(res.sha).slice(0, 7)} — ${message.trim()}`,
+          }).catch(() => {});
         }
       } else {
         const res = await svc().Plugin.push();

@@ -49,7 +49,12 @@ const Thread = ({ attrs = {}, line, src, children }) => {
   // what they are, chips of this thread, marked inherited because × means something different on
   // them (it MATERIALISES the narrowed list rather than editing one).
   const { hasMembers = false, docPath = "", members: docWho = [] } = useDocMembers() || {};
-  const { who: onThread, inherited } = threadMembers(attrs.members, docWho);
+  // RFC-073 §2.1 — the audience lives in `subscribe=` now; an opener still carrying `members=` is
+  // read as the same thing (c21) and the next write rewrites it.
+  const { who: onThread, inherited } = threadMembers(
+    attrs.subscribe !== undefined ? attrs.subscribe : attrs.members,
+    docWho,
+  );
   // ONE WRITE FOR BOTH CONTROLS — the + and the ×, through `threadMembersAttr`, which decides
   // between a list, "" (narrowed to nobody, on purpose) and removing the attribute. Dropping an
   // inherited chip therefore writes everyone inherited MINUS that one, and the thread stops
@@ -57,7 +62,9 @@ const Thread = ({ attrs = {}, line, src, children }) => {
   //
   // THE SAME WRITE `:::approval` MAKES — the thread's own opening line, which is the line this
   // block was mounted on, so it can never land on the document's members line or the thread below.
-  const writeMembers = (next) => setAttr && setAttr(line, "members", threadMembersAttr(next, docWho));
+  // One save: the audience lands in `subscribe=` and a legacy `members=` leaves the line (c22).
+  const writeMembers = (next) =>
+    setAttr && setAttr(line, { subscribe: threadMembersAttr(next, docWho), members: null });
   // The row exists once the document has a `::members` block (*"if there's already a member's block
   // in the document"*) — empty, with just the `+`, so a thread's list can be STARTED from a chip
   // rather than from the right-click menu. A document with no membership at all says nothing about
@@ -239,6 +246,11 @@ const Thread = ({ attrs = {}, line, src, children }) => {
           setOpen((o) => !o);
         }}
       >
+        {/* THE THREAD SAYS WHICH ONE IT IS (his catch, 2026-10-26: deliveries name "thread t3"
+            and nothing on the thread itself matches — so the chat's words and the document's
+            surface could not be lined up by eye). The id rides the reply pill, where his eye
+            already goes; a thread with no written id shows nothing rather than a line number. */}
+        {attrs.id ? <span className="md-thread__id">{attrs.id}</span> : null}
         💬{total ? <span className="md-thread__count">{total}</span> : null}
         {unseen > 0 && (
           <span className="md-thread__new" title={`${unseen} new since you last opened this thread`}>

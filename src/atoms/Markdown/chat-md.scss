@@ -138,10 +138,25 @@
   // Tables sized for a BUBBLE, not a page: compact, no heavy grid, and the wrapper takes the
   // horizontal scroll so a wide table never widens the bubble or spills out of it.
   .chat-md__tablewrap {
+    // HIS: tables in the chat resize by pulling the bottom — the native grip, no state. NO
+    // max-height here: in CSS a max-height beats the height the native resize writes, so a capped
+    // table "pulls but doesn't go" — measured on his screen, 2026-10-26.
+    resize: vertical;
+    overflow: auto;
+    min-height: 40px;
     display: block;
     margin: 4px 0;
     max-width: 100%;
     overflow-x: auto;
+  }
+  // THE TABLE IS ITS CONTENT'S WIDTH; THE WRAP IS THE BUBBLE'S. `.chat-md__block table { max-width:
+  // 100% }` was compressing every table into the bubble, and the first column — short labels, often
+  // under an empty header — paid for it with one word per line (his report, 2026-10-26). The wrap
+  // already scrolls; a genuinely wide table scrolls inside it, and no column is ever squeezed below
+  // its content.
+  .chat-md__tablewrap .chat-md__table {
+    width: max-content;
+    max-width: none;
   }
   .chat-md__table {
     border-collapse: collapse;

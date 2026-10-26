@@ -1,5 +1,7 @@
 # RFC-071 — A document has members: the meeting is a document with people on it
 
+::rfc{id=RFC-071}
+
 **His direction, 2026-10-19:** *"Maybe I just need a document, use the threads in the document, have
 a conversation about the document. That's the meeting. Maybe I can add them on a document level for
 updates. And it's really just separate features that I actually can use to help me have group
@@ -21,16 +23,16 @@ It refuses to be a **meeting object**. A meeting as a thing needs creating, join
 archiving, listing, and a home on disk — six pieces of new machinery for a concept that dissolves
 the moment you look at it, because what you actually want is *these people, talking about this
 document, while it changes*. That already has a name: the document.
-:::reply{author=you ts=1792419716019}
+:::reply{author=you ts=1792419716019 told=systemview-test}
 At the end of the day, these are hooks, right? You know what I mean? We got to think, like, how does it fit in our system? We already have a system where we already know hooks are going to grow to be able to listen to any web page. You know what I mean? So we shouldn't just be implemented through the same system.
 :::
-:::reply{author=you ts=1792419750481}
+:::reply{author=you ts=1792419750481 told=systemview-test}
 So yeah, I mean UI and functionality, but underlined implementation.
 :::
-:::reply{author=you ts=1792425420727}
+:::reply{author=you ts=1792425420727 told=systemview-test}
 TAS TAS TAS TAS TAS TAS TAS TAS
 :::
-:::reply{author=you ts=1792425810451}
+:::reply{author=you ts=1792425810451 told=systemview-test}
 Let's get dirty.
 :::
 ::::
@@ -59,10 +61,10 @@ they facilitate having the meeting among multiple agents."*
 | delivery to another agent | `api/index.js` — `relayToVisitors` → `Chats.fanout` / `Chats.visit` | live and proven, and NOT what this uses: it carries content into a room, where a hook points an agent at what to read |
 | live file editing | the doc pane re-reads on change | the thing that makes a shared document worth talking over at all |
 | who an agent IS | a project code (its room) | membership names a ROOM, because that is what delivery already takes |
-:::reply{author=you ts=1792422716514}
+:::reply{author=you ts=1792422716514 told=systemview-test}
 Okay, in new thread.
 :::
-:::reply{author=you ts=1792422781769}
+:::reply{author=you ts=1792422781769 told=systemview-test}
 So I added you as a member to this thread and it doesn't display above the thread that you remember. Is that only one spot in the document that they're showing? And is it random? I thought this was associated with the below thread.
 :::
 ::::
@@ -110,7 +112,7 @@ unaffordable the first time four agents sit on one plan.
 
 ::::thread{id=t2}
 ## 5 · The dirty state, and send update
-:::reply{author=you ts=1792420043245}
+:::reply{author=you ts=1792420043245 told=systemview-test}
 Keeping in mind that the thread now may need to become scrollable and stuff and just a little bit more neat.
 :::
 ::::
@@ -246,7 +248,8 @@ a feature with a lifecycle hiding inside it.
 - **Should the band row appear for documents YOU are not looking at** — i.e. is "unsent updates" a
   project-wide number, or only the open document's business?
 
-:::approval{verdict=approved}
+:::approval{verdict=approved told=systemview-test}
 Press ✓ to make this binding work, ✗ to reject it. Unpressed, it is a draft and nothing is built
 from it.
 :::
+

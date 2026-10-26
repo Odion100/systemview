@@ -1,6 +1,7 @@
 import React from "react";
 import { arcProgress } from "../objectives";
 import { useDocMembers } from "../context";
+import LifecycleTrail from "./lifecycle";
 
 // RFC-072 §4 — `::arc{id=ARC-004 owner=systemview-test title=…}` at the top of a document.
 //
@@ -31,6 +32,10 @@ const Arc = ({ attrs = {} }) => {
       <span className="md-arc__bar" aria-hidden="true">
         <i style={{ width: `${pct}%` }} />
       </span>
+      {/* RFC-075 — the lifecycle, from the registry: open → done → retired. The count above is this
+          document's own parse; the trail is the system's. Both drawn, because they can disagree —
+          and a disagreement is a stale row saying so. */}
+      <LifecycleTrail kind="arc" id={attrs.id} />
     </div>
   );
 };

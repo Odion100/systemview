@@ -1,5 +1,7 @@
 # RFC-074 — Karaoke: the sentence being read is shown
 
+::rfc{id=RFC-074}
+
 **Status: approved** · 2026-10-25 · extends the voice queue (`speechQueue.js`) and the spoken form
 (`spokenForm.js`); touches nothing the engine does not already report
 

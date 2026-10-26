@@ -7,6 +7,10 @@ import {
   PROSE,
   EVERYTHING,
   AIMED_AT_YOU,
+  spokenPassage,
+  MAX_SPOKEN_FILE,
+  MAX_SPOKEN,
+  spokenPassageMap,
 } from "./spokenForm";
 
 // THE FAILURE EVERY CLAIM HERE IS ABOUT. He asked to be able to press a reply and hear it instead
@@ -544,5 +548,57 @@ describe("the spoken map keeps the source lines", () => {
     expect(p.chunks.length).toBe(spokenChunks(p.text).length);
     // the sample fits one engine chunk, so the one position spans the whole reply
     expect(p.chunks[0].lines).toEqual([1, 11]);
+  });
+});
+
+describe("spokenPassage — a ::file chip carrying voice reads its passage", () => {
+  const MD = ["# Title", "", "First paragraph here.", "", "Second paragraph here.", "", "Third one."].join("\n");
+  it("a markdown file goes through the spoken form — whole file without a range", () => {
+    const body = spokenPassage(MD, null, "docs/notes.md");
+    expect(body).toMatch(/First paragraph here/);
+    expect(body).toMatch(/Third one/);
+  });
+  it("a range reads ONLY the slice — L3-5 is the two paragraphs, not the title", () => {
+    const body = spokenPassage(MD, [3, 5], "docs/notes.md");
+    expect(body).toMatch(/First paragraph here/);
+    expect(body).toMatch(/Second paragraph here/);
+    expect(body).not.toMatch(/Title/);
+    expect(body).not.toMatch(/Third/);
+  });
+  it("a non-markdown file is read as plain text, whitespace collapsed", () => {
+    const body = spokenPassage('{\n  "id": "RFC-073",\n  "kind": "rfc"\n}', null, "documents.json");
+    expect(body).toBe('{ "id": "RFC-073", "kind": "rfc" }');
+  });
+  it("an asked-for read gets the generous cap, not the chat reply's", () => {
+    expect(MAX_SPOKEN_FILE).toBeGreaterThan(MAX_SPOKEN);
+    const long = "word ".repeat(2000); // ~10k chars — past a reply's cap, fine for a file
+    expect(spokenPassage(long, null, "a.txt").length).toBeGreaterThan(MAX_SPOKEN);
+  });
+  it("empty content answers empty — nothing queues on a file that failed to read", () => {
+    expect(spokenPassage(null, null, "x.md")).toBe("");
+    expect(spokenPassage("", [2, 4], "x.txt")).toBe("");
+  });
+});
+
+describe("spokenPassageMap — the embed can follow the voice", () => {
+  const MD = ["# Title", "", "First paragraph here.", "", "Second paragraph here."].join("\n");
+  it("chunk lines are FILE-absolute when a range was sliced", () => {
+    const pm = spokenPassageMap(MD, [3, 5], "notes.md");
+    expect(pm.text).toMatch(/First paragraph/);
+    // the slice began at file line 3, so the first chunk's lines point there, not at 1
+    expect(pm.chunks[0].lines[0]).toBe(3);
+  });
+  it("whole-file reads keep the file's own lines", () => {
+    const pm = spokenPassageMap(MD, null, "notes.md");
+    const last = pm.chunks[pm.chunks.length - 1];
+    expect(last.lines[1]).toBe(5);
+  });
+  it("plain text has no line map — voice-only, chunks empty", () => {
+    const pm = spokenPassageMap("{\n \"a\": 1\n}", null, "x.json");
+    expect(pm.chunks).toEqual([]);
+    expect(pm.text).toBe('{ "a": 1 }');
+  });
+  it("spokenPassage is exactly its text", () => {
+    expect(spokenPassage(MD, [3, 5], "notes.md")).toBe(spokenPassageMap(MD, [3, 5], "notes.md").text);
   });
 });

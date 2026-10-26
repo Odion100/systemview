@@ -25,3 +25,21 @@ export const sendUpdateTo = async ({ path, project, members, summary, threads = 
     return { ok: false, error: (e && e.message) || "the send failed" };
   }
 };
+
+// RFC-073 §5 slice 8 — A RESULT BLOCK'S COMPLETION, ROUTED. `subscribe=` on `::commit`, `:::cmd`,
+// `::run`, `::test` or `::branch` names who hears the completion event the chat already receives;
+// NOTHING is written into the document for it — there is no state to keep, only news to deliver
+// (c55, c56). Same door as a document send, the block's own one-line summary.
+export const routeResult = ({ subscribe, project, docPath, summary }) => {
+  const members = String(subscribe || "")
+    .split(/[|,]/)
+    .map((x) => x.trim())
+    .filter(Boolean);
+  if (!members.length) return Promise.resolve({ ok: true, skipped: true });
+  return sendUpdateTo({
+    path: docPath || "chat",
+    project,
+    members,
+    summary: String(summary || "").slice(0, 400),
+  });
+};

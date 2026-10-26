@@ -146,7 +146,13 @@ export const addThreadMemberPlan = (src, threadLine, code, docWho = []) => {
   if (!name || !threadLine) return null;
   const row = String(src).split("\n")[threadLine - 1] || "";
   if (!/^\s*:{3,}\s*thread\b/.test(row)) return null; // not a thread's opening line — refuse
-  const { who: list } = threadMembers(/\bmembers=/.test(row) ? whoOnLine(row, "members") : null, docWho);
+  // RFC-073 §2.1 — the audience attribute is `subscribe=`; a legacy `members=` still answers (c21).
+  const raw = /\bsubscribe=/.test(row)
+    ? whoOnLine(row, "subscribe")
+    : /\bmembers=/.test(row)
+      ? whoOnLine(row, "members")
+      : null;
+  const { who: list } = threadMembers(raw, docWho);
   if (list.includes(name)) return { line: threadLine, members: list.join("|"), already: true };
   return { line: threadLine, members: [...list, name].join("|") };
 };
@@ -179,6 +185,77 @@ export const membersBlockOf = (src) => {
 //
 // The fence has to be matched by DEPTH, not by the next line of colons: a `:::thread` holds
 // `:::reply` blocks that close with the same three colons, so the first closer is the reply's.
+// RFC-075 round two (his): "documents need a right-click menu to clear all threads." One pure
+// sweep: every thread WRAPPER goes (the two fence lines) and every `:::reply` inside one goes
+// WHOLE — a conversation is the wrapper plus what was said in it — while the content the thread
+// wrapped stays exactly where it was. Fenced code is examples, not structure. Answers null when
+// the document has no threads: a no-op is not a change.
+// THE JAM DETECTOR (RFC-075 round two). normalizeFences refuses an unbalanced document — right,
+// because guessing at repair could eat writing — but it used to refuse SILENTLY AND FOREVER: one
+// orphan fence anywhere and every later save (a reply, a thread wrap) stopped self-nesting with
+// nothing on screen saying so; his wraps came out as raw colons. This answers where the balance
+// broke so a surface can SAY it. {ok:true} or {ok:false, line, why}.
+export const fenceHealth = (src) => {
+  const lines = String(src || "").split("\n");
+  let inCode = false;
+  const stack = [];
+  for (let n = 0; n < lines.length; n += 1) {
+    if (/^\s*(```|~~~)/.test(lines[n])) { inCode = !inCode; continue; }
+    if (inCode) continue;
+    if (/^\s*:{3,}\s*[a-zA-Z]/.test(lines[n])) stack.push(n + 1);
+    else if (/^\s*:{3,}\s*$/.test(lines[n])) {
+      if (!stack.length) return { ok: false, line: n + 1, why: "a closing fence with nothing open" };
+      stack.pop();
+    }
+  }
+  if (stack.length) return { ok: false, line: stack[stack.length - 1], why: "a container that never closes" };
+  return { ok: true };
+};
+
+export const clearAllThreads = (src) => {
+  const lines = String(src || "").split("\n");
+  const drop = new Set();
+  let inCode = false;
+  const spanOf = (i, n) => {
+    // the matching closer for a container opened at line i with n colons
+    const opener = new RegExp(`^:{${n},}\\s*\\w`);
+    const closer = new RegExp(`^:{${n}}\\s*$`);
+    let depth = 1;
+    for (let j = i + 1; j < lines.length; j += 1) {
+      if (/^\s*(```|~~~)/.test(lines[j])) { let k = j + 1; while (k < lines.length && !/^\s*(```|~~~)/.test(lines[k])) k += 1; j = k; continue; }
+      if (opener.test(lines[j])) depth += 1;
+      else if (closer.test(lines[j])) { depth -= 1; if (!depth) return j; }
+    }
+    return -1;
+  };
+  for (let i = 0; i < lines.length; i += 1) {
+    if (/^\s*(```|~~~)/.test(lines[i])) { inCode = !inCode; continue; }
+    if (inCode) continue;
+    const t = /^(:{3,})\s*thread\b/.exec(lines[i]);
+    if (!t) continue;
+    const end = spanOf(i, t[1].length);
+    if (end < 0) continue; // unbalanced — leave it; guessing at repair could eat writing
+    drop.add(i).add(end); // the wrapper's two fences
+    for (let j = i + 1; j < end; j += 1) {
+      const r = /^(:{3,})\s*reply\b/.exec(lines[j]);
+      if (!r) continue;
+      const rEnd = spanOf(j, r[1].length);
+      if (rEnd < 0 || rEnd > end) continue;
+      for (let k = j; k <= rEnd; k += 1) drop.add(k); // the reply, whole
+      j = rEnd;
+    }
+  }
+  if (!drop.size) return null;
+  const kept = lines.filter((_, i) => !drop.has(i));
+  // collapse the blank-line pairs the removals leave behind
+  const out = [];
+  for (const l of kept) {
+    if (l === "" && out[out.length - 1] === "") continue;
+    out.push(l);
+  }
+  return out.join("\n");
+};
+
 export const threadBlocksOf = (src) => {
   const lines = String(src || "").split("\n");
   const out = [];
@@ -204,12 +281,19 @@ export const threadBlocksOf = (src) => {
     out.push({
       line: i + 1, // 1-based, the line setDirectiveAttr writes to
       id: whoOnLine(row, "id") || `line-${i + 1}`,
-      who: whoOnLine(row, "members"),
+      who: whoOnLine(row, /\bsubscribe=/.test(row) ? "subscribe" : "members"),
       // THE SAME LIST, BUT PRESENCE-AWARE — the raw attribute when the opener carries one, `null`
       // when it carries none. `who` cannot answer that question: it is "" for a thread that says
-      // nothing AND for one that says `members=""`, and the whole inheritance rule below turns on
-      // telling those two apart.
-      members: /\bmembers=/.test(row) ? whoOnLine(row, "members") : null,
+      // nothing AND for one that says `subscribe=""`, and the whole inheritance rule below turns on
+      // telling those two apart. RFC-073 §2.1 renamed the attribute — a thread's audience is a
+      // SUBSCRIPTION, the word the whole mechanism uses — and an opener still saying `members=` is
+      // read as `subscribe=` so nobody lost their audience to the rename (c21); the next write
+      // rewrites it.
+      members: /\bsubscribe=/.test(row)
+        ? whoOnLine(row, "subscribe")
+        : /\bmembers=/.test(row)
+          ? whoOnLine(row, "members")
+          : null,
       sent: whoOnLine(row, "sent"),
       auto: whoOnLine(row, "auto"),
       // The body EXCLUDES the opening line, which is where `sent=` is stamped — so telling someone
@@ -336,17 +420,18 @@ export const pendingOf = (block, threads = [], source = "", stamped = {}) => {
   const docMap = block ? { ...parseSent(block.sent), ...(stamped[block.line] || {}) } : {};
   const whole = hashOf(source);
   (threads || []).forEach((t) => {
-    // INHERITANCE NEVER MANUFACTURES A ROW. A thread that names nobody is about the DOCUMENT's
-    // audience, and its people are therefore either current on the document (behind on nothing, by
-    // the rule above) or already standing in the document's own row — a row per thread would be
-    // strictly redundant and would cost the exact flood this function was written to kill: four
-    // rows, four presses, four separate wakes for one agent. A row is for the NARROWER
-    // subscription: these people, about this argument, now.
+    // AN INHERITED THREAD GETS A ROW TOO — his reversal, 2026-10-26: *"per-thread should still be
+    // able to work."* The old rule ("inheritance never manufactures a row") existed against the
+    // flood of four rows for one edit, and the flood protection that actually matters is kept just
+    // below: anyone CURRENT ON THE DOCUMENT appears on no thread row, so one document press still
+    // clears everything and a thread row only stands while somebody is genuinely behind on that
+    // argument. What the reversal buys him: a surgical per-thread send on any thread, named
+    // audience or inherited.
     //
     // `members` is the presence-aware attribute; a row from an older shape still answers through
     // its own list rather than silently telling nobody.
-    const { who, inherited } = threadMembers(t.members !== undefined ? t.members : t.who || null, onDocument);
-    if (inherited || !who.length) return;
+    const { who } = threadMembers(t.members !== undefined ? t.members : t.who || null, onDocument);
+    if (!who.length) return;
     const own = who.filter((m) => docMap[m] !== whole);
     if (!own.length) return;
     const behind = behindOf(own, t.sent, t.body, t.line);

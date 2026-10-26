@@ -729,6 +729,22 @@
     }
   }
 
+  // The grip drags the OUTER `.md-embed__file-body` cap — the box that actually clamps (it has
+  // carried max-height 460 + overflow since the embed was built). The first version put a SECOND
+  // cap on the inner md-view and resized that: the document grew invisibly inside the container
+  // while the container never moved — exactly as he described it from his screen, 2026-10-26. One
+  // box scrolls; the grip and the karaoke-follow both talk to that one.
+  .md-embed__grip {
+    height: 8px;
+    margin: 2px -11px -9px;
+    border-radius: 0 0 8px 8px;
+    cursor: ns-resize;
+    touch-action: none;
+    &:hover {
+      background: color-mix(in srgb, var(--sv-text-faint) 25%, transparent);
+    }
+  }
+
   // ── block embeds (::chart …) ──
   .md-embed {
     // No own margin — it collapses through the .md-block wrapper and stacks on the surface's flow
@@ -3378,17 +3394,41 @@
 // be — a callout, a table, a tinted block — and unhovered it was nearly invisible. It gets its own
 // ground now: a small opaque disc that owns its contrast wherever it lands, rather than inheriting
 // the contrast of the thing it is sitting on.
+// …and 2026-10-26 the disc itself failed in LIGHT mode — pure white on a white page, "white
+// against white". The ground is the inset tone now and the border mixes from the text color, so
+// the pill holds its own contrast in both themes instead of only where the page is dark.
 .md-thread__toggle {
-  background: var(--sv-bg, #fff);
-  border: 1px solid var(--sv-border, #d8dcea);
+  // FLEX, SO THE ID AND THE 💬 SIT ON ONE CENTERLINE (his catch: "not even horizontally aligned
+  // with the icon next to it") — an emoji and a 10px mono cap sit on different baselines inline;
+  // centering the row is the honest fix, not nudging either one.
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--sv-inset, #eef1f8);
+  border: 1px solid color-mix(in srgb, var(--sv-text-dim, #5a6378) 40%, transparent);
   border-radius: 12px;
   padding: 1px 7px;
   line-height: 1.5;
   opacity: 1;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.16);
   &:hover {
     border-color: var(--sv-blue, #5b8def);
   }
+}
+
+// WHICH THREAD THIS IS — the id the deliveries name ("thread t3 moved"), on the pill itself so
+// the chat's words and the document's surface match by eye. STRONG, not dim (his catch the same
+// hour it shipped muted: "you can barely see it… and it's not even bold") — it matches the pinned
+// update row's 💬 pill, which is where he already reads these names in thick text.
+.md-thread__id {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 10.5px;
+  font-weight: 800; // his third pass: "it could be bolder… slightly"
+  // UPPERCASE, LIKE THE LABELS ABOVE IT (his second pass: lowercase t3 "doesn't match the display
+  // above"). The document's kind labels read as small caps everywhere; the id joins that grammar.
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--sv-text-strong, #3b4460);
 }
 
 // RFC-072 — THE ARC AND ITS OBJECTIVES. Both ride the theme tokens, so dark mode follows the rest
@@ -3404,6 +3444,23 @@
   background: var(--sv-inset);
   font-size: 12px;
 
+  // RFC-073 — `::rfc` and `::report` share this chrome (they reuse the class) and add two words:
+  // what KIND of document this is, and, for an RFC, which arc it serves. One look for "this document
+  // says what it is", because that is one idea across four kinds.
+  &__kind {
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    color: var(--sv-text-dim, #5a6378);
+  }
+  &__relation {
+    padding: 1px 7px;
+    border: 1px solid var(--sv-border);
+    border-radius: 999px;
+    font-size: 11px;
+    color: var(--sv-text-dim, #5a6378);
+  }
+
   &__id {
     font-weight: 700;
     letter-spacing: 0.03em;
@@ -3412,6 +3469,41 @@
   &__owner,
   &__count { color: var(--sv-text-faint); font-size: 11px; }
   &__count { margin-left: auto; }
+
+  // RFC-075 — the LIFECYCLE TRAIL: every station the kind passes through, the current one lit,
+  // read from the registry. The leaf stops being a bare label without gaining a single press.
+  &__life {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    margin-left: auto;
+  }
+  &__station {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 1px 6px;
+    border-radius: 999px;
+    color: var(--sv-text-faint);
+    opacity: 0.55;
+
+    // Stations read left to right; the chevron is the arrow.
+    & + &::before { content: "›"; margin-right: 3px; opacity: 0.5; }
+
+    &--past { opacity: 0.8; }
+    &--now {
+      opacity: 1;
+      color: var(--sv-blue, #4a7bd0);
+      border: 1px solid var(--sv-blue, #4a7bd0);
+      font-weight: 700;
+    }
+    // A rejected RFC's ending wears the vocabulary's dead colour — the same one an unresolvable
+    // reference wears, because "this will not continue" is one idea.
+    &--dead.md-arc__station--now { color: #a2503f; border-color: #a2503f; }
+  }
+  // The arc leaf already pushes its own count to the right; the trail joins it rather than
+  // fighting it for the margin.
+  &__count + .md-arc__bar + .md-arc__life { margin-left: 8px; }
 
   // Progress is objectives complete and nothing else — there are no milestones to draw.
   &__bar {
@@ -3427,6 +3519,16 @@
       background: var(--sv-blue);
     }
   }
+}
+
+// RFC-075 round two — the fence jam, visible: a document that cannot self-heal says so.
+.markdown__fencewarn {
+  margin: 6px 0 10px;
+  padding: 6px 10px;
+  border: 1px solid var(--sv-amber, #c88a2e);
+  border-radius: 6px;
+  color: var(--sv-amber, #c88a2e);
+  font-size: 12.5px;
 }
 
 .md-objective {
@@ -3798,6 +3900,33 @@
     &--go { border-color: var(--sv-blue, #4a7bd0); color: var(--sv-blue, #4a7bd0); }
     &--note { font-size: 10.5px; padding: 1px 6px; color: var(--sv-text-muted); border-style: dashed; }
   }
+  // RFC-075 — THE PROOF'S HEADER: a section label at the bottom-left, where the fold opens (his
+  // placement — the chip on the far right opened content on the far left and read as no fold at
+  // all). Styled like the small-caps kind labels, not like a button.
+  &__proofhead {
+    display: block;
+    margin: 6px 0 0 30px;
+    padding: 0;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font: inherit;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--sv-text-muted);
+    &:hover { color: var(--sv-blue, #4a7bd0); }
+    &.is-on { color: var(--sv-blue, #4a7bd0); }
+  }
+  // RFC-075 — THE PROOF, expanded. The children are live result blocks (`:::cmd`, `:::run`), not
+  // quotations: pressed here, run here, their exit and output kept here. It opens directly under
+  // its header.
+  &__proof {
+    margin: 4px 0 2px 30px;
+    padding: 2px 0 2px 10px;
+    border-left: 2px solid var(--sv-border-soft);
+  }
   &__ask {
     display: flex;
     align-items: center;
@@ -3826,11 +3955,59 @@
     flex-wrap: wrap;
   }
   &__by { font-weight: 600; color: var(--sv-text); }
+  // One chip per signature — who stands behind the mark, legible at a glance; YOURS wears the
+  // accent so a countersign reads as a second name joining, not a string changing.
+  &__signer {
+    padding: 0 7px;
+    border: 1px solid var(--sv-border);
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--sv-text);
+    white-space: nowrap;
+    // THE BADGE GRAMMAR (his): dashed + ✓ is the INVITATION — the check says "click this and
+    // you've checked it" — and signing FILLS the badge. Same look however the signature arrived.
+    // AND THE INVITATION IS NOT QUIET (his: "I barely can see it — the fact that it's not filled
+    // is enough"): full text colour, full border — the dash alone says unsigned.
+    &--invite { border-style: dashed; border-color: var(--sv-text-muted); color: var(--sv-text); background: transparent; }
+    &--signed { background: #3f9e6a; border-color: #3f9e6a; color: #fff; }
+    // The one badge a press can fill — yours. A real button with press feel.
+    &--press {
+      font: inherit;
+      font-size: 11px;
+      cursor: pointer;
+      &:hover:not(:disabled) { border-color: var(--sv-blue, #4a7bd0); }
+      &:active:not(:disabled) { transform: translateY(1px); }
+      &:disabled { opacity: 0.45; cursor: default; }
+    }
+  }
+  // Signatures wear the STATE's colour — a filled badge on an unmet claim fills red, because what
+  // it signs is "not met, and I checked".
+  &--unmet &__signer--signed { background: #e05757; border-color: #e05757; }
   &__note { color: var(--sv-text); }
 }
 
 .md-claims {
   margin: 8px 0 14px;
+
+  // RFC-075 round two — the ALL-MET moment, and the one press that closes it with a dated STATUS.
+  &__tag--all { border-color: #3f9e6a; color: #3f9e6a; }
+  // The second axis: MARKED is the pale layer (the builder's word), REVIEWED the full one (the
+  // badges filled). His: "green is all met, but I didn't check off everything."
+  &__count--reviewed { color: var(--sv-text-muted); font-weight: 500; }
+  &__fill--marked { opacity: 0.3; }
+  &__status {
+    border: 1px solid #3f9e6a;
+    background: transparent;
+    color: #3f9e6a;
+    font: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 1px 8px;
+    border-radius: 999px;
+    cursor: pointer;
+    &:hover { background: #3f9e6a; color: #fff; }
+  }
   padding: 8px 10px;
   border: 1px solid var(--sv-border-soft);
   border-radius: 8px;

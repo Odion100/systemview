@@ -1340,6 +1340,23 @@ describe("a document landing carries what landed, not a sentence about it", () =
   it("is false — never undefined — on an ordinary landing, so the surface can branch on it", () => {
     expect(foldEvents([landing()])[0].merged).toBe(false);
   });
+
+  // THE WAKE FIX — a delivery that arrives mid-turn is HELD by the harness and pushed at the
+  // turn's end, where it starts its own turn. The receipt says so, and the row must repeat it:
+  // "landed" while the agent is still working would be the surface testifying to a wake the
+  // harness never made.
+  it("marks a landing the harness held, from either half of the receipt", () => {
+    expect(foldEvents([landing({ held: true })])[0].held).toBe(true);
+    expect(
+      foldEvents([
+        landing({ doc: { project: "p", path: "m.md", thread: "bugs", summary: "", text: "", held: true } }),
+      ])[0].held
+    ).toBe(true);
+  });
+
+  it("held is false — never undefined — on an ordinary landing", () => {
+    expect(foldEvents([landing()])[0].held).toBe(false);
+  });
 });
 
 // HOW MUCH OF ITS THINKING THE SESSION SHOWS — folded like the model: from session.started (the
@@ -1404,5 +1421,29 @@ describe("a thinking-display change is a moment in the conversation", () => {
     // session.thinking either, so a receipt here would be naming a transition nobody observed.
     const rows = foldEvents([ev("session.started", { model: "x" }), ev("session.thinking", { display: "omitted" })]);
     expect(rows.find((r) => r.thinking)).toBeUndefined();
+  });
+});
+
+// RFC-075 §3 — THE NUDGE'S RECEIPT: a wake with no row is work running invisibly.
+describe("run.nudged — the wake leaves a row", () => {
+  const ev = (kind, rest = {}) => ({ kind, ts: 1, ...rest });
+  it("folds to a nudged row carrying the run, its progress, the count and the words", () => {
+    const [row] = foldEvents([
+      ev("run.nudged", { source: "skill:job-authoring", active: "the evals", done: 7, total: 9, count: 1, gaveUp: false, text: "A procedure you opened is unfinished…" }),
+    ]);
+    expect(row.kind).toBe("nudged");
+    expect(row.source).toBe("skill:job-authoring");
+    expect(row.done).toBe(7);
+    expect(row.total).toBe(9);
+    expect(row.count).toBe(1);
+    expect(row.text).toContain("unfinished");
+  });
+  // THE CYCLE'S LAST WORD (his redesign, 2026-10-26: "reaching the end of nudges is not stopping —
+  // that's not the rule anymore"). The final notice is a row state, not an ending — and an event
+  // from the old shell saying gaveUp folds to the same face, because that is what it was.
+  it("the final notice is on the row — from the new field or the old shell's gaveUp", () => {
+    expect(foldEvents([ev("run.nudged", { source: "skill:x", count: 3, finalNotice: true })])[0].finalNotice).toBe(true);
+    expect(foldEvents([ev("run.nudged", { source: "skill:x", count: 3, gaveUp: true })])[0].finalNotice).toBe(true);
+    expect(foldEvents([ev("run.nudged", { source: "skill:x", count: 1 })])[0].finalNotice).toBe(false);
   });
 });

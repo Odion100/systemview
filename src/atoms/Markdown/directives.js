@@ -32,6 +32,16 @@ function labelOf(node) {
   return out;
 }
 
+// A container's bracketed label (`:::claim[the statement]{…}`) — remark-directive parses it as a
+// first child paragraph marked `directiveLabel`. The statement belongs to the OPENING LINE, not the
+// body: `:::claim[…]` must read exactly like `::claim[…]` with a proof folded under it, so the label
+// child is lifted out here (flattened onto `dlabel`) and removed, or every container claim would
+// render its own statement twice — once in the row, once as a stray first paragraph of the proof.
+function labelChildOf(node) {
+  const first = (node.children || [])[0];
+  return first && first.data && first.data.directiveLabel ? first : null;
+}
+
 // The text between a container directive's opening and closing fence, verbatim.
 function innerSource(source, node) {
   const p = node.position || {};
@@ -51,6 +61,11 @@ export default function remarkSvBlocks() {
       const dtype = TYPES[node.type];
       if (!dtype) return;
       const data = node.data || (node.data = {});
+      // A container's children are its content — but a bracketed label on its opening line is NOT
+      // content: it is the label, same as a leaf's (RFC-075 — `:::claim[statement]` is `::claim`
+      // grown a body). Lifted here, removed from the children.
+      const labelChild = dtype === "container" ? labelChildOf(node) : null;
+      if (labelChild) node.children = node.children.slice(1);
       data.hName = "svblock";
       data.hProperties = {
         dname: node.name || "",
@@ -58,8 +73,7 @@ export default function remarkSvBlocks() {
         // hast property values must be primitives — the attribute bag rides as JSON and is parsed
         // back inside SvBlock.
         dattrs: JSON.stringify(node.attributes || {}),
-        // A container's children ARE its content, so it has no label of its own.
-        dlabel: dtype === "container" ? "" : labelOf(node),
+        dlabel: dtype === "container" ? (labelChild ? labelOf(labelChild) : "") : labelOf(node),
         // The source line this directive sits on — how an INPUT block (::question, ::slider) writes
         // its answer back into the document it came from (RFC-025 §4.6).
         dline: (node.position && node.position.start && node.position.start.line) || 0,

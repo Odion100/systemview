@@ -13,6 +13,7 @@ jest.mock("../capabilities", () => ({
 }));
 jest.mock("../context", () => ({
   useMarkdownScope: jest.fn(),
+  useDocMembers: jest.fn(() => ({})),
 }));
 
 const PATCH = [

@@ -2135,6 +2135,11 @@ const CodeComments = require("./codeComments").commentsOn({ readFile, writeFile,
 // RFC-071 — "what is buAPI on?" and "how many documents have updates nobody has sent?" are
 // questions about a FOLDER, which is where the hub already stands.
 const DocumentMembers = require("./documentMembers").documentMembersOn({ listFiles, readFile });
+// RFC-073 §1.1 — the shell's document registry, read-only, same contract as shellProjects: the
+// shell's parse writes it, the hub only ever asks. `rootOf` makes the staleness answer possible.
+const DocumentsRegistry = require("./documentsRegistry").documentsRegistryOn({ rootOf: (pc) => {
+  try { return projectRoot(pc) || ""; } catch { return ""; }
+} });
 
 // WHERE THE FOUR DRIVE METHODS LAND. api/drive.js decides WHAT to send (and refuses, with why);
 // this emits it, because the chat state and the socket live here. `say` rides the trip and is
@@ -3117,6 +3122,9 @@ module.exports = function launchSystemView(port = 3000) {
       // updates nobody has sent. One door, two consumers: the navigator filters by `member`, the
       // band counts `withUpdates`.
       documents: async ({ projectCode, member, root } = {}) => DocumentMembers({ projectCode, member, root }),
+      // RFC-073 — the registered documents: identity + what the last parse saw, with staleness
+      // visible. The read the band's tabs and the drawer's counts move onto as slice 2 lands.
+      documentsRegistry: async ({ projectCode, kind, arc } = {}) => DocumentsRegistry({ projectCode, kind, arc }),
       comments: async ({ projectCode, path, replyText, at, as } = {}) =>
         CodeComments({ projectCode, path, reply: replyText, at, as: as || null }),
       // DRIVING THE WINDOW — FOUR METHODS (api/drive.js), not one door with a verb string.

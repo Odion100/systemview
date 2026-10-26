@@ -33,7 +33,7 @@ Press a state to move it and the press writes into this file. `blocked` sits out
 purpose: it is a statement about the world rather than the next step, which is why O6 reads blocked
 while nothing in the order above considers it blocked by anything.
 
-:::objective{id=O1 owner=systemview-test state=done title="The method has a home"}
+:::objective{id=O1 owner=systemview-test state=done title="The method has a home" told=systemview-test}
 The RFC lifecycle and the definition of a claim live in one cross-project corpus rather than in a
 project handbook where only one repo can retrieve them.
 
@@ -44,7 +44,7 @@ three method pages nobody had written.
 definition arrives as its own chunk rather than buried in a page about something else.
 :::
 
-:::objective{id=O2 owner=systemview-test state=done needs=ARC-001-O1 title="The procedure exists and fires"}
+:::objective{id=O2 owner=systemview-test state=done needs=ARC-001-O1 title="The procedure exists and fires" told=systemview-test}
 `rfc-authoring` carries the steps and retrieves the definition from the corpus rather than
 restating it.
 
@@ -65,7 +65,7 @@ construction while looking like evidence.
 appears under "not claimed" instead of among the claims.
 :::
 
-:::objective{id=O4 owner=systemview-test state=done title="The arc blocks get a live document"}
+:::objective{id=O4 owner=systemview-test state=done title="The arc blocks get a live document" told=systemview-test}
 `::arc`, `::objective` and `::progress` were built and tested and had never rendered
 anything real. This file is the first one.
 

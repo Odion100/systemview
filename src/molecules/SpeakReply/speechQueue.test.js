@@ -303,8 +303,8 @@ describe("the playing item carries its position", () => {
   it("is null until the engine reports, then the sentence and its lines", () => {
     enqueue(item("a"));
     expect(view().playing.position).toBeNull();
-    setPosition("a", { index: 1, total: 3, text: "Beta two.", lines: [3, 4] });
-    expect(view().playing.position).toEqual({ index: 1, total: 3, text: "Beta two.", lines: [3, 4] });
+    setPosition("a", { index: 1, total: 3, text: "Beta two.", lines: [3, 4], file: null });
+    expect(view().playing.position).toEqual({ index: 1, total: 3, text: "Beta two.", lines: [3, 4], file: null });
   });
 
   it("only the playing item can report — a stale callback from the one before is ignored", () => {

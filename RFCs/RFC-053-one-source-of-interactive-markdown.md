@@ -1,5 +1,7 @@
 # RFC-053 — One source of interactive markdown, two hosts
 
+::rfc{id=RFC-053}
+
 **Status: proposed 2026-08-31** · from his direction to collaborate with autobot on the browser's chat
 
 ## The problem, in his words

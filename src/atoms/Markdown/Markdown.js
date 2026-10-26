@@ -7,7 +7,9 @@ import remarkDirective from "remark-directive";
 import remarkSvBlocks from "./directives";
 import { splitWho } from "./docMembers";
 import MembersPin from "./blocks/MembersPin";
-import { addMemberPlan, addThreadMemberPlan, membersBlockOf, threadBlocksOf } from "./docMembers";
+import { addMemberPlan, addThreadMemberPlan, membersBlockOf, threadBlocksOf, clearAllThreads, fenceHealth } from "./docMembers";
+import { LEAF_KINDS, leafLineNo, addLeafPlan } from "./registrationLeaf";
+import { growProof } from "./claims";
 import {
   MarkdownScopeProvider,
   MarkdownWriteProvider,
@@ -37,21 +39,41 @@ import "./styles.scss";
 
 // Rewrite one attribute inside a directive's `{…}` on a given source line. Used by input blocks so
 // an answer lands in the document rather than in some parallel store (RFC-025 §4.6).
+// THE BAG IS TOKENIZED, NEVER REGEXED THROUGH (RFC-073, same fix as the platform's write.cjs): a
+// naive `(^|\s)key=` scan matches inside a QUOTED VALUE — a claim whose note says "told= is the
+// baseline" had the stamp written into the note's prose — so the inner bag is split into real
+// pairs, quotes respected, and rebuilt.
+function parseAttrBag(inner) {
+  const pairs = [];
+  const re = /([A-Za-z_][\w-]*)=("[^"]*"|'[^']*'|[^\s}]*)|(\S+)/g;
+  let m;
+  while ((m = re.exec(inner))) {
+    if (m[1]) pairs.push({ key: m[1], val: m[2] });
+    else pairs.push({ key: null, val: m[3] });
+  }
+  return pairs;
+}
+const attrBagToString = (pairs) => pairs.map((p) => (p.key ? `${p.key}=${p.val}` : p.val)).join(" ");
+
 function setDirectiveAttr(source, line, key, value) {
   const lines = String(source).split("\n");
   const i = line - 1;
   if (i < 0 || i >= lines.length) return null;
   const row = lines[i];
-  const braces = row.match(/\{([^}]*)\}/);
+  // THE ATTR BAG IS THE BRACES AT THE END OF THE LINE — never the first on it. A claim's label may
+  // quote a block (`::claim[Write \`::rfc{id=…}\` …]{id=c8}`), and matching the first braces wrote
+  // the answer INTO THE EXAMPLE: measured 2026-10-25, a told= stamp landed inside two claims'
+  // inline code. A directive's own attributes always close the line.
+  const braces = row.match(/\{([^}]*)\}\s*$/);
   // A null value REMOVES the attribute — un-answering a question has to leave the document looking
   // unanswered, not carrying `answer=` with nothing after it.
   if (value == null) {
     if (!braces) return null;
-    const re = new RegExp(`(^|\\s)${key}=("[^"]*"|'[^']*'|[^\\s}]*)`);
-    if (!re.test(braces[1])) return null;
-    const inner = braces[1].replace(re, "").trim();
-    const rebuilt = inner ? `{${inner}}` : "";
-    const next2 = row.slice(0, braces.index) + rebuilt + row.slice(braces.index + braces[0].length);
+    const pairs = parseAttrBag(braces[1]);
+    const kept = pairs.filter((p) => p.key !== key);
+    if (kept.length === pairs.length) return null;
+    const rebuilt = kept.length ? `{${attrBagToString(kept)}}` : "";
+    const next2 = row.slice(0, braces.index) + rebuilt + row.slice(braces.index + braces[0].length).replace(/\s+$/, "");
     if (next2 === row) return null;
     lines[i] = next2;
     return lines.join("\n");
@@ -60,15 +82,16 @@ function setDirectiveAttr(source, line, key, value) {
   // attribute parse fails and the whole block renders as plain text — so a deliberately empty
   // attribute (RFC-071: a thread narrowed to nobody) is written `members=""`, which parses back as
   // present-and-empty. That difference is the only way a document can say "nobody, on purpose".
-  const pair = `${key}=${value === "" || /[\s"']/.test(String(value)) ? JSON.stringify(String(value)) : value}`;
+  const encoded = value === "" || /[\s"']/.test(String(value)) ? JSON.stringify(String(value)) : String(value);
   let next;
   if (!braces) {
-    next = `${row}{${pair}}`;
+    next = `${row}{${key}=${encoded}}`;
   } else {
-    const inner = braces[1];
-    const re = new RegExp(`(^|\\s)${key}=("[^"]*"|'[^']*'|[^\\s}]*)`);
-    const updated = re.test(inner) ? inner.replace(re, `$1${pair}`) : `${inner} ${pair}`.trim();
-    next = row.slice(0, braces.index) + `{${updated}}` + row.slice(braces.index + braces[0].length);
+    const pairs = parseAttrBag(braces[1]);
+    const hit = pairs.find((p) => p.key === key);
+    if (hit) hit.val = encoded;
+    else pairs.push({ key, val: encoded });
+    next = row.slice(0, braces.index) + `{${attrBagToString(pairs)}}` + row.slice(braces.index + braces[0].length);
   }
   if (next === row) return null;
   lines[i] = next;
@@ -211,6 +234,7 @@ const DRAWER_TITLE = {
   // members to the document?"*
   members: "Who should hear about this document?",
   "thread-members": "Who is in this thread?",
+  register: "What is this document?",
 };
 
 // One drawer: the options for a block that needs a target, filtered as you type. It lives inside the
@@ -250,8 +274,9 @@ const Drawer = ({ name, options, loading, onPick, onBack }) => {
   );
 };
 
-const DocMenu = ({ at, onPick, onClose, canThread, canAddMember, openDrawer, drawer }) => {
-  const [armed, setArmed] = useState(false); // two-step confirm on removal
+const DocMenu = ({ at, onPick, onClose, canThread, canAddMember, canRegister, threadCount = 0, openDrawer, drawer }) => {
+  const [armed, setArmed] = useState(false);
+  const [armedClear, setArmedClear] = useState(false); // two-step confirm on removal
   const rootRef = useRef(null);
   useEffect(() => {
     const inside = (e) => rootRef.current && e.target instanceof Node && rootRef.current.contains(e.target);
@@ -320,6 +345,36 @@ const DocMenu = ({ at, onPick, onClose, canThread, canAddMember, openDrawer, dra
       {canAddMember ? (
         <button type="button" className="md-menu__item md-menu__item--lead" onClick={() => openDrawer("members")}>
           👥 Add a member to this document <span className="md-menu__hint">who hears when it changes</span>
+          <span className="md-menu__more">›</span>
+        </button>
+      ) : null}
+      {/* RFC-075 round two — CLEAR ALL THREADS, double-confirmed (his). The first press arms it,
+          the second does it; everything the threads wrapped stays, the conversations go. */}
+      {threadCount > 0 ? (
+        <button
+          type="button"
+          className={`md-menu__item md-menu__item--lead${armedClear ? " md-menu__item--armed" : ""}`}
+          onClick={() => (armedClear ? onPick({ kind: "clear-threads" }) : setArmedClear(true))}
+        >
+          {armedClear
+            ? `Really clear ${threadCount} thread${threadCount === 1 ? "" : "s"} and their replies?`
+            : `🧹 Clear all threads (${threadCount})`}
+          {!armedClear ? <span className="md-menu__hint">keeps what they wrapped</span> : null}
+        </button>
+      ) : null}
+      {/* RFC-075 — a leaf claim grows a proof. Offered only on a claim that has none: a container
+          claim already holds its fold, and this gesture is the one way a statement gains one
+          without being retyped. */}
+      {at.block && at.block.name === "claim" && at.block.kind === "leaf" ? (
+        <button type="button" className="md-menu__item md-menu__item--lead" onClick={() => onPick({ kind: "add-proof" })}>
+          🧾 Add a proof to this claim <span className="md-menu__hint">the check, pressable</span>
+        </button>
+      ) : null}
+      {/* RFC-073 c10 — registering is a PICK. Offered only while the document says nothing: a leaf
+          is identity, a document is one thing, and the door closes the moment one exists. */}
+      {canRegister ? (
+        <button type="button" className="md-menu__item md-menu__item--lead" onClick={() => openDrawer("register")}>
+          📇 Register this document <span className="md-menu__hint">rfc · arc · report · gap</span>
           <span className="md-menu__more">›</span>
         </button>
       ) : null}
@@ -610,9 +665,16 @@ const Markdown = ({ children, dark = false, scope = null, onSourceChange = null,
     const next = removeContainerAt(src, openLine);
     if (next != null) save(next);
   }, []);
+  // RFC-075 round two — append at the DOCUMENT'S END: the door the `::claims` bar uses to write the
+  // dated STATUS heading when every claim is met. One blank line of separation, one trailing newline.
+  const appendEnd = useCallback((text) => {
+    const { source: src, onSourceChange: save, editable: can } = live.current;
+    if (!can || !text) return;
+    save(`${String(src).replace(/\s*$/, "")}\n\n${text}\n`);
+  }, []);
   const writeApi = useMemo(
-    () => ({ editable, setAttr, startThread, threadable, appendInside, removeBlock }),
-    [editable, setAttr, startThread, threadable, appendInside, removeBlock]
+    () => ({ editable, setAttr, startThread, threadable, appendInside, removeBlock, appendEnd }),
+    [editable, setAttr, startThread, threadable, appendInside, removeBlock, appendEnd]
   );
 
   const components = useMemo(
@@ -744,6 +806,14 @@ const Markdown = ({ children, dark = false, scope = null, onSourceChange = null,
     } else if (choice.kind === "remove") {
       const next = menu.block && removeLines(src, menu.block.start, menu.block.end);
       if (next != null) save(next);
+    } else if (choice.kind === "clear-threads") {
+      const next = clearAllThreads(src);
+      if (next != null) save(next);
+    } else if (choice.kind === "add-proof") {
+      // RFC-075 — the leaf line rewrites in place as its container form; the statement and any
+      // existing mark survive verbatim because only the colons change.
+      const next = menu.block && growProof(src, menu.block.start);
+      if (next != null) save(next);
     } else if (choice.kind === "wrap") {
       const next = wrapLines(src, menu.start, menu.end, choice.open);
       if (next != null) save(next);
@@ -770,9 +840,18 @@ const Markdown = ({ children, dark = false, scope = null, onSourceChange = null,
       const docWho = splitWho((membersBlockOf(src) || {}).who);
       const plan = menu.thread && addThreadMemberPlan(src, menu.thread.start, choice.value, docWho);
       if (plan && !plan.already) {
-        const next = setDirectiveAttr(src, plan.line, "members", plan.members);
+        // RFC-073 §2.1 — the write lands in `subscribe=`, and a legacy `members=` leaves in the
+        // same save so the line never says two audiences.
+        let next = setDirectiveAttr(src, plan.line, "subscribe", plan.members);
+        if (next != null) next = setDirectiveAttr(next, plan.line, "members", null) || next;
         if (next != null) save(next);
       }
+    } else if (choice.kind === "insert-from" && choice.drawer === "register") {
+      // The plan decides where and what (registrationLeaf.js) — the leaf lands at the TOP of the
+      // document, filled from where it lives, never wherever the right-click happened. A document
+      // that already carries a leaf writes nothing: one identity.
+      const plan = addLeafPlan(src, choice.value, commentKey);
+      if (plan && !plan.already) save(insertAfterLine(src, plan.insertAfter, plan.text));
     } else if (choice.kind === "insert-from") {
       const make = TEMPLATES[choice.drawer];
       if (make) save(insertAfterLine(src, at, make(choice.value)));
@@ -785,6 +864,15 @@ const Markdown = ({ children, dark = false, scope = null, onSourceChange = null,
   // the project's plugin. Opening the menu shouldn't cost a round trip; opening a drawer can.
   const openDrawer = (name) => {
     if (!name) return setDrawer(null);
+    // RFC-073 c10 — the four kinds, each row naming its fields. No round trip: the list is the grammar's.
+    if (name === "register") {
+      setDrawer({
+        name,
+        options: LEAF_KINDS.map((k) => ({ label: `::${k.kind} — ${k.fields}`, value: k.kind })),
+        loading: false,
+      });
+      return;
+    }
     // RFC-071 — the members drawer offers the CONNECTED PROJECTS, because a member names a room and
     // a chip pointing at nobody is worse than no chip. Already-on members are filtered out of the
     // document's list: offering to add somebody who is already there is a press that does nothing.
@@ -858,8 +946,19 @@ const Markdown = ({ children, dark = false, scope = null, onSourceChange = null,
       <MarkdownMembersProvider value={docMembers}>
       <MarkdownCommentsProvider value={comments}>
       <div className={`markdown${dark ? " markdown--dark" : ""}`} onContextMenu={openMenu}>
-        {/* RFC-071 — who has not heard about this version, pinned top-right so the press is reachable
-            from anywhere in the document rather than only from its head. */}
+        {/* THE JAM, SAID OUT LOUD (RFC-075 round two). One orphan fence disables fence self-healing
+            for every later write — by design, and silently was the defect: his thread wraps came out
+            as raw colons with nothing saying why. Shown only where the document can be written. */}
+        {(() => {
+          if (!editable) return null;
+          const fh = fenceHealth(source);
+          return fh.ok ? null : (
+            <div className="markdown__fencewarn">
+              ⚠ container fences are unbalanced — {fh.why} near line {fh.line}. Threads and wraps
+              cannot self-nest until it is repaired.
+            </div>
+          );
+        })()}
         <MembersPin />
         {menu ? (
           <DocMenu
@@ -869,6 +968,8 @@ const Markdown = ({ children, dark = false, scope = null, onSourceChange = null,
             // Adding a member needs somewhere to write it; the drawer itself refuses when no
             // project is connected, so this only asks whether the surface can save at all.
             canAddMember={writeApi.editable}
+            canRegister={writeApi.editable && !leafLineNo(String(children || ""))}
+            threadCount={docMembers.threads.length}
             drawer={drawer}
             openDrawer={openDrawer}
             onPick={pickMenu}

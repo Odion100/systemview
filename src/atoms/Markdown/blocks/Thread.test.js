@@ -91,7 +91,7 @@ describe("the thread's own members", () => {
   it("× on an inherited chip writes the narrowed list onto the thread's own line", () => {
     const { setAttr } = mount({ docMembers: ["buapi", "systemlynx"] });
     fireEvent.click(screen.getByTitle("narrow this thread to everybody but buapi"));
-    expect(setAttr).toHaveBeenCalledWith(12, "members", "systemlynx");
+    expect(setAttr).toHaveBeenCalledWith(12, { subscribe: "systemlynx", members: null });
   });
 
   // AND IT MUST NOT LOOK BROKEN: clearing the attribute would hand the document's people back on
@@ -100,7 +100,7 @@ describe("the thread's own members", () => {
   it("× on the LAST inherited chip means nobody, not inheriting all over again", () => {
     const { setAttr } = mount({ docMembers: ["buapi"] });
     fireEvent.click(screen.getByTitle("narrow this thread to everybody but buapi"));
-    expect(setAttr).toHaveBeenCalledWith(12, "members", "");
+    expect(setAttr).toHaveBeenCalledWith(12, { subscribe: "", members: null });
   });
 
   // …and adding to an inheriting thread materialises it the same way, through the same write: the
@@ -109,7 +109,7 @@ describe("the thread's own members", () => {
     const { setAttr } = mount({ docMembers: ["buapi"] });
     fireEvent.click(screen.getByTitle("add a member to this thread"));
     fireEvent.change(screen.getByRole("combobox"), { target: { value: "systemlynx" } });
-    expect(setAttr).toHaveBeenCalledWith(12, "members", "buapi|systemlynx");
+    expect(setAttr).toHaveBeenCalledWith(12, { subscribe: "buapi|systemlynx", members: null });
   });
 
   // "If there's already a member's block in the document" — that is what the row hangs on, so an
@@ -129,14 +129,14 @@ describe("the thread's own members", () => {
     const { setAttr } = mount({ members: "buapi" });
     fireEvent.click(screen.getByTitle("add a member to this thread"));
     fireEvent.change(screen.getByRole("combobox"), { target: { value: "systemlynx" } });
-    expect(setAttr).toHaveBeenCalledWith(12, "members", "buapi|systemlynx");
+    expect(setAttr).toHaveBeenCalledWith(12, { subscribe: "buapi|systemlynx", members: null });
   });
 
   // The whole complaint: one person off the thread, not the list wiped.
   it("removes ONE member and leaves the rest", () => {
     const { setAttr } = mount({ members: "buapi|systemlynx" });
     fireEvent.click(screen.getByTitle("take buapi out of this thread"));
-    expect(setAttr).toHaveBeenCalledWith(12, "members", "systemlynx");
+    expect(setAttr).toHaveBeenCalledWith(12, { subscribe: "systemlynx", members: null });
   });
 
   // Dropping the last chip clears the attribute — which is also what the right-click clear-all did,
@@ -144,7 +144,7 @@ describe("the thread's own members", () => {
   it("dropping the last member clears the attribute, back to the document's people", () => {
     const { setAttr } = mount({ members: "buapi" });
     fireEvent.click(screen.getByTitle("take buapi out of this thread"));
-    expect(setAttr).toHaveBeenCalledWith(12, "members", null);
+    expect(setAttr).toHaveBeenCalledWith(12, { subscribe: null, members: null });
   });
 
   it("only offers connected projects, and never one already on this thread", () => {

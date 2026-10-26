@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useCapability, useCapabilityState } from "../capabilities";
-import { useMarkdownScope, useMarkdownWrite } from "../context";
+import { routeResult } from "../docSend";
+import { useMarkdownScope, useMarkdownWrite, useDocMembers } from "../context";
 import { parseCommand, summarize, isRunnable } from "./cmdSource";
 
 // `:::cmd{title="…"}` — A COMMAND THE DOCUMENT THAT EXPLAINS IT CAN ALSO RUN.
@@ -45,8 +46,14 @@ const fmt = (ms) => {
   return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, "0")}s`;
 };
 
+// One line for the routed event — what ran and how it ended; the log lines live in the chat's own
+// receipt and the session log, never re-said here.
+const receiptLine = (title, result = {}) =>
+  `${title} — ${result.cancelled ? "cancelled" : result.error ? `failed: ${result.error}` : `exit ${result.code === undefined ? "?" : result.code}`}`;
+
 const CmdBlock = ({ src, attrs = {} }) => {
   const scope = useMarkdownScope();
+  const { docPath = "" } = useDocMembers() || {};
   const projectCode = attrs.project || scope.projectCode || "";
   // `dir=` — the MACHINE-ADDRESS form (his call, asked twice: "the project has nothing to do with
   // being able to run cmd"). A folder anywhere on the machine, the way ::file takes `~/…`. The
@@ -114,6 +121,8 @@ const CmdBlock = ({ src, attrs = {} }) => {
             cancelled: !!result.cancelled,
             error: result.error || "",
           });
+        if (!result.foreign)
+          routeResult({ subscribe: attrs.subscribe, project: projectCode, docPath, summary: receiptLine(title, result) });
         if (!liveRef.current) return;
         setRun((prev) => ({
           ...(prev || { at: Date.now(), text: "" }),
@@ -179,6 +188,7 @@ const CmdBlock = ({ src, attrs = {} }) => {
           cancelled: !!result.cancelled,
           error: result.error || "",
         });
+      routeResult({ subscribe: attrs.subscribe, project: projectCode, docPath, summary: receiptLine(title, result) });
       if (!liveRef.current) return;
       setRun((prev) => ({
         ...(prev || { at: Date.now(), text: "" }),

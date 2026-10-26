@@ -9,7 +9,7 @@ import { resolveTestActions, actionMapForTests } from "../SavedTests/transformTe
 // response → the assertions that pin it — with a Run button and inline pass/fail. It reuses the
 // existing SavedTests organism (which already does story-render + run + validation), scoped to the
 // one (or few) tests the pane's target names. The test IS the example: how the method is really used.
-const TestPane = ({ target = {}, projectCode, ranFile = null, ranData = null }) => {
+const TestPane = ({ target = {}, projectCode, ranFile = null, ranData = null, onOutcome = null }) => {
   const { connectedServices } = useContext(ServiceContext);
   const { serviceId, moduleName, methodName, index, title, note } = target;
   const [tests, setTests] = useState([]);
@@ -123,7 +123,14 @@ const TestPane = ({ target = {}, projectCode, ranFile = null, ranData = null }) 
   }, [runData, tests]);
 
   // Each test reports its status up so the Run-all bar can show the aggregate — what passed, what failed.
-  const onResult = useCallback((i, status) => setResults((r) => ({ ...r, [i]: status })), []);
+  // `onOutcome` is the embed's ear (RFC-073 slice 8): endings only — "running"/"pending" are not news.
+  const onResult = useCallback(
+    (i, status) => {
+      setResults((r) => ({ ...r, [i]: status }));
+      if (onOutcome && (status === "pass" || status === "fail" || status === "error")) onOutcome(status);
+    },
+    [onOutcome],
+  );
 
   // Run-all runs each test in SEQUENCE (awaiting each) — the exact same discipline as the scratchpad's
   // runAllTests, so there's no drift: shared session/cookies never race across concurrently-run tests.

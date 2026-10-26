@@ -22,11 +22,10 @@ import { slotId, pinId, setNavDocked, useNavDock, isNavDocked, railId, spotId, p
 import { hasHostDictation, startHostRecording } from "../../utils/hostDictation";
 import VoiceMode from "../../molecules/SpeakReply/VoiceMode";
 import SpeechLine from "../../molecules/SpeakReply/SpeechLine";
-import BoxSelect from "../../molecules/BoxSelect/BoxSelect";
-import "../../molecules/BoxSelect/styles.scss";
 // A BOX SELECTION SPEAKS THROUGH THE SAME DOORS A REPLY DOES — one engine, one queue, one
 // microphone mute. A second path to the speaker would drift the first time either changed.
-import { spokenPositions, AIMED_AT_YOU } from "../../utils/spokenForm";
+import { spokenPositions, spokenPassageMap, AIMED_AT_YOU } from "../../utils/spokenForm";
+import { recitalSegments, passageKey, claimRead } from "../../utils/readAloud";
 import { speak, ready as engineReady, available as voiceAvailable } from "../../utils/voice";
 import { readVoicePref, readVoiceSettings } from "../../utils/voicePref";
 import { playFirst, enqueue as queueEnqueue, done as queueDone, setWarming as queueWarming, setPosition as queuePosition, view as speechView, subscribe as speechSubscribe } from "../../molecules/SpeakReply/speechQueue";
@@ -49,6 +48,7 @@ import rfcRows, { rfcLine } from "./rfcRows";
 import Board from "../Board/Board";
 import { hasHostJobs, jobRuns, rateJobRun } from "../../utils/hostJobs";
 import { bandTabs, bandLabel, readBandTab, writeBand, TAB_KEY } from "./bandTabs";
+import NudgeCog from "./NudgeCog";
 import { deleteReport as deleteReportFile, reportIndexSets, listReports } from "../../utils/reportOps";
 import SEND_ICON from "../../assets/send.png";
 import { LINKISH, shortUrl, collectLinks, pathHref } from "./chatLinks";
@@ -789,7 +789,7 @@ function useCountUp(target) {
 // JOB has handed something over, so the card's last state is the report sitting there with the
 // rating beside it — the rate verb's own comment has always said *"capturable where the report is
 // READ."* This is that place.
-function JobRun({ items, source, projectCode, runId, onClear, onLanes, laneChildren, laneCount = 0, standingLanes = [] }) {
+function JobRun({ items, source, projectCode, runId, onClear, onLanes, laneChildren, laneCount = 0, standingLanes = [], status = null, attachments = null }) {
   const jobId = String(source || "").slice(4);
   const [open, setOpen] = useState(false);
   const [rec, setRec] = useState(null);
@@ -797,6 +797,12 @@ function JobRun({ items, source, projectCode, runId, onClear, onLanes, laneChild
   const done = (items || []).filter((t) => t.state === "done").length;
   const total = (items || []).length;
   const complete = total > 0 && done === total;
+  // The same declared ending the skill rows wear — a job run can be abandoned with its account too.
+  const abandoned = status && /abandon/i.test(String(status.text || ""));
+  const accounted = Array.isArray(attachments) && attachments.some((a) => a && a.kind === "report");
+  // The same countdown the skill rows wear — a job run is as nudgeable as a skill run, and the
+  // selector's `picks` answer is what decides which single row counts down (see useNudgeEta).
+  const eta = useNudgeEta({ source, runKey: runId || "", projectCode, off: complete });
 
   // Re-read on every change to the list, and once more when it completes — the report is filed in
   // the same breath as the last item, so a single read at mount would always miss it.
@@ -873,6 +879,14 @@ function JobRun({ items, source, projectCode, runId, onClear, onLanes, laneChild
         <span className={`${CLASSNAME}__worklist-bar${complete ? ` ${CLASSNAME}__worklist-bar--done` : ""}`}>
           <span className={`${CLASSNAME}__worklist-fill`} style={{ width: `${Math.round((done / total) * 100)}%` }} />
         </span>
+        {eta != null ? (
+          <span
+            className={`${CLASSNAME}__worklist-nudgeeta`}
+            title="when the idle nudge is due — the selector picked THIS run"
+          >
+            {eta > 0 ? `nudge ~${eta}s` : "nudge due — next idle tick"}
+          </span>
+        ) : null}
         {/* CLOSED, THE BAR STILL CARRIES THE ONE THING THAT NEEDS HIM. Collapsing must not hide a
             handover — a report filed and never read is the failure this card exists against — so
             the waiting mark rides the bar itself and the chip is what expanding reveals. */}
@@ -909,11 +923,11 @@ function JobRun({ items, source, projectCode, runId, onClear, onLanes, laneChild
           report label rides UNDER it, subtle, truncating. */}
       {report && report.label ? <div className={`${CLASSNAME}__jobrun-title`} title={report.label}>{report.label}</div> : null}
       </div>
-      {complete && onClear && (
+      {(complete || (abandoned && accounted)) && onClear && (
         <button
           type="button"
           className={`${CLASSNAME}__worklist-clear ${CLASSNAME}__jobrun-clear`}
-          title="Clear this run from your view"
+          title={complete ? "Clear this run from your view" : "Clear the abandoned run from your view — its account stays attached to the record"}
           onClick={(e) => { e.stopPropagation(); onClear(); }}
         >
           ×
@@ -1004,8 +1018,67 @@ function JobRun({ items, source, projectCode, runId, onClear, onLanes, laneChild
   );
 }
 
-function WorkList({ items, onClear, source = "" }) {
+// THE NUDGE COUNTDOWN IS THE SELECTOR'S ANSWER, NOT THE ROW'S OPINION (his, 2026-10-26: "I saw two
+// things counting down at the same time… but you only got one nudge, it says ×2 next to it"). Each
+// row deriving its own eligibility drew N countdowns for ONE nudge — the shell's selector picks
+// exactly one run. The nudge door now answers `picks` per project, computed by the SAME pickNudge
+// that fires, so a row counts down only when it IS the pick and a countdown is a promise the shell
+// will keep. An older shell answers no `picks` map at all; the row falls back to the old
+// source-eligibility clock rather than going dark on a shell that cannot say better.
+function useNudgeEta({ source = "", runKey = "", projectCode = "", off = false }) {
+  const [eta, setEta] = useState(null);
+  useEffect(() => {
+    const api = typeof window !== "undefined" && window.systemview && window.systemview.nudge;
+    if (!api || typeof api.read !== "function" || off || !source) return undefined;
+    let alive = true;
+    let cfg = null;
+    let quietSince = 0;
+    let pick; // undefined = older shell (no picks map); null = the selector picks nothing here
+    const pull = () =>
+      Promise.resolve(api.read())
+        .then((r) => {
+          if (!alive || !r || !r.ok) return;
+          cfg = r.settings || null;
+          quietSince = Number((r.quiet || {})[projectCode]) || 0;
+          pick = r.picks ? r.picks[projectCode] || null : undefined;
+        })
+        .catch(() => {});
+    const tick = () => {
+      if (!alive) return;
+      if (pick !== undefined) {
+        // The selector answered. This row counts down ONLY if it is the picked run — matched by
+        // owner when the row knows its run id, by source otherwise.
+        const mine = pick && (pick.owner === `run:${runKey}` || pick.source === source);
+        if (!mine) return setEta(null);
+        return setEta(Math.ceil((Number(pick.dueAt) - Date.now()) / 1000));
+      }
+      // Older shell: the row's own eligibility, as it was before the selector could answer.
+      const counted = cfg && cfg.on && (cfg.sources || []).some((pre) => source.startsWith(pre));
+      if (!counted || !quietSince) return setEta(null);
+      setEta(Math.ceil((quietSince + cfg.idleMin * 60000 - Date.now()) / 1000));
+    };
+    pull().then(tick);
+    const poll = setInterval(pull, 5000);
+    const t = setInterval(tick, 1000);
+    return () => {
+      alive = false;
+      clearInterval(poll);
+      clearInterval(t);
+    };
+  }, [source, runKey, off, projectCode]);
+  return eta;
+}
+
+function WorkList({ items, onClear, source = "", projectCode = "", runKey = "", status = null, attachments = null }) {
   const [open, setOpen] = useState(false);
+  const done0 = (items || []).filter((t) => t.state === "done").length;
+  const complete0 = items && items.length ? done0 === items.length : true;
+  // THE DECLARED ENDING, WORN (his design): a run marked abandoned stops being nudged only when
+  // its account rides it — so the row says which it is. "abandoned · accounted" is an honest
+  // ending; "abandoned — no account" is a declaration the nudging rightly ignores.
+  const abandoned = status && /abandon/i.test(String(status.text || ""));
+  const accounted = Array.isArray(attachments) && attachments.some((a) => a && a.kind === "report");
+  const eta = useNudgeEta({ source, runKey, projectCode, off: complete0 || (abandoned && accounted) });
   if (!items || !items.length) return null;
   const done = items.filter((t) => t.state === "done").length;
   // FINISHED IS HIS TO CLEAR — his call, and it removes the reliance on agent manners: a completed
@@ -1042,8 +1115,37 @@ function WorkList({ items, onClear, source = "" }) {
             style={{ width: `${items.length ? Math.round((done / items.length) * 100) : 0}%` }}
           />
         </span>
-        {/* the run's source — a skill's list is visibly the skill's, not the agent's own plan */}
-        {source ? <span className={`${CLASSNAME}__worklist-source`}>{source}</span> : null}
+        {/* the run's source — a skill's list is visibly the skill's, not the agent's own plan.
+            THE PLAN WEARS "default", FILLED (his revision, 2026-10-26: not a background wash —
+            "a badge that says default… a fill compared to the other badges that don't have a
+            fill"). The fill is the tell: solid = the session's own working memory, hollow = a
+            tracked run's promise. */}
+        {source ? (
+          <span className={`${CLASSNAME}__worklist-source`}>{source}</span>
+        ) : (
+          <span
+            className={`${CLASSNAME}__worklist-source ${CLASSNAME}__worklist-source--default`}
+            title="the session's own plan — working memory, never nudged, no run record"
+          >
+            default
+          </span>
+        )}
+        {abandoned ? (
+          <span
+            className={`${CLASSNAME}__worklist-abandoned${accounted ? "" : ` ${CLASSNAME}__worklist-abandoned--bare`}`}
+            title={accounted ? status.text : `${status.text} — declared, but no report is attached; the nudging does not stop for the word alone`}
+          >
+            {accounted ? "abandoned · accounted" : "abandoned — no account"}
+          </span>
+        ) : null}
+        {eta != null ? (
+          <span
+            className={`${CLASSNAME}__worklist-nudgeeta`}
+            title="when the idle nudge is due — the selector picked THIS run"
+          >
+            {eta > 0 ? `nudge ~${eta}s` : "nudge due — next idle tick"}
+          </span>
+        ) : null}
         {/* The ACTIVE item is the line — not "3 tasks", which says nothing about what is happening.
             With nothing active (finished, or not started yet) it says so plainly. */}
         <span className={`${CLASSNAME}__worklist-now`}>
@@ -1051,11 +1153,14 @@ function WorkList({ items, onClear, source = "" }) {
         </span>
         <span className={`${CLASSNAME}__worklist-chev`}>{open ? "▾" : "▸"}</span>
       </button>
-      {complete && onClear && (
+      {/* ABANDONED·ACCOUNTED IS AN ENDING TOO (his ruling, 2026-10-26: "I see this one was
+          abandoned, but I can't delete it"). The × clears the VIEW only — the run file stays where
+          it died, which is the record; what earns the button is the ending, and there are two. */}
+      {(complete || (abandoned && accounted)) && onClear && (
         <button
           type="button"
           className={`${CLASSNAME}__worklist-clear`}
-          title="Clear the finished plan"
+          title={complete ? "Clear the finished plan" : "Clear the abandoned run from your view — its account stays attached to the record"}
           onClick={onClear}
         >
           ×
@@ -1063,6 +1168,29 @@ function WorkList({ items, onClear, source = "" }) {
       )}
       </div>
       {open && (
+        <>
+        {/* WHAT THE RUN POINTS AT, FIRST (his: "I can't see a report... it should be at the top
+            when I expand, a link to it"). An attachment is the run's product — on an abandoned run
+            the attached report IS the account, and an account you cannot open from the row that
+            wears "accounted" is a claim, not a record. Reports open as the file they are; other
+            kinds name themselves. */}
+        {Array.isArray(attachments) && attachments.length ? (
+          <div className={`${CLASSNAME}__worklist-attachments`}>
+            {attachments.map((a, i) =>
+              a && a.kind === "report" ? (
+                <FileLink
+                  key={`${a.kind}:${a.ref}:${i}`}
+                  label={`.systemview/report.${a.project || projectCode}.${a.ref}.md`}
+                  attrs={{ project: a.project || projectCode }}
+                />
+              ) : a ? (
+                <span key={`${a.kind}:${a.ref}:${i}`} className={`${CLASSNAME}__worklist-attachment`}>
+                  {a.kind}: {a.ref}
+                </span>
+              ) : null
+            )}
+          </div>
+        ) : null}
         <ul className={`${CLASSNAME}__worklist-items`}>
           {items.map((t) => (
             <li key={t.id} className={`${CLASSNAME}__worklist-item ${CLASSNAME}__worklist-item--${t.state}`}>
@@ -1076,6 +1204,7 @@ function WorkList({ items, onClear, source = "" }) {
             </li>
           ))}
         </ul>
+        </>
       )}
     </div>
   );
@@ -2135,8 +2264,12 @@ function BotBubble({ projectCode, index }) {
       if (s.mode === "off" || !voiceAvailable()) continue;
       if (typeof document !== "undefined" && document.hidden) continue;
       const only = s.mode === "all" ? null : s.blocks === null ? AIMED_AT_YOU : s.blocks;
-      const { text: body, chunks: positions } = spokenPositions(r.text, only ? { only } : {});
-      if (!body) continue;
+      // THE RECITAL FOLLOWS THE ORDER ON SCREEN (his): a reply carrying `::file{voice}` splits at
+      // the chip — text before, the file's passage, text after — three items in one line, so the
+      // reply "pauses" at a sentence boundary and continues after the document, with nothing
+      // restarted. A reply with no voiced chips is one segment, exactly as before.
+      const segs = recitalSegments(r.text, only ? { only } : {});
+      if (!segs.length) continue;
       const key = r.key;
       // ELSEWHERE — this agent is not on screen (docked in a tab that is not up, or in the rail).
       // `background` on: pop the chat out and read, because a reading he cannot see or stop is not
@@ -2151,30 +2284,88 @@ function BotBubble({ projectCode, index }) {
         setOpen(false);
         pullOutRef.current();
       }
-      queueEnqueue({
-        key,
-        scope: projectCode,
-        label: body.replace(/\s+/g, " ").slice(0, 70),
-        start: () => {
-          if (autoReader.current == null) autoReader.current = nextSpeakerId();
-          claimSpeaker(autoReader.current);
-          queueWarming(key, !engineReady());
-          announce(true);
-          return speak(body, {
-            preferId: readVoicePref(projectCode),
-            rate: s.speed,
-            onstart: () => queueWarming(key, false),
-            // WHERE THE VOICE IS, onto the line (RFC-074) — the subtitle and the lit paragraph
-            // both read it from there.
-            onposition: (p) => queuePosition(key, { ...p, ...(positions[p.index] || {}) }),
-            onend: () => {
-              queueWarming(key, false);
-              queueDone(key);
-              announce(false);
+      segs.forEach((seg, si) => {
+        if (seg.kind === "file") {
+          // The reader owns the chip IN THE CHAT (FileEmbed defers its own claim one tick), so the
+          // passage lands at its place in the recital instead of after the whole reply.
+          const pk = passageKey(projectCode, seg.path, seg.lines);
+          if (!claimRead(pk)) return;
+          queueEnqueue({
+            key: pk,
+            scope: projectCode,
+            label: `${seg.path.split("/").pop()}${seg.lines ? ` L${seg.lines[0]}–${seg.lines[1]}` : ""}`,
+            start: () => {
+              // async start: the file is fetched when its turn comes, not when the reply lands —
+              // stop() before the fetch lands just abandons it.
+              let stopped = false;
+              let h = null;
+              queueWarming(pk, true);
+              (async () => {
+                try {
+                  const res = await hostFiles(projectCode).readFile({ path: seg.path });
+                  if (stopped) return;
+                  const pm = spokenPassageMap(res && res.content, seg.lines, seg.path);
+                  if (!pm.text) {
+                    queueWarming(pk, false);
+                    queueDone(pk);
+                    return;
+                  }
+                  h = speak(pm.text, {
+                    preferId: readVoicePref(projectCode),
+                    rate: s.speed,
+                    onstart: () => queueWarming(pk, false),
+                    // FILE-ABSOLUTE lines onto the queue — the embed showing this file follows
+                    // the voice with its own highlight and its own scroll.
+                    onposition: (p) => queuePosition(pk, { ...p, ...(pm.chunks[p.index] || {}) }),
+                    onend: () => {
+                      queueWarming(pk, false);
+                      queueDone(pk);
+                    },
+                  });
+                } catch {
+                  queueWarming(pk, false);
+                  queueDone(pk);
+                }
+              })();
+              return {
+                stop: () => {
+                  stopped = true;
+                  try {
+                    if (h && h.stop) h.stop();
+                  } catch {}
+                },
+              };
             },
           });
-        },
-      }, { hold });
+          return;
+        }
+        if (!seg.text) return;
+        const sk = segs.length === 1 ? key : `${key}#s${si}`;
+        queueEnqueue({
+          key: sk,
+          scope: projectCode,
+          label: seg.text.replace(/\s+/g, " ").slice(0, 70),
+          start: () => {
+            if (autoReader.current == null) autoReader.current = nextSpeakerId();
+            claimSpeaker(autoReader.current);
+            queueWarming(sk, !engineReady());
+            announce(true);
+            return speak(seg.text, {
+              preferId: readVoicePref(projectCode),
+              rate: s.speed,
+              onstart: () => queueWarming(sk, false),
+              // WHERE THE VOICE IS, onto the line (RFC-074) — the subtitle and the lit paragraph
+              // both read it from there, per segment.
+              onposition: (p) => queuePosition(sk, { ...p, ...(seg.chunks[p.index] || {}) }),
+              onend: () => {
+                queueWarming(sk, false);
+                queueDone(sk);
+                announce(false);
+              },
+            });
+          },
+        }, { hold: hold && si === 0 });
+      });
     }
   }, [work.rows, projectCode]);
   // EVERYTHING THAT POPS, POPS AS A DOCUMENT (his ruling, 2026-10-14: *"anything that might pop
@@ -2507,6 +2698,33 @@ function BotBubble({ projectCode, index }) {
       return next;
     });
   }, [DRAFT_KEY]);
+  // RFC-073 §3.2 — THE QUEUE. A press on a chat block is NOT a turn: it queues, drawn as a chat
+  // entry with a queued look (his: *"show the queue as chat entries the same way you would show
+  // another chat entry with a different look"* — no chip strip, no new component), and it rides the
+  // next message as one turn carrying every answer. A message the session refuses queues the same
+  // way instead of bouncing (c26). Survives a bundle swap for the same reason the draft does.
+  const QUEUE_KEY = `sv.queue.${projectCode}`;
+  const [queue, setQueueRaw] = useState(() => {
+    try { return JSON.parse(sessionStorage.getItem(QUEUE_KEY) || "[]") || []; } catch { return []; }
+  });
+  const sendQueueRef = useRef(queue);
+  const setQueue = useCallback((v) => {
+    setQueueRaw((prev) => {
+      const next = typeof v === "function" ? v(prev) : v;
+      sendQueueRef.current = next;
+      try {
+        if (next.length) sessionStorage.setItem(QUEUE_KEY, JSON.stringify(next));
+        else sessionStorage.removeItem(QUEUE_KEY);
+      } catch { /* a queue that cannot be kept is still a queue */ }
+      return next;
+    });
+  }, [QUEUE_KEY]);
+  const enqueue = useCallback(
+    (item) => setQueue((cur) => [...cur, { k: `q${Date.now()}-${cur.length}`, at: Date.now(), ...item }]),
+    [setQueue],
+  );
+  const removeQueued = useCallback((k) => setQueue((cur) => cur.filter((q) => q.k !== k)), [setQueue]);
+  const clearQueue = useCallback(() => setQueue([]), [setQueue]);
   // Unread = agent replies that arrived while the panel was closed (green count on the bubble).
   const [unread, setUnread] = useState(0);
   const openRef = useRef(false);
@@ -2961,6 +3179,7 @@ function BotBubble({ projectCode, index }) {
         const kind = OWNER[key] || "question|approval|input";
         const re = new RegExp(`^\\s*(:{2,3})(${kind})\\b`);
         let about = "";
+        let wakeNow = false; // §3.2 — a block may say the press should land as its own turn, now
         try {
           const rows = (workRef.current && workRef.current.rows) || [];
           // WHICH BLOCK, NOT WHICH KIND. `line` is the directive's own source line inside this
@@ -2983,6 +3202,7 @@ function BotBubble({ projectCode, index }) {
               const label = hit.match(/\[([^\]]+)\]/);
               const msg = hit.match(/\bmessage=("?)([^"}]+)\1/);
               const id = hit.match(/\bid=("?)([^"\s}]+)\1/);
+              if (/\bwake=now\b/.test(hit)) wakeNow = true;
               about = label ? label[1] : msg ? msg[2] : id ? id[2] : "";
               if (about) break;
             }
@@ -3001,13 +3221,45 @@ function BotBubble({ projectCode, index }) {
             ? `answered "${value}"`
             : `cleared the ${key || "answer"}`;
         if (!said) return; // a `ts` or a height is bookkeeping, not something to narrate
-        work.send(about ? `${said} — ${about}` : said);
+        // RFC-073 §3.2 — A PRESS IS NOT A TURN. Four presses and one message is ONE turn carrying
+        // four answers, so the receipt queues and rides the next send. `wake=now` on the block is
+        // the author's way out, and the queue's own *send now* is his (c25). A commit's sha stamp
+        // keeps landing immediately — it is a result the agent is waiting on, not an answer.
+        const receipt = about ? `${said} — ${about}` : said;
+        if (OWNER[key] === "commit") {
+          // c55 — a commit's receipt is a LOG LINE, the same non-human speaker a :::cmd reports as,
+          // never a message he typed.
+          work.send(receipt, "cmd");
+          return;
+        }
+        if (wakeNow) {
+          work.send(receipt);
+          return;
+        }
+        enqueue({ kind: "answer", text: receipt });
       },
     }),
-    // `work.send` is stable (useCallback with no deps); `attached` is what actually changes.
+    // `work.send` and `enqueue` are stable (useCallback); `attached` is what actually changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [attached],
+    [attached, enqueue],
   );
+
+  // RFC-073 §3.2 — SEND NOW: the queue's own door out, his at the moment rather than the author's
+  // in advance (c25). One turn carrying everything queued, nothing typed required.
+  const sendQueueNow = useCallback(() => {
+    const items = sendQueueRef.current;
+    if (!items.length || !workRef.current) return;
+    const pics = items.flatMap((q) => q.pics || []);
+    if (workRef.current.send(items.map((q) => q.text).join("\n"), null, pics)) clearQueue();
+  }, [clearQueue]);
+  // …and a message queued while the session could not take it rides the next turn the agent CAN
+  // take (c26): the transport coming back is that moment. Answers alone stay put — a press is not
+  // a turn, and nothing but his send or his *send now* turns answers into one.
+  useEffect(() => {
+    if (!attached) return;
+    if (sendQueueRef.current.some((q) => q.kind === "message")) sendQueueNow();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [attached]);
 
   // ARRIVING IS ALWAYS THE BOTTOM. Opening the panel, switching chats, attaching a session — every
   // one of those is an arrival, and nobody arrives at a conversation to read the top of it.
@@ -3726,13 +3978,20 @@ const countdown = (str, now = Date.now()) => {
       // overlay closed) runs before delivery is known — so a session that refuses input (busy,
       // compacting: his board note names it) was VAPORIZING the message, with one easy-to-miss
       // error line as the only trace. The words return to the input box, selected territory, his.
-      if (!workRef.current.send(text, null, pics)) {
-        setSendErr("the session isn't accepting input — your words are back in the box");
-        setInput(text);
-        setShots(pics); // the pictures come back with the words — a refused send loses nothing
-        setTimeout(() => inputRef.current && autogrow(inputRef.current), 0);
+      // RFC-073 §3.2 — whatever is queued RIDES THIS MESSAGE: one turn, every pressed answer with
+      // the sentence that has their context, in the order they happened (c23).
+      const riding = sendQueueRef.current.map((q) => q.text);
+      const ridingPics = sendQueueRef.current.flatMap((q) => q.pics || []);
+      const full = riding.length ? `${riding.join("\n")}\n\n${text}` : text;
+      if (!workRef.current.send(full, null, [...ridingPics, ...pics])) {
+        // §3.2 — a message the session cannot take right now is QUEUED, never lost and never
+        // bounced back at him: it sits in the conversation as a queued row and rides the next turn
+        // the agent can take (c26).
+        enqueue({ kind: "message", text, pics });
+        setSendErr("");
         return;
       }
+      clearQueue();
       setSendErr("");
       // …AND THE VISITORS STILL HEAR HIM. His catch: *"Autobot is in your room right now. He's not
       // going to get a notification that I'm talking. I've noticed that."* He had noticed correctly.
@@ -4807,9 +5066,13 @@ const countdown = (str, now = Date.now()) => {
   // beside the rail.
   const inRail = navDocked && !!slotEl && slotEl.id === spotId(projectCode);
   const inNav = navDocked && !!slotEl && !inRail;
-  // ON SCREEN = floating (bubble visible, open or not) or docked in the tab that is up. Docked in a
-  // tab that is not up, or in the rail, is "elsewhere" for the voice.
-  onScreenRef.current = !navDocked || inNav;
+  // ON SCREEN = floating (bubble visible, open or not), docked in the tab that is up — OR IN THE
+  // RAIL. The rail counted as "elsewhere" until his live test overruled it (2026-10-26: "you're on
+  // the dock… you can already see the preview and you're talking — there was no reason for you to
+  // pop out. You weren't hidden"): a rail bot speaking draws its peek with the speech line and its
+  // stop, which is everything the pop-out exists to guarantee. Only docked-in-a-tab-that-is-not-up
+  // is hidden now — a reading he cannot see or stop is a surprise; one he can is just a reading.
+  onScreenRef.current = !navDocked || inNav || inRail;
   pullOutRef.current = pullOut;
   // THE RAIL ALWAYS STARTS CLOSED (his rule). The mount-time default already knew this — a docked
   // bot opens closed when the navigator is collapsed — but collapsing the navigator LIVE moved every
@@ -5361,13 +5624,18 @@ const countdown = (str, now = Date.now()) => {
     const pull = async () => {
       try {
         const files = hostFiles(projectCode);
-        if (!files || !files.listFiles) return;
-        const r = await files.listFiles({ dir: "RFCs" });
-        const paths = ((r && r.files) || [])
-          .map((f) => (typeof f === "string" ? f : f && f.path) || "")
-          // The arcs live under `RFCs/arcs` and have their own tab; listing them twice would make
-          // two rows for one document say different things about it.
-          .filter((pth) => /\/RFC-\d+[^/]*\.md$/i.test(pth) && !/\/arcs\//i.test(pth));
+        if (!files || !files.readFile) return;
+        // RFC-073 slice 2 — THE REGISTRY IS THE LIST. A document is an RFC because it says so
+        // (`::rfc` at its top), wherever it lives; the folder stopped meaning anything. His ruling
+        // on the cutover: a short honest list of registered documents beats a folder listing that
+        // cannot tell a design from a stray file. Retired rows and rows whose file is gone are not
+        // listed (§1.4).
+        const svc = SystemViewService && SystemViewService.Agent;
+        if (!svc || !svc.documentsRegistry) return; // an older hub — the tab stays as it was
+        const rows = (await svc.documentsRegistry({ projectCode, kind: "rfc" })) || [];
+        const paths = (Array.isArray(rows) ? rows : [])
+          .filter((x) => x && x.path && !x.missing && !(x.state && x.state.retired))
+          .map((x) => x.path);
         if (!paths.length) {
           if (!dead) setRfcsMeta({ list: [], waiting: 0 });
           return;
@@ -5406,13 +5674,15 @@ const countdown = (str, now = Date.now()) => {
     const pull = async () => {
       try {
         const files = hostFiles(projectCode);
-        if (!files || !files.listFiles) return;
-        const r = await files.listFiles({ dir: "RFCs/arcs" });
-        const paths = ((r && r.files) || [])
-          .map((f) => (typeof f === "string" ? f : f && f.path) || "")
-          .filter((pth) => /\/ARC-\d+[^/]*\.md$/i.test(pth));
-        // A FOLDER THAT IS NOT THERE IS NOT AN ERROR — most projects have no arcs, and the band's
-        // rule already says a kind with no rows gets no tab.
+        if (!files || !files.readFile) return;
+        // RFC-073 slice 2 — same cutover as the RFC tab: an arc is a document carrying `::arc`,
+        // listed off the registry. No rows is not an error; a kind with no rows gets no tab.
+        const svc = SystemViewService && SystemViewService.Agent;
+        if (!svc || !svc.documentsRegistry) return;
+        const rows = (await svc.documentsRegistry({ projectCode, kind: "arc" })) || [];
+        const paths = (Array.isArray(rows) ? rows : [])
+          .filter((x) => x && x.path && !x.missing && !(x.state && x.state.retired))
+          .map((x) => x.path);
         if (!paths.length) {
           if (!dead) setArcsMeta({ list: [] });
           return;
@@ -5516,10 +5786,32 @@ const countdown = (str, now = Date.now()) => {
     for (const r of work.standingRuns || []) {
       const src = String(r.source || "");
       if (src.startsWith("lane:") || !(r.items && r.items.length)) continue;
-      rows.set(String(r.owner || "").slice(4), { key: String(r.owner || "").slice(4), source: src, items: r.items });
+      // status + attachments ride along so the row can wear the run's declared ending — a run
+      // marked abandoned with its account attached is the third face (done · abandoned · nudging).
+      rows.set(String(r.owner || "").slice(4), {
+        key: String(r.owner || "").slice(4),
+        source: src,
+        items: r.items,
+        status: r.status || null,
+        attachments: r.attachments || null,
+      });
     }
     for (const l of work.state.todoLists || [])
-      if (l.items.length && !l.source.startsWith("lane:")) rows.set(l.key, { key: l.key, source: l.source, items: l.items });
+      if (l.items.length && !l.source.startsWith("lane:")) {
+        // THE LIVE ROW KNOWS THE ITEMS; THE DISK ROW KNOWS THE RECORD. A session's todo events
+        // carry no status or attachments, so a bare overwrite here stripped both off any run this
+        // session had touched — which is exactly when a status is freshest (his catch, 2026-10-26:
+        // he watched a run get declared abandoned and the row showed nothing). Items from the live
+        // event, record from the disk row it replaces.
+        const prior = rows.get(l.key);
+        rows.set(l.key, {
+          key: l.key,
+          source: l.source,
+          items: l.items,
+          status: prior ? prior.status : null,
+          attachments: prior ? prior.attachments : null,
+        });
+      }
     return [...rows.values()].filter((l) => JSON.stringify(l.items) !== clearedLists[l.key]);
   })();
   // STANDING LANES (RFC-059 slice 2): a lane row is born from a spawn and DIES AT CLEANUP —
@@ -6821,48 +7113,6 @@ const countdown = (str, now = Date.now()) => {
               sticking.current.scrolled(geoOf(e.currentTarget));
             }}
           >
-            {/* DRAG A BOX AND HEAR JUST THAT PART. It lives INSIDE the list so its coordinates are
-                the list's own — a box drawn at one scroll position would otherwise sit over the
-                wrong words the moment anything moved.
-                The press hands the text to the FRONT of the line and the box disappears: the audio
-                outlives the box, because *"you don't want to scroll away and turn it off"*, and
-                the line is where a playing thing can be seen and paused. */}
-            <BoxSelect
-              scopeRef={listRef}
-              blockSelector="[data-row], .agent-wb__row"
-              onPlay={(text) => {
-                // The selection is text lifted out of the DOM, not one row's markdown — so its
-                // sentences get a subtitle and no lines: there is no paragraph to light honestly.
-                const { text: say, chunks: said } = spokenPositions(text);
-                if (!say) return;
-                const id = `sel-${Date.now()}`;
-                playFirst({
-                  key: id,
-                  scope: projectCode,
-                  label: say.replace(/\s+/g, " ").slice(0, 70),
-                  start: () => {
-                    announce(true);
-                    // A SELECTION HAS NO ROW TO SAY "LOADING" FOR IT, so it says so itself. On a
-                    // cold machine the first utterance waits on the model, and without this the
-                    // press produces silence with nothing anywhere explaining why.
-                    queueWarming(id, !engineReady());
-                    const h = speak(say, {
-                      preferId: readVoicePref(projectCode),
-                      rate: (readVoiceSettings(projectCode) || {}).speed,
-                      onstart: () => queueWarming(id, false),
-                      onposition: (p) =>
-                        queuePosition(id, { index: p.index, total: p.total, text: (said[p.index] || {}).text || "" }),
-                      onend: () => {
-                        queueWarming(id, false);
-                        queueDone(id);
-                        announce(false);
-                      },
-                    });
-                    return h;
-                  },
-                });
-              }}
-            />
             {/* THE ROOM IS GONE FROM THE PANEL. Not hidden behind a session — gone. His call once
                 visiting worked: *"I don't need to see that old chat between me and you anymore, I
                 don't need to see this whole back-to-the-room and resume shit at the bottom. If none
@@ -6971,6 +7221,35 @@ const countdown = (str, now = Date.now()) => {
                   visitor={s.as && s.as !== projectCode ? s.as : null}
                 />
               ))}
+            {/* RFC-073 §3.2 — THE QUEUE, drawn as chat entries with a queued look (his call: the
+                list already draws rows with different looks, and a queued one is one more look —
+                no chip strip). Each row is removable before it goes (c24); the bar under them is
+                the queue's own send (c25). On send they fold into the message and become an
+                ordinary sent row. */}
+            {queue.map((q) => (
+              <div key={q.k} className={`${CLASSNAME}__msg ${CLASSNAME}__msg--you ${CLASSNAME}__msg--queued`}>
+                <span className={`${CLASSNAME}__queued-tag`}>{q.kind === "answer" ? "queued answer" : "queued — rides the next turn"}</span>
+                <span className={`${CLASSNAME}__queued-text`}>{q.text}</span>
+                <button
+                  type="button"
+                  className={`${CLASSNAME}__queued-x`}
+                  title={q.kind === "answer" ? "Don't send this answer" : "Don't send this message"}
+                  onClick={() => removeQueued(q.k)}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+            {queue.length > 0 && (
+              <div className={`${CLASSNAME}__queue-bar`}>
+                <button type="button" className={`${CLASSNAME}__queue-send`} onClick={sendQueueNow}>
+                  send now
+                </button>
+                <button type="button" className={`${CLASSNAME}__queue-clear`} onClick={clearQueue} title="Remove everything queued">
+                  remove all
+                </button>
+              </div>
+            )}
           </div>
           {/* COOKING, in the direct chat — OUTSIDE the scroll, on purpose. His call: *"cooking should
               be sticky, she shouldn't scroll away from it."* It was the last row inside the feed, so
@@ -7090,6 +7369,13 @@ const countdown = (str, now = Date.now()) => {
                       {bandLabel(tb.key, tb.n)}
                     </button>
                   ))}
+                  {/* THE COG, AT THE RIGHT END OF THE ROW — his placement. It is not a tab: it has
+                      no rows, it never competes for the row's space, and it costs no height because
+                      the row is flex and the cog is pushed to the end rather than given a line of
+                      its own. Everything in the drawer is a list of steps with an owner and a
+                      completion state, so the thing that configures the nudge belongs where the
+                      lists are. */}
+                  <NudgeCog />
                 </div>
               )}
               {(lanesShown.length > 0 || listsShown.length > 0 || reportsMeta.list.length > 0) && (
@@ -7295,8 +7581,12 @@ const countdown = (str, now = Date.now()) => {
                     ) : (
                       <WorkList
                         key={l.key}
+                        runKey={l.key}
                         items={l.items}
                         source={l.source}
+                        projectCode={projectCode}
+                        status={l.status || null}
+                        attachments={l.attachments || null}
                         onClear={() => setClearedLists((c) => ({ ...c, [l.key]: JSON.stringify(l.items) }))}
                       />
                     ),

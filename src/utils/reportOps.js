@@ -1,4 +1,5 @@
 import { hostFiles } from "./hostFiles";
+import { getAgent } from "./hub";
 
 // ONE DELETE, USED EVERYWHERE A REPORT CAN BE DELETED (the nav's fold, the TV's list). His rule
 // that forced the unification: *"if they're not unified, you can't even delete the TV reports."*
@@ -45,6 +46,21 @@ export async function reportIndexSets(projectCode) {
 // both call THIS; there is no second opinion to drift.
 export async function listReports(projectCode) {
   const files = hostFiles(projectCode);
+  // RFC-073 slice 2, his ruling on the cutover: A REPORT IS LISTED BECAUSE IT IS REGISTERED —
+  // `::report` (or any leaf) at its top, a row in the registry — not because a file matches
+  // `report.*.md` in `.systemview/`. Unregistered files stay on disk, reachable as files, listed
+  // nowhere. The index/folder union below remains only as the fallback for an older hub that
+  // cannot answer the registry yet, so the tab is never blank on a version seam.
+  try {
+    const agent = getAgent();
+    if (agent && agent.documentsRegistry) {
+      const rows = (await agent.documentsRegistry({ projectCode, kind: "report" })) || [];
+      return (Array.isArray(rows) ? rows : [])
+        .filter((r) => r && r.path && !r.missing && !(r.state && r.state.retired))
+        .map((r) => ({ name: r.id, path: r.path, ts: r.at || 0, state: r.state || null }))
+        .sort((a, b) => (b.ts || 0) - (a.ts || 0));
+    }
+  } catch {}
   let idx = {};
   try {
     const res = await files.readFile({ path: ".systemview/reports.index.json" });

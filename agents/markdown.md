@@ -49,6 +49,14 @@ silently points at nothing — it renders, it just goes nowhere.
 `#L10-20` and `#L10-L20` are the same address. Hub-served by project code, so a file chip works with
 every service down. A `::file` pointed at an image renders the image viewer.
 
+**`voice` reads the passage aloud — and it is HOW YOU READ ALOUD when asked.** "Read me this file",
+"read that section" → reply with the chip carrying `voice`; never paste the text into your reply for
+the speech engine to find. `::file[docs/notes.md#L40-70]{voice}` reads that slice **at its place in
+your reply** — the recital follows the order on screen: your words before it, the passage, your
+words after. Markdown goes through the spoken form; anything else reads as plain text. It reads when the reply ARRIVES and when the reply's Listen is PRESSED — never on a reload or a
+re-render, and it reads even when ambient voice mode is off.
+Whole documents are fine — generous cap, stoppable at any sentence.
+
 ## `:help[…]` — a help topic
 
 ```markdown
@@ -209,6 +217,11 @@ An ordinary task list. Ticking one **writes back into the markdown** — there i
 **QUOTE any value containing a space.** An unquoted space kills the whole directive **silently** —
 it renders as literal text and nothing tells you why.
 
+**In the chat, a press QUEUES (RFC-073 §3.2).** Answering a block in a chat reply does not open a
+turn: the answer sits in the conversation as a queued row (removable, *send now* beside it) and
+rides his next message — one turn carrying every pressed answer. A block may carry `wake=now` to
+land its press immediately; a commit's receipt always lands immediately, as a log line.
+
 ## `::ask[…]` — the one thing you need from them, made visible
 
 ```markdown
@@ -240,6 +253,49 @@ makes it a decision record. This is the opposite: one sentence to be looked at, 
 Wrap what you are proposing and read `verdict=approved|rejected` back off the document later. That
 is the entire handshake — there is nowhere else to check.
 
+## `::rfc` · `::arc` · `::report` · `::gap` — the registration leaves
+
+```markdown
+::rfc{id=RFC-073 arc=ARC-004}
+::arc{id=ARC-004 owner=systemview-test title="Arcs become trackable"}
+::report{id=subscribe-and-registration}
+::gap{id=G-12}
+```
+
+One line at the top makes the document a KIND — not its folder, not its filename (RFC-073). Saving
+the file through any door the harness sees registers it: a row of identity (`id kind path project`)
+plus derived state in `~/.autobot/documents.json`. `id` is the identity — a moved file updates its
+row, never duplicates it. `arc=` on an RFC is the one relationship kept: "what is being built for
+this arc" is a read. They render as a one-line header with nothing to press — carrying the
+document's **lifecycle trail** (RFC-075): the kind's states with the current one lit, read from the
+registry's derived state (rfc: draft → approved → built → settled → retired; arc: open → done →
+retired; gap: open → resolved → retired; report: filed → retired). `settled=<date>` on an rfc leaf
+declares the spec stopped moving — a declaration, never derived from quiet. A document with no
+registry row shows no trail — absence stated, never invented.
+
+A **gap** is a bug or missing feature you hit in ANOTHER project, written INTO THAT PROJECT'S repo
+(one line of body is enough); it is done when its leaf carries `resolved=`, and the resolution fires
+to the document's audience. An RFC is done at its `verdict=`, an arc when every objective is done, a
+report never — it only ages out. Humans insert a leaf from the right-click menu (*Register this
+document*); `show()` writes `::report` for a filed report by itself.
+
+## `subscribe=` and `told=` — who hears a block, and the receipt
+
+```markdown
+:::approval{ask="Approve this?" subscribe=buapi}         ← buapi alone hears the verdict
+::claim[x → y]{id=c4 subscribe=reviewer-x}               ← a non-member can be the audience
+::::thread{id=t2 subscribe=buapi}                        ← everything in the thread goes to buapi
+```
+
+In a REGISTERED document, a block with an answer announces itself at parse: approval's `verdict=`,
+question's `answer=`, an objective reaching `state=done`, a claim's mark, a gap's `resolved=`. The
+audience ladder: the block's own `subscribe=` → the enclosing thread's `subscribe=` (a reply ALWAYS
+takes the thread's; a thread still saying `members=` is read the same) → the document's `::members`.
+Delivery stamps `told=<who>` onto the block's line — the receipt lives in the block, so the same
+block parsed a hundred times delivers once, and removing `told=` by hand is how you re-announce.
+Nobody named anywhere → no fire, no error. Result blocks (`::commit`, `:::cmd`, `::run`, `::test`,
+`::branch`) write nothing — `subscribe=` on them routes the completion event the chat already shows.
+
 ## `::claim[…]{id=…}` — a statement somebody can check, and the mark
 
 ```markdown
@@ -249,18 +305,53 @@ is the entire handshake — there is nowhere else to check.
 The claim an RFC used to end in as a numbered line, made pressable. The statement goes in the
 brackets — *do this → this should happen* — and `id=` is its address (the number you see is derived
 from its place in the document, so never write one into the text). A press marks it **met** or
-**not met**, or clears a mark you gave ("I take that back"); the mark is written INTO the line:
+**not met** — and on a claim somebody else already marked, the same press **countersigns**: `by=`
+is a `|`-list and his agreement adds `you` to yours. Pressing a state you yourself signed takes
+your signature off ("I take that back"); the mark stands while anyone else holds it. **A press
+never erases the note** — withdrawal and flips keep the words; `edit` is the only door that
+changes them. The mark is written INTO the line:
 
 ```markdown
 ::claim[…]{id=c9 state=met by=you at=1792956000000 note="pressed approve with two sessions up; both got document.updated"}
 ```
 
 **A press in the window is its own evidence** — he looked — so ✓ writes `state= by=you at=` at
-once and `note=` is optional (a *+ what you saw* afterwards). **An agent's mark is not.** An agent
+once, and the window offers no note box at all: a press is a signature, not an essay. The state
+badge rides the claim's row; the stamp line under it carries one chip per signature (his wears the
+accent), the date, and the note. **An agent's mark is not its own evidence.** An agent
 marks by writing the attributes onto the line itself, `by=<projectCode>`, and **a mark without a
 `note=` is no mark** — `met` must say what was done and seen, `unmet` what happens instead; the
 word is only as good as what it rests on. An unmarked claim reads **unchecked** — visibly, and never
 the same as met.
+
+**A claim can declare its REVIEWERS** — `::claim[…]{id=c7 reviewers=buapi}` — who owe it a look.
+The badge grammar is his: a **dashed badge with the check** (`✓ buapi`, dashed border) is the
+INVITATION — "click this and you've checked it" — and signing **fills** it solid, in the state's
+colour. The human is the one implicit reviewer — his badge is always offered and is the one a press
+can fill (check met on an unchecked claim, countersign a marked one, step off again). Declare a
+reviewer OTHER than the agent that built, where writer ≠ verifier matters. `reviewers=` JOINS the
+claim's fire audience (unioned onto the subscribe/thread/members ladder): being named a reviewer is
+an obligation, and an obligation nobody is told about is not one. And **a flip never eats
+signatures**: switching met↔unmet stashes the outgoing state's signers (`metBy=`/`unmetBy=`) and
+restores them when the state returns — a signature belongs to the state it signed.
+
+**A claim can carry its PROOF** (RFC-075) — the same name grown a container, the check folded where
+the mark will be doubted:
+
+```markdown
+:::claim[Save a registered document → its row's state is re-derived]{id=c36 state=met by=you at=…}
+:::cmd
+node -e "…read the registry row…"
+:::
+:::
+```
+
+Renders as the same one-line claim with a `proof ▸` fold; the children are ordinary result blocks
+(`:::cmd`, `:::run`, `::test`) run in place. The sequence is **verify → mark → THEN the proof,
+written for the human**; the mark is mandatory, the proof is earned (load-bearing marks, claims that
+can rot); a proof passing is **evidence, never a mark** — no runner, no automation, two signatures
+stay two. Humans grow one with right-click → *add a proof*; the statement never gets retyped. The
+approach and shapes: `context("how do I leave a proof on a claim")`.
 
 ## `::claims` — the count, derived
 
@@ -282,7 +373,8 @@ Anything wrapped here carries a reply thread.
 
 **Replies live IN the document** as `:::reply{author=… ts=…}` blocks, so reading the document is
 reading the whole exchange. (A sidecar remains only for surfaces with no file to write to — the help
-hub and help topics.)
+hub and help topics.) The thread's `id=` renders on its 💬 reply pill — it is the name deliveries
+use ("thread t3 moved"), so the chat's words and the thread on screen match by eye.
 
 Three things that have each cost a real mistake:
 
@@ -371,8 +463,11 @@ once it settles, everyone else waits for a press.
 
 **Delivery needs no hook.** The window observes the press and the HOST emits an ambient
 `document.updated`; every session whose project is named receives it as a turn, and the landing
-renders as a row that opens. See autobot's `hooks.md` — the event exists for hooks to match on, but
-membership is the subscription on its own.
+renders as a row that opens. An IDLE session wakes on the spot; a session mid-turn never has the
+delivery pushed into its queue — the harness holds it (the row shows ⧖ *held — wakes when this
+turn ends*) and it starts its own turn the moment the agent yields. Several sends against one
+document merge while held: one wake, carrying everything. See autobot's `hooks.md` — the event
+exists for hooks to match on, but membership is the subscription on its own.
 
 ## `::commit{message=…}` — a commit you press
 

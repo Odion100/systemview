@@ -19,15 +19,25 @@
 const FENCED = /^(`{3,}|~{3,})[^\n]*\n[\s\S]*?^\1[^\n]*$/gm;
 const unfenced = (src) => String(src || "").replace(FENCED, (m) => m.replace(/[^\n]/g, ""));
 
-// `::claim[the statement]{attrs}` — a leaf with a label. The label may hold anything but a newline;
-// the attributes are optional until the first mark writes them.
-const CLAIM = /^\s*::claim\[(.*)\](?:\{([^}]*)\})?\s*$/;
+// `::claim[the statement]{attrs}` — a leaf with a label — OR its container form (RFC-075): a claim
+// that carries a proof is `:::claim[statement]{attrs}` with the proof as its body, and the fence
+// grows with nesting (a claim holding a `:::cmd` is `::::claim`). Two or more colons, one claim;
+// the mark lives on the opening line either way. The label may hold anything but a newline; the
+// attributes are optional until the first mark writes them.
+const CLAIM = /^\s*:{2,}claim\[(.*)\](?:\{([^}]*)\})?\s*$/;
 
 export const STATES = ["met", "unmet"];
 
+// TOKENIZED, NEVER REGEXED THROUGH — the same rule both attribute WRITERS learned the hard way
+// (measured 2026-10-25: a naive `(^|\s)key=` scan matches inside a QUOTED VALUE, so a note saying
+// `"state= stays"` reads as the state). The bag is split into real pairs, quotes respected.
 const attrOf = (attrs, key) => {
-  const m = new RegExp(`(?:^|\\s)${key}=("[^"]*"|[^\\s}]*)`).exec(attrs || "");
-  return m ? m[1].replace(/^"|"$/g, "") : "";
+  const re = /([A-Za-z_][\w-]*)=("[^"]*"|'[^']*'|[^\s}]*)/g;
+  let m;
+  while ((m = re.exec(attrs || ""))) {
+    if (m[1] === key) return m[2].replace(/^["']|["']$/g, "");
+  }
+  return "";
 };
 
 export const normalizeState = (raw) => {
@@ -48,15 +58,24 @@ export function parseClaims(source) {
     const m = CLAIM.exec(lines[i]);
     if (!m) continue;
     const attrs = m[2] || "";
+    const by = attrOf(attrs, "by");
+    const reviewers = attrOf(attrs, "reviewers");
+    const names = (raw) => String(raw || "").split(/[|,]/).map((x) => x.trim()).filter(Boolean);
+    const state = normalizeState(attrOf(attrs, "state"));
     out.push({
       n: out.length + 1,
       line: i + 1,
       statement: m[1].trim(),
       id: attrOf(attrs, "id"),
-      state: normalizeState(attrOf(attrs, "state")),
-      by: attrOf(attrs, "by"),
+      state,
+      by,
       at: Number(attrOf(attrs, "at")) || 0,
       note: attrOf(attrs, "note"),
+      reviewers,
+      // REVIEWED is the second axis (RFC-075 round two, his: "green is all met, but I didn't check
+      // off everything"): marked is the builder's word; reviewed means the human signed AND every
+      // declared reviewer did. A mark alone must never read as done.
+      reviewed: !!state && names(by).includes("you") && names(reviewers).every((r) => names(by).includes(r)),
     });
   }
   return out;
@@ -67,7 +86,8 @@ export function claimsOf(source) {
   const all = parseClaims(source);
   const met = all.filter((c) => c.state === "met").length;
   const unmet = all.filter((c) => c.state === "unmet").length;
-  return { total: all.length, met, unmet, unchecked: all.length - met - unmet, claims: all };
+  const reviewed = all.filter((c) => c.reviewed).length;
+  return { total: all.length, met, unmet, unchecked: all.length - met - unmet, reviewed, claims: all };
 }
 
 /** This claim's number, by its line. 0 when the line holds no claim. */
@@ -76,5 +96,21 @@ export function ordinalOf(source, line) {
   return c ? c.n : 0;
 }
 
-const claims = { parseClaims, claimsOf, ordinalOf, normalizeState, STATES };
+// RFC-075 — THE RETROFIT: a leaf claim grows its container form so a proof can be written into it.
+// Nobody retypes a statement to give it a proof — the leaf line is rewritten in place (`::` → `:::`)
+// and the closing fence lands under an empty body line. Only a LEAF grows: a line that is already a
+// container, or holds no claim, answers null — a no-op is not a change. The save path's fence
+// normalizer re-widens outer containers if this claim sits inside one.
+export function growProof(source, line) {
+  const lines = String(source == null ? "" : source).split("\n");
+  const i = Number(line) - 1;
+  if (i < 0 || i >= lines.length) return null;
+  const m = /^(\s*)(:{2,})claim\[/.exec(lines[i]);
+  if (!m || m[2].length !== 2) return null; // not a claim, or already a container
+  lines[i] = lines[i].replace("::claim[", ":::claim[");
+  lines.splice(i + 1, 0, "", ":::");
+  return lines.join("\n");
+}
+
+const claims = { parseClaims, claimsOf, ordinalOf, growProof, normalizeState, STATES };
 export default claims;
