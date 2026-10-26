@@ -443,14 +443,15 @@ and says `read-only here` rather than pretending to save.
 ## The pinned update row — the only send, and the door to what moved
 
 Nothing in the document sends. A pinned row sits at the **top-right of the document** whatever the
-scroll position, holding one pill per subscription that has somebody behind: `document`, and
+scroll position, holding one pill per subscription that has somebody behind: `all threads` (the
+document level — it reaches everyone, which is why it stopped saying "document"), and
 `💬 <thread id>` for each thread. Separate pills on purpose — the audiences differ, and one row of
 mixed chips makes a press look like it tells everybody shown.
 
 - **A chip** tells that one member and stamps that subscription's own line; `all N` tells everyone
   behind on that pill.
-- **Pressing the pill anywhere else** goes to what it is about — the thread, or the document's
-  members line — and flashes it.
+- **Pressing a THREAD pill anywhere else** goes to that thread and flashes it. The `all threads`
+  pill is not a door — it is nowhere in particular, so it only sends.
 - **The row disappears when nobody is behind**, which is also how a press confirms itself: tell
   `buapi` and `buapi`'s chip leaves.
 

@@ -42,7 +42,7 @@ afterEach(() => {
 describe("the pinned update row", () => {
   it("names everybody who has not heard about this version", () => {
     mount();
-    expect(screen.getByText("document")).toBeTruthy();
+    expect(screen.getByText("all threads")).toBeTruthy();
     expect(screen.getByTitle("tell buapi about this version of the document")).toBeTruthy();
     expect(screen.getByTitle("tell systemlynx about this version of the document")).toBeTruthy();
   });
@@ -79,7 +79,7 @@ describe("the pinned update row", () => {
   // A read-only surface has no file to stamp, so an update row there would be a press that lies.
   it("draws nothing where the surface cannot save", () => {
     mount({ editable: false });
-    expect(screen.queryByText("document")).toBeNull();
+    expect(screen.queryByText("all threads")).toBeNull();
   });
 
   it("a chip press tells that one member and stamps the document's members line", async () => {
@@ -97,7 +97,7 @@ describe("the pinned update row", () => {
   it("the all press tells everybody who is behind, in one event", async () => {
     const { bridge } = mount();
     fireEvent.click(screen.getByText("all 2"));
-    await screen.findByText("document");
+    await screen.findByText("all threads");
     expect(bridge.mock.calls[0][0].members).toEqual(["buapi", "systemlynx"]);
   });
 
@@ -164,7 +164,7 @@ describe("thread updates ride in the same corner, in their own pill", () => {
   it("names the thread rather than lumping it in with the document", () => {
     mountBoth();
     expect(screen.getByText("💬 t1")).toBeTruthy();
-    expect(screen.queryByText("document")).toBeNull();
+    expect(screen.queryByText("all threads")).toBeNull();
     expect(screen.getByTitle("tell buapi about this version of thread t1")).toBeTruthy();
   });
 
@@ -202,13 +202,13 @@ describe("the pill takes you to what it is about", () => {
   const mountIn = () => {
     const setAttr = jest.fn();
     global.window.systemview = { documents: { sendUpdate: jest.fn(async () => ({ ok: true })) } };
-    // The thread's block, as the renderer draws it — the line is the address the pill already has.
-    const block = document.createElement("div");
-    block.className = "md-block";
-    block.setAttribute("data-md-name", "thread");
-    block.setAttribute("data-md-start", "5");
-    block.scrollIntoView = jest.fn();
-    document.body.appendChild(block);
+    // THE REAL GEOMETRY: the pin and the document's blocks share ONE `.markdown` root, and the
+    // reveal searches from the pin's own root — never the page. The page-wide search was the bug
+    // (his catch, 2026-10-26): the CHAT's karaoke stamps carry the same `data-md-start`, so
+    // clicking a pill scrolled the chat instead of the document.
+    const root = document.createElement("div");
+    root.className = "markdown";
+    document.body.appendChild(root);
     render(
       <MarkdownWriteProvider value={{ editable: true, setAttr }}>
         <MarkdownMembersProvider
@@ -223,18 +223,36 @@ describe("the pill takes you to what it is about", () => {
           <MembersPin />
         </MarkdownMembersProvider>
       </MarkdownWriteProvider>,
+      { container: root },
     );
-    return { block, setAttr };
+    // The thread's block, as the renderer draws it — appended after the render so React does not
+    // sweep it, inside the same root the pin searches.
+    const block = document.createElement("div");
+    block.className = "md-block";
+    block.setAttribute("data-md-name", "thread");
+    block.setAttribute("data-md-start", "5");
+    block.scrollIntoView = jest.fn();
+    root.appendChild(block);
+    // …and an IMPOSTOR with the same line OUTSIDE the root — the chat's karaoke stamp. The reveal
+    // must never reach it.
+    const impostor = document.createElement("div");
+    impostor.setAttribute("data-md-start", "5");
+    impostor.scrollIntoView = jest.fn();
+    document.body.insertBefore(impostor, root);
+    return { block, impostor, setAttr };
   };
 
   afterEach(() => {
     document.querySelectorAll(".md-block").forEach((n) => n.remove());
   });
 
-  it("pressing the label scrolls the thread into view", () => {
-    const { block } = mountIn();
+  it("pressing the label scrolls the thread into view — in THIS pane, never the chat's twin", () => {
+    const { block, impostor } = mountIn();
     fireEvent.click(screen.getByText("💬 t3"));
     expect(block.scrollIntoView).toHaveBeenCalled();
+    // The impostor sits EARLIER in the DOM with the same line — the old page-wide querySelector
+    // would have found it first and scrolled the wrong surface.
+    expect(impostor.scrollIntoView).not.toHaveBeenCalled();
   });
 
   it("pressing an agent's chip sends and does NOT navigate", () => {
@@ -287,7 +305,7 @@ describe("tucking the stack to the edge", () => {
     fireEvent.click(screen.getByTitle("tuck these to the edge"));
     expect(tab()).toBeTruthy();
     fireEvent.click(tab());
-    expect(screen.getByText("document")).toBeTruthy();
+    expect(screen.getByText("all threads")).toBeTruthy();
   });
 
   // THE BUG: a change used to pop it back open.
@@ -304,7 +322,7 @@ describe("tucking the stack to the edge", () => {
         </MarkdownMembersProvider>
       </MarkdownWriteProvider>,
     );
-    expect(screen.queryByText("document")).toBeNull();
+    expect(screen.queryByText("all threads")).toBeNull();
     expect(tab()).toBeTruthy();
   });
 
@@ -315,11 +333,11 @@ describe("tucking the stack to the edge", () => {
     first.unmount();
     mountOne();
     expect(tab()).toBeTruthy();
-    expect(screen.queryByText("document")).toBeNull();
+    expect(screen.queryByText("all threads")).toBeNull();
     // Another document is another corner — tucking one must not tuck them all.
     first.unmount && null;
     mountOne(SRC, "other.md");
-    expect(screen.getAllByText("document").length).toBe(1);
+    expect(screen.getAllByText("all threads").length).toBe(1);
   });
 
   it("draws nothing at all when nobody is behind — tucked or not", () => {
@@ -354,7 +372,7 @@ describe("caught up", () => {
   it("the row goes once nobody is behind, exactly as it does after a send", async () => {
     mount();
     fireEvent.click(screen.getByTitle("they are caught up — stamp this version and tell nobody"));
-    await waitFor(() => expect(screen.queryByText("document")).toBeNull());
+    await waitFor(() => expect(screen.queryByText("all threads")).toBeNull());
   });
 
   it("leaves the same record a send leaves, so a later change is behind again for them", () => {

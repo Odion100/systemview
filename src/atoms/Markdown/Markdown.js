@@ -285,6 +285,15 @@ const DocMenu = ({ at, onPick, onClose, canThread, canAddMember, canRegister, th
       // the menu should dismiss it. (Capture-phase scroll fired for the drawer's own list too, so
       // the menu closed the instant you tried to scroll it.)
       if (inside(e)) return;
+      // AND ONLY A SCROLL OF THE GROUND UNDER THE MENU (his catch, carded then ordered,
+      // 2026-10-26: "every log row the chat adds closes my right-click menu"). The capture-phase
+      // listener heard EVERY scroll in the window — and the chat auto-scrolls on each new row, so
+      // the menu died whenever an agent so much as logged a line. A scroll dismisses only when the
+      // scrolled element actually contains the menu — the surface it is sitting on moving under it.
+      if (e.type === "scroll") {
+        const t = e.target === document ? document.documentElement : e.target;
+        if (!(t instanceof Node && rootRef.current && t.contains(rootRef.current))) return;
+      }
       onClose();
     };
     const esc = (e) => e.key === "Escape" && onClose();

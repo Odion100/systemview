@@ -2194,8 +2194,21 @@ function BotBubble({ projectCode, index }) {
   // innermost block overlapping the range, which is one paragraph in the common case and two
   // across a boundary.
   const karaokeEls = useRef([]);
+  // THE READING FOLLOWS ITS OWN HIGHLIGHT (his reversal, 2026-10-26: "I have said I don't want
+  // that, but I realized I want that — regardless, if you're speaking, go to it… but if I'm just
+  // sitting there, I'm not moving the scroll"). Each reading starts wanting to be followed; HIS
+  // hand on the wheel mid-reading takes it back (the scroll handler clears this on a scroll that
+  // was genuinely his), and the next reading starts fresh.
+  const readingFollow = useRef(false);
+  const readingKey = useRef(null);
   useEffect(() => {
     const p = speechQ.playing;
+    const pk = p && p.scope === projectCode ? p.key : null;
+    if (pk && pk !== readingKey.current) {
+      readingKey.current = pk;
+      readingFollow.current = true;
+    }
+    if (!pk) readingKey.current = null;
     const lines = p && p.scope === projectCode && p.position ? p.position.lines : null;
     const prev = karaokeEls.current;
     let next = [];
@@ -2227,8 +2240,22 @@ function BotBubble({ projectCode, index }) {
     for (const el of fresh) el.classList.add("md-karaoke");
     if (fresh.length) {
       const list = listRef.current;
-      if (list && sticking.current && sticking.current.following) {
-        fresh[0].scrollIntoView({ block: "nearest" });
+      // Following the bottom, OR following the reading — either keeps the mark in view. The pin
+      // stays on both paths so our own scroll never reads as him scrolling away.
+      if (list && sticking.current && (sticking.current.following || readingFollow.current)) {
+        // FULLY IN VIEW, OR CENTERED — never "nearest" (his catch, 2026-10-26: "you're not
+        // scrolling it completely into view — the top of what's selected only showing at the
+        // bottom"). Nearest does the minimum scroll, which parks the lit block flush against the
+        // bottom edge. So: a block already fully visible moves nothing (no jump per sentence), and
+        // one that is not comes to the center, where reading along is comfortable.
+        try {
+          const lr = list.getBoundingClientRect();
+          const br = fresh[0].getBoundingClientRect();
+          const fullyVisible = br.top >= lr.top && br.bottom <= lr.bottom;
+          if (!fullyVisible) fresh[0].scrollIntoView({ block: "center" });
+        } catch {
+          fresh[0].scrollIntoView({ block: "center" });
+        }
         sticking.current.pin(geoOf(list));
       }
     }
@@ -7111,6 +7138,10 @@ const countdown = (str, now = Date.now()) => {
               // The keeper owns both refusals: our own pin gets no vote, and neither does a scroll
               // event whose geometry changed — that is layout moving, not him.
               sticking.current.scrolled(geoOf(e.currentTarget));
+              // HIS HAND TAKES THE WHEEL FROM THE READING — only a scroll that was genuinely his
+              // (unpinned, scrollTop moved) stops the karaoke follow; layout and our own nearest-
+              // scrolls say nothing. The next reading starts following again.
+              if (sticking.current.lastScrollWasHis) readingFollow.current = false;
             }}
           >
             {/* THE ROOM IS GONE FROM THE PANEL. Not hidden behind a session — gone. His call once

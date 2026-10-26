@@ -150,24 +150,36 @@ const MembersPin = () => {
             >
               ✓ caught up
             </button>
-      {pending.map((scope) => (
+      {pending.map((scope) => {
+        // GO TO THE THREAD — IN THIS PANE ONLY (his catch, 2026-10-26: clicking the pill "moves
+        // the chat and scrolls the chat"). `revealBlock(document, …)` searched the whole PAGE for
+        // `data-md-start`, and the chat's karaoke stamps use the same attribute — so the first
+        // match was often a chat block and the wrong surface scrolled. The reveal now starts from
+        // the pin's own markdown root, which can only ever be this document.
+        const reveal = (e) => {
+          const root = e.currentTarget && e.currentTarget.closest ? e.currentTarget.closest(".markdown") : null;
+          revealBlock(root, scope.line);
+        };
+        // …AND ONLY A THREAD IS A DOOR. The document row is not a place you go — it is the send
+        // that reaches everyone, which is also why it stops saying "document" (his: "it shouldn't
+        // even say document… it just sends all threads really").
+        const isThread = scope.kind === "thread";
+        return (
         <div
           className={`md-members-pin__row md-members-pin__row--${scope.kind}`}
           key={`${scope.kind}-${scope.line}`}
-          role="button"
-          tabIndex={0}
-          // THE PILL IS A DOOR. Everything in it that is not a chip or the `all` press takes you to
-          // what it is about — the thread, or the document's own membership line. The chips stop
-          // the event themselves, so a send never doubles as a navigation.
-          title={scope.kind === "thread" ? `go to thread ${scope.id}` : "go to this document's members"}
-          onClick={() => revealBlock(typeof document !== "undefined" ? document : null, scope.line)}
-          onKeyDown={(e) =>
-            (e.key === "Enter" || e.key === " ") &&
-            revealBlock(typeof document !== "undefined" ? document : null, scope.line)
-          }
+          {...(isThread
+            ? {
+                role: "button",
+                tabIndex: 0,
+                title: `go to thread ${scope.id}`,
+                onClick: reveal,
+                onKeyDown: (e) => (e.key === "Enter" || e.key === " ") && reveal(e),
+              }
+            : {})}
         >
           <span className="md-members__kind">
-            {scope.kind === "document" ? "document" : `💬 ${scope.id}`}
+            {scope.kind === "document" ? "all threads" : `💬 ${scope.id}`}
           </span>
           {scope.behind.map((m) => (
             <button
@@ -208,7 +220,8 @@ const MembersPin = () => {
             </button>
           )}
         </div>
-      ))}
+        );
+      })}
           </div>
           {/* THE POINTER, AT THE RIGHT OF THE TOP ROW — his placement, and the right one: it sits on the
               side the stack travels toward, so the press and the motion agree. A column container stacks whatever you
