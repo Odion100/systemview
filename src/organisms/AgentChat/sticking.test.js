@@ -129,3 +129,41 @@ describe("he can take following back while a reply is streaming", () => {
     expect(s.following).toBe(true);
   });
 });
+
+// THE KARAOKE FOLLOW'S ONE QUESTION: was that scroll HIS HAND? A reading follows its highlight
+// until he takes the wheel — so our own pinned nearest-scrolls and pure layout must both answer
+// "not his", or the follow dies on the first thing it does.
+describe("lastScrollWasHis — only an unpinned scrollTop move is his", () => {
+  it("a pinned scroll (our own nearest-scroll) is never his", () => {
+    const s = createSticking();
+    s.scrolled(geo(10000, 9344, 656));
+    s.pin(geo(10000, 5000, 656));
+    s.scrolled(geo(10000, 5000, 656));
+    expect(s.lastScrollWasHis).toBe(false);
+  });
+
+  it("an unpinned scrollTop move is his — in either direction", () => {
+    const s = createSticking();
+    s.scrolled(geo(10000, 9344, 656));
+    s.scrolled(geo(10000, 2000, 656));
+    expect(s.lastScrollWasHis).toBe(true);
+    s.scrolled(geo(10000, 9344, 656));
+    expect(s.lastScrollWasHis).toBe(true);
+  });
+
+  it("layout that moves nothing he touched is not his", () => {
+    const s = createSticking();
+    s.scrolled(geo(9810, 9032, 778));
+    s.resized(geo(9810, 9032, 656));
+    s.scrolled(geo(9810, 9032, 656));
+    expect(s.lastScrollWasHis).toBe(false);
+  });
+
+  it("reset clears it — a fresh panel has no scroll to blame on him", () => {
+    const s = createSticking();
+    s.scrolled(geo(10000, 9344, 656));
+    s.scrolled(geo(10000, 2000, 656));
+    s.reset();
+    expect(s.lastScrollWasHis).toBe(false);
+  });
+});

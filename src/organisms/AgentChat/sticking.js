@@ -48,26 +48,38 @@ export const createSticking = (near = NEAR) => {
   let following = true;
   let last = null;
   let pinUntil = 0;
+  let lastWasHis = false;
   return {
     get following() {
       return following;
     },
+    // WHETHER THE LAST SCROLL EVENT WAS HIS HAND — true only for an unpinned event that moved
+    // scrollTop. The karaoke follow reads this: a reading follows its highlight until HE takes the
+    // wheel, and only a scroll that was genuinely his may take it (our own nearest-scrolls are
+    // pinned; layout moves scroll nothing).
+    get lastScrollWasHis() {
+      return lastWasHis;
+    },
     /** We are about to scroll it ourselves — our own scroll must not get a vote. */
     pin(geo, now = Date.now()) {
       pinUntil = now + 300;
+      lastWasHis = false;
       last = { ...geo };
     },
     /** He sent a message, or the panel just opened: the bottom is where he is. */
     reset() {
       following = true;
+      lastWasHis = false;
       last = null;
     },
     /** A scroll event arrived. */
     scrolled(geo, now = Date.now()) {
       if (now < pinUntil) {
+        lastWasHis = false;
         last = { ...geo };
         return following;
       }
+      lastWasHis = !!(last && last.scrollTop !== geo.scrollTop);
       const v = verdict(last, geo, near);
       if (v !== "keep") following = v === "follow";
       last = { ...geo };
