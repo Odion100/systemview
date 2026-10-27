@@ -2,7 +2,7 @@ import React from "react";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import CmdBlock from "./CmdBlock";
 import { useCapability, useCapabilityState } from "../capabilities";
-import { useMarkdownScope } from "../context";
+import { useMarkdownScope, useMarkdownWrite } from "../context";
 
 // The block owns no execution — it presses the `shell` capability and renders what comes back. So
 // the tests stand up no shell at all and judge the block on what it does with each answer a host
@@ -81,6 +81,30 @@ describe("a :::cmd block runs one command through the shell capability", () => {
     rig.finish({ started: true, code: 0 });
     await waitFor(() => expect(container.firstChild.className).toContain("md-cmd--ok"));
     expect(screen.getByText(/exit 0/)).toBeInTheDocument();
+  });
+
+  // RFC-075 c6 — RUNNING A PROOF WRITES NOTHING INTO THE DOCUMENT. This is the assertion the claim
+  // actually needs, and it was missing: the old defence read the host's FIRING table and concluded
+  // from a table about ANNOUNCEMENTS that no write happens. The write would come from `setAttr`, so
+  // the only honest check is to run a proof to its exit with a write door in scope and see the door
+  // never used. A proof passing is evidence; the mark still takes somebody's press.
+  it("running a proof writes NOTHING into the document — no setAttr, pass or fail", async () => {
+    const setAttr = jest.fn();
+    useMarkdownWrite.mockReturnValue({ editable: true, setAttr });
+    const { container } = render(<CmdBlock src={"yarn test"} attrs={{}} line={3} />);
+    fireEvent.click(screen.getByText("run"));
+    rig.emit({ started: true, text: "2 passing", exit: 0 });
+    rig.finish({ started: true, code: 0 });
+    await waitFor(() => expect(container.firstChild.className).toContain("md-cmd--ok"));
+    expect(setAttr).not.toHaveBeenCalled();
+    // and a FAILING proof writes nothing either — no `state=unmet` from a red exit
+    fireEvent.click(screen.getByText("clear"));
+    fireEvent.click(screen.getByText("run"));
+    rig.emit({ started: true, text: "1 failing", exit: 1 });
+    rig.finish({ started: true, code: 1 });
+    await waitFor(() => expect(container.firstChild.className).toContain("md-cmd--fail"));
+    expect(setAttr).not.toHaveBeenCalled();
+    useMarkdownWrite.mockReturnValue({}); // restored: this mock is shared with every case below
   });
 
   it("a non-zero exit LOOKS failed and keeps the output that explains it", async () => {

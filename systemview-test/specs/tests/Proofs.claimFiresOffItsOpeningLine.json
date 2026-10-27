@@ -1,0 +1,114 @@
+[
+  {
+    "title": "A container claim marks and announces exactly like a leaf — one path, the opening line",
+    "namespace": {
+      "serviceId": "SystemViewCore",
+      "moduleName": "Proofs",
+      "methodName": "claimFiresOffItsOpeningLine"
+    },
+    "Before": [],
+    "Main": [
+      {
+        "title": "A container claim marks and announces exactly like a leaf — one path, the opening line",
+        "namespace": {
+          "serviceId": "SystemViewCore",
+          "moduleName": "Proofs",
+          "methodName": "claimFiresOffItsOpeningLine"
+        },
+        "args": [],
+        "savedEvaluations": [
+          {
+            "namespace": "results.aMarkedContainerFires",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.summaryIsTheClaimAndItsState",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.unmetAnnouncesAsNotMet",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.audienceIsTheDocumentsMembers",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.uncheckedNeverFires",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.aCoveredBlockIsSilence",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.markLandsOnTheOpeningLine",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.theProofBodyIsUntouched",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": []
+  }
+]

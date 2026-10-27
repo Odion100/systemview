@@ -1,0 +1,48 @@
+[
+  {
+    "title": "::claims counts marks, not proofs",
+    "namespace": {
+      "serviceId": "SystemViewCore",
+      "moduleName": "Proofs",
+      "methodName": "countsMarksNotProofs"
+    },
+    "Before": [],
+    "Main": [
+      {
+        "title": "::claims counts marks, not proofs",
+        "namespace": {
+          "serviceId": "SystemViewCore",
+          "moduleName": "Proofs",
+          "methodName": "countsMarksNotProofs"
+        },
+        "args": [],
+        "savedEvaluations": [
+          {
+            "namespace": "results.sameMetCount",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.sameTotal",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": []
+  }
+]

@@ -1,4 +1,4 @@
-import { parseClaims, claimsOf, ordinalOf, normalizeState, growProof } from "./claims";
+import { parseClaims, claimsOf, ordinalOf, normalizeState, normalizeKind, growProof } from "./claims";
 
 // A claim is a statement somebody can check, and its mark is written INTO its line. These guard the
 // read side: the number is its place in the document, the mark is what the attributes say, and the
@@ -132,5 +132,107 @@ describe("normalizeState", () => {
     expect(normalizeState("unmet")).toBe("unmet");
     expect(normalizeState("not-met")).toBe("unmet");
     expect(normalizeState("maybe")).toBe("");
+  });
+});
+
+// A CLAIM DECLARES ITS KIND, AND SILENCE IS THE STRICT SIDE. A behavioural claim owes a living
+// spec — a defence the change loop runs without anybody remembering to; an experiential one is
+// concluded by the human's eye and must SAY so. Absence reads behavioural, exactly as an unmarked
+// claim reads unchecked: silence never buys a pass.
+describe("kind, and the spec a behavioural claim owes", () => {
+  const DOC = [
+    "# RFC-9",
+    "",
+    "::claim[a leaf, no body]{id=c1 state=met by=sv at=1}",
+    "",
+    ":::claim[a fold with a saved test]{id=c2 state=met by=sv at=1}",
+    "::test[Math.chainUse]",
+    ":::",
+    "",
+    ":::claim[a fold with an in-document walk]{id=c3 state=met by=sv at=1}",
+    ":::run{title=\"the walk\"}",
+    "- Math.add(1, 2)",
+    ":::",
+    "",
+    ":::claim[a fold with only a command]{id=c4 state=met by=sv at=1}",
+    ":::cmd",
+    "grep -n thing file.js",
+    ":::",
+    "",
+    ":::claim[his eye is the instrument]{id=c5 kind=experiential state=met by=you at=1}",
+    "::file[RFCs/proofs/the-badge.png]",
+    ":::",
+  ].join("\n");
+
+  it("defaults to behavioural, and reads the written exemption", () => {
+    const c = parseClaims(DOC);
+    expect(c.map((x) => x.kind)).toEqual(["behavioral", "behavioral", "behavioral", "behavioral", "experiential"]);
+  });
+
+  it("counts a spec from ::test or :::run in the fold — and never from a cmd", () => {
+    const c = parseClaims(DOC);
+    expect(c.map((x) => x.hasSpec)).toEqual([false, true, true, false, false]);
+  });
+
+  it("a leaf carries no spec by construction — it has no body to hold one", () => {
+    expect(parseClaims(DOC)[0].hasSpec).toBe(false);
+  });
+
+  it("OWED is the honest gap: marked behavioural with no spec behind it", () => {
+    const c = parseClaims(DOC);
+    // c1 (leaf, met), c4 (cmd only, met) are owed; the two spec'd ones are not; c5 is exempt
+    expect(c.map((x) => x.owed)).toEqual([true, false, false, true, false]);
+  });
+
+  it("an UNMARKED behavioural claim is not owed yet — nobody has concluded anything", () => {
+    const c = parseClaims(["::claim[nobody looked]{id=c9}"].join("\n"));
+    expect(c[0].kind).toBe("behavioral");
+    expect(c[0].owed).toBe(false);
+  });
+
+  it("claimsOf carries the third axis beside met and reviewed", () => {
+    const c = claimsOf(DOC);
+    expect(c.total).toBe(5);
+    expect(c.behavioral).toBe(4);
+    expect(c.experiential).toBe(1);
+    expect(c.specd).toBe(2);
+    expect(c.owed).toBe(2);
+  });
+
+  it("a nested container does not confuse the body walk — the outer fence is longer", () => {
+    const nested = [
+      "::::claim[a fold holding a cmd]{id=c1 state=met by=sv at=1}",
+      ":::cmd",
+      "echo hi",
+      ":::",
+      "::::",
+      "",
+      ":::claim[the next one is clean]{id=c2}",
+      "::test[Math.add]",
+      ":::",
+    ].join("\n");
+    const c = parseClaims(nested);
+    expect(c.map((x) => x.hasSpec)).toEqual([false, true]);
+  });
+
+  it("a fenced EXAMPLE of a spec block never counts as one", () => {
+    const doc = [
+      ":::claim[documentation, not a proof]{id=c1 state=met by=sv at=1}",
+      "```markdown",
+      "::test[Math.add]",
+      "```",
+      ":::",
+    ].join("\n");
+    expect(parseClaims(doc)[0].hasSpec).toBe(false);
+  });
+});
+
+describe("normalizeKind", () => {
+  it("reads the exemption's spellings and defaults everything else to behavioural", () => {
+    expect(normalizeKind("experiential")).toBe("experiential");
+    expect(normalizeKind("Experience")).toBe("experiential");
+    expect(normalizeKind("judgment")).toBe("experiential");
+    expect(normalizeKind("")).toBe("behavioral");
+    expect(normalizeKind("nonsense")).toBe("behavioral");
   });
 });

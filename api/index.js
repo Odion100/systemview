@@ -240,10 +240,32 @@ function connect({ system, projectCode, serviceId, specList, credentials, dynami
     if (system && system.connectionData && system.connectionData.serviceUrl)
       Client.unloadService(system.connectionData.serviceUrl);
   } catch {}
-  const { service, index } = ConnectedServices.findService(
+  let { service, index } = ConnectedServices.findService(
     system.connectionData.serviceUrl,
     projectCode,
   );
+  // A SERVICE'S IDENTITY IS projectCode + serviceId, NOT ITS URL — and this lookup only knew the
+  // URL, so a service that came back on a different port registered a SECOND time and the first row
+  // stayed forever, pointing at a dead address.
+  //
+  // It is not an edge case: every hub restart re-hosts each hosted project on a FRESH ephemeral
+  // port (`getFreePort`), so one restart is one duplicate per hosted service. Measured 2026-10-27:
+  // `SystemViewCore` twice and `BUApp.Test` THREE times, and the cost is not cosmetic — the test
+  // runner collects specs from every registration, so it dialled the dead rows and 33 specs failed
+  // on 3-second timeouts with every assertion reading `undefined`. The hub's own `projects` surface
+  // already called it out (`⚠ registered twice`), which is the tell that the store disagreed with
+  // the identity every other door uses: `deleteService` keys on the pair, so does `findService`
+  // when given an id.
+  //
+  // So a URL miss falls back to the pair and REPLACES that row. Re-registering is the same service
+  // saying where it lives now, which is exactly what should overwrite a stale address.
+  if (!service && serviceId) {
+    const byIdentity = ConnectedServices.findService(null, projectCode, serviceId);
+    if (byIdentity.service) {
+      service = byIdentity.service;
+      index = byIdentity.index;
+    }
+  }
 
   if (service) {
     service.system = system;
@@ -2261,6 +2283,13 @@ function chatRemoveVisitor(projectCode, { chat, identity } = {}) {
 function chatList(projectCode) {
   return Chats.chats(projectCode);
 }
+// WHERE THE HUB BUFFERS A ROOM IT CANNOT HAND OVER YET — asked, never assumed. The hub's fallback
+// directory comes from ITS OWN cwd, and under the harness the shell launches it from autobot's
+// repo, so a caller computing `process.cwd()/.systemview/chats` is looking somewhere else entirely.
+// That assumption was invisible for as long as the hub was started in the project's own repo.
+function chatHubDir() {
+  return Chats.chatHubDir();
+}
 function chatStatus(projectCode, { chat, text, as } = {}) {
   // A cooking line is speech too — his catch that logtest "was cooking" in a room it wasn't in.
   const identity = resolveSpeaker(projectCode, chat, as);
@@ -2892,6 +2921,7 @@ module.exports = function launchSystemView(port = 3000) {
       chatCommand,
       chatHistory,
       chatList,
+      chatHubDir,
       chatFlush,
       chatStatus,
       chatDrain,

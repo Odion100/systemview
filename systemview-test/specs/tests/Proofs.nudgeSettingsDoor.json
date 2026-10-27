@@ -1,0 +1,92 @@
+[
+  {
+    "title": "The cog's knobs have a contract and the shell has the door",
+    "namespace": {
+      "serviceId": "SystemViewCore",
+      "moduleName": "Proofs",
+      "methodName": "nudgeSettingsDoor"
+    },
+    "Before": [],
+    "Main": [
+      {
+        "title": "The cog's knobs have a contract and the shell has the door",
+        "namespace": {
+          "serviceId": "SystemViewCore",
+          "moduleName": "Proofs",
+          "methodName": "nudgeSettingsDoor"
+        },
+        "args": [],
+        "savedEvaluations": [
+          {
+            "namespace": "results.defaultsNeedNoFile",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.everyKnobHasADefault",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.garbageFallsBackToTheDefault",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.aRoundTripReadsBackWhatWasWritten",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.theDoorIsRegistered",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.itAnswersWithThePicks",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": []
+  }
+]

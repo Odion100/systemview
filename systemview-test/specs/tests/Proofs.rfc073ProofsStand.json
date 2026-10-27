@@ -1,0 +1,66 @@
+[
+  {
+    "title": "RFC-073's eight load-bearing claims each still hold a real result block",
+    "namespace": {
+      "serviceId": "SystemViewCore",
+      "moduleName": "Proofs",
+      "methodName": "rfc073ProofsStand"
+    },
+    "Before": [],
+    "Main": [
+      {
+        "title": "RFC-073's eight load-bearing claims each still hold a real result block",
+        "namespace": {
+          "serviceId": "SystemViewCore",
+          "moduleName": "Proofs",
+          "methodName": "rfc073ProofsStand"
+        },
+        "args": [],
+        "savedEvaluations": [
+          {
+            "namespace": "results.proofsGrown",
+            "expected_type": "number",
+            "validations": [],
+            "save": true
+          },
+          {
+            "namespace": "results.everyGrownClaimHoldsAResultBlock",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.theEightNamedClaimsEachHoldOne",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.lostTheirProof",
+            "expected_type": "array",
+            "validations": [],
+            "save": true
+          },
+          {
+            "namespace": "results.withoutAProof",
+            "expected_type": "array",
+            "validations": [],
+            "save": true
+          }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": []
+  }
+]

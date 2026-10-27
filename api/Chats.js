@@ -251,6 +251,19 @@ module.exports = function Chats({ chatFor } = {}) {
   return {
     DEFAULT_CHAT,
 
+    // WHERE THE HUB'S OWN FALLBACK LIVES — an observable, because assuming it was a lie nobody
+    // could see. `HUB_CHATS` is computed from the HUB's `process.cwd()` at load, and under the
+    // harness the shell launches the hub (`node systemview start 3000`) from its own repo — so the
+    // fallback is `~/autobot/.systemview/chats`, not the caller's. In the CLI era the hub was
+    // started in the project repo and the two paths were one file, which is why nothing noticed.
+    // chatOutboxFlush wrote its "stranded" records into the caller's `.systemview/chats` and
+    // asserted they crossed; the hub could not see them, answered `moved: 0`, and the test blamed
+    // the handover. A spec must be able to ASK, never assume — same rule as the project side, which
+    // has had `chatDir()` all along.
+    chatHubDir() {
+      return { dir: HUB_CHATS, cwd: process.cwd() };
+    },
+
     // Fill the mirror from the project that owns the room — called once when the hub warms that
     // project's chat client, and again on reconnect. Replaces wholesale: the project's file is the
     // truth, so a hydrate can only ever correct the hub, never the other way round.

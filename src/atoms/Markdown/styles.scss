@@ -3985,6 +3985,19 @@
   // it signs is "not met, and I checked".
   &--unmet &__signer--signed { background: #e05757; border-color: #e05757; }
   &__note { color: var(--sv-text); }
+  // WHAT THIS CLAIM OWES, said on the claim. `by eye` is a STATEMENT — experiential, his judgment
+  // is the instrument, no spec can exist and none is owed — so it reads as quiet as a date.
+  // `no spec` is a SHORTFALL: behavioural, marked, and nothing in the fold the change loop runs.
+  // Amber, bordered, the same grammar the claims bar's shortfall wears.
+  &__kind,
+  &__owed {
+    font-size: 10px;
+    padding: 0 5px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  &__kind { color: var(--sv-text-muted); border: 1px dashed var(--sv-border); }
+  &__owed { color: #b8860b; border: 1px solid currentColor; }
 }
 
 .md-claims {
@@ -3995,6 +4008,11 @@
   // The second axis: MARKED is the pale layer (the builder's word), REVIEWED the full one (the
   // badges filled). His: "green is all met, but I didn't check off everything."
   &__count--reviewed { color: var(--sv-text-muted); font-weight: 500; }
+  // The THIRD axis: how many behavioural claims left a spec the change loop runs. Quiet like
+  // `reviewed` — it is a fact about tomorrow, not an alarm — while `owed` wears the amber of a
+  // real shortfall, because a claim reading met that nothing re-checks is one.
+  &__count--specd { color: var(--sv-text-muted); font-weight: 500; }
+  &__tag--owed { color: #b8860b; border: 1px solid currentColor; background: transparent; }
   &__fill--marked { opacity: 0.3; }
   &__status {
     border: 1px solid #3f9e6a;

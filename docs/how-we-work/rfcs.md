@@ -5,6 +5,13 @@ code, argued until it is settled, approved with a press, and then — this is th
 missing — **reduced to a list of claims somebody can walk afterwards to find out whether the thing
 actually does what was agreed.**
 
+**The vision, in one word: these documents are LIVING specs** (his, settled 2026-10-26). An RFC is
+not a record that rots the day it is built — its claims keep answering: marks say who checked what,
+proofs re-run and go red on their own when the system moves, the lifecycle trail says where it
+stands, and a thread on it is a conversation the members actually receive. An arc lives the same
+way: its objectives move IN the document as the work moves. A document that can only describe is a
+story; these can still be ASKED.
+
 The missing half is measurable. At the moment this chapter was written, the SystemView repo held
 **67 RFCs**: five carried a verdict, eight said anywhere whether they had been built, and those
 eight spelled it three different ways. Every one of those sections was invented by whoever happened
@@ -215,6 +222,110 @@ Requiring proofs on every claim grows ceremonial proofs, which is the code-valid
 this design exists to kill. A proof **passing is evidence, never a mark** — somebody still says met,
 silence is still never a pass, and no runner or scheduler re-runs proofs: they run when pressed.
 
+## The proof doctrine — two obligations, never a menu
+
+**A claim carries two different obligations, and they are not interchangeable.** Proof kinds are
+not a menu to pick the best item from — they serve different purposes, and the strong fold carries
+both:
+
+- **The living spec** — a SystemLynx test. It captures the CONTRACT (each step a verb with real
+  inputs, its outputs typed and validated) and the IMPLEMENTATION WALK (the steps a user actually
+  takes: sign up, then add this, then the thing under test — buAPI's `Basketball/specs/tests/` is
+  the model, 53 of them, each threading saved values step to step). It re-runs forever and goes
+  red on its own — and the machinery already exists: these are SystemView's own saved service
+  tests (the `savedEvaluations` format that `TestSummary` renders and the document's `:::run`
+  block speaks); SystemLynx keeps its own `specs/tests` the same way. Nothing new to build. This
+  is what makes the document a spec rather than a story, and it is the durable half: red is
+  information, because it only rots when the system itself changed.
+- **Review facilitation** — the screenshot, the `:file` link, the cmd, the instructions in the
+  fold. These exist for the human's confirming moment: they make the check easy NOW. Honest work,
+  never the spec.
+
+Where the claim's altitude has no live door (a fold rendering, a badge's look), the reviewer half
+plus a pinned render case IS the honest proof — say so rather than faking a Lynx shape; ceremonial
+spec-proofs are the unit-test trap wearing the right brand.
+
+**That paragraph is about a proof's SHAPE, never a second exemption.** A fold rendering is still a
+behavioural claim; it just gets a thinner defence. The temptation is to read "no live door" as
+licence to skip the obligation, and there is exactly ONE exemption — the next section's — so a
+claim whose altitude is awkward owes a pinned case, not silence.
+
+## A claim declares which obligation it is under
+
+`kind=experiential` on the
+claim line says the human's own eye concludes it — no spec can be written, and none is owed.
+Anything else, including silence, reads **behavioural** and owes a living spec: silence never buys
+a pass, exactly as an unmarked claim never reads met. Declare it while writing the list, because an
+agent facing a spec it would rather not write will discover the claim was experiential all along —
+at authoring nobody yet knows which proof is inconvenient, so the classification costs nothing to
+make truthfully, and the completeness press freezes it. A `kind=` added afterwards is a visible
+edit to an approved contract.
+
+**What a surface may say about it.** `claims.js` derives *carries a spec* from the fold holding a
+`::test` or `:::run` — never from a `:::cmd`, because a cmd running the suite and a cmd running
+`grep` are indistinguishable at parse level and a heuristic behind a lifecycle gate is worse than
+an honest absence. So the bar reads *"6/12 spec'd"* and never *"proved"*: **presence is
+enforceable, substance is a reviewer's call.** A claim that asserts behaviour, reads met, and has
+nothing addressable behind it is a commitment defended by nobody — which is what `settled` has to
+mean something against.
+
+## Who writes the living spec
+
+**The executor writes the spec.** Whoever takes on the work writes its living spec — they know the
+doors, and leaving the contract behind is part of taking the work on. The spec is NOT the whole
+proof: the reviewer confirms through whatever the fold serves them — screenshot, link, cmd — and
+may run the spec or never touch it; their signature does not depend on it. (Proof-writing is
+headed toward being its own skill, because a contributor can come in OUTSIDE rfc-execution to do
+exactly this.)
+
+## `::test` or `:::run` — a test is addressable, a run lives only in its fold
+
+Two blocks, and their natural definitions already point at the durable one:
+
+- **`::test` — the library spec.** The contract lives as a FILE in the project's `specs/tests/`,
+  where the whole suite runs it and it keeps answering long after the RFC settles; the claim's
+  fold carries `::test` pointing at it, pass/fail shown where the commitment was made. A flow
+  another claim, a service, or next month will lean on is always this. The block EMBEDS the saved
+  test and never copies it, so editing the test updates every document pointing at it — one
+  definition, by construction.
+- **`:::run` — the in-fold walk, the narrow case.** A sequence of live calls that only means
+  anything as THIS claim's verification; it lives in the fold, and the document's durability
+  carries it. If you find yourself writing a run another claim could use, it was a test wanting a
+  file.
+
+**The distinction that decides it: a test is ADDRESSABLE; a run exists only where it is written.**
+A saved test can be asked for from anywhere, any time — say "run buAPI's tests" in a chat and
+`runTests({projectCode, namespace})` answers; another document can point at it; an agent who never
+opens the RFC still gets its verdict. A `:::run` can only ever be pressed in the fold it sits in.
+
+**And addressable means it is actually ASKED — a test rides the change loop.** Every code change
+runs the tests; that is the standing rule, not a habit. So a claim proved by a test is defended
+continuously: break its contract next month and the suite goes red in front of whoever broke it.
+A claim proved only by a run is defended by nobody until somebody opens that document and presses
+— so it can read `met`, green mark and note intact, while the thing it claims has been false for
+weeks. **The real cost of choosing a run for a durable contract is not that asking is less
+convenient; it is that nobody will ask.** One definition, or it drifts: never a library spec
+copy-pasted into a fold, never a real contract buried where the suite cannot reach it.
+
+## Getting a live door — the routes, by where you stand
+
+**How to WRITE a saved test is already documented — do not re-derive it:** `context("how do I
+write a saved test")` for its sections, steps, and the rule that the top-level namespace IS the
+file it saves to; `context("the ::test block")` for the label grammar that points at one.
+
+- **A SystemLynx project** — direct. Every module's methods are already callable; the spec is a
+  sequence of the real calls, threading saved values step to step (buAPI's `specs/tests/`).
+- **JavaScript, not yet SystemLynx** — still direct, and this is the step people over-think.
+  **SystemLynx hosts OBJECTS and calls their methods** — `Service.module("Name", theObject)` and
+  every method on it is callable remotely, synchronous or async. You are not writing a harness or
+  an adapter; you are handing over the object you already have, and the live system becomes the
+  fixture. (Write real glue only where the thing is not an object you can hold — the CLI needed a
+  child process because its own state had to stay isolated: `test/service/CLI/index.js`, "change
+  CLI code, re-run the test.")
+- **Another language** — no route yet, and SAY so rather than faking one. The vision is SystemLynx
+  counterparts per language, connecting to SystemView and capturing the callable methods; until
+  then that claim's altitude has no live door, and the honest proof is the reviewer half.
+
 ## Writing a proof — the approach
 
 **Think outside the harness:**
@@ -243,6 +354,8 @@ the code-side reader, under an artifact the human can judge. When a cmd runs a t
 a `:file` link at the lines it tests, and let the cmd follow. The anchor is a LINK, not an embed
 (his reversal, round one, same day it was proposed): embedding the mechanism puts a wall of code in
 the fold — the unit-test trap wearing a viewer. The chip points; the reader presses if they care.
+
+## A screenshot is a moment; a command is a re-check
 
 **A screenshot is a MOMENT; a command is a RE-CHECK.** The screenshot says "this is what it looked
 like when it was marked" and rots silently; the cmd answers *now*. The best folds carry one of

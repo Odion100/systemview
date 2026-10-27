@@ -99,9 +99,21 @@ that is the bounded-memory contract, not a bug.
 ## `::test[…]` — a saved test, runnable in place
 
 ```markdown
-::test[Math.chainUse]                                    runnable here
+::test[Math.chainUse]                                    Module.method — the service comes from scope
+::test[GatedService.Auth.getSession]                     Service.Module.method — fully addressed
+::test[Users]                                            a bare Module: ALL of its saved tests
+::test[Math.add:1]                                       `:N` pins one test by index
+::test[Profiles.Users.signUp]{project=buAPI}             another repo's spec
 ::test[Math.add]{ran=".systemview/runs/r1.json"}         the same block ALREADY RAN
 ```
+
+**The label is a METHOD NAMESPACE, not a file path** — the same grammar `runTests({namespace})` and
+the story `--test` flag take, resolved as `Service.Module.method` → `Module.method` (service from
+the document's scope) → bare `Module` (every test on it).
+
+**The test stays the single source of truth.** This block embeds the saved test; it never copies
+it. Edit the test in the Test Panel and every document embedding it follows — which is what makes
+`::test` the durable half of a claim's proof, and why a spec is never pasted into a fold.
 
 The `ran=` form hydrates from a recorded run — steps coloured, responses real, a "recorded run"
 badge. Play re-runs it fresh.

@@ -1,0 +1,125 @@
+[
+  {
+    "title": "A claim declares its kind — silence reads behavioural, and only the written word exempts",
+    "namespace": {
+      "serviceId": "SystemViewCore",
+      "moduleName": "Proofs",
+      "methodName": "claimKind"
+    },
+    "Before": [],
+    "Main": [
+      {
+        "title": "A claim declares its kind — silence reads behavioural, and only the written word exempts",
+        "namespace": {
+          "serviceId": "SystemViewCore",
+          "moduleName": "Proofs",
+          "methodName": "claimKind"
+        },
+        "args": [],
+        "savedEvaluations": [
+          {
+            "namespace": "results.absenceReadsBehavioral",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.fourSpellingsExempt",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.caseAndSpaceTolerated",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.everyOtherValueReadsBehavioral",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.kindIsReadOffTheLine",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.unwrittenKindOnALineIsBehavioral",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.markedBehavioralWithNoSpecIsOwed",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.markedExperientialIsNeverOwed",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.unmarkedBehavioralIsNotYetOwed",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": []
+  }
+]

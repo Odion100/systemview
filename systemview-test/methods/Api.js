@@ -1,6 +1,7 @@
 // systemview-test/methods/Api.js — the `Api` module of SystemViewCore: real calls against the
 // hub's own service API, through the same door the UI and the CLI use.
 const { createClient } = require("systemlynx");
+const { required, chatService } = require("../support/fixtures");
 const HUB = "http://localhost:3000/systemview/api";
 
 async function hub() {
@@ -27,51 +28,116 @@ module.exports = {
       services: (services || []).map((s) => s.serviceId),
     };
   },
-  // RFC-031 delivery rules, proven through the hub's real chat door. Uses a scratch chat
-  // ("self-test") so the main room stays clean; texts and drain listeners are run-stamped so
-  // every run asserts on its own messages only.
+  // RFC-031 delivery rules, proven through the hub's real chat door: who hears a human, a home
+  // agent and a visitor, and who hears nothing at all.
+  //
+  // THE ROOM BELONGS TO THE FIXTURE, NEVER TO A LIVE PROJECT — the inversion chatSpeakingGate had
+  // to learn, and this method never got. It ran in `systemview-test`'s own room, and the hub
+  // relays a room's lines to that project's LIVE SESSION: so every run put `human <stamp>` and
+  // `visitor <stamp>` straight into the real conversation (twice tonight, 2026-10-27, in his chat
+  // while he was reading). Inverted, nobody is listening — the room is the FIXTURE's, whose agent
+  // has no session, and the visitor is a throwaway identity registered for this run only.
+  //
+  // AND ITS FIXTURE'S ABSENCE IS AN ANSWER, NOT A THROW. With the fixture down the hub refuses the
+  // visitor's send ("not a connected project"), the method used to die there, and all ten
+  // assertions reported `undefined` — the report blaming them for something that happened before
+  // the first one ran. `fixturesRunning` is a field now, so a red says which fixture and what to run.
   async chatDeliveryRules() {
     const SystemView = await hub();
-    const pc = "systemview-test";
-    const chat = "self-test";
+    const fixturePc = "systemview-logtest";
+    const pre = await required([fixturePc]);
+    if (!pre.fixturesRunning) return pre;
+
     const stamp = Date.now();
-    await SystemView.chatSend(pc, { chat, from: "you", text: `human ${stamp}` });
-    await SystemView.chatSend(pc, { chat, from: "agent", as: pc, text: `home ${stamp}` });
-    // The visitor ENTERS before it speaks — the speaking gate (see chatSpeakingGate below) refuses
-    // a say from an identity that never opened this room's door. A drain is one of the two doors.
-    await SystemView.chatDrain(pc, { chat, listener: `enter:${stamp}`, as: "systemview-logtest" });
-    await SystemView.chatSend(pc, { chat, from: "agent", as: "systemview-logtest", text: `visitor ${stamp}` });
-    await SystemView.chatCommand(pc, { chat, cmd: "nav", args: {}, label: "delivery check" });
-    // ENTERING a room must wake NOBODY — arrival/departure lines are `from: "system"`, and
-    // delivery requires "you" or "agent". Only a MESSAGE pulls an agent out of its work; a visitor
-    // walking in never does (his rule: entering is not an interruption).
-    await SystemView.chatJoin(pc, { chat, agent: "systemview-logtest", since: Date.now() });
-    const home = await SystemView.chatDrain(pc, { chat, listener: `home:${stamp}`, as: pc });
-    const visitor = await SystemView.chatDrain(pc, { chat, listener: `visitor:${stamp}`, as: "systemview-logtest" });
-    const allDrained = [...(home.messages || []), ...(visitor.messages || [])];
-    const homeTexts = (home.messages || []).map((m) => m.text);
-    const visitorTexts = (visitor.messages || []).map((m) => m.text);
-    // A DRAIN IS AN ARRIVAL (his rule, 2026-08-11): getting a handle on a room is entering it, so
-    // the room says so even when the visitor never speaks. Before this, a file-mode agent could read
-    // the whole room and the first thing he saw was its message. The arrival must still wake nobody.
-    const arrivals = allDrained.filter((m) => m.kind === "system");
-    const roomAll = await SystemView.chatHistory(pc, chat, 0);
-    const visitorArrival = roomAll.some(
-      (m) => m.kind === "system" && m.event === "joined" && m.who === "systemview-logtest",
-    );
-    return {
-      drainAnnouncesArrival: visitorArrival,
-      arrivalWakesNobody: arrivals.length === 0,
-      homeHearsHuman: homeTexts.includes(`human ${stamp}`),
-      homeNeverHearsItself: !homeTexts.includes(`home ${stamp}`),
-      homeHearsVisitor: homeTexts.includes(`visitor ${stamp}`),
-      visitorHearsHuman: visitorTexts.includes(`human ${stamp}`),
-      visitorHearsHome: visitorTexts.includes(`home ${stamp}`),
-      visitorNeverHearsItself: !visitorTexts.includes(`visitor ${stamp}`),
-      nobodyHearsCommands: !allDrained.some((m) => m.kind === "command"),
-      nobodyHearsArrivals: !allDrained.some((m) => m.kind === "system" || m.from === "system"),
-    };
+    const roomPc = fixturePc; // the room's owner — sessionless, so nothing here reaches a human
+    const chat = `delivery-${stamp}`; // its own room per run, removed below
+    const home = roomPc;
+
+    // A registered identity with nobody behind it, cloned from the fixture's own registration.
+    // The door refuses an unknown `as`, and every reliably-connected code is a real conversation a
+    // probe must never wear — so the visitor is minted here and deleted in the `finally`.
+    let visitor = "";
+    try {
+      const projects = (await SystemView.getProjects()) || {};
+      const fx = (projects[fixturePc] || [])[0];
+      if (fx && fx.system) {
+        visitor = `delivery-probe-${stamp}`;
+        await SystemView.connect({
+          system: fx.system,
+          projectCode: visitor,
+          serviceId: "LogSuiteDelivery",
+          specList: fx.specList || [],
+          credentials: false,
+          dynamic: false,
+        });
+      }
+    } catch {
+      visitor = "";
+    }
+    if (!visitor)
+      return {
+        fixturesRunning: false,
+        why: `could not register a throwaway visitor from ${fixturePc} — the fixture answered but connect() refused`,
+      };
+
+    try {
+      await SystemView.chatSend(roomPc, { chat, from: "you", text: `human ${stamp}` });
+      await SystemView.chatSend(roomPc, { chat, from: "agent", as: home, text: `home ${stamp}` });
+      // The visitor ENTERS before it speaks — the speaking gate refuses a say from an identity that
+      // never opened this room's door, and a drain is one of the two doors.
+      await SystemView.chatDrain(roomPc, { chat, listener: `enter:${stamp}`, as: visitor });
+      await SystemView.chatSend(roomPc, { chat, from: "agent", as: visitor, text: `visitor ${stamp}` });
+      await SystemView.chatCommand(roomPc, { chat, cmd: "nav", args: {}, label: "delivery check" });
+      // ENTERING MUST WAKE NOBODY — arrival lines are `from: "system"`, and delivery requires "you"
+      // or "agent". Only a MESSAGE pulls an agent out of its work; a visitor walking in never does.
+      // (`chatJoin` was RENAMED to `chatJoinRoom` and this spec never heard: the old name threw, and
+      // the throw is what hid every other finding in this method.)
+      await SystemView.chatJoinRoom(roomPc, { chat, as: visitor });
+      const homeDrain = await SystemView.chatDrain(roomPc, { chat, listener: `home:${stamp}`, as: home });
+      const seen = await SystemView.chatDrain(roomPc, { chat, listener: `visitor:${stamp}`, as: visitor });
+      const allDrained = [...(homeDrain.messages || []), ...(seen.messages || [])];
+      const homeTexts = (homeDrain.messages || []).map((m) => m.text);
+      const visitorTexts = (seen.messages || []).map((m) => m.text);
+      // A DRAIN IS AN ARRIVAL: getting a handle on a room is entering it, so the room says so even
+      // when the visitor never speaks — and the arrival must still wake nobody.
+      const arrivals = allDrained.filter((m) => m.kind === "system");
+      const roomAll = await SystemView.chatHistory(roomPc, chat, 0);
+      const visitorArrival = roomAll.some(
+        (m) => m.kind === "system" && m.event === "joined" && m.who === visitor,
+      );
+      return {
+        fixturesRunning: true,
+        why: "",
+        roomOwner: roomPc,
+        visitorIdentity: visitor,
+        drainAnnouncesArrival: visitorArrival,
+        arrivalWakesNobody: arrivals.length === 0,
+        homeHearsHuman: homeTexts.includes(`human ${stamp}`),
+        homeNeverHearsItself: !homeTexts.includes(`home ${stamp}`),
+        homeHearsVisitor: homeTexts.includes(`visitor ${stamp}`),
+        visitorHearsHuman: visitorTexts.includes(`human ${stamp}`),
+        visitorHearsHome: visitorTexts.includes(`home ${stamp}`),
+        visitorNeverHearsItself: !visitorTexts.includes(`visitor ${stamp}`),
+        nobodyHearsCommands: !allDrained.some((m) => m.kind === "command"),
+        nobodyHearsArrivals: !allDrained.some((m) => m.kind === "system" || m.from === "system"),
+      };
+    } finally {
+      // EVERYTHING THIS RUN CREATED GOES AWAY: the throwaway identity, its relay room, and the
+      // scratch room itself. A dead registration left behind would make the next run's door answer
+      // differently, and litter is how 28 rooms ended up on disk two methods down.
+      try { await SystemView.deleteService(visitor, "LogSuiteDelivery"); } catch {}
+      try {
+        const dir = path.join(process.cwd(), ".systemview", "chats");
+        for (const suffix of [".jsonl", ".ack.json", ".tv.json"]) {
+          try { fs.unlinkSync(path.join(dir, `${roomPc}.${chat}${suffix}`)); } catch {}
+        }
+        for (const f of fs.readdirSync(dir)) {
+          if (f.startsWith(`${visitor}.`)) { try { fs.unlinkSync(path.join(dir, f)); } catch {} }
+        }
+      } catch {}
+    }
   },
+
   // THE PROJECT OWNS ITS ROOM (2026-08-10) — `SystemViewChat` runs inside the project's process and
   // is the only thing that touches the room file. Driven here through the real service door, the
   // same way the UI and hub reach it, so this proves the wire and not just the function.
@@ -80,17 +146,21 @@ module.exports = {
     const pc = "systemview-test";
     const chat = `plugin-room-${Date.now()}`; // its own room per run — never touches a real one
     const stamp = Date.now();
-    // Find the service in THIS project that serves chat. A project can be mixed: some services
-    // carry the module and some are older processes that do not.
-    const projects = await SystemView.getProjects();
-    const svc = (projects[pc] || []).find((s) =>
-      (((s.system && s.system.connectionData) || {}).modules || []).some(
-        (m) => m.name === "SystemViewChat",
-      ),
-    );
-    if (!svc) return { moduleReachable: false };
-    const client = await createClient().loadService(svc.system.connectionData.serviceUrl);
-    const Chat = client.SystemViewChat;
+    // FIND THE SERVICE THAT ANSWERS, not the first whose metadata mentions chat. Registration
+    // metadata is a snapshot of what a service HAD when it registered; four fixtures in this project
+    // were registered and gone, and taking the first match threw inside discovery — so every
+    // assertion below reported `undefined` and the report blamed sixteen of them for something that
+    // happened before the first one ran.
+    const pre = await required([pc], { chatOn: [pc] });
+    if (!pre.fixturesRunning) return { ...pre, moduleReachable: false };
+    const found = await chatService(pc);
+    if (!found)
+      return {
+        fixturesRunning: false,
+        why: `no service in ${pc} answered with a SystemViewChat module — start the fixtures with \`npm run services\``,
+        moduleReachable: false,
+      };
+    const Chat = found.Chat;
 
     const before = await Chat.chatStat({ chat });
     await Chat.chatAppend({ chat, record: { id: `p1-${stamp}`, ts: stamp, from: "you", text: `one ${stamp}` } });
@@ -99,9 +169,13 @@ module.exports = {
     const all = await Chat.chatRead({ chat });
     const windowed = await Chat.chatRead({ chat, since: stamp });
 
-    const cursorStart = await Chat.chatCursor({ chat, listener: `t-${stamp}` });
-    await Chat.chatCursor({ chat, listener: `t-${stamp}`, ts: stamp + 1 });
-    const cursorAfter = await Chat.chatCursor({ chat, listener: `t-${stamp}` });
+    // THE CURSOR IS NOT THIS MODULE'S ANY MORE. `chatCursor` was retired in plugin 2.23.0 — the
+    // hub keys drain cursors to its OWN directory because its store is synchronous, so this
+    // asynchronous twin was superseded and had no callers. This spec kept calling it, which is the
+    // same shape as the scar in chatTvReadsCurrent: the failure was the test guarding the old
+    // contract, not the code breaking. What is asserted instead is that the retirement HELD — the
+    // module does not quietly grow the method back, and `.ack.json` stays the hub's business.
+    const cursorRetired = typeof Chat.chatCursor !== "function";
 
     // The room is named `<projectCode>.<chat>` on disk — the guard that stops two projects sharing
     // one working directory (systemview-test and systemview-logtest both run from this repo) from
@@ -121,13 +195,14 @@ module.exports = {
     } catch {}
 
     return {
+      fixturesRunning: true,
+      why: "",
       moduleReachable: true,
       startsEmpty: before.count === 0,
       appendsLand: after.count === 2,
       readsBackInOrder: all.length === 2 && all[0].text === `one ${stamp}` && all[1].text === `two ${stamp}`,
       sinceFilters: windowed.length === 1 && windowed[0].text === `two ${stamp}`,
-      cursorStartsAtZero: cursorStart.ts === 0,
-      cursorPersists: cursorAfter.ts === stamp + 1,
+      cursorStaysRetired: cursorRetired,
       roomIsListed: rooms.includes(chat),
     };
   },
@@ -146,7 +221,22 @@ module.exports = {
     const path = require("path");
     const SystemView = await hub();
     const stamp = Date.now();
-    const hubDir = path.join(process.cwd(), ".systemview", "chats");
+    // ASK THE HUB WHERE IT BUFFERS, NEVER ASSUME. This was `path.join(process.cwd(), ".systemview",
+    // "chats")` — the CALLER's directory. The hub's fallback comes from the HUB's cwd, and the shell
+    // launches it from autobot's repo, so the two stopped being one file the moment SystemView
+    // became an app in the harness. The records were written where nobody would ever flush them,
+    // `chatFlush` honestly answered `moved: 0`, and the assertions blamed the handover.
+    // A MISSING METHOD IS NOT A REJECTED PROMISE. `SystemView.chatHubDir().catch(...)` throws a
+    // TypeError before there is anything to catch — the same shape as every other failure in this
+    // file: the method dies and the assertions take the blame. Check the door exists, then call it.
+    const asked =
+      typeof SystemView.chatHubDir === "function" ? await SystemView.chatHubDir().catch(() => null) : null;
+    if (!asked || !asked.dir)
+      return {
+        fixturesRunning: false,
+        why: "the hub has no chatHubDir() door — restart the hub to pick it up (api/ changed)",
+      };
+    const hubDir = asked.dir;
     const write = (pc, room, records) => {
       fs.mkdirSync(hubDir, { recursive: true });
       const file = path.join(hubDir, `${pc}.${room}.jsonl`);
@@ -158,11 +248,17 @@ module.exports = {
     // --- half one: a DIFFERENT project's outbox crosses -------------------------------------
     // BUApp is a second real project with its own root, serving its own room — the only honest way
     // to exercise a handover, since a flush needs two genuinely different directories.
-    const projects = await SystemView.getProjects();
-    const other = (projects.BUApp || []).find((s) =>
-      (((s.system && s.system.connectionData) || {}).modules || []).some((m) => m.name === "SystemViewChat"),
-    );
-    if (!other) return { peerServesChat: false };
+    // THE PEER THAT ANSWERS, not the first one registered. Third instance of one lesson in this
+    // file: a hub restart re-hosts every hosted project on a FRESH port and leaves the old
+    // registration standing, so `find()` on metadata hands back a dead address and `loadService`
+    // throws — taking the whole method with it, which is how seven assertions came back `undefined`
+    // for a reason that had nothing to do with any of them.
+    const peer = await chatService("BUApp");
+    if (!peer)
+      return {
+        fixturesRunning: false,
+        why: "no service in BUApp answered with a SystemViewChat module — the handover needs a live peer with its own chat directory",
+      };
     const room = `flushtest-${stamp}`;
     const hubFile = write("BUApp", room, [rec(1), rec(2)]);
     // THE CURSORS MUST SURVIVE THE HANDOVER. Retiring them alongside the room looked tidy and was
@@ -175,18 +271,55 @@ module.exports = {
     const flushed = await SystemView.chatFlush("BUApp");
     const ackSurvived =
       fs.existsSync(ackPath) && JSON.parse(fs.readFileSync(ackPath, "utf8")).hooks === stamp;
-    const peer = await createClient().loadService(other.system.connectionData.serviceUrl);
-    const landed = await peer.SystemViewChat.chatRead({ chat: room });
-    const peerDir = (await peer.SystemViewChat.chatDir()).dir;
+    const landed = await peer.Chat.chatRead({ chat: room });
+    const peerDir = (await peer.Chat.chatDir()).dir;
     const hubFileGone = !fs.existsSync(hubFile);
     const retiredKept = fs.existsSync(`${hubFile}.flushed`);
+    // Half one's verdict, assembled here so half two can hand it back when there is no collision
+    // left to exercise — a guard with nothing to guard must not erase what half one proved.
+    const crossed = {
+      fixturesRunning: true,
+      why: "",
+      hubBuffersIn: hubDir,
+      peerServesChat: true,
+      cursorsSurviveFlush: ackSurvived,
+      recordsCrossed: landed.length === 2 && landed[0].text === "flush 1" && landed[1].text === "flush 2",
+      movedCountReported: flushed.moved === 2,
+      hubFileRetired: hubFileGone && retiredKept,
+    };
 
     // --- half two: the SAME directory is refused ---------------------------------------------
     // No `.flushed` rename, no data moved, file byte-identical. This is the guard.
+    //
+    // AND THE COLLISION MOVED HOUSE. This used to flush `systemview-test`, because the dev hub ran
+    // from the very repo that is also that project — one directory wearing two hats, which is the
+    // case the guard exists for. Under the harness the shell launches the hub from ITS repo, so the
+    // hub buffers in `~/autobot/.systemview/chats` and no longer collides with this project at all:
+    // the guard correctly did not fire, and the assertion that it fired was simply out of date.
+    // So the colliding project is DISCOVERED — whoever's own chat directory IS the hub's buffer —
+    // and if nobody collides, this half says so instead of failing for being true.
+    let samePc = "";
+    for (const code of Object.keys((await SystemView.getProjects()) || {})) {
+      const cand = await chatService(code);
+      if (!cand) continue;
+      try {
+        if ((await cand.Chat.chatDir()).dir === hubDir) { samePc = code; break; }
+      } catch {
+        /* a peer that cannot answer its own directory is not the collision */
+      }
+    }
+    if (!samePc)
+      return {
+        ...crossed,
+        guardExercised: false,
+        sameDirRefused: true,
+        ownRoomUntouched: true,
+        guardNote: `no connected project's chat directory is the hub's buffer (${hubDir}) — nothing can collide, so the guard has nothing to refuse here`,
+      };
     const ownRoom = `guardtest-${stamp}`;
-    const ownFile = write("systemview-test", ownRoom, [rec(3)]);
+    const ownFile = write(samePc, ownRoom, [rec(3)]);
     const before = fs.readFileSync(ownFile, "utf8");
-    const guarded = await SystemView.chatFlush("systemview-test");
+    const guarded = await SystemView.chatFlush(samePc);
     const ownFileIntact = fs.existsSync(ownFile) && fs.readFileSync(ownFile, "utf8") === before;
     const ownFileNotRetired = !fs.existsSync(`${ownFile}.flushed`);
 
@@ -197,7 +330,9 @@ module.exports = {
     try { fs.unlinkSync(path.join(peerDir, `BUApp.${room}.jsonl`)); } catch {}
 
     return {
-      peerServesChat: true,
+      ...crossed,
+      guardExercised: true,
+      guardNote: `${samePc}'s own chat directory is the hub's buffer`,
       // The handover moves the ROOM and nothing else — an untouched cursor means no replay.
       cursorsSurviveFlush: ackSurvived,
       // Records the hub buffered are now in the PROJECT's room, intact and in order.
@@ -254,10 +389,16 @@ module.exports = {
     const onDisk = fs.readFileSync(abs, "utf8");
 
     // Same rule — this test's scratch room, its TV state and its document go away with it.
+    //
+    // AND THE CLEANUP USED TO THROW ON ITS FIRST LINE. It referenced `roomPc`, which is declared in
+    // chatSpeakingGate and does not exist here — a ReferenceError, swallowed whole by this `catch {}`,
+    // so nothing below it ran either: 28 `tv-<stamp>.jsonl` rooms and their scratch reports were on
+    // disk, left by a test that believed it tidied up. A bare catch around cleanup hides exactly the
+    // failure that matters, because a leak is invisible until somebody lists the directory.
     try {
       const dir = path.join(process.cwd(), ".systemview", "chats");
       for (const suffix of [".jsonl", ".ack.json", ".tv.json"]) {
-        try { fs.unlinkSync(path.join(dir, `${roomPc}.${chat}${suffix}`)); } catch {}
+        try { fs.unlinkSync(path.join(dir, `${pc}.${chat}${suffix}`)); } catch {}
       }
       fs.unlinkSync(abs);
     } catch {}
@@ -329,17 +470,34 @@ module.exports = {
     // dead entry that makes the door's answer depend on history.
     const { spawn } = require("child_process");
     const visitor = "systemview-logtest";
+    // DO NOT TEAR DOWN A FIXTURE YOU DID NOT START. `npm run services` stands these fixtures up for
+    // the whole suite; this method used to spawn its own copy and then, in its `finally`, kill the
+    // process and DELETE the registration — so when a shared one was already running it removed it
+    // out from under everything else. The visible result: `chatDeliveryRules` (which needs the same
+    // fixture and starts nothing) failed with "systemview-logtest is not a connected project" on
+    // every run AFTER this one, while the fixture's own log said `connected!`. Ownership is now
+    // explicit: if it was already registered, use it and leave it exactly as found.
+    const preExisting = await (async () => {
+      try {
+        const projects = (await SystemView.getProjects()) || {};
+        return Array.isArray(projects[visitor]) && projects[visitor].length > 0;
+      } catch {
+        return false;
+      }
+    })();
     // ABSOLUTE, FROM THIS FILE. `process.cwd()` is whatever directory the hub's service was started
     // from, so a relative path spawned a node that could not find the script — and with stdio
     // ignored the failure was invisible, surfacing only as `fixtureUp: false`.
     const repoRoot = path.resolve(__dirname, "..", "..");
     let fixtureError = "";
-    const fixture = spawn(process.execPath, [path.join(repoRoot, "test", "LogSuite", "index.js")], {
-      cwd: repoRoot,
-      env: { ...process.env, LOGSUITE_PORT: process.env.LOGSUITE_PORT || "5558" },
-      stdio: "ignore",
-    });
-    fixture.on("error", (e) => { fixtureError = (e && e.message) || String(e); });
+    const fixture = preExisting
+      ? null
+      : spawn(process.execPath, [path.join(repoRoot, "test", "LogSuite", "index.js")], {
+          cwd: repoRoot,
+          env: { ...process.env, LOGSUITE_PORT: process.env.LOGSUITE_PORT || "5558" },
+          stdio: "ignore",
+        });
+    if (fixture) fixture.on("error", (e) => { fixtureError = (e && e.message) || String(e); });
     const known = async () => {
       const projects = (await SystemView.getProjects()) || {};
       return Object.keys(projects).includes(visitor);
@@ -437,6 +595,7 @@ module.exports = {
       // UNPROVEN, and they say so by failing rather than by going vacuously green
       fixtureUp,
       fixtureError, // why it never registered, when it didn't — silence here was the whole bug
+      fixtureWasShared: preExisting, // reported: did this run borrow a fixture or stand one up
       roomOwner: roomPc,
       probeRegistered: !!probePc,
       probeError, // swallowing this is what made a dead `connect` look like a failing door
@@ -456,8 +615,11 @@ module.exports = {
       // THE FIXTURE LEAVES NOTHING BEHIND — the process, then its registration. A dead entry left
       // in the store would make `systemview-logtest` count as "known" on every later run, so the
       // door's own refusal could never be tested again.
-      try { fixture.kill("SIGTERM"); } catch {}
-      try { await SystemView.deleteService(visitor, "LogSuite"); } catch {}
+      // ONLY what this run created. A shared fixture is left running and registered.
+      if (!preExisting) {
+        try { if (fixture) fixture.kill("SIGTERM"); } catch {}
+        try { await SystemView.deleteService(visitor, "LogSuite"); } catch {}
+      }
       if (probePc) {
         try { await SystemView.deleteService(probePc, "LogSuiteProbe"); } catch {}
         // the throwaway identity's own relay room — a visitor gets room files written for it, and

@@ -39,6 +39,27 @@ const Claims = () => {
         {c.unmet ? <span className="md-claims__tag md-claims__tag--unmet">{c.unmet} not met</span> : null}
         {c.unchecked ? <span className="md-claims__tag md-claims__tag--unchecked">{c.unchecked} unchecked</span> : null}
         <span className="md-claims__count md-claims__count--reviewed">{c.reviewed}/{c.total} reviewed</span>
+        {/* THE THIRD AXIS — what the change loop will defend tomorrow. Marked is the builder's
+            word and reviewed is a signature; both are about people looking once. This says how
+            many behavioural claims left a spec behind, and `owed` names the gap out loud: a claim
+            reading met that nothing re-checks. Experiential claims are counted apart, never as a
+            shortfall — his eye is their instrument and no spec is owed. */}
+        {c.behavioral ? (
+          <span
+            className="md-claims__count md-claims__count--specd"
+            title={`${c.specd} of ${c.behavioral} behavioural claims carry a ::test or :::run — the change loop defends those${c.experiential ? `. ${c.experiential} experiential (concluded by eye, no spec owed)` : ""}`}
+          >
+            {c.specd}/{c.behavioral} spec'd
+          </span>
+        ) : null}
+        {c.owed ? (
+          <span
+            className="md-claims__tag md-claims__tag--owed"
+            title="marked met, behavioural, and nothing in the fold the change loop runs — defended by nobody once the conversation ends"
+          >
+            {c.owed} owed
+          </span>
+        ) : null}
         {allMet ? (
           <span className="md-claims__tag md-claims__tag--all">
             {!allReviewed ? "all met — review open" : hasStatus ? "all met & reviewed" : "all met — awaiting STATUS"}
