@@ -1,0 +1,65 @@
+[
+  {
+    "title": "A proof announces nothing — no result block appears in the FIRING table",
+    "namespace": {
+      "serviceId": "SystemViewCore",
+      "moduleName": "Proofs",
+      "methodName": "resultBlocksNeverAnnounce"
+    },
+    "Before": [],
+    "Main": [
+      {
+        "title": "A proof announces nothing — no result block appears in the FIRING table",
+        "namespace": {
+          "serviceId": "SystemViewCore",
+          "moduleName": "Proofs",
+          "methodName": "resultBlocksNeverAnnounce"
+        },
+        "args": [],
+        "savedEvaluations": [
+          {
+            "namespace": "results.theFiringTableWasFound",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.noResultBlockFires",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.claimStillFires",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.firingKinds",
+            "expected_type": "array",
+            "validations": [],
+            "save": true
+          }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": []
+  }
+]

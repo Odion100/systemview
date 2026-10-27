@@ -1,60 +1,119 @@
 [
   {
-    "title": "The project serves its own chat room",
-    "namespace": { "serviceId": "SystemViewCore", "moduleName": "Api", "methodName": "chatPluginRoom" },
+    "title": "The project serves its own chat room \u2014 found by who answers, not by who claims",
+    "namespace": {
+      "serviceId": "SystemViewCore",
+      "moduleName": "Api",
+      "methodName": "chatPluginRoom"
+    },
     "Before": [],
     "Main": [
       {
-        "title": "append · read · since-filter · cursor · room naming, all through the service door",
-        "namespace": { "serviceId": "SystemViewCore", "moduleName": "Api", "methodName": "chatPluginRoom" },
+        "title": "The project serves its own chat room \u2014 found by who answers, not by who claims",
+        "namespace": {
+          "serviceId": "SystemViewCore",
+          "moduleName": "Api",
+          "methodName": "chatPluginRoom"
+        },
         "args": [],
         "savedEvaluations": [
           {
+            "namespace": "results.fixturesRunning",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.why",
+            "expected_type": "string",
+            "validations": [
+              {
+                "name": "strEquals",
+                "value": ""
+              }
+            ],
+            "save": true
+          },
+          {
             "namespace": "results.moduleReachable",
             "expected_type": "boolean",
-            "validations": [{ "name": "boolEquals", "value": true }],
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
             "save": true
           },
           {
             "namespace": "results.startsEmpty",
             "expected_type": "boolean",
-            "validations": [{ "name": "boolEquals", "value": true }],
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
             "save": true
           },
           {
             "namespace": "results.appendsLand",
             "expected_type": "boolean",
-            "validations": [{ "name": "boolEquals", "value": true }],
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
             "save": true
           },
           {
             "namespace": "results.readsBackInOrder",
             "expected_type": "boolean",
-            "validations": [{ "name": "boolEquals", "value": true }],
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
             "save": true
           },
           {
             "namespace": "results.sinceFilters",
             "expected_type": "boolean",
-            "validations": [{ "name": "boolEquals", "value": true }],
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
             "save": true
           },
           {
-            "namespace": "results.cursorStartsAtZero",
+            "namespace": "results.cursorStaysRetired",
             "expected_type": "boolean",
-            "validations": [{ "name": "boolEquals", "value": true }],
-            "save": true
-          },
-          {
-            "namespace": "results.cursorPersists",
-            "expected_type": "boolean",
-            "validations": [{ "name": "boolEquals", "value": true }],
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
             "save": true
           },
           {
             "namespace": "results.roomIsListed",
             "expected_type": "boolean",
-            "validations": [{ "name": "boolEquals", "value": true }],
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
             "save": true
           }
         ]

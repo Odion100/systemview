@@ -2201,6 +2201,15 @@ function BotBubble({ projectCode, index }) {
   // was genuinely his), and the next reading starts fresh.
   const readingFollow = useRef(false);
   const readingKey = useRef(null);
+  // THE READING OUTRANKS THE BOTTOM WHILE IT IS DRIVING (his catch, 2026-10-26: *"it's scrolled
+  // down to show me what's reading, but it's never scrolled up"*). Nothing was one-directional —
+  // two followers were fighting. The karaoke scroll moves the view to the lit block and PINS, so
+  // `following` stays true; then the next streaming delta (`work.events.length` moves on every
+  // one) or a resize calls `scrollToEnd()` and yanks it back to the bottom. Upward moves never
+  // survived; downward ones looked fine because the bottom was where they were headed anyway.
+  // While a reading holds the wheel, the bottom-followers stand down — and hand it back the moment
+  // the reading ends or he touches the scroll himself.
+  const readingHolds = useRef(false);
   useEffect(() => {
     const p = speechQ.playing;
     const pk = p && p.scope === projectCode ? p.key : null;
@@ -2209,6 +2218,7 @@ function BotBubble({ projectCode, index }) {
       readingFollow.current = true;
     }
     if (!pk) readingKey.current = null;
+    readingHolds.current = !!pk && readingFollow.current;
     const lines = p && p.scope === projectCode && p.position ? p.position.lines : null;
     const prev = karaokeEls.current;
     let next = [];
@@ -3313,7 +3323,9 @@ function BotBubble({ projectCode, index }) {
   // `events.length` moves on every delta, which is exactly the original behaviour of this panel —
   // it scrolled from the subscription that delivered the message, with no observer anywhere.
   useEffect(() => {
-    if (sticking.current.following) scrollToEnd();
+    // …unless a reading holds the wheel: yanking the view to the bottom on a streaming delta is
+    // what made the karaoke follow look one-directional.
+    if (sticking.current.following && !readingHolds.current) scrollToEnd();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages.length, work.rows.length, work.events.length]);
 
@@ -3354,7 +3366,7 @@ function BotBubble({ projectCode, index }) {
       if (now - last < 16) return;
       last = now;
       sticking.current.resized(geoOf(el));
-      if (sticking.current.following) scrollToEnd();
+      if (sticking.current.following && !readingHolds.current) scrollToEnd();
     };
     const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(bump) : null;
     if (ro) {
@@ -7141,7 +7153,10 @@ const countdown = (str, now = Date.now()) => {
               // HIS HAND TAKES THE WHEEL FROM THE READING — only a scroll that was genuinely his
               // (unpinned, scrollTop moved) stops the karaoke follow; layout and our own nearest-
               // scrolls say nothing. The next reading starts following again.
-              if (sticking.current.lastScrollWasHis) readingFollow.current = false;
+              if (sticking.current.lastScrollWasHis) {
+                readingFollow.current = false;
+                readingHolds.current = false; // his hand takes the wheel back from the reading too
+              }
             }}
           >
             {/* THE ROOM IS GONE FROM THE PANEL. Not hidden behind a session — gone. His call once

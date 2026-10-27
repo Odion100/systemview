@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useDocMembers, useMarkdownWrite } from "../context";
-import { normalizeState, ordinalOf } from "../claims";
+import { normalizeState, normalizeKind, ordinalOf, claimAt } from "../claims";
 
 // `::claim[do this → this should happen]{id=…}` — a statement somebody can check, and the mark.
 //
@@ -44,6 +44,15 @@ const Claim = ({ attrs = {}, kind, label, line, children }) => {
   };
   const n = ordinalOf(source, line);
   const statement = String(label || "").trim();
+  // WHAT THIS CLAIM OWES, on the claim itself. A behavioural claim owes a living spec — a defence
+  // the change loop runs without anybody remembering to — and one marked met with nothing in its
+  // fold but a screenshot or a grep is a commitment defended by nobody once the conversation ends.
+  // So the row says it, quietly, rather than reading identical to a claim that is actually held.
+  // An experiential claim says what it is instead: his eye IS the instrument, no spec will exist,
+  // and that is honest rather than missing.
+  const claimKind = normalizeKind(attrs.kind);
+  const parsed = claimAt(source, line);
+  const owesSpec = claimKind === "behavioral" && !!mark.state && !(parsed && parsed.hasSpec);
   // RFC-075 round two — A CLAIM KNOWS ITS REVIEWERS (his: "the badges show up because the claim
   // knows who the reviewer is. And you check it off"). `reviewers=` declares who owes this claim a
   // look; each renders as a HOLLOW badge until their signature lands in `by=`. The human is the one
@@ -200,6 +209,22 @@ const Claim = ({ attrs = {}, kind, label, line, children }) => {
             {glyph} you
           </button>
         )}
+        {claimKind === "experiential" ? (
+          <span
+            className="md-claim__kind"
+            title="experiential — concluded by your own eye; no spec can be written for it, and none is owed"
+          >
+            by eye
+          </span>
+        ) : null}
+        {owesSpec ? (
+          <span
+            className="md-claim__owed"
+            title="behavioural and marked, with no ::test or :::run in its fold — nothing the change loop runs defends this claim once the conversation ends"
+          >
+            no spec
+          </span>
+        ) : null}
         {mark.state && mark.at ? <span className="md-claim__at">{when(mark.at)}</span> : null}
         {mark.state && mark.note ? <span className="md-claim__note">{mark.note}</span> : null}
       </div>

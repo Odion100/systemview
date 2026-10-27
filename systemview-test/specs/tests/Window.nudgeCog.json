@@ -1,0 +1,143 @@
+[
+  {
+    "title": "The worklist cog shows the nudge knobs, and says so plainly when there is no door",
+    "namespace": {
+      "serviceId": "SystemViewCore",
+      "moduleName": "Window",
+      "methodName": "nudgeCog"
+    },
+    "Before": [],
+    "Main": [
+      {
+        "title": "The worklist cog shows the nudge knobs, and says so plainly when there is no door",
+        "namespace": {
+          "serviceId": "SystemViewCore",
+          "moduleName": "Window",
+          "methodName": "nudgeCog"
+        },
+        "args": [],
+        "savedEvaluations": [
+          {
+            "namespace": "results.suiteProducedResults",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.failed",
+            "expected_type": "number",
+            "validations": [],
+            "save": true
+          },
+          {
+            "namespace": "results.whyNot",
+            "expected_type": "string",
+            "validations": [],
+            "save": true
+          },
+          {
+            "namespace": "results.namesWhatCountsAndTheCadence",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.saysPlainlyWhenThereIsNoDoor",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.sendsOnlyWhatChanged",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.noWriteWhenNothingChanged",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.clampsRatherThanTrusting",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.zeroIsHowYouTurnItOff",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.refusesAFieldItDoesNotHave",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.onlyKeysTheHarnessStores",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.cases",
+            "expected_type": "number",
+            "validations": [],
+            "save": true
+          }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": []
+  }
+]

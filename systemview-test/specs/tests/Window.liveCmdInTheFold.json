@@ -1,0 +1,176 @@
+[
+  {
+    "title": "The proof IS the live block — it runs in the fold, keeps its exit across a collapse, and writes nothing",
+    "namespace": {
+      "serviceId": "SystemViewCore",
+      "moduleName": "Window",
+      "methodName": "liveCmdInTheFold"
+    },
+    "Before": [],
+    "Main": [
+      {
+        "title": "The proof IS the live block — it runs in the fold, keeps its exit across a collapse, and writes nothing",
+        "namespace": {
+          "serviceId": "SystemViewCore",
+          "moduleName": "Window",
+          "methodName": "liveCmdInTheFold"
+        },
+        "args": [],
+        "savedEvaluations": [
+          {
+            "namespace": "results.suiteProducedResults",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.failed",
+            "expected_type": "number",
+            "validations": [],
+            "save": true
+          },
+          {
+            "namespace": "results.whyNot",
+            "expected_type": "string",
+            "validations": [],
+            "save": true
+          },
+          {
+            "namespace": "results.neverRunsOnItsOwn",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.runsExactlyWhatIsWritten",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.keepsItsExit",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.keepsTheOutputThatExplainsAFailure",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.adoptsARunThatOutlivedTheView",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.neverInventsAResult",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.runningAProofWritesNothing",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.theFoldHoldsTheRealBlockUnrun",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.expandAndPressRunsItInTheFold",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.collapseAfterARunKeepsTheExit",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.aRunInFlightSurvivesACollapse",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.cases",
+            "expected_type": "number",
+            "validations": [],
+            "save": true
+          }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": []
+  }
+]

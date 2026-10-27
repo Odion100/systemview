@@ -47,6 +47,35 @@ export const normalizeState = (raw) => {
   return "";
 };
 
+// WHAT KIND OF ASSERTION THIS IS — declared, never inferred, and SILENCE IS THE STRICT SIDE.
+//
+// A claim that asserts BEHAVIOUR owes a living spec: a defence that rides the change loop, so
+// breaking its contract next month goes red in front of whoever broke it. A claim concluded by the
+// human's own eye — *"the dashed badge reads as an invitation"*, *"it could be bolder"* — cannot
+// have one, and forcing a test on it produces the worthless translation (`expect(badge).toHaveClass
+// ("--invite")` is true and claims nothing the claim claimed). So the exemption exists, and it is
+// WRITTEN: absence reads behavioural, exactly as an unmarked claim reads unchecked. Silence never
+// buys a pass here either.
+//
+// AND IT IS DECLARED AT AUTHORING, not when the proof comes due. An agent facing a spec it would
+// rather not write will discover the claim was experiential all along; at authoring nobody yet
+// knows which proof is inconvenient, so the classification costs nothing to make truthfully — and
+// the claims-completeness press freezes it, which makes a later exemption a visible edit to an
+// approved contract rather than a quiet one.
+export const normalizeKind = (raw) => {
+  const s = String(raw || "").trim().toLowerCase();
+  if (s === "experiential" || s === "experience" || s === "judgment" || s === "judgement") return "experiential";
+  return "behavioral";
+};
+
+// THE SPEC BLOCKS, AND ONLY THEY. `::test` embeds a saved test (addressable by namespace, run by
+// the suite); `:::run` is the in-fold walk. A `:::cmd` is NOT counted, deliberately: a cmd running
+// the project's suite and a cmd running `grep` are indistinguishable at parse level, and a
+// heuristic behind a lifecycle gate is worse than an honest absence. So this says "carries a
+// spec", never "is proved" — a jest-suite cmd reads as NO SPEC, which is true, and whether the
+// pinned case suffices is a reviewer's call and not a parser's.
+const SPEC_BLOCK = /^\s*:{2,}(test|run)\b/;
+
 /**
  * Every `::claim` in a document, in the order written — which IS its number — with the line it sits
  * on so a press knows where to write back.
@@ -62,12 +91,32 @@ export function parseClaims(source) {
     const reviewers = attrOf(attrs, "reviewers");
     const names = (raw) => String(raw || "").split(/[|,]/).map((x) => x.trim()).filter(Boolean);
     const state = normalizeState(attrOf(attrs, "state"));
+    // THE BODY'S EXTENT, for a container claim. The fence length is on the opening line, and
+    // normalizeFences guarantees an outer fence is LONGER than every inner one — so a line of
+    // exactly these colons and nothing else is unambiguously this claim's close, with no nesting
+    // ambiguity to resolve. A leaf (`::claim`) has no body and carries no spec by construction.
+    const fence = ((/^\s*(:+)/.exec(lines[i]) || [, ""])[1] || "").length;
+    let hasSpec = false;
+    if (fence >= 3) {
+      const close = new RegExp(`^\\s*:{${fence}}\\s*$`);
+      for (let j = i + 1; j < lines.length; j += 1) {
+        if (close.test(lines[j])) break;
+        if (SPEC_BLOCK.test(lines[j])) { hasSpec = true; break; }
+      }
+    }
+    const kind = normalizeKind(attrOf(attrs, "kind"));
     out.push({
       n: out.length + 1,
       line: i + 1,
       statement: m[1].trim(),
       id: attrOf(attrs, "id"),
       state,
+      kind,
+      // CARRIES A SPEC — the living-spec half is present in the fold. Not "proved": see SPEC_BLOCK.
+      hasSpec,
+      // OWED is the honest gap: a behavioural claim someone marked met with no spec behind it. It
+      // reads met today and is defended by nobody once the conversation ends.
+      owed: kind === "behavioral" && !!state && !hasSpec,
       by,
       at: Number(attrOf(attrs, "at")) || 0,
       note: attrOf(attrs, "note"),
@@ -87,7 +136,28 @@ export function claimsOf(source) {
   const met = all.filter((c) => c.state === "met").length;
   const unmet = all.filter((c) => c.state === "unmet").length;
   const reviewed = all.filter((c) => c.reviewed).length;
-  return { total: all.length, met, unmet, unchecked: all.length - met - unmet, reviewed, claims: all };
+  // THE THIRD AXIS. Marked is the builder's word; reviewed means it was signed; SPEC'D means a
+  // defence stands that the change loop will run without anybody remembering to. A document whose
+  // behavioural claims carry no specs is a document of commitments nothing defends — which is what
+  // `settled` has to mean something against.
+  const behavioral = all.filter((c) => c.kind === "behavioral");
+  return {
+    total: all.length,
+    met,
+    unmet,
+    unchecked: all.length - met - unmet,
+    reviewed,
+    behavioral: behavioral.length,
+    experiential: all.length - behavioral.length,
+    specd: behavioral.filter((c) => c.hasSpec).length,
+    owed: all.filter((c) => c.owed).length,
+    claims: all,
+  };
+}
+
+/** This claim, by the line it opens on — null when the line holds no claim. */
+export function claimAt(source, line) {
+  return parseClaims(source).find((x) => x.line === Number(line)) || null;
 }
 
 /** This claim's number, by its line. 0 when the line holds no claim. */

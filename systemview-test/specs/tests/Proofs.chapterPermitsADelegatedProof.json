@@ -1,0 +1,70 @@
+[
+  {
+    "title": "The chapter permits a delegated proof and fixes the brief — never tools alone",
+    "namespace": {
+      "serviceId": "SystemViewCore",
+      "moduleName": "Proofs",
+      "methodName": "chapterPermitsADelegatedProof"
+    },
+    "Before": [],
+    "Main": [
+      {
+        "title": "The chapter permits a delegated proof and fixes the brief — never tools alone",
+        "namespace": {
+          "serviceId": "SystemViewCore",
+          "moduleName": "Proofs",
+          "methodName": "chapterPermitsADelegatedProof"
+        },
+        "args": [],
+        "savedEvaluations": [
+          {
+            "namespace": "results.permissionIsStated",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.theBriefIsTheClaimItsMarkAndItsNote",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.neverToolsAlone",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.itIsPermissionNotProcedure",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": []
+  }
+]

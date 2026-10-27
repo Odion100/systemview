@@ -1,54 +1,142 @@
 [
   {
-    "title": "Stranded records are handed to the project — and a shared directory is refused",
-    "namespace": { "serviceId": "SystemViewCore", "moduleName": "Api", "methodName": "chatOutboxFlush" },
+    "title": "Stranded records cross to the project — and the directory that IS the hub's buffer is refused",
+    "namespace": {
+      "serviceId": "SystemViewCore",
+      "moduleName": "Api",
+      "methodName": "chatOutboxFlush"
+    },
     "Before": [],
     "Main": [
       {
-        "title": "the hub hands over what it buffered, retires its copy, and never flushes into itself",
-        "namespace": { "serviceId": "SystemViewCore", "moduleName": "Api", "methodName": "chatOutboxFlush" },
+        "title": "half one crosses, half two refuses the shared directory",
+        "namespace": {
+          "serviceId": "SystemViewCore",
+          "moduleName": "Api",
+          "methodName": "chatOutboxFlush"
+        },
         "args": [],
         "savedEvaluations": [
           {
+            "namespace": "results.fixturesRunning",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.why",
+            "expected_type": "string",
+            "validations": [
+              {
+                "name": "strEquals",
+                "value": ""
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.hubBuffersIn",
+            "expected_type": "string",
+            "validations": [],
+            "save": true
+          },
+          {
             "namespace": "results.peerServesChat",
             "expected_type": "boolean",
-            "validations": [{ "name": "boolEquals", "value": true }],
-            "save": true
-          },
-          {
-            "namespace": "results.recordsCrossed",
-            "expected_type": "boolean",
-            "validations": [{ "name": "boolEquals", "value": true }],
-            "save": true
-          },
-          {
-            "namespace": "results.movedCountReported",
-            "expected_type": "boolean",
-            "validations": [{ "name": "boolEquals", "value": true }],
-            "save": true
-          },
-          {
-            "namespace": "results.hubFileRetired",
-            "expected_type": "boolean",
-            "validations": [{ "name": "boolEquals", "value": true }],
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
             "save": true
           },
           {
             "namespace": "results.cursorsSurviveFlush",
             "expected_type": "boolean",
-            "validations": [{ "name": "boolEquals", "value": true }],
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.recordsCrossed",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.movedCountReported",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.hubFileRetired",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.guardExercised",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.guardNote",
+            "expected_type": "string",
+            "validations": [],
             "save": true
           },
           {
             "namespace": "results.sameDirRefused",
             "expected_type": "boolean",
-            "validations": [{ "name": "boolEquals", "value": true }],
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
             "save": true
           },
           {
             "namespace": "results.ownRoomUntouched",
             "expected_type": "boolean",
-            "validations": [{ "name": "boolEquals", "value": true }],
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
             "save": true
           }
         ]

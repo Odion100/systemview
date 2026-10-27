@@ -274,3 +274,113 @@ describe(":::claim — the proof, folded", () => {
     expect(screen.queryByText(/proof/)).toBeNull();
   });
 });
+
+// A CLAIM SAYS WHAT IT OWES. A behavioural claim owes a living spec — a defence the change loop
+// runs without anybody remembering to — so one marked met with nothing but a screenshot or a grep
+// in its fold must not read identical to a claim something actually defends. An experiential claim
+// says what IT is instead: his eye is the instrument, and no spec is owed or possible.
+describe("what the claim owes — spec'd, owed, or by eye", () => {
+  const DOC = [
+    "# RFC-9",                                                               // 1
+    "::claim[a leaf nobody can defend]{id=c1 state=met by=sv at=1}",         // 2
+    ":::claim[a fold with a saved test]{id=c2 state=met by=sv at=1}",        // 3
+    "::test[Math.chainUse]",                                                 // 4
+    ":::",                                                                   // 5
+    ":::claim[his eye decides]{id=c3 kind=experiential state=met by=you at=1}", // 6
+    "::file[RFCs/proofs/badge.png]",                                         // 7
+    ":::",                                                                   // 8
+    "::claim[nobody looked yet]{id=c4}",                                     // 9
+  ].join("\n");
+
+  const at = (line, attrs, kind = "leaf") => {
+    render(
+      <MarkdownMembersProvider value={{ source: DOC }}>
+        <MarkdownWriteProvider value={{ editable: true, setAttr: jest.fn() }}>
+          <Claim attrs={attrs} kind={kind} label="x" line={line} />
+        </MarkdownWriteProvider>
+      </MarkdownMembersProvider>,
+    );
+  };
+
+  it("says `no spec` on a behavioural claim that is marked with nothing the loop runs", () => {
+    at(2, { id: "c1", state: "met", by: "sv", at: "1" });
+    expect(screen.getByText("no spec")).toBeTruthy();
+  });
+
+  it("stays silent when the fold carries a spec — that claim is held", () => {
+    at(3, { id: "c2", state: "met", by: "sv", at: "1" }, "container");
+    expect(screen.queryByText("no spec")).toBeNull();
+  });
+
+  it("says `by eye` on an experiential claim, and never asks it for a spec", () => {
+    at(6, { id: "c3", kind: "experiential", state: "met", by: "you", at: "1" }, "container");
+    expect(screen.getByText("by eye")).toBeTruthy();
+    expect(screen.queryByText("no spec")).toBeNull();
+  });
+
+  it("asks nothing of an UNMARKED claim — nobody has concluded anything to defend", () => {
+    at(9, { id: "c4" });
+    expect(screen.queryByText("no spec")).toBeNull();
+    expect(screen.queryByText("by eye")).toBeNull();
+  });
+});
+
+// RFC-075 c18, the half that was asserted nowhere — the BAR REPORTS the third axis. The arithmetic
+// was pinned in claims.test; what a reader actually sees was not, so the claim's own words ("the
+// bar reports N/M spec'd and an owed count beside met and reviewed") rode on a count nobody drew.
+describe("::claims — the bar reports spec'd and owed, beside met and reviewed", () => {
+  const MIXED = [
+    "::claims",
+    ':::claim[spec\'d]{id=c1 state=met by=you at=1}',
+    "::test[SystemViewCore.Proofs.claimKind]",
+    ":::",
+    '::claim[marked, nothing behind it]{id=c2 state=met by=you at=1}',
+    '::claim[his eye]{id=c3 kind=experiential state=met by=you at=1}',
+  ].join("\n");
+
+  it("spec'd counts over the BEHAVIOURAL claims, never the total — and owed names the gap", () => {
+    render(
+      <MarkdownMembersProvider value={{ source: MIXED }}>
+        <Claims />
+      </MarkdownMembersProvider>,
+    );
+    // 2 behavioural (c1, c2), one of them spec'd. Three claims in the document — so "1/3" here
+    // would be the bug this assertion exists to catch: an experiential claim is not a shortfall.
+    expect(screen.getByText("1/2 spec'd")).toBeTruthy();
+    expect(screen.getByText("1 owed")).toBeTruthy();
+    expect(screen.getByText("3/3 met")).toBeTruthy();
+  });
+
+  it("nothing owed draws no owed tag at all — a zero is not news", () => {
+    render(
+      <MarkdownMembersProvider value={{ source: MIXED.replace('::claim[marked, nothing behind it]{id=c2 state=met by=you at=1}\n', "") }}>
+        <Claims />
+      </MarkdownMembersProvider>,
+    );
+    expect(screen.queryByText(/owed/)).toBeNull();
+  });
+});
+
+// c19's untested half — `by eye` rides the KIND ALONE. Every other case here marks the claim
+// first, so "marked or not" was half-covered: an unmarked experiential claim is still his eye's to
+// conclude, and the row must say so before anybody has concluded anything.
+describe("by eye on an experiential claim that nobody has marked yet", () => {
+  const DOC = [
+    "# RFC-9",
+    ":::claim[his eye decides, unmarked]{id=c1 kind=experiential}",
+    "::file[RFCs/proofs/badge.png]",
+    ":::",
+  ].join("\n");
+
+  it("says `by eye` with no mark anywhere, and still asks for no spec", () => {
+    render(
+      <MarkdownMembersProvider value={{ source: DOC }}>
+        <MarkdownWriteProvider value={{ editable: true, setAttr: jest.fn() }}>
+          <Claim attrs={{ id: "c1", kind: "experiential" }} kind="container" label="his eye decides, unmarked" line={2} />
+        </MarkdownWriteProvider>
+      </MarkdownMembersProvider>,
+    );
+    expect(screen.getByText("by eye")).toBeTruthy();
+    expect(screen.queryByText("no spec")).toBeNull();
+  });
+});

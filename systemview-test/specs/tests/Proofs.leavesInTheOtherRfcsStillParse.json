@@ -1,0 +1,71 @@
+[
+  {
+    "title": "No leaf claim in RFC-073 or RFC-074 lost anything to the container form",
+    "namespace": {
+      "serviceId": "SystemViewCore",
+      "moduleName": "Proofs",
+      "methodName": "leavesInTheOtherRfcsStillParse"
+    },
+    "Before": [],
+    "Main": [
+      {
+        "title": "No leaf claim in RFC-073 or RFC-074 lost anything to the container form",
+        "namespace": {
+          "serviceId": "SystemViewCore",
+          "moduleName": "Proofs",
+          "methodName": "leavesInTheOtherRfcsStillParse"
+        },
+        "args": [],
+        "savedEvaluations": [
+          {
+            "namespace": "results.bothDocumentsStillParse",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.leavesFound",
+            "expected_type": "number",
+            "validations": [],
+            "save": true
+          },
+          {
+            "namespace": "results.thereAreStillLeaves",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.everyLeafKeepsItsStatementAndCarriesNoSpec",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.broken",
+            "expected_type": "array",
+            "validations": [],
+            "save": true
+          }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": []
+  }
+]

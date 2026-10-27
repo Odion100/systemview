@@ -1,0 +1,209 @@
+[
+  {
+    "title": "The claim row: one line, what it marks, what it says it owes, and what the bar reports",
+    "namespace": {
+      "serviceId": "SystemViewCore",
+      "moduleName": "Window",
+      "methodName": "claimRow"
+    },
+    "Before": [],
+    "Main": [
+      {
+        "title": "The claim row: one line, what it marks, what it says it owes, and what the bar reports",
+        "namespace": {
+          "serviceId": "SystemViewCore",
+          "moduleName": "Window",
+          "methodName": "claimRow"
+        },
+        "args": [],
+        "savedEvaluations": [
+          {
+            "namespace": "results.suiteProducedResults",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.failed",
+            "expected_type": "number",
+            "validations": [],
+            "save": true
+          },
+          {
+            "namespace": "results.whyNot",
+            "expected_type": "string",
+            "validations": [],
+            "save": true
+          },
+          {
+            "namespace": "results.containerIsOneRowWithTheStatement",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.leafShowsNoProofAffordance",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.containerMarksOnItsOpeningLine",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.countersigningGrowsByAndMovesNothingElse",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.steppingOffLeavesTheOtherSignature",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.aFlipStashesRatherThanErases",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.saysNoSpecOnAnUndefendedBehavioralClaim",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.silentWhenTheFoldCarriesASpec",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.saysByEyeOnAnExperientialClaim",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.byEyeRidesTheKindAloneUnmarked",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.asksNothingOfAnUnmarkedClaim",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.theBarReportsSpecdOverBehavioral",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.nothingOwedDrawsNoTag",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.theBarStillReportsReviewed",
+            "expected_type": "boolean",
+            "validations": [
+              {
+                "name": "boolEquals",
+                "value": true
+              }
+            ],
+            "save": true
+          },
+          {
+            "namespace": "results.cases",
+            "expected_type": "number",
+            "validations": [],
+            "save": true
+          }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": []
+  }
+]
