@@ -4125,6 +4125,34 @@ const countdown = (str, now = Date.now()) => {
   // (The armed-send machinery is GONE — send takes the visible words instead of promising to
   // send invisible future ones.)
 
+  // A PAGE CAN HAND THIS CHAT A MESSAGE — the how-we-work stage doors (and any surface after them)
+  // dispatch `sv:say` with { text, projectCode? }. The FIRST matching panel claims it by stamping
+  // `taken` on the shared detail object (dispatch is synchronous), so two mounted panels cannot
+  // double-send one press. The words land in the input and fire through the SAME send() as a typed
+  // message — queueing, relay, the optimistic echo, words-back-on-failure, all of it — because a
+  // second send path is a second set of these bugs.
+  const sayArmed = useRef(false);
+  useEffect(() => {
+    const on = (e) => {
+      const d = (e && e.detail) || {};
+      const text = (d.text || "").trim();
+      if (!text || d.taken) return;
+      if (d.projectCode && d.projectCode !== projectCode) return;
+      d.taken = true;
+      sayArmed.current = true;
+      setInput(text);
+    };
+    window.addEventListener("sv:say", on);
+    return () => window.removeEventListener("sv:say", on);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectCode]);
+  useEffect(() => {
+    if (!sayArmed.current || !input) return;
+    sayArmed.current = false;
+    send();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [input]);
+
   // RFC-031 — the roster: who's in this room besides its own agent, and where this project's
   // own agent is off visiting (both derived hub-side from real holds, so they can't lie).
   // ATTACHED, THE ROSTER IS THE SESSION'S. The hub's roster is built from real holds in a ROOM, and

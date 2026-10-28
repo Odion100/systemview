@@ -39,6 +39,11 @@ describe("the work band is tabs — one per type of work", () => {
     expect(bandLabel("lanes", 3)).toBe("3 lanes");
     expect(bandLabel("lists", 1)).toBe("1 list");
     expect(bandLabel("reports", 1)).toBe("1 report");
+    // a subtype tab says the word ALONE — repeating "report" across the bar is what the fan-out
+    // exists to remove — and it says the short word: a planning report's tab reads "plan"
+    expect(bandLabel("reports:spec", 2)).toBe("2 specs");
+    expect(bandLabel("reports:notice", 1)).toBe("1 notice");
+    expect(bandLabel("reports:planning", 2)).toBe("2 plans");
     expect(bandLabel("reports", 9)).toBe("9 reports");
   });
 

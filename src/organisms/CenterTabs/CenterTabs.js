@@ -185,7 +185,7 @@ export default function CenterTabs({ tabsPc, tabs = [], isActive, onOpen, afterC
           <button
             type="button"
             className="doc-tabs__how"
-            title="How this works — the flow, every kind's lifecycle, and where to start"
+            title="How we work — the flow, every kind's lifecycle, and where to start"
             onClick={() => {
               // OFFER FIRST, THEN OPEN IT HERE. A page that hosts the kind itself claims the event
               // (the Agents page does); silence means this strip's own host has to open it, which

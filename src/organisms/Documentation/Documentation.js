@@ -330,19 +330,23 @@ export default function Documentation({
             />
           </div>
         )}
-        {/* NOTHING OPEN — HOW WE WORK takes the floor. The empty strip used to show SystemView's
+        {/* NOTHING LOADED — HOW WE WORK takes the floor. The empty strip used to show SystemView's
             own documentation, which answered "what are these panels" for somebody who already knew
             why they would want them ("it's kind of bullshit" — his read, 2026-10-27). What belongs
             on the surface you land on is the FLOW: a goal becoming an arc becoming plans becoming
-            claims, every kind's lifecycle, and the doors to start one. Keyed off the STRIP BEING
-            EMPTY, exactly as the manual was — a lingering scope must not slip a page under a tab
-            that names a document. */}
-        {!helpOpen && !fileLens && pane.tabs.length === 0 && (tab === "docs" || (tab === "reports" && !reportPath)) && (
+            claims, every kind's lifecycle, and the doors to start one.
+            AND THE FLOOR COVERS AN UNRESOLVED SCOPE TOO (his ruling, 2026-10-28: "stop going to
+            that SystemView page… the how page is built in, so it won't have that problem of things
+            not loaded yet"): the manual ships inside the bundle, needs no hub, no plugin and no
+            fetch — so when a restored tab's scope has not landed, or never lands because the
+            document failed to load, the floor is this page rather than a dead doc pane labelled
+            "SystemView". The moment the scope resolves, the real document replaces it. */}
+        {!helpOpen && !fileLens && (pane.tabs.length === 0 || !sService) && (tab === "docs" || (tab === "reports" && !reportPath)) && (
           <div className="documentation-view__data-table">
             <HowWeWork />
           </div>
         )}
-        {!helpOpen && !fileLens && pane.tabs.length > 0 && (tab === "docs" || (tab === "reports" && !reportPath)) && (
+        {!helpOpen && !fileLens && pane.tabs.length > 0 && !!sService && (tab === "docs" || (tab === "reports" && !reportPath)) && (
           <div className="documentation-view__data-table">
             {/* The doc IS a file panel — a framed pane with a header/badge. When nothing is selected it
                 shows SystemView's own help; otherwise the per-namespace doc (getDoc/saveDoc). The doc's
@@ -414,17 +418,10 @@ export default function Documentation({
               setDocument={setDocument}
               Plugin={Plugin}
               scope={{ projectCode: sProject, serviceId: sService, moduleName: sModule, methodName: sMethod }}
-              // THIS BRANCH ONLY RENDERS WITH TABS OPEN — the empty strip is HowWeWork's floor
-              // above, so what shows here is always the open tab's own document, never a default.
-              // His rule survives in the guard: "stop defaulting to the namespace document" —
-              // a lingering scope must not slip a namespace body under a different label.
-              // AND ONLY THE STRIP BEING EMPTY. `|| !sService` used to be in all three of these, and it
-              // put the manual under a tab that names a different document: after a restart the tab
-              // is restored before its scope resolves, so for that window sService is "" and the page
-              // read "SystemView" with a tab above it saying otherwise (his report, 2026-10-25). A tab
-              // whose scope has not landed is loading, not the manual.
-              readOnly={!sService}
-              label={!sService ? "…" : sMethod ? `${sService}.${sModule}.${sMethod}` : sModule ? `${sService}.${sModule}` : sService}
+              // THIS BRANCH ONLY RENDERS WITH TABS OPEN AND A RESOLVED SERVICE — everything short
+              // of that is the how-we-work floor above, so what shows here is always the open
+              // tab's own document, never a default and never a half-loaded pane.
+              label={sMethod ? `${sService}.${sModule}.${sMethod}` : sModule ? `${sService}.${sModule}` : sService}
             />
           </div>
         )}
