@@ -1,107 +1,107 @@
 [
-  {
-    "title": "RFC-075 owes no spec — every marked behavioural claim carries a living defence that resolves",
+ {
+  "title": "RFC-075 owes no spec — every marked behavioural claim carries a living defence that resolves",
+  "namespace": {
+   "serviceId": "SystemViewCore",
+   "moduleName": "Proofs",
+   "methodName": "rfc075OwesNothing"
+  },
+  "Before": [],
+  "Main": [
+   {
+    "title": "count this document's own claims, and resolve every spec namespace it names to a file on disk",
     "namespace": {
-      "serviceId": "SystemViewCore",
-      "moduleName": "Proofs",
-      "methodName": "rfc075OwesNothing"
+     "serviceId": "SystemViewCore",
+     "moduleName": "Proofs",
+     "methodName": "rfc075OwesNothing"
     },
-    "Before": [],
-    "Main": [
-      {
-        "title": "RFC-075 owes no spec — every marked behavioural claim carries a living defence that resolves",
-        "namespace": {
-          "serviceId": "SystemViewCore",
-          "moduleName": "Proofs",
-          "methodName": "rfc075OwesNothing"
-        },
-        "args": [],
-        "savedEvaluations": [
-          {
-            "namespace": "results.everySpecItNamesResolves",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.unresolved",
-            "expected_type": "array",
-            "validations": [],
-            "save": true
-          },
-          {
-            "namespace": "results.specsNamed",
-            "expected_type": "number",
-            "validations": [],
-            "save": true
-          },
-          {
-            "namespace": "results.theDocumentHasClaims",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.owedIsZero",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.owing",
-            "expected_type": "array",
-            "validations": [],
-            "save": true
-          },
-          {
-            "namespace": "results.total",
-            "expected_type": "number",
-            "validations": [],
-            "save": true
-          },
-          {
-            "namespace": "results.met",
-            "expected_type": "number",
-            "validations": [],
-            "save": true
-          },
-          {
-            "namespace": "results.unmet",
-            "expected_type": "number",
-            "validations": [],
-            "save": true
-          },
-          {
-            "namespace": "results.specd",
-            "expected_type": "number",
-            "validations": [],
-            "save": true
-          },
-          {
-            "namespace": "results.behavioral",
-            "expected_type": "number",
-            "validations": [],
-            "save": true
-          }
-        ]
-      }
-    ],
-    "Events": [],
-    "After": []
-  }
+    "args": [],
+    "savedEvaluations": [
+     {
+      "namespace": "results.everySpecItNamesResolves",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.unresolved",
+      "expected_type": "array",
+      "validations": [],
+      "save": true
+     },
+     {
+      "namespace": "results.specsNamed",
+      "expected_type": "number",
+      "validations": [],
+      "save": true
+     },
+     {
+      "namespace": "results.theDocumentHasClaims",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.owedIsZero",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.owing",
+      "expected_type": "array",
+      "validations": [],
+      "save": true
+     },
+     {
+      "namespace": "results.total",
+      "expected_type": "number",
+      "validations": [],
+      "save": true
+     },
+     {
+      "namespace": "results.met",
+      "expected_type": "number",
+      "validations": [],
+      "save": true
+     },
+     {
+      "namespace": "results.unmet",
+      "expected_type": "number",
+      "validations": [],
+      "save": true
+     },
+     {
+      "namespace": "results.specd",
+      "expected_type": "number",
+      "validations": [],
+      "save": true
+     },
+     {
+      "namespace": "results.behavioral",
+      "expected_type": "number",
+      "validations": [],
+      "save": true
+     }
+    ]
+   }
+  ],
+  "Events": [],
+  "After": []
+ }
 ]

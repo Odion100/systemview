@@ -28,6 +28,38 @@ args and evaluations).
   runs once per sibling). Entries with no top-level namespace are dropped, and the report reads
   `<project> has no saved tests` — blaming the project for the shape of the file.
 
+## Writing one — PROBE THE METHOD FIRST
+
+An evaluation is an assertion about a **real response**, so read the real one before writing any.
+`probe` is the door: it calls one method on a registered service and hands back exactly what the
+runner will see.
+
+```
+mcp__systemview__probe({ namespace: "SystemViewCore.Proofs.claimKind", projectCode: "systemview-test" })
+systemview probe <ServiceId>.<Module>.<method> --json          # the same door from a terminal
+```
+
+Then write the `savedEvaluations` from the shape in front of you — one per field you mean to hold.
+
+**Do not hand-roll a client script to call a method.** `createClient().loadService(url)` in a
+throwaway file is the slow way to get a worse answer: probe resolves the namespace the way the
+runner resolves it, carries the project's headers, and tells you which URL answered — so a service
+registered twice or answering on a stale port shows up as a fact instead of a mystery.
+
+Three traps, each measured rather than guessed:
+
+- **An array's `expected_type` is `"array"`, not `"object"`.** `"object"` fails with
+  `expected "object", got "array"` — a spec that is wrong about its own shape, which reads at a
+  glance like the method being wrong.
+- **The runner prints only FAILING evaluations.** A field with no validations is saved and stays
+  invisible, so a `why`/`reason` string that explains a red never reaches the reader. Assert it
+  EMPTY (`{"name": "strEquals", "value": ""}`) and any reason becomes a failure line carrying its
+  own text — `results.why → expected "", got "the hub has no chatHubDir() door"`.
+- **A precondition belongs in the ANSWER, not in a throw.** A method that dies on a missing fixture
+  reports every field as `undefined`, and the report then blames twenty assertions for something
+  that happened before the first one ran. Return `{ fixturesRunning: false, why: "…" }` and assert
+  `fixturesRunning` — a red then says which fixture and what to run.
+
 ## Test entry schema
 
 ```json
@@ -215,7 +247,16 @@ unique across the project.
 
 - The top-level `namespace` must be a **real method on a connected service** — that's the file it saves to.
 - **≥ 1 Main step** must match the top-level namespace.
-- Every step needs a `title`; a step with evaluations enabled needs ≥ 1 saved evaluation.
+- Every step needs a `title`, **and it must describe THAT STEP — never repeat the test's own
+  title.** The step title is the label printed over the method call, in the runner's output and in
+  the window, and it is the only place a reader learns what the call is for. Measured on this
+  project: 27 of 33 step titles were a copy of the test's title, which satisfies "needs a title"
+  and leaves the method sitting under a label that says what the header above it already said. The
+  test title says what is being CLAIMED; the step title says what this call DOES — *"count a
+  document with a proof and one without, and compare the totals"*, not *"counts marks, not
+  proofs"*. In a multi-step spec the titles read in sequence and become the explanation, which is
+  what makes a run narrate itself when pressed.
+- A step with evaluations enabled needs ≥ 1 saved evaluation.
 - Overwrites address a **slot** (array index) in the test's own file — never an index from an
   aggregated list.
 

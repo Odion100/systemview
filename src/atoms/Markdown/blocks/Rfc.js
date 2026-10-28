@@ -11,9 +11,9 @@ import LifecycleTrail from "./lifecycle";
 // `arc=` is the one relationship the registry holds — "what is being built for this arc" becomes a
 // read instead of a grep. It renders as a chip because that is what a pointer looks like here.
 //
-// NO PRESS, NO STATE OF ITS OWN. This is identity, and identity is the one thing that must not be
+// IDENTITY IS NOT PRESSABLE — the number is what every attachment, hook and registry row points at,
 // edited by accident: the number is what every attachment, hook and registry row points at.
-const Rfc = ({ attrs = {} }) => (
+const Rfc = ({ attrs = {}, line }) => (
   <div className="md-arc md-rfc">
     <span className="md-arc__kind">RFC</span>
     <span className="md-arc__id">{attrs.id || "rfc"}</span>
@@ -25,7 +25,7 @@ const Rfc = ({ attrs = {} }) => (
     ) : null}
     {/* RFC-075 — the leaf stops being a bare label: the kind's lifecycle, current state lit,
         read from the registry. Identity stays unpressable; this is a read. */}
-    <LifecycleTrail kind="rfc" id={attrs.id} />
+    <LifecycleTrail kind="rfc" id={attrs.id} line={line} attrs={attrs} />
   </div>
 );
 

@@ -1,49 +1,49 @@
 [
-  {
-    "title": "Nothing runs a proof but a press — no scheduler, no watcher, no poll",
+ {
+  "title": "Nothing runs a proof but a press — no scheduler, no watcher, no poll",
+  "namespace": {
+   "serviceId": "SystemViewCore",
+   "moduleName": "Proofs",
+   "methodName": "noProofRunner"
+  },
+  "Before": [],
+  "Main": [
+   {
+    "title": "scan every module of the document machinery for the seven spellings of something that runs on its own",
     "namespace": {
-      "serviceId": "SystemViewCore",
-      "moduleName": "Proofs",
-      "methodName": "noProofRunner"
+     "serviceId": "SystemViewCore",
+     "moduleName": "Proofs",
+     "methodName": "noProofRunner"
     },
-    "Before": [],
-    "Main": [
-      {
-        "title": "Nothing runs a proof but a press — no scheduler, no watcher, no poll",
-        "namespace": {
-          "serviceId": "SystemViewCore",
-          "moduleName": "Proofs",
-          "methodName": "noProofRunner"
-        },
-        "args": [],
-        "savedEvaluations": [
-          {
-            "namespace": "results.filesScanned",
-            "expected_type": "number",
-            "validations": [],
-            "save": true
-          },
-          {
-            "namespace": "results.noSchedulerOrWatcher",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.hits",
-            "expected_type": "array",
-            "validations": [],
-            "save": true
-          }
-        ]
-      }
-    ],
-    "Events": [],
-    "After": []
-  }
+    "args": [],
+    "savedEvaluations": [
+     {
+      "namespace": "results.filesScanned",
+      "expected_type": "number",
+      "validations": [],
+      "save": true
+     },
+     {
+      "namespace": "results.noSchedulerOrWatcher",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.hits",
+      "expected_type": "array",
+      "validations": [],
+      "save": true
+     }
+    ]
+   }
+  ],
+  "Events": [],
+  "After": []
+ }
 ]

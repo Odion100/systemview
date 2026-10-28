@@ -1,92 +1,92 @@
 [
-  {
-    "title": "The bar's third axis: spec'd is a fraction of the BEHAVIOURAL claims, and met is untouched",
+ {
+  "title": "The bar's third axis: spec'd is a fraction of the BEHAVIOURAL claims, and met is untouched",
+  "namespace": {
+   "serviceId": "SystemViewCore",
+   "moduleName": "Proofs",
+   "methodName": "barAxes"
+  },
+  "Before": [],
+  "Main": [
+   {
+    "title": "hand the real counter a document of mixed claims and read every number the bar reports back",
     "namespace": {
-      "serviceId": "SystemViewCore",
-      "moduleName": "Proofs",
-      "methodName": "barAxes"
+     "serviceId": "SystemViewCore",
+     "moduleName": "Proofs",
+     "methodName": "barAxes"
     },
-    "Before": [],
-    "Main": [
-      {
-        "title": "The bar's third axis: spec'd is a fraction of the BEHAVIOURAL claims, and met is untouched",
-        "namespace": {
-          "serviceId": "SystemViewCore",
-          "moduleName": "Proofs",
-          "methodName": "barAxes"
-        },
-        "args": [],
-        "savedEvaluations": [
-          {
-            "namespace": "results.totalCountsEveryClaim",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.metCountsMarksOnly",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.uncheckedIsTheRemainder",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.behavioralExcludesTheExempt",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.specdDenominatorIsBehavioral",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.owedIsMarkedBehavioralWithoutASpec",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          }
-        ]
-      }
-    ],
-    "Events": [],
-    "After": []
-  }
+    "args": [],
+    "savedEvaluations": [
+     {
+      "namespace": "results.totalCountsEveryClaim",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.metCountsMarksOnly",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.uncheckedIsTheRemainder",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.behavioralExcludesTheExempt",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.specdDenominatorIsBehavioral",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.owedIsMarkedBehavioralWithoutASpec",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     }
+    ]
+   }
+  ],
+  "Events": [],
+  "After": []
+ }
 ]

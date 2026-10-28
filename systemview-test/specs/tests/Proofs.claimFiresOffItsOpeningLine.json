@@ -1,114 +1,114 @@
 [
-  {
-    "title": "A container claim marks and announces exactly like a leaf — one path, the opening line",
+ {
+  "title": "A container claim marks and announces exactly like a leaf — one path, the opening line",
+  "namespace": {
+   "serviceId": "SystemViewCore",
+   "moduleName": "Proofs",
+   "methodName": "claimFiresOffItsOpeningLine"
+  },
+  "Before": [],
+  "Main": [
+   {
+    "title": "drive the host's own parse-and-announce chain over a claim that has a proof, and read what it wrote and who it told",
     "namespace": {
-      "serviceId": "SystemViewCore",
-      "moduleName": "Proofs",
-      "methodName": "claimFiresOffItsOpeningLine"
+     "serviceId": "SystemViewCore",
+     "moduleName": "Proofs",
+     "methodName": "claimFiresOffItsOpeningLine"
     },
-    "Before": [],
-    "Main": [
-      {
-        "title": "A container claim marks and announces exactly like a leaf — one path, the opening line",
-        "namespace": {
-          "serviceId": "SystemViewCore",
-          "moduleName": "Proofs",
-          "methodName": "claimFiresOffItsOpeningLine"
-        },
-        "args": [],
-        "savedEvaluations": [
-          {
-            "namespace": "results.aMarkedContainerFires",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.summaryIsTheClaimAndItsState",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.unmetAnnouncesAsNotMet",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.audienceIsTheDocumentsMembers",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.uncheckedNeverFires",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.aCoveredBlockIsSilence",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.markLandsOnTheOpeningLine",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.theProofBodyIsUntouched",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          }
-        ]
-      }
-    ],
-    "Events": [],
-    "After": []
-  }
+    "args": [],
+    "savedEvaluations": [
+     {
+      "namespace": "results.aMarkedContainerFires",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.summaryIsTheClaimAndItsState",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.unmetAnnouncesAsNotMet",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.audienceIsTheDocumentsMembers",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.uncheckedNeverFires",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.aCoveredBlockIsSilence",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.markLandsOnTheOpeningLine",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.theProofBodyIsUntouched",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     }
+    ]
+   }
+  ],
+  "Events": [],
+  "After": []
+ }
 ]

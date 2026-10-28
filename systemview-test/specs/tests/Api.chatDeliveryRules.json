@@ -1,170 +1,170 @@
 [
-  {
-    "title": "RFC-031 delivery rules hold at the hub's door \u2014 in the FIXTURE's room, where no session is listening",
+ {
+  "title": "RFC-031 delivery rules hold at the hub's door — in the FIXTURE's room, where no session is listening",
+  "namespace": {
+   "serviceId": "SystemViewCore",
+   "moduleName": "Api",
+   "methodName": "chatDeliveryRules"
+  },
+  "Before": [],
+  "Main": [
+   {
+    "title": "check the fixture services are up, then relay a line into the fixture room as a throwaway visitor and watch who gets woken",
     "namespace": {
-      "serviceId": "SystemViewCore",
-      "moduleName": "Api",
-      "methodName": "chatDeliveryRules"
+     "serviceId": "SystemViewCore",
+     "moduleName": "Api",
+     "methodName": "chatDeliveryRules"
     },
-    "Before": [],
-    "Main": [
-      {
-        "title": "RFC-031 delivery rules hold at the hub's door \u2014 in the FIXTURE's room, where no session is listening",
-        "namespace": {
-          "serviceId": "SystemViewCore",
-          "moduleName": "Api",
-          "methodName": "chatDeliveryRules"
-        },
-        "args": [],
-        "savedEvaluations": [
-          {
-            "namespace": "results.fixturesRunning",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.why",
-            "expected_type": "string",
-            "validations": [
-              {
-                "name": "strEquals",
-                "value": ""
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.roomOwner",
-            "expected_type": "string",
-            "validations": [],
-            "save": true
-          },
-          {
-            "namespace": "results.visitorIdentity",
-            "expected_type": "string",
-            "validations": [],
-            "save": true
-          },
-          {
-            "namespace": "results.drainAnnouncesArrival",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.arrivalWakesNobody",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.homeHearsHuman",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.homeNeverHearsItself",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.homeHearsVisitor",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.visitorHearsHuman",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.visitorHearsHome",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.visitorNeverHearsItself",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.nobodyHearsCommands",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.nobodyHearsArrivals",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          }
-        ]
-      }
-    ],
-    "Events": [],
-    "After": []
-  }
+    "args": [],
+    "savedEvaluations": [
+     {
+      "namespace": "results.fixturesRunning",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.why",
+      "expected_type": "string",
+      "validations": [
+       {
+        "name": "strEquals",
+        "value": ""
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.roomOwner",
+      "expected_type": "string",
+      "validations": [],
+      "save": true
+     },
+     {
+      "namespace": "results.visitorIdentity",
+      "expected_type": "string",
+      "validations": [],
+      "save": true
+     },
+     {
+      "namespace": "results.drainAnnouncesArrival",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.arrivalWakesNobody",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.homeHearsHuman",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.homeNeverHearsItself",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.homeHearsVisitor",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.visitorHearsHuman",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.visitorHearsHome",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.visitorNeverHearsItself",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.nobodyHearsCommands",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.nobodyHearsArrivals",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     }
+    ]
+   }
+  ],
+  "Events": [],
+  "After": []
+ }
 ]

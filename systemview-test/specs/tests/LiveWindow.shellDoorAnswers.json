@@ -1,120 +1,120 @@
 [
-  {
-    "title": "The shell's own door answers about the live window \u2014 and the self-update hold is observable, not inferred",
+ {
+  "title": "The shell's own door answers about the live window — and the self-update hold is observable, not inferred",
+  "namespace": {
+   "serviceId": "SystemViewCore",
+   "moduleName": "LiveWindow",
+   "methodName": "shellDoorAnswers"
+  },
+  "Before": [],
+  "Main": [
+   {
+    "title": "ask the shell service about itself — its tabs, the bundle it is holding, and whether the corpora answer",
     "namespace": {
-      "serviceId": "SystemViewCore",
-      "moduleName": "LiveWindow",
-      "methodName": "shellDoorAnswers"
+     "serviceId": "SystemViewCore",
+     "moduleName": "LiveWindow",
+     "methodName": "shellDoorAnswers"
     },
-    "Before": [],
-    "Main": [
-      {
-        "title": "The shell's own door answers about the live window \u2014 and the self-update hold is observable, not inferred",
-        "namespace": {
-          "serviceId": "SystemViewCore",
-          "moduleName": "LiveWindow",
-          "methodName": "shellDoorAnswers"
-        },
-        "args": [],
-        "savedEvaluations": [
-          {
-            "namespace": "results.shellServiceReachable",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.why",
-            "expected_type": "string",
-            "validations": [
-              {
-                "name": "strEquals",
-                "value": ""
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.itAnswersAboutItsOwnTabs",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.theWindowIsOpen",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.theHoldIsObservable",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.itNamesWhatIsRunningAndWhatIsServed",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.theCorporaAreReachable",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.theDoctrineAnswersFromTheCorpus",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.openApps",
-            "expected_type": "array",
-            "validations": [],
-            "save": true
-          }
-        ]
-      }
-    ],
-    "Events": [],
-    "After": []
-  }
+    "args": [],
+    "savedEvaluations": [
+     {
+      "namespace": "results.shellServiceReachable",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.why",
+      "expected_type": "string",
+      "validations": [
+       {
+        "name": "strEquals",
+        "value": ""
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.itAnswersAboutItsOwnTabs",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.theWindowIsOpen",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.theHoldIsObservable",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.itNamesWhatIsRunningAndWhatIsServed",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.theCorporaAreReachable",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.theDoctrineAnswersFromTheCorpus",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.openApps",
+      "expected_type": "array",
+      "validations": [],
+      "save": true
+     }
+    ]
+   }
+  ],
+  "Events": [],
+  "After": []
+ }
 ]

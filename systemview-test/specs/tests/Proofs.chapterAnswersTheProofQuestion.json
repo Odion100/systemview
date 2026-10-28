@@ -1,114 +1,114 @@
 [
-  {
-    "title": "The chapter answers how to leave a proof — the sequence and the approach, indexed",
+ {
+  "title": "The chapter answers how to leave a proof — the sequence and the approach, indexed",
+  "namespace": {
+   "serviceId": "SystemViewCore",
+   "moduleName": "Proofs",
+   "methodName": "chapterAnswersTheProofQuestion"
+  },
+  "Before": [],
+  "Main": [
+   {
+    "title": "read the chapter off disk and look for each part the claim promises — the two sections by heading, the sequence, the three approach items",
     "namespace": {
-      "serviceId": "SystemViewCore",
-      "moduleName": "Proofs",
-      "methodName": "chapterAnswersTheProofQuestion"
+     "serviceId": "SystemViewCore",
+     "moduleName": "Proofs",
+     "methodName": "chapterAnswersTheProofQuestion"
     },
-    "Before": [],
-    "Main": [
-      {
-        "title": "The chapter answers how to leave a proof — the sequence and the approach, indexed",
-        "namespace": {
-          "serviceId": "SystemViewCore",
-          "moduleName": "Proofs",
-          "methodName": "chapterAnswersTheProofQuestion"
-        },
-        "args": [],
-        "savedEvaluations": [
-          {
-            "namespace": "results.theProofSectionExists",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.theApproachSectionExists",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.theSequenceIsSaid",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.theProofIsForTheHuman",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.theLiveSystemIsTheFixture",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.aClaimThatResistsIsAFinding",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.readableFirst",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.theCorpusCoversTheChapter",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          }
-        ]
-      }
-    ],
-    "Events": [],
-    "After": []
-  }
+    "args": [],
+    "savedEvaluations": [
+     {
+      "namespace": "results.theProofSectionExists",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.theApproachSectionExists",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.theSequenceIsSaid",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.theProofIsForTheHuman",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.theLiveSystemIsTheFixture",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.aClaimThatResistsIsAFinding",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.readableFirst",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.theCorpusCoversTheChapter",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     }
+    ]
+   }
+  ],
+  "Events": [],
+  "After": []
+ }
 ]

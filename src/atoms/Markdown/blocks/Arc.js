@@ -13,7 +13,7 @@ import LifecycleTrail from "./lifecycle";
 // here, because the question a milestone is reached for — *where are we* — is already answered by
 // how many objectives are done, and the ordering it usually stands in for is a property of an
 // objective (`needs`) rather than a box drawn around a group of them.
-const Arc = ({ attrs = {} }) => {
+const Arc = ({ attrs = {}, line }) => {
   // Counted from the WHOLE document — a leaf block has no slice of its own to count, and the
   // objectives it is counting sit below it rather than inside it.
   const { source = "" } = useDocMembers() || {};
@@ -35,7 +35,7 @@ const Arc = ({ attrs = {} }) => {
       {/* RFC-075 — the lifecycle, from the registry: open → done → retired. The count above is this
           document's own parse; the trail is the system's. Both drawn, because they can disagree —
           and a disagreement is a stale row saying so. */}
-      <LifecycleTrail kind="arc" id={attrs.id} />
+      <LifecycleTrail kind="arc" id={attrs.id} line={line} attrs={attrs} />
     </div>
   );
 };

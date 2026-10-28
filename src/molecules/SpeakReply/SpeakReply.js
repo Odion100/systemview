@@ -124,57 +124,17 @@ const SpeakReply = ({ text, className = "", rowKey = "", ts = 0 }) => {
     if (typeof document !== "undefined" && document.hidden) return;
     // `all` is the whole reply, which is exactly what passing no sieve means.
     const only = s.mode === "all" ? null : s.blocks === null ? AIMED_AT_YOU : s.blocks;
-    const { text: body, chunks: positions } = spokenPositions(text, only ? { only } : {});
-    if (!body) return;
-    // IT JOINS THE LINE. This used to call `speak()` directly, which cancels whatever is talking —
-    // correct for a press, wrong for a reply that simply ARRIVED. A long answer was reliably cut
-    // off by the next one, and there was no way to get it back.
-    enqueue({
-      key: rowKey,
-      scope: projectCode, // STAMPED, like every other path — an unstamped reading is drawn by no bot
-      label: body.replace(/\s+/g, " ").slice(0, 70),
-      start: () => {
-        const token = (seq.current += 1);
-        claim(id);
-        setSpeaking(true);
-        setWarming(!engineReady());
-        queueWarming(rowKey, !engineReady());
-        announce(true);
-        handle.current = speak(body, {
-          // THE SCOPE IS PASSED, NEVER LEFT AMBIENT. `voice.js` falls back to reading the saved
-          // voice and speed itself, and it has no way to know which chat is asking — so a scoped
-          // caller must say. Leaving it out is how a per-chat setting silently becomes global.
-          preferId: readVoicePref(projectCode),
-          rate: s.speed,
-          onposition: (p) => {
-            if (seq.current !== token) return;
-            setAt(p);
-            queuePosition(rowKey, { ...p, ...(positions[p.index] || {}) });
-          },
-          onstart: () => {
-              if (seq.current !== token) return;
-              setWarming(false);
-              queueWarming(rowKey, false);
-            },
-          onend: (err) => {
-            // THE LINE MOVES ON EVEN WHEN THIS ONE FAILED — a queue that only advances on success
-            // stops dead at the first reply the engine could not load, and everything behind it
-            // is silently lost.
-            queueDone(rowKey);
-            if (seq.current !== token) return;
-            handle.current = null;
-            if (isOwner(id)) {
-              setSpeaking(false);
-              setWarming(false);
-              setAt(null);
-              announce(false);
-            }
-            if (err) setFailed(String((err && err.message) || "the voice could not load"));
-          },
-        });
-        return handle.current;
-      },
-    });
+    // AND IT PLAYS THE SAME SEGMENTS THE PRESS DOES. This used to build its own queue item around
+    // one flat `spokenPositions(text)` body — so a reply carrying `::file{voice}` read its prose,
+    // skipped the document without a sound, and continued with the text after it. Measured
+    // 2026-10-27, on a reply whose whole point was the document: fetch fine, passage fine (3080
+    // chars), and silence, because the arrival path never asked for segments. `listenItem` is the
+    // one description of how this row talks; the sieve rides into it.
+    const segs = recitalSegments(text, only ? { only } : {});
+    // AN EMPTY SELECTION IS STILL SILENCE — a sieve that leaves no prose and no voiced file says
+    // nothing and touches no state, which is what makes "read me nothing" expressible.
+    if (!segs.some((g) => g.kind === "file" || (g.text && g.text.trim()))) return;
+    enqueue(listenItem(only));
     // Mount only: a row is considered once, and `takeIfNew` enforces that even if React disagrees.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -182,12 +142,20 @@ const SpeakReply = ({ text, className = "", rowKey = "", ts = 0 }) => {
   // ONE DESCRIPTION OF HOW THIS ROW TALKS, used by the press and by the reading window that fills
   // the line behind it. Two copies would drift the first time either changed, which is the same
   // reason `speaker.js` and `speechQueue.js` each exist once.
-  const listenItem = useCallback(() => {
+  // `only` IS WHY THIS TAKES AN ARGUMENT. The press reads the whole reply; an ARRIVAL reads only
+  // the blocks he ticked — and the arrival path used to hand-roll its own player to apply that
+  // sieve, which is how it drifted: it spoke `spokenPositions(text)` as one flat body and therefore
+  // DROPPED every `::file{voice}` passage, silently, while the press beside it read them. The file
+  // says the intent two hundred lines up ("on arrival AND on this press"), so the fix is one
+  // description with the sieve threaded through it rather than a second copy that forgets files.
+  const listenItem = useCallback((only = null) => {
     const chat = readVoiceSettings(projectCode);
+    const view = only ? spokenPositions(text, { only }) : recital;
+    const segs = only ? recitalSegments(text, { only }) : segments;
     return {
         key: rowKey,
         scope: projectCode, // whose reading this is — the chat's own line draws only its own
-        label: String(spoken || "").replace(/\s+/g, " ").slice(0, 70),
+        label: String(view.text || "").replace(/\s+/g, " ").slice(0, 70),
         start: () => {
           const token = (seq.current += 1);
           claim(id);
@@ -214,8 +182,8 @@ const SpeakReply = ({ text, className = "", rowKey = "", ts = 0 }) => {
           // the rows lined up behind see one reply, and stopping stops whichever part is talking.
           const playFrom = (i) => {
             if (seq.current !== token) return;
-            if (i >= segments.length) return finish();
-            const seg = segments[i];
+            if (i >= segs.length) return finish();
+            const seg = segs[i];
             if (seg.kind === "file") {
               (async () => {
                 try {
@@ -262,14 +230,14 @@ const SpeakReply = ({ text, className = "", rowKey = "", ts = 0 }) => {
             });
           };
           // One segment and no files is yesterday's reply, spoken exactly as before.
-          if (segments.length === 1 && segments[0].kind === "say") {
-            handle.current = speak(spoken, {
+          if (segs.length === 1 && segs[0].kind === "say") {
+            handle.current = speak(view.text, {
               preferId: readVoicePref(projectCode),
               rate: chat.speed,
               onposition: (p) => {
                 if (seq.current !== token) return;
                 setAt(p);
-                queuePosition(rowKey, { ...p, ...(recital.chunks[p.index] || {}) });
+                queuePosition(rowKey, { ...p, ...(view.chunks[p.index] || {}) });
               },
               onstart: () => {
                 if (seq.current !== token) return;
@@ -301,12 +269,13 @@ const SpeakReply = ({ text, className = "", rowKey = "", ts = 0 }) => {
           };
         },
       };
-  }, [id, rowKey, spoken, recital, segments, projectCode]);
+  }, [id, rowKey, text, recital, segments, projectCode]);
 
   // A REPLY SAYS HOW IT SPEAKS, so the row he pressed can queue the ones after it without any of
   // them being mounted differently. Unregistering on unmount keeps a row that left the render from
   // being queued as though it were still there.
-  useEffect(() => register(rowKey, listenItem), [rowKey, listenItem]);
+  // Wrapped, so a caller that hands its own argument to this cannot accidentally sieve a press.
+  useEffect(() => register(rowKey, () => listenItem(null)), [rowKey, listenItem]);
 
   const press = useCallback(
     (e) => {

@@ -1,93 +1,93 @@
 [
-  {
-    "title": "The lifecycle trail has a real row behind it — this document is in the registry and the station derives",
+ {
+  "title": "The lifecycle trail has a real row behind it — this document is in the registry and the station derives",
+  "namespace": {
+   "serviceId": "SystemViewCore",
+   "moduleName": "Proofs",
+   "methodName": "registryLightsThisDocument"
+  },
+  "Before": [],
+  "Main": [
+   {
+    "title": "ask the live registry for this document's own row and read the stage it derives",
     "namespace": {
-      "serviceId": "SystemViewCore",
-      "moduleName": "Proofs",
-      "methodName": "registryLightsThisDocument"
+     "serviceId": "SystemViewCore",
+     "moduleName": "Proofs",
+     "methodName": "registryLightsThisDocument"
     },
-    "Before": [],
-    "Main": [
-      {
-        "title": "The lifecycle trail has a real row behind it — this document is in the registry and the station derives",
-        "namespace": {
-          "serviceId": "SystemViewCore",
-          "moduleName": "Proofs",
-          "methodName": "registryLightsThisDocument"
-        },
-        "args": [],
-        "savedEvaluations": [
-          {
-            "namespace": "results.theRowExists",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.itIsAnRfc",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.itPointsAtThisFile",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.itsStateCameFromTheParse",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.theDerivedStationIsOneOfTheKinds",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.station",
-            "expected_type": "string",
-            "validations": [],
-            "save": true
-          },
-          {
-            "namespace": "results.stubbed",
-            "expected_type": "array",
-            "validations": [],
-            "save": true
-          }
-        ]
-      }
-    ],
-    "Events": [],
-    "After": []
-  }
+    "args": [],
+    "savedEvaluations": [
+     {
+      "namespace": "results.theRowExists",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.itIsAnRfc",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.itPointsAtThisFile",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.itsStateCameFromTheParse",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.theDerivedStationIsOneOfTheKinds",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.station",
+      "expected_type": "string",
+      "validations": [],
+      "save": true
+     },
+     {
+      "namespace": "results.stubbed",
+      "expected_type": "array",
+      "validations": [],
+      "save": true
+     }
+    ]
+   }
+  ],
+  "Events": [],
+  "After": []
+ }
 ]

@@ -1,125 +1,125 @@
 [
-  {
-    "title": "The project serves its own chat room \u2014 found by who answers, not by who claims",
+ {
+  "title": "The project serves its own chat room — found by who answers, not by who claims",
+  "namespace": {
+   "serviceId": "SystemViewCore",
+   "moduleName": "Api",
+   "methodName": "chatPluginRoom"
+  },
+  "Before": [],
+  "Main": [
+   {
+    "title": "check the fixtures are up, then write to the fixture room through the plugin and read it back in order",
     "namespace": {
-      "serviceId": "SystemViewCore",
-      "moduleName": "Api",
-      "methodName": "chatPluginRoom"
+     "serviceId": "SystemViewCore",
+     "moduleName": "Api",
+     "methodName": "chatPluginRoom"
     },
-    "Before": [],
-    "Main": [
-      {
-        "title": "The project serves its own chat room \u2014 found by who answers, not by who claims",
-        "namespace": {
-          "serviceId": "SystemViewCore",
-          "moduleName": "Api",
-          "methodName": "chatPluginRoom"
-        },
-        "args": [],
-        "savedEvaluations": [
-          {
-            "namespace": "results.fixturesRunning",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.why",
-            "expected_type": "string",
-            "validations": [
-              {
-                "name": "strEquals",
-                "value": ""
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.moduleReachable",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.startsEmpty",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.appendsLand",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.readsBackInOrder",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.sinceFilters",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.cursorStaysRetired",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.roomIsListed",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          }
-        ]
-      }
-    ],
-    "Events": [],
-    "After": []
-  }
+    "args": [],
+    "savedEvaluations": [
+     {
+      "namespace": "results.fixturesRunning",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.why",
+      "expected_type": "string",
+      "validations": [
+       {
+        "name": "strEquals",
+        "value": ""
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.moduleReachable",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.startsEmpty",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.appendsLand",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.readsBackInOrder",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.sinceFilters",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.cursorStaysRetired",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.roomIsListed",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     }
+    ]
+   }
+  ],
+  "Events": [],
+  "After": []
+ }
 ]

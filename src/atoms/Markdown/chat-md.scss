@@ -149,14 +149,23 @@
     max-width: 100%;
     overflow-x: auto;
   }
-  // THE TABLE IS ITS CONTENT'S WIDTH; THE WRAP IS THE BUBBLE'S. `.chat-md__block table { max-width:
-  // 100% }` was compressing every table into the bubble, and the first column — short labels, often
-  // under an empty header — paid for it with one word per line (his report, 2026-10-26). The wrap
-  // already scrolls; a genuinely wide table scrolls inside it, and no column is ever squeezed below
-  // its content.
+  // A ROW HAS A MAX AND A MIN, AND IT NEEDS BOTH (his, 2026-10-27). This has now been wrong in both
+  // directions. `max-width: 100%` compressed every table into the bubble and crushed short-label
+  // columns to one word per line; the fix for that was `width: max-content; max-width: none`, which
+  // removed the max entirely — so a cell holding a sentence stretched to the whole sentence and
+  // nothing ever wrapped: *"the table in the chat stretches out too far and does not do any
+  // wrapping."*
+  //
+  // THE MAX is the bubble: the table may not be wider, so long cells have to wrap downward.
+  // THE MIN is on the cells: a column may not be squeezed below a readable width, which is what
+  // caused the one-word-per-line crush.
+  //
+  // When the minimums together exceed the bubble — many columns, or very long unbreakable tokens —
+  // the WRAPPER scrolls, which it already does. So the order is: wrap first, scroll only once
+  // wrapping would make a column unreadable.
   .chat-md__tablewrap .chat-md__table {
-    width: max-content;
-    max-width: none;
+    width: 100%;
+    max-width: 100%;
   }
   .chat-md__table {
     border-collapse: collapse;
@@ -179,6 +188,13 @@
       // could not break and every table with prose became a sideways scroll in a narrow bubble —
       // the single biggest reason these were hard to read.
       white-space: normal;
+      // THE MINIMUM. Without it, `max-width: 100%` on the table above squeezes a short-label column
+      // down to one word per line to give a prose column room. 7em is about four or five words —
+      // below that a column stops being scannable, which is the only reason a table is a table.
+      min-width: 7em;
+      // A long path or namespace has no spaces to break on and would push the table past its max on
+      // its own, undoing the wrapping for the whole row.
+      overflow-wrap: anywhere;
     }
     th {
       // 700 was shouting; the rule under the header is what says "header".

@@ -50,7 +50,10 @@ export default function Argument(
           // Embedded tv(...) — substring-replace inside the string it rides in; a placeholder spot
           // (empty/0/null — nothing to substring) takes the resolved value directly.
           const resolved = getTargetValue(nsp.substring(3, nsp.length - 1));
-          placeholder[key] = hasTargetValue ? value.trim().replace(nsp, resolved) : resolved;
+          // THEN THE FUNCTIONS. A reference substituted into a host string may leave a string
+          // function waiting to evaluate — `add(tv(…), 1)` becomes `add(22, 1)` and still needs
+          // adding up. The old chain stopped here, so the function never got its second pass.
+          placeholder[key] = hasTargetValue ? strFn(value.trim().replace(nsp, resolved)) : resolved;
         } else if (isTargetNamespace(nsp)) {
           placeholder[key] = getTargetValue(nsp);
         } else {

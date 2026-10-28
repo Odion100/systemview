@@ -7,16 +7,21 @@ import {
   switchArrayIndices,
   isTargetValueFn,
   resolveTargetValue,
+  resolveValueString,
 } from "../../organisms/TestPanel/components/test-helpers";
 
 // RFC-020 — an evaluation's expected `value` may itself be a `tv(...)` reference to another step's saved
 // result, resolved by the SAME resolver an arg targetValue uses. `resolveRef` is optional (only present
 // when the Test carries a FullTest) and only rewrites a validation whose value is a tv() string.
+// AN EVALUATION'S VALUE GOES THROUGH THE SAME PIPELINE AN ARGUMENT DOES — references resolved, then
+// string functions. It used to replace the value ONLY when the whole thing was a single `tv(...)`,
+// which meant `add(tv(steps[1].results.total), 1)` never resolved its operand, and `date()` in an
+// assertion had been dead since the day there were two string functions to compose.
 const resolveValidations = (validations, resolveRef) =>
   resolveRef
     ? validations.map((v) =>
-        typeof v.value === "string" && isTargetValueFn(v.value)
-          ? { ...v, value: resolveRef(v.value) }
+        typeof v.value === "string"
+          ? { ...v, value: resolveValueString(v.value, (inner) => resolveRef(`tv(${inner})`)) }
           : v
       )
     : validations;

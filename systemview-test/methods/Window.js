@@ -174,4 +174,39 @@ module.exports = {
       cases: run.tests || 0,
     };
   },
+
+  // THE STATION IS A PRESS, and these are the named cases that pin it. Written for the claim about
+  // clicking the lifecycle: a press must WRITE THE DECLARATION INTO THE DOCUMENT (no second state
+  // store), going back must CLEAR it, a station a press cannot reach must say where the state comes
+  // from instead of sitting dead, and the LEAF must beat the registry row — which is the defect he
+  // found by changing the file and watching the trail not move.
+  async lifecyclePress() {
+    const control = jest("blocks/lifecycle\\.test");
+    const law = jest("blocks/lifecycleState\\.test");
+    const writer = jest("Markdown/attrBag\\.test");
+    return {
+      suitesProducedResults:
+        (control.tests || 0) > 0 && (law.tests || 0) > 0 && (writer.tests || 0) > 0,
+      failed: (control.failed || 0) + (law.failed || 0) + (writer.failed || 0),
+      whyNot: control.why || law.why || writer.why || "",
+      // the press writes the document, and writes it on the leaf's own line
+      writesTheDeclarationOntoTheLeafsLine: passed(control, "writes the declaration onto the leaf"),
+      goingBackClearsItRatherThanStoringAState: passed(control, "going BACK clears the declaration"),
+      builtAppendsTheStatusHeading: passed(control, "appends the STATUS heading"),
+      // no dead controls
+      anUnreachableStationSaysWhereTheStateComesFrom: passed(control, "REFUSED and says where from"),
+      anArcsDoneIsRefused: passed(control, "an arc's done is refused"),
+      aReadOnlySurfaceDrawsNoControls: passed(control, "draws plain text, not controls"),
+      // HIS DEFECT: the row is a cache, the leaf is the document on screen
+      theLeafBeatsAStaleRegistryRow: passed(control, "draws the station the LEAF says"),
+      andThePressStillWritesAgainstAStaleRow: passed(control, "pressing settled WRITES"),
+      anAbsentAttributeDeclaresFalseNotNothing: passed(law, "declares FALSE, not nothing"),
+      // the writer every press walks through — untestable until it was moved out of Markdown.js
+      theWriterLandsInTheBracesAtTheEndOfTheLine: passed(writer, "braces at the END of the line"),
+      theWriterIgnoresAKeyInsideAQuotedValue: passed(writer, "inside a QUOTED value"),
+      aNullValueRemovesTheAttribute: passed(writer, "a null value REMOVES the attribute"),
+      theWriteTouchesThatLineAndNothingElse: passed(writer, "touches the leaf line and nothing else"),
+      cases: (control.tests || 0) + (law.tests || 0) + (writer.tests || 0),
+    };
+  },
 };
