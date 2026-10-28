@@ -1,4 +1,7 @@
-import { deriveArc, objectiveState, pressLine } from "./derive";
+// `derive.js` was a SECOND derivation of the arc rule and RFC-076 §7 ordered it deleted, not
+// updated. These same claims now hold against `arcDemo`, whose station comes from `stateOf` — the
+// one definition the real trail draws with — so a drift here is a drift in the real thing.
+import { arcDemo as deriveArc, objectiveState, pressLine } from "./HowWeWork";
 
 const O = (id, settled = []) => ({
   id,

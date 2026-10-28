@@ -50,8 +50,11 @@ describe("parseClaims — the number is the place in the document", () => {
 });
 
 describe("claimsOf — the count is derived", () => {
-  it("counts met, not met, and unchecked separately — unchecked is never folded into either", () => {
-    expect(claimsOf(DOC)).toMatchObject({ total: 4, met: 1, unmet: 1, unchecked: 2 });
+  // MET IS MARKED AND PROVED — the registry row's own conjunction, mirrored, because the window
+  // once said 4/7 met over a row that honestly said 2. DOC's marked claim is a bare leaf: no body,
+  // nowhere for evidence to live, so it is UNPROVED and the bar says so instead of folding it in.
+  it("counts met, not met, unproved and unchecked separately — a bare mark is never met", () => {
+    expect(claimsOf(DOC)).toMatchObject({ total: 4, met: 0, unproved: 1, unmet: 1, unchecked: 2 });
   });
   it("an empty document has no claims, not a 100%", () => {
     expect(claimsOf("")).toMatchObject({ total: 0, met: 0, unmet: 0, unchecked: 0 });
@@ -79,7 +82,9 @@ describe("the container form — one claim, two or more colons", () => {
     const c = parseClaims(PROOFED);
     expect(c.map((x) => x.id)).toEqual(["c1", "c2", "c3"]);
     expect(c[1]).toMatchObject({ state: "met", by: "you", note: "saw it" });
-    expect(claimsOf(PROOFED)).toMatchObject({ total: 3, met: 1 });
+    // c2's body is prose, not a proof block — marked by the human, and still unproved until
+    // something pressable sits in the fold. The mark is his word; met is his word plus evidence.
+    expect(claimsOf(PROOFED)).toMatchObject({ total: 3, met: 0, unproved: 1 });
   });
 
   it("a quoted note naming an attribute is prose, never the attribute — the bag is tokenized", () => {
@@ -120,7 +125,12 @@ describe("the reviewed count — a mark alone never reads as done", () => {
       "::claim[e]{id=c5}",                                                       // unchecked is never reviewed
     ].join("\n");
     const c = claimsOf(DOC2);
-    expect(c.met).toBe(4);
+    // None of the four carries evidence, so none is MET — and c1 is an agent's mark with no note,
+    // which never counted as a mark at all (RFC-075): it is UNCHECKED, not unproved. Reviewed stays
+    // its own axis: a signature says who looked, a proof says what they looked at.
+    expect(c.met).toBe(0);
+    expect(c.unproved).toBe(3);
+    expect(c.unchecked).toBe(2);
     expect(c.reviewed).toBe(2);
     expect(c.claims.map((x) => x.reviewed)).toEqual([false, true, false, true, false]);
   });

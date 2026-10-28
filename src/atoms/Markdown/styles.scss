@@ -3446,6 +3446,11 @@
 .md-arc {
   display: flex;
   align-items: center;
+  // WRAPS, SO ANYTHING THAT OPENS GETS ITS OWN ROW. The leaf is one bar and the bar must not move:
+  // a refusal, a reason menu or a facilitation step list is a `__panel` with `flex-basis: 100%`,
+  // which drops it to a full-width line underneath instead of competing with the stations for the
+  // bar's width and shoving the identity sideways.
+  flex-wrap: wrap;
   gap: 8px;
   margin: 8px 0;
   padding: 6px 10px;
@@ -3511,6 +3516,11 @@
     // reference wears, because "this will not continue" is one idea.
     &--dead.md-arc__station--now { color: #a2503f; border-color: #a2503f; }
 
+    // RFC-076 §4.5 — A FORK IS NOT A SEQUENCE. A gap's two endings are alternatives, so the mark
+    // between them is "/" and not the chevron: `open › resolved / rejected › retired` reads as one
+    // choice, while four chevrons would claim a document passes through both.
+    &--alt::before { content: "/" !important; }
+
     // PRESSABLE, where the document can be written. A station is a button now (his: *"just give me
     // the ability to click and change it"*) and it has to stay a station to look at — the chrome of
     // a real button in a row of five would read as a toolbar, not a trail.
@@ -3532,13 +3542,84 @@
     }
   }
 
+  // EVERYTHING THAT OPENS LIVES HERE, in a row of its own under the bar. One container for the
+  // refusal, the reason menu and the facilitation steps, because they are all the same thing from
+  // the bar's point of view: a second line that appeared, which must never cost the first one a
+  // pixel. `flex-basis: 100%` is what makes the parent's wrap drop it onto its own line.
+  &__panel {
+    flex: 0 0 100%;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid var(--sv-border-soft, var(--sv-border));
+  }
+
+  // The reason menu — what the retire gate became. The control always lets you press and asks why,
+  // and the words it offers are narrowed by where you stand, so it reads as a question not a toolbar.
+  &__why {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 3px;
+  }
+  &__why-ask {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--sv-text-faint);
+  }
+  &__why-pick {
+    appearance: none;
+    background: none;
+    font: inherit;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 1px 6px;
+    border-radius: 999px;
+    cursor: pointer;
+    border: 1px solid var(--sv-line, #3a3a3a);
+    color: var(--sv-text-faint);
+
+    // ENDINGS AND PAUSES LOOK DIFFERENT, because they do different things to the lists and that is
+    // the only thing you need to know while choosing. An ending takes the document out; a pause
+    // keeps it, showing this word. Same shape, so neither reads as the default.
+    &--ending:hover { color: #a2503f; border-color: #a2503f; }
+    &--pause:hover { color: var(--sv-blue, #4a7bd0); border-color: var(--sv-blue, #4a7bd0); }
+    &--off {
+      border-color: transparent;
+      &:hover { color: var(--sv-text, #ddd); border-color: var(--sv-line, #3a3a3a); }
+    }
+    &:focus-visible { outline: 1px solid var(--sv-blue, #4a7bd0); outline-offset: 1px; }
+  }
+  // Only one reason needs a pointer, so the field is narrow and unlabelled until it is used.
+  &__why-ptr {
+    font: inherit;
+    font-size: 10px;
+    width: 104px;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: none;
+    border: 1px solid var(--sv-line, #3a3a3a);
+    color: var(--sv-text, #ddd);
+    &::placeholder { color: var(--sv-text-faint); text-transform: lowercase; }
+    &:focus-visible { outline: 1px solid var(--sv-blue, #4a7bd0); outline-offset: 1px; }
+    // A gap's rejection reason is a sentence, not an id — it needs the room to be one.
+    &--wide { width: 180px; }
+  }
+
   // A REFUSAL IS SHOWN, NEVER SWALLOWED. `approved` comes from the approval block's verdict and an
   // arc's `done` from its objectives — pressing those says where the state comes from instead of
   // doing nothing, which is the one thing a control must never do.
   &__refused {
     font-size: 10px;
-    margin-left: 6px;
     color: #a2503f;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
   }
   // The arc leaf already pushes its own count to the right; the trail joins it rather than
   // fighting it for the margin.

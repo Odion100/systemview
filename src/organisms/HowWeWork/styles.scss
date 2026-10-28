@@ -88,12 +88,41 @@
   --hww-derived: #3fb795;
 }
 
-// ── the hero ──────────────────────────────────────────────────────────────────────────────────
-.hww-hero {
+// ── the top section ───────────────────────────────────────────────────────────────────────────
+// IT DOES NOT MOVE. Every page's header occupies the same grid cell, so the area is as tall as the
+// tallest header at this width whatever tab is showing — a switch swaps the words, never the
+// layout. The art is drawn once, behind whichever header is visible.
+.hww-heads {
   position: relative;
-  max-width: 980px;
-  margin: 0 auto;
-  padding: 44px 28px 26px;
+  display: grid;
+  overflow: hidden; // a header sliding out must not widen the page
+
+  // A SLIDER, NOT A FADE (his call, after seeing the crossfade read as "fading and coming back").
+  // No opacity anywhere: travel right and the new header rides in from the right while the old one
+  // is PUSHED out to the left, full width, like a slider because it is one — you can also drag the
+  // top section itself to change the tab. The out-states are static transforms with the animation
+  // describing only the journey, so reduced motion (killed page-wide below) lands everything in
+  // the right place instantly instead of leaving two headers stacked.
+  cursor: grab;
+  touch-action: pan-y;
+  user-select: none;
+  &:active { cursor: grabbing; }
+
+  > .hww-hero {
+    grid-area: 1 / 1;
+
+    &:not(.is-at) { pointer-events: none; }
+    &.is-at.is-from-right { animation: hww-head-in-right 0.38s ease; }
+    &.is-at.is-from-left { animation: hww-head-in-left 0.38s ease; }
+    &.is-out-right {
+      transform: translateX(-100%);
+      animation: hww-head-out-right 0.38s ease;
+    }
+    &.is-out-left {
+      transform: translateX(100%);
+      animation: hww-head-out-left 0.38s ease;
+    }
+  }
 
   &__art {
     position: absolute;
@@ -104,6 +133,14 @@
 
     svg { width: 100%; height: 100%; display: block; }
   }
+}
+
+.hww-hero {
+  position: relative;
+  width: 100%;
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 44px 28px 26px;
   &__path {
     fill: none;
     stroke: var(--sv-border);
@@ -144,10 +181,56 @@
     border-left: 2px solid var(--sv-border);
     padding-left: 10px;
   }
+  &__kicker {
+    position: relative;
+    margin-top: 10px;
+    font-size: 10.5px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--sv-text-faint);
+  }
+  // THE LINKS ROW — the header's "nice link looking stuff". They LOOK like links and are buttons,
+  // because each goes somewhere inside the app (another tab, a help topic) and a real <a> would
+  // promise a URL this window does not have.
+  &__links {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 18px;
+    margin-top: 12px;
+  }
+  &__link {
+    font: inherit;
+    font-size: 12px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--sv-blue);
+    cursor: pointer;
+
+    span { opacity: 0.7; }
+    &:hover { text-decoration: underline; }
+  }
 }
 @keyframes hww-stream {
   from { stroke-dashoffset: 270; }
   to { stroke-dashoffset: 0; }
+}
+@keyframes hww-head-in-right {
+  from { transform: translateX(100%); }
+  to { transform: none; }
+}
+@keyframes hww-head-in-left {
+  from { transform: translateX(-100%); }
+  to { transform: none; }
+}
+@keyframes hww-head-out-right {
+  from { transform: none; }
+  to { transform: translateX(-100%); }
+}
+@keyframes hww-head-out-left {
+  from { transform: none; }
+  to { transform: translateX(100%); }
 }
 
 // ── the chapter strip ─────────────────────────────────────────────────────────────────────────
@@ -185,51 +268,13 @@
   }
 }
 
-// ── a section ─────────────────────────────────────────────────────────────────────────────────
-.hww-sec {
+// ── a page body — the part that switches under the tabs ──────────────────────────────────────
+.hww-page {
   max-width: 980px;
   margin: 0 auto;
-  padding: 40px 28px 8px;
-  scroll-margin-top: 58px;
+  padding: 28px 28px 8px;
 
   &--wide { max-width: 1140px; }
-
-  &__head {
-    display: flex;
-    gap: 14px;
-    align-items: flex-start;
-    margin-bottom: 20px;
-  }
-  &__n {
-    flex: 0 0 auto;
-    width: 26px;
-    height: 26px;
-    margin-top: 12px;
-    border-radius: 50%;
-    border: 1px solid var(--sv-border);
-    display: grid;
-    place-items: center;
-    font-size: 11.5px;
-    color: var(--sv-text-muted);
-  }
-  &__kicker {
-    font-size: 10.5px;
-    letter-spacing: 1.2px;
-    text-transform: uppercase;
-    color: var(--sv-text-faint);
-  }
-  &__title {
-    margin: 2px 0 8px;
-    font-size: 21px;
-    line-height: 1.3;
-    font-weight: 600;
-    color: var(--sv-text-strong);
-  }
-  &__lede {
-    margin: 0;
-    max-width: 78ch;
-    color: var(--sv-text);
-  }
 }
 .hww-sub {
   margin: 34px 0 12px;
@@ -1160,4 +1205,22 @@
   .hww-door {
     box-shadow: none;
   }
+}
+
+// The one door that RUNS — same family as the copy button, and its output is a small terminal
+// readout rather than a toast, because an exit code is the honest half of "it ran".
+.hww-btn--run {
+  margin-left: 6px;
+}
+.hww-door__out {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--sv-inset);
+  border: 1px solid var(--sv-border);
+  font-size: 11px;
+  line-height: 1.5;
+  max-height: 180px;
+  overflow: auto;
+  white-space: pre-wrap;
 }

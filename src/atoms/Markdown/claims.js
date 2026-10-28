@@ -76,6 +76,18 @@ export const normalizeKind = (raw) => {
 // pinned case suffices is a reviewer's call and not a parser's.
 const SPEC_BLOCK = /^\s*:{2,}(test|run)\b/;
 
+// WHAT COUNTS AS PROOF FOR BEING MET — the HOST's vocabulary (`PROOF_KINDS` in autobot's
+// blocks.cjs), mirrored exactly, because the registry row and this bar answer the same question
+// about the same document and the window read `4/7 met` while the row said 2. Marked is not met: a
+// claim is met when it is marked met AND it carries the proof its kind owes inside its own body —
+// a SPEC (test/run/cmd — something that presses and answers) for a behavioural claim, and for an
+// experiential one any evidence at all, SHOWN included (a picture is evidence the eye settles).
+// `cmd` counts HERE and not in SPEC_BLOCK above, because these are different questions: met asks
+// "is there evidence in the fold", spec'd asks "does the change loop defend it without anybody
+// remembering to" — and a cmd is pressable evidence nothing re-runs on its own.
+const PROOF_SPEC = /^\s*:{2,}(test|run|cmd)\b/;
+const PROOF_SHOWN = /^\s*:{2,}(image|file|diff|logs|branch)\b/;
+
 /**
  * Every `::claim` in a document, in the order written — which IS its number — with the line it sits
  * on so a press knows where to write back.
@@ -97,14 +109,22 @@ export function parseClaims(source) {
     // ambiguity to resolve. A leaf (`::claim`) has no body and carries no spec by construction.
     const fence = ((/^\s*(:+)/.exec(lines[i]) || [, ""])[1] || "").length;
     let hasSpec = false;
+    let proofSpec = false;
+    let proofShown = false;
     if (fence >= 3) {
       const close = new RegExp(`^\\s*:{${fence}}\\s*$`);
       for (let j = i + 1; j < lines.length; j += 1) {
         if (close.test(lines[j])) break;
-        if (SPEC_BLOCK.test(lines[j])) { hasSpec = true; break; }
+        if (SPEC_BLOCK.test(lines[j])) hasSpec = true;
+        if (PROOF_SPEC.test(lines[j])) proofSpec = true;
+        if (PROOF_SHOWN.test(lines[j])) proofShown = true;
       }
     }
     const kind = normalizeKind(attrOf(attrs, "kind"));
+    // PROVED, by the claim's own declaration: behavioural owes a spec, experiential owes anything
+    // shown. A leaf claim has no body, so it can never be proved — there is nowhere in it for
+    // evidence to live, which is the point.
+    const proved = kind === "experiential" ? proofSpec || proofShown : proofSpec;
     out.push({
       n: out.length + 1,
       line: i + 1,
@@ -114,6 +134,9 @@ export function parseClaims(source) {
       kind,
       // CARRIES A SPEC — the living-spec half is present in the fold. Not "proved": see SPEC_BLOCK.
       hasSpec,
+      // PROVED — the proof its kind owes is embedded. MARKED IS NOT MET: `met` below requires this,
+      // because the window once said 4/7 met over a row that honestly said 2.
+      proved,
       // OWED is the honest gap: a behavioural claim someone marked met with no spec behind it. It
       // reads met today and is defended by nobody once the conversation ends.
       owed: kind === "behavioral" && !!state && !hasSpec,
@@ -133,8 +156,20 @@ export function parseClaims(source) {
 /** The count a `::claims` block draws. Derived every time; stored nowhere. */
 export function claimsOf(source) {
   const all = parseClaims(source);
-  const met = all.filter((c) => c.state === "met").length;
+  // MET IS MARKED **AND** PROVED — the same conjunction the registry row derives (`metClaims` in
+  // autobot's blocks.cjs), so this bar can never again disagree with the row about the one number
+  // both exist to report. An agent's mark with `by=` and no `note=` never counted as a mark
+  // (RFC-075), so it is unchecked here too, not merely unproved.
+  const names = (raw) => String(raw || "").split(/[|,]/).map((x) => x.trim()).filter(Boolean);
+  const marked = all.filter(
+    (c) => c.state === "met" && (names(c.by).includes("you") || !c.by || !!String(c.note || "").trim()),
+  );
+  const met = marked.filter((c) => c.proved).length;
   const unmet = all.filter((c) => c.state === "unmet").length;
+  // THE GAP BETWEEN SAID AND SHOWN — how many marks are resting on nothing. This is the number
+  // nobody could see: 24 of 41 marked met, 21 carrying nothing, while a green suite ran the whole
+  // time. The evidence existed; it was never embedded, so every reader took one agent's word.
+  const unproved = marked.length - met;
   const reviewed = all.filter((c) => c.reviewed).length;
   // THE THIRD AXIS. Marked is the builder's word; reviewed means it was signed; SPEC'D means a
   // defence stands that the change loop will run without anybody remembering to. A document whose
@@ -145,7 +180,8 @@ export function claimsOf(source) {
     total: all.length,
     met,
     unmet,
-    unchecked: all.length - met - unmet,
+    unproved,
+    unchecked: all.length - met - unproved - unmet,
     reviewed,
     behavioral: behavioral.length,
     experiential: all.length - behavioral.length,

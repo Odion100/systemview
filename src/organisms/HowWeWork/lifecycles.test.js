@@ -90,19 +90,15 @@ describe("the page's content has the shape the page renders", () => {
 // delete. A test that merely tolerated any difference would quietly let the page rot instead.
 const EXPECTED_DRIFT = {
   rfc: { pageOnly: [], codeOnly: [] },
-  arc: {
-    // tonight: an arc runs the approval flow, its in-flight state is `inProgress` (renamed from
-    // `open` in the thread), and `settled` derives upward from its plans
-    pageOnly: ["draft", "approved", "inProgress", "settled"],
-    // the code still reads an arc's completion off `::objective state=done`, and still calls the
-    // in-flight one `open`
-    codeOnly: ["open", "done"],
-  },
-  gap: {
-    // tonight: `rejected` with a reason is the second ending — the trail forks
-    pageOnly: ["rejected"],
-    codeOnly: [],
-  },
+  // CLOSED 2026-10-28, by RFC-076 slice 5. The arc runs the approval flow and derives upward —
+  // draft → approved → inProgress → settled → retired, with `settled` folded from the plans
+  // attached to each objective. The page and the code agree, so the exception is deleted.
+  arc: { pageOnly: [], codeOnly: [] },
+  // CLOSED 2026-10-28, by RFC-076 slice 3. The gap's fork landed: `rejected` is a station in
+  // `TRAILS.gap`, declared on the leaf with its reason, and `resolved` now needs a proof. The page
+  // and the code agree about this kind, so the exception is deleted rather than relaxed — which is
+  // what this tripwire exists to make somebody do.
+  gap: { pageOnly: [], codeOnly: [] },
   report: { pageOnly: [], codeOnly: [] },
 };
 
