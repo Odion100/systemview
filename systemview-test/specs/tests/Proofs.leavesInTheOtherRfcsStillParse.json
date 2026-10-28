@@ -1,71 +1,59 @@
 [
-  {
-    "title": "No leaf claim in RFC-073 or RFC-074 lost anything to the container form",
+ {
+  "title": "Every proofless claim in RFC-073 and RFC-074 still parses as a claim \u2014 61 of them, not one broken",
+  "namespace": {
+   "serviceId": "SystemViewCore",
+   "moduleName": "Proofs",
+   "methodName": "leavesInTheOtherRfcsStillParse"
+  },
+  "Before": [],
+  "Main": [
+   {
+    "title": "run every leaf claim in both documents through the real parser, and hand back what it found",
     "namespace": {
-      "serviceId": "SystemViewCore",
-      "moduleName": "Proofs",
-      "methodName": "leavesInTheOtherRfcsStillParse"
+     "serviceId": "SystemViewCore",
+     "moduleName": "Proofs",
+     "methodName": "leavesInTheOtherRfcsStillParse"
     },
-    "Before": [],
-    "Main": [
-      {
-        "title": "No leaf claim in RFC-073 or RFC-074 lost anything to the container form",
-        "namespace": {
-          "serviceId": "SystemViewCore",
-          "moduleName": "Proofs",
-          "methodName": "leavesInTheOtherRfcsStillParse"
-        },
-        "args": [],
-        "savedEvaluations": [
-          {
-            "namespace": "results.bothDocumentsStillParse",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.leavesFound",
-            "expected_type": "number",
-            "validations": [],
-            "save": true
-          },
-          {
-            "namespace": "results.thereAreStillLeaves",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.everyLeafKeepsItsStatementAndCarriesNoSpec",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.broken",
-            "expected_type": "array",
-            "validations": [],
-            "save": true
-          }
-        ]
-      }
-    ],
-    "Events": [],
-    "After": []
-  }
+    "args": [],
+    "savedEvaluations": [
+     {
+      "namespace": "results.missing",
+      "expected_type": "array",
+      "validations": [
+       {
+        "name": "lengthEquals",
+        "value": 0
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.leavesFound",
+      "expected_type": "number",
+      "validations": [
+       {
+        "name": "numEquals",
+        "value": 61
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.broken",
+      "expected_type": "array",
+      "validations": [
+       {
+        "name": "lengthEquals",
+        "value": 0
+       }
+      ],
+      "save": true
+     }
+    ]
+   }
+  ],
+  "Events": [],
+  "After": []
+ }
 ]

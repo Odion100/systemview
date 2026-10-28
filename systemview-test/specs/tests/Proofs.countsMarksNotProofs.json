@@ -1,48 +1,48 @@
 [
-  {
-    "title": "::claims counts marks, not proofs",
+ {
+  "title": "::claims counts marks, not proofs",
+  "namespace": {
+   "serviceId": "SystemViewCore",
+   "moduleName": "Proofs",
+   "methodName": "countsMarksNotProofs"
+  },
+  "Before": [],
+  "Main": [
+   {
+    "title": "count two documents identical but for a proof, and compare the totals they come back with",
     "namespace": {
-      "serviceId": "SystemViewCore",
-      "moduleName": "Proofs",
-      "methodName": "countsMarksNotProofs"
+     "serviceId": "SystemViewCore",
+     "moduleName": "Proofs",
+     "methodName": "countsMarksNotProofs"
     },
-    "Before": [],
-    "Main": [
-      {
-        "title": "::claims counts marks, not proofs",
-        "namespace": {
-          "serviceId": "SystemViewCore",
-          "moduleName": "Proofs",
-          "methodName": "countsMarksNotProofs"
-        },
-        "args": [],
-        "savedEvaluations": [
-          {
-            "namespace": "results.sameMetCount",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.sameTotal",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          }
-        ]
-      }
-    ],
-    "Events": [],
-    "After": []
-  }
+    "args": [],
+    "savedEvaluations": [
+     {
+      "namespace": "results.sameMetCount",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.sameTotal",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     }
+    ]
+   }
+  ],
+  "Events": [],
+  "After": []
+ }
 ]

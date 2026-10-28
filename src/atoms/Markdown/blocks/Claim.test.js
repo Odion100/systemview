@@ -27,12 +27,46 @@ const mount = ({ attrs = { id: "c1" }, label = "Open the list → rows show when
   return { setAttr };
 };
 
-describe("::claim — the statement, numbered by its place", () => {
-  it("shows the statement, its number from the document, and reads unchecked until marked", () => {
+describe("::claim — the statement, named by its id", () => {
+  it("shows the statement, the claim's OWN id, and reads unchecked until marked", () => {
     mount();
     expect(screen.getByText("Open the list → rows show when parsed")).toBeTruthy();
-    expect(screen.getByText("1")).toBeTruthy();
+    expect(screen.getByText("c1")).toBeTruthy();
     expect(screen.getByText("unchecked")).toBeTruthy();
+  });
+
+  // THE BUG THIS REPLACED: the row rendered its ORDINAL, so a document that inserts an id — and
+  // RFC-075 inserts c14b — labelled every row after it with a number that was not its name. Row 15
+  // was c14b, row 16 was c15, row 21 was c20. Claims are said out loud by id, so the window was
+  // answering a different question from the one being asked, and agreed for fourteen rows first.
+  it("a NON-SEQUENTIAL id wins over the position — the c14b case that caused this", () => {
+    const source = [
+      "::claim[one]{id=c14}",
+      "::claim[the inserted one]{id=c14b}",
+      "::claim[after it]{id=c15}",
+    ].join("\n");
+    render(
+      <MarkdownMembersProvider value={{ source }}>
+        <MarkdownWriteProvider value={{ editable: true, setAttr: jest.fn() }}>
+          <Claim attrs={{ id: "c14b" }} label="the inserted one" line={2} />
+        </MarkdownWriteProvider>
+      </MarkdownMembersProvider>,
+    );
+    expect(screen.getByText("c14b")).toBeTruthy();
+    // its POSITION is 2 — the thing that used to be shown, and is not the row's name
+    expect(screen.queryByText("2")).toBeNull();
+  });
+
+  it("no id= falls back to the position, because that is all there is to show", () => {
+    const source = ["::claim[first]", "::claim[second]"].join("\n");
+    render(
+      <MarkdownMembersProvider value={{ source }}>
+        <MarkdownWriteProvider value={{ editable: true, setAttr: jest.fn() }}>
+          <Claim attrs={{}} label="second" line={2} />
+        </MarkdownWriteProvider>
+      </MarkdownMembersProvider>,
+    );
+    expect(screen.getByText("2")).toBeTruthy();
   });
 
   it("a marked claim shows who, and the statement the mark carries", () => {
@@ -40,7 +74,7 @@ describe("::claim — the statement, numbered by its place", () => {
     expect(screen.getByText("met")).toBeTruthy();
     expect(screen.getByText(/✓ you/)).toBeTruthy();
     expect(screen.getByText("went 4 to 3")).toBeTruthy();
-    expect(screen.getByText("2")).toBeTruthy();
+    expect(screen.getByText("c2")).toBeTruthy();
   });
 });
 

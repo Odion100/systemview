@@ -31,10 +31,17 @@ const num = (text, re) => {
 };
 
 module.exports = {
-  // THE DOOR ITSELF — and this one IS a change-loop defence, because it holds whatever he has on
-  // screen. The shell serves, the window is reachable, and the hold is observable: `bundle.holding`
-  // answers the question that once cost him his tabs six times in one session, so a regression that
-  // made the swap unobservable again would go red here.
+  // THE DOOR ITSELF. This comment used to claim it WAS a change-loop defence "because it holds
+  // whatever he has on screen" — which overruled `autobot/docs/verification.md` saying the opposite
+  // in the same words, and the doc was right. The tell is below: this method asserts
+  // `theWindowIsOpen`, the exact precondition that doc names as disqualifying. Close the tab, quit
+  // the shell, or run it from any other machine and it is red — and his navigation is not the world
+  // moving. It is the CONFIRMING half of a proof, owed by default, answering "is it true on the real
+  // page right now"; it cannot ride the loop and must not be hung on a claim as though it could.
+  //
+  // The shell serves, the window is reachable, and the hold is observable: `bundle.holding` answers
+  // the question that once cost him his tabs six times in one session, so a regression that made the
+  // swap unobservable again shows up here — to a reader who is looking, not to the loop.
   //
   // Kept apart from `claimsAsRendered` deliberately. That one needs a specific document open and is
   // therefore red whenever he is elsewhere, which makes it an on-demand live check and NOT a claim's

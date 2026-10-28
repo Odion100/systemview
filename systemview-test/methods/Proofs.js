@@ -303,11 +303,23 @@ module.exports = {
   // thing that would actually break can. The container form changed the claim REGEX, so the
   // failure mode is a leaf that stops parsing, loses its statement, or starts reading as a
   // container. That is one parse over both documents.
+  // c1's SECOND half — the 61 proofless claims in the other two RFCs still parse as claims.
+  //
+  // THIS METHOD DECIDES NOTHING. It used to hand back three booleans it had computed itself
+  // (`thereAreStillLeaves`, `everyLeafKeepsItsStatementAndCarriesNoSpec`, and a parse flag), which
+  // is the wrapper grading its own homework — the spec file asserted `true` three times and a
+  // reader learned nothing. Now it returns the DATA: how many leaves, which files went missing,
+  // which leaves came back broken. The numbers and the emptiness are asserted out in the spec,
+  // where whoever reads the document can see them.
+  //
+  // And the count is HARD-CODED out there on purpose. Grow a claim in either document and the spec
+  // goes red until somebody ups the number — that is a living spec doing its job, not a fragility
+  // to engineer around.
   async leavesInTheOtherRfcsStillParse() {
     const { parseClaims } = claimsModule();
-    const out = {};
+    const missing = [];
     let leaves = 0;
-    let broken = [];
+    const broken = [];
     for (const file of [
       "RFCs/RFC-073-a-document-state-lives-in-the-system.md",
       "RFCs/RFC-074-karaoke.md",
@@ -316,12 +328,11 @@ module.exports = {
       try {
         src = read(path.join(REPO, file));
       } catch {
-        out[`missing:${file}`] = true;
+        missing.push(file);
         continue;
       }
       const lines = src.split("\n");
-      const claims = parseClaims(src);
-      for (const c of claims) {
+      for (const c of parseClaims(src)) {
         const line = lines[c.line - 1] || "";
         const fence = ((/^\s*(:+)/.exec(line) || [, ""])[1] || "").length;
         if (fence !== 2) continue; // a grown container is not a leaf
@@ -330,15 +341,7 @@ module.exports = {
         if (!c.statement || c.hasSpec || !c.n) broken.push(`${file}#${c.id || c.n}`);
       }
     }
-    return {
-      bothDocumentsStillParse: !Object.keys(out).length,
-      // the number is REPORTED (it moves when he marks or grows a claim); what is asserted is that
-      // there are leaves at all and that not one of them is broken
-      leavesFound: leaves,
-      thereAreStillLeaves: leaves > 0,
-      everyLeafKeepsItsStatementAndCarriesNoSpec: broken.length === 0,
-      broken,
-    };
+    return { leavesFound: leaves, missing, broken };
   },
 
   // c6, HALF ONE — A PROOF ANNOUNCES NOTHING. Read what this asserts precisely, because the first

@@ -4003,11 +4003,15 @@ $sv-board-states: (
     font-size: 11px;
     padding: 4px 10px;
   }
-  // Tables in a message scroll rather than widening the column.
-  .chat-md__tablewrap {
-    max-height: 220px;
-    overflow: auto;
-  }
+  // AND NOTHING HERE CAPS A TABLE'S HEIGHT EITHER. This carried `max-height: 220px`, which is the
+  // one thing `chat-md.scss` says outright not to do: a max-height BEATS the height the native
+  // vertical resize writes, so the table "pulls but doesn't go" — you drag the grip and it stops at
+  // 220px (his, 2026-10-27: *"there's a max to how much I can resize it up"*). It bit harder once
+  // cells started wrapping, because wrapping makes tables taller by design.
+  //
+  // Same failure as the font-size below, in the same block, for the same reason: this file loses to
+  // nothing and wins silently. The wrap's sizing lives in `chat-md.scss` — `resize: vertical`,
+  // `min-height`, and deliberately no ceiling.
   // AND NOTHING HERE PINS A TABLE'S FONT SIZE. This block carried `font-size: 10.5px` — same
   // specificity as the mixin's own rule and later in the build, so it WON silently: every size
   // the mixin set was dead on arrival, and a table was the smallest text in the chat while the

@@ -115,7 +115,13 @@ const Claim = ({ attrs = {}, kind, label, line, children }) => {
   return (
     <div className={cls} data-claim-id={attrs.id || undefined}>
       <div className="md-claim__row">
-        <span className="md-claim__n" aria-hidden="true">{n || "·"}</span>
+        {/* THE ID, NOT THE POSITION. A claim is addressed OUT LOUD — "c14b", "the c6/c13/c20
+            split" — and the ordinal silently stops agreeing with the id the moment a document
+            inserts one. RFC-075 has a c14b, so the row reading 15 WAS c14b, 16 was c15, and 21 was
+            c20: ids said and positions shown agreed for fourteen rows and then diverged with no
+            tell. No `id=` falls back to the place, which is all there is to show. Not aria-hidden
+            any more either — as a position it was decoration, as an id it is the row's name. */}
+        <span className="md-claim__n">{attrs.id || n || "·"}</span>
         {/* The rendered label when there is one — inline code keeps its look — else the flat text.
             A CONTAINER's children are its proof, never its statement: the flat label is the row. */}
         <span className="md-claim__statement">

@@ -483,7 +483,17 @@
   tt {
     margin: 0 2px;
     padding: 2px 3px;
-    white-space: nowrap;
+    // NO NOWRAP, AND NOTHING IN ITS PLACE. It sat here so a token would not split mid-word — and
+    // the cost was that inline code could never break AT ALL, so a long span became one unbreakable
+    // token that set its container's minimum width. Measured on his screen: a logic cell holding
+    // `verdicts approved AND at least one claim AND claims met AND NOT co-signed` took ~750px while
+    // the column beside it, carrying MORE text, was crushed to ~175px. The widest column was the
+    // one with the least in it.
+    //
+    // `overflow-wrap: anywhere` was tried here and is WORSE: it breaks inside short words too, so
+    // the state column came back reading `draf/t`, `appr/oved`, `buil/t`. These spans have spaces
+    // in them — ordinary wrapping breaks them at the spaces, and a single-word token stays whole.
+    // So the fix is the removal, with nothing added.
     background-color: #eef1f7;
     border-radius: 3px;
     color: #3f51b5;
@@ -3500,6 +3510,35 @@
     // A rejected RFC's ending wears the vocabulary's dead colour — the same one an unresolvable
     // reference wears, because "this will not continue" is one idea.
     &--dead.md-arc__station--now { color: #a2503f; border-color: #a2503f; }
+
+    // PRESSABLE, where the document can be written. A station is a button now (his: *"just give me
+    // the ability to click and change it"*) and it has to stay a station to look at — the chrome of
+    // a real button in a row of five would read as a toolbar, not a trail.
+    &--press {
+      appearance: none;
+      background: none;
+      border: 1px solid transparent;
+      font: inherit;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      &:hover { opacity: 1; color: var(--sv-text, #ddd); border-color: var(--sv-line, #3a3a3a); }
+      &:focus-visible { outline: 1px solid var(--sv-blue, #4a7bd0); outline-offset: 1px; }
+    }
+    &--press.md-arc__station--now {
+      border-color: var(--sv-blue, #4a7bd0);
+      &:hover { color: var(--sv-blue, #4a7bd0); border-color: var(--sv-blue, #4a7bd0); }
+    }
+  }
+
+  // A REFUSAL IS SHOWN, NEVER SWALLOWED. `approved` comes from the approval block's verdict and an
+  // arc's `done` from its objectives — pressing those says where the state comes from instead of
+  // doing nothing, which is the one thing a control must never do.
+  &__refused {
+    font-size: 10px;
+    margin-left: 6px;
+    color: #a2503f;
   }
   // The arc leaf already pushes its own count to the right; the trail joins it rather than
   // fighting it for the margin.

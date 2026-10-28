@@ -17,7 +17,14 @@ const TV_LEGACY = `(?:before|main|after)Test\\.Action\\d+\\.(?:error|results)${T
 // `args` joins `results`/`error` as a reference ROOT: a step's own INPUT is often the thing you
 // want to compare against later — "the id I sent must come back" — and without this you had to
 // repeat the literal in both places and hope they stayed in sync.
-const TV_NATURAL = `test\\.(?![0-9])[a-zA-Z0-9$_]+(?:\\[\\d+\\]|\\.(?![0-9])[a-zA-Z0-9$_]+)\\.(?:error|results|args)${TV_TAIL}`;
+// `test.` IS OPTIONAL, and it always was everywhere except here. `resolveTargetValue` strips a
+// leading `test.` before walking, `markdown.md` documents the reference as `tv(steps[0].results.sum)`,
+// `RunBlock.js` calls the section name "the reference root" in the same short form, and buAPI's own
+// specs are written `tv(seedSum[0].results.sum)`. Only this RECOGNISER required the prefix — so every
+// documented example failed `isTargetValueFn`, was never registered as a reference, and reached the
+// service as the literal characters "tv(steps[0].results.found)". The resolver could always have
+// handled it; nothing ever asked it to.
+const TV_NATURAL = `(?:test\\.)?(?![0-9])[a-zA-Z0-9$_]+(?:\\[\\d+\\]|\\.(?![0-9])[a-zA-Z0-9$_]+)\\.(?:error|results|args)${TV_TAIL}`;
 const TV_BODY = `(?:${TV_LEGACY}|${TV_NATURAL})`;
 export const isTargetNamespace = (str) => new RegExp(`^${TV_BODY}$`).test(str);
 export const targetValueFnRegex = new RegExp(`tv\\(${TV_BODY}\\)`, "g");
@@ -126,12 +133,28 @@ export const arr = function ArrayParser(arr) {
   return parser;
 };
 
-const isFnRegEx = /^\w+\(([^,)]*(,[^,)]*)*)\)$/;
-const parseArgs = (str) => str.split(",").map((value) => value.trim());
-export const isFunction = (str) => isFnRegEx.test(str);
-export const isDateFunction = (str) => /^[dD]ate\(([^,)]*(,[^,)]*)*)\)$/.test(str);
-const isMockFileFunction = (str) => /^mockFile\(([^,)]*(,[^,)]*)*)\)$/.test(str);
-const isMockFilesFunction = (str) => /^mockFiles\(([^,)]*(,[^,)]*)*)\)$/.test(str);
+// THE CALL PARSER — one of them, nesting-aware, and every function matcher below is built on it.
+//
+// It replaces four regexes that each forbade `)` inside an argument (`[^,)]*`). That restriction
+// meant no string function could ever take another as an argument: `date(tv(steps[0].results.at))`
+// failed at the MATCHER, so it stayed a literal string and the assertion compared against the
+// characters "date(tv(...))". Nobody noticed because nothing had two string functions to compose
+// until arithmetic needed a reference as an operand.
+const isFnRegEx = /^\w+\(([^,)]*(,[^,)]*)*)\)$/; // kept: `str.match(isFnRegEx)` callers below
+export const fnCall = (str) => {
+  const m = /^(\w+)\(([\s\S]*)\)$/.exec(String(str == null ? "" : str).trim());
+  if (!m) return null;
+  return { name: m[1], argsRaw: m[2], args: splitFnArgs(m[2]) };
+};
+const named = (str, re) => {
+  const call = fnCall(str);
+  return !!call && re.test(call.name);
+};
+const parseArgs = (str) => splitFnArgs(str);
+export const isFunction = (str) => !!fnCall(str);
+export const isDateFunction = (str) => named(str, /^[dD]ate$/);
+const isMockFileFunction = (str) => named(str, /^mockFile$/);
+const isMockFilesFunction = (str) => named(str, /^mockFiles$/);
 
 // random(n) — n random lowercase-alphanumeric chars (default 8), fresh on EVERY run. Unlike date()/
 // mockFile() it's insertable ANYWHERE inside a string — "user_random(6)@test.com" → "user_k3n9x2@test.com"
@@ -144,20 +167,136 @@ const randomString = (len) => {
   return out.slice(0, len);
 };
 
+// MATH, AS A STRING FUNCTION — his framing, and it is the right one: `tv()` is a string function,
+// `date()` is a string function, so arithmetic is one more entry in the same registry rather than a
+// new expression syntax bolted onto the grammar.
+//
+// WHY IT IS NEEDED. A reference exists so an assertion stops depending on a constant: "the row count
+// equals the claim count" survives the document growing a claim, where `= 22` does not. But the
+// moment the relationship is anything other than equality — off by one, half of, the larger of two —
+// there is nothing to say, and the author goes back to hard-coding the number the reference was
+// introduced to remove.
+//
+// WHAT IS MAPPED. JavaScript's `Math` has no arithmetic, so the four operations are supplied here and
+// the rest is a passthrough to `Math` by name. Arguments may themselves be `tv(...)` references or
+// nested calls, which is why they cannot be split on a bare comma.
+const MATH_FNS = {
+  add: (...n) => n.reduce((a, b) => a + b, 0),
+  subtract: (a, ...n) => n.reduce((x, y) => x - y, a),
+  multiply: (...n) => n.reduce((a, b) => a * b, 1),
+  divide: (a, ...n) => n.reduce((x, y) => x / y, a),
+  min: Math.min,
+  max: Math.max,
+  abs: Math.abs,
+  round: Math.round,
+  floor: Math.floor,
+  ceil: Math.ceil,
+};
+
+// SPLIT ON TOP-LEVEL COMMAS ONLY. `add(tv(steps[0].results.found), -1)` has a comma inside no
+// argument and parens inside one, so `String.split(",")` tears the reference in half. (RunBlock's
+// `splitArgs` does the same job for a method's positional arguments in the run grammar — same
+// algorithm, different grammar, and worth collapsing into one if a third caller ever appears.)
+export const splitFnArgs = (text) => {
+  const out = [];
+  let depth = 0, quote = null, buf = "";
+  for (let i = 0; i < String(text).length; i++) {
+    const c = String(text)[i];
+    if (quote) { buf += c; if (c === quote && String(text)[i - 1] !== "\\") quote = null; continue; }
+    if (c === '"' || c === "'") { quote = c; buf += c; continue; }
+    if (c === "(" || c === "[" || c === "{") depth++;
+    if (c === ")" || c === "]" || c === "}") depth--;
+    if (c === "," && depth === 0) { out.push(buf.trim()); buf = ""; continue; }
+    buf += c;
+  }
+  if (buf.trim()) out.push(buf.trim());
+  return out;
+};
+
+const mathCall = (str) => {
+  const call = fnCall(str);
+  if (!call || !MATH_FNS[call.name]) return null;
+  return { fn: MATH_FNS[call.name], ...call };
+};
+export const isMathFunction = (str) => !!mathCall(str);
+
+// Evaluate a math call whose arguments are numbers, or nested math calls. A non-numeric argument
+// makes the whole thing UNRESOLVABLE and returns null rather than NaN — NaN compares unequal to
+// everything, which would read as a genuine assertion failure instead of a broken expression.
+export const evalMathFn = (str) => {
+  const call = mathCall(str);
+  if (!call) return null;
+  const nums = call.args.map((a) => {
+    const nested = evalMathFn(a);
+    if (nested !== null) return nested;
+    const n = Number(a);
+    return Number.isFinite(n) ? n : null;
+  });
+  if (nums.some((n) => n === null)) return null;
+  const out = call.fn(...nums);
+  return Number.isFinite(out) ? out : null;
+};
+
+// REFERENCES FIRST, THEN THE FUNCTIONS — one sequence, and it was a branch.
+//
+// `tv()` is a string function meant to be written INSIDE a string (the `targetValues` form on an
+// argument is the other way to say the same thing — a reference dropped in directly, unwrapped). So
+// a value can be a function whose operand is a reference: `add(tv(steps[1].results.total), 1)`.
+// References did already resolve first — `parseTargetValues` registers each embedded match — but the
+// resolver was an if/else-if/else, so a value that took the reference branch never reached `strFn`
+// and the function never got its second pass.
+//
+// WHAT YOU SEE WHEN IT DOES NOT EVALUATE, and this is the part worth getting right: the
+// POST-SUBSTITUTION form. If the reference resolved to `"hello world"` the failure reads
+// `add("hello world", 1)` — which says the reference resolved and is pointing at the wrong field.
+// Leaving the original `add(tv(…), 1)` hides that it resolved at all, and letting it become `NaN`
+// hides both. (His: *"you'd want to see that the target value you set up is not resolving to what
+// you set it up to — that's more value than seeing the actual target value function."*)
+// AN EVALUATION'S VALUE, RESOLVED THE WAY AN ARGUMENT'S ALREADY IS — references in one shot, then
+// the functions. No tree walk: `targetValueFnRegex` (twenty lines up, already exported, already used
+// by the remap below) collects every embedded `tv(...)` in a single pass, and the only thing that
+// genuinely nests is arithmetic, which `evalMathFn` recurses through on its own.
+//
+// TYPE SURVIVES THE SAME WAY `Argument.class` does it: a value that IS the reference takes the
+// resolved value DIRECTLY — so `tv(steps[1].results.total)` stays the number 22 and `numEquals`
+// still means something. Only a reference embedded in a larger expression is substituted as text,
+// where text is what it has to be.
+//
+// AND AN UNRESOLVED OPERAND LEAVES THE SUBSTITUTED FORM, not `NaN` and not the original: a failure
+// reading `add("hello world", 1)` says the reference resolved and is pointing at the wrong field,
+// which is the thing worth seeing. `NaN` hides that it resolved; the original hides what it gave.
+export const resolveValueString = (value, resolveOne) => {
+  if (typeof value !== "string" || typeof resolveOne !== "function") return value;
+  if (isTargetValueFn(value)) {
+    const only = resolveOne(value.substring(3, value.length - 1));
+    if (only !== undefined) return only;
+  }
+  const substituted = value.replace(targetValueFnRegex, (match) => {
+    const got = resolveOne(match.substring(3, match.length - 1));
+    if (got === undefined) return match;
+    return typeof got === "string" ? JSON.stringify(got) : String(got);
+  });
+  return strFn(substituted);
+};
+
 export const strFn = (str) => {
   if (hasRandomToken(str))
     return str.replace(randomTokenRegex, (_, n) => randomString(parseInt(n || "8", 10)));
   if (isDateFunction(str)) {
-    const [fullStr, args] = str.match(isFnRegEx);
-    return moment(!args ? undefined : args).toJSON();
+    const { argsRaw } = fnCall(str);
+    return moment(!argsRaw ? undefined : argsRaw).toJSON();
+  }
+  if (isMathFunction(str)) {
+    const n = evalMathFn(str);
+    // Unresolvable keeps the string AS GIVEN — which, after substitution, shows what the references
+    // resolved to: `add("hello world", 1)` rather than `NaN` or the original `add(tv(…), 1)`.
+    return n === null ? str : n;
   }
   if (isMockFileFunction(str)) {
-    const [fullStr, args] = str.match(isFnRegEx);
-    return createMockFile(args);
+    return createMockFile(fnCall(str).argsRaw);
   }
   if (isMockFilesFunction(str)) {
-    const [fullStr, args] = str.match(isFnRegEx);
-    return parseArgs(args).map(createMockFile);
+    return parseArgs(fnCall(str).argsRaw).map(createMockFile);
   }
   return str;
 };

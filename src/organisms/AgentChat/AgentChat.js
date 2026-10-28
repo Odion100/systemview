@@ -5672,18 +5672,23 @@ const countdown = (str, now = Date.now()) => {
         const svc = SystemViewService && SystemViewService.Agent;
         if (!svc || !svc.documentsRegistry) return; // an older hub — the tab stays as it was
         const rows = (await svc.documentsRegistry({ projectCode, kind: "rfc" })) || [];
-        const paths = (Array.isArray(rows) ? rows : [])
-          .filter((x) => x && x.path && !x.missing && !(x.state && x.state.retired))
-          .map((x) => x.path);
-        if (!paths.length) {
+        // THE ROW CARRIES THE STATE AND THIS USED TO THROW IT AWAY. It mapped straight to `.path`
+        // and then re-derived a state from the file's approval blocks — a second reader that had
+        // never heard of built, settled or retired, which is why the drawer said `approved` about a
+        // document whose own trail said built. The row comes through now; the text is still read,
+        // but only for the title it gives itself.
+        const live = (Array.isArray(rows) ? rows : []).filter(
+          (x) => x && x.path && !x.missing && !(x.state && x.state.retired),
+        );
+        if (!live.length) {
           if (!dead) setRfcsMeta({ list: [], waiting: 0 });
           return;
         }
         const docs = await Promise.all(
-          paths.map(async (pth) => {
+          live.map(async (row) => {
             try {
-              const f = await files.readFile({ path: pth });
-              return f && f.ok !== false ? { path: pth, text: f.content || "" } : null;
+              const f = await files.readFile({ path: row.path });
+              return f && f.ok !== false ? { path: row.path, text: f.content || "", row } : null;
             } catch {
               return null;
             }
@@ -7476,7 +7481,7 @@ const countdown = (str, now = Date.now()) => {
                   >
                     {/* The same flag the reports rows use for an approval waiting — one mark for one
                         meaning, wherever a decision is sitting undone. */}
-                    {r.state === "waiting" ? (
+                    {r.waiting > 0 ? (
                       <span className={`${CLASSNAME}__reports-flag`} title={`${r.waiting} waiting for your approval`}>
                         ⚑
                       </span>

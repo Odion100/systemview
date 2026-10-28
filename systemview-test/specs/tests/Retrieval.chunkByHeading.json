@@ -1,0 +1,142 @@
+[
+ {
+  "title": "The proof chapter is RETRIEVABLE — it owns one chunk, under a heading that names it, inside an indexed corpus",
+  "namespace": {
+   "serviceId": "SystemViewCore",
+   "moduleName": "Retrieval",
+   "methodName": "chunkByHeading"
+  },
+  "Before": [
+   {
+    "title": "first: words nothing indexes answer nobody — is the chapter inside an indexed corpus root?",
+    "namespace": {
+     "serviceId": "SystemViewCore",
+     "moduleName": "Retrieval",
+     "methodName": "corporaCovering"
+    },
+    "args": [
+     {
+      "name": "argument:",
+      "input": {
+       "path": "/Users/odionedwards/Systemly/systemview/docs/how-we-work/rfcs.md"
+      },
+      "input_type": "object",
+      "data_type": "",
+      "targetValues": []
+     }
+    ],
+    "savedEvaluations": [
+     {
+      "namespace": "results.count",
+      "expected_type": "number",
+      "validations": [
+       {
+        "name": "min",
+        "value": 1
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.covering[0].name",
+      "expected_type": "string",
+      "validations": [
+       {
+        "name": "strEquals",
+        "value": "how-we-work"
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.covering[0].kind",
+      "expected_type": "string",
+      "validations": [
+       {
+        "name": "strEquals",
+        "value": "permanent"
+       }
+      ],
+      "save": true
+     }
+    ]
+   }
+  ],
+  "Main": [
+   {
+    "title": "then: the REAL chunker puts the proof subject in ONE chunk, whole, with the sequence in it",
+    "namespace": {
+     "serviceId": "SystemViewCore",
+     "moduleName": "Retrieval",
+     "methodName": "chunkByHeading"
+    },
+    "args": [
+     {
+      "name": "argument:",
+      "input": {
+       "path": "docs/how-we-work/rfcs.md",
+       "heading": "A claim can carry its proof"
+      },
+      "input_type": "object",
+      "data_type": "",
+      "targetValues": []
+     }
+    ],
+    "savedEvaluations": [
+     {
+      "namespace": "results.matches",
+      "expected_type": "number",
+      "validations": [
+       {
+        "name": "numEquals",
+        "value": 1
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.part",
+      "expected_type": "null",
+      "validations": [],
+      "save": true
+     },
+     {
+      "namespace": "results.headingPath",
+      "expected_type": "string",
+      "validations": [
+       {
+        "name": "strEquals",
+        "value": "RFCs — a design you can check later › A claim can carry its proof"
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.text",
+      "expected_type": "string",
+      "validations": [
+       {
+        "name": "isLike",
+        "value": "verify → mark → proof"
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.text",
+      "expected_type": "string",
+      "validations": [
+       {
+        "name": "isLike",
+        "value": "written for the human"
+       }
+      ],
+      "save": true
+     }
+    ]
+   }
+  ],
+  "Events": [],
+  "After": []
+ }
+]

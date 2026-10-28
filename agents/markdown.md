@@ -167,6 +167,12 @@ The point is assembling steps **in the document**, for a human to press Run on:
 
 - A step is a **method call with as many arguments as the method takes** — positional, comma
   separated. `Module.method { … }` is shorthand for one object argument.
+- **`{title="…"}` on the end of a step labels it**, and the label is what a reader sees over the
+  call. Without one the step wears its own call signature, which is honest and says nothing:
+  `AutobotShell.Window.count({"selector":".md-claim"})` where a sentence belongs. In a multi-step
+  block the labels read in sequence and become the explanation, which is what lets a run narrate
+  itself when somebody presses it. (The object shorthand also ends in braces — they are told apart
+  by `key=` versus `"key":`, so a JSON argument is never mistaken for a label.)
 - **Assertions are a nested list** under the step. `- path = value` (typed), `- path ~ text`
   (is-like). `expect`, `assert` or `✓` in front are optional synonyms.
 - `use: <action>` pulls in a shared action as its own named section.

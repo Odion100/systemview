@@ -1,81 +1,81 @@
 [
-  {
-    "title": "rfc-authoring points at the chapter rather than restating it",
+ {
+  "title": "rfc-authoring points at the chapter rather than restating it",
+  "namespace": {
+   "serviceId": "SystemViewCore",
+   "moduleName": "Proofs",
+   "methodName": "authoringPointsAtTheChapter"
+  },
+  "Before": [],
+  "Main": [
+   {
+    "title": "read the rfc-authoring skill off disk and look for the proof line, the pointer at the chapter, and any second copy of the shapes",
     "namespace": {
-      "serviceId": "SystemViewCore",
-      "moduleName": "Proofs",
-      "methodName": "authoringPointsAtTheChapter"
+     "serviceId": "SystemViewCore",
+     "moduleName": "Proofs",
+     "methodName": "authoringPointsAtTheChapter"
     },
-    "Before": [],
-    "Main": [
-      {
-        "title": "rfc-authoring points at the chapter rather than restating it",
-        "namespace": {
-          "serviceId": "SystemViewCore",
-          "moduleName": "Proofs",
-          "methodName": "authoringPointsAtTheChapter"
-        },
-        "args": [],
-        "savedEvaluations": [
-          {
-            "namespace": "results.theSkillWasFound",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.itCarriesTheProofLine",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.itPointsAtTheChapter",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.theShapesAreInTheChapterAndNotTheSkill",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          },
-          {
-            "namespace": "results.theApproachIsInTheChapterAndNotTheSkill",
-            "expected_type": "boolean",
-            "validations": [
-              {
-                "name": "boolEquals",
-                "value": true
-              }
-            ],
-            "save": true
-          }
-        ]
-      }
-    ],
-    "Events": [],
-    "After": []
-  }
+    "args": [],
+    "savedEvaluations": [
+     {
+      "namespace": "results.theSkillWasFound",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.itCarriesTheProofLine",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.itPointsAtTheChapter",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.theShapesAreInTheChapterAndNotTheSkill",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     },
+     {
+      "namespace": "results.theApproachIsInTheChapterAndNotTheSkill",
+      "expected_type": "boolean",
+      "validations": [
+       {
+        "name": "boolEquals",
+        "value": true
+       }
+      ],
+      "save": true
+     }
+    ]
+   }
+  ],
+  "Events": [],
+  "After": []
+ }
 ]

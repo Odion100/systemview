@@ -144,17 +144,37 @@ function toNamespace(ns, scope) {
 }
 
 // `✓ results.total = 5` · `expect results.label = "first-second"` · `✓ results.ok = true`
-// · `✓ results.name ~ ser_` (a regex-ish "is like"). Evaluations are what make a RUN legible: you see
-// pass/fail per step instead of squinting at a response body.
+// · `✓ results.name ~ ser_` (a regex-ish "is like") · `✓ results.count >= 1` and `<= 10` (bounds).
+// Evaluations are what make a RUN legible: you see pass/fail per step instead of squinting at a
+// response body.
+//
+// THE BOUNDS EXIST FOR A NARROW CASE AND IT IS WORTH NAMING, because `=` is otherwise the right
+// answer: a count that comes out of the document itself is HARD-CODED and the spec goes red until
+// somebody ups the number — that is a living spec working, not a fragility. A bound is for a value
+// that grows with every run of the thing being claimed, where "there is at least one" is the whole
+// claim and any exact number would be noise. `min` and `max` are the validator's own inclusive
+// bounds, so `>=` and `<=` map straight onto them; `>` and `<` are deliberately absent rather than
+// faked with value±1, which would be wrong for everything that is not an integer.
+const BOUNDS = { ">=": "min", "<=": "max" };
 export function toEvaluations(checks = []) {
   return checks
     .map((raw) => {
-      const m = normalizeRefs(raw).match(/^(\S+)\s*(=|==|~)\s*(.+)$/);
+      const m = normalizeRefs(raw).match(/^(\S+)\s*(>=|<=|==|=|~)\s*(.+)$/);
       if (!m) return null;
       const [, ns, op, rhs] = m;
       let value = rhs.trim();
       let type = "string";
       let name = "strEquals";
+      if (BOUNDS[op]) {
+        const num = Number(value);
+        if (!Number.isFinite(num)) return null;
+        return {
+          namespace: ns,
+          expected_type: "number",
+          validations: [{ name: BOUNDS[op], value: num }],
+          save: true,
+        };
+      }
       if (op === "~") {
         name = "isLike";
         value = value.replace(/^["']|["']$/g, "");
@@ -201,7 +221,9 @@ export function toStep(parsed, scope, services) {
   // An assertion the parser couldn't read used to disappear, which reads as "it passed". Count them
   // so the block can say what it dropped.
   const dropped = (parsed.checks || []).length - savedEvaluations.length;
-  return { title: `${parsed.ns}${shown}`, namespace, args, savedEvaluations, dropped };
+  // THE AUTHOR'S LABEL WINS. Without one the call signature stands in, which is honest but tells a
+  // reader nothing — and the signature is still visible in the step's own response either way.
+  return { title: parsed.title || `${parsed.ns}${shown}`, namespace, args, savedEvaluations, dropped };
 }
 
 const RunBlock = ({ kind, label, attrs = {}, src }) => {

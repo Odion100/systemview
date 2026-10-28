@@ -134,6 +134,21 @@ checked:
 The shape that works: **do this → this should happen.** If you cannot write the "do this" half, the
 decision is not concrete enough to have been an RFC, and that is a finding about step 2.
 
+**AND IT HAS TO SURVIVE BEING SPOKEN.** No attribute syntax in a statement, no block names — those
+belong in the note, where they are being described rather than said. Read it out loud before you
+keep it. One written as *"the same `state=` `by=` `at=` land on its opening line"* came back as
+**"the same state equals by Atlanta"**, and the reader who hit it could not recover the sentence at
+all: *"mark a container clean. Hmm. I don't know."* A claim nobody can read aloud cannot be walked,
+cannot be voiced, and cannot be quoted in a mark's announcement — which is three surfaces, not a
+style preference.
+
+**And a claim that reads as common sense has not said what it protects against.** *"`::claims`
+counts marks, not proofs"* invites the obvious answer — of course it does, why would it not — and
+the thing worth writing down was the risk it rules out: a proof exiting zero must never advance the
+document toward *built*, because only a person's press may do that. Same fact, and now a reader can
+tell why anyone claimed it. If the statement sounds unarguable, you have written the arithmetic and
+not the guarantee.
+
 **Granularity comes from the verdict block.** Each thing approving committed to becomes one or more
 claims — rarely one, because a design commitment is usually three checkable behaviours. Four
 commitments producing twelve claims is normal and healthy.
@@ -225,8 +240,13 @@ silence is still never a pass, and no runner or scheduler re-runs proofs: they r
 ## The proof doctrine — two obligations, never a menu
 
 **A claim carries two different obligations, and they are not interchangeable.** Proof kinds are
-not a menu to pick the best item from — they serve different purposes, and the strong fold carries
-both:
+not a menu to pick the best item from — they serve different purposes, and **a fold owes both.**
+They answer different questions and neither one answers the other's:
+
+| | answers | for whom | when |
+|---|---|---|---|
+| **the confirming half** | *is this true — can I see it?* | the human deciding whether to believe the mark | now, at the moment of reading |
+| **the living spec** | *will it still be true with nobody watching?* | the change loop | every month after |
 
 - **The living spec** — a SystemLynx test. It captures the CONTRACT (each step a verb with real
   inputs, its outputs typed and validated) and the IMPLEMENTATION WALK (the steps a user actually
@@ -237,11 +257,21 @@ both:
   block speaks); SystemLynx keeps its own `specs/tests` the same way. Nothing new to build. This
   is what makes the document a spec rather than a story, and it is the durable half: red is
   information, because it only rots when the system itself changed.
-- **Review facilitation** — the screenshot, the `:file` link, the cmd, the instructions in the
-  fold. These exist for the human's confirming moment: they make the check easy NOW. Honest work,
-  never the spec.
+- **The confirming half** — the `:::cmd` he can press, the `:file` link, the disposable fixture to
+  try the gesture on, the fixture document to open. **This is OWED by default, not a courtesy**,
+  and it used to be called "review facilitation" and demoted: *"honest work, never the spec."*
+  That was wrong and it was corrected by the person it is for — *"by default you got to try to give
+  me something I can easily see and confirm, right, running confirm or something. That's separate
+  from the spec."* The half that gets used is not the lesser half. A claim that is fully `spec'd`
+  and hands the reader nothing to do has met one obligation of two.
 
-Where the claim's altitude has no live door (a fold rendering, a badge's look), the reviewer half
+  **And it must be available WHERE THE CLAIM IS.** A confirming half that sends him to another
+  document, or that describes a gesture this document cannot perform, is not one: a claim reading
+  *"right-click a leaf claim and grow a proof"* in a document where every claim already has a proof
+  gives the reader nothing to right-click. Put a disposable fixture in the fold, with a `:::cmd`
+  that resets it, so the gesture can be done here and done twice.
+
+Where the claim's altitude has no live door (a fold rendering, a badge's look), the confirming half
 plus a pinned render case IS the honest proof — say so rather than faking a Lynx shape; ceremonial
 spec-proofs are the unit-test trap wearing the right brand.
 
@@ -249,6 +279,74 @@ spec-proofs are the unit-test trap wearing the right brand.
 behavioural claim; it just gets a thinner defence. The temptation is to read "no live door" as
 licence to skip the obligation, and there is exactly ONE exemption — the next section's — so a
 claim whose altitude is awkward owes a pinned case, not silence.
+
+## Every proof says what it asks — in English, above the chip
+
+**A chip is not a proof; a chip plus its two lines is.** A method name carries all the meaning and
+delivers none of it: `leavesInTheOtherRfcsStillParse` stacked under a claim reads as thoroughness
+and tells a reader nothing. So above every `::test` and `:::run`, two lines in plain English:
+
+- **what it asks** — the question, as a question. *"Parses the other two RFCs and checks their 61
+  leaf claims kept their statement, number and leafness."*
+- **what breaks if it stops holding** — why anyone wrote it. A proof with no stated consequence is
+  a proof nobody can judge the loss of.
+
+**And there is no third line listing what the proof does not cover.** That was tried and withdrawn
+the same night by the person it was written for: *"I don't want to hear what it doesn't cover. That's
+just an excuse. That's the short-circuit trap."* He is right — a sanctioned place to write down your
+gaps is a sanctioned place to leave them, and an agent that may disclaim will disclaim instead of
+finishing. Caveats are not evidence.
+
+**The obligation that replaces it: THE SPEC COVERS THE WHOLE CLAIM, OR THE CLAIM IS WRONG.** When
+the two disagree, the claim is what moves. A claim saying *"grep the shell and the hub"* defended by
+a spec that scans only the document machinery is not a claim with a documented gap — it is a claim
+that overstates, and the fix is to narrow the sentence until the spec answers all of it. Narrowing is
+cheap, honest, and leaves a reader nothing to interpret; a disclaimer leaves them a claim they must
+mentally subtract from.
+
+A **negative** proof follows the same rule rather than an exception: it states what it hunted as part
+of *what it asks*, because "zero hits" is not a finding until the reader knows the list. That is the
+question it asked, not a limitation of it.
+
+**A claim with several sentences gets its chips said apart.** Three stacked chips under a
+three-sentence claim hide which evidence holds which sentence — and hide the sentence held by
+nothing. Name the pairing, and where a clause is defended by neither, say so ON the claim rather
+than at the end of a note.
+
+**Say which door a spec is.** A spec that loads the real module and calls it, a spec that runs the
+project's own suite and asserts named cases, and a spec that mocks its dependency are three
+different strengths wearing one shape. From outside, all three are a method name — so the reader
+concludes "invented for the test", reasonably, from the only information given.
+
+## The narrow case: when the document IS the fixture
+
+**Only when a project's subject is the document surface itself** — SystemView claiming things about
+how claims render, which is a reflexive situation almost nothing else is in. A claim about an API
+endpoint, a pipeline, a build is never in it, and a claim about a render in another document is not
+in it either.
+
+In that one case the confirming half is a sentence pointing at the page: *"this claim has a proof; it
+is drawing as one line; the ▸ is right there — open it and you have done the check."* The document is
+the fixture, and it is a better fixture than a harness because every reader reproduces it by opening
+the file.
+
+**And the instruction that did not have this answer made an agent invent evidence.** RFC-075's c1
+claims a claim with a proof still draws as one line. The reader was looking at one. The rule said
+every behavioural claim owes a living spec, there was no third answer, so a jsdom harness got built
+with its own fake document to model the thing already on screen — *"you're saying that this expands,
+and that alone probably would mean it needs no spec."* A rule with no honest answer for a case
+produces a dishonest one.
+
+**The guard, because this is the most abusable paragraph here.** It is available ONLY for what the
+reader can confirm by looking at this document. The moment a claim reaches past the page — another
+file, a service, a count, a behaviour over time — it is back under the two obligations, and *"just
+look at it"* is the short circuit wearing this paragraph as cover. The test: could a reader with no
+tools and no shell finish the check from the page alone? If not, this does not apply.
+
+**For the window half, prefer `:::run` over `::test`.** A run lives only in its fold and only runs
+where the document is, which is the exact shape of a claim that is only true in a window. Reaching
+for `::test` because addressable sounds more durable is backwards here: there is nothing to address
+from outside the room the claim is about.
 
 ## A claim declares which obligation it is under
 

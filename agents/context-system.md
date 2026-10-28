@@ -98,10 +98,15 @@ usage tracking is younger than some notes.
 
 A corpus is a folder of markdown; editing the files and maintaining the corpus are the same act.
 
-1. **Create** — `docsIndex(name, root, glob)` with a NEW name and a `root` births one. Agents
-   create `working` corpora: private research, never surfacing in anyone else's search unless
-   named, theirs to drop. **Permanent corpora are the human's**, created from the context surface
-   — an agent can neither mint one nor repoint one.
+1. **Create** — `docsIndex(name, root, glob)` with a NEW name and a `root` births one. `working`
+   is the default and means private research: never surfacing in anyone else's search unless
+   named, yours to `docsDrop` when the job is done. **An agent may also create a `permanent`
+   corpus, and promote a working one by passing `permanent` to it** — same files, nothing
+   re-embedded. The enum used to be `working`-only, justified as "a permanent corpus is the
+   human's shape"; that was withdrawn, because producing durable context is the agent's job and
+   not something to bring to the human. `kind` is a statement of PURPOSE, not permission: working
+   = the store as a mechanism for yourself, permanent = context the system keeps for whoever
+   comes next.
 2. **Write** the files — one subject per heading, headings that name the real thing, never
    numbered, each section self-contained. Retrieval hands out a chunk, not a page, so the
    structure is part of the doc's correctness.
