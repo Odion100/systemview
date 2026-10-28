@@ -34,20 +34,15 @@ And the one place the contract is not met is the one you named: with the file op
 Not a design to approve. A table to argue with.
 
 
-::members{who=systemview-test sent=systemview-logtest:kt8gf2|systemview-test:1anfbdv}
+::members{who=systemview-test sent=systemview-logtest:kt8gf2|systemview-test:fko3ee}
 ## The rule that makes the table possible
 
-Every state is read off a **fact in the document**. The only difference between states is where
-that fact is written — a block, a heading, the claims bar, or the leaf itself. RFC-073 says it
-already: *"four answers read off one document, never four rows written anywhere."*
+The state is **in the document** and nowhere else — never a row written somewhere to be kept in
+sync. RFC-073 already says it: *"four answers read off one document, never four rows written
+anywhere."*
 
-Which gives one rule for the whole control:
-
-> **A press does not set a state. A press writes the fact the state reads.**
-
-So "can I click this?" stops being a policy question and becomes a question about the fact: can a
-press honestly write it? A signature — no. A heading — yes. An attribute on the leaf — yes. A
-count of claims — no, but it can say what is missing.
+So whether you can press a state is only a question about the fact behind it, and every table below
+names that fact in its `requires` column.
 
 **One note on the word, because the code uses a different one.** Here a state is a state. In the
 code it is a **station** — `stateOf()` returns the one the document is in, while `row.state` is the
@@ -177,8 +172,10 @@ model it is already built and already settled.
 - **`objectives done`** — no longer read off the objective's `state=`. **Derived:** an objective is
   done when every plan attached to it is settled, which is what makes an arc a living spec rather
   than a checklist
-- **`retired`** — reads the `::arc` leaf: true when `retired=` is present, carrying the same closed
-  list of reasons an RFC uses
+- **`retired`** — reads the `::arc` leaf: true when `retired=` is present, carrying a **reason**
+  from the same closed list an RFC uses — `cancelled`, `superseded`, `shelf`, `sideline`,
+  `out of service` — because an arc is a living spec too, so the ways it leaves active service are
+  the same ways an RFC's do
 
 ### The states, definitively
 
@@ -187,7 +184,7 @@ model it is already built and already settled.
 |---|---|---|---|
 | `draft` | verdicts **absent** · retire **absent** | `verdicts approved = false AND retired = false`. The same complement shape as an RFC's draft — every state above it needs the verdicts present | an arc nobody has approved is a proposal. **It does not stop you building** — it stops the record from claiming the direction was agreed |
 | `approved` | verdicts **all present** · objectives **not all planned** · retire **absent** | `verdicts approved = true AND every objective planned = false AND retired = false` | the decision is made and the subplans are not all written. This is the state an arc sits in for most of its life |
-| `open` | approved · **every objective has a plan** · plans **not all settled** · retire absent | `verdicts approved = true AND has objectives = true AND every objective planned = true AND plans settled = false AND retired = false` | in flight: every objective has somewhere to put its work, and at least one plan is still moving. **the kind where "what you own" bites hardest** — plans usually belong to several agents |
+| `inProgress` | approved · **every objective has a plan** · plans **not all settled** · retire absent | `verdicts approved = true AND has objectives = true AND every objective planned = true AND plans settled = false AND retired = false` | in flight: every objective has somewhere to put its work, and at least one plan is still moving. **the kind where "what you own" bites hardest** — plans usually belong to several agents |
 | `settled` | approved · every objective planned · plans **all settled** · retire **absent** | `verdicts approved = true AND has objectives = true AND every objective planned = true AND plans settled = true AND retired = false`. `has objectives = true` is the **floor** — without it an empty arc satisfies everything else vacuously and takes the whole trail for free | every plan is settled, so every objective is complete, so the arc is. **Derived upward and never pressed into place**, which makes it the one state on this kind nothing can fake |
 | `retired` | retire declaration **present**, carrying a **reason** | `retired = true`. Shares no term with the states before it | references no other artifact — which is why it holds from any state, including `draft`, where `cancelled` is exactly the right word |
 :::reply{author=you ts=1793146049990 told=systemview-test}
@@ -235,14 +232,15 @@ And on the brainstorm: I think the distinction you are reaching for is that **th
 |---|---|---|---|
 | `draft` | **state** — no `verdict=` on any approval block. **trigger** — none; it starts here. What *returns* it: a reviewer clearing their verdict | **▸ forward** — nothing it can do alone; a verdict is a signature, with a who and a when. **▸ backward** — clears every `verdict=` | **Forward:** a pointer — *"2 blocks await a verdict"* — that jumps to the first one. **Backward:** *☐ clear the 2 verdicts*, with a line naming whose they are |
 | `approved` | **state** — every approval carries `verdict=approved`, **and at least one objective has no plan attached.** **trigger** — the last reviewer pressing approve | **▸ forward** — nothing; a plan is a document somebody has to write. **▸ backward** — clears the verdicts | **Forward: the step list is the unplanned objectives** — *☐ O2 and O4 have no plan attached* — each one a jump into `rfc-authoring` with the objective's address already filled in. This is where the strict half bites, and notice what it blocks: not your work, only the arc's claim to be further along than it is |
-| `open` | **state** — every objective has at least one plan, and at least one plan is not settled. **trigger** — the last unplanned objective getting its first plan | **▸ forward** — nothing it can do alone; a plan settles inside its own document. **▸ backward** — detaching a plan, which nobody should press as a shortcut | **Forward: no button, because none of the work is here.** *waiting on: RFC-081 (draft) · RFC-084 (built)* — the plans that are not settled, each one a link into the document where the press actually lives |
+| `inProgress` | **state** — every objective has at least one plan, and at least one plan is not settled. **trigger** — the last unplanned objective getting its first plan | **▸ forward** — nothing it can do alone; a plan settles inside its own document. **▸ backward** — detaching a plan, which nobody should press as a shortcut | **Forward: no button, because none of the work is here.** *waiting on: RFC-081 (draft) · RFC-084 (built)* — the plans that are not settled, each one a link into the document where the press actually lives |
 | `settled` | **state** — every attached plan is settled, so every objective is complete. **trigger** — the last plan settling, in its own document | **▸ forward** — n/a; this state is derived upward and cannot be pressed at all. **▸ backward** — removes `retired=` | **No forward press, and the panel says why:** *"an arc settles when its plans do"*, naming the last plan that closed. Same strength as an RFC's `settled` and for the same reason — there is no hand that can write it directly |
-| `retired` | **state** — `retired=` on the leaf. **trigger** — a hand, with a reason. **No timer** | **▸ forward** — writes `retired=<date> as=<reason>`. **▸ backward** — press again to remove it | **Forward:** the same reason menu an RFC has, available from every state. **Still open, and it is in the list at the end:** does retiring an arc retire the plans that serve it? **Backward:** *☐ remove `retired=`* |
+| `retired` | **state** — `retired=` on the leaf. **trigger** — a hand, with a reason. **No timer** | **▸ forward** — writes `retired=<date> as=<reason>`, plus `supersededBy=` where the reason needs a pointer. **▸ backward** — press again to remove it | **Forward: pick the reason, and it is the same list an RFC has** — `cancelled` and `superseded` are endings and leave the active lists, `shelf` and `sideline` are pauses and stay findable, `out of service` is the settled ending. Same list for the same cause: **an arc is a living spec, so it stops being one the same ways an RFC does.** Available from every state, `draft` included — `cancelled` is exactly the word for a direction nobody took. **Still open, and it is in the list at the end:** does retiring an arc retire the plans that serve it? **Backward:** *☐ remove `retired=`* |
 
 **The arc is now the kind with the most derivation and the least pressing** — three of its five
 states cannot be pressed at all, because the facts they read live in **other documents**. That is
 what a living spec is: the arc's state is a summary of its plans, so it cannot lie about them.
 
+::::thread{id=t6}
 **The attachment is id-to-id.** A plan points at an objective with `arc=ARC-004-O2` on its own leaf —
 never at a path and never at a document, because RFC-073 made the **id** the identity precisely so a
 rename or a move does not break every pointer at it. You read the arc document when you want the
@@ -250,6 +248,11 @@ rename or a move does not break every pointer at it. You read the arc document w
 second document claiming a live id (the later parse would silently win), and the registry row carries
 `objectives {done, total}` with no record of *which* plan serves *which* objective — so today nothing
 can answer *"is O2 planned?"* at all.
+:::reply{author=you ts=1793180401240}
+The RFC will also point to the point. I mean, the RFC will also point to the arc. So we might have options when it comes to the system keeping the objectives updated based on the RFC. If the RFC is complete, you then it has the potential to Update the arc immediately.
+:::
+::::
+
 
 **Strict state, loose execution.** The arc refusing to read `settled` without a plan per objective
 never stops anybody building. It stops the record from saying the arc is finished when half of it was
@@ -260,10 +263,13 @@ never designed. Strict exactly where looseness would make the record lie; loose 
 ### The conditions, and the artifact each one reads
 
 - **`resolved`** — reads the `::gap` leaf: true when `resolved=` is present
-- **`has proof`** — reads the **document** for a proof block (a `::test`, an existing test, or a
-  `:::run` that runs in the document): true when there is at least one. **The first condition on this
-  kind that does not read the leaf** — and the only condition anywhere that requires evidence rather
-  than a declaration
+- **`has proof`** — reads the **document** for a proof block — a `::test` chip, a `:::run`, a
+  `:::cmd` — true when there is at least one. **The first condition on this kind that does not read the
+  leaf**, and the only condition anywhere that requires evidence rather than a declaration.
+  It takes **whatever actually closed the gap**, and that is not a judgement call: *did closing it
+  change the suite?* Then the chip is the proof — plenty of gaps are fixed by editing a test, and
+  forbidding the chip would mean re-typing the thing you just fixed. Did it change something the suite
+  cannot see — a service, the registry, the window? Then a run block, because nothing else can answer
 - **`rejected`** — reads the leaf: true when `rejected=` is present. It carries a **reason**, which is
   the whole difference between a gap somebody declined and a gap nobody ever got to
 - **`retired`** — reads the same leaf: true when `retired=` is present, with a reason
@@ -314,14 +320,14 @@ One thing to be clear about, because it is a change to a different block and not
 | state | what moves it here — state / trigger | press it — forward / backward | UI facilitation steps, and gates |
 |---|---|---|---|
 | `open` | **state** — no `resolved=` and no `rejected=` on the leaf. **trigger** — none; it starts here. What *returns* it: the owner un-resolving it, or somebody undoing a rejection | **▸ forward** — n/a, first state. **▸ backward** — removes `resolved=` or `rejected=` | **Backward only, and it names the person:** *☐ remove `resolved=`* / *☐ remove `rejected=`* — each with a line saying **who closed it and when**, since reopening a gap undoes somebody else's fix or reverses somebody's decision |
-| `resolved` | **state** — `resolved=` on the leaf, **a proof block in the document**, and no `retired=`. **trigger** — usually the owning project's agent writing it, not the author | **▸ forward** — writes `resolved=`, and **will not land without a proof**. **▸ backward** — removes `retired=` | **Pressing it with no proof does not refuse — it OFFERS one.** *☐ attach a proof: pick an existing test · write a new one · drop a `:::run` that runs here* — then the press completes by itself. And it still names the target repo: *☐ write `resolved=` into `<project>`'s copy*, because a gap lives in the repo it was filed INTO and the presser is usually not its owner |
+| `resolved` | **state** — `resolved=` on the leaf, **a proof block in the document**, and no `retired=`. **trigger** — usually the owning project's agent writing it, not the author | **▸ forward** — writes `resolved=`, and **will not land without a proof**. **▸ backward** — removes `retired=` | **Pressing it with no proof does not refuse — it OFFERS one.** *☐ attach a proof: point at the test that closed it · drop a `:::run` that runs here · or a `:::cmd`* — then the press completes by itself. And it still names the target repo: *☐ write `resolved=` into `<project>`'s copy*, because a gap lives in the repo it was filed INTO and the presser is usually not its owner |
 | `rejected` | **state** — `rejected=` on the leaf, with a reason. **trigger** — a hand; nothing derives a rejection | **▸ forward** — writes `rejected=<date> why=<reason>`. **▸ backward** — removes it, landing back on `open` | **The reason is the step, not a confirm.** *☐ say why this is declined* — a short closed list plus a line, because this is the one ending somebody will be asked about later. No gate: a gap can be declined the moment it is filed |
 | `retired` | **state** — `retired=` on the leaf. **trigger** — a hand, with a reason. **No timer** | **▸ forward** — writes `retired=<date> as=<reason>`. **▸ backward** — press again to remove it | **Forward:** the same reason menu as the other kinds. **Gate:** offered from `resolved`, because that is the only state where there is a living spec to retire — from `open` or `rejected` the honest press is `cancelled`, not `retired`. **Backward:** *☐ remove `retired=`* |
 
 **A gap stopped being the simplest kind the moment `resolved` needed a proof — and it became the
 best one.** Every other kind's forward press is a declaration the document then has to be trusted
 about. This one's is the only press in the whole system that **cannot outrun its evidence**: the
-state does not move until something re-runnable is sitting in the document.
+state does not move until something re-runnable is attached to it.
 
 It is also the only kind with **two endings**, which means the trail is not a line — it forks, and a
 surface drawing it has to show `rejected` as a real destination rather than a failure to reach
@@ -332,7 +338,7 @@ One thing this leans on that does not exist yet, and it is a change to a **diffe
 document instead is the new mechanism — and the claim side has rules a free-standing proof would need
 its own version of, since a claim's mark carries who marked it and when.
 
-::::thread{id=t5 sent=systemview-logtest:11ey61h|systemview-test:1json35}
+::::thread{id=t5 sent=systemview-logtest:11ey61h|systemview-test:g96hbd}
 ## REPORT — two states, a dynamic leaf, and the only honest clock
 :::reply{author=you ts=1793148156913 told=systemview-test}
 So yeah, so reports are going to be dynamic and I'm just going to have a fixed stone. The leaf is going to be dynamic depending on what the report is used for. The whole point of these leaves is to be able to track the life cycle so that we can know what we need to respond to know when it were done with a document and get rid of it. So what all reports used for reports are used, this document is a report. Right now it's being used for planning. sometimes is for a notice. And was the life cycle of that? Was the life cycle of planning report document? Was this life cycle of a notice report document? Can you think of other categories?
@@ -404,6 +410,24 @@ while sharing one parse and one control.
 | `audit` | a count against a tree at one moment — *"67 RFCs, five with a verdict"* | never done. It is **re-run or out of date**, so what it needs that nothing else does is the **command that regenerates it** | none; out-of-date is its state, not its ending |
 | `account` | what a job, a lane or a run actually did | filed. **Never edited, only superseded** — amending a record is lying about history | none; it *is* the record |
 | `brief` | context handed to another agent | **the recipient acted** — the one report whose state is genuinely per-member rather than per-document | none |
+| `spec` | **what something is supposed to do, with runnable evidence** — prose plus `:::run` and `:::cmd` blocks you can press. Often spontaneous: you ask why a thing does not do X, and this is the answer you can re-run yourself | never "done". It is **current** or **drifted**, and the difference is *pressable* rather than asserted, because its proof runs | whatever `retain=` says. **Not permanent by nature** — the subtype only picks a different default |
+
+**`spec` is the one with a different shape, and what makes it different is that its proof RUNS.**
+The other four are read — you read a notice, a planning table, an audit, an account. A spec is
+pressed: *this is what I am claiming, check it yourself.* So it is the one subtype whose condition is
+not about time or attention but about whether the evidence still passes, which is what makes `current`
+and `drifted` real states rather than feelings.
+
+**And it is not permanent.** It is a report like the others — retention is `retain=` on the leaf, set
+when it is filed, and `spec` only defaults differently. A spec written to answer one question in a
+conversation may be worth three days; another may be worth a year. The subtype does not decide that.
+
+**The proof block itself stays unrestricted — the condition decides what it COUNTS.** A proof holds
+whatever it holds: a test chip, a `:::run`, a `:::cmd`. What varies by kind is which of those a state
+reads, so a subtype can *encourage* without forbidding. And where we want to steer it — a spec leaning
+on run blocks rather than test chips, since the suite already proves everything it can reach — that
+belongs in the **skill that writes the report**, not in an enforcement rule that has to be bent the
+first time somebody has a good reason.
 
 **`notice` and `brief` overlap, and prose will not separate them.** An agent choosing between them
 needs a question with one mechanical answer, and the document already carries it: **does it have named
@@ -532,9 +556,9 @@ says what is missing rather than nothing.
 - Does retiring an arc retire the plans that serve it?
 - Does a **free-standing proof** — one belonging to the document rather than to a claim — need the
   same rules a claim's mark has: who wrote it, and when?
-- **What separates `approved` from `open` on an arc.** I wrote it as *every objective has a plan
+- **What separates `approved` from `inProgress` on an arc.** I wrote it as *every objective has a plan
   attached*, derived from your rule that an unplanned objective is incomplete — but that is my
-  inference, not something you said. If `open` just means approved-and-in-flight, the two collapse
+  inference, not something you said. If `inProgress` just means approved-and-in-flight, the two collapse
   into one state.
 - **What a planning report requires** — your own question, unanswered: does it need an approval of
   its own before it becomes an RFC, and what else does the `planning` subtype demand?

@@ -17,83 +17,7 @@ import ReportsTab from "../Reports/ReportsTab";
 import Board from "../Board/Board";
 import CenterTabs, { useOpenByPath } from "../CenterTabs/CenterTabs";
 import { buildRoute } from "../../pages/SystemView/tabRoutes";
-
-// Shown in the center when NOTHING is selected in the nav — SystemView's own help, so the Specs area is
-// useful on arrival instead of blank.
-// The document you land on when NOTHING is selected — the HELP HUB. It is written in the
-// interactive vocabulary it documents (RFC-025): the tabs are `::::tabs`, the feature status is a
-// read-only checklist (no write target — this is a code constant, and the block says so), and every
-// `:help[…]` chip opens that topic in this same panel.
-const SYSTEMVIEW_HELP = `# SystemView
-
-**This is development as plan → execute.** You say what you want; the plan is a document; agents
-build it; you review and press. Nothing here is a chat log you scroll — the work is conducted in
-documents that *do things* when you press them, and this page is one of those documents.
-
-Nothing is open yet. That is why you are reading this. Pick anything on the left and it takes over;
-click it again to come back here.
-
-## How we work here
-
-Not rules — the shape the work tends to take. Plenty happens outside it: a fix you ask for lands
-straight in your tree, a question gets answered in the chat, a document gets edited where it sits.
-
-1. **A goal becomes an arc.** You state the goal in your words to an agent (:ui[chat]). The agent
-   researches how the project actually works, writes a planning document, and the two of you — or
-   several projects' agents — converge in it. What is agreed becomes **objectives**, each with an
-   owner and requirements, and the arc that contains them.
-2. **An arc becomes RFCs.** An arc says *who builds what*. An RFC says *how* — the implementation
-   detail, the slices in landing order, the claims you can check later. Approving one is a press
-   inside it.
-3. **Agents build; you commit.** Most work lands directly in your tree, **unstaged**, where you
-   review everything else. Work an agent *delegates* — or runs unattended — goes in a **lane** instead:
-   its own branch and worktree, a row you can watch and a record you can discard, brought into your
-   tree the same way when it is done. Either way **the commit is yours.** An agent never commits for you.
-4. **Everything is a document, and documents act.** A \`::commit\` is a button. A \`:::cmd\` runs. An
-   \`:::approval\` records your verdict where the proposal is. The same markdown renders in a doc, a
-   report, an RFC and the chat — one grammar, every surface.
-
-## What you can do here
-
-**Bring in a project.** The :ui[navigator] lists what SystemView knows. A repo with no services yet is
-one command away from a hosted testing service:
-
-\`\`\`
-systemview init
-\`\`\`
-
-run in the repo's folder — see :help[navigator] for the tree it produces.
-
-**Talk to an agent.** The :ui[chat] is an agent's live session, not a mailbox: it is working in this
-window with you, and its replies are interactive. Say the goal; it does the rest, and asks you one
-thing at a time when it has to. :help[chat]
-
-**Plan an arc.** Tell the agent *"here's the goal — plan it out."* It opens the arc meeting as a
-document, researches the landscape, and writes its opening proposal for you to push back on.
-
-**Build, run, watch.** Tests are built in the :ui[scratchpad] and saved beside the code; the Stage
-holds reports; Statistics shows what the services are doing. :help[scratchpad] · :help[actions] ·
-:help[events]
-
-**Run a command from a document** — the body is the command, verbatim, and the output lands in the
-block with its exit code. Press this one:
-
-:::cmd{title="What the CLI can do" dir=~}
-systemview --help
-:::
-
-## The grammar, in one place
-
-Every block that can appear in a document — references like \`:ns[Math.add]\` and \`:file[path#L40-70]\`,
-containers like \`:::callout\` and \`:::thread\`, the acting ones like \`::commit\`, \`:::approval\`, \`::ask\`
-and \`:::cmd\` — is in :help[markdown]. An agent writes them; you press them.
-
-:::callout{type=info}
-This page is a built-in, so its checklists and blocks are read-only. In a real document, ticking a
-box edits the file.
-:::
-
-_This is the development half of one suite. The rest of it ties in here._`;
+import HowWeWork from "../HowWeWork/HowWeWork";
 
 export default function Documentation({
   projectCode,
@@ -187,6 +111,9 @@ export default function Documentation({
       // chat). These tabs render a SLOT; the docked AgentChat portals the real panel into it —
       // one component, no second implementation, the same trick the nav dock itself uses.
       openTab(tabsPc, { key: `${urlTab}:${tabsPc}`, kind: urlTab });
+    else if (urlTab === "how")
+      // ONE PER PROJECT, like the board — the page is the same page whatever is open behind it.
+      openTab(tabsPc, { key: `how:${tabsPc}`, kind: "how" });
     else if (urlTab === "board")
       // THE BOARD IS ONE TAB PER PROJECT, like stats — it is a view OF the project's one board
       // file, so a second tab would be the same board twice. His ruling, 2026-10-14: *"I don't
@@ -251,6 +178,7 @@ export default function Documentation({
       : !fileLens &&
         ((t.kind === "doc" && (tab === "docs" || (tab === "reports" && !reportPath)) && t.key === `doc:${sService || ""}.${sModule || ""}.${sMethod || ""}`) ||
           (t.kind === "stats" && tab === "stats") ||
+          (t.kind === "how" && tab === "how") ||
           (t.kind === "board" && tab === "board") ||
           ((t.kind === "links" || t.kind === "cmds") && tab === t.kind) ||
           (t.kind === "logs" && tab === "logs" && t.key === `logs:${sService || ""}.${sModule || ""}.${sMethod || ""}`) ||
@@ -402,7 +330,19 @@ export default function Documentation({
             />
           </div>
         )}
-        {!helpOpen && !fileLens && (tab === "docs" || (tab === "reports" && !reportPath)) && (
+        {/* NOTHING OPEN — HOW WE WORK takes the floor. The empty strip used to show SystemView's
+            own documentation, which answered "what are these panels" for somebody who already knew
+            why they would want them ("it's kind of bullshit" — his read, 2026-10-27). What belongs
+            on the surface you land on is the FLOW: a goal becoming an arc becoming plans becoming
+            claims, every kind's lifecycle, and the doors to start one. Keyed off the STRIP BEING
+            EMPTY, exactly as the manual was — a lingering scope must not slip a page under a tab
+            that names a document. */}
+        {!helpOpen && !fileLens && pane.tabs.length === 0 && (tab === "docs" || (tab === "reports" && !reportPath)) && (
+          <div className="documentation-view__data-table">
+            <HowWeWork />
+          </div>
+        )}
+        {!helpOpen && !fileLens && pane.tabs.length > 0 && (tab === "docs" || (tab === "reports" && !reportPath)) && (
           <div className="documentation-view__data-table">
             {/* The doc IS a file panel — a framed pane with a header/badge. When nothing is selected it
                 shows SystemView's own help; otherwise the per-namespace doc (getDoc/saveDoc). The doc's
@@ -484,9 +424,8 @@ export default function Documentation({
               // is restored before its scope resolves, so for that window sService is "" and the page
               // read "SystemView" with a tab above it saying otherwise (his report, 2026-10-25). A tab
               // whose scope has not landed is loading, not the manual.
-              readOnly={pane.tabs.length === 0 || !sService}
-              label={pane.tabs.length === 0 ? "SystemView" : !sService ? "…" : sMethod ? `${sService}.${sModule}.${sMethod}` : sModule ? `${sService}.${sModule}` : sService}
-              helpText={pane.tabs.length === 0 ? SYSTEMVIEW_HELP : null}
+              readOnly={!sService}
+              label={!sService ? "…" : sMethod ? `${sService}.${sModule}.${sMethod}` : sModule ? `${sService}.${sModule}` : sService}
             />
           </div>
         )}
@@ -508,6 +447,13 @@ export default function Documentation({
           <div id={`sv-dock-slot-${tabsPc}-${tab}`} className="doc-dockslot">
             {/* the docked AgentChat portals the live panel in here; an empty slot means the chat
                 for this project is not docked in the side panel right now */}
+          </div>
+        )}
+        {/* OPENED DELIBERATELY, not fallen into. Same page as the floor below — one component,
+            so the two can never drift into two answers about how the system works. */}
+        {!helpOpen && tab === "how" && (
+          <div className="documentation-view__data-table">
+            <HowWeWork />
           </div>
         )}
         {!helpOpen && tab === "board" && (
@@ -580,7 +526,7 @@ const HelpPane = ({ topicKey, depth = 1 }) => {
 // The doc pane, whole: header (badge + namespace label + the Edit/Save/Close controls) and the body
 // (rendered document, or the dark editor while editing). Same shape as the Code pane — the header
 // owns the mode, the document below is for reading.
-const DocDescription = ({ doc, setDocument, Plugin, label, crumb = null, readOnly, helpText, scope = null }) => {
+const DocDescription = ({ doc, setDocument, Plugin, label, crumb = null, readOnly, scope = null }) => {
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(doc.documentation);
   const [editorDark] = useEditorDark("docs");
@@ -623,7 +569,6 @@ const DocDescription = ({ doc, setDocument, Plugin, label, crumb = null, readOnl
     setEditing(false);
   }, [doc]);
 
-  const shown = helpText != null ? helpText : text;
   return (
     <div className="doc-pane">
       <div className={`doc-pane__header ${!editorDark ? "doc-pane__header--light" : ""}`}>
@@ -664,24 +609,16 @@ const DocDescription = ({ doc, setDocument, Plugin, label, crumb = null, readOnl
             <div className="edit-box edit-box--edit">
               <DescriptionBox text={text || ""} setValue={setText} dark={editorDark} />
             </div>
-          ) : shown ? (
+          ) : text ? (
             <Markdown
               dark={editorDark}
-              children={shown}
+              children={text}
               scope={scope}
-              // The hub is a built-in rather than a file, so it has no namespace to key off — but a
-              // thread in it should still be a real thread, not a dead demo. Give it a fixed key; the
-              // sidecar lands in whichever connected project hosts the plugin, the same fallback the
-              // embeds on this page already use.
-              commentKey={
-                helpText != null
-                  ? "app:hub"
-                  : `doc-${(scope && scope.projectCode) || ""}-${[doc.namespace && doc.namespace.serviceId, doc.namespace && doc.namespace.moduleName, doc.namespace && doc.namespace.methodName].filter(Boolean).join(".") || "project"}`
-              }
+              commentKey={`doc-${(scope && scope.projectCode) || ""}-${[doc.namespace && doc.namespace.serviceId, doc.namespace && doc.namespace.moduleName, doc.namespace && doc.namespace.methodName].filter(Boolean).join(".") || "project"}`}
               // RFC-025 §4.6 — the document IS the store. A checklist toggle is a narrower edit down
-              // the same saveDoc path the editor uses. Help text is a code registry → read-only.
+              // the same saveDoc path the editor uses.
               onSourceChange={
-                Plugin && helpText == null && !readOnly
+                Plugin && !readOnly
                   ? async (next) => {
                       // Optimistic: the toggle is already reflected locally, so don't round-trip
                       // the result back into `doc` — that would re-render the document (and every

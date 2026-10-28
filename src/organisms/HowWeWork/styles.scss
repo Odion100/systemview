@@ -1,0 +1,1163 @@
+// HOW WE WORK — the page that fills the centre when nothing is open.
+//
+// It is deliberately a WEB PAGE and not another IDE panel: a reading measure, vertical rhythm,
+// motion that shows flow. The rest of the window is 11px chrome; this is the one surface a person
+// READS, so the type is bigger and the air is real.
+//
+// EVERY TOKEN HERE IS ONE THAT EXISTS (src/sass/theme.scss) — an undefined `var()` resolves to
+// nothing, so a background vanishes and text inherits dark-on-dark. The four KIND accents are the
+// only new values and they are declared locally, with a dark-mode step, the same way CallStats
+// writes its status colours literally.
+.hww {
+  // IT FILLS THE PANE AND SCROLLS INSIDE ITSELF. In the centre panel the chain above it is a flex
+  // column with `min-height: 0` (Documentation's own stylesheet, "the document reaches the bottom
+  // of the window"), so `flex` is what gives this page its real height. The `max-height` is for the
+  // other mount — the Documents wall tab, where the ancestors are not flex and `height: 100%`
+  // resolves to auto: without a cap the page would grow past the window with nothing to scroll it.
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  // THE FRAME EVERY DOCUMENT HAS, and it was missing: the page bled edge to edge with no border
+  // and nothing holding it, which in light mode reads as broken rather than as a surface. Copied
+  // from `.doc-pane` — same border token, same radius, same bottom cap and the same 14px of air —
+  // because this sits where a document sits and should look like it belongs there. What it does
+  // NOT take from `.doc-pane` is the header: no namespace badge, no Edit/Save, because this is not
+  // a file you edit.
+  //
+  // THE BACKGROUND STAYS `--sv-bg` ON PURPOSE. It is whitesmoke in light mode while the cards on
+  // the page are `--sv-surface` white — his point: a white page under white cards would erase
+  // them. The quieter canvas is what makes the cards read as cards.
+  max-height: calc(100vh - 113px);
+  margin-bottom: 14px;
+  border: 1px solid var(--sv-border);
+  border-radius: 6px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  color: var(--sv-text);
+  // ITS OWN CANVAS, NOT THE APP'S. `--sv-bg` is whitesmoke in light mode, which is the same tone as
+  // every other panel's background — so this page read as a hole in the window rather than a
+  // surface sitting in it, even once it had a border. His call: *"it's something that's still looks
+  // good against the white card"* — the cards here are `--sv-surface` white, so the canvas has to
+  // be cool enough to separate them and quiet enough not to become a colour. A literal value, not
+  // a token, because no existing token means "this page's paper" and inventing a global one for a
+  // single surface is how a palette grows a member nobody can name.
+  // DARK MODE IS LEFT ALONE — it already survives on `--sv-bg`, which the block below restores.
+  //
+  // WHITE, AND THE SEPARATION MOVES TO THE CARDS. The tinted paper above was the wrong half of the
+  // problem: *"just make sure the background white and make the cards… have some slight subtle
+  // border."* A canvas colour separates a card by pushing the page away from it; a border separates
+  // it by drawing the card's own edge, which is the honest one — the card is the thing, not the gap
+  // around it.
+  background: var(--sv-surface);
+  font-size: 13.5px;
+  line-height: 1.62;
+  padding-bottom: 72px;
+
+  // the kind accents — one hue per registered kind, used by the leaf cards, the trail tabs and the
+  // trails themselves, so a colour means the same thing everywhere on the page
+  --hww-rfc: #5a77e5;
+  --hww-arc: #9a4fe0;
+  --hww-gap: #c07a16;
+  --hww-report: #0d8065;
+  --hww-you: #5a77e5;
+  --hww-agent: #9a4fe0;
+  --hww-derived: #0d8065;
+
+  code {
+    font-family: monospace;
+    font-size: 0.9em;
+    background: var(--sv-inset);
+    border: 1px solid var(--sv-border-soft);
+    border-radius: 3px;
+    padding: 0 4px;
+    color: var(--sv-text-strong);
+    white-space: nowrap;
+  }
+  b { color: var(--sv-text-strong); }
+  i { color: var(--sv-text); }
+}
+:root.sv-dark .hww {
+  // The dark canvas was never the problem; take the app's own back.
+  background: var(--sv-bg);
+  --hww-rfc: #8ba4ef;
+  --hww-arc: #c68cf5;
+  --hww-gap: #e0a34f;
+  --hww-report: #3fb795;
+  --hww-you: #8ba4ef;
+  --hww-agent: #c68cf5;
+  --hww-derived: #3fb795;
+}
+
+// ── the hero ──────────────────────────────────────────────────────────────────────────────────
+.hww-hero {
+  position: relative;
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 44px 28px 26px;
+
+  &__art {
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 120px;
+    opacity: 0.5;
+    pointer-events: none;
+
+    svg { width: 100%; height: 100%; display: block; }
+  }
+  &__path {
+    fill: none;
+    stroke: var(--sv-border);
+    stroke-width: 1.5;
+  }
+  // THE CURRENT. A second copy of the same path, dashed and marching — the cheapest honest way to
+  // say "work moves through here" without a frame loop.
+  &__flow {
+    fill: none;
+    stroke: var(--hww-rfc);
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-dasharray: 10 260;
+    animation: hww-stream 7s linear infinite;
+  }
+  &__title {
+    position: relative;
+    margin: 18px 0 10px;
+    font-size: 30px;
+    line-height: 1.15;
+    letter-spacing: -0.4px;
+    font-weight: 600;
+    color: var(--sv-text-strong);
+  }
+  &__lede {
+    position: relative;
+    margin: 0 0 12px;
+    max-width: 74ch;
+    font-size: 15px;
+    line-height: 1.6;
+  }
+  &__honest {
+    position: relative;
+    margin: 0;
+    max-width: 74ch;
+    font-size: 12px;
+    color: var(--sv-text-faint);
+    border-left: 2px solid var(--sv-border);
+    padding-left: 10px;
+  }
+}
+@keyframes hww-stream {
+  from { stroke-dashoffset: 270; }
+  to { stroke-dashoffset: 0; }
+}
+
+// ── the chapter strip ─────────────────────────────────────────────────────────────────────────
+.hww-chaps {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 10px 28px;
+  background: var(--sv-bg);
+  border-bottom: 1px solid var(--sv-border-soft);
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar { display: none; }
+
+  &__chip {
+    font: inherit;
+    font-size: 11.5px;
+    white-space: nowrap;
+    padding: 3px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--sv-border-soft);
+    background: transparent;
+    color: var(--sv-text-muted);
+    cursor: pointer;
+
+    &:hover { color: var(--sv-blue); border-color: var(--sv-blue); }
+    &.is-at {
+      color: #fff;
+      background: var(--sv-blue);
+      border-color: var(--sv-blue);
+    }
+  }
+}
+
+// ── a section ─────────────────────────────────────────────────────────────────────────────────
+.hww-sec {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 40px 28px 8px;
+  scroll-margin-top: 58px;
+
+  &--wide { max-width: 1140px; }
+
+  &__head {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    margin-bottom: 20px;
+  }
+  &__n {
+    flex: 0 0 auto;
+    width: 26px;
+    height: 26px;
+    margin-top: 12px;
+    border-radius: 50%;
+    border: 1px solid var(--sv-border);
+    display: grid;
+    place-items: center;
+    font-size: 11.5px;
+    color: var(--sv-text-muted);
+  }
+  &__kicker {
+    font-size: 10.5px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--sv-text-faint);
+  }
+  &__title {
+    margin: 2px 0 8px;
+    font-size: 21px;
+    line-height: 1.3;
+    font-weight: 600;
+    color: var(--sv-text-strong);
+  }
+  &__lede {
+    margin: 0;
+    max-width: 78ch;
+    color: var(--sv-text);
+  }
+}
+.hww-sub {
+  margin: 34px 0 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--sv-text-strong);
+}
+.hww-note {
+  margin: 18px 0 0;
+  padding: 12px 14px;
+  border: 1px solid var(--sv-border-soft);
+  border-left: 3px solid var(--sv-blue);
+  border-radius: 0 5px 5px 0;
+  background: var(--sv-surface);
+  font-size: 12.5px;
+  max-width: 86ch;
+}
+.hww-hint {
+  margin: 12px 0 0;
+  font-size: 11.5px;
+  color: var(--sv-text-faint);
+
+  &--inline { margin: 0; max-width: 52ch; }
+}
+.hww-btn {
+  font: inherit;
+  font-size: 11.5px;
+  padding: 4px 11px;
+  border-radius: 4px;
+  border: 1px solid var(--sv-border);
+  background: var(--sv-surface);
+  color: var(--sv-text);
+  cursor: pointer;
+
+  &:hover { border-color: var(--sv-blue); color: var(--sv-blue); }
+  &--go {
+    background: var(--sv-blue);
+    border-color: var(--sv-blue);
+    color: #fff;
+
+    &:hover { background: var(--sv-blue-hover); border-color: var(--sv-blue-hover); color: #fff; }
+    &:disabled { opacity: 0.45; cursor: default; background: var(--sv-blue); }
+  }
+  &--quiet { border-color: transparent; color: var(--sv-text-faint); background: transparent; }
+}
+
+// ── 1 · the flow rail ─────────────────────────────────────────────────────────────────────────
+.hww-flow {
+  &__rail {
+    display: flex;
+    align-items: flex-start;
+    list-style: none;
+    margin: 0 0 22px;
+    padding: 0;
+  }
+  &__node {
+    display: flex;
+    align-items: center;
+    flex: 1 1 0;
+    min-width: 0;
+
+    &:last-child { flex: 0 0 auto; }
+  }
+  &__btn {
+    font: inherit;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    width: 104px;
+    padding: 6px 2px;
+    border: 0;
+    background: transparent;
+    color: var(--sv-text-muted);
+    cursor: pointer;
+    text-align: center;
+  }
+  &__dot {
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    border: 2px solid var(--sv-border);
+    background: var(--sv-surface);
+    transition: all 0.3s ease;
+  }
+  &__label { font-size: 12.5px; font-weight: 600; }
+  &__kicker { font-size: 10.5px; color: var(--sv-text-faint); line-height: 1.25; }
+  &__link {
+    flex: 1 1 10px;
+    min-width: 10px;
+    height: 2px;
+    margin-top: 12px;
+    background: var(--sv-border-soft);
+  }
+
+  .hww-flow__node.is-past .hww-flow__dot { border-color: var(--hww-rfc); background: var(--hww-rfc); }
+  .hww-flow__node.is-at .hww-flow__dot {
+    border-color: var(--hww-rfc);
+    background: var(--hww-rfc);
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--hww-rfc) 22%, transparent);
+    transform: scale(1.2);
+  }
+  .hww-flow__node.is-at .hww-flow__label { color: var(--sv-text-strong); }
+  .hww-flow__node.is-past .hww-flow__link { background: var(--hww-rfc); }
+
+  // the current, only while nothing has taken the wheel
+  &__rail--live .hww-flow__node.is-at .hww-flow__link {
+    background-image: repeating-linear-gradient(90deg, var(--hww-rfc) 0 6px, transparent 6px 16px);
+    background-size: 16px 2px;
+    animation: hww-march 0.9s linear infinite;
+  }
+
+  &__card {
+    border: 1px solid var(--sv-border-soft);
+    border-radius: 7px;
+    background: var(--sv-surface);
+    padding: 16px 18px;
+    animation: hww-rise 0.26s ease both;
+  }
+  &__cardhead {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+
+    h3 { margin: 0; font-size: 16px; font-weight: 600; color: var(--sv-text-strong); }
+  }
+  &__body { margin: 0 0 12px; max-width: 80ch; }
+  &__after {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 5px;
+    background: var(--sv-inset);
+  }
+  &__afterlbl {
+    font-size: 10px;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: var(--sv-text-faint);
+  }
+  &__afterval { font-size: 12.5px; font-weight: 600; color: var(--sv-text-strong); }
+  &__note { margin: 10px 0 0; font-size: 12px; color: var(--sv-text-muted); max-width: 84ch; }
+}
+@keyframes hww-march {
+  from { background-position: 0 0; }
+  to { background-position: 16px 0; }
+}
+@keyframes hww-rise {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: none; }
+}
+
+.hww-hand {
+  font-size: 10px;
+  letter-spacing: 0.9px;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+
+  &--you { color: var(--hww-you); }
+  &--agent, &--agents { color: var(--hww-agent); }
+  &--derived { color: var(--hww-derived); }
+  &--youagent { color: var(--sv-text-muted); }
+}
+.hww-leafchip {
+  font-size: 11px !important;
+  color: var(--sv-text-muted) !important;
+}
+
+// ── 2 · the leaves ───────────────────────────────────────────────────────────────────────────
+.hww-leaves {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+.hww-leaf {
+  --accent: var(--sv-blue);
+  border: 1px solid var(--sv-border-soft);
+  border-top: 2px solid var(--accent);
+  border-radius: 6px;
+  background: var(--sv-surface);
+  padding: 12px 14px 14px;
+
+  &--rfc { --accent: var(--hww-rfc); }
+  &--arc { --accent: var(--hww-arc); }
+  &--gap { --accent: var(--hww-gap); }
+  &--report { --accent: var(--hww-report); }
+
+  &__top { display: flex; flex-direction: column; gap: 1px; margin-bottom: 9px; }
+  &__kind {
+    font-size: 11px;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--accent);
+  }
+  &__one { font-size: 12.5px; color: var(--sv-text-strong); }
+  &__code {
+    display: block;
+    white-space: normal !important;
+    word-break: break-all;
+    font-size: 11px !important;
+    padding: 5px 7px !important;
+  }
+  &__hint { margin: 9px 0 0; font-size: 11.5px; color: var(--sv-text-muted); }
+}
+
+// ── 3 · the lifecycles ───────────────────────────────────────────────────────────────────────
+.hww-rule {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin: 0 0 24px;
+  padding: 14px 16px;
+  border-radius: 7px;
+  border: 1px solid var(--sv-border-soft);
+  background: var(--sv-surface);
+
+  &__mark { font-size: 20px; line-height: 1; color: var(--sv-blue); margin-top: 2px; }
+  b { display: block; font-size: 15px; margin-bottom: 4px; }
+  span { display: block; font-size: 12.5px; color: var(--sv-text-muted); max-width: 86ch; }
+}
+
+.hww-life {
+  &__tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  &__tab {
+    --accent: var(--sv-blue);
+    font: inherit;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--sv-border-soft);
+    background: var(--sv-surface);
+    cursor: pointer;
+
+    &--rfc { --accent: var(--hww-rfc); }
+    &--arc { --accent: var(--hww-arc); }
+    &--gap { --accent: var(--hww-gap); }
+    &--report { --accent: var(--hww-report); }
+
+    &:hover { border-color: var(--accent); }
+    &.is-on {
+      border-color: var(--accent);
+      box-shadow: inset 0 -2px 0 var(--accent);
+    }
+  }
+  &__tabkind {
+    font-size: 12.5px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    color: var(--accent);
+  }
+  &__tabn { font-size: 10.5px; color: var(--sv-text-faint); }
+  &__lede { margin: 0 0 20px; max-width: 86ch; font-size: 12.5px; color: var(--sv-text-muted); }
+}
+
+.hww-trail {
+  --accent: var(--sv-blue);
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 0;
+  list-style: none;
+  margin: 0 0 18px;
+  padding: 6px 0 30px;
+
+  &--rfc { --accent: var(--hww-rfc); }
+  &--arc { --accent: var(--hww-arc); }
+  &--gap { --accent: var(--hww-gap); }
+  &--report { --accent: var(--hww-report); }
+
+  &__st {
+    position: relative;
+    flex: 1 1 0;
+    min-width: 92px;
+
+    // the line to the next station
+    &:not(:last-child)::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      right: -50%;
+      top: 14px;
+      height: 1px;
+      background: var(--sv-border);
+    }
+  }
+  // THE FORK IS DRAWN AS A FORK. `rejected` is a destination, not a failure to reach `resolved` —
+  // so it sits off the line with its own branch, which is the only honest picture of a gap's end.
+  &__st--fork {
+    margin-top: 46px;
+
+    &::after { display: none; }
+    &::before {
+      content: "";
+      position: absolute;
+      left: -18px;
+      top: -20px;
+      width: 46px;
+      height: 1px;
+      background: var(--accent);
+      opacity: 0.6;
+      transform: rotate(38deg);
+      transform-origin: left center;
+    }
+  }
+  &__btn {
+    position: relative;
+    z-index: 1;
+    font: inherit;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    width: 100%;
+    border: 0;
+    background: transparent;
+    color: var(--sv-text-muted);
+    cursor: pointer;
+  }
+  &__ring {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-size: 12px;
+    border: 1px solid var(--sv-border);
+    background: var(--sv-surface);
+    color: var(--sv-text-faint);
+    transition: all 0.22s ease;
+  }
+  &__name { font-size: 12px; font-family: monospace; }
+
+  .hww-trail__st.is-at .hww-trail__ring {
+    border-color: var(--accent);
+    color: var(--accent);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent);
+  }
+  .hww-trail__st.is-at .hww-trail__name { color: var(--sv-text-strong); font-weight: 600; }
+}
+
+.hww-st {
+  border: 1px solid var(--sv-border-soft);
+  border-radius: 7px;
+  background: var(--sv-surface);
+  padding: 14px 16px 16px;
+  animation: hww-rise 0.24s ease both;
+
+  &__head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  &__name { margin: 0; font-family: monospace; font-size: 16px; color: var(--sv-text-strong); }
+  &__press {
+    font-size: 10.5px;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 999px;
+    border: 1px solid currentColor;
+
+    &.is-yes { color: var(--hww-report); }
+    &.is-no { color: var(--sv-text-faint); }
+  }
+  &__rows {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 12px;
+    margin: 0 0 12px;
+
+    > div {
+      padding: 9px 11px;
+      border-radius: 5px;
+      background: var(--sv-inset);
+    }
+    dt {
+      font-size: 10px;
+      letter-spacing: 0.9px;
+      text-transform: uppercase;
+      color: var(--sv-text-faint);
+      margin-bottom: 3px;
+    }
+    dd { margin: 0; font-size: 12.5px; }
+  }
+  &__means {
+    margin: 0;
+    padding-left: 11px;
+    border-left: 2px solid var(--sv-border);
+    font-size: 12.5px;
+    color: var(--sv-text-muted);
+    max-width: 90ch;
+  }
+}
+
+.hww-retire {
+  &__cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+  &__col {
+    border: 1px solid var(--sv-border-soft);
+    border-radius: 6px;
+    background: var(--sv-surface);
+    padding: 12px 14px;
+
+    h4 {
+      margin: 0 0 9px;
+      font-size: 11px;
+      letter-spacing: 0.7px;
+      text-transform: uppercase;
+      color: var(--sv-text-faint);
+    }
+    &--ending h4 { color: var(--hww-gap); }
+    &--pause h4 { color: var(--hww-report); }
+  }
+  &__note {
+    margin: 14px 0 0;
+    font-size: 12.5px;
+    color: var(--sv-text-muted);
+    max-width: 92ch;
+  }
+}
+.hww-reason {
+  display: flex;
+  gap: 9px;
+  align-items: baseline;
+  padding: 4px 0;
+  font-size: 12px;
+
+  code { flex: 0 0 auto; }
+  span { color: var(--sv-text-muted); }
+}
+
+.hww-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+
+  th {
+    text-align: left;
+    font-size: 10px;
+    letter-spacing: 0.9px;
+    text-transform: uppercase;
+    color: var(--sv-text-faint);
+    font-weight: 600;
+    padding: 0 10px 6px 0;
+    border-bottom: 1px solid var(--sv-border);
+  }
+  td {
+    padding: 9px 10px 9px 0;
+    border-bottom: 1px solid var(--sv-border-soft);
+    vertical-align: top;
+  }
+  &__quiet { color: var(--sv-text-faint); }
+}
+
+.hww-layers3 {
+  margin-top: 30px;
+  padding: 14px 16px;
+  border: 1px dashed var(--sv-border);
+  border-radius: 7px;
+
+  h4 { margin: 0 0 8px; font-size: 13px; font-weight: 600; color: var(--sv-text-strong); }
+  ol { margin: 0; padding-left: 20px; }
+  li { font-size: 12.5px; margin-bottom: 3px; }
+}
+
+// ── 4 · upward ───────────────────────────────────────────────────────────────────────────────
+.hww-up {
+  &__stage {
+    position: relative;
+    height: 250px;
+    max-width: 720px;
+    margin: 0 auto;
+  }
+  &__wire {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+  &__link {
+    fill: none;
+    stroke: var(--sv-border);
+    stroke-width: 1.25;
+    transition: stroke 0.3s ease;
+
+    &.is-live {
+      stroke: var(--hww-report);
+      stroke-width: 2;
+      stroke-dasharray: 7 7;
+      animation: hww-climb 0.9s linear infinite;
+    }
+  }
+  &__arcrow { position: absolute; top: 6px; left: 0; right: 0; height: 44px; display: flex; justify-content: center; }
+  &__arc {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 6px 14px;
+    border: 1px solid var(--hww-arc);
+    border-radius: 7px;
+    background: var(--sv-surface);
+    transition: box-shadow 0.3s ease;
+
+    &.is-settled { box-shadow: 0 0 0 4px color-mix(in srgb, var(--hww-report) 20%, transparent); border-color: var(--hww-report); }
+  }
+  &__kind {
+    font-size: 10px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--hww-arc);
+  }
+  &__station {
+    font-family: monospace;
+    font-size: 11.5px;
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: var(--sv-inset);
+    color: var(--sv-text-strong);
+  }
+  &__objrow,
+  &__planrow {
+    position: absolute;
+    left: 0;
+    right: 0;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+  }
+  &__objrow { top: 96px; height: 54px; }
+  &__planrow { top: 196px; }
+  &__objcell { display: flex; justify-content: center; }
+  &__obj {
+    width: 196px;
+    border: 1px solid var(--sv-border);
+    border-radius: 6px;
+    background: var(--sv-surface);
+    padding: 6px 10px;
+    transition: all 0.25s ease;
+
+    &.is-unplanned { border-style: dashed; opacity: 0.8; }
+    &.is-complete { border-color: var(--hww-report); box-shadow: 0 0 0 3px color-mix(in srgb, var(--hww-report) 14%, transparent); }
+  }
+  &__objtop { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  &__objid { font-family: monospace; font-size: 11.5px; color: var(--sv-text-strong); }
+  &__objcount { font-size: 11px; font-family: monospace; color: var(--sv-text-faint); }
+  &__objwhy {
+    display: block;
+    font-size: 10.5px;
+    line-height: 1.35;
+    color: var(--sv-text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  &__plancell { display: flex; justify-content: center; align-items: flex-start; gap: 14px; }
+  &__plan {
+    font: inherit;
+    font-family: monospace;
+    font-size: 11px;
+    width: 78px;
+    padding: 4px 0;
+    border-radius: 5px;
+    border: 1px solid var(--sv-border);
+    background: var(--sv-surface);
+    color: var(--sv-text-muted);
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:hover { border-color: var(--hww-rfc); color: var(--hww-rfc); }
+    &.is-settled {
+      border-color: var(--hww-report);
+      color: #fff;
+      background: var(--hww-report);
+    }
+  }
+  &__attach {
+    font: inherit;
+    font-size: 10.5px;
+    padding: 4px 8px;
+    border-radius: 5px;
+    border: 1px dashed var(--sv-border);
+    background: transparent;
+    color: var(--sv-text-faint);
+    cursor: pointer;
+
+    &:hover { border-color: var(--hww-rfc); color: var(--hww-rfc); }
+  }
+  &__read {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 14px;
+    padding: 9px 12px;
+    border-radius: 6px;
+    background: var(--sv-inset);
+    flex-wrap: wrap;
+  }
+  &__badge {
+    font-family: monospace;
+    font-size: 11.5px;
+    padding: 2px 9px;
+    border-radius: 999px;
+    border: 1px solid var(--sv-border);
+    background: var(--sv-surface);
+    color: var(--sv-text-strong);
+
+    &.is-settled { border-color: var(--hww-report); color: var(--hww-report); }
+    &.is-inProgress { border-color: var(--hww-rfc); color: var(--hww-rfc); }
+  }
+  &__why { font-size: 12px; color: var(--sv-text-muted); flex: 1 1 240px; }
+}
+@keyframes hww-climb {
+  from { stroke-dashoffset: 28; }
+  to { stroke-dashoffset: 0; }
+}
+
+// Under ~640px the stage's fixed geometry stops matching the wires, so the wires go rather than lie.
+@media (max-width: 660px) {
+  .hww-up__wire { display: none; }
+}
+
+// ── 5 · being told ───────────────────────────────────────────────────────────────────────────
+.hww-told {
+  border: 1px solid var(--sv-border-soft);
+  border-radius: 7px;
+  background: var(--sv-surface);
+  padding: 14px 16px;
+
+  &__line {
+    display: block;
+    white-space: normal !important;
+    word-break: break-all;
+    font-size: 11.5px !important;
+    padding: 6px 8px !important;
+  }
+  &__chips { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
+  &__chip {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    font-size: 11.5px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--sv-border);
+    background: var(--sv-inset);
+    transition: all 0.25s ease;
+
+    i { font-style: normal; font-size: 9.5px; letter-spacing: 0.8px; text-transform: uppercase; }
+    &.is-told { border-color: var(--hww-report); i { color: var(--hww-report); } }
+    &.is-behind { border-color: var(--hww-gap); i { color: var(--hww-gap); } }
+  }
+  &__acts { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  &__count { font-size: 11px; color: var(--sv-text-faint); }
+}
+
+// ── 6 · the chain ────────────────────────────────────────────────────────────────────────────
+.hww-chain {
+  &__rail { display: flex; align-items: stretch; gap: 4px; flex-wrap: wrap; margin-bottom: 12px; }
+  &__node {
+    font: inherit;
+    flex: 1 1 150px;
+    min-width: 140px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    text-align: left;
+    padding: 10px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--sv-border-soft);
+    background: var(--sv-surface);
+    color: var(--sv-text-muted);
+    cursor: pointer;
+    transition: all 0.25s ease;
+
+    &:hover { border-color: var(--sv-blue); }
+    &.is-lit {
+      border-color: var(--hww-rfc);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--hww-rfc) 15%, transparent);
+    }
+    &.is-open { background: var(--sv-inset); }
+    &--skill.is-lit { border-color: var(--hww-report); box-shadow: 0 0 0 3px color-mix(in srgb, var(--hww-report) 15%, transparent); }
+    &--job.is-lit { border-color: var(--hww-arc); box-shadow: 0 0 0 3px color-mix(in srgb, var(--hww-arc) 15%, transparent); }
+  }
+  &__label { font-size: 13px; font-weight: 600; color: var(--sv-text-strong); }
+  &__one { font-size: 11px; line-height: 1.35; }
+  &__arrow {
+    align-self: center;
+    font-size: 17px;
+    color: var(--sv-border);
+    transition: color 0.2s ease;
+
+    &.is-lit { color: var(--hww-rfc); }
+  }
+  &__acts { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+  &__card {
+    border: 1px solid var(--sv-border-soft);
+    border-left: 3px solid var(--sv-blue);
+    border-radius: 0 6px 6px 0;
+    background: var(--sv-surface);
+    padding: 12px 15px;
+    animation: hww-rise 0.22s ease both;
+
+    h4 { margin: 0 0 5px; font-size: 14px; color: var(--sv-text-strong); }
+    p { margin: 0; font-size: 12.5px; max-width: 88ch; }
+  }
+}
+
+// ── 7 · context ──────────────────────────────────────────────────────────────────────────────
+.hww-ctx {
+  &__groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 12px; }
+  &__group {
+    border: 1px solid var(--sv-border-soft);
+    border-radius: 7px;
+    background: var(--sv-surface);
+    padding: 12px 14px;
+    border-top: 2px solid var(--sv-border);
+
+    &--loaded { border-top-color: var(--hww-gap); }
+    &--retrieved { border-top-color: var(--hww-report); }
+    &--pushed { border-top-color: var(--hww-arc); }
+  }
+  &__ghead {
+    margin-bottom: 10px;
+
+    h4 {
+      margin: 0;
+      font-size: 12px;
+      letter-spacing: 1.1px;
+      text-transform: uppercase;
+      color: var(--sv-text-strong);
+    }
+    span { font-size: 11px; color: var(--sv-text-faint); }
+  }
+  &__layer {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    padding: 7px 0;
+    border-top: 1px solid var(--sv-border-soft);
+  }
+  &__name { font-size: 12.5px; font-weight: 600; color: var(--sv-text-strong); }
+  &__carries { font-size: 11.5px; color: var(--sv-text-muted); }
+  &__when { font-size: 10.5px; color: var(--sv-text-faint); }
+  &__rule {
+    margin: 16px 0 0;
+    font-size: 12.5px;
+    color: var(--sv-text-muted);
+    max-width: 92ch;
+  }
+}
+.hww-pipe {
+  margin-top: 26px;
+
+  &__title { margin: 0 0 10px; font-size: 13px; font-weight: 600; color: var(--sv-text-strong); max-width: 80ch; }
+  &__steps {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 10px;
+
+    li {
+      position: relative;
+      padding: 10px 12px;
+      border-radius: 6px;
+      background: var(--sv-inset);
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+  }
+  &__n {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-size: 10px;
+    background: var(--sv-surface);
+    border: 1px solid var(--sv-border);
+    color: var(--sv-text-muted);
+  }
+  &__step { font-size: 12.5px; font-weight: 600; color: var(--sv-text-strong); }
+  &__body { font-size: 11.5px; color: var(--sv-text-muted); }
+}
+
+// ── 8 · living specs ─────────────────────────────────────────────────────────────────────────
+.hww-specs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  gap: 12px;
+
+  &__half {
+    border: 1px solid var(--sv-border-soft);
+    border-radius: 7px;
+    background: var(--sv-surface);
+    padding: 13px 15px;
+
+    h4 { margin: 0 0 6px; font-size: 13px; color: var(--sv-text-strong); }
+    p { margin: 0; font-size: 12.5px; }
+  }
+  // `as=spec` — the newest subtype, given its own band because it is the one report that is PRESSED
+  // rather than read, and the page should not bury that in a table row.
+  &__spec {
+    margin: 14px 0 0;
+    padding: 13px 15px;
+    border: 1px solid var(--sv-border-soft);
+    border-top: 2px solid var(--hww-report);
+    border-radius: 7px;
+    background: var(--sv-surface);
+
+    h4 { margin: 0 0 6px; font-size: 13px; color: var(--sv-text-strong); }
+    p { margin: 0; font-size: 12.5px; max-width: 92ch; }
+  }
+  &__why {
+    margin: 16px 0 16px;
+    padding: 13px 15px;
+    border-radius: 7px;
+    background: var(--sv-inset);
+    font-size: 12.5px;
+    max-width: 92ch;
+  }
+}
+
+// ── 9 · the doors ────────────────────────────────────────────────────────────────────────────
+.hww-doors {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+}
+.hww-door {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid var(--sv-border-soft);
+  border-radius: 7px;
+  background: var(--sv-surface);
+  padding: 13px 15px;
+
+  &__top { display: flex; flex-direction: column; }
+  &__label { font-size: 13.5px; font-weight: 600; color: var(--sv-text-strong); }
+  &__kind { font-size: 10px; letter-spacing: 0.9px; text-transform: uppercase; color: var(--sv-text-faint); }
+  &__say {
+    display: block;
+    white-space: normal !important;
+    word-break: break-word;
+    font-size: 11.5px !important;
+    line-height: 1.5;
+    padding: 7px 9px !important;
+  }
+  &__hint { margin: 0; font-size: 11.5px; color: var(--sv-text-muted); flex: 1 1 auto; }
+  .hww-btn { align-self: flex-start; }
+  &--command &__say { color: var(--hww-report) !important; }
+}
+
+.hww-foot {
+  max-width: 980px;
+  margin: 40px auto 0;
+  padding: 18px 28px 0;
+  border-top: 1px solid var(--sv-border-soft);
+  font-size: 11.5px;
+  color: var(--sv-text-faint);
+}
+
+// MOTION IS A GARNISH, never the message — every animation on this page is a repeat of something
+// the words already say, so switching them all off costs nothing.
+@media (prefers-reduced-motion: reduce) {
+  .hww *,
+  .hww *::before,
+  .hww *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+
+// ── THE CARDS, AND ONLY THE CARDS ──────────────────────────────────────────────────────────────
+//
+// On a white canvas a white card is invisible without an edge. This gives the PANELS one — the
+// blocks you read as objects — and deliberately leaves the chips, dots, tabs, buttons, badges and
+// rings alone: *"only the cards. I don't need to see everything change."* Those already carry their
+// own accents and a second treatment would turn a quiet page loud.
+//
+// A HAIRLINE BORDER PLUS A SHADOW THAT IS ALMOST NOT THERE — *"not like too much of a hover, just
+// barelyish."* 1px of blur at 3% is below the threshold where it reads as a shadow and above the
+// one where the card reads as floating; the border is what actually does the separating, and the
+// shadow only keeps the edge from looking drawn-on.
+//
+// LIGHT ONLY. In dark mode the canvas is already darker than the cards, so they separate by tone
+// and an added border would be chrome for its own sake.
+.hww-flow__card,
+.hww-leaf,
+.hww-rule,
+.hww-st,
+.hww-retire__col,
+.hww-up__arc,
+.hww-up__obj,
+.hww-chain__node,
+.hww-chain__card,
+.hww-ctx__group,
+.hww-specs__half,
+.hww-specs__spec,
+.hww-told,
+.hww-door {
+  border: 1px solid var(--sv-border);
+  box-shadow: 0 1px 1px rgba(16, 24, 40, 0.03);
+}
+:root.sv-dark {
+  .hww-flow__card,
+  .hww-leaf,
+  .hww-rule,
+  .hww-st,
+  .hww-retire__col,
+  .hww-up__arc,
+  .hww-up__obj,
+  .hww-chain__node,
+  .hww-chain__card,
+  .hww-ctx__group,
+  .hww-specs__half,
+  .hww-specs__spec,
+  .hww-told,
+  .hww-door {
+    box-shadow: none;
+  }
+}

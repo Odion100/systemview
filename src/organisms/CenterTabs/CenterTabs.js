@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from "react";
 import RowMenu from "../../atoms/RowMenu/RowMenu";
 import { openAddress } from "../../atoms/Markdown/openRef";
-import { getTabs, closeTab, moveTab, closeRight, closeOthers, closeAll, countRight } from "../../pages/SystemView/tabsStore";
+import { getTabs, openTab, closeTab, moveTab, closeRight, closeOthers, closeAll, countRight } from "../../pages/SystemView/tabsStore";
 import { iconForTab, TAB_ICONS } from "../../utils/fileIcons";
 import { labelOfTab } from "../../pages/SystemView/tabRoutes";
 import "../WallPanel/styles.scss";
@@ -175,6 +175,32 @@ export default function CenterTabs({ tabsPc, tabs = [], isActive, onOpen, afterC
               +
             </button>
           )}
+          {/* HOW THIS WORKS — 🧭, IN THE STRIP, because the page it opens IS a tab. It began as the
+              empty-strip floor, so the only way to read it was to close every document: *"I'm not
+              going to close all my documents to have the tab strip empty to get to it."* My first
+              door put it above the chat, which is the wrong surface — a button that opens a centre
+              tab belongs on the centre tab strip, beside the one other door that opens one.
+              PROVISIONAL, and he said so: *"just put something there for now and we'll figure out
+              what to actually put there."* */}
+          <button
+            type="button"
+            className="doc-tabs__how"
+            title="How this works — the flow, every kind's lifecycle, and where to start"
+            onClick={() => {
+              // OFFER FIRST, THEN OPEN IT HERE. A page that hosts the kind itself claims the event
+              // (the Agents page does); silence means this strip's own host has to open it, which
+              // is the Code page. Opening without the offer would navigate him off a page that
+              // could have shown it — the complaint that produced the offer/handled contract.
+              const d = { kind: "how", projectCode: tabsPc };
+              window.dispatchEvent(new CustomEvent("sv:openCenterKind", { detail: d }));
+              if (d.handled) return;
+              const t = { key: `how:${tabsPc}`, kind: "how" };
+              openTab(tabsPc, t);
+              if (onOpen) onOpen(t);
+            }}
+          >
+            {"\u{1F9ED}"}
+          </button>
         </div>
         {onCollapse && (
           <button type="button" className="wall-collapse" title="Push off to the edge — tabs keep standing" onClick={onCollapse}>

@@ -4451,7 +4451,26 @@ $sv-board-states: (
 .agent-chat__lanepanel-art { color: var(--sv-text-soft, #8a8f98); }
 .agent-chat__lanepanel-art--left { color: #d0a24a; } // a leftover asks for attention, gently
 .agent-chat__lanepanel-review { flex: none; padding: 0 6px; max-height: 34%; overflow-y: auto; }
-.agent-chat__lanepanel-log { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 2px 9px 8px; }
+// THE ROWS NEED RHYTHM, AND `Feed` DOES NOT CARRY IT. Feed returns a bare list of rows — no
+// wrapper — so the spacing has always belonged to whoever mounts it: the workbench wraps it in
+// `.agent-wb__feed`, a flex column with `gap: 3px`. This panel mounted Feed straight into a plain
+// scroll box, so the lane's rows touched with nothing between them at all. His catch, watching a
+// lane: *"the sub chat logs don't even have the slightest padding margin between their logs just
+// like the chat does."* Same arrangement, same 3px — copied from the workbench rather than picked,
+// so the two feeds cannot drift apart by taste.
+.agent-chat__lanepanel-log {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 2px 9px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+// THE COOKING LINE SITS BELOW THE SCROLL, pinned, so a long log cannot carry it out of view — the
+// same arrangement the conversation's own line has. `flex: none` is the whole of it: the log keeps
+// the stretch, this keeps its height.
+.agent-chat__lanepanel > .agent-chat__cooking { flex: none; margin: 0; padding: 3px 9px 5px; border-top: 1px solid var(--sv-line, rgba(128,128,128,0.2)); }
 .agent-chat__lanepanel-logtitle {
   font-size: 10px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase;
   opacity: 0.6; margin: 6px 0 2px;
