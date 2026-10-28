@@ -6,7 +6,7 @@ import { CHAIN, DOORS, LAYERS, LEAVES, LIFECYCLES, REASONS, STAGES, SUBTYPES } f
 
 describe("the page's content has the shape the page renders", () => {
   it("every kind draws a trail, and every station carries all four answers", () => {
-    expect(LIFECYCLES.map((l) => l.kind)).toEqual(["rfc", "arc", "gap", "report"]);
+    expect(LIFECYCLES.map((l) => l.kind)).toEqual(["arc", "rfc", "gap", "report"]);
     LIFECYCLES.forEach((l) => {
       expect(l.stations.length).toBeGreaterThan(1);
       const ids = l.stations.map((s) => s.id);
@@ -68,7 +68,7 @@ describe("the page's content has the shape the page renders", () => {
 
   it("the flow, the leaves, the chain and the doors are each complete enough to render", () => {
     STAGES.forEach((s) => expect(s.leaf && s.artifact && s.body && s.note).toBeTruthy());
-    expect(LEAVES.map((l) => l.kind)).toEqual(["rfc", "arc", "gap", "report"]);
+    expect(LEAVES.map((l) => l.kind)).toEqual(["arc", "rfc", "gap", "report"]);
     expect(CHAIN.map((c) => c.id)).toEqual(["event", "hook", "skill", "job", "account"]);
     DOORS.forEach((d) => {
       expect(d.say.length).toBeGreaterThan(5);

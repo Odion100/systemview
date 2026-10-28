@@ -65,7 +65,7 @@ export function labelOfTab(t, pc) {
     const f = t.file || {};
     return f.path ? String(f.path).split("/").pop() : "file";
   }
-  if (t.kind === "how") return "How this works";
+  if (t.kind === "how") return "How we work";
   if (t.kind === "stats") return `Stats · ${pc}`;
   if (t.kind === "board") return `Board · ${pc}`;
   if (t.kind === "links") return `Links · ${pc}`;

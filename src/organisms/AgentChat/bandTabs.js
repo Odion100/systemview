@@ -40,10 +40,16 @@ export const BAND_KINDS = [
 
 export const TAB_KEY = "sv.chat.bandTab";
 
+// A SUBTYPE TAB SAYS THE WORD ALONE — "2 specs", never "2 reports:spec" (his point, 2026-10-28:
+// the whole reason the subtypes expanded into their own tabs is so the word "report" does not
+// repeat across the bar). And the word is the SHORT one: a planning report's tab says "plan".
+const SUBTYPE_WORD = { planning: "plan" };
+
 // Plural the way the band head already speaks: "1 job", "3 lanes".
 export const bandLabel = (kind, n) => {
+  const sub = kind.startsWith("reports:") ? kind.slice(8) : "";
   const row = BAND_KINDS.find((k) => k.key === kind);
-  const word = row ? row.label : kind;
+  const word = sub ? SUBTYPE_WORD[sub] || sub : row ? row.label : kind;
   return `${n} ${word}${n === 1 ? "" : "s"}`;
 };
 
@@ -70,7 +76,9 @@ export const bandTabs = (counts = {}, stored = "") => {
       const subs = Object.keys(c).filter((w) => w && c[w] > 0).sort();
       const out = [];
       if (c[""] > 0) out.push({ ...k, n: c[""] });
-      subs.forEach((w) => out.push({ key: `reports:${w}`, label: w, family: "document", n: c[w] }));
+      subs.forEach((w) =>
+        out.push({ key: `reports:${w}`, label: SUBTYPE_WORD[w] || w, family: "document", n: c[w] })
+      );
       return out;
     }
     return [{ ...k, n: Number(c) || 0 }];

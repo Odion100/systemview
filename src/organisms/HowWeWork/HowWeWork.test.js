@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, fireEvent, within } from "@testing-library/react";
+import { render, screen, fireEvent, within, waitFor } from "@testing-library/react";
 import HowWeWork, { HWW_TAB_KEY } from "./HowWeWork";
 
 // A SMOKE TEST, one real walk through the only live thing on the page, and the tab contract. The
@@ -12,9 +12,10 @@ describe("HowWeWork", () => {
 
   it("renders the flow page in a bare jsdom, and ONLY the flow page's body", () => {
     render(<HowWeWork />);
-    expect(screen.getByText("How this works")).toBeVisible();
+    expect(screen.getByText("SystemView")).toBeVisible();
     // the other pages' bodies are not mounted — the body switches, it does not stack
-    expect(screen.queryByText("The state is in the document, and nowhere else.")).toBeNull();
+    // (a body-only string: every page's HEADER is mounted, so lede words cannot prove absence)
+    expect(screen.queryByText(/registering the document lands it here/)).toBeNull();
     expect(screen.queryByText("RFC-073")).toBeNull();
   });
 
@@ -27,7 +28,7 @@ describe("HowWeWork", () => {
         (h) => h.getAttribute("aria-hidden") === "false"
       );
     expect(active().length).toBe(1);
-    fireEvent.click(screen.getByRole("tab", { name: "Upward" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Living specs" }));
     // same nine headers holding the height; only the words changed — and the one just left is
     // still VISIBLE (it is mid-push), but no longer the active one
     expect(document.querySelectorAll(".hww-heads .hww-hero").length).toBe(9);
@@ -46,41 +47,33 @@ describe("HowWeWork", () => {
     point("pointerdown", 400);
     point("pointermove", 300);
     point("pointerup", 300);
-    expect(screen.getByRole("tab", { name: "Registration" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Documentation" })).toHaveAttribute("aria-selected", "true");
     // a short drag snaps home instead of committing
     point("pointerdown", 400);
     point("pointermove", 380);
     point("pointerup", 380);
-    expect(screen.getByRole("tab", { name: "Registration" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Documentation" })).toHaveAttribute("aria-selected", "true");
   });
 
-  it("the top section pages on a horizontal scroll, one step per gesture", () => {
+  it("a wheel over the top section does nothing — scroll-to-slide was removed on purpose", async () => {
     render(<HowWeWork />);
     const heads = document.querySelector(".hww-heads");
-    fireEvent.wheel(heads, { deltaX: 50, deltaY: 0 });
-    fireEvent.wheel(heads, { deltaX: 50, deltaY: 0 });
-    expect(screen.getByRole("tab", { name: "Registration" })).toHaveAttribute("aria-selected", "true");
-    // the momentum tail of the same gesture does not page twice
-    fireEvent.wheel(heads, { deltaX: 90, deltaY: 0 });
-    expect(screen.getByRole("tab", { name: "Registration" })).toHaveAttribute("aria-selected", "true");
-    // and a vertical scroll is none of the slider's business
-    fireEvent.wheel(heads, { deltaX: 4, deltaY: 120 });
-    expect(screen.getByRole("tab", { name: "Registration" })).toHaveAttribute("aria-selected", "true");
+    fireEvent.wheel(heads, { deltaX: 400, deltaY: 0 });
+    await new Promise((res) => setTimeout(res, 150));
+    expect(screen.getByRole("tab", { name: "The flow" })).toHaveAttribute("aria-selected", "true");
   });
 
   it("switching tabs swaps the header and the body together", () => {
     render(<HowWeWork />);
     fireEvent.click(screen.getByRole("tab", { name: "Lifecycles" }));
-    expect(
-      screen.getByText("Each kind walks its own trail, and the state is read off the document")
-    ).toBeVisible();
+    expect(screen.getByText("Nothing is marked done by hand")).toBeVisible();
     // the flow header is mid-push — still painted, but no longer the page's header
-    expect(screen.getByText("How this works").closest(".hww-hero")).toHaveAttribute(
+    expect(screen.getByText("SystemView").closest(".hww-hero")).toHaveAttribute(
       "aria-hidden",
       "true"
     );
-    expect(screen.getByText("The state is in the document, and nowhere else.")).toBeInTheDocument();
-    // the trail opens on the RFC's first station
+    expect(screen.getByText(/A state is a condition over facts/)).toBeInTheDocument();
+    // the trail opens on the first kind's first station — the arc's draft
     expect(screen.getByRole("heading", { level: 3, name: "draft" })).toBeInTheDocument();
     // and the flow page's body is gone
     expect(screen.queryByText(/It is walking itself/)).toBeNull();
@@ -106,6 +99,59 @@ describe("HowWeWork", () => {
     expect(screen.getByText(/These copy to your clipboard/)).toBeInTheDocument();
   });
 
+  it("the agents page stands between Being told and Context, six cards deep", () => {
+    render(<HowWeWork />);
+    const labels = screen.getAllByRole("tab").map((t) => t.textContent);
+    expect(labels).toEqual([
+      "The flow",
+      "Documentation",
+      "Lifecycles",
+      "Living specs",
+      "Being told",
+      "Agents",
+      "Context",
+      "Hooks & jobs",
+      "Start something",
+    ]);
+    fireEvent.click(screen.getByRole("tab", { name: "Agents" }));
+    expect(document.querySelectorAll(".hww-agent").length).toBe(6);
+    expect(screen.getByText("one owner per project")).toBeInTheDocument();
+  });
+
+  it("a stage card is a facilitator — finish the stem and it sends sv:say", () => {
+    render(<HowWeWork />);
+    const heard = [];
+    const on = (e) => heard.push(e.detail.text);
+    window.addEventListener("sv:say", on);
+    const input = screen.getByLabelText("say it to the agent");
+    // the stem is OURS — a fixed label beside the field, never deletable text inside it
+    expect(input.value).toBe("");
+    expect(screen.getByText("Plan with me —")).toBeInTheDocument();
+    fireEvent.change(input, { target: { value: "a voice recorder" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    window.removeEventListener("sv:say", on);
+    expect(heard).toEqual(["Plan with me — a voice recorder"]);
+    // the send button is the chat's icon — the receipt rides its title
+    expect(screen.getByTitle("sent ✓")).toBeInTheDocument();
+  });
+
+  it("a teach stage is a button, and its press carries the prepared context", () => {
+    render(<HowWeWork />);
+    fireEvent.click(screen.getByRole("tab", { name: "Lifecycles" })); // any tab; the rail is on flow
+    fireEvent.click(screen.getByRole("tab", { name: "The flow" }));
+    const heard = [];
+    const on = (e) => heard.push(e.detail.text);
+    window.addEventListener("sv:say", on);
+    // walk the rail to the Living specs stage, whose door is a teach button
+    fireEvent.click(screen.getByRole("button", { name: /Living specs/ }));
+    fireEvent.click(screen.getByRole("button", { name: "teach me claims & proofs" }));
+    window.removeEventListener("sv:say", on);
+    expect(heard.length).toBe(1);
+    // the prepared ask carries the grounding a bare "teach me" lacks
+    expect(heard[0]).toMatch(/docs\/how-we-work/);
+    expect(heard[0]).toMatch(/met = marked AND proved/);
+  });
+
   it("the trail answers for the station you press", () => {
     render(<HowWeWork />);
     fireEvent.click(screen.getByRole("tab", { name: "Lifecycles" }));
@@ -114,13 +160,13 @@ describe("HowWeWork", () => {
     const trail = document.querySelector(".hww-trail");
     fireEvent.click(within(trail).getByText("resolved"));
     expect(screen.getByRole("heading", { level: 3, name: "resolved" })).toBeInTheDocument();
-    // the one state a press cannot outrun: pressing it with no proof OFFERS one
-    expect(screen.getByText(/OFFERS one/)).toBeInTheDocument();
+    // the press answers with the state's one human sentence
+    expect(screen.getByText(/least arguable state/)).toBeInTheDocument();
   });
 
   it("settling the plans walks the arc upward, and an unplanned objective holds it back", () => {
     render(<HowWeWork />);
-    fireEvent.click(screen.getByRole("tab", { name: "Upward" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Living specs" }));
     // RFC-073 and RFC-074 serve O1, RFC-075 serves O2, and O3 has no plan at all
     ["RFC-073", "RFC-074", "RFC-075"].forEach((id) => fireEvent.click(screen.getByText(id)));
     expect(screen.getByText(/has no plan attached/)).toBeInTheDocument();
@@ -129,6 +175,6 @@ describe("HowWeWork", () => {
     expect(screen.getByText(/1 plan is still moving/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByText("RFC-076"));
-    expect(screen.getByText(/derived upward, never pressed/)).toBeInTheDocument();
+    expect(screen.getByText(/nobody wrote that anywhere/)).toBeInTheDocument();
   });
 });

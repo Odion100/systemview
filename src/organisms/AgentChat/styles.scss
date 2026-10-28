@@ -88,6 +88,11 @@ $sv-board-states: (
     }
     // BUSY — really working (fresh cooking line) but the line is DOWN: a message sent now
     // waits. Amber pulse: present, head down. Also the tell for "didn't re-arm before cooking".
+    // STILL RINGS, NOT PULSES — the mic button's lesson, now measured on this exact element
+    // (perf-triage, 2026-10-28): the pulsing ring held the GPU+renderer at ~88%+86% for the whole
+    // life of every agent turn — hours a day — and a still ring costs nothing (28%+10%, the floor).
+    // Isolating the ring on its own layer did not help and dropping the blur did not help; only
+    // not animating did. The amber border and ring still say busy; motion was saying it twice.
     &--busy {
       border-color: #e2a03f;
       border-style: solid;
@@ -99,8 +104,6 @@ $sv-board-states: (
         border-radius: inherit;
         box-shadow: 0 0 0 4px color-mix(in srgb, #e2a03f 22%, transparent);
         pointer-events: none;
-        opacity: 0;
-        animation: sv-busy-pulse 2.2s ease-in-out infinite;
       }
     }
     // ASKING — it stopped and is waiting on YOU. Distinct from busy on purpose: busy means your
@@ -116,8 +119,6 @@ $sv-board-states: (
         border-radius: inherit;
         box-shadow: 0 0 0 4px color-mix(in srgb, #8f97e8 22%, transparent);
         pointer-events: none;
-        opacity: 0;
-        animation: sv-busy-pulse 1.4s ease-in-out infinite;
       }
     }
     // …and on the bubble, which is all that is left when everything is put away. It rides ON TOP of
@@ -2485,26 +2486,11 @@ $sv-board-states: (
   }
 }
 
-// MEASURED, NOT GUESSED (autobot, 2026-08-25): this animated `box-shadow`, which
-// the compositor cannot promote — so every one of these repainted the FAB and its
-// ancestors 60x a second. With two of them running, this page sat at 47fps and
-// pegged the GPU process at ~115% with WindowServer at ~82%. Pausing JUST these
-// two took it to 105fps; pausing the other EIGHT animations (opacity/transform,
-// all composited) only bought 17 more. Two rules did ~3x the damage of the rest
-// combined.
-//
-// Same look, composited: the ring is a pseudo-element and only `opacity` moves.
-// Rule of thumb this is an instance of — if a keyframe touches anything but
-// transform/opacity/filter, it repaints; a ring drawn once and faded is free.
-@keyframes sv-busy-pulse {
-  0%,
-  100% {
-    opacity: 0;
-  }
-  50% {
-    opacity: 1;
-  }
-}
+// sv-busy-pulse LIVED HERE AND IS GONE. First it animated box-shadow (47fps, GPU ~115% — measured
+// 2026-08-25); the fix moved it to opacity on a pseudo, and THAT still held GPU+renderer near 90%
+// for the life of every agent turn (measured 2026-10-28, perf-triage — layer isolation and
+// blur-removal both changed nothing; only not animating did). The busy and asking rings are still
+// now: drawn once, free, and they say the same thing the motion said.
 // The interim dot has no ring — it just breathes.
 @keyframes sv-dot-breathe {
   0%,

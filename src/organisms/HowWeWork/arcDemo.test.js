@@ -1,7 +1,7 @@
 // `derive.js` was a SECOND derivation of the arc rule and RFC-076 §7 ordered it deleted, not
 // updated. These same claims now hold against `arcDemo`, whose station comes from `stateOf` — the
 // one definition the real trail draws with — so a drift here is a drift in the real thing.
-import { arcDemo as deriveArc, objectiveState, pressLine } from "./HowWeWork";
+import { arcDemo as deriveArc, objectiveState } from "./HowWeWork";
 
 const O = (id, settled = []) => ({
   id,
@@ -40,7 +40,7 @@ describe("deriveArc — the state flows upward, and nothing about it is pressed"
     expect(arc.station).toBe("inProgress");
     expect(arc.why).toContain("1 plan is");
   });
-  it("every plan settled settles the arc — derived upward, never pressed", () => {
+  it("every plan settled settles the arc — read off the plans, never written", () => {
     const arc = deriveArc([O("O1", [true, true]), O("O2", [true])]);
     expect(arc.station).toBe("settled");
     expect(arc.complete).toBe(2);
@@ -58,19 +58,5 @@ describe("deriveArc — the state flows upward, and nothing about it is pressed"
     expect(arc.objectives[0]).toMatchObject({ total: 3, settled: 1 });
     expect(arc.planned).toBe(1);
     expect(arc.complete).toBe(0);
-  });
-});
-
-describe("pressLine — a station a press cannot write says what is missing", () => {
-  it("a pressable station reads exactly as written", () => {
-    expect(pressLine({ pressable: true, press: "Backward clears the verdicts." })).toBe(
-      "Backward clears the verdicts."
-    );
-  });
-  it("an unpressable one gets the reason appended rather than a dead control", () => {
-    expect(pressLine({ pressable: false, press: "Nothing to press." })).toContain("cannot fake");
-  });
-  it("no station at all is an empty line, never a crash", () => {
-    expect(pressLine(null)).toBe("");
   });
 });

@@ -3,17 +3,18 @@ import "./styles.scss";
 import { setHelpTopic } from "../../atoms/Help/helpStore";
 import { stateOf, objectiveComplete } from "../../atoms/Markdown/blocks/lifecycleState";
 import commandRunner from "../../utils/hostCommand";
+import { hasHostDictation, startHostRecording } from "../../utils/hostDictation";
+import SEND_ICON from "../../assets/send.png";
 import { richParts } from "./rich";
 import {
+  AGENTS,
   CHAIN,
   DOORS,
   LAYERS,
   LEAVES,
   LIFECYCLES,
   PIPELINE,
-  REASONS,
   STAGES,
-  SUBTYPES,
 } from "./howWeWork.data";
 
 // ─── THE DEMO'S FOLD — counts only; THE STATION COMES FROM THE ONE DEFINITION ──────────────────
@@ -52,17 +53,8 @@ export function arcDemo(objectives = []) {
         } no plan attached — an objective with no plan is incomplete, not merely un-planned`
       : station === "inProgress"
       ? `every objective has a plan, and ${left} ${left === 1 ? "plan is" : "plans are"} still moving`
-      : "every plan settled, so every objective is complete, so the arc is — derived upward, never pressed";
+      : "every plan settled, so every objective is complete, so the arc is — nobody wrote that anywhere, it is read off the plans";
   return { station, why, objectives: states, planned: counts.planned, complete: counts.complete };
-}
-
-/** What a press on a station can do — the page's own reading of its data, so the panel and the
- * badge can never disagree about whether something is pressable. */
-export function pressLine(station) {
-  if (!station) return "";
-  return station.pressable
-    ? station.press
-    : `${station.press} A press cannot fake this one — the surface says what is missing instead.`;
 }
 
 // HOW WE WORK — the page you land on with nothing open, and the only surface in this window written
@@ -108,6 +100,46 @@ function useReducedMotion() {
   );
 }
 
+// THE DASHES STAND STILL — BUT THE MOTION IS A SWITCH, NOT A DELETION (his call, 2026-10-28:
+// stopped for now, "in a way that can be figured out to turn on later"). Every travelling version
+// measured real GPU on this machine — dash-march ~110%, offset-path ~47%, sampled transforms ~15
+// points — so OFF is the default; flip DASHES_MOVE and the sampled-keyframe travel (the cheapest
+// of the three) comes back exactly as it was.
+const DASHES_MOVE = false;
+const DASH_CURVE = [
+  [[0, 96], [160, 96], [190, 24], [350, 24]],
+  [[350, 24], [520, 24], [540, 96], [700, 96]],
+  [[700, 96], [820, 96], [860, 60], [900, 56]],
+];
+const dashPoint = (seg, t) => {
+  const [a, b, c, d] = seg;
+  const u = 1 - t;
+  return [
+    u * u * u * a[0] + 3 * u * u * t * b[0] + 3 * u * t * t * c[0] + t * t * t * d[0],
+    u * u * u * a[1] + 3 * u * u * t * b[1] + 3 * u * t * t * c[1] + t * t * t * d[1],
+  ];
+};
+const dashTransform = (f) => {
+  const g = f * DASH_CURVE.length;
+  const si = Math.min(DASH_CURVE.length - 1, Math.floor(g));
+  const t = Math.min(1, g - si);
+  const [x, y] = dashPoint(DASH_CURVE[si], t);
+  const [x2, y2] = dashPoint(DASH_CURVE[si], Math.min(1, t + 0.01));
+  const ang = (Math.atan2(y2 - y, x2 - x) * 180) / Math.PI;
+  return `translate(${(x - 5).toFixed(1)}px, ${(y - 1.25).toFixed(1)}px) rotate(${ang.toFixed(1)}deg)`;
+};
+// still mode: three dashes parked on the curve at the original dasharray spacing
+const DASH_SPOTS = [0.18, 0.47, 0.76].map(dashTransform);
+// moving mode: the bezier sampled into ~50 translate+rotate keyframes, compositor-only
+const DASH_KEYFRAMES = (() => {
+  const N = 48;
+  const steps = [];
+  for (let i = 0; i <= N; i += 1) {
+    steps.push(`${((i / N) * 100).toFixed(2)}% { transform: ${dashTransform(i / N)}; }`);
+  }
+  return `@keyframes hww-dash { ${steps.join(" ")} }`;
+})();
+
 // EVERY PAGE WEARS THE SAME HEADER (his shape, 2026-10-28: "the top section with prose, the tabs,
 // of course, and then bodies"). One component, so a page CANNOT invent its own head — the prose and
 // the links differ per page, the shape never does. The links are the header's "nice link looking
@@ -126,15 +158,22 @@ function useReducedMotion() {
 // empty on first mount, so the landing header stands still. The outgoing header stays visible
 // through its exit (it rests off-canvas behind overflow:hidden); aria-hidden is the target state,
 // which is what assistive tech and the tests read.
-const PageHeader = ({ page, go, on, from, out, dragPx = 0 }) => (
+const PageHeader = ({ page, go, on, from, out, dragPx = 0, phase = "idle" }) => (
   <header
     className={`hww-hero${on ? ` is-at${from ? ` is-from-${from}` : ""}` : ""}${
       out ? ` is-out-${out}` : ""
     }`}
     style={{
       visibility: on || out ? "visible" : "hidden",
-      // mid-drag the header follows the hand directly; the class animation yields to it
-      ...(on && dragPx ? { transform: `translateX(${dragPx}px)`, animation: "none" } : {}),
+      // mid-drag the header follows the hand directly; released short of the line it BOUNCES home
+      // (a transition with a little overshoot) instead of snapping — his correction, 2026-10-28
+      ...(on && phase !== "idle"
+        ? {
+            transform: `translateX(${dragPx}px)`,
+            animation: "none",
+            transition: phase === "settle" ? "transform 0.3s cubic-bezier(0.25, 0.9, 0.3, 1.15)" : "none",
+          }
+        : {}),
     }}
     aria-hidden={!on}
   >
@@ -168,6 +207,151 @@ const PageHeader = ({ page, go, on, from, out, dragPx = 0 }) => (
 );
 
 // ───────────────────────────────────────────────────────────────────────────────────────────────
+// THE STAGE DOOR — every flow card is a FACILITATOR (his design, 2026-10-28): the CHAT'S OWN
+// composer in miniature, because "if it's going to be an input it looks and behaves like the
+// input" — a textarea that wraps and grows, the same recorder the chat uses (the host utility,
+// already integrated — nothing lifted), and the same send icon. The stem is prefilled and yours to
+// finish; send dispatches `sv:say`, and the first chat panel runs it through its own send().
+const doorGrow = (el) => {
+  el.style.height = "auto";
+  el.style.height = `${Math.min(el.scrollHeight, 110)}px`;
+};
+// THE STEM IS OURS, THE WORDS ARE YOURS (his correction, 2026-10-28: "how is it you can delete
+// the beginning sentence that was there to help?"). The stem renders as a fixed prompt line inside
+// the box — not text in the field, so it cannot be deleted, selected or half-edited — and the
+// field itself starts EMPTY with a placeholder that actually helps. Send composes the two.
+const StageDoor = ({ stage, onTouch }) => {
+  const [text, setText] = useState("");
+  const [sent, setSent] = useState(false);
+  const [listening, setListening] = useState(false);
+  const boxRef = useRef(null);
+  const micRef = useRef(null);
+  const t = useRef(null);
+  useEffect(() => {
+    setText("");
+    setSent(false);
+    setTimeout(() => boxRef.current && doorGrow(boxRef.current), 0);
+  }, [stage.id, stage.say]);
+  useEffect(
+    () => () => {
+      clearTimeout(t.current);
+      if (micRef.current) micRef.current.cancel();
+    },
+    []
+  );
+
+  // TEACH IS A BUTTON (his design, 2026-10-28: "teach me was supposed to be a button… it gives
+  // them the RIGHT prompt, not a prompt that I necessarily saw"). One press sends a PREPARED ask
+  // that carries the context the agent needs — where you are standing, what to ground the lesson
+  // in, what to read — because a bare "teach me X" is a prompt the agent can only guess at. The
+  // label is yours to read; the brief rides underneath it.
+  if (stage.teach) {
+    const teach = () => {
+      window.dispatchEvent(new CustomEvent("sv:say", { detail: { text: stage.teach.prompt } }));
+      setSent(true);
+      clearTimeout(t.current);
+      t.current = setTimeout(() => setSent(false), 2400);
+    };
+    return (
+      <div className="hww-flow__say">
+        <button
+          type="button"
+          className="hww-btn hww-btn--go"
+          onClick={teach}
+          title="sends the agent a prepared ask, with the context it needs"
+        >
+          {sent ? "sent ✓ — watch the chat" : stage.teach.label}
+        </button>
+      </div>
+    );
+  }
+  if (!stage.say) return null;
+
+  const stopMic = () => {
+    const rec = micRef.current;
+    micRef.current = null;
+    setListening(false);
+    if (rec) rec.cancel();
+  };
+  const toggleMic = async () => {
+    if (listening) return stopMic();
+    onTouch && onTouch();
+    try {
+      micRef.current = await startHostRecording({
+        onSegment: (said) =>
+          setText((cur) => {
+            const next = cur && !/\s$/.test(cur) ? `${cur} ${said}` : `${cur}${said}`;
+            setTimeout(() => boxRef.current && doorGrow(boxRef.current), 0);
+            return next;
+          }),
+      });
+      setListening(true);
+    } catch {
+      setListening(false);
+    }
+  };
+  // A stage that NEEDS your words refuses to send the bare stem ("Write the RFC for" alone is
+  // noise); a teach stem is a whole sentence and sends as it stands.
+  const ready = stage.need ? !!text.trim() : true;
+  const fire = () => {
+    if (!ready) return;
+    if (listening) stopMic(); // you said what you had to say — same rule as the chat's send
+    const msg = [stage.say, text.trim()].filter(Boolean).join(" ");
+    window.dispatchEvent(new CustomEvent("sv:say", { detail: { text: msg } }));
+    setText("");
+    setSent(true);
+    clearTimeout(t.current);
+    t.current = setTimeout(() => setSent(false), 2400);
+  };
+
+  return (
+    <div className="hww-flow__say">
+      <div className="hww-flow__saybox">
+        <span className="hww-flow__saystem">{stage.say}</span>
+        <textarea
+          ref={boxRef}
+          className="hww-flow__sayinput"
+          rows={1}
+          value={text}
+          placeholder={stage.ph || ""}
+          aria-label="say it to the agent"
+          onFocus={onTouch}
+          onChange={(e) => {
+            setText(e.target.value);
+            doorGrow(e.target);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              fire();
+            }
+          }}
+        />
+      </div>
+      {hasHostDictation() && (
+        <button
+          type="button"
+          className={`hww-flow__saymic${listening ? " is-on" : ""}`}
+          title={listening ? "Stop listening" : "Dictate — speech goes into the input"}
+          onClick={toggleMic}
+        >
+          🎙
+        </button>
+      )}
+      <button
+        type="button"
+        className="hww-flow__saysend"
+        onClick={fire}
+        disabled={!ready}
+        title={sent ? "sent ✓" : "Send"}
+      >
+        <img src={SEND_ICON} alt="send" />
+      </button>
+    </div>
+  );
+};
+
+// ───────────────────────────────────────────────────────────────────────────────────────────────
 // 1 · THE FLOW. The spine of the page: six stages on a rail with a current running through it. It
 // walks itself until a hand takes the wheel — the same rule the chat's reading follows, because an
 // animation that keeps moving under somebody who is reading is a surface fighting its reader.
@@ -176,18 +360,29 @@ const FlowRail = () => {
   const reduced = useReducedMotion();
   const [at, setAt] = useState(0);
   const [held, setHeld] = useState(false);
+  const [reading, setReading] = useState(false); // the cursor is over the card — hovering IS reading
 
+  // SLOW ENOUGH TO READ (his correction, 2026-10-28: "I like this, it just moves too fast") — the
+  // card carries a body, an artifact line and a note, and 3.6s outran all three.
   useEffect(() => {
-    if (held || reduced) return undefined;
-    const t = setInterval(() => setAt((i) => (i + 1) % STAGES.length), 3600);
+    if (held || reading || reduced) return undefined;
+    const t = setInterval(() => setAt((i) => (i + 1) % STAGES.length), 7000);
     return () => clearInterval(t);
-  }, [held, reduced]);
+  }, [held, reading, reduced]);
 
+  // A HAND TAKES THE WHEEL, BUT THE WHEEL DOES NOT DIE (same correction: "it should eventually
+  // start going back to moving") — a click holds the walk for half a minute of quiet, then it
+  // resumes. The same shape as the window's own update hold: wait for a costless moment.
+  const holdT = useRef(null);
+  useEffect(() => () => clearTimeout(holdT.current), []);
   const take = (i) => {
     setHeld(true);
     setAt(i);
+    clearTimeout(holdT.current);
+    holdT.current = setTimeout(() => setHeld(false), 30000);
   };
   const stage = STAGES[at];
+  const hold = () => take(at); // touching the door takes the wheel — the card must not walk away mid-sentence
 
   return (
     <div className="hww-flow">
@@ -209,7 +404,12 @@ const FlowRail = () => {
         ))}
       </ol>
 
-      <div className="hww-flow__card" key={stage.id}>
+      <div
+        className="hww-flow__card"
+        key={stage.id}
+        onMouseEnter={() => setReading(true)}
+        onMouseLeave={() => setReading(false)}
+      >
         <div className="hww-flow__cardhead">
           <span className={`hww-hand hww-hand--${stage.hand.replace(/[^a-z]/g, "")}`}>{stage.hand}</span>
           <h3>{stage.label}</h3>
@@ -225,12 +425,13 @@ const FlowRail = () => {
         <p className="hww-flow__note">
           <Rich>{stage.note}</Rich>
         </p>
+        <StageDoor stage={stage} onTouch={hold} />
       </div>
 
       <p className="hww-hint">
         {held || reduced
-          ? "You have the wheel — pick any stage."
-          : "It is walking itself. Click a stage and it stops."}
+          ? "You have the wheel — pick any stage. Left alone, it walks on."
+          : "It is walking itself — reading the card holds it, and a click takes the wheel."}
       </p>
     </div>
   );
@@ -239,6 +440,10 @@ const FlowRail = () => {
 // ───────────────────────────────────────────────────────────────────────────────────────────────
 // 2 · REGISTRATION. The first line of a document is how the system hears it.
 
+// EACH CARD IS A MINI-DOCUMENT (his design, 2026-10-28: "act like a little preview document, but
+// the words in the document are actually help"). The top keeps its grammar — the kind, the line
+// under it, the leaf code block as it renders in a real document — and the body underneath is the
+// real help: that kind's LIFECYCLE, with its trail as the page's footer.
 const Leaves = () => (
   <div className="hww-leaves">
     {LEAVES.map((l) => (
@@ -248,9 +453,15 @@ const Leaves = () => (
           <span className="hww-leaf__one">{l.one}</span>
         </div>
         <code className="hww-leaf__code">{l.leaf}</code>
-        <p className="hww-leaf__hint">
-          <Rich>{l.hint}</Rich>
-        </p>
+        {/* the lifecycle as STEPS — one compact block per state, the name leading into what it
+            means for the work; the states are here, so no trail repeats them at the foot */}
+        <div className="hww-leaf__life">
+          {l.life.map((row) => (
+            <p className="hww-leaf__st" key={row.st}>
+              <b>{row.st}</b> — <Rich>{row.is}</Rich>
+            </p>
+          ))}
+        </div>
       </div>
     ))}
   </div>
@@ -265,7 +476,7 @@ const Leaves = () => (
 // reach `resolved`.
 
 const Trails = () => {
-  const [kind, setKind] = useState("rfc");
+  const [kind, setKind] = useState("arc");
   const life = LIFECYCLES.find((l) => l.kind === kind) || LIFECYCLES[0];
   const [at, setAt] = useState(0);
   const pick = (k) => {
@@ -296,49 +507,51 @@ const Trails = () => {
         <b>{life.title}</b> — {life.sub}. <Rich>{life.lede}</Rich>
       </p>
 
+      {/* A FORK IS A COLUMN OF TWO: a `fork` station shares its column with the station before it
+          — the line runs through the one on it, and the fork's own strokes diverge from the line
+          and rejoin it, because `rejected` is a destination with the same next stop, not a drop
+          off the trail. The strokes are the column's, fixed geometry, so they survive any width. */}
       <ol className={`hww-trail hww-trail--${kind}`}>
-        {life.stations.map((s, i) => (
-          <li
-            key={s.id}
-            className={`hww-trail__st${s.fork ? " hww-trail__st--fork" : ""}${
-              s.id === station.id ? " is-at" : ""
-            }`}
-          >
-            <button type="button" className="hww-trail__btn" onClick={() => setAt(i)}>
-              <span className="hww-trail__ring">{s.pressable ? "⌾" : "◦"}</span>
-              <span className="hww-trail__name">{s.id}</span>
-            </button>
-          </li>
-        ))}
+        {life.stations
+          .reduce((cols, s) => {
+            if (s.fork && cols.length) cols[cols.length - 1].push(s);
+            else cols.push([s]);
+            return cols;
+          }, [])
+          .map((col) => (
+            <li
+              key={col[0].id}
+              className={`hww-trail__col${col.length > 1 ? " hww-trail__col--split" : ""}`}
+            >
+              {col.map((s) => (
+                <div
+                  key={s.id}
+                  className={`hww-trail__st${s.fork ? " hww-trail__st--fork" : ""}${
+                    s.id === station.id ? " is-at" : ""
+                  }`}
+                >
+                  <button
+                    type="button"
+                    className="hww-trail__btn"
+                    onClick={() => setAt(life.stations.indexOf(s))}
+                  >
+                    <span className="hww-trail__ring">{s.pressable ? "⌾" : "◦"}</span>
+                    <span className="hww-trail__name">{s.id}</span>
+                  </button>
+                </div>
+              ))}
+            </li>
+          ))}
       </ol>
 
+      {/* a press answers with ONE human sentence — what being here means for the work. The
+          three-row anatomy (the fact it reads / what moves it / press it) was reference
+          material, cut 2026-10-28: the trail depicts, the sentence teaches. */}
       <div className="hww-st" key={`${kind}-${station.id}`}>
-        <div className="hww-st__head">
-          <h3 className="hww-st__name">{station.id}</h3>
-          <span className={`hww-st__press${station.pressable ? " is-yes" : " is-no"}`}>
-            {station.pressable ? "a press can reach it" : "a press cannot fake it"}
-          </span>
-        </div>
-        <dl className="hww-st__rows">
-          <div>
-            <dt>the fact it reads</dt>
-            <dd>
-              <Rich>{station.reads}</Rich>
-            </dd>
-          </div>
-          <div>
-            <dt>what moves it here</dt>
-            <dd>
-              <Rich>{station.moves}</Rich>
-            </dd>
-          </div>
-          <div>
-            <dt>press it</dt>
-            <dd>
-              <Rich>{pressLine(station)}</Rich>
-            </dd>
-          </div>
-        </dl>
+        <h3 className="hww-st__name">{station.id}</h3>
+        <p className="hww-st__how">
+          <Rich>{station.moves}</Rich>
+        </p>
         <p className="hww-st__means">
           <Rich>{station.means}</Rich>
         </p>
@@ -346,69 +559,6 @@ const Trails = () => {
     </div>
   );
 };
-
-const Retirement = () => (
-  <div className="hww-retire">
-    <div className="hww-retire__cols">
-      {["ending", "pause"].map((g) => (
-        <div className={`hww-retire__col hww-retire__col--${g}`} key={g}>
-          <h4>{g === "ending" ? "endings — they leave the active lists" : "pauses — they stay findable"}</h4>
-          {REASONS.filter((r) => r.group === g).map((r) => (
-            <div className="hww-reason" key={r.word}>
-              <code>as={r.word}</code>
-              <span>
-                <Rich>{r.gloss}</Rich>
-              </span>
-            </div>
-          ))}
-        </div>
-      ))}
-    </div>
-    <p className="hww-retire__note">
-      <Rich>
-        **The reason replaces the gate.** Refusing the button teaches nothing; a closed list of
-        reasons is strictly more honest, and it has to be CLOSED because conditions branch on it —
-        an unrecognised reason would be a state nothing can read. **And no timer moves state on any
-        kind.** A timer that retires a document is a decision nobody made, attributed to nobody,
-        with no reason attached. A clock's only job here is disposal, strictly downstream of a
-        decision somebody already made.
-      </Rich>
-    </p>
-  </div>
-);
-
-const Subtypes = () => (
-  <div className="hww-subs">
-    <table className="hww-table">
-      <thead>
-        <tr>
-          <th>as=</th>
-          <th>what it is</th>
-          <th>what makes it done</th>
-          <th>its clock</th>
-        </tr>
-      </thead>
-      <tbody>
-        {SUBTYPES.map((s) => (
-          <tr key={s.as}>
-            <td>
-              <code>{s.as}</code>
-            </td>
-            <td>
-              <Rich>{s.what}</Rich>
-            </td>
-            <td>
-              <Rich>{s.done}</Rich>
-            </td>
-            <td className="hww-table__quiet">
-              <Rich>{s.clock}</Rich>
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  </div>
-);
 
 // ───────────────────────────────────────────────────────────────────────────────────────────────
 // 4 · UPWARD. The one live thing on the page. Press the plans; the objectives complete; the arc
@@ -672,6 +822,26 @@ const Chain = () => {
 };
 
 // ───────────────────────────────────────────────────────────────────────────────────────────────
+// THE AGENTS — who does the work. Six cards off the data file; the one claim under all of them is
+// that nothing here runs on trust: the doc defines, the record answers.
+
+const Agents = () => (
+  <div className="hww-agents">
+    {AGENTS.map((a) => (
+      <div className="hww-agent" key={a.name}>
+        <div className="hww-agent__top">
+          <span className="hww-agent__name">{a.name}</span>
+          <span className="hww-agent__one">{a.one}</span>
+        </div>
+        <p className="hww-agent__body">
+          <Rich>{a.body}</Rich>
+        </p>
+      </div>
+    ))}
+  </div>
+);
+
+// ───────────────────────────────────────────────────────────────────────────────────────────────
 // 7 · CONTEXT. What an agent runs on, in layers — and the layers differ in who pulls the trigger.
 
 const ContextStack = () => (
@@ -810,39 +980,60 @@ const Doors = () => {
 
 const PAGES = [
   {
+    // THE INTRODUCTION — it names SystemView and talks TO you (his call, 2026-10-28: "it's just
+    // that YOU direct a team of agents… this is about introducing SystemView"). The lede does the
+    // three enablers in order — one medium, nothing invisible, nothing on trust — and stays ONE
+    // paragraph, because the tallest header sets the height of all nine: the rail's own caption
+    // and the manual-not-dashboard note live in the body now, where length is free.
     id: "flow",
     label: "The flow",
+    // "the shape of the work" / SystemView — the kicker he liked stays; the title names the thing.
     kicker: "the shape of the work",
-    title: "How this works",
-    lede: [
-      "One person directs a team of agents from this window. The way that stays honest is that **every piece of it is a document, and every document is pressable** — the plan, the decision, the claim, the proof, the account of what ran while nobody was watching. Nothing here is a state somebody typed into a row: a state is read off a fact in a document, and a press writes the fact rather than the state.",
-      "Not rules — the shape the work tends to take. Plenty happens outside it: a fix you ask for lands straight in your tree, a question gets answered in the chat. But when something is big enough to be worth a record, this is the path, and at every step there is a document somebody can open.",
-    ],
-    honest:
-      "This page is the manual, not a dashboard of your repo — every id, count and document on it is an example. The one exception is the arc in **Upward**, which really derives.",
+    title: "SystemView",
+    lede: "You direct a team of agents. The work moves as documents — plans, decisions, claims, proofs — the agents build from them, and everything they run shows up here as it happens. And none of it asks for your trust: every document is pressable, and every state is read off a fact in one, so what the system says is what the disk says.",
     links: [
       { label: "registration", to: "register" },
       { label: "start something", to: "start" },
     ],
-    body: () => <FlowRail />,
+    body: () => (
+      <>
+        <p className="hww-intro">
+          Below is the shape the work tends to take — not rules. Plenty happens outside it: a fix
+          you ask for lands straight in your tree, a question gets answered in the chat. But when
+          something is big enough to be worth a record, this is the path, and at every step there is
+          a document somebody can open.
+        </p>
+        <p className="hww-hero__honest">
+          <Rich>
+            This page is the manual, not a dashboard of your repo — every id, count and document on
+            it is an example. The one exception is the arc in **Living specs**, which really derives.
+          </Rich>
+        </p>
+        <FlowRail />
+      </>
+    ),
   },
   {
     id: "register",
-    label: "Registration",
+    label: "Documentation",
     kicker: "identity",
-    title: "A document says what it is on its first line",
-    lede: "A document is an RFC, an arc, a report or a gap because it **says so at the top** — never because of the folder it sits in. Write the leaf, save, and one parse registers it: `{ id, kind, path, project }`. From that moment it has an identity anything can point at and a state anything can read.",
+    title: "Documentation as state",
+    lede: "The work here is tracked through markdown documentation — RFCs, arcs, reports and gaps. A document says what it is with an interactive markdown block inside, and saving the file registers it with the system. From that moment it has an identity in the system — anything can point at it, and its state lives within the document itself.",
     links: [{ label: "the lifecycles those kinds walk", to: "lifecycle" }],
     body: () => (
       <>
+        {/* the one point worth making here (his pick, assembled from two drafts): the plans and
+            the tests are ONE document — which is what makes these documents alive */}
+        <p className="hww-intro">
+          The plans and the tests live in the same document — a design carries its claims, the
+          claims carry their proofs, and the document never drifts from the thing it describes.
+        </p>
         <Leaves />
         <div className="hww-note">
           <Rich>
-            **The id is the identity, not the path.** A moved or renamed file updates its row — it is
-            never a second document, and every pointer at it survives. A file in `RFCs/` with no leaf
-            is a file; a design anywhere else carrying `::rfc` is an RFC. And the registry is a
-            **lookup, never an authority**: delete it and it rebuilds from the documents, because the
-            documents were always the truth.
+            **Documents are tracked and identified by their embedded markdown blocks** — not their
+            file paths — so you can move or rename a file freely: it stays the same document, and every
+            pointer at it survives.
           </Rich>
         </div>
       </>
@@ -853,54 +1044,30 @@ const PAGES = [
     label: "Lifecycles",
     wide: true,
     kicker: "state",
-    title: "Each kind walks its own trail, and the state is read off the document",
-    lede: "Four kinds, four trails, and not one of them is stored anywhere. Every state is a CONDITION over facts in the document — a block, a heading, the claims bar, the leaf itself — which is what lets a press honestly stop short and say so.",
-    links: [{ label: "how an arc derives upward", to: "upward" }],
-    body: () => (
-      <>
-        <div className="hww-rule">
-          <span className="hww-rule__mark">⌾</span>
-          <div>
-            <b>The state is in the document, and nowhere else.</b>
-            <span>
-              Never a row written somewhere that then has to be kept in sync — four answers read off
-              one document. So whether you can press a state is <b>only a question about the fact
-              behind it</b>: a signature — no. A heading — yes. An attribute on the leaf — yes. A
-              count of claims — no, but it can say what is missing: <i>“3 of the 26 claims belong to
-              another agent.”</i>
-            </span>
-          </div>
-        </div>
-        <Trails />
-        <h3 className="hww-sub">Leaving active service is a hand, with a reason</h3>
-        <Retirement />
-        <h3 className="hww-sub">A report's leaf is dynamic — the subtype decides what done means</h3>
-        <Subtypes />
-        <div className="hww-layers3">
-          <h4>And when you disagree with the document, the trail says which of three layers is talking</h4>
-          <ol>
-            <li>
-              <b>the fact</b> — a block, a heading, the claims bar, the objectives
-            </li>
-            <li>
-              <b>the leaf's own word</b> — <code>retired=</code>, <code>resolved=</code>
-            </li>
-            <li>
-              <b>an override</b>, visibly marked as one — lit differently, because a surface reads
-              state and never testifies
-            </li>
-          </ol>
-        </div>
-      </>
-    ),
+    title: "Nothing is marked done by hand",
+    lede: "From draft to retired, everything in the system moves through its own states — A state is a condition over facts in the document itself, so the system always knows where everything stands — and a surface can read it, but never fake it.",
+    links: [{ label: "how a plan settling settles the arc", to: "specs" }],
+    // NO INSERT ABOVE THE TABS, and NO INSTRUCTIONS anywhere on this page (his ruling,
+    // 2026-10-28: this surface teaches the method, it never ushers — "people can press whatever
+    // they press"). The body is the kind tabs, the prose under each, and the states. That is all.
+    body: () => <Trails />,
   },
   {
-    id: "upward",
-    label: "Upward",
-    kicker: "handoff",
-    title: "An arc's state is a summary of its plans, so it cannot lie about them",
-    lede: "An arc grows objectives. Objectives get plans attached BY ID — `::rfc{id=RFC-073 arc=ARC-004-O2}`, the objective's address, never a path. A plan settles in its own document, which completes the objective, which settles the arc. Three of an arc's five states cannot be pressed at all, because the facts they read live in other documents.",
-    links: [{ label: "the trails themselves", to: "lifecycle" }],
+    // ONE PAGE, NOT TWO (his call, 2026-10-28): the upward demo IS a living spec — an arc whose
+    // state is read off its plans is exactly "is this still true?" as a derivation — so the demo
+    // and the proof shapes teach one idea and share one tab, wearing the specs name.
+    id: "specs",
+    label: "Living specs",
+    kicker: "the newest idea",
+    title: "A living spec — where “is this still true?” is a button",
+    lede: [
+      "A claim can carry its proof in a fold: a test that lives as a file in the project's suite, or a run block that runs right there in the document. Pressing it is the difference between a design you remember agreeing to and a design that answers for itself.",
+      "And a state can BE one. An arc grows objectives; objectives get plans attached BY ID — `::rfc{id=RFC-073 arc=ARC-004-O2}` — and a plan settling in its own document completes the objective, which settles the arc. Three of an arc's five states cannot be pressed at all, because the facts they read live in other documents.",
+    ],
+    links: [
+      { label: "the trails themselves", to: "lifecycle" },
+      { label: "the full block vocabulary", help: "markdown" },
+    ],
     body: () => (
       <>
         <ArcUpward />
@@ -912,47 +1079,7 @@ const PAGES = [
             make the record lie; loose everywhere else.
           </Rich>
         </div>
-      </>
-    ),
-  },
-  {
-    id: "told",
-    label: "Being told",
-    kicker: "delivery",
-    title: "A document knows who is on it, and tells them when it changes",
-    lede: "A document carries `::members{who=…}` — project rooms, not people, because delivery already works in rooms. When a block gets an ANSWER and nobody covering that audience has been told, the system delivers one update and stamps `told=` on the block's own line for exactly who was reached.",
-    links: [{ label: "what runs when nobody is in the room", to: "machine" }],
-    body: () => <TellDemo />,
-  },
-  {
-    id: "machine",
-    label: "Hooks & jobs",
-    wide: true,
-    kicker: "the machinery",
-    title: "Events announce moments; hooks point at procedures; jobs are given and file accounts",
-    lede: "This is how work happens when you are not in the room. The chain is deliberately four separate things, because each one is a different kind of trust.",
-    links: [{ label: "the context those agents run on", to: "context" }],
-    body: () => <Chain />,
-  },
-  {
-    id: "context",
-    label: "Context",
-    wide: true,
-    kicker: "what an agent runs on",
-    title: "Context arrives in layers, and the layers differ in who pulls the trigger",
-    lede: "An agent is its context. Getting a layer wrong is the commonest way knowledge fails to arrive — and the symptom is never an error, it is an agent confidently acting on a world that moved.",
-    links: [{ label: "living specs", to: "specs" }],
-    body: () => <ContextStack />,
-  },
-  {
-    id: "specs",
-    label: "Living specs",
-    kicker: "the newest idea",
-    title: "A living spec — where “is this still true?” is a button",
-    lede: "A claim can carry its proof in a fold: a test that lives as a file in the project's suite, or a run block that runs right there in the document. Pressing it is the difference between a design you remember agreeing to and a design that answers for itself.",
-    links: [{ label: "the full block vocabulary", help: "markdown" }],
-    body: () => (
-      <>
+        <h3 className="hww-sub">The proof shapes — where the evidence lives</h3>
         <div className="hww-specs">
           <div className="hww-specs__half">
             <h4>
@@ -1004,6 +1131,47 @@ const PAGES = [
     ),
   },
   {
+    id: "told",
+    label: "Being told",
+    kicker: "delivery",
+    title: "A document knows who is on it, and tells them when it changes",
+    lede: "A document carries `::members{who=…}` — project rooms, not people, because delivery already works in rooms. When a block gets an ANSWER and nobody covering that audience has been told, the system delivers one update and stamps `told=` on the block's own line for exactly who was reached.",
+    links: [{ label: "who does the work", to: "agents" }],
+    body: () => <TellDemo />,
+  },
+  {
+    id: "agents",
+    label: "Agents",
+    kicker: "who does the work",
+    title: "Every project is owned by an agent, and an agent is its context",
+    lede: "The window is one person directing a team of agents. Each one is a session wearing a definition — a doc saying what it is for, loaded every turn — equipped with procedures it can choose and procedures it is given, reachable in its project's room, and watched through a record that never asks you to take its word.",
+    links: [
+      { label: "the context an agent runs on", to: "context" },
+      { label: "what runs when nobody is in the room", to: "machine" },
+    ],
+    body: () => <Agents />,
+  },
+  {
+    id: "context",
+    label: "Context",
+    wide: true,
+    kicker: "what an agent runs on",
+    title: "Context arrives in layers, and the layers differ in who pulls the trigger",
+    lede: "An agent is its context. Getting a layer wrong is the commonest way knowledge fails to arrive — and the symptom is never an error, it is an agent confidently acting on a world that moved.",
+    links: [{ label: "what runs when nobody is in the room", to: "machine" }],
+    body: () => <ContextStack />,
+  },
+  {
+    id: "machine",
+    label: "Hooks & jobs",
+    wide: true,
+    kicker: "the machinery",
+    title: "Events announce moments; hooks point at procedures; jobs are given and file accounts",
+    lede: "This is how work happens when you are not in the room. The chain is deliberately four separate things, because each one is a different kind of trust.",
+    links: [{ label: "start something", to: "start" }],
+    body: () => <Chain />,
+  },
+  {
     id: "start",
     label: "Start something",
     wide: true,
@@ -1049,13 +1217,37 @@ export default function HowWeWork() {
   const rootRef = useRef(null);
   const page = PAGES.find((p) => p.id === at) || PAGES[0];
 
+  // The dash layer is drawn in the path's own 900px space and scaled to the real width — measured
+  // once per resize, never per frame. jsdom has no ResizeObserver; the guard keeps tests honest.
+  const artRef = useRef(null);
+  const [artScale, setArtScale] = useState(1);
+  useEffect(() => {
+    if (typeof ResizeObserver === "undefined" || !artRef.current) return undefined;
+    const ro = new ResizeObserver(() => {
+      const w = artRef.current ? artRef.current.clientWidth : 0;
+      if (w) setArtScale(w / 900);
+    });
+    ro.observe(artRef.current);
+    return () => ro.disconnect();
+  }, []);
+
   // Which way you travelled decides the slide: the next header arrives from that side, and the
   // one you left gets pushed out the other. `out` is the header currently exiting.
   const [slide, setSlide] = useState({ from: "", out: null });
+  // THE SLIDE CLASSES CLEAR THEMSELVES after the push has played (his bug, 2026-10-28: a bounce —
+  // or even a bare click on the header — re-triggered the entrance, because toggling an inline
+  // `animation: none` on an element that still carries `is-from-*` restarts that animation from
+  // zero). Once cleared, there is nothing to replay.
+  const slideT = useRef(null);
+  useEffect(() => () => clearTimeout(slideT.current), []);
   const go = (id) => {
     const here = PAGES.findIndex((p) => p.id === at);
     const there = PAGES.findIndex((p) => p.id === id);
-    if (there !== here) setSlide({ from: there > here ? "right" : "left", out: at });
+    if (there !== here) {
+      setSlide({ from: there > here ? "right" : "left", out: at });
+      clearTimeout(slideT.current);
+      slideT.current = setTimeout(() => setSlide({ from: "", out: null }), 420);
+    }
     setAt(id);
     writeTab(id);
     if (rootRef.current) rootRef.current.scrollTop = 0;
@@ -1071,8 +1263,12 @@ export default function HowWeWork() {
   // twice. A real drag also swallows the click that would otherwise land on a header link.
   const idx = PAGES.findIndex((p) => p.id === at);
   const [dragPx, setDragPx] = useState(0);
+  // idle → drag (following the hand) → settle (bouncing home) → idle. The settle phase is what
+  // turns a released drag into a bounce instead of a snap.
+  const [phase, setPhase] = useState("idle");
+  const settleT = useRef(null);
+  useEffect(() => () => clearTimeout(settleT.current), []);
   const pointer = useRef({ x: 0, down: false, moved: 0 });
-  const wheel = useRef({ acc: 0, last: 0, until: 0 });
 
   const step = (dir) => {
     const to = PAGES[idx + dir];
@@ -1085,16 +1281,33 @@ export default function HowWeWork() {
   const dragMove = (e) => {
     const p = pointer.current;
     if (!p.down) return;
-    const dx = e.clientX - p.x;
+    let dx = e.clientX - p.x;
+    if (Math.abs(dx) < 2 && phase === "idle") return; // a click's jitter is not a drag
+    // RUBBER-BAND AT THE ENDS — there is no page that way, so the header gives only a third of
+    // the hand ("it shouldn't go so far"): the resistance itself says you are at the edge.
+    if ((dx > 0 && idx === 0) || (dx < 0 && idx === PAGES.length - 1)) dx = dx / 3;
     p.moved = Math.max(p.moved, Math.abs(dx));
+    setPhase("drag");
     setDragPx(dx);
   };
   const dragEnd = () => {
     if (!pointer.current.down) return;
     pointer.current.down = false;
-    if (dragPx <= -60) step(1);
-    else if (dragPx >= 60) step(-1);
-    setDragPx(0);
+    if (dragPx <= -60 && idx < PAGES.length - 1) {
+      setDragPx(0);
+      setPhase("idle");
+      step(1);
+    } else if (dragPx >= 60 && idx > 0) {
+      setDragPx(0);
+      setPhase("idle");
+      step(-1);
+    } else {
+      // short of the line, or at an edge: BOUNCE home — transition on, then let go of the value
+      setPhase("settle");
+      requestAnimationFrame(() => requestAnimationFrame(() => setDragPx(0)));
+      clearTimeout(settleT.current);
+      settleT.current = setTimeout(() => setPhase("idle"), 350);
+    }
   };
   const swallowDraggedClick = (e) => {
     if (pointer.current.moved > 10) {
@@ -1103,19 +1316,9 @@ export default function HowWeWork() {
       pointer.current.moved = 0;
     }
   };
-  const onWheel = (e) => {
-    if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return; // vertical scroll belongs to the page
-    const w = wheel.current;
-    const now = Date.now();
-    if (now < w.until) return; // momentum tail of a gesture that already paged
-    if (now - w.last > 400) w.acc = 0; // a fresh gesture
-    w.acc += e.deltaX;
-    w.last = now;
-    if (Math.abs(w.acc) < 80) return;
-    w.acc = 0;
-    w.until = now + 500;
-    step(e.deltaX > 0 ? 1 : -1);
-  };
+  // SCROLL-TO-SLIDE IS GONE (his call, 2026-10-28, after three cuts: threshold paging read as "a
+  // suggestion", and live-follow fought trackpad momentum — "scroll doesn't work, get rid of it").
+  // The drag is the slider; a wheel over the top section does nothing, which is at least honest.
 
   return (
     <div className="hww" ref={rootRef}>
@@ -1126,13 +1329,28 @@ export default function HowWeWork() {
         onPointerUp={dragEnd}
         onPointerLeave={dragEnd}
         onClickCapture={swallowDraggedClick}
-        onWheel={onWheel}
       >
-        <div className="hww-heads__art" aria-hidden="true">
+        <div className="hww-heads__art" aria-hidden="true" ref={artRef}>
           <svg viewBox="0 0 900 120" preserveAspectRatio="none">
             <path className="hww-hero__path" d="M0 96 C 160 96 190 24 350 24 C 520 24 540 96 700 96 C 820 96 860 60 900 56" />
-            <path className="hww-hero__flow" d="M0 96 C 160 96 190 24 350 24 C 520 24 540 96 700 96 C 820 96 860 60 900 56" />
           </svg>
+          {/* THE DASHES — the original current: three 10px pieces of the line flowing ALONG the
+              curve (`stroke-dasharray: 10 260` made three at once on this path). Each is a tiny
+              pill riding the literal bezier via `offset-path`, auto-rotated to its tangent,
+              staggered a third apart. Motion-path is transform-family, so the travel stays on the
+              compositor — the dash-march this replaces repainted the whole strip every frame and
+              held the GPU at ~110% (measured 2026-10-28). The layer is drawn in the path's own
+              900×120 space and scaled to the container, exactly what preserveAspectRatio=none did
+              to the drawing. */}
+          <div
+            className={`hww-heads__dashes${DASHES_MOVE ? " is-moving" : ""}`}
+            style={{ transform: `scaleX(${artScale})` }}
+          >
+            {DASHES_MOVE ? <style>{DASH_KEYFRAMES}</style> : null}
+            {DASH_SPOTS.map((tf) => (
+              <i key={tf} style={DASHES_MOVE ? undefined : { transform: tf }} />
+            ))}
+          </div>
         </div>
         {PAGES.map((p) => (
           <PageHeader
@@ -1143,6 +1361,7 @@ export default function HowWeWork() {
             from={slide.from}
             out={p.id === slide.out ? slide.from : ""}
             dragPx={dragPx}
+            phase={phase}
           />
         ))}
       </div>
