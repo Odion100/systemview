@@ -448,6 +448,23 @@
 }
 
 // RFC-069 §4.4 — the open-by-path door on the strip. An ADDRESS, never a picker.
+// THE 🧭 DOOR, beside the +. Same shape as the + and deliberately NOT the same class: a suite
+// asserts the strip has no `.doc-tabs__plus` when the host supplies no + door, and sharing the
+// class made that test find this button instead. Two buttons, two names.
+.doc-tabs__how {
+  flex: none;
+  border: none;
+  position: sticky;
+  right: 0;
+  background: var(--sv-bg, #fff);
+  color: var(--sv-text-faint);
+  font-size: 13px;
+  line-height: 1;
+  padding: 2px 6px;
+  cursor: pointer;
+  opacity: .75;
+  &:hover { opacity: 1; }
+}
 .doc-tabs__plus {
   flex: none;
   border: none;

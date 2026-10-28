@@ -17,6 +17,7 @@ import { saveDoc, saveSkill, saveDef, saveHelp } from "../../utils/hostAgents";
 import { saveJob } from "../../utils/hostJobs";
 import useOpenedFile from "../../organisms/DocPanel/useOpenedFile";
 import Board from "../../organisms/Board/Board";
+import HowWeWork from "../../organisms/HowWeWork/HowWeWork";
 import useWallPanel from "../../organisms/WallPanel/useWallPanel";
 import WallTab from "../../organisms/WallPanel/WallTab";
 import "./styles.scss";
@@ -137,12 +138,16 @@ const Context = () => {
   useEffect(() => {
     const onKind = (e) => {
       const d = (e && e.detail) || {};
-      if (d.kind !== "board" || (d.projectCode && d.projectCode !== projectCode)) return;
+      // HOW THIS WORKS RIDES THE SAME DOOR. Handling only `board` here meant the chat's new 🧭
+      // navigated this page away to /specs — which is exactly the complaint that produced the
+      // offer-first contract in the first place. Both kinds are one-per-project and both render
+      // in this page's document display, so both are hosted.
+      if ((d.kind !== "board" && d.kind !== "how") || (d.projectCode && d.projectCode !== projectCode)) return;
       d.handled = true;
-      openTab(tabsPc, { key: `board:${tabsPc}`, kind: "board" });
+      openTab(tabsPc, { key: `${d.kind}:${tabsPc}`, kind: d.kind });
       // AND BRING IT TO FRONT — opening a tab you then have to go find is adding, not opening
       // (his catch: "it just adds the tab"). This page's active is local state, so the door sets it.
-      setActiveKey(`board:${tabsPc}`);
+      setActiveKey(`${d.kind}:${tabsPc}`);
       setDocOpen(true);
     };
     window.addEventListener("sv:openCenterKind", onKind);
@@ -343,7 +348,7 @@ const Context = () => {
                 // board joined the renderable kinds with the 14-lane land, but this list wasn't
                 // told — so clicking a board tab navigated to the Code page while the render
                 // branch below sat unreachable (his catch). One list, kept beside the branches.
-                if (t.kind === "file" || t.kind === "agentdoc" || t.kind === "board") {
+                if (t.kind === "file" || t.kind === "agentdoc" || t.kind === "board" || t.kind === "how") {
                   focusTab(tabsPc, t.key);
                   setActiveKey(t.key);
                   return;
@@ -375,6 +380,11 @@ const Context = () => {
                 this document's content lives behind its save door — reopen it from the profile on the left
               </div>
             ))}
+            {activeTab && activeTab.kind === "how" && (
+              <div className="context-page__howpane">
+                <HowWeWork />
+              </div>
+            )}
             {activeTab && activeTab.kind === "board" && (
               <div className="doc-board">
                 <Board projectCode={tabsPc} chrome="pane" />

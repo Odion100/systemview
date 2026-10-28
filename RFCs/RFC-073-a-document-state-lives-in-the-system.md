@@ -144,7 +144,18 @@ number per kind in `blocks.cjs`, beside the done attribute. When the window pass
 leaves the list (`retired`, written by the sweep job of §4.2 or by hand) and is only reachable as a
 file; and eventually the file goes — the sweep deletes a report, and an RFC or an arc is his to
 delete. Three moves — done, out of the list, gone — and only the first is the document's own word;
-the other two are the clock and the sweep. The counts at the bottom — approvals waiting, open arcs —
+the other two are the clock and the sweep.
+
+> **AMENDED by RFC-076 (2026-10-28), and this paragraph is the part it overturns.** The windows and
+> the retiring sweep were never built — `LIFECYCLE` sits in `blocks.cjs` imported by nothing — and
+> they are now withdrawn rather than owed. **No timer moves a document's state.** A timer that
+> retires something is a decision nobody made, attributed to nobody, with no reason attached;
+> retirement became a hand carrying a REASON (`as=cancelled|superseded|shelf|sideline|out of
+> service`), which is what tells the lists whether the document ENDED or is merely PAUSED. One
+> exception survives and it is not a calendar: a report may carry `retain=`, whose clock starts when
+> the human first OPENS it and which he can divert. What the sweep keeps is its other job —
+> re-parsing documents nobody has open. **Read `RFCs/RFC-076-every-registered-document-walks-a-lifecycle.md`
+> for what replaced this.** The counts at the bottom — approvals waiting, open arcs —
 are read off `state`, so a document leaving a state leaves the count in the same parse, before any
 window.
 

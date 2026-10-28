@@ -34,6 +34,7 @@ import { takeIfNew } from "../../molecules/SpeakReply/autoSpeak";
 import Feed, { timeOf } from "../AgentWorkbench/Feed";
 import useAgentSession from "../AgentWorkbench/useAgentSession";
 import { CTX_WARN, CTX_DUE, tokensShort, parseUsageLines, foldEvents } from "../AgentWorkbench/feedRows";
+import laneCook from "./laneCook";
 import { visStyle } from "../AgentWorkbench/visitorColor";
 import { formatReceipt } from "../AgentWorkbench/cmdReceipt";
 import { readImagesFrom, readImageFile, hasImages } from "../../utils/imageAttach";
@@ -1363,6 +1364,8 @@ function Whiteboard({ text, writeTs = 0, onWipe, shown = null, onShow = null }) 
 // ran, folded by the same Feed the workbench uses), its branch review, and its ARTIFACTS — the
 // janitor's row: worktree still on disk, branch merged or not, run closed or died. What a lane
 // did, what it proved, what it left behind — one panel, closed with ×.
+const geoOfLog = (el) => ({ scrollHeight: el.scrollHeight, scrollTop: el.scrollTop, clientHeight: el.clientHeight });
+
 function LanePanel({ source, items, laneEvents, brief = "", projectCode, onClose }) {
   // THE BRIEF AT THE TOP (his ask): the prompt that scoped this lane, shown where the lane is
   // monitored — the owner's context compressed into instructions is exactly what a reader needs
@@ -1411,6 +1414,27 @@ function LanePanel({ source, items, laneEvents, brief = "", projectCode, onClose
   const done = items.filter((t) => t.state === "done").length;
   const finished = items.length > 0 && done === items.length;
   const died = !finished && items.some((t) => t.state === "active");
+  // IS THE LANE COOKING — read from the lane's own events, suppressed once its run is closed.
+  // The predicate is in `laneCook.js` so it is testable: this file imports react-markdown and jest
+  // cannot mount it, which is how a wrong guard would live here unnoticed. It sits BELOW `finished`
+  // on purpose — referencing a `const` above its declaration is a dead-zone throw at render, and
+  // the first draft of this did exactly that in a file no test can mount.
+  const cooking = useMemo(() => laneCook(laneEvents, finished), [laneEvents, finished]);
+  // FOLLOWING THE LOG. One keeper per panel, reset when the panel opens on a different lane —
+  // the bottom is where he is when he opens one.
+  const logRef = useRef(null);
+  const laneStick = useRef(null);
+  if (!laneStick.current) laneStick.current = createSticking();
+  useEffect(() => {
+    laneStick.current.reset();
+  }, [source]);
+  // Our own scroll is PINNED so it cannot be mistaken for his hand taking the wheel.
+  useEffect(() => {
+    const el = logRef.current;
+    if (!el || !laneStick.current.following) return;
+    el.scrollTop = el.scrollHeight;
+    laneStick.current.pin(geoOfLog(el));
+  }, [laneEvents, cooking]);
   // The panel already HOLDS the log, so it needs nothing passed to answer the same question.
   const delegated = !!laneEvents;
   return (
@@ -1477,7 +1501,18 @@ function LanePanel({ source, items, laneEvents, brief = "", projectCode, onClose
       <div className={`${CLASSNAME}__lanepanel-review`}>
         <BranchBlock key={repo} label={branch} attrs={{ project: repo }} />
       </div>
-      <div className={`${CLASSNAME}__lanepanel-log`}>
+      {/* THE LOG FOLLOWS, LIKE A CHAT. It did not: new rows landed below the fold and the panel sat
+          wherever it was, so watching a lane meant dragging the scrollbar every few seconds. Same
+          `sticking` the conversation uses, for the same reason — geometry moving is not a decision,
+          so only a scroll that moves `scrollTop` while the box holds still may stop the follow. */}
+      <div
+        className={`${CLASSNAME}__lanepanel-log`}
+        ref={logRef}
+        onScroll={() => {
+          const el = logRef.current;
+          if (el) laneStick.current.scrolled(geoOfLog(el));
+        }}
+      >
         <div className={`${CLASSNAME}__lanepanel-logtitle`}>the lane's log — what it actually did</div>
         {laneEvents && laneEvents.length ? (
           <Feed rows={foldEvents(laneEvents)} />
@@ -1485,6 +1520,26 @@ function LanePanel({ source, items, laneEvents, brief = "", projectCode, onClose
           <div className={`${CLASSNAME}__lanepanel-empty`}>no log held — the lane ran before this view attached, or its events aged out</div>
         )}
       </div>
+      {/* THE LANE IS COOKING, AND THAT WAS INVISIBLE HERE. The panel drew the lane's rows and
+          nothing else, so between utterances a working subagent read as a stopped one — and
+          subagents barely speak, so that is most of the time. His words, watching this lane run:
+          *"his logs are coming in as he works, but I don't see him cooking in that little chat."*
+          The signal was always in the events the Feed above is already folding; only the panel was
+          not asking for it. `foldState` over the lane's OWN events — the same fold the owner's line
+          uses, so the words name the tool actually in flight rather than a spinner, and the same
+          reason the split happens upstream: a lane's activity must not puppet the owner's line, and
+          the owner's must not puppet the lane's.
+          IT SITS OUTSIDE THE SCROLL, which is the fix to my own first attempt: I put it inside the
+          log, where it scrolled out of view the moment the feed grew past the box — rendering
+          correctly and invisible, which is indistinguishable from not working. The owner's line
+          already sits outside its scroll for exactly this reason.
+          NO STOP BUTTON, deliberately: the owner's line carries one because the owner can be
+          interrupted, and nothing here can stop a subagent — a square that did nothing would be
+          worse than no square. The run being closed wins over any stale working event, because a
+          finished run that still reads "thinking" is the original complaint inverted. */}
+      {cooking && (
+        <CookLine doing={cooking.doing} state={cooking.state} liveChars={cooking.liveChars} />
+      )}
     </div>
   );
 }
@@ -5339,6 +5394,17 @@ const countdown = (str, now = Date.now()) => {
     const params = new URLSearchParams(window.location.search);
     ["file", "fproj", "fsvc", "flang", "flines", "fside", "fnav", "ftab", "help", "rdoc", "fmachine"].forEach((k) => params.delete(k));
     const route = () => go({ pathname: `/specs/${projectCode}`, search: `?${params.toString()}` });
+    if (which === "how") {
+      // Same offer-first contract as the board: off the Code page, let whatever document display
+      // is here host it rather than navigating him away from the page he is on.
+      if (!onCodePage()) {
+        const d = { kind: "how", projectCode };
+        window.dispatchEvent(new CustomEvent("sv:openCenterKind", { detail: d }));
+        if (d.handled) return;
+      }
+      params.set("tab", "how");
+      return route();
+    }
     if (which === "board") {
       // OFF THE CODE PAGE, OFFER FIRST (his report, 2026-10-17: these icons navigated away from
       // the Agents page even though its document display can host the board). Same offer/handled

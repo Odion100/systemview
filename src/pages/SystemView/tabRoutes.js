@@ -21,6 +21,15 @@ export function buildRoute(t, pc, currentSearch) {
     p.set("tab", "stats");
     return { pathname: `/specs/${pc}`, search: `?${p.toString()}` };
   }
+  // HOW WE WORK IS A TAB YOU CAN OPEN, not only the floor you fall to. It began as the empty-strip
+  // page, which meant the only way to read it was to close every document — *"I'm not going to
+  // close all my documents to have the tab strip empty to get to it."* One per project, like the
+  // board: it is a view of one thing, so a second tab would be the same page twice.
+  if (t.kind === "how") {
+    p.set("tab", "how");
+    p.delete("rdoc");
+    return { pathname: `/specs/${pc}`, search: `?${p.toString()}` };
+  }
   if (t.kind === "board" || t.kind === "links" || t.kind === "cmds") {
     p.set("tab", t.kind);
     p.delete("rdoc");
@@ -56,6 +65,7 @@ export function labelOfTab(t, pc) {
     const f = t.file || {};
     return f.path ? String(f.path).split("/").pop() : "file";
   }
+  if (t.kind === "how") return "How this works";
   if (t.kind === "stats") return `Stats · ${pc}`;
   if (t.kind === "board") return `Board · ${pc}`;
   if (t.kind === "links") return `Links · ${pc}`;
