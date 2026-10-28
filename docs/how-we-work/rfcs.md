@@ -257,19 +257,41 @@ They answer different questions and neither one answers the other's:
   block speaks); SystemLynx keeps its own `specs/tests` the same way. Nothing new to build. This
   is what makes the document a spec rather than a story, and it is the durable half: red is
   information, because it only rots when the system itself changed.
-- **The confirming half** — the `:::cmd` he can press, the `:file` link, the disposable fixture to
-  try the gesture on, the fixture document to open. **This is OWED by default, not a courtesy**,
-  and it used to be called "review facilitation" and demoted: *"honest work, never the spec."*
-  That was wrong and it was corrected by the person it is for — *"by default you got to try to give
-  me something I can easily see and confirm, right, running confirm or something. That's separate
-  from the spec."* The half that gets used is not the lesser half. A claim that is fully `spec'd`
-  and hands the reader nothing to do has met one obligation of two.
+- **The confirming half** — the `:::cmd` he can press, the `:file` link, the fixture to try the
+  gesture on, the document to open. **This is OWED by default, not a courtesy:** *"by default you
+  got to try to give me something I can easily see and confirm, right, running confirm or
+  something. That's separate from the spec."* The half that gets used is not the lesser half. A
+  claim that is fully `spec'd` and hands the reader nothing to do has met one obligation of two.
 
-  **And it must be available WHERE THE CLAIM IS.** A confirming half that sends him to another
-  document, or that describes a gesture this document cannot perform, is not one: a claim reading
-  *"right-click a leaf claim and grow a proof"* in a document where every claim already has a proof
-  gives the reader nothing to right-click. Put a disposable fixture in the fold, with a `:::cmd`
-  that resets it, so the gesture can be done here and done twice.
+  **It has to be available; WHERE is not a rule.** Embedding a fixture in the fold is one good
+  shape and pointing at a document to open is another — *"it can be both, it can be embedded, but
+  at the same time that's not a rule. You can send me to another document."* What is owed is that
+  the gesture can actually be performed, not that it happens inside these particular lines.
+
+  **With one condition on the pointer: the document it points at must be a SPEC**
+  (`::report{as=spec}`). A proof that lives elsewhere is only as good as the elsewhere — an
+  ordinary document mutates under the pointer and the proof rots silently, while a spec is
+  *current or drifted* by definition, carries its own runnable evidence, and sits in the drawer
+  where drift is visible. So: embed, or point at a spec; pointing at anything else is a proof
+  standing on a document that owes it nothing.
+
+  What that does rule out is narrow: **a confirming half describing a gesture nothing can perform
+  is not one.** A claim reading *"right-click a leaf claim and grow a proof"* in a document where
+  every claim already has a proof gives the reader nothing to right-click. It needs a fixture
+  already in the state the gesture needs — in the fold, or in a document the fold points at.
+
+  **The MOCK DOCUMENTS are that fixture** (`RFCs/proofs/mock-{rfc,arc,gap,report}.md`): one per
+  kind, permanent, deliberately a handful of blocks so the states can be moved by hand, with
+  `node RFCs/proofs/mock.js <kind> <state>` to jump one straight to a state — *"a simple document
+  that you use, just one per type, with all the blocks that's needed… and you can run something to
+  update the blocks to the right state for me to test moving it to that state. Or I can just put it
+  in that state myself if the blocks are simple."* A permanent fixture beats a disposable one for
+  anything that will be re-checked, and it costs one file per kind rather than one per claim.
+
+  One asymmetry decides which shape a given claim can take: **an embedded document renders but is
+  not pressable** — the embed mounts `<Markdown>` with no write provider, so its trail draws as
+  plain text. A claim about PRESSING something sends the reader to the real file; a claim about
+  what something READS can embed it.
 
 Where the claim's altitude has no live door (a fold rendering, a badge's look), the confirming half
 plus a pinned render case IS the honest proof — say so rather than faking a Lynx shape; ceremonial
@@ -353,7 +375,31 @@ from outside the room the claim is about.
 `kind=experiential` on the
 claim line says the human's own eye concludes it — no spec can be written, and none is owed.
 Anything else, including silence, reads **behavioural** and owes a living spec: silence never buys
-a pass, exactly as an unmarked claim never reads met. Declare it while writing the list, because an
+a pass, exactly as an unmarked claim never reads met.
+
+**IT EXEMPTS THE SPEC, NEVER THE PROOF** — *"whether it was behavioral or experiential, they both
+need to have some type of proof inside of it, one requiring a spec."* The two kinds owe different
+evidence, and both owe some:
+
+| | owes | |
+|---|---|---|
+| behavioural (default, silence included) | a **spec** — `::test`, `:::run`, `:::cmd` | something presses it and it answers, so it can go red on its own |
+| `kind=experiential` | **shown** evidence — `::image`, `::file`, `::diff`, `::logs`, `::branch` | the eye settles it; nothing re-runs it, and a picture is still evidence |
+
+**And this is now a CONDITION, not a convention.** A claim counts as met only when it is marked met
+*and* its own body holds the evidence its kind owes — `metClaims` in autobot's `blocks.cjs`, reading
+one vocabulary (`PROOF_KINDS`) that a gap's `resolved` reads too. The row carries
+`claims: {total, met, unproved}`, where **`unproved` is how many marks are resting on nothing.** A
+one-line `::claim[…]` can therefore never read met: there is nowhere in it for evidence to live.
+
+It is a condition rather than a convention because a convention here fails quietly and at scale: an
+execution run produced **24 of 41 claims marked met, 21 carrying nothing**, while 164 assertions
+across five files ran green the whole time. The marks were honest and the evidence existed — it
+just never got embedded, so every reader had to take one agent's word for what a machine already
+checked. **A rule about honesty that an agent has to remember is a rule written in the wrong
+place.**
+
+Declare it while writing the list, because an
 agent facing a spec it would rather not write will discover the claim was experiential all along —
 at authoring nobody yet knows which proof is inconvenient, so the classification costs nothing to
 make truthfully, and the completeness press freezes it. A `kind=` added afterwards is a visible

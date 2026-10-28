@@ -45,6 +45,7 @@ import loadServiceWithHeaders from "../../utils/loadService";
 import { hostFiles, hasHostFiles } from "../../utils/hostFiles";
 import arcRows, { arcLine } from "./arcRows";
 import rfcRows, { rfcLine } from "./rfcRows";
+import gapRows, { gapLine } from "./gapRows";
 // eslint-disable-next-line import/no-cycle
 import Board from "../Board/Board";
 import { hasHostJobs, jobRuns, rateJobRun } from "../../utils/hostJobs";
@@ -5692,7 +5693,12 @@ const countdown = (str, now = Date.now()) => {
         reportsPrint.current = ""; // an unreadable listing never gates — fall through to the pull
       }
       try {
-        const list = await listReports(projectCode);
+        const list = (await listReports(projectCode)).map((r) => ({
+          ...r,
+          // the band fans reports out by this word — the row carries it (state.subtype), and an
+          // older hub that does not send it leaves every report in the plain tab, which is right
+          subtype: (r.state && r.state.subtype) || "",
+        }));
         const flags = {};
         await Promise.all(
           list.slice(0, 20).map(async (r) => {
@@ -5764,6 +5770,49 @@ const countdown = (str, now = Date.now()) => {
         if (!dead) setRfcsMeta({ list, waiting: list.reduce((n, x) => n + (x.waiting || 0), 0) });
       } catch {
         if (!dead) setRfcsMeta({ list: [], waiting: 0 });
+      }
+    };
+    pull();
+    const t = setInterval(pull, 30000);
+    return () => { dead = true; clearInterval(t); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectCode]);
+
+  // GAPS IN THE BAND. Same registry read as the RFC tab, one kind over. A gap's row has to show
+  // which ending it took and, when it took none, whether a proof is already sitting in the file —
+  // because `open · proof ready` is one press from closed and `open` is not, and that difference
+  // is invisible everywhere else. The derivation is `gapRows.js` and is tested without a window.
+  const [gapsMeta, setGapsMeta] = useState({ list: [], waiting: 0 });
+  useEffect(() => {
+    let dead = false;
+    const pull = async () => {
+      try {
+        const files = hostFiles(projectCode);
+        if (!files || !files.readFile) return;
+        const svc = SystemViewService && SystemViewService.Agent;
+        if (!svc || !svc.documentsRegistry) return;
+        const rows = (await svc.documentsRegistry({ projectCode, kind: "gap" })) || [];
+        const live = (Array.isArray(rows) ? rows : []).filter((x) => x && x.path && !x.missing);
+        if (!live.length) {
+          if (!dead) setGapsMeta({ list: [], waiting: 0 });
+          return;
+        }
+        const docs = await Promise.all(
+          live.map(async (row) => {
+            try {
+              const f = await files.readFile({ path: row.path });
+              return f && f.ok !== false ? { path: row.path, text: f.content || "", row } : null;
+            } catch {
+              return null;
+            }
+          }),
+        );
+        const list = gapRows(docs.filter(Boolean));
+        // WHAT A GAP WANTS FROM HIM is a gap that is one press from closed — the fix landed and the
+        // evidence is in the file. Anything else is work, not a decision, so it does not flag.
+        if (!dead) setGapsMeta({ list, waiting: list.filter((g) => g.state === "open" && g.hasProof).length });
+      } catch {
+        if (!dead) setGapsMeta({ list: [], waiting: 0 });
       }
     };
     pull();
@@ -5988,15 +6037,20 @@ const countdown = (str, now = Date.now()) => {
     // An arc wants him when an objective is BLOCKED — a different thing from an approval, which is
     // why it gets its own mark below rather than sharing one.
     arcs: arcsMeta.list.filter((a) => a.blocked).length,
+    gaps: gapsMeta.waiting,
   };
   const bandShown = bandTabs(
     {
       jobs: bandJobs.length,
       lists: bandLists.length,
       lanes: lanesShown.length,
-      reports: reportsMeta.list.length,
+      reports: reportsMeta.list.reduce((g, r) => {
+        g[r.subtype || ""] = (g[r.subtype || ""] || 0) + 1;
+        return g;
+      }, {}),
       rfcs: rfcsMeta.list.length,
       arcs: arcsMeta.list.length,
+      gaps: gapsMeta.list.length,
     },
     bandTab,
   );
@@ -7562,9 +7616,40 @@ const countdown = (str, now = Date.now()) => {
               ))}
             </>
           )}
-          {attached && bandShown.active === "reports" && (
+          {attached && bandShown.active === "gaps" && (
             <>
-              {reportsMeta.list.slice(0, 30).map((r) => (
+              {gapsMeta.list.slice(0, 30).map((g) => (
+                <div key={g.key} className={`${CLASSNAME}__reports-row`}>
+                  <button
+                    type="button"
+                    className={`${CLASSNAME}__reports-open`}
+                    title={g.path}
+                    onClick={() => openBandReport(g.path)}
+                  >
+                    {/* The same flag every other kind uses for "this is sitting undone" — here it
+                        means the fix landed and its evidence is in the file, so it is one press
+                        from closed. A gap nobody has fixed is work, not a decision, and no flag. */}
+                    {g.state === "open" && g.hasProof ? (
+                      <span className={`${CLASSNAME}__reports-flag`} title="a proof is in the file — one press from resolved">
+                        ⚑
+                      </span>
+                    ) : null}
+                    <span className={`${CLASSNAME}__reports-name`}>
+                      {g.id}
+                      {g.title ? ` — ${g.title}` : ""}
+                    </span>
+                    <span className={`${CLASSNAME}__reports-when`}>{gapLine(g)}</span>
+                  </button>
+                </div>
+              ))}
+            </>
+          )}
+          {attached && bandShown.active.startsWith("reports") && (
+            <>
+              {reportsMeta.list
+                .filter((r) => (bandShown.active === "reports" ? !r.subtype : r.subtype === bandShown.active.slice(8)))
+                .slice(0, 30)
+                .map((r) => (
                 <div
                   key={r.path}
                   className={`${CLASSNAME}__reports-row${repArmed === r.path ? " is-armed" : ""}`}

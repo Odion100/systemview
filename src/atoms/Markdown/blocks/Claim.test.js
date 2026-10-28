@@ -194,10 +194,18 @@ describe("the press — his press is the evidence; the note is optional", () => 
 });
 
 describe("::claims — all met is a moment, never a silent jump (RFC-075 round two)", () => {
+  // ALL MET means marked AND proved — a bare mark is testimony, so the fixture carries the
+  // evidence the moment requires: each claim's proof embedded in its own body.
   const ALL_MET = [
     "::claims",
-    '::claim[a]{id=c1 state=met by=you at=1}',
-    '::claim[b]{id=c2 state=met by=sv at=1 note="n"}',
+    ":::claim[a]{id=c1 state=met by=you at=1}",
+    "::test[SystemViewCore.Proofs.claimKind]",
+    ":::",
+    '::::claim[b]{id=c2 state=met by=sv at=1 note="n"}',
+    ":::cmd",
+    "echo the evidence",
+    ":::",
+    "::::",
   ].join("\n");
 
   it("all met but not all reviewed → the tag says review open, and the reviewed count shows", () => {
@@ -258,7 +266,9 @@ describe("::claims — the count is derived from the blocks", () => {
         <Claims />
       </MarkdownMembersProvider>,
     );
-    expect(screen.getByText("1/2 met")).toBeTruthy();
+    // c2 is marked by him and carries nothing — marked is not met, and the bar says which.
+    expect(screen.getByText("0/2 met")).toBeTruthy();
+    expect(screen.getByText("1 marked, unproved")).toBeTruthy();
     expect(screen.getByText("1 unchecked")).toBeTruthy();
   });
   it("says there are none rather than drawing 100% of nothing", () => {
@@ -382,7 +392,10 @@ describe("::claims — the bar reports spec'd and owed, beside met and reviewed"
     // would be the bug this assertion exists to catch: an experiential claim is not a shortfall.
     expect(screen.getByText("1/2 spec'd")).toBeTruthy();
     expect(screen.getByText("1 owed")).toBeTruthy();
-    expect(screen.getByText("3/3 met")).toBeTruthy();
+    // Only c1 carries its proof. c2 is a bare behavioural mark and c3 is experiential with nothing
+    // shown — the exemption is from the SPEC, never from the proof.
+    expect(screen.getByText("1/3 met")).toBeTruthy();
+    expect(screen.getByText("2 marked, unproved")).toBeTruthy();
   });
 
   it("nothing owed draws no owed tag at all — a zero is not news", () => {

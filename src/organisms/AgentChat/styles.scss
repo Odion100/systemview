@@ -4723,6 +4723,13 @@ $sv-board-states: (
   gap: 4px;
   padding: 3px 6px 0;
   flex: none;
+  // REPORTS FAN OUT BY SUBTYPE and the vocabulary is open, so the row's length is unbounded by
+  // design — it scrolls rather than wrapping (a second row would read as a second kind of thing)
+  // and the scrollbar stays hidden: the overflow is reachable by trackpad, not announced.
+  overflow-x: auto;
+  scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; }
+  > * { flex: none; }
   // the tabs SIT ON A LINE, so the selected one has something to break — his call: *"put a border
   // under the selected tab, I think that'll help."* Without the row's hairline an underline is just
   // a floating dash; with it, selection reads at a glance.
@@ -5256,3 +5263,16 @@ $sv-board-states: (
 }
 // ABSENCE STATED, never a panel of knobs that write nowhere.
 .agent-chat__bandcog-absent { color: var(--sv-text-faint); line-height: 1.4; }
+
+// THE SUBTYPE STRIP — tabs UNDER reports, inside the pane (his call: subtypes are not kinds, so the
+// top row stays the family line). Same chrome one size down, with the count riding each word.
+.agent-chat__bandtabs--sub {
+  border-bottom: none;
+  padding: 2px 6px;
+  .agent-chat__bandtab { font-size: 10px; }
+}
+.agent-chat__bandtab-n {
+  margin-left: 4px;
+  opacity: 0.55;
+  font-size: 9px;
+}

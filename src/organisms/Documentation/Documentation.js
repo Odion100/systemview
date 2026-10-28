@@ -414,11 +414,10 @@ export default function Documentation({
               setDocument={setDocument}
               Plugin={Plugin}
               scope={{ projectCode: sProject, serviceId: sService, moduleName: sModule, methodName: sMethod }}
-              // THE BACKGROUND IS SYSTEMVIEW'S OWN DOCUMENTATION — his rule for the empty strip:
-              // "stop defaulting to the namespace document." Keyed off the STRIP BEING EMPTY, not
-              // off scope — his catch: a lingering scope slipped a namespace body under a
-              // "SystemView" label, which is worse than either alone. Strip empty = the manual,
-              // whole; anything else = the tab's own document.
+              // THIS BRANCH ONLY RENDERS WITH TABS OPEN — the empty strip is HowWeWork's floor
+              // above, so what shows here is always the open tab's own document, never a default.
+              // His rule survives in the guard: "stop defaulting to the namespace document" —
+              // a lingering scope must not slip a namespace body under a different label.
               // AND ONLY THE STRIP BEING EMPTY. `|| !sService` used to be in all three of these, and it
               // put the manual under a tab that names a different document: after a restart the tab
               // is restored before its scope resolves, so for that window sService is "" and the page

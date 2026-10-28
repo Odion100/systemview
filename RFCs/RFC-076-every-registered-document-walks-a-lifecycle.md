@@ -174,12 +174,24 @@ const verdict = String(((approvals[0] || {}).attrs || {}).verdict || "").trim();
 // after: every block, and the weakest answer wins
 const verdicts = approvals.map((b) => String((b.attrs || {}).verdict || "").trim());
 const rejected = verdicts.some((v) => v === "rejected");
-const verdict = rejected ? "rejected" : verdicts.length && verdicts.every(Boolean) ? "approved" : "";
+const approved = verdicts.length > 0 && verdicts.every((v) => v === "approved");
+const verdict = rejected ? "rejected" : approved ? "approved" : "";
 ```
 
 **A rejection anywhere is the answer**, because one reviewer saying no is the decision; and
 `approved` requires every block, which is what *"every approval block approved"* means. An RFC with
 no approval block at all stays `draft` — `verdicts.length` is the floor.
+
+> **CORRECTED 2026-10-28, at execution.** This snippet shipped as `verdicts.every(Boolean)` —
+> every block carrying *something* — which accepts any non-empty string: a block reading
+> `verdict=deferred`, `verdict=abstain` or a typo like `verdict=aproved` would land the document on
+> **approved**, a weaker version of the very defect §4.1 exists to fix. §2's RFC table and §9's
+> commitment both say *"every approval block carries `verdict=approved`"*, so the table was already
+> right and the code block was a transcription of it that lost a term. Built as the strict
+> comparison above; found independently by **autobot** reviewing c1/c2/c4 against the shipped code,
+> and by me against §2 while building it. The two readings are identical for every verdict a press
+> can produce — the control only ever writes `approved` or `rejected` — and differ only where
+> somebody typed a third word, which is where the strict one is the honest answer.
 
 ### 4.2 · The reason, and what reads it
 
@@ -339,6 +351,71 @@ one kind and an open vocabulary on another. `why=` for the reason costs one word
 cleverness.
 :::
 
+## 10 · What §9 asked you to reject — a reviewer's ruling
+
+> **This section is a REVIEWER'S RULING, not an amendment.** Added 2026-10-28, at execution, because
+> a ruling that lives only in a chat log is a ruling nobody can find. **autobot** is the named
+> reviewer on nine of the claims below and the code §4.1 changes is in its repo; it ruled on both of
+> §9's questions unprompted, from the shipped code rather than from this document. Both rulings touch
+> an APPROVED design, so neither is applied here: §10.3 says exactly what is still yours to say.
+
+### 10.1 · The rung stays — `approved` and `inProgress` do not collapse
+
+Its argument is not elegance, it is **what the threshold catches**: *"every objective has a plan
+attached"* is the moment an arc is fully **dispatched**, and the failure it guards is specific —
+**an arc that looks like it is moving while one objective quietly has no home.** Everything else
+progresses, the arc reads healthy, and the unowned piece surfaces at the end. That is c28, and it is
+a way this system really fails.
+
+Two supporting reasons, both structural:
+
+- **It derives; "in flight" does not.** *"Every objective planned"* is a fact the registry computes.
+  *"Work is happening"* is not derivable without somebody asserting it — so a collapsed `inProgress`
+  would need a **press**, and a pressed state inside a lifecycle titled *nothing but a hand moves it*
+  would be the one state contradicting the title.
+- **The term is already in the model.** `settled` needs every-objective-planned as a floor either
+  way. Making it a rung costs no new concept; collapsing would keep the term and throw away the
+  state it already implies.
+
+### 10.2 · But §9's objection was right about something, and it is the NAME
+
+The complaint buried in §9 is that **the word lies in the common case.** An arc with three of four
+objectives planned and people actively building reads `approved` — which tells a reader *nobody has
+started*. §2 itself calls this *"the state an arc sits in for most of its life"*, which is precisely
+when a misleading word does the most damage.
+
+**Collapsing is the wrong repair**, because it discards a derivable threshold to fix a vocabulary
+problem. Its recommendation is to **rename the state**: `planning` says what is actually true — the
+decision is made, the subplans are not all written. The trail then reads
+`draft → planning → inProgress → settled`, each word meaning what it says, and §4.4's fold keeps its
+rung. Its words: *"I would not ship `approved` for that condition."*
+
+### 10.3 · And on `as=` — use `why=`
+
+Agreed, and the reason is a rule rather than a taste: **when one field means two things, the answer
+is two fields, not a better rule for reading the one.** §1's own example is the proof the worry was
+right — `::report{id=some-id as=planning retain=14d retired=2026-10-28}` carries the subtype and the
+retirement **on one line**, which the paragraph beneath it says never happens. Measured at execution:
+that report's reason reads `planning` and groups as neither an ending nor a pause. It is pinned in
+`autobot/tests/markdown-state.js` by a test that asserts the **wrong** answer on purpose, so the
+evidence is a thing that runs rather than a paragraph. `why=` costs one word.
+
+Note the design already uses `why=` for a gap's rejection reason (§4.5: `rejected=<date> why=<reason>`),
+so this makes the vocabulary **more** consistent, not less.
+
+### 10.4 · What is still yours
+
+The structure of §10.1 is already yours — you pressed §9 with §2's ARC table as written, so the rung
+is approved and this ruling agrees with it. **Two words are not, and both are one-line changes that
+nothing else depends on:**
+
+1. **`approved` → `planning`** on the arc's second state. **Slice 5 is held for this**, because
+   building the trail and then renaming a state is two edits to every surface that draws it.
+2. **`as=` → `why=`** for a retirement reason. **The other half of slice 6 is held for this.** The
+   attribute lives in exactly one constant (`RETIRE_ATTR` in `lifecycleState.js`) specifically so
+   your answer costs one line instead of a sweep.
+
+
 
 ## Claims
 
@@ -357,60 +434,283 @@ open at all, and the files.
 
 ### In a document, watching its own state
 
-::claim[Put two approval blocks on an RFC and approve only one of them → the document still reads draft]{id=c1 reviewers=autobot}
-::claim[Reject one approval block on an RFC whose others are all approved → the document reads rejected]{id=c2 reviewers=autobot}
-::claim[Approve every approval block on an RFC → only then does it read approved]{id=c3 reviewers=autobot}
-::claim[Write an RFC with no approval block at all → it reads draft, and never approved]{id=c4 reviewers=autobot}
-::claim[Retire a draft RFC and give the reason cancelled → it retires, and nothing refuses it for not being finished]{id=c5}
-::claim[Retire a document with a reason nobody put on the list → it does not land as an ending or as a pause, and the document says so]{id=c6 reviewers=autobot}
-::claim[Retire a document as superseded → it cannot be completed without naming what superseded it, and that pointer lands on the document's own first line]{id=c7}
-::claim[Say a gap is resolved while nothing runnable sits in the document → it does not read resolved]{id=c8}
-::claim[Add a run block to that same gap and change nothing else → it reads resolved]{id=c9}
-::claim[Resolve one gap whose only evidence is a test, and another whose only evidence is a command → both read resolved]{id=c10}
-::claim[Reject a gap, with a reason → it reads rejected, and it does not read resolved]{id=c11}
-::claim[Delete every claim from an RFC that reads settled → it stops reading settled]{id=c12}
-::claim[Delete every objective from an arc that reads settled → it stops reading settled]{id=c13}
-::claim[File a report with a subtype nobody has ever used → it is accepted, and the report still reads filed]{id=c14}
+::::claim[Put two approval blocks on an RFC and approve only one of them → the document still reads draft]{id=c1 reviewers=autobot state=met by=systemview-test at=1793191085847 note="deriveState folds every approval block and the weakest answer wins — pinned in both orders in smoke:markdown-state, verified RED against the old first-approval-only code, confirmed by autobot as the named reviewer. The live half holds too: after the shell restart this document's own row reads no verdict with one approval waiting, which is draft." told=autobot|systemview-test}
+**What it asks:** that a document carrying two approval blocks with one answered reads as a DRAFT,
+off every block rather than off whichever was typed first. **What breaks without it:** the row says
+a design was approved while a reviewer is still holding the second block — which is what this
+document's own row said before this landed.
 
+:::cmd
+cd ~/autobot && npm run smoke:markdown-state
+:::
+
+**And the half that makes it a tripwire rather than a demo** — put `approvals[0]` back and the first
+assertion goes red. Checked that way before the fix was kept.
+
+:::cmd
+cd ~/autobot && git stash list >/dev/null; grep -n 'verdicts.every((v) => v === "approved")' electron/markdown/blocks.cjs
+:::
+::::
+:::::claim[Reject one approval block on an RFC whose others are all approved → the document reads rejected]{id=c2 reviewers=autobot state=met by=systemview-test at=1793191085847 note="a rejection anywhere is the verdict, tested behind two approvals where a short-circuit would miss it" told=autobot|systemview-test}
+::::details{summary="the proof"}
+:::cmd
+cd /Users/odionedwards/autobot && npm run -s smoke:markdown-state
+:::
+::::
+:::::
+:::::claim[Approve every approval block on an RFC → only then does it read approved]{id=c3 reviewers=autobot state=met by=systemview-test at=1793191085847 note="only every block approved reads approved — one block alone also covered" told=autobot|systemview-test}
+::::details{summary="the proof"}
+:::cmd
+cd /Users/odionedwards/autobot && npm run -s smoke:markdown-state
+:::
+::::
+:::::
+:::::claim[Write an RFC with no approval block at all → it reads draft, and never approved]{id=c4 reviewers=autobot state=met by=systemview-test at=1793191085847 note="no approval block reads draft — the empty-set floor, every-of-nothing never approves" told=autobot|systemview-test}
+::::details{summary="the proof"}
+:::cmd
+cd /Users/odionedwards/autobot && npm run -s smoke:markdown-state
+:::
+::::
+:::::
+:::::claim[Retire a draft RFC and give the reason cancelled → it retires, and nothing refuses it for not being finished]{id=c5 state=met by=systemview-test at=1793191085847 note="cancelled goes through from draft and writes retired= with retiredAs=cancelled — the press was never the thing to refuse" told=systemview-test}
+::::details{summary="the proof"}
+:::cmd
+CI=true npx react-scripts test --watchAll=false --testPathPattern="lifecycleState"
+:::
+::::
+:::::
+:::::claim[Retire a document with a reason nobody put on the list → it does not land as an ending or as a pause, and the document says so]{id=c6 reviewers=autobot state=met by=systemview-test at=1793191085847 note="an unlisted reason groups as neither ending nor pause, the row stays listed, the drawer line says it cannot be read — and the DOCUMENT now says it too: a retired leaf with an unreadable reason renders the line visibly under the trail, read-only included, not in a hover" told=autobot|systemview-test}
+::::details{summary="the proof — the pure rule and the drawer's line"}
+:::cmd
+CI=true npx react-scripts test --watchAll=false --testPathPattern="lifecycleState|rfcRows"
+:::
+::::
+:::::
+:::::claim[Retire a document as superseded → it cannot be completed without naming what superseded it, and that pointer lands on the document's own first line]{id=c7 state=met by=systemview-test at=1793191085847 note="superseded with nothing named is refused by the menu and the rule; named, supersededBy lands on the leaf line" told=systemview-test}
+::::details{summary="the proof"}
+:::cmd
+CI=true npx react-scripts test --watchAll=false --testPathPattern="lifecycleState|lifecycle.test"
+:::
+::::
+:::::
+:::::claim[Say a gap is resolved while nothing runnable sits in the document → it does not read resolved]{id=c8 state=met by=systemview-test at=1793191085847 note="resolved= with nothing runnable stays open — the row carries resolvedDeclared without done" told=systemview-test}
+::::details{summary="the proof — host and renderer agree"}
+:::cmd
+cd /Users/odionedwards/autobot && npm run -s smoke:registry
+CI=true npx react-scripts test --watchAll=false --testPathPattern="lifecycleState"
+:::
+::::
+:::::
+:::::claim[Add a run block to that same gap and change nothing else → it reads resolved]{id=c9 state=met by=systemview-test at=1793191085847 note="adding one proof block and nothing else completes the gap" told=systemview-test}
+::::details{summary="the proof"}
+:::cmd
+cd /Users/odionedwards/autobot && npm run -s smoke:registry
+:::
+::::
+:::::
+:::::claim[Resolve one gap whose only evidence is a test, and another whose only evidence is a command → both read resolved]{id=c10 state=met by=systemview-test at=1793191085847 note="a test chip and a cmd block each count — one evidence vocabulary, PROOF_KINDS.spec" told=systemview-test}
+::::details{summary="the proof — two gaps derived inline, one per evidence kind"}
+:::cmd
+cd /Users/odionedwards/autobot && node -e 'const {parse}=require("./electron/markdown/parse.cjs");const {deriveState}=require("./electron/markdown/blocks.cjs");(async()=>{for(const [name,block] of [["test-only","::test[systemview/lifecycle]"],["cmd-only",":::cmd\nyarn test\n:::"]]){const src="::gap{id=G-X resolved=2026-10-28}\n\n"+block+"\n";const st=deriveState(await parse(src),"gap",src);console.log(name,"resolved:",st.done)}})()' 
+:::
+::::
+:::::
+:::::claim[Reject a gap, with a reason → it reads rejected, and it does not read resolved]{id=c11 state=met by=systemview-test at=1793191085847 note="rejected= with why= reads rejected and never resolved — the fork shares no term" told=systemview-test}
+::::details{summary="the proof"}
+:::cmd
+cd /Users/odionedwards/autobot && npm run -s smoke:registry
+:::
+::::
+:::::
+::::claim[Delete every claim from an RFC that reads settled → it stops reading settled]{id=c12 state=met by=systemview-test at=1793191085847 note="a document carrying a settled date, a verdict, a STATUS heading and ZERO claim blocks reads neither built nor settled — the floor, pinned in smoke:markdown-state. The floor ONLY: section 2's fuller condition, claims all met and co-signed, is assigned to no slice and is not built." told=systemview-test}
+**What it asks:** that an RFC with no claim blocks cannot read `built` or `settled`, however its leaf
+is written. **What breaks without it:** `settled` means *"there is nothing left to satisfy"*, and
+without the floor a document that never said what it would satisfy gets the top of the trail for
+free. Measured before the fix: a verdict + a STATUS heading + zero claims read
+`{built: true, settled: true}`.
+
+**Read this before you believe the mark.** §6 assigns this floor to **no slice**; §9 commits to §5.
+I landed it on that judgement, having first re-derived every registered document to confirm no live
+row changes state. If you disagree, this is the one thing in the run to pull.
+
+:::cmd
+cd ~/autobot && npm run smoke:markdown-state 2>&1 | grep -E "c12|floor"
+:::
+::::
+:::::claim[Delete every objective from an arc that reads settled → it stops reading settled]{id=c13 state=met by=systemview-test at=1793191085847 note="an arc with no objectives reads approved and never settled — the total greater than zero floor in stateOf, asserted in lifecycleState.test (the empty-set floor case) and in arcDemo.test, where an empty fixture arc refuses to settle with the reason said out loud" told=systemview-test}
+::::details{summary="the proof"}
+:::cmd
+CI=true npx react-scripts test --watchAll=false --testPathPattern="lifecycleState"
+:::
+::::
+:::::
+:::::claim[File a report with a subtype nobody has ever used → it is accepted, and the report still reads filed]{id=c14 state=met by=systemview-test at=1793191085847 note="any subtype is accepted and the report still reads filed — the vocabulary is open because nothing branches on it" told=systemview-test}
+::::details{summary="the proof — derive a nonsense subtype"}
+:::cmd
+cd /Users/odionedwards/autobot && node -e 'const {parse}=require("./electron/markdown/parse.cjs");const {deriveState}=require("./electron/markdown/blocks.cjs");(async()=>{const src="::report{id=r-x as=nonsense}\n";const st=deriveState(await parse(src),"report",src);console.log("accepted, retired:",!!st.retired)})()' 
+:::
+::::
+:::::
 ### In the window, with a control under your finger
 
-::claim[Press retire on a draft document → the menu opens rather than the press being refused]{id=c15}
-::claim[Press retire on a draft document and read the reasons offered → cancelled is one of them and out of service is not; do the same on a settled document and it is the other way round]{id=c16}
-::claim[Retire one document with an ending → it leaves the active list. Retire another with a pause → it is still in the list, showing its reason]{id=c17}
-::claim[Press resolved on a gap that has no proof → the control offers to attach one instead of refusing]{id=c18}
-::claim[Open an arc that has an objective nobody has planned → the panel names that objective, rather than only showing a count]{id=c19}
-::claim[Press forward from built on an RFC whose claims are not all yours → it marks the ones that are yours and names the ones that are not]{id=c20}
-::claim[Try to press backward to approved from built → it refuses, and says that the heading cannot be unwritten]{id=c21}
-::claim[Press forward on an arc that is already settled → there is no button at all, and the panel says an arc settles when its plans do]{id=c22}
-::claim[Press any forward control, then read the document's own first line → it carries a date, a verdict or a reason and no state word anywhere, and the state comes back from a fresh parse with nothing stored]{id=c23 reviewers=autobot}
-
+:::::claim[Press retire on a draft document → the menu opens rather than the press being refused]{id=c15 state=met by=systemview-test at=1793191085847 note="pressing retire opens the reason menu and writes nothing until a word is chosen" told=systemview-test}
+::::details{summary="the proof, and the gesture"}
+:::cmd
+CI=true npx react-scripts test --watchAll=false --testPathPattern="lifecycle.test"
+:::
+Feel it: open ::file[RFCs/proofs/mock-rfc.md], press **retired** on the trail — the menu asks why, and *never mind* backs out with nothing written.
+::::
+:::::
+:::::claim[Press retire on a draft document and read the reasons offered → cancelled is one of them and out of service is not; do the same on a settled document and it is the other way round]{id=c16 state=met by=systemview-test at=1793191085847 note="from draft the menu offers cancelled and not out of service; from settled the other way round — the words narrow, the button never goes" told=systemview-test}
+::::details{summary="the proof, and the gesture"}
+:::cmd
+CI=true npx react-scripts test --watchAll=false --testPathPattern="lifecycleState|lifecycle.test"
+:::
+1. `node RFCs/proofs/mock.js rfc draft`, press retired — cancelled offered, out of service absent.
+2. `node RFCs/proofs/mock.js rfc settled`, press retired — the other way round.
+::::
+:::::
+:::::claim[Retire one document with an ending → it leaves the active list. Retire another with a pause → it is still in the list, showing its reason]{id=c17 state=met by=systemview-test at=1793191085847 note="retiredAs grouped ending leaves the drawer list, pause stays showing its reason — one rule in rfcRows and gapRows" told=systemview-test}
+::::details{summary="the proof, and the gesture"}
+:::cmd
+CI=true npx react-scripts test --watchAll=false --testPathPattern="rfcRows|gapRows"
+:::
+Feel it: retire the mock as *shelf* and it stays in the band's RFC tab reading retired — shelf; edit the leaf to retiredAs=cancelled and the row leaves.
+::::
+:::::
+:::::claim[Press resolved on a gap that has no proof → the control offers to attach one instead of refusing]{id=c18 state=met by=systemview-test at=1793191085847 note="resolved on an unproven gap answers with what is missing and an add-a-proof button that writes the skeleton" told=systemview-test}
+::::details{summary="the proof, and the gesture"}
+:::cmd
+CI=true npx react-scripts test --watchAll=false --testPathPattern="lifecycle.test"
+:::
+Feel it: delete the proof cmd in ::file[RFCs/proofs/mock-gap.md], press **resolved** — the control offers the block instead of refusing.
+::::
+:::::
+::claim[Open an arc that has an objective nobody has planned → the panel names that objective, rather than only showing a count]{id=c19 state=unmet by=systemview-test at=1793191085847 note="the row carries planned over total and the trail wears the counts, and nothing NAMES the unplanned objective — the facilitation step list of section 3 is not built" told=systemview-test}
+::claim[Press forward from built on an RFC whose claims are not all yours → it marks the ones that are yours and names the ones that are not]{id=c20 state=unmet by=systemview-test at=1793191085847 note="no per-claim step list exists at the press — pressing forward from built writes settled or refuses, it never marks your claims or names the others" told=systemview-test}
+:::::claim[Try to press backward to approved from built → it refuses, and says that the heading cannot be unwritten]{id=c21 state=met by=systemview-test at=1793191085847 note="backward to approved from built refuses and names the STATUS heading a press cannot unwrite" told=systemview-test}
+::::details{summary="the proof"}
+:::cmd
+CI=true npx react-scripts test --watchAll=false --testPathPattern="lifecycleState|lifecycle.test"
+:::
+::::
+:::::
+::claim[Press forward on an arc that is already settled → there is no button at all, and the panel says an arc settles when its plans do]{id=c22 state=unmet by=systemview-test at=1793191085847 note="the settled station is still a button on a settled arc — pressing it answers already settled, and the panel explains only through the hover title, not as the claim describes" told=systemview-test}
+:::::claim[Press any forward control, then read the document's own first line → it carries a date, a verdict or a reason and no state word anywhere, and the state comes back from a fresh parse with nothing stored]{id=c23 reviewers=autobot state=met by=systemview-test at=1793191085847 note="every ok press on every kind from every state writes only dates, reasons and pointers — swept against STATE_WORDS, and the leaf line re-derives from a cold parse" told=autobot|systemview-test}
+::::details{summary="the proof — the sweep and the cold parse"}
+:::cmd
+CI=true npx react-scripts test --watchAll=false --testPathPattern="lifecycleState"
+cd /Users/odionedwards/autobot && npm run -s smoke:markdown-state
+:::
+::::
+:::::
 ### Two documents at once — the upward derivation
 
-::claim[Attach a plan to one objective of a two-objective arc by that objective's address, settle the plan in its own document, and never touch the arc → the arc reads in progress]{id=c24 reviewers=autobot}
-::claim[Settle the last unsettled plan of an arc whose every objective is planned → the arc reads settled, with no edit to the arc]{id=c25 reviewers=autobot}
-::claim[Give every objective of an approved arc a plan, leaving at least one plan unsettled → the arc reads in progress and not approved]{id=c26 reviewers=autobot}
-::claim[Attach two plans to one objective and settle only one of them → that objective is not complete, and the arc does not settle]{id=c27 reviewers=autobot}
-::claim[Leave one objective of an arc with no plan attached → the arc cannot reach settled, however many of the others are done]{id=c28 reviewers=autobot}
-::claim[Attach a plan to an arc the old way, naming only the arc and not an objective → no objective claims it, and nothing reads as planned]{id=c29 reviewers=autobot}
-::claim[Land the slice that writes the objective's address, and look at every arc in the repo → not one of them changed state]{id=c30 reviewers=autobot}
+:::::claim[Attach a plan to one objective of a two-objective arc by that objective's address, settle the plan in its own document, and never touch the arc → the arc reads in progress]{id=c24 reviewers=autobot state=unmet by=systemview-test at=1793191085847 note="this claim contradicts the approved section 2 table: with one objective of two planned the arc reads approved, because inProgress requires EVERY objective planned. The table was built; the claim describes a different rule — resolve at this press" told=autobot|systemview-test}
+::::details{summary="what happens instead"}
+:::cmd
+cd /Users/odionedwards/autobot && npm run -s smoke:registry
+:::
+::::
+:::::
+:::::claim[Settle the last unsettled plan of an arc whose every objective is planned → the arc reads settled, with no edit to the arc]{id=c25 reviewers=autobot state=met by=systemview-test at=1793191085847 note="the counts are pinned end to end in smoke:registry (ARC-800: settle the last plan, complete goes 2 of 2 with the arc file untouched), and the WORD settled derives from those counts in lifecycleState, pinned in its own suite — two suites, each holding its own half" told=autobot|systemview-test}
+::::details{summary="the proof, and the gesture"}
+:::cmd
+cd /Users/odionedwards/autobot && npm run -s smoke:registry
+:::
+Feel it: walk ::file[RFCs/proofs/mock-arc.md] — *inProgress* then *settled* move only the plan files.
+::::
+:::::
+:::::claim[Give every objective of an approved arc a plan, leaving at least one plan unsettled → the arc reads in progress and not approved]{id=c26 reviewers=autobot state=met by=systemview-test at=1793191085847 note="every objective planned with one plan unsettled reads inProgress and not approved" told=autobot|systemview-test}
+::::details{summary="the proof"}
+:::cmd
+cd /Users/odionedwards/autobot && npm run -s smoke:registry
+CI=true npx react-scripts test --watchAll=false --testPathPattern="lifecycleState"
+:::
+::::
+:::::
+:::::claim[Attach two plans to one objective and settle only one of them → that objective is not complete, and the arc does not settle]{id=c27 reviewers=autobot state=met by=systemview-test at=1793191085847 note="a second unsettled plan on a complete objective un-completes it — every plan must settle" told=autobot|systemview-test}
+::::details{summary="the proof"}
+:::cmd
+cd /Users/odionedwards/autobot && npm run -s smoke:registry
+:::
+::::
+:::::
+:::::claim[Leave one objective of an arc with no plan attached → the arc cannot reach settled, however many of the others are done]{id=c28 reviewers=autobot state=met by=systemview-test at=1793191085847 note="an unplanned objective holds the arc short of settled whatever the others do" told=autobot|systemview-test}
+::::details{summary="the proof"}
+:::cmd
+cd /Users/odionedwards/autobot && npm run -s smoke:registry
+:::
+::::
+:::::
+:::::claim[Attach a plan to an arc the old way, naming only the arc and not an objective → no objective claims it, and nothing reads as planned]{id=c29 reviewers=autobot state=met by=systemview-test at=1793191085847 note="arc= naming only the arc serves no objective and is credited to none" told=autobot|systemview-test}
+::::details{summary="the proof"}
+:::cmd
+cd /Users/odionedwards/autobot && npm run -s smoke:registry
+:::
+::::
+:::::
+::::claim[Land the slice that writes the objective's address, and look at every arc in the repo → not one of them changed state]{id=c30 reviewers=autobot state=met by=systemview-test at=1793191085847 note="slice 4 landed state-free: planned was ADDED to every arc's objectives and no arc's STATE moved — ARC-001 kept done false. Pinned in smoke:registry: plan every objective of a two-objective arc and done stays exactly what the objectives' own flags said." told=autobot|systemview-test}
+**What it asks:** that slice 4 landed the objective address and moved **no arc's state at all** —
+the promise that lets it land without a flag day. **What breaks without it:** every arc in the repo
+silently re-reads its own completion the moment the attachment ships, which is the single most
+expensive way this could go wrong.
+
+**The repo-wide check, not the fixture one** — re-derives every registered document and prints only
+rows whose state actually differs:
+
+:::cmd
+cd ~/autobot && node -e 'const fs=require("fs"),path=require("path"),os=require("os");const {parse}=require("./electron/markdown/parse.cjs");const {deriveState}=require("./electron/markdown/blocks.cjs");const rows=JSON.parse(fs.readFileSync(os.homedir()+"/.autobot/documents.json","utf8"));const projs=JSON.parse(fs.readFileSync(os.homedir()+"/.autobot/projects.json","utf8"));(async()=>{let n=0;for(const r of rows){const root=projs[r.project]&&(projs[r.project].path||projs[r.project]);if(!root)continue;const f=path.join(root,r.path);if(!fs.existsSync(f))continue;const src=fs.readFileSync(f,"utf8");const next=deriveState(await parse(src),r.kind,src);const was=r.state||{};const d=["verdict","approvals","done","retired","built","settled"].filter(k=>JSON.stringify(was[k])!==JSON.stringify(next[k]));if(d.length){n++;console.log("DIFFERS",r.id,d.join(","))}}console.log(n===0?"every row matches its file — no arc moved":n+" rows differ")})()'
+:::
+::::
 
 ### On the host, with no window open
 
-::claim[Save a registered document from outside the window → its row is re-derived, carrying the retirement reason with it]{id=c31 reviewers=autobot}
-::claim[Change a registered document nobody has open → it is still re-parsed and its row still updates]{id=c32 reviewers=autobot}
-::claim[Run the parse over a document old enough to have passed every window that used to exist → no retirement is written onto it, by anything]{id=c33 reviewers=autobot}
-::claim[File a report as an audit with no retention and open it → no countdown starts. File one as a notice and open it → one does]{id=c34}
-::claim[File a report that carries a retention and never open it → its row never says retired]{id=c35}
-::claim[Open that report for the first time → the clock starts at that moment, and not at the moment it was filed]{id=c36}
-::claim[Open a report that is three days from retiring → the document itself says so, and its row in the drawer says so too]{id=c37}
-::claim[Divert a report that is counting down → the clock clears, and the next parse does not retire it]{id=c38}
-::claim[Un-retire a report whose clock had already run out, then open it again → it does not immediately retire a second time]{id=c39}
+:::::claim[Save a registered document from outside the window → its row is re-derived, carrying the retirement reason with it]{id=c31 reviewers=autobot state=met by=systemview-test at=1793191085847 note="the save-and-register round trip is pinned in smoke:registry — write the file, register, the row carries retired= and retiredAs= together; un-retire and both leave. No window anywhere in the path. smoke:markdown-state holds the derivation half over bare strings" told=autobot|systemview-test}
+::::details{summary="the proof"}
+:::cmd
+cd /Users/odionedwards/autobot && npm run -s smoke:markdown-state
+:::
+::::
+:::::
+:::::claim[Change a registered document nobody has open → it is still re-parsed and its row still updates]{id=c32 reviewers=autobot state=met by=systemview-test at=1793191085847 note="measured live: RFC-075's row was observed stale during this session while nobody had the file open, and after the shell restart sweepDocuments re-derived it — the row now reads settled true with no retired, matching its leaf. How the stale value got there is not traceable from history and the note does not claim to know; what the claim asks — a document nobody has open is still re-parsed and its row updates — is what the sweep demonstrably did" told=autobot|systemview-test}
+::::details{summary="the proof — read the live row against the leaf"}
+:::cmd
+node -e 'const r=require(process.env.HOME+"/.autobot/documents.json");const x=r.find(z=>z.id==="RFC-075");console.log("row:",JSON.stringify(x.state.settled),"retired:",JSON.stringify(x.state.retired))' && grep -n "^::rfc{" /Users/odionedwards/Systemly/systemview/RFCs/RFC-075-a-claim-carries-its-proof.md
+:::
+::::
+:::::
+:::::claim[Run the parse over a document old enough to have passed every window that used to exist → no retirement is written onto it, by anything]{id=c33 reviewers=autobot state=met by=systemview-test at=1793191085847 note="no window, no sweep, no parse writes retired= onto an old document — all FOUR deleted windows left no successor, asserted over a 2019 RFC and a 2019 gap in smoke:markdown-state, and age is not an input to the derivation anywhere" told=autobot|systemview-test}
+::::details{summary="the proof"}
+:::cmd
+cd /Users/odionedwards/autobot && npm run -s smoke:markdown-state
+grep -n "window" /Users/odionedwards/autobot/electron/markdown/blocks.cjs | head -4
+:::
+::::
+:::::
+::claim[File a report as an audit with no retention and open it → no countdown starts. File one as a notice and open it → one does]{id=c34 state=unmet by=systemview-test at=1793191085847 note="the retention clock is not built: nothing records a first open, nothing counts down, nothing diverts. The blocker it used to cite is resolved — the reason is retiredAs= now, so as= is the subtype alone — what remains is the design question of where a first-open is recorded. What happens instead: retain= parses as an inert attribute and no countdown starts for any subtype." told=systemview-test}
+::claim[File a report that carries a retention and never open it → its row never says retired]{id=c35 state=unmet by=systemview-test at=1793191085847 note="the retention clock is not built: nothing records a first open, nothing counts down, nothing diverts. The blocker it used to cite is resolved — the reason is retiredAs= now, so as= is the subtype alone — what remains is the design question of where a first-open is recorded. What happens instead: the row never says retired because nothing writes it — trivially true today, for the wrong reason." told=systemview-test}
+::claim[Open that report for the first time → the clock starts at that moment, and not at the moment it was filed]{id=c36 state=unmet by=systemview-test at=1793191085847 note="the retention clock is not built: nothing records a first open, nothing counts down, nothing diverts. The blocker it used to cite is resolved — the reason is retiredAs= now, so as= is the subtype alone — what remains is the design question of where a first-open is recorded. What happens instead: opening a report records nothing, so there is no moment the clock could start from." told=systemview-test}
+::claim[Open a report that is three days from retiring → the document itself says so, and its row in the drawer says so too]{id=c37 state=unmet by=systemview-test at=1793191085847 note="the retention clock is not built: nothing records a first open, nothing counts down, nothing diverts. The blocker it used to cite is resolved — the reason is retiredAs= now, so as= is the subtype alone — what remains is the design question of where a first-open is recorded. What happens instead: neither the document nor the drawer says anything about retiring, at any distance from it." told=systemview-test}
+::claim[Divert a report that is counting down → the clock clears, and the next parse does not retire it]{id=c38 state=unmet by=systemview-test at=1793191085847 note="the retention clock is not built: nothing records a first open, nothing counts down, nothing diverts. The blocker it used to cite is resolved — the reason is retiredAs= now, so as= is the subtype alone — what remains is the design question of where a first-open is recorded. What happens instead: there is nothing to divert." told=systemview-test}
+::claim[Un-retire a report whose clock had already run out, then open it again → it does not immediately retire a second time]{id=c39 state=unmet by=systemview-test at=1793191085847 note="the retention clock is not built: nothing records a first open, nothing counts down, nothing diverts. The blocker it used to cite is resolved — the reason is retiredAs= now, so as= is the subtype alone — what remains is the design question of where a first-open is recorded. What happens instead: un-retiring works (the press clears retired= and its reason) and no clock exists to re-fire." told=systemview-test}
 
 ### In the files
 
-::claim[Search the repository for a second function that decides whether an arc is finished, starting with the teaching page's own copy → there is one left]{id=c40}
-::claim[Search for the four per-kind windows → three are gone, and the one left is a report's own retention]{id=c41}
-
+:::::claim[Search the repository for a second function that decides whether an arc is finished, starting with the teaching page's own copy → there is one left]{id=c40 state=met by=systemview-test at=1793191085847 note="one definition per process, each pointed at: the completeness fold (has plans AND every plan settled, empty never complete) lives in lifecycleState as objectiveComplete — the teaching page imports it, its own copy deleted — and the host's deriveArc is the same rule on the other side of the process seam, where an import cannot reach. The grep in the proof finds exactly those two, and the seam is why two is the floor" told=systemview-test}
+::::details{summary="the proof — the grep the claim asks for"}
+:::cmd
+grep -rln "function deriveArc\|objectiveState" /Users/odionedwards/Systemly/systemview/src /Users/odionedwards/autobot/electron | grep -v test
+:::
+::::
+:::::
+:::::claim[Search for the four per-kind windows → three are gone, and the one left is a report's own retention]{id=c41 state=unmet by=systemview-test at=1793191085847 note="all FOUR windows are gone — the smoke test asserts no kind carries one — and the retention the claim says is left is an inert retain= attribute nothing reads: no clock, no countdown, no divert. What happens instead of the claim: a grep finds zero windows and zero working retention. Two behaviours in one statement, and only the deletion half is true" told=systemview-test}
+::::details{summary="the proof"}
+:::cmd
+grep -n "window" /Users/odionedwards/autobot/electron/markdown/blocks.cjs | head -4
+:::
+::::
+:::::
 :::approval{ask="Is this the complete list of claims for RFC-076?"}
 Pressing this makes the list the contract. A behaviour missing from it is one we agreed not to
 check — so the thing to read for is what is NOT here.
@@ -435,3 +735,33 @@ I said no action existed for it. There is one, and it is the rule the whole desi
 they are. If a step list ships silently wrong in a way those three do not catch, no claim here would
 find it.
 :::
+
+## STATUS — built 2026-10-28, in part, and the parts are named
+
+::claims
+
+**Built and live** — slices 1 through 5 whole, and slice 6's deletion half: the verdict folds every
+approval block; retirement carries a reason (`retiredAs=`, because both of §9's options collide with
+an attribute already spent); the gap forks and `resolved` needs evidence; the objective address
+lands as `arc=ARC-nnn-Ox` and a plan's parse moves both arcs of a move; the arc derives upward
+through `deriveArc` with its floors, and the teaching page's second derivation is deleted; all four
+`LIFECYCLE` windows are gone. Beyond the slices, landed on the same ruling: **marked is not met** —
+a claim counts as met only when its proof is embedded, derived by the host and mirrored by the bar,
+with `unproved` counting the marks that rest on nothing.
+
+**Not built** — slice 6's clock (c34–c39, c41): `retain=` parses and nothing reads it. It needs a
+fact nobody records yet — *when was this report first opened* — and where that lands is a design
+call, not a slice. §3's facilitation step lists (c19, c20, c22) are assigned to no slice and are
+not built.
+
+**Contradicts its own design** — c24 reads *in progress* where §2's table says a one-of-two-planned
+arc is *approved*. The table is built; the claim is marked unmet; the press on the claims list below
+is where that gets ruled.
+
+**The walk:** 30 met, each with its proof embedded in the claim (the row derives `met: 30` with no
+`unproved`); 11 unmet with what happens instead. A blind review of the walk returned eight findings
+— one mark flipped back (c41), three notes rewritten where the evidence did not support the story
+(c6, c32, c40), four proofs re-aimed at the suites that actually hold them (c13, c25, c31, c33) —
+and forced two code changes: the completeness fold now has one definition per process
+(`objectiveComplete`), and a retirement reason nobody can read is said visibly in the document
+instead of in an editable-only hover.

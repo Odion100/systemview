@@ -32,6 +32,10 @@ export const BAND_KINDS = [
   // RFC-072 §7 — AN ARC IS WORK THE PROJECT IS CARRYING, so it sits beside the rest of it rather
   // than behind a path only an agent knows. Same rule as every other kind: no arcs, no tab.
   { key: "arcs", label: "arc", family: "document" },
+  // THE FOURTH REGISTERED KIND, which had no surface anywhere. A gap is the one document an agent
+  // writes INTO SOMEBODY ELSE'S repo — so it is the kind that most needs to be findable by a person
+  // who did not file it, and it was the only kind you could not see at all.
+  { key: "gaps", label: "gap", family: "document" },
 ];
 
 export const TAB_KEY = "sv.chat.bandTab";
@@ -52,7 +56,25 @@ export const bandLabel = (kind, n) => {
  * - Everything empty → no tabs and `active: ""`, and the band renders nothing at all.
  */
 export const bandTabs = (counts = {}, stored = "") => {
-  const tabs = BAND_KINDS.map((k) => ({ ...k, n: counts[k.key] || 0 })).filter((t) => t.n > 0);
+  // REPORTS FAN OUT BY SUBTYPE, AT THE TOP (his call, settled 2026-10-28 after trying the nested
+  // strip: *"it makes sense logically, but I don't want to search for shit"*). A tab inside a tab
+  // is a thing you have to find; what was really waiting for you belongs where the eye already is.
+  // Each subtype waits on a DIFFERENT thing — a planning report waits to become an RFC, a notice
+  // waits to be read, a spec is current-or-drifted — and the vocabulary is OPEN, so the tabs come
+  // from whatever words the documents carry: a subtype nobody has used costs nothing, the first
+  // document to use one buys the tab, and the row scrolls when the words outgrow it. Untyped
+  // reports keep the plain `report` tab.
+  const tabs = BAND_KINDS.flatMap((k) => {
+    const c = counts[k.key];
+    if (k.key === "reports" && c && typeof c === "object") {
+      const subs = Object.keys(c).filter((w) => w && c[w] > 0).sort();
+      const out = [];
+      if (c[""] > 0) out.push({ ...k, n: c[""] });
+      subs.forEach((w) => out.push({ key: `reports:${w}`, label: w, family: "document", n: c[w] }));
+      return out;
+    }
+    return [{ ...k, n: Number(c) || 0 }];
+  }).filter((t) => t.n > 0);
   if (!tabs.length) return { tabs, active: "" };
   const kept = tabs.find((t) => t.key === stored);
   return { tabs, active: (kept || tabs[0]).key };

@@ -37,6 +37,16 @@ const Claims = () => {
           {c.met}/{c.total} met
         </span>
         {c.unmet ? <span className="md-claims__tag md-claims__tag--unmet">{c.unmet} not met</span> : null}
+        {/* THE GAP BETWEEN SAID AND SHOWN. A mark with nothing embedded is not met — it is one
+            agent's word, and this is how many of the marks are resting on exactly that. */}
+        {c.unproved ? (
+          <span
+            className="md-claims__tag md-claims__tag--owed"
+            title="marked met with no proof in the claim's own body — the mark is testimony until the evidence is embedded"
+          >
+            {c.unproved} marked, unproved
+          </span>
+        ) : null}
         {c.unchecked ? <span className="md-claims__tag md-claims__tag--unchecked">{c.unchecked} unchecked</span> : null}
         <span className="md-claims__count md-claims__count--reviewed">{c.reviewed}/{c.total} reviewed</span>
         {/* THE THIRD AXIS — what the change loop will defend tomorrow. Marked is the builder's

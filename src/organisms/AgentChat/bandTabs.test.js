@@ -99,3 +99,37 @@ describe("a tab says which family it belongs to", () => {
     expect(tab).toMatchObject({ key: "arcs", n: 4, family: "document" });
   });
 });
+
+// ─── REPORTS FAN OUT BY SUBTYPE, AT THE TOP ─────────────────────────────────────────────────────
+//
+// Settled after trying the nested strip: *"it makes sense logically, but I don't want to search
+// for shit."* Each subtype waits on a different thing, and a tab inside a tab has to be found.
+// The vocabulary is OPEN, so the tabs come from whatever words the documents carry.
+
+describe("the reports kind expands into one tab per subtype present", () => {
+  it("untyped reports keep the plain tab; each subtype with rows gets its own", () => {
+    const { tabs } = bandTabs({ reports: { "": 3, spec: 2, notice: 1 } }, "");
+    expect(tabs.map((t) => [t.key, t.label, t.n])).toEqual([
+      ["reports", "report", 3],
+      ["reports:notice", "notice", 1],
+      ["reports:spec", "spec", 2],
+    ]);
+    tabs.forEach((t) => expect(t.family).toBe("document"));
+  });
+  it("a subtype nobody has used costs nothing — no rows, no tab", () => {
+    const { tabs } = bandTabs({ reports: { "": 0, spec: 1, audit: 0 } }, "");
+    expect(tabs.map((t) => t.key)).toEqual(["reports:spec"]);
+  });
+  it("an unheard-of subtype gets a tab like any other — open means open", () => {
+    const { tabs } = bandTabs({ reports: { retro: 2 } }, "");
+    expect(tabs.map((t) => [t.key, t.label])).toEqual([["reports:retro", "retro"]]);
+  });
+  it("a stored subtype tab survives while it has rows, and falls back when they are gone", () => {
+    expect(bandTabs({ jobs: 1, reports: { "": 1, spec: 1 } }, "reports:spec").active).toBe("reports:spec");
+    expect(bandTabs({ jobs: 1, reports: { "": 1 } }, "reports:spec").active).toBe("jobs");
+  });
+  it("a plain number still works — an older caller is not wrong", () => {
+    const { tabs } = bandTabs({ reports: 4 }, "");
+    expect(tabs.map((t) => [t.key, t.n])).toEqual([["reports", 4]]);
+  });
+});

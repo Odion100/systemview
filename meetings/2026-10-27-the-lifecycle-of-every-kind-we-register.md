@@ -248,7 +248,7 @@ rename or a move does not break every pointer at it. You read the arc document w
 second document claiming a live id (the later parse would silently win), and the registry row carries
 `objectives {done, total}` with no record of *which* plan serves *which* objective — so today nothing
 can answer *"is O2 planned?"* at all.
-:::reply{author=you ts=1793180401240}
+:::reply{author=you ts=1793180401240 told=systemview-test}
 The RFC will also point to the point. I mean, the RFC will also point to the arc. So we might have options when it comes to the system keeping the objectives updated based on the RFC. If the RFC is complete, you then it has the potential to Update the arc immediately.
 :::
 ::::
