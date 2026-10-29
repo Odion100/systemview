@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./styles.scss";
-import { AIMED_AT_YOU, spokenPositions, spokenPassageMap } from "../../utils/spokenForm";
+import { AIMED_AT_YOU, spokenPositions, spokenPassageMap, spokenChunks } from "../../utils/spokenForm";
 import { recitalSegments } from "../../utils/readAloud";
+import { performCue } from "../../utils/cuePerform";
 import { hostFiles } from "../../utils/hostFiles";
 import { available, ready as engineReady, speak, voices } from "../../utils/voice";
 import { readVoicePref, readVoiceSettings } from "../../utils/voicePref";
@@ -133,7 +134,7 @@ const SpeakReply = ({ text, className = "", rowKey = "", ts = 0 }) => {
     const segs = recitalSegments(text, only ? { only } : {});
     // AN EMPTY SELECTION IS STILL SILENCE — a sieve that leaves no prose and no voiced file says
     // nothing and touches no state, which is what makes "read me nothing" expressible.
-    if (!segs.some((g) => g.kind === "file" || (g.text && g.text.trim()))) return;
+    if (!segs.some((g) => g.kind === "file" || g.kind === "cue" || (g.text && g.text.trim()))) return;
     enqueue(listenItem(only));
     // Mount only: a row is considered once, and `takeIfNew` enforces that even if React disagrees.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -155,7 +156,10 @@ const SpeakReply = ({ text, className = "", rowKey = "", ts = 0 }) => {
     return {
         key: rowKey,
         scope: projectCode, // whose reading this is — the chat's own line draws only its own
-        label: String(view.text || "").replace(/\s+/g, " ").slice(0, 70),
+        label:
+          String(view.text || "").replace(/\s+/g, " ").slice(0, 70) ||
+          // an all-cue reply has no prose; the line still needs a name he can read
+          (segs.some((g) => g.kind === "cue") ? "the sequence" : ""),
         start: () => {
           const token = (seq.current += 1);
           claim(id);
@@ -184,6 +188,47 @@ const SpeakReply = ({ text, className = "", rowKey = "", ts = 0 }) => {
             if (seq.current !== token) return;
             if (i >= segs.length) return finish();
             const seg = segs[i];
+            if (seg.kind === "cue") {
+              // a cue plays inside the reply's own turn — voice and motion from the ONE performer
+              // the rendered block also uses. An unperformable cue (dead selector, the unwired
+              // `call`) is a skipped beat, never a dead reply.
+              //
+              // THE VOICE BOX DURING A CUE (his rule, 2026-10-29): a selector cue's words are LIT
+              // ON THE PAGE — the box duplicating them adds nothing, so it reads EMPTY. A say cue
+              // has no on-page text, so its words are the ones injected. `text: ""` is deliberate
+              // and the line renders it as deliberate — without it the box held whatever was said
+              // last and just stayed.
+              const isSay = !(seg.at || seg.highlight || seg.press || seg.call);
+              const sayChunks = isSay ? spokenChunks(String(seg.body || "")) : [];
+              if (!isSay) queuePosition(rowKey, { index: 0, total: 0, text: "" });
+              // THE RUNNING ROW WEARS IT (his, 2026-10-29: "follow and highlight each thing that
+              // is running — that's the action we're on"). The row matches on the reply's data-row
+              // + the cue's source line, the same line findCues stamped on this segment.
+              const mark = (on) =>
+                window.dispatchEvent(
+                  new CustomEvent("sv:cueLive", { detail: { row: rowKey, line: seg.line, on } })
+                );
+              const h = performCue(seg, {
+                projectCode,
+                onstart: () => {
+                  if (seq.current !== token) return;
+                  setWarming(false);
+                  queueWarming(rowKey, false);
+                },
+                onposition: (p) => {
+                  if (seq.current !== token) return;
+                  queuePosition(rowKey, { ...p, text: isSay ? sayChunks[p.index] || "" : "" });
+                },
+                onend: (err) => {
+                  mark(false);
+                  return err ? finish(err) : playFrom(i + 1);
+                },
+              });
+              if (h) mark(true);
+              if (!h) return playFrom(i + 1);
+              handle.current = h;
+              return;
+            }
             if (seg.kind === "file") {
               (async () => {
                 try {
@@ -310,7 +355,12 @@ const SpeakReply = ({ text, className = "", rowKey = "", ts = 0 }) => {
     [listenItem, rowKey, speaking],
   );
 
-  if (!spoken || !available() || !voices().length) return null;
+  // A SEQUENCE IS SPEAKABLE (his catch, 2026-10-29: "there's no play button at the bottom because
+  // you didn't speak"). A reply that is ALL cues has empty prose — cues are silent in spoken form
+  // because the segments perform them — but the press path plays every segment, so the button must
+  // mount for it. Hiding it made a replayable sequence replayable only row by row.
+  const performs = segments.some((g) => g.kind === "cue" || g.kind === "file");
+  if ((!spoken && !performs) || !available() || !voices().length) return null;
 
   // Four words for four states. "Loading" is the one that earns the label: on a cold machine the
   // first press waits on an 86MB download, and a control that said "Reading" into forty seconds of

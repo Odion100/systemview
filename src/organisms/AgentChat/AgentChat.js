@@ -33,7 +33,7 @@ import { announce, claim as claimSpeaker, nextSpeakerId } from "../../molecules/
 import { takeIfNew } from "../../molecules/SpeakReply/autoSpeak";
 import Feed, { timeOf } from "../AgentWorkbench/Feed";
 import useAgentSession from "../AgentWorkbench/useAgentSession";
-import { CTX_WARN, CTX_DUE, tokensShort, parseUsageLines, foldEvents } from "../AgentWorkbench/feedRows";
+import { CTX_WARN, CTX_DUE, tokensShort, parseUsageLines, foldEvents, laneLog } from "../AgentWorkbench/feedRows";
 import laneCook from "./laneCook";
 import { visStyle } from "../AgentWorkbench/visitorColor";
 import { formatReceipt } from "../AgentWorkbench/cmdReceipt";
@@ -1966,11 +1966,9 @@ export function BotHub() {
                   key={m}
                   className={`bot-hub__mode${hubAnim === m ? " bot-hub__mode--on" : ""}`}
                   title={
-                    m === "off"
-                      ? "Nothing moves"
-                      : m === "subtle"
-                        ? "The bot goes to what it names and says why"
-                        : "Adds the connecting line and a label"
+                    m === "subtle"
+                      ? "The bot shows you from where it sits — box, scroll, voice; no pop-out"
+                      : "The bot walks to what it names"
                   }
                   onClick={() => {
                     projects.forEach((pc) => setAnimationMode(pc, m));
@@ -2910,8 +2908,6 @@ function BotBubble({ projectCode, index }) {
   // Deferred a beat because most of these commands change the view first — pointing at where a pane
   // was about to be is pointing at nothing.
   const animateCommand = (cmd, args, label) => {
-    const mode = animationMode(projectCode);
-    if (mode === "off") return;
     // The command carries the path and the range in SEPARATE fields, so putting them back together is
     // what tells the difference between "point at the file" and "point at these lines in it". Without
     // it a `--file x#L20-30` resolved to the pane and drew a dashed box around the whole centre panel.
@@ -4446,9 +4442,13 @@ const countdown = (str, now = Date.now()) => {
   const revealTriedRef = useRef(new Set()); // one reveal attempt per target — never a retry loop
   const lastPointRef = useRef({ key: "", at: 0 });
   const goPoint = React.useCallback(
-    (target, text, tone = "deliberate") => {
-      const mode = animationMode(projectCode);
-      if (mode === "off") return false;
+    (target, text, tone = "deliberate", force = false) => {
+      // "off" IS RETIRED (his call, 2026-10-29): every gesture draws at least subtle, so nothing
+      // an agent means on purpose can be silenced into a door opening on a dark room. The mode
+      // decides one thing now — whether the bot TRAVELS. `force` keeps its remaining job: under
+      // full it undocks a docked bot; under subtle it changes nothing, because staying home is
+      // the mode's promise.
+      const draw = animationMode(projectCode);
       const pointKey = JSON.stringify(target || {});
       if (pointKey === lastPointRef.current.key && Date.now() - lastPointRef.current.at < holdFor(target, tone))
         return true; // already pointing at this — don't restart it under itself
@@ -4467,13 +4467,13 @@ const countdown = (str, now = Date.now()) => {
           revealTriedRef.current.add(fkey);
           setTimeout(() => {
             revealTriedRef.current.delete(fkey);
-            if (goPointRef.current) goPointRef.current(target, text, tone);
+            if (goPointRef.current) goPointRef.current(target, text, tone, force);
           }, 420);
           return true;
         }
         revealDocLines(a, b);
-        spotlight({ rectOf, mode, tone, from: `[data-sv="bot"][data-sv-pc="${projectCode}"]`, hold: 0 });
-        if (mode !== "off" && root) {
+        spotlight({ rectOf, mode: draw, tone, from: `[data-sv="bot"][data-sv-pc="${projectCode}"]`, hold: 0 });
+        if (draw === "full" && root) {
           const prev0 = errandRef.current;
           if (prev0 && prev0.follow) clearInterval(prev0.follow);
           const stand = () => {
@@ -4499,8 +4499,8 @@ const countdown = (str, now = Date.now()) => {
           // The original pointing, unchanged. The outline he was seeing around the whole centre panel
           // came from the target losing its line range on the way here, not from this — fixing the
           // range and then also redrawing the gesture was one change too many.
-          spotlight({ rectOf: focus.rectOf, mode, tone, from: `[data-sv="bot"][data-sv-pc="${projectCode}"]`, hold: 0, box: false, line: true });
-          if (mode !== "off") {
+          spotlight({ rectOf: focus.rectOf, mode: draw, tone, from: `[data-sv="bot"][data-sv-pc="${projectCode}"]`, hold: 0, box: false, line: true });
+          if (draw === "full") {
             const r0 = focus.rectOf();
             if (r0 && root) {
               const prev0 = errandRef.current;
@@ -4536,7 +4536,7 @@ const countdown = (str, now = Date.now()) => {
         const onFocused = () => {
           stop();
           lastPointRef.current = { key: "", at: 0 };
-          if (goPointRef.current) goPointRef.current(target, text, tone);
+          if (goPointRef.current) goPointRef.current(target, text, tone, force);
         };
         const giveUp = setTimeout(stop, 6000); // the file never opened — say nothing at all
         window.addEventListener("sv:codeFocused", onFocused);
@@ -4555,7 +4555,7 @@ const countdown = (str, now = Date.now()) => {
         revealTriedRef.current.add(key);
         setTimeout(() => {
           revealTriedRef.current.delete(key);
-          if (goPointRef.current) goPointRef.current(target, text, tone);
+          if (goPointRef.current) goPointRef.current(target, text, tone, force);
         }, 420);
         return true;
       }
@@ -4581,19 +4581,26 @@ const countdown = (str, now = Date.now()) => {
         revealTriedRef.current.add(key);
         setTimeout(() => {
           revealTriedRef.current.delete(key);
-          if (goPointRef.current) goPointRef.current(target, text, tone);
+          if (goPointRef.current) goPointRef.current(target, text, tone, force);
         }, 420);
         return true;
       }
       if (!el) return false; // still nothing on screen — no errand, no gesture, no lie
 
-      // THE BOT MOVING IS THE FEATURE, not an extra — so it travels in `subtle` too. The modes
-      // differ in CHROME, not in whether the agent shows up: `subtle` is the bot going there,
-      // saying its line, and a box on the target; `full` adds the connecting line and the label.
-      // (Gating travel behind `full` would have meant the default shipped without the thing he
-      // actually asked for.)
-      const travels = mode !== "off";
-      spotlight({ target: el, mode, tone, from: `[data-sv="bot"][data-sv-pc="${projectCode}"]`, hold: 0 });
+      // TRAVEL IS THE MODE'S ONE DISTINCTION (his call, 2026-10-29 — this used to say the exact
+      // opposite, when the modes differed only in chrome and nobody could feel it). `full`: the
+      // bot physically goes. `subtle`: the box, the scroll and the voice do the whole job from
+      // where the bot already sits.
+      const travels = draw === "full";
+      // A FORCED ERRAND HAS NO ARM (his call): the box identifies what is being read; a line from
+      // the bot read as an arrow in the way. The bot gestures from across the room instead.
+      spotlight({
+        target: el,
+        mode: draw,
+        tone,
+        from: force ? undefined : `[data-sv="bot"][data-sv-pc="${projectCode}"]`,
+        hold: 0,
+      });
       if (!travels) return true;
       // YOU CANNOT WALK TO SOMETHING YOU'RE CARRYING. The TV, the chat and the collector all hang
       // off the bot, so travelling to one moves it, which moves the target, which moves the bot —
@@ -4619,16 +4626,43 @@ const countdown = (str, now = Date.now()) => {
       // Stand just outside the target rather than on top of it — a bot covering the thing it is
       // pointing at is worse than not pointing.
       const place = () => {
+        // THE NEWEST LOCATION IS JUST THE LOCATION (his rule, 2026-10-29: "I don't understand how
+        // your newest location when you move isn't just your location"). A tab press that swaps
+        // the page, or a scroll that carries the target away, left this follower measuring a dead
+        // or off-screen rect — zeros clamp to the screen edge, so the bot "went to the corner"
+        // between gestures. A target that is gone stops the follow; one that is merely out of
+        // view holds the bot still. It never invents a spot.
+        if (!document.contains(el)) {
+          const e = errandRef.current;
+          if (e && e.follow) clearInterval(e.follow);
+          return;
+        }
         const b2 = el.getBoundingClientRect();
+        if (!b2.width && !b2.height) return; // hidden mid-transition — hold still
+        if (b2.bottom < 0 || b2.top > window.innerHeight) return; // scrolled away — hold still
         const rr = root.getBoundingClientRect();
-        // Stand just outside the target, vertically CENTRED on it — the whole complaint was that it
-        // hovered across without ever coming down to the thing.
-        const x = Math.max(8, Math.min(window.innerWidth - rr.width - 8, b2.left - rr.width - 14));
-        const y = Math.max(
-          8,
-          Math.min(window.innerHeight - rr.height - 8, b2.top + b2.height / 2 - rr.height / 2),
+        // AN INTELLIGENT SPOT, CHOSEN DYNAMICALLY (his ruling, 2026-10-29): close to the target
+        // without BLOCKING anything — not the target, and not the bottom strip where the voice
+        // box lives. Candidates around the target in order of preference; the first that fits
+        // whole wins, and only if none fit does it fall back to a clamped stand.
+        const VOICE_STRIP = 96; // the reading bar's home — never park on top of it
+        const W = window.innerWidth;
+        const H = window.innerHeight - VOICE_STRIP;
+        const cy = b2.top + b2.height / 2 - rr.height / 2;
+        const candidates = [
+          { x: b2.left - rr.width - 14, y: cy }, // left of it
+          { x: b2.right + 14, y: cy }, // right of it
+          { x: b2.left + b2.width / 2 - rr.width / 2, y: b2.top - rr.height - 14 }, // above
+          { x: b2.left + b2.width / 2 - rr.width / 2, y: b2.bottom + 14 }, // below
+        ];
+        const fits = candidates.find(
+          (c) => c.x >= 8 && c.x + rr.width <= W - 8 && c.y >= 8 && c.y + rr.height <= H - 8,
         );
-        setPos({ x, y });
+        const spot = fits || {
+          x: Math.max(8, Math.min(W - rr.width - 8, candidates[1].x)),
+          y: Math.max(8, Math.min(H - rr.height - 8, cy)),
+        };
+        setPos({ x: spot.x, y: spot.y });
       };
       place();
       // Keep following while the gesture is live: panels expand, trees open, content reflows, and a
@@ -4673,7 +4707,7 @@ const countdown = (str, now = Date.now()) => {
       return;
     }
     runningRef.current = true;
-    const drew = goPointRef.current(next.target, next.say, next.tone);
+    const drew = goPointRef.current(next.target, next.say, next.tone, next.force);
     const wait = drew ? holdFor(next.target, next.tone) + 600 : 0; // nothing drawn = no dead time
     setTimeout(() => {
       runningRef.current = false;
@@ -4682,9 +4716,15 @@ const countdown = (str, now = Date.now()) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const enqueuePoint = React.useCallback(
-    (target, say, tone = "deliberate") => {
-      if (animationMode(projectCode) === "off") return;
-      if (!runningRef.current && !queueRef.current.length) {
+    (target, say, tone = "deliberate", force = false) => {
+      // SUBTLE STAYS HOME (his call, 2026-10-29): no undock, no panel fold — the gesture happens
+      // on the page while the bot and the chat stay exactly as he left them. Only `full` walks.
+      const walks = animationMode(projectCode) === "full";
+      // A FORCED ERRAND UNDOCKS (his catch: "make sure point actually takes you out if you're
+      // docked") — under full. A docked bot renders portaled into its slot, so setPos goes
+      // nowhere; the errand undocks like the drag path does, or point draws a box nobody walked to.
+      if (walks && force && (inRailRef.current || inNavRef.current)) setNavDocked(projectCode, false);
+      if (walks && !runningRef.current && !queueRef.current.length) {
         // GET OUT OF THE WAY (his catch: "the new chat bubble was in the way"). The panel folds and
         // the unread/peek bubble is suppressed for the duration — then both come back as they were.
         wasOpenRef.current = openRef.current;
@@ -4692,7 +4732,7 @@ const countdown = (str, now = Date.now()) => {
         setOpen(false);
         setAnimating(true);
       }
-      queueRef.current.push({ target, say, tone });
+      queueRef.current.push({ target, say, tone, force });
       pump();
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -4707,7 +4747,7 @@ const countdown = (str, now = Date.now()) => {
   // first few are what the sentence is actually about.
   const animateMessage = React.useCallback(
     (text) => {
-      if (!text || animationMode(projectCode) === "off") return;
+      if (!text) return;
       const refs = [];
       const re = /:(file|ns|ui|report)\[([^\]]+)\]/g;
       let m;
@@ -4743,7 +4783,7 @@ const countdown = (str, now = Date.now()) => {
         // this every mounted bot would set off across the screen at once.
         return;
       }
-      enqueuePoint(d.target, d.say);
+      enqueuePoint(d.target, d.say, "deliberate", !!d.force);
     };
     window.addEventListener("sv:agentPoint", onPoint);
     return () => window.removeEventListener("sv:agentPoint", onPoint);
@@ -5259,7 +5299,11 @@ const countdown = (str, now = Date.now()) => {
   const openNavAt = (x, y) => {
     const el = document.querySelector('[data-sv="nav"]');
     if (!el || !el.className.includes("nav-panel--open")) return null;
-    const b = el.getBoundingClientRect();
+    // HIS RULE (2026-10-28): the whole open panel used to be the drop zone, and the popped-out
+    // bot HOVERS over that panel — so dragging it out dropped it straight back in. Only the TAB
+    // STRIP re-docks now: on the tabs you fall back in; the rest of the panel is a place to stand.
+    const head = el.querySelector(".system-nav__header");
+    const b = (head || el).getBoundingClientRect();
     return x >= b.left && x <= b.right && y >= b.top && y <= b.bottom ? el : null;
   };
   const panelCardAt = (x, y) => {
@@ -5949,11 +5993,9 @@ const countdown = (str, now = Date.now()) => {
   // sourced `set` call, which is the only thing both halves carry. A lane an agent registered for
   // its OWN work has no subagent and therefore no events, which is not an error: the panel's log
   // is empty and its header still reads the run.
-  const laneLogFor = (source) => {
-    for (const [, lane] of work.lanes || [])
-      if (lane.source === source) return { events: lane.events, brief: lane.brief || "" };
-    return { events: null, brief: "" };
-  };
+  // Every ROUND of the lane, merged in arrival order — the first-match version showed a dead
+  // round's stream while the live agent worked unseen. The merge lives in feedRows (testable).
+  const laneLogFor = (source) => laneLog(work.lanes, source);
   // JOB AND SKILL ROWS, FROM THE SAME RUN FILES THE LANES COME FROM. His report, 2026-10-14: *"the
   // job rows disappeared, I didn't delete them."* They had — this read only `todoLists`, which is
   // folded from the session's in-memory events, so a shell restart erased every job card while the
@@ -6194,7 +6236,11 @@ const countdown = (str, now = Date.now()) => {
   // A READING IS A REASON FOR THE PEEK TO EXIST — the voice row lives inside it, and an idle chat
   // being read aloud had no peek, so minimised it had nowhere to show the queue (his test).
   const peekHas = hasBrief || sessionCooking || peekUnread > 0 || roomLines.length > 0 || speechLive;
-  const peekShowing = !open && (listening || (!animating && peekHas));
+  // A LIVE READING IS NEVER HIDDEN (his rule, 2026-10-29: "the voice box shows normally — when
+  // the chat is closed, where's the voice box?"). `animating` folds everything else out of the
+  // way during an errand, but the voice box answers to its own rule: voice playing + chat closed
+  // → the box is there, with its stop and its skip — ESPECIALLY while the bot is out touring.
+  const peekShowing = !open && (listening || speechLive || (!animating && peekHas));
   const iconsLeft = peekShowing && leftHalf;
   // The docked pill is 150px centred under a 46px bubble, so near either edge half of it lands off
   // screen — which is what you saw as the cooking line "going under the agent" in the corner.
@@ -8515,7 +8561,10 @@ const countdown = (str, now = Date.now()) => {
           HIS CALL: DOCKED it sits at the foot of the peek, one box (above); HOVERING it is its own
           box UNDERNEATH the bubble. The first cut put the box under both and the docked peek drew
           two cooking lines. */}
-      {!open && !animating && !inNav && nowLine && (
+      {/* NO `!animating` HERE (his rule, 2026-10-29): a live reading keeps its controls even —
+          especially — while the bot is out on an errand. The fold moves everything else out of
+          the way; the voice box answers only to "voice playing, chat closed". */}
+      {!open && !inNav && nowLine && (
         <div className={`${CLASSNAME}__nowbox`}>
           {nowLine}
         </div>

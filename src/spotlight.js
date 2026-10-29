@@ -31,7 +31,13 @@ let watching = null; // rAF id — a target can move while lit (scrolling, resiz
 // ---- the setting -------------------------------------------------------------------------------
 // Per project, and the AGENT IS NEVER TOLD which one is on (his rule): it says what it means, the
 // human decides how loud that gets.
-export const MODES = ["off", "subtle", "full"];
+// TWO MODES, ONE QUESTION — how PHYSICAL is the agent (his call, 2026-10-29). `full`: a point is
+// a trip — the bot pops out, undocks, walks close. `subtle`: a point stays home — the box draws,
+// the document scrolls, the voice speaks, and the bot never leaves where it sits. "off" is
+// RETIRED: the old three differed only in chrome, which nobody could feel, and silencing the
+// gesture entirely made a deliberate instruction disappear. A stored "off" fails the lookup below
+// and reads as subtle — the migration is free.
+export const MODES = ["subtle", "full"];
 export function animationMode(projectCode) {
   try {
     const v = localStorage.getItem(`sv.anim.${projectCode}`);
@@ -148,10 +154,12 @@ const TONES = {
     dash: "5 5",
   },
   deliberate: {
+    // TUNED BY HIS EYE (2026-10-29): visible but transparent — a thick low-transparency box read
+    // as a wall; a 2px stroke with a light wash identifies without covering what it identifies.
     stroke: "#6a74c4",
-    halo: "rgba(106, 116, 196, 0.22)",
-    wash: "rgba(106, 116, 196, 0.09)",
-    width: "2.5",
+    halo: "rgba(106, 116, 196, 0.28)",
+    wash: "rgba(106, 116, 196, 0.12)",
+    width: "2",
     dash: null,
   },
 };

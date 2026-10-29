@@ -54,28 +54,55 @@ export function findVoicedFiles(markdown) {
   return out;
 }
 
+// The cue leaves in a reply, with the line each sits on — `::cue[body?]{at=… | highlight=… |
+// press=… | call=… say=…}`, fences respected (a quoted example must not walk the bot).
+//   → [{ kind: "cue", line, body, at, highlight, press, call, say }]
+export function findCues(markdown) {
+  const out = [];
+  const rows = String(markdown || "").split("\n");
+  let inCode = false;
+  for (let i = 0; i < rows.length; i += 1) {
+    if (/^\s*(```|~~~)/.test(rows[i])) {
+      inCode = !inCode;
+      continue;
+    }
+    if (inCode) continue;
+    const m = rows[i].match(/^\s*::cue(?:\[([^\]]*)\])?(?:\{([^}]*)\})?\s*$/);
+    if (!m || (!m[1] && !m[2])) continue;
+    const cue = { kind: "cue", line: i + 1, body: m[1] || "" };
+    const attrs = m[2] || "";
+    const re = /(\w+)=(?:"([^"]*)"|([^\s}]+))/g;
+    let a;
+    while ((a = re.exec(attrs))) cue[a[1]] = a[2] !== undefined ? a[2] : a[3];
+    out.push(cue);
+  }
+  return out;
+}
+
 /**
- * A reply's recital split around its voiced chips, in document order:
- *   [{ kind: "say", text, chunks }, { kind: "file", path, lines, line }, …]
+ * A reply's recital split around its voiced chips AND its cues, in document order:
+ *   [{ kind: "say", text, chunks }, { kind: "file", … }, { kind: "cue", … }, …]
  * Each say-segment carries its own engine-chunk positions, so the karaoke subtitle and the lit
- * paragraph keep working per segment. A reply with no voiced chips is ONE say segment — exactly
- * what the reader spoke before this existed.
+ * paragraph keep working per segment. A reply with neither is ONE say segment — exactly what the
+ * reader spoke before any of this existed.
  */
 export function recitalSegments(markdown, opts = {}) {
-  const files = findVoicedFiles(markdown);
+  const marks = [...findVoicedFiles(markdown).map((f) => ({ kind: "file", ...f })), ...findCues(markdown)].sort(
+    (a, b) => a.line - b.line
+  );
   const sentences = spokenMap(String(markdown || ""), opts);
   const segOf = (list) => {
     const text = list.map((s) => s.text).join(" ");
     return { kind: "say", text, chunks: chunkMap(list, spokenChunks(text)) };
   };
-  if (!files.length) return sentences.length ? [segOf(sentences)] : [];
+  if (!marks.length) return sentences.length ? [segOf(sentences)] : [];
   const out = [];
   let from = 0;
-  for (const f of files) {
+  for (const f of marks) {
     let end = from;
     while (end < sentences.length && (!sentences[end].lines || sentences[end].lines[0] <= f.line)) end += 1;
     if (end > from) out.push(segOf(sentences.slice(from, end)));
-    out.push({ kind: "file", path: f.path, lines: f.lines, line: f.line });
+    out.push(f);
     from = end;
   }
   if (from < sentences.length) out.push(segOf(sentences.slice(from)));

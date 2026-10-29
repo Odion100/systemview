@@ -8,6 +8,7 @@ import { MarkdownCapabilitiesProvider } from "./atoms/Markdown/capabilities";
 import { systemviewCapabilities } from "./markdownCapabilities";
 import BannerStack from "./atoms/Banner/Banner";
 import { installGlobalErrorChannel } from "./atoms/Banner/bannerStore";
+import { installReadLine } from "./molecules/SpeakReply/readLine";
 import {
   BrowserRouter as Router,
   Route,
@@ -25,6 +26,9 @@ function DebugRouter({ children }) {
 // A promise nobody caught used to be console-only; now it reaches the banner stack like everything
 // else. Installed once, outside the component, so a re-render can't re-register it.
 installGlobalErrorChannel();
+// THE READ LINE — `sv:read` turns anything on the page into speech through the one queue, with
+// the spotlight, the scroll and the bot following the now-playing item (readLine.js has the why).
+installReadLine();
 
 // SELF-UPDATING TABS (his rule: "never suggest page reload to me again") — the tab watches the
 // hub's served bundle and swaps itself the moment a new build lands. State survives because the

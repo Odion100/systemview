@@ -55,6 +55,15 @@
     border-radius: 0 4px 4px 0;
   }
 
+  // A RUN OF CUES IS ONE SEQUENCE, not a stack of chat entries (his call, 2026-10-29: "it's one
+  // block — why is the spacing crazy?"). A block whose only child is a cue sheds the per-message
+  // chrome, so consecutive rows sit tight and the log reads as one thing.
+  .chat-md__block:has(> .md-cue:only-child) {
+    margin: 0;
+    padding-top: 2px;
+    padding-bottom: 2px;
+  }
+
   .chat-md__block {
     display: block;
     max-width: 100%;

@@ -77,10 +77,15 @@ describe("the setting is the human's", () => {
   });
 
   test("is per project — one project's choice never speaks for another", () => {
-    setAnimationMode("a", "off");
+    setAnimationMode("a", "subtle");
     setAnimationMode("b", "full");
-    expect(animationMode("a")).toBe("off");
+    expect(animationMode("a")).toBe("subtle");
     expect(animationMode("b")).toBe("full");
+  });
+
+  test("a stored 'off' reads as subtle — the mode is retired, the key migrates itself", () => {
+    localStorage.setItem("sv.anim.c", "off");
+    expect(animationMode("c")).toBe("subtle");
   });
 
   test("refuses a mode it doesn't know instead of storing nonsense", () => {

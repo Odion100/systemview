@@ -4103,3 +4103,73 @@
 :root.sv-dark .md-progress {
   background: var(--sv-bg);
 }
+
+// ::cue — one directed action as a NEAT COMMAND LOG (his call): quiet mono row, verb coloured by
+// what it does, a small play on the right. is-playing brightens the row while the cue performs.
+// (The old first/last-child margin exceptions are gone on purpose — the sequence design wants
+// chat-wrapped cues TIGHT, and the wrapper collapse in chat-md.scss owns the rhythm now.)
+
+.md-cue {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  // the same breath between rows as between paragraphs — a run of cues reads as one neat log
+  margin: 10px 0;
+  padding: 5px 10px;
+  border: 1px solid var(--sv-border-soft);
+  border-radius: 6px;
+  background: var(--sv-inset);
+  font-family: monospace;
+  font-size: 12px;
+  color: var(--sv-text-muted);
+
+  &__glyph { font-size: 11px; color: var(--sv-text-faint); flex-shrink: 0; }
+  &__verb {
+    font-size: 9.5px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--sv-text-faint);
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  &--say .md-cue__verb { color: var(--sv-text-muted); }
+  &--highlight .md-cue__verb { color: #c07a16; }
+  &--point .md-cue__verb { color: #5a77e5; }
+  &--press .md-cue__verb { color: #9a4fe0; }
+  &__label {
+    flex: 1 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  &__play {
+    font: inherit;
+    font-size: 10.5px;
+    padding: 1px 9px;
+    border-radius: 999px;
+    border: 1px solid var(--sv-border);
+    background: var(--sv-surface);
+    color: var(--sv-text-muted);
+    cursor: pointer;
+    // the pill never wraps and never gets squeezed (his call)
+    flex-shrink: 0;
+    white-space: nowrap;
+
+    &:hover { border-color: #5a77e5; color: #5a77e5; }
+  }
+  &__unwired { font-size: 10.5px; color: var(--sv-text-faint); font-style: italic; }
+  &.is-playing {
+    border-color: #5a77e5;
+    color: var(--sv-text-strong);
+
+    .md-cue__play { border-color: #5a77e5; color: #5a77e5; }
+  }
+}
+
+:root.sv-dark .md-cue {
+  &--highlight .md-cue__verb { color: #e0a34f; }
+  &--point .md-cue__verb { color: #8ba4ef; }
+  &--press .md-cue__verb { color: #c68cf5; }
+  &.is-playing { border-color: #8ba4ef; }
+}

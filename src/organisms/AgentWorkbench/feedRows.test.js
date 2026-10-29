@@ -89,6 +89,28 @@ describe("foldState", () => {
     expect(lanes.get("task9").events).toHaveLength(2);
   });
 
+  // A lane worked across revision ROUNDS is several subagents sourced to one branch — and the
+  // first-match lookup showed the first (finished, silent) round while the live agent worked
+  // unseen. laneLog merges every round in arrival order; the tail is the live round, and the
+  // latest round's brief wins.
+  it("laneLog merges every round of a lane, live round at the tail, latest brief shown", () => {
+    const { splitLaneEvents, laneLog } = require("./feedRows");
+    const { lanes } = splitLaneEvents([
+      ev("tool.call", { id: "b1", name: "Agent", input: { prompt: "round one brief" } }),
+      ev("tool.call", { id: "s1", name: "mcp__worklist__set", input: { source: "lane:refine/x" }, parent: "b1" }),
+      ev("tool.call", { id: "s2", name: "Bash", input: { command: "round one work" }, parent: "b1" }),
+      ev("tool.call", { id: "b2", name: "Agent", input: { prompt: "round two brief — the look" } }),
+      ev("tool.call", { id: "s3", name: "mcp__worklist__set", input: { source: "lane:refine/x" }, parent: "b2" }),
+      ev("tool.call", { id: "s4", name: "Bash", input: { command: "round two work" }, parent: "b2" }),
+    ]);
+    const { events, brief } = laneLog(lanes, "lane:refine/x");
+    expect(events).toHaveLength(4);
+    expect(events[events.length - 1].input.command).toBe("round two work");
+    expect(brief).toBe("round two brief — the look");
+    // a source nobody registered stays null — an empty log, not an invented one
+    expect(laneLog(lanes, "lane:nobody").events).toBeNull();
+  });
+
   // The whiteboard is whole-board-every-event, like the list is whole-list — so a panel opened
   // mid-session renders from the one event it catches, and empty text IS the wipe, not a no-op.
   it("holds the whiteboard whole, replaces it whole, and clears on the empty event", () => {

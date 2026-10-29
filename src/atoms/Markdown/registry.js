@@ -20,6 +20,7 @@ import BranchBlock from "./blocks/BranchBlock";
 import Ask from "./blocks/Ask";
 import Members from "./blocks/Members";
 import Objective from "./blocks/Objective";
+import Cue from "./blocks/Cue";
 import Arc from "./blocks/Arc";
 import Rfc from "./blocks/Rfc";
 import Report from "./blocks/Report";
@@ -98,6 +99,10 @@ export const BLOCKS = {
   report: { Component: Report },
   gap: { Component: Gap },
   objective: { Component: Objective },
+  // `::cue` — one directed action (say · highlight · point · press · call), rendered as a quiet
+  // command log and replayable by press. A new reply's cues are PLAYED by the reply's own reader;
+  // rendered history and documents never play themselves.
+  cue: { Component: Cue },
   // Both RECOUNT from the objectives in their own document on every render — there is no stored
   // total anywhere, so neither can disagree with the blocks above it.
   progress: { Component: Progress },

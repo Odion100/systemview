@@ -133,6 +133,12 @@ export default function CenterTabs({ tabsPc, tabs = [], isActive, onOpen, afterC
               >
                 <button
                   className="doc-tab__face"
+                  // A STABLE ADDRESS FOR EVERY TAB (his ruling, 2026-10-29: "this is our
+                  // application — assign a stable attribute wherever it makes sense"). A saved
+                  // command navigates by pressing `[data-tab-kind="how"]` — no text matching, no
+                  // position guessing, idempotent whether or not the tab is already active.
+                  data-tab-kind={t.kind}
+                  data-tab={t.key}
                   title={
                     t.kind === "file" && t.file
                       ? `${t.file.machine ? "machine" : t.file.projectCode || ""}: ${t.file.path}`

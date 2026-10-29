@@ -202,6 +202,9 @@ const SPOKEN = {
   },
   // The recount is on screen; by ear it is only an announcement.
   claims: () => "The claims count.",
+  // A CUE IS SILENT HERE because the recital performs it as its own SEGMENT (readAloud.findCues) —
+  // voice and motion together, in document order. Spoken as prose it would say every line twice.
+  cue: () => "",
   // THE LABEL AND THE ATTRIBUTE ARE THE SAME FIELD, and reading only one of them is how a block
   // goes silent. `::commit[the message]` and `::commit{message="the message"}` both render — the
   // component reads `label || attrs.message` — and this read only the attribute, so every commit

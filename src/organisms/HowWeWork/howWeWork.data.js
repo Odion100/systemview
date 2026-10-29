@@ -18,7 +18,6 @@
 export const STAGES = [
   {
     id: "goal",
-    say: "Plan with me —", ph: "your goal, in your words — what should exist that doesn't?", need: true,
     label: "A goal",
     hand: "you",
     kicker: "in your words",
@@ -32,7 +31,6 @@ export const STAGES = [
   },
   {
     id: "arc",
-    say: "Write the arc for what we agreed —", ph: "name the planning doc, or say the goal again", need: true,
     label: "An arc",
     hand: "agent",
     kicker: "a body of work",
@@ -45,7 +43,6 @@ export const STAGES = [
   },
   {
     id: "rfc",
-    say: "Write the RFC for", ph: "the thing to decide — the agent brings the implementation detail", need: true,
     label: "A plan",
     hand: "agent",
     kicker: "attached to one objective",
@@ -59,15 +56,6 @@ export const STAGES = [
   },
   {
     id: "claims",
-    teach: {
-      label: "teach me claims & proofs",
-      prompt:
-        "Teach me how claims and proofs work in this system. I am on the how-we-work page, at the " +
-        "Living specs stage. Ground it in the claims chapter of docs/how-we-work/ and in one REAL " +
-        "example from this repo: open an RFC that carries marked claims with embedded proofs, show " +
-        "me one claim and its proof, and explain how met = marked AND proved is derived rather than " +
-        "asserted. Short, concrete, documents over definitions.",
-    },
     label: "Living specs",
     hand: "you + agent",
     kicker: "claims, carrying proofs",
@@ -82,15 +70,6 @@ export const STAGES = [
   },
   {
     id: "build",
-    teach: {
-      label: "teach me the build flow",
-      prompt:
-        "Teach me how building works in this system. I am on the how-we-work page, at The build " +
-        "stage. Cover work landing unstaged in my tree versus LANES (a branch plus worktree with a " +
-        "registered run and a row I can watch), and who commits. Ground it in what is real right " +
-        "now: list the lanes standing in this project and read me one of their rows. Short and " +
-        "concrete.",
-    },
     label: "The build",
     hand: "agents",
     kicker: "slice by slice",
@@ -104,15 +83,6 @@ export const STAGES = [
   },
   {
     id: "settle",
-    teach: {
-      label: "teach me settling",
-      prompt:
-        "Teach me how settling cascades in this system — a plan settles, its objective " +
-        "completes, the arc settles, and nothing above is ever pressed. I am on the how-we-work " +
-        "page, at the Settled stage. Ground it in the real registry: read the arcs this project has " +
-        "and show me what is still open and WHY (which objectives lack plans, which plans are " +
-        "unsettled). Short and concrete.",
-    },
     label: "Settled",
     hand: "derived",
     kicker: "and the rest follows",
@@ -484,48 +454,6 @@ export const PIPELINE = [
 ];
 
 // ───────────────────────────────────────────────────────────────────────────────────────────────
-// THE DOORS. They hand you the WORDS, because the words are the real door — this system is driven
-// by telling an agent what you want. Each one copies to the clipboard; nothing here writes to a
-// repo, and the page says so rather than shipping a button that silently does nothing.
-export const DOORS = [
-  {
-    id: "project",
-    label: "Bring in a project",
-    kind: "command",
-    say: "systemview init",
-    hint: "Run it in the repo's folder. A repo with no services is one command away from a hosted testing service.",
-  },
-  {
-    id: "arc",
-    label: "Start an arc",
-    kind: "say",
-    say: "Here's the goal — plan it out. Research how this actually works first, then write me your opening proposal.",
-    hint: "Opens the arc meeting as a document, researches the landscape, and writes a proposal for you to push back on.",
-  },
-  {
-    id: "rfc",
-    label: "Write a plan",
-    kind: "say",
-    say: "This design is settled — write it up as an RFC, with the claims list.",
-    hint: "Implementation detail, slices in landing order, a verdict block, and claims you can check later.",
-  },
-  {
-    id: "report",
-    label: "File a report",
-    kind: "say",
-    say: "Write that up as a report and file it, as=notice.",
-    hint: "Lands in the reports panel, registered and findable until it ages out.",
-  },
-  {
-    id: "gap",
-    label: "File a gap in another project",
-    kind: "say",
-    say: "That's a bug in the other repo — file a gap into it, where the fix lives.",
-    hint: "A document written into THAT project's repo, done when its leaf says resolved= with a proof.",
-  },
-];
-
-// ───────────────────────────────────────────────────────────────────────────────────────────────
 // THE AGENTS — who does the work. Six facts, one per card: what defines one, what it owns, what it
 // can choose, what it is given, how you reach it, and how you watch it without trusting it.
 export const AGENTS = [
@@ -552,6 +480,12 @@ export const AGENTS = [
     one: "procedures it is GIVEN",
     body:
       "Never injected, never chosen off a menu — a hook or a human names one, with every input the job declares. That is a different level of trust than a skill, and the document carries its own bounds: what it must never do, where its output lands.",
+  },
+  {
+    name: "sub-agents",
+    one: "disposable workers, briefed and reviewed",
+    body:
+      "The owner stays the owner — delegation is explicit. A sub-agent gets a scoped brief and its own lane: a branch, a worktree, a row you can watch. Nothing it builds lands without the owner reviewing it, which is why one owner with disposable workers does not drift the way two owners do.",
   },
   {
     name: "the room",
