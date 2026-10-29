@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./styles.scss";
 import { setHelpTopic } from "../../atoms/Help/helpStore";
+import Trail from "../../atoms/Trail/Trail";
 import { stateOf, objectiveComplete } from "../../atoms/Markdown/blocks/lifecycleState";
 import commandRunner from "../../utils/hostCommand";
 import { hasHostDictation, startHostRecording } from "../../utils/hostDictation";
@@ -507,42 +508,19 @@ const Trails = () => {
         <b>{life.title}</b> — {life.sub}. <Rich>{life.lede}</Rich>
       </p>
 
-      {/* A FORK IS A COLUMN OF TWO: a `fork` station shares its column with the station before it
-          — the line runs through the one on it, and the fork's own strokes diverge from the line
-          and rejoin it, because `rejected` is a destination with the same next stop, not a drop
-          off the trail. The strokes are the column's, fixed geometry, so they survive any width. */}
-      <ol className={`hww-trail hww-trail--${kind}`}>
-        {life.stations
-          .reduce((cols, s) => {
-            if (s.fork && cols.length) cols[cols.length - 1].push(s);
-            else cols.push([s]);
-            return cols;
-          }, [])
-          .map((col) => (
-            <li
-              key={col[0].id}
-              className={`hww-trail__col${col.length > 1 ? " hww-trail__col--split" : ""}`}
-            >
-              {col.map((s) => (
-                <div
-                  key={s.id}
-                  className={`hww-trail__st${s.fork ? " hww-trail__st--fork" : ""}${
-                    s.id === station.id ? " is-at" : ""
-                  }`}
-                >
-                  <button
-                    type="button"
-                    className="hww-trail__btn"
-                    onClick={() => setAt(life.stations.indexOf(s))}
-                  >
-                    <span className="hww-trail__ring">{s.pressable ? "⌾" : "◦"}</span>
-                    <span className="hww-trail__name">{s.id}</span>
-                  </button>
-                </div>
-              ))}
-            </li>
-          ))}
-      </ol>
+      {/* THE SHARED DRAWING — src/atoms/Trail, extracted from this page. The registration leaf
+          renders the same component against the document's real state; here it teaches, so a
+          press just moves the card below. */}
+      <Trail
+        kind={kind}
+        stations={life.stations.map((s) => ({
+          id: s.id,
+          fork: s.fork,
+          glyph: s.pressable ? "⌾" : "◦",
+        }))}
+        at={station.id}
+        onPress={(id) => setAt(life.stations.findIndex((s) => s.id === id))}
+      />
 
       {/* a press answers with ONE human sentence — what being here means for the work. The
           three-row anatomy (the fact it reads / what moves it / press it) was reference
@@ -587,11 +565,6 @@ const ArcUpward = () => {
     );
     setN((v) => v + 1);
   };
-  const reset = () => {
-    setObjs(DEMO.map((o) => ({ ...o, plans: o.plans.map((p) => ({ ...p, settled: false })) })));
-    setN(76);
-  };
-
   // THE WIRING IS DRAWN, NOT DECORATED. Three objective columns at the centres of the stage's
   // thirds (120 · 360 · 600 of a 720 viewBox), plans fanned under their own column, the arc above —
   // so attaching a plan re-wires itself instead of invalidating a hand-drawn picture. The stage is
@@ -644,7 +617,8 @@ const ArcUpward = () => {
                   className={`hww-up__obj${st.complete ? " is-complete" : ""}${st.planned ? "" : " is-unplanned"}`}
                 >
                   <div className="hww-up__objtop">
-                    <span className="hww-up__objid">ARC-004-{o.id}</span>
+                    <span className="hww-up__objkind">objective</span>
+                    <span className="hww-up__objid">{o.id}</span>
                     <span className="hww-up__objcount">
                       {st.settled}/{st.total || "—"}
                     </span>
@@ -683,17 +657,6 @@ const ArcUpward = () => {
         </div>
       </div>
 
-      <div className="hww-up__read">
-        <span className={`hww-up__badge is-${arc.station}`}>{arc.station}</span>
-        <span className="hww-up__why">{arc.why}</span>
-        <button type="button" className="hww-btn hww-btn--quiet" onClick={reset}>
-          reset
-        </button>
-      </div>
-      <p className="hww-hint">
-        Press a plan to settle it. Nothing on the arc is pressed — its state is read off the plans,
-        which is what a living spec means.
-      </p>
     </div>
   );
 };
@@ -1059,11 +1022,8 @@ const PAGES = [
     id: "specs",
     label: "Living specs",
     kicker: "the newest idea",
-    title: "A living spec — where “is this still true?” is a button",
-    lede: [
-      "A claim can carry its proof in a fold: a test that lives as a file in the project's suite, or a run block that runs right there in the document. Pressing it is the difference between a design you remember agreeing to and a design that answers for itself.",
-      "And a state can BE one. An arc grows objectives; objectives get plans attached BY ID — `::rfc{id=RFC-073 arc=ARC-004-O2}` — and a plan settling in its own document completes the objective, which settles the arc. Three of an arc's five states cannot be pressed at all, because the facts they read live in other documents.",
-    ],
+    title: "A living spec — a document that keeps answering",
+    lede: "A claim carries its proof where it stands — a test in the project's suite, or a run kept in the document with its output. So a design is not just a record of what was agreed: the whole development arc can be validated in one shot, any time, against evidence instead of memory.",
     links: [
       { label: "the trails themselves", to: "lifecycle" },
       { label: "the full block vocabulary", help: "markdown" },
@@ -1079,42 +1039,44 @@ const PAGES = [
             make the record lie; loose everywhere else.
           </Rich>
         </div>
-        <h3 className="hww-sub">The proof shapes — where the evidence lives</h3>
+        <h3 className="hww-sub">Claims and proofs</h3>
         <div className="hww-specs">
           <div className="hww-specs__half">
-            <h4>
-              <code>::test[…]</code> — the library spec
-            </h4>
+            <h4>claims</h4>
             <p>
-              The contract lives as a FILE in the project's suite, where the whole suite keeps running
-              it long after the plan settles. The claim's fold points at it and shows pass or fail.
-              <b> Addressable</b> — other work can cite it.
+              <Rich>
+                When an RFC settles its argument, the design reduces to **claims** — assertions
+                that can be verified.
+              </Rich>
             </p>
           </div>
           <div className="hww-specs__half">
-            <h4>
-              <code>:::run</code> · <code>:::cmd</code> — proof in the fold
-            </h4>
+            <h4>proofs</h4>
             <p>
-              Steps written on the fly, or a shell command whose output lands back in the block with
-              its exit code. It lives only where it was written — right for a one-off check, and the
-              reason a document can be a fixture for itself.
+              <Rich>
+                A proof adds evidence to a claim — a test the project's suite can run at will, or
+                a run kept in the document with its output. A claim with nothing behind it reads
+                **unproved**.
+              </Rich>
+            </p>
+          </div>
+          <div className="hww-specs__half">
+            <h4>the arc</h4>
+            <p>
+              <Rich>
+                Specs roll up the wires of the arc — plans answer objectives, objectives answer
+                the arc. That is what makes the one-shot validation real: the entire development
+                arc, **tested at once**.
+              </Rich>
             </p>
           </div>
         </div>
         <div className="hww-specs__spec">
-          <h4>
-            And a document can BE one — <code>::report{"{"}id=… as=spec retain=30d{"}"}</code>
-          </h4>
+          <h4>The spec report</h4>
           <p>
             <Rich>
-              The other four report subtypes are READ — you read a notice, a planning table, an audit,
-              an account. **A spec is PRESSED**: *this is what I am claiming, check it yourself.* So
-              it is the one whose condition is neither time nor attention but whether the evidence
-              still passes — which makes **current** and **drifted** real states rather than feelings.
-              And it is **not permanent by nature**: retention is `retain=` on the leaf, set when it
-              is filed. One written to answer a question in a conversation may be worth three days;
-              another may be worth a year. The subtype does not decide that.
+              A report can be a spec too: filed with claims and their evidence, it reads **current**
+              while the evidence passes and **drifted** when it stops.
             </Rich>
           </p>
         </div>
@@ -1123,8 +1085,9 @@ const PAGES = [
             **Why this is the one that makes orchestration possible rather than hopeful.** A failing
             proof on a met claim is the moment a spec stops describing the system — and on a settled
             spec it is the sharpest alarm the design can produce. Without proofs that moment is
-            invisible; with them it costs a press. Which is also why `resolved` on a gap requires one:
-            it is the only state in the system where **the press cannot outrun the evidence.**
+            invisible; with them it is caught the moment anyone asks. Which is also why `resolved`
+            on a gap requires one: it is the only state in the system where **the claim cannot
+            outrun the evidence.**
           </Rich>
         </div>
       </>

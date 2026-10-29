@@ -5,6 +5,9 @@ import { render, screen } from "@testing-library/react";
 import Rfc from "./Rfc";
 import Report from "./Report";
 import Gap from "./Gap";
+import { setHub } from "../../../utils/hub";
+
+afterEach(() => setHub(null));
 
 // NOT `import { BLOCKS } from "../registry"` — the registry pulls in FileEmbed → Markdown.js →
 // react-markdown, which ships ESM that CRA's jest leaves untransformed, and the suite dies before an
@@ -50,10 +53,14 @@ describe("::gap", () => {
     expect(screen.queryByText("resolved")).not.toBeInTheDocument();
   });
 
-  it("a resolved gap says so — the one answer a reader needs", () => {
+  // The resolved CHIP is gone (2026-10-28): the leaf IS the trail now, so the one answer a reader
+  // needs is the trail's lit state — drawn only when the registry knows the document.
+  it("a resolved gap says so — the trail lights resolved", async () => {
+    // resolved = declared on the leaf AND proved in the document; the row answers the proof half
+    setHub({ Agent: { documentsRegistry: async () => [{ id: "G-12", state: { hasProof: true } }] }, SystemView: {} });
     render(<Gap attrs={{ id: "G-12", resolved: "2026-10-25" }} />);
-    expect(screen.getByText("resolved")).toBeInTheDocument();
-    expect(screen.getByTitle("resolved 2026-10-25")).toBeInTheDocument();
+    const resolved = await screen.findByText("resolved");
+    expect(resolved.closest(".sv-trail__st").className).toContain("is-at");
   });
 
   it("has nothing to press", () => {

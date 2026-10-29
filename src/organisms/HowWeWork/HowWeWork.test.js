@@ -157,7 +157,7 @@ describe("HowWeWork", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Lifecycles" }));
     fireEvent.click(screen.getByRole("tab", { name: /GAP/ }));
     // scoped to the trail: the word also appears in the station's own prose
-    const trail = document.querySelector(".hww-trail");
+    const trail = document.querySelector(".sv-trail");
     fireEvent.click(within(trail).getByText("resolved"));
     expect(screen.getByRole("heading", { level: 3, name: "resolved" })).toBeInTheDocument();
     // the press answers with the state's one human sentence
@@ -165,16 +165,19 @@ describe("HowWeWork", () => {
   });
 
   it("settling the plans walks the arc upward, and an unplanned objective holds it back", () => {
-    render(<HowWeWork />);
+    // The readout strip is gone (his call, 2026-10-28 — the page teaches, it does not coach
+    // presses), so the derivation is read where it lands: the arc chip's own station.
+    const { container } = render(<HowWeWork />);
     fireEvent.click(screen.getByRole("tab", { name: "Living specs" }));
+    const station = () => container.querySelector(".hww-up__station").textContent;
     // RFC-073 and RFC-074 serve O1, RFC-075 serves O2, and O3 has no plan at all
     ["RFC-073", "RFC-074", "RFC-075"].forEach((id) => fireEvent.click(screen.getByText(id)));
-    expect(screen.getByText(/has no plan attached/)).toBeInTheDocument();
+    expect(station()).toBe("approved"); // the unplanned objective holds the arc
 
     fireEvent.click(screen.getByText("+ attach a plan"));
-    expect(screen.getByText(/1 plan is still moving/)).toBeInTheDocument();
+    expect(station()).toBe("inProgress");
 
     fireEvent.click(screen.getByText("RFC-076"));
-    expect(screen.getByText(/nobody wrote that anywhere/)).toBeInTheDocument();
+    expect(station()).toBe("settled");
   });
 });

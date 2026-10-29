@@ -13,18 +13,20 @@ import LifecycleTrail from "./lifecycle";
 //
 // IDENTITY IS NOT PRESSABLE — the number is what every attachment, hook and registry row points at,
 // edited by accident: the number is what every attachment, hook and registry row points at.
+// THE LEAF IS THE TRAIL (2026-10-28): the lifecycle drawing, floating on the document with no
+// chrome of its own, and the identity at its periphery — kind, id, and the one relation.
 const Rfc = ({ attrs = {}, line }) => (
   <div className="md-arc md-rfc">
-    <span className="md-arc__kind">RFC</span>
-    <span className="md-arc__id">{attrs.id || "rfc"}</span>
-    {attrs.title ? <span className="md-arc__title">{attrs.title}</span> : null}
-    {attrs.arc ? (
-      <span className="md-arc__relation" title={`this RFC serves ${attrs.arc}`}>
-        for {attrs.arc}
-      </span>
-    ) : null}
-    {/* RFC-075 — the leaf stops being a bare label: the kind's lifecycle, current state lit,
-        read from the registry. Identity stays unpressable; this is a read. */}
+    <span className="md-arc__who">
+      <span className="md-arc__kind">RFC</span>
+      <span className="md-arc__id">{attrs.id || "rfc"}</span>
+      {attrs.title ? <span className="md-arc__title">{attrs.title}</span> : null}
+      {attrs.arc ? (
+        <span className="md-arc__relation" title={`this RFC serves ${attrs.arc}`}>
+          for {attrs.arc}
+        </span>
+      ) : null}
+    </span>
     <LifecycleTrail kind="rfc" id={attrs.id} line={line} attrs={attrs} />
   </div>
 );

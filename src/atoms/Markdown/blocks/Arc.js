@@ -18,23 +18,23 @@ const Arc = ({ attrs = {}, line }) => {
   // objectives it is counting sit below it rather than inside it.
   const { source = "" } = useDocMembers() || {};
   const { total, done } = arcProgress(String(source || ""));
-  const pct = total ? Math.round((done / total) * 100) : 0;
+  // THE LEAF IS THE TRAIL (2026-10-28) — identity at the periphery, the lifecycle as the body.
+  // The fat progress bar is gone: the trail's inProgress station wears the registry's own
+  // complete/total, and the small count here is this document's parse — both still drawn,
+  // because they can disagree, and a disagreement is a stale row saying so.
   return (
     <div className="md-arc">
-      <span className="md-arc__id">{attrs.id || "arc"}</span>
-      {attrs.title ? <span className="md-arc__title">{attrs.title}</span> : null}
-      {attrs.owner ? <span className="md-arc__owner">{attrs.owner}</span> : null}
-      {/* Zero of zero is a true and useful thing to say — an arc with no objectives yet is a
-          document somebody has started, not a broken one. */}
-      <span className="md-arc__count">
-        {done}/{total} done
+      <span className="md-arc__who">
+        <span className="md-arc__kind">arc</span>
+        <span className="md-arc__id">{attrs.id || "arc"}</span>
+        {attrs.title ? <span className="md-arc__title">{attrs.title}</span> : null}
+        {attrs.owner ? <span className="md-arc__owner">{attrs.owner}</span> : null}
+        {/* Zero of zero is a true and useful thing to say — an arc with no objectives yet is a
+            document somebody has started, not a broken one. */}
+        <span className="md-arc__count">
+          {done}/{total} done
+        </span>
       </span>
-      <span className="md-arc__bar" aria-hidden="true">
-        <i style={{ width: `${pct}%` }} />
-      </span>
-      {/* RFC-075 — the lifecycle, from the registry: open → done → retired. The count above is this
-          document's own parse; the trail is the system's. Both drawn, because they can disagree —
-          and a disagreement is a stale row saying so. */}
       <LifecycleTrail kind="arc" id={attrs.id} line={line} attrs={attrs} />
     </div>
   );

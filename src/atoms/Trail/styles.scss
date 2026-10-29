@@ -1,0 +1,118 @@
+// THE TRAIL'S ONE LOOK — extracted from the how-we-work page, where it was designed. Any surface
+// that draws a lifecycle draws this: the page teaches with it, the registration leaf IS it.
+.sv-trail {
+  --accent: var(--sv-blue);
+  // the kind accents — one hue per registered kind, the same hue everywhere a kind is drawn
+  --trail-rfc: #5a77e5;
+  --trail-arc: #9a4fe0;
+  --trail-gap: #c07a16;
+  --trail-report: #0d8065;
+
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 0;
+  list-style: none;
+  margin: 0;
+  padding: 6px 0 10px;
+
+  &--rfc { --accent: var(--trail-rfc); }
+  &--arc { --accent: var(--trail-arc); }
+  &--gap { --accent: var(--trail-gap); }
+  &--report { --accent: var(--trail-report); }
+
+  &__col {
+    position: relative;
+    flex: 1 1 0;
+    min-width: 92px;
+
+    // the line to the next column
+    &:not(:last-child)::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      right: -50%;
+      top: 14px;
+      height: 1px;
+      background: var(--sv-border);
+    }
+  }
+  // THE FORK IS DRAWN AS A FORK. A fork station is a second ENDING, not a step — it shares a
+  // column with the state it diverges from: the line runs through the one on it, and the fork's
+  // stroke leaves the PREVIOUS node and dives to this ring. Nothing leaves it — a dead end.
+  &__col--split {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+  }
+  &__st {
+    position: relative;
+  }
+  &__st--fork {
+    // The stroke is a box whose corner-to-corner diagonal is the line (the gradient's 50% hard
+    // stop passes through the corners, per spec), so it holds at any column width.
+    &::before {
+      content: "";
+      position: absolute;
+      left: -50%;
+      width: 100%;
+      top: -54px;
+      height: 68px;
+      pointer-events: none;
+      background: linear-gradient(
+        to top right,
+        transparent calc(50% - 0.75px),
+        color-mix(in srgb, var(--accent) 55%, transparent) calc(50% - 0.75px),
+        color-mix(in srgb, var(--accent) 55%, transparent) calc(50% + 0.75px),
+        transparent calc(50% + 0.75px)
+      );
+    }
+  }
+  &__btn {
+    position: relative;
+    z-index: 1;
+    font: inherit;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    width: 100%;
+    border: 0;
+    background: transparent;
+    color: var(--sv-text-muted);
+    cursor: pointer;
+    padding: 0;
+
+    &:disabled { cursor: default; }
+  }
+  span.sv-trail__btn { cursor: default; }
+  &__ring {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-size: 12px;
+    border: 1px solid var(--sv-border);
+    background: var(--sv-surface);
+    color: var(--sv-text-faint);
+    transition: all 0.22s ease;
+  }
+  &__name { font-size: 12px; font-family: monospace; }
+
+  // "this will not continue" wears the vocabulary's dead colour, same as an unresolvable reference
+  .sv-trail__st--dead.is-at { --accent: #a2503f; }
+  .sv-trail__st.is-at .sv-trail__ring {
+    border-color: var(--accent);
+    color: var(--accent);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent);
+  }
+  .sv-trail__st.is-at .sv-trail__name { color: var(--sv-text-strong); font-weight: 600; }
+}
+
+:root.sv-dark .sv-trail {
+  --trail-rfc: #8ba4ef;
+  --trail-arc: #c68cf5;
+  --trail-gap: #e0a34f;
+  --trail-report: #3fb795;
+}
