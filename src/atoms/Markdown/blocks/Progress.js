@@ -1,36 +1,81 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useDocMembers } from "../context";
-import { progressOf, timelineOf } from "../objectives";
+import { getAgent } from "../../../utils/hub";
+import { progressOf, parseArc } from "../objectives";
+import { stateOf } from "./lifecycleState";
+import { openAddress } from "../openRef";
+import SpecMap from "../../SpecMap/SpecMap";
 
-// RFC-072 §5 — `::progress`. WHERE THE ARC IS: how many are done, by whom, and what is waiting on
-// what. It recounts from the `::objective` blocks in the same document every render — there is no
-// stored total anywhere, so it cannot disagree with the objectives above it.
+// RFC-072 §5 — `::progress`. WHERE THE ARC IS: how many are done, by whom — and, under the bar,
+// THE WHOLE SPEC AS ONE PICTURE (his call, 2026-10-28): the arc fanning into its objectives, each
+// objective fanning into the RFCs attached to it by address (`arc=ARC-004-O2` on the plan's own
+// leaf). The timeline rows this used to draw are gone — the map says the same thing spatially.
 //
-// THIS USED TO BE TWO BLOCKS. `::progress` counted and `::timeline` ordered, and the first time
-// they rendered together he read them as one thing — *"I see progress time, I guess that's the
-// timeline."* He was right: they are one thing. Same source, same recount, and an arc carrying one
-// without the other is half-instrumented in a way nothing would ever flag — progress with no order
-// cannot say what is blocked, which is the question the numbers make you ask.
+// The objectives and their order are this document's own parse (recounted every render — no
+// stored total anywhere); the attached RFCs and their claims are the REGISTRY's — the shell's
+// parse of those other documents.
 //
 // NO PERCENTAGE OF A HALF-FINISHED OBJECTIVE. An objective that is partly done is two objectives
 // nobody has split yet, so `doing` is its own count rather than a half-filled bar — the honest
 // shape of "we have started it" is not 50%.
+
+/**
+ * Every rfc row serving this arc, keyed by the objective suffix of its address — and RE-READ on an
+ * interval while the block is mounted. The map claims to show state; a mount-only read showed a
+ * photograph (measured 2026-10-28: a claim landing while the arc was open moved nothing until a
+ * tab flip remounted the block).
+ */
+const REREAD_MS = 10000;
+function useAttachedPlans(arcId, projectCode) {
+  const [plans, setPlans] = useState({ byObj: new Map(), arcRow: null });
+  useEffect(() => {
+    let dead = false;
+    const agent = getAgent();
+    if (!agent || !agent.documentsRegistry || !arcId) return undefined;
+    const read = () =>
+      Promise.all([
+        Promise.resolve(agent.documentsRegistry({ projectCode: projectCode || undefined, kind: "rfc" })).catch(() => []),
+        Promise.resolve(agent.documentsRegistry({ projectCode: projectCode || undefined, kind: "arc" })).catch(() => []),
+      ]).then(([rfcs, arcs]) => {
+        if (dead) return;
+        const byObj = new Map();
+        (rfcs || []).forEach((r) => {
+          const addr = String(r.arc || "");
+          if (!addr.startsWith(`${arcId}-`)) return;
+          const obj = addr.slice(arcId.length + 1);
+          byObj.set(obj, [...(byObj.get(obj) || []), r]);
+        });
+        const arcRow = (arcs || []).find((r) => r.id === arcId) || null;
+        setPlans({ byObj, arcRow });
+      });
+    read();
+    const t = setInterval(read, REREAD_MS);
+    return () => {
+      dead = true;
+      clearInterval(t);
+    };
+  }, [arcId, projectCode]);
+  return plans;
+}
+
 const Progress = ({ attrs = {} }) => {
-  const { source = "" } = useDocMembers() || {};
+  const { source = "", projectCode = "" } = useDocMembers() || {};
   const src = String(source || "");
   const p = progressOf(src);
+  const arc = parseArc(src);
+  const { byObj, arcRow } = useAttachedPlans(arc && arc.id, projectCode);
+  const rootRef = useRef(null);
   const pct = p.total ? Math.round((p.done / p.total) * 100) : 0;
-  // The rows are the normal case. `rows=off` leaves the summary alone, for the top of a long arc
-  // or a report that wants to say how far along something is without pulling in every objective.
-  const wantRows = String(attrs.rows || "") !== "off";
-  const rows = wantRows ? timelineOf(src) : [];
+  // The map is the normal case. `rows=off` leaves the summary alone, for the top of a long arc
+  // or a report that wants to say how far along something is without pulling in the picture.
+  const wantMap = String(attrs.rows || "") !== "off";
 
   // A document with no objectives says so. A bar at 0/0 reading 100% complete is the kind of
   // cheerful lie this system refuses everywhere else.
   if (!p.total) return <div className="md-progress md-progress--empty">no objectives in this document yet</div>;
 
   return (
-    <div className="md-progress">
+    <div className="md-progress" ref={rootRef}>
       <div className="md-progress__label">Progress</div>
       <div className="md-progress__head">
         <span className="md-progress__count">
@@ -56,52 +101,59 @@ const Progress = ({ attrs = {} }) => {
         </ul>
       ) : null}
 
-      {/* THE ORDER, under the numbers. It comes from `needs` and nothing else — no phases and no
-          swimlanes, because order is a property of an objective rather than a box drawn around a
-          group of them. And it FLAGS what it cannot resolve rather than dropping it: an objective
-          missing from this list would read as "no such work", the worst answer available. */}
-      {rows.length ? (
-        <>
-          <div className="md-progress__label md-progress__label--order">Objectives</div>
-          <ol className="md-timeline">
-            {rows.map((o, i) => {
-              const unseen = (o.blockedBy || []).filter((b) => b.status === "unresolved" || b.status === "elsewhere");
-              return (
-                <li
-                  key={o.id}
-                  className={`md-timeline__row md-timeline__row--${o.state}${o.cycle ? " md-timeline__row--cycle" : ""}`}
-                >
-                  <span className="md-timeline__n">{i + 1}</span>
-                  <span className="md-timeline__id">{o.id}</span>
-                  <span className="md-timeline__state">{o.state}</span>
-                  {o.title ? <span className="md-timeline__title">{o.title}</span> : null}
-                  {o.owner ? <span className="md-timeline__owner">{o.owner}</span> : null}
-                  {o.cycle ? (
-                    <span
-                      className="md-timeline__flag"
-                      title="These objectives depend on each other — the order cannot be resolved until one of them stops needing the other."
-                    >
-                      ⚠ circular dependency
-                    </span>
-                  ) : null}
-                  {unseen.map((b) => (
-                    <span
-                      key={b.address || b.why}
-                      className={`md-timeline__flag md-timeline__flag--${b.status}`}
-                      title={
-                        b.status === "elsewhere"
-                          ? `${b.address} is in another arc or repo — this document cannot see whether it is done`
-                          : `${b.address || "this need"} — ${b.why || "does not resolve"}`
-                      }
-                    >
-                      {b.status === "elsewhere" ? "↗" : "⚠"} {b.address || "unreadable need"}
-                    </span>
-                  ))}
-                </li>
-              );
-            })}
-          </ol>
-        </>
+      {wantMap && arc ? (
+        <SpecMap
+          className="md-progress__map"
+          arc={{
+            id: arc.id,
+            station: arcRow ? stateOf("arc", arcRow) : undefined,
+          }}
+          objectives={p.objectives.map((o) => {
+            const rows = byObj.get(o.id) || [];
+            const claims = rows.reduce(
+              (acc, r) => {
+                const c = (r.state || {}).claims || {};
+                return { met: acc.met + (c.met || 0), total: acc.total + (c.total || 0) };
+              },
+              { met: 0, total: 0 }
+            );
+            return {
+              id: o.id,
+              label: o.title || "",
+              // the objective's own written state, and the reason when that state is blocked
+              state: o.state,
+              because: o.because,
+              // the count is the CLAIMS — summed off the RFCs this objective points at
+              count: claims.total ? `${claims.met}/${claims.total}` : "—",
+              plans: rows.map((r) => {
+                const c = (r.state || {}).claims || {};
+                return {
+                  id: r.id,
+                  station: stateOf("rfc", r),
+                  met: c.met || 0,
+                  total: c.total || 0,
+                  project: r.project,
+                  path: r.path,
+                  title: `${r.id} — settles in its own document`,
+                };
+              }),
+            };
+          })}
+          // "open the document" — the one opener every reference chip rides (openRef.js)
+          onOpen={(plan) =>
+            plan.path
+              ? openAddress({ projectCode: plan.project || projectCode, path: plan.path, language: "markdown" })
+              : undefined
+          }
+          // "jump to its block" — the objectives live in THIS document; the map is its index
+          onJump={(o) => {
+            const root = (rootRef.current && rootRef.current.closest(".markdown")) || document;
+            const hit = [...root.querySelectorAll(".md-objective__id")].find(
+              (el) => el.textContent.trim() === o.id
+            );
+            if (hit) hit.closest(".md-objective").scrollIntoView({ behavior: "smooth", block: "center" });
+          }}
+        />
       ) : null}
     </div>
   );

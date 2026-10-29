@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { getAgent } from "../../../utils/hub";
+import Trail from "../../Trail/Trail";
 import { useDocMembers, useMarkdownWrite } from "../context";
 import {
   TRAILS,
@@ -205,59 +206,45 @@ export const LifecycleTrail = ({ kind, id, line, attrs = {} }) => {
   // anything that opens — a refusal, the reason menu, a step list — goes in `__panel`, which the
   // leaf's `flex-wrap` drops onto its own full-width line underneath. Rendered inside the bar they
   // competed with the stations for width and shoved the document's identity sideways.
+  // THE LEAF IS THE TRAIL (his call, 2026-10-28: the how-we-work drawing becomes the
+  // registration block). One shared component — src/atoms/Trail — with the document's real state
+  // lit; everything that needs a surface is SUMMONED beneath it and gone when it is done.
+  const o = (row.state && row.state.objectives) || null;
+  const stations = steps.map((s, i) => ({
+    id: s,
+    label:
+      s === "inProgress"
+        ? o && i === reached
+          ? `in progress ${o.complete || 0}/${o.total}`
+          : "in progress"
+        : s,
+    fork: alt.includes(s),
+    dead: s === "rejected" && i === reached,
+    glyph: canPress && !derived[s] ? "⌾" : "◦",
+    title:
+      i === reached
+        ? // THE DOCUMENT ITSELF HAS TO SAY WHEN IT CANNOT PLACE THE REASON (c6).
+          s === "retired" && retiredAs
+          ? standing
+            ? `this document is retired — ${standing.label}: ${standing.why}`
+            : `this document is retired, but “${retiredAs}” is not a reason anything can read — it is neither an ending nor a pause`
+          : `this document is ${s}`
+        : derived[s]
+        ? `${s} comes from ${derived[s]} — this cannot set it`
+        : s === "retired"
+        ? "retire it — asks you why first, and the reason is what it writes"
+        : `mark it ${s} — writes the declaration into this document`,
+  }));
+
   return (
     <>
-    <span
-      className={`md-arc__life${canPress ? " md-arc__life--live" : ""}`}
-      title={canPress ? "" : "the registry's derived state — parse, never testimony"}
-    >
-      {steps.map((s, i) => {
-        // THE IN-FLIGHT STATION WEARS THE FOLD'S OWN NUMBERS — complete over total, because "how
-        // many objectives have their plans settled" is the question inProgress exists to answer.
-        const o = (row.state && row.state.objectives) || null;
-        const label =
-          s === "inProgress"
-            ? o && i === reached
-              ? `in progress ${o.complete || 0}/${o.total}`
-              : "in progress"
-            : s;
-        const cls = `md-arc__station${i === reached ? " md-arc__station--now" : ""}${
-          i < reached ? " md-arc__station--past" : ""
-        }${s === "rejected" && i === reached ? " md-arc__station--dead" : ""}${
-          // An ALTERNATIVE, not a step after the one before it — drawn with "/" instead of "›", so
-          // a gap's two endings do not read as a sequence you pass through.
-          alt.includes(s) ? " md-arc__station--alt" : ""
-        }`;
-        if (!canPress) return <span key={s} className={cls}>{label}</span>;
-        return (
-          <button
-            key={s}
-            type="button"
-            className={`${cls} md-arc__station--press`}
-            onClick={() => press(s)}
-            title={
-              i === reached
-                ? // THE DOCUMENT ITSELF HAS TO SAY WHEN IT CANNOT PLACE THE REASON (c6). This fell
-                  // back to a bare "this document is retired" for an unlisted word, so the only
-                  // surface admitting the problem was the drawer — and c6 says *the document*
-                  // says so. Caught by a blind review reading the claim against the code.
-                  s === "retired" && retiredAs
-                  ? standing
-                    ? `this document is retired — ${standing.label}: ${standing.why}`
-                    : `this document is retired, but “${retiredAs}” is not a reason anything can read — it is neither an ending nor a pause`
-                  : `this document is ${s}`
-                : derived[s]
-                ? `${s} comes from ${derived[s]} — this cannot set it`
-                : s === "retired"
-                ? "retire it — asks you why first, and the reason is what it writes"
-                : `mark it ${s} — writes the declaration into this document`
-            }
-          >
-            {label}
-          </button>
-        );
-      })}
-    </span>
+    <Trail
+      kind={kind}
+      stations={stations}
+      at={current}
+      onPress={canPress ? press : undefined}
+      className="sv-trail--leaf"
+    />
     {asking || declining || refused || unreadable ? (
     <span className="md-arc__panel">
       {unreadable ? (

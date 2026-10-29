@@ -10,17 +10,15 @@ import LifecycleTrail from "./lifecycle";
 //
 // `resolved=` is that completion — what DONE means for this kind (§1.4) — and it is the one state
 // this leaf shows, because a reader opening a gap needs exactly one answer: is this still open.
+// THE LEAF IS THE TRAIL (2026-10-28) — identity at the periphery, the lifecycle as the body.
+// The resolved chip is gone: the trail's lit state IS that answer now.
 const Gap = ({ attrs = {}, line }) => (
   <div className="md-arc md-gap">
-    <span className="md-arc__kind">gap</span>
-    <span className="md-arc__id">{attrs.id || "gap"}</span>
-    {attrs.title ? <span className="md-arc__title">{attrs.title}</span> : null}
-    {attrs.resolved ? (
-      <span className="md-arc__relation md-gap__resolved" title={`resolved ${attrs.resolved}`}>
-        resolved
-      </span>
-    ) : null}
-    {/* RFC-075 — the lifecycle, from the registry: open → resolved → retired. */}
+    <span className="md-arc__who">
+      <span className="md-arc__kind">gap</span>
+      <span className="md-arc__id">{attrs.id || "gap"}</span>
+      {attrs.title ? <span className="md-arc__title">{attrs.title}</span> : null}
+    </span>
     <LifecycleTrail kind="gap" id={attrs.id} line={line} attrs={attrs} />
   </div>
 );

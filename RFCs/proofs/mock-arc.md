@@ -61,6 +61,27 @@ Attached by its ADDRESS — `arc=MOCK-ARC-O1` on the plan's own leaf, never `arc
 Unplanned until the walk's inProgress step — which is what holds the arc at approved before it.
 :::
 
+:::objective{id=O3 owner=systemview-test state=done title="Two plans serve one objective"}
+MOCK — exists so the map shows two chips under one card. `mock-rfc-2` and `mock-rfc-3` both carry
+`arc=MOCK-ARC-O3` on their leaves.
+:::
+
+:::objective{id=O4 owner=systemview-test state=doing title="An objective mid-flight"}
+MOCK — `doing`, with `mock-rfc-4` attached and its claims not all met.
+:::
+
+:::objective{id=O5 owner=systemview-test state=open title="Planned but untouched"}
+MOCK — a plan attached (`mock-rfc-5`) and nothing started.
+:::
+
+:::objective{id=O6 owner=systemview-test state=blocked blocked="MOCK — waiting on a decision only the walk can fake" title="A blocked objective"}
+MOCK — blocked is written, never derived, and it is unplanned: dashed on the map.
+:::
+
+:::objective{id=O7 owner=systemview-test state=open title="The one that makes the second row"}
+MOCK — unplanned, here so the map wraps on any pane the others would have fit.
+:::
+
 ::progress
 
 ## When you are done

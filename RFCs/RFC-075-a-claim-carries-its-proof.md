@@ -1,6 +1,6 @@
 # RFC-075 — A claim carries its proof
 
-::rfc{id=RFC-075 settled=2026-10-28}
+::rfc{id=RFC-075}
 
 **Status: approved** · 2026-10-26 · extends RFC-073 (claims as blocks, the mark, the fire) · the
 conversation this records is his: *"the whole thing is to make these documents specs"*

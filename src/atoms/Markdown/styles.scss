@@ -3444,20 +3444,20 @@
 // RFC-072 — THE ARC AND ITS OBJECTIVES. Both ride the theme tokens, so dark mode follows the rest
 // of the app and nothing here is tuned for one surface.
 .md-arc {
-  display: flex;
-  align-items: center;
-  // WRAPS, SO ANYTHING THAT OPENS GETS ITS OWN ROW. The leaf is one bar and the bar must not move:
-  // a refusal, a reason menu or a facilitation step list is a `__panel` with `flex-basis: 100%`,
-  // which drops it to a full-width line underneath instead of competing with the stations for the
-  // bar's width and shoving the identity sideways.
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 8px 0;
-  padding: 6px 10px;
-  border: 1px solid var(--sv-border);
-  border-radius: 8px;
-  background: var(--sv-inset);
+  // THE LEAF IS THE TRAIL (2026-10-28). It FLOATS on the document — no border, no background, no
+  // bar: the lifecycle drawing is the body, the identity sits at its periphery, and anything that
+  // needs a surface (a refusal, the reason menu) is summoned beneath and gone when it is done.
+  display: block;
+  margin: 10px 0 16px;
   font-size: 12px;
+
+  // the periphery: kind + identity + the one relation, one quiet line above the trail
+  &__who {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
 
   // RFC-073 — `::rfc` and `::report` share this chrome (they reuse the class) and add two words:
   // what KIND of document this is, and, for an RFC, which arc it serves. One look for "this document
@@ -3483,72 +3483,14 @@
   &__title { color: var(--sv-text); }
   &__owner,
   &__count { color: var(--sv-text-faint); font-size: 11px; }
-  &__count { margin-left: auto; }
-
-  // RFC-075 — the LIFECYCLE TRAIL: every station the kind passes through, the current one lit,
-  // read from the registry. The leaf stops being a bare label without gaining a single press.
-  &__life {
-    display: inline-flex;
-    align-items: center;
-    gap: 2px;
-    margin-left: auto;
-  }
-  &__station {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    padding: 1px 6px;
-    border-radius: 999px;
-    color: var(--sv-text-faint);
-    opacity: 0.55;
-
-    // Stations read left to right; the chevron is the arrow.
-    & + &::before { content: "›"; margin-right: 3px; opacity: 0.5; }
-
-    &--past { opacity: 0.8; }
-    &--now {
-      opacity: 1;
-      color: var(--sv-blue, #4a7bd0);
-      border: 1px solid var(--sv-blue, #4a7bd0);
-      font-weight: 700;
-    }
-    // A rejected RFC's ending wears the vocabulary's dead colour — the same one an unresolvable
-    // reference wears, because "this will not continue" is one idea.
-    &--dead.md-arc__station--now { color: #a2503f; border-color: #a2503f; }
-
-    // RFC-076 §4.5 — A FORK IS NOT A SEQUENCE. A gap's two endings are alternatives, so the mark
-    // between them is "/" and not the chevron: `open › resolved / rejected › retired` reads as one
-    // choice, while four chevrons would claim a document passes through both.
-    &--alt::before { content: "/" !important; }
-
-    // PRESSABLE, where the document can be written. A station is a button now (his: *"just give me
-    // the ability to click and change it"*) and it has to stay a station to look at — the chrome of
-    // a real button in a row of five would read as a toolbar, not a trail.
-    &--press {
-      appearance: none;
-      background: none;
-      border: 1px solid transparent;
-      font: inherit;
-      font-size: 10px;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      cursor: pointer;
-      &:hover { opacity: 1; color: var(--sv-text, #ddd); border-color: var(--sv-line, #3a3a3a); }
-      &:focus-visible { outline: 1px solid var(--sv-blue, #4a7bd0); outline-offset: 1px; }
-    }
-    &--press.md-arc__station--now {
-      border-color: var(--sv-blue, #4a7bd0);
-      &:hover { color: var(--sv-blue, #4a7bd0); border-color: var(--sv-blue, #4a7bd0); }
-    }
-  }
 
   // EVERYTHING THAT OPENS LIVES HERE, in a row of its own under the bar. One container for the
   // refusal, the reason menu and the facilitation steps, because they are all the same thing from
   // the bar's point of view: a second line that appeared, which must never cost the first one a
   // pixel. `flex-basis: 100%` is what makes the parent's wrap drop it onto its own line.
   &__panel {
-    flex: 0 0 100%;
     display: flex;
+    width: 100%;
     flex-wrap: wrap;
     align-items: center;
     gap: 6px;
@@ -3620,24 +3562,6 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-  }
-  // The arc leaf already pushes its own count to the right; the trail joins it rather than
-  // fighting it for the margin.
-  &__count + .md-arc__bar + .md-arc__life { margin-left: 8px; }
-
-  // Progress is objectives complete and nothing else — there are no milestones to draw.
-  &__bar {
-    flex: 0 0 90px;
-    height: 4px;
-    border-radius: 999px;
-    background: var(--sv-border-soft);
-    overflow: hidden;
-
-    & i {
-      display: block;
-      height: 100%;
-      background: var(--sv-blue);
-    }
   }
 }
 
@@ -4173,4 +4097,9 @@
   }
   &__fill { display: block; height: 100%; background: #3f9e6a; }
   &__fill--unmet { background: #e05757; }
+}
+
+// the progress block wears the how-we-work page's dark paper, so the map reads as it does there
+:root.sv-dark .md-progress {
+  background: var(--sv-bg);
 }

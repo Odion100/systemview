@@ -47,29 +47,29 @@ describe("the trail — read, never invented", () => {
     withRegistry([{ id: "RFC-073", state: { verdict: "approved", built: true } }]);
     mount("rfc", "RFC-073");
     const built = await screen.findByText("built");
-    expect(built.className).toContain("md-arc__station--now");
-    expect(screen.getByText("draft").className).toContain("md-arc__station--past");
-    expect(screen.getByText("retired").className).not.toContain("--now");
+    expect(built.closest(".sv-trail__st").className).toContain("is-at");
+    expect(screen.getByText("draft").closest(".sv-trail__st").className).not.toContain("is-at");
+    expect(screen.getByText("retired").closest(".sv-trail__st").className).not.toContain("is-at");
   });
 
   it("no registry row → no trail at all; the leaf stays the label it was", async () => {
     withRegistry([{ id: "RFC-999", state: {} }]);
     const { container } = mount("rfc", "RFC-073");
     await new Promise((r) => setTimeout(r, 0));
-    expect(container.querySelector(".md-arc__life")).toBeNull();
+    expect(container.querySelector(".sv-trail")).toBeNull();
   });
 
   it("no hub at all → nothing, no error", async () => {
     const { container } = mount("rfc", "RFC-073");
     await new Promise((r) => setTimeout(r, 0));
-    expect(container.querySelector(".md-arc__life")).toBeNull();
+    expect(container.querySelector(".sv-trail")).toBeNull();
   });
 
   it("a rejected RFC shows its real ending — draft → rejected, nothing after", async () => {
     withRegistry([{ id: "RFC-050", state: { verdict: "rejected" } }]);
     mount("rfc", "RFC-050");
     const dead = await screen.findByText("rejected");
-    expect(dead.className).toContain("md-arc__station--dead");
+    expect(dead.closest(".sv-trail__st").className).toContain("sv-trail__st--dead");
     expect(screen.queryByText("approved")).toBeNull();
     expect(screen.queryByText("built")).toBeNull();
   });
@@ -172,7 +172,7 @@ describe("the leaf beats a stale registry row", () => {
     withRegistry([{ id: "RFC-6", kind: "rfc", state: { verdict: "approved", built: true, settled: true } }]);
     mountWritable("rfc", "RFC-6", { setAttr: jest.fn() }, { id: "RFC-6" });
     const built = await screen.findByRole("button", { name: "built" });
-    expect(built.className).toMatch(/md-arc__station--now/);
+    expect(built.closest(".sv-trail__st").className).toMatch(/is-at/);
     expect((await screen.findByRole("button", { name: "settled" })).className).not.toMatch(/--now/);
   });
 
