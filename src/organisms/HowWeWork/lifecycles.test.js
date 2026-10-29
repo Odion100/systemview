@@ -1,5 +1,5 @@
 import { TRAILS } from "../../atoms/Markdown/blocks/lifecycleState";
-import { CHAIN, DOORS, LAYERS, LEAVES, LIFECYCLES, REASONS, STAGES, SUBTYPES } from "./howWeWork.data";
+import { CHAIN, LAYERS, LEAVES, LIFECYCLES, REASONS, STAGES, SUBTYPES } from "./howWeWork.data";
 
 // THE PAGE'S CONTENT IS DATA, so the things that would make it lie are checkable. Two kinds of
 // check here: the shape the renderer depends on, and the DRIFT against the code's own definition.
@@ -66,14 +66,10 @@ describe("the page's content has the shape the page renders", () => {
     );
   });
 
-  it("the flow, the leaves, the chain and the doors are each complete enough to render", () => {
+  it("the flow, the leaves and the chain are each complete enough to render", () => {
     STAGES.forEach((s) => expect(s.leaf && s.artifact && s.body && s.note).toBeTruthy());
     expect(LEAVES.map((l) => l.kind)).toEqual(["arc", "rfc", "gap", "report"]);
     expect(CHAIN.map((c) => c.id)).toEqual(["event", "hook", "skill", "job", "account"]);
-    DOORS.forEach((d) => {
-      expect(d.say.length).toBeGreaterThan(5);
-      expect(["say", "command"]).toContain(d.kind);
-    });
   });
 });
 

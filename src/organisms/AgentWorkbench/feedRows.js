@@ -101,6 +101,23 @@ export function splitLaneEvents(events) {
   return { main, lanes };
 }
 
+// ONE LANE, EVERY ROUND. A lane worked across revision rounds is several subagents — several
+// parent ids — all sourced to the same branch, and a lookup that returns the FIRST match shows
+// the first agent's finished, silent stream while the live one works unseen (his report,
+// 2026-10-29: "I have his lane chat open and I don't see him cooking" — the third agent on that
+// lane). The lane's log is ALL its rounds in arrival order: the tail is the live round, so the
+// cooking line folds to the live truth, and the brief shown is the latest round's.
+export function laneLog(lanes, source) {
+  let events = null;
+  let brief = "";
+  for (const [, lane] of lanes || []) {
+    if (lane.source !== source) continue;
+    events = (events || []).concat(lane.events);
+    if (lane.brief) brief = lane.brief;
+  }
+  return { events, brief };
+}
+
 export function parseMcpResult(mcp, text) {
   const t = String(text || "");
   if (!mcp || !t.trim()) return null;

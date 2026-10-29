@@ -3,14 +3,10 @@ import "./styles.scss";
 import { setHelpTopic } from "../../atoms/Help/helpStore";
 import Trail from "../../atoms/Trail/Trail";
 import { stateOf, objectiveComplete } from "../../atoms/Markdown/blocks/lifecycleState";
-import commandRunner from "../../utils/hostCommand";
-import { hasHostDictation, startHostRecording } from "../../utils/hostDictation";
-import SEND_ICON from "../../assets/send.png";
 import { richParts } from "./rich";
 import {
   AGENTS,
   CHAIN,
-  DOORS,
   LAYERS,
   LEAVES,
   LIFECYCLES,
@@ -190,163 +186,33 @@ const PageHeader = ({ page, go, on, from, out, dragPx = 0, phase = "idle" }) => 
         <Rich>{page.honest}</Rich>
       </p>
     ) : null}
-    {page.links && page.links.length ? (
-      <nav className="hww-hero__links" aria-label="related">
-        {page.links.map((l) => (
-          <button
-            key={l.label}
-            type="button"
-            className="hww-hero__link"
-            onClick={() => (l.help ? setHelpTopic(l.help) : go(l.to))}
-          >
-            {l.label} <span aria-hidden="true">→</span>
-          </button>
-        ))}
-      </nav>
-    ) : null}
+    {page.tour ? <TourCall prompt={page.tour} /> : null}
   </header>
 );
 
 // ───────────────────────────────────────────────────────────────────────────────────────────────
-// THE STAGE DOOR — every flow card is a FACILITATOR (his design, 2026-10-28): the CHAT'S OWN
-// composer in miniature, because "if it's going to be an input it looks and behaves like the
-// input" — a textarea that wraps and grows, the same recorder the chat uses (the host utility,
-// already integrated — nothing lifted), and the same send icon. The stem is prefilled and yours to
-// finish; send dispatches `sv:say`, and the first chat panel runs it through its own send().
-const doorGrow = (el) => {
-  el.style.height = "auto";
-  el.style.height = `${Math.min(el.scrollHeight, 110)}px`;
-};
-// THE STEM IS OURS, THE WORDS ARE YOURS (his correction, 2026-10-28: "how is it you can delete
-// the beginning sentence that was there to help?"). The stem renders as a fixed prompt line inside
-// the box — not text in the field, so it cannot be deleted, selected or half-edited — and the
-// field itself starts EMPTY with a placeholder that actually helps. Send composes the two.
-const StageDoor = ({ stage, onTouch }) => {
-  const [text, setText] = useState("");
+// ONE CALL TO ACTION PER PAGE (his call, 2026-10-29: "you just need one call to action per page",
+// and "it shouldn't be an input anymore"). The rail's six station doors used to try to START the
+// work; a newcomer's first press should get shown around instead. Each chapter carries one button
+// that sends a prepared ask invoking the guided voice tour, scoped to the page it sits on — the
+// real work starts in the chat, in their own words, once they can see what they are looking at.
+const TourCall = ({ prompt }) => {
   const [sent, setSent] = useState(false);
-  const [listening, setListening] = useState(false);
-  const boxRef = useRef(null);
-  const micRef = useRef(null);
   const t = useRef(null);
-  useEffect(() => {
-    setText("");
-    setSent(false);
-    setTimeout(() => boxRef.current && doorGrow(boxRef.current), 0);
-  }, [stage.id, stage.say]);
-  useEffect(
-    () => () => {
-      clearTimeout(t.current);
-      if (micRef.current) micRef.current.cancel();
-    },
-    []
-  );
-
-  // TEACH IS A BUTTON (his design, 2026-10-28: "teach me was supposed to be a button… it gives
-  // them the RIGHT prompt, not a prompt that I necessarily saw"). One press sends a PREPARED ask
-  // that carries the context the agent needs — where you are standing, what to ground the lesson
-  // in, what to read — because a bare "teach me X" is a prompt the agent can only guess at. The
-  // label is yours to read; the brief rides underneath it.
-  if (stage.teach) {
-    const teach = () => {
-      window.dispatchEvent(new CustomEvent("sv:say", { detail: { text: stage.teach.prompt } }));
-      setSent(true);
-      clearTimeout(t.current);
-      t.current = setTimeout(() => setSent(false), 2400);
-    };
-    return (
-      <div className="hww-flow__say">
-        <button
-          type="button"
-          className="hww-btn hww-btn--go"
-          onClick={teach}
-          title="sends the agent a prepared ask, with the context it needs"
-        >
-          {sent ? "sent ✓ — watch the chat" : stage.teach.label}
-        </button>
-      </div>
-    );
-  }
-  if (!stage.say) return null;
-
-  const stopMic = () => {
-    const rec = micRef.current;
-    micRef.current = null;
-    setListening(false);
-    if (rec) rec.cancel();
-  };
-  const toggleMic = async () => {
-    if (listening) return stopMic();
-    onTouch && onTouch();
-    try {
-      micRef.current = await startHostRecording({
-        onSegment: (said) =>
-          setText((cur) => {
-            const next = cur && !/\s$/.test(cur) ? `${cur} ${said}` : `${cur}${said}`;
-            setTimeout(() => boxRef.current && doorGrow(boxRef.current), 0);
-            return next;
-          }),
-      });
-      setListening(true);
-    } catch {
-      setListening(false);
-    }
-  };
-  // A stage that NEEDS your words refuses to send the bare stem ("Write the RFC for" alone is
-  // noise); a teach stem is a whole sentence and sends as it stands.
-  const ready = stage.need ? !!text.trim() : true;
-  const fire = () => {
-    if (!ready) return;
-    if (listening) stopMic(); // you said what you had to say — same rule as the chat's send
-    const msg = [stage.say, text.trim()].filter(Boolean).join(" ");
-    window.dispatchEvent(new CustomEvent("sv:say", { detail: { text: msg } }));
-    setText("");
-    setSent(true);
-    clearTimeout(t.current);
-    t.current = setTimeout(() => setSent(false), 2400);
-  };
-
+  useEffect(() => () => clearTimeout(t.current), []);
   return (
-    <div className="hww-flow__say">
-      <div className="hww-flow__saybox">
-        <span className="hww-flow__saystem">{stage.say}</span>
-        <textarea
-          ref={boxRef}
-          className="hww-flow__sayinput"
-          rows={1}
-          value={text}
-          placeholder={stage.ph || ""}
-          aria-label="say it to the agent"
-          onFocus={onTouch}
-          onChange={(e) => {
-            setText(e.target.value);
-            doorGrow(e.target);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              fire();
-            }
-          }}
-        />
-      </div>
-      {hasHostDictation() && (
-        <button
-          type="button"
-          className={`hww-flow__saymic${listening ? " is-on" : ""}`}
-          title={listening ? "Stop listening" : "Dictate — speech goes into the input"}
-          onClick={toggleMic}
-        >
-          🎙
-        </button>
-      )}
+    <div className="hww-hero__teach" data-voice-skip="true">
       <button
         type="button"
-        className="hww-flow__saysend"
-        onClick={fire}
-        disabled={!ready}
-        title={sent ? "sent ✓" : "Send"}
+        title="sends the agent a prepared ask — the guided voice tour of this page"
+        onClick={() => {
+          window.dispatchEvent(new CustomEvent("sv:say", { detail: { text: prompt } }));
+          setSent(true);
+          clearTimeout(t.current);
+          t.current = setTimeout(() => setSent(false), 2400);
+        }}
       >
-        <img src={SEND_ICON} alt="send" />
+        {sent ? "sent ✓ — watch the chat" : "teach me"}
       </button>
     </div>
   );
@@ -426,7 +292,6 @@ const FlowRail = () => {
         <p className="hww-flow__note">
           <Rich>{stage.note}</Rich>
         </p>
-        <StageDoor stage={stage} onTouch={hold} />
       </div>
 
       <p className="hww-hint">
@@ -662,58 +527,24 @@ const ArcUpward = () => {
 };
 
 // ───────────────────────────────────────────────────────────────────────────────────────────────
-// 5 · BEING TOLD. Membership lives in the markdown, and `told=` is the receipt of a delivery that
-// happened. A demo, and labelled as one — the real one sends into a project's room.
+// 5 · THE MACHINE. The chain DRAWN as a rail with a literal fork (his correction, 2026-10-28: "it's
+// just a bunch of blocks… it was about making it look good"): the event runs into the hook, the
+// hook's output forks — offered rides the upper branch to a skill, given rides the lower branch to
+// a job — and both branches converge on the account. The fork is the drawing's whole argument:
+// offered and given are different roads, not adjacent boxes. Wires are center-to-center beziers
+// UNDER the stations (the hww-up trick, so the drawing re-wires itself), and the pulse is a few
+// event-driven class toggles — no continuous animation, which is the dash-march lesson (110% GPU).
 
-const TellDemo = () => {
-  const MEMBERS = ["systemview-test", "autobot", "buapi"];
-  const [edits, setEdits] = useState(0);
-  const [told, setTold] = useState(MEMBERS.slice());
-  const behind = MEMBERS.filter((m) => !told.includes(m));
-
-  return (
-    <div className="hww-told">
-      <code className="hww-told__line">
-        ::members{"{"}who={MEMBERS.join("|")}
-        {told.length ? ` told=${told.join("|")}` : ""}
-        {"}"}
-      </code>
-      <div className="hww-told__chips">
-        {MEMBERS.map((m) => (
-          <span key={m} className={`hww-told__chip${told.includes(m) ? " is-told" : " is-behind"}`}>
-            {m}
-            <i>{told.includes(m) ? "told" : "behind"}</i>
-          </span>
-        ))}
-      </div>
-      <div className="hww-told__acts">
-        <button
-          type="button"
-          className="hww-btn"
-          onClick={() => {
-            setEdits((e) => e + 1);
-            setTold([]);
-          }}
-        >
-          edit the document
-        </button>
-        <button type="button" className="hww-btn hww-btn--go" disabled={!behind.length} onClick={() => setTold(MEMBERS.slice())}>
-          {behind.length ? `tell the ${behind.length} behind` : "everyone is current"}
-        </button>
-        <span className="hww-told__count">{edits} edit{edits === 1 ? "" : "s"}</span>
-      </div>
-      <p className="hww-hint">
-        A demonstration — your own documents send for real, into the project's room. Behind means
-        “has not heard about THIS version”, and an agent never hand-writes <code>told=</code>: it is
-        the receipt of a delivery that happened, so inventing one marks somebody as told who is not.
-      </p>
-    </div>
-  );
+const CHAIN_POS = {
+  event: { x: 72, y: 110 },
+  hook: { x: 246, y: 110 },
+  skill: { x: 458, y: 44 },
+  job: { x: 458, y: 176 },
+  account: { x: 642, y: 110 },
 };
-
-// ───────────────────────────────────────────────────────────────────────────────────────────────
-// 6 · THE MACHINE. A moment travelling down the chain — event, hook, the fork between offered and
-// given, and the account at the end.
+// The pulse's clock: the fork lights BOTH branches at once — the moment does not pick a road here,
+// the hook's pointer kind already did.
+const CHAIN_STEP = { event: 0, hook: 1, skill: 2, job: 2, account: 3 };
 
 const Chain = () => {
   const reduced = useReducedMotion();
@@ -730,49 +561,63 @@ const Chain = () => {
   const fire = useCallback(() => {
     clear();
     if (reduced) {
-      setLit(CHAIN.length - 1);
+      setLit(3);
       return;
     }
     setLit(-1);
-    CHAIN.forEach((_, i) => {
+    for (let i = 0; i <= 3; i += 1) {
       timers.current.push(setTimeout(() => setLit(i), 120 + i * 520));
-    });
-    timers.current.push(setTimeout(() => setLit(CHAIN.length - 1), 120 + CHAIN.length * 520));
+    }
   }, [reduced]);
 
   const node = CHAIN.find((c) => c.id === open) || CHAIN[0];
+  const wire = (key, d, from, branch) => (
+    <path
+      key={key}
+      className={`hww-chain__wire${branch ? ` hww-chain__wire--${branch}` : ""}${lit >= from ? " is-lit" : ""}`}
+      d={d}
+    />
+  );
 
   return (
     <div className="hww-chain">
-      <div className="hww-chain__rail">
-        {CHAIN.map((c, i) => (
-          <React.Fragment key={c.id}>
-            <button
-              type="button"
-              className={`hww-chain__node hww-chain__node--${c.id}${i <= lit ? " is-lit" : ""}${
-                open === c.id ? " is-open" : ""
-              }`}
-              onClick={() => setOpen(c.id)}
-            >
-              <span className="hww-chain__label">{c.label}</span>
-              <span className="hww-chain__one">{c.one}</span>
-            </button>
-            {i < CHAIN.length - 1 && (
-              <span className={`hww-chain__arrow${i < lit ? " is-lit" : ""}`} aria-hidden="true">
-                ›
-              </span>
-            )}
-          </React.Fragment>
-        ))}
-      </div>
-      <div className="hww-chain__acts">
-        <button type="button" className="hww-btn hww-btn--go" onClick={fire}>
-          announce a moment
-        </button>
-        <span className="hww-hint hww-hint--inline">
-          a hook is offered to an agent (a skill) or GIVEN to it (a job) — the fork in the middle is
-          the whole difference in trust
+      <div className="hww-chain__stage">
+        <svg className="hww-chain__wires" viewBox="0 0 720 220" preserveAspectRatio="none" aria-hidden="true">
+          {wire("eh", "M 72 110 L 246 110", 1)}
+          {wire("hs", "M 246 110 C 332 110 366 44 458 44", 2, "skill")}
+          {wire("hj", "M 246 110 C 332 110 366 176 458 176", 2, "job")}
+          {wire("sa", "M 458 44 C 552 44 578 110 642 110", 3, "skill")}
+          {wire("ja", "M 458 176 C 552 176 578 110 642 110", 3, "job")}
+        </svg>
+        <span className="hww-chain__forklbl hww-chain__forklbl--skill" aria-hidden="true">
+          offered
         </span>
+        <span className="hww-chain__forklbl hww-chain__forklbl--job" aria-hidden="true">
+          given
+        </span>
+        {CHAIN.map((c) => (
+          <button
+            key={c.id}
+            type="button"
+            className={`hww-chain__st hww-chain__st--${c.id}${CHAIN_STEP[c.id] <= lit ? " is-lit" : ""}${
+              open === c.id ? " is-open" : ""
+            }`}
+            style={{
+              left: `${((CHAIN_POS[c.id].x / 720) * 100).toFixed(2)}%`,
+              top: `${((CHAIN_POS[c.id].y / 220) * 100).toFixed(2)}%`,
+            }}
+            onClick={() => {
+              setOpen(c.id);
+              // PRESSING THE EVENT ANNOUNCES THE MOMENT — the pulse walks the chain. The separate
+              // "announce a moment" button is gone (his rule, 2026-10-29: one button per page —
+              // teach me); the drawing's own first station carries the demonstration now.
+              if (c.id === "event") fire();
+            }}
+          >
+            <span className="hww-chain__label">{c.label}</span>
+            <span className="hww-chain__one">{c.one}</span>
+          </button>
+        ))}
       </div>
       <div className="hww-chain__card" key={node.id}>
         <h4>{node.label}</h4>
@@ -785,151 +630,190 @@ const Chain = () => {
 };
 
 // ───────────────────────────────────────────────────────────────────────────────────────────────
-// THE AGENTS — who does the work. Six cards off the data file; the one claim under all of them is
-// that nothing here runs on trust: the doc defines, the record answers.
+// THE AGENTS — who does the work, DRAWN (his correction, 2026-10-28: the six cards were "just a
+// bunch of blocks"). The drawing is the chapter's claim as structure: ONE window at the top, a
+// wire down to each project — the wire is the room, you talk to a project and its owner answers —
+// and exactly one owner inside each. The middle project is magnified (the dashed wedge is the
+// lens): around its owner sit the four things that define and answer for it — the doc, skills,
+// jobs, the record. The six AGENTS facts did not leave the page: every part of the drawing is a
+// press, and the card below answers with the fact that part depicts. Wires are beziers UNDER the
+// elements (the hww-up trick); nothing on this drawing moves.
 
-const Agents = () => (
-  <div className="hww-agents">
-    {AGENTS.map((a) => (
-      <div className="hww-agent" key={a.name}>
+const FLEET_PROJECTS = ["autobot", "systemview", "bustudio"];
+
+const Agents = () => {
+  const [open, setOpen] = useState(AGENTS[0].name);
+  const fact = AGENTS.find((a) => a.name === open) || AGENTS[0];
+  const press = (name, className, children) => (
+    <button
+      type="button"
+      className={`${className}${open === name ? " is-open" : ""}`}
+      onClick={() => setOpen(name)}
+    >
+      {children}
+    </button>
+  );
+  return (
+    <div className="hww-agents">
+      <div className="hww-fleet">
+        <svg className="hww-fleet__wires" viewBox="0 0 720 360" preserveAspectRatio="none" aria-hidden="true">
+          {/* the rooms — you talk to a project, its owner answers. Endpoints tuck UNDER the
+              cards (opaque surfaces over the wire layer), so nothing ever reads as detached. */}
+          <path className="hww-fleet__wire" d="M 360 48 C 360 80 128 64 128 96" />
+          <path className="hww-fleet__wire" d="M 360 48 L 360 96" />
+          <path className="hww-fleet__wire" d="M 360 48 C 360 80 592 64 592 96" />
+          {/* the lens — the middle project, opened up */}
+          <path className="hww-fleet__wire hww-fleet__wire--lens" d="M 296 142 L 70 200" />
+          <path className="hww-fleet__wire hww-fleet__wire--lens" d="M 424 142 L 650 200" />
+          {/* the anatomy around one owner — two satellites a side (his add, 2026-10-29:
+              "it's missing one thing, sub-agents"), the record below */}
+          <path className="hww-fleet__wire" d="M 282 248 C 242 248 220 228 184 226" />
+          <path className="hww-fleet__wire" d="M 282 268 C 242 268 220 288 180 290" />
+          <path className="hww-fleet__wire" d="M 438 248 C 478 248 500 228 536 226" />
+          <path className="hww-fleet__wire" d="M 438 268 C 478 268 500 288 540 290" />
+          <path className="hww-fleet__wire" d="M 360 280 L 360 322" />
+        </svg>
+        <div className="hww-fleet__lens" aria-hidden="true" />
+        {press(
+          "the room",
+          "hww-fleet__you",
+          <>
+            <span className="hww-fleet__kicker">you</span>
+            <span className="hww-fleet__name">one window</span>
+          </>
+        )}
+        {FLEET_PROJECTS.map((id, i) => (
+          <React.Fragment key={id}>
+            {press(
+              "one owner per project",
+              `hww-fleet__proj hww-fleet__proj--${["left", "mid", "right"][i]}`,
+              <>
+                <span className="hww-fleet__kicker">project</span>
+                <span className="hww-fleet__name">{id}</span>
+                <span className="hww-fleet__owner">one owner</span>
+              </>
+            )}
+          </React.Fragment>
+        ))}
+        <div className="hww-fleet__agent">
+          <span className="hww-fleet__kicker">the owner</span>
+          <span className="hww-fleet__name">one agent</span>
+          <span className="hww-fleet__owner">answers for all of systemview</span>
+        </div>
+        {press("the doc", "hww-fleet__sat hww-fleet__sat--doc", "the doc")}
+        {press("sub-agents", "hww-fleet__sat hww-fleet__sat--subs", "sub-agents")}
+        {press("skills", "hww-fleet__sat hww-fleet__sat--skills", "skills")}
+        {press("jobs", "hww-fleet__sat hww-fleet__sat--jobs", "jobs")}
+        {press("the record", "hww-fleet__sat hww-fleet__sat--record", "the record")}
+      </div>
+      <div className="hww-agent" key={fact.name}>
         <div className="hww-agent__top">
-          <span className="hww-agent__name">{a.name}</span>
-          <span className="hww-agent__one">{a.one}</span>
+          <span className="hww-agent__name">{fact.name}</span>
+          <span className="hww-agent__one">{fact.one}</span>
         </div>
         <p className="hww-agent__body">
-          <Rich>{a.body}</Rich>
+          <Rich>{fact.body}</Rich>
         </p>
       </div>
-    ))}
-  </div>
-);
+    </div>
+  );
+};
 
 // ───────────────────────────────────────────────────────────────────────────────────────────────
-// 7 · CONTEXT. What an agent runs on, in layers — and the layers differ in who pulls the trigger.
+// 6 · CONTEXT. What an agent runs on, DRAWN AS THE STACK IT IS (his correction, 2026-10-28: three
+// equal cards were "just a bunch of blocks"). The strata make the cost structure visible: loaded
+// is the BASE — widest, everything rests on it, paid every turn — retrieved narrows above it,
+// pushed is the small top. The agent stands beside the stack and the three wires carry the whole
+// lesson in their arrowheads: loaded flows AT the agent unasked, the retrieved arrow points INTO
+// the stack because the agent is the one reaching, and pushed arrives on its own at the moment.
+// Each layer is a pressable brick; the card below answers with what it carries. Still drawing —
+// the only motion is the answer card's entrance.
 
-const ContextStack = () => (
-  <div className="hww-ctx">
-    <div className="hww-ctx__groups">
-      {[
-        { g: "loaded", title: "loaded", sub: "paid in attention every turn, forever" },
-        { g: "retrieved", title: "retrieved", sub: "paid only when the agent asks" },
-        { g: "pushed", title: "pushed", sub: "arrives at a moment the agent would not think to ask" },
-      ].map((grp) => (
-        <div className={`hww-ctx__group hww-ctx__group--${grp.g}`} key={grp.g}>
-          <div className="hww-ctx__ghead">
-            <h4>{grp.title}</h4>
-            <span>{grp.sub}</span>
-          </div>
-          {LAYERS.filter((l) => l.group === grp.g).map((l) => (
-            <div className="hww-ctx__layer" key={l.name}>
-              <span className="hww-ctx__name">{l.name}</span>
-              <span className="hww-ctx__carries">
-                <Rich>{l.carries}</Rich>
-              </span>
-              <span className="hww-ctx__when">{l.when}</span>
-            </div>
-          ))}
-        </div>
-      ))}
-    </div>
-    <p className="hww-ctx__rule">
-      <Rich>
-        **A fact in the wrong layer is either paid for every turn forever, or never found at all.**
-        Instructions load WHOLE — a constraint sitting in a chunk that did not score silently does
-        not exist, and if the work is unattended nobody is there to notice. Reference gets
-        retrieved, where missing a section costs a re-read.
-      </Rich>
-    </p>
-    <div className="hww-pipe">
-      <h4 className="hww-pipe__title">
-        And the pipeline between the two shelves — a note about a documented topic is a bug report
-        against the doc
-      </h4>
-      <ol className="hww-pipe__steps">
-        {PIPELINE.map((p, i) => (
-          <li key={p.step}>
-            <span className="hww-pipe__n">{i + 1}</span>
-            <span className="hww-pipe__step">{p.step}</span>
-            <span className="hww-pipe__body">
-              <Rich>{p.body}</Rich>
-            </span>
-          </li>
-        ))}
-      </ol>
-    </div>
-  </div>
-);
+const CTX_STRATA = [
+  { g: "pushed", title: "pushed", sub: "arrives at a moment the agent would not think to ask" },
+  { g: "retrieved", title: "retrieved", sub: "paid only when the agent asks" },
+  { g: "loaded", title: "loaded", sub: "paid in attention every turn, forever" },
+];
 
-// ───────────────────────────────────────────────────────────────────────────────────────────────
-// 9 · THE DOORS. They hand you the WORDS, because in this system the words ARE the door. A button
-// that silently did nothing would teach the surface lies, so each one copies and says it copied.
-
-const Doors = () => {
-  const [copied, setCopied] = useState("");
-  const t = useRef(null);
-  useEffect(() => () => clearTimeout(t.current), []);
-
-  const copy = async (d) => {
-    try {
-      if (navigator.clipboard && navigator.clipboard.writeText) await navigator.clipboard.writeText(d.say);
-      setCopied(d.id);
-    } catch (e) {
-      setCopied(`${d.id}:no`);
-    }
-    clearTimeout(t.current);
-    t.current = setTimeout(() => setCopied(""), 2400);
-  };
-
-  // THE ONE DOOR THAT RUNS. The page this replaced had a pressable `systemview --help`, and the
-  // replacement quietly deleted it — a regression a blind review named. A SAY door is right to
-  // only copy (the words are the real door), but a COMMAND door that cannot run is a picture of a
-  // door: it runs through the same pty every `:::cmd` block uses, and where there is no terminal
-  // host it says so instead of shipping a button that silently does nothing.
-  const [out, setOut] = useState(null); // { id, text, code }
-  const run = async (d) => {
-    const runner = commandRunner("machine", null, `hww-${d.id}`);
-    if (!runner) {
-      setOut({ id: d.id, text: "no terminal host here — copy it instead", code: null });
-      return;
-    }
-    setOut({ id: d.id, text: "", code: null });
-    try {
-      const r = await runner.run({
-        command: d.say,
-        onOutput: (text) => setOut({ id: d.id, text, code: null }),
-      });
-      setOut({ id: d.id, text: r.output || "", code: r.code });
-    } catch (e) {
-      setOut({ id: d.id, text: String((e && e.message) || e), code: -1 });
-    }
-  };
-
+const ContextStack = () => {
+  const [open, setOpen] = useState(LAYERS[0].name);
+  const layer = LAYERS.find((l) => l.name === open) || LAYERS[0];
   return (
-    <div className="hww-doors">
-      {DOORS.map((d) => (
-        <div className={`hww-door hww-door--${d.kind}`} key={d.id}>
-          <div className="hww-door__top">
-            <span className="hww-door__label">{d.label}</span>
-            <span className="hww-door__kind">{d.kind === "command" ? "a command" : "say it to an agent"}</span>
+    <div className="hww-ctx">
+      <div className="hww-ctx__stage">
+        <svg className="hww-ctx__wires" viewBox="0 0 720 320" preserveAspectRatio="none" aria-hidden="true">
+          {/* loaded → the agent: unasked, every turn — the arrow lands on the agent */}
+          <path className="hww-ctx__wire hww-ctx__wire--loaded" d="M 504 243 C 560 243 590 224 600 196" />
+          <path className="hww-ctx__head hww-ctx__head--loaded" d="M 594 201 L 600 188 L 606 201 Z" />
+          {/* the agent → retrieved: the agent is the one reaching — the arrow lands on the stack */}
+          <path className="hww-ctx__wire hww-ctx__wire--retrieved" d="M 566 152 C 530 152 505 142 468 142" />
+          <path className="hww-ctx__head hww-ctx__head--retrieved" d="M 473 136 L 461 142 L 473 148 Z" />
+          {/* pushed → the agent: the moment arrives on its own */}
+          <path className="hww-ctx__wire hww-ctx__wire--pushed" d="M 405 51 C 520 51 600 72 621 108" />
+          <path className="hww-ctx__head hww-ctx__head--pushed" d="M 615 104 L 627 102 L 622 115 Z" />
+        </svg>
+        {CTX_STRATA.map((grp) => (
+          <div className={`hww-ctx__stratum hww-ctx__stratum--${grp.g}`} key={grp.g}>
+            <div className="hww-ctx__ghead">
+              <h4>{grp.title}</h4>
+              <span>{grp.sub}</span>
+            </div>
+            <div className="hww-ctx__bricks">
+              {LAYERS.filter((l) => l.group === grp.g).map((l) => (
+                <button
+                  type="button"
+                  className={`hww-ctx__layer${open === l.name ? " is-open" : ""}`}
+                  key={l.name}
+                  onClick={() => setOpen(l.name)}
+                >
+                  {l.name}
+                </button>
+              ))}
+            </div>
           </div>
-          <code className="hww-door__say">{d.say}</code>
-          <p className="hww-door__hint">{d.hint}</p>
-          <button type="button" className="hww-btn hww-btn--go" onClick={() => copy(d)}>
-            {copied === d.id ? "copied ✓" : copied === `${d.id}:no` ? "couldn't copy — select it" : "copy"}
-          </button>
-          {d.kind === "command" ? (
-            <button type="button" className="hww-btn hww-btn--run" onClick={() => run(d)}>
-              run it
-            </button>
-          ) : null}
-          {out && out.id === d.id ? (
-            <pre className="hww-door__out" aria-label="command output">
-              {out.text || "running…"}
-              {out.code != null ? `\n— exit ${out.code}` : ""}
-            </pre>
-          ) : null}
+        ))}
+        <div className="hww-ctx__agentnode">
+          <span className="hww-ctx__agentkicker">the agent</span>
+          <span className="hww-ctx__agentname">a turn in progress</span>
         </div>
-      ))}
+        <span className="hww-ctx__wirelbl hww-ctx__wirelbl--loaded" aria-hidden="true">
+          every turn, unasked
+        </span>
+        <span className="hww-ctx__wirelbl hww-ctx__wirelbl--retrieved" aria-hidden="true">
+          the agent reaches in
+        </span>
+        <span className="hww-ctx__wirelbl hww-ctx__wirelbl--pushed" aria-hidden="true">
+          the moment arrives
+        </span>
+      </div>
+      <div className={`hww-ctx__card hww-ctx__card--${layer.group}`} key={layer.name}>
+        <div className="hww-ctx__cardtop">
+          <span className="hww-ctx__name">{layer.name}</span>
+          <span className="hww-ctx__when">
+            {layer.when} · costs {layer.cost}
+          </span>
+        </div>
+        <p className="hww-ctx__carries">
+          <Rich>{layer.carries}</Rich>
+        </p>
+      </div>
+      <div className="hww-pipe">
+        <h4 className="hww-pipe__title">
+          And the pipeline between the two shelves — a note about a documented topic is a bug report
+          against the doc
+        </h4>
+        <ol className="hww-pipe__steps">
+          {PIPELINE.map((p) => (
+            <li key={p.step}>
+              <span className="hww-pipe__dot" aria-hidden="true" />
+              <span className="hww-pipe__step">{p.step}</span>
+              <span className="hww-pipe__body">
+                <Rich>{p.body}</Rich>
+              </span>
+            </li>
+          ))}
+        </ol>
+      </div>
     </div>
   );
 };
@@ -954,10 +838,11 @@ const PAGES = [
     kicker: "the shape of the work",
     title: "SystemView",
     lede: "You direct a team of agents. The work moves as documents — plans, decisions, claims, proofs — the agents build from them, and everything they run shows up here as it happens. And none of it asks for your trust: every document is pressable, and every state is read off a fact in one, so what the system says is what the disk says.",
-    links: [
-      { label: "registration", to: "register" },
-      { label: "start something", to: "start" },
-    ],
+    // THE FIRST PAGE'S BUTTON IS THE FULL-TOUR DOOR (his call, 2026-10-29: "I don't want
+    // click-every-page to be the only option") — same "teach me" face as every other header, but
+    // its ask is the whole walk. The skill breaks the walk into two halves and asks before the
+    // second, so full never means endless.
+    tour: "Run the voice tour of the How-we-work page — the whole walk.",
     body: () => (
       <>
         <p className="hww-intro">
@@ -965,12 +850,6 @@ const PAGES = [
           you ask for lands straight in your tree, a question gets answered in the chat. But when
           something is big enough to be worth a record, this is the path, and at every step there is
           a document somebody can open.
-        </p>
-        <p className="hww-hero__honest">
-          <Rich>
-            This page is the manual, not a dashboard of your repo — every id, count and document on
-            it is an example. The one exception is the arc in **Living specs**, which really derives.
-          </Rich>
         </p>
         <FlowRail />
       </>
@@ -982,7 +861,7 @@ const PAGES = [
     kicker: "identity",
     title: "Documentation as state",
     lede: "The work here is tracked through markdown documentation — RFCs, arcs, reports and gaps. A document says what it is with an interactive markdown block inside, and saving the file registers it with the system. From that moment it has an identity in the system — anything can point at it, and its state lives within the document itself.",
-    links: [{ label: "the lifecycles those kinds walk", to: "lifecycle" }],
+    tour: "Run the voice tour of the documentation chapter of the How-we-work page.",
     body: () => (
       <>
         {/* the one point worth making here (his pick, assembled from two drafts): the plans and
@@ -1009,11 +888,15 @@ const PAGES = [
     kicker: "state",
     title: "Nothing is marked done by hand",
     lede: "From draft to retired, everything in the system moves through its own states — A state is a condition over facts in the document itself, so the system always knows where everything stands — and a surface can read it, but never fake it.",
-    links: [{ label: "how a plan settling settles the arc", to: "specs" }],
+    tour: "Run the voice tour of the lifecycles chapter of the How-we-work page.",
     // NO INSERT ABOVE THE TABS, and NO INSTRUCTIONS anywhere on this page (his ruling,
     // 2026-10-28: this surface teaches the method, it never ushers — "people can press whatever
     // they press"). The body is the kind tabs, the prose under each, and the states. That is all.
-    body: () => <Trails />,
+    body: () => (
+      <>
+        <Trails />
+      </>
+    ),
   },
   {
     // ONE PAGE, NOT TWO (his call, 2026-10-28): the upward demo IS a living spec — an arc whose
@@ -1024,10 +907,7 @@ const PAGES = [
     kicker: "the newest idea",
     title: "A living spec — a document that keeps answering",
     lede: "A claim carries its proof where it stands — a test in the project's suite, or a run kept in the document with its output. So a design is not just a record of what was agreed: the whole development arc can be validated in one shot, any time, against evidence instead of memory.",
-    links: [
-      { label: "the trails themselves", to: "lifecycle" },
-      { label: "the full block vocabulary", help: "markdown" },
-    ],
+    tour: "Run the voice tour of the Living specs chapter of the How-we-work page.",
     body: () => (
       <>
         <ArcUpward />
@@ -1094,61 +974,91 @@ const PAGES = [
     ),
   },
   {
-    id: "told",
-    label: "Being told",
-    kicker: "delivery",
-    title: "A document knows who is on it, and tells them when it changes",
-    lede: "A document carries `::members{who=…}` — project rooms, not people, because delivery already works in rooms. When a block gets an ANSWER and nobody covering that audience has been told, the system delivers one update and stamps `told=` on the block's own line for exactly who was reached.",
-    links: [{ label: "who does the work", to: "agents" }],
-    body: () => <TellDemo />,
-  },
-  {
+    // WHO DOES THE WORK — the hero says the structure (one window, one owner per project, the doc
+    // and the record), the intro makes the single point the six cards orbit (one owner is the
+    // anti-drift rule), and the note keeps the umbrella claim: nothing here runs on trust.
     id: "agents",
     label: "Agents",
     kicker: "who does the work",
-    title: "Every project is owned by an agent, and an agent is its context",
-    lede: "The window is one person directing a team of agents. Each one is a session wearing a definition — a doc saying what it is for, loaded every turn — equipped with procedures it can choose and procedures it is given, reachable in its project's room, and watched through a record that never asks you to take its word.",
-    links: [
-      { label: "the context an agent runs on", to: "context" },
-      { label: "what runs when nobody is in the room", to: "machine" },
-    ],
-    body: () => <Agents />,
+    title: "One agent owns each project",
+    lede: "You direct a team of agents from one window. One agent owns each project and answers for everything in it — the code, the documents, the gaps. A doc defines what each agent is for, skills and jobs equip it, and the record shows you what it actually did.",
+    tour: "Run the voice tour of the agents chapter of the How-we-work page.",
+    body: () => (
+      <>
+        <p className="hww-intro">
+          One owner is what keeps a project coherent. Two owners of one repo drift apart slowly and
+          silently; one owner with disposable workers does not. So every question about a project
+          already has an address, and work for another project goes to its owner — never around it.
+        </p>
+        <Agents />
+        <div className="hww-note">
+          <Rich>
+            **Nothing here runs on trust.** The doc defines what an agent is for, and the record
+            answers for what it did — between the two, the agent's own word decides nothing.
+          </Rich>
+        </div>
+      </>
+    ),
   },
   {
+    // WHAT AN AGENT RUNS ON — the hero teaches the layers and who pulls the trigger, the intro
+    // makes the bounded-growth point the pipeline below demonstrates, and the note carries the one
+    // rule the whole table exists for: a fact in the wrong layer fails silently.
     id: "context",
     label: "Context",
     wide: true,
     kicker: "what an agent runs on",
-    title: "Context arrives in layers, and the layers differ in who pulls the trigger",
-    lede: "An agent is its context. Getting a layer wrong is the commonest way knowledge fails to arrive — and the symptom is never an error, it is an agent confidently acting on a world that moved.",
-    links: [{ label: "what runs when nobody is in the room", to: "machine" }],
-    body: () => <ContextStack />,
+    title: "An agent is its context",
+    lede: "Everything an agent knows arrives in layers. A few load every turn — where it stands, how this place works, what it is for. The rest waits until the agent asks, or arrives on its own at a moment the agent would not think to ask. The layers differ in who pulls the trigger, and the wrong layer is the commonest way knowledge fails to arrive.",
+    tour: "Run the voice tour of the context chapter of the How-we-work page.",
+    body: () => (
+      <>
+        <p className="hww-intro">
+          Nothing here grows without bound. Notes cost almost nothing to write, so agents write them
+          the moment they learn something — and when several notes circle one subject, the handbook
+          absorbs them and the absorbed notes get deleted. Knowledge keeps moving up, and the store
+          stays small enough to search.
+        </p>
+        <ContextStack />
+        <div className="hww-note">
+          <Rich>
+            **A fact in the wrong layer is either paid for every turn forever, or never found at
+            all.** Instructions load whole, because a constraint sitting in a chunk that did not
+            score silently does not exist. Reference lives where a search finds it, where missing a
+            section costs only a re-read. Which is why, when an agent fails, the first suspect is
+            the instruction that failed it — **the agent is rarely at fault; it was instructed.**
+          </Rich>
+        </div>
+      </>
+    ),
   },
   {
+    // THE MACHINERY — the hero walks the chain in one breath (events, hooks, the offered/given
+    // fork, accounts), the intro makes the point that the chain's separations ARE the design, and
+    // the note keeps the two rules that guard it: carrying arms a hook, and a job binds its inputs.
     id: "machine",
     label: "Hooks & jobs",
     wide: true,
     kicker: "the machinery",
-    title: "Events announce moments; hooks point at procedures; jobs are given and file accounts",
-    lede: "This is how work happens when you are not in the room. The chain is deliberately four separate things, because each one is a different kind of trust.",
-    links: [{ label: "start something", to: "start" }],
-    body: () => <Chain />,
-  },
-  {
-    id: "start",
-    label: "Start something",
-    wide: true,
-    kicker: "doors",
-    title: "Start something",
-    lede: "There is no form to fill in. You tell an agent what you want, in your words, and the document comes back — which is why these doors hand you the WORDS.",
-    links: [{ label: "back to the flow", to: "flow" }],
+    title: "What runs when nobody is in the room",
+    lede: "The system announces its moments as events. A hook watches for one and points — at a skill the agent may choose, or at a job it is given whole, with every input the job declares. And whatever runs files an account of what it actually did, so unattended work stays checkable instead of hopeful.",
+    tour: "Run the voice tour of the hooks and jobs chapter of the How-we-work page.",
     body: () => (
       <>
-        <Doors />
-        <p className="hww-hint">
-          These copy to your clipboard. Nothing on this page writes to a repo or starts a run — say it
-          in the chat and the agent does the rest.
+        <p className="hww-intro">
+          The chain turns a moment nobody was watching into a record somebody can read. It stays
+          five separate things on purpose — an event claims nothing, a hook only points, a skill
+          leaves the agent the decision, a job carries bounds and named inputs — because each link
+          asks for a different kind of trust.
         </p>
+        <Chain />
+        <div className="hww-note">
+          <Rich>
+            **A job is given, never chosen.** Writing a hook does not arm it — an agent has to carry
+            it first. And a hook that cannot supply every input its job declares fails at the
+            writing door, not silently at three in the morning.
+          </Rich>
+        </div>
       </>
     ),
   },
@@ -1336,6 +1246,9 @@ export default function HowWeWork() {
             type="button"
             role="tab"
             aria-selected={at === p.id}
+            // the chapter's stable address — a saved tour command presses `[data-chap="specs"]`,
+            // immune to reordering (his ruling: our application assigns its own attributes)
+            data-chap={p.id}
             className={`hww-chaps__chip${at === p.id ? " is-at" : ""}`}
             onClick={() => go(p.id)}
           >

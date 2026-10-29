@@ -98,7 +98,11 @@ const SpeechLine = ({ className = "", onGo = null, scope = "", compact = false }
     // THE SUBTITLE (RFC-074): while reading, the sentence being spoken; loading or waiting there
     // is no sentence yet, so the reply's first words stand in.
     const pos = q.playing && !warming ? q.playing.position : null;
-    const said = pos && pos.text ? pos.text : label;
+    // `text: ""` IS A STATEMENT, not a missing field (his rule, 2026-10-29): a selector cue's
+    // words are lit on the page, so the box stays deliberately empty rather than re-showing the
+    // label — which is how it used to hold "the last thing that was said" through a whole tour.
+    // Only a position that never carried text falls back to the label.
+    const said = pos && pos.text != null ? pos.text : label;
     const more = q.playing ? q.waiting.length : Math.max(0, q.waiting.length - 1);
     return (
       <div
