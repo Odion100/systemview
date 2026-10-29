@@ -36,8 +36,10 @@ function documentsRegistryOn({ rootOf } = {}) {
       (r) =>
         (!projectCode || r.project === projectCode) && (!kind || r.kind === kind) && (!arc || r.arc === arc),
     );
+    const opened = openedMap();
     return out.map((r) => {
       const row = { ...r };
+      if (opened[r.id]) row.openedAt = opened[r.id];
       try {
         const root = rootOf ? rootOf(r.project) : "";
         if (root && r.path && !path.isAbsolute(r.path)) {
@@ -78,4 +80,35 @@ function upsertRow(row = {}) {
   return { ok: true, row: i >= 0 ? all[i] : clean };
 }
 
-module.exports = { documentsRegistryOn, upsertRow, file: FILE };
+// THE OPENED LEDGER — the reader's half of RFC-076 §4.6. `openedAt` is a fact about HIS attention,
+// not about the document, so it lives in the hub's OWN file rather than on the shell's rows: the
+// shell regenerates documents.json on every parse, and a fact written between parses would die in
+// the rewrite. One file, one owner, first-write-wins — a clock that restarts on every open would
+// be measuring renders, not attention. The registry read joins it onto the row.
+const OPENED = () => process.env.AUTOBOT_DOCUMENTS_OPENED || path.join(os.homedir(), ".autobot", "documents-opened.json");
+function openedMap() {
+  try {
+    const raw = JSON.parse(fs.readFileSync(OPENED(), "utf8"));
+    return raw && typeof raw === "object" ? raw : {};
+  } catch {
+    return {};
+  }
+}
+function stampOpened(id, { restart = false } = {}) {
+  const key = String(id || "").trim();
+  if (!key) return { ok: false, error: "a first open needs the document's id" };
+  const all = openedMap();
+  // DIVERT IS A RESTART (RFC-076 §4.6): the one caller allowed to move an existing stamp is the
+  // divert press — the clock re-measures attention from the moment he chose to keep the report.
+  if (all[key] && !restart) return { ok: true, id: key, openedAt: all[key], already: true };
+  all[key] = Date.now();
+  try {
+    fs.mkdirSync(path.dirname(OPENED()), { recursive: true });
+    fs.writeFileSync(OPENED(), JSON.stringify(all, null, 2) + "\n");
+  } catch (e) {
+    return { ok: false, error: String((e && e.message) || e) };
+  }
+  return { ok: true, id: key, openedAt: all[key] };
+}
+
+module.exports = { documentsRegistryOn, upsertRow, stampOpened, openedMap, file: FILE, openedFile: OPENED };

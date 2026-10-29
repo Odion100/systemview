@@ -1,4 +1,4 @@
-::report{id=lifecycle-kinds}
+::report{id=lifecycle-kinds as=planning retain=permanent retired=2026-10-29 retiredAs=superseded supersededBy=RFC-076}
 
 # The lifecycle of every kind we register, and what moves it
 

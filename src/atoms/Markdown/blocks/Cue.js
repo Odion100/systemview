@@ -14,7 +14,10 @@ import { performCue, cueVerb, cueLabel } from "../../../utils/cuePerform";
 // plays itself; here, the press is the consent.
 //
 // say ❝ · highlight ▣ · point ➤ · press ⏻ · call ⚙ (call renders honest: designed, not wired)
-const GLYPH = { say: "❝", highlight: "▣", point: "➤", press: "⏻", call: "⚙" };
+// home ⌂ — the bot returns to its codebase card. A CHOICE, never automatic (his, 2026-10-29: in
+// full animation the walk takes the bot out and nothing may quietly pull it back — going home is
+// a cue he can see coming, and a bot already home treats it as a no-op).
+const GLYPH = { say: "❝", highlight: "▣", point: "➤", press: "⏻", call: "⚙", home: "⌂" };
 
 let seq = 0;
 
@@ -50,6 +53,7 @@ const Cue = ({ attrs = {}, label, line }) => {
     press: attrs.press,
     call: attrs.call,
     say: attrs.say,
+    home: attrs.home, // `::cue{home=true}` — send the bot back to its card; no-op when docked
     exclude: attrs.exclude, // per-command: what this reading leaves out of the spoken text
   };
   const verb = cueVerb(cue);

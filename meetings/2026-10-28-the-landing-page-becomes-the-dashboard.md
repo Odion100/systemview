@@ -1,4 +1,4 @@
-::report{id=landing-page-evolves as=planning}
+::report{id=landing-page-evolves as=planning retain=permanent}
 
 # The landing page becomes the dashboard, component by component
 

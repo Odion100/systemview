@@ -115,7 +115,12 @@ const SpeakReply = ({ text, className = "", rowKey = "", ts = 0 }) => {
   // so "read me nothing" is expressible and costs no special case here — if there is nothing to
   // say, nothing is said and no state is touched.
   useEffect(() => {
-    if (!takeIfNew(rowKey, ts)) return;
+    // THE SEEN-MARK IS THE REPLY'S OWN IDENTITY, never its position. rowKey is `${ts}-${index}`
+    // from the fold, and the agent page and the code page fold different arrays — so the same
+    // reply wore a different key on each surface, "seen" never matched, and switching pages
+    // re-spoke everything newer than page load (his report, 2026-10-29: "it auto plays whenever I
+    // switch to the agent page or switch back" — told before, fixed at the identity this time).
+    if (!takeIfNew(`${ts}:${String(text || "").slice(0, 80)}`, ts)) return;
     const s = readVoiceSettings(projectCode);
     if (s.mode === "off" || !available()) return;
     // DON'T TALK TO AN EMPTY ROOM. His rule: it should not start if he is not here. A hidden tab

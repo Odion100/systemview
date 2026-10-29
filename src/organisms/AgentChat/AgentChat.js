@@ -35,6 +35,7 @@ import Feed, { timeOf } from "../AgentWorkbench/Feed";
 import useAgentSession from "../AgentWorkbench/useAgentSession";
 import { CTX_WARN, CTX_DUE, tokensShort, parseUsageLines, foldEvents, laneLog } from "../AgentWorkbench/feedRows";
 import laneCook from "./laneCook";
+import { parseRetain, retainLine } from "../../atoms/Markdown/blocks/retention";
 import { visStyle } from "../AgentWorkbench/visitorColor";
 import { formatReceipt } from "../AgentWorkbench/cmdReceipt";
 import { readImagesFrom, readImageFile, hasImages } from "../../utils/imageAttach";
@@ -2350,7 +2351,13 @@ function BotBubble({ projectCode, index }) {
     const rows = work.rows || [];
     for (const r of rows) {
       if (r.kind !== "say" || r.replay || !r.settled) continue;
-      if (!takeIfNew(r.key, r.ts)) continue;
+      // THE SAME IDENTITY THE ROW'S OWN EFFECT MARKS — content, never position. The dedup between
+      // this path and SpeakReply's mount only works if both ask takeIfNew about the SAME key; when
+      // the row moved to the content key (the page-switch autoplay fix) and this stayed on r.key,
+      // every reply queued TWICE — the row's full performance, then this path's prose-only copy
+      // (`#s0`) re-reading the text with no animation the moment the sequence drained (his report,
+      // 2026-10-29, caught live on the line: `…-2425` playing, `…-2425#s0` waiting behind it).
+      if (!takeIfNew(`${r.ts}:${String(r.text || "").slice(0, 80)}`, r.ts)) continue;
       const s = readVoiceSettings(projectCode);
       if (s.mode === "off" || !voiceAvailable()) continue;
       if (typeof document !== "undefined" && document.hidden) continue;
@@ -4788,6 +4795,33 @@ const countdown = (str, now = Date.now()) => {
     window.addEventListener("sv:agentPoint", onPoint);
     return () => window.removeEventListener("sv:agentPoint", onPoint);
   }, [enqueuePoint, projectCode, routeProject]);
+
+  // THE HOME VERB (`::cue{home=true}`, his design 2026-10-29): full animation takes the bot out
+  // and NOTHING pulls it back automatically — returning is a cue, a visible row, a choice. Home is
+  // the codebase card, with no memory of where the bot stood before ("it doesn't need to be so
+  // sophisticated that it knows where you were"); already docked is a no-op, not a re-dock.
+  useEffect(() => {
+    const onHome = (e) => {
+      const d = (e && e.detail) || {};
+      if (d.projectCode) {
+        if (d.projectCode !== projectCode) return;
+      } else if (routeProject && routeProject !== projectCode) {
+        return; // unaddressed: only the bot for the project he is looking at goes home
+      }
+      if (inRailRef.current || inNavRef.current) return; // already home — nothing to do
+      // Going home ENDS any standing gesture by definition — the pointer and dialogue go with it —
+      // and the bot docks into its card WITH THE CHAT OPEN (his, 2026-10-29: "go home with the
+      // chat open"): home is a return to the conversation, not a parking spot.
+      if (endErrandRef.current) endErrandRef.current(true);
+      setNavDocked(projectCode, true);
+      wasOpenRef.current = false; // the errand's own restore must not re-close what home opened
+      openRef.current = true;
+      setOpen(true);
+      setAnimating(false);
+    };
+    window.addEventListener("sv:agentHome", onHome);
+    return () => window.removeEventListener("sv:agentHome", onHome);
+  }, [projectCode, routeProject]);
 
   // WHAT ENDS A GESTURE — and the list is deliberately short. Only the AGENT ends it: a new point
   // supersedes this one, or the page itself goes away. His rule, exactly: "if the page is just in
@@ -7740,6 +7774,26 @@ const countdown = (str, now = Date.now()) => {
                   >
                     {reportsMeta.flags[r.path] ? <span className={`${CLASSNAME}__reports-flag`}>⚑</span> : null}
                     <span className={`${CLASSNAME}__reports-name`}>{r.name}</span>
+                    {/* RFC-076 §2 — a leaf that declares no subtype or no ending wears what is
+                        missing on the row, the same words the document itself shows. And the
+                        countdown the leaf carries says it here too (c37), so the drawer answers
+                        without opening anything. */}
+                    {r.state && r.state.invalid ? (
+                      <span className="md-report__invalid">invalid — {r.state.invalid}</span>
+                    ) : null}
+                    {(() => {
+                      const st = r.state || {};
+                      if (st.invalid || st.retired) return null;
+                      const clock = retainLine({
+                        retired: !!st.retired,
+                        retain: st.retain,
+                        windowMs: parseRetain(st.retain),
+                        openedAt: r.openedAt || null,
+                      });
+                      return clock && clock.text !== "permanent" ? (
+                        <span className={`md-report__clock${clock.urgent ? " is-soon" : ""}`}>{clock.text}</span>
+                      ) : null;
+                    })()}
                     {/* WHO FILED IT — the file name carries the agent and the list never said so,
                         which matters the moment two agents file into one room. */}
                     {(() => {

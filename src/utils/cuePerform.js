@@ -2,12 +2,19 @@
 // arriving (SpeakReply's segments), and the rendered block's own replay press. Two copies of
 // "what a cue does" would drift the first time a verb changed; this is the one.
 //
-// The vocabulary (his, 2026-10-28): say · highlight · point · press · call.
+// The vocabulary (his, 2026-10-28): say · highlight · point · press · call · home.
 //   say        ::cue[prose]                 — speak it, nothing moves
 //   highlight  ::cue{highlight=".sel"}      — the box alone: no bot, no scroll
 //   point      ::cue{at=".sel"}             — the full errand: bot walks over, box, scroll
 //   press      ::cue{press=".sel"}          — click it, settle, then speak any body
 //   call       ::cue{call="Ns.method"}      — a door; NOT WIRED YET and says so, never pretends
+//   home       ::cue{home=true}             — the bot returns to its codebase card; a no-op when
+//                                             already docked. A CHOICE, never automatic (his,
+//                                             2026-10-29): full animation takes the bot out, and
+//                                             nothing may quietly pull it back — going home is a
+//                                             visible row. No memory of where it came from either
+//                                             ("it doesn't need to be so sophisticated that it
+//                                             knows where you were") — home IS the card.
 //
 // A selector cue with no body speaks the ELEMENT's text, read at perform time — a pointer like a
 // file embed, never a copy, so what is spoken is what the page says at that moment. An element
@@ -53,11 +60,22 @@ export const voiceText = (el, exclude) => {
 };
 
 export const cueVerb = (cue = {}) =>
-  cue.call ? "call" : cue.at ? "point" : cue.highlight ? "highlight" : cue.press ? "press" : "say";
+  cue.home
+    ? "home"
+    : cue.call
+      ? "call"
+      : cue.at
+        ? "point"
+        : cue.highlight
+          ? "highlight"
+          : cue.press
+            ? "press"
+            : "say";
 
 export const cueLabel = (cue = {}) => {
   if (cue.say) return cue.say;
   if (cue.body) return String(cue.body).replace(/\s+/g, " ").slice(0, 70);
+  if (cue.home) return "back to the chat";
   return cue.at || cue.highlight || cue.press || cue.call || "";
 };
 
@@ -98,6 +116,12 @@ export function performCue(cue = {}, { projectCode = "", onstart, onend, onposit
   };
 
   if (verb === "say") return say(cue.body);
+
+  if (verb === "home") {
+    // The chat's bot answers the event and no-ops if it is already docked — this side only asks.
+    window.dispatchEvent(new CustomEvent("sv:agentHome", { detail: { projectCode } }));
+    return say(cue.body);
+  }
 
   if (verb === "point") {
     if (!el && !cue.body) return null; // the page moved on — skip, never speak a ghost

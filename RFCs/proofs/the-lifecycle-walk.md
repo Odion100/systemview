@@ -1,6 +1,6 @@
 # The lifecycle walk — every kind, every state, pressable
 
-::report{id=lifecycle-walk as=spec title="The lifecycle walk — a living spec of RFC-076"}
+::report{id=lifecycle-walk as=spec retain=permanent title="The lifecycle walk — a living spec of RFC-076"}
 
 **This is a living spec, not an account.** It is never done — it is *current or drifted* — and the
 difference is pressable: the walks below drive the four mock documents through every state in

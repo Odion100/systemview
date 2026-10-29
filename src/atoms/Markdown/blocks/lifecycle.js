@@ -40,6 +40,7 @@ export function useRegistryRow(kind, id, nonce = 0) {
   const [row, setRow] = useState(null);
   useEffect(() => {
     let dead = false;
+    const timers = [];
     const agent = getAgent();
     if (!agent || !agent.documentsRegistry || !id) return undefined;
     const ask = () =>
@@ -54,11 +55,24 @@ export function useRegistryRow(kind, id, nonce = 0) {
     // Two asks after a press, not one. The parse is triggered by the write and lands a beat later,
     // so the first read is usually the state as it WAS — and a station that snaps back to where it
     // started is indistinguishable from a press that did nothing.
-    ask();
-    const t = nonce ? setTimeout(ask, 1200) : null;
+    //
+    // AND A ROW THAT ISN'T THERE YET GETS ASKED FOR AGAIN — bounded, not polled. A leaf written by
+    // a cmd-press mounts the moment the document re-renders, which is BEFORE the shell's parse has
+    // written the row (the fixture's raise, 2026-10-29: the leaf showed, the trail never came, and
+    // only a remount would have fixed it — a surface requiring a refresh). Two retries cover the
+    // parse lag; a document that is genuinely unregistered stops being asked about after that,
+    // because absence stated beats a poll that never believes it.
+    const askAndRetry = (delays) =>
+      ask().then((found) => {
+        if (found || dead || !delays.length) return found;
+        timers.push(setTimeout(() => askAndRetry(delays.slice(1)), delays[0]));
+        return null;
+      });
+    askAndRetry([1500, 4000]);
+    if (nonce) timers.push(setTimeout(ask, 1200));
     return () => {
       dead = true;
-      if (t) clearTimeout(t);
+      timers.forEach(clearTimeout);
     };
   }, [kind, id, projectCode, nonce]);
   return row;
@@ -91,6 +105,10 @@ export const LifecycleTrail = ({ kind, id, line, attrs = {} }) => {
   // only one reason needs and which therefore only appears when that reason is chosen.
   const [asking, setAsking] = useState(false);
   const [pointer, setPointer] = useState("");
+  // The pointer field is SUMMONED, not standing — only `superseded` needs a document named, and a
+  // field sitting beside every reason read as a mystery ("what is superseded by anyway?" — his,
+  // 2026-10-29, looking at exactly that).
+  const [needPtr, setNeedPtr] = useState(false);
   // §4.5 — a gap's rejection asks too, and its reason is a LINE rather than a word from a list,
   // because §3's gap table describes a closed list but never names its members.
   const [declining, setDeclining] = useState(false);
@@ -116,6 +134,15 @@ export const LifecycleTrail = ({ kind, id, line, attrs = {} }) => {
       // claims bar already writes it this way. Then the attributes, in one write.
       if (plan.appendStatus && appendEnd) appendEnd(`## STATUS — built ${today()}`);
       if (Object.keys(plan.attrs).length) setAttr(line, plan.attrs);
+      // UN-RETIRING A REPORT CLEARS ITS CLOCK IN THE SAME STEP (RFC-076 §3, c39) — or the
+      // retention sweep retires it again the next time it runs, off the old first-open. The
+      // ledger restart re-measures attention from the moment he chose to bring it back.
+      if (kind === "report" && plan.attrs && plan.attrs.retired === null && id) {
+        try {
+          const agent = require("../../../utils/hub").getAgent();
+          if (agent && agent.documentOpened) agent.documentOpened({ id, restart: true });
+        } catch {}
+      }
       setNonce((n) => n + 1);
       return true;
     },
@@ -131,6 +158,7 @@ export const LifecycleTrail = ({ kind, id, line, attrs = {} }) => {
       if (station === "retired") {
         setRefused("");
         setPointer("");
+        setNeedPtr(false);
         setAsking(true);
         return;
       }
@@ -154,13 +182,17 @@ export const LifecycleTrail = ({ kind, id, line, attrs = {} }) => {
   const give = useCallback(
     (reason) => {
       const r = reasonOf(reason);
-      // `superseded` needs a document named, so the first press on it opens the field rather than
-      // writing a retirement nobody can follow back to its replacement.
+      // `superseded` needs a document named, so the first press on it SUMMONS the field rather
+      // than writing a retirement nobody can follow back to its replacement.
       if (r && r.needs && !String(pointer).trim()) {
+        setNeedPtr(true);
         setRefused("superseded by what? name the document that replaced this one");
         return;
       }
-      if (write("retired", reason, pointer)) setAsking(false);
+      if (write("retired", reason, pointer)) {
+        setAsking(false);
+        setNeedPtr(false);
+      }
     },
     [write, pointer]
   );
@@ -269,19 +301,26 @@ export const LifecycleTrail = ({ kind, id, line, attrs = {} }) => {
               {r.label}
             </button>
           ))}
-          <input
-            className="md-arc__why-ptr"
-            type="text"
-            value={pointer}
-            placeholder="superseded by…"
-            aria-label="superseded by"
-            onChange={(e) => setPointer(e.target.value)}
-          />
+          {needPtr ? (
+            <input
+              className="md-arc__why-ptr"
+              type="text"
+              autoFocus
+              value={pointer}
+              placeholder="superseded by…"
+              aria-label="superseded by"
+              onChange={(e) => setPointer(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") give("superseded");
+              }}
+            />
+          ) : null}
           <button
             type="button"
             className="md-arc__why-pick md-arc__why-pick--off"
             onClick={() => {
               setAsking(false);
+              setNeedPtr(false);
               setRefused("");
             }}
             title="leave it where it is"
