@@ -1,11 +1,34 @@
 # MOCK — an RFC you can push around
 
-::rfc{id=MOCK-RFC title="MOCK — an RFC you can push around"}
+::report{id=MOCK-RFC-SPEC as=spec retain=permanent title="MOCK — an RFC you can push around"}
 
-**This document exists to be messed with.** It is not a design and decides nothing; it carries the
-blocks an RFC's lifecycle reads so every state can be walked by hand, in the order of RFC-076 §2's
-table. The id says MOCK so nobody has to wonder. It also serves the mock arc's O1, so the arc's own
-walk moves this leaf — that is the upward derivation being demonstrated, not interference.
+**At rest, this document is a SPEC.** It is the fixture for the RFC lifecycle: it decides nothing
+and designs nothing — it carries the blocks an RFC's lifecycle reads, so every state can be walked
+by hand in the order of RFC-076 §2's table. The walk below RAISES a mock RFC inside it, pushes that
+RFC through every state, and tears it back down to this spec. While the test runs, the document
+carries two leaves and two registry rows — each row deriving by its own kind (RFC-073), and the
+spec row standing untouched through all of it. The id says MOCK so nobody has to wonder. While
+raised, it also serves the mock arc's O1, so the arc's own walk moves this leaf — that is the
+upward derivation being demonstrated, not interference.
+
+## Raise it — creation is the first state
+
+An RFC's first state is EXISTING, and nothing can press a document into being — so creation is a
+command, never a button on the trail. This turns the commented leaf below into the real thing:
+watch a MOCK-RFC row appear beside this spec's own, with the trail armed on the leaf.
+
+:::cmd
+node RFCs/proofs/mock.js rfc on
+:::
+
+And its opposite — the teardown lives here beside the raise (and again at the bottom, where a
+finished walk wants it): strip the leaf, the row follows, the document is a spec again.
+
+:::cmd
+node RFCs/proofs/mock.js rfc off
+:::
+
+::rfc{id=MOCK-RFC title="MOCK — an RFC you can push around"}
 
 ## Walk it — one press per state, in the table's order
 
@@ -99,18 +122,14 @@ echo "pressable, re-runnable — that is what a spec means"
 
 ::claims
 
-## When you are done
+## When you are done — back to a spec
 
-The teardown strips the leaf; the registry row follows, and the mock leaves every list and drawer.
-Reversible, like everything here.
+The teardown strips the RFC leaf; its row follows on the next parse, and the document is just this
+spec again — the spec row never flickered. Reversible, like everything here: the raise command at
+the top brings it back.
 
 :::cmd
 node RFCs/proofs/mock.js rfc off
 :::
-
-:::cmd
-node RFCs/proofs/mock.js rfc on
-:::
-
 
 

@@ -1,6 +1,6 @@
 # MOCK — a report you can push around
 
-::report{id=MOCK-REPORT as=notice title="MOCK — a report you can push around"}
+::report{id=MOCK-REPORT as=notice retain=14d title="MOCK — a report you can push around"}
 
 A report to mess with. Two states, and existence is the first — nothing can press a document into
 existing, so `filed` is never a button.

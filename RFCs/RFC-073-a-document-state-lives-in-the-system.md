@@ -314,10 +314,16 @@ parse happens. **Write is one cause of a parse; render is another; a session arr
 
 On a parse, in order:
 
-1. **Register.** A registration leaf (`::arc` / `::rfc` / `::report`) at the top → upsert
-   `{id, kind, path, project}`. The id is the identity: a moved file updates the row, never
-   duplicates it. **Registration does not scope subscribe** — it only says which documents a session
-   sweeps on start.
+1. **Register.** EVERY registration leaf (`::arc` / `::rfc` / `::report` / `::gap`) in the
+   document → one row each, `{id, kind, path, project}`, each row's state derived by its own kind
+   out of the one file. The id is the identity: a moved file updates its rows, never duplicates
+   them; a leaf removed from the file takes its row and leaves the others; a file with no leaves
+   left loses every row it had. The FIRST leaf is the document's PRIMARY identity — fires and
+   audiences answer with one name. (Amended 2026-10-29: this step used to take only the first
+   leaf — "a document is one thing" — a rule that entered the code from a brainstorm question,
+   not a ruling. The fixture case is why it went: a spec-registered mock document carries the
+   leaf of the kind it exercises, pressable because that leaf has a row.) **Registration does not
+   scope subscribe** — it only says which documents a session sweeps on start.
 2. **Find what fired.** For each firing block (§2.2): audience is `subscribe=`, else the document's
    `::members{who=}`; if `told=` does not cover it, emit `block.fired`.
 3. **Deliver, then stamp.** The host builds the event through `documentUpdate.cjs` — the existing
@@ -741,6 +747,15 @@ grep -rn "fs.watch(\|setInterval" ~/autobot/electron/markdown ~/autobot/electron
 
 :::approval{ask="Approve RFC-073 — a document's state lives in the system?" verdict=approved told=systemview-test}
 The piece most worth rejecting is §1.1 with §1.4: identity never derived from content, and a derived `state` that is never read as truth.
+:::
+
+:::approval{ask="Approve the 2026-10-29 amendment — a document may carry several registration leaves, one row each?"}
+The amendment changes §4's register step: every leaf registers, each row's state derives by its own
+kind, teardown is per-leaf, and the first leaf stays the primary identity for fires and audiences.
+Built and tested the same day (autobot registry suite, 48 claims — one file, two rows, each state
+by its own kind; a torn-out leaf takes only its row). The piece most worth rejecting: whether the
+PRIMARY-identity convention (first leaf answers for fires) should instead fire per-leaf — today one
+name answers, which keeps audiences simple and may undersell a fixture whose mock leaf completes.
 :::
 
 ## STATUS — built 2026-10-25 (slices 1, 3, 4, 5, 6, 8, the skills of 7, and slice 2's RFC/arc cutover — his ruling: the registered list IS the honest list)

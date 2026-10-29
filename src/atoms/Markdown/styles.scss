@@ -3476,11 +3476,15 @@
     color: var(--sv-text-dim, #5a6378);
   }
 
+  // THE IDENTITY READS AT DOCUMENT SIZE (his call, 2026-10-29: the trail was right, the periphery
+  // whispered). The id is the thing every attachment points at — it gets the weight; the title is
+  // its sentence; the kind stays a small-caps breath above both.
   &__id {
     font-weight: 700;
+    font-size: 14.5px;
     letter-spacing: 0.03em;
   }
-  &__title { color: var(--sv-text); }
+  &__title { color: var(--sv-text); font-size: 13px; }
   &__owner,
   &__count { color: var(--sv-text-faint); font-size: 11px; }
 
@@ -3488,15 +3492,20 @@
   // refusal, the reason menu and the facilitation steps, because they are all the same thing from
   // the bar's point of view: a second line that appeared, which must never cost the first one a
   // pixel. `flex-basis: 100%` is what makes the parent's wrap drop it onto its own line.
+  // IT IS A SUMMONED SURFACE, SO IT WEARS ONE — a quiet glass card instead of a bare rule (his
+  // ruling, 2026-10-29: the old ghost pills were "terribly styled"). Same recipe as the window's
+  // glass tabs, so a question the leaf asks looks like the rest of the house asking.
+  // NO CARD AROUND THE QUESTION — his edit, live in the window (2026-10-29): the summoned row is
+  // bare; the pills carry the whole look. The container keeps only its geometry.
   &__panel {
     display: flex;
     width: 100%;
     flex-wrap: wrap;
     align-items: center;
-    gap: 6px;
-    margin-top: 6px;
-    padding-top: 6px;
-    border-top: 1px solid var(--sv-border-soft, var(--sv-border));
+    gap: 8px;
+    margin-top: 8px;
+    padding: 7px 10px;
+    border-radius: 9px;
   }
 
   // The reason menu — what the retire gate became. The control always lets you press and asks why,
@@ -3505,52 +3514,91 @@
     display: inline-flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: 3px;
+    gap: 5px;
   }
   &__why-ask {
-    font-size: 10px;
+    font-size: 11px;
+    font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--sv-text-faint);
+    letter-spacing: 0.06em;
+    color: var(--sv-text-dim, #5a6378);
+    margin-right: 2px;
   }
   &__why-pick {
     appearance: none;
-    background: none;
     font: inherit;
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    padding: 1px 6px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    padding: 3px 11px;
     border-radius: 999px;
     cursor: pointer;
-    border: 1px solid var(--sv-line, #3a3a3a);
-    color: var(--sv-text-faint);
 
-    // ENDINGS AND PAUSES LOOK DIFFERENT, because they do different things to the lists and that is
-    // the only thing you need to know while choosing. An ending takes the document out; a pause
-    // keeps it, showing this word. Same shape, so neither reads as the default.
-    &--ending:hover { color: #a2503f; border-color: #a2503f; }
-    &--pause:hover { color: var(--sv-blue, #4a7bd0); border-color: var(--sv-blue, #4a7bd0); }
+    // ENDINGS AND PAUSES WEAR THEIR COLOUR STANDING, not only on hover — what a word does to the
+    // lists is the one thing you need while choosing, and a choice you must hover to read is a
+    // choice hidden. An ending takes the document out (ember glass); a pause keeps it, showing the
+    // word (blue glass). Hover only deepens what is already said.
+    // NO FILL AT REST — his edit, live in the window (2026-10-29): border and text carry the
+    // ending colour, the glass gradient goes. The fill arrives on hover, so the pill answers the
+    // hand without shouting from the bench.
+    &--ending {
+      color: #b4503c;
+      // THE BORDER IS A SOFTER SHADE THAN THE TEXT (#bc7c6f vs #b4503c — his edit, 2026-10-29,
+      // "makes it easier to read"), and this is the going-forward recipe for these pills: no fill
+      // at rest, text in the full colour, border in its muted relative.
+      border: 1px solid color-mix(in srgb, #bc7c6f 40%, transparent);
+      background: none;
+      &:hover {
+        border-color: color-mix(in srgb, #b4503c 70%, transparent);
+        background: linear-gradient(
+          180deg,
+          color-mix(in srgb, #b4503c 10%, transparent),
+          color-mix(in srgb, #b4503c 22%, transparent)
+        );
+      }
+    }
+    &--pause {
+      color: var(--sv-blue, #4a7bd0);
+      border: 1px solid color-mix(in srgb, var(--sv-blue, #4a7bd0) 35%, transparent);
+      background: linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--sv-blue, #4a7bd0) 5%, transparent),
+        color-mix(in srgb, var(--sv-blue, #4a7bd0) 16%, transparent)
+      );
+      &:hover {
+        border-color: color-mix(in srgb, var(--sv-blue, #4a7bd0) 65%, transparent);
+        background: linear-gradient(
+          180deg,
+          color-mix(in srgb, var(--sv-blue, #4a7bd0) 10%, transparent),
+          color-mix(in srgb, var(--sv-blue, #4a7bd0) 24%, transparent)
+        );
+      }
+    }
     &--off {
-      border-color: transparent;
-      &:hover { color: var(--sv-text, #ddd); border-color: var(--sv-line, #3a3a3a); }
+      // NEVER the faint token here — the markdown theme resolves it GREEN (#42a942, the owner-chip
+      // colour), and a green "never mind" read as matching the trail (his, 2026-10-29: "stop
+      // trying to match the bar with the green text"). Muted is the neutral.
+      color: var(--sv-text-muted, #8b93a7);
+      border: 1px solid transparent;
+      background: none;
+      &:hover { color: var(--sv-text, #ddd); border-color: var(--sv-border-soft, var(--sv-border)); }
     }
     &:focus-visible { outline: 1px solid var(--sv-blue, #4a7bd0); outline-offset: 1px; }
   }
   // Only one reason needs a pointer, so the field is narrow and unlabelled until it is used.
   &__why-ptr {
     font: inherit;
-    font-size: 10px;
-    width: 104px;
-    padding: 1px 6px;
+    font-size: 11px;
+    width: 120px;
+    padding: 3px 10px;
     border-radius: 999px;
-    background: none;
-    border: 1px solid var(--sv-line, #3a3a3a);
+    background: color-mix(in srgb, var(--sv-bg, #1e2127) 60%, transparent);
+    border: 1px solid var(--sv-border-soft, var(--sv-border));
     color: var(--sv-text, #ddd);
-    &::placeholder { color: var(--sv-text-faint); text-transform: lowercase; }
+    &::placeholder { color: var(--sv-text-muted, #8b93a7); text-transform: lowercase; }
     &:focus-visible { outline: 1px solid var(--sv-blue, #4a7bd0); outline-offset: 1px; }
     // A gap's rejection reason is a sentence, not an id — it needs the room to be one.
-    &--wide { width: 180px; }
+    &--wide { width: 200px; }
   }
 
   // A REFUSAL IS SHOWN, NEVER SWALLOWED. `approved` comes from the approval block's verdict and an
@@ -4108,6 +4156,148 @@
 // what it does, a small play on the right. is-playing brightens the row while the cue performs.
 // (The old first/last-child margin exceptions are gone on purpose — the sequence design wants
 // chat-wrapped cues TIGHT, and the wrapper collapse in chat-md.scss owns the rhythm now.)
+
+// RFC-076 §4.6 — the report leaf's clock face and its invalid wear. The countdown is quiet until
+// it is close (three days), the presses are the chip's own size, and "invalid" is a warning the
+// document wears itself — the same fact the drawer row shows, said where the reader is standing.
+.md-report__invalid {
+  font-size: 10.5px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, #c0392b 45%, transparent);
+  color: #c0392b;
+  background: color-mix(in srgb, #c0392b 8%, transparent);
+  white-space: nowrap;
+}
+.md-report__clock {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  // muted, never faint — faint is GREEN in the markdown theme and the clock is not an owner chip
+  color: var(--sv-text-muted, #8b93a7);
+  white-space: nowrap;
+
+  &.is-soon { color: #c07a16; }
+  &.is-soon .md-pick__chip { color: #c07a16; border-color: color-mix(in srgb, #c07a16 40%, transparent); }
+
+  .md-report__divert {
+    font: inherit;
+    font-size: 10.5px;
+    padding: 2px 9px;
+    border-radius: 999px;
+    border: 1px solid var(--sv-border-soft);
+    background: transparent;
+    color: var(--sv-text-muted);
+    cursor: pointer;
+
+    &:hover { color: var(--sv-blue); border-color: var(--sv-blue); }
+  }
+}
+
+// THE SUBTYPE BADGE STANDS OUT (his direction, 2026-10-29) — it is the word that says what done
+// means for this report, so it wears the window's glass-blue instead of the quiet relation pill.
+// The read-only form; the editable form is the same look on a `.md-pick--as` chip below.
+.md-report__as {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 10px;
+  border-radius: 999px;
+  color: var(--sv-blue, #4a7bd0);
+  border: 1px solid color-mix(in srgb, var(--sv-blue, #4a7bd0) 35%, transparent);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--sv-blue, #4a7bd0) 5%, transparent),
+    color-mix(in srgb, var(--sv-blue, #4a7bd0) 16%, transparent)
+  );
+}
+
+// A PRESSABLE LEAF ATTRIBUTE (LeafPick.js) — chip + summoned word list. One popover for the
+// subtype and the retention, because they are one interaction: press the word, pick the word.
+.md-pick {
+  position: relative;
+  display: inline-flex;
+
+  &__chip {
+    appearance: none;
+    font: inherit;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+    border-radius: 999px;
+    padding: 2px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--sv-text-muted, var(--sv-text));
+    border: 1px solid var(--sv-border-soft, var(--sv-border));
+    background: transparent;
+    &:hover { color: var(--sv-blue, #4a7bd0); border-color: color-mix(in srgb, var(--sv-blue, #4a7bd0) 50%, transparent); }
+    &:focus-visible { outline: 1px solid var(--sv-blue, #4a7bd0); outline-offset: 1px; }
+  }
+  &__caret { font-size: 9px; opacity: 0.6; transform: translateY(-1px); }
+
+  // The subtype chip is the standing badge — glass blue, uppercase, the one that stands out.
+  &--as .md-pick__chip {
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--sv-blue, #4a7bd0);
+    border-color: color-mix(in srgb, var(--sv-blue, #4a7bd0) 35%, transparent);
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--sv-blue, #4a7bd0) 5%, transparent),
+      color-mix(in srgb, var(--sv-blue, #4a7bd0) 16%, transparent)
+    );
+    &:hover { border-color: color-mix(in srgb, var(--sv-blue, #4a7bd0) 65%, transparent); }
+  }
+
+  &__pop {
+    position: absolute;
+    top: calc(100% + 5px);
+    left: 0;
+    z-index: 30;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 118px;
+    padding: 5px;
+    border-radius: 9px;
+    border: 1px solid var(--sv-border, #3a3f4b);
+    background: var(--sv-surface, var(--sv-bg, #1e2127));
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.3);
+  }
+  &__opt {
+    appearance: none;
+    font: inherit;
+    font-size: 11.5px;
+    text-align: left;
+    padding: 4px 9px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--sv-text, #ddd);
+    cursor: pointer;
+    &:hover {
+      color: var(--sv-blue, #4a7bd0);
+      background: color-mix(in srgb, var(--sv-blue, #4a7bd0) 10%, transparent);
+    }
+  }
+  &__free {
+    font: inherit;
+    font-size: 11px;
+    margin-top: 3px;
+    padding: 4px 9px;
+    border-radius: 6px;
+    border: 1px solid var(--sv-border-soft, var(--sv-border));
+    background: transparent;
+    color: var(--sv-text, #ddd);
+    &::placeholder { color: var(--sv-text-muted, #8b93a7); }
+    &:focus-visible { outline: 1px solid var(--sv-blue, #4a7bd0); outline-offset: 1px; }
+  }
+}
 
 .md-cue {
   display: flex;

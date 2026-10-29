@@ -251,6 +251,10 @@ describe("retiring asks why — the menu, not a refusal", () => {
     const setAttr = jest.fn();
     mountWritable("rfc", "RFC-15", { setAttr }, { id: "RFC-15" });
     fireEvent.click(await screen.findByRole("button", { name: "retired" }));
+    // The pointer field is SUMMONED by the reason that needs it — pressing superseded with no
+    // document named opens the field instead of writing (his, 2026-10-29: a standing field beside
+    // every reason read as a mystery).
+    fireEvent.click(screen.getByRole("button", { name: "superseded" }));
     fireEvent.change(screen.getByLabelText("superseded by"), { target: { value: "RFC-081" } });
     fireEvent.click(screen.getByRole("button", { name: "superseded" }));
     const [line, pairs] = setAttr.mock.calls[0];

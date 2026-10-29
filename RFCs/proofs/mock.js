@@ -133,6 +133,14 @@ function apply(kind, state) {
   }
   let lines = readLines(kind);
 
+  // A STATE PRESS WHILE TORN DOWN would move verdicts and attrs under a document that is not
+  // there — the leaf is the identity, and without it there is nothing to walk. The fixture
+  // teaches the order instead: raise it first.
+  if (!lines.some((l) => l.startsWith(LEAF[kind] + "{"))) {
+    console.error(`mock-${kind}.md is torn down — raise it first: node RFCs/proofs/mock.js ${kind} on`);
+    process.exit(1);
+  }
+
   lines = lines.map((l) => {
     if (!l.startsWith(LEAF[kind] + "{")) return l;
     let out = l;

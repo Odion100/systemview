@@ -91,6 +91,16 @@ export default function Documentation({
     return subscribeTabs(tabsPc, setTabsState);
   }, [tabsPc]);
   const pane = tabsState.panes[0];
+  // THE FLOOR IS THE HOW TAB — one name, three readers. With nothing loaded in the center (no
+  // file, no namespace scope, or nothing open at all) this page shows How-we-work; it used to show
+  // it as a bare RENDER, which opened no tab and selected nothing. After a shell restart that left
+  // the URL in exactly this state the page was on screen with no tab of its own and every restored
+  // tab unselected — nothing to close, nothing to click back to (his report, 2026-10-29: *"it's
+  // showing, but the tab isn't selected, and this tab isn't showing"*). So the condition is named
+  // once here and answered identically by all three: the effect below OPENS the tab, isTabActive
+  // reads it as the selected one, and the render draws the page. If the page is up, its tab is up.
+  const onFloor =
+    !helpOpen && !fileLens && (pane.tabs.length === 0 || !sService) && (tab === "docs" || (tab === "reports" && !reportPath));
   // URL → store. A file in the URL opens/focuses its tab; otherwise the tab param names the kind.
   useEffect(() => {
     if (codeFile && codeFile.path) {
@@ -111,8 +121,10 @@ export default function Documentation({
       // chat). These tabs render a SLOT; the docked AgentChat portals the real panel into it —
       // one component, no second implementation, the same trick the nav dock itself uses.
       openTab(tabsPc, { key: `${urlTab}:${tabsPc}`, kind: urlTab });
-    else if (urlTab === "how")
+    else if (urlTab === "how" || onFloor)
       // ONE PER PROJECT, like the board — the page is the same page whatever is open behind it.
+      // `onFloor` rides the same branch because the floor IS this tab: landing there must leave a
+      // real, selected, closable tab rather than a page nobody can address.
       openTab(tabsPc, { key: `how:${tabsPc}`, kind: "how" });
     else if (urlTab === "board")
       // THE BOARD IS ONE TAB PER PROJECT, like stats — it is a view OF the project's one board
@@ -158,7 +170,7 @@ export default function Documentation({
         doc: { serviceId: sService, moduleName: sModule, methodName: sMethod },
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tabsPc, urlTab, reportPath, sService, sModule, sMethod, codeFile && codeFile.path, codeFile && codeFile.projectCode, codeFile && String(codeFile.lines), codeFile && codeFile.side]);
+  }, [tabsPc, urlTab, onFloor, reportPath, sService, sModule, sMethod, codeFile && codeFile.path, codeFile && codeFile.projectCode, codeFile && String(codeFile.lines), codeFile && codeFile.side]);
   // store → URL, on a strip click: the active tab writes the params that MEAN it — which is exactly
   // what keeps every deep link, chip and agent command working unchanged.
   // THE MAP LIVES IN tabRoutes.buildRoute NOW (RFC-069 slice 4) — the Agents page routes the
@@ -172,9 +184,14 @@ export default function Documentation({
   }, [tabsPc, routeTo]);
   // WHAT A TAB BEING ACTIVE MEANS ON THIS PAGE — the URL's answer, never the store's alone, so
   // back/forward keep working. Handed to CenterTabs; the Agents page answers from its own state.
+  // ON THE FLOOR, THE HOW TAB IS THE SELECTED ONE AND NOTHING ELSE IS — stated here rather than
+  // folded into the list below, because the floor's whole defect was a page showing with no tab
+  // wearing the selection.
   const isTabActive = useCallback((t) =>
     t.kind === "file"
       ? !!(fileLens && codeFile && fileKey(codeFile) === t.key)
+      : onFloor
+      ? t.kind === "how"
       : !fileLens &&
         ((t.kind === "doc" && (tab === "docs" || (tab === "reports" && !reportPath)) && t.key === `doc:${sService || ""}.${sModule || ""}.${sMethod || ""}`) ||
           (t.kind === "stats" && tab === "stats") ||
@@ -183,7 +200,7 @@ export default function Documentation({
           ((t.kind === "links" || t.kind === "cmds") && tab === t.kind) ||
           (t.kind === "logs" && tab === "logs" && t.key === `logs:${sService || ""}.${sModule || ""}.${sMethod || ""}`) ||
           (t.kind === "report" && tab === "reports" && (t.report ? t.report.path === reportPath : !reportPath))),
-    [fileLens, codeFile, tab, reportPath, sService, sModule, sMethod]);
+    [fileLens, codeFile, onFloor, tab, reportPath, sService, sModule, sMethod]);
   // Closing what you're LOOKING AT routes to the neighbor; closing a background tab moves nothing.
   // Bulk closes land the same way — CenterTabs already did the store half.
   const afterClose = useCallback((nextKey) => {
@@ -340,8 +357,10 @@ export default function Documentation({
             not loaded yet"): the manual ships inside the bundle, needs no hub, no plugin and no
             fetch — so when a restored tab's scope has not landed, or never lands because the
             document failed to load, the floor is this page rather than a dead doc pane labelled
-            "SystemView". The moment the scope resolves, the real document replaces it. */}
-        {!helpOpen && !fileLens && (pane.tabs.length === 0 || !sService) && (tab === "docs" || (tab === "reports" && !reportPath)) && (
+            "SystemView". The moment the scope resolves, the real document replaces it.
+            The condition is `onFloor`, defined once above — the effect opens the tab off the same
+            boolean that draws this, so the page can never be up without its tab. */}
+        {onFloor && (
           <div className="documentation-view__data-table">
             <HowWeWork />
           </div>

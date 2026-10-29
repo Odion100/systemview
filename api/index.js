@@ -2162,6 +2162,9 @@ const DocumentMembers = require("./documentMembers").documentMembersOn({ listFil
 const DocumentsRegistry = require("./documentsRegistry").documentsRegistryOn({ rootOf: (pc) => {
   try { return projectRoot(pc) || ""; } catch { return ""; }
 } });
+// RFC-076 §4.6 — the reader's attention is the hub's own fact: first-open stamps, in the hub's
+// own ledger file, joined onto the registry rows at read time.
+const StampOpened = require("./documentsRegistry").stampOpened;
 
 // WHERE THE FOUR DRIVE METHODS LAND. api/drive.js decides WHAT to send (and refuses, with why);
 // this emits it, because the chat state and the socket live here. `say` rides the trip and is
@@ -3155,6 +3158,10 @@ module.exports = function launchSystemView(port = 3000) {
       // RFC-073 — the registered documents: identity + what the last parse saw, with staleness
       // visible. The read the band's tabs and the drawer's counts move onto as slice 2 lands.
       documentsRegistry: async ({ projectCode, kind, arc } = {}) => DocumentsRegistry({ projectCode, kind, arc }),
+      // RFC-076 §4.6 — the reader's first open, stamped once into the hub's own ledger. The clock
+      // a report retires on starts HERE, which is why only the window calls it: an agent's parse
+      // is not his attention.
+      documentOpened: async ({ id, restart } = {}) => StampOpened(id, { restart: !!restart }),
       comments: async ({ projectCode, path, replyText, at, as } = {}) =>
         CodeComments({ projectCode, path, reply: replyText, at, as: as || null }),
       // DRIVING THE WINDOW — FOUR METHODS (api/drive.js), not one door with a verb string.

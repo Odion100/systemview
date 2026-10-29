@@ -54,3 +54,38 @@ test("a pointer leading nowhere answers missing, not stale state read as truth",
   const [row] = door({ projectCode: "systemview" });
   assert.strictEqual(row.missing, true);
 });
+
+// RFC-076 §4.6 — the reader's first open: the hub's own ledger, first write wins, joined onto the
+// row at read time. Its own file because the shell regenerates documents.json on every parse — a
+// fact written between parses would die in the rewrite.
+test("first open stamps once — the second open keeps the first clock", () => {
+  process.env.AUTOBOT_DOCUMENTS_OPENED = path.join(tmp, "documents-opened.json");
+  const { stampOpened } = require("./documentsRegistry");
+  const a = stampOpened("rep-1");
+  assert.strictEqual(a.ok, true);
+  const b = stampOpened("rep-1");
+  assert.strictEqual(b.already, true);
+  assert.strictEqual(b.openedAt, a.openedAt, "the clock is attention, not renders");
+  assert.strictEqual(stampOpened("").ok, false, "no id, no stamp");
+});
+
+test("the registry read joins openedAt onto the row — absent when never opened", () => {
+  process.env.AUTOBOT_DOCUMENTS_OPENED = path.join(tmp, "documents-opened.json");
+  write([
+    { id: "rep-1", kind: "report", path: "RFCs/rep-1.md", project: "systemview", at: 1 },
+    { id: "rep-2", kind: "report", path: "RFCs/rep-2.md", project: "systemview", at: 1 },
+  ]);
+  const rows = door({ projectCode: "systemview" });
+  assert.strictEqual(typeof rows.find((r) => r.id === "rep-1").openedAt, "number");
+  assert.strictEqual(rows.find((r) => r.id === "rep-2").openedAt, undefined, "unread stays unstamped");
+});
+
+test("divert restarts the clock — the one caller allowed to move an existing stamp", async () => {
+  process.env.AUTOBOT_DOCUMENTS_OPENED = path.join(tmp, "documents-opened.json");
+  const { stampOpened } = require("./documentsRegistry");
+  const first = stampOpened("rep-divert");
+  await new Promise((r) => setTimeout(r, 5));
+  const diverted = stampOpened("rep-divert", { restart: true });
+  assert.strictEqual(diverted.ok, true);
+  assert.ok(diverted.openedAt > first.openedAt, "the clock re-measures attention from the divert");
+});
