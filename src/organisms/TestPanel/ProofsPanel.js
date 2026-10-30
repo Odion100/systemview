@@ -1,6 +1,6 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { getAgent } from "../../utils/hub";
-import { run as runProofs, list as listProofs, subscribe } from "../../utils/proofsBus";
+import { run as runProofs, list as listProofs, mark, subscribe } from "../../utils/proofsBus";
 import SavedTests from "../SavedTests/SavedTests";
 import { parseSteps, toStep } from "../../atoms/Markdown/blocks/RunBlock";
 import ServiceContext from "../../ServiceContext";
@@ -91,7 +91,7 @@ const ProofsPanel = ({ projectCode: routeCode, services: givenServices = [], sav
     const mine = connectedServices.filter((s) => s.projectCode === projectCode);
     return mine.length ? mine : givenServices;
   }, [connectedServices, projectCode, givenServices]);
-  const [{ listed, ran, running, scope }, setState] = useState({ listed: null, ran: null, running: false, scope: null });
+  const [{ listed, ran, running, scope, marks }, setState] = useState({ listed: null, ran: null, running: false, scope: null, marks: {} });
   const absent = !getAgent() || typeof getAgent().listProofs !== "function";
   // NO PROJECT IS ITS OWN STATE, and it has to be said. `projectCode` comes from the ROUTE
   // (`useParams` in pages/SystemView) and this panel is mounted in the scratchpad, so on a route
@@ -130,7 +130,7 @@ const ProofsPanel = ({ projectCode: routeCode, services: givenServices = [], sav
     for (const r of rows) {
       if (r.specKind === "test") {
         const hit = (savedTests || []).filter((t) => nsOf(t).includes(r.label));
-        hit.forEach((t) => out.push({ ...t, __at: `${r.document}#L${r.line}`, __doc: r.document, __claim: r.claim || "", __path: r.path, __line: r.line, __end: r.end || r.line, __claimLine: r.claimLine || 0 }));
+        hit.forEach((t) => out.push({ ...t, __at: `${r.document}#L${r.line}`, __key: r.at, __doc: r.document, __claim: r.claim || "", __path: r.path, __line: r.line, __end: r.end || r.line, __claimLine: r.claimLine || 0 }));
         continue;
       }
       if (!r.src) continue; // no body yet — the hub answers the inventory before the source
@@ -151,6 +151,10 @@ const ProofsPanel = ({ projectCode: routeCode, services: givenServices = [], sav
         sectionRefs: {},
         run: ["steps"],
         __at: `${r.document}#L${r.line}`,
+        // THE JOIN KEY. `__at` is the address a reader sees; this is the one a RESULT is matched
+        // on, and it is the same string `arcPlan` puts on a ledger dot — which is what makes the
+        // two surfaces agree rather than be kept in agreement.
+        __key: r.at,
         __doc: r.document,
         __claim: r.claim || "",
         __path: r.path,
@@ -162,7 +166,7 @@ const ProofsPanel = ({ projectCode: routeCode, services: givenServices = [], sav
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, projectCode, services, savedTests]);
-  const head = summaryOf({ listed, ran, running });
+  const head = summaryOf({ listed, ran, running, marks });
   const scoped = !!(scope && !scope.project);
 
   if (noProject && !ran)
@@ -215,6 +219,20 @@ const ProofsPanel = ({ projectCode: routeCode, services: givenServices = [], sav
         editable={false}
         kindLabel="proof"
         kindTone="run"
+        // THE TWO DIRECTIONS OF ONE AGREEMENT.
+        //
+        // OUT: these cards run window-side, one at a time, each reporting running → pass/fail —
+        // and that was the only place in the window a spec could be watched running, with nothing
+        // outside this list ever hearing it. Every result now lands on the bus under the spec's
+        // own address, so a plan ledger in an open document lights up as this list runs.
+        //
+        // IN: a status this card did not produce — a run started from a document, which the bus
+        // walks a document at a time and marks as it goes. The panel used to be built from the
+        // LISTING and never from the run, so pressing run in a document left these cards blank
+        // beside the word "running…". They are the same specs; there is one map; neither side
+        // has to be told about the other.
+        onCardResult={(t, status) => t && t.__key && mark({ [t.__key]: status })}
+        statusOf={(t) => (t && t.__key ? (marks || {})[t.__key] : undefined)}
         // THE PROOF'S OWN IDENTITY, kept through the shared card: where it lives. A saved test is
         // "test <namespace>"; a proof is "proof <document>#L<line>", because that is the only
         // address it has and the thing a reader needs to go and open.

@@ -8,6 +8,8 @@
 // nothing; `Agent.runProofs` answers with the same `{ tests: [...] }` shape a test run gives, plus
 // `problems` for specs that could not be built. Both come through here.
 
+import { specKeyOf, tallyOf } from "../../utils/specRun";
+
 /** A spec's address as a human reads it — the document, and the line its block starts on. */
 export const addressOf = (doc, spec) => `${doc.id}#L${spec.line}`;
 
@@ -24,6 +26,13 @@ export function listRows(listed) {
     for (const spec of doc.specs || [])
       out.push({
         key: addressOf(doc, spec),
+        // THE JOIN KEY, beside the human one. `key` is what a reader sees (`MOCK-RFC#L106`); `at`
+        // is what a result is matched on, and it is the PATH, because that is what the hub stamps
+        // on every row it runs. These were the same name doing two jobs and they were not equal —
+        // `resultRows` has claimed since it was written to be "keyed by the same address the
+        // listing uses", and it never was, so no listed spec in this window had ever been shown
+        // its own outcome. One name each, and the match is free.
+        at: specKeyOf(doc, spec.line),
         document: doc.id,
         kind: doc.kind,
         path: doc.path,
@@ -52,8 +61,11 @@ export function listRows(listed) {
 }
 
 /**
- * THE RESULT — one row per spec that actually ran, keyed by the same address the listing uses, so a
- * listed row can find its own outcome without the two lists having to stay in the same order.
+ * THE RESULT — one row per spec that actually ran, carrying `at`, the key `listRows` now puts on
+ * its own rows, so a listed row can find its own outcome without the two lists having to stay in
+ * the same order. (It said this before and was wrong: the listing keyed on the document ID and
+ * the hub stamps the PATH, so the two could never meet. `utils/specRun.specKeyOf` is the one
+ * definition of that address now and both sides call it.)
  */
 export function resultRows(ran) {
   const tests = (ran && ran.tests) || [];
@@ -87,10 +99,19 @@ export function resultRows(ran) {
  * - run, and every spec in scope ran
  * - run, and some could not be built — which is NOT a clean run of the rest
  */
-export function summaryOf({ listed, ran, running } = {}) {
+export function summaryOf({ listed, ran, running, marks } = {}) {
   const specs = (listed && listed.specs) || 0;
   const docs = ((listed && listed.documents) || []).length;
-  if (running) return "running…";
+  // A RUN IN FLIGHT SHOULD HAVE A NUMBER THAT MOVES. This was the literal string "running…" for
+  // the whole of a run of any size, because the bus carried one boolean for all of it and there
+  // was nothing finer to say. There is now: the marks settle a document at a time, so the line
+  // counts them — and a failure already in the bag is named while the rest is still going, rather
+  // than arriving as a surprise at the end.
+  if (running) {
+    const t = tallyOf(marks);
+    if (!t.total) return "running…";
+    return `running — ${t.settled}/${t.total}${t.fail ? ` · ${t.fail} failed` : ""}`;
+  }
   // A REFUSAL IS SURFACED, NEVER FORCED PAST. `listed.error` used to fall through to the count
   // below, so the hub answering "projectCode required" rendered as "no run or test blocks in
   // scope" — a refusal shown as an absence, which is the one way this surface could lie. Measured

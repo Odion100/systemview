@@ -154,3 +154,37 @@ describe("scopeLabel — what is being run, in his words", () => {
     expect(scopeLabel(null)).toBe("everything");
   });
 });
+
+describe("the join the two lists never had", () => {
+  it("A LISTED SPEC CAN FIND ITS OWN OUTCOME. It never could: the listing keyed on the document ID and the hub stamps the PATH", () => {
+    const listed = listRows(LISTED);
+    const results = resultRows({
+      tests: [
+        { at: "RFCs/RFC-900.md#L3", title: "two calls", passed: true },
+        { at: "RFCs/arcs/ARC-900.md#L4", title: "", passed: false, failures: [{ message: "nope" }] },
+      ],
+    });
+    const byAt = new Map(results.map((r) => [r.at, r]));
+    expect(byAt.get(listed[0].at).passed).toBe(true);
+    expect(byAt.get(listed[2].at).passed).toBe(false);
+    // the human address is still the human address, and it is a different string
+    expect(listed[0].key).toBe("RFC-900#L3");
+    expect(listed[0].at).toBe("RFCs/RFC-900.md#L3");
+  });
+});
+
+describe("summaryOf — a run in flight has a number that moves", () => {
+  it("counts what has settled out of what is in scope, rather than saying one fixed word", () => {
+    const marks = { a: "pass", b: "pass", c: "running", d: "queued" };
+    expect(summaryOf({ listed: LISTED, running: true, marks })).toBe("running — 2/4");
+  });
+
+  it("NAMES A FAILURE WHILE THE REST IS STILL GOING — one already in the bag is not a surprise for the end", () => {
+    expect(summaryOf({ listed: LISTED, running: true, marks: { a: "fail", b: "queued" } })).toBe("running — 1/2 · 1 failed");
+  });
+
+  it("falls back to the bare word when there is nothing finer to say yet", () => {
+    expect(summaryOf({ listed: LISTED, running: true })).toBe("running…");
+    expect(summaryOf({ listed: LISTED, running: true, marks: {} })).toBe("running…");
+  });
+});
