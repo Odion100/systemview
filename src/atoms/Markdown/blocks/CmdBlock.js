@@ -277,6 +277,14 @@ const CmdBlock = ({ src, attrs = {} }) => {
             <button
               type="button"
               className="md-cmd__btn"
+              // A STABLE ADDRESS FOR EVERY COMMAND (his rule for our own application: assign one
+              // wherever it makes sense). Every cmd block renders identical classes, so a cue
+              // selector took the FIRST one and every other command in a document was
+              // unaddressable — a fixture whose whole point is walking eight states could only
+              // ever have its first command pressed, which is why a demo quietly rerouted around
+              // them instead of pressing them. The command IS the address:
+              // `press="[data-cmd*='rfc rejected']"`.
+              data-cmd={command}
               title={`Run in ${dir || projectCode || "this project"}`}
               onClick={start}
             >

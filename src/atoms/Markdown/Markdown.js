@@ -587,6 +587,23 @@ const Markdown = ({ children, dark = false, scope = null, onSourceChange = null,
     }
     if (next !== src) save(next);
   }, []);
+  // SEVERAL LINES, ONE SAVE — the door a facilitation step needs (RFC-076 §3: "mark the 23 claims
+  // that are yours" is one press writing onto 23 lines). Sequential setAttr calls each start from
+  // the source as it was before the save and clobber each other — the exact failure the object
+  // form above exists to prevent, one level up. Takes [{line, pairs}], applies in one pass.
+  const setAttrs = useCallback((writes) => {
+    const { source: src, onSourceChange: save, editable: can } = live.current;
+    if (!can || !Array.isArray(writes) || !writes.length) return;
+    let next = src;
+    for (const w of writes) {
+      if (!w || !w.line || !w.pairs) continue;
+      for (const [k, v] of Object.entries(w.pairs)) {
+        const n = setDirectiveAttr(next, w.line, k, v);
+        if (n != null) next = n;
+      }
+    }
+    if (next !== src) save(next);
+  }, []);
   const startThread = useCallback((from, to) => {
     const { source: src, onSourceChange: save, editable: can } = live.current;
     if (!can || !from) return;
@@ -623,8 +640,8 @@ const Markdown = ({ children, dark = false, scope = null, onSourceChange = null,
     save(`${String(src).replace(/\s*$/, "")}\n\n${text}\n`);
   }, []);
   const writeApi = useMemo(
-    () => ({ editable, setAttr, startThread, threadable, appendInside, removeBlock, appendEnd }),
-    [editable, setAttr, startThread, threadable, appendInside, removeBlock, appendEnd]
+    () => ({ editable, setAttr, setAttrs, startThread, threadable, appendInside, removeBlock, appendEnd }),
+    [editable, setAttr, setAttrs, startThread, threadable, appendInside, removeBlock, appendEnd]
   );
 
   const components = useMemo(

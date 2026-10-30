@@ -21,6 +21,7 @@ import Ask from "./blocks/Ask";
 import Members from "./blocks/Members";
 import Objective from "./blocks/Objective";
 import Cue from "./blocks/Cue";
+import Prompt from "./blocks/Prompt";
 import Arc from "./blocks/Arc";
 import Rfc from "./blocks/Rfc";
 import Report from "./blocks/Report";
@@ -103,6 +104,10 @@ export const BLOCKS = {
   // command log and replayable by press. A new reply's cues are PLAYED by the reply's own reader;
   // rendered history and documents never play themselves.
   cue: { Component: Cue },
+  // `::prompt[label]{text="…"}` — a prompt, in a document, pressable: the press sends the words
+  // into the chat as a visible message through the same send() a typed one takes. The block is
+  // deliberately dumb — what the words ask for is between the author and the agent.
+  prompt: { Component: Prompt },
   // Both RECOUNT from the objectives in their own document on every render — there is no stored
   // total anywhere, so neither can disagree with the blocks above it.
   progress: { Component: Progress },

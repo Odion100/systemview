@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getAgent } from "../../../utils/hub";
 import Trail from "../../Trail/Trail";
 import { useDocMembers, useMarkdownWrite } from "../context";
@@ -12,6 +12,7 @@ import {
   reasonOf,
   stepsFor,
 } from "./lifecycleState";
+import { facilitate, rfcCurrent } from "./facilitation";
 
 // RFC-075 §2 (his, folded at execution): *"the blocks for RFC and reports are literally just
 // labels — make the interactive component about the LIFE CYCLE of the document."*
@@ -113,8 +114,14 @@ export const LifecycleTrail = ({ kind, id, line, attrs = {} }) => {
   // because §3's gap table describes a closed list but never names its members.
   const [declining, setDeclining] = useState(false);
   const [declined, setDeclined] = useState("");
+  // RFC-076 §3's fourth column — the station a press cannot reach directly opens its STEPS instead
+  // of a refusal. Only the TARGET is state; the plan body is derived fresh every render from the
+  // live source, so a button that just wrote 23 marks comes back as the next step, not a stale one.
+  const [helping, setHelping] = useState("");
+  const panelRef = useRef(null);
   const row = useRegistryRow(kind, id, nonce);
-  const { editable, setAttr, appendEnd } = useMarkdownWrite() || {};
+  const { editable, setAttr, setAttrs, appendEnd } = useMarkdownWrite() || {};
+  const { source = "" } = useDocMembers() || {};
   const canPress = !!editable && !!line && !!setAttr && !!row;
 
   const write = useCallback(
@@ -174,9 +181,51 @@ export const LifecycleTrail = ({ kind, id, line, attrs = {} }) => {
       }
       setAsking(false);
       setDeclining(false);
+      // §3's COLUMN FOUR, BEFORE THE WRITE: a station with steps between here and there opens the
+      // steps. Null means nothing to facilitate — the write (or its named refusal) is the answer.
+      // THE CURRENT STATE COMES OFF THE SOURCE (rfcCurrent), never the registry row: the row is
+      // the last parse's cache and it was stale at the first live walk — the panel never opened
+      // because the row still said draft about approvals signed on the screen.
+      const current = kind === "rfc" ? rfcCurrent(source, leaf) : stateOf(kind, row, leaf);
+      // THE STATION YOU ARE ON IGNORES THE CLICK (his, 2026-10-29: "I can already see I'm in
+      // draft") — the lit station says it; a red "already draft" line was a refusal where nothing
+      // was refused.
+      if (station === current) return;
+      if (facilitate(kind, station, current, source, Date.now(), leaf, today())) {
+        setRefused("");
+        setHelping(station);
+        return;
+      }
+      setHelping("");
       write(station);
     },
-    [canPress, write]
+    [canPress, write, kind, row, leaf, source]
+  );
+
+  // Apply one STEP of a plan — its writes in ONE SAVE (setAttrs; sequential setAttr calls clobber
+  // each other), the leaf's own pairs merged in, the STATUS heading through the same door the
+  // claims bar uses. The panel stays open: the source moves, the ladder re-derives, the ✓ lands
+  // and the next step's button takes the floor without another trail press.
+  const applyStep = useCallback(
+    (step) => {
+      if (!step) return;
+      if (step.appendStatus) {
+        if (appendEnd) appendEnd(`## STATUS — built ${today()}`);
+        setNonce((n) => n + 1);
+        return;
+      }
+      const writes = [...(step.writes || [])];
+      if (step.leafPairs && line) writes.push({ line, pairs: step.leafPairs });
+      if (!writes.length) return;
+      if (setAttrs) setAttrs(writes);
+      else if (writes.length === 1 && setAttr) setAttr(writes[0].line, writes[0].pairs);
+      else {
+        setRefused("this surface cannot write several lines in one save");
+        return;
+      }
+      setNonce((n) => n + 1);
+    },
+    [setAttrs, setAttr, appendEnd, line]
   );
 
   const give = useCallback(
@@ -214,6 +263,17 @@ export const LifecycleTrail = ({ kind, id, line, attrs = {} }) => {
     setRefused("");
   }, [appendEnd]);
 
+  // THE LADDER DISMISSES ITSELF ON ARRIVAL (his catch, 2026-10-29: the "nothing in the way" button
+  // "usually shows up when you're already there"). When the document's own derived state lands on
+  // the target — the last step wrote, or the state moved on its own — the lit station is the
+  // confirmation, and a button offering to mark what already is would only have a refusal to give.
+  // ABOVE the row gate, because a hook below an early return is a conditional hook.
+  const helpCurrent = kind === "rfc" ? rfcCurrent(source, leaf) : stateOf(kind, row, leaf);
+  const arrived = !!helping && helpCurrent === helping;
+  useEffect(() => {
+    if (arrived) setHelping("");
+  }, [arrived]);
+
   if (!row) return null; // unregistered, or an older hub — the leaf stays the label it was
   const current = stateOf(kind, row, leaf);
   // WHAT THE TRAIL DRAWS IS ITS OWN QUESTION, and it now lives in the pure module — a gap forks,
@@ -233,6 +293,10 @@ export const LifecycleTrail = ({ kind, id, line, attrs = {} }) => {
   // read is a fact the reader needs: the document is retired AND unfileable, and a tooltip only
   // the editable render carried was the surface keeping that to itself.
   const unreadable = current === "retired" && retiredAs && !standing;
+  // The helping panel's body, derived from the live source EVERY render — a step that just ran
+  // comes back wearing its ✓, and the next one's button takes the floor.
+  const plan = helping ? facilitate(kind, helping, helpCurrent, source, Date.now(), leaf, today()) : null;
+  const nextStep = plan ? (plan.steps || []).find((s) => !s.done) : null;
 
   // THE BAR AND THE PANEL ARE SIBLINGS, never nested. The leaf is one row and it must not move:
   // anything that opens — a refusal, the reason menu, a step list — goes in `__panel`, which the
@@ -277,8 +341,53 @@ export const LifecycleTrail = ({ kind, id, line, attrs = {} }) => {
       onPress={canPress ? press : undefined}
       className="sv-trail--leaf"
     />
-    {asking || declining || refused || unreadable ? (
-    <span className="md-arc__panel">
+    {asking || declining || refused || unreadable || helping ? (
+    <span className="md-arc__panel" ref={panelRef}>
+      {/* THE STEP LIST a press opened (RFC-076 §3, column four). One button for the mechanical
+          half; what is not yours is NAMED, never done for its owner. When the steps run dry the
+          panel offers the finish, so the walk ends where the press began. */}
+      {helping ? (
+        <span className="md-arc__why md-arc__ladder" role="group" aria-label={`steps to ${helping}`}>
+          <span className="md-arc__why-ask">{(plan && plan.title) || `to reach ${helping}`}</span>
+          {plan ? (
+            (plan.steps || []).map((s, i) => (
+              <span key={i} className="md-arc__step">
+                {s.done ? (
+                  <span className="md-arc__why-note">✓ {s.label}</span>
+                ) : s === nextStep && (s.writes || s.appendStatus || s.leafPairs) ? (
+                  <button type="button" className="md-arc__why-pick md-arc__why-pick--pause" onClick={() => applyStep(s)}>
+                    {s.label}
+                  </button>
+                ) : (
+                  <span className="md-arc__why-note">☐ {s.label}</span>
+                )}
+                {s.note ? <span className="md-arc__why-note">{s.note}</span> : null}
+              </span>
+            ))
+          ) : (
+            <button
+              type="button"
+              className="md-arc__why-pick md-arc__why-pick--pause"
+              onClick={() => {
+                if (write(helping)) setHelping("");
+              }}
+            >
+              nothing left in the way — mark it {helping}
+            </button>
+          )}
+          <button
+            type="button"
+            className="md-arc__why-pick md-arc__why-pick--off"
+            onClick={() => {
+              setHelping("");
+              setRefused("");
+            }}
+            title="leave it where it is"
+          >
+            never mind
+          </button>
+        </span>
+      ) : null}
       {unreadable ? (
         <span className="md-arc__refused" role="note">
           retired as {retiredAs} — not a reason anything can read, so it files as neither an ending nor a pause

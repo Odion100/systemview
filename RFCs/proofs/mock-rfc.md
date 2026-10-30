@@ -11,6 +11,8 @@ spec row standing untouched through all of it. The id says MOCK so nobody has to
 raised, it also serves the mock arc's O1, so the arc's own walk moves this leaf — that is the
 upward derivation being demonstrated, not interference.
 
+::prompt[demo this fixture]{text="Run the full demo of the mock-rfc fixture, live in my window: raise it, walk the lifecycle forward with the facilitation ladder, show the gate and a backward path, and tear it down to the spec. Use the fixture's own commands and verify the stage before each beat."}
+
 ## Raise it — creation is the first state
 
 An RFC's first state is EXISTING, and nothing can press a document into being — so creation is a
@@ -28,7 +30,8 @@ finished walk wants it): strip the leaf, the row follows, the document is a spec
 node RFCs/proofs/mock.js rfc off
 :::
 
-::rfc{id=MOCK-RFC title="MOCK — an RFC you can push around"}
+<!-- mock off — bring it back with: node RFCs/proofs/mock.js rfc on -->
+<!-- mock-leaf: ::rfc{id=MOCK-RFC title="MOCK — an RFC you can push around" retired=2026-10-30 retiredAs=shelf} -->
 
 ## Walk it — one press per state, in the table's order
 
@@ -100,25 +103,25 @@ unanswered while the document called itself approved.
 A claim is met when it is marked met **and** carries the proof its kind owes. Five rows, five things
 a claims bar can say — if one renders wrong, it renders wrong here first.
 
-::::claim[a behavioural claim, marked met, carrying a spec → counts as met]{id=m1 state=met by=systemview-test note="the cmd below is the spec"}
+::::claim[a behavioural claim, marked met, carrying a spec → counts as met]{id=m1 state=met by=systemview-test|you note="the cmd below is the spec"}
 :::cmd
 echo "pressable, re-runnable — that is what a spec means"
 :::
 ::::
 
-::claim[a behavioural claim marked met with nothing in it → reads UNPROVED, never met]{id=m2 state=met by=systemview-test note="marked, with no body to put evidence in"}
+::claim[a behavioural claim marked met with nothing in it → reads UNPROVED, never met]{id=m2 state=met by=systemview-test|you note="marked, with no body to put evidence in"}
 
-::::claim[a behavioural claim backed only by a picture → still unproved; shown is not a spec]{id=m3 state=met by=systemview-test note="a picture is evidence and it is not a spec"}
+::::claim[a behavioural claim backed only by a picture → still unproved; shown is not a spec]{id=m3 state=met by=systemview-test|you note="a picture is evidence and it is not a spec"}
 ::file[RFCs/proofs/hww-trails.png]
 ::::
 
-::::claim[an experiential claim with shown evidence → met; kind exempts the spec, never the proof]{id=m4 kind=experiential state=met by=systemview-test note="the eye settles this one"}
+::::claim[an experiential claim with shown evidence → met; kind exempts the spec, never the proof]{id=m4 kind=experiential state=met by=systemview-test|you note="the eye settles this one"}
 ::file[RFCs/proofs/hww-retire-reasons.png]
 ::::
 
-::claim[a claim marked NOT met → the valuable outcome]{id=m5 state=unmet by=systemview-test note="nothing happens, which is the finding"}
+::claim[a claim marked NOT met → the valuable outcome]{id=m5 state=unmet by=systemview-test|you note="nothing happens, which is the finding"}
 
-::claim[a claim nobody looked at → unchecked, never the same as met]{id=m6}
+::claim[a claim nobody looked at → unchecked, never the same as met]{id=m6 state=met by=you at=1793317773522}
 
 ::claims
 
@@ -133,3 +136,6 @@ node RFCs/proofs/mock.js rfc off
 :::
 
 
+
+
+## STATUS — built 2026-10-30
