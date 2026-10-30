@@ -1,0 +1,526 @@
+// THE PLAN LEDGER'S LOOK. The colour vocabulary is carried over from the spec map unchanged — his
+// go, 2026-10-28, and a colour has to mean the same thing everywhere or it means nothing: green =
+// done/derived, teal = in motion, amber = needs attention, red = dead, blue = draft, mauve = open.
+// What is NOT carried over is the geometry: no stage, no wires, no wrapping columns, no menu.
+.sv-ledger {
+  --spec-arc: #9a4fe0;
+  --spec-rfc: #5a77e5;
+  --spec-done: #0d8065;
+  --spec-doing: #0b7f8e;
+  --spec-blocked: #c07a16;
+  --spec-dead: #a2503f;
+  --spec-draft: #5a77e5;
+  --spec-open: #9c6390;
+  // THE APP'S TOKENS, PINNED — the same correction the map needed. A rendered document re-declares
+  // these in its own scope (RFC-025) and its --sv-text-faint is GREEN, so a ledger inheriting them
+  // would render its quiet type green inside a document and gray on a page.
+  --sv-text: #46506a;
+  --sv-text-strong: #3b4460;
+  --sv-text-muted: #8b93a7;
+  --sv-text-faint: #97a0b8;
+  --sv-surface: #fff;
+  --sv-inset: #f4f6fa;
+  --sv-border: #d7dbe6;
+  --sv-border-soft: #e6e9f0;
+  --sv-track: #eceff5;
+  --sv-hatch: #c9cedb;
+
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--sv-text);
+  // NO STAGE AND NO MEASURED COLUMNS. The map measured its pane and wrapped; rows just are the
+  // width they are given, so a narrow document pane makes a narrower ledger and never a taller one.
+  width: 100%;
+
+  &--empty {
+    font-size: 12px;
+    color: var(--sv-text-faint);
+    font-style: italic;
+  }
+
+  // THE RESET IS A RESET, AND IT OUT-SPECIFIES EVERYTHING BELOW IT. `.sv-ledger button` is one
+  // class and one element; `.sv-ledger__dot` is one class — so `border: none` here beat every
+  // border a control set on itself, and the dots and run controls rendered as bare glyphs with no
+  // ring at all. Caught by photographing it. Every ring below is therefore a box-shadow, which
+  // nothing in this reset can reach and which composites rather than reflowing.
+  button {
+    font: inherit;
+    color: inherit;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+  }
+
+  // ── the head ────────────────────────────────────────────────────────────────────────────────
+  &__head {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding-bottom: 6px;
+  }
+  &__ident {
+    display: flex;
+    align-items: baseline;
+    gap: 7px;
+    min-width: 0;
+    flex: 1;
+  }
+  &__kind {
+    font-size: 10px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--spec-arc);
+  }
+  &__arctitle {
+    font-size: 12px;
+    color: var(--sv-text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+  // ONE NUMBER, AND IT IS BIG. The old header said 14% and the chips below it summed to 31%; the
+  // cure is not a smaller disagreement, it is one composition read once.
+  &__figure {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    white-space: nowrap;
+
+    b {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--sv-text-strong);
+      font-variant-numeric: tabular-nums;
+    }
+    span {
+      font-size: 11px;
+      color: var(--sv-text-faint);
+    }
+  }
+
+  &__facts {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px 11px;
+    font-size: 11.5px;
+    color: var(--sv-text-muted);
+    padding-bottom: 7px;
+
+    b { color: var(--sv-text-strong); font-variant-numeric: tabular-nums; }
+    .is-done b { color: var(--spec-done); }
+    .is-doing b { color: var(--spec-doing); }
+    .is-ready b { color: var(--spec-done); }
+    .is-blocked b { color: var(--spec-blocked); }
+    .is-unplanned b { color: var(--spec-dead); }
+  }
+  &__facts-gap { flex: 1; min-width: 4px; }
+  // THE RUN CONTROL RIDES IN THE HEAD, beside the percentage. In the facts row it was the first
+  // thing to wrap the moment a tally appeared — so the control you press to start a run moved as
+  // soon as the run started, which is the one moment it must not.
+  &__head &__run { align-self: center; }
+  &__tally {
+    display: inline-flex;
+    gap: 8px;
+    font-style: normal;
+    font-variant-numeric: tabular-nums;
+
+    i { font-style: normal; font-weight: 700; }
+    .is-pass { color: var(--spec-done); }
+    .is-fail { color: var(--spec-dead); }
+    .is-running { color: var(--spec-doing); }
+    .is-queued { color: var(--sv-text-faint); font-weight: 400; }
+  }
+
+  // ── THE PLAN AS ONE OBJECT ──────────────────────────────────────────────────────────────────
+  // One segment per objective, equal width, each filled by its own claims. Where the single bar
+  // said how far, this says where — and holds an empty segment for an objective nobody has
+  // planned, which a bar of one fill cannot do.
+  &__bar {
+    display: flex;
+    gap: 3px;
+    height: 10px;
+    margin-bottom: 10px;
+  }
+  &__seg {
+    flex: 1;
+    height: 100%;
+    border-radius: 2px;
+    // THE EMPTY PART HAS TO BE VISIBLE or the bar stops being one object: measured on the dark
+    // paper, segments at 0% vanished into the card and the two dashed ones at the end read as a
+    // separate widget floating to the right of a three-segment bar.
+    background: var(--sv-track);
+    box-shadow: inset 0 0 0 1px var(--sv-border);
+    overflow: hidden;
+    display: block;
+    position: relative;
+    transition: box-shadow 0.15s ease;
+
+    i {
+      display: block;
+      height: 100%;
+      background: var(--spec-open);
+      transition: width 0.35s ease;
+    }
+    &:hover { box-shadow: inset 0 0 0 1px var(--sv-border), 0 0 0 2px rgba(90, 119, 229, 0.35); }
+    &.is-done i { background: var(--spec-done); }
+    &.is-doing i { background: var(--spec-doing); }
+    &.is-ready i { background: var(--spec-done); opacity: 0.6; }
+    &.is-blocked { box-shadow: inset 0 0 0 1px var(--spec-blocked); i { background: var(--spec-blocked); } }
+    &.is-cycle { box-shadow: inset 0 0 0 1px var(--spec-dead); i { background: var(--spec-dead); } }
+    // UNPLANNED IS A HOLE, drawn as one — hatched rather than filled, because "nobody has written
+    // this down" is not "not started yet" and an ordinary empty segment says the second one. Quiet
+    // on purpose: it was a solid dashed red box and it shouted louder than the blocked objective.
+    &.is-unplanned {
+      background: repeating-linear-gradient(
+        -45deg,
+        transparent 0 3px,
+        var(--sv-hatch) 3px 5px
+      );
+      box-shadow: inset 0 0 0 1px var(--sv-border);
+    }
+  }
+
+  // ── what is stopping it ─────────────────────────────────────────────────────────────────────
+  &__stoppers {
+    border: 1px solid var(--sv-border);
+    border-left: 3px solid var(--spec-blocked);
+    border-radius: 5px;
+    padding: 6px 9px 7px;
+    margin-bottom: 10px;
+    background: var(--sv-inset);
+  }
+  &__stoppers-head {
+    font-size: 10px;
+    letter-spacing: 1.1px;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--spec-blocked);
+    margin-bottom: 3px;
+
+    b { color: var(--sv-text-muted); margin-left: 3px; }
+  }
+  &__stoppers ul { list-style: none; margin: 0; padding: 0; }
+  &__stoppers li {
+    display: flex;
+    align-items: baseline;
+    gap: 7px;
+    font-size: 12px;
+    line-height: 1.45;
+    padding: 1px 0;
+  }
+  &__stopper-at {
+    font-family: monospace;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--sv-text-strong);
+    white-space: nowrap;
+    text-decoration: underline;
+    text-decoration-color: var(--sv-border);
+  }
+  &__stopper-kind {
+    font-size: 9.5px;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--sv-text-faint);
+    white-space: nowrap;
+    min-width: 62px;
+  }
+  // THE SENTENCE, at reading weight. This is the thing he asked to be able to see, so it is not
+  // the quietest type on the surface — it is the normal one.
+  &__stopper-text { color: var(--sv-text); min-width: 0; }
+  &__stoppers li.is-cycle .sv-ledger__stopper-kind { color: var(--spec-dead); }
+  &__stoppers li.is-blocked .sv-ledger__stopper-kind { color: var(--spec-blocked); }
+
+  // ── a row per objective ─────────────────────────────────────────────────────────────────────
+  &__rows { list-style: none; margin: 0; padding: 0; }
+  &__row {
+    border-top: 1px solid var(--sv-border-soft);
+
+    &:last-child { border-bottom: 1px solid var(--sv-border-soft); }
+  }
+  &__line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 2px;
+    min-height: 26px;
+    // THE ROW NEVER OVERFLOWS. Measured: at 720px the owner column could not shrink (nowrap, no
+    // max) and the run control at the end was clipped by the pane edge — a control you cannot
+    // press because a name was long. The title gives way first, then the owner; the controls are
+    // the last things on the row to lose a pixel.
+    min-width: 0;
+  }
+  &__fold {
+    width: 13px;
+    text-align: center;
+    color: var(--sv-text-faint);
+    flex: none;
+
+    &:disabled { cursor: default; opacity: 0.45; }
+  }
+  &__rank {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--sv-text-faint);
+    width: 13px;
+    text-align: center;
+    flex: none;
+    font-variant-numeric: tabular-nums;
+  }
+  &__id {
+    font-family: monospace;
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--sv-text-strong);
+    flex: none;
+  }
+  &__state {
+    font-size: 9.5px;
+    letter-spacing: 0.7px;
+    text-transform: uppercase;
+    font-weight: 700;
+    width: 58px;
+    flex: none;
+    color: var(--spec-open);
+
+    &.is-done { color: var(--spec-done); }
+    &.is-doing { color: var(--spec-doing); }
+    &.is-ready { color: var(--spec-done); }
+    &.is-blocked { color: var(--spec-blocked); }
+    &.is-cycle { color: var(--spec-dead); }
+  }
+  &__title {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--sv-text);
+
+    i { color: var(--sv-text-faint); }
+  }
+  &__owner {
+    font-size: 10.5px;
+    color: var(--sv-text-faint);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 92px;
+    flex: 0 1 auto;
+
+    &.is-unowned { font-style: italic; }
+  }
+  &__mini {
+    width: 46px;
+    height: 5px;
+    border-radius: 3px;
+    background: var(--sv-inset);
+    border: 1px solid var(--sv-border-soft);
+    overflow: hidden;
+    flex: none;
+
+    i { display: block; height: 100%; background: var(--spec-doing); transition: width 0.35s ease; }
+  }
+  &__claims {
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    color: var(--sv-text-muted);
+    width: 58px;
+    text-align: right;
+    flex: none;
+
+    em { font-style: italic; font-size: 10px; color: var(--sv-text-faint); }
+  }
+
+  // THE REASON, IN THE ROW — not a `title=` on a ten-pixel word.
+  &__why {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    padding: 0 2px 5px 34px;
+    font-size: 11.5px;
+    line-height: 1.4;
+
+    .is-blocked { color: var(--spec-blocked); }
+    .is-cycle { color: var(--spec-dead); }
+    .is-waiting { color: var(--spec-doing); }
+    .is-elsewhere,
+    .is-unresolved { color: var(--sv-text-muted); }
+  }
+  &__waitlink { text-decoration: underline; text-decoration-color: var(--sv-border); }
+
+  // ── the plans under an objective ────────────────────────────────────────────────────────────
+  &__plans {
+    list-style: none;
+    margin: 0 0 6px;
+    padding: 0 2px 0 34px;
+
+    li {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 2px 0;
+      font-size: 11.5px;
+    }
+  }
+  &__plan-id {
+    font-family: monospace;
+    font-size: 11.5px;
+    color: var(--spec-rfc);
+    white-space: nowrap;
+
+    &:hover { text-decoration: underline; }
+  }
+  &__plan-claims { color: var(--sv-text-muted); font-variant-numeric: tabular-nums; }
+  &__stale {
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+    font-weight: 700;
+    color: var(--spec-blocked);
+  }
+  &__station {
+    font-size: 9.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--spec-draft);
+    white-space: nowrap;
+
+    &.is-approved,
+    &.is-built,
+    &.is-inProgress { color: var(--spec-doing); }
+    &.is-settled { color: var(--spec-done); }
+    &.is-rejected,
+    &.is-retired { color: var(--spec-dead); }
+  }
+
+  &__own {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 6px 2px 0;
+    font-size: 11px;
+    color: var(--sv-text-faint);
+  }
+
+  // ── A SPEC, AS A DOT ────────────────────────────────────────────────────────────────────────
+  // The whole point of the second half of the brief. A run used to leave no trace: a dashed
+  // border, then not-dashed, on a node, with nothing recording that anything had happened. A dot
+  // holds its answer until the next run replaces it, and it is the SAME value the proofs panel's
+  // card is showing for the same spec.
+  &__dots {
+    display: inline-flex;
+    gap: 3px;
+    align-items: center;
+    flex: none;
+  }
+  &__dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    // HOLLOW, BUT PRESENT. An unrun dot has to be visible, because half of what a dot is for is
+    // telling you how many specs defend a row BEFORE you press anything.
+    box-shadow: inset 0 0 0 1.5px var(--sv-text-faint);
+    background: transparent;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+
+    &:hover { box-shadow: inset 0 0 0 1.5px var(--spec-rfc); }
+    .sv-ledger__dot-ink {
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: transparent;
+    }
+    &.is-pass { box-shadow: inset 0 0 0 6px var(--spec-done); }
+    &.is-fail { box-shadow: inset 0 0 0 6px var(--spec-dead); }
+    // QUEUED IS ITS OWN STATE, and it is what makes a run look like a run: hollow dots that fill
+    // one at a time read as a sequence, where six turning green at once reads as a flash. A ring
+    // in the motion colour with a hollow centre — in scope, not yet its turn.
+    &.is-queued { box-shadow: inset 0 0 0 1.5px var(--spec-doing); opacity: 0.6; }
+    &.is-running {
+      box-shadow: inset 0 0 0 6px var(--spec-doing);
+      // OPACITY, NOT A BORDER ANIMATION. An animated border repaints every frame; opacity
+      // composites. The perf fire of 2026-10-28 was exactly that family.
+      animation: sv-ledger-pulse 1s ease-in-out infinite alternate;
+    }
+  }
+
+  &__run {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    box-shadow: inset 0 0 0 1px var(--sv-border);
+    color: var(--sv-text-muted);
+    flex: none;
+    white-space: nowrap;
+
+    &:hover:not(:disabled) { box-shadow: inset 0 0 0 1px var(--spec-done); color: var(--spec-done); }
+    // NOTHING TO RUN LOOKS LIKE NOTHING TO RUN. An objective with no plan still has a row, and its
+    // control was drawn identically to a live one — a button that lies about being pressable.
+    &:disabled { cursor: default; opacity: 0.32; }
+    &:disabled.is-running,
+    &:disabled.is-queued { opacity: 1; }
+    &.is-running,
+    &.is-queued {
+      box-shadow: inset 0 0 0 1px var(--spec-doing);
+      color: var(--spec-doing);
+      animation: sv-ledger-pulse 1s ease-in-out infinite alternate;
+    }
+    &.is-pass { box-shadow: inset 0 0 0 1px var(--spec-done); color: var(--spec-done); }
+    &.is-fail { box-shadow: inset 0 0 0 1px var(--spec-dead); color: var(--spec-dead); }
+  }
+  &__run-label { font-size: 10.5px; }
+}
+
+@keyframes sv-ledger-pulse {
+  from { opacity: 1; }
+  to { opacity: 0.45; }
+}
+
+// The page's quiet code chip, restated with enough weight to hold inside a document — the markdown
+// renderer's own `code` rule (blue on #eef1f7, 14px) wins by cascade otherwise, and did on the map.
+.sv-ledger code,
+.markdown .sv-ledger code {
+  font-family: monospace;
+  font-size: 11.5px;
+  background: var(--sv-inset);
+  border: 1px solid var(--sv-border-soft);
+  border-radius: 3px;
+  padding: 0 4px;
+  margin: 0;
+  color: var(--sv-text-strong);
+  white-space: nowrap;
+}
+
+:root.sv-dark .sv-ledger {
+  --spec-arc: #c68cf5;
+  --spec-rfc: #8ba4ef;
+  --spec-done: #3fb795;
+  --spec-doing: #52c5d6;
+  --spec-blocked: #e0a34f;
+  --spec-dead: #c97a68;
+  --spec-draft: #8ba4ef;
+  --spec-open: #cfa3c4;
+  --sv-text: #b8bfd3;
+  --sv-text-strong: #eef1fa;
+  --sv-text-muted: #98a0b5;
+  --sv-text-faint: #6f7789;
+  --sv-surface: #282c34;
+  --sv-inset: #21252b;
+  --sv-border: #3a3f4b;
+  --sv-border-soft: #333845;
+  --sv-track: #1b1e24;
+  --sv-hatch: #4a5060;
+}

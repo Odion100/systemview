@@ -1,4 +1,4 @@
-import { run, list, subscribe, last, scopeOf } from "./proofsBus";
+import { run, list, mark, subscribe, last, scopeOf } from "./proofsBus";
 import { setHub } from "./hub";
 
 // THE BUS — one owner of a proofs run, whoever started it. What is worth pinning is the reason it
@@ -140,5 +140,137 @@ describe("the scope the hub resolved is the one kept", () => {
     hubWith({ listProofs: async () => ({ ...LISTED, scope: { arc: "ARC-9" } }), runProofs: async () => RAN });
     await run("sv", { arc: "arc-9" });
     expect(last().scope).toEqual({ arc: "ARC-9" });
+  });
+});
+
+// ── THE RUN YOU CAN WATCH ───────────────────────────────────────────────────────────────────────
+//
+// `api/runTests.js` `executeSpecs` awaits every spec and returns when all of them are done, and
+// there is no socket here to stream over — so one `runProofs` call could only ever produce one
+// boolean, which `summaryOf` turned into the literal string "running…" for a run of any size. The
+// hub's `document` scope already exists and the listing already names the documents in order, so
+// the window asks for them one at a time. These claims are about that walk: that the marks fill in
+// as it goes, that they are keyed so another surface can read them, and that nothing is left spun.
+
+const DOCS = {
+  projectCode: "sv",
+  scope: { arc: "ARC-9" },
+  specs: 3,
+  documents: [
+    { id: "D1", path: "a.md", specs: [{ kind: "run", line: 1 }] },
+    { id: "D2", path: "b.md", specs: [{ kind: "run", line: 2 }, { kind: "run", line: 9 }] },
+  ],
+};
+const ranFor = (doc) =>
+  doc === "D1"
+    ? { passed: 1, failed: 0, tests: [{ passed: true, at: "a.md#L1" }] }
+    : { passed: 1, failed: 1, tests: [{ passed: true, at: "b.md#L2" }, { passed: false, at: "b.md#L9" }] };
+
+describe("a run that says so while it happens", () => {
+  it("EVERY SPEC IN SCOPE IS QUEUED FIRST — the state that makes a run read as a sequence", async () => {
+    let release;
+    hubWith({
+      listProofs: async () => DOCS,
+      runProofs: async ({ document }) => {
+        if (document === "D1") await new Promise((r) => (release = r));
+        return ranFor(document);
+      },
+    });
+    const seen = [];
+    const off = subscribe((s) => seen.push({ ...s.marks }));
+    const p = run("sv", { arc: "ARC-9" });
+    await Promise.resolve();
+    await Promise.resolve();
+    // the listing has landed and D1 is in flight: its spec is running, D2's are still waiting
+    const mid = seen[seen.length - 1];
+    expect(mid["a.md#L1"]).toBe("running");
+    expect(mid["b.md#L2"]).toBe("queued");
+    expect(mid["b.md#L9"]).toBe("queued");
+    release();
+    await p;
+    off();
+  });
+
+  it("settles each document as it answers, pass and fail by address", async () => {
+    hubWith({ listProofs: async () => DOCS, runProofs: async ({ document }) => ranFor(document) });
+    await run("sv", { arc: "ARC-9" });
+    expect(last().marks).toEqual({ "a.md#L1": "pass", "b.md#L2": "pass", "b.md#L9": "fail" });
+    expect(last().running).toBe(false);
+  });
+
+  it("the counts ADD UP over the documents — a step's answer is not the run's", async () => {
+    hubWith({ listProofs: async () => DOCS, runProofs: async ({ document }) => ranFor(document) });
+    const ran = await run("sv", { arc: "ARC-9" });
+    expect(ran.passed).toBe(2);
+    expect(ran.failed).toBe(1);
+    expect(ran.tests).toHaveLength(3);
+  });
+
+  it("A DOCUMENT THAT ANSWERED NOTHING SETTLES — left running, its specs would spin for the session", async () => {
+    hubWith({
+      listProofs: async () => DOCS,
+      runProofs: async ({ document }) => (document === "D1" ? { error: "no connected services for sv" } : ranFor(document)),
+    });
+    await run("sv", { arc: "ARC-9" });
+    expect(last().marks["a.md#L1"]).toBe("fail");
+    expect(last().running).toBe(false);
+  });
+
+  it("a spec that could not be BUILT is settled too, by the problem that names it", async () => {
+    hubWith({
+      listProofs: async () => ({ ...DOCS, documents: [DOCS.documents[0]] }),
+      runProofs: async () => ({ tests: [], problems: [{ document: "D1", line: 1, problem: "nothing to build" }] }),
+    });
+    await run("sv", { document: "D1" });
+    expect(last().marks["a.md#L1"]).toBe("fail");
+  });
+
+  it("a second run CLEARS the first one's marks — two stories on one surface is no surface", async () => {
+    hubWith({ listProofs: async () => DOCS, runProofs: async ({ document }) => ranFor(document) });
+    await run("sv", { arc: "ARC-9" });
+    let frozen = null;
+    hubWith({
+      listProofs: async () => ({ ...DOCS, documents: [DOCS.documents[0]] }),
+      runProofs: async () => new Promise((r) => (frozen = r)),
+    });
+    const p = run("sv", { document: "D1" });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(last().marks["b.md#L9"]).toBeUndefined();
+    frozen(ranFor("D1"));
+    await p;
+  });
+
+  it("NO LISTING, NO STEPS TO SHOW — it degrades to the single call it always made", async () => {
+    const asked = [];
+    hubWith({
+      listProofs: async () => {
+        throw new Error("hub blinked");
+      },
+      runProofs: async (args) => {
+        asked.push(args);
+        return RAN;
+      },
+    });
+    const ran = await run("sv", { arc: "ARC-9" });
+    expect(asked).toEqual([{ projectCode: "sv", arc: "ARC-9" }]);
+    expect(ran.tests).toHaveLength(1);
+    expect(last().running).toBe(false);
+  });
+});
+
+describe("mark — the door anything that runs a spec writes through", () => {
+  it("WHOEVER RAN IT, ONE MAP. The proofs panel runs its cards window-side and told nobody", async () => {
+    hubWith({ listProofs: async () => DOCS, runProofs: async ({ document }) => ranFor(document) });
+    await run("sv", { arc: "ARC-9" });
+    const seen = [];
+    const off = subscribe((s) => seen.push(s.marks));
+    mark({ "b.md#L9": "running" });
+    expect(seen[seen.length - 1]["b.md#L9"]).toBe("running");
+    // and it does not disturb what else was on the board
+    expect(seen[seen.length - 1]["a.md#L1"]).toBe("pass");
+    mark({});
+    expect(seen).toHaveLength(2); // an empty patch notifies nobody
+    off();
   });
 });

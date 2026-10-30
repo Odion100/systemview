@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Client } from "../../systemClient";
 import Count from "../../atoms/Count";
 import { EditIcon, XButton } from "../../atoms/RunTestIcon";
@@ -40,6 +40,17 @@ const SavedTests = ({
   kindLabel = "test",
   kindTone = "test",
   nsLabelOf = null,
+  // THE RUN, TOLD TO WHOEVER ELSE IS SHOWING IT. These cards run WINDOW-SIDE — ▶ Run all drives
+  // each TestStory in sequence and each reports running → pass/fail — and until now that was the
+  // only place in the whole window a spec could be watched running, with nothing outside this
+  // list ever hearing about it. As the proofs list, these cards are the same specs a document's
+  // plan ledger is drawing dots for, so the caller gets a door to pass each result on.
+  //
+  // `statusOf` is the other direction: a status this card has not produced itself, from whatever
+  // DID run the spec (a hub-side run started from a document). The card's own result wins — it is
+  // the live one, happening in front of you — and this fills in when there is none.
+  onCardResult = null,
+  statusOf = null,
 }) => {
   const [results, setResults] = useState({});
   const [filter, setFilter] = useState(null); // null | "pass" | "fail" — click the summary to filter
@@ -49,14 +60,36 @@ const SavedTests = ({
   useEffect(() => { localStorage.setItem("sv.savedAutoTrack", String(autoTrack)); }, [autoTrack]);
   const storyRefs = useRef([]);
 
-  // A fresh set of tests resets run state + refs.
+  // A FRESH SET OF TESTS RESETS RUN STATE — and "fresh" means DIFFERENT TESTS, not a new array
+  // holding the same ones. Keying this on the array's identity made every re-list a reset: the
+  // proofs tab re-lists immediately BEFORE it runs (so the scope shown matches what is about to
+  // run), which handed this effect a new array and wiped every card's pass/fail a moment before
+  // the results arrived. Pressing run in the arc diagram therefore cleared the panel and never
+  // refilled it — the run happened, and the surface showed an unrun list beside the word
+  // "running…". So the signature is the content: who is in the list, in what order.
+  const testsKey = useMemo(
+    () =>
+      (savedTests || [])
+        .map((t) => {
+          const ns = t.namespace || {};
+          return `${t.__at || ""}|${[ns.serviceId, ns.moduleName, ns.methodName].filter(Boolean).join(".")}|${t.title || ""}`;
+        })
+        .join("\n"),
+    [savedTests]
+  );
   useEffect(() => {
     storyRefs.current = [];
     setResults({});
     setFilter(null);
-  }, [savedTests]);
+  }, [testsKey]);
 
-  const onResult = useCallback((i, status) => setResults((r) => ({ ...r, [i]: status })), []);
+  const onResult = useCallback(
+    (i, status) => {
+      setResults((r) => ({ ...r, [i]: status }));
+      if (onCardResult) onCardResult(savedTests[i], status);
+    },
+    [onCardResult, savedTests]
+  );
 
   // Run-all / Clear-all drive each TestStory via its ref, in SEQUENCE (awaiting each) — the same
   // discipline the Stories panel uses, so shared session/cookies never race across concurrent runs.
@@ -159,7 +192,11 @@ const SavedTests = ({
     }
   };
 
-  const statuses = Object.values(results);
+  // WHAT EACH CARD IS SHOWING — its own result if it has one, otherwise whatever ran it elsewhere.
+  // The local one wins because it is the run happening in front of you; a stale external pass
+  // painted over a card you are watching fail is the one way this could lie.
+  const statusAt = (i) => results[i] || (statusOf ? statusOf(savedTests[i]) : undefined) || undefined;
+  const statuses = savedTests.map((_, i) => statusAt(i)).filter(Boolean);
   const passed = statuses.filter((s) => s === "pass").length;
   const failed = statuses.filter((s) => s === "fail").length;
   const running = statuses.some((s) => s === "running");
@@ -246,8 +283,8 @@ const SavedTests = ({
             key={i}
             test={test}
             index={i}
-            status={results[i]}
-            hidden={filter && results[i] !== filter}
+            status={statusAt(i)}
+            hidden={filter && statusAt(i) !== filter}
             connectedServices={connectedServices}
             storyRef={(el) => { storyRefs.current[i] = el; }}
             onResult={(status) => onResult(i, status)}
@@ -281,6 +318,10 @@ export function SavedTestItem({ test, index, status, hidden, connectedServices, 
   // action minimized? nothing else minimizes like that").
   const [expanded, setExpanded] = useState(!!autoExpand);
   const running = status === "running";
+  // QUEUED — in scope of a run that has started and whose turn has not come. It only ever arrives
+  // from outside (the bus, when a run was started somewhere else), and it has to be visible or a
+  // card sitting in a live run is indistinguishable from one nobody asked for.
+  const queued = status === "queued";
   const ran = status === "pass" || status === "fail";
   const failed = status === "fail";
   const ns = test.namespace || {};
@@ -374,6 +415,8 @@ export function SavedTestItem({ test, index, status, hidden, connectedServices, 
           )}
           {running ? (
             <span className="test-saved-section__badge is-running"><span className="test-story__spinner" />running</span>
+          ) : queued ? (
+            <span className="test-saved-section__badge is-queued">queued</span>
           ) : ran ? (
             <span className={`test-saved-section__badge ${failed ? "is-fail" : "is-pass"}`}>{failed ? "failed" : "passed"}</span>
           ) : null}
