@@ -314,3 +314,15 @@
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 3px 10px rgba(0, 0, 0, 0.22);
   }
 }
+
+// HOW MANY SPECS — beside the claims count, deliberately quieter and never the same colour. Two
+// numbers that answer different questions: claims are what was agreed and checked, specs are what
+// re-runs and can go red on its own. Reading them as one number is what made the diagram confusing.
+.sv-spec__menu-specs,
+.sv-spec__plan-specs {
+  font-size: 10.5px;
+  color: var(--sv-text-faint, #8b93a3);
+  white-space: nowrap;
+}
+.sv-spec__menu-specs { margin-left: 6px; }
+.sv-spec__plan-specs { margin-left: 6px; }

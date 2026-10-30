@@ -6,7 +6,7 @@ import "./styles.scss";
 // document's own objectives and the registry's attached RFCs.
 //
 //   arc        — { id, station? }
-//   objectives — [{ id, label?, state?, because?, count?, plans: [{ id, title?, station?, met?, total?, project?, path? }] }]
+//   objectives — [{ id, label?, state?, because?, count?, specs?, plans: [{ id, title?, station?, met?, total?, specs?, project?, path? }] }]
 //   onOpen(plan)      — optional; "open the document" on a plan chip's menu
 //   onJump(objective) — optional; "jump to its block" on an objective's menu
 //   onRun(target)     — optional; the runner. NOT WIRED YET anywhere (his call, 2026-10-28): the
@@ -166,6 +166,9 @@ const SpecMap = ({
               {p.met || 0}/{p.total} claims met
             </span>
           ) : null}
+          {/* HOW MANY SPECS, beside how many claims — two different questions. Claims are what was
+              agreed and checked; specs are what re-runs and can go red on its own. */}
+          {p.specs ? <span className="sv-spec__menu-specs">{p.specs} spec{p.specs === 1 ? "" : "s"}</span> : null}
         </div>
         {item("open the document", onOpen ? () => onOpen(p) : null, onOpen ? "" : "no opener on this surface")}
         {onRun
@@ -287,6 +290,7 @@ const SpecMap = ({
                               claims {p.met || 0}/{p.total}
                             </span>
                           ) : null}
+                          {p.specs ? <span className="sv-spec__plan-specs">{p.specs} spec{p.specs === 1 ? "" : "s"}</span> : null}
                         </button>
                       ))}
                       {!(o.plans || []).length && onAttach ? (

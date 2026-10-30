@@ -17,6 +17,7 @@
 // RFC ONLY for now (his scope); the other kinds' columns land the same way when their turn comes.
 // Pure — no React — so every ladder is provable in Jest.
 import { parseClaims } from "../claims";
+import { parseObjectives, parseAddress, addressOf } from "../objectives";
 
 // The same tokenizer rule claims.js learned the hard way: never regex THROUGH a bag — a quoted
 // note saying "state= stays" reads as the state. Pairs are walked, quotes respected.
@@ -127,16 +128,173 @@ function stepReviews(claims, leaf, today) {
   };
 }
 
+// ─── THE ARC'S COLUMN — and it is the one kind whose steps are not in its own document ─────────
+//
+// An arc derives UPWARD: its state is read off the plans attached to its objectives, each living
+// in its own file. So the step list needs the REGISTRY (every row carrying `arc=<ARC-nnn-Ox>`)
+// beside the arc's own objectives — and almost none of its steps can be a button, because the
+// work is somewhere else. Naming what is outstanding IS the facilitation here; a count was the
+// defect (the row said 2/4 planned and nothing anywhere said WHICH two).
+
+/** Every registry row serving this arc, grouped by the objective it serves. */
+function plansByObjective(rows, arcId) {
+  const out = {};
+  for (const r of rows || []) {
+    const a = parseAddress(r.arc);
+    if (!a || a.arc !== arcId) continue;
+    (out[a.objective] = out[a.objective] || []).push(r);
+  }
+  return out;
+}
+
+const planState = (r) => {
+  const st = (r && r.state) || {};
+  if (st.retired) return "retired";
+  if (st.settled) return "settled";
+  if (st.built) return "built";
+  const v = String(st.verdict || "").toLowerCase();
+  return v || "draft";
+};
+
+// Every objective with no plan attached, NAMED — claim c19's whole subject. Not a button: a plan
+// is a document somebody writes, and offering to fake one is offering to lie about the arc.
+function stepArcPlanned(objectives, byObj, arcId) {
+  const unplanned = objectives.filter((o) => !(byObj[o.id] || []).length);
+  if (!objectives.length)
+    return { label: "this arc has no objectives — an empty arc satisfies every universal for free", done: false };
+  return {
+    label: unplanned.length
+      ? `plan ${unplanned.map((o) => `${addressOf(arcId, o.id)}${o.title ? ` (${o.title})` : ""}`).join(" · ")}`
+      : "every objective has a plan attached",
+    done: !unplanned.length,
+    note: unplanned.length ? "a plan is a document somebody writes — write it, attach it with arc=, and this crosses itself off" : "",
+  };
+}
+
+// The plans that are not settled, named with the state they are actually in — "waiting on" is the
+// honest form when none of the work is here.
+function stepArcSettled(byObj) {
+  const plans = Object.values(byObj).flat();
+  const moving = plans.filter((r) => planState(r) !== "settled");
+  return {
+    label: moving.length
+      ? `waiting on: ${moving.map((r) => `${r.id} (${planState(r)})`).join(" · ")}`
+      : "every attached plan is settled",
+    done: plans.length > 0 && !moving.length,
+    note: moving.length ? "an arc settles when its plans do — each press lives in that plan's own document" : "",
+  };
+}
+
+function facilitateArc(station, current, source, ctx, now, leaf, today) {
+  const { rows = [], id = "" } = ctx || {};
+  const approvals = parseApprovals(source);
+  const objectives = parseObjectives(source);
+  const byObj = plansByObjective(rows, id);
+  const trail = ["draft", "approved", "inProgress", "settled", "retired"];
+  const from = trail.indexOf(current);
+  const to = trail.indexOf(station);
+  if (to < 0 || from < 0) return null;
+
+  if (station === "draft") {
+    const given = approvals.filter((a) => a.verdict);
+    if (!given.length) return null;
+    const whose = [...new Set(given.map((a) => a.by).filter(Boolean))];
+    return {
+      title: "to reach draft",
+      steps: [
+        {
+          label: `clear the ${plural(given.length, "verdict")}`,
+          done: false,
+          writes: given.map((a) => ({ line: a.line, pairs: { verdict: null, by: null, at: null } })),
+          note: `${whose.length ? `verdicts by ${whose.join(", ")} — ` : ""}the objectives and their plans are untouched`,
+          ...(leaf.retired ? { leafPairs: { retired: null, retiredAs: null, supersededBy: null } } : {}),
+        },
+      ],
+    };
+  }
+  if (to <= from) return null; // every other backward move on an arc is a detach, in the plan's own file
+
+  const steps = [];
+  if (to >= 1 && from < 1 && approvals.length) steps.push(stepApprovals(approvals, now));
+  if (to >= 2) steps.push(stepArcPlanned(objectives, byObj, id));
+  // SETTLED HAS NO BUTTON AT ALL, and the panel says why (claim c22). This state is derived upward
+  // and no hand can write it — so its step is a sentence, never a press, and the "nothing left in
+  // the way" offer must not appear behind it either.
+  if (to >= 3) steps.push(stepArcSettled(byObj));
+  if (!steps.filter((s) => !s.done).length) return null;
+  return { title: `to reach ${station}`, steps };
+}
+
+// ─── THE GAP'S COLUMN — the refusal that is an instruction, and the reopen that names a person ──
+
+function facilitateGap(station, current, source, ctx, now, leaf, today) {
+  const { attrs = {}, project = "" } = ctx || {};
+  if (station === "open") {
+    // REOPENING UNDOES SOMEBODY ELSE'S WORK, so the step says whose and when — a gap is usually
+    // closed by the owning project's agent, not by whoever is reading it.
+    const was = attrs.resolved ? "resolved" : attrs.rejected ? "rejected" : "";
+    if (!was) return null;
+    const when = String(attrs[was] || "").trim();
+    const who = String(attrs.by || "").trim();
+    return {
+      title: "back to open",
+      steps: [
+        {
+          label: `remove ${was}=`,
+          done: false,
+          leafPairs: was === "rejected" ? { rejected: null, why: null } : { resolved: null },
+          note: `${was}${when ? ` ${when}` : ""}${who ? ` by ${who}` : ""} — reopening ${
+            was === "rejected" ? "reverses that decision" : "undoes that fix"
+          }`,
+        },
+      ],
+    };
+  }
+  if (station === "resolved" && current === "open") {
+    // THE ONE REFUSAL THAT IS AN INSTRUCTION: a gap is resolved by evidence, not by saying so, and
+    // the missing half is something you can add right here. The step APPENDS the skeleton; the
+    // press that follows completes by itself.
+    const hasProof = !!((leaf && leaf.hasProof) || attrs.hasProof);
+    const steps = [
+      {
+        label: hasProof ? "the document carries a proof" : "attach a proof — a run, a cmd, or a test that closes it",
+        done: hasProof,
+        appendText: ":::cmd\n# what proves this gap is closed — press it\n:::",
+      },
+    ];
+    if (project)
+      steps.push({
+        label: `write resolved= into ${project}'s copy`,
+        done: false,
+        note: "a gap lives in the repo it was filed INTO, and the presser is usually not its owner",
+      });
+    if (!steps.filter((s) => !s.done).length) return null;
+    return { title: "to reach resolved", steps };
+  }
+  return null; // rejected asks for its reason in its own field; retired has the reason menu
+}
+
 /**
  * THE PLAN A PRESS OPENS — `{ title, steps:[…] }` — or null when there is nothing to facilitate
  * and the write (or its named refusal) is the answer. The gates stay gates: built → approved still
  * refuses on the STATUS heading, in pressTo, by name.
+ *
+ * `ctx` carries what a kind's steps cannot read off its own document: `rows` (the registry, for an
+ * arc's plans), `id`, `project`, and the leaf's raw `attrs` (for a gap's closing date and hand).
  */
-export function facilitate(kind, station, current, source, now = 0, leaf = {}, today = "") {
+export function facilitate(kind, station, current, source, now = 0, leaf = {}, today = "", ctx = {}) {
+  if (station === current || !String(source || "").trim()) return null;
+  if (kind === "arc") return facilitateArc(station, current, source, ctx, now, leaf, today);
+  if (kind === "gap") return facilitateGap(station, current, source, ctx, now, leaf, today);
+  return facilitateRfc(kind, station, current, source, now, leaf, today);
+}
+
+function facilitateRfc(kind, station, current, source, now = 0, leaf = {}, today = "") {
   // NO SOURCE, NO FACILITATION — a surface that cannot hand over the document (the chat's
   // session render, a bare test mount) gets the write path and its named refusals, never a
-  // ladder derived from an empty string ("sign the 0 approvals" is how that reads).
-  if (kind !== "rfc" || station === current || !String(source || "").trim()) return null;
+  // ladder derived from an empty string ("sign the 0 approvals" is how that reads). Checked by
+  // the one door above; a report has no column of its own (existence is not pressable).
+  if (kind !== "rfc") return null;
   const approvals = parseApprovals(source);
   const claims = parseClaims(source);
   const trail = ["draft", "approved", "built", "settled", "retired"];

@@ -2997,6 +2997,58 @@ module.exports = function launchSystemView(port = 3000) {
         const { runTests } = require("./runTests");
         return runTests({ projectCode, namespace, dryRun: true }, ConnectedServices.getAllConnections() || []);
       },
+
+      // PROOFS — A DOCUMENT'S OWN SPECS, RUN WITHOUT THE WINDOW (api/proofs.js). Running these was
+      // something only the window could do, because the grammar lived inside a React component —
+      // which left the agent who runs them most often as the one party who could not. Scoped by
+      // `document`, `objective` or `arc`; with none of them, every document in the project.
+      //
+      // Same handle as `runTests`, deliberately: a proof run and a test run are the same kind of
+      // result, so the chat row, the panel and `getRun` treat them identically rather than growing
+      // a second way to look at a run.
+      runProofs: async (arg = {}) => {
+        const { runProofs } = require("./proofs");
+        const r = await runProofs(arg, {
+          registry: DocumentsRegistry,
+          rootOf: (pc) => {
+            try {
+              return projectRoot(pc) || "";
+            } catch {
+              return "";
+            }
+          },
+          connections: ConnectedServices.getAllConnections() || [],
+        });
+        if (r && Array.isArray(r.tests) && r.tests.length && !r.dryRun) {
+          const id = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+          RUNS.set(id, { ...r, ranAt: Date.now() });
+          while (RUNS.size > 20) RUNS.delete(RUNS.keys().next().value);
+          r.runId = id;
+        }
+        return r;
+      },
+      // THE LISTING, which runs nothing — what the arc diagram's per-node counts and the drawer's
+      // progress read. It is a registry read, so it answers with no services connected and without
+      // opening a single document.
+      // `withSource` IS FORWARDED. It was destructured out here and silently dropped, so the window
+      // asked for the run bodies, got the inventory alone, and built every collected block with no
+      // steps in it — the panel looked broken while the collector was answering correctly.
+      listProofs: async ({ projectCode, document, arc, objective, withSource } = {}) => {
+        const { collectProofs } = require("./proofs");
+        return collectProofs(
+          { projectCode, document, arc, objective, withSource },
+          {
+            registry: DocumentsRegistry,
+            rootOf: (pc) => {
+              try {
+                return projectRoot(pc) || "";
+              } catch {
+                return "";
+              }
+            },
+          },
+        );
+      },
       // Logs and stats, served structured — the internal MCP renders them human-readable.
       getLogs: async ({ projectCode, level, limit = 100, namespace } = {}) => {
         const services = getServices(projectCode) || [];

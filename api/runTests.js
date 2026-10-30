@@ -136,6 +136,54 @@ function failuresOf(sections, order) {
   return out;
 }
 
+/**
+ * RUN A LIST OF SAVED-TEST-SHAPED SPECS. The one execution path, extracted so that the thing which
+ * EXECUTES is independent of where the specs came from: `runTests` collects them from each service's
+ * `Plugin.getTests()`, and `api/proofs.js` builds them out of a document's `:::run` blocks. Two
+ * collectors, one engine — a second runner would mean a proof that passes in one place and not the
+ * other, with no way to tell which answer is the real one.
+ *
+ * `specs` are on-disk shape (`{ namespace, title, Before, Main, …, sections, run }`); each comes back
+ * as a row with its namespace, pass/fail, duration and — only when it failed — the comparisons.
+ */
+async function executeSpecs(specs, { services, client, actionMap = {}, headers = {}, bail = false } = {}) {
+  const initialized = initializeSavedTests(
+    specs,
+    services,
+    // the VERIFIED client, so the connection each test executes against is checked against the
+    // registry too — this is the one that actually runs the method under test
+    client,
+    headersOf(services, headers),
+    (name) => actionMap[name] || null,
+  );
+
+  const started = Date.now();
+  const rows = [];
+  for (let i = 0; i < initialized.length; i += 1) {
+    const test = initialized[i];
+    const { sections, order, title } = test;
+    // THE NAMESPACE DOES NOT SURVIVE INITIALIZATION. `initializeSavedTests` returns sections+order and
+    // drops `namespace`, so reading it off the initialized test produced "undefined.undefined.undefined"
+    // on every row — visible, but only if you look. The spec it came from is still right here, in order.
+    const spec = specs[i] || {};
+    const at = Date.now();
+    await runFullTest({ sections, order });
+    const failures = failuresOf(sections, order);
+    rows.push({
+      namespace: nsOf(spec),
+      title: title || spec.title || "",
+      passed: !failures.length,
+      ms: Date.now() - at,
+      // WHERE THE SPEC CAME FROM, when the collector attached one — a document's run block has no
+      // file in `specs/tests/`, so without this a failing proof row names nothing a reader can open.
+      ...(spec.at ? { at: spec.at } : {}),
+      ...(failures.length ? { failures } : {}),
+    });
+    if (bail && failures.length) break;
+  }
+  return { rows, ms: Date.now() - started, ran: rows.length, total: initialized.length };
+}
+
 async function runTests(
   { projectCode, namespace, headers = {}, bail = false, dryRun = false, skip = [] } = {},
   connections = [],
@@ -187,51 +235,30 @@ async function runTests(
     };
 
   const actionMap = await actionMapFor(services, lists, client);
-  const initialized = initializeSavedTests(
-    selected,
-    services,
-    // the VERIFIED client, so the connection each test executes against is checked against the
-    // registry too — this is the one that actually runs the method under test
-    client,
-    headersOf(services, headers),
-    (name) => actionMap[name] || null,
-  );
-
-  const started = Date.now();
-  const rows = [];
-  for (let i = 0; i < initialized.length; i += 1) {
-    const test = initialized[i];
-    const { sections, order, title } = test;
-    // THE NAMESPACE DOES NOT SURVIVE INITIALIZATION. `initializeSavedTests` returns sections+order and
-    // drops `namespace`, so reading it off the initialized test produced "undefined.undefined.undefined"
-    // on every row — visible, but only if you look. The spec it came from is still right here, in order.
-    const spec = selected[i] || {};
-    const at = Date.now();
-    await runFullTest({ sections, order });
-    const failures = failuresOf(sections, order);
-    rows.push({
-      namespace: nsOf(spec),
-      title: title || spec.title || "",
-      passed: !failures.length,
-      ms: Date.now() - at,
-      ...(failures.length ? { failures } : {}),
-    });
-    if (bail && failures.length) break;
-  }
+  const { rows, ms, total } = await executeSpecs(selected, { services, client, actionMap, headers, bail });
 
   return {
     ...where,
-    ms: Date.now() - started,
+    ms,
     passed: rows.filter((r) => r.passed).length,
     failed: rows.filter((r) => !r.passed).length,
     // WHAT THE RUN HAD TO REPAIR BEFORE IT COULD RUN. Reported, not swallowed: a run that silently
     // fixed a stale client is a run that hid the reason the previous one failed.
     ...(rebuilds.length ? { rebuilt: rebuilds } : {}),
-    ...(bail && rows.some((r) => !r.passed) && rows.length < initialized.length
-      ? { stoppedEarly: true, notRun: initialized.length - rows.length }
+    ...(bail && rows.some((r) => !r.passed) && rows.length < total
+      ? { stoppedEarly: true, notRun: total - rows.length }
       : {}),
     tests: rows,
   };
 }
 
-module.exports = { runTests, collectTests, actionMapFor, countErrors };
+module.exports = {
+  runTests,
+  collectTests,
+  actionMapFor,
+  countErrors,
+  executeSpecs,
+  verifiedClientFor,
+  headersOf,
+  idOf,
+};

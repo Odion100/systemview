@@ -25,3 +25,15 @@ grep -c "arc=MOCK-ARC-O3" RFCs/proofs/mock-rfc-2.md
 grep -c "arc=MOCK-ARC-O3" RFCs/proofs/mock-rfc-3.md
 :::
 ::::
+
+## The spec a scoped run collects
+
+A `:::run` block is a spec with no file behind it — the document IS the contract, so collecting
+this plan's proofs means collecting this block. The `:::cmd` blocks above are NOT collected: a
+cmd is a command to press, and running one headless would execute something nobody pressed and
+call it a passing proof.
+
+:::run{title="MOCK — O3 · the first of two plans"}
+- Math.add { "a": 2, "b": 3 }
+  - results.sum = 5
+:::

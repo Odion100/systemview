@@ -226,7 +226,12 @@ export function toStep(parsed, scope, services) {
   return { title: parsed.title || `${parsed.ns}${shown}`, namespace, args, savedEvaluations, dropped };
 }
 
-const RunBlock = ({ kind, label, attrs = {}, src }) => {
+// `storyRef` — THE HANDLE OUT. The block already holds one internally so `act` can press its play
+// remotely; forwarding it lets a LIST of run blocks be driven the way the saved-test area drives its
+// rows (run all in sequence, clear all). Without it the Proofs panel would have had to grow its own
+// runner for blocks that already know how to run — which is the duplication this reuse exists to
+// avoid. Optional: a block inside a document passes nothing and behaves exactly as before.
+const RunBlock = ({ kind, label, attrs = {}, src, storyRef }) => {
   const scope = useMarkdownScope();
   // HOST VOCABULARY, not a capability (his cutback): running a saved action is SystemView's own
   // idea, so this reads SystemView's own context. What SURVIVES from the capability round:
@@ -399,7 +404,10 @@ const RunBlock = ({ kind, label, attrs = {}, src }) => {
         <SavedTestItem
           test={test}
           index={0}
-          storyRef={(el) => (actRef.current = el)}
+          storyRef={(el) => {
+            actRef.current = el;
+            if (typeof storyRef === "function") storyRef(el);
+          }}
           // The card inside the block — the slot where a saved test says "test". It holds the
           // sections (`steps`, plus any shared action by name), so it's badged ACTIONS, in its own
           // colour, and carries NO namespace: a run is filed nowhere.

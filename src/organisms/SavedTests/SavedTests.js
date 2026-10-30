@@ -14,12 +14,32 @@ const CLASSNAME = "test-saved-section";
 // (TestStory: fold test → phases → actions, per-action pass/fail, JSON args/returns, sentence-form
 // evaluations, self-contained Run/Clear). The scratchpad adds the two things a story pane doesn't need —
 // Edit (load back into the builder) and Delete — as a hover toolbar in a reserved right gutter.
+// `label` / `helpTopic` / `editable` / `emptyNote` exist so this section can be the PROOFS list too,
+// rather than the proofs growing a second list that does the same job slightly differently. His
+// question, asked twice and right both times: "why isn't the proof area very similar with the
+// components, with the behavior?" It should not be similar — it should be this.
+//
+// `editable: false` simply withholds the edit and delete handlers, and SavedTestItem already draws
+// those controls only when it is given them. A collected spec lives in a DOCUMENT, so there is no
+// saved slot to edit and no file to delete; offering either would be a button that lies.
 const SavedTests = ({
   savedTests = [],
   connectedServices,
   setFullTest,
   Plugin,
   fetchTests,
+  label = "Saved tests",
+  helpTopic = "saved-tests",
+  editable = true,
+  emptyNote = null,
+  // WHAT THE REUSE MUST NOT ERASE. His note, and it is the right caution about sharing a component:
+  // "it still has to have its unique information." A saved test is identified by the namespace it
+  // saves under; a PROOF saves nowhere and belongs to a DOCUMENT, so its address — the document and
+  // the line its block starts on — is its identity, and dropping it to fit the shared card would
+  // leave a list of specs nobody could trace back to what they defend.
+  kindLabel = "test",
+  kindTone = "test",
+  nsLabelOf = null,
 }) => {
   const [results, setResults] = useState({});
   const [filter, setFilter] = useState(null); // null | "pass" | "fail" — click the summary to filter
@@ -145,7 +165,9 @@ const SavedTests = ({
   const running = statuses.some((s) => s === "running");
 
   // Nothing saved on this namespace ⇒ show nothing at all (no empty "Saved" shell / empty second row).
-  if (!savedTests.length) return null;
+  // An empty PROOFS list is a real state worth saying out loud (no run blocks in this document);
+  // an empty saved-tests list is just nothing, as before.
+  if (!savedTests.length) return emptyNote ? <section className={`${CLASSNAME}`}>{emptyNote}</section> : null;
 
   return (
     <section className={`${CLASSNAME}`}>
@@ -154,8 +176,8 @@ const SavedTests = ({
         {/* Row 1: the section buttons. */}
         <div className={`${CLASSNAME}__hrow`}>
           <span className={`${CLASSNAME}__label`}>
-            Saved tests <Count count={savedTests.length} />
-            <Help topic="saved-tests" />
+            {label} <Count count={savedTests.length} />
+            <Help topic={helpTopic} />
           </span>
           <div className={`${CLASSNAME}__controls`}>
             <button
@@ -229,8 +251,11 @@ const SavedTests = ({
             connectedServices={connectedServices}
             storyRef={(el) => { storyRefs.current[i] = el; }}
             onResult={(status) => onResult(i, status)}
-            onEdit={() => editTest(test, slotOf(test, i))}
-            onDelete={() => deleteTest(slotOf(test, i), test.namespace)}
+            onEdit={editable ? () => editTest(test, slotOf(test, i)) : undefined}
+            onDelete={editable ? () => deleteTest(slotOf(test, i), test.namespace) : undefined}
+            kindLabel={kindLabel}
+            kindTone={kindTone}
+            nsLabel={nsLabelOf ? nsLabelOf(test) : undefined}
             autoTrack={autoTrack}
             // Only ONE saved test here? Keep its steps expanded on run — collapsing-on-run is only useful
             // when there are MULTIPLE tests (so the list stays scrollable). With one, don't fold it up.

@@ -1,4 +1,4 @@
-import { FIELDS, SOURCE_CHOICES, patchFor, summaryOf, toggleSource, usable } from "./nudgeSettings";
+import { FIELDS, RENDERABLE, SOURCE_CHOICES, UNITS, patchFor, summaryOf, toggleSource, usable } from "./nudgeSettings";
 
 // THE WORKLIST SETTINGS — the knobs, proven without mounting anything.
 //
@@ -7,7 +7,7 @@ import { FIELDS, SOURCE_CHOICES, patchFor, summaryOf, toggleSource, usable } fro
 // render-time crashes once shipped alongside 543 green claims. So the panel is thin on purpose and
 // everything that can be WRONG lives in this module, where it is reachable.
 
-const S = { on: true, idleMin: 20, cooldownMin: 30, giveUpAfter: 3, ctxCeilingPct: 70, sources: ["job:", "skill:"] };
+const S = { on: true, idleMin: 20, cooldownMin: 30, giveUpAfter: 3, ctxCeilingPct: 70, sources: ["job:", "skill:"], keepHours: 12 };
 
 describe("a patch is one changed field, or nothing at all", () => {
   it("sends only what actually changed", () => {
@@ -63,11 +63,13 @@ describe("the summary says the real state, including the states that read as bro
     // "cycles of 3", not "3×" — the limit stopped being a limit (his redesign): the third nudge is
     // the cycle's final notice, then the count wraps and nudging continues until the run earns an
     // ending. A summary still reading "3×" would describe the retired silent-timeout behaviour.
-    expect(summaryOf(S)).toBe("nudge — jobs + skills after 20m quiet, every 30m, cycles of 3");
+    expect(summaryOf(S)).toBe(
+      "nudge — jobs + skills after 20m quiet, every 30m, cycles of 3 · keeps closed runs 12h",
+    );
   });
 
   it("says off when off", () => {
-    expect(summaryOf({ ...S, on: false })).toBe("nudge — off");
+    expect(summaryOf({ ...S, on: false })).toMatch(/^nudge — off/);
   });
 
   // TWO WAYS TO BE OFF WHILE `on` IS TRUE, and a summary that hid either would be lying about a
@@ -88,9 +90,10 @@ describe("the summary says the real state, including the states that read as bro
 
 describe("every field can be rendered by the panel that exists", () => {
   it("declares a kind the panel knows, and a help line", () => {
-    const kinds = ["toggle", "minutes", "count", "percent", "sources"];
+    // THE REAL LIST, imported — a hard-coded copy here would pass while the panel rendered an
+    // empty row, which is the one failure this claim exists to catch.
     FIELDS.forEach((f) => {
-      expect(kinds).toContain(f.kind);
+      expect(RENDERABLE).toContain(f.kind);
       expect(typeof f.help).toBe("string");
       expect(f.help.length).toBeGreaterThan(0);
       if (f.kind !== "toggle" && f.kind !== "sources") {
@@ -104,5 +107,36 @@ describe("every field can be rendered by the panel that exists", () => {
   // renders an empty input forever — the exact shape of a knob that looks wired and is not.
   it("names only keys the harness actually stores", () => {
     FIELDS.forEach((f) => expect(Object.keys(S)).toContain(f.key));
+  });
+
+  // AND EVERY NUMBER KIND HAS A UNIT. The guard above proves a kind is renderable; this proves the
+  // render has something to print beside the box, which is the half that makes "12" mean hours.
+  it("every number kind carries its unit", () => {
+    FIELDS.filter((f) => f.kind !== "toggle" && f.kind !== "sources").forEach((f) =>
+      expect(typeof UNITS[f.kind]).toBe("string"),
+    );
+  });
+});
+
+describe("retention is a worklist setting, and the panel says so", () => {
+  // HIS ASK: "how quickly the worklist gets deleted should be added to the worklist settings."
+  it("keepHours is a field with an hour floor", () => {
+    const f = FIELDS.find((x) => x.key === "keepHours");
+    expect(f.kind).toBe("hours");
+    expect(f.min).toBe(1);
+  });
+
+  // THE ONLY DESTRUCTIVE KNOB IN THE PANEL, so the shut-panel summary must not go quiet about it
+  // the moment nudging is switched off — the janitor does not care whether anything nudges.
+  it("the summary says the retention window even when the nudge is off", () => {
+    expect(summaryOf({ ...S, on: false })).toBe("nudge — off · keeps closed runs 12h");
+    expect(summaryOf({ ...S, giveUpAfter: 0 })).toBe("nudge — off (cycle length 0) · keeps closed runs 12h");
+    expect(summaryOf(S)).toContain("keeps closed runs 12h");
+  });
+
+  it("zero is not a value the panel can send — the floor clamps it", () => {
+    expect(patchFor(S, "keepHours", 0)).toEqual({ keepHours: 1 });
+    expect(patchFor(S, "keepHours", 24)).toEqual({ keepHours: 24 });
+    expect(patchFor(S, "keepHours", 12)).toBe(null);
   });
 });

@@ -105,7 +105,7 @@ describe("facilitation — the ladder", () => {
 
   it("answers null when nothing stands between — the write or its refusal speaks", () => {
     expect(facilitate("rfc", "approved", "approved", APPROVED)).toBeNull(); // already there
-    expect(facilitate("gap", "resolved", "open", DOC)).toBeNull(); // other kinds: their column's turn
+    expect(facilitate("report", "retired", "filed", DOC)).toBeNull(); // existence is not pressable
     // everything crossed: approvals signed, claims marked, nothing between approved and built but
     // the press itself (the STATUS step IS still open — so this stays a plan)
     const all = APPROVED.replace("{id=c1}", '{id=c1 state=met by=you}').replace(
@@ -114,5 +114,96 @@ describe("facilitation — the ladder", () => {
     );
     const p = facilitate("rfc", "built", "approved", all, 7);
     expect(p.steps.filter((s) => !s.done).map((s) => !!s.appendStatus)).toEqual([true]);
+  });
+});
+
+// ─── THE ARC'S COLUMN — claims c19 and c22 of RFC-076 ──────────────────────────────────────────
+const ARC = `# an arc
+::arc{id=ARC-900}
+
+:::approval{ask="approve it?" verdict=approved by=you}
+body
+:::
+
+:::objective{id=O1 title="the first half"}
+prose
+:::
+
+:::objective{id=O2 title="the second half"}
+prose
+:::
+`;
+
+const ROWS = [
+  { id: "RFC-901", kind: "rfc", arc: "ARC-900-O1", state: { settled: true, verdict: "approved" } },
+  { id: "RFC-902", kind: "rfc", arc: "ARC-900-O1", state: { verdict: "approved", built: true } },
+];
+
+describe("facilitation — the arc's column", () => {
+  it("c19 · names the unplanned objective rather than showing a count", () => {
+    const p = facilitate("arc", "inProgress", "approved", ARC, 0, {}, "", { rows: ROWS, id: "ARC-900" });
+    const planned = p.steps.find((s) => /plan ARC-900/.test(s.label));
+    expect(planned.label).toMatch(/ARC-900-O2 \(the second half\)/);
+    expect(planned.label).not.toMatch(/O1/); // O1 is served, so it is not asked for
+    expect(planned.done).toBe(false);
+    expect(planned.writes).toBeUndefined(); // a plan is a document somebody writes
+  });
+
+  it("every objective planned → that step wears its check", () => {
+    const rows = [...ROWS, { id: "RFC-903", kind: "rfc", arc: "ARC-900-O2", state: {} }];
+    const p = facilitate("arc", "inProgress", "approved", ARC, 0, {}, "", { rows, id: "ARC-900" });
+    expect(p).toBeNull(); // nothing left between approved and inProgress
+  });
+
+  it("c22 · settled has NO button, and the step says an arc settles when its plans do", () => {
+    const p = facilitate("arc", "settled", "inProgress", ARC, 0, {}, "", { rows: ROWS, id: "ARC-900" });
+    const waiting = p.steps.find((s) => /waiting on/.test(s.label));
+    expect(waiting.label).toMatch(/RFC-902 \(built\)/); // named with the state it is actually in
+    expect(waiting.note).toMatch(/an arc settles when its plans do/);
+    expect(p.steps.every((s) => !s.writes && !s.appendStatus && !s.leafPairs)).toBe(true);
+  });
+
+  it("an arc with no objectives says so — an empty arc satisfies every universal for free", () => {
+    const bare = ARC.replace(/:::objective[\s\S]*/, "");
+    const p = facilitate("arc", "inProgress", "approved", bare, 0, {}, "", { rows: [], id: "ARC-900" });
+    expect(p.steps[0].label).toMatch(/no objectives/);
+  });
+});
+
+// ─── THE GAP'S COLUMN ──────────────────────────────────────────────────────────────────────────
+const GAP = `# a gap
+::gap{id=G-900}
+
+prose about what is broken
+`;
+
+describe("facilitation — the gap's column", () => {
+  it("resolved with no proof OFFERS one, and names the repo it has to be written into", () => {
+    const p = facilitate("gap", "resolved", "open", GAP, 0, {}, "", { project: "buapi", attrs: {} });
+    expect(p.steps[0].appendText).toMatch(/:::cmd/);
+    expect(p.steps[0].done).toBe(false);
+    expect(p.steps[1].label).toMatch(/into buapi's copy/);
+  });
+
+  it("a gap that already carries a proof crosses that step off", () => {
+    const p = facilitate("gap", "resolved", "open", GAP, 0, { hasProof: true }, "", { project: "buapi", attrs: {} });
+    expect(p.steps[0].done).toBe(true);
+  });
+
+  it("reopening names who closed it and when — it undoes somebody else's work", () => {
+    const p = facilitate("gap", "open", "resolved", GAP, 0, {}, "", {
+      attrs: { resolved: "2026-10-20", by: "buapi" },
+    });
+    expect(p.steps[0].leafPairs).toEqual({ resolved: null });
+    expect(p.steps[0].note).toMatch(/resolved 2026-10-20 by buapi/);
+    expect(p.steps[0].note).toMatch(/undoes that fix/);
+  });
+
+  it("reopening a REJECTED gap takes its reason with it, and says it reverses a decision", () => {
+    const p = facilitate("gap", "open", "rejected", GAP, 0, {}, "", {
+      attrs: { rejected: "2026-10-21", why: "wontfix" },
+    });
+    expect(p.steps[0].leafPairs).toEqual({ rejected: null, why: null });
+    expect(p.steps[0].note).toMatch(/reverses that decision/);
   });
 });

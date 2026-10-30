@@ -47,8 +47,19 @@ node RFCs/proofs/mock.js arc retired
 
 ## The approval the walk drives
 
-:::approval{ask="MOCK — approve this arc's direction?"}
-Press it or let the walk write it — either way the verdict is a fact on this block, never a state.
+An arc runs the approval flow like an RFC — and `approval+` / `approval-` below make the NUMBER of
+blocks part of the walk, because the verdict is every block's answer and the weakest one wins.
+
+:::approval{ask="MOCK — approve this arc's direction?" verdict=approved}
+Nothing happens when you press this. That is the point.
+:::
+
+:::cmd
+node RFCs/proofs/mock.js arc approval+
+:::
+
+:::cmd
+node RFCs/proofs/mock.js arc approval-
 :::
 
 ## The objectives
@@ -83,6 +94,34 @@ MOCK — unplanned, here so the map wraps on any pane the others would have fit.
 :::
 
 ::progress
+
+## Run the specs — from the diagram, not the bar
+
+**Click a node on the map above.** The menu offers *run specs*, and what it runs is the scope of the
+node you pressed:
+
+- the **arc** chip — this document plus every plan attached to any of its objectives
+- an **objective** — only the plans pointed at that objective's address (press O3 for the two that
+  share one)
+- a **plan** chip — that document alone
+
+The results land in the side panel's **Proofs** tab, and they land there whether or not the panel is
+open when you press — so you can run from here, finish reading, and go look afterwards. The node
+wears a dashed border while its run is in flight.
+
+**And the same thing runs with no window at all** — the collector and the engine are the hub's, so
+an agent asks `runProofs({ projectCode: "systemview-test", arc: "MOCK-ARC" })` and gets the same
+rows this panel draws. That is the point of it living hub-side: the party who runs these most often
+is the one who has no window.
+
+### The arc's own spec
+
+An arc document is collected like any other — it is not merely a container for its plans.
+
+:::run{title="MOCK — the arc's own spec"}
+- Math.add { "a": 4, "b": 4 }
+  - results.sum = 8
+:::
 
 ## When you are done
 

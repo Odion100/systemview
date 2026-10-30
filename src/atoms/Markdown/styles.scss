@@ -635,7 +635,10 @@
     --sv-border: #3a3f4b;
     --sv-border-soft: #333845;
     --sv-text: #abb2bf;
-    --sv-text-strong: #d7dce9;
+    // Lifted from #d7dce9 — in dark mode `strong` sat barely above the body text, so anything
+    // using it to STAND OUT (the facilitation step list) read as the same weight as the prose it
+    // floats over. Light mode's strong is unchanged; it already had the range.
+    --sv-text-strong: #eef1f7;
     --sv-text-muted: #98a0b5;
     --sv-text-faint: #42a942;
   }
@@ -3522,30 +3525,54 @@
     flex-wrap: wrap;
     gap: 5px;
   }
+  // The panel's heading — "why?", "to reach built". Dim is right for a label and WRONG at
+  // #5a6378 on this background, where it reads as disabled chrome rather than the question the
+  // panel is asking.
   &__why-ask {
-    font-size: 11px;
+    font-size: 11.5px;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    color: var(--sv-text-dim, #5a6378);
+    color: var(--sv-text-muted, #8b93a7);
     margin-right: 2px;
   }
   // The facilitation panel's prose half — what remains and whose it is ("3 belong to buapi",
   // "waiting on: …"). Muted, never faint: faint is green in this theme.
+  // THE STEP LIST IS AN INSTRUCTION, SO IT READS LIKE ONE. This carries both halves of the
+  // ladder's prose — the steps still coming (☐) and the ones crossed (✓) — and at 11px muted it
+  // was the same mistake as the refusal: the text that tells you what to do, set smaller and
+  // fainter than the buttons around it.
+  // BRIGHTER THAN THE PROSE, not equal to it. Taking `--sv-text` made the step list sit at exactly
+  // the document's own weight, so the instruction competed with the paragraph it was floating over
+  // instead of rising off it — the panel is summoned, temporary, and the thing you are meant to
+  // act on, which earns it the top of the range rather than the middle.
   &__why-note {
-    font-size: 11px;
-    color: var(--sv-text-muted, #8b93a7);
+    font-size: 12.5px;
+    line-height: 1.5;
+    // `--sv-text-strong`, which is mode-aware: darker than the prose in light, brighter in dark.
+    // A hardcoded near-white would have read as the right fix in dark mode and disappeared in
+    // light — the token exists precisely so "stands out" means the same thing in both.
+    color: var(--sv-text-strong, #d7dce9);
   }
   // The LADDER — one row per step, the whole distance visible: ✓ for crossed, a button for the
   // step whose turn it is, ☐ for the ones still coming.
   &__ladder {
     flex-direction: column;
     align-items: flex-start;
+    gap: 7px;
   }
   &__step {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  // A STEP ALREADY CROSSED RECEDES, and only that one: the done rows are context, the open rows
+  // are the work. Dropping them back is what lets the live step read as the live step without
+  // shouting — the distinction the uniform grey could not make.
+  &__step--done .md-arc__why-note {
+    color: var(--sv-text-muted, #8b93a7);
+    font-size: 11.5px;
   }
   &__why-pick {
     appearance: none;
@@ -3627,12 +3654,20 @@
   // A REFUSAL IS SHOWN, NEVER SWALLOWED. `approved` comes from the approval block's verdict and an
   // arc's `done` from its objectives — pressing those says where the state comes from instead of
   // doing nothing, which is the one thing a control must never do.
+  // A REFUSAL IS THE MOST IMPORTANT SENTENCE THE PANEL EVER SAYS — it is the one place the system
+  // tells you why a press cannot do what you asked, and it was set at 10px in a dark red on a dark
+  // panel: a message that hides is a message that gets pressed past. Readable size, a lighter
+  // shade of the ending colour so it carries on this background, and the whole panel line to
+  // itself rather than competing with pills for width.
   &__refused {
-    font-size: 10px;
-    color: #a2503f;
-    display: inline-flex;
+    flex-basis: 100%;
+    display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
+    font-size: 12.5px;
+    line-height: 1.45;
+    color: #e08a76;
+    padding: 5px 0 2px;
   }
 }
 
@@ -4183,13 +4218,16 @@
 // RFC-076 §4.6 — the report leaf's clock face and its invalid wear. The countdown is quiet until
 // it is close (three days), the presses are the chip's own size, and "invalid" is a warning the
 // document wears itself — the same fact the drawer row shows, said where the reader is standing.
+// Same correction as the refusal above: a warning the document wears about ITSELF has to be
+// legible on a dark panel, so the text is a lighter shade than the border it sits in — a saturated
+// red at 10px reads as decoration and gets looked past.
 .md-report__invalid {
-  font-size: 10.5px;
-  padding: 1px 7px;
+  font-size: 11.5px;
+  padding: 2px 9px;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, #c0392b 45%, transparent);
-  color: #c0392b;
-  background: color-mix(in srgb, #c0392b 8%, transparent);
+  border: 1px solid color-mix(in srgb, #e08a76 45%, transparent);
+  color: #e08a76;
+  background: color-mix(in srgb, #c0392b 10%, transparent);
   white-space: nowrap;
 }
 .md-report__clock {
@@ -4451,4 +4489,61 @@
   border: 1px dashed var(--sv-border-soft, var(--sv-border));
   border-radius: 999px;
   padding: 3px 11px;
+}
+
+// RUN THIS DOCUMENT'S SPECS — the leaf's run-all. Sits beside the lifecycle trail, so it borrows
+// the trail's weight rather than competing with the identity above it.
+.md-docproofs {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 8px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 12.5px;
+  line-height: 1.5;
+  cursor: pointer;
+  background: none;
+  border: 1px solid var(--sv-line, #3a4150);
+  color: var(--sv-text-strong, #eef1f7);
+  transition: border-color 120ms ease, color 120ms ease;
+
+  &:hover:not(:disabled) { border-color: var(--sv-accent, #6a74c4); }
+  &:disabled { cursor: default; opacity: 0.8; }
+
+  &__mark { font-size: 11px; opacity: 0.9; }
+
+  // THE RESULT IS THE BORDER, never a fill — his recipe for the retire pills, and the same reason
+  // holds here: a filled badge beside the trail reads as a second state the document is IN.
+  &--pass { border-color: rgba(106, 196, 134, 0.55); }
+  &--fail { border-color: #bc7c6f; color: #e08a76; }
+  &--err  { border-color: #bc7c6f; color: #e08a76; }
+  &--running { opacity: 0.75; }
+}
+
+// WHICH BLOCK ANSWERED. A proof's address scrolls its block into view, and a brief ring says which
+// one moved — the centre of a long document is not self-evidently the thing you just clicked.
+[data-md-start].is-found,
+[data-claim-id].is-found {
+  animation: sv-found 1.6s ease-out;
+  border-radius: 8px;
+}
+@keyframes sv-found {
+  0%   { box-shadow: 0 0 0 2px rgba(106, 116, 196, 0.75); }
+  60%  { box-shadow: 0 0 0 2px rgba(106, 116, 196, 0.45); }
+  100% { box-shadow: 0 0 0 2px rgba(106, 116, 196, 0); }
+}
+
+// WHICH BLOCK ANSWERED. A proof's address scrolls its block into view, and a brief ring says which
+// one moved — the centre of a long document is not self-evidently the thing you just clicked.
+[data-md-start].is-found,
+[data-claim-id].is-found {
+  animation: sv-found 1.6s ease-out;
+  border-radius: 8px;
+}
+@keyframes sv-found {
+  0%   { box-shadow: 0 0 0 2px rgba(106, 116, 196, 0.75); }
+  60%  { box-shadow: 0 0 0 2px rgba(106, 116, 196, 0.45); }
+  100% { box-shadow: 0 0 0 2px rgba(106, 116, 196, 0); }
 }

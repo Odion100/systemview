@@ -45,6 +45,7 @@ import { useAppDark } from "../../atoms/appTheme";
 import loadServiceWithHeaders from "../../utils/loadService";
 import { hostFiles, hasHostFiles } from "../../utils/hostFiles";
 import arcRows, { arcLine } from "./arcRows";
+import ArcProofs from "./ArcProofs";
 import rfcRows, { rfcLine } from "./rfcRows";
 import gapRows, { gapLine } from "./gapRows";
 // eslint-disable-next-line import/no-cycle
@@ -792,6 +793,53 @@ function useCountUp(target) {
 // JOB has handed something over, so the card's last state is the report sitting there with the
 // rating beside it — the rate verb's own comment has always said *"capturable where the report is
 // READ."* This is that place.
+// WHAT COUNTS AS AN ACCOUNT — A REPORT, and the harness is the authority on that, not this row.
+//
+// `nudge.cjs excusedOf` is what actually decides whether a declared-abandoned run stops being
+// nudged, and it takes a REPORT specifically. `tests/nudge.js` pins that by name — *"a branch is
+// not an account"* — so the rule is deliberate: a branch or a document says work HAPPENED, while
+// the account a dropped procedure owes is the statement of what it was and why it stopped, and only
+// prose carries that.
+//
+// This set was briefly widened to `report|branch|document|card|link` on the reasoning that a run
+// which BUILT something attaches its proof instead. The reasoning is fine and the place was wrong:
+// widening it here made the DRAWER draw a run as accounted while the harness went on nudging it —
+// one fact with two answers, and the surface was the one lying. Widening the exit from work is also
+// the change an agent benefits from, which is exactly the change it should not make on its own.
+//
+// SHOWING IS NOT ACCOUNTING. `RunAttachments` below still renders every kind, because "what did
+// this run point at" and "has this run earned an ending" are different questions — the first was
+// genuinely missing (*"I can't see a report… it should be at the top when I expand, a link to
+// it."*) and is answered by rendering everything.
+const ACCOUNT_KINDS = new Set(["report"]);
+const isAccounted = (attachments) =>
+  Array.isArray(attachments) && attachments.some((a) => a && ACCOUNT_KINDS.has(a.kind));
+
+// WHAT THE RUN POINTS AT — one component, both rows. His words: *"I can't see a report... it
+// should be at the top when I expand, a link to it."* It lived inside `WorkList` only, so a JOB's
+// attached report was stored, counted toward "accounted", and shown nowhere — the account existed
+// and no surface could open it. Reports open as the file they are; other kinds name themselves.
+function RunAttachments({ attachments, projectCode }) {
+  if (!Array.isArray(attachments) || !attachments.length) return null;
+  return (
+    <div className={`${CLASSNAME}__worklist-attachments`}>
+      {attachments.map((a, i) =>
+        a && a.kind === "report" ? (
+          <FileLink
+            key={`${a.kind}:${a.ref}:${i}`}
+            label={`.systemview/report.${a.project || projectCode}.${a.ref}.md`}
+            attrs={{ project: a.project || projectCode }}
+          />
+        ) : a ? (
+          <span key={`${a.kind}:${a.ref}:${i}`} className={`${CLASSNAME}__worklist-attachment`}>
+            {a.kind}: {a.ref}
+          </span>
+        ) : null
+      )}
+    </div>
+  );
+}
+
 function JobRun({ items, source, projectCode, runId, onClear, onLanes, laneChildren, laneCount = 0, standingLanes = [], status = null, attachments = null }) {
   const jobId = String(source || "").slice(4);
   const [open, setOpen] = useState(false);
@@ -802,7 +850,7 @@ function JobRun({ items, source, projectCode, runId, onClear, onLanes, laneChild
   const complete = total > 0 && done === total;
   // The same declared ending the skill rows wear — a job run can be abandoned with its account too.
   const abandoned = status && /abandon/i.test(String(status.text || ""));
-  const accounted = Array.isArray(attachments) && attachments.some((a) => a && a.kind === "report");
+  const accounted = isAccounted(attachments);
   // The same countdown the skill rows wear — a job run is as nudgeable as a skill run, and the
   // selector's `picks` answer is what decides which single row counts down (see useNudgeEta).
   const eta = useNudgeEta({ source, runKey: runId || "", projectCode, off: complete });
@@ -944,6 +992,10 @@ function JobRun({ items, source, projectCode, runId, onClear, onLanes, laneChild
           list, so a "closed" card was still three rows deep: the head, the `why` sentence, and the
           report row with its five stars. Everything below this line is now behind the chevron; the
           bar keeps the progress, the state, and a mark when something is waiting on him. */}
+      {/* WHAT THIS RUN ATTACHED — the same chips the skill rows wear, and a job run had none: its
+          attachments were stored and counted toward "accounted" while no surface would open them.
+          Above the steps, because the product is what you came to the expanded row for. */}
+      {open && <RunAttachments attachments={attachments} projectCode={projectCode} />}
       {open && rec && rec.why && <div className={`${CLASSNAME}__jobrun-why`}>{rec.why}</div>}
       {/* WHY IT WAS WORKED ON — his walk, 2026-10-16: the evaluation verdict exists on the board
           and in the report, but the row never said it. When the record carries one, the card does. */}
@@ -1080,7 +1132,7 @@ function WorkList({ items, onClear, source = "", projectCode = "", runKey = "", 
   // its account rides it — so the row says which it is. "abandoned · accounted" is an honest
   // ending; "abandoned — no account" is a declaration the nudging rightly ignores.
   const abandoned = status && /abandon/i.test(String(status.text || ""));
-  const accounted = Array.isArray(attachments) && attachments.some((a) => a && a.kind === "report");
+  const accounted = isAccounted(attachments);
   const eta = useNudgeEta({ source, runKey, projectCode, off: complete0 || (abandoned && accounted) });
   if (!items || !items.length) return null;
   const done = items.filter((t) => t.state === "done").length;
@@ -1177,23 +1229,7 @@ function WorkList({ items, onClear, source = "", projectCode = "", runKey = "", 
             the attached report IS the account, and an account you cannot open from the row that
             wears "accounted" is a claim, not a record. Reports open as the file they are; other
             kinds name themselves. */}
-        {Array.isArray(attachments) && attachments.length ? (
-          <div className={`${CLASSNAME}__worklist-attachments`}>
-            {attachments.map((a, i) =>
-              a && a.kind === "report" ? (
-                <FileLink
-                  key={`${a.kind}:${a.ref}:${i}`}
-                  label={`.systemview/report.${a.project || projectCode}.${a.ref}.md`}
-                  attrs={{ project: a.project || projectCode }}
-                />
-              ) : a ? (
-                <span key={`${a.kind}:${a.ref}:${i}`} className={`${CLASSNAME}__worklist-attachment`}>
-                  {a.kind}: {a.ref}
-                </span>
-              ) : null
-            )}
-          </div>
-        ) : null}
+        <RunAttachments attachments={attachments} projectCode={projectCode} />
         <ul className={`${CLASSNAME}__worklist-items`}>
           {items.map((t) => (
             <li key={t.id} className={`${CLASSNAME}__worklist-item ${CLASSNAME}__worklist-item--${t.state}`}>
@@ -7625,6 +7661,7 @@ const countdown = (str, now = Date.now()) => {
                   view: the band is tabs (his call). A single type still gets its tab, because the
                   tab is the type's name, not a choice between kinds. */}
               {bandShown.tabs.length > 0 && (
+                <div className={`${CLASSNAME}__bandrow`}>
                 <div className={`${CLASSNAME}__bandtabs`}>
                   {bandShown.tabs.map((tb) => (
                     <button
@@ -7648,12 +7685,15 @@ const countdown = (str, now = Date.now()) => {
                       {bandLabel(tb.key, tb.n)}
                     </button>
                   ))}
-                  {/* THE COG, AT THE RIGHT END OF THE ROW — his placement. It is not a tab: it has
-                      no rows, it never competes for the row's space, and it costs no height because
-                      the row is flex and the cog is pushed to the end rather than given a line of
-                      its own. Everything in the drawer is a list of steps with an owner and a
-                      completion state, so the thing that configures the nudge belongs where the
-                      lists are. */}
+                </div>
+                  {/* THE COG, AT THE RIGHT END OF THE ROW — his placement — AND OUTSIDE THE
+                      SCROLLER. It sat as the row's last child, which was fine until the tabs grew
+                      past the width: reports fan out by subtype and the row's length is unbounded
+                      by design, so the overflow scrolled the cog out of reach and the nudge
+                      settings became unclickable. The row is the part that scrolls; the cog is
+                      pinned beside it and never moves. Everything in the drawer is a list of steps
+                      with an owner and a completion state, so the thing that configures the nudge
+                      belongs where the lists are. */}
                   <NudgeCog />
                 </div>
               )}
@@ -7693,6 +7733,12 @@ const countdown = (str, now = Date.now()) => {
                     {a.owner ? <span className={`${CLASSNAME}__reports-who`}>{a.owner}</span> : null}
                     <span className={`${CLASSNAME}__reports-when`}>{arcLine(a)}</span>
                   </button>
+                  {/* RUN THE ARC'S SPECS FROM THE DRAWER (his ask: "give me the ability to run all
+                      tests from the arcs, from the drawer"). LIGHT PROGRESS, nothing crazy — one
+                      press, then passed/failed in words, because the place to watch a run is the
+                      Proofs tab and the place to read what went wrong is the document. The run is
+                      the bus's, so pressing here and looking there is the same run. */}
+                  <ArcProofs projectCode={projectCode} arcId={a.id} />
                 </div>
               ))}
             </>

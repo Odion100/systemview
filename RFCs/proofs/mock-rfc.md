@@ -30,8 +30,7 @@ finished walk wants it): strip the leaf, the row follows, the document is a spec
 node RFCs/proofs/mock.js rfc off
 :::
 
-<!-- mock off — bring it back with: node RFCs/proofs/mock.js rfc on -->
-<!-- mock-leaf: ::rfc{id=MOCK-RFC title="MOCK — an RFC you can push around" retired=2026-10-30 retiredAs=shelf} -->
+::rfc{id=MOCK-RFC title="MOCK — an RFC you can push around" retired=2026-10-30 retiredAs=shelf arc=MOCK-ARC-O1 settled=2026-10-30}
 
 ## Walk it — one press per state, in the table's order
 
@@ -103,11 +102,18 @@ unanswered while the document called itself approved.
 A claim is met when it is marked met **and** carries the proof its kind owes. Five rows, five things
 a claims bar can say — if one renders wrong, it renders wrong here first.
 
-::::claim[a behavioural claim, marked met, carrying a spec → counts as met]{id=m1 state=met by=systemview-test|you note="the cmd below is the spec"}
-:::cmd
-echo "pressable, re-runnable — that is what a spec means"
+::::claim[a behavioural claim, marked met, carrying a spec → counts as met]{id=m1 state=met by=systemview-test|you note="the run block below is the spec — it re-runs and can go red on its own"}
+:::run{title="MOCK — a claim's own spec, collected and runnable"}
+- Math.add { "a": 1, "b": 1 }
+  - results.sum = 2
 :::
 ::::
+
+A `:::run` and not a `:::cmd`, and the difference is the one worth learning here: **only run blocks
+and test blocks are specs.** A cmd is experiential facilitation — a command you press to feel the
+thing work — so it is never collected into a headless run, because executing shell nobody pressed
+and reporting it as a passing proof is the failure the distinction exists to prevent. If something a
+cmd does needs defending, wrap it in a run block, which is what this claim now does.
 
 ::claim[a behavioural claim marked met with nothing in it → reads UNPROVED, never met]{id=m2 state=met by=systemview-test|you note="marked, with no body to put evidence in"}
 

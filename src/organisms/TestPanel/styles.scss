@@ -406,3 +406,231 @@
     margin-top: 4px;
   }
 }
+
+/* THE PROOFS TAB — a project's documents running their own specs, outside any document.
+   It borrows the pass/fail colours the named-section above already uses, so a proof reads the same
+   as a saved test run reads: "you can see them run just like saved tests run." */
+.test-panel {
+  &__proofs {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  &__proofs-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  &__proofs-scope {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--sv-text-strong);
+    /* The scope can be long (an arc id plus a phrase) and must not push the Run button off the
+       edge of a narrow panel — it gives up its width first. */
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  &__proofs-sum {
+    font-size: 12px;
+    color: var(--sv-text-muted);
+  }
+  &__proofs-acts {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex: 0 0 auto;
+  }
+  &__proofs-absent,
+  &__proofs-empty {
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--sv-text-muted);
+    padding: 10px 2px;
+    code {
+      font-size: 12px;
+    }
+  }
+  &__proofs-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  &__proof {
+    display: flex;
+    align-items: baseline;
+    gap: 7px;
+    flex-wrap: wrap;
+    background: var(--sv-surface);
+    border: 1px solid var(--sv-border-soft);
+    border-left: 3px solid var(--sv-border);
+    border-radius: 6px;
+    padding: 5px 8px;
+    font-size: 12.5px;
+    &--running {
+      border-left-color: var(--sv-blue);
+    }
+    &--pass {
+      border-left-color: #2db44f;
+    }
+    &--fail {
+      border-left-color: #e05757;
+    }
+  }
+  &__proof-mark {
+    width: 12px;
+    text-align: center;
+    color: var(--sv-text-muted);
+    .test-panel__proof--pass & {
+      color: #2db44f;
+    }
+    .test-panel__proof--fail & {
+      color: #e05757;
+    }
+  }
+  &__proof-name {
+    font-weight: 600;
+    color: var(--sv-text-strong);
+  }
+  &__proof-kind {
+    font-size: 11px;
+    color: var(--sv-text-faint);
+    border: 1px solid var(--sv-border-soft);
+    border-radius: 4px;
+    padding: 0 4px;
+  }
+  &__proof-at {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    padding: 0;
+    font-size: 11.5px;
+    color: var(--sv-text-muted);
+    &:hover {
+      color: var(--sv-text);
+      text-decoration: underline;
+    }
+    em {
+      font-style: normal;
+      color: var(--sv-text-faint);
+    }
+  }
+  /* STALE IS A WARNING, not decoration: the list may be behind the file. */
+  &__proof-stale {
+    font-size: 11px;
+    color: #b4503c;
+    border: 1px solid rgba(188, 124, 111, 0.4);
+    border-radius: 4px;
+    padding: 0 4px;
+  }
+  &__proof-ms {
+    font-size: 11px;
+    color: var(--sv-text-faint);
+    margin-left: auto;
+  }
+  /* THE COMPARISON THAT FAILED, under its proof — expected against received, at a path. Full width
+     so it never has to be read in a 40px column. */
+  &__proof-fails {
+    flex: 1 0 100%;
+    list-style: none;
+    margin: 4px 0 0;
+    padding: 0 0 0 19px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 12px;
+    color: #e08a76;
+    code {
+      font-size: 11.5px;
+      color: var(--sv-text-muted);
+    }
+  }
+  &__proofs-problems {
+    list-style: none;
+    margin: 0;
+    padding: 8px 0 0;
+    border-top: 1px solid var(--sv-border-soft);
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    font-size: 12px;
+    color: #e08a76;
+    code {
+      font-size: 11.5px;
+      color: var(--sv-text-muted);
+    }
+  }
+}
+
+// THE PROOFS TOOLBAR — the same two controls the saved-test area carries, because it is the same
+// job: a list of runnable things needs run-all and clear, and growing a second vocabulary for them
+// would mean two surfaces that drift. `⟳ recollect` is the one extra, and it is a DIFFERENT verb —
+// it re-asks the hub what is in scope, rather than re-running what is already on screen.
+.test-panel__ctrl {
+  font: inherit;
+  font-size: 12px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  cursor: pointer;
+  background: none;
+  border: 1px solid var(--sv-line, #3a4150);
+  color: var(--sv-text, #c7cedb);
+  &:hover { border-color: var(--sv-accent, #6a74c4); }
+}
+
+.test-panel__proof-wrap {
+  margin-bottom: 10px;
+  // The address sits ABOVE its block — a run block in the panel is identical to one in a document,
+  // so the only thing the panel has to add is which document it came out of.
+  .test-panel__proof-at {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 5px;
+    font-size: 11.5px;
+    background: none;
+    border: 0;
+    padding: 0 0 3px;
+    cursor: pointer;
+    color: var(--sv-text-faint, #8b93a3);
+    &:hover { color: var(--sv-accent, #6a74c4); }
+    em { font-style: normal; opacity: 0.75; }
+  }
+}
+
+// A PROOF'S ADDRESS — where it lives and what it defends, both pressable. A saved test wears its
+// namespace here; a proof saves nowhere, so this slot carries the document and its claim.
+.test-panel__proof-where {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.test-panel__proof-link {
+  background: none;
+  border: none;
+  padding: 1px 5px;
+  border-radius: 5px;
+  font: inherit;
+  font-size: 11.5px;
+  color: var(--sv-text-faint, #8b93a3);
+  cursor: pointer;
+  white-space: nowrap;
+  border: 1px solid transparent;
+
+  &:hover { color: var(--sv-text-strong, #eef1f7); border-color: var(--sv-line, #3a4150); }
+
+  // THE CLAIM reads as the thing it is — an id, not a filename — so it is set apart without being
+  // louder: the proof and the sentence it defends are peers.
+  &--claim {
+    color: #9aa6d8;
+    &::before { content: "·"; margin-right: 5px; color: var(--sv-text-faint, #8b93a3); }
+    &:hover { color: #b9c3ee; }
+  }
+}
