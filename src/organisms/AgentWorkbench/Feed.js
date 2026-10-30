@@ -208,6 +208,33 @@ export const probeEmbedFor = (row, canRender = true) => {
 // AND THE HEADLINE IS THE OUTCOME, NOT THE POINTER. A job that fired and was refused for a missing
 // input drew the identical row to one that ran. `given` / `refused` is the first thing on the row
 // now, because the row's job is to say what happened.
+// A PRESSED PROMPT — a document's `::prompt` button fired into this chat. It lands like a LOG
+// LINE, not his bubble (his, 2026-10-29: "don't let it land as if I sent it… I just need to
+// expand it to see it, just like a log does"): a prompt can be a paragraph of staging he is not
+// meant to wade through, so the row is the first line and the fold holds the rest. The 🔘 the
+// block prefixed is the marker this fold keys on, stripped for display.
+const PressedRow = ({ row }) => {
+  const [open, setOpen] = useState(false);
+  const text = String(row.text || "").replace(/^🔘\s*/, "");
+  const first = text.replace(/\s+/g, " ").slice(0, 90);
+  return (
+    <div data-row={row.key} className={`${CLASSNAME}__row ${CLASSNAME}__pressedrow`}>
+      <When ts={row.ts} />
+      <span className={`${CLASSNAME}__cmdrow-name`}>pressed</span>
+      <button
+        type="button"
+        className={`${CLASSNAME}__pressed-head`}
+        onClick={() => setOpen(!open)}
+        title={open ? "fold it back" : "the whole prompt"}
+      >
+        {open ? "▾" : "▸"} {first}
+        {!open && text.length > 90 ? "…" : ""}
+      </button>
+      {open ? <div className={`${CLASSNAME}__pressed-body`}>{text}</div> : null}
+    </div>
+  );
+};
+
 const HookRow = ({ row }) => {
   const [open, setOpen] = useState(false);
   const isJob = !!row.job;
@@ -859,6 +886,9 @@ const Feed = ({ rows, answered = {}, onAnswer = null, renderText = null }) =>
         <span className={`${CLASSNAME}__cmdrow-name`}>cmd</span>
         <span className={`${CLASSNAME}__cmdrow-text`}>{r.text}</span>
       </div>
+    ) : r.kind === "mine" && /^🔘/.test(String(r.text || "")) ? (
+      // A document's prompt button fired — a foldable log line, never his bubble.
+      <PressedRow key={r.key} row={r} />
     ) : r.kind === "mine" ? (
       // His own turns, so a resumed conversation reads like a conversation and not a monologue.
       <div

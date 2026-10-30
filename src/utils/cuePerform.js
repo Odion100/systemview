@@ -94,7 +94,7 @@ export function performCue(cue = {}, { projectCode = "", onstart, onend, onposit
   const finish = (err) => {
     if (finished) return;
     finished = true;
-    if (verb === "highlight" || verb === "point") clearSpotlight();
+    if (verb === "highlight" || verb === "point" || verb === "press") clearSpotlight();
     if (onend) onend(err);
   };
 
@@ -173,15 +173,23 @@ export function performCue(cue = {}, { projectCode = "", onstart, onend, onposit
     return { stop: () => { if (h && h.stop) h.stop(); finish(); } };
   }
 
-  // press — click it for real, give the page a beat to answer, then speak any body
+  // press — SEEN, never slowed (his, 2026-10-29: "I just wanted it to be seen… even if it was
+  // quick"): the box lands, the click fires on the NEXT FRAME — one paint, so the selection
+  // exists before the click, at no cost in pace — and the box then LINGERS through the settle,
+  // which is where the visibility actually comes from. It clears when the cue ends.
   if (!el) return null;
-  el.click();
+  if (el.scrollIntoView) el.scrollIntoView({ behavior: "smooth", block: "center" });
+  spotlight({ target: el, mode: "full", tone: "deliberate", hold: 10 * 60 * 1000 });
   let h = null;
+  const raf = requestAnimationFrame(() => {
+    try { el.click(); } catch { /* a dead button must not strand the sequence */ }
+  });
   const t = setTimeout(() => {
     h = say(cue.body);
   }, PRESS_SETTLE_MS);
   return {
     stop: () => {
+      cancelAnimationFrame(raf);
       clearTimeout(t);
       if (h && h.stop) h.stop();
       finish();
