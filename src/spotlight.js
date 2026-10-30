@@ -65,10 +65,16 @@ function ensureLayer() {
     height: "100%",
     // The whole point of an overlay: it must never eat a click meant for the page underneath.
     pointerEvents: "none",
-    // UNDER THE CHAT (his rule: the chat holds the highest z-index). It has to sit over the page it
-    // is pointing at, and under the panel doing the pointing — a gesture that covers the bot and its
-    // dialogue box is pointing at the wrong thing.
-    zIndex: "8400",
+    // ABOVE THE CHAT PANEL (8500), under the banners and menus (9000+). It used to sit UNDER the
+    // chat so a gesture could never cover the bot's dialogue box — but that box is gone: the voice
+    // line at the bottom is the only speech surface now, and errands pass `say: null`. What the old
+    // rule bought instead was a selection he could not see: with the chat hovering over the page,
+    // only the corner of the lit area stuck out past it.
+    //
+    // Safe to raise because this layer draws NO scrim — a box around the target and an optional
+    // gesture line, nothing else — and `pointerEvents: none` means it cannot eat a click. So over
+    // the chat it covers only the few pixels of its own outline.
+    zIndex: "8600",
   });
   document.body.appendChild(layer);
   return layer;

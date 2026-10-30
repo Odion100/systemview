@@ -122,12 +122,87 @@ function on(kind) {
   console.log(`mock-${kind}.md → on (the leaf is back; saving re-registers it)`);
 }
 
+// THE APPROVAL BLOCKS THEMSELVES ARE A VARIABLE — an RFC's verdict is read off EVERY block and the
+// weakest answer wins, so the number of them is part of what the lifecycle does. `approval+` and
+// `approval-` let a walk prove that from either direction: add one to a document that called itself
+// approved and watch it fall back to draft; drop the unanswered one and watch it land.
+//
+// A new block is inserted after the LAST existing one so the group stays together; with none in the
+// document it lands at the end under its own heading. Removal takes the last one, which is the one
+// a walk just added.
+const APPROVAL_OPEN = /^:::approval\{/;
+
+function approvalLines(lines) {
+  const out = [];
+  for (let i = 0; i < lines.length; i += 1) {
+    if (!APPROVAL_OPEN.test(lines[i])) continue;
+    // the close is the next line that is exactly three colons — approval bodies hold prose, and a
+    // nested fence would be longer, so this cannot swallow a sibling block
+    let end = i;
+    for (let j = i + 1; j < lines.length; j += 1) {
+      if (/^:::\s*$/.test(lines[j])) { end = j; break; }
+    }
+    out.push({ start: i, end });
+  }
+  return out;
+}
+
+function addApproval(kind) {
+  const lines = readLines(kind);
+  const found = approvalLines(lines);
+  const n = found.length + 1;
+  const block = [
+    "",
+    `:::approval{ask="MOCK — approve part ${n}?"}`,
+    `Added by the walk. Until this carries a verdict, the document cannot read as approved — the`,
+    `verdict is every block's answer, and the weakest one wins.`,
+    ":::",
+  ];
+  if (found.length) {
+    const at = found[found.length - 1].end + 1;
+    lines.splice(at, 0, ...block);
+  } else {
+    lines.push("", "## The approval blocks the walk drives", ...block);
+  }
+  writeLines(kind, lines);
+  console.log(`mock-${kind}.md → ${n} approval block${n === 1 ? "" : "s"} (the new one carries no verdict)`);
+}
+
+function removeApproval(kind) {
+  const lines = readLines(kind);
+  const found = approvalLines(lines);
+  if (!found.length) {
+    console.error(`mock-${kind}.md has no approval block to remove`);
+    process.exit(1);
+  }
+  // THE LAST BLOCK IS A FLOOR, NOT A STEP. A document with no approval block at all cannot reach
+  // `approved` by its real derivation — the verdict is read off the blocks, and an empty set
+  // satisfies "every block approved" for free, which is the vacuous pass every floor in this
+  // design exists to stop. So a walk can add and drop blocks freely and never strand the fixture
+  // in a state its own trail cannot explain. `off` is how you take the document out of play.
+  if (found.length === 1) {
+    console.error(
+      `mock-${kind}.md has one approval block left — removing it would leave a document whose verdict nothing can answer. Use \`${kind} off\` to take it out of play.`
+    );
+    process.exit(1);
+  }
+  const last = found[found.length - 1];
+  // take the blank line above it too, so repeated add/remove does not leave a widening gap
+  const from = last.start > 0 && lines[last.start - 1].trim() === "" ? last.start - 1 : last.start;
+  lines.splice(from, last.end - from + 1);
+  writeLines(kind, lines);
+  const left = found.length - 1;
+  console.log(`mock-${kind}.md → ${left} approval block${left === 1 ? "" : "s"} left`);
+}
+
 function apply(kind, state) {
   if (state === "off") return off(kind);
   if (state === "on") return on(kind);
+  if (state === "approval+") return addApproval(kind);
+  if (state === "approval-") return removeApproval(kind);
   const spec = (STATES[kind] || {})[state];
   if (!spec) {
-    const words = Object.keys(STATES[kind] || {}).concat(["off", "on"]).join(" · ") || "(no such kind)";
+    const words = Object.keys(STATES[kind] || {}).concat(["off", "on", "approval+", "approval-"]).join(" · ") || "(no such kind)";
     console.error(`no state "${state}" for a ${kind}. try: ${words}`);
     process.exit(1);
   }
@@ -170,7 +245,27 @@ function apply(kind, state) {
   console.log(`mock-${kind}.md → ${state}`);
 
   // The arc's upward states move the PLANS — their leaves, in their own files.
+  //
+  // IT RAISES A LEAF IT NEEDS, AND IT ONLY REPORTS WHAT IT WROTE. A plan whose leaf is torn down has
+  // no line to edit, and this loop used to write the file back unchanged and announce the attachment
+  // anyway — `mock-rfc.md` rests as a SPEC with its rfc leaf commented out, so every arc walk
+  // claimed to attach O1's plan and attached nothing, while the map showed O1 unplanned. A fixture
+  // that testifies instead of reading state is the one bug it cannot be allowed to have.
   for (const [doc, plan] of Object.entries(spec.plans || {})) {
+    const has = () => readLines(doc).some((l) => l.startsWith(LEAF[doc] + "{"));
+    // Raising is only ever needed to ATTACH. Detaching a leaf that is already down is already true,
+    // so bringing one back just to say "detached" would un-tear-down a fixture nobody asked for.
+    if (plan && !has()) {
+      on(doc);
+      if (!has()) {
+        console.log(`mock-${doc}.md has no ${LEAF[doc]} leaf to attach — cannot serve ${plan.arc}`);
+        continue;
+      }
+    }
+    if (!plan && !has()) {
+      console.log(`mock-${doc}.md is already down — nothing to detach`);
+      continue;
+    }
     const lns = readLines(doc).map((l) => {
       if (!l.startsWith(LEAF[doc] + "{")) return l;
       let out = setOn(l, "arc", plan ? plan.arc : null);
@@ -190,7 +285,7 @@ const [kind, state] = process.argv.slice(2);
 if (!kind || !state) {
   console.log("usage: node RFCs/proofs/mock.js <kind> <state>\n");
   for (const [k, v] of Object.entries(STATES))
-    console.log(`  ${k.padEnd(7)} ${Object.keys(v).concat(["off", "on"]).join(" · ")}`);
+    console.log(`  ${k.padEnd(7)} ${Object.keys(v).concat(["off", "on", "approval+", "approval-"]).join(" · ")}`);
   console.log(`  plan    (moved by the arc's states — it serves MOCK-ARC-O2)`);
   process.exit(0);
 }

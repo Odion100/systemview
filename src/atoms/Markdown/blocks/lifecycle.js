@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { getAgent } from "../../../utils/hub";
 import Trail from "../../Trail/Trail";
 import { useDocMembers, useMarkdownWrite } from "../context";
+import DocProofs from "./DocProofs";
 import {
   TRAILS,
   stateOf,
@@ -79,6 +80,32 @@ export function useRegistryRow(kind, id, nonce = 0) {
   return row;
 }
 
+/**
+ * EVERY ROW, UNFILTERED — what an arc's facilitation needs and `useRegistryRow` cannot give it.
+ * An arc's plans are RFCs, reports and gaps carrying `arc=<ARC-nnn-Ox>`, so a read filtered to
+ * `kind=arc` returns the arc itself and none of the work it is waiting on. Only fetched for an
+ * arc, and only while its panel is open: the rows are a lookup, and nothing else here needs them.
+ */
+export function useRegistryRows(wanted, nonce = 0) {
+  const [rows, setRows] = useState([]);
+  useEffect(() => {
+    if (!wanted) return undefined;
+    let dead = false;
+    const agent = getAgent();
+    if (!agent || !agent.documentsRegistry) return undefined;
+    Promise.resolve(agent.documentsRegistry({}))
+      .then((all) => {
+        if (!dead) setRows(Array.isArray(all) ? all : []);
+        return null;
+      })
+      .catch(() => null);
+    return () => {
+      dead = true;
+    };
+  }, [wanted, nonce]);
+  return rows;
+}
+
 const today = () => new Date().toISOString().slice(0, 10);
 
 // The trail itself: every station the kind passes through, the current one lit. A rejected RFC
@@ -121,7 +148,16 @@ export const LifecycleTrail = ({ kind, id, line, attrs = {} }) => {
   const panelRef = useRef(null);
   const row = useRegistryRow(kind, id, nonce);
   const { editable, setAttr, setAttrs, appendEnd } = useMarkdownWrite() || {};
-  const { source = "" } = useDocMembers() || {};
+  const { source = "", projectCode = "" } = useDocMembers() || {};
+  // An arc's steps are about documents that are not this one — the registry is the only place
+  // those live. Fetched only for an arc whose panel is open (see useRegistryRows).
+  const planRows = useRegistryRows(kind === "arc" && !!helping && id, nonce);
+  const ctx = useMemo(
+    () => ({ rows: planRows, id, project: projectCode, attrs }),
+    // keyed on the attribute VALUES a step reads, not the object, which is new every render
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [planRows, id, projectCode, attrs.resolved, attrs.rejected, attrs.by, attrs.why]
+  );
   const canPress = !!editable && !!line && !!setAttr && !!row;
 
   const write = useCallback(
@@ -191,7 +227,7 @@ export const LifecycleTrail = ({ kind, id, line, attrs = {} }) => {
       // draft") — the lit station says it; a red "already draft" line was a refusal where nothing
       // was refused.
       if (station === current) return;
-      if (facilitate(kind, station, current, source, Date.now(), leaf, today())) {
+      if (facilitate(kind, station, current, source, Date.now(), leaf, today(), ctx)) {
         setRefused("");
         setHelping(station);
         return;
@@ -199,7 +235,7 @@ export const LifecycleTrail = ({ kind, id, line, attrs = {} }) => {
       setHelping("");
       write(station);
     },
-    [canPress, write, kind, row, leaf, source]
+    [canPress, write, kind, row, leaf, source, ctx]
   );
 
   // Apply one STEP of a plan — its writes in ONE SAVE (setAttrs; sequential setAttr calls clobber
@@ -211,6 +247,13 @@ export const LifecycleTrail = ({ kind, id, line, attrs = {} }) => {
       if (!step) return;
       if (step.appendStatus) {
         if (appendEnd) appendEnd(`## STATUS — built ${today()}`);
+        setNonce((n) => n + 1);
+        return;
+      }
+      // A step that ADDS A BLOCK to the document — the gap's proof skeleton. Same door the claims
+      // bar writes its STATUS heading through, so there is one way text reaches a document's end.
+      if (step.appendText) {
+        if (appendEnd) appendEnd(step.appendText);
         setNonce((n) => n + 1);
         return;
       }
@@ -295,7 +338,7 @@ export const LifecycleTrail = ({ kind, id, line, attrs = {} }) => {
   const unreadable = current === "retired" && retiredAs && !standing;
   // The helping panel's body, derived from the live source EVERY render — a step that just ran
   // comes back wearing its ✓, and the next one's button takes the floor.
-  const plan = helping ? facilitate(kind, helping, helpCurrent, source, Date.now(), leaf, today()) : null;
+  const plan = helping ? facilitate(kind, helping, helpCurrent, source, Date.now(), leaf, today(), ctx) : null;
   const nextStep = plan ? (plan.steps || []).find((s) => !s.done) : null;
 
   // THE BAR AND THE PANEL ARE SIBLINGS, never nested. The leaf is one row and it must not move:
@@ -341,6 +384,13 @@ export const LifecycleTrail = ({ kind, id, line, attrs = {} }) => {
       onPress={canPress ? press : undefined}
       className="sv-trail--leaf"
     />
+    {/* RUN THIS DOCUMENT'S OWN SPECS — his gap, named out loud: "you're supposed to be able to run
+        all tests in the document… there's no ability to run all?" There wasn't. Every `:::run`
+        carried its own play and nothing ran the document, so the only in-document run-all was the
+        arc diagram's menu — which exists on arcs and nowhere else. The leaf is the right home
+        because it is the one control every registered document already has, and it is holding the
+        id and the spec inventory this needs. */}
+    <DocProofs id={id} projectCode={projectCode} />
     {asking || declining || refused || unreadable || helping ? (
     <span className="md-arc__panel" ref={panelRef}>
       {/* THE STEP LIST a press opened (RFC-076 §3, column four). One button for the mechanical
@@ -351,7 +401,7 @@ export const LifecycleTrail = ({ kind, id, line, attrs = {} }) => {
           <span className="md-arc__why-ask">{(plan && plan.title) || `to reach ${helping}`}</span>
           {plan ? (
             (plan.steps || []).map((s, i) => (
-              <span key={i} className="md-arc__step">
+              <span key={i} className={`md-arc__step${s.done ? " md-arc__step--done" : ""}`}>
                 {s.done ? (
                   <span className="md-arc__why-note">✓ {s.label}</span>
                 ) : s === nextStep && (s.writes || s.appendStatus || s.leafPairs) ? (

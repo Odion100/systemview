@@ -22,6 +22,14 @@ export const SOURCE_CHOICES = [
   { key: "lane:", label: "lanes" },
 ];
 
+// THE NUMBER KINDS AND THEIR UNIT. Here rather than in the component, so a field declaring a kind
+// nothing can render FAILS A TEST instead of drawing a label, a help line and no input — which is
+// what `keepHours` did the moment it was added to FIELDS, because the render listed the three kinds
+// it knew about and the fourth fell through every branch. `toggle` and `sources` render themselves;
+// everything else is a number and needs a unit, even when the unit is empty.
+export const UNITS = { minutes: "min", hours: "hrs", count: "", percent: "%" };
+export const RENDERABLE = ["toggle", "sources", ...Object.keys(UNITS)];
+
 export const FIELDS = [
   {
     key: "on",
@@ -66,6 +74,15 @@ export const FIELDS = [
     help: "context fill past which a nudge would spend what the agent needs to finish",
   },
   { key: "sources", kind: "sources", label: "which runs count", help: "the session's own plan has no source and is never nudged" },
+  {
+    key: "keepHours",
+    kind: "hours",
+    label: "keep closed runs",
+    min: 1,
+    max: 24 * 14,
+    // THE ONLY DESTRUCTIVE KNOB HERE, so the help says what it deletes and what it cannot touch.
+    help: "how long a FINISHED run stays in the drawer before the janitor sweeps it. A run that died mid-list is never swept at any setting — where a procedure stopped is the record",
+  },
 ];
 
 const clampInt = (v, lo, hi, fallback) => {
@@ -106,14 +123,18 @@ export function toggleSource(settings, key) {
 export function summaryOf(settings) {
   const s = settings || null;
   if (!s) return "nudge — not available in this shell";
-  if (!s.on) return "nudge — off";
-  if (!s.giveUpAfter) return "nudge — off (cycle length 0)";
+  // RETENTION IS SAID EVEN WHEN NUDGING IS OFF, because the janitor does not care whether anything
+  // nudges — a panel that goes quiet about what is being deleted the moment you turn the nudge off
+  // hides the one setting here that destroys something.
+  const keep = s.keepHours ? ` · keeps closed runs ${s.keepHours}h` : "";
+  if (!s.on) return `nudge — off${keep}`;
+  if (!s.giveUpAfter) return `nudge — off (cycle length 0)${keep}`;
   const which = (s.sources || []).length
     ? (s.sources || []).map((k) => (SOURCE_CHOICES.find((c) => c.key === k) || { label: k }).label).join(" + ")
     : "nothing";
   // "nothing" is said out loud rather than hidden: an empty source list is a real way to turn this
   // off, and a panel that renders it as "on" would be lying about a configuration he set.
-  return `nudge — ${which} after ${s.idleMin}m quiet, every ${s.cooldownMin}m, cycles of ${s.giveUpAfter}`;
+  return `nudge — ${which} after ${s.idleMin}m quiet, every ${s.cooldownMin}m, cycles of ${s.giveUpAfter}${keep}`;
 }
 
 /** Is this settings object one the panel can render at all? Absence is a state, not an error. */

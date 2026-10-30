@@ -18,6 +18,7 @@ import FullTestController from "./components/FullTestController";
 import Title from "../../atoms/Title/Title";
 import { CurrentTest } from "../../atoms/StatusIndicator/StatusIndicator";
 import ActionsPanel from "../ActionsPanel/ActionsPanel";
+import ProofsPanel from "./ProofsPanel";
 import AutoCompleteBox from "../../molecules/AutoCompleteBox/AutoCompleteBox";
 import MultiTestSection from "../MultiTestSection/MultiTestSection";
 import { TestAction } from "../Stage/TestStory";
@@ -135,8 +136,12 @@ const FullTestInner = ({
     });
     setTestMain([...Main]);
   };
-  // The scratchpad has two tabs: build a TEST, or create a shared ACTION (RFC-020). Same builder machinery.
-  const [tab, setTab] = useState("test");
+  // THREE TABS, AND PROOFS IS THE DEFAULT (his call): the panel's first answer is "do this
+  // project's documents still hold up", not "build me a test". Test and Actions are the BUILDER —
+  // "we're probably not using the ability to write tests and actions anymore… Test is for saved
+  // tests only; this one runs run blocks" — so they stay, one press away, and stop being the thing
+  // the panel opens on.
+  const [tab, setTab] = useState("proofs");
   // Expand/collapse EVERY section + step from the top toolbar (bump `signal` so a repeat still fires).
   const [fold, setFold] = useState({ signal: 0, open: true });
   const [allExpanded, setAllExpanded] = useState(true);
@@ -507,6 +512,14 @@ const FullTestInner = ({
         <div className="row test-panel__tabs">
           <button
             type="button"
+            className={`test-panel__tab ${tab === "proofs" ? "test-panel__tab--active" : ""}`}
+            onClick={() => setTab("proofs")}
+            title="the run and test blocks this project's documents carry"
+          >
+            Proofs
+          </button>
+          <button
+            type="button"
             className={`test-panel__tab ${tab === "test" ? "test-panel__tab--active" : ""}`}
             onClick={() => setTab("test")}
           >
@@ -552,7 +565,9 @@ const FullTestInner = ({
       </div>
 
       <div className="container test-panel__body" ref={bodyRef}>
-        {tab === "actions" ? (
+        {tab === "proofs" ? (
+          <ProofsPanel projectCode={projectCode} services={projectServices} savedTests={savedTests} />
+        ) : tab === "actions" ? (
           <ActionsPanel
             projectCode={projectCode}
             serviceId={serviceId}

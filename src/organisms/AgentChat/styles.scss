@@ -4703,12 +4703,25 @@ $sv-board-states: (
 
 // THE TAB BAR — drawn only when there is more than one kind to split, because a single tab over
 // its own rows is a label pretending to be a choice.
+// THE ROW THAT HOLDS THE SCROLLER AND THE COG. The cog must stay reachable however long the tab
+// row gets, so the scrolling is one level in: this wrapper does not scroll, carries the hairline
+// the selected tab breaks, and keeps the cog pinned at its end.
+.agent-chat__bandrow {
+  display: flex;
+  align-items: stretch;
+  flex: none;
+  min-width: 0; // or the scroller refuses to shrink and pushes the cog off the edge anyway
+  border-bottom: 1px solid var(--sv-border);
+}
 .agent-chat__bandtabs {
   display: flex;
   align-items: center;
   gap: 4px;
   padding: 3px 6px 0;
-  flex: none;
+  // GROW AND SHRINK, never dictate: `flex: 1 1 auto` with `min-width: 0` is what makes the
+  // overflow land inside this element instead of widening the row.
+  flex: 1 1 auto;
+  min-width: 0;
   // REPORTS FAN OUT BY SUBTYPE and the vocabulary is open, so the row's length is unbounded by
   // design — it scrolls rather than wrapping (a second row would read as a second kind of thing)
   // and the scrollbar stays hidden: the overflow is reachable by trackpad, not announced.
@@ -4716,10 +4729,6 @@ $sv-board-states: (
   scrollbar-width: none;
   &::-webkit-scrollbar { display: none; }
   > * { flex: none; }
-  // the tabs SIT ON A LINE, so the selected one has something to break — his call: *"put a border
-  // under the selected tab, I think that'll help."* Without the row's hairline an underline is just
-  // a floating dash; with it, selection reads at a glance.
-  border-bottom: 1px solid var(--sv-border);
 }
 .agent-chat__bandtab {
   border: none;
@@ -5148,6 +5157,7 @@ $sv-board-states: (
   flex: none;
   display: flex;
   align-items: center;
+  padding: 0 4px 0 6px; // it sits outside the scroller now, so it owns its own breathing room
 }
 .agent-chat__bandcog-btn {
   border: none;
@@ -5261,4 +5271,34 @@ $sv-board-states: (
   margin-left: 4px;
   opacity: 0.55;
   font-size: 9px;
+}
+
+/* RUNNING AN ARC'S SPECS FROM THE DRAWER — a press and a few words. "In the drawer it would
+   probably just show some light progress, nothing crazy," so there is no bar and no failure list;
+   the place to read a failure is the Proofs tab or the document. */
+.agent-chat__arcproofs {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding-right: 4px;
+  &-line {
+    font-size: 10.5px;
+    white-space: nowrap;
+    color: var(--sv-text-faint);
+    &--running { color: var(--sv-blue); }
+    &--pass { color: #2db44f; }
+    &--fail { color: #e05757; }
+  }
+  &-btn {
+    border: none;
+    background: none;
+    cursor: pointer;
+    padding: 0 3px;
+    font-size: 11px;
+    line-height: 1;
+    color: var(--sv-text-faint);
+    &:hover { color: var(--sv-text); }
+    &:disabled { cursor: default; opacity: 0.6; }
+  }
 }

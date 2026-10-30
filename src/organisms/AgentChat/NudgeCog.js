@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { FIELDS, SOURCE_CHOICES, patchFor, summaryOf, toggleSource, usable } from "./nudgeSettings";
+import { FIELDS, SOURCE_CHOICES, UNITS, patchFor, summaryOf, toggleSource, usable } from "./nudgeSettings";
 
 // THE COG AT THE RIGHT END OF THE TAB ROW. His placement: *"on the right side of the tabs all the
 // way at the end."*
@@ -104,7 +104,7 @@ const NudgeCog = () => {
                       onChange={(e) => send(patchFor(settings, f.key, e.target.checked))}
                     />
                   )}
-                  {(f.kind === "minutes" || f.kind === "count" || f.kind === "percent") && (
+                  {UNITS[f.kind] !== undefined && (
                     <span className="agent-chat__bandcog-num">
                       <input
                         type="number"
@@ -113,7 +113,7 @@ const NudgeCog = () => {
                         value={settings[f.key]}
                         onChange={(e) => send(patchFor(settings, f.key, e.target.value))}
                       />
-                      <em>{f.kind === "minutes" ? "min" : f.kind === "percent" ? "%" : ""}</em>
+                      <em>{UNITS[f.kind]}</em>
                     </span>
                   )}
                   {f.kind === "sources" && (

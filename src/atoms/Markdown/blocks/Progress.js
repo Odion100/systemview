@@ -5,6 +5,7 @@ import { progressOf, parseArc } from "../objectives";
 import { stateOf } from "./lifecycleState";
 import { openAddress } from "../openRef";
 import SpecMap from "../../SpecMap/SpecMap";
+import { askProofs } from "../../../utils/proofsBus";
 
 // RFC-072 §5 — `::progress`. WHERE THE ARC IS: how many are done, by whom — and, under the bar,
 // THE WHOLE SPEC AS ONE PICTURE (his call, 2026-10-28): the arc fanning into its objectives, each
@@ -117,9 +118,16 @@ const Progress = ({ attrs = {} }) => {
               },
               { met: 0, total: 0 }
             );
+            // HOW MANY SPECS SIT UNDER THIS OBJECTIVE — free, because the registry row already
+            // carries each document's inventory. His ask: "this presentation should be able to see
+            // how many tests you got." The claims count answers "how much is agreed and checked";
+            // this answers "how much of it is defended by something that re-runs", and they are
+            // different questions that were being conflated into one number.
+            const specs = rows.reduce((n, r) => n + ((r.specs || []).length), 0);
             return {
               id: o.id,
               label: o.title || "",
+              specs,
               // the objective's own written state, and the reason when that state is blocked
               state: o.state,
               because: o.because,
@@ -130,6 +138,7 @@ const Progress = ({ attrs = {} }) => {
                 return {
                   id: r.id,
                   station: stateOf("rfc", r),
+                  specs: (r.specs || []).length,
                   met: c.met || 0,
                   total: c.total || 0,
                   project: r.project,
@@ -145,6 +154,20 @@ const Progress = ({ attrs = {} }) => {
               ? openAddress({ projectCode: plan.project || projectCode, path: plan.path, language: "markdown" })
               : undefined
           }
+          // RUN THE SPECS — from the DIAGRAM, not the bar (his call: "not the progress bar — the
+          // visual diagram, from where you initiate the test. It has a click menu: you can run the
+          // entire spec, you can run objectives level, or you could just run from the RFC").
+          //
+          // The three menu scopes land on the hub's three scopes unchanged, which is why the menu
+          // needed no new vocabulary: an arc runs its own document plus every plan under it, an
+          // objective runs the plans pointed at that objective, a plan runs its own document.
+          //
+          // IT GOES THROUGH THE PANEL, by event. The run itself belongs in the Proofs tab — "you
+          // can go back and open it if you want and see if anything goes wrong, from wherever you
+          // ran it" — so the diagram asks and the panel answers, and there is one place results
+          // live however they were started. The promise is what the node's `is-running` border
+          // waits on, so it resolves when the RUN does and not when the event is dispatched.
+          onRun={(target) => askProofs(projectCode, target)}
           // "jump to its block" — the objectives live in THIS document; the map is its index
           onJump={(o) => {
             const root = (rootRef.current && rootRef.current.closest(".markdown")) || document;
