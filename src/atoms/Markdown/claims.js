@@ -1,3 +1,5 @@
+import { unfenced } from "./unfenced";
+
 // CLAIMS — a statement somebody can check, written so the checking can be written back.
 //
 // An RFC used to end in a numbered list of claims and a STATUS line somebody typed: "built, 11/12
@@ -16,8 +18,7 @@
 // A PLAIN MODULE, like `objectives.js`: no React, no renderer, a line scan — so it answers for a
 // document being typed into and can be tested without mounting anything.
 
-const FENCED = /^(`{3,}|~{3,})[^\n]*\n[\s\S]*?^\1[^\n]*$/gm;
-const unfenced = (src) => String(src || "").replace(FENCED, (m) => m.replace(/[^\n]/g, ""));
+// A fenced example is a quotation, not a claim — `unfenced`, imported at the top.
 
 // `::claim[the statement]{attrs}` — a leaf with a label — OR its container form (RFC-075): a claim
 // that carries a proof is `:::claim[statement]{attrs}` with the proof as its body, and the fence
