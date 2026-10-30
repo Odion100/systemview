@@ -81,6 +81,38 @@ describe("RFCs take their turn in the band", () => {
   });
 });
 
+// WHAT IS OWED BY HIM TAKES THE FRONT OF THE ROW. The inventory counts came out of the band head
+// (*"why do you think I'm attached to inventory and it being a tab I can get through from up
+// there?"*) and what replaced them had to land somewhere — one line across every kind at once,
+// which is not a folder and therefore not a document tab.
+describe("owed leads the band", () => {
+  it("has no tab when nothing is owed — the rule every kind lives by", () => {
+    expect(bandTabs({ jobs: 1, owed: 0 }).tabs.map((t) => t.key)).toEqual(["jobs"]);
+  });
+
+  it("comes first, so the band opens on what is waiting", () => {
+    const { tabs, active } = bandTabs({ jobs: 1, lanes: 2, owed: 5 });
+    expect(tabs.map((t) => t.key)).toEqual(["owed", "jobs", "lanes"]);
+    expect(active).toBe("owed");
+  });
+
+  // LEADING IS NOT HIJACKING. A tab that took the pane every time an approval landed would move the
+  // band out from under whatever he was reading in it.
+  it("does not steal the tab he is standing on", () => {
+    expect(bandTabs({ owed: 5, lanes: 2 }, "lanes").active).toBe("lanes");
+  });
+
+  it("is its own family — neither running work nor a folder of documents", () => {
+    expect(bandTabs({ owed: 3 }).tabs).toEqual([{ key: "owed", label: "owed", n: 3, family: "owed" }]);
+  });
+
+  // "3 oweds" is not English, and a word he has to translate is a word that costs him the glance.
+  it("says the word without an s, however many there are", () => {
+    expect(bandLabel("owed", 1)).toBe("1 owed");
+    expect(bandLabel("owed", 12)).toBe("12 owed");
+  });
+});
+
 // TWO FAMILIES IN ONE BAND. Work that is running, and documents in a folder — the second group is
 // the one that becomes configurable, and the band has to carry the distinction before anything can
 // render it. Reports sits in it by default because of where it lives, not because it is special.

@@ -23,7 +23,21 @@
 // The families are told apart by COLOUR and nothing else (his call: *"could be a different colour
 // of the type, like you're overthinking it"*). Not a glyph, not a separator, not a second row —
 // those all say "these are two lists" when the truth is one band holding two kinds of thing.
+// AND A THIRD KIND OF THING, FIRST IN THE ROW: WHAT IS OWED BY HIM. His ask, 2026-10-30 —
+// *"can get rid of the regular things like list and report counts, and just make that whole top
+// header of the bar about things like approvals waiting… in general, I just need the drawer to help
+// me resolve what's open."* The inventory counts came out of the head, and what replaced them needs
+// somewhere to land: not a fourth document tab (an obligation is not a FOLDER of anything — it is
+// one line across every kind at once) and not a section above the tabs (the band is tabs, full
+// stop). So it is a tab, and it is first, because being first is what "help me resolve what's
+// open" means when the band comes up.
+//
+// IT LEADS WITHOUT STEALING. `bandTabs` keeps the stored choice while that choice has rows, so
+// being first only decides the band's tab for somebody who has not picked one — or whose pick has
+// emptied out. A tab that hijacked the pane every time an approval landed would be the opposite of
+// useful.
 export const BAND_KINDS = [
+  { key: "owed", label: "owed", family: "owed" },
   { key: "jobs", label: "job", family: "work" },
   { key: "lanes", label: "lane", family: "work" },
   { key: "lists", label: "list", family: "work" },
@@ -45,12 +59,16 @@ export const TAB_KEY = "sv.chat.bandTab";
 // repeat across the bar). And the word is the SHORT one: a planning report's tab says "plan".
 const SUBTYPE_WORD = { planning: "plan" };
 
+// NOT EVERY WORD TAKES AN S. "3 oweds" is not English — `owed` is already what it is in the
+// plural, and a word that reads wrong is a word he has to translate before he can use the tab.
+const INVARIANT = new Set(["owed"]);
+
 // Plural the way the band head already speaks: "1 job", "3 lanes".
 export const bandLabel = (kind, n) => {
   const sub = kind.startsWith("reports:") ? kind.slice(8) : "";
   const row = BAND_KINDS.find((k) => k.key === kind);
   const word = sub ? SUBTYPE_WORD[sub] || sub : row ? row.label : kind;
-  return `${n} ${word}${n === 1 ? "" : "s"}`;
+  return `${n} ${word}${n === 1 || INVARIANT.has(word) ? "" : "s"}`;
 };
 
 /**

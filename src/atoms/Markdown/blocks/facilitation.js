@@ -17,7 +17,8 @@
 // RFC ONLY for now (his scope); the other kinds' columns land the same way when their turn comes.
 // Pure — no React — so every ladder is provable in Jest.
 import { parseClaims } from "../claims";
-import { parseObjectives, parseAddress, addressOf } from "../objectives";
+import { parseObjectives, plansByObjective, addressOf } from "../objectives";
+import { unfenced } from "../unfenced";
 
 // The same tokenizer rule claims.js learned the hard way: never regex THROUGH a bag — a quoted
 // note saying "state= stays" reads as the state. Pairs are walked, quotes respected.
@@ -33,12 +34,30 @@ const attrOf = (attrs, key) => {
 const names = (raw) => String(raw || "").split(/[|,]/).map((x) => x.trim()).filter(Boolean);
 const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
-/** Every `:::approval{…}` in the document: { line, verdict, by, ask }, in order. */
+/**
+ * Every approval block in the document: { line, verdict, by, ask }, in order. THE ONE APPROVAL
+ * SCAN — `approvalWaiting.js` maps its answer rather than running a second one, because "is a
+ * decision waiting on him" and "what stands between here and there" were two readers of one
+ * subject and they disagreed on two real documents.
+ *
+ * THE OPENER IS THE PERMISSIVE ONE, which is `approvalWaiting`'s and not this file's former rule.
+ * It had `:{3,}approval\{…\}` — no space, braces required — and that misses the two shapes most
+ * likely to be WAITING: `::: approval{…}` and a bare `:::approval` with no attributes at all,
+ * which is an approval with no verdict by construction. A block this could not see was a block the
+ * ladder offered no step for.
+ *
+ * UNFENCED FIRST, the same rule the objective and claim scans already follow, and the half
+ * `approvalWaiting` never had: a ```markdown example of `:::approval` is a document TEACHING the
+ * vocabulary, not a document holding a decision. Not hypothetical — RFC-073 quotes an approved one
+ * inside a fence, so it read three approvals where it has two, and a fenced example with no verdict
+ * would have pinned the document at draft and put a phantom obligation on the band.
+ */
+const OPENER = /^[ \t]*:{3,}[ \t]*approval\b([^\n]*)$/;
 export function parseApprovals(source) {
-  const lines = String(source || "").split("\n");
+  const lines = unfenced(source).split("\n");
   const out = [];
   for (let i = 0; i < lines.length; i += 1) {
-    const m = /^\s*:{3,}approval\{([^}]*)\}/.exec(lines[i]);
+    const m = OPENER.exec(lines[i]);
     if (!m) continue;
     out.push({
       line: i + 1,
@@ -136,16 +155,8 @@ function stepReviews(claims, leaf, today) {
 // work is somewhere else. Naming what is outstanding IS the facilitation here; a count was the
 // defect (the row said 2/4 planned and nothing anywhere said WHICH two).
 
-/** Every registry row serving this arc, grouped by the objective it serves. */
-function plansByObjective(rows, arcId) {
-  const out = {};
-  for (const r of rows || []) {
-    const a = parseAddress(r.arc);
-    if (!a || a.arc !== arcId) continue;
-    (out[a.objective] = out[a.objective] || []).push(r);
-  }
-  return out;
-}
+// `plansByObjective` is `objectives.js`'s — the arc's upward derivation and the spec map must not
+// disagree about which objective a plan serves, and this file used to hold its own copy of it.
 
 const planState = (r) => {
   const st = (r && r.state) || {};

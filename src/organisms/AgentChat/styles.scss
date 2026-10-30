@@ -4734,6 +4734,11 @@ $sv-board-states: (
 }
 .agent-chat__workband-sep { color: inherit; }
 .agent-chat__workband-reports { color: inherit; }
+// THE ⚑ INSIDE A SEGMENT, not beside it. `__reports-flag` carries an 8px left margin because it
+// is normally the gap from whatever sits before it in a row; as the first child of a count it is
+// an indent inside the button instead, which is the same bug the reports row already fixed one
+// screen up. The ⊘ segment WEARS the flag class itself and keeps its margin, which is its gap.
+.agent-chat__workband-seg > .agent-chat__reports-flag { margin-left: 0; }
 
 // THE TAB BAR — drawn only when there is more than one kind to split, because a single tab over
 // its own rows is a label pretending to be a choice.
@@ -4801,10 +4806,14 @@ $sv-board-states: (
   font-size: 10px;
 }
 
-// THE TWO FAMILIES, TOLD APART BY COLOUR. `jobs`, `lists` and `lanes` are work that is running;
-// `reports`, `rfcs` and `arcs` are documents in a folder. One band, two kinds of thing — and the
-// difference is worth seeing before you read the word.
+// THE FAMILIES, TOLD APART BY COLOUR (his call: *"could be a different colour of the type, like
+// you're overthinking it"*). `jobs`, `lists` and `lanes` are work that is running; `reports`,
+// `rfcs` and `arcs` are documents in a folder; `owed` is neither — it is one line across every
+// kind at once, which is why it gets the third colour rather than borrowing one of theirs. Amber,
+// the same amber the ⚑ already wears everywhere in this band, because that is the one colour in
+// here that already means "this is waiting on you".
 .agent-chat__bandtab--document:not(.agent-chat__bandtab--on) { color: var(--sv-blue, #5b8def); }
+.agent-chat__bandtab--owed:not(.agent-chat__bandtab--on) { color: var(--sv-amber, #c88a2e); }
 
 // THE SPEECH LINE — what is queued behind the reply being read. It hangs in the same corner as the
 // voice pill and, like the pill, adds no row to the chat: the bar is zero-height and its children

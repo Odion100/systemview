@@ -1,3 +1,5 @@
+import { unfenced } from "./unfenced";
+
 // RFC-072 §4 — AN OBJECTIVE IS A BLOCK, NOT A PARSED LINE, and this file is the half of that
 // which has no React in it: what the states are, how an address is spelled, and what `needs`
 // resolves to. Pure on purpose — nothing importing the markdown renderer can be reached from a
@@ -46,12 +48,9 @@ export function parseAddress(raw) {
   return { project: m[1] || "", arc: m[2], objective: m[3], address: m[0].trim() };
 }
 
-// A FENCED BLOCK IS A QUOTATION, NOT A DECLARATION. Found by using it: the first real arc document
-// also EXPLAINED the vocabulary, so it carried a ```markdown example of an `::objective` — and this
-// line scan counted the example. `::progress` read 8 where `::timeline` read 7. Blanked rather than
-// removed, because a press writes back by LINE NUMBER and those have to stay true to the file.
-const FENCED = /^(`{3,}|~{3,})[^\n]*\n[\s\S]*?^\1[^\n]*$/gm;
-const unfenced = (src) => String(src || "").replace(FENCED, (m) => m.replace(/[^\n]/g, ""));
+// A FENCED BLOCK IS A QUOTATION, NOT A DECLARATION — `unfenced` (imported at the top) is why this
+// line scan does not count the ```markdown example of an `::objective` that the first real arc
+// document carried in its own explanation of the vocabulary.
 
 const attrList = (raw) =>
   String(raw || "")
@@ -153,6 +152,31 @@ export function resolveNeed(raw, { objectives = [], arc = null } = {}) {
   return { status: hit.state === "done" ? "met" : "waiting", ...addr, state: hit.state };
 }
 
+/**
+ * WHICH PLANS SERVE WHICH OBJECTIVE — registry rows grouped by the objective suffix of the address
+ * on their own leaf (`arc=ARC-004-O2`). It lives here because this file already owns what an
+ * address IS, and because it was written three times: privately inside `facilitation.js` for the
+ * arc's ladder, inside `Progress.js` for the spec map, and a third time the moment anything else
+ * needed to know whether an objective had a plan. The arc's whole upward derivation turns on this
+ * answer, and copies of it are answers to "is O6 planned" that can disagree.
+ *
+ * `Progress.js` STILL HOLDS ITS OWN and it is not the same answer: it keys on `startsWith(arcId +
+ * "-")`, so `ARC-001-anything` counts as an address there and does not here. Named rather than
+ * quietly fixed — it builds a Map the renderer indexes, and swapping it is a change to a block
+ * jest cannot mount.
+ *
+ * `{ O2: [row, …] }` — objectives with no plan are simply absent, which is what the callers ask.
+ */
+export function plansByObjective(rows, arcId) {
+  const out = {};
+  for (const r of rows || []) {
+    const a = parseAddress(r && r.arc);
+    if (!a || a.arc !== arcId) continue;
+    (out[a.objective] = out[a.objective] || []).push(r);
+  }
+  return out;
+}
+
 /** Every need of one objective, resolved. */
 export const resolveNeeds = (objective, ctx) =>
   (objective && objective.needs ? objective.needs : []).map((n) => resolveNeed(n, ctx));
@@ -182,6 +206,7 @@ const objectives = {
   parseArc,
   resolveNeed,
   resolveNeeds,
+  plansByObjective,
   isBlockedByNeeds,
   arcProgress,
   progressOf,

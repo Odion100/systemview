@@ -22,9 +22,15 @@
 //
 // AND THIS DELIBERATELY READS REPORTS ONLY. Scanning other folders was the rejected RFC-070's
 // proposal and it stays dead.
-
-// A container nests by gaining colons, so three-or-more and the attributes to the end of the line.
-const BLOCK = /^[ \t]*:{3,}[ \t]*approval\b([^\n]*)$/gm;
+//
+//   3. AND IT WAS THE SECOND SCANNER. The ladder in `facilitation.js` reads the same blocks to
+//      work out what stands between a document and a station, and the two openers disagreed —
+//      this one took a space and bare attributes, that one required `{…}`; that one skipped fenced
+//      examples, this one counted them. Two answers to "is a decision waiting here", on real
+//      documents: RFC-073 quotes an approved block inside a fence. The scan is now
+//      `parseApprovals`, where the ladder's own steps read it, and this file is the band's VIEW of
+//      it — the two can no longer drift because there is only one of them.
+import { parseApprovals } from "../../atoms/Markdown/blocks/facilitation";
 
 /**
  * Does this document hold an approval block with no verdict on it?
@@ -32,28 +38,11 @@ const BLOCK = /^[ \t]*:{3,}[ \t]*approval\b([^\n]*)$/gm;
  * One `verdict=` anywhere in a block's attributes means he has answered it — approved or rejected,
  * both are answers. A block with none is the only thing that counts as waiting.
  */
-export function waitsOnHim(content) {
-  const src = String(content || "");
-  BLOCK.lastIndex = 0; // a /g regex carries state between calls; forgetting this skips every other document
-  let m;
-  while ((m = BLOCK.exec(src)) !== null) {
-    if (!/\bverdict=/.test(m[1] || "")) return true;
-  }
-  return false;
-}
+export const waitsOnHim = (content) => parseApprovals(content).some((a) => !a.verdict);
 
 /** Every approval block in a document, with its 1-based line — for a surface that wants to point. */
-export function approvalsIn(content) {
-  const lines = String(content || "").split("\n");
-  const out = [];
-  for (let i = 0; i < lines.length; i += 1) {
-    const m = /^[ \t]*:{3,}[ \t]*approval\b([^\n]*)$/.exec(lines[i]);
-    if (!m) continue;
-    const v = /\bverdict=("[^"]*"|[^\s}]*)/.exec(m[1] || "");
-    out.push({ line: i + 1, verdict: v ? v[1].replace(/^"|"$/g, "") : "" });
-  }
-  return out;
-}
+export const approvalsIn = (content) =>
+  parseApprovals(content).map((a) => ({ line: a.line, verdict: a.verdict }));
 
 /**
  * Fold a list of read documents into what the band draws.
