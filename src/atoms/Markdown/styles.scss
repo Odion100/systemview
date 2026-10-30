@@ -2959,67 +2959,11 @@
 // ── A VERDICT WITHOUT SCROLLING TO THE BLOCK (RFC-070 t1+t5) ──────────────────────────────────
 // The container claims no pointer events (see .md-corner), so every child here must take them back
 // or it is a picture of a button — the exact bug the pin's tuck handle shipped with.
-.md-verdict {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  pointer-events: auto;
-}
-.md-verdict__chip {
-  border: 1px solid var(--sv-border);
-  background: var(--sv-bg, #fff);
-  font: inherit;
-  font-size: 11px;
-  line-height: 1;
-  color: var(--sv-text-faint);
-  border-radius: 10px;
-  padding: 3px 8px 4px;
-  cursor: pointer;
-  opacity: 0.75;            // quiet until wanted — it is furniture, not an alarm
-  &:hover { opacity: 1; color: var(--sv-text); }
-}
 // THE CURRENT VERDICT IS VISIBLE HERE, because this corner is the only place you can see one
 // without scrolling to the block.
-.md-verdict__chip--yes.is-on {
-  opacity: 1;
-  color: #0a7f3f;
-  border-color: #0a7f3f;
-}
-.md-verdict__chip--no.is-on {
-  opacity: 1;
-  color: #b3261e;
-  border-color: #b3261e;
-}
-.md-verdict__goto {
-  border: none;
-  background: none;
-  font: inherit;
-  font-size: 11px;
-  line-height: 1;
-  color: var(--sv-text-faint);
-  padding: 3px 2px 4px;
-  cursor: pointer;
-  pointer-events: auto;
-  &:hover { color: var(--sv-text); }
-}
 // A REFUSAL IS SAID WHERE THE PRESS WAS. A chip that looks pressed and wrote nothing is the worst
 // outcome available here.
-.md-verdict__refusal {
-  pointer-events: auto;
-  font-size: 10px;
-  line-height: 1.3;
-  max-width: 220px;
-  color: #b3261e;
-  background: var(--sv-bg, #fff);
-  border: 1px solid #b3261e;
-  border-radius: 4px;
-  padding: 2px 6px 3px;
-}
 .markdown--dark {
-  .md-verdict__chip { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.14); }
-  .md-verdict__chip--yes.is-on { color: #5bd68f; border-color: #5bd68f; }
-  .md-verdict__chip--no.is-on { color: #ff8a80; border-color: #ff8a80; }
-  .md-verdict__refusal { background: rgba(0, 0, 0, 0.35); color: #ff8a80; border-color: #ff8a80; }
 }
 
 .md-members-pin {
