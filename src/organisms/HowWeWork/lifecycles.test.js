@@ -1,4 +1,5 @@
 import { TRAILS } from "../../atoms/Markdown/blocks/lifecycleState";
+import { parseRetain } from "../../atoms/Markdown/blocks/retention";
 import { CHAIN, LAYERS, LEAVES, LIFECYCLES, REASONS, STAGES, SUBTYPES } from "./howWeWork.data";
 
 // THE PAGE'S CONTENT IS DATA, so the things that would make it lie are checkable. Two kinds of
@@ -56,6 +57,45 @@ describe("the page's content has the shape the page renders", () => {
       expect.arrayContaining(["planning", "notice", "audit", "account", "brief", "spec"])
     );
     SUBTYPES.forEach((s) => expect(s.done.length).toBeGreaterThan(10));
+  });
+
+  // MOST REPORTS DIE SOON — his ruling, 2026-10-31: *"I don't know why you'd be thinking that shit
+  // got to last as long as you'd be thinking it needed to last."* There is no default `retain=` in
+  // the system (a leaf without one registers `invalid — no retention`), so this column is the only
+  // statement anywhere of what a USEFUL window is, and it is checked rather than admired: every
+  // entry must be a window the PARSER can actually read, and none of them may reach past 14 days.
+  //
+  // `permanent` is deliberately not allowed here. It parses — and it is exactly the answer this
+  // table exists to stop a subtype from supplying.
+  it("every subtype names a short window the parser can read, and nothing reaches past 14 days", () => {
+    const CEILING = 14 * 86400000;
+    SUBTYPES.forEach((s) => {
+      const ms = parseRetain(s.retain);
+      expect(typeof ms).toBe("number"); // not undefined (undeclared) and not null (permanent)
+      expect(ms).toBeGreaterThan(0);
+      expect(ms).toBeLessThanOrEqual(CEILING);
+    });
+  });
+
+  // SHORT IS THE REVERSIBLE CHOICE and the column has to say why, not just how long — a number with
+  // no reason beside it is the next thing somebody raises to 90d.
+  it("each window carries the reason it is that short", () => {
+    SUBTYPES.forEach((s) => expect(s.clock.length).toBeGreaterThan(20));
+  });
+
+  // THE TWO STATEMENTS OF ONE RULE MUST AGREE. `agents/AGENTS.md` states this table for the agents
+  // that FILE reports; this page states it for him. They drifted once already — the agent guide's
+  // leaf template read `as=account retain=3d` while this table said an account takes no clock at
+  // all — so the windows are pinned to the exact set, here, where a change to either shows up.
+  it("the windows are the ones the agent guide tells agents to reach for", () => {
+    expect(SUBTYPES.reduce((m, s) => ({ ...m, [s.as]: s.retain }), {})).toEqual({
+      notice: "2d",
+      audit: "3d",
+      brief: "3d",
+      planning: "7d",
+      spec: "7d",
+      account: "14d",
+    });
   });
 
   it("every context layer is loaded, retrieved or pushed", () => {

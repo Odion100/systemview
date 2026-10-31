@@ -13,7 +13,7 @@ import { performCue, cueVerb, cueLabel } from "../../../utils/cuePerform";
 // segments), which already knows new from old. A cue rendered in history or in a document never
 // plays itself; here, the press is the consent.
 //
-// say ❝ · highlight ▣ · point ➤ · press ⏻ · call ⚙ (call renders honest: designed, not wired)
+// say ❝ · highlight ▣ · point ➤ · press ⏻ · call ⚙ (call drives nav / act / show / refresh)
 // home ⌂ — the bot returns to its codebase card. A CHOICE, never automatic (his, 2026-10-29: in
 // full animation the walk takes the bot out and nothing may quietly pull it back — going home is
 // a cue he can see coming, and a bot already home treats it as a no-op).
@@ -101,15 +101,14 @@ const Cue = ({ attrs = {}, label, line }) => {
       </span>
       <span className="md-cue__verb">{verb}</span>
       <span className="md-cue__label">{text}</span>
-      {verb === "call" ? (
-        <span className="md-cue__unwired" title="the call verb is designed, not wired yet">
-          not wired yet
-        </span>
-      ) : (
-        <button type="button" className="md-cue__play" onClick={play} title="play this cue">
-          {playing ? "playing" : "play"}
-        </button>
-      )}
+      {/* EVERY VERB HAS A PRESS NOW. `call` used to render "not wired yet" and that was the honest
+          thing to draw while it was a stub; it drives the window's own commands today, so the row
+          offers the same play as any other beat. A refusal (an unknown verb or key) is spoken by
+          the performer rather than hidden here — the row cannot know, because the parse happens at
+          perform time against the command vocabulary. */}
+      <button type="button" className="md-cue__play" onClick={play} title="play this cue">
+        {playing ? "playing" : "play"}
+      </button>
     </div>
   );
 };

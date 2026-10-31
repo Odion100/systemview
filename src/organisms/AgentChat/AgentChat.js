@@ -20,6 +20,7 @@ import UiLink from "../../atoms/Markdown/blocks/UiLink";
 import Markdown from "../../atoms/Markdown/Markdown";
 import { spotlight, clearSpotlight, animationMode, setAnimationMode, MODES } from "../../spotlight";
 import { resolveTarget, docRectOf, revealDocLines } from "../../spotlightTargets";
+import { pointTargetOf } from "./pointTarget";
 import { slotId, pinId, setNavDocked, useNavDock, isNavDocked, railId, spotId, placeInDock, setDockOrder, useDockOrder, dockOrder, orderProjects } from "./navDock";
 import { hasHostDictation, startHostRecording } from "../../utils/hostDictation";
 import VoiceMode from "../../molecules/SpeakReply/VoiceMode";
@@ -37,7 +38,8 @@ import Feed, { timeOf } from "../AgentWorkbench/Feed";
 import useAgentSession from "../AgentWorkbench/useAgentSession";
 import { CTX_MARK, CTX_WARN, CTX_DUE, tokensShort, parseUsageLines, foldEvents, laneLog } from "../AgentWorkbench/feedRows";
 import laneCook from "./laneCook";
-import { parseRetain, retainLine } from "../../atoms/Markdown/blocks/retention";
+import { laneWork, laneFollow, laneLiveness } from "./laneBlock";
+import RetainClock from "./RetainClock";
 import { visStyle } from "../AgentWorkbench/visitorColor";
 import { formatReceipt } from "../AgentWorkbench/cmdReceipt";
 import { readImagesFrom, readImageFile, hasImages } from "../../utils/imageAttach";
@@ -832,7 +834,41 @@ const isAccounted = (attachments) =>
 // should be at the top when I expand, a link to it."* It lived inside `WorkList` only, so a JOB's
 // attached report was stored, counted toward "accounted", and shown nowhere — the account existed
 // and no surface could open it. Reports open as the file they are; other kinds name themselves.
+// AN ATTACHED REPORT IS LOOKED UP, NEVER COMPOSED. This built the path out of the ref —
+// `.systemview/report.<project>.<ref>.md` — which was the filing convention when every report came
+// through `show()` and landed in that folder. A report is a REGISTERED DOCUMENT now and lives
+// wherever it was written, so the composed path pointed at a file that had never existed: his press
+// answered "no such file or directory" on an attachment that was correctly recorded. The registry
+// is the thing that knows id → path, so the ref is resolved against it and the composed guess is
+// only a fallback for a ref the registry has never heard of.
+function reportPathOf(ref, registry, project, projectCode) {
+  const hit = (registry || []).find((r) => r && String(r.id) === String(ref));
+  if (hit && hit.path) return hit.path;
+  return `.systemview/report.${project || projectCode}.${ref}.md`;
+}
+
 function RunAttachments({ attachments, projectCode }) {
+  // IT ASKS, rather than being handed the registry. The rows live in a ref inside an effect several
+  // components up, and threading them through WorkList and JobRun to reach a leaf would put the
+  // same prop on two call sites for one link. A run has a handful of attachments at most and this
+  // only fires when one of them is a report, so the read is cheaper than the plumbing.
+  const { SystemViewService } = useContext(ServiceContext);
+  const [reg, setReg] = useState([]);
+  const wantsReport = Array.isArray(attachments) && attachments.some((a) => a && a.kind === "report");
+  useEffect(() => {
+    if (!wantsReport) return;
+    let dead = false;
+    const svc = SystemViewService && SystemViewService.Agent;
+    if (!svc || !svc.documentsRegistry) return; // an older hub — the composed fallback still draws
+    svc
+      .documentsRegistry({ projectCode, kind: "report" })
+      .then((rows) => !dead && setReg(Array.isArray(rows) ? rows : []))
+      .catch(() => {});
+    return () => {
+      dead = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wantsReport, projectCode]);
   if (!Array.isArray(attachments) || !attachments.length) return null;
   return (
     <div className={`${CLASSNAME}__worklist-attachments`}>
@@ -840,7 +876,7 @@ function RunAttachments({ attachments, projectCode }) {
         a && a.kind === "report" ? (
           <FileLink
             key={`${a.kind}:${a.ref}:${i}`}
-            label={`.systemview/report.${a.project || projectCode}.${a.ref}.md`}
+            label={reportPathOf(a.ref, reg, a.project, projectCode)}
             attrs={{ project: a.project || projectCode }}
           />
         ) : a ? (
@@ -1354,7 +1390,9 @@ function WorkbandHead({ open, owed = null, blocked = 0, onToggle, onPick }) {
   const unread = (owed && owed.unread) || 0;
   // A SEGMENT IS A DOOR ONLY WHERE THERE IS SOMEWHERE TO GO. "nothing owed" names an empty list, so
   // it is text — a button that opens a tab that does not exist is a press that answers nothing.
-  const door = (s) => s.key === "press" || s.key === "work";
+  // Every other key is a kind of obligation (`approval`, `clock`, `proof`, `work`, or `press` for
+  // a kind the head has no word for yet) and every one of them opens the same list.
+  const door = (s) => s.key !== "clear";
   return (
     // THE HEAD IS WHAT IT WAS, with doors in it. His correction: *"you weren't supposed to change
     // the style of the headers. You're just supposed to make them clickable."* It reads exactly as
@@ -1672,11 +1710,32 @@ function LanePanel({ source, items, laneEvents, brief = "", projectCode, onClose
   );
 }
 
-function LaneRow({ source, items, projectCode, repo, delegated, panelOpen, onOpenPanel, onDelete }) {
+function LaneRow({ source, items, projectCode, repo, delegated, panelOpen, onOpenPanel, onDelete, brief = "", events = null, onPopOut = null }) {
   const branch = source.slice(5); // "lane:" — the suffix IS the branch, by convention
   const done = items.filter((t) => t.state === "done").length;
   const finished = items.length > 0 && done === items.length;
   const active = items.find((t) => t.state === "active");
+  // WHAT THIS LANE IS FOR — the thing the row never said. His: *"I want to be able to easily look
+  // at it, know what the branch is and know what the work is. Not have to guess."* The branch name
+  // is a slug somebody typed in a hurry; the BRIEF is the sentence that scoped the lane, and it has
+  // been sitting in the routed event log, two clicks down in the panel, since the day it was built.
+  // `from` rides it because a brief, a commit subject and a plan step are three different kinds of
+  // claim and printing them identically is how a surface becomes confidently wrong.
+  const work = laneWork({ brief, items });
+  // WATCHING IS NOT READING. A finished lane's log is history worth opening; only a live run can be
+  // followed, and a button that follows nothing is worse than no button.
+  const follow = laneFollow({ events, finished });
+  // IS IT MOVING. Re-derived on a beat, because elapsed is the one fact on this row that goes
+  // wrong by standing still — a lane that said "working" four minutes ago is the row lying by
+  // omission. The beat is a minute: the words change by the minute, so anything finer redraws for
+  // nothing. No beat at all once the run is closed; there is nothing left to count.
+  const [, setBeat] = useState(0);
+  useEffect(() => {
+    if (finished || !events || !events.length) return undefined;
+    const t = setInterval(() => setBeat((n) => n + 1), 30000);
+    return () => clearInterval(t);
+  }, [finished, events]);
+  const live = laneLiveness({ events, finished });
   // THE DELETE IS HIS, TWO-STEP (his design): pressing 🗑 first READS what the delete would
   // destroy — branch merged or not, worktree still on disk — and the confirm says it to his
   // face. An unmerged branch is real work; "delete anyway?" is the honesty, same as the switch
@@ -1855,7 +1914,55 @@ function LaneRow({ source, items, projectCode, repo, delegated, panelOpen, onOpe
             {receipt.text}
           </span>
         )}
-        {!finished && <span className={`${CLASSNAME}__lane-doing`}>{active ? active.text : "starting"}</span>}
+        {/* THE WORK, NOT THE STEP. This line used to print the active plan item, which says where
+            a lane is rather than what it is — and on a lane that has not written its list yet it
+            said "starting", which is the row admitting it knows nothing while looking like it
+            knows something. `laneWork` answers brief → commit → step, in that order, and names
+            which one you are reading. */}
+        {live.text && (
+          <span className={`${CLASSNAME}__lane-live ${CLASSNAME}__lane-live--${live.tone || "none"}`}
+                title="how long since this lane last did anything — silence is not death, a subagent mid-thought is quiet and alive">
+            {live.text}
+          </span>
+        )}
+        {work.text ? (
+          <span className={`${CLASSNAME}__lane-work`} title={work.says}>
+            <span className={`${CLASSNAME}__lane-work-from`}>{work.from}</span>
+            {work.text}
+          </span>
+        ) : (
+          <span className={`${CLASSNAME}__lane-work ${CLASSNAME}__lane-work--none`} title={work.says}>
+            nobody said what this lane is for
+          </span>
+        )}
+        {/* FOLLOW IT, LIVE — his first ask of this row. It opens the same panel the row does, so
+            there is one door and not two; what this adds is the ANSWER to whether there is
+            anything to watch, which the row could not say at all. Disabled carries the reason
+            rather than vanishing: "no log held" and "the run is closed" want different things
+            from him. */}
+        <button
+          type="button"
+          className={`${CLASSNAME}__lane-follow${follow.can ? ` ${CLASSNAME}__lane-follow--live` : ""}`}
+          title={follow.can ? "follow this lane's log as it runs" : follow.why}
+          disabled={!follow.has}
+          onClick={(e) => { e.stopPropagation(); onOpenPanel(); }}
+        >
+          {follow.can ? "follow" : "log"}
+        </button>
+        {/* PULL IT OUT TO THE SIDE — *"I also want to be able to pull it out as a chat if I just
+            want to make it stand on the side while I watch it work."* Inline, the panel expands
+            under the row and scrolls away with the strip; popped out it stands beside the chat
+            and stays there while he works. */}
+        {onPopOut && follow.has && (
+          <button
+            type="button"
+            className={`${CLASSNAME}__lane-pop`}
+            title="stand this lane beside the chat, so it stays up while you work"
+            onClick={(e) => { e.stopPropagation(); onPopOut(); }}
+          >
+            ⇱
+          </button>
+        )}
         <button type="button" className={`${CLASSNAME}__lane-del`} title="clean up this lane — worktree, branch, record" onClick={armDelete}>🗑</button>
         <span className={`${CLASSNAME}__lane-chev`}>{panelOpen ? "▾" : "▸"}</span>
       </div>
@@ -3028,11 +3135,13 @@ function BotBubble({ projectCode, index }) {
   // renders old command lines but never re-executes them (the replay rule — a refresh must not
   // replay every place the agent ever sent you). Reads window.location, not the hook — a command
   // can arrive long after this closure was made.
-  // PASSIVE ANIMATION — the UI animates what the agent was ALREADY doing. No new vocabulary, no
-  // choreography from the agent, and it works retroactively: every agent already installed starts
-  // pointing without changing a line of its behaviour. His example is the whole model — `nav <pc>
-  // stats` already exists, and turning animation on just means you SEE the trip instead of the tab
-  // snapping over.
+  // PASSIVE ANIMATION — the UI animates what the agent was ALREADY doing. No new vocabulary and no
+  // choreography from the agent: it works retroactively, so every agent already installed gestures
+  // without changing a line of its behaviour.
+  //
+  // WHAT IT POINTS AT IS pointTarget.js, AND NAVIGATION IS NOT ON THE LIST. Taking him somewhere is
+  // not showing him something — the view is already the thing — so the bot no longer walks over to
+  // stand beside the file it just opened. The module carries the rule and the specs that hold it.
   //
   // Ambient tone on purpose (his distinction, held as a rendering rule): the UI moving because a
   // test is running must not look like an agent deliberately pointing and saying something. If they
@@ -3040,44 +3149,41 @@ function BotBubble({ projectCode, index }) {
   //
   // Deferred a beat because most of these commands change the view first — pointing at where a pane
   // was about to be is pointing at nothing.
-  const animateCommand = (cmd, args, label) => {
-    // The command carries the path and the range in SEPARATE fields, so putting them back together is
-    // what tells the difference between "point at the file" and "point at these lines in it". Without
-    // it a `--file x#L20-30` resolved to the pane and drew a dashed box around the whole centre panel.
-    const fileTarget = args.lines
-      ? `${args.file}#L${args.lines[0]}-${args.lines[1] || args.lines[0]}`
-      : args.file;
-    const target =
-      cmd === "nav" && args.stats
-        ? { region: "reports" }
-        : cmd === "nav" && args.file
-          ? { file: fileTarget }
-          : cmd === "nav" && args.report
-            ? (args.lines ? { docLines: args.lines } : { region: "center" })
-            : cmd === "nav" && args.tab
-              ? { region: args.tab }
-              : cmd === "nav" && args.namespace
-                ? { namespace: args.namespace }
-                : cmd === "highlight"
-                  ? args.file
-                    ? { file: fileTarget }
-                    : { namespace: args.namespace }
-                  : cmd === "show"
-                    ? { region: "tv" }
-                    : cmd === "act"
-                      ? { region: args.run ? "center" : "scratchpad" }
-                      : // REFRESH POINTS AT NOTHING. It reloads data; it isn't the agent showing you
-                        // something, so there is nothing to look at and the bot shouldn't travel.
-                        // Every other command names a thing on screen — this one names a chore.
-                        null;
+  const animateCommand = (cmd, args, label, say) => {
+    const target = pointTargetOf({ cmd, args, say });
     if (!target) return;
-    // Same errand the deliberate half uses — so the bot really does travel to the stats tab — but
-    // ambient: dashed, and it says nothing. The trip is the message.
-    // THE CALL-OUT. The command already writes its own sentence — "pulled up api/Chats.js#L320-334"
-    // — and that sentence is exactly what the bot should be saying while it stands there. It was
-    // being thrown away, so the bot travelled in silence with an empty dialogue box.
+    // Ambient: dashed, and the trip is not the message. THE CALL-OUT — the command already writes
+    // its own sentence ("pulled up api/Chats.js#L320-334"), and that sentence is what the bot
+    // should be saying while it stands there. It was being thrown away, so the bot travelled in
+    // silence with an empty dialogue box.
     setTimeout(() => enqueuePoint(target, label || null, "ambient"), 420);
   };
+
+  // A CUE CAN DRIVE THE WINDOW — `::cue{call="nav report=x.md"}` (src/utils/cueCall.js). The
+  // performer has no router and no project, so it dispatches and this executes: the same door
+  // `execCommand` already is, reached from inside a sequence instead of from the hub.
+  //
+  // WHY IT MATTERS MORE THAN IT LOOKS: every other cue verb resolves a selector, so a walk could
+  // only point at what was already on screen and somebody had to drive the window before writing
+  // the cues. Replayed later, those rows narrated whatever document happened to be open. A
+  // sequence that navigates itself replays from anywhere, which is the whole value of leaving the
+  // rows in the chat.
+  //
+  // NO ROOM RECORD AND NO GESTURE. The cue row IS the receipt — it is already in the transcript,
+  // already replayable by press — so writing a second one would double every beat in his history.
+  // And `replay: true` because a cue is somebody pressing play, not an agent arriving to say
+  // something: navigation points at nothing (pointTarget.js) and the bot stays where it is.
+  useEffect(() => {
+    const onDrive = (e) => {
+      const d = (e && e.detail) || {};
+      if (d.projectCode && d.projectCode !== projectCode) return;
+      if (!d.cmd) return;
+      execCommand({ cmd: d.cmd, args: d.args || {}, label: d.label || d.cmd }, { replay: true });
+    };
+    window.addEventListener("sv:driveCommand", onDrive);
+    return () => window.removeEventListener("sv:driveCommand", onDrive);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectCode]);
 
   // Which commands this tab has already run, and when it opened. Together they are the whole
   // replay rule: history never executes, and nothing executes twice no matter which path delivered it.
@@ -3107,7 +3213,7 @@ function BotBubble({ projectCode, index }) {
     } else {
       // The agent's own sentence wins over the generated label — `--say` is it saying what it MEANT,
       // the label is only a description of what the command did.
-      animateCommand(cmd, args, say || label);
+      animateCommand(cmd, args, say || label, say);
     }
     try {
       if (cmd === "nav") {
@@ -3204,29 +3310,6 @@ function BotBubble({ projectCode, index }) {
         if (args.tab) params.set("tab", args.tab);
         if (args.help) params.set("help", args.help);
         go({ pathname, search: `?${params.toString()}` });
-      } else if (cmd === "highlight") {
-        // POINT, don't navigate — his rule: highlight and selection are two different commands.
-        // The tree expands to the target, marks it, scrolls it into view; the center is untouched.
-        if (args.file) {
-          window.dispatchEvent(
-            new CustomEvent("sv:revealInNav", {
-              detail: { kind: "file", path: args.file, projectCode, lines: args.lines || null },
-            }),
-          );
-        } else if (args.namespace) {
-          const segs = String(args.namespace).split(/[./]+/).filter(Boolean);
-          window.dispatchEvent(
-            new CustomEvent("sv:revealInNav", {
-              detail: {
-                kind: "namespace",
-                projectCode,
-                serviceId: segs[0],
-                moduleName: segs[1],
-                methodName: segs[2],
-              },
-            }),
-          );
-        }
       } else if (cmd === "show") {
         // THE TV: auto-populates on a live show (his call), clears on --clear. Content is in the
         // record, so this needs nothing but state.
@@ -6216,6 +6299,12 @@ const countdown = (str, now = Date.now()) => {
   }, [deletedLanesKey]);
   // which lane's panel is open — one at a time; the panel is the deep look, the rows are the glance
   const [lanePanel, setLanePanel] = useState(null);
+  // PULLED OUT TO THE SIDE — *"I also want to be able to pull it out as a chat if I just want to
+  // make it stand on the side while I watch it work."* Docked in the navigator a lane's panel
+  // expands under its row and scrolls away with the strip, which is no good for watching; popped,
+  // it renders in the panel anchor beside the chat and stays put. One lane at a time, because the
+  // anchor is a row and two watched lanes is a request nobody has made.
+  const [lanePopped, setLanePopped] = useState(null);
   // THE BAND IS TABS, FULL STOP (his call once he saw the toggle: *"just make it tabs"*). `bandTab`
   // is only a PREFERENCE: which tab actually shows is decided in bandTabs.js from what has rows, so
   // the band never shows an empty pane while work sits on another tab.
@@ -6642,7 +6731,7 @@ const countdown = (str, now = Date.now()) => {
         )}
         {/* THE LANE PANEL, FLOATING: a side panel beside the chat, like every other deep look —
             in the nav it expands inline in the strip instead (that render is up in the strip). */}
-        {attached && lanePanel && !inNav && (() => {
+        {attached && lanePanel && (!inNav || lanePopped === lanePanel) && (() => {
           const l = lanesShown.find((x) => x.key === lanePanel);
           if (!l) return null;
           const { events: laneEvents, brief: laneBrief } = laneLogFor(l.source);
@@ -6654,7 +6743,7 @@ const countdown = (str, now = Date.now()) => {
                 laneEvents={laneEvents}
                 brief={laneBrief}
                 projectCode={projectCode}
-                onClose={() => setLanePanel(null)}
+                onClose={() => { setLanePanel(null); setLanePopped(null); }}
               />
             </div>
           );
@@ -8086,19 +8175,7 @@ const countdown = (str, now = Date.now()) => {
                     {r.state && r.state.invalid ? (
                       <span className="md-report__invalid">invalid — {r.state.invalid}</span>
                     ) : null}
-                    {(() => {
-                      const st = r.state || {};
-                      if (st.invalid || st.retired) return null;
-                      const clock = retainLine({
-                        retired: !!st.retired,
-                        retain: st.retain,
-                        windowMs: parseRetain(st.retain),
-                        openedAt: r.openedAt || null,
-                      });
-                      return clock && clock.text !== "permanent" ? (
-                        <span className={`md-report__clock${clock.urgent ? " is-soon" : ""}`}>{clock.text}</span>
-                      ) : null;
-                    })()}
+                    <RetainClock state={r.state} openedAt={r.openedAt} />
                     {/* WHO FILED IT — the file name carries the agent and the list never said so,
                         which matters the moment two agents file into one room. */}
                     {(() => {
@@ -8145,8 +8222,11 @@ const countdown = (str, now = Date.now()) => {
                 projectCode={projectCode}
                 repo={l.repo || ""}
                 delegated={!!laneLogFor(l.source).events}
+                brief={laneLogFor(l.source).brief || ""}
+                events={laneLogFor(l.source).events || null}
                 panelOpen={lanePanel === l.key}
                 onOpenPanel={() => setLanePanel((cur) => (cur === l.key ? null : l.key))}
+                onPopOut={() => { setLanePanel(l.key); setLanePopped(l.key); }}
                 onDelete={async () => {
                   await work.deleteLaneRun(l.key);
                   // the session's own event echo of this run must not resurrect the row — and the
@@ -8167,7 +8247,7 @@ const countdown = (str, now = Date.now()) => {
               {/* IN THE NAV the panel expands in place, directly beneath its row. FLOATING, it
                   goes out to the chat's side with the other panels (his call); that render is in
                   the panel-anchor row further down. */}
-              {inNav && lanePanel === l.key && (() => {
+              {inNav && lanePanel === l.key && lanePopped !== l.key && (() => {
                 const { events: laneEvents, brief: laneBrief } = laneLogFor(l.source);
                 return (
                   <LanePanel

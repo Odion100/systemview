@@ -44,6 +44,11 @@ const MembersPin = () => {
   const pending = pendingOf(block, threads, source, stamped);
   if (!editable || (!pending.length && !refusal)) return null;
 
+  // The line's stamps with any press made in this session merged over them — the same map
+  // `pendingOf` measures behind-ness against, so the row cannot say "behind" and the send say
+  // "never told".
+  const sentFor = (scope) => ({ ...parseSent(scope.sent), ...(stamped[scope.line] || {}) });
+
   const tell = async (scope, targets) => {
     setSending(scope.line);
     const subject = scope.body == null ? source : scope.body;
@@ -54,7 +59,15 @@ const MembersPin = () => {
       thread: scope.kind === "thread" ? scope.id : "",
       // A thread member is in the conversation — the reply is the news. A document member is
       // watching the file — the shape of the change is.
-      summary: scope.kind === "thread" ? threadSummary(scope.id, scope.body) : summarize(source, false),
+      // WHETHER THIS IS NEWS OR A MOVE, and it has to be computed. Hardcoded `false`, every send
+      // from this row told the receiving agent "you have not been sent to before" — which is the
+      // instruction to read the whole document rather than look for what changed, handed out even
+      // to a member whose stamp was sitting on the line. The `::members` block's own send always
+      // computed it; this one is the only send most documents ever use.
+      summary:
+        scope.kind === "thread"
+          ? threadSummary(scope.id, scope.body)
+          : summarize(source, targets.every((m) => sentFor(scope)[m])),
       threads: scope.kind === "thread" ? 1 : (String(source).match(/^\s*:{3,}\s*thread\b/gm) || []).length,
       // WHO WROTE IT — this row is the only send in the surface, so if the author is not named
       // here it is not named anywhere, and the harness goes back to guessing from the thread field.
@@ -86,7 +99,7 @@ const MembersPin = () => {
   const stampTold = (scope, targets) => {
     const subject = scope.body == null ? source : scope.body;
     const stamp = hashOf(subject);
-    const next = { ...parseSent(scope.sent), ...(stamped[scope.line] || {}) };
+    const next = sentFor(scope);
     targets.forEach((m) => {
       next[m] = stamp;
     });

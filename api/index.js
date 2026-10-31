@@ -3304,9 +3304,6 @@ module.exports = function launchSystemView(port = 3000) {
       act: function (arg = {}) {
         return sendDrive.call(this, Drive.act(arg), arg);
       },
-      highlight: function (arg = {}) {
-        return sendDrive.call(this, Drive.highlight(arg, ConnectedServices.getAllConnections() || []), arg);
-      },
 
       connect: async ({ url } = {}) => {
         // agent-side connect (his t4 call): a URL in, the project's services registered

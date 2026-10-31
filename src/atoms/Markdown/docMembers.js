@@ -7,10 +7,14 @@
 // the document as it stood when they were last sent to, written into the same `::members` line —
 // one store, versioned with the file, and self-evident in a diff.
 
-// THE HASH IGNORES THE MEMBERS LINE ITSELF. Sending rewrites that line (it records the new hash),
-// so hashing the whole document would make every send instantly dirty again — the feature would
-// never report anything else. Everything else in the file counts, including thread replies, which
-// is right: a reply IS the change a member should hear about.
+// WHAT COUNTS AS CHANGED is src/shared/docHash.js, required by the hub as well — the band's count
+// and this chip answer one question and used to answer it differently. Re-exported rather than
+// re-pointed at every call site, because `hashOf` is this module's own vocabulary to everything
+// that reads it.
+import { bodyOf, hashOf } from "../../shared/docHash";
+
+export { bodyOf, hashOf };
+
 // A MEMBER NAMES A ROOM — a project code — and the attribute is a list of them. Lives here rather
 // than on the block because three things parse it now (the block, a thread's row, the pinned
 // update row) and a second copy of this split is a second answer to "who is on this".
@@ -20,26 +24,6 @@ export const splitWho = (raw) =>
     .map((s) => s.trim())
     .filter(Boolean)
     .filter((s, i, arr) => arr.indexOf(s) === i);
-
-export const bodyOf = (src) =>
-  String(src || "")
-    .split("\n")
-    .filter((l) => !/^\s*::members\b/.test(l))
-    .join("\n");
-
-// A SMALL, STABLE, NON-CRYPTOGRAPHIC HASH (FNV-1a). It is a change DETECTOR, not a signature:
-// nothing security-shaped rests on it, and the cost of a collision is one unsent update, so 32
-// bits of it in base 36 is the right size for something that has to sit in a markdown attribute
-// and still be readable.
-export const hashOf = (src) => {
-  const s = bodyOf(src);
-  let h = 0x811c9dc5;
-  for (let i = 0; i < s.length; i += 1) {
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 0x01000193) >>> 0;
-  }
-  return h.toString(36);
-};
 
 // `sent=buapi:1a2b3c|systemlynx:4d5e6f` — per member, because they were last told at different
 // moments and a single stamp would mark everyone clean when one person was sent to.

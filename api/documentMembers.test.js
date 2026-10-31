@@ -204,18 +204,19 @@ test("withUpdates counts somebody waiting on a THREAD, not only on the document"
 
 // ── PARITY WITH THE WINDOW ──────────────────────────────────────────────────────────────────
 //
-// TWO IMPLEMENTATIONS OF ONE RULE IS THE FAILURE MODE THIS WHOLE FILE KEEPS HITTING. The hub
-// cannot import from `src/` — different build, no shared module — so membership parsing exists
-// twice, and BOTH of the bugs fixed in this lane were drift between the copies:
+// TWO IMPLEMENTATIONS OF ONE RULE IS THE FAILURE MODE THIS WHOLE FILE KEEPS HITTING, and three
+// separate bugs came out of it: the id captured as `([^}]+)` swallowed `members=` the moment
+// RFC-071 added it; `bodyOf` hashed thread openers on one side and not the other, so removing
+// somebody from a thread made every DOCUMENT member behind; and `subscribe=` was read by the window
+// and not here, so a migrated thread simply was not a thread. None showed up as a failure anywhere,
+// because each copy's own tests agreed with itself.
 //
-//   · the id captured as `([^}]+)` swallowed `members=`/`sent=` the moment RFC-071 added them;
-//   · `bodyOf` hashed thread openers on one side while the other deliberately excluded them.
-//
-// Neither showed up as a failure anywhere, because each copy's own tests agreed with itself. So
-// this reads the WINDOW'S SOURCE and checks the rules it encodes, the same way api/board.test.js
-// reads the hub's destructuring against the capability's signature — a claim about the pair, not
-// about either half. The precedent is deliberate: a parameter that landed in board.js and stopped
-// at the hub answered a successful-looking call with nothing done.
+// THE VOCABULARY IS NOW ONE MODULE — src/shared/docHash.js, CommonJS so both builds reach it — so
+// the parity worth asserting is STRUCTURAL: that each side reads it rather than rewriting it. What
+// remains genuinely twice is the SCANNER: the window finds threads in a parsed tree and the hub
+// walks lines, which cannot be one function, so the two fence rules below are still claims about a
+// pair. The same shape as api/board.test.js reading the hub's destructuring against a capability's
+// signature — a claim about the pair, not about either half.
 const fs = require("node:fs");
 const path = require("node:path");
 const THREAD_SRC = fs.readFileSync(path.join(__dirname, "documentMembers.js"), "utf8");
@@ -240,24 +241,50 @@ test("PARITY: neither side treats a thread's opening line as part of its body", 
   );
 });
 
-test("PARITY: both sides strip the ::members line out of the hash", () => {
-  // Adding somebody, or recording that somebody was told, must not make everyone ELSE behind.
-  const rule = /!\/\^\\s\*::members\\b\/\.test\(l\)/;
-  assert.match(WINDOW, rule, "the window stopped excluding ::members from its body hash");
-  assert.match(fs.readFileSync(path.join(__dirname, "documentMembers.js"), "utf8"), rule, "the hub did");
+test("PARITY: both sides read ONE definition of what counts as a change", () => {
+  // Adding somebody, recording that somebody was told, or re-addressing a thread must not make
+  // everyone ELSE behind — and that rule now has one home instead of two agreeing copies.
+  assert.match(WINDOW, /from "\.\.\/\.\.\/shared\/docHash"/, "the window stopped importing the shared hash");
+  assert.match(THREAD_SRC, /require\("\.\.\/src\/shared\/docHash"\)/, "the hub stopped requiring it");
+  assert.equal(/0x811c9dc5/.test(WINDOW), false, "the window has grown its own hash again");
+  assert.equal(/0x811c9dc5/.test(THREAD_SRC), false, "the hub has grown its own hash again");
 });
 
-// THE ONE PLACE THEY DO NOT MATCH YET, pinned deliberately so nobody mistakes it for parity.
-// The hub normalises a thread opener to its id before hashing; the window does not, so in the
-// window a thread's `sent=` stamp still re-dirties every document member. It is not fixed here
-// because `src/atoms/Markdown/docMembers.js` is uncommitted in his tree and a lane cut from HEAD
-// would collide with the commit he is about to make. When that lands and the window is fixed, this
-// claim FAILS — and that failure is the reminder to delete it and widen the parity above.
-test("KNOWN DIVERGENCE: the window has not got the thread-opener normalisation yet", () => {
-  assert.ok(
-    !WINDOW.includes("thread\\{id=[^}\\s]+"),
-    "the window now normalises thread openers — delete this claim and add it to the parity set above"
-  );
+test("THE RULE ITSELF, behaviourally: re-addressing a thread owes nobody an update", () => {
+  // His case, exactly: he took a project off a thread's audience and the DOCUMENT reported an
+  // update for an argument nobody had touched.
+  const docOf = (audience) =>
+    [
+      "# a meeting",
+      "",
+      "::members{who=odion sent=odion:PLACEHOLDER}",
+      "",
+      "the argument so far",
+      "",
+      `::::thread{id=t1 subscribe=${audience}}`,
+      "what is being argued",
+      "::::",
+    ].join("\n");
+  const both = docOf("odion|autobot");
+  const stamped = both.replace("PLACEHOLDER", hashOf(both));
+  // His case exactly: autobot is on the THREAD and not on the document, which is where he started.
+  assert.deepEqual(membersOf(stamped).behind, [], "a member told about this version reads as behind");
+  // take autobot off the thread — the document's own prose has not moved
+  const narrowed = stamped.replace("subscribe=odion|autobot", "subscribe=odion");
+  assert.deepEqual(membersOf(narrowed).behind, [], "re-addressing a thread put the document's member behind");
+  // and an actual edit still does owe one
+  const edited = narrowed.replace("the argument so far", "the argument, moved on");
+  assert.deepEqual(membersOf(edited).behind, ["odion"], "an edit to the prose owes nobody an update");
+});
+
+test("a thread that names NOBODY is about the document's people", () => {
+  // Absent is not empty. The window has inherited since 2026-10-20; the hub skipped the thread
+  // entirely, so a bare thread had no audience, no row and no count anywhere.
+  const bare = ["::members{who=odion|autobot}", "", ":::thread{id=t1}", "said nothing yet", ":::"].join("\n");
+  assert.deepEqual(membersOf(bare).threads[0].who, ["odion", "autobot"]);
+  // `subscribe=""` is present and names nobody ON PURPOSE — the one way to say "not theirs"
+  const nobody = bare.replace(":::thread{id=t1}", ':::thread{id=t1 subscribe=""}');
+  assert.deepEqual(membersOf(nobody).threads, []);
 });
 
 // ── stampDocSent — a reply makes its author current on the DOCUMENT too ──────────────────────────

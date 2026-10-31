@@ -13,17 +13,11 @@
 // naive `(^|\s)key=` scan matches inside a QUOTED VALUE — a claim whose note says "told= is the
 // baseline" had the stamp written into the note's prose — so the inner bag is split into real
 // pairs, quotes respected, and rebuilt.
-function parseAttrBag(inner) {
-  const pairs = [];
-  const re = /([A-Za-z_][\w-]*)=("[^"]*"|'[^']*'|[^\s}]*)|(\S+)/g;
-  let m;
-  while ((m = re.exec(inner))) {
-    if (m[1]) pairs.push({ key: m[1], val: m[2] });
-    else pairs.push({ key: null, val: m[3] });
-  }
-  return pairs;
-}
-const attrBagToString = (pairs) => pairs.map((p) => (p.key ? `${p.key}=${p.val}` : p.val)).join(" ");
+//
+// THE TOKENIZER ITSELF LIVES IN src/shared/docHash.js, because the WRITER and the HASHER have to
+// agree about what an attribute is: the hash exists to ignore the audience attributes this writes,
+// and two tokenizers would be two answers to "is `sent=` inside that quoted note an attribute".
+import { parseAttrBag, attrBagToString } from "../../shared/docHash";
 
 function setDirectiveAttr(source, line, key, value) {
   const lines = String(source).split("\n");

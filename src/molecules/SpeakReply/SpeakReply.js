@@ -195,8 +195,8 @@ const SpeakReply = ({ text, className = "", rowKey = "", ts = 0 }) => {
             const seg = segs[i];
             if (seg.kind === "cue") {
               // a cue plays inside the reply's own turn — voice and motion from the ONE performer
-              // the rendered block also uses. An unperformable cue (dead selector, the unwired
-              // `call`) is a skipped beat, never a dead reply.
+              // the rendered block also uses. An unperformable cue (a dead selector with no words
+              // of its own) is a skipped beat, never a dead reply.
               //
               // THE VOICE BOX DURING A CUE (his rule, 2026-10-29): a selector cue's words are LIT
               // ON THE PAGE — the box duplicating them adds nothing, so it reads EMPTY. A say cue

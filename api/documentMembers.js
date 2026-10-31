@@ -31,40 +31,13 @@ const listOf = (raw) =>
     .filter(Boolean)
     .filter((s, i, arr) => arr.indexOf(s) === i);
 
-// Mirrors src/atoms/Markdown/docMembers.js — the window decides dirtiness while he types, the hub
-// decides it across a folder, and the two have to agree or the band's count argues with the chip.
-// Pinned by api/documentMembers.test.js against the same fixtures.
-// WHAT COUNTS AS THE DOCUMENT, for the purpose of "has this changed since you were told".
-//
-// MEMBERSHIP BOOKKEEPING IS NOT CONTENT. The `::members` line goes entirely — adding somebody, or
-// recording that somebody was told, must not make everyone ELSE behind.
-//
-// A THREAD'S OPENING LINE CARRIES THE SAME BOOKKEEPING AND WAS BEING HASHED. Measured 2026-10-20:
-// stamping `sent=` on a thread opener changed the document's hash, so telling ONE thread member
-// made EVERY document member behind again — the act of telling somebody counted as a change to the
-// document, every time, and a document with threads in use could never settle. The window learned
-// this rule one level down, where a thread's own body deliberately excludes its opener; the
-// document-level hash never got it.
-//
-// The opener is normalised to its ID rather than dropped, because the two cases are different: a
-// NEW THREAD is a real change to the document and must dirty it, while `members=`/`sent=`/`auto=`
-// moving on an existing one is not.
-const bodyOf = (src) =>
-  String(src || "")
-    .split("\n")
-    .filter((l) => !/^\s*::members\b/.test(l))
-    .map((l) => l.replace(/^(\s*:{3,}\s*thread\{id=[^}\s]+)[^}]*\}\s*$/, "$1}"))
-    .join("\n");
-
-const hashOf = (src) => {
-  const s = bodyOf(src);
-  let h = 0x811c9dc5;
-  for (let i = 0; i < s.length; i += 1) {
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 0x01000193) >>> 0;
-  }
-  return h.toString(36);
-};
+// WHAT COUNTS AS CHANGED is one module, required — src/shared/docHash.js, which the window imports
+// for the same question. It used to be a second implementation here, and the comment said the two
+// "have to agree or the band's count argues with the chip." They drifted three times, and the last
+// one was the expensive one: this half learned that a thread's own bookkeeping is not content and
+// the window never did, so removing somebody from a thread made every DOCUMENT member behind.
+// `src/shared/` is in the package's `files` so this require survives the published layout.
+const { AUDIENCE_KEYS, bodyOf, hashOf } = require("../src/shared/docHash");
 
 const sentOf = (raw) =>
   String(raw || "")
@@ -79,9 +52,11 @@ const sentOf = (raw) =>
 
 // EVERY THREAD THAT NAMES MEMBERS, with its own body.
 //
-// The window has `threadBlocksOf` for this and the hub cannot import it — different build, no
-// shared module — so this is a second implementation and that is a cost worth naming. It is kept
-// deliberately small and it copies the two rules that the window learned the hard way:
+// SCANNING for them is still the hub's own: the window finds threads out of a parsed tree and this
+// walks lines, so the two cannot be one function. What they must not disagree about is the
+// VOCABULARY — which attribute names the audience, and what counts as a change — and that now comes
+// from src/shared/docHash.js rather than being rewritten here. The scanner keeps the two rules the
+// window learned the hard way:
 //
 //   · A CONTAINER NESTS BY GAINING COLONS, so a thread wrapping a `::::columns` block opens with
 //     five. Matching exactly four misses precisely the threads on well-built documents.
@@ -90,7 +65,22 @@ const sentOf = (raw) =>
 //     impossible. Stop at whitespace.
 const THREAD = /^(:{3,})\s*thread\{id=([^}\s]+)([^}]*)\}\s*$/;
 
-function threadsOf(content) {
+// WHO IS ON A THREAD — RFC-073 §2.1 spelling first, then the two it replaced. `subscribe=` is the
+// audience attribute on every block now, and reading only `who`/`members` made the three threads he
+// had just migrated invisible here: no rows, no count, no refusal — they simply were not threads.
+//
+// ABSENT IS NOT EMPTY, and that difference is the whole of inheritance. A thread that names nobody
+// is a thread about the DOCUMENT's people (so they are behind when a reply lands in it), while
+// `subscribe=""` is present and names nobody on purpose — the one way a document can say "this
+// conversation is not theirs". Mirrors `threadMembers` in the window.
+const audienceOf = (attrs, docWho) => {
+  for (const key of AUDIENCE_KEYS) {
+    if (new RegExp(`\\b${key}=`).test(attrs || "")) return listOf(attrOf(attrs, key));
+  }
+  return listOf((docWho || []).join("|"));
+};
+
+function threadsOf(content, docWho = []) {
   const lines = String(content || "").split("\n");
   const out = [];
   for (let i = 0; i < lines.length; i += 1) {
@@ -111,7 +101,7 @@ function threadsOf(content) {
         }
       }
     }
-    const who = listOf(attrOf(open[3], "who") || attrOf(open[3], "members"));
+    const who = audienceOf(open[3], docWho);
     if (who.length)
       out.push({
         id: open[2],
@@ -142,8 +132,9 @@ function threadsOf(content) {
 // *"I might have you subscribed on multiple levels, but only want to send you the thread update."*
 function membersOf(content) {
   const m = LINE.exec(String(content || ""));
-  const threads = threadsOf(content);
   const who = m ? listOf(attrOf(m[1], "who")) : [];
+  // The roster is read first because a bare thread inherits it.
+  const threads = threadsOf(content, who);
   // NOT A DOCUMENT ONLY WHEN NEITHER LEVEL NAMES ANYBODY. A thread-only document is a document.
   if (!who.length && !threads.length) return null;
   const sent = m ? sentOf(attrOf(m[1], "sent")) : {};

@@ -1,4 +1,4 @@
-// DRIVING THE WINDOW, AS FOUR CAPABILITIES — nav, refresh, act, highlight.
+// DRIVING THE WINDOW, AS THREE CAPABILITIES — nav, refresh, act.
 //
 // These lived in `cli/chat.js` and reached the hub the only way a terminal can: over HTTP, to the
 // server it was already talking to. Under the hub that is a process calling itself across the
@@ -135,18 +135,9 @@ function act({ projectCode, test, run } = {}) {
   return { error: 'act: give `test` (a Module.method or "all") or `run` (a block title)' };
 }
 
-// RFC-029 — highlight is NOT nav (his line: "highlight and selection are two different commands").
-// It POINTS the tree at a thing: expands, marks, scrolls into view, and opens nothing.
-function highlight({ projectCode, namespace, file } = {}, connections = []) {
-  if (!projectCode) return { error: "projectCode required" };
-  if (file) {
-    const p = String(file).split("#L")[0];
-    return { cmd: "highlight", args: { file: p }, label: `highlighted ${p}` };
-  }
-  if (!namespace) return { error: "highlight: give a namespace or a file" };
-  const r = resolveNamespace(projectCode, namespace, connections);
-  if (r.error) return r;
-  return { cmd: "highlight", args: { namespace: r.namespace }, label: `highlighted ${r.namespace}` };
-}
-
-module.exports = { nav, refresh, act, highlight, resolveNamespace, splitRange, STATS_TABS, RANGES, SCOPES };
+// HIGHLIGHT IS A CUE VERB, NOT A COMMAND (his ruling). `::cue{highlight=".sel"}` draws the box in a
+// walk, and one name cannot mean two things in one system — a command that pointed the tree at a
+// file without opening it and a cue that boxes an element on screen answered to the same word, and
+// the cue is the one worth keeping. Revealing in the tree is still what a `:file` chip does; it was
+// the agent-driven COMMAND that went.
+module.exports = { nav, refresh, act, resolveNamespace, splitRange, STATS_TABS, RANGES, SCOPES };

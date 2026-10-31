@@ -7,7 +7,7 @@
 //   highlight  ::cue{highlight=".sel"}      — the box alone: no bot, no scroll
 //   point      ::cue{at=".sel"}             — the full errand: bot walks over, box, scroll
 //   press      ::cue{press=".sel"}          — click it, settle, then speak any body
-//   call       ::cue{call="Ns.method"}      — a door; NOT WIRED YET and says so, never pretends
+//   call       ::cue{call="nav report=x.md"} — a DRIVE COMMAND, played as a beat (cueCall.js)
 //   home       ::cue{home=true}             — the bot returns to its codebase card; a no-op when
 //                                             already docked. A CHOICE, never automatic (his,
 //                                             2026-10-29): full animation takes the bot out, and
@@ -19,6 +19,7 @@
 // A selector cue with no body speaks the ELEMENT's text, read at perform time — a pointer like a
 // file embed, never a copy, so what is spoken is what the page says at that moment. An element
 // gone by its turn is a silent skip: speaking a cached ghost is the lie the live read refuses.
+import { callCommand } from "./cueCall";
 import { speak } from "./voice";
 import { readVoicePref, readVoiceSettings } from "./voicePref";
 import { spotlight, clearSpotlight } from "../spotlight";
@@ -81,12 +82,11 @@ export const cueLabel = (cue = {}) => {
 
 /**
  * Perform one cue. Returns a handle `{ stop }`, or null when there is nothing this verb can do
- * yet (`call`, or a dead selector with no body) — the caller moves on.
+ * (a dead selector with no body) — the caller moves on.
  * `onend(err?)` fires exactly once when the cue is finished or stopped.
  */
 export function performCue(cue = {}, { projectCode = "", onstart, onend, onposition } = {}) {
   const verb = cueVerb(cue);
-  if (verb === "call") return null; // honest: the door is designed, not wired — the block says so
 
   const sel = cue.at || cue.highlight || cue.press;
   const el = sel ? document.querySelector(sel) : null;
@@ -116,6 +116,26 @@ export function performCue(cue = {}, { projectCode = "", onstart, onend, onposit
   };
 
   if (verb === "say") return say(cue.body);
+
+  if (verb === "call") {
+    // A COMMAND, PLAYED AS A BEAT. The window's executor lives inside the chat (it holds the
+    // router and the project), so this side only ASKS — the same shape as `home`. That is what
+    // makes a walk replayable: the sequence does its own navigating instead of depending on
+    // somebody having driven the window before the cues were written.
+    const r = callCommand(cue.call);
+    // A REFUSAL IS SPOKEN, NEVER SWALLOWED. A cue that performs nothing lets the sequence carry
+    // on as though it had, which is how a walk narrates thin air with full confidence.
+    if (r.error) return say(cue.body || r.error);
+    window.dispatchEvent(
+      new CustomEvent("sv:driveCommand", { detail: { projectCode, cmd: r.cmd, args: r.args, label: r.label } }),
+    );
+    // THE VIEW ARRIVES BEFORE THE NEXT BEAT POINTS AT IT, and speaking is what buys that. The
+    // queue starts the next cue when this one's `onend` fires, so a spoken sentence IS the hold —
+    // a route change mounts a pane and renders a document in far less time than the voice takes to
+    // say what it did. Without words there would be no gap, and the following cue would resolve
+    // its selector against the page this one was leaving.
+    return say(cue.body || r.label);
+  }
 
   if (verb === "home") {
     // The chat's bot answers the event and no-ops if it is already docked — this side only asks.

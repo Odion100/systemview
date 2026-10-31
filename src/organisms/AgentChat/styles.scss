@@ -5465,3 +5465,59 @@ button.agent-chat__jobrun-state {
   margin-top: 2px;
   font-style: italic;
 }
+
+// THE LANE ROW SAYS WHAT THE WORK IS — his, 2026-10-31: *"I want to be able to easily look at it,
+// know what the branch is and know what the work is. Not have to guess."* The branch name is a
+// slug; the work line is the sentence that scoped the lane. It takes the row's free width and
+// truncates, because one line that ends in an ellipsis beats a row that reflows into two.
+.agent-chat__lane-work {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--sv-text-dim, #9aa4b2);
+}
+// WHICH KIND OF CLAIM THIS IS. A brief is what somebody TOLD the lane, a commit is what it SAYS
+// IT DID, a step is neither — printing all three identically is how a surface becomes confidently
+// wrong, so the provenance rides the line in its own weight.
+.agent-chat__lane-work-from {
+  margin-right: 6px;
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.55;
+}
+.agent-chat__lane-work--none { font-style: italic; opacity: 0.5; }
+
+// IS IT MOVING. Elapsed since its last event — the words never diagnose, so the colour carries the
+// escalation and stops at amber: nothing here is entitled to call a lane dead.
+.agent-chat__lane-live {
+  flex: 0 0 auto;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 9px;
+  border: 1px solid transparent;
+}
+.agent-chat__lane-live--live { color: #3f9e6a; border-color: rgba(63, 158, 106, 0.35); }
+.agent-chat__lane-live--warn { color: #c0801c; border-color: rgba(192, 128, 28, 0.35); }
+.agent-chat__lane-live--done { color: var(--sv-text-faint); }
+.agent-chat__lane-live--none { color: var(--sv-text-faint); }
+
+// FOLLOW IT, AND STAND IT ON THE SIDE. Both open the lane's panel; `follow` says whether there is
+// anything to watch (disabled carries the reason), and ⇱ pops the panel out beside the chat so it
+// stays up while he works instead of scrolling away with the strip.
+.agent-chat__lane-follow,
+.agent-chat__lane-pop {
+  flex: 0 0 auto;
+  background: none;
+  border: 1px solid var(--sv-border, #2a3340);
+  border-radius: 9px;
+  padding: 1px 7px;
+  font-size: 10px;
+  color: var(--sv-text-dim, #9aa4b2);
+  cursor: pointer;
+}
+.agent-chat__lane-follow:disabled { opacity: 0.35; cursor: default; }
+.agent-chat__lane-follow--live { color: #3f9e6a; border-color: rgba(63, 158, 106, 0.45); }

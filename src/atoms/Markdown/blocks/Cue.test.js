@@ -7,7 +7,7 @@ import Cue from "./Cue";
 const draw = (ui) => render(<MemoryRouter>{ui}</MemoryRouter>);
 
 // The rendered cue row — a neat command log: verb, label, a play press. `call` renders honest:
-// designed, not wired, and nothing pretends to run it.
+// every verb carries a play, `call` included — it drives the window's own commands now.
 describe("::cue", () => {
   it("a say cue shows its prose and offers play", () => {
     draw(<Cue attrs={{}} label="welcome to the tour" />);
@@ -22,10 +22,12 @@ describe("::cue", () => {
     expect(screen.getByText("the path")).toBeInTheDocument();
   });
 
-  it("a call cue says it is not wired, and has nothing to press", () => {
-    draw(<Cue attrs={{ call: "Window.readState" }} label="" />);
+  it("a call cue reads as a command and carries a play like any other beat", () => {
+    // It used to render "not wired yet" with nothing to press, which was the honest thing to draw
+    // while it was a stub. It drives nav / act / show / refresh now, so the row is a control.
+    draw(<Cue attrs={{ call: "nav report=meetings/x.md" }} label="" />);
     expect(screen.getByText("call")).toBeInTheDocument();
-    expect(screen.getByText("not wired yet")).toBeInTheDocument();
-    expect(screen.queryByRole("button")).toBeNull();
+    expect(screen.getByText("nav report=meetings/x.md")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /play/i })).toBeInTheDocument();
   });
 });

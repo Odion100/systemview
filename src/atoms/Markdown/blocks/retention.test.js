@@ -77,6 +77,28 @@ describe("a countdown that actually counts", () => {
     expect(tickFor(-1)).toBe(null);
   });
 
+  // HIS WINDOW, 2026-10-31: a report on `retain=4h`, opened, read "retires in 3h 60m". The minutes
+  // were rounded against the hour that had already been floored, and nothing carried. It is a
+  // FAMILY, not a case — every boundary in the table rounds a remainder the same way — so each one
+  // gets a spec at the worst span it has: the one that rounds up to its own ceiling.
+  it("no number ever sits at its own ceiling — the carry reaches the unit above it", () => {
+    expect(spanWords(3 * H + 59 * M + 40 * S)).toBe("4 hours"); // was "3h 60m"
+    expect(spanWords(23 * H + 59 * M + 40 * S)).toBe("a day"); // was "23h 60m" — the carry crosses the band
+    expect(spanWords(59 * M + 59.6 * S)).toBe("an hour"); // was "59m 60s"
+    expect(spanWords(4 * M + 59.6 * S)).toBe("5m"); // was "4m 60s"
+    expect(spanWords(119.6 * S)).toBe("2m"); // was "120s"
+    expect(spanWords(2 * D - S)).toBe("2 days"); // the minute's rounding carries a day into two
+  });
+
+  it("the words only ever round the unit they are read at — every coarser one floors", () => {
+    // 3h59m is three hours and fifty-nine minutes, not four hours: the minute is the unit on show,
+    // so it is the only one allowed to round.
+    expect(spanWords(3 * H + 59 * M + 20 * S)).toBe("3h 59m");
+    expect(spanWords(59 * M + 30 * S)).toBe("59m 30s");
+    expect(spanWords(D + 23 * H)).toBe("a day");
+    expect(spanWords(400)).toBe("1s"); // under a second still has a second left to feel
+  });
+
   it("the face moves between two reads of the same window — the thing a snapshot could not do", () => {
     const openedAt = 1_000_000;
     const win = { retain: "12h", windowMs: 12 * H, openedAt };

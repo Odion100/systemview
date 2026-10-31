@@ -300,24 +300,67 @@ export function skippedLine(skipped = {}) {
 }
 
 /**
- * WHAT THE BAND HEAD SAYS — the header is about what he has to RESOLVE and nothing else (his ask:
- * *"just make that whole top header of the bar about things like approvals waiting… I just need the
- * drawer to help me resolve what's open"*, and on the inventory counts it replaces: *"why do you
- * think I'm attached to inventory and it being a tab I can get through from up there?"*). Two
- * numbers, both doors into the same list, and the two words are the legend for the two groups
- * below — which is the rule he set for this row: a mark only reads because the words up here say
- * what it means.
+ * WHAT THE BAND HEAD SAYS — and the MARK BELONGS TO THE KIND, never to the position.
+ *
+ * ⚑ MEANS "A DECISION IS WAITING ON YOU". That is not a new rule; it is written into this band
+ * already, at the arc row: *"⊘, NOT ⚑. The flag means 'a decision is waiting on you' on reports and
+ * RFCs; an arc with a blocked objective is a different situation and sharing one mark made the band
+ * unreadable — 'I don't know what the other one is.'"* The head drew ⚑ on whichever press segment
+ * happened to come first, which put the approval flag in front of a report's clock — the identical
+ * mistake that split cost, paid twice. So an approval and a gap's waiting proof carry ⚑ because both
+ * end at a verdict of his, and a clock carries ⧗ because a deadline is not a decision: nothing he
+ * presses makes it not have been due.
+ *
+ * AND APPROVALS LEAD. The head he had before this said `⚑ N approval waiting` as its own first
+ * segment, and his instruction for the row is that it be about *"things like approvals waiting"*.
+ * The clock is louder in consequence — it is the only thing here that destroys something — but it
+ * is not what he opens this band to find, and it keeps its own mark so leading with approvals
+ * cannot bury it.
+ *
+ * THE HEADER IS THE LEGEND, which is why every mark has its word beside it and a new kind of
+ * attention has to earn a word here before it earns a glyph anywhere below.
+ *
+ * APPROVALS ARE COUNTED AS BLOCKS, NOT ROWS. One document holding two unsigned approvals is one row
+ * down in the list and two decisions up here, because this number answers "how many times do I have
+ * to decide something" and the row answers "where do I go".
+ *
+ * THE OUTSTANDING HALF KEEPS ONE WORD, deliberately. It holds an objective of his, a blocked one,
+ * objectives with no plan, a draft nothing can decide and claims resting on nothing — five unlike
+ * things whose only shared fact is the one he needs from them up here: no press of his makes any of
+ * them go away. Naming all five is how this row becomes the inventory he threw out. It carries no
+ * mark, because a mark would promise a control that does not exist.
  *
  * `nothing owed` is said OUT LOUD when it is true and we really read everything — that zero is the
  * answer he has never been able to get, and leaving the head blank would read as "not measured".
  * `unread` rides it, because a zero over documents nobody could open is not a zero.
  */
+const PRESS = {
+  approval: { mark: "⚑", word: (n) => `${plural(n, "approval")} waiting` },
+  proof: { mark: "⚑", word: (n) => `${plural(n, "proof")} to sign` },
+  clock: { mark: "⧗", word: (n) => `${n} expiring` },
+};
+const PRESS_ORDER = ["approval", "proof", "clock"];
+
+// How many DECISIONS a press row carries. An approval row stamps `n` with the number of unsigned
+// blocks in that document; everything else is one.
+const decisions = (rows) => rows.reduce((t, r) => t + (r.n || 1), 0);
+
 export function owedHead(owed = {}) {
-  const press = (owed.press || []).length;
+  const press = owed.press || [];
   const work = (owed.work || []).length;
   const unread = (owed.skipped || {}).unreadable || 0;
   const segs = [];
-  if (press) segs.push({ key: "press", flag: "⚑", text: `${press} to press` });
+  for (const why of PRESS_ORDER) {
+    const mine = press.filter((p) => p.why === why);
+    if (mine.length) segs.push({ key: why, flag: PRESS[why].mark, text: PRESS[why].word(decisions(mine)) });
+  }
+  // A PRESS KIND THIS FILE HAS NOT MET YET STILL COUNTS, under the old bucket word and under ⚑ —
+  // it is in the press group, so it ends at something he does. A new `why` must not vanish out of
+  // the head because nobody added a word for it: an undercount reads as RESOLVED, which is the one
+  // thing this number may never say. Membership is tested against PRESS_ORDER rather than
+  // `PRESS[why]`, or a `why` of "constructor" would find Object.prototype and be called.
+  const unnamed = decisions(press.filter((p) => !PRESS_ORDER.includes(p.why)));
+  if (unnamed) segs.push({ key: "press", flag: "⚑", text: `${unnamed} to press` });
   if (work) segs.push({ key: "work", flag: "", text: `${work} outstanding` });
   if (!segs.length && owed.counted) segs.push({ key: "clear", flag: "", text: "nothing owed" });
   return { segs, unread };

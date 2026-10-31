@@ -3,7 +3,9 @@
 // (Report.js) and the drawer row. One parser, in its own file, because Report.js lives under the
 // markdown renderer jest cannot mount (react-markdown ESM), and a rule nothing can test is where
 // a wrong clock hides. The sweep's copy lives in autobot (the other side of the process seam,
-// where an import cannot reach) — tests on both pin the same table.
+// where an import cannot reach) and copies the PARSER only — `electron/markdown/retention.cjs`
+// decides whether a window has run out and never says a word about it, so the words below are this
+// side's alone and a fix to them has nowhere else to land (checked 2026-10-31).
 const UNIT = { s: 1000, m: 60000, h: 3600000, d: 86400000, w: 604800000 };
 
 /** "14d" → ms. "permanent" → null (no clock). Unparseable/absent → undefined (undeclared). */
@@ -16,33 +18,52 @@ export function parseRetain(retain) {
   return Number(m[1]) * UNIT[m[2]];
 }
 
+// THE FINEST UNIT THE WORDS OF A SPAN CAN SHOW — days above two days, minutes from an hour up (the
+// "a day" band shows none, but a minute's rounding is what can carry it into "2 days"), seconds
+// below. It reads like `tickFor`'s table and is not it: this is the resolution of the NUMBER, that
+// one is the cadence of the REDRAW, and the days band deliberately redraws finer than it reads.
+const resolution = (ms) => (ms >= UNIT.d * 2 ? UNIT.d : ms >= UNIT.h ? UNIT.m : UNIT.s);
+
+// ROUND ONCE, BEFORE ANY UNIT IS NAMED. Rounding a REMAINDER after the band was chosen is what put
+// "3h 60m" on his screen: 3h59m40s floors to 3 hours, rounds its own 59m40s remainder to 60, and
+// the hour never hears about the carry. The whole family is that one mistake — "23h 60m", "59m 60s",
+// "4m 60s", "120s" — so the fix is structural rather than four clamps: snap the span to the
+// resolution it will be READ at, then pick the words. A snap can only push a span up into a coarser
+// band (59m59.6s → 60m, which must read "an hour"), never down, so one re-snap settles it.
+const snapped = (ms) => {
+  const once = Math.round(ms / resolution(ms)) * resolution(ms);
+  return resolution(once) === resolution(ms) ? once : Math.round(once / resolution(once)) * resolution(once);
+};
+
 /**
  * The human words for a span — the biggest unit that keeps a whole number-ish reading, and FINER AS
  * IT CLOSES, because the point of the clock is to be felt: *"it should be making me feel like, oh,
  * this shit's going away. That's the point."* A number that cannot change inside a minute cannot
  * make anybody feel anything, so under an hour the span carries the unit below it and under two
  * minutes it counts seconds. Above that, days and hours — nobody needs to watch a fortnight tick.
+ *
+ * Every unit below the one being read FLOORS and only the read one rounds (`snapped`), so no number
+ * here can ever sit at its own ceiling.
  */
 export function spanWords(ms) {
   if (ms <= 0) return "now";
-  const d = Math.round(ms / UNIT.d);
-  if (ms >= UNIT.d * 2) return `${d} days`;
-  if (ms >= UNIT.d) return "a day";
-  if (ms >= UNIT.h) {
-    const h = Math.floor(ms / UNIT.h);
-    const min = Math.round((ms - h * UNIT.h) / UNIT.m);
+  const span = snapped(ms);
+  if (span >= UNIT.d * 2) return `${span / UNIT.d} days`;
+  if (span >= UNIT.d) return "a day";
+  if (span >= UNIT.h) {
+    const h = Math.floor(span / UNIT.h);
+    const min = (span - h * UNIT.h) / UNIT.m; // whole minutes — `snapped` already did the rounding
     // 1h 0m reads worse than "an hour", and an exact hour is the one case where the finer unit
     // says nothing.
     if (!min) return h === 1 ? "an hour" : `${h} hours`;
     return `${h}h ${min}m`;
   }
-  if (ms >= UNIT.m * 2) {
-    const min = Math.floor(ms / UNIT.m);
-    const sec = Math.round((ms - min * UNIT.m) / UNIT.s);
+  if (span >= UNIT.m * 2) {
+    const min = Math.floor(span / UNIT.m);
+    const sec = (span - min * UNIT.m) / UNIT.s;
     return sec ? `${min}m ${sec}s` : `${min}m`;
   }
-  const sec = Math.max(1, Math.round(ms / UNIT.s));
-  return `${sec}s`;
+  return `${Math.max(1, span / UNIT.s)}s`;
 }
 
 /**

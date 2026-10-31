@@ -105,6 +105,7 @@
   "files": [
     "cli/",
     "api/*.js",
+    "src/shared/",
     "build/",
     "testing-utilities",
     "server.js",

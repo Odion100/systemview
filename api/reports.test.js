@@ -182,26 +182,13 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { stampSent, threadBodyOf } = require("./reports");
 
-// ── THE WINDOW'S IMPLEMENTATION, COPIED ───────────────────────────────────────────────────────
-// Transcribed from src/atoms/Markdown/docMembers.js, which is ESM and cannot be required from a
-// node:test. Copied ON PURPOSE: the point is to compare two independent implementations, and a
-// shared import would make the comparison vacuous. `WINDOW_SOURCE_UNCHANGED` below is what keeps
-// the copy honest.
-const winBodyOf = (src) =>
-  String(src || "")
-    .split("\n")
-    .filter((l) => !/^\s*::members\b/.test(l))
-    .join("\n");
-
-const winHashOf = (src) => {
-  const s = winBodyOf(src);
-  let h = 0x811c9dc5;
-  for (let i = 0; i < s.length; i += 1) {
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 0x01000193) >>> 0;
-  }
-  return h.toString(36);
-};
+// ── THE WINDOW'S OWN HASH, REQUIRED ──────────────────────────────────────────────────────────
+// src/shared/docHash.js is CommonJS precisely so this can be required: it is the module the window
+// imports, so a stamp the hub writes and a stamp the surface writes are the same value by
+// construction rather than by two implementations agreeing. It used to be transcribed here, with a
+// drift guard reading the window's source to keep the copy honest — and the copy drifted anyway,
+// three times, because a guard can only check the rules somebody thought to write down.
+const { hashOf: winHashOf } = require("../src/shared/docHash");
 
 // `threadBlocksOf`, reduced to the one thing this is about: WHICH LINES ARE THE BODY. The slice is
 // `lines.slice(i + 1, end)` — the opening line excluded, because that is where `sent=` is stamped.
@@ -347,12 +334,16 @@ describe("stampSent — a reply tells its own author", () => {
   // THE COPY ABOVE IS A LIABILITY THE MOMENT THE WINDOW MOVES. This is the cheapest honest guard:
   // the three things the hash depends on, read off the real file. If one of them is gone, the
   // transcription is stale and the equality claims are agreeing with a ghost.
-  test("the window still hashes the way this file says it does", () => {
+  test("the window reads the SAME module, rather than a copy that agrees with it", () => {
+    // The structural claim, which is the one that survives a rewrite: if the window ever grows its
+    // own hash again, every stamp it writes becomes a value the hub can never match — a member
+    // marked permanently behind, which is the symptom this whole arrangement exists to remove.
     const src = fs.readFileSync(path.join(__dirname, "..", "src", "atoms", "Markdown", "docMembers.js"), "utf8");
-    assert.equal(src.includes("lines.slice(i + 1, end).join"), true, "the body no longer excludes the opening line");
-    assert.equal(src.includes("0x811c9dc5") && src.includes("0x01000193"), true, "FNV-1a constants moved");
-    assert.equal(src.includes('!/^\\s*::members\\b/.test(l)'), true, "bodyOf no longer drops the members line");
-    assert.equal(src.includes("h.toString(36)"), true, "the hash is no longer base 36");
+    assert.match(src, /from "\.\.\/\.\.\/shared\/docHash"/, "the window no longer imports the shared hash");
+    assert.equal(/0x811c9dc5/.test(src), false, "the window has grown its own FNV again");
+    const shared = fs.readFileSync(path.join(__dirname, "..", "src", "shared", "docHash.js"), "utf8");
+    assert.ok(shared.includes("0x811c9dc5") && shared.includes("0x01000193"), "FNV-1a constants moved");
+    assert.ok(shared.includes("h.toString(36)"), "the hash is no longer base 36");
   });
 
   // A HASH THE WINDOW ITSELF WROTE, PINNED. The transcription above and the drift guard below both

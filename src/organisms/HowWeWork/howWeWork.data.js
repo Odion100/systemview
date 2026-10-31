@@ -368,14 +368,30 @@ export const REASONS = [
 
 // THE SUBTYPE DECIDES WHAT DONE MEANS — five different answers to one question, which is what makes
 // a dynamic leaf earn itself.
+//
+// AND `retain` IS THE WINDOW TO REACH FOR, not one the system applies. There is no default anywhere
+// — a leaf with no `retain=` registers `invalid — no retention` and never starts a clock, which
+// RFC-076 §2 chose deliberately ("a default is a decision nobody can see on the document"). What
+// was missing was any statement of what a USEFUL window looks like, so the number came out of
+// nowhere, and his ruling 2026-10-31: *"most reports die soon. I don't know why you'd be thinking
+// that shit got to last as long as you'd be thinking it needed to last."*
+//
+// SHORT IS THE REVERSIBLE CHOICE, which is the whole argument. The clock starts at his FIRST OPEN,
+// so an unread report never expires, and the **divert** press restarts it from now — a report that
+// turns out to matter is one press from more time. The long window is the one that cannot be taken
+// back. `90d` is in the picker for him to press, never for an agent to write; past `14d` the thing
+// is not a report and belongs where durable things live.
+//
+// These are read as guidance by `agents/AGENTS.md` ("Writing where he reads"), which states the
+// same table for the agents that file reports — one rule, said in both places it is needed.
 export const SUBTYPES = [
-  { as: "planning", what: "a table to argue with — members, threads, replies", done: "its conclusions LEFT it: it became an RFC, an arc or a spec, and it carries the pointer to what it produced", clock: "none" },
-  { as: "notice", what: "here is what happened, here is what I found", done: "you read it", clock: "the natural home for the read-triggered clock" },
-  { as: "audit", what: "a count against a tree at one moment — \"67 RFCs, five with a verdict\"", done: "never. It is re-run or out of date, so it carries the command that regenerates it", clock: "none" },
-  { as: "account", what: "what a job, a lane or a run actually did", done: "filed. Never edited, only superseded — amending a record is lying about history", clock: "none" },
-  { as: "brief", what: "context handed to another agent", done: "the recipient acted — the one report whose state is per-member rather than per-document", clock: "none" },
+  { as: "planning", what: "a table to argue with — members, threads, replies", done: "its conclusions LEFT it: it became an RFC, an arc or a spec, and it carries the pointer to what it produced", retain: "7d", clock: "long enough to argue in — once the RFC or the arc exists, the table is furniture" },
+  { as: "notice", what: "here is what happened, here is what I found", done: "you read it", retain: "2d", clock: "the natural home for the read-triggered clock: done the moment you read it, and the window after that read is grace for a second look" },
+  { as: "audit", what: "a count against a tree at one moment — \"67 RFCs, five with a verdict\"", done: "never. It is re-run or out of date, so it carries the command that regenerates it", retain: "3d", clock: "stale as soon as the tree moves — and it carries the command that regenerates it, so letting it go costs a re-run" },
+  { as: "account", what: "what a job, a lane or a run actually did", done: "filed. Never edited, only superseded — amending a record is lying about history", retain: "14d", clock: "the one record here with a claim to a longer life, and still days — anything that must outlive them belongs in a note, a handbook or an RFC" },
+  { as: "brief", what: "context handed to another agent", done: "the recipient acted — the one report whose state is per-member rather than per-document", retain: "3d", clock: "it outlives the handover by nothing" },
   // The newest one, and the one with a different shape: the other four are READ, a spec is PRESSED.
-  { as: "spec", what: "what something is supposed to do, with runnable evidence — prose plus `:::run` and `:::cmd` blocks you can press", done: "never. It is **current** or **drifted**, and the difference is pressable rather than asserted, because its proof runs", clock: "whatever `retain=` says — **not permanent by nature**; the subtype only picks a different default" },
+  { as: "spec", what: "what something is supposed to do, with runnable evidence — prose plus `:::run` and `:::cmd` blocks you can press", done: "never. It is **current** or **drifted**, and the difference is pressable rather than asserted, because its proof runs", retain: "7d", clock: "**not permanent by nature** — a one-off \"press it yourself\" dies with the question. `permanent` only where it lives in `RFCs/`, which makes it a project artifact and not a report" },
 ];
 
 // ───────────────────────────────────────────────────────────────────────────────────────────────

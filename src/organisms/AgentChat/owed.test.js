@@ -359,29 +359,67 @@ describe("it does not lie — what is left out is counted and said", () => {
   });
 });
 
-describe("the head — the legend for the two groups below it", () => {
-  const owed = (press, work, counted = 5) => ({ press: new Array(press).fill({}), work: new Array(work).fill({}), counted, skipped: {} });
+describe("the head — and the mark belongs to the KIND, never to the position", () => {
+  // ⚑ MEANS "A DECISION IS WAITING ON YOU" — the rule this band already paid for once, when an
+  // arc's blocked objective was given ⊘ instead because sharing one mark made the row unreadable.
+  // The head then drew ⚑ on whichever press segment came first, which put the approval flag in
+  // front of a report's clock. These claims pin the mark to the thing.
+  const row = (why, n) => ({ why, ...(n ? { n } : {}) });
+  const owed = (press, work = 0, counted = 5) => ({ press, work: new Array(work).fill({}), counted, skipped: {} });
 
-  it("says both numbers, and both are doors", () => {
-    expect(owedHead(owed(3, 9)).segs).toEqual([
-      { key: "press", flag: "⚑", text: "3 to press" },
-      { key: "work", flag: "", text: "9 outstanding" },
+  it("an approval carries ⚑ and a clock carries ⧗, whichever comes first", () => {
+    expect(owedHead(owed([row("clock")])).segs).toEqual([{ key: "clock", flag: "⧗", text: "1 expiring" }]);
+    expect(owedHead(owed([row("approval")])).segs).toEqual([{ key: "approval", flag: "⚑", text: "1 approval waiting" }]);
+    // together, and the flag does NOT ride position: the clock keeps ⧗ even standing second
+    expect(owedHead(owed([row("clock"), row("approval", 5)])).segs).toEqual([
+      { key: "approval", flag: "⚑", text: "5 approvals waiting" },
+      { key: "clock", flag: "⧗", text: "1 expiring" },
     ]);
   });
 
-  it("drops a group that has nothing rather than saying zero", () => {
-    expect(owedHead(owed(0, 2)).segs).toEqual([{ key: "work", flag: "", text: "2 outstanding" }]);
+  it("approvals LEAD — it is what he opens this band to find", () => {
+    const segs = owedHead(owed([row("clock"), row("proof"), row("approval", 2)])).segs;
+    expect(segs.map((s) => s.key)).toEqual(["approval", "proof", "clock"]);
+  });
+
+  it("a gap's waiting proof is a decision too, so it carries ⚑", () => {
+    // Its press IS a verdict — the fix is already evidenced in the file and `resolved` is one
+    // press away. The band drew ⚑ on that row before the head ever existed.
+    expect(owedHead(owed([row("proof")])).segs).toEqual([{ key: "proof", flag: "⚑", text: "1 proof to sign" }]);
+  });
+
+  it("counts DECISIONS, not rows — two unsigned approvals in one document is two", () => {
+    expect(owedHead(owed([row("approval", 2), row("approval", 3)])).segs[0].text).toBe("5 approvals waiting");
+  });
+
+  it("the outstanding half keeps one word and carries no mark", () => {
+    // A mark over work would be the band promising a control that does not exist.
+    expect(owedHead(owed([], 10)).segs).toEqual([{ key: "work", flag: "", text: "10 outstanding" }]);
+  });
+
+  it("a press kind with no word still counts, under ⚑ — an undercount reads as RESOLVED", () => {
+    expect(owedHead(owed([row("something-new"), row("approval")])).segs).toEqual([
+      { key: "approval", flag: "⚑", text: "1 approval waiting" },
+      { key: "press", flag: "⚑", text: "1 to press" },
+    ]);
+    // and a `why` that collides with Object.prototype must not be CALLED as a word
+    expect(() => owedHead(owed([row("constructor")]))).not.toThrow();
+    expect(owedHead(owed([row("constructor")])).segs[0].text).toBe("1 to press");
   });
 
   // THE ZERO IS THE ANSWER HE HAS NEVER BEEN ABLE TO GET, so it is said out loud. A blank head
   // would read as "not measured", which is the thing this surface exists to stop.
   it("says nothing owed out loud when it really read something", () => {
-    expect(owedHead(owed(0, 0, 11)).segs).toEqual([{ key: "clear", flag: "", text: "nothing owed" }]);
+    expect(owedHead(owed([], 0, 11)).segs).toEqual([{ key: "clear", flag: "", text: "nothing owed" }]);
   });
 
   it("says nothing at all when it read nothing — a zero over no documents is not a zero", () => {
-    expect(owedHead(owed(0, 0, 0)).segs).toEqual([]);
+    expect(owedHead(owed([], 0, 0)).segs).toEqual([]);
     expect(owedHead({}).segs).toEqual([]);
+  });
+
+  it("carries what could not be read, because a zero over unopened documents is not a zero", () => {
+    expect(owedHead({ press: [], work: [], counted: 3, skipped: { unreadable: 2 } }).unread).toBe(2);
   });
 });
 

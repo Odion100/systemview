@@ -397,7 +397,7 @@ window, and expiring is what it is for.
 
 ```js
 // 1. write the file, with ONE leaf of its own:
-//      ::report{id="<Title>" as=account retain=3d}
+//      ::report{id="<Title>" as=notice retain=2d}   // as= and retain= are REQUIRED — table below
 // 2. then pull it up — nav never takes his screen:
 mcp__systemview__nav({ projectCode, report: ".systemview/report.<pc>.<Title>.md" })
 mcp__systemview__nav({ projectCode, file: "src/thing.js" })   // any repo file, #L10-20 works
@@ -406,6 +406,30 @@ mcp__systemview__reply({ projectCode, report, threadId, text })
 mcp__systemview__comments({ projectCode, path, at, replyText })
 mcp__systemview__board({ projectCode, name, add, at, replyText })
 ```
+
+**`retain=` IS REQUIRED AND THERE IS NO DEFAULT** — a leaf missing it registers `invalid — no
+retention` and never starts a clock, so nothing sweeps it and it becomes furniture. RFC-076 §2 chose
+explicit over a default on purpose: *"a default is a decision nobody can see on the document."* But
+nothing suggested a number either, so the number came out of nowhere — and his ruling, 2026-10-31:
+*"most reports die soon. I don't know why you'd be thinking that shit got to last as long as you'd
+be thinking it needed to last."*
+
+**So reach for the SHORT window.** The clock starts at his FIRST OPEN, not at filing — an unread
+report never expires — and a report that turns out to matter gets the **divert** press, which
+restarts the clock from now. A short window is therefore never a loss: it is reversible by one
+press, and the longer window is the irreversible choice.
+
+| `as=` | reach for | because |
+|---|---|---|
+| `notice` | **2d** | done the moment he reads it, and the clock starts at that read — the window after it is grace for a second look |
+| `audit` | **3d** | a count against a tree at one moment, stale as soon as the tree moves — and it carries the command that regenerates it, so losing it costs a re-run |
+| `brief` | **3d** | context handed to another agent; it outlives the handover by nothing |
+| `planning` | **7d** | long enough to argue in, and its conclusions LEAVE it — once the RFC or arc exists, the table is furniture |
+| `spec` | **7d** | a one-off "here is what it actually does, press it yourself". `permanent` only when it lives in `RFCs/`, where it is a project artifact and not a report |
+| `account` | **14d** | the one record here with a claim to a longer life, and still days — anything that must outlive them belongs in a note, a handbook or an RFC |
+
+`90d` is in the picker for him to press, not for you to write. If you are reaching past `14d`,
+what you have is not a report — write it where durable things live and link to it.
 
 **A report is a document** (RFC-040). `show` with `text` files it at
 `.systemview/report.<project>.<slug>.md` and the chat only points at it; re-showing the same title
