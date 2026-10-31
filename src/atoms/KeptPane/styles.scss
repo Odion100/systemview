@@ -1,0 +1,14 @@
+// AWAY, NOT GONE. `display: none` is deliberate over visibility or opacity: it costs no layout and
+// no paint, which is the whole point of keeping the tree — a hidden pane that still laid out would
+// trade one cost for another. React state, terminals, scroll offsets and in-flight requests all
+// survive it.
+//
+// `display: contents` while showing, so the wrapper adds no box of its own: the page's own layout
+// is what it was before this component existed, which is the one thing a wrapper must not change.
+.kept-pane {
+  display: contents;
+
+  &--away {
+    display: none;
+  }
+}

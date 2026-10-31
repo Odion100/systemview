@@ -1,4 +1,4 @@
-import { run, list, mark, subscribe, last, scopeOf } from "./proofsBus";
+import { run, list, mark, subscribe, last, scopeOf, offerRunner, finished, clear } from "./proofsBus";
 import { setHub } from "./hub";
 
 // THE BUS — one owner of a proofs run, whoever started it. What is worth pinning is the reason it
@@ -161,58 +161,120 @@ const DOCS = {
     { id: "D2", path: "b.md", specs: [{ kind: "run", line: 2 }, { kind: "run", line: 9 }] },
   ],
 };
-const ranFor = (doc) =>
-  doc === "D1"
-    ? { passed: 1, failed: 0, tests: [{ passed: true, at: "a.md#L1" }] }
-    : { passed: 1, failed: 1, tests: [{ passed: true, at: "b.md#L2" }, { passed: false, at: "b.md#L9" }] };
+// THE HUB ANSWERS THE WHOLE SCOPE IN ONE REPLY — that is what `executeSpecs` has always done, and
+// the bus now asks it exactly once. A `document`-scoped ask narrows the reply; anything wider gets
+// all of it.
+const ALL = [
+  { passed: true, at: "a.md#L1" },
+  { passed: true, at: "b.md#L2" },
+  { passed: false, at: "b.md#L9" },
+];
+const ranFor = (doc) => {
+  const tests = doc === "D1" ? ALL.slice(0, 1) : doc === "D2" ? ALL.slice(1) : ALL;
+  return { passed: tests.filter((t) => t.passed).length, failed: tests.filter((t) => !t.passed).length, tests };
+};
 
-describe("a run that says so while it happens", () => {
-  it("EVERY SPEC IN SCOPE IS QUEUED FIRST — the state that makes a run read as a sequence", async () => {
-    let release;
-    hubWith({
-      listProofs: async () => DOCS,
-      runProofs: async ({ document }) => {
-        if (document === "D1") await new Promise((r) => (release = r));
-        return ranFor(document);
-      },
-    });
-    const seen = [];
-    const off = subscribe((s) => seen.push({ ...s.marks }));
-    const p = run("sv", { arc: "ARC-9" });
-    await Promise.resolve();
-    await Promise.resolve();
-    // the listing has landed and D1 is in flight: its spec is running, D2's are still waiting
-    const mid = seen[seen.length - 1];
-    expect(mid["a.md#L1"]).toBe("running");
-    expect(mid["b.md#L2"]).toBe("queued");
-    expect(mid["b.md#L9"]).toBe("queued");
-    release();
-    await p;
-    off();
+describe("ONE MOTION: the panel comes up, the specs go on the board, and the PANEL runs them", () => {
+  it("DOES NOT OPEN THE SCRATCHPAD — the cards run whether it is visible or not, so opening it takes his screen for nothing", () => {
+    const regions = [];
+    const onOpen = (e) => regions.push(e.detail.region);
+    window.addEventListener("sv:openRegion", onOpen);
+    hubWith({ listProofs: async () => DOCS, runProofs: async () => ranFor() });
+    run("sv", { arc: "ARC-9" });
+    expect(regions).toEqual([]);
+    window.removeEventListener("sv:openRegion", onOpen);
   });
 
-  it("settles each document as it answers, pass and fail by address", async () => {
-    hubWith({ listProofs: async () => DOCS, runProofs: async ({ document }) => ranFor(document) });
+  it("WITH A RUNNER ON SCREEN THE HUB IS NEVER ASKED — the panel's own cards ARE the run", async () => {
+    const asked = [];
+    hubWith({ listProofs: async () => DOCS, runProofs: async (a) => { asked.push(a); return ranFor(); } });
+    const off = offerRunner(() => true);
+    try {
+      await run("sv", { arc: "ARC-9" });
+      expect(asked).toEqual([]);
+      // NOTHING IS PRE-PAINTED. A board of "queued" was a state the window never has — the cards
+      // run one at a time and say so as each is reached, so until one does there is nothing to say.
+      expect(last().marks).toEqual({});
+      expect(last().running).toBe(true);
+    } finally {
+      off();
+    }
+  });
+
+  it("the cards settle it ONE AT A TIME — that is the whole of the progress, and nothing orchestrates it", async () => {
+    hubWith({ listProofs: async () => DOCS, runProofs: async () => ranFor() });
+    const off = offerRunner(() => true);
+    try {
+      await run("sv", { arc: "ARC-9" });
+
+      mark({ "a.md#L1": "running" });
+      expect(last().marks["a.md#L1"]).toBe("running");
+      expect(last().marks["b.md#L2"]).toBeUndefined(); // the rest have not had their turn
+      expect(last().running).toBe(true);
+
+      mark({ "a.md#L1": "pass" });
+      mark({ "b.md#L2": "running" });
+      mark({ "b.md#L2": "pass" });
+      mark({ "b.md#L9": "running" });
+      mark({ "b.md#L9": "fail" });
+      // THE RUN IS OVER BECAUSE NOTHING IS MOVING, not because anybody announced it. A runner that
+      // forgets to say "done" — or dies — used to leave the button on "running" over a settled board.
+      expect(last().running).toBe(false);
+      expect(last().marks).toEqual({ "a.md#L1": "pass", "b.md#L2": "pass", "b.md#L9": "fail" });
+    } finally {
+      off();
+    }
+  });
+
+  it("a runner saying done is still honoured — a scope with nothing runnable in it never marks anything", async () => {
+    hubWith({ listProofs: async () => ({ ...DOCS, documents: [] }), runProofs: async () => ranFor() });
+    const off = offerRunner(() => true);
+    try {
+      await run("sv", { arc: "ARC-9" });
+      expect(last().running).toBe(true);
+      finished(last().ask);
+      expect(last().running).toBe(false);
+    } finally {
+      off();
+    }
+  });
+
+  it("a stale runner cannot end a run that replaced it", async () => {
+    hubWith({ listProofs: async () => DOCS, runProofs: async () => ranFor() });
+    const off = offerRunner(() => true);
+    try {
+      await run("sv", { arc: "ARC-9" });
+      const old = last().ask;
+      await run("sv", { document: "D1" });
+      finished(old);
+      expect(last().running).toBe(true);
+    } finally {
+      off();
+    }
+  });
+
+  it("NO RUNNER ON SCREEN and the hub runs it — a press from a page with no panel must still do something", async () => {
+    const asked = [];
+    hubWith({ listProofs: async () => DOCS, runProofs: async (a) => { asked.push(a); return ranFor(); } });
     await run("sv", { arc: "ARC-9" });
+    expect(asked).toEqual([{ projectCode: "sv", arc: "ARC-9" }]);
     expect(last().marks).toEqual({ "a.md#L1": "pass", "b.md#L2": "pass", "b.md#L9": "fail" });
     expect(last().running).toBe(false);
   });
 
-  it("the counts ADD UP over the documents — a step's answer is not the run's", async () => {
-    hubWith({ listProofs: async () => DOCS, runProofs: async ({ document }) => ranFor(document) });
-    const ran = await run("sv", { arc: "ARC-9" });
-    expect(ran.passed).toBe(2);
-    expect(ran.failed).toBe(1);
-    expect(ran.tests).toHaveLength(3);
+  it("the hub fallback asks ONCE for the whole scope — a document at a time was round trips bought for an animation", async () => {
+    const asked = [];
+    hubWith({ listProofs: async () => DOCS, runProofs: async (a) => { asked.push(a); return ranFor(); } });
+    await run("sv", { arc: "ARC-9" });
+    // DOCS holds two documents. The walk this replaced would have asked twice.
+    expect(asked).toHaveLength(1);
   });
 
-  it("A DOCUMENT THAT ANSWERED NOTHING SETTLES — left running, its specs would spin for the session", async () => {
-    hubWith({
-      listProofs: async () => DOCS,
-      runProofs: async ({ document }) => (document === "D1" ? { error: "no connected services for sv" } : ranFor(document)),
-    });
+  it("a spec the hub answer never mentioned carries NO mark — not run is an absence, never a verdict", async () => {
+    hubWith({ listProofs: async () => DOCS, runProofs: async () => ranFor("D2") });
     await run("sv", { arc: "ARC-9" });
-    expect(last().marks["a.md#L1"]).toBe("fail");
+    expect(last().marks["a.md#L1"]).toBeUndefined();
+    expect(last().marks["b.md#L9"]).toBe("fail");
     expect(last().running).toBe(false);
   });
 
@@ -225,32 +287,32 @@ describe("a run that says so while it happens", () => {
     expect(last().marks["a.md#L1"]).toBe("fail");
   });
 
-  it("a second run CLEARS the first one's marks — two stories on one surface is no surface", async () => {
-    hubWith({ listProofs: async () => DOCS, runProofs: async ({ document }) => ranFor(document) });
+  it("a hub that refuses settles every spec rather than leaving the board moving", async () => {
+    hubWith({ listProofs: async () => DOCS, runProofs: async () => { throw new Error("no connected services"); } });
     await run("sv", { arc: "ARC-9" });
-    let frozen = null;
-    hubWith({
-      listProofs: async () => ({ ...DOCS, documents: [DOCS.documents[0]] }),
-      runProofs: async () => new Promise((r) => (frozen = r)),
-    });
-    const p = run("sv", { document: "D1" });
-    await Promise.resolve();
-    await Promise.resolve();
-    expect(last().marks["b.md#L9"]).toBeUndefined();
-    frozen(ranFor("D1"));
-    await p;
+    expect(last().ran.error).toContain("no connected services");
+    expect(Object.values(last().marks).every((v) => v === "fail")).toBe(true);
+    expect(last().running).toBe(false);
   });
 
-  it("NO LISTING, NO STEPS TO SHOW — it degrades to the single call it always made", async () => {
+  it("a second run CLEARS the first one's marks — two stories on one surface is no surface", async () => {
+    hubWith({ listProofs: async () => DOCS, runProofs: async () => ranFor() });
+    const off = offerRunner(() => true);
+    try {
+      await run("sv", { arc: "ARC-9" });
+      mark({ "b.md#L9": "fail" });
+      await run("sv", { document: "D1" });
+      expect(last().marks).toEqual({}); // wiped by the run that replaced it, never carried over
+    } finally {
+      off();
+    }
+  });
+
+  it("a failed collect does not refuse the run — the cards are lost, the run is not", async () => {
     const asked = [];
     hubWith({
-      listProofs: async () => {
-        throw new Error("hub blinked");
-      },
-      runProofs: async (args) => {
-        asked.push(args);
-        return RAN;
-      },
+      listProofs: async () => { throw new Error("hub blinked"); },
+      runProofs: async (a) => { asked.push(a); return RAN; },
     });
     const ran = await run("sv", { arc: "ARC-9" });
     expect(asked).toEqual([{ projectCode: "sv", arc: "ARC-9" }]);
@@ -261,8 +323,8 @@ describe("a run that says so while it happens", () => {
 
 describe("mark — the door anything that runs a spec writes through", () => {
   it("WHOEVER RAN IT, ONE MAP. The proofs panel runs its cards window-side and told nobody", async () => {
-    hubWith({ listProofs: async () => DOCS, runProofs: async ({ document }) => ranFor(document) });
-    await run("sv", { arc: "ARC-9" });
+    hubWith({ listProofs: async () => DOCS, runProofs: async () => ranFor() });
+    await run("sv", { arc: "ARC-9" }); // no runner on screen, so the hub settles them all
     const seen = [];
     const off = subscribe((s) => seen.push(s.marks));
     mark({ "b.md#L9": "running" });
@@ -271,6 +333,43 @@ describe("mark — the door anything that runs a spec writes through", () => {
     expect(seen[seen.length - 1]["a.md#L1"]).toBe("pass");
     mark({});
     expect(seen).toHaveLength(2); // an empty patch notifies nobody
+    off();
+  });
+});
+
+describe("clear — results come back off, and only the results", () => {
+  it("WIPES THE MARKS so a green is never a stale one, and KEEPS the listing", async () => {
+    hubWith({ listProofs: async () => DOCS, runProofs: async () => ranFor() });
+    await run("sv", { arc: "ARC-9" });
+    expect(Object.keys(last().marks).length).toBe(3);
+
+    clear();
+    expect(last().marks).toEqual({});
+    expect(last().ran).toBe(null);
+    expect(last().running).toBe(false);
+    // what is IN SCOPE did not change — only what happened to it
+    expect(last().listed).not.toBe(null);
+    expect(last().scope).toEqual({ arc: "ARC-9" });
+  });
+
+  it("RAISES A TOKEN THE CARDS WATCH — wiping the map is not enough, the panel holds its own results", async () => {
+    hubWith({ listProofs: async () => DOCS, runProofs: async () => ranFor() });
+    await run("sv", { arc: "ARC-9" });
+    const before = last().cleared;
+    clear();
+    expect(last().cleared).toBe(before + 1);
+    // a counter, not a flag: two clears in a row are two events and the second is not swallowed
+    clear();
+    expect(last().cleared).toBe(before + 2);
+  });
+
+  it("tells every surface at once — the panel's Clear and a document's ledger read one map", async () => {
+    hubWith({ listProofs: async () => DOCS, runProofs: async () => ranFor() });
+    await run("sv", { arc: "ARC-9" });
+    const seen = [];
+    const off = subscribe((s) => seen.push(s.marks));
+    clear();
+    expect(seen[seen.length - 1]).toEqual({});
     off();
   });
 });

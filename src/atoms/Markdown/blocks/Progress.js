@@ -5,7 +5,7 @@ import { parseArc } from "../objectives";
 import { planOf, stoppersOf } from "../arcPlan";
 import { openAddress } from "../openRef";
 import PlanLedger from "../../PlanLedger/PlanLedger";
-import { askProofs, subscribe } from "../../../utils/proofsBus";
+import { askProofs, clear as clearMarks, subscribe } from "../../../utils/proofsBus";
 
 // RFC-072 §5 — `::progress`. WHERE THE PLAN IS, AND WHAT IS STOPPING IT.
 //
@@ -82,6 +82,11 @@ const Progress = ({ attrs = {} }) => {
   const [marks, setMarks] = useState({});
   useEffect(() => subscribe((s) => setMarks(s.marks || {})), []);
 
+  // NOTHING IS PRE-LOADED HERE. The rule is the simple one the system already had: a document
+  // loads its own tests, and the press collects and runs. Loading an arc's documents ahead of the
+  // press added a second thing that could be showing when you looked, and it bought nothing — the
+  // press collects and runs in a blink either way.
+
   // The ledger is the normal case. `rows=off` leaves the summary alone, for the top of a long arc
   // or a report that wants to say how far along something is without pulling in the picture.
   const wantLedger = String(attrs.rows || "") !== "off";
@@ -129,22 +134,22 @@ const Progress = ({ attrs = {} }) => {
     );
 
   return (
-    <div className="md-progress" ref={rootRef}>
+    // ONE FRAME, NOT TWO. The ledger carried its own card and this block already had one, so it
+    // rendered as a box inside a box. The block is the surface; the ledger sits on it.
+    <div className="md-progress md-progress--ledger" ref={rootRef}>
       <div className="md-progress__label">Progress</div>
       <PlanLedger
         className="md-progress__ledger"
         plan={plan}
         stoppers={stoppers}
         marks={marks}
-        // RUN — the same three scopes the map's menu offered, landing on the hub's three scopes
-        // unchanged (`proofsBus.scopeOf`). What changed is that they are controls you can see
-        // rather than a menu you had to summon, and that the run now SAYS SO while it happens:
-        // the bus walks the scope a document at a time and marks each spec as it goes.
-        //
-        // IT STILL GOES THROUGH THE BUS, by design. The run belongs in the Proofs tab as well —
-        // "you can go back and open it if you want and see if anything goes wrong, from wherever
-        // you ran it" — so this asks and the panel answers, and both read the same marks.
+        // RUN — this does NOT run anything. It collects the scope into the side panel and asks the
+        // panel's own ▶ Run all to drive it, card by card, in the page. The specs a document shows
+        // are the specs that panel already lists, so running them from here was never an extra
+        // feat: *"the system can already pull up all tests and run them."* The dots below light one
+        // at a time because they read the marks those cards write as they go.
         onRun={(target) => askProofs(projectCode, target)}
+        onClear={clearMarks}
         // "open the document" — the one opener every reference chip rides (openRef.js)
         onOpen={(where) =>
           where && where.path
@@ -156,12 +161,6 @@ const Progress = ({ attrs = {} }) => {
               })
             : undefined
         }
-        // "jump to its block" — the objectives live in THIS document; the ledger is its index
-        onJump={(id) => {
-          const root = (rootRef.current && rootRef.current.closest(".markdown")) || document;
-          const hit = [...root.querySelectorAll(".md-objective__id")].find((el) => el.textContent.trim() === id);
-          if (hit) hit.closest(".md-objective").scrollIntoView({ behavior: "smooth", block: "center" });
-        }}
       />
     </div>
   );

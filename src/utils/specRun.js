@@ -24,22 +24,16 @@ export const specKeyOf = (pathOrDoc, line) => {
   return `${p}#L${Number(line)}`;
 };
 
-// THE FIVE THINGS A SPEC CAN BE, and they are five because collapsing any pair loses the answer
-// somebody is looking for. `queued` is "in scope and its turn has not come" — the state that makes
-// a run look like a run instead of a flash; `running` is the one executing; and a spec with no mark
-// at all has simply never been run in this window, which is not the same as passing.
-export const SPEC_STATES = ["queued", "running", "pass", "fail"];
-
-/** Every spec a listing put in scope, marked `queued` — the shape of the run before it starts. */
-export function queueOf(listed) {
-  const out = {};
-  for (const doc of (listed && listed.documents) || [])
-    for (const spec of doc.specs || []) {
-      const key = specKeyOf(doc, spec.line);
-      if (key) out[key] = "queued";
-    }
-  return out;
-}
+// THE THREE THINGS A SPEC CAN BE, and a spec with no mark at all has simply never been run in
+// this window — which is not the same as passing, and is why "not run" is an absence rather than
+// a fourth word.
+//
+// THERE IS NO `queued`, and there was: every spec in scope was painted "queued" before a run so
+// the dots would not sit blank while the HUB executed the lot and answered once at the end. The
+// window does not run that way — the panel's cards run one at a time in the page — so a queue was
+// a state the mechanism never has, shown as a dashed border on every card, meaning nothing. It
+// was also the thing that stuck: when the runner broke, seven specs sat saying "queued" forever.
+export const SPEC_STATES = ["running", "pass", "fail"];
 
 /** The specs of ONE document in a listing, as keys — what a per-document step is about to run. */
 export function keysOfDocument(listed, documentId) {
@@ -88,8 +82,7 @@ export function tallyOf(marks = {}) {
   const pass = n("pass");
   const fail = n("fail");
   const running = n("running");
-  const queued = n("queued");
-  return { total: v.length, pass, fail, running, queued, settled: pass + fail, moving: running + queued > 0 };
+  return { total: v.length, pass, fail, running, settled: pass + fail, moving: running > 0 };
 }
 
 /**
@@ -103,9 +96,10 @@ export function rollupOf(keys = [], marks = {}) {
   if (!had.length) return "";
   if (had.includes("fail")) return "fail";
   if (had.includes("running")) return "running";
-  if (had.includes("queued")) return "queued";
-  return had.length === keys.length ? "pass" : "running";
+  // PART-RUN IS NOT RUNNING. This returned "running" for "some answered, some not", so one spec
+  // run inside a seven-spec group left that group pulsing for the session over nothing executing.
+  return had.length === keys.length ? "pass" : "";
 }
 
-const specRun = { specKeyOf, queueOf, keysOfDocument, marksFrom, problemMarks, tallyOf, rollupOf, SPEC_STATES };
+const specRun = { specKeyOf, keysOfDocument, marksFrom, problemMarks, tallyOf, rollupOf, SPEC_STATES };
 export default specRun;

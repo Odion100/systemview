@@ -1,6 +1,6 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { getAgent } from "../../utils/hub";
-import { run as runProofs, list as listProofs, mark, subscribe } from "../../utils/proofsBus";
+import { run as runProofs, list as listProofs, mark, subscribe, offerRunner, finished, clear as clearMarks } from "../../utils/proofsBus";
 import SavedTests from "../SavedTests/SavedTests";
 import { parseSteps, toStep } from "../../atoms/Markdown/blocks/RunBlock";
 import ServiceContext from "../../ServiceContext";
@@ -91,7 +91,7 @@ const ProofsPanel = ({ projectCode: routeCode, services: givenServices = [], sav
     const mine = connectedServices.filter((s) => s.projectCode === projectCode);
     return mine.length ? mine : givenServices;
   }, [connectedServices, projectCode, givenServices]);
-  const [{ listed, ran, running, scope, marks }, setState] = useState({ listed: null, ran: null, running: false, scope: null, marks: {} });
+  const [{ listed, ran, running, scope, marks, ask, cleared }, setState] = useState({ listed: null, ran: null, running: false, scope: null, marks: {}, ask: 0, cleared: 0 });
   const absent = !getAgent() || typeof getAgent().listProofs !== "function";
   // NO PROJECT IS ITS OWN STATE, and it has to be said. `projectCode` comes from the ROUTE
   // (`useParams` in pages/SystemView) and this panel is mounted in the scratchpad, so on a route
@@ -108,14 +108,22 @@ const ProofsPanel = ({ projectCode: routeCode, services: givenServices = [], sav
   // than an empty tab.
   useEffect(() => subscribe((s) => setState(s)), []);
 
+  // THIS PANEL IS THE RUNNER. While it is mounted, a ▶ pressed in a document collects into this
+  // list and asks it to run — so the bus never calls the hub and never needs to. Taken back on
+  // unmount, which is what lets a press from a page with no panel fall back to the hub instead of
+  // asking a list that is not there.
+  useEffect(() => offerRunner(() => true), []);
+
   // The listing for THIS project, when there is nothing to show yet. A run already on the bus is
   // left alone — re-listing over it would replace the thing he opened the tab to look at.
-  useEffect(() => {
-    if (!absent && !noProject && !listed && !ran) listProofs(projectCode);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectCode, absent, noProject]);
+  // NO COLD START, BY DESIGN. This used to list the WHOLE PROJECT whenever the panel had nothing
+  // yet — which raced `DocProofs` firing `{document}` as a document mounted, so opening one
+  // document could leave every spec in the project listed under its name. The rule is the simple
+  // one: a document loads its own tests, so no document means no tests. An empty panel beside no
+  // open document is the honest answer, not a pile from everywhere.
 
   const go = useCallback((next) => runProofs(projectCode, next || {}), [projectCode]);
+
 
   const rows = useMemo(() => listRows(listed), [listed]);
 
@@ -166,6 +174,14 @@ const ProofsPanel = ({ projectCode: routeCode, services: givenServices = [], sav
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, projectCode, services, savedTests]);
+
+  // AN ASK WITH NOTHING RUNNABLE IN IT STILL HAS TO SETTLE. A scope whose specs could not be built
+  // into cards would otherwise leave every surface saying "running" for the rest of the session.
+  useEffect(() => {
+    if (ask && running && !built.length) finished(ask);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ask, running, built.length]);
+
   const head = summaryOf({ listed, ran, running, marks });
   const scoped = !!(scope && !scope.project);
 
@@ -174,6 +190,17 @@ const ProofsPanel = ({ projectCode: routeCode, services: givenServices = [], sav
       <div className="test-panel__proofs">
         <div className="test-panel__proofs-empty">
           No project in view. Open a project and its specs load here.
+        </div>
+      </div>
+    );
+
+  // NO DOCUMENT, NO TESTS. The specs in here belong to the document you are looking at; with none
+  // open there is nothing this panel could honestly be showing.
+  if (!listed && !ran)
+    return (
+      <div className="test-panel__proofs">
+        <div className="test-panel__proofs-empty">
+          Open a document and its specs load here.
         </div>
       </div>
     );
@@ -232,6 +259,14 @@ const ProofsPanel = ({ projectCode: routeCode, services: givenServices = [], sav
         // beside the word "running…". They are the same specs; there is one map; neither side
         // has to be told about the other.
         onCardResult={(t, status) => t && t.__key && mark({ [t.__key]: status })}
+        // A RUN PRESSED SOMEWHERE ELSE IS STILL THIS LIST'S RUN. A document's ▶ collects its scope
+        // and raises an ask; this is the list that answers it, with the same ▶ Run all sequence a
+        // press here would drive. There is no second runner anywhere — which is why the ledger's
+        // dots light one at a time: they are reading the marks these cards write as they go.
+        autoRunKey={ask}
+        onAutoRun={(phase) => phase === "done" && finished(ask)}
+        onClearAll={clearMarks}
+        clearKey={cleared}
         statusOf={(t) => (t && t.__key ? (marks || {})[t.__key] : undefined)}
         // THE PROOF'S OWN IDENTITY, kept through the shared card: where it lives. A saved test is
         // "test <namespace>"; a proof is "proof <document>#L<line>", because that is the only

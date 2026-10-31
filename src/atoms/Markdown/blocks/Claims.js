@@ -1,6 +1,11 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useDocMembers, useMarkdownWrite } from "../context";
 import { claimsOf } from "../claims";
+import { rowsOf } from "../claimRows";
+import { askProofs, clear as clearMarks, subscribe } from "../../../utils/proofsBus";
+import { rollupOf } from "../../../utils/specRun";
+import useEffectiveProject from "../../../utils/effectiveProject";
+import "../../PlanLedger/styles.scss";
 
 // `::claims` — HOW MANY ARE VERIFIED, counted off the `::claim` blocks in the same document every
 // render. The number is derived and stored nowhere, which is the whole point: the STATUS line an
@@ -14,86 +19,118 @@ import { claimsOf } from "../claims";
 // yet it offers ONE press that writes the dated heading. The press changes the file, the watcher
 // re-derives, and the trail at the top advances on its own: a jump through a dated line, never
 // behind anyone's back.
-const Claims = () => {
-  const { source = "" } = useDocMembers() || {};
+// IT IS THE SUMMARY, AND ONLY THE SUMMARY. The arc's `::progress` was rebuilt as a summary block over rows
+// that each say their own state and what is stopping them; this is the same display for the same
+// reason. `::claims` drew one bar and then eight chips — `2 not met`, `2 marked, unproved`,
+// `1 unchecked`, `3/5 spec'd`, `1 owed` — every one of them a count of rows the reader could not
+// then see. Being told how many are wrong without being told WHICH is the failure the ledger
+// exists to end, and it was happening here too.
+//
+// AND THE ROWS ARE NOT HERE. For one build every claim got a row under this bar carrying what it
+// owed — which read well on a six-claim fixture and was a wall on a real file: three RFCs' worth
+// of claims in one document, expanding the whole page, with each sentence two hundred pixels from
+// the claim it was about. The sentences moved ONTO the claim cards, where the thing they describe
+// already is. This keeps the bar, the counts and the two controls.
+//
+// THE SAME STYLESHEET as the arc's ledger, deliberately: one visual vocabulary for "where is this
+// and what does it owe", so a colour or a control means the same thing in an arc and in a plan.
+const Claims = ({ attrs = {} }) => {
+  const { source = "", id: docId = "" } = useDocMembers() || {};
   const { editable, appendEnd } = useMarkdownWrite();
+  const projectCode = useEffectiveProject(attrs.projectCode);
   const c = claimsOf(source);
-  if (!c.total) return <div className="md-claims md-claims--empty">no claims in this document yet</div>;
-  const pct = Math.round((c.met / c.total) * 100);
-  const rpct = Math.round((c.reviewed / c.total) * 100);
-  const allMet = c.met === c.total;
-  const allReviewed = c.reviewed === c.total;
+  const view = rowsOf(c);
+
+  // The same marks the side panel's cards write — so a spec run anywhere lights the claim it
+  // defends, without this block knowing a run exists.
+  const [marks, setMarks] = useState({});
+  useEffect(() => subscribe((st) => setMarks(st.marks || {})), []);
+  const tone = rollupOf(Object.keys(marks), marks);
+
+  if (!view.total) return <div className="md-claims md-claims--empty">no claims in this document yet</div>;
+
   const hasStatus = /^##\s*STATUS/m.test(source);
+  const allMet = view.met === view.total;
   const today = () => {
     const d = new Date();
     const p = (x) => String(x).padStart(2, "0");
     return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
   };
+
   return (
-    <div className={`md-claims${allMet ? " md-claims--all" : ""}`}>
-      <div className="md-claims__head">
-        <span className="md-claims__label">Claims</span>
-        <span className="md-claims__count">
-          {c.met}/{c.total} met
-        </span>
-        {c.unmet ? <span className="md-claims__tag md-claims__tag--unmet">{c.unmet} not met</span> : null}
-        {/* THE GAP BETWEEN SAID AND SHOWN. A mark with nothing embedded is not met — it is one
-            agent's word, and this is how many of the marks are resting on exactly that. */}
-        {c.unproved ? (
-          <span
-            className="md-claims__tag md-claims__tag--owed"
-            title="marked met with no proof in the claim's own body — the mark is testimony until the evidence is embedded"
-          >
-            {c.unproved} marked, unproved
+    <div className="pl md-claims-ledger">
+      <div className="pl__head">
+        <div className="pl__headline">
+          <span className="pl__pct">{view.pct}%</span>
+          <span className="pl__id">claims</span>
+          {/* RUN THIS DOCUMENT'S SPECS, from the document. The same control the arc carries, so
+              the press, the colour and the hover mean one thing wherever they appear. */}
+          {docId && projectCode ? (
+            <button
+              type="button"
+              className={`pl__play${tone ? ` is-${tone}` : ""}`}
+              title={`run this document's specs in the side panel`}
+              onClick={() => askProofs(projectCode, { kind: "document", id: docId })}
+            >
+              <svg viewBox="0 0 18 18" aria-hidden="true">
+                <path d="M5 3.4 14.6 9 5 14.6z" strokeWidth="1.6" strokeLinejoin="round" />
+              </svg>
+            </button>
+          ) : null}
+          {tone ? (
+            <button type="button" className="pl__clear" title="clear these results" onClick={clearMarks}>
+              clear
+            </button>
+          ) : null}
+        </div>
+        {/* THREE LAYERS, THREE WORDS, and the layering is the point — his, and I dropped it for a
+            build by collapsing this to one fill. The PALE band is MARKED: somebody's word. The
+            solid band is REVIEWED: a signature. The red tail is NOT MET. A mark alone never
+            paints the bar done, and the gap between the pale and the solid is exactly how much
+            of this document is resting on testimony. */}
+        <div className="pl__bar pl__bar--layered" aria-hidden="true">
+          <i className="is-marked" style={{ width: `${Math.round(((view.met + view.unproved) / view.total) * 100)}%` }} />
+          <i className="is-reviewed" style={{ width: `${Math.round((view.reviewed / view.total) * 100)}%` }} />
+          <i className="is-unmet" style={{ width: `${Math.round((view.unmet / view.total) * 100)}%` }} />
+        </div>
+        <div className="pl__meta">
+          <span className="pl__meta-label">met</span>
+          <span>
+            <b>{view.met}</b> of {view.total} claims
           </span>
-        ) : null}
-        {c.unchecked ? <span className="md-claims__tag md-claims__tag--unchecked">{c.unchecked} unchecked</span> : null}
-        <span className="md-claims__count md-claims__count--reviewed">{c.reviewed}/{c.total} reviewed</span>
-        {/* THE THIRD AXIS — what the change loop will defend tomorrow. Marked is the builder's
-            word and reviewed is a signature; both are about people looking once. This says how
-            many behavioural claims left a spec behind, and `owed` names the gap out loud: a claim
-            reading met that nothing re-checks. Experiential claims are counted apart, never as a
-            shortfall — his eye is their instrument and no spec is owed. */}
-        {c.behavioral ? (
-          <span
-            className="md-claims__count md-claims__count--specd"
-            title={`${c.specd} of ${c.behavioral} behavioural claims carry a ::test or :::run — the change loop defends those${c.experiential ? `. ${c.experiential} experiential (concluded by eye, no spec owed)` : ""}`}
-          >
-            {c.specd}/{c.behavioral} spec'd
+          {view.behavioral ? (
+            <span>
+              <b>{view.specd}</b> of {view.behavioral} spec&apos;d
+            </span>
+          ) : null}
+          {view.owed ? <span className="is-warn">{view.owed} owed</span> : null}
+          {view.unproved ? <span className="is-warn">{view.unproved} marked, unproved</span> : null}
+          {view.unmet ? <span className="is-warn">{view.unmet} not met</span> : null}
+          {view.unchecked ? <span className="is-warn">{view.unchecked} unchecked</span> : null}
+          <span>
+            <b>{view.reviewed}</b> of {view.total} reviewed
           </span>
-        ) : null}
-        {c.owed ? (
-          <span
-            className="md-claims__tag md-claims__tag--owed"
-            title="marked met, behavioural, and nothing in the fold the change loop runs — defended by nobody once the conversation ends"
-          >
-            {c.owed} owed
-          </span>
-        ) : null}
-        {allMet ? (
-          <span className="md-claims__tag md-claims__tag--all">
-            {!allReviewed ? "all met — review open" : hasStatus ? "all met & reviewed" : "all met — awaiting STATUS"}
-          </span>
-        ) : null}
-        {allMet && !hasStatus && editable && appendEnd ? (
-          <button
-            type="button"
-            className="md-claims__status"
-            title="Writes the dated heading; the registry re-derives and the lifecycle advances to built"
-            onClick={() => appendEnd(`## STATUS — built ${today()}\n\n::claims`)}
-          >
-            write the STATUS
-          </button>
-        ) : null}
-        <span className="md-claims__pct">{pct}%</span>
+          {/* ALL MET IS A MOMENT, NOT A JUMP. Marked-and-proved across the board is arithmetic;
+              BUILT is a declaration with a date, and review is a third axis that arithmetic
+              cannot close — so the tag says which of the three is still open. */}
+          {allMet ? (
+            <span className="pl__tag">
+              {view.reviewed !== view.total ? "all met — review open" : hasStatus ? "all met & reviewed" : "all met — awaiting STATUS"}
+            </span>
+          ) : null}
+          {allMet && !hasStatus && editable && appendEnd ? (
+            <button
+              type="button"
+              className="pl__clear"
+              title="Writes the dated heading; the registry re-derives and the lifecycle advances to built"
+              onClick={() => appendEnd(`## STATUS — built ${today()}\n\n::claims`)}
+            >
+              write the STATUS
+            </button>
+          ) : null}
+        </div>
       </div>
-      {/* TWO LAYERS, TWO WORDS (his): the pale fill is MARKED — the builder's word — and the full
-          green is REVIEWED — the badges filled. A mark alone never paints the bar done. */}
-      <div className="md-claims__bar" aria-hidden="true">
-        <i className="md-claims__fill md-claims__fill--marked" style={{ width: `${pct}%` }} />
-        <i className="md-claims__fill" style={{ width: `${rpct}%` }} />
-        <i className="md-claims__fill md-claims__fill--unmet" style={{ width: `${Math.round((c.unmet / c.total) * 100)}%` }} />
-      </div>
+
     </div>
   );
 };

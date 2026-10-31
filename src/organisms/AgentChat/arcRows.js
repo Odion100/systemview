@@ -35,9 +35,16 @@ export const titleFromPath = (path) => {
 /**
  * One row per arc document.
  *
- * `blocked` counts objectives whose `needs` are not met — which is the number that changes what he
- * does next. An arc at 2 of 7 with nothing blocked is moving; the same arc with four blocked is
- * waiting on something, and those are not the same situation even though the progress is identical.
+ * `blocked` counts objectives that are stopped, by EITHER route — `state=blocked` written on the
+ * objective, or `needs` that are not met. That is the number that changes what he does next: an arc
+ * at 2 of 7 with nothing blocked is moving; the same arc with four blocked is waiting on something,
+ * and those are not the same situation even though the progress is identical.
+ *
+ * COUNTING ONLY THE DERIVED ROUTE MADE THE SURFACE SILENT ABOUT THE WRITTEN ONE. `blocked` is the
+ * one state an author WRITES rather than derives, on the grounds that it is a statement about the
+ * world — and the live system's only such objective has its `needs` already satisfied, so the band
+ * drew nothing at all while the document said `state=blocked` with a reason attached. A declared
+ * stop is the stronger signal of the two: somebody looked and said so.
  */
 export function arcRows(docs = []) {
   return docs
@@ -45,7 +52,9 @@ export function arcRows(docs = []) {
     .map((d) => {
       const { total, done, objectives, arc } = arcProgress(d.text);
       const ctx = { objectives, arc };
-      const blocked = objectives.filter((o) => o.state !== "done" && isBlockedByNeeds(o, ctx)).length;
+      const blocked = objectives.filter(
+        (o) => o.state !== "done" && (o.state === "blocked" || isBlockedByNeeds(o, ctx)),
+      ).length;
       return {
         key: d.path,
         path: d.path,

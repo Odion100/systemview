@@ -217,7 +217,7 @@ describe("::claims — all met is a moment, never a silent jump (RFC-075 round t
       </MarkdownMembersProvider>,
     );
     expect(screen.getByText("all met — review open")).toBeTruthy();
-    expect(screen.getByText("1/2 reviewed")).toBeTruthy();
+    expect(screen.getByText(/of 2 reviewed/)).toBeTruthy();
   });
 
   it("all met with no STATUS → offers the one press that writes the dated heading", () => {
@@ -266,10 +266,12 @@ describe("::claims — the count is derived from the blocks", () => {
         <Claims />
       </MarkdownMembersProvider>,
     );
-    // c2 is marked by him and carries nothing — marked is not met, and the bar says which.
-    expect(screen.getByText("0/2 met")).toBeTruthy();
+    // c2 is marked by him and carries nothing — marked is not met, and the LEDGER says which ONE.
+    // The old header said "1 marked, unproved" and left you to find it; the row names it now.
+    expect(screen.getByText(/of 2 claims/)).toBeTruthy();
     expect(screen.getByText("1 marked, unproved")).toBeTruthy();
     expect(screen.getByText("1 unchecked")).toBeTruthy();
+    // the sentence naming WHICH one lives on the claim card now, not in a row under this bar
   });
   it("says there are none rather than drawing 100% of nothing", () => {
     render(
@@ -390,12 +392,13 @@ describe("::claims — the bar reports spec'd and owed, beside met and reviewed"
     );
     // 2 behavioural (c1, c2), one of them spec'd. Three claims in the document — so "1/3" here
     // would be the bug this assertion exists to catch: an experiential claim is not a shortfall.
-    expect(screen.getByText("1/2 spec'd")).toBeTruthy();
+    expect(screen.getByText(/of 2 spec/)).toBeTruthy();
     expect(screen.getByText("1 owed")).toBeTruthy();
     // Only c1 carries its proof. c2 is a bare behavioural mark and c3 is experiential with nothing
     // shown — the exemption is from the SPEC, never from the proof.
-    expect(screen.getByText("1/3 met")).toBeTruthy();
+    expect(screen.getByText(/of 3 claims/)).toBeTruthy();
     expect(screen.getByText("2 marked, unproved")).toBeTruthy();
+
   });
 
   it("nothing owed draws no owed tag at all — a zero is not news", () => {

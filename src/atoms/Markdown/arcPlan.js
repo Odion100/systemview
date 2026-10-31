@@ -75,14 +75,36 @@ export function planOf(source, { byObj, arcRow } = {}) {
   const objectives = timeline.map((o) => {
     const rows = rowsFor(o.id);
     const claims = claimsOf(rows);
+    // DONE IS DERIVED, AND THE DERIVATION IS RFC-076 §2: an arc reads UPWARD, and an objective is
+    // complete when every plan serving it is SETTLED — read off the plans' own rows, never
+    // pressed. Not draft, not approved, not built. An objective with no plan can never be
+    // complete, because there is nothing to settle.
+    //
+    // IT USED TO BE WHATEVER THE DOCUMENT TYPED. `state=done` on the objective line was taken at
+    // face value, so MOCK-ARC's O2 and O3 read done over draft plans with 0 of 2 claims met and
+    // the bar painted full on a hand. A typed word over evidence that disagrees is the exact
+    // defect this whole system exists to remove, so the derivation wins and the disagreement is
+    // said out loud rather than silently resolved either way.
+    const planStates = rows.map((r) => stateOf("rfc", r));
+    const complete = rows.length > 0 && planStates.every((st) => st === "settled");
+    const saysDone = o.state === "done";
     const specs = rows.reduce((n, r) => n + (r.specs || []).length, 0);
     const r = rankOf(o);
     rank.set(o.id, r);
     return {
       id: o.id,
+      // THE LINE ITS BLOCK OPENS ON. A press that changes an objective's state has to write back
+      // into the document — the block IS the record — so a surface showing objectives needs the
+      // address of each one, not only its id.
+      line: o.line || 0,
       title: o.title || "",
       owner: o.owner || "",
-      state: o.state,
+      // The word the document typed, kept as written — the row needs both to show a disagreement.
+      state: complete ? "done" : o.state === "done" ? "doing" : o.state,
+      saysDone,
+      complete,
+      // EVERY PLAN SETTLED? and if not, what is holding it. One sentence, not a state word.
+      planStates,
       // WHY IT IS BLOCKED, carried as a first-class field rather than a hover. It reached the
       // screen only as a `title=` on a 10px state word — the one thing he asked to be able to see.
       because: o.because || "",
@@ -99,10 +121,10 @@ export function planOf(source, { byObj, arcRow } = {}) {
       // not one — it is the met/total of the claims its plans agreed, a real count of checked
       // statements. An objective somebody has marked `done` reads full, because the press is a step
       // a person performs and their word outranks a derivation.
-      fraction: o.state === "done" ? 1 : claims.total ? claims.met / claims.total : 0,
+      fraction: complete ? 1 : claims.total ? claims.met / claims.total : 0,
       // CLAIMS ALL MET, STILL NOT MARKED DONE — the frontier, and the one reading the old drawing
       // could not express. MOCK-ARC's O2 is exactly this: 1/1 claims, written `open`.
-      ready: o.state !== "done" && claims.total > 0 && claims.met === claims.total,
+      ready: !complete && claims.total > 0 && claims.met === claims.total,
       // NOTHING MEASURABLE YET: a plan is attached and has agreed no claims, so the fill is 0 for
       // want of anything to count rather than because no work happened. Different, and said.
       unclaimed: !!rows.length && !claims.total,
@@ -110,6 +132,9 @@ export function planOf(source, { byObj, arcRow } = {}) {
         const c = (row.state || {}).claims || {};
         return {
           id: row.id,
+          // ITS OWN NAME. A plan card showing only an identifier makes the reader open the document
+          // to find out what it is, which is the trip the card exists to save.
+          title: row.title || "",
           station: stateOf("rfc", row),
           met: c.met || 0,
           total: c.total || 0,
@@ -154,7 +179,7 @@ export function planOf(source, { byObj, arcRow } = {}) {
     const key = o.owner || "unowned";
     const row = owners.get(key) || { owner: key, total: 0, done: 0 };
     row.total += 1;
-    if (o.state === "done") row.done += 1;
+    if (o.complete) row.done += 1;
     owners.set(key, row);
   });
   return {
@@ -183,7 +208,7 @@ export function planOf(source, { byObj, arcRow } = {}) {
     objectives,
     totals: {
       objectives: objectives.length,
-      complete: count((o) => o.state === "done"),
+      complete: count((o) => o.complete),
       doing: count((o) => o.state === "doing"),
       open: count((o) => o.state === "open"),
       blocked: count((o) => o.state === "blocked"),
@@ -221,7 +246,7 @@ export function planOf(source, { byObj, arcRow } = {}) {
  * an unplanned objective is the mildest — it is work nobody has written down yet. Reading top
  * down is reading worst first, so a strip that gets truncated truncates the least important end.
  */
-const SEVERITY = { cycle: 0, blocked: 1, waiting: 2, elsewhere: 3, unresolved: 4, unplanned: 5 };
+const SEVERITY = { cycle: 0, claimed: 1, blocked: 2, waiting: 3, elsewhere: 4, unresolved: 5, unplanned: 6 };
 
 export function stoppersOf(plan) {
   const out = [];
@@ -236,8 +261,17 @@ export function stoppersOf(plan) {
     for (const w of o.waits || []) out.push({ ...at, kind: w.kind, text: w.text, to: w.to || "" });
     // Unplanned is a stopper only while the objective is still live — an objective somebody marked
     // done without ever attaching a plan is finished, and listing it as a blocker is noise.
-    if (o.unplanned && o.state !== "done")
+    if (o.unplanned && !o.complete)
       out.push({ ...at, kind: "unplanned", text: "no plan attached — there is nothing to build from" });
+    // THE DISAGREEMENT, SAID. The document typed `done` and the plans say otherwise — the one
+    // thing a surface must never quietly pick a side on. Naming which plans are still open is
+    // what makes it actionable rather than an accusation.
+    if (o.saysDone && !o.complete && !o.unplanned)
+      out.push({
+        ...at,
+        kind: "claimed",
+        text: `written done, but ${(o.plans || []).filter((p) => p.station !== "settled").map((p) => `${p.id} is ${p.station || "draft"}`).join(" · ")} — an objective completes when its plans settle`,
+      });
   }
   return out.sort((a, b) => (SEVERITY[a.kind] ?? 9) - (SEVERITY[b.kind] ?? 9));
 }
