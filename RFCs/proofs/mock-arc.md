@@ -68,7 +68,7 @@ node RFCs/proofs/mock.js arc approval-
 Attached by its ADDRESS — `arc=MOCK-ARC-O1` on the plan's own leaf, never `arc=MOCK-ARC`.
 :::
 
-:::objective{id=O2 owner=systemview-test state=open title="The half mock-plan serves"}
+:::objective{id=O2 owner=systemview-test state=done title="The half mock-plan serves"}
 Unplanned until the walk's inProgress step — which is what holds the arc at approved before it.
 :::
 

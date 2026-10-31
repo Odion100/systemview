@@ -22,8 +22,12 @@ export const langOfPath = (p = "") => {
   );
 };
 
-const SystemViewPage = () => {
-  const { projectCode, serviceId, moduleName, methodName } = useParams();
+const SystemViewPage = ({ params = null }) => {
+  // THE ADDRESS CAN ARRIVE AS A PROP, because this page stays MOUNTED while you are on Agents
+  // (see KeptPane) and a route that does not match hands back nothing. `useParams()` is still the
+  // answer when it does match, so nothing that renders this inside a plain Route changes.
+  const matched = useParams();
+  const { projectCode, serviceId, moduleName, methodName } = params || matched;
   // Both side panels de-expand into their corners so the middle (Stories/Docs) gets the space.
   // The open/collapsed state PERSISTS across refresh (localStorage) — you get the layout back exactly.
   // RFC-052 — the rail rises with the docked agent you click (see bringToFront in AgentChat).

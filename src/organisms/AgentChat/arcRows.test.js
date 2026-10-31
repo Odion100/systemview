@@ -86,6 +86,40 @@ describe("the order is the order to act in", () => {
 });
 
 describe("the row's own line", () => {
+  it("a DECLARED stop counts, even when its needs are satisfied — the case the band was silent about", () => {
+    const text = [
+      "::arc{id=ARC-900 title=\"the written stop\"}",
+      "",
+      ":::objective{id=O1 state=done}",
+      "the need, already met",
+      ":::",
+      "",
+      ':::objective{id=O2 needs=O1 state=blocked blocked="waiting on a decision only he can make"}',
+      "stopped on purpose, by somebody who looked",
+      ":::",
+      "",
+    ].join("\n");
+    const [row] = arcRows([{ path: "arcs/ARC-900.md", text }]);
+    // O2's `needs` ARE met, so the derived route says nothing. The document says blocked, with a
+    // reason — and that is the stronger of the two signals, so the count has to carry it.
+    expect(row.blocked).toBe(1);
+    expect(arcLine(row)).toBe("1 of 2 · 1 blocked");
+  });
+
+  it("a declared stop that is also DONE is not blocked — done outranks a stale word", () => {
+    const text = [
+      "::arc{id=ARC-901}",
+      "",
+      ':::objective{id=O1 state=done blocked="the reason nobody cleared"}',
+      "finished anyway",
+      ":::",
+      "",
+    ].join("\n");
+    const [row] = arcRows([{ path: "arcs/ARC-901.md", text }]);
+    expect(row.blocked).toBe(0);
+    expect(row.done).toBe(1);
+  });
+
   it("says the count, and the blocked number only when there is one", () => {
     expect(arcLine({ done: 1, total: 3, blocked: 1 })).toBe("1 of 3 · 1 blocked");
     expect(arcLine({ done: 1, total: 3, blocked: 0 })).toBe("1 of 3");

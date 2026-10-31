@@ -3,12 +3,12 @@ import LifecycleTrail from "./lifecycle";
 import LeafPick from "./LeafPick";
 import { useMarkdownWrite } from "../context";
 import { getAgent } from "../../../utils/hub";
-import { parseRetain, retainLine } from "./retention";
+import { parseRetain, retainLine, tickFor } from "./retention";
 
 // The subtype vocabulary is OPEN (RFC-076 §2: `as=` picks what done means, from a vocabulary, not
 // an enum) — these are the words already in use, and the picker's free field is the openness.
 const SUBTYPES = ["planning", "notice", "audit", "account", "brief", "spec"];
-const WINDOWS = ["permanent", "7d", "14d", "30d", "90d"];
+const WINDOWS = ["1h", "6h", "12h", "1d", "2d", "3d", "7d", "14d", "30d", "90d", "permanent"];
 
 // RFC-073 §1.2 — `::report{id=subscribe-and-registration}` at the top of a document.
 //
@@ -33,6 +33,21 @@ const Report = ({ attrs = {}, line }) => {
   const retired = !!attrs.retired;
   const retain = String(attrs.retain || "").trim();
   const windowMs = parseRetain(retain);
+
+  // THE CLOCK MOVES. It used to be a snapshot: `retainLine` took `now` at render and nothing ever
+  // re-rendered, so the face sat saying the same thing while the window actually closed — *"it
+  // should be making me feel like, oh, this shit's going away. That's the point."* The cadence is
+  // the granularity of the words themselves (`tickFor`), so a fortnight ticks hourly and the last
+  // few minutes tick per second. No interval at all when there is nothing left to count: retired,
+  // permanent, undeclared, or not yet read.
+  const [, setBeat] = useState(0);
+  const left = windowMs != null && openedAt ? openedAt + windowMs - Date.now() : null;
+  const every = tickFor(left);
+  useEffect(() => {
+    if (!every) return undefined;
+    const t = setInterval(() => setBeat((b) => b + 1), every);
+    return () => clearInterval(t);
+  }, [every]);
 
   useEffect(() => {
     // the stamp rides the render because the render is the reading — but never for a retired

@@ -1,320 +1,329 @@
-import React from "react";
-import { rollupOf, tallyOf } from "../../utils/specRun";
+import React, { useState } from "react";
 import "./styles.scss";
 
-// THE PLAN LEDGER — where this plan is, and what is stopping it, in one screenful.
+// THE PLAN LEDGER — where this plan is, and what is stopping it.
 //
-// WHAT IT REPLACES AND WHY. `SpecMap` drew the arc fanning into its objectives fanning into their
-// plans. His verdict on it is the brief: *"It looks cool, maybe, but it's not really helpful.
-// Figure out something visual that allows you to see the entire plan's progress."* Measured on the
-// live MOCK-ARC fixture, what it actually cost:
+// THE SHAPE. A header BLOCK, then rows. Not a header line: the percent, the bar and the counts
+// were crammed onto one row with the run button jammed against the pane edge, which is what made
+// it read as a toolbar instead of a summary. The number is the headline, the bar runs the full
+// width under it, and the counts sit beneath in words.
 //
-//   - TWO PROGRESS NUMBERS THAT NEVER MET. The header counted objectives (`1/7 done · 14%`), the
-//     chips summed claims (`5/16 · 31%`), two hundred pixels apart, and nothing reconciled them.
-//   - 720 × 650 PIXELS for seven state words and six chips, because at 240px columns a document
-//     pane fits three, so seven objectives wrapped into three rows and the whole drawing grew
-//     downward faster than a list of the same seven would have.
-//   - EVERY EDGE WAS INFORMATION-FREE. arc→objective→plan is the identical shape for every arc
-//     that will ever exist, so the geometry carried no fact. Meanwhile `timelineOf` had been
-//     computing REAL dependency order and per-objective `blockedBy` since RFC-072, and nothing but
-//     its own test file ever read it.
-//   - THE `blocked=` REASON — the one thing he asked to see — reached the screen as a `title=`
-//     hover on a ten-pixel state word.
+// A ROW IS A SPINE, NOT A GLYPH. State was a 10px character in a 14px column — unreadable at a
+// glance, which is the only way anybody reads a ledger. It is a coloured spine down the left of
+// the row now, so the column of states is legible before any text resolves.
 //
-// WHAT IS KEPT. The three run scopes (arc, objective, plan) land on the hub's three scopes
-// unchanged, exactly as the map's menu did — no new vocabulary, because the old one was right.
-// The station chips, the claims-beside-specs distinction, and the state colour tokens are the
-// page's own and are carried over verbatim. What is dropped is the fan: the geometry, the menu,
-// and the wrapping.
+// AND THERE IS NO GREEN ON IT. Green carried "objective finished" AND "spec passed" and made the
+// whole surface one wash of the same hue — his verdict twice over. The vocabulary now:
 //
-// THE SHAPE INSTEAD. Rows, because an objective is a line of facts and a line is what reads at a
-// glance; one segmented bar above them, because the plan has a SHAPE and a single percentage hides
-// it; and the stoppers lifted out of the rows and said first, because "where is it" and "what is
-// stopping it" are two questions and only the second one is actionable.
+//   VIOLET  the accent, and the only positive ink — progress, a finished objective, a spec that
+//           passed. One colour for "this is good", so a filled thing is good wherever it appears.
+//   CORAL   failed, or a dependency that cannot be resolved
+//   CYAN    moving right now
+//   AMBER   blocked — somebody has to do something
+//   SLATE   untouched
 //
-//   plan       — `arcPlan.planOf(source, { byObj, arcRow })`, whole. ONE composition: the header's
-//                percent, the bar's segments and every row's fill are the same field read three
-//                times, which is the only way two numbers can be stopped from disagreeing.
-//   stoppers   — `arcPlan.stoppersOf(plan)`
-//   marks      — `{ [specKey]: "queued"|"running"|"pass"|"fail" }` off `utils/proofsBus`. The SAME
-//                map the proofs panel's cards read, which is what makes the two surfaces agree by
-//                construction rather than by being kept in step.
-//   onRun({ kind, id })  — the runner; the promise is not awaited here because the marks say more
-//                          than a spinner can.
-//   onOpen({ project, path, line })  — open a document, optionally at a line
-//   onJump(id) — scroll to an objective's own block in the document this ledger indexes
+//   plan      — `arcPlan.planOf(source, { byObj, arcRow })`, whole
+//   stoppers  — `arcPlan.stoppersOf(plan)`, folded back onto the row each one stops
+//   marks     — `{ [specKey]: "running"|"pass"|"fail" }` from `utils/proofsBus`; the same map the
+//               side panel's cards write as they run, which is why a run button turns green or
+//               red without this component knowing a run exists
+//   onRun({ kind, id }) · onOpen({ project, path, line })
+//   onClear()  — take the results back off. A run left every control green for the rest of the
+//                session with nothing anywhere to undo it, which makes a stale green indis-
+//                tinguishable from a fresh one.
+//   A ROW OPENS. The plans serving an objective are the detail, and seven objectives' worth of
+//   them at once is a wall — so a row carries its headline (where it is, what is stopping it) and
+//   OPENS to show what it is made of. The spine still signs; the line opens.
+//
 
-const pctOf = (f) => `${Math.round((f || 0) * 100)}%`;
+// THE STATE IS A WORD. It was a glyph — a tick, then a fill gauge — and both times the answer was
+// the same: *"what do these symbols mean? They don't mean anything to me."* A shape has to be
+// learned before it says anything, and nothing on this surface teaches it. A word is read.
+//
+// It is also not a checkbox and not pressable: an objective completes when the plans attached to
+// it settle, so a press here would be a hand overruling a derivation.
+const toneOf = (o) => (o.cycle ? "cycle" : o.state === "done" ? "done" : o.ready ? "ready" : o.state || "open");
+const wordOf = (o) =>
+  o.cycle ? "cycle" : o.state === "doing" ? "in progress" : o.ready ? "ready" : o.state || "open";
 
-// The written state is `doing`; the surface says `progress` (his call, 2026-10-28) — a display
-// word, never a second state. `ready` is not a state either: it is the derived frontier, every
-// claim met and nobody has pressed done, and it earns a word because it is the row to act on.
-const wordOf = (o) => {
-  if (o.cycle) return "cycle";
-  if (o.state === "doing") return "progress";
-  if (o.ready) return "ready";
-  return o.state || "open";
+const specsOf = (o) => (o.plans || []).flatMap((p) => p.specRows || []);
+
+
+/**
+ * THE WORST THING UNDER A GROUP, so one control can speak for many — red wins, then moving.
+ *
+ * PART-RUN IS NOT RUNNING. The last line used to read `had.length === keys.length ? "pass" :
+ * "running"`, which made "some of these have results and the rest do not" indistinguishable from
+ * "something is executing right now". Run one row's single spec in a seven-spec arc and the arc's
+ * own control pulsed blue for the rest of the session over a machine doing nothing — a surface
+ * reporting work that was not happening. Nothing moving means nothing moving; a group that is
+ * only partly answered has not all passed and is not going, so it says neither.
+ */
+const rollup = (keys, marks) => {
+  const had = keys.map((k) => marks[k]).filter(Boolean);
+  if (!had.length) return "";
+  if (had.includes("fail")) return "fail";
+  if (had.includes("running")) return "running";
+  return had.length === keys.length ? "pass" : "";
 };
-const toneOf = (o) => (o.cycle ? "cycle" : o.ready && o.state !== "done" ? "ready" : o.state || "open");
 
-/** One spec, as a dot that is also its own run button. Title says which spec and what it did. */
-const Dot = ({ spec, status, onRun, onOpen }) => (
-  <button
-    type="button"
-    className={`sv-ledger__dot${status ? ` is-${status}` : ""}`}
-    title={`${spec.name}${spec.claim ? ` — defends ${spec.claim}` : ""}\n${
-      status === "pass" ? "passed" : status === "fail" ? "FAILED" : status === "running" ? "running now" : status === "queued" ? "queued" : "not run in this window"
-    }\nclick to run it · shift-click to open the block`}
-    onClick={(e) => (e.shiftKey ? onOpen && onOpen(spec) : onRun && onRun(spec))}
-  >
-    <span className="sv-ledger__dot-ink" />
-  </button>
+// THE DOCUMENT MARK. A plan is a document, and the one shape nobody has to be told is a page —
+// so it is drawn as one: a leaf with a folded corner and ruled lines, the rules shortening at the
+// fold the way text in a real page does. It carries the plan's own station as its tint, which is
+// what lets a column of cards be scanned for "what is still a draft" without reading a word.
+const DocMark = ({ station = "draft" }) => (
+  <svg className={`pl__doc is-${station}`} viewBox="0 0 22 26" aria-hidden="true">
+    <path
+      className="pl__doc-leaf"
+      d="M2.5 1.5h11l6 6v17a1 1 0 0 1-1 1h-16a1 1 0 0 1-1-1v-22a1 1 0 0 1 1-1z"
+      strokeWidth="1.4"
+      strokeLinejoin="round"
+    />
+    <path className="pl__doc-fold" d="M13.5 1.5v6h6" fill="none" strokeWidth="1.4" strokeLinejoin="round" />
+    <g className="pl__doc-rule" strokeWidth="1.4" strokeLinecap="round">
+      <path d="M6 11.5h6" />
+      <path d="M6 15.5h10" />
+      <path d="M6 19.5h10" />
+    </g>
+  </svg>
 );
 
-/** The ▶ that runs a scope, wearing the state of everything under it. */
-const RunBtn = ({ label, state, onClick, title }) => (
+// A CLAIM IS `c`. The glyph drawn for it meant nothing — his: *"that symbol for claims don't mean
+// nothing, we usually just put c in front of claims, we've been doing that."* Claim ids ARE `c1`,
+// `c2` throughout; the letter is the system's own name for the kind and needs no learning.
+const ClaimMark = () => <i className="pl__kind">c</i>;
+
+const SAID = { pass: "passed", fail: "FAILED", running: "running now", "": "not run in this window" };
+
+/**
+ * THE SPEC MARK — the dot, saying these are specs and filling with how they last went. Hollow
+ * until something runs them, then green, red, or filled and pulsing. Not a control: the triangle
+ * beside it is, and it fills the same way.
+ */
+const SpecDot = ({ tone }) => <span className={`pl__dot${tone ? ` is-${tone}` : ""}`} aria-hidden="true" />;
+
+/**
+ * THE PLAY — the dot's behaviour, on the play's shape. THE SHAPE FILLS, not a box behind it: the
+ * dot was a hollow ring that took a fill when it ran, and the first attempt at this moved that
+ * onto the button's CONTAINER — a rounded rectangle that changed background and threw a halo —
+ * which is a different thing wearing the same colours. There is no container. An outlined
+ * triangle, hollow until something runs it, filled green or red by what happened, and taking the
+ * accent on hover exactly as the ring did.
+ */
+const Play = ({ tone, title, onRun, onOpen }) => (
   <button
     type="button"
-    className={`sv-ledger__run${state ? ` is-${state}` : ""}`}
+    className={`pl__play${tone ? ` is-${tone}` : ""}`}
     title={title}
-    onClick={onClick}
-    disabled={!onClick || state === "running" || state === "queued"}
+    onClick={(e) => (e.shiftKey && onOpen ? onOpen() : onRun && onRun())}
   >
-    {/* THE CONTROL NEVER CHANGES SIZE. `queued` used to render a bare "·" and the button
-        collapsed to a sliver — a control that shrinks the moment a run reaches it. The state is
-        in the ring and the colour; the glyph only changes for the one that is actually moving. */}
-    {state === "running" ? "⟳" : "▶"}
-    {label ? <span className="sv-ledger__run-label">{label}</span> : null}
+    {/* AN OUTLINE THAT FILLS — the dot's whole behaviour, on the play's shape. Drawn as a path
+        rather than a CSS border-triangle because a border triangle cannot be hollow, and hollow
+        is the half that carries the meaning: nothing has run this yet. */}
+    <svg viewBox="0 0 18 18" aria-hidden="true">
+      <path d="M5 3.4 14.6 9 5 14.6z" strokeWidth="1.6" strokeLinejoin="round" />
+    </svg>
   </button>
 );
 
-const PlanLedger = ({ plan, stoppers = [], marks = {}, onRun, onOpen, onJump, className = "" }) => {
-  const { arc, objectives = [], totals = {} } = plan || {};
-  const [open, setOpen] = React.useState(() => new Set());
-  const toggle = (id) =>
-    setOpen((s) => {
-      const next = new Set(s);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+const PlanLedger = ({ className = "", plan, stoppers = [], marks = {}, onRun, onOpen, onClear }) => {
+  // WHICH ROWS ARE OPEN. Several at once, deliberately: comparing two objectives' plans is the
+  // reason to open either of them, and an accordion that shuts one to show another makes that the
+  // one thing you cannot do.
+  const [opened, setOpened] = useState({});
+  const toggle = (id) => setOpened((o) => ({ ...o, [id]: !o[id] }));
+  if (!plan || !plan.objectives) return null;
+  const { arc, objectives, totals } = plan;
+  const { claims = {} } = totals;
 
-  // EVERY SPEC KEY IN THE PLAN, grouped the three ways a run can be scoped — so a control's live
-  // state is the rollup of exactly what pressing it would run, and never an approximation.
-  const keysOfPlan = (p) => (p.specRows || []).map((s) => s.key).filter(Boolean);
-  const keysOfObj = (o) => (o.plans || []).flatMap(keysOfPlan);
-  const allKeys = [...((arc && arc.specRows) || []).map((s) => s.key).filter(Boolean), ...objectives.flatMap(keysOfObj)];
-  const tally = tallyOf(Object.fromEntries(allKeys.filter((k) => marks[k]).map((k) => [k, marks[k]])));
+  // THE STOPPERS GO BACK ON THEIR ROWS. `stoppersOf` sorts them worst-first across the whole plan,
+  // which is right for a summary and wrong for reading a list — so the order is kept within an
+  // objective and the objectives stay in the document's own order. Nobody has to match an id
+  // between two lists to find out why a row is stuck.
+  const allTone = rollup(objectives.flatMap((o) => specsOf(o).map((sp) => sp.key)), marks);
 
-  const runSpec = (spec, planId) => onRun && onRun({ kind: "plan", id: planId, spec });
-  const openSpec = (spec, p) => onOpen && onOpen({ project: p.project, path: p.path, line: spec.line, end: spec.end });
+  const because = new Map();
+  stoppers.forEach((s) => because.set(s.id, [...(because.get(s.id) || []), s]));
 
-  if (!objectives.length)
-    return <div className={`sv-ledger sv-ledger--empty${className ? ` ${className}` : ""}`}>no objectives in this document yet</div>;
 
   return (
-    <div className={`sv-ledger${className ? ` ${className}` : ""}`}>
-      {/* ── THE ONE NUMBER ───────────────────────────────────────────────────────────────────
-          It is `totals.pct` and nothing else computes a percent anywhere on this surface. The
-          bar below is the same value spread over its segments, and each row's fill is the
-          segment it contributed. Two numbers cannot disagree when there is one. */}
-      <div className="sv-ledger__head">
-        <div className="sv-ledger__ident">
-          <span className="sv-ledger__kind">arc</span>
-          <code>{(arc && arc.id) || "this plan"}</code>
-          {arc && arc.station ? (
-            <span className={`sv-ledger__station is-${arc.station}`}>{arc.station === "inProgress" ? "in progress" : arc.station}</span>
+    <div className={`pl ${className}`.trim()}>
+      {/* THE HEADER IS A BLOCK, THE BODY IS A LIST. Two different jobs: the summary is the one
+          thing read every time the document is opened, so it gets room; the rows are scanned, and
+          an arc with twenty objectives turns any generosity there into a wall. */}
+      <div className="pl__head">
+        <div className="pl__headline">
+          <span className="pl__pct">{totals.pct}%</span>
+          <span className="pl__id">{arc ? arc.id : "plan"}</span>
+          {/* THE ARC'S OWN STATION. It derives UPWARD the same way an objective does — approved is
+              the decision with objectives unplanned, inProgress is every objective planned with a
+              plan still moving, settled is every plan settled. The percent was on screen and the
+              word it belongs to was not. */}
+          {arc && arc.station ? <span className={`pl__station is-${arc.station}`}>{arc.station}</span> : null}
+          {/* THE SAME CONTROL AS EVERY ROW. It was a filled pill twice the height of anything near
+              it, saying the same thing in more space — his: *"this big ass dumb ass button is
+              stupid and unnecessary, make them the same."* One control for "run these specs",
+              wherever it appears, so its colour and its hover mean one thing everywhere. */}
+          <span className={`pl__n${totals.specs ? "" : " is-none"}`} title={`${totals.specs} specs in this arc`}>
+            <SpecDot tone={allTone} />
+            {totals.specs}
+          </span>
+          {/* TAKE IT BACK OFF. Only offered once something has actually run — a clear with nothing
+              to clear is a control that does nothing, which teaches you to stop reading it. */}
+          {onClear && allTone ? (
+            <button type="button" className="pl__clear" title="clear these results" onClick={onClear}>
+              clear
+            </button>
           ) : null}
-          {arc && arc.title ? <span className="sv-ledger__arctitle">{arc.title}</span> : null}
+          {arc && totals.specs ? (
+            <Play
+              tone={allTone}
+              title={`run all ${totals.specs} specs in ${arc.id}, in the side panel\n${SAID[allTone || ""]}`}
+              onRun={() => onRun && onRun({ kind: "arc", id: arc.id })}
+            />
+          ) : null}
         </div>
-        <div className="sv-ledger__figure">
-          <b>{totals.pct}%</b>
-          <span>of the plan</span>
+        <div className="pl__bar" aria-hidden="true">
+          <i style={{ width: `${totals.pct}%` }} />
         </div>
-        <RunBtn
-          label={`run ${totals.specs} spec${totals.specs === 1 ? "" : "s"}`}
-          state={rollupOf(allKeys, marks)}
-          title="run every spec in this arc and its plans"
-          onClick={onRun && arc ? () => onRun({ kind: "arc", id: arc.id }) : undefined}
-        />
+        {/* SETTLED IS THE WORD. A bare `1/7 · 5/16` says two fractions and leaves the reader to
+            guess what the numerator counts. Settled is what the system already calls a finished
+            objective and a walked claim, so the label is the vocabulary rather than a new one. */}
+        <div className="pl__meta">
+          <span className="pl__meta-label">settled</span>
+          <span>
+            <b>{totals.complete}</b> of {totals.objectives} objectives
+          </span>
+          {claims.total ? (
+            <span>
+              <b>{claims.met}</b> of {claims.total} claims
+            </span>
+          ) : null}
+          {totals.blocked ? <span className="is-warn">{totals.blocked} blocked</span> : null}
+          {totals.unplanned ? <span className="is-warn">{totals.unplanned} with no plan</span> : null}
+        </div>
       </div>
 
-      <div className="sv-ledger__facts">
-        <span>
-          <b>{totals.objectives}</b> objectives
-        </span>
-        <span className="is-done">
-          <b>{totals.complete}</b> done
-        </span>
-        {totals.doing ? (
-          <span className="is-doing">
-            <b>{totals.doing}</b> in progress
-          </span>
-        ) : null}
-        {totals.ready ? (
-          <span className="is-ready" title="every claim met and nobody has marked it done — the frontier">
-            <b>{totals.ready}</b> ready
-          </span>
-        ) : null}
-        {totals.blocked ? (
-          <span className="is-blocked">
-            <b>{totals.blocked}</b> blocked
-          </span>
-        ) : null}
-        {totals.unplanned ? (
-          <span className="is-unplanned" title="an objective with no plan attached is incomplete, not empty">
-            <b>{totals.unplanned}</b> unplanned
-          </span>
-        ) : null}
-        <span className="sv-ledger__facts-gap" />
-        <span title="claims agreed and checked, summed over every plan in this arc">
-          <b>
-            {(totals.claims || {}).met}/{(totals.claims || {}).total}
-          </b>{" "}
-          claims
-        </span>
-        {/* SPECS ARE NOT CLAIMS, and the two were being conflated into one number. A claim is what
-            was agreed and checked once; a spec is what re-runs and can go red on its own. */}
-        <span title="specs collected under this arc — what re-runs">
-          <b>{totals.specs}</b> specs
-        </span>
-        {tally.total ? (
-          <span className="sv-ledger__tally">
-            {tally.pass ? <i className="is-pass">✓ {tally.pass}</i> : null}
-            {tally.fail ? <i className="is-fail">✗ {tally.fail}</i> : null}
-            {tally.running ? <i className="is-running">⟳ {tally.running}</i> : null}
-            {tally.queued ? <i className="is-queued">· {tally.queued} queued</i> : null}
-          </span>
-        ) : null}
-      </div>
-
-      {/* ── THE PLAN AS ONE OBJECT ───────────────────────────────────────────────────────────
-          One segment per objective, each filled by its own claims. A single percentage says how
-          far; this says WHERE — which chunks are finished, which are empty, and that an unplanned
-          objective is a gap in the plan rather than a thing that is simply absent from it. */}
-      <div className="sv-ledger__bar">
-        {objectives.map((o) => (
-          <button
-            type="button"
-            key={o.id}
-            className={`sv-ledger__seg is-${toneOf(o)}${o.unplanned ? " is-unplanned" : ""}`}
-            title={`${o.id} — ${o.title || "untitled"}\n${wordOf(o)} · ${
-              o.unplanned ? "no plan attached" : o.claims.total ? `${o.claims.met}/${o.claims.total} claims` : "nothing claimed yet"
-            }`}
-            onClick={() => onJump && onJump(o.id)}
-          >
-            <i style={{ width: pctOf(o.fraction) }} />
-          </button>
-        ))}
-      </div>
-
-      {/* ── WHAT IS STOPPING IT ──────────────────────────────────────────────────────────────
-          Said in sentences, worst first, where it can be read. The `blocked=` reason used to be a
-          `title=` hover on a ten-pixel word; a dependency that could not be resolved was not on
-          the screen at all. Nothing here when nothing is stuck — an empty strip reading "nothing
-          is blocked" is furniture. */}
-      {stoppers.length ? (
-        <div className="sv-ledger__stoppers">
-          <div className="sv-ledger__stoppers-head">
-            what is stopping it <b>{stoppers.length}</b>
-          </div>
-          <ul>
-            {stoppers.map((s, i) => (
-              <li key={`${s.id}-${i}`} className={`is-${s.kind}`}>
-                <button type="button" className="sv-ledger__stopper-at" onClick={() => onJump && onJump(s.id)} title={`jump to ${s.id}`}>
-                  {s.id}
-                </button>
-                <span className="sv-ledger__stopper-kind">{s.kind}</span>
-                <span className="sv-ledger__stopper-text">{s.text}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-
-      {/* ── A ROW PER OBJECTIVE ──────────────────────────────────────────────────────────────
-          The order column appears only when `needs=` really ordered something. Most arcs declare
-          none — MOCK-ARC has none — and a column of 1s would imply a sequence nobody wrote. */}
-      <ul className="sv-ledger__rows">
+      <ul className="pl__rows">
         {objectives.map((o) => {
-          const keys = keysOfObj(o);
-          const state = rollupOf(keys, marks);
-          const isOpen = open.has(o.id);
+          const stops = because.get(o.id) || [];
+          const open = !!opened[o.id];
+          const specCount = specsOf(o).length;
+          const specTone = rollup(specsOf(o).map((sp) => sp.key), marks);
           return (
-            <li key={o.id} className={`sv-ledger__row${isOpen ? " is-open" : ""}`}>
-              <div className="sv-ledger__line">
-                <button
-                  type="button"
-                  className="sv-ledger__fold"
-                  onClick={() => toggle(o.id)}
-                  title={o.plans.length ? `${o.plans.length} plan${o.plans.length === 1 ? "" : "s"}` : "no plan attached"}
-                  disabled={!o.plans.length}
-                >
-                  {o.plans.length ? (isOpen ? "▾" : "▸") : "·"}
-                </button>
-                {totals.ordered ? (
-                  <span className="sv-ledger__rank" title={`dependency depth ${o.rank} — nothing above it can start later`}>
-                    {o.rank}
-                  </span>
-                ) : null}
-                <button type="button" className="sv-ledger__id" onClick={() => onJump && onJump(o.id)} title={`jump to ${o.id}`}>
-                  {o.id}
-                </button>
-                <span className={`sv-ledger__state is-${toneOf(o)}`}>{wordOf(o)}</span>
-                <span className="sv-ledger__title">{o.title || <i>untitled</i>}</span>
-                {o.owner ? <span className="sv-ledger__owner">{o.owner}</span> : <span className="sv-ledger__owner is-unowned">unowned</span>}
-                <span className="sv-ledger__mini" title={o.claims.total ? `${o.claims.met}/${o.claims.total} claims met` : "nothing claimed yet"}>
-                  <i style={{ width: pctOf(o.fraction) }} />
-                </span>
-                <span className="sv-ledger__claims">
-                  {o.unplanned ? <em>no plan</em> : o.claims.total ? `${o.claims.met}/${o.claims.total}` : <em>unclaimed</em>}
-                </span>
-                {/* THE SPECS OF THIS OBJECTIVE, one dot each, lit by the run. A dot is what makes
-                    the run visible without opening anything: six dots going amber then green left
-                    to right is the run, drawn. */}
-                <span className="sv-ledger__dots">
-                  {o.plans.flatMap((p) => (p.specRows || []).map((s) => <Dot key={s.key} spec={s} status={marks[s.key]} onRun={() => runSpec(s, p.id)} onOpen={() => openSpec(s, p)} />))}
-                </span>
-                <RunBtn state={state} title={`run every spec under ${o.id}`} onClick={onRun && keys.length ? () => onRun({ kind: "objective", id: o.id }) : undefined} />
-              </div>
+            <li key={o.id} className={`pl__row is-${toneOf(o)}`}>
+              <span className="pl__state">{wordOf(o)}</span>
 
-              {/* THE REASON, IN THE ROW. Not a hover, and not only in the strip above — the strip
-                  answers "what is stopping the plan", this answers "what is stopping THIS", and a
-                  reader scanning rows should not have to look back up. */}
-              {o.state === "blocked" || o.cycle || (o.waits || []).length ? (
-                <div className="sv-ledger__why">
-                  {o.cycle ? <span className="is-cycle">in a dependency cycle</span> : null}
-                  {o.state === "blocked" ? <span className="is-blocked">{o.because || "marked blocked, with no reason written down"}</span> : null}
-                  {(o.waits || []).map((w, i) => (
-                    <span key={i} className={`is-${w.kind}`}>
-                      {w.to ? (
-                        <button type="button" className="sv-ledger__waitlink" onClick={() => onJump && onJump(w.to)}>
-                          {w.text}
+              {/* THE LINE OPENS THE ROW — it does not navigate. What it shows is what this
+                  objective is made of, in place. */}
+              <button
+                type="button"
+                className="pl__title"
+                aria-expanded={open}
+                title={open ? "close" : o.plans.length ? `show the ${o.plans.length === 1 ? "plan" : `${o.plans.length} plans`} serving this` : "show the detail"}
+                onClick={() => toggle(o.id)}
+              >
+                <span className="pl__row-id">{o.id}</span>
+                <span className="pl__row-text">{o.title}</span>
+                {o.owner ? <span className="pl__owner">{o.owner}</span> : null}
+              </button>
+
+              {/* A COUNT NEEDS A LABEL, NOT A SENTENCE. `2/6` named nothing; `2 of 6 claims` named
+                  it and tripled the width of a row built to be scanned. The fraction was never the
+                  problem — the missing noun was. So the noun goes in FRONT and stays short, and
+                  where a glyph already means the thing it is used instead of a word: a plan is a
+                  document, and the page mark says that without spending a column on it. */}
+              <span
+                className={`pl__n${o.plans.length ? "" : " is-none"}`}
+                title={`${o.plans.length} ${o.plans.length === 1 ? "plan serves" : "plans serve"} this objective`}
+              >
+                <DocMark station={o.plans.length ? "approved" : "draft"} />
+                {o.plans.length}
+              </span>
+              {/* A COUNT NEEDS ITS NOUN, AND A MARK IS A SHORTER NOUN THAN A WORD. `2 of 6 claims`
+                  named it and tripled the width of a row built to be scanned; a bare `2/6` named
+                  nothing. The glyph says which kind and the fraction stays a fraction. */}
+              <span
+                className={`pl__n${o.claims.total ? "" : " is-none"}`}
+                title={`${o.claims.met} of ${o.claims.total} claims settled across every plan serving this objective`}
+              >
+                <ClaimMark />
+                {o.claims.total ? `${o.claims.met}/${o.claims.total}` : "0"}
+              </span>
+              <span
+                className={`pl__n${specCount ? "" : " is-none"}`}
+                title={`${specCount} ${specCount === 1 ? "spec" : "specs"} across this objective's plans${specTone ? ` — last run: ${SAID[specTone]}` : ""}`}
+              >
+                <SpecDot tone={specTone} />
+                {specCount}
+              </span>
+              {specCount ? (
+                <Play
+                  tone={specTone}
+                  title={`run this objective's ${specCount} ${specCount === 1 ? "spec" : "specs"} in the side panel\n${SAID[specTone || ""]}`}
+                  onRun={() => onRun && onRun({ kind: "objective", id: arc ? `${arc.id}-${o.id}` : o.id })}
+                />
+              ) : (
+                <span className="pl__play-gap" />
+              )}
+
+              {open && o.plans.length ? (
+                <ul className="pl__plans">
+                  {o.plans.map((p) => {
+                    const keys = (p.specRows || []).map((r) => r.key);
+                    const ptone = rollup(keys, marks);
+                    return (
+                      <li key={p.id} className={`pl__plan${p.stale ? " is-stale" : ""}${ptone ? ` has-${ptone}` : ""}`}>
+                        <button
+                          type="button"
+                          className="pl__plan-open"
+                          title={`open ${p.id}${p.title ? ` — ${p.title}` : ""}`}
+                          onClick={() => onOpen && onOpen({ project: p.project, path: p.path })}
+                        >
+                          <DocMark station={p.station || "draft"} />
+                          <span className="pl__plan-id">{p.id}</span>
+                          {p.title ? <span className="pl__plan-title">{p.title}</span> : null}
                         </button>
-                      ) : (
-                        w.text
-                      )}
-                    </span>
-                  ))}
-                </div>
+                        <span className={`pl__station is-${p.station || "draft"}`}>{p.station || "draft"}</span>
+                        <span className="pl__gap" />
+                        <span
+                          className={`pl__n${p.total ? "" : " is-none"}`}
+                          title={`${p.met} of ${p.total} claims settled in ${p.id}`}
+                        >
+                          <ClaimMark />
+                          {p.total ? `${p.met}/${p.total}` : "0"}
+                        </span>
+                        <span
+                          className={`pl__n${(p.specRows || []).length ? "" : " is-none"}`}
+                          title={`${(p.specRows || []).length} in ${p.id}${ptone ? ` — last run: ${SAID[ptone]}` : ""}`}
+                        >
+                          <SpecDot tone={ptone} />
+                          {(p.specRows || []).length}
+                        </span>
+                        {(p.specRows || []).length ? (
+                          <Play
+                            tone={ptone}
+                            title={`run ${p.id} — ${p.specRows.length} ${p.specRows.length === 1 ? "spec" : "specs"}, in the side panel\n${SAID[ptone || ""]}\nshift-click to open the document`}
+                            onRun={() => onRun && onRun({ kind: "document", id: p.id })}
+                            onOpen={() => onOpen && onOpen({ project: p.project, path: p.path })}
+                          />
+                        ) : (
+                          <span className="pl__play-gap" />
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
               ) : null}
 
-              {isOpen ? (
-                <ul className="sv-ledger__plans">
-                  {o.plans.map((p) => (
-                    <li key={p.id}>
-                      <button type="button" className="sv-ledger__plan-id" onClick={() => onOpen && onOpen({ project: p.project, path: p.path })} title={`open ${p.id}`}>
-                        {p.id}
-                      </button>
-                      <span className={`sv-ledger__station is-${p.station || "draft"}`}>{p.station === "inProgress" ? "in progress" : p.station || "draft"}</span>
-                      {p.stale ? <span className="sv-ledger__stale" title="edited since the last parse — this inventory may be behind">stale</span> : null}
-                      <span className="sv-ledger__plan-claims">{p.total ? `claims ${p.met}/${p.total}` : "no claims yet"}</span>
-                      <span className="sv-ledger__dots">
-                        {(p.specRows || []).map((s) => (
-                          <Dot key={s.key} spec={s} status={marks[s.key]} onRun={() => runSpec(s, p.id)} onOpen={() => openSpec(s, p)} />
-                        ))}
-                      </span>
-                      <RunBtn state={rollupOf(keysOfPlan(p), marks)} title={`run ${p.id}'s specs`} onClick={onRun ? () => onRun({ kind: "plan", id: p.id }) : undefined} />
+              {/* THE REASON, IN THE SENTENCE IT WAS WRITTEN IN. It used to reach the screen only
+                  as a `title=` hover on a ten-pixel word, which is the same as not reaching it. */}
+              {stops.length ? (
+                <ul className="pl__why">
+                  {stops.map((s, i) => (
+                    <li key={i} className={`is-${s.kind}`}>
+                      {s.text}
+                      {s.to ? <span className="pl__to">{s.to}</span> : null}
                     </li>
                   ))}
                 </ul>
@@ -323,17 +332,6 @@ const PlanLedger = ({ plan, stoppers = [], marks = {}, onRun, onOpen, onJump, cl
           );
         })}
       </ul>
-
-      {arc && (arc.specRows || []).length ? (
-        <div className="sv-ledger__own">
-          <span>the arc's own specs</span>
-          <span className="sv-ledger__dots">
-            {arc.specRows.map((s) => (
-              <Dot key={s.key} spec={s} status={marks[s.key]} onRun={() => onRun && onRun({ kind: "plan", id: arc.id, spec: s })} onOpen={() => onOpen && onOpen({ project: arc.project, path: arc.path, line: s.line, end: s.end })} />
-            ))}
-          </span>
-        </div>
-      ) : null}
     </div>
   );
 };

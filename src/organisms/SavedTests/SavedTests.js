@@ -51,6 +51,20 @@ const SavedTests = ({
   // the live one, happening in front of you — and this fills in when there is none.
   onCardResult = null,
   statusOf = null,
+  // SOMEBODY ELSE PRESSED RUN ALL. A document's ▶ is not a second runner — it is this list's own
+  // ▶ Run all, asked for from somewhere the button is not. Change this token and the list runs
+  // itself, card by card, exactly as a press here would. `onAutoRun` reports back when the
+  // sequence is over, because the asker has a surface of its own that has to stop saying "running".
+  autoRunKey = null,
+  onAutoRun = null,
+  // CLEAR IS NOT ONLY THIS LIST'S. These cards' results are mirrored by whatever asked for the
+  // run — a document's ledger reading the same marks — so wiping them here has to say so, or the
+  // other surface keeps showing a result the board no longer holds.
+  onClearAll = null,
+  // CLEARED FROM SOMEWHERE ELSE. The same shape as `autoRunKey`: change the token and this list
+  // drops its results, so a clear pressed in a document reaches the cards the document is
+  // watching rather than only the map it reads.
+  clearKey = null,
 }) => {
   const [results, setResults] = useState({});
   const [filter, setFilter] = useState(null); // null | "pass" | "fail" — click the summary to filter
@@ -77,8 +91,13 @@ const SavedTests = ({
         .join("\n"),
     [savedTests]
   );
+  // IT DOES NOT CLEAR THE REFS, and that line was the whole of "pressing run in a document does
+  // nothing". Ref callbacks fire during COMMIT, before effects — so a render that brought a new
+  // list attached every card's ref and then this effect, running immediately after, threw them
+  // all away. `runAllSeq` walks `storyRefs.current`; with it emptied there was nothing to drive,
+  // the specs sat queued forever, and nothing anywhere said so. React nulls a ref on unmount by
+  // itself and `runAllSeq` already filters, so the wipe was never needed.
   useEffect(() => {
-    storyRefs.current = [];
     setResults({});
     setFilter(null);
   }, [testsKey]);
@@ -99,10 +118,44 @@ const SavedTests = ({
       if (refs[i] && refs[i].run) await refs[i].run();
     }
   }, []);
-  const clearAllSeq = useCallback(() => {
+  // THE ASK, HONOURED ONCE. Refs attach on render, so the list may be on screen a frame before it
+  // can be driven — hence the wait for cards rather than for the token alone. A token already
+  // served is never served twice: a re-render with the same one must not re-run the list.
+  // NO TIMER AND NO CLEANUP, deliberately. The first version deferred the kick by 60ms to let the
+  // card refs attach — and `onAutoRun` is an inline arrow, so every re-render gave this effect a
+  // new identity, ran the previous cleanup, and cleared that timer before it ever fired. The run
+  // never started, nothing ever reported "done", and the asking surface sat on "running…" for the
+  // rest of the session. Refs are attached by the time an effect runs; the wait bought nothing and
+  // cost the whole feature.
+  const served = useRef(null);
+  useEffect(() => {
+    if (!autoRunKey || served.current === autoRunKey || !savedTests.length) return;
+    served.current = autoRunKey;
+    (async () => {
+      if (onAutoRun) onAutoRun("started");
+      await runAllSeq();
+      if (onAutoRun) onAutoRun("done");
+    })();
+  }, [autoRunKey, savedTests.length, runAllSeq, onAutoRun]);
+
+  const clearCards = useCallback(() => {
     storyRefs.current.filter(Boolean).forEach((r) => r.clear && r.clear());
+    setResults({});
     setFilter(null);
   }, []);
+  // The press HERE also tells whoever else is showing these results; a clear arriving from there
+  // only clears the cards, so the two can never bounce off each other.
+  const clearAllSeq = useCallback(() => {
+    clearCards();
+    if (onClearAll) onClearAll();
+  }, [clearCards, onClearAll]);
+
+  const clearedAt = useRef(null);
+  useEffect(() => {
+    if (!clearKey || clearedAt.current === clearKey) return;
+    clearedAt.current = clearKey;
+    clearCards();
+  }, [clearKey, clearCards]);
 
   // RFC-029 `act` — the agent presses the same play you would, HERE where tests live: one test
   // (matched by namespace or title) or `all`, results landing in the rows in front of you. The
@@ -321,7 +374,6 @@ export function SavedTestItem({ test, index, status, hidden, connectedServices, 
   // QUEUED — in scope of a run that has started and whose turn has not come. It only ever arrives
   // from outside (the bus, when a run was started somewhere else), and it has to be visible or a
   // card sitting in a live run is indistinguishable from one nobody asked for.
-  const queued = status === "queued";
   const ran = status === "pass" || status === "fail";
   const failed = status === "fail";
   const ns = test.namespace || {};
@@ -415,8 +467,6 @@ export function SavedTestItem({ test, index, status, hidden, connectedServices, 
           )}
           {running ? (
             <span className="test-saved-section__badge is-running"><span className="test-story__spinner" />running</span>
-          ) : queued ? (
-            <span className="test-saved-section__badge is-queued">queued</span>
           ) : ran ? (
             <span className={`test-saved-section__badge ${failed ? "is-fail" : "is-pass"}`}>{failed ? "failed" : "passed"}</span>
           ) : null}

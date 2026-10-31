@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useDocMembers, useMarkdownWrite } from "../context";
 import { normalizeState, normalizeKind, ordinalOf, claimAt } from "../claims";
+import { owesOf } from "../claimRows";
 
 // `::claim[do this → this should happen]{id=…}` — a statement somebody can check, and the mark.
 //
@@ -44,9 +45,11 @@ const Claim = ({ attrs = {}, kind, label, line, children }) => {
   };
   const n = ordinalOf(source, line);
   const statement = String(label || "").trim();
-  // WHAT THIS CLAIM OWES, on the claim itself. A behavioural claim owes a living spec — a defence
-  // the change loop runs without anybody remembering to — and one marked met with nothing in its
-  // fold but a screenshot or a grep is a commitment defended by nobody once the conversation ends.
+  // WHAT THIS CLAIM OWES, on the claim itself. A behavioural claim owes a SPEC — a defence the
+  // change loop runs without anybody remembering to — and one marked met with nothing in its fold
+  // but a screenshot or a grep is a commitment defended by nobody once the conversation ends.
+  // (The LIVING SPEC is this whole arrangement, the claim carrying its proof; the spec is the part
+  // that re-runs. Naming the missing part "a living spec" named the wrong thing.)
   // So the row says it, quietly, rather than reading identical to a claim that is actually held.
   // An experiential claim says what it is instead: his eye IS the instrument, no spec will exist,
   // and that is honest rather than missing.
@@ -111,6 +114,11 @@ const Claim = ({ attrs = {}, kind, label, line, children }) => {
   const cls = `md-claim${mark.state ? ` md-claim--${mark.state}` : " md-claim--unchecked"}`;
   const word = mark.state === "met" ? "met" : mark.state === "unmet" ? "not met" : "unchecked";
   const ro = !editable ? "Read-only here — this surface has nothing to save to" : "";
+  // One derivation, shared with everything else that reports on a claim.
+  // THE LIVE MARK, not the parsed one. `parsed` is the file as it was read; `mark` is what the
+  // press just wrote and has not been re-parsed yet — so `by` has to come from the mark or his
+  // own press is still read as an agent's and asked for an account it does not owe.
+  const owes = parsed ? owesOf({ ...parsed, state: mark.state, note: mark.note, by: mark.by }) : [];
 
   return (
     <div className={cls} data-claim-id={attrs.id || undefined}>
@@ -234,6 +242,19 @@ const Claim = ({ attrs = {}, kind, label, line, children }) => {
         {mark.state && mark.at ? <span className="md-claim__at">{when(mark.at)}</span> : null}
         {mark.state && mark.note ? <span className="md-claim__note">{mark.note}</span> : null}
       </div>
+      {/* WHAT IT OWES, ON THE CLAIM. These were rows under `::claims` for one build and that was
+          the wrong home twice over: a document with three RFCs' worth of claims grew a wall of
+          them down the page, and the sentence was two hundred pixels from the claim it was about.
+          It belongs here — one line, on the card, where the thing it describes is. */}
+      {owes.length ? (
+        <ul className="md-claim__owes">
+          {owes.map((o, i) => (
+            <li key={i} className={`is-${o.kind}`}>
+              {o.text}
+            </li>
+          ))}
+        </ul>
+      ) : null}
       {/* THE PROOF'S OWN HEADER — a section label at the bottom-left, directly above the fold it
           opens, so pressing it expands in place rather than a chip on the far right opening
           content on the far left. */}

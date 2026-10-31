@@ -3900,11 +3900,29 @@
 .md-progress__label,
 .md-timeline__label {
   margin-bottom: 6px;
-  color: var(--sv-text-faint);
+  // NOT THE DOCUMENT'S FAINT GREEN. `--sv-text-faint` is #42a942 inside a rendered document, and
+  // on a block kind-label it read as a status rather than as a name for the block — green means
+  // "good" everywhere else on this surface. A kind label is a label; it takes quiet type.
+  color: var(--sv-text-muted);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+// THE LEDGER IS THE BLOCK'S BODY, so the block is the only frame. It carries the surface, the
+// edge and the lift; the ledger inside it draws no card of its own.
+.md-progress--ledger {
+  padding: 11px 13px 7px;
+  background: var(--pl-block, #f8f9fd);
+  border-color: var(--pl-block-edge, #e2e7f0);
+  box-shadow: 0 1px 2px rgba(28, 34, 56, 0.05), 0 6px 18px rgba(28, 34, 56, 0.07);
+}
+
+:root.sv-dark .md-progress--ledger {
+  --pl-block: #2f343f;
+  --pl-block-edge: #434a59;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 2px 5px rgba(0, 0, 0, 0.3), 0 12px 28px rgba(0, 0, 0, 0.32);
 }
 
 .md-timeline-wrap {
@@ -3970,6 +3988,30 @@
 
 // WHY IT IS BLOCKED, ON THE BLOCK. A state that cannot say what is holding it leaves every reader
 // to ask, and the first real arc produced exactly that question.
+// WHAT A CLAIM OWES, ON THE CLAIM. Tight: these are read in passing, under a statement somebody
+// is already reading, so they take one line each and no vertical room of their own. The same
+// three hues the rest of the vocabulary uses — amber is a person has to act, red is broken, grey
+// is a hole nobody has filled.
+.md-claim__owes {
+  list-style: none;
+  margin: 1px 0 0;
+  padding: 0 0 0 2px;
+  font-size: 11.5px;
+  line-height: 1.35;
+  color: #c0801c;
+
+  li { padding-left: 14px; text-indent: -14px; }
+  li::before { content: "↳ "; opacity: 0.55; }
+  .is-cycle { color: #cf4436; }
+  .is-unplanned { color: var(--sv-text-muted); }
+  .is-waiting { color: var(--sv-text-muted); }
+}
+
+:root.sv-dark .md-claim__owes {
+  color: #efac47;
+  .is-cycle { color: #ef6f6f; }
+}
+
 .md-objective__blocked {
   margin: 0 0 6px;
   padding: 4px 8px;
@@ -4005,7 +4047,7 @@
   }
 
   &__kind {
-    color: var(--sv-text-faint);
+    color: var(--sv-text-muted);
     font-size: 9.5px;
     font-weight: 700;
     letter-spacing: 0.09em;
@@ -4014,6 +4056,18 @@
 
   &__body { padding: 9px 11px; }
   &__blocked { margin: 9px 11px 0; }
+
+  // GREEN IS NOT A LABEL COLOUR. `--sv-text-faint` is #42a942 inside a rendered document, which is
+  // right for the quiet prose it was chosen for and wrong for every chip in this head: an
+  // objective's kind, its id, its owner and its STATE all rendered the same green, so an `open`
+  // objective read as a passing one and the row carried no information in its colour at all.
+  // Quiet type for the labels; the state words keep their own hues, which is where colour earns
+  // its place.
+  &__owner,
+  &__id,
+  &__need { color: var(--sv-text-muted); }
+
+  &__state { color: var(--sv-text-muted); }
 }
 
 // ── `::claim` and `::claims` — a statement you can check, and the count ─────────────────────────
@@ -4352,6 +4406,13 @@
     gap: 2px;
     min-width: 118px;
     padding: 5px;
+    // THE LIST CAN BE LONG, SO IT SCROLLS. His: *"why are there no reasonable options here? Make
+    // the list a little longer and make it scrollable."* The retention rungs now start at an hour,
+    // which is the commonest real answer for an account and used to require typing into the free
+    // field. A cap rather than a count, so a longer vocabulary later costs nothing here.
+    max-height: 232px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
     border-radius: 9px;
     border: 1px solid var(--sv-border, #3a3f4b);
     background: var(--sv-surface, var(--sv-bg, #1e2127));

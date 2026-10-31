@@ -62,8 +62,9 @@ Notes that matter:
 - **Underscores are never italic** and `a * b` is never italic — identifiers and math stay literal.
 - **Link the thing you're talking about.** "The report is ready" without a `:report` chip is a
   missed click. A report about a file opens with a `:file` chip.
-- **Long content and choices go on the TV** (`mcp__systemview__show`), with one short line in the
-  chat.
+- **Long content and choices go in a DOCUMENT**, with one short line and a `:report` chip in the
+  chat. Write the file with its own leaf, then `mcp__systemview__nav({ projectCode, report })` —
+  there is no TV, and nothing an agent calls may take his screen.
 - **Never tell him to reload.** Tabs update themselves.
 
 ## Reaching another agent
@@ -96,9 +97,7 @@ mcp__systemview__nav({ projectCode, stats: "load" })                // the Stats
 mcp__systemview__highlight({ projectCode, namespace: "Math.add", say: "…" })  // POINT, don't navigate
 mcp__systemview__refresh({ projectCode, scope: "docs" })            // panes re-read — never a reload
 mcp__systemview__act({ projectCode, test: "Math.add", say: "…" })   // run where the human is LOOKING
-mcp__systemview__show({ projectCode, text: "## Look\n::chart{report=throughput}" })  // the TV
-mcp__systemview__show({ projectCode, reportPath: ".systemview/report.<pc>.<Name>.md" })
-mcp__systemview__show({ projectCode, clear: true })
+mcp__systemview__nav({ projectCode, report: ".systemview/report.<pc>.<Name>.md" })  // pull it up
 ```
 
 `nav` is **kind-explicit** — exactly one of `namespace`, `file`, `report`, `stats`, `agents` — and

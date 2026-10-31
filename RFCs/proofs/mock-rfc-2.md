@@ -18,6 +18,10 @@ A fixture's verdict decides nothing; it exists so the chip has a station.
 :::cmd
 grep -c "arc=MOCK-ARC-O3" RFCs/proofs/mock-rfc-2.md
 :::
+:::run{title="MOCK — O3 · the first of two plans"}
+- Math.add { "a": 2, "b": 3 }
+  - results.sum = 5
+:::
 ::::
 
 ::::claim[the second chip stands beside this one]{id=c2 state=met by=systemview-test note="MOCK — two plans, one objective"}
@@ -33,7 +37,3 @@ this plan's proofs means collecting this block. The `:::cmd` blocks above are NO
 cmd is a command to press, and running one headless would execute something nobody pressed and
 call it a passing proof.
 
-:::run{title="MOCK — O3 · the first of two plans"}
-- Math.add { "a": 2, "b": 3 }
-  - results.sum = 5
-:::

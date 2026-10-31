@@ -34,8 +34,11 @@ import "./docarea.scss";
 // ?agent=<id>&doc=doc:<key>|skill:<where>:<name>&scope=<scope> — selection, the open document,
 // and the knowledge filter all round-trip through the query string, so a refresh lands exactly
 // where he left. Same URL-backed discipline Specs already runs on.
-const Context = () => {
-  const { projectCode } = useParams();
+const Context = ({ params = null }) => {
+  // Same reason as the code page: this tree stays mounted while you are over on Specs, so the
+  // address comes in as a prop when there is no match to read it from.
+  const matched = useParams();
+  const { projectCode } = params || matched;
   const history = useHistory();
   const location = useLocation();
 

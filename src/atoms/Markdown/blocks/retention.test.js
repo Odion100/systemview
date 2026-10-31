@@ -1,4 +1,4 @@
-import { parseRetain, spanWords, retainLine } from "./retention";
+import { parseRetain, spanWords, retainLine, tickFor } from "./retention";
 
 // RFC-076 §4.6 — the clock face's one rule set (c44 pins the behaviour in the window; this pins
 // the arithmetic the face and the drawer both read).
@@ -40,6 +40,50 @@ describe("retention", () => {
   it("span words read aloud cleanly", () => {
     expect(spanWords(86400000 * 5)).toBe("5 days");
     expect(spanWords(3600000 * 2)).toBe("2 hours");
-    expect(spanWords(50000)).toBe("a minute");
+    // Fifty seconds is fifty seconds. Rounding it up to "a minute" read cleanly and said something
+    // slightly untrue at the exact moment the number matters most.
+    expect(spanWords(50000)).toBe("50s");
+  });
+});
+
+// THE CLOCK HAS TO BE FELT, which means the number has to be able to move. It was a snapshot taken
+// at render with nothing re-rendering: *"it should be making me feel like, oh, this shit's going
+// away. That's the point."*
+describe("a countdown that actually counts", () => {
+  const S = 1000, M = 60000, H = 3600000, D = 86400000;
+
+  it("carries the finer unit as it closes, so a minute's passing is visible", () => {
+    expect(spanWords(3 * D)).toBe("3 days");
+    expect(spanWords(5 * H + 12 * M)).toBe("5h 12m");
+    expect(spanWords(4 * M + 58 * S)).toBe("4m 58s");
+    expect(spanWords(9 * S)).toBe("9s");
+  });
+
+  it("an exact hour stays words — the finer unit would say nothing", () => {
+    expect(spanWords(H)).toBe("an hour");
+    expect(spanWords(3 * H)).toBe("3 hours");
+  });
+
+  it("the tick is the granularity the WORDS have, never one second for a fortnight", () => {
+    expect(tickFor(14 * D)).toBe(H); // "14 days" — a second's tick would redraw 86,400 times for one digit
+    expect(tickFor(5 * H)).toBe(M);
+    expect(tickFor(4 * M)).toBe(S);
+    expect(tickFor(9 * S)).toBe(S);
+  });
+
+  it("nothing left to count means no ticker at all", () => {
+    expect(tickFor(null)).toBe(null);
+    expect(tickFor(0)).toBe(null);
+    expect(tickFor(-1)).toBe(null);
+  });
+
+  it("the face moves between two reads of the same window — the thing a snapshot could not do", () => {
+    const openedAt = 1_000_000;
+    const win = { retain: "12h", windowMs: 12 * H, openedAt };
+    const a = retainLine({ ...win, now: openedAt + 11 * H });
+    const b = retainLine({ ...win, now: openedAt + 11 * H + 30 * M });
+    expect(a.text).not.toBe(b.text);
+    expect(a.text).toBe("retires in an hour");
+    expect(b.text).toBe("retires in 30m");
   });
 });

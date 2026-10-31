@@ -391,11 +391,17 @@ schemas. Use `probe` to call a method; use `call` when you want the schema-backe
 
 ### Writing where he reads
 
+There is no TV. Something long to read is a DOCUMENT: write the file, give it one leaf, and
+navigate to it. A report is fleeting by construction — its leaf carries a subtype and a retention
+window, and expiring is what it is for.
+
 ```js
-mcp__systemview__show({ projectCode, text })            // put a document on the TV
-mcp__systemview__show({ projectCode, reportPath })      // ...or an existing .md
-mcp__systemview__show({ projectCode, clear: true })     // take it down
-mcp__systemview__tv({ projectCode, show })              // read the TV back, including his answers
+// 1. write the file, with ONE leaf of its own:
+//      ::report{id="<Title>" as=account retain=3d}
+// 2. then pull it up — nav never takes his screen:
+mcp__systemview__nav({ projectCode, report: ".systemview/report.<pc>.<Title>.md" })
+mcp__systemview__nav({ projectCode, file: "src/thing.js" })   // any repo file, #L10-20 works
+mcp__systemview__tv({ projectCode, show })              // read a document back, including his answers
 mcp__systemview__reply({ projectCode, report, threadId, text })
 mcp__systemview__comments({ projectCode, path, at, replyText })
 mcp__systemview__board({ projectCode, name, add, at, replyText })

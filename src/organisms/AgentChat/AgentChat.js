@@ -1420,25 +1420,22 @@ function WorkbandHead({ open, owed = null, blocked = 0, onToggle, onPick }) {
   );
 }
 
-function Whiteboard({ text, writeTs = 0, onWipe, shown = null, onShow = null }) {
+function Whiteboard({ text, onWipe, shown = null, onShow = null }) {
   // THE TOGGLE CAN LIVE SOMEWHERE ELSE. It now has a button at the end of the band's tab row, which
   // is where he asked for it — *"put a button at the end of the tabs for the whiteboard, whiteboard
   // icon, so show and hide it"* — and two toggles for one fold is how a surface starts disagreeing
   // with itself. When `shown` is supplied this is controlled and the head stops being a button.
   const controlled = typeof shown === "boolean";
-  // CLOSED ON ARRIVAL, OPEN ON LIVE WRITE — his rule, fixed properly the second time: comparing
-  // text to its previous value opened on every refresh, because the history batch arrives AFTER
-  // mount and reads as a change. The write's own clock settles it: a stamp older than this view
-  // is history, a newer one is the agent writing while you watch.
+  // CLOSED UNTIL HE OPENS IT — a write never takes the fold. His ruling: *"I'm showing the
+  // whiteboard when you edit it automatically. I don't need to see the whiteboard. It can stay
+  // there and I could open it if I wanted to audit you, but I don't read it, so I don't want it to
+  // open up automatically when you edit it."* The board is the agent's working state and the
+  // audit surface for it; an agent writing to its own notes is not an event that earns his screen,
+  // and a fold that opens itself while he is reading something else is the same interruption
+  // `show` was retired for.
   const [ownOpen, setOwnOpen] = useState(false);
   const open = controlled ? shown : ownOpen;
   const setOpen = controlled ? (v) => onShow && onShow(v) : setOwnOpen;
-  const mountedAt = useRef(Date.now());
-  useEffect(() => {
-    if (controlled) return; // whoever owns the toggle owns the live-write rule too
-    if (text && writeTs > mountedAt.current) setOwnOpen(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [text, writeTs]);
   // Wiping is two-step, the same as every other destructive thing in this app — the armed ×
   // becomes "wipe? yes/no" in place. window.confirm was wrong here and is banned in this codebase
   // (InlineLogs says so in as many words); found AFTER shipping it, his catch.
@@ -8259,7 +8256,7 @@ const countdown = (str, now = Date.now()) => {
               {/* The whiteboard sits UNDER the list — tried on top, he wants to feel this order
                   again. Same area, different job: the list tracks the work, the board holds the
                   conversation. The wipe is the host's, so an erase clears it for both of us. */}
-              <Whiteboard text={work.state.whiteboard} writeTs={work.state.whiteboardTs} onWipe={() => work.wipeWhiteboard()} />
+              <Whiteboard text={work.state.whiteboard} onWipe={() => work.wipeWhiteboard()} />
             </div>
           )}
           {/* Closed, the band IS a label (his words) — the count rides it so "hidden" never looks

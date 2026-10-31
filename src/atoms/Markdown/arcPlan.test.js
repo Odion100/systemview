@@ -71,8 +71,10 @@ describe("one composition, so the two progress numbers cannot disagree", () => {
   it("counts objectives and claims off the SAME rows", () => {
     const { totals } = planOf(MOCK, { byObj: MOCK_PLANS });
     expect(totals.objectives).toBe(7);
-    expect(totals.complete).toBe(1);
-    expect(totals.doing).toBe(1);
+    // NONE are complete: O3 is written `done` and both its plans are merely approved. RFC-076 §2 —
+    // an objective completes when every plan serving it has SETTLED, read off the plans' own rows.
+    expect(totals.complete).toBe(0);
+    expect(totals.doing).toBe(2); // O4, and O3 demoted off its own word
     expect(totals.blocked).toBe(1);
     // the number the chips used to sum to, 200px away from the header's own
     expect(totals.claims).toEqual({ met: 5, total: 16 });
@@ -83,8 +85,8 @@ describe("one composition, so the two progress numbers cannot disagree", () => {
     const p = planOf(MOCK, { byObj: MOCK_PLANS });
     const mean = p.objectives.reduce((n, o) => n + o.fraction, 0) / p.objectives.length;
     expect(p.totals.pct).toBe(Math.round(mean * 100));
-    // 2/6 + 1/1 + done + 0 + 0 + 0 + 0, over seven
-    expect(p.totals.pct).toBe(33);
+    // 2/6 + 1/1 + 2/4 + 0 + 0 + 0 + 0, over seven — O3 counts its CLAIMS, not its typed word
+    expect(p.totals.pct).toBe(26);
   });
 
   it("an unplanned objective is INCOMPLETE, never absent — it holds its segment at zero", () => {
@@ -95,10 +97,41 @@ describe("one composition, so the two progress numbers cannot disagree", () => {
     expect(p.totals.unplanned).toBe(2); // O6 and O7
   });
 
-  it("marked done reads full however few claims its plans agreed — the press is a person's word", () => {
+  it("DONE IS EVERY PLAN SETTLED, never the word the document typed — RFC-076 §2, read upward", () => {
     const o3 = planOf(MOCK, { byObj: MOCK_PLANS }).objectives.find((o) => o.id === "O3");
+    expect(o3.saysDone).toBe(true); // the document says so
+    expect(o3.complete).toBe(false); // its plans do not
     expect(o3.claims).toEqual({ met: 2, total: 4 });
-    expect(o3.fraction).toBe(1);
+    expect(o3.fraction).toBe(0.5); // the evidence, not the assertion
+  });
+
+  it("every plan SETTLED and the objective is complete — nothing else does it, and no press is needed", () => {
+    const plans = byObjOf([
+      rfc("R-1", "A-O1", 2, 2, { state: { verdict: "approved", settled: "2026-10-30", claims: { met: 2, total: 2 } } }),
+      rfc("R-2", "A-O1", 3, 3, { state: { verdict: "approved", settled: "2026-10-30", claims: { met: 3, total: 3 } } }),
+    ]);
+    const src = "::arc{id=A}\n\n:::objective{id=O1 state=open}\nx\n:::\n";
+    const [o] = planOf(src, { byObj: plans }).objectives;
+    expect(o.complete).toBe(true);
+    expect(o.state).toBe("done"); // written `open`, and finished anyway
+    expect(o.fraction).toBe(1);
+  });
+
+  it("ONE plan still unsettled and the objective is not — every, not any", () => {
+    const plans = byObjOf([
+      rfc("R-1", "A-O1", 2, 2, { state: { verdict: "approved", settled: "2026-10-30", claims: { met: 2, total: 2 } } }),
+      rfc("R-2", "A-O1", 0, 3),
+    ]);
+    const src = "::arc{id=A}\n\n:::objective{id=O1 state=done}\nx\n:::\n";
+    const [o] = planOf(src, { byObj: plans }).objectives;
+    expect(o.complete).toBe(false);
+  });
+
+  it("an objective with NO plan can never be complete — there is nothing to settle", () => {
+    const src = "::arc{id=A}\n\n:::objective{id=O1 state=done}\nx\n:::\n";
+    const [o] = planOf(src, {}).objectives;
+    expect(o.complete).toBe(false);
+    expect(o.unplanned).toBe(true);
   });
 
   it("names the frontier: every claim met and still not marked done", () => {
@@ -305,11 +338,16 @@ f
 
   it("WORST FIRST — a cycle, then a written block, then a dependency, then no plan at all", () => {
     const stoppers = stoppersOf(planOf(STUCK, {}));
-    // four of the six objectives are live with no plan attached; the two marked done are not stuck
+    // ALL SIX are unplanned — including the two written `done`, because an objective with no plan
+    // has nothing to settle and the typed word proves nothing. They take `unplanned` rather than
+    // `claimed`: "no plan attached" already says why the word is unsupported, and saying it twice
+    // on one row is noise.
     expect(stoppers.map((s) => s.kind)).toEqual([
       "blocked",
       "waiting",
       "elsewhere",
+      "unplanned",
+      "unplanned",
       "unplanned",
       "unplanned",
       "unplanned",
@@ -338,13 +376,20 @@ f
     });
   });
 
-  it("AN OBJECTIVE MARKED DONE IS NOT STOPPED BY HAVING NO PLAN — that is finished work, not a hole", () => {
+  it("AN OBJECTIVE WRITTEN DONE WITH NO PLAN IS STILL A HOLE — there was never anything to settle", () => {
     const ids = stoppersOf(planOf(STUCK, {}))
       .filter((s) => s.kind === "unplanned")
       .map((s) => s.id);
-    expect(ids).toEqual(["O2", "O3", "O4", "O5"]);
-    expect(ids).not.toContain("O1"); // done, and never planned
-    expect(ids).not.toContain("O6"); // same
+    expect(ids).toContain("O1"); // typed done, never planned — the word proves nothing
+    expect(ids).toContain("O6");
+  });
+
+  it("THE DISAGREEMENT IS SAID OUT LOUD — written done over plans that have not settled, naming which", () => {
+    const plans = byObjOf([rfc("R-1", "A-O1", 0, 2)]);
+    const src = "::arc{id=A}\n\n:::objective{id=O1 state=done title=T}\nx\n:::\n";
+    const [stop] = stoppersOf(planOf(src, { byObj: plans })).filter((x) => x.kind === "claimed");
+    expect(stop.text).toContain("written done");
+    expect(stop.text).toContain("R-1 is approved");
   });
 
   it("a cycle is a stopper of its own, and the worst one", () => {
@@ -365,8 +410,12 @@ b
   });
 
   it("NOTHING STUCK IS AN EMPTY LIST — a strip saying 'nothing is blocked' is furniture", () => {
+    // a GENUINELY finished objective: a plan attached and settled, so nothing is owed anywhere
+    const plans = byObjOf([
+      rfc("R-1", "A-O1", 2, 2, { state: { verdict: "approved", settled: "2026-10-30", claims: { met: 2, total: 2 } } }),
+    ]);
     const src = "::arc{id=A}\n\n:::objective{id=O1 state=done}\nx\n:::\n";
-    expect(stoppersOf(planOf(src, {}))).toEqual([]);
+    expect(stoppersOf(planOf(src, { byObj: plans }))).toEqual([]);
     expect(stoppersOf(null)).toEqual([]);
   });
 });
@@ -419,8 +468,8 @@ d
 :::
 `;
     expect(planOf(src, {}).totals.byOwner).toEqual([
-      { owner: "sv", total: 2, done: 1 },
-      { owner: "autobot", total: 1, done: 1 },
+      { owner: "sv", total: 2, done: 0 },
+      { owner: "autobot", total: 1, done: 0 },
       // an objective with nobody on it is a real row under a name that says it needs one
       { owner: "unowned", total: 1, done: 0 },
     ]);

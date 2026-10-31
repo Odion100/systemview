@@ -106,11 +106,6 @@
   &__item--fail {
     border-left: 3px solid #e05757;
   }
-  // QUEUED — in a run that has started and not reached it. A dashed accent rather than a solid
-  // one: the card is IN the run, and it has not happened yet.
-  &__item--queued {
-    border-left: 3px dashed var(--sv-blue);
-  }
   &__item--running {
     border-left: 3px solid var(--sv-blue);
     // An indeterminate progress stripe across the top makes "in progress" unmistakable — not just color.
@@ -375,10 +370,6 @@
     &.is-running {
       background: var(--sv-inset);
       color: var(--sv-blue);
-    }
-    &.is-queued {
-      background: var(--sv-inset);
-      color: var(--sv-text-faint);
     }
   }
   &__phead-actions {
