@@ -212,3 +212,39 @@ describe("a reply makes the thread dirty rather than announcing itself", () => {
     expect(setAttr).toHaveBeenCalledWith(12, "auto", "buapi");
   });
 });
+
+// A THREAD IS A THING PEOPLE POINT AT, so its id has to be in the DOM and not only in a badge.
+// Without it nothing can address one conversation: a cue counts children, a link has no anchor, a
+// hook watching one thread has nothing to match. Counting breaks the moment a paragraph is
+// inserted above it — which is how a walk reads the wrong note out loud.
+describe("a thread is addressable", () => {
+  it("carries its id as data-thread, not only as text in the badge", () => {
+    const { container } = render(
+      <ServiceContext.Provider value={{ connectedServices: SERVICES }}>
+        <MarkdownWriteProvider value={{ editable: true, setAttr: jest.fn(), appendInside: jest.fn() }}>
+          <MarkdownMembersProvider value={{ members: [], hasMembers: true, source: "", docPath: "RFCs/x.md", projectCode: "systemview" }}>
+            <Thread attrs={{ id: "t7" }} line={12} src="" children={<p>a note</p>} />
+          </MarkdownMembersProvider>
+        </MarkdownWriteProvider>
+      </ServiceContext.Provider>,
+    );
+    expect(container.querySelector('[data-thread="t7"]')).toBeTruthy();
+    // THE BODY TOO — pointing at a thread's CONTENT is the common case (reading its notes aloud),
+    // and the root includes the chrome, the chips and the toggle.
+    expect(container.querySelector('[data-thread-body="t7"]')).toBeTruthy();
+    expect(container.querySelector('[data-thread-body="t7"]').textContent).toContain("a note");
+  });
+
+  it("falls back to its line when the author wrote no id — addressable either way", () => {
+    const { container } = render(
+      <ServiceContext.Provider value={{ connectedServices: SERVICES }}>
+        <MarkdownWriteProvider value={{ editable: true, setAttr: jest.fn(), appendInside: jest.fn() }}>
+          <MarkdownMembersProvider value={{ members: [], hasMembers: true, source: "", docPath: "RFCs/x.md", projectCode: "systemview" }}>
+            <Thread attrs={{}} line={40} src="" children={null} />
+          </MarkdownMembersProvider>
+        </MarkdownWriteProvider>
+      </ServiceContext.Provider>,
+    );
+    expect(container.querySelector('[data-thread="line-40"]')).toBeTruthy();
+  });
+});

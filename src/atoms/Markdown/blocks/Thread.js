@@ -158,6 +158,13 @@ const Thread = ({ attrs = {}, line, src, children }) => {
 
   return (
     <div
+      // THE ID REACHES THE DOM, because a thread is a thing people point AT. It was rendered only
+      // as text inside a badge, so nothing could address one: a cue had to count children, a link
+      // had no anchor, and a hook watching one conversation had nothing to match on. Counting
+      // children breaks the moment a paragraph is inserted above — which is how a walk ends up
+      // reading the wrong note aloud. `data-thread` is the address; the badge stays what a person
+      // reads.
+      data-thread={id || undefined}
       className={`md-thread${total ? " md-thread--has" : ""}${open ? " md-thread--open" : ""}${
         unseen > 0 ? " md-thread--new" : ""
       }`}
@@ -234,7 +241,7 @@ const Thread = ({ attrs = {}, line, src, children }) => {
           )}
         </div>
       )}
-      <div className="md-thread__body">
+      <div className="md-thread__body" data-thread-body={id || undefined}>
         <InThreadProvider value={{ id, line, who: onThread, sent: attrs.sent || "" }}>{children}</InThreadProvider>
       </div>
       <button
