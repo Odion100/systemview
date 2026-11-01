@@ -4,69 +4,127 @@ import React, { useState } from "react";
 import DashboardA from "../DashboardA/DashboardA";
 import DashboardB from "../DashboardB/DashboardB";
 import DashboardC from "../DashboardC/DashboardC";
+import { loadPages, savePages, loadPick, savePick, addPage, removePage, movePage } from "./pages";
 import "./styles.scss";
 
-// THREE DASHBOARDS, AND A WAY TO FLIP BETWEEN THEM.
+// THE DASHBOARD'S PAGES.
 //
-// Three lanes were each given the same brief — the purpose, the data that already exists, and one
-// visual cue — and told to commit to their own point of view rather than hedge toward a middle.
-// All three built a whole page. They are disjoint by construction (each in its own directory,
-// none touching a shared file), so all three can stand in the tree at once.
+// This was a three-way switch between candidate dashboards. It is becoming the page strip of a
+// configurable surface, and his instruction was that it KEEPS THE LOOK: *"the switcher doesn't go
+// away — it's going to look the same. It's just going to be like an X button on the tabs, plus a
+// plus button up there."* So the pills are unchanged; each grows an `×`, and one `+` sits at the
+// end of the row — not on the tabs.
 //
-// THIS EXISTS SO THE CHOICE IS MADE BY LOOKING, NOT BY READING. Three descriptions of a dashboard
-// are three arguments; three dashboards over the same live registry is a decision you can make in
-// ten seconds. It is a temporary surface on purpose: when one is picked the other two come out
-// and this goes with them.
-//
-// THE PICK IS REMEMBERED, because comparing means flipping back and forth and then leaving — and
-// coming back to whichever you were last looking at is the whole of what this has to do between
-// sessions. localStorage, not the URL: the URL is the system's addressing and a scratch choice
-// between three candidates does not belong in it.
-const KEY = "sv.dash.pick";
-const PICKS = [
-  { id: "a", label: "A · one track", Component: DashboardA },
-  { id: "b", label: "B · the floor", Component: DashboardB },
-  { id: "c", label: "C · the shelves", Component: DashboardC },
-];
+// THE THREE CANDIDATES ARE NOW PAGES, not a choice. *"Let's not delete this current dashboard, so
+// I can check them against each other piece by piece."* Each is a page holding one whole
+// dashboard, still running its own code — so an extracted tile gets compared against the real
+// thing rather than against a screenshot of it. They come off when he picks, and not before.
+const LEGACY = { a: DashboardA, b: DashboardB, c: DashboardC };
 
 export default function DashboardSwitch() {
-  const [pick, setPick] = useState(() => {
-    try {
-      const v = localStorage.getItem(KEY);
-      if (PICKS.some((p) => p.id === v)) return v;
-    } catch { /* private mode — the default is fine, it just will not be remembered */ }
-    return "a";
-  });
-  const choose = (id) => {
-    setPick(id);
-    try { localStorage.setItem(KEY, id); } catch {}
+  const [pages, setPages] = useState(() => loadPages());
+  const [pick, setPick] = useState(() => loadPick(loadPages()));
+  const [drag, setDrag] = useState("");
+  // WHY THE LAST CLOSE REFUSED. `removePage` answers with a reason rather than silently doing
+  // nothing, and a control that appears to do nothing is the thing worth avoiding — even though
+  // the `×` is also hidden at one page, because a rule enforced only where it is painted is one
+  // refactor from being gone.
+  const [refused, setRefused] = useState("");
+
+  const write = (next, nextPick) => {
+    setPages(savePages(next));
+    if (nextPick && nextPick !== pick) setPick(savePick(nextPick));
   };
-  const current = PICKS.find((p) => p.id === pick) || PICKS[0];
-  const Current = current.Component;
+  const choose = (id) => setPick(savePick(id));
+  const add = () => {
+    const { pages: next, pick: landed } = addPage(pages);
+    write(next, landed);
+    setRefused("");
+  };
+  const close = (id) => {
+    const out = removePage(pages, id, pick);
+    if (out.refused) return setRefused(out.refused);
+    setRefused("");
+    return write(out.pages, out.pick);
+  };
+
+  const page = pages.find((p) => p.id === pick) || pages[0];
+  const Legacy = page && page.legacy ? LEGACY[page.legacy] : null;
+  const only = pages.length <= 1;
+
   return (
     <div className="dashswitch">
       <div className="dashswitch__bar">
-        {/* SAID OUT LOUD, because a surface that looks permanent and is not is how a candidate
-            quietly becomes the thing nobody chose. */}
-        <span className="dashswitch__says">three candidates, same data — pick one and the other two come out</span>
+        <span className="dashswitch__says">
+          {refused || "three candidates, same data — and a page of your own"}
+        </span>
         <span className="dashswitch__picks">
-          {PICKS.map((p) => (
-            <button
+          {pages.map((p) => (
+            // DRAG TO REORDER, the same shape the centre tab strip already uses: the tab is the
+            // handle, dropping on a tab puts you where IT sat. Copied rather than invented, so
+            // there is one way to reorder a strip in this window.
+            <span
               key={p.id}
-              type="button"
-              className={`dashswitch__pick${p.id === pick ? " is-on" : ""}`}
-              onClick={() => choose(p.id)}
+              className={`dashswitch__tab${p.id === pick ? " is-on" : ""}${drag === p.id ? " is-dragging" : ""}`}
+              draggable
+              onDragStart={(e) => {
+                setDrag(p.id);
+                e.dataTransfer.effectAllowed = "move";
+                e.dataTransfer.setData("text/sv-dashpage", p.id);
+              }}
+              onDragEnd={() => setDrag("")}
+              onDragOver={(e) => {
+                if (e.dataTransfer.types.includes("text/sv-dashpage")) e.preventDefault();
+              }}
+              onDrop={(e) => {
+                const id = e.dataTransfer.getData("text/sv-dashpage");
+                if (!id || id === p.id) return;
+                e.preventDefault();
+                write(movePage(pages, id, p.id));
+              }}
             >
-              {p.label}
-            </button>
+              <button type="button" className="dashswitch__pick" onClick={() => choose(p.id)}>
+                {p.label}
+              </button>
+              {/* NOT SHOWN AT ONE PAGE. A strip that lets you close the last page leaves a
+                  surface with nothing on it and no way back. */}
+              {only ? null : (
+                <button
+                  type="button"
+                  className="dashswitch__close"
+                  title={`Close ${p.label}`}
+                  aria-label={`Close ${p.label}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    close(p.id);
+                  }}
+                >
+                  ×
+                </button>
+              )}
+            </span>
           ))}
+          {/* ONE +, AT THE END OF THE ROW — his words, and not on the tabs. */}
+          <button type="button" className="dashswitch__add" title="Add a page" aria-label="Add a page" onClick={add}>
+            +
+          </button>
         </span>
       </div>
-      {/* KEYED ON THE PICK, so switching remounts rather than handing the next one the previous
-          one's state. These are three independent pages that happen to share a slot; letting
-          React reconcile across them would let A's open fold decide what B draws. */}
-      <div className="dashswitch__body" key={current.id}>
-        <Current />
+      {/* KEYED ON THE PAGE, so switching remounts rather than handing the next one the previous
+          one's state. Two pages that happen to share a slot are not one component with changing
+          props; letting React reconcile across them would let one page's open fold decide what
+          the next draws. */}
+      <div className="dashswitch__body" key={page ? page.id : "none"}>
+        {Legacy ? (
+          <Legacy />
+        ) : (
+          // AN EMPTY PAGE SAYS IT IS EMPTY AND SAYS WHAT TO DO. A blank panel reads as something
+          // that failed to load; this is a page he just made and has not put anything on.
+          <div className="dashswitch__empty">
+            <b>{page ? page.label : "Nothing here"}</b>
+            <span>Nothing on this page yet. Tiles land here as the extraction comes in.</span>
+          </div>
+        )}
       </div>
     </div>
   );
