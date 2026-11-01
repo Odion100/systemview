@@ -118,3 +118,18 @@ Three things need conditions this arc does not have, and staging them would make
 a need in another repo (renders as *elsewhere* — this document cannot see whether it is done), a
 need that resolves to nothing (flagged with its reason rather than read as no dependency), and two
 objectives that need each other (both emitted and marked circular rather than quietly dropped).
+
+:::approval{ask="Approve ARC-001 — an RFC you can check, and an arc you can see?"}
+Approving commits to the seven objectives as written and owned: the method having a home, the
+procedure existing and firing, claims written by somebody who did not build the thing, the arc
+blocks getting a live document, an arc attaching to the work serving it, the twenty-seven lanes
+landing or going, and voice no longer marking what it should read.
+
+The piece most worth rejecting is **O6 — the twenty-seven lanes land or go.** It is the only
+objective owned by you rather than by an agent, and it is housekeeping rather than part of the
+arc's subject. If it does not belong here it should come out and go on the board, because an
+objective nobody can start keeps the arc off `settled` indefinitely.
+
+An arc with no verdict reads DRAFT however much of it is built — and this one has three objectives
+done. Draft says the direction was never agreed, which is not what happened.
+:::

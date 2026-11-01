@@ -118,3 +118,27 @@ The **agents-as-agents** direction he described — a conversation becoming a de
 assignment, a place it runs, tool access, skills you can read and write, MCP after that. Autobot's
 session layer (own cwd, env and permission mode per session) is closer to that spine than ours is,
 so that RFC should be theirs. Noted here only so it isn't mistaken for part of this one.
+
+:::approval{ask="Approve RFC-053 — one grammar, the host grants the capabilities, the styles stay the browser's?"}
+Approving commits to:
+
+- **§The design** — a block is a CAPABILITY and the host decides which exist. A host that does not
+  grant `git` never renders a commit button to disable; the grammar is the same everywhere and
+  what it may touch is not.
+- **§The design** — one implementation of the grammar, two looks. The browser keeps its own chrome
+  and the stylesheet comes out of the core's import graph so it can.
+- **§Work on our side** — the capability context at the app root, the six migrated off direct
+  imports, styles lifted to tokens, then extraction to a package with peer React and ESM.
+- **Detached trees re-provide everything** — a React tree mounted outside the app's (a CodeMirror
+  comment widget) gets the scope and the capabilities re-provided, or identical blocks behave
+  differently two panes apart.
+
+The piece most worth rejecting is **capabilities as the permission model**. If the host should
+instead declare a PROFILE — "this is a chat surface", "this is a document surface" — and the
+grammar derive its own permissions from that, then the whole §Design changes shape and every
+`useCapability` call site is the wrong seam.
+
+Most of this is BUILT, so pressing it is ratification rather than authorisation. That is worth
+doing anyway: with no verdict the document reads draft forever, which says the direction was never
+agreed — and it was, in the conversation this was written from.
+:::
