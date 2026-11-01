@@ -186,8 +186,16 @@ const Track = ({ track, open }) => (
             ))}
             {s.cards.length > 18 ? <span className="dbc-stn__more">+{s.cards.length - 18}</span> : null}
           </div>
-          <div className="dbc-stn__name">{s.station}</div>
-          <div className="dbc-stn__n">{s.cards.length || ""}</div>
+          {/* THE TICK IS ITS OWN ELEMENT, not a pseudo on the station. As a `::after` it was
+              positioned against the station box and landed in the middle of the station's own
+              NAME — a dot sitting on the word "draft", which is what made the row unreadable. */}
+          <span className="dbc-stn__tick" aria-hidden="true" />
+          <div className="dbc-stn__foot">
+            <span className="dbc-stn__name">{s.station}</span>
+            {/* ZERO IS SAID OUT LOUD. A blank under a station could mean none, or could mean
+                nobody measured it, and those are not the same answer. */}
+            <b className="dbc-stn__n">{s.cards.length}</b>
+          </div>
         </div>
       ))}
     </div>
@@ -384,9 +392,29 @@ export default function DashboardC() {
       {/* ── WHERE THE MASS SITS. Four lifecycles, every project's documents on them. ────────── */}
       {tracks.length ? (
         <section className="dbc-current">
+          {/* THE HEADING SAYS WHAT YOU ARE LOOKING AT, in words nobody has to be taught. "The
+              current" was a metaphor about where the mass flows, and it cost him the section:
+              *"I can't read the current… just make this section make sense, I don't understand
+              what it means."* A title you have to decode is a title that fails the one reader. */}
           <h2>
-            The current <i>every document in every project, standing where its lifecycle says it stands</i>
+            Where everything stands{" "}
+            <i>every document in every project, parked at the step its lifecycle says it reached</i>
           </h2>
+          {/* THE KEY IS PART OF THE SECTION, NOT A FOOTNOTE. A field of coloured dots means
+              nothing until something says a dot is a document; it was readable only to whoever
+              wrote it. */}
+          <p className="dbc-current__key">
+            <span>each dot is one document — press it to open · they travel left to right</span>
+            <span className="dbc-key">
+              <i className="dbc-dot is-press" /> waiting on your press
+            </span>
+            <span className="dbc-key">
+              <i className="dbc-dot is-work" /> outstanding
+            </span>
+            <span className="dbc-key">
+              <i className="dbc-dot" /> nothing owed
+            </span>
+          </p>
           {tracks.map((t) => (
             <Track key={t.kind} track={t} open={open} />
           ))}

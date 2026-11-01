@@ -257,8 +257,32 @@
 }
 
 // ── THE CURRENT: four lifecycles, every document a dot at its station ──────────────────────────
+// The foot is the station's name and its count, and the rail line rides its top edge. One
+// number, because two places deciding where that line falls is how it ended up inside the text.
+$dbc-foot: 30px;
+
 .dbc-current {
   padding: 24px 22px 6px;
+
+  // THE KEY. Its own hue, because `--dbc-hue` is set per TRACK and a swatch outside one would
+  // paint with nothing at all — an invisible legend for an unreadable field of dots.
+  &__key {
+    --dbc-hue: var(--sv-text-muted);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 14px;
+    margin: -2px 0 14px;
+    font-size: 11px;
+    color: var(--sv-text-faint);
+  }
+}
+.dbc-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  // The swatches are not buttons — the page has exactly four controls and a legend is not one.
+  > i { cursor: default; pointer-events: none; }
 }
 
 .dbc-track {
@@ -282,12 +306,15 @@
     gap: 2px;
     padding: 6px 0 0;
 
+    // THE LINE RIDES THE TOP EDGE OF THE FOOT, which is why the foot has a fixed height: at
+    // `bottom: 26px` it ran straight through the station names, and the eye reads a line through
+    // a word as a strikethrough rather than as a track.
     &::before {
       content: "";
       position: absolute;
       left: 0;
       right: 0;
-      bottom: 26px;
+      bottom: $dbc-foot;
       height: 1px;
       background: var(--sv-border-soft);
     }
@@ -322,11 +349,20 @@
     color: var(--sv-text-faint);
     align-self: flex-end;
   }
-  &__name {
+  // THE NAME AND ITS COUNT ARE ONE LINE, not two stacked things. Stacked, the number read as a
+  // second unlabelled fact under the station rather than as how many are standing there.
+  &__foot {
+    height: $dbc-foot;
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 5px;
+    padding-top: 9px;
     width: 100%;
-    text-align: center;
+    min-width: 0;
+  }
+  &__name {
     font-size: 10px;
-    padding-top: 7px;
     color: var(--sv-text-faint);
     white-space: nowrap;
     overflow: hidden;
@@ -336,15 +372,17 @@
     font-size: 11px;
     font-weight: 700;
     color: var(--sv-text-muted);
-    min-height: 14px;
   }
   // A STATION WITH NOTHING IN IT STAYS ON THE TRACK — it is where things are GOING. It just does
-  // not get a tick.
+  // not get a tick, and its zero is dimmed rather than hidden.
+  &:not(.has-mass) .dbc-stn__n { color: var(--sv-text-faint); opacity: 0.55; }
   &.has-mass .dbc-stn__name { color: var(--sv-text); }
-  &.has-mass::after {
-    content: "";
+  &__tick { display: none; }
+  &.has-mass .dbc-stn__tick {
+    display: block;
     position: absolute;
-    bottom: 26px;
+    bottom: $dbc-foot;
+    margin-bottom: -4px;
     width: 7px;
     height: 7px;
     border-radius: 50%;

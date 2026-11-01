@@ -96,3 +96,42 @@ describe("the dashboard over a registry it cannot read the files of", () => {
     expect(strays).toEqual([]);
   });
 });
+
+// THE SECTION HAS TO EXPLAIN ITSELF. *"I can't read the current… just make this section make
+// sense, I don't understand what it means."* A field of coloured dots under a metaphor is
+// readable only to whoever drew it, so these are the three things that carry the meaning: a
+// heading in plain words, a key saying what a dot IS, and a count under every station including
+// the empty ones.
+describe("where everything stands — the section says what it means", () => {
+  const service = {
+    Agent: { documentsRegistry: async () => [ROW(), ROW({ id: "RFC-002", path: "RFCs/RFC-002-b.md" })] },
+    SystemView: { projectRoots: async () => ({ alpha: "/a" }) },
+  };
+
+  it("is headed in words nobody has to decode, and says what a dot is before showing any", async () => {
+    mount(service);
+    await waitFor(() => expect(screen.getByText("Where everything stands")).toBeVisible());
+    expect(screen.getByText(/each dot is one document/)).toBeVisible();
+    expect(screen.getByText(/waiting on your press/)).toBeVisible();
+    // The key's swatches are NOT controls — the page has exactly four, and a legend is not one.
+    expect(document.querySelectorAll(".dbc-key button")).toHaveLength(0);
+  });
+
+  it("gives every station a count, zero included, with its name on the same line", async () => {
+    mount(service);
+    await waitFor(() => expect(document.querySelector(".dbc-stn")).toBeTruthy());
+    const stations = [...document.querySelectorAll(".dbc-track--rfc .dbc-stn")];
+    expect(stations.length).toBeGreaterThan(1);
+    for (const st of stations) {
+      const foot = st.querySelector(".dbc-stn__foot");
+      // ONE LINE, NOT TWO STACKED FACTS: the name and its number share a parent.
+      expect(foot.querySelector(".dbc-stn__name")).toBeTruthy();
+      // A blank could mean none, or could mean nobody measured it. Those are different answers.
+      expect(foot.querySelector(".dbc-stn__n").textContent).toMatch(/^\d+$/);
+    }
+    // The tick only marks a station something actually reached.
+    const empty = stations.filter((s) => s.querySelector(".dbc-stn__n").textContent === "0");
+    expect(empty.length).toBeGreaterThan(0);
+    for (const st of empty) expect(st.classList.contains("has-mass")).toBe(false);
+  });
+});
