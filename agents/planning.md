@@ -141,21 +141,19 @@ machine and dies with it. And `api/reportJanitor.js` **deletes any report older 
 unless a job run points at it. A meeting carries members, replies, verdicts and embedded arcs: it is
 a project artifact like an RFC, not a disposable view like a report.
 
-**It still goes on the reports panel, because that is where he looks.** The file stays in the repo:
+**You still put it in front of him, because that is where he looks.** The file stays in the repo
+and he is navigated to it — nothing is copied and nothing is snapshotted:
 
 ```
-show({projectCode, reportPath: "meetings/2026-10-19-a-subject.md"})
+nav({projectCode, report: "meetings/2026-10-19-a-subject.md"})
 ```
 
-**Then reply to the PATH, never the title.** `show` files a *copy* of the content into
-`.systemview/`, so the report title names a snapshot. `Reports.read` uses any argument ending in
-`.md` verbatim, which is what makes the path land in the real document:
+**And you reply to that same PATH.** `Reports.read` takes any argument ending in `.md` verbatim,
+which is what makes the path land in the real document rather than in a title that names one:
 
 ```
 reply({projectCode, report: "meetings/2026-10-19-a-subject.md", threadId: "t1", text})
 ```
-
-Reply to the title and the words land in the snapshot and are gone at the next `show`.
 
 ## Inviting the room
 

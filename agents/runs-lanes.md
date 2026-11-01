@@ -40,6 +40,20 @@ two weeks sweeps itself at process start; a died run is **never** swept, it stay
 acts on it. The run's edges are events: `run.started` and `run.finished` fire into the session and
 are hookable, and every `todo.updated` from a sourced write carries its run id.
 
+**A RUN ENDS EXACTLY TWO WAYS, and there is no third.** Every item done — or the run is **declared
+abandoned with its account attached**: `attach` the artifact (a report, a branch, a card — by
+ADDRESS, never a path), then `status` with text starting `abandoned`. Both halves, because the word
+without the record is testimony and the record without the word is a handover nobody ended.
+
+Everything else leaves it OPEN, and an open run is **nudged until it ends** — stopping quietly does
+not stop it, and neither does a status of "blocked", however well that status reads. Work genuinely
+waiting on the human IS the abandoned path: say what it waits on and from whom, and reopen it later
+by writing the list again under the same source. Two consequences worth knowing before you need
+them: `set` REPLACES the whole list, so resend every item or lose the ones you omit; and `attach` is
+**refused on a closed run**, so it must land before the write that finishes the list — attach late
+and you have a completed procedure pointing at nothing. The full mechanism, including how movement
+spends an abandoned declaration, is `context("what stops a worklist run being nudged")`.
+
 ## Lanes — work on its own branch, with a row on the screen
 
 A **lane** is one git worktree + one branch + one **registered** run. It is where work goes when it

@@ -295,7 +295,7 @@ A **gap** is a bug or missing feature you hit in ANOTHER project, written INTO T
 (one line of body is enough); it is done when its leaf carries `resolved=`, and the resolution fires
 to the document's audience. An RFC is done at its `verdict=`, an arc when every objective is done, a
 report never — it only ages out. Humans insert a leaf from the right-click menu (*Register this
-document*); `show()` writes `::report` for a filed report by itself.
+document*); an agent writes the leaf itself as the document's first line.
 
 ## `subscribe=` and `told=` — who hears a block, and the receipt
 
@@ -729,7 +729,7 @@ Clicking a chosen answer or verdict again CLEARS it — the attribute is removed
   not `{options=close the hole|…}`. This is the sharpest trap in the whole syntax: an unquoted space
   does not merely drop that attribute, it makes the **entire directive fail to parse**, so the block
   renders as raw text in the middle of your document and looks like the feature is broken. Caught
-  live — a question with multi-word options came out as literal `::question[…]` on the TV.
+  live — a question with multi-word options came out as literal `::question[…]` on screen.
 - A `\`\`\`markdown` fence renders verbatim, so showing source and the rendered result side by side
   is safe.
 - Blocks nest freely — a chart inside a slide inside a tab inside a thread is fine.

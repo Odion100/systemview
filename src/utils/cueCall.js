@@ -7,9 +7,13 @@
 // were about does not. His ruling: navigation belongs IN the queue, as a beat, so a sequence
 // replays from anywhere and does its own navigating.
 //
-// SO `call` IS ONE DOOR TO THE COMMANDS, not a second vocabulary. `nav`, `act`, `show` and
-// `refresh` are the window's command surface and an agent already drives them through the hub;
-// this is the same four reached from a cue, written the way a person would say them:
+// SO `call` IS ONE DOOR TO THE COMMANDS, not a second vocabulary. `nav`, `act` and `refresh` are
+// the window's command surface and an agent already drives them through the hub; this is the same
+// three reached from a cue, written the way a person would say them.
+//
+// AND `nav` IS THE ONLY WAY TO PUT A DOCUMENT IN FRONT OF HIM. There is no TV and no second verb
+// for it: a report is a file, and `nav report=…` opens it in the centre. A vocabulary with two
+// words for one destination makes the reader pick, and the wrong pick is unanswerable.
 //
 //   ::cue{call="nav report=meetings/2026-10-31-x.md"}
 //   ::cue{call="nav file=api/index.js#L40-55"}
@@ -32,7 +36,6 @@
 export const CALL_KEYS = {
   nav: ["file", "report", "namespace", "stats", "range", "service", "tab", "topic", "agents", "lines"],
   act: ["test", "run"],
-  show: ["report", "path", "text", "clear"],
   refresh: ["scope"],
 };
 
@@ -106,7 +109,6 @@ export function labelFor(cmd, args = {}) {
     if (args.namespace) return `navigated to ${args.namespace}`;
   }
   if (cmd === "act") return args.run ? `pressed play on "${args.run}"` : `ran ${args.test}`;
-  if (cmd === "show") return args.clear ? "cleared the TV" : `put ${args.report || args.path || "it"} on the TV`;
   if (cmd === "refresh") return `refreshed ${args.scope === "all" ? "everything" : args.scope}`;
   return cmd;
 }

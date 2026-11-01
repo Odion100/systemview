@@ -335,8 +335,8 @@ against a newer vocabulary degrades honestly.
 - **Probe before asserting.** Call the method with `mcp__systemview__probe` and read the real
   response before writing an expected value. Never assert a shape you assumed.
 - **A report for write-ups**, and a `:::approval` over prose when you need a decision. Anything long
-  goes on the TV or in a report — the chat scrolls, and what scrolls is gone.
-- **Reference, don't repeat.** `tv(…)` a value rather than restating a literal in two places.
+  goes in a DOCUMENT — the chat scrolls, and what scrolls is gone.
+- **Reference, don't repeat.** Point at where a value lives rather than restating it in two places.
 - **Say what's unproven.** A block you couldn't run, a claim you couldn't verify — mark it.
 - **The codebase surface is HUB-served** — files, git, staging, diffs, images, by project code,
   working with your services down. ☠ [RETIRED-2026-08-26] "no branch name / `Plugin.stageFiles is not a
@@ -448,7 +448,6 @@ wrong with something he was looking at. A note holds a conversation — replies 
 
 ```js
 mcp__systemview__nav({ projectCode, namespace | file | report | stats | agents })
-mcp__systemview__highlight({ projectCode, ..., say })
 mcp__systemview__act({ projectCode, ..., say })
 mcp__systemview__refresh({ projectCode, scope })
 mcp__systemview__connect({ ... })  /  mcp__systemview__disconnect({ ... })
@@ -457,8 +456,12 @@ mcp__systemview__connect({ ... })  /  mcp__systemview__disconnect({ ... })
 `nav` is **kind-explicit**: exactly one of `namespace`, `file`, `report`, `stats`, `agents`. The
 caller always knows what it is sending him to, so the code never guesses.
 
-`highlight` and `act` take `say` — a sentence that rides the receipt. It is **ephemeral by design**;
-anything worth keeping goes in your reply or on the TV.
+`act` takes `say` — a sentence that rides the receipt. It is **ephemeral by design**; anything
+worth keeping goes in your reply or in a document.
+
+**POINTING IS A CUE, NOT A TOOL.** To put a box round something on screen without moving him, write
+`::cue[your words]{highlight=".sel"}` in your reply — the cue vocabulary owns that word, and it
+draws the box, speaks, and leaves a replayable row. There is no pointing verb on the MCP.
 
 ### What is gone, and why
 

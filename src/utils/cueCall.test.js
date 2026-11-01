@@ -32,12 +32,19 @@ describe("navigation, from inside the sequence", () => {
   });
 });
 
-describe("the other three commands, through the same door", () => {
-  it("act, show and refresh — one vocabulary, not a second one to learn", () => {
+describe("the other commands, through the same door", () => {
+  it("act and refresh — one vocabulary, not a second one to learn", () => {
     expect(callCommand('act run="yarn test"').args).toEqual({ run: "yarn test" });
     expect(callCommand("act test=Math.add").args).toEqual({ test: "Math.add" });
-    expect(callCommand("show report=audit.md").args).toEqual({ report: "audit.md" });
-    expect(callCommand("show clear=true").args).toEqual({ clear: true });
+  });
+
+  // ONE WAY TO PUT A DOCUMENT IN FRONT OF HIM. A cue cannot reach the TV: `nav report=…` opens the
+  // file in the centre, and a second verb for the same destination makes the author pick between
+  // two words for one thing.
+  it("a cue has no verb for the TV — a document is opened, not broadcast", () => {
+    const r = callCommand("show report=audit.md");
+    expect(r.error).toMatch(/"show" is not a command/);
+    expect(callCommand("nav report=audit.md").args).toEqual({ report: "audit.md" });
   });
 
   it("refresh is the one verb that means something bare, because it names a chore", () => {
@@ -50,7 +57,7 @@ describe("it refuses rather than guesses", () => {
   it("an unknown verb is named, with what the verbs actually are", () => {
     const r = callCommand("navigate report=x.md");
     expect(r.error).toMatch(/"navigate" is not a command/);
-    expect(r.error).toMatch(/nav, act, show, refresh/);
+    expect(r.error).toMatch(/nav, act, refresh/);
   });
 
   it("an unknown key is named, with the keys that verb takes", () => {
@@ -68,7 +75,7 @@ describe("it refuses rather than guesses", () => {
   });
 
   it("every verb's key list is the hub's, so a cue and a command cannot drift", () => {
-    expect(Object.keys(CALL_KEYS)).toEqual(["nav", "act", "show", "refresh"]);
+    expect(Object.keys(CALL_KEYS)).toEqual(["nav", "act", "refresh"]);
     expect(CALL_KEYS.nav).toContain("report");
     expect(CALL_KEYS.nav).toContain("stats");
   });

@@ -94,7 +94,6 @@ mcp__systemview__nav({ projectCode, file: "cli/index.js#L40-80" })  // open a fi
 mcp__systemview__nav({ projectCode, file: "~/.autobot/jobs/x/job.md" }) // a MACHINE file — any
                                                                     // absolute path opens (RFC-069)
 mcp__systemview__nav({ projectCode, stats: "load" })                // the Stats page
-mcp__systemview__highlight({ projectCode, namespace: "Math.add", say: "…" })  // POINT, don't navigate
 mcp__systemview__refresh({ projectCode, scope: "docs" })            // panes re-read — never a reload
 mcp__systemview__act({ projectCode, test: "Math.add", say: "…" })   // run where the human is LOOKING
 mcp__systemview__nav({ projectCode, report: ".systemview/report.<pc>.<Name>.md" })  // pull it up
@@ -117,7 +116,7 @@ Rules the live driving sessions taught:
 - **Never move the window as a surprise.**
 - **Commands never come back to you** — only the human's messages do.
 - **Their view stamp + the open doc = your eyes.** Use both before acting on "this"/"that".
-- **TV first — reports only when the human asks for one.** Read his answers on the TV with
+- **Read his answers off the document.** A report he has answered in is read back with
   `mcp__systemview__tv({ projectCode, show })` (`::question{… answer=…}`, `:::approval{verdict=…}`,
   `:::reply` in threads). His typed replies there are questions to YOU and sit silently until you
   look.
