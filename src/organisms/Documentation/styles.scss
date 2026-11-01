@@ -473,16 +473,11 @@
   line-height: 1;
   cursor: pointer;
 }
-// THE COMPASS RESTS AT FULL STRENGTH, and hover does something else.
-//
-// A DARK MODE critique — light mode was always fine. It leaned on opacity .75 over
-// `--sv-text-faint`, which is #97a0b8 on light and #6f7789 on dark: on a dark surface that is
-// nearly the background, so a door you are meant to find sat dimmed to almost nothing and only
-// became legible once the pointer was already on it. A control visible only while you are
-// touching it cannot be the thing that tells you it is there.
-//
-// Opacity is the only lever an emoji has — `color` does not reach it — so it rests at full and
-// hover rings it instead, because the old feedback is now the resting state.
+// The compass is a bare glyph, so it carries its own costume — AND IT RESTS AT FULL STRENGTH.
+// A dark mode fault: opacity .75 over `--sv-text-faint` (#6f7789 on dark) is nearly the surface,
+// so a door you are meant to find was legible only once the pointer was already on it. Opacity is
+// the only lever an emoji has — `color` does not reach it — so it rests at full and hover rings
+// it, because the old feedback is now the default.
 .doc-tabs__dash {
   border: none;
   background: transparent;
@@ -503,140 +498,6 @@
   height: 19px;
   font-size: 12px;
   margin-left: 0;
-}
-
-
-
-// The crumb IN the header — segments inherit the header's size; no extra row anywhere.
-.doc-pane__label--crumb {
-  .doc-tabs__ns { margin-left: 0; font-size: inherit; }
-  .doc-tabs__ns-seg { font-weight: 600; }
-}
-
-// THE BOARD TAB — the board organism filling the centre instead of a 380px floating popup.
-// SAME FRAME DISCIPLINE AS .inline-logs, and that is the point: his correction, 2026-10-14 —
-// *"look at how logs and stats fit here, neatly, as if they were supposed to fit"*. The first
-// version said `flex: 1` inside a parent that is not a flex column, which computes to nothing: no
-// bounded height, so nothing inside could scroll and the board just ran off the pane. A definite
-// height is what logs and stats actually use, so the board uses it too — the frame holds still,
-// the cards area (`__board-cards`, already `flex: 1; overflow-y: auto`) does the scrolling.
-.doc-board {
-  display: flex;
-  flex-direction: column;
-  height: calc(100vh - 120px);
-  overflow: hidden;
-  // The frame is the document's own box now — border and surface like .doc-pane, so the board
-  // reads as the same kind of thing as every other centre document, not a popup missing its shadow.
-  border: 1px solid var(--sv-border);
-  border-radius: 6px;
-  background: var(--sv-surface);
-
-  // THE HOUSE HEADER, board flavour: the band and chip come from .doc-pane__header/.doc-pane__kind;
-  // these lines only make the board's own header controls (editable title, count, saved-state,
-  // clear) sit in that band the way Edit sits in a doc's.
-  .doc-pane__header--board {
-    cursor: default;
-    .agent-chat__board-title { font-family: "SF Mono", Menlo, monospace; font-size: 11.5px; color: var(--sv-on-header); }
-    .agent-chat__board-state { margin-left: auto; }
-  }
-  .doc-pane__kind--board {
-    background: #7a5ea8; // the board is his surface — purple family, not the doc green
-  }
-}
-
-// THE DOCK SLOTS — chat, links, commands — same frame. The docked AgentChat portals the REAL panel
-// in here (one component, two containers), so this neutralises the panel's popup costume: static,
-// full-size, no shadow, no resize handles — a resizable thing inside the pane is two handles
-// arguing, the same rule the nav dock already applies.
-.doc-dockslot {
-  display: flex;
-  flex-direction: column;
-  height: calc(100vh - 120px);
-  overflow: hidden;
-  padding: 4px 10px 10px;
-
-  > .agent-chat__panel,
-  > .agent-chat__tv,
-  > .agent-chat__board {
-    position: static;
-    flex: 1;
-    min-height: 0;
-    max-height: none;
-    box-shadow: none;
-  }
-  .agent-chat__rz {
-    display: none;
-  }
-}
-
-// RFC-069 §4.4 — the open-by-path door on the strip. An ADDRESS, never a picker.
-// THE DOORS ONTO CENTRE TABS — THE STRIP'S TAIL, OUTSIDE THE SCROLLER. A direct child of
-// `.doc-tabs`, so it holds its place beside the chat whatever the tabs do; nothing here is sticky
-// because there is nothing to stick to. They are deliberately NOT `.doc-tabs__plus`: a suite
-// asserts the strip has no `.doc-tabs__plus` when the host supplies no + door, and sharing the
-// class made that test find these buttons instead.
-.doc-tabs__doors {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  padding: 0 2px 0 6px;
-  position: relative;
-  z-index: 2; // above the rail and above anything the scroller pins at its own edge
-}
-// BIG ENOUGH TO AIM AT — his instruction, and it is two glyphs doing the job of a toolbar. They
-// are larger than the + on purpose: the + is a modifier on the tab row, these are destinations.
-// LAYOUT ONLY. The help door also carries `.help-icon` — the app's own ringed ? — and a border or
-// a radius here would be fighting it. So this decides where a door sits and the door's own class
-// decides what it looks like.
-.doc-tabs__how {
-  flex: none;
-  font-family: inherit;
-  line-height: 1;
-  cursor: pointer;
-}
-// BOTH DOORS REST IN WHAT USED TO BE THEIR HOVER, and hover does something else.
-//
-// His critique, and it is a DARK MODE critique — light mode was always fine. The resting costume
-// leaned on `--sv-text-faint`, which is #97a0b8 on light and #6f7789 on dark: on a dark surface
-// that is nearly the background, so a door you are meant to find sat there dimmed to almost
-// nothing and only became legible once the pointer was already on it. A control that is only
-// visible while you are touching it cannot be the thing that tells you it is there.
-//
-// So the legible state is the DEFAULT, and hover had to grow a new answer rather than keep the
-// old one — otherwise there is no feedback left at all.
-
-// The compass is a bare glyph. Opacity is the only lever an emoji has (`color` does not reach
-// it), so it rests at full and hover rings it instead.
-.doc-tabs__dash {
-  border: none;
-  background: transparent;
-  font-size: 17px;
-  padding: 2px 5px;
-  border-radius: 4px;
-  opacity: 1;
-  &:hover {
-    background: var(--sv-hover, rgba(0, 0, 0, 0.05));
-    box-shadow: inset 0 0 0 1px var(--sv-blue);
-  }
-}
-// THE HELP ICON AT DOOR SIZE — the size it was, because the costume was the problem and not the
-// scale. Scoped to the doors on purpose: every other ? in this window (the scratchpad, saved
-// tests, the nav) keeps `.help-icon`'s own colours, because this strip is what was asked about.
-.doc-tabs__doors .doc-tabs__how.help-icon {
-  width: 19px;
-  height: 19px;
-  font-size: 12px;
-  margin-left: 0;
-  color: var(--sv-blue);
-  border-color: var(--sv-blue);
-  background: transparent;
-  // Hover FILLS it — a different answer from the resting ring, rather than the ring again.
-  &:hover {
-    background: var(--sv-blue);
-    border-color: var(--sv-blue);
-    color: #fff;
-  }
 }
 .doc-tabs__plus {
   flex: none;
