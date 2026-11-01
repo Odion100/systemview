@@ -544,3 +544,44 @@ describe("a head segment names the items behind it", () => {
     for (const s of segs) for (const k of s.keys) expect(all.has(k)).toBe(true);
   });
 });
+
+// ONE LUMP READING "10 OUTSTANDING" IS A NUMBER YOU CANNOT ACT ON — and now that a segment is a
+// FILTER, pressing it narrows to everything-that-is-not-a-decision, which is no narrowing at all.
+describe("the outstanding half is broken out by what the work IS", () => {
+  const w = (why, n = 1) => Array.from({ length: n }, (_, i) => ({ why, key: `${why}:${i}` }));
+
+  it("gives each kind of outstanding work its own segment, in the list's own order", () => {
+    const { segs } = owedHead({
+      press: [],
+      work: [...w("claims", 2), ...w("mine", 3), ...w("blocked"), ...w("unplanned", 4)],
+      counted: 9,
+      skipped: {},
+    });
+    expect(segs.map((s) => s.key)).toEqual(["mine", "blocked", "unplanned", "claims"]);
+    expect(segs.map((s) => s.text)).toEqual([
+      "3 objectives yours",
+      "1 blocked",
+      "4 with no plan",
+      "2 claim sets resting on nothing",
+    ]);
+    // and each one still names exactly the rows it counted, so a press can show them
+    expect(segs.find((s) => s.key === "mine").keys).toEqual(["mine:0", "mine:1", "mine:2"]);
+  });
+
+  it("carries no mark — a mark over work would promise a control that does not exist", () => {
+    const { segs } = owedHead({ press: [], work: w("blocked", 2), counted: 2, skipped: {} });
+    expect(segs.every((s) => s.flag === "")).toBe(true);
+  });
+
+  // THE SAME GUARANTEE THE PRESS SIDE HAS. An undercount reads as RESOLVED, which is the one
+  // thing this number may never say, so a kind nobody has written a word for still appears.
+  it("a kind of work with no word still counts, under the old lump", () => {
+    const { segs } = owedHead({ press: [], work: [...w("mine"), { why: "brand-new", key: "x" }], counted: 2, skipped: {} });
+    expect(segs.map((s) => s.key)).toEqual(["mine", "work"]);
+    expect(segs.find((s) => s.key === "work").text).toBe("1 outstanding");
+  });
+
+  it("a `why` that collides with Object.prototype is not called as a word", () => {
+    expect(() => owedHead({ press: [], work: [{ why: "constructor", key: "c" }], counted: 1, skipped: {} })).not.toThrow();
+  });
+});

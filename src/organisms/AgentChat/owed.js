@@ -341,6 +341,19 @@ const PRESS = {
 };
 const PRESS_ORDER = ["approval", "proof", "clock"];
 
+// THE OUTSTANDING WORDS, in the order they are offered. Each one says what the work IS, because
+// the segment is now a filter and "outstanding" filters to nothing in particular. The order is
+// `WORK_RANK`'s — the same ranking the list below the head is already sorted by, so the segments
+// read in the same order as the rows they select.
+const WORK = {
+  mine: (n) => `${plural(n, "objective")} yours`,
+  blocked: (n) => `${n} blocked`,
+  unplanned: (n) => `${n} with no plan`,
+  undecidable: (n) => `${plural(n, "draft")} nothing can decide`,
+  claims: (n) => `${plural(n, "claim set")} resting on nothing`,
+};
+const WORK_ORDER = ["mine", "blocked", "unplanned", "undecidable", "claims"];
+
 // How many DECISIONS a press row carries. An approval row stamps `n` with the number of unsigned
 // blocks in that document; everything else is one.
 const decisions = (rows) => rows.reduce((t, r) => t + (r.n || 1), 0);
@@ -367,7 +380,24 @@ export function owedHead(owed = {}) {
   const rest = press.filter((p) => !PRESS_ORDER.includes(p.why));
   const unnamed = decisions(rest);
   if (unnamed) segs.push({ key: "press", flag: "⚑", text: `${unnamed} to press`, keys: rest.map((p) => p.key) });
-  if (work) segs.push({ key: "work", flag: "", text: `${work} outstanding`, keys: (owed.work || []).map((w) => w.key) });
+
+  // OUTSTANDING IS BROKEN OUT BY WHAT IT IS, not left as one lump. His ask: *"of course I want to
+  // filter by obligations, and add more obligations up there."* One segment reading "10
+  // outstanding" is a number you cannot act on and, now that a segment is a FILTER, a press on it
+  // narrows to everything-that-is-not-a-decision — which is no narrowing at all. Four objectives
+  // with no plan and two drifted claim sets are different jobs on different days.
+  const rows = owed.work || [];
+  for (const why of WORK_ORDER) {
+    const mine = rows.filter((w) => w.why === why);
+    if (mine.length) segs.push({ key: why, flag: "", text: WORK[why](mine.length), keys: mine.map((w) => w.key) });
+  }
+  // SAME GUARANTEE AS THE PRESS SIDE: a `why` this file has not met yet still counts, under the
+  // old lump word. An undercount reads as RESOLVED, which is the one thing this number may never
+  // say — so a new kind of outstanding work appears rather than vanishing until somebody adds a
+  // word for it.
+  const strays = rows.filter((w) => !WORK_ORDER.includes(w.why));
+  if (strays.length)
+    segs.push({ key: "work", flag: "", text: `${strays.length} outstanding`, keys: strays.map((w) => w.key) });
   // Nothing owed is not a filter — there is nothing behind it to show.
   if (!segs.length && owed.counted) segs.push({ key: "clear", flag: "", text: "nothing owed", keys: [] });
   return { segs, unread };
