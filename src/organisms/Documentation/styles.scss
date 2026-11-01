@@ -464,18 +464,34 @@
 }
 // BIG ENOUGH TO AIM AT — his instruction, and it is two glyphs doing the job of a toolbar. They
 // are larger than the + on purpose: the + is a modifier on the tab row, these are destinations.
+// LAYOUT ONLY. The help door also carries `.help-icon` — the app's own ringed ? — and a border or
+// a radius here would be fighting it. So this decides where a door sits and the door's own class
+// decides what it looks like.
 .doc-tabs__how {
   flex: none;
+  font-family: inherit;
+  line-height: 1;
+  cursor: pointer;
+}
+// The compass is a bare glyph, so it carries its own costume.
+.doc-tabs__dash {
   border: none;
   background: transparent;
   color: var(--sv-text-faint);
   font-size: 17px;
-  line-height: 1;
   padding: 2px 5px;
   border-radius: 4px;
-  cursor: pointer;
   opacity: .75;
   &:hover { opacity: 1; background: var(--sv-hover, rgba(0, 0, 0, 0.05)); }
+}
+// THE HELP ICON AT DOOR SIZE. The only things overridden are the size and the margin it carries
+// for riding beside a title — its ring, its colours and its hover stay `.help-icon`'s, because
+// two places deciding what the help icon looks like is how one of them drifts.
+.doc-tabs__doors .doc-tabs__how.help-icon {
+  width: 19px;
+  height: 19px;
+  font-size: 12px;
+  margin-left: 0;
 }
 .doc-tabs__plus {
   flex: none;

@@ -202,7 +202,7 @@ export default function CenterTabs({ tabsPc, tabs = [], isActive, onOpen, afterC
         <div className="doc-tabs__doors">
           <button
             type="button"
-            className="doc-tabs__how"
+            className="doc-tabs__how help-icon"
             title="How we work — the flow, every kind's lifecycle, and where to start"
             onClick={() => {
               const d = { kind: "how", projectCode: tabsPc };
@@ -213,10 +213,13 @@ export default function CenterTabs({ tabsPc, tabs = [], isActive, onOpen, afterC
               if (onOpen) onOpen(t);
             }}
           >
-            {/* ❈ — HOW-WE-WORK IS HELP, so it wears a help glyph rather than a compass. His read,
-                and it is right: this page explains how the system works; the compass says "find
-                your way around", which is what a dashboard does. */}
-            {"\u2749"}
+            {/* THE APP'S OWN HELP ICON, not a glyph invented for this one door. `.help-icon` is
+                the ringed ? that already sits beside the scratchpad, saved tests and the nav's
+                help section — so there is ONE thing in this window that means "explain this to
+                me", and this is it at door size. The COMPONENT is not reused: `<Help topic=...>`
+                opens a help topic in the middle panel through `?help=`, and this opens a centre
+                tab. Same question, different door — so it shares the costume, not the wire. */}
+            ?
           </button>
           <button
             type="button"

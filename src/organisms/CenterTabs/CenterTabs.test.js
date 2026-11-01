@@ -191,6 +191,11 @@ describe("the doors onto centre tabs", () => {
     const glyphs = [...doors.querySelectorAll(".doc-tabs__how")];
     expect(glyphs).toHaveLength(2);
     expect(glyphs[1].className).toContain("doc-tabs__dash");
+    // THE HELP DOOR WEARS THE APP'S OWN HELP ICON. There is one thing in this window that means
+    // "explain this to me" — the ringed ? beside the scratchpad, saved tests and the nav — and a
+    // second glyph invented for this door would make two.
+    expect(glyphs[0].className).toContain("help-icon");
+    expect(glyphs[0].textContent.trim()).toBe("?");
   });
 
   it("each opens its own centre kind, offering it to the host first", () => {
