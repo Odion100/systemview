@@ -2,6 +2,8 @@ const { createClient, App } = require("systemlynx");
 const { createCookieHttpClient } = require("../cli/cookieClient");
 const { headersFor } = require("../cli/manifestHeaders");
 const Drive = require("./drive");
+const { marksFromDiff } = require("./commitMarks");
+const { refuseAuthorship } = require("./commitGuard");
 const ReportsLib = require("./reports");
 const ConnectedServices = require("./Connections")();
 const CLIHistory = require("./CLIHistory")();
@@ -1143,6 +1145,160 @@ async function showCommit(projectCode, opts = {}) {
   };
 }
 
+// ── THE COMMIT RECORD ────────────────────────────────────────────────────────────────────────
+// A COMMIT THAT ALREADY HAPPENED, READ BACK — the other half of `::commit`, which is an offer you
+// press. The record is what the press LEFT, and it is a block rather than a document on purpose:
+// an agent commits several times against one plan, and a document per commit is a pile he has to
+// delete. *"I don't need a report for the commit. Just attach a markdown which generates a block."*
+//
+// `--no-renames` IS LOAD-BEARING. With rename detection on, `git show --numstat` reports a moved
+// file as the pathspec `{old => new}`, which is a display string and not a path: ask the tree for
+// it and you get nothing. The record's whole point is that every file in it opens, so a rename is
+// reported honestly as a delete and an add, both of which are real paths.
+async function commitRecord(projectCode, opts = {}) {
+  const cwd = rootOf(projectCode, opts.root);
+  if (!cwd) return { ok: false, error: "no folder for this project" };
+  const sha = String(opts.sha || "").trim();
+  // Anchored hex: the value is a REVISION, so `--` cannot protect it and anything else here is an
+  // argument being smuggled into `git show`.
+  if (!/^[0-9a-fA-F]{4,40}$/.test(sha)) return { ok: false, error: "bad sha" };
+  const SEP = "\u001f";
+  const REC = "\u001e";
+  const meta = await git(cwd, [
+    "show", "--no-patch", "--date=iso",
+    `--pretty=format:%H${SEP}%h${SEP}%an${SEP}%ae${SEP}%ad${SEP}%ar${SEP}%P${SEP}%s${SEP}%b${REC}`,
+    sha,
+  ]);
+  if (!meta.ok) return { ok: false, error: meta.err || "no such commit" };
+  const [full, short, who, email, date, when, parents, subject, body] =
+    String(meta.out || "").split(REC)[0].split(SEP);
+  // HOW FAR BACK IT SITS. *"It should count how far behind it is… if it's the one on the head or
+  // the one before."* A record with no distance reads as just "a commit", and the distance is the
+  // one fact that changes what undoing it would cost: at the tip it takes only itself, three back
+  // it takes three others with it.
+  const [stat, names, behind] = await Promise.all([
+    git(cwd, ["show", "--numstat", "--no-renames", "--format=", sha]),
+    git(cwd, ["show", "--name-status", "--no-renames", "--format=", sha]),
+    git(cwd, ["rev-list", "--count", `${sha}..HEAD`]),
+  ]);
+  // A | M | D per path. Binary files report "-" for both counts, kept as null rather than coerced
+  // to 0 — "unknown" and "no change" are different facts and a 0 would read as the second.
+  const status = new Map();
+  for (const line of String(names.out || "").split("\n")) {
+    const [st, path] = line.split("\t");
+    if (st && path) status.set(path, st[0]);
+  }
+  const files = String(stat.out || "")
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => {
+      const [add, del, path] = line.split("\t");
+      return {
+        path,
+        status: status.get(path) || "M",
+        added: add === "-" ? null : +add,
+        removed: del === "-" ? null : +del,
+      };
+    })
+    .filter((f) => f.path);
+  return {
+    ok: true,
+    sha: short, full, who, email, date, when, subject,
+    body: (body || "").trim(),
+    // `null` rather than 0 when git could not answer — a commit on another branch is not "at the
+    // tip", and a confident zero is exactly the kind this system exists to stop.
+    behind: behind.ok ? Number(String(behind.out || "").trim()) : null,
+    parents: String(parents || "").trim().split(/\s+/).filter(Boolean),
+    files,
+    added: files.reduce((n, f) => n + (f.added || 0), 0),
+    removed: files.reduce((n, f) => n + (f.removed || 0), 0),
+  };
+}
+
+// ONE FILE AS IT STOOD AT THAT COMMIT, PLUS WHAT THE COMMIT DID TO IT — content and gutter marks,
+// never a diff. His standing preference: *"I don't really like seeing the diffs. I actually like
+// seeing the files themselves, which has the markers on the side."*
+//
+// THE COUNTS COME FROM THE DIFF WE PARSED, not from `--numstat`. They disagree, and legitimately:
+// a diff's edit script is not unique, so `--unified=0` can find a tighter one than the default
+// context does — measured on this repo, numstat said +56 where the zero-context hunks accounted
+// for 54. Both are correct about their own run. Taking the header from one and the marks from the
+// other would put a number on screen that the marks beneath it contradict.
+async function fileAtCommit(projectCode, opts = {}) {
+  const cwd = rootOf(projectCode, opts.root);
+  if (!cwd) return { ok: false, error: "no folder for this project" };
+  const sha = String(opts.sha || "").trim();
+  const rel = String(opts.path || "");
+  if (!/^[0-9a-fA-F]{4,40}$/.test(sha)) return { ok: false, error: "bad sha" };
+  if (!rel) return { ok: false, error: "a file needs a path" };
+  const parents = await git(cwd, ["rev-list", "--parents", "-n", "1", sha]);
+  const base = String(parents.out || "").trim().split(/\s+/)[1] || "";
+  const [blob, diff] = await Promise.all([
+    git(cwd, ["show", `${sha}:${rel}`]),
+    // A ROOT COMMIT HAS NO PARENT, so there is nothing to diff against and the empty-tree hash is
+    // the standard stand-in — everything in the file is then an addition, which is the truth.
+    git(cwd, ["diff", "--unified=0", "--no-renames", base || "4b825dc642cb6eb9a060e54bf8d69288fbee4904", sha, "--", rel]),
+  ]);
+  const marks = marksFromDiff(diff.out || "");
+  // DELETED BY THIS COMMIT: the blob does not exist at `sha`, and that is an answer, not a failure.
+  if (!blob.ok) {
+    return { ok: true, path: rel, sha, gone: true, content: "", marks: { added: [], removed: [], binary: marks.binary } };
+  }
+  return {
+    ok: true,
+    path: rel,
+    sha,
+    content: blob.out,
+    marks,
+    added: marks.added.length,
+    removed: (marks.removed || []).reduce((n, r) => n + r.count, 0),
+  };
+}
+
+// UNDO A COMMIT — and "undo" here means SOFT RESET, which is the only kind that cannot lose work.
+//
+// `--soft` moves the branch pointer and touches nothing else: every change the commit carried is
+// back in the index, staged, exactly as it was the moment before the press. Nothing is deleted,
+// nothing needs recovering, and the next commit can be the same content under a better message.
+// `--hard` would throw the work away and is not offered at any level.
+//
+// A COMMIT THAT IS NOT THE TIP TAKES EVERYTHING ABOVE IT WITH IT, and that is the honest answer
+// rather than a refusal. Resetting to `<sha>^` un-commits this commit AND every commit on top of
+// it — all of their changes land staged together, which is exactly what he described wanting:
+// *"then I'll create one big block and commit them all together."* The caller is told HOW MANY it
+// will take so the press is informed; it is not blocked, because he knows what a reset is.
+//
+// THE REFLOG IS THE FLOOR. Even a mistaken reset is recoverable for weeks, which is why this is a
+// button and not a ceremony.
+async function undoCommit(projectCode, opts = {}) {
+  const cwd = rootOf(projectCode, opts.root);
+  if (!cwd) return { ok: false, error: "no folder for this project" };
+  const sha = String(opts.sha || "").trim();
+  if (!/^[0-9a-fA-F]{4,40}$/.test(sha)) return { ok: false, error: "bad sha" };
+  // IS IT EVEN ON THIS BRANCH? Resetting to a commit the branch never contained would move HEAD
+  // somewhere he has not been. `merge-base --is-ancestor` answers it before anything moves.
+  const reachable = await git(cwd, ["merge-base", "--is-ancestor", sha, "HEAD"]);
+  if (!reachable.ok) return { ok: false, error: "that commit is not on this branch" };
+  // A ROOT COMMIT HAS NO PARENT, so there is nothing to reset TO. Say so rather than failing with
+  // git's own "unknown revision", which reads as a bad sha.
+  const parent = await git(cwd, ["rev-parse", "--verify", `${sha}^`]);
+  if (!parent.ok) return { ok: false, error: "that is the first commit in the repo — there is nothing behind it" };
+  const above = await git(cwd, ["rev-list", "--count", `${sha}..HEAD`]);
+  const n = Number(String(above.out || "0").trim()) || 0;
+  const res = await serial(cwd, () => git(cwd, ["reset", "--soft", `${sha}^`]));
+  if (!res.ok) return { ok: false, error: res.error || "the reset did not run" };
+  bustGit(projectCode);
+  // WHAT IT ACTUALLY DID, in the numbers the caller will show him — never "done".
+  const staged = await git(cwd, ["diff", "--cached", "--name-only"]);
+  return {
+    ok: true,
+    undone: 1 + n,
+    alsoAbove: n,
+    staged: String(staged.out || "").split("\n").filter(Boolean),
+    at: String(parent.out || "").trim().slice(0, 8),
+  };
+}
+
 async function gitState(projectCode, opts = {}) {
   return cached(cacheKey("state", projectCode, opts.root), () => gitStateRaw(projectCode, opts));
 }
@@ -2075,6 +2231,15 @@ async function commit(projectCode, { message, root } = {}) {
   const cwd = rootOf(projectCode, root);
   if (!cwd) return { ok: false, error: "no folder for this project" };
   if (!String(message || "").trim()) return { ok: false, error: "a commit needs a message" };
+  // NO AGENT SIGNS HIS COMMITS, AND THE DOOR IS WHERE THAT IS TRUE. The rule was written into the
+  // system context every agent loads, and agents kept adding the trailer anyway — because their
+  // own preset tells them to, in instructions closer to their hands than any document we write.
+  // Ten commits on main carried it before anyone looked, and two subagents added it unprompted in
+  // a session where authorship had never come up. A refusal here competes with nothing.
+  // `api/commitGuard.js` holds the patterns and the reason; it refuses rather than stripping, so
+  // the pressure stays visible instead of being quietly absorbed forever.
+  const signed = refuseAuthorship(message);
+  if (signed) return { ok: false, error: signed };
   const res = await serial(cwd, () => git(cwd, ["commit", "-m", String(message)]));
   bustGit(projectCode);
   if (!res.ok) return { ok: false, error: res.error };
@@ -2947,6 +3112,9 @@ module.exports = function launchSystemView(port = 3000) {
       fastForward,
       applyBranch,
       showCommit,
+      commitRecord,
+      undoCommit,
+      fileAtCommit,
       changedFiles,
       getDiff,
       stageFiles,
