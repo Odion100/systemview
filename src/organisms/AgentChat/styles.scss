@@ -5393,6 +5393,18 @@ $sv-board-states: (
 // A subagent that never registered a lane has no row anywhere — it runs, spends and writes with the
 // strip silent. These are those rows. DIM on purpose: it is not a kind of work, it is work that
 // failed to announce itself, and it must not read as a peer of the registered lanes beside it.
+// A ROW WITH NO BRANCH IS THE SAME PANEL, DIMMER. His ruling: one component, the branch optional
+// — so the only thing this modifier may carry is the WEIGHT of the row, never a second layout.
+// Three states because there are three different things to do about them: a live subagent is the
+// only urgent one, a finished one is a record, and a failed one is a question.
+.agent-chat__lanepanel--nobranch {
+  opacity: 0.72;
+  &:hover { opacity: 1; }
+}
+.agent-chat__lanepanel--running { opacity: 1; }
+.agent-chat__lanepanel--finished { opacity: 0.6; }
+.agent-chat__lanepanel--failed { opacity: 1; }
+
 .agent-chat__unseen {
   display: flex;
   align-items: baseline;

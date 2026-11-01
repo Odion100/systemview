@@ -1547,14 +1547,13 @@ function Whiteboard({ text, onWipe, shown = null, onShow = null }) {
 // did, what it proved, what it left behind — one panel, closed with ×.
 const geoOfLog = (el) => ({ scrollHeight: el.scrollHeight, scrollTop: el.scrollTop, clientHeight: el.clientHeight });
 
-// A SUBAGENT'S CHAT — ONE DEFINITION, TWO PLACES THAT OPEN IT.
+// A SUBAGENT'S CHAT — ONE DEFINITION, AND ONE ROW THAT OPENS IT.
 //
 // A lane's chat and a lane-less subagent's chat are the same thing: a routed event log, a cook
-// line while it thinks, and somewhere to stand it. They were not the same code — the lane had a
-// panel and the lane-less subagent had a dim one-line row with no door at all, even though
-// `unseenSubagents` collects its events and hands them over. His question: *"other subagents that
-// don't have lanes — why shouldn't I be able to open up their chats?"* No reason. The only thing
-// a lane added was a branch, and a branch is the OTHER fold.
+// line while it thinks, and somewhere to stand it. His question: *"other subagents that don't
+// have lanes — why shouldn't I be able to open up their chats?"* No reason. The only thing a lane
+// adds is a branch, and a branch is the OTHER fold — so `LanePanel` draws both and nothing here
+// knows which kind it is serving.
 //
 // THE SCROLL FOLLOWS, LIKE A CHAT. Same `sticking` the conversation uses: geometry moving is not a
 // decision, so only a scroll that moves `scrollTop` while the box holds still may stop the follow.
@@ -1563,86 +1562,6 @@ const geoOfLog = (el) => ({ scrollHeight: el.scrollHeight, scrollTop: el.scrollT
 // past the box — rendering correctly and invisible, which is indistinguishable from not working.
 // NO STOP BUTTON, deliberately: nothing here can interrupt a subagent, and a square that did
 // nothing would be worse than no square.
-// A SUBAGENT WITH NO LANE IS STILL A SUBAGENT YOU CAN OPEN.
-//
-// It drew one dim, unpressable line — kind, brief, last thing it did, and a `why` explaining that
-// it has no row anywhere. Meanwhile `unseenSubagents` was handing over its whole event list, which
-// nothing rendered. *"Other subagents that don't have lanes — why shouldn't I be able to open up
-// their chats?"*
-//
-// IT GETS THE ROW'S SHAPE, NOT ITS CONTENTS. Same head, same chevron, same liveness pill — the
-// pill is the thing he reads for *"I can see that they're working, and I can see if they have a
-// quiet moment."* What it does NOT get is a lane fold, because there is no branch: a fold headed
-// "the lane" over a subagent with no branch would be furniture promising a fact that does not
-// exist. One fold, and it is the chat.
-function SubagentRow({ u, onPopOut = null }) {
-  const [open, setOpen] = useState(false);
-  const finished = u.state !== "running";
-  const [, setBeat] = useState(0);
-  useEffect(() => {
-    if (finished || !u.events || !u.events.length) return undefined;
-    const t = setInterval(() => setBeat((n) => n + 1), 30000);
-    return () => clearInterval(t);
-  }, [finished, u.events]);
-  const live = laneLiveness({ events: u.events, finished });
-  const n = (u.events || []).length;
-  return (
-    <div className={`${CLASSNAME}__unseen ${CLASSNAME}__unseen--${u.state}`}>
-      <div
-        className={`${CLASSNAME}__row ${CLASSNAME}__unseen-row`}
-        role="button"
-        tabIndex={0}
-        title={u.fullBrief || u.why}
-        onClick={() => setOpen((v) => !v)}
-        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen((v) => !v); } }}
-      >
-        <span className={`${CLASSNAME}__lane-icon`} title="a subagent with no lane — no branch, no run record, but its log is right here">
-          {"\u{1F916}"}
-        </span>
-        <span className={`${CLASSNAME}__unseen-brief`}>{u.brief || u.parent}</span>
-        {/* NO BRANCH MEANS NO BAR. A lane's fraction comes from its registered list and this has
-            none, so a bar here would be an empty trough implying a measurement nobody took. The
-            message count is the honest size of it. */}
-        <span className={`${CLASSNAME}__lanefold-n`}>{n ? `${n} message${n === 1 ? "" : "s"}` : "no log held"}</span>
-        {live.text && (
-          <span className={`${CLASSNAME}__lane-live ${CLASSNAME}__lane-live--${live.tone || "none"}`}
-                title="how long since it last did anything — silence is not death, a subagent mid-thought is quiet and alive">
-            {live.text}
-          </span>
-        )}
-        {/* WHY IT HAS NO ROW stays on the row, because it is the answer to the question the row
-            itself provokes. `unseenSubagents` writes it: never registered a lane, or registered
-            one whose run record is missing. */}
-        <span className={`${CLASSNAME}__unseen-why`}>{u.why}</span>
-        <span className={`${CLASSNAME}__lane-chev`}>{open ? "\u25BE" : "\u25B8"}</span>
-      </div>
-      {open && (
-        <div className={`${CLASSNAME}__lanefold ${CLASSNAME}__lanefold--open`}>
-          <div className={`${CLASSNAME}__lanefold-head`} role="presentation">
-            <span className={`${CLASSNAME}__lanefold-chev`}>{"\u25BE"}</span>
-            the chat
-            {onPopOut && (
-              <span
-                role="button"
-                tabIndex={0}
-                className={`${CLASSNAME}__lanefold-pop`}
-                title="stand this chat beside your own, so it stays up while you work"
-                onClick={(e) => { e.stopPropagation(); onPopOut(); }}
-                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onPopOut(); } }}
-              >
-                {"\u21F1 pull out"}
-              </span>
-            )}
-          </div>
-          <div className={`${CLASSNAME}__lanefold-body ${CLASSNAME}__lanefold-body--chat`}>
-            <SubagentChat events={u.events} finished={finished} resetOn={u.parent} empty={`${u.why} — and no log was held for it either`} />
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 function SubagentChat({ events, finished = false, resetOn = "", empty = "" }) {
   const cooking = useMemo(() => laneCook(events, finished), [events, finished]);
   const logRef = useRef(null);
@@ -1676,12 +1595,38 @@ function SubagentChat({ events, finished = false, resetOn = "", empty = "" }) {
   );
 }
 
-function LanePanel({ source, items, laneEvents, brief = "", projectCode, headExtra = null }) {
+// ONE ROW, AND THE BRANCH IS OPTIONAL.
+//
+// His ruling, 2026-11-01, after finding a second row component living below this one: *"don't you
+// just put them inside the same component that holds a lane? The lane doesn't have a connection.
+// Why is it being different? That's insanity."* He is right. A lane and a lane-less subagent are
+// the same row — an icon, a name, a liveness pill, folds you open — and the ONLY difference is
+// that one has a branch. So the branch is a prop that may be absent, never a second file:
+//   · no branch  → no branch fold (laneFolds), no git reads, no delete, no bar
+//   · no branch  → `ended` says whether it finished, because there is no item list to count
+// What existed before was a hand-copied shell: its own 30s beat with the same guard, its own
+// laneLiveness call, its own head, chevron, fold and chat body — plus a "pull out" nothing ever
+// passed, which is how a copy hides a dead verb. Two copies of one row drift; this is the fix.
+function LanePanel({
+  source = "",
+  items = [],
+  laneEvents,
+  brief = "",
+  projectCode,
+  headExtra = null,
+  name = "",
+  iconTitle = "",
+  ended = false,
+  chatEmpty = "",
+  resetKey = "",
+  state = "",
+}) {
   // THE BRIEF AT THE TOP (his ask): the prompt that scoped this lane, shown where the lane is
   // monitored — the owner's context compressed into instructions is exactly what a reader needs
   // to judge the log below it. Folded, because it can be long and the log is the live half.
   const [briefOpen, setBriefOpen] = useState(false);
-  const branch = source.slice(5);
+  // THE SUFFIX IS THE BRANCH, by convention — and an empty source is a row that has none.
+  const branch = source ? source.slice(5) : "";
   const [arts, setArts] = useState(null);
   // THE LANE'S REPO, WHICH IS NOT ALWAYS THIS CHAT'S. The panel is drawn in the room of the session
   // that spawned the lane; the lane may have worked in a different repository — and then the
@@ -1694,6 +1639,9 @@ function LanePanel({ source, items, laneEvents, brief = "", projectCode, headExt
   useEffect(() => {
     let dead = false;
     setRepo(projectCode);
+    // NOTHING TO ASK WITH NO BRANCH. `branchOwner("")` would send every lane-less subagent row to
+    // the hub to ask which project holds a branch name that is the empty string.
+    if (!branch) return () => { dead = true; };
     (async () => {
       try {
         const r = await hostFiles(projectCode).branchOwner({ branch });
@@ -1706,6 +1654,10 @@ function LanePanel({ source, items, laneEvents, brief = "", projectCode, headExt
   }, [projectCode, branch]);
   useEffect(() => {
     let dead = false;
+    // WITH NO BRANCH THERE ARE NO ARTIFACTS — and `arts` is only read by the branch fold, which
+    // does not exist in that case. Left null rather than set to {}, so nothing can render a
+    // confident "no worktree left behind" about a row that never had one.
+    if (!branch) return () => { dead = true; };
     (async () => {
       try {
         const p = hostFiles(repo);
@@ -1722,8 +1674,22 @@ function LanePanel({ source, items, laneEvents, brief = "", projectCode, headExt
     return () => { dead = true; };
   }, [repo, branch]);
   const done = items.filter((t) => t.state === "done").length;
-  const finished = items.length > 0 && done === items.length;
+  // WHAT "FINISHED" MEANS DEPENDS ON WHETHER THERE IS A LIST. A lane is finished when its own
+  // registered list is complete. A lane-less subagent has no list at all, so finishing is a fact
+  // its spawning call reported — never inferred from the events going quiet, because a subagent
+  // thinking for two minutes is silent and alive.
+  const finished = branch ? items.length > 0 && done === items.length : !!ended;
   const died = !finished && items.some((t) => t.state === "active");
+  // IS IT MOVING — re-derived on a beat, because elapsed is the one fact on this row that goes
+  // wrong by standing still. One beat for both kinds of row, which is the point of this being one
+  // component: the copy below used to run a second identical interval.
+  const [, setBeat] = useState(0);
+  useEffect(() => {
+    if (finished || !laneEvents || !laneEvents.length) return undefined;
+    const t = setInterval(() => setBeat((n) => n + 1), 30000);
+    return () => clearInterval(t);
+  }, [finished, laneEvents]);
+  const live = laneLiveness({ events: laneEvents, finished });
   // The log, the cook line and the scroll-follow are `SubagentChat`'s — the chat fold renders it.
   // The panel already HOLDS the log, so it needs nothing passed to answer the same question.
   const delegated = !!laneEvents;
@@ -1734,7 +1700,7 @@ function LanePanel({ source, items, laneEvents, brief = "", projectCode, headExt
   // open up neatly."* Two closed sections is the whole offer: he scrolls and opens the one he
   // wants, and a lane with no chat says so when he asks it rather than being pre-opened at him.
   const [open, setOpen] = useState({});
-  const folds = laneFolds({ chat: !!(laneEvents && laneEvents.length) });
+  const folds = laneFolds({ chat: !!(laneEvents && laneEvents.length), branch: !!branch });
   const work = laneWork({ brief, commits: (arts && arts.commits) || [] });
   const follow = laneFollow({ events: laneEvents, finished });
   const changes = laneChanges({
@@ -1742,7 +1708,7 @@ function LanePanel({ source, items, laneEvents, brief = "", projectCode, headExt
     commits: (arts && arts.commits) || [],
   });
   return (
-    <div className={`${CLASSNAME}__lanepanel`}>
+    <div className={`${CLASSNAME}__lanepanel${state ? ` ${CLASSNAME}__lanepanel--nobranch ${CLASSNAME}__lanepanel--${state}` : ""}`}>
       {/* THE HEADER THAT WAS ALREADY HERE. The block — this header, the lane, the chat — was
           always one thing, and above it sat a SECOND header repeating the identity and carrying
           the bar, the counts, the chips, the liveness and the bin. That is the double wrap: *"a
@@ -1752,13 +1718,16 @@ function LanePanel({ source, items, laneEvents, brief = "", projectCode, headExt
       <div className={`${CLASSNAME}__lanepanel-head`}>
         <span
           className={`${CLASSNAME}__lane-icon`}
-          title={delegated
+          title={iconTitle || (delegated
             ? "a subagent is working in this branch — its log is the chat below"
-            : "no live log for this lane: either this agent's own work, or a subagent whose session has ended"}
+            : "no live log for this lane: either this agent's own work, or a subagent whose session has ended")}
         >
           {delegated ? "\u{1F916}" : "\u{1F33F}"}
         </span>
-        <span className={`${CLASSNAME}__lanepanel-name`}>{branch}</span>
+        {/* THE NAME IS THE BRANCH when there is one. With no branch the row still has to be
+            legible, so the caller gives it one — the brief that scoped the subagent — because an
+            id and an event count is visible without being legible. */}
+        <span className={`${CLASSNAME}__lanepanel-name`} title={name && brief ? brief : undefined}>{name || branch}</span>
         {/* THE WORDS ONLY — the fraction rides the bar now, at the other end of this line, and
             a header that says `8/8 … ████ 8/8` is one measurement printed twice. What is left
             here is what the number cannot say: that the run CLOSED, or that it died and where. A
@@ -1768,7 +1737,9 @@ function LanePanel({ source, items, laneEvents, brief = "", projectCode, headExt
             {finished ? "run closed" : `died at: ${(items.find((t) => t.state === "active") || {}).text}`}
           </span>
         )}
-        {headExtra}
+        {/* THE HEAD'S EXTRAS DEPEND ON STATE THIS PANEL OWNS — the liveness pill above all — so a
+            caller may pass a function and be handed it, rather than computing a second copy. */}
+        {typeof headExtra === "function" ? headExtra({ live, finished, done, total: items.length }) : headExtra}
       </div>
       {/* TWO FOLDS, AND THAT SEPARATION IS THE WHOLE POINT OF THIS PANEL.
           His instruction: *"you got to separate the lanes and the chat, and make it so that they
@@ -1891,7 +1862,7 @@ function LanePanel({ source, items, laneEvents, brief = "", projectCode, headExt
 
           {open[f.key] && f.key === "chat" && (
             <div className={`${CLASSNAME}__lanefold-body ${CLASSNAME}__lanefold-body--chat`}>
-              <SubagentChat events={laneEvents} finished={finished} resetOn={source} empty={follow.why} />
+              <SubagentChat events={laneEvents} finished={finished} resetOn={source || resetKey} empty={chatEmpty || follow.why} />
             </div>
           )}
         </div>
@@ -1906,17 +1877,9 @@ function LaneRow({ source, items, projectCode, repo, delegated, onDelete, brief 
   const finished = items.length > 0 && done === items.length;
   // A RUN THAT STOPPED WITH AN ITEM STILL ACTIVE DIED THERE, and where it died is the record.
   const active = items.find((t) => t.state === "active");
-  // IS IT MOVING. Re-derived on a beat, because elapsed is the one fact on this row that goes
-  // wrong by standing still — a lane that said "working" four minutes ago is the row lying by
-  // omission. The beat is a minute: the words change by the minute, so anything finer redraws for
-  // nothing. No beat at all once the run is closed; there is nothing left to count.
-  const [, setBeat] = useState(0);
-  useEffect(() => {
-    if (finished || !events || !events.length) return undefined;
-    const t = setInterval(() => setBeat((n) => n + 1), 30000);
-    return () => clearInterval(t);
-  }, [finished, events]);
-  const live = laneLiveness({ events, finished });
+  // THE BEAT AND THE LIVENESS ARE THE PANEL'S — one interval for every row shape, not one per
+  // caller. The pill is still drawn here, in the place on the line it has always occupied, by
+  // taking `live` from the panel instead of deriving a second copy of it.
   // THE DELETE IS HIS, TWO-STEP (his design): pressing 🗑 first READS what the delete would
   // destroy — branch merged or not, worktree still on disk — and the confirm says it to his
   // face. An unmerged branch is real work; "delete anyway?" is the honesty, same as the switch
@@ -2055,7 +2018,7 @@ function LaneRow({ source, items, projectCode, repo, delegated, onDelete, brief 
         laneEvents={events}
         brief={brief}
         projectCode={projectCode}
-        headExtra={
+        headExtra={({ live }) => (
           <>
             {/* WHICH REPO holds the branch — his catch: autobot and systemview lanes read
                 identically, so the strip could not answer "is this repo clean". Shown only when it
@@ -2097,7 +2060,7 @@ function LaneRow({ source, items, projectCode, repo, delegated, onDelete, brief 
             )}
             <button type="button" className={`${CLASSNAME}__lane-del`} title="clean up this lane — worktree, branch, record" onClick={armDelete}>🗑</button>
           </>
-        }
+        )}
       />
       {confirm && (
         <div className={`${CLASSNAME}__lane-confirm`} onClick={(e) => e.stopPropagation()}>
@@ -8397,11 +8360,45 @@ const countdown = (str, now = Date.now()) => {
                       {both && cap("on a branch")}
                       {branchRows.map(renderLaneRow)}
                       {/* RUNNING, AND ACCOUNTED FOR BY NOTHING ELSE ON SCREEN. Dim, because it is
-                          not a lane — it is a subagent that never became one. The row carries the
-                          brief that scoped it and the last thing it did, because an id and an
-                          event count is visible without being legible. */}
+                          not a lane — it is a subagent that never became one. THE SAME `LanePanel`
+                          A LANE GETS: his ruling, *"the lane doesn't have a connection, why is it
+                          being different?"* It is handed no `source`, so there is no branch — and
+                          the panel drops the branch fold, the git reads and the bar on its own.
+                          What it is handed instead is a NAME (the brief that scoped it, because an
+                          id and an event count is visible without being legible) and `ended`,
+                          since there is no item list to count finishing from. */}
                       {both && cap("no branch")}
-                      {unseenShown.map((u) => <SubagentRow key={`unseen-${u.parent}`} u={u} />)}
+                      {unseenShown.map((u) => (
+                        <LanePanel
+                          key={`unseen-${u.parent}`}
+                          projectCode={projectCode}
+                          laneEvents={u.events}
+                          brief={u.fullBrief}
+                          name={u.brief || u.parent}
+                          iconTitle="a subagent with no lane — no branch, no run record, but its log is right here"
+                          ended={u.state !== "running"}
+                          resetKey={u.parent}
+                          state={u.state}
+                          chatEmpty={`${u.why} — and no log was held for it either`}
+                          headExtra={({ live }) => (
+                            <>
+                              {live.text && (
+                                <span
+                                  className={`${CLASSNAME}__lane-live ${CLASSNAME}__lane-live--${live.tone || "none"}`}
+                                  title="how long since it last did anything — silence is not death, a subagent mid-thought is quiet and alive"
+                                >
+                                  {live.text}
+                                </span>
+                              )}
+                              {/* WHY IT HAS NO ROW OF ITS OWN stays on the row, because it is the
+                                  answer to the question the row provokes. `unseenSubagents` writes
+                                  it: never registered a lane, or registered one whose run record
+                                  is missing — two causes needing different answers from him. */}
+                              <span className={`${CLASSNAME}__unseen-why`}>{u.why}</span>
+                            </>
+                          )}
+                        />
+                      ))}
                     </>
                   );
                 })()}

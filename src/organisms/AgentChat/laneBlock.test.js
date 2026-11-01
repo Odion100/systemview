@@ -145,6 +145,27 @@ describe("the sections — branch information and chat information never clutter
   it("names them for what they are, and neither is called the lane", () => {
     expect(laneFolds({ chat: true }).map((f) => f.label)).toEqual(["the branch", "the chat"]);
   });
+
+  // A SUBAGENT WITH NO BRANCH GETS THE SAME ROW, MINUS THE PART THAT NEEDS ONE. His ruling, and
+  // the reason this is a flag and not a second component: *"the lane doesn't have a connection,
+  // why is it being different?"* Nothing about the row depends on a branch except the sections
+  // that read git.
+  it("drops the branch fold when there is no branch, and keeps the chat", () => {
+    expect(laneFolds({ chat: true, branch: false }).map((f) => f.key)).toEqual(["chat"]);
+  });
+
+  // The honest empty case: no branch and no log held is NO folds at all, which is a row that says
+  // its own name and nothing else — strictly better than a fold that opens onto "there isn't one".
+  it("offers nothing to open when there is neither a branch nor a log", () => {
+    expect(laneFolds({ chat: false, branch: false })).toEqual([]);
+  });
+
+  // DEFAULTING TO TRUE IS WHAT KEEPS EVERY EXISTING CALLER RIGHT — a lane that passes only `chat`
+  // must still get its branch fold, so the flag can never silently strip one.
+  it("still gives a branch fold to a caller that says nothing about a branch", () => {
+    expect(laneFolds({ chat: true }).map((f) => f.key)).toEqual(["branch", "chat"]);
+    expect(laneFolds({}).map((f) => f.key)).toEqual(["branch"]);
+  });
 });
 
 describe("laneFoldOrder — what the BRANCH section holds", () => {

@@ -145,8 +145,13 @@ const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
  *
  * THE BRANCH SECTION IS ALWAYS THERE, because a lane always has one. That is what makes it a lane.
  */
-export function laneFolds({ chat = false } = {}) {
-  const folds = [{ key: "branch", label: "the branch" }];
+export function laneFolds({ chat = false, branch = true } = {}) {
+  // NO BRANCH, NO BRANCH FOLD. A subagent that never registered a lane has no branch, no worktree
+  // and no run record — so a fold headed "the branch" over it is furniture promising a fact that
+  // does not exist, and the sections underneath it would each have to say "there isn't one".
+  // The row is otherwise identical to a lane's, which is why this is a flag here rather than a
+  // second row component somewhere else.
+  const folds = branch ? [{ key: "branch", label: "the branch" }] : [];
   if (chat) folds.push({ key: "chat", label: "the chat" });
   return folds;
 }
