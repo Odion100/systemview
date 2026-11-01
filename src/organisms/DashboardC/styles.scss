@@ -392,17 +392,21 @@ $dbc-foot: 30px;
   // not get a tick, and its zero is dimmed rather than hidden.
   &:not(.has-mass) .dbc-stn__n { color: var(--sv-text-faint); opacity: 0.55; }
   &.has-mass .dbc-stn__name { color: var(--sv-text); }
+  // THE STATION MARK IS A TICK ACROSS THE RAIL, NOT A CIRCLE. As a ring it was the same shape as
+  // a document, sitting directly under the documents — so a station holding one document drew two
+  // circles and the count said 1. A mark that can be counted as the thing it is marking is worse
+  // than no mark.
   &__tick { display: none; }
   &.has-mass .dbc-stn__tick {
     display: block;
     position: absolute;
     bottom: $dbc-foot;
-    margin-bottom: -4px;
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: var(--sv-surface);
-    border: 1px solid var(--dbc-hue);
+    margin-bottom: -5px;
+    width: 2px;
+    height: 11px;
+    border-radius: 1px;
+    background: var(--dbc-hue);
+    opacity: 0.85;
   }
 }
 
