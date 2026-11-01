@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
 import "./styles.scss";
 import { groupOwed } from "../AgentChat/owed";
+import { pctStyle } from "../../atoms/meterWidth";
 import ServiceContext from "../../ServiceContext";
 import { hostFiles } from "../../utils/hostFiles";
 import { onCodePage, openAddress } from "../../atoms/Markdown/openRef";
@@ -293,7 +294,7 @@ export default function DashboardB() {
         <div className="dbb-tide__cap">every registered document, by what it wants from you</div>
         <div className="dbb-tide" role="img" aria-label={tide.map((t) => `${t.n} ${t.label}`).join(", ")}>
           {tide.map((t) => (
-            <span key={t.key} className={`dbb-tide__seg dbb-tide__seg--${t.key}`} style={{ width: `${t.pct}%` }} title={`${t.n} ${t.label}`} />
+            <span key={t.key} className={`dbb-tide__seg dbb-tide__seg--${t.key}`} style={pctStyle(t.pct, { nonZero: (t.n || 0) > 0 })} title={`${t.n} ${t.label}`} />
           ))}
         </div>
         <div className="dbb-tide__legend">

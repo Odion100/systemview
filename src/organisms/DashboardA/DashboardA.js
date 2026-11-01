@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
 import "./styles.scss";
 import ServiceContext from "../../ServiceContext";
 import { hostFiles } from "../../utils/hostFiles";
+import { fillStyle } from "../../atoms/meterWidth";
 import { openAddress } from "../../atoms/Markdown/openRef";
 import { tickFor } from "../../atoms/Markdown/blocks/retention";
 import { skippedLine, groupOwed } from "../AgentChat/owed";
@@ -180,8 +181,8 @@ const Mark = ({ m }) => {
         {m.bar ? (
           <span className="dba-card__bar">
             <span className="dba-bar">
-              <span className="dba-bar__done" style={{ width: `${done}%` }} />
-              <span className="dba-bar__extra" style={{ width: `${extra - done}%` }} />
+              <span className="dba-bar__done" style={fillStyle(m.bar.done, total)} />
+              <span className="dba-bar__extra" style={fillStyle(m.bar.extra, total)} />
             </span>
             <em>
               {m.bar.done} of {m.bar.total} {m.bar.unitWord} {m.bar.doneWord}
@@ -372,8 +373,8 @@ const Lane = ({ p, fanned, onFan, shown, onShow }) => (
                   {m.bar ? (
                     <span className="dba-row__bar">
                       <span className="dba-bar">
-                        <span className="dba-bar__done" style={{ width: `${(m.bar.done / m.bar.total) * 100}%` }} />
-                        <span className="dba-bar__extra" style={{ width: `${(m.bar.extra / m.bar.total) * 100}%` }} />
+                        <span className="dba-bar__done" style={fillStyle(m.bar.done, m.bar.total)} />
+                        <span className="dba-bar__extra" style={fillStyle(m.bar.extra, m.bar.total)} />
                       </span>
                       <em>
                         {m.bar.done}/{m.bar.total} {m.bar.doneWord}

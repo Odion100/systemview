@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useDocMembers, useMarkdownWrite } from "../context";
 import { claimsOf } from "../claims";
 import { rowsOf } from "../claimRows";
+import { fillStyle } from "../../meterWidth";
 import { askProofs, clear as clearMarks, subscribe } from "../../../utils/proofsBus";
 import { rollupOf } from "../../../utils/specRun";
 import useEffectiveProject from "../../../utils/effectiveProject";
@@ -89,9 +90,9 @@ const Claims = ({ attrs = {} }) => {
             paints the bar done, and the gap between the pale and the solid is exactly how much
             of this document is resting on testimony. */}
         <div className="pl__bar pl__bar--layered" aria-hidden="true">
-          <i className="is-marked" style={{ width: `${Math.round(((view.met + view.unproved) / view.total) * 100)}%` }} />
-          <i className="is-reviewed" style={{ width: `${Math.round((view.reviewed / view.total) * 100)}%` }} />
-          <i className="is-unmet" style={{ width: `${Math.round((view.unmet / view.total) * 100)}%` }} />
+          <i className="is-marked" style={fillStyle(view.met + view.unproved, view.total)} />
+          <i className="is-reviewed" style={fillStyle(view.reviewed, view.total)} />
+          <i className="is-unmet" style={fillStyle(view.unmet, view.total)} />
         </div>
         <div className="pl__meta">
           <span className="pl__meta-label">met</span>

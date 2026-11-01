@@ -1,5 +1,6 @@
 import React from "react";
 import { PHASES } from "../../../DashboardA/dashboardA.data";
+import { fillStyle } from "../../../../atoms/meterWidth";
 
 // ─── A'S PIECES — THE PARTS MORE THAN ONE OF A'S TILES DRAWS ───────────────────────────────────
 //
@@ -66,8 +67,8 @@ export const Mark = ({ m, open }) => {
         {m.bar ? (
           <span className="dba-card__bar">
             <span className="dba-bar">
-              <span className="dba-bar__done" style={{ width: `${done}%` }} />
-              <span className="dba-bar__extra" style={{ width: `${extra - done}%` }} />
+              <span className="dba-bar__done" style={fillStyle(m.bar.done, total)} />
+              <span className="dba-bar__extra" style={fillStyle(m.bar.extra, total)} />
             </span>
             <em>
               {m.bar.done} of {m.bar.total} {m.bar.unitWord} {m.bar.doneWord}
@@ -257,8 +258,8 @@ export const Lane = ({ p, fanned, onFan, shown, onShow, open }) => (
                   {m.bar ? (
                     <span className="dba-row__bar">
                       <span className="dba-bar">
-                        <span className="dba-bar__done" style={{ width: `${(m.bar.done / m.bar.total) * 100}%` }} />
-                        <span className="dba-bar__extra" style={{ width: `${(m.bar.extra / m.bar.total) * 100}%` }} />
+                        <span className="dba-bar__done" style={fillStyle(m.bar.done, m.bar.total)} />
+                        <span className="dba-bar__extra" style={fillStyle(m.bar.extra, m.bar.total)} />
                       </span>
                       <em>
                         {m.bar.done}/{m.bar.total} {m.bar.doneWord}
