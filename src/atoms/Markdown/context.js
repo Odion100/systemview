@@ -41,6 +41,24 @@ export function useMarkdownScope() {
 // in the source document, then hands the whole document to the surface to save. `editable` is false
 // wherever there is nothing to save to (a help topic is a code constant), and blocks must SAY so
 // rather than pretending to persist.
+// WHERE THIS MARKDOWN IS BEING READ — and it decides where a reference LANDS.
+//
+// A link inside a document, read in the centre, opens the next document BESIDE the one you are on:
+// you are reading, and being thrown somewhere else loses your place. The same block rendered in
+// the CHAT means "show me this" — the chat is not a place you are reading a document from, and a
+// chip there that quietly added a tab somewhere else read as a link that did nothing.
+//
+// It is a context rather than a prop because the blocks that open addresses are nested anywhere
+// inside a document, and threading a flag through every one of them is how it ends up missing from
+// the one nobody remembered.
+const InDocument = createContext(false);
+
+export function InDocumentProvider({ value = true, children }) {
+  return <InDocument.Provider value={!!value}>{children}</InDocument.Provider>;
+}
+
+export const useInDocument = () => useContext(InDocument);
+
 const MarkdownWrite = createContext({ editable: false, setAttr: () => {} });
 
 export function MarkdownWriteProvider({ value, children }) {

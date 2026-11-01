@@ -219,6 +219,7 @@ export default function DashboardB() {
       path: bead.path,
       language: "markdown",
       lines: bead.line > 1 ? [bead.line, bead.line] : undefined,
+      beside: true, // the dashboard is in the centre — open next door, do not navigate away
     });
     if (d.handled || onCodePage()) return;
     // Nothing on this page hosted it. Rather than leaving a dead click, take the last-resort route

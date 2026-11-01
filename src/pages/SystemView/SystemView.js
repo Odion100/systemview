@@ -202,14 +202,21 @@ const SystemViewPage = ({ params = null }) => {
   // nobody is looking at over an empty centre is a hidden file — so that case navigates, which
   // `openTab`'s own `focus` rule already decides.
   //
-  // `navigate: true` on the detail still takes you there, for a door whose whole purpose is to
-  // move you. Nothing passes it yet; it exists so that door does not have to invent a second
-  // dispatch when it arrives.
+  // IT IS OPT-IN, AND THAT IS THE WHOLE RULE — `beside: true` on the detail, set only by a surface
+  // in the CENTRE: a document linking to another document, the dashboard, an arc's progress. His
+  // correction, after I applied it to everything: *"why the hell am I clicking on files from the
+  // chat and they're not opening? That only applies to when you're in the document and you're
+  // opening up another document, or when you're in the document area and you're clicking a link
+  // to another one."*
+  //
+  // The chat is not a place you are reading a document FROM, so a chip there means "show me this"
+  // — the old behaviour, and the default again. A default of "beside" turned every file chip in
+  // the conversation into a tab that silently appeared somewhere else.
   useEffect(() => {
     const onOpen = (e) => {
       const d = e.detail || {};
       const pane = (getTabs(projectCode).panes || [])[0] || { tabs: [], active: "" };
-      if (d.navigate || !pane.tabs.length) return openFile(d);
+      if (d.navigate || !d.beside || !pane.tabs.length) return openFile(d);
       const file = {
         projectCode: d.machine ? "" : d.projectCode || "",
         path: d.path,

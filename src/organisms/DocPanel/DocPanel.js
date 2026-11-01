@@ -2,6 +2,7 @@ import React, { useRef, useState } from "react";
 import "./styles.scss";
 import CodeEditor from "../../atoms/CodeView/CodeEditor";
 import Markdown from "../../atoms/Markdown/Markdown";
+import { InDocumentProvider } from "../../atoms/Markdown/context";
 import { useAppDark } from "../../atoms/appTheme";
 import CodePane from "../CodePane/CodePane";
 
@@ -114,7 +115,10 @@ const DocPanel = ({ doc, onChange, onSave, onClose, saving = false }) => {
           <CodeEditor value={doc.text} language={doc.language || "markdown"} dark={dark} onChange={onChange} readOnly={!!doc.readOnly} />
         ) : (
           <div className="doc-panel__preview">
-            <Markdown dark={dark}>{doc.text}</Markdown>
+            {/* A DOCUMENT BEING READ — a reference inside it opens the next one beside it. */}
+            <InDocumentProvider>
+              <Markdown dark={dark}>{doc.text}</Markdown>
+            </InDocumentProvider>
           </div>
         )}
       </div>

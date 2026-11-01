@@ -107,7 +107,15 @@ const DashboardDataContext = createContext(null);
  * about where a document lands is exactly what openRef exists to prevent.
  */
 export const openDoc = ({ project, path, line } = {}) =>
-  openAddress({ projectCode: project || "", path, language: "markdown", lines: line > 1 ? [line, line] : undefined });
+  openAddress({
+    projectCode: project || "",
+    path,
+    language: "markdown",
+    lines: line > 1 ? [line, line] : undefined,
+    // BESIDE, because the dashboard is in the centre and he is reading it. His ask: *"stop taking
+    // you to the new page and just add a tab right next door to the dashboard tab."*
+    beside: true,
+  });
 
 /**
  * Wrap the surface in this once. Every tile that shows registry state reads it with

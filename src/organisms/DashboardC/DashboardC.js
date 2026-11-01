@@ -377,6 +377,7 @@ export default function DashboardC() {
       path: t.path,
       language: "markdown",
       lines: Number(t.at) ? [Number(t.at)] : Number(t.line) ? [Number(t.line)] : null,
+      beside: true, // the dashboard is in the centre — open next door, do not navigate away
     });
 
   return (

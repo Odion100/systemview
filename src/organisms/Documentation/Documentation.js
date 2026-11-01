@@ -4,6 +4,7 @@ import "./styles.scss";
 import DescriptionBox from "../../atoms/DescriptionBox/DescriptionBox";
 import { EditorThemeToggle, useEditorDark } from "../../atoms/CodeView/editorTheme";
 import Markdown from "../../atoms/Markdown/Markdown";
+import { InDocumentProvider } from "../../atoms/Markdown/context";
 import CodePane from "../CodePane/CodePane";
 import { getTabs, subscribeTabs, openTab, focusTab, closeTab, fileKey } from "../../pages/SystemView/tabsStore";
 import ServiceContext from "../../ServiceContext";
@@ -636,6 +637,10 @@ const DocDescription = ({ doc, setDocument, Plugin, label, crumb = null, readOnl
               <DescriptionBox text={text || ""} setValue={setText} dark={editorDark} />
             </div>
           ) : text ? (
+            // IN A DOCUMENT — so a reference inside it opens the next document BESIDE this one
+            // rather than throwing you off the page you are reading. The same blocks in the chat
+            // carry no such context and open normally.
+            <InDocumentProvider>
             <Markdown
               dark={editorDark}
               children={text}
@@ -659,6 +664,7 @@ const DocDescription = ({ doc, setDocument, Plugin, label, crumb = null, readOnl
                   : null
               }
             />
+            </InDocumentProvider>
           ) : (
             <div className="doc-empty">
               <span className="doc-empty__icon">✎</span>

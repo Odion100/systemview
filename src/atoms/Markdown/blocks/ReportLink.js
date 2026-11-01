@@ -1,6 +1,6 @@
 import React from "react";
 import { useHistory, useParams } from "react-router-dom";
-import { useMarkdownScope } from "../context";
+import { useMarkdownScope, useInDocument } from "../context";
 import { onCodePage, openReportInPanel } from "../openRef";
 
 // `:report[.systemview/report.<pc>.<Name>.md]{title="…"}` — a chip that OPENS a report. A report is
@@ -11,6 +11,7 @@ import { onCodePage, openReportInPanel } from "../openRef";
 // Code page, and still the fallback when no panel answers. The rule is in ../openRef.js.
 const ReportLink = ({ label, attrs = {} }) => {
   const history = useHistory();
+  const inDoc = useInDocument();
   const params = useParams();
   const scope = useMarkdownScope();
   const path = (label || attrs.path || "").trim();
@@ -40,7 +41,8 @@ const ReportLink = ({ label, attrs = {} }) => {
     e.preventDefault();
     e.stopPropagation();
     // The side panel first, everywhere but Code — and only a panel that actually answered counts.
-    if (!onCodePage() && openReportInPanel({ projectCode, path })) return;
+    // BESIDE ONLY INSIDE A DOCUMENT — from the chat this chip shows the report, as it always has.
+    if (!onCodePage() && openReportInPanel({ projectCode, path, beside: inDoc })) return;
     history.push(to);
   };
 

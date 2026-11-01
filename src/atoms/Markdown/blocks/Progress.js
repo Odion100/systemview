@@ -4,6 +4,7 @@ import { getAgent } from "../../../utils/hub";
 import { parseArc } from "../objectives";
 import { planOf, stoppersOf } from "../arcPlan";
 import { openAddress } from "../openRef";
+import { useInDocument } from "../context";
 import PlanLedger from "../../PlanLedger/PlanLedger";
 import { askProofs, clear as clearMarks, subscribe } from "../../../utils/proofsBus";
 
@@ -64,6 +65,7 @@ function useAttachedPlans(arcId, projectCode) {
 }
 
 const Progress = ({ attrs = {} }) => {
+  const inDoc = useInDocument();
   const { source = "", projectCode = "" } = useDocMembers() || {};
   const src = String(source || "");
   const arc = parseArc(src);
@@ -158,6 +160,7 @@ const Progress = ({ attrs = {} }) => {
                 path: where.path,
                 language: "markdown",
                 lines: where.line ? [where.line, where.end || where.line] : undefined,
+                beside: inDoc,
               })
             : undefined
         }

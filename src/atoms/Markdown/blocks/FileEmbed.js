@@ -4,6 +4,7 @@ import ServiceContext from "../../../ServiceContext";
 import loadServiceWithHeaders from "../../../utils/loadService";
 import { useMarkdownScope } from "../context";
 import { openAddress } from "../openRef";
+import { useInDocument } from "../context";
 import { parseFileSpec } from "./FileLink";
 import CodeEditor from "../../CodeView/CodeEditor";
 import DiffView from "../../DiffView/DiffView";
@@ -64,6 +65,7 @@ function useFileHost(attrs, scope, machinePath) {
 
 const Embed = ({ label, attrs = {}, opens }) => {
   const scope = useMarkdownScope();
+  const inDoc = useInDocument();
   const rawSpec = label || attrs.path || "";
   const specPath = rawSpec ? parseFileSpec(rawSpec).path : "";
   const isMachinePath = specPath.startsWith("/") || specPath.startsWith("~");
@@ -296,7 +298,7 @@ const Embed = ({ label, attrs = {}, opens }) => {
   const open = () => {
     if (!host) return;
     // ONE OPENER — the header press hands its address over; normalisation happens in openAddress.
-    openAddress({ projectCode: host.projectCode, machine: host.machine, path, language: langOf(path), lines });
+    openAddress({ projectCode: host.projectCode, machine: host.machine, path, language: langOf(path), lines, beside: inDoc });
   };
 
   // The same right-click the file has in the codebase panel, on the same file — same verbs, same

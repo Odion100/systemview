@@ -2,7 +2,7 @@ import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import FileLink from "./FileLink";
-import { MarkdownScopeProvider } from "../context";
+import { MarkdownScopeProvider, InDocumentProvider } from "../context";
 import { _clearResolveCache } from "../../../utils/resolveRef";
 
 // A reference into a SIBLING repo is the point of `{project=…}` — BUApp pointing at buAPI from its
@@ -114,5 +114,51 @@ describe("a file chip belongs to the project that really holds it", () => {
     inScope(<FileLink label="" attrs={{}} />, {});
     expect(screen.queryByRole("button")).toBe(null);
     expect(screen.getByText("no path")).toBeTruthy();
+  });
+});
+
+// WHERE THE CHIP LANDS DEPENDS ON WHERE IT IS BEING READ — and getting this wrong shipped once.
+//
+// The beside-the-one-you-are-on rule was applied to EVERY dispatch, so a file chip in the CHAT
+// stopped opening anything: it quietly added a tab elsewhere and the click read as dead. His
+// correction: *"that only applies to when you're in the document and you're opening up another
+// document, or when you're in the document area and you're clicking a link to another one."*
+//
+// The suite was green through all of it, because nothing asserted the DIFFERENCE between the two
+// places the same block renders. That is what these two claims are.
+describe("a chip opens beside only when it is inside a document", () => {
+  const opened = [];
+  const listener = (e) => opened.push(e.detail);
+  beforeEach(() => {
+    opened.length = 0;
+    _clearResolveCache();
+    window.addEventListener("sv:openFileInNav", listener);
+    hubSays((path, hint) => ({ resolved: true, projectCode: hint || "p", path }));
+  });
+  afterEach(() => {
+    window.removeEventListener("sv:openFileInNav", listener);
+    delete global.fetch;
+  });
+
+  it("in the chat it just opens the file — no beside", async () => {
+    inScope(<FileLink label="api/index.js" attrs={{ project: "p" }} />, { projectCode: "p" });
+    fireEvent.click(screen.getByRole("button"));
+    await waitFor(() => expect(opened).toHaveLength(1));
+    expect(opened[0].beside).toBeFalsy();
+  });
+
+  it("inside a document it opens beside the one you are reading", async () => {
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <MarkdownScopeProvider value={{ projectCode: "p" }}>
+          <InDocumentProvider>
+            <FileLink label="api/index.js" attrs={{ project: "p" }} />
+          </InDocumentProvider>
+        </MarkdownScopeProvider>
+      </MemoryRouter>,
+    );
+    fireEvent.click(screen.getByRole("button"));
+    await waitFor(() => expect(opened).toHaveLength(1));
+    expect(opened[0].beside).toBe(true);
   });
 });

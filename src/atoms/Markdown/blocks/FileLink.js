@@ -2,6 +2,7 @@ import React from "react";
 import { useMarkdownScope } from "../context";
 import { resolveRef } from "../../../utils/resolveRef";
 import { openAddress } from "../openRef";
+import { useInDocument } from "../context";
 
 // RFC-025 §4.1 — `:file[cli/stage.js#L40-70]`. Codebase connections (RFC-022) made a file reference
 // a real, resolvable thing, so a doc can point AT the code instead of quoting it.
@@ -34,6 +35,7 @@ const langOf = (p) => EXT_LANG[(p.split(".").pop() || "").toLowerCase()] || "tex
 
 const FileLink = ({ label, attrs = {} }) => {
   const scope = useMarkdownScope();
+  const inDoc = useInDocument();
   const raw = label || attrs.path || "";
   const { path, lines } = parseFileSpec(raw);
   // What the HUB said, once somebody opened a reference that named no project. Null until then —
@@ -86,8 +88,10 @@ const FileLink = ({ label, attrs = {} }) => {
 // So: a BUTTON that opens. ⌘-click still opens too — one behaviour, no modifier to learn.
   // ONE OPENER (openAddress) — this chip no longer rebuilds the address it was handed; the
   // machine/project normalisation lives in exactly one place.
+  // BESIDE ONLY INSIDE A DOCUMENT — in the chat this chip means "show me this file", which is
+  // what it has always meant. See `useInDocument`.
   const fire = (pc, p, machine) =>
-    openAddress({ projectCode: pc, serviceId, path: p, language: langOf(p), lines, machine });
+    openAddress({ projectCode: pc, serviceId, path: p, language: langOf(p), lines, machine, beside: inDoc });
 
   const open = (e) => {
     e.preventDefault();
