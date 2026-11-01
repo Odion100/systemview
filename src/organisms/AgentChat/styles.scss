@@ -5494,7 +5494,7 @@ button.agent-chat__jobrun-state {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 11px;
-  color: var(--sv-text-dim, #9aa4b2);
+  color: var(--sv-text-muted);
 }
 // WHICH KIND OF CLAIM THIS IS. A brief is what somebody TOLD the lane, a commit is what it SAYS
 // IT DID, a step is neither — printing all three identically is how a surface becomes confidently
@@ -5533,7 +5533,7 @@ button.agent-chat__jobrun-state {
   border-radius: 9px;
   padding: 1px 7px;
   font-size: 10px;
-  color: var(--sv-text-dim, #9aa4b2);
+  color: var(--sv-text-muted);
   cursor: pointer;
 }
 .agent-chat__lane-follow:disabled { opacity: 0.35; cursor: default; }

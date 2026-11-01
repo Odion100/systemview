@@ -3029,7 +3029,7 @@
     letter-spacing: 0.01em;
     line-height: 1.7;
     cursor: pointer;
-    color: var(--sv-text-dim, #5a6378);
+    color: var(--sv-text-muted);
     transition: color 0.12s ease, border-color 0.12s ease;
     &:hover:not(:disabled) { color: var(--sv-blue, #5b8def); border-color: var(--sv-blue, #5b8def); }
     &:disabled { opacity: 0.55; cursor: default; }
@@ -3047,7 +3047,7 @@
     font-family: inherit;
     line-height: 1.7;
     cursor: pointer;
-    color: var(--sv-text-dim, #8b93a5);
+    color: var(--sv-text-muted);
     transition: color 0.12s ease, border-color 0.12s ease;
     &:hover:not(:disabled) {
       color: var(--sv-text-strong, #3b4460);
@@ -3451,7 +3451,7 @@
   align-items: center;
   gap: 4px;
   background: var(--sv-inset, #eef1f8);
-  border: 1px solid color-mix(in srgb, var(--sv-text-dim, #5a6378) 40%, transparent);
+  border: 1px solid color-mix(in srgb, var(--sv-text-muted) 40%, transparent);
   border-radius: 12px;
   padding: 1px 7px;
   line-height: 1.5;
@@ -3502,14 +3502,14 @@
     text-transform: uppercase;
     font-size: 10px;
     letter-spacing: 0.08em;
-    color: var(--sv-text-dim, #5a6378);
+    color: var(--sv-text-muted);
   }
   &__relation {
     padding: 1px 7px;
     border: 1px solid var(--sv-border);
     border-radius: 999px;
     font-size: 11px;
-    color: var(--sv-text-dim, #5a6378);
+    color: var(--sv-text-muted);
   }
 
   // THE IDENTITY READS AT DOCUMENT SIZE (his call, 2026-10-29: the trail was right, the periphery

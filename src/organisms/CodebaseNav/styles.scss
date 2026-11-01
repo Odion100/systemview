@@ -878,12 +878,18 @@
   }
   // A body is git's own formatting — preserve it, but wrap, because a panel is narrower than a
   // terminal and a horizontal scrollbar in a side panel is unusable.
+  // THE BODY IS WHAT THE ROW WAS OPENED TO READ, so it gets the primary text colour and not a
+  // quiet one. It asked for `--sv-text-dim`, a token that is defined NOWHERE in the theme — the
+  // ramp is text / strong / muted / faint — so this resolved to its fallback, `inherit`, and
+  // inherited the drawer's muted colour: dark text on a dark drawer, unreadable without
+  // selecting it (his catch). Seven other sites referenced the same phantom token with hardcoded
+  // LIGHT-mode hexes, which in dark mode is the same bug wearing a different number.
   &__logbody {
     margin: 0 0 6px;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
     font: 11px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
-    color: var(--sv-text-dim, inherit);
+    color: var(--sv-text);
   }
   &__logmeta {
     display: flex;
