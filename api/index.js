@@ -2375,6 +2375,7 @@ const DocumentsRegistry = require("./documentsRegistry").documentsRegistryOn({ r
 // RFC-076 §4.6 — the reader's attention is the hub's own fact: first-open stamps, in the hub's
 // own ledger file, joined onto the registry rows at read time.
 const StampOpened = require("./documentsRegistry").stampOpened;
+const CommitLinks = require("./commitLinks");
 const DocMembers = require("./documentMembers");
 
 // WHERE THE FOUR DRIVE METHODS LAND. api/drive.js decides WHAT to send (and refuses, with why);
@@ -3448,6 +3449,44 @@ module.exports = function launchSystemView(port = 3000) {
       // a report retires on starts HERE, which is why only the window calls it: an agent's parse
       // is not his attention.
       documentOpened: async ({ id, restart } = {}) => StampOpened(id, { restart: !!restart }),
+      // DO THE COMMITS AND THE DOCUMENTS AGREE — the check that makes agents committing their own
+      // work auditable instead of trusted. Reads both sides itself (the git log's trailers, and
+      // the `::commit{sha=}` blocks in every registered document) and reports only where they
+      // disagree; `api/commitLinks.js` holds the rules and why each finding is its own kind.
+      commitLinks: async ({ projectCode, since, root } = {}) => {
+        const cwd = rootOf(projectCode, root);
+        if (!cwd) return { ok: false, error: "no folder for this project" };
+        const SEP = "\u001f";
+        const REC = "\u001e";
+        const log = await git(cwd, [
+          "log", `--max-count=${Math.min(Math.max(Number(since) || 200, 1), 2000)}`,
+          `--pretty=format:%H${SEP}%s${SEP}%B${REC}`,
+        ]);
+        if (!log.ok) return { ok: false, error: log.error || "git log failed" };
+        const commits = String(log.out || "")
+          .split(REC)
+          .map((r) => r.replace(/^\n/, ""))
+          .filter((r) => r.trim())
+          .map((r) => {
+            const [sha, subject, message] = r.split(SEP);
+            return { sha: String(sha || "").trim(), subject: String(subject || ""), message: String(message || "") };
+          })
+          .filter((c) => c.sha);
+        // EVERY REGISTERED DOCUMENT, not only this project's: a commit here routinely serves an
+        // objective whose arc lives in another repo, and scoping the documents to the commit's
+        // project would report that correct link as dangling.
+        const rows = DocumentsRegistry({});
+        const documents = rows
+          .map((r) => {
+            const base = rootOf(r.project);
+            const abs = base && r.path ? path.resolve(base, r.path) : r.path;
+            let text = "";
+            try { text = fsGit.readFileSync(abs, "utf8"); } catch { return null; }
+            return { id: r.id, kind: r.kind, path: r.path, project: r.project, text };
+          })
+          .filter(Boolean);
+        return { ok: true, projectCode, ...CommitLinks.audit({ commits, documents }) };
+      },
       comments: async ({ projectCode, path, replyText, at, as } = {}) =>
         CodeComments({ projectCode, path, reply: replyText, at, as: as || null }),
       // DRIVING THE WINDOW — FOUR METHODS (api/drive.js), not one door with a verb string.
