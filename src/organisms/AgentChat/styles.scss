@@ -3933,10 +3933,15 @@ $sv-board-states: (
     overflow: auto;
   }
   // Fenced code in a message: shorter, and it scrolls instead of growing.
+  //
+  // NO FONT-SIZE PIN. It was 10.5px here, which beat the mixin and made a code block the SMALLEST
+  // type in the chat — smaller than the inline code sitting in the sentence above it. His
+  // instruction is that the two are one family (*"the inline ones will take on the same style as
+  // the bigger blocks"*), so the size comes from the mixin's `0.9em` — the same declaration inline
+  // code uses — and the two land identically. The height cap is what this scope is actually for.
   .chat-md__fence {
     max-height: 200px;
     overflow: auto;
-    font-size: 10.5px;
   }
 
   // EVERY OTHER BLOCK, SAME RULE. A document can afford 16px of air around a decision; a chat

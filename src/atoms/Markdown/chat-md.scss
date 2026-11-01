@@ -4,7 +4,21 @@
 // type used inside the chat"*, then *"code comments need markdown just like the board did."* One
 // mixin, imported by every surface, so they can never drift apart.
 @mixin chat-md {
-  --md-ink: #5e6ade52;
+  // THE CODE FILL, AND IT HAS TO BE COLOURLESS. This was indigo (`#5e6ade52`), and on light it was
+  // not even used — a hardcoded lavender wash sat on the fence instead. Either way a code block
+  // came out as a flat periwinkle slab, which reads as a HIGHLIGHT, not as code: *"markdowns that
+  // you drop are not styled nicely in the chat… it should look like a code block example, it's
+  // just text."* A tinted fill says "something is going on in here"; a code sample has nothing
+  // going on, it is text on a quiet shelf.
+  //
+  // TRANSLUCENT GREY, and translucent is not a detail — it is the whole reason this is a token.
+  // The same markdown lands on the feed (`--sv-surface`), on an agent bubble (`--sv-inset`) and on
+  // his purple (#575fc1), so an OPAQUE value is wrong on two of the three by construction: dracula's
+  // #282a36, which is what the document pane paints a code block, is within two units of the dark
+  // chat panel's #282c34 and disappears into it (measured on his window, 2026-11-01), and
+  // `--sv-inset` IS the agent bubble's own background. Grey lifts a dark canvas and darkens a light
+  // one, so one value serves every surface — and `--you` still hands back a white ink for the purple.
+  --md-ink: rgba(128, 128, 128, 0.14);
   --md-line: rgba(0, 0, 0, 0.18);
   // A SECOND, QUIETER LINE. The column rules in a table have to be visible without turning it
   // into a grid, and reusing `--md-line` for both axes made every table look boxed. One token per
@@ -84,43 +98,55 @@
       max-width: 100%;
     }
   }
-  // HIS colors, per mode: the lavender wash reads on LIGHT bubbles, the translucent ink is
-  // right on DARK — so light is the default and `.sv-dark` hands the ink back.
+  // INLINE CODE AND A FENCE ARE ONE FAMILY — his instruction, and it is the reason both of these
+  // rules read the same way down to the token: *"the inline ones will take on the same style as
+  // the bigger blocks."* Same face, same fill, same no-border; the only difference is size and the
+  // radius that follows from it. One ink, both themes — there is no light/dark fork below any more.
   .chat-md__code {
-    background: rgba(
-      216,
-      219,
-      255,
-      0.32
-    ); // #d8dbff52 — as rgba because the build drops 8-digit hex
-    border: 1px solid var(--md-line);
+    background: var(--md-ink);
+    // NO OUTLINE. On dark this border has been `transparent` for as long as `--md-line` was black,
+    // so inline code has always read as a quiet FILL and he liked it that way — *"you changed the
+    // code blocks everywhere to ugly effect… it never called out to me."* On light it was a real
+    // dark hairline, which is what turned a pale wash into a widget. The fill is what says "code";
+    // the lines belong to tables and quotes.
+    border: none;
     border-radius: 4px;
     padding: 0 3px;
     font-family: "SF Mono", Menlo, Consolas, monospace;
     font-size: 0.9em;
   }
   // A pasted stack trace must not eat the thread — the fence scrolls inside its own box.
+  //
+  // THE FRAME IS THE DOCUMENT'S. Padding and line-height are lifted from `.md-code-plain` in
+  // `atoms/Markdown/styles.scss` — the document pane's "it's just text" fence, the block he is
+  // pointing at when he says it should look like a code block example. Its COLOURS could not come
+  // with them (see `--md-ink` above: dracula's canvas is invisible on the chat panel), so the frame
+  // is the document's and the fill is the chat's one ink.
   .chat-md__fence {
     display: block;
     margin: 4px 0;
-    padding: 6px 8px;
-    background: rgba(
-      216,
-      219,
-      255,
-      0.32
-    ); // #d8dbff52 — as rgba because the build drops 8-digit hex
-    border: 1px solid var(--md-line);
+    padding: 11px 13px;
+    background: var(--md-ink);
+    border: none;
     border-radius: 6px;
     font-family: "SF Mono", Menlo, Consolas, monospace;
-    font-size: 0.87em;
-    line-height: 1.35;
+    // THE SAME SIZE AS INLINE CODE, which is the other half of his instruction. It was 0.87em here
+    // and pinned to a hard 10.5px inside `.agent-chat` — ~0.75em against a 12.5px row, so a code
+    // block was the smallest thing in the chat and inline code beside it was visibly bigger.
+    font-size: 0.9em;
+    line-height: 1.5;
     white-space: pre;
     overflow: auto;
+    // THE CAP STAYS. Measured on his window, every fence in the live scrollback was 36–95px tall,
+    // so this is not what "not styled nicely" was about — and a long paste growing unbounded in a
+    // column the next sentence is sitting in is the worse failure. It only ever bites a stack trace.
     max-height: 180px;
-    // Room for the tag to sit in, so the first line of code is never under it.
     position: relative;
-    padding-top: 16px;
+    // Room for the tag to sit in, so the first line of code is never under it — but only when there
+    // IS one. An untagged fence keeps the document's own symmetric padding.
+    &:has(> .chat-md__fence-tag) {
+      padding-top: 16px;
+    }
   }
   // WHAT THIS FENCE IS, said quietly. It is deliberately small, uppercase and faint: the answer
   // to "is this a live block or a sample" has to be available without competing with the code for
@@ -260,28 +286,17 @@
   del {
     opacity: 0.7;
   }
-  // DARK: the translucent ink comes back — the lavender wash is a light-mode color.
-  //
-  // AND SO DO THE LINES. `--md-line` was black-on-translucent and NOTHING handed it back for dark
+  // DARK: THE LINES come back. `--md-line` was black-on-translucent and NOTHING handed it back for dark
   // mode, so every line the chat markdown paints — table row rules, the header rule, the column
   // rules, a quote's bar, a `---` — was black laid on a dark panel: present in the stylesheet and
   // invisible on screen. His report, and the reason he kept saying there were no lines in the
   // table at all: *"in dark mode you can barely see those lines."* A line is only a line if it is
   // lighter than what it sits on.
+  // (Code and fences are NOT handed anything back here any more — one grey ink and no border
+  // already land correctly in both themes, which is what makes them one family.)
   :root.sv-dark & {
     --md-line: rgba(255, 255, 255, 0.3);
     --md-line-soft: rgba(255, 255, 255, 0.075);
-    .chat-md__code,
-    .chat-md__fence {
-      background: var(--md-ink);
-      // AND THE CODE CHIP KEEPS NO OUTLINE ON DARK. Its border is `--md-line` too, and that
-      // border had been invisible on dark for as long as the token was black — so inline code
-      // has always read as a quiet FILL, and brightening the token to make table rules visible
-      // switched an outline on around every piece of inline code at once. His catch, immediately:
-      // *"you changed the code blocks everywhere to ugly effect… it never called out to me."*
-      // The fill is what says "code" here; the lines belong to tables and quotes.
-      border-color: transparent;
-    }
   }
   // Chips ride inside narrow bubbles — let a long title wrap instead of overflowing.
   .md-chip {
