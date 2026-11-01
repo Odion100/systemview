@@ -13,8 +13,13 @@
 // nearly right. One attribute moved, one class dropped, one `<span>` that became a `<div>` — all
 // of it fails here, loudly, with the diff printed.
 //
-// NOTHING IS ALLOWED TO DIFFER. Every section is held to `outerHTML` equality against the one the
-// page draws from the same rows.
+// WHAT IS ALLOWED TO DIFFER, AND NOTHING ELSE IS:
+//
+//   THE GAUGE SEGMENTS. On the page they are plain divs. In the tile they are BUTTONS, because of
+//   his later ruling — *"especially because they're going to be components, those headers, if
+//   they have filters, need to filter the entire, all of the sections."* That is a commissioned
+//   change, so the gauge is compared on its WORDS and its order instead, and the rest of the
+//   masthead is still held to byte equality.
 import React from "react";
 import { render, screen, within } from "@testing-library/react";
 import ServiceContext from "../../../../ServiceContext";
@@ -159,10 +164,32 @@ describe("tile over section, node for node", () => {
     expect(tile.querySelector(".dba__flow").outerHTML).toEqual(page.querySelector(".dba__flow").outerHTML);
   });
 
-  it("head — the tile's DOM EQUALS the page's `.dba__top`", async () => {
+  // THE MASTHEAD, MINUS THE ONE COMMISSIONED DIFFERENCE. Everything but the gauge is held to the
+  // same byte equality as the other two.
+  it("head — the mast and the fixtures switch EQUAL the page's", async () => {
     const page = await mountPage();
     const tile = mountTile(HeadTileA);
-    expect(tile.querySelector(".dba__top").outerHTML).toEqual(page.querySelector(".dba__top").outerHTML);
+    expect(tile.querySelector(".dba__mast").outerHTML).toEqual(page.querySelector(".dba__mast").outerHTML);
+    expect(tile.querySelector(".dba__fixtures").outerHTML).toEqual(page.querySelector(".dba__fixtures").outerHTML);
+    // and the header is still a `header.dba__top` with its areas in the same order
+    expect(tile.querySelector(".dba__top").tagName).toBe(page.querySelector(".dba__top").tagName);
+    expect([...tile.querySelector(".dba__top").children].map((c) => c.className)).toEqual(
+      [...page.querySelector(".dba__top").children].map((c) => c.className),
+    );
+  });
+
+  // THE GAUGE SAYS THE SAME THING; it is only a different kind of element because he asked for a
+  // control there. Same segments, same words, same order, same hue class.
+  it("head — the gauge's words and order EQUAL the page's, and only the element differs", async () => {
+    const page = await mountPage();
+    const tile = mountTile(HeadTileA);
+    const segsOf = (root) => [...root.querySelectorAll(".dba__gauge .dba-tile")];
+    expect(segsOf(tile).map((s) => s.textContent)).toEqual(segsOf(page).map((s) => s.textContent));
+    expect(segsOf(tile).map((s) => s.className.replace(" is-held", ""))).toEqual(segsOf(page).map((s) => s.className));
+    expect(segsOf(tile).map((s) => s.innerHTML)).toEqual(segsOf(page).map((s) => s.innerHTML));
+    // the one divergence, stated out loud so it cannot drift into being an accident
+    expect(segsOf(page).every((s) => s.tagName === "DIV")).toBe(true);
+    expect(segsOf(tile).filter((s) => s.tagName === "BUTTON").length).toBe(segsOf(tile).length);
   });
 });
 

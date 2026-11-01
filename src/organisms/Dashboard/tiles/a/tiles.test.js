@@ -114,6 +114,25 @@ describe("the head", () => {
     expect(screen.getByText(/approval waiting/)).toBeInTheDocument();
   });
 
+  // HIS RULING: a header's filter filters every section, so the press goes to the surface.
+  it("makes a segment with obligations behind it a press that calls the surface", () => {
+    const d = data([APPROVAL, BLOCKED]);
+    render(<HeadTileA data={d} />);
+    const seg = document.querySelector(".dba-tile.is-approval");
+    expect(seg.tagName).toBe("BUTTON");
+    seg.click();
+    expect(d.setOnly).toHaveBeenCalledWith("approval");
+  });
+
+  it("says which segment is held, unmistakably, and says so to a screen reader too", () => {
+    render(<HeadTileA data={data([APPROVAL, BLOCKED], { only: "approval" })} />);
+    const seg = document.querySelector(".dba-tile.is-approval");
+    expect(seg.className).toContain("is-held");
+    expect(seg).toHaveAttribute("aria-pressed", "true");
+    // and nothing else is wearing it
+    expect(document.querySelectorAll(".dba-tile.is-held")).toHaveLength(1);
+  });
+
   // THE COUNTS ARE WHAT YOU FILTER FROM. Press one and the head must still say how much there was.
   it("counts the whole registry even while the surface is narrowed", () => {
     const whole = [APPROVAL, BLOCKED];

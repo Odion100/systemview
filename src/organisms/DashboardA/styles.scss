@@ -170,6 +170,51 @@
 }
 .dba-tile__flag { font-size: 14px; line-height: 1; }
 
+// ─── A SEGMENT YOU CAN HOLD ────────────────────────────────────────────────────────────────────
+//
+// His ruling: a header's filter filters EVERY section, not the one under it. So a segment with
+// obligations behind it is a button, and the surface narrows on the press.
+//
+// AT REST IT IS THE SAME BOX. Identical padding, border, radius, type and colour as the div it
+// replaced — the only difference before he touches it is the cursor. A UA button brings its own
+// margin, centring and letter-spacing, so all three are put back.
+button.dba-tile {
+  margin: 0;
+  text-align: left;
+  letter-spacing: inherit;
+  cursor: pointer;
+  // colour only: a filter on the masthead must not reflow the row it sits in
+  transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+  &:hover { border-color: var(--sv-text-muted); }
+  &.is-approval:hover,
+  &.is-proof:hover,
+  &.is-clock:hover,
+  &.is-press:hover { border-color: var(--dba-press); }
+}
+@media (prefers-reduced-motion: reduce) {
+  button.dba-tile { transition: none; }
+}
+
+// HELD IS FILLED, AND IT IS THE LOUDEST THING ON THE PAGE ON PURPOSE. A surface-wide filter he
+// cannot tell is on means reading a narrowed dashboard as the whole world — the exact lie this
+// surface was built against. Inverted rather than tinted, and it keeps the segment's OWN hue so
+// the answer to "which one is held" is still in the colour.
+// `button.` is load-bearing, not decoration: it has to outrank the `:hover` rules above, or
+// hovering the one he is holding would un-fill its border under his cursor.
+button.dba-tile.is-held {
+  background: var(--sv-text-strong);
+  border-color: var(--sv-text-strong);
+  color: var(--sv-surface);
+  &.is-approval,
+  &.is-proof,
+  &.is-clock,
+  &.is-press {
+    background: var(--dba-press);
+    border-color: var(--dba-press);
+    color: var(--sv-surface);
+  }
+}
+
 // ─── WHAT NEEDS HIM ────────────────────────────────────────────────────────────────────────────
 .dba__owed {
   display: grid;

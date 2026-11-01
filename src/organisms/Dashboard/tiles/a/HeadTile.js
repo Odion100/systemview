@@ -14,11 +14,27 @@ import { useFold } from "./fold";
 // meant "nobody answered" is the one failure this surface may not have, so the sentence saying
 // what the tile is standing on is above the fold whatever happened.
 //
-// AND IT READS `all`, NEVER `d`. The surface can narrow what the other tiles derive from; a head
-// that counted its own narrowed answer would restate it back at itself and take away the only
-// number on screen that said there had ever been more. The counts are what you filter FROM.
+// ─── THE GAUGE FILTERS EVERYTHING, NOT THE SECTION UNDER IT ────────────────────────────────────
+//
+// His ruling: *"especially because they're going to be components, those headers, if they have
+// filters, need to filter the entire, all of the sections."* So a segment's press goes to the
+// SURFACE (`data.setOnly`), which narrows the rows every tile derives from — this one included,
+// except that this one deliberately looks past the narrowing:
+//
+//   THE HEAD COUNTS THE WHOLE WORLD, ALWAYS. It reads `all`, never `d`. A head that counted its
+//   own filter's answer would turn "4 approvals waiting" into "4 of 4" the instant he pressed it,
+//   and take away the only number on screen that said there had ever been more. The counts are
+//   what you filter FROM.
+//
+//   AND A SEGMENT WITH NOTHING BEHIND IT IS NOT A CONTROL. `owedHead` hands every segment the
+//   `keys` of the obligations it counted; "nothing owed" carries none, so it stays a plain div
+//   rather than becoming a button that filters to the empty set.
+//
+// THE HELD STATE IS FILLED, IN THE SEGMENT'S OWN COLOUR. A surface-wide filter you cannot tell is
+// on means reading a narrowed dashboard as the whole world — so held is not a hairline or a tint,
+// it is the box inverted, and it keeps the press/outstanding hue so he can still see WHICH one.
 export const HeadTileA = ({ data }) => {
-  const { all, fixtures, setFixtures } = useFold(data);
+  const { all, fixtures, setFixtures, only, setOnly } = useFold(data);
   const read = !!(data && data.read);
   const error = (data && data.error) || "";
   const { totals, head } = all;
@@ -40,12 +56,33 @@ export const HeadTileA = ({ data }) => {
             either of them being slightly wrong. ⚑ means a decision waits on him; ⧗ means a
             deadline, which is not a decision: nothing he presses makes it not have been due. */}
         <div className="dba__gauge">
-          {head.segs.map((s) => (
-            <div key={s.key} className={`dba-tile is-${s.key}`}>
-              <span className="dba-tile__flag">{s.flag}</span>
-              <span className="dba-tile__text">{s.text}</span>
-            </div>
-          ))}
+          {head.segs.map((s) => {
+            const held = only === s.key;
+            const cls = `dba-tile is-${s.key}${held ? " is-held" : ""}`;
+            const face = (
+              <>
+                <span className="dba-tile__flag">{s.flag}</span>
+                <span className="dba-tile__text">{s.text}</span>
+              </>
+            );
+            // A segment with no obligations behind it never becomes a press — same box, same type,
+            // same spacing; the only difference at rest between the two is the cursor.
+            return (s.keys || []).length ? (
+              <button
+                key={s.key}
+                type="button"
+                className={cls}
+                aria-pressed={held}
+                onClick={() => setOnly(s.key)}
+              >
+                {face}
+              </button>
+            ) : (
+              <div key={s.key} className={cls}>
+                {face}
+              </div>
+            );
+          })}
           {!head.segs.length && read ? <div className="dba-tile is-cold">nothing was read — no answer to give</div> : null}
           {head.unread ? <div className="dba-tile is-cold">{head.unread} unread</div> : null}
         </div>

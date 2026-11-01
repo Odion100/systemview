@@ -31,6 +31,7 @@ const FoldContext = createContext(null);
 // Stable identities, so a tile handed no data at all does not re-fold on every render.
 const EMPTY_ROWS = [];
 const EMPTY_ROOTS = {};
+const NO_FILTER = () => {};
 
 /**
  * A's derivation over the surface's rows — NO READ, NO TIMER, NOTHING BUT A FOLD OVER WHAT IT WAS
@@ -76,6 +77,11 @@ function useOwnFold(data, { skip = false } = {}) {
       fixtures,
       setFixtures,
       open: (data && data.open) || openDoc,
+      // THE FILTER IS THE SURFACE'S, NEVER A TILE'S. A head on a provider that does not offer one
+      // simply has nothing to press, and `setOnly` is a no-op rather than a crash.
+      only: (data && data.only) || null,
+      setOnly: (data && data.setOnly) || NO_FILTER,
+      filtering: !!(data && data.filtering),
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [d, all, fixtures, data],
@@ -89,8 +95,8 @@ export const DashboardAFold = ({ data, children }) => {
 };
 
 /**
- * What every A tile starts with: `{ d, all, fixtures, setFixtures, open }`. Shared when the page
- * put a fold above it, its own when nothing did.
+ * What every A tile starts with: `{ d, all, fixtures, setFixtures, open, only, setOnly,
+ * filtering }`. Shared when the page put a fold above it, its own when nothing did.
  *
  * `d` is the reading a section draws. `all` is the same reading over everything, and it is the
  * head's — nothing else should touch it.
