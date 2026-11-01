@@ -43,6 +43,13 @@ export default function ReportsTile({ data }) {
                     <span className="dbb-stack__urgent">
                       {s.urgent ? `${s.urgent} about to go` : isOpen ? "press to close" : "press to open out"}
                     </span>
+                    {/* UNSEEN, ON THE FACE. A closed stack shows no cards, so without this the one
+                        fact he asked for is behind a press on every pile. */}
+                    {s.unseen ? (
+                      <span className="dbb-stack__unseen" title={`${s.unseen} not opened yet — their clocks have not started`}>
+                        {s.unseen} unopened
+                      </span>
+                    ) : null}
                   </button>
                   <div className="dbb-fan">
                     {s.cards.map((c, i) => (
@@ -60,6 +67,19 @@ export default function ReportsTile({ data }) {
                           {c.mark ? <b className="dbb-rcard__mark">{c.mark}</b> : null}
                         </span>
                         <span className="dbb-rcard__id">{c.title || c.id}</span>
+                        {/* WHAT KIND OF REPORT, and whether he has opened it — the two facts a
+                            clock is meaningless without. The subtype is what SET the retention,
+                            and an unopened report's ring is full because its clock has not
+                            started, which is indistinguishable from "plenty of time left" unless
+                            the card says so. */}
+                        <span className="dbb-rcard__meta">
+                          {c.subtype ? <em className="dbb-rcard__as">{c.subtype}</em> : null}
+                          {!c.counting && c.station !== "retired" ? (
+                            <em className="dbb-rcard__unseen" title="you have not opened this — its clock has not started">
+                              unopened
+                            </em>
+                          ) : null}
+                        </span>
                         <span className="dbb-rcard__says">{c.says}</span>
                       </button>
                     ))}

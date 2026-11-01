@@ -151,6 +151,17 @@ export function beadFor({ row, text }, owedByDoc = {}, now = Date.now()) {
     warn: p.warn,
     drains: !!p.drains,
     unread: !!p.unread,
+    // WHAT KIND OF REPORT — `as=` on the leaf (planning, notice, audit, account, brief, spec). It
+    // decides the retention the clock runs on, so a card that does not say it is showing a clock
+    // without saying what set it. His: *"you should put what kind of report it is, it should be
+    // visible."*
+    subtype: String((row.state || {}).subtype || ""),
+    // HAS HE OPENED IT — and these are the same fact, which is why one field answers both. A
+    // report's clock does not start until first open (RFC-076 §4.6), so "counting" IS "seen". His:
+    // *"me having seen it or not should be easy to discern, because once I see it, it starts
+    // expiring."* A card that is not counting has a FULL ring for a reason nobody can read without
+    // this — it looks identical to a report with all its time left.
+    counting: !!p.counting,
     // ⚑ MEANS "A DECISION IS WAITING ON YOU" and ⧗ MEANS A DEADLINE — the band's own rule, which
     // exists because sharing one mark made it unreadable ("I don't know what the other one is").
     // A bead carries the mark of the loudest thing it owes and nothing else; a bead with two marks
@@ -218,6 +229,9 @@ export function reportStacks(beads = []) {
       // URGENT IS THE ONLY THING THAT REORDERS A STACK. Waiting is the only thing on this page that
       // DESTROYS something, so the pile that is about to lose a report stands in front.
       urgent: cards.filter((c) => c.mark === "⧗").length,
+      // UNSEEN, counted on the face, because a closed stack shows no cards at all — the fact would
+      // otherwise be one he can only reach by opening every pile.
+      unseen: cards.filter((c) => !c.counting && c.station !== "retired").length,
       cards: cards.sort(
         (a, b) =>
           (b.mark === "⧗") - (a.mark === "⧗") ||

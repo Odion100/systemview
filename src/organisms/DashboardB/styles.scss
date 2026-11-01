@@ -642,6 +642,14 @@
     font-size: 10.5px;
     color: var(--sv-text-faint);
   }
+  // NOT YET OPENED. Deliberately quieter than the deadline above it: an unopened report is not a
+  // problem, it is just one whose clock has not begun — the number exists so a closed pile can
+  // say it at all.
+  &__unseen {
+    margin-top: 1px;
+    font-size: 10px;
+    color: var(--dbb-report);
+  }
   &.is-urgent &__urgent {
     color: var(--dbb-press);
   }
@@ -711,6 +719,36 @@
   }
   &.is-urgent {
     border-color: var(--dbb-press);
+  }
+  // THE TWO FACTS A CLOCK IS MEANINGLESS WITHOUT: what kind of report set the retention, and
+  // whether the clock has started at all. One row, small, under the title.
+  &__meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 13px;
+    font-size: 9.5px;
+    letter-spacing: 0.3px;
+    > em { font-style: normal; }
+  }
+  &__as {
+    padding: 0 5px;
+    border-radius: 3px;
+    background: var(--sv-inset);
+    color: var(--sv-text-faint);
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  // UNOPENED IS THE LOUDER OF THE TWO, because it is the one that explains a full ring. A report
+  // he has never opened and one with all its time left draw the same ring, and only this tells
+  // them apart.
+  &__unseen {
+    padding: 0 5px;
+    border-radius: 3px;
+    border: 1px solid var(--dbb-report);
+    color: var(--dbb-report);
+    text-transform: uppercase;
+    white-space: nowrap;
   }
   &__top {
     display: flex;

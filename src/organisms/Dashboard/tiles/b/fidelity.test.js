@@ -75,13 +75,25 @@ const ARC = doc(
   ].join("\n"),
 );
 const GAP = doc({ id: "G-1", kind: "gap", path: "gaps/G-1-x.md", state: { hasProof: true } }, "::gap{id=G-1}\n");
-const REPORT = (id, { project = "p", retain = "14d", openedAt } = {}) =>
+// A REAL REPORT DECLARES ITS SUBTYPE — `as=` is what sets the retention the clock then runs on,
+// and `Report.js` marks a leaf without one as invalid. The fixture declared none, which is not a
+// report anybody would file.
+const REPORT = (id, { project = "p", retain = "14d", openedAt, as = "account" } = {}) =>
   doc(
-    { id, kind: "report", project, path: `.systemview/report.${project}.${id}.md`, openedAt, state: { retain } },
-    `::report{id=${id} retain=${retain}}\n\n# ${id}\n`,
+    { id, kind: "report", project, path: `.systemview/report.${project}.${id}.md`, openedAt, state: { retain, subtype: as } },
+    `::report{id=${id} as=${as} retain=${retain}}\n\n# ${id}\n`,
   );
 
-const DOCS = [WAITING, BUILT, ARC, GAP, REPORT("r-one", { openedAt: NOW - 12 * DAY }), REPORT("r-two", { project: "q" })];
+// One opened (its clock is running) and one never opened (its clock has not started) — the two
+// states the card now has to tell apart.
+const DOCS = [
+  WAITING,
+  BUILT,
+  ARC,
+  GAP,
+  REPORT("r-one", { openedAt: NOW - 12 * DAY, as: "account" }),
+  REPORT("r-two", { project: "q", as: "planning" }),
+];
 const ROOTS = { p: "/p", q: "/q", quietone: "/z" };
 
 /** The shared value the surface hands a tile — `dashboardData.js`'s published shape. */
@@ -176,8 +188,42 @@ it("the owed tile is the page's .dbb-needs, element for element", () => {
   same(OwedTile, ".dbb-needs");
 });
 
-it("the reports tile is the page's .dbb-stacks, element for element", () => {
-  same(ReportsTile, ".dbb-stacks");
+// ─── THE REPORTS, WHERE THE DIFFERENCE IS ALSO THE POINT ───────────────────────────────────────
+//
+// The candidate pages are retired: `DashboardB` renders nowhere now and lives here as the frozen
+// record of what the tile was extracted FROM. Holding a living tile to a frozen snapshot forever
+// means every improvement has to be made twice in code nobody can see — which is the two-copies
+// problem this file exists to prevent, enforced by a test. So the rule is the one the head
+// already follows: everything the extraction carried over still has to match, and the one place
+// it deliberately moved on is named here rather than quietly exempted.
+//
+// WHAT MOVED: his *"you should put what kind of report it is, it should be visible"*, and *"can't
+// you tell if I've seen the report or not — once I see it, it starts expiring."* The page's card
+// shows a ring, a title and a clock; a full ring on it means either "all its time left" or "never
+// opened", and nothing distinguishes them.
+describe("the reports tile matches the page except where it answers two questions the page could not", () => {
+  const mine = () => tileSection(ReportsTile, ".dbb-stacks");
+
+  it("the section, its head and the stack faces' own numbers are unchanged", () => {
+    expect(mine().querySelector(".dbb-flow__head").outerHTML).toBe(
+      pageSection(".dbb-stacks").querySelector(".dbb-flow__head").outerHTML,
+    );
+    const nums = (el) => [...el.querySelectorAll(".dbb-stack__n")].map((e) => e.textContent);
+    expect(nums(mine())).toEqual(nums(pageSection(".dbb-stacks")));
+  });
+
+  it("every card now says what KIND of report it is, and the page's says nowhere", () => {
+    expect(mine().querySelectorAll(".dbb-rcard__as").length).toBeGreaterThan(0);
+    expect(pageSection(".dbb-stacks").querySelectorAll(".dbb-rcard__as")).toHaveLength(0);
+  });
+
+  // THE CLOCK DOES NOT START UNTIL HE OPENS IT, so "not counting" IS "not seen" — one field
+  // answers both, and without it a full ring is unreadable.
+  it("an unopened report says so, which is the only thing that explains its full ring", () => {
+    const unopened = [...mine().querySelectorAll(".dbb-rcard")].filter((c) => c.querySelector(".dbb-rcard__unseen"));
+    expect(unopened.length).toBeGreaterThan(0);
+    expect(pageSection(".dbb-stacks").querySelectorAll(".dbb-rcard__unseen")).toHaveLength(0);
+  });
 });
 
 it("the projects tile is the page's .dbb-projects, element for element", () => {
