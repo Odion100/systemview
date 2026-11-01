@@ -122,6 +122,12 @@ export const BLOCKS = {
   // RFC-033 — a commit message you press instead of copy. An agent writes it, a human clicks it;
   // the sha lands back in the document like any other input block's answer.
   commit: { Component: CommitBlock },
+  // `::record{sha=…}` IS `::commit{sha=…}` — the same block, named for the posture. A commit
+  // block with a sha IS the record of that commit: frozen to it, showing its message and its
+  // files, with nothing pressable. There was briefly a separate RecordBlock and it was the wrong
+  // shape — *"wouldn't it be the same thing? You would use the same mechanism, right?"* Yes: an
+  // offer that is pressed writes `sha=` into its own line, and that is what turns it into this.
+  record: { Component: CommitBlock },
   // A branch offered for review — a live pointer, never a frozen patch: the diff vs its base is
   // computed at view time, and the switch/back verbs are the human's. The refinement lane's
   // delivery block.

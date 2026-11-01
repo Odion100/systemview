@@ -83,6 +83,90 @@ const CommitBlock = ({ label, attrs = {}, line }) => {
     }
   };
 
+  // ONCE IT HAS A SHA, THIS BLOCK IS A RECORD OF THAT COMMIT — frozen, not live.
+  //
+  // His design: *"a commit block could easily turn into a commit record… it needs to remain as a
+  // record on that commit. So if you make an offer and then I commit it, then later on I go back,
+  // that offer will be on the new changes."* That last sentence is a bug description and it was
+  // true: the changes tab rendered `gitState()`'s staged/unstaged/untracked on every render, so a
+  // commit block in a document from last week showed THIS MORNING's working tree. The receipt said
+  // one thing and the file list underneath it said another, about different moments, with nothing
+  // on screen admitting it.
+  //
+  // So the posture turns on `sha` and nothing else. No sha: an offer, live, because a thing you
+  // are about to do is about the tree as it is now. Sha: the record of that commit, read back from
+  // git, because what a commit contains cannot change. Same block, same chrome, same tabs — the
+  // press is what moves it from one to the other, and `sha=` landing in the document is what makes
+  // that survive a reload.
+  //
+  // `commitRecord` OR `showCommit`, whichever this hub has. The service client is a proxy built
+  // from the hub's manifest at page load, so a window that booted before a method existed will
+  // never see it however many times the hub restarts. Asking for the better door and taking the
+  // older one is how a block stays usable in a window nobody has reloaded.
+  const [record, setRecord] = useState(null);
+  const [recErr, setRecErr] = useState("");
+  // WHICH LOG ROW THIS RECORD IS. Set by pressing the sha; the row scrolls itself into view and
+  // wears a mark until he presses something else, because a jump that lands you in a list without
+  // saying where is a jump you have to re-do by eye.
+  // A RECORD ARRIVES MINIMIZED. Several of them sit in one chat — an agent commits four times
+  // against one plan and drops a record each time — so the default cannot be a block that fills
+  // the column. *"It needs to be able to sit there without showing a lot of information and
+  // expand… it needs to be minimisable to where it has the commit header and just a little bit
+  // underneath with the six back and the ID."* Minimized is the head and one thin line; the
+  // subject, the tabs and the files are one press away.
+  // AN OFFER IS NEVER MINIMIZED — it is a thing you are about to do, and hiding the message and
+  // the file list behind a chevron would be hiding the two things you must read before pressing.
+  const [mini, setMini] = useState(!!sha);
+  // AN OFFER THAT BECOMES A RECORD MINIMIZES ITSELF. `useState(!!sha)` is read once, at mount —
+  // and at mount an offer has no sha, so a block that was pressed stayed wide open afterwards
+  // with its whole file list still showing. The press is the moment the detail stops being
+  // needed: he read it to decide, he decided, and what he wants left behind is the one-line
+  // receipt. *"I just see a record."*
+  // IT ONLY FIRES ON THE TRANSITION, never on every render — otherwise opening a record would
+  // slam shut under his hand the next time anything else in the block changed.
+  const wasSha = useRef(sha);
+  useEffect(() => {
+    if (sha && !wasSha.current) setMini(true);
+    wasSha.current = sha;
+  }, [sha]);
+  const [focusSha, setFocusSha] = useState("");
+  const focusRow = useRef(null);
+  useEffect(() => {
+    if (!focusSha || tab !== "log" || !focusRow.current) return;
+    focusRow.current.scrollIntoView({ block: "center" });
+  }, [focusSha, tab]);
+  useEffect(() => {
+    let dead = false;
+    setRecord(null);
+    setRecErr("");
+    if (!sha || !host || !git) return undefined;
+    (async () => {
+      try {
+        const api = svc().Plugin;
+        const read = api.commitRecord || api.showCommit;
+        if (!read) return setRecErr("this hub cannot read a commit");
+        const r = await read.call(api, sha);
+        if (dead) return;
+        // A FAILED READ IS AN ANSWER AND MUST SAY SO. Swallowing it left `record` null forever,
+        // and null renders as "reading…" — so a sha that no longer exists read as permanently
+        // loading, which is the worst shape a failure can take: it never resolves, so nobody can
+        // tell a dead commit from a slow one. Rewriting history is not exotic here; stripping a
+        // trailer off ten commits changed 96 shas in one command, and every record block in the
+        // chat pointing at an old one landed on this branch at once.
+        if (r && r.ok === false) setRecErr(r.error || "no commit by that name in this repo");
+        // `depthKnown` SEPARATES "at the head" FROM "this hub cannot say". `behind` arrives only
+        // from the newer door, and only once the hub process restarted carrying it — a missing
+        // field read as 0 would print "at the head" over a commit six back.
+        else if (r) setRecord({ ...r, depthKnown: typeof r.behind === "number" });
+        else setRecErr("the hub answered nothing");
+      } catch (e) {
+        if (!dead) setRecErr((e && e.message) || "could not read that commit");
+      }
+    })();
+    return () => { dead = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sha, host && host.projectCode, !!git]);
+
   const load = async () => {
     if (!host || !git) return;
     try {
@@ -239,7 +323,14 @@ const CommitBlock = ({ label, attrs = {}, line }) => {
   // block just keeps the sha in its own state and shows it. (The one earlier block he DID press
   // lived in a report on the TV — a writable document — which is why this never showed up before.)
   const canCommit = !!state && state.repo && staged.length > 0 && !!message.trim();
-  const canPush = !!state && state.repo && state.ahead > 0;
+  // IS THIS RECORD'S COMMIT IN THE LOG WE HOLD. `gitState` returns the last forty; an older
+  // record is simply not in it, and a jump to a tab where the row is absent reads as a dead press.
+  const inLog = !!sha && !!state && (state.log || []).some((c) => c.sha === sha || String(sha).startsWith(c.sha) || String(c.sha).startsWith(sha));
+  // PUSH IS THE BRANCH'S, NOT THE COMMIT'S — the COUNTS are shown on a record (they are true,
+  // and labelled as the branch's), but the button is not: pressing it from a block headed by a
+  // commit from last week would push whatever the branch holds now, which is not what the header
+  // in front of you says. Reading a branch fact is fine; acting on it from here is the trap.
+  const canPush = !sha && !!state && state.repo && state.ahead > 0;
 
   // A group heading that MOVES ITS WHOLE GROUP — the per-file +/− without a stage-all is the panel's
   // controls with a piece missing.
@@ -336,7 +427,12 @@ const CommitBlock = ({ label, attrs = {}, line }) => {
     );
 
   return (
-    <div className={`md-commit${sha ? " md-commit--done" : ""}`}>
+    // A RECORD MUST NOT LOOK LIKE AN OFFER. *"There's no indication, there's no difference
+    // between this looking like a commit and a commit record. There should be."* They do opposite
+    // things — one is about to change the tree, one is a thing that already happened and cannot —
+    // so sharing a face means the only way to tell them apart is to notice whether a button is
+    // there, which is reading an absence.
+    <div className={`md-commit${sha ? " md-commit--done md-commit--record" : ""}`}>
       <div className="md-commit__head">
         <span className="md-commit__kind">commit</span>
         {/* THE DESTINATION LEADS (his call): pressing this writes history into a repo you may not
@@ -344,11 +440,30 @@ const CommitBlock = ({ label, attrs = {}, line }) => {
             beside the badge, in the plum the app uses for its own addressing — same identity the
             pane headers wear, so "which project" reads the same everywhere. */}
         <span className="md-commit__scope">{host ? host.projectCode : projectCode || ""}</span>
+        {sha && (
+          <button
+            type="button"
+            className="md-commit__kind md-commit__kind--press"
+            title={mini ? "open this record" : "minimize it"}
+            onClick={() => setMini((v) => !v)}
+          >
+            record <span className="md-commit__minichev">{mini ? "▸" : "▾"}</span>
+          </button>
+        )}
+        {/* THE BRANCH AND ITS DISTANCE FROM ORIGIN, on both postures. These are facts about the
+            branch RIGHT NOW, never about the commit — and for one build they were removed from
+            records on those grounds, which was wrong. They are true, and a record sits on a
+            branch like anything else.
+            WHAT WAS ACTUALLY BROKEN was that the record's own depth had been given the same class
+            name as `↓` behind-origin, so the two rendered into one slot: six records about six
+            commits all showed ↑96 ↓96 and nothing else, and the only numbers on the row read as
+            the record's own. Once the depth has its own name both can stand, because they are
+            visibly two different things. The title says which is which out loud. */}
         {state && state.repo && (
-          <span className="md-commit__branch">
+          <span className="md-commit__branch" title={`the branch, as it stands now — not a fact about ${sha ? "this commit" : "what you are about to commit"}`}>
             {state.branch}
-            {state.ahead > 0 && <span className="md-commit__ahead">↑{state.ahead}</span>}
-            {state.behind > 0 && <span className="md-commit__behind">↓{state.behind}</span>}
+            {state.ahead > 0 && <span className="md-commit__ahead" title={`${state.ahead} commits on this branch are not pushed`}>↑{state.ahead}</span>}
+            {state.behind > 0 && <span className="md-commit__behind" title={`${state.behind} commits on the remote are not here`}>↓{state.behind}</span>}
           </span>
         )}
         <span className="md-commit__tabs">
@@ -389,8 +504,26 @@ const CommitBlock = ({ label, attrs = {}, line }) => {
         )}
       </div>
 
+      {/* MINIMIZED: ONE THIN LINE, and it carries the two facts that tell records apart in a
+          column of them — where this one sits, and which commit it is. Not the subject: subjects
+          are long, they wrap, and four of them stacked is the wall this exists to avoid. The sha
+          is still the door into the log. */}
+      {mini && (
+        <div className="md-commit__mini">
+          {record && record.depthKnown && (
+            <span className={`md-commit__depth${record.behind === 0 ? " md-commit__depth--head" : ""}`}>
+              {record.behind === 0 ? "at the head" : `${record.behind} back`}
+            </span>
+          )}
+          <code className="md-commit__minisha">{sha}</code>
+          <span className="md-commit__minisubj">{record ? record.subject : recErr || "reading…"}</span>
+        </div>
+      )}
+
       {/* THE MESSAGE ROW — the button sits WITH the message, not on a row of its own underneath.
           A long message WRAPS here (a textarea that grows, not an input that scrolls sideways). */}
+      {!mini && (
+        <>
       <div className="md-commit__msgrow">
         {typing && !sha ? (
           <textarea
@@ -411,18 +544,51 @@ const CommitBlock = ({ label, attrs = {}, line }) => {
           />
         ) : (
           <div
-            className={`md-commit__message${message ? "" : " md-commit__message--empty"}`}
+            className={`md-commit__message${message || (record && record.subject) ? "" : " md-commit__message--empty"}${recErr ? " md-commit__message--gone" : ""}`}
             role={sha ? undefined : "button"}
             title={sha ? "" : "Click to edit — it's your commit message"}
             onClick={() => !sha && setTyping(true)}
           >
-            {message || "commit message"}
+            {/* A RECORD SHOWS THE COMMIT'S OWN WORDS, read back from git. `message` is the state
+                the OFFER types into, and a record was never typed in — a block pointed at an old
+                commit had an empty one and rendered the placeholder, so the thing he opened it to
+                read was the one thing missing. git is the source here, not this component. */}
+            {sha ? (record ? record.subject : recErr || "reading…") : message || "commit message"}
           </div>
         )}
         <span className="md-commit__msgacts">
           {sha ? (
             <span className="md-commit__stamp">
-              <code>{sha}</code>
+              {/* HOW FAR BACK IT SITS, beside the sha. *"It should count how far behind it is."*
+                  At the tip it says so; behind it, the number — which is also what decides what
+                  undoing it would take with it. */}
+              {/* `__depth`, NOT `__behind`. `md-commit__behind` was already taken — it is the
+                  block's BEHIND-ORIGIN counter, a fact about the branch against its remote.
+                  Reusing the name put this exactly where that lives and made the two
+                  indistinguishable: he read the push counters and never saw a depth at all. Two
+                  different questions, two different names. */}
+              {record && record.depthKnown && (
+                <span className={`md-commit__depth${record.behind === 0 ? " md-commit__depth--head" : ""}`}>
+                  {record.behind === 0 ? "at the head" : `${record.behind} back`}
+                </span>
+              )}
+              {/* THE SHA IS THE DOOR, not a label. Finding where a record sits meant reading the
+                  hash, opening the log tab yourself, and scanning forty rows for it — *"go into
+                  logs… that one's on top. What about this one? Go into logs."* Pressing it flips
+                  to the log and brings that commit's row into view, marked, which is the whole
+                  gesture he described.
+                  IT SAYS WHEN IT CANNOT. The log is the last forty commits; a record older than
+                  that is not in it, and jumping to a tab where the row is absent would read as
+                  the press doing nothing. */}
+              <button
+                type="button"
+                className="md-commit__stampsha"
+                title={inLog ? "show it in the log" : "older than the last 40 commits — not in this log"}
+                onClick={() => { if (inLog) { setTab("log"); setFocusSha(sha); } }}
+                disabled={!inLog}
+              >
+                <code>{sha}</code>
+              </button>
             </span>
           ) : (
             <button
@@ -474,7 +640,65 @@ const CommitBlock = ({ label, attrs = {}, line }) => {
       {edge(-1, "top")}
       {tab === "changes" ? (
         <div className="md-commit__body" ref={bodyRef} style={{ height }}>
-          {!host ? (
+          {sha ? (
+            // THE COMMIT'S OWN FILES, not the tree's. Nothing here is pressable: a committed file
+            // cannot be unstaged, and offering the gesture would be a control that lies.
+            !record ? (
+              <div className="md-commit__none">reading {sha}…</div>
+            ) : (
+              <>
+                {/* A PLAIN LABEL, not `groupHead` — that one carries a stage-all / unstage-all
+                    button, and a committed file has nothing to stage. */}
+                <div className="md-commit__group">
+                  <span className="md-commit__group-label">
+                    in this commit · {record.files.length}
+                    {record.added != null ? ` · +${record.added} −${record.removed}` : ""}
+                  </span>
+                </div>
+                {/* EVERY FILE OPENS — IN A TAB, like every other file named on a surface here.
+                    It briefly expanded into an accordion inside the block instead, which was a
+                    third gesture invented for no reason: *"are you expanding into opening the
+                    file instead of just opening the file?"* The offer's rows have always opened
+                    a tab; a record's rows do the same thing, and the only difference is WHICH
+                    version opens.
+                    THE SHA RIDES ALONG, which is the whole point. Without it the tab would show
+                    today's working copy under a header naming a commit from last month — the
+                    surface testifying. `fsha` carries it to the pane the same way `fside` carries
+                    staged-vs-working for the offer. */}
+                {record.files.map((f) => (
+                  <div key={f.path} className="md-commit__row">
+                    {/* A | M | D only where git gave one — the older `showCommit` door does not
+                        report it, and defaulting to "M" would quietly call a new file modified. */}
+                    <span className="md-commit__mark" title={f.status || ""}>{f.status || "·"}</span>
+                    {f.status === "D" ? (
+                      // Deleted by this commit — there is nothing at this sha to open.
+                      <span className="md-commit__path md-commit__path--gone">{f.path}</span>
+                    ) : (
+                      <button
+                        type="button"
+                        className="md-commit__path md-commit__path--open"
+                        title={`Open ${f.path} as it stood at ${sha}`}
+                        onClick={() =>
+                          window.dispatchEvent(
+                            new CustomEvent("sv:openFileInNav", {
+                              detail: { projectCode, path: f.path, sha },
+                            }),
+                          )
+                        }
+                      >
+                        {f.path}
+                      </button>
+                    )}
+                    {f.added === null ? (
+                      <span className="md-commit__count">binary</span>
+                    ) : (
+                      <span className="md-commit__count">+{f.added} −{f.removed}</span>
+                    )}
+                  </div>
+                ))}
+              </>
+            )
+          ) : !host ? (
             <div className="md-commit__none">
               no live service with file access{projectCode ? ` in ${projectCode}` : ""} — connect
               one, or name it with {"{project=…}"}
@@ -529,7 +753,8 @@ const CommitBlock = ({ label, attrs = {}, line }) => {
                 return (
                   <React.Fragment key={c.sha}>
                     <div
-                      className={`md-commit__logrow${isUnpushed(c, i) ? " md-commit__logrow--unpushed" : ""}${open ? " md-commit__logrow--open" : ""}`}
+                      ref={c.sha === focusSha ? focusRow : null}
+                      className={`md-commit__logrow${isUnpushed(c, i) ? " md-commit__logrow--unpushed" : ""}${open ? " md-commit__logrow--open" : ""}${c.sha === focusSha ? " md-commit__logrow--this" : ""}`}
                       title={isUnpushed(c, i) ? `${c.subject} — not pushed` : c.subject}
                       onClick={() => openCommit(c.sha)}
                       role="button"
@@ -537,6 +762,9 @@ const CommitBlock = ({ label, attrs = {}, line }) => {
                       onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && openCommit(c.sha)}
                     >
                       <code className="md-commit__logsha">{c.sha}</code>
+                      {/* A MARK IS NOT A SENTENCE. A highlighted row explains itself only if you
+                          watched it arrive; scroll away and back and it is just a coloured row. */}
+                      {c.sha === focusSha && <span className="md-commit__logthis">this record</span>}
                       <span className="md-commit__logsubj">{c.subject}</span>
                       <span className="md-commit__logwhen">{c.when}</span>
                       <span className="md-commit__logchev">{open ? "▾" : "▸"}</span>
@@ -599,6 +827,9 @@ const CommitBlock = ({ label, attrs = {}, line }) => {
             <div className="md-commit__none">no commits yet</div>
           )}
         </div>
+      )}
+
+        </>
       )}
 
       {edge(1, "bottom")}

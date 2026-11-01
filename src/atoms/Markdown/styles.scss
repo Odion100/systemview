@@ -4634,3 +4634,116 @@
   60%  { box-shadow: 0 0 0 2px rgba(106, 116, 196, 0.45); }
   100% { box-shadow: 0 0 0 2px rgba(106, 116, 196, 0); }
 }
+
+// ── THE COMMIT BLOCK AS A RECORD ─────────────────────────────────────────────────────────────
+// A record must not look like an offer. They do opposite things — one is about to change the tree,
+// one already did and cannot be changed — so a shared face means the only way to tell them apart
+// is noticing whether a button is missing, which is reading an absence.
+.md-commit--record {
+  border-style: solid;
+  border-left: 3px solid var(--sv-text-faint);
+  background: var(--sv-inset);
+}
+.md-commit__kind {
+  flex: none;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--sv-text-faint);
+  border: 1px solid var(--sv-border);
+  border-radius: 8px;
+  padding: 0 6px;
+}
+// HOW FAR BACK THE COMMIT SITS — the fact that decides what undoing it would take with it.
+// NOT `__behind`, which is the branch's distance from its remote and a different question.
+.md-commit__depth {
+  margin-right: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--sv-text-faint);
+  &--head { color: #3fb950; }
+}
+// THE LETTER NEEDS AIR. A | M | D ran straight into the filename with nothing between them.
+// THE LETTER NEEDS AIR, which it did not have — A | M | D ran straight into the filename.
+.md-commit--record .md-commit__row .md-commit__mark {
+  flex: none;
+  width: 14px;
+  margin-right: 6px;
+  text-align: center;
+  font-weight: 700;
+}
+// THE FILE ITSELF, with the commit's changes down the side. Not a diff.
+.md-commit__gutterfile {
+  margin: 0 0 4px;
+  max-height: 360px;
+  overflow: auto;
+  background: var(--sv-bg);
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.md-commit__gline { display: flex; align-items: flex-start; border-left: 3px solid transparent; }
+.md-commit__gline--add { border-left-color: #3fb950; background: rgba(63, 185, 80, 0.08); }
+.md-commit__gn { flex: none; width: 46px; padding-right: 10px; text-align: right; color: var(--sv-text-faint); user-select: none; }
+.md-commit__gcode { flex: 1 1 auto; white-space: pre; padding-right: 10px; }
+// A DELETION HAS NO LINE HERE, so it is the gap it left — a wedge at the boundary.
+.md-commit__gap {
+  display: block;
+  height: 3px;
+  border-left: 3px solid #d0603f;
+  background: linear-gradient(to right, rgba(208, 96, 63, 0.35), transparent 70px);
+}
+// A RECORD POINTING AT A COMMIT THAT IS NOT THERE. It says so in the message slot, because that
+// is where the commit's words would have been — and a dead record must not read as a slow one.
+.md-commit__message--gone { color: #d0603f; font-style: italic; }
+// THE RECORD'S OWN ROW IN THE LOG, after pressing its sha. Marked and named — a highlight alone
+// explains itself only to someone who watched it arrive.
+.md-commit__logrow--this { background: rgba(63, 185, 80, 0.14); box-shadow: inset 2px 0 0 #3fb950; }
+.md-commit__logthis {
+  flex: none;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #3fb950;
+  margin-right: 6px;
+}
+// The sha is a button now, so it must not inherit a button's chrome.
+.md-commit__stampsha {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  &:disabled { cursor: default; opacity: 0.75; }
+  &:not(:disabled):hover code { text-decoration: underline; }
+}
+// A MINIMIZED RECORD — the head, and one thin line under it. Several sit in one chat, so the
+// default for a record is closed: what distinguishes them in a column is where each one sits and
+// which commit it is, never the subject, which is long and wraps and stacks into a wall.
+.md-commit__mini {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 3px 10px 5px;
+  font-size: 11px;
+}
+.md-commit__minisha { flex: none; font-family: ui-monospace, Menlo, monospace; color: var(--sv-text-muted); }
+.md-commit__minisubj {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--sv-text-faint);
+}
+// The badge is the toggle on a record, so it must not inherit a button's chrome.
+.md-commit__kind--press {
+  border: 1px solid var(--sv-border);
+  background: none;
+  cursor: pointer;
+  &:hover { color: var(--sv-text); border-color: var(--sv-text-muted); }
+}
+.md-commit__minichev { font-size: 8px; margin-left: 2px; }
