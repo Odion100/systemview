@@ -89,3 +89,51 @@ test("divert restarts the clock — the one caller allowed to move an existing s
   assert.strictEqual(diverted.ok, true);
   assert.ok(diverted.openedAt > first.openedAt, "the clock re-measures attention from the divert");
 });
+
+// WHICH ARCS AM I ON — the question the registry could not answer, and the reason it could not:
+// `projectCode` was effectively required, so an agent had to already know where to look. An arc
+// routinely lives in a project the agent working it does not live in.
+test("member asks across EVERY project — the arc's own project is not the agent's", () => {
+  write([
+    { id: "ARC-004", kind: "arc", path: "a.md", project: "autobot", members: ["systemview-test", "bu"], at: 1 },
+    { id: "ARC-009", kind: "arc", path: "b.md", project: "buapi", members: ["bu"], at: 1 },
+    { id: "ARC-011", kind: "arc", path: "c.md", project: "systemview", members: ["systemview-test"], at: 1 },
+  ]);
+  const mine = door({ kind: "arc", member: "systemview-test" }).map((r) => r.id);
+  assert.deepStrictEqual(mine, ["ARC-004", "ARC-011"]);
+  assert.deepStrictEqual(door({ kind: "arc", member: "bu" }).map((r) => r.id), ["ARC-004", "ARC-009"]);
+});
+
+// OWNING AN OBJECTIVE IS BEING ON IT. The commonest way to be working an arc is to have been
+// handed one objective; an agent told it is on nothing while holding O3 is the failure here.
+test("an objective's owner is on the arc even when the members line does not name them", () => {
+  write([{ id: "ARC-004", kind: "arc", path: "a.md", project: "autobot", members: ["bu"], owners: ["agentci"], at: 1 }]);
+  assert.deepStrictEqual(door({ member: "agentci" }).map((r) => r.id), ["ARC-004"]);
+  assert.deepStrictEqual(door({ member: "bu" }).map((r) => r.id), ["ARC-004"]);
+  assert.deepStrictEqual(door({ member: "nobody" }), []);
+});
+
+// AN EXACT NAME, NEVER A PREFIX — the pipe-wrapping lesson from `document.updated` hooks, where a
+// bare `contains: "bu"` woke an agent for `buapi`'s documents.
+test("a member match is exact — bu is not buapi", () => {
+  write([{ id: "ARC-004", kind: "arc", path: "a.md", project: "x", members: ["buapi"], at: 1 }]);
+  assert.deepStrictEqual(door({ member: "bu" }), []);
+  assert.deepStrictEqual(door({ member: "buapi" }).map((r) => r.id), ["ARC-004"]);
+});
+
+test("no member named is every row — the filter stays optional", () => {
+  write([
+    { id: "ARC-004", kind: "arc", path: "a.md", project: "x", members: ["bu"], at: 1 },
+    { id: "RFC-1", kind: "rfc", path: "b.md", project: "x", at: 1 },
+  ]);
+  assert.strictEqual(door({}).length, 2);
+  assert.strictEqual(door({ member: "" }).length, 2);
+});
+
+// A ROW FROM BEFORE THIS LANDED carries no members at all, and must not answer a membership
+// question with a false yes — the registry re-parses lazily, so both shapes coexist for a while.
+test("a row with no members or owners matches nobody", () => {
+  write([{ id: "ARC-004", kind: "arc", path: "a.md", project: "x", at: 1 }]);
+  assert.deepStrictEqual(door({ member: "systemview-test" }), []);
+  assert.strictEqual(door({}).length, 1);
+});

@@ -23,18 +23,35 @@ function rows() {
   }
 }
 
+// ON IT, EITHER WAY. A document names its members in `::members{who=}`, and an arc also hands
+// individual objectives out with `owner=` — which is the commonest way to be working an arc
+// without being listed on it. Both count, because the question "which arcs am I on" means "which
+// ones is my name in", and an agent that owns O3 and is not a member would otherwise be told it
+// is on nothing while holding an objective.
+const onIt = (row, who) => {
+  const w = String(who || "").trim();
+  if (!w) return true;
+  const has = (v) => (Array.isArray(v) ? v : []).some((x) => String(x).trim() === w);
+  return has(row.members) || has(row.owners);
+};
+
 /**
- * The registry, filtered — `{ projectCode, kind, arc }` all optional. Each row comes back as the
- * shell keeps it (`id kind path project at` + derived `state`), plus `stale`: whether the file on
- * disk is newer than the row's `parsed` stamp (§1.4 — the lag is VISIBLE, so a list can re-parse
- * lazily instead of trusting or polling). `root` resolves the mtime; without one the row still
- * answers, with `stale` undefined rather than guessed.
+ * The registry, filtered — `{ projectCode, kind, arc, member }` all optional, and `projectCode`
+ * being optional is load-bearing: an arc routinely lives in a project the agent working it does
+ * not live in, so "which arcs am I on" has to be askable without naming where to look. Each row
+ * comes back as the shell keeps it (`id kind path project members owners at` + derived `state`),
+ * plus `stale`: whether the file on disk is newer than the row's `parsed` stamp (§1.4 — the lag is
+ * VISIBLE, so a list can re-parse lazily instead of trusting or polling). `root` resolves the
+ * mtime; without one the row still answers, with `stale` undefined rather than guessed.
  */
 function documentsRegistryOn({ rootOf } = {}) {
-  return ({ projectCode, kind, arc } = {}) => {
+  return ({ projectCode, kind, arc, member } = {}) => {
     const out = rows().filter(
       (r) =>
-        (!projectCode || r.project === projectCode) && (!kind || r.kind === kind) && (!arc || r.arc === arc),
+        (!projectCode || r.project === projectCode) &&
+        (!kind || r.kind === kind) &&
+        (!arc || r.arc === arc) &&
+        onIt(r, member),
     );
     const opened = openedMap();
     return out.map((r) => {

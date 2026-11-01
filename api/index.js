@@ -3442,7 +3442,8 @@ module.exports = function launchSystemView(port = 3000) {
       documents: async ({ projectCode, member, root } = {}) => DocumentMembers({ projectCode, member, root }),
       // RFC-073 — the registered documents: identity + what the last parse saw, with staleness
       // visible. The read the band's tabs and the drawer's counts move onto as slice 2 lands.
-      documentsRegistry: async ({ projectCode, kind, arc } = {}) => DocumentsRegistry({ projectCode, kind, arc }),
+      documentsRegistry: async ({ projectCode, kind, arc, member } = {}) =>
+        DocumentsRegistry({ projectCode, kind, arc, member }),
       // RFC-076 §4.6 — the reader's first open, stamped once into the hub's own ledger. The clock
       // a report retires on starts HERE, which is why only the window calls it: an agent's parse
       // is not his attention.
