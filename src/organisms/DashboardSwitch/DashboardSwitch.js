@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import DashboardA from "../DashboardA/DashboardA";
 import DashboardB from "../DashboardB/DashboardB";
 import DashboardC from "../DashboardC/DashboardC";
+import TileStack from "../Dashboard/TileStack";
 import { loadPages, savePages, loadPick, savePick, addPage, removePage, movePage } from "./pages";
 import "./styles.scss";
 
@@ -116,15 +117,16 @@ export default function DashboardSwitch() {
           the next draws. */}
       <div className="dashswitch__body" key={page ? page.id : "none"}>
         {Legacy ? (
+          // A CANDIDATE PAGE IS THE WHOLE DASHBOARD, UNTOUCHED, still running its own code — so
+          // what an extracted tile gets compared against is the real thing and not a picture of
+          // it. These three come off when he picks, and not before.
           <Legacy />
-        ) : (
-          // AN EMPTY PAGE SAYS IT IS EMPTY AND SAYS WHAT TO DO. A blank panel reads as something
-          // that failed to load; this is a page he just made and has not put anything on.
-          <div className="dashswitch__empty">
-            <b>{page ? page.label : "Nothing here"}</b>
-            <span>Nothing on this page yet. Tiles land here as the extraction comes in.</span>
-          </div>
-        )}
+        ) : page ? (
+          <TileStack
+            page={page}
+            onChange={(next) => write(pages.map((p) => (p.id === next.id ? next : p)))}
+          />
+        ) : null}
       </div>
     </div>
   );

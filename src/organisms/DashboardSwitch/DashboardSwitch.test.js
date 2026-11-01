@@ -88,3 +88,91 @@ it("a page carries its own body — switching remounts rather than reusing the l
   fireEvent.click(within(tabs(container)[1]).getByText("B · the floor"));
   expect(body().innerHTML).not.toBe(firstKey);
 });
+
+// A PAGE OF HIS OWN — the whole point of the strip growing a +. These claims are about the stack
+// being real: tiles go on, they can be swapped for another version of the same thing, they come
+// off, and the layout survives a remount.
+describe("a page he builds himself", () => {
+  const page = () => {
+    const r = mount();
+    fireEvent.click(screen.getByLabelText("Add a page"));
+    return r;
+  };
+
+  it("offers every kind, and says which have nothing built yet", () => {
+    page();
+    fireEvent.click(screen.getByText("+ add a tile"));
+    for (const label of ["What is owed", "Where everything stands", "Per project", "The counts", "The reports"]) {
+      expect(screen.getByText(label)).toBeVisible();
+    }
+    // three lanes built three versions of most kinds — the menu is the inventory
+    expect(screen.getAllByText("A · one track").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("C · the shelves").length).toBeGreaterThan(0);
+  });
+
+  it("puts a tile on the page, swaps it for another version, and takes it off", () => {
+    const { container } = page();
+    fireEvent.click(screen.getByText("+ add a tile"));
+    // the owed kind, B's version of it
+    const owed = screen.getByText("What is owed").closest(".tilestack__kind");
+    fireEvent.click(within(owed).getByText("B · the floor"));
+    expect(container.querySelectorAll(".tile")).toHaveLength(1);
+    expect(container.querySelector(".tile__kind").textContent).toBe("What is owed");
+
+    // THE SWITCH IS ASKING WHOSE VERSION OF THIS — so the face names the page it came from.
+    fireEvent.click(container.querySelector(".tile__variant-face"));
+    // Scoped to the popup: the page tabs carry the same words, which is the point — the switch
+    // names the page a version came from.
+    fireEvent.click(within(container.querySelector(".tile__variant-pop")).getByText("C · the shelves"));
+    expect(container.querySelector(".tile__variant-face").textContent).toContain("C · the shelves");
+
+    fireEvent.click(screen.getByLabelText("Remove What is owed"));
+    expect(container.querySelectorAll(".tile")).toHaveLength(0);
+    expect(screen.getByText(/Nothing on this page yet/)).toBeVisible();
+  });
+
+  it("remembers the tiles he placed, across a remount", () => {
+    const first = page();
+    fireEvent.click(screen.getByText("+ add a tile"));
+    fireEvent.click(within(screen.getByText("The reports").closest(".tilestack__kind")).getByText("B · the floor"));
+    expect(first.container.querySelectorAll(".tile")).toHaveLength(1);
+    first.unmount();
+
+    const again = mount();
+    expect(again.container.querySelectorAll(".tile")).toHaveLength(1);
+    expect(again.container.querySelector(".tile__kind").textContent).toBe("The reports");
+  });
+
+  // A SWITCH OVER ONE OPTION IS FURNITURE. Reports exists in one version only.
+  it("a kind with one version says what it is instead of offering a choice", () => {
+    const { container } = page();
+    fireEvent.click(screen.getByText("+ add a tile"));
+    fireEvent.click(within(screen.getByText("The reports").closest(".tilestack__kind")).getByText("B · the floor"));
+    expect(container.querySelector(".tile__variant--only")).toBeTruthy();
+    expect(container.querySelector(".tile__variant-face")).toBeNull();
+  });
+
+  // A LAYOUT OUTLIVES THE CODE IT NAMES. A variant that is gone must degrade visibly, never to a
+  // hole — a hole reads as "nothing here" when there is something here.
+  it("a saved tile naming a version that no longer exists falls back and says so", () => {
+    window.localStorage.setItem(
+      "sv.dash.pages",
+      JSON.stringify([{ id: "mine", label: "Mine", tiles: [{ kind: "owed", variant: "z" }] }]),
+    );
+    window.localStorage.setItem("sv.dash.pick", "mine");
+    const { container } = mount();
+    expect(container.querySelectorAll(".tile")).toHaveLength(1);
+    expect(screen.getByText(/z is gone/)).toBeVisible();
+  });
+
+  it("a saved tile of a kind that no longer exists says which it was, and offers to remove it", () => {
+    window.localStorage.setItem(
+      "sv.dash.pages",
+      JSON.stringify([{ id: "mine", label: "Mine", tiles: [{ kind: "terminal", variant: "a" }] }]),
+    );
+    window.localStorage.setItem("sv.dash.pick", "mine");
+    const { container } = mount();
+    expect(container.querySelector(".tile__missing")).toBeTruthy();
+    expect(screen.getByText("terminal")).toBeVisible();
+  });
+});

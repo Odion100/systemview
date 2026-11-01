@@ -14,6 +14,11 @@
 // what he compares a extracted tile against is the real thing, not a screenshot of it. They go
 // when he picks, and not before.
 
+// `window`, not `globalThis` — this project's eslint env has no `globalThis` and the production
+// build fails on it while jest passes, because jsdom defines it. Resolved lazily rather than at
+// module load so a test can hand in its own store.
+const theStore = () => (typeof window === "undefined" ? null : window.localStorage);
+
 const KEY = "sv.dash.pages";
 const PICK = "sv.dash.pick";
 
@@ -45,7 +50,7 @@ const clean = (p) =>
  * build: all of them mean "I do not know what he arranged", and the honest answer to that is the
  * default, not a surface with no pages on it.
  */
-export function loadPages(store = globalThis.localStorage) {
+export function loadPages(store = theStore()) {
   try {
     const raw = store && store.getItem(KEY);
     if (!raw) return DEFAULT_PAGES;
@@ -58,7 +63,7 @@ export function loadPages(store = globalThis.localStorage) {
 }
 
 /** Write it. Silent on failure — a layout that could not be saved must not break the surface. */
-export function savePages(pages, store = globalThis.localStorage) {
+export function savePages(pages, store = theStore()) {
   try {
     if (store) store.setItem(KEY, JSON.stringify(pages));
   } catch {
@@ -67,7 +72,7 @@ export function savePages(pages, store = globalThis.localStorage) {
   return pages;
 }
 
-export function loadPick(pages, store = globalThis.localStorage) {
+export function loadPick(pages, store = theStore()) {
   try {
     const v = store && store.getItem(PICK);
     if (pages.some((p) => p.id === v)) return v;
@@ -77,7 +82,7 @@ export function loadPick(pages, store = globalThis.localStorage) {
   return (pages[0] || {}).id || "";
 }
 
-export function savePick(id, store = globalThis.localStorage) {
+export function savePick(id, store = theStore()) {
   try {
     if (store) store.setItem(PICK, id);
   } catch {

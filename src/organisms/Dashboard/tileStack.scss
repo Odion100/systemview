@@ -1,0 +1,176 @@
+// A PAGE IS A STACK — a vertical column of full-width tiles. Nothing here has an opinion about
+// what a tile looks like inside: the tiles carry their own page's costume (`.dba-ctx`,
+// `.dbb-ctx`, `.dbc-ctx`), and a frame with taste of its own would be judging them through it.
+
+.tilestack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px;
+  min-height: 100%;
+}
+
+.tile {
+  border: 1px solid var(--sv-border);
+  border-radius: 6px;
+  background: var(--sv-surface);
+  overflow: hidden;
+  &.is-dragging { opacity: 0.45; }
+}
+// THE BAR IS QUIET AND SMALL. It is chrome around somebody else's design, so it gets the least
+// ink that still leaves the two controls findable.
+.tile__bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 8px 5px 10px;
+  border-bottom: 1px solid var(--sv-border-soft);
+  background: var(--sv-inset);
+  cursor: grab;
+  font-size: 11px;
+}
+.tile__kind { color: var(--sv-text-muted); font-weight: 600; }
+.tile__variant { position: relative; flex: 1 1 auto; color: var(--sv-text-faint); }
+.tile__variant--only { font-style: italic; }
+.tile__variant-face {
+  border: 0;
+  background: none;
+  padding: 1px 4px;
+  font: inherit;
+  color: var(--sv-text-faint);
+  cursor: pointer;
+  border-radius: 4px;
+  &:hover { background: var(--sv-hover); color: var(--sv-text); }
+  > i { font-style: normal; font-size: 9px; }
+}
+.tile__variant-pop {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  min-width: 160px;
+  padding: 3px;
+  border: 1px solid var(--sv-border);
+  border-radius: 6px;
+  background: var(--sv-surface);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+}
+.tile__variant-pick {
+  border: 0;
+  background: none;
+  padding: 5px 8px;
+  text-align: left;
+  font: inherit;
+  color: var(--sv-text);
+  border-radius: 4px;
+  cursor: pointer;
+  &:hover { background: var(--sv-hover); }
+  &.is-on { color: var(--sv-blue); font-weight: 600; }
+}
+.tile__swapped { font-style: normal; color: var(--dba-press, #c0392b); font-size: 10.5px; }
+.tile__drop {
+  flex: none;
+  border: 0;
+  background: none;
+  padding: 1px 5px;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--sv-text-faint);
+  opacity: 0;
+  cursor: pointer;
+  .tile:hover & { opacity: 0.6; }
+  &:hover { opacity: 1; color: var(--sv-text); }
+}
+.tile__body { min-width: 0; }
+.tile__missing {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px;
+  font-size: 12px;
+  color: var(--sv-text-faint);
+  > b { color: var(--sv-text); font-family: monospace; }
+}
+
+// THE NARROWING IS SAID OUT LOUD BY THE SURFACE, once — not by whichever head happens to be on
+// the page. A filter that narrows everything and announces itself nowhere means reading a
+// narrowed dashboard as the whole world.
+.tilestack__narrowed {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 7px 12px;
+  border: 1px solid var(--sv-blue);
+  border-radius: 6px;
+  background: var(--sv-hover);
+  font-size: 11.5px;
+  > b { color: var(--sv-text-strong); }
+  > span { flex: 1 1 auto; color: var(--sv-text-faint); }
+  > button {
+    border: 1px solid var(--sv-border);
+    background: var(--sv-surface);
+    border-radius: 5px;
+    padding: 2px 9px;
+    font: inherit;
+    color: var(--sv-text);
+    cursor: pointer;
+    &:hover { border-color: var(--sv-blue); color: var(--sv-blue); }
+  }
+}
+
+.tilestack__none { margin: 0; color: var(--sv-text-faint); font-size: 12px; text-align: center; padding: 20px 0; }
+.tilestack__add {
+  align-self: flex-start;
+  border: 1px dashed var(--sv-border);
+  background: none;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 11.5px;
+  color: var(--sv-text-faint);
+  cursor: pointer;
+  &:hover { border-color: var(--sv-blue); color: var(--sv-blue); border-style: solid; }
+}
+.tilestack__menu {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--sv-border);
+  border-radius: 6px;
+  background: var(--sv-inset);
+}
+.tilestack__kind {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 11.5px;
+  > b { color: var(--sv-text); }
+  > i { font-style: normal; color: var(--sv-text-faint); }
+  > span { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; }
+  > span > em { font-style: italic; color: var(--sv-text-faint); }
+  > span > button {
+    border: 1px solid var(--sv-border);
+    background: var(--sv-surface);
+    border-radius: 5px;
+    padding: 2px 9px;
+    font: inherit;
+    color: var(--sv-text);
+    cursor: pointer;
+    &:hover { border-color: var(--sv-blue); color: var(--sv-blue); }
+  }
+}
+.tilestack__cancel {
+  align-self: flex-start;
+  border: 0;
+  background: none;
+  padding: 2px 0;
+  font: inherit;
+  font-size: 11px;
+  color: var(--sv-text-faint);
+  cursor: pointer;
+  &:hover { color: var(--sv-text); }
+}
