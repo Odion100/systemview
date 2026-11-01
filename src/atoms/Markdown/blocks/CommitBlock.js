@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from "react";
 import { useCapability, useCapabilityState } from "../capabilities";
 import { useMarkdownScope, useMarkdownWrite, useDocMembers } from "../context";
 import { sendUpdateTo } from "../docSend";
-import { useBlockFailure } from "../blockFailure";
 import { gitNotice } from "./gitNotice";
 
 // RFC-033 — `::commit{message="…"}`. A commit message in a report is a line to copy into a
@@ -106,7 +105,6 @@ const CommitBlock = ({ label, attrs = {}, line }) => {
   // older one is how a block stays usable in a window nobody has reloaded.
   const [record, setRecord] = useState(null);
   const [recErr, setRecErr] = useState("");
-  const report = useBlockFailure();
   // WHICH LOG ROW THIS RECORD IS. Set by pressing the sha; the row scrolls itself into view and
   // wears a mark until he presses something else, because a jump that lands you in a list without
   // saying where is a jump you have to re-do by eye.
@@ -142,14 +140,18 @@ const CommitBlock = ({ label, attrs = {}, line }) => {
     setRecord(null);
     setRecErr("");
     if (!sha || !host || !git) return undefined;
-    // A FAILURE IS RENDERED *AND* REPORTED. Showing it on screen only tells whoever is looking;
-    // the agent that wrote the block is usually not, and the commonest cause is a sha from
-    // another repo — which this project cannot see and the writer could fix in one edit if it
-    // ever heard. `blockFailure.js` carries who hears it and why it is told once.
-    const fail = (why) => {
-      setRecErr(why);
-      report({ kind: "commit", ref: sha, reason: why }).catch(() => {});
-    };
+    // REPORTING IS OFF. `blockFailure.js` and its claims stand, and the mechanism is sound in
+    // pieces — but switched on against the live chat it woke him three times for things he had
+    // not done: a path that pointed at nothing, a headline calling a chat a document, and a
+    // reload re-reporting every broken block on the page. The behaviour that never did any of
+    // that is this one: render the failure, tell nobody.
+    //
+    // What it needs before it comes back is not another fix, it is EVIDENCE: a reload that
+    // provably sends nothing, checked against the page as it actually behaves rather than
+    // against a unit test of my own assumptions. Until then the quiet version is the correct
+    // version, because a mechanism that cries wolf on a refresh is worse than one that says
+    // nothing — the render already says it to whoever is looking.
+    const fail = (why) => setRecErr(why);
     (async () => {
       try {
         const api = svc().Plugin;

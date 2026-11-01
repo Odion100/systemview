@@ -163,3 +163,53 @@ it("flags the send as a FAULT, so the headline does not call it a document updat
   await waitFor(() => expect(sendUpdateTo).toHaveBeenCalledTimes(1));
   expect(sendUpdateTo.mock.calls[0][0].fault).toBe(true);
 });
+
+// A RELOAD MUST NOT RE-REPORT. The dedupe was a module Set, so it died with the page and every
+// refresh re-sent every broken block still on screen — his catch, after being woken for the same
+// two blocks over and over: "all I do is refresh the page and you get that." A reload is the
+// commonest thing that happens to a window, which made the in-memory version worse than none: it
+// looked solved while flooding on the one event nobody counts.
+describe("being told survives the page", () => {
+  // A RELOAD MUST NOT RE-REPORT. The dedupe was a module Set, so it died with the page and every
+  // refresh re-sent every broken block still on screen — his catch, after being woken for the
+  // same two blocks over and over: "all I do is refresh the page and you get that." A reload is
+  // the commonest thing that happens to a window, which made the in-memory version worse than
+  // none: it looked solved while flooding on the one event nobody counts.
+  //
+  // Checked at the STORAGE seam rather than by simulating a reload: a jest module reset is not a
+  // page load, and a claim that pretends otherwise is the kind of proof that let this ship.
+  it("writes the failure into storage, so a fresh page already knows", async () => {
+    mount({ projectCode: "systemview-test", chat: "main" });
+    await waitFor(() => expect(sendUpdateTo).toHaveBeenCalledTimes(1));
+    const saved = JSON.parse(window.localStorage.getItem("sv.blockFault.sent") || "{}");
+    expect(Object.keys(saved).length).toBe(1);
+    expect(Object.keys(saved)[0]).toContain("4ce4444");
+  });
+
+  it("reports again when the same block fails for a different reason", async () => {
+    mount({ projectCode: "systemview-test", chat: "main" });
+    await waitFor(() => expect(sendUpdateTo).toHaveBeenCalledTimes(1));
+    sendUpdateTo.mockClear();
+    render(
+      <MemoryRouter><MarkdownScopeProvider value={{ projectCode: "systemview-test", chat: "main" }}>
+        <MarkdownMembersProvider value={{ members: [], hasMembers: false, source: "", docPath: "", projectCode: "" }}>
+          <Probe reason="the hub answered nothing" />
+        </MarkdownMembersProvider>
+      </MarkdownScopeProvider></MemoryRouter>,
+    );
+    await waitFor(() => expect(sendUpdateTo).toHaveBeenCalledTimes(1));
+  });
+
+  // BOUNDED, or it is a slow leak in his browser. Newest wins.
+  it("keeps the record from growing without end", async () => {
+    const all = {};
+    for (let i = 0; i < 400; i += 1) all[`k${i}`] = i;
+    window.localStorage.setItem("sv.blockFault.sent", JSON.stringify(all));
+    mount({ projectCode: "systemview-test", chat: "main" });
+    await waitFor(() => expect(sendUpdateTo).toHaveBeenCalledTimes(1));
+    const after = JSON.parse(window.localStorage.getItem("sv.blockFault.sent"));
+    expect(Object.keys(after).length).toBeLessThanOrEqual(300);
+    expect(after.k0).toBeUndefined();
+    expect(after.k399).toBe(399);
+  });
+});

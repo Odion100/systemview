@@ -37,14 +37,59 @@ export function failureSummary({ kind, ref, reason, where = "" } = {}) {
 export const failureKey = ({ kind, ref, reason, audience = [] } = {}) =>
   [kind, ref, reason, [...audience].sort().join(",")].join(" ");
 
-// ONE SEND PER FAILURE, FOR THE LIFE OF THE PAGE. A block re-renders constantly — a scroll, a
-// sibling's state change, a poll — and each render would otherwise be another message. Module
-// scope rather than a ref, because the same broken block can be mounted twice (the chat and a
-// pinned copy of the same reply) and that is still one failure.
-const sent = new Set();
+// ONE SEND PER FAILURE, AND IT HAS TO SURVIVE A RELOAD.
+//
+// This was a module-level Set, which dies with the page — so every refresh re-reported every
+// broken block still on screen. Measured the hard way: he refreshed, and I was woken again, for
+// the same two blocks, every time. *"All I do is refresh the page and you get that."* A reload is
+// the single commonest thing that happens to a window, which made the in-memory version worse
+// than no dedupe at all: it looked solved while flooding on exactly the event nobody counts.
+//
+// So it persists. Being told is a fact about the AGENT, not about this page's lifetime, and a
+// reload does not un-tell anybody. The key carries the reason, so a block that starts failing
+// differently is a new failure and does report; a block that is FIXED changes its ref and never
+// matches again.
+//
+// BOUNDED, because an unbounded record of every failure ever is a slow leak in his browser. The
+// newest entries win and the rest are dropped — the oldest failures are also the ones least
+// likely to still be on a page.
+const STORE_KEY = "sv.blockFault.sent";
+const KEEP = 300;
 
-/** Test seam — the set is module state, and a suite has to start from nothing. */
-export const _resetSentFailures = () => sent.clear();
+const readSent = () => {
+  try {
+    const raw = JSON.parse(window.localStorage.getItem(STORE_KEY) || "{}");
+    return raw && typeof raw === "object" ? raw : {};
+  } catch {
+    // No storage (a privacy mode that throws, a host without one) is not an error here: the
+    // feature degrades to per-page dedupe, which is what it did before, rather than failing.
+    return {};
+  }
+};
+
+const markSent = (key) => {
+  try {
+    const all = readSent();
+    all[key] = Date.now();
+    const keys = Object.keys(all);
+    if (keys.length > KEEP) {
+      keys
+        .sort((a, b) => all[a] - all[b])
+        .slice(0, keys.length - KEEP)
+        .forEach((k) => delete all[k]);
+    }
+    window.localStorage.setItem(STORE_KEY, JSON.stringify(all));
+  } catch {}
+};
+
+const wasSent = (key) => Object.prototype.hasOwnProperty.call(readSent(), key);
+
+/** Test seam — a suite has to start from nothing. */
+export const _resetSentFailures = () => {
+  try {
+    window.localStorage.removeItem(STORE_KEY);
+  } catch {}
+};
 
 /**
  * `report({kind, ref, reason})` — tells whoever should hear about this block, once.
@@ -64,7 +109,7 @@ export function useBlockFailure() {
         : [String(scope.projectCode || "").trim()].filter(Boolean);
       if (!audience.length) return null;
       const key = failureKey({ kind, ref, reason, audience });
-      if (sent.has(key) || inFlight.current.has(key)) return null;
+      if (wasSent(key) || inFlight.current.has(key)) return null;
       inFlight.current.add(key);
       // THE PATH HAS TO BE A FILE THAT EXISTS, because the message the agent receives ends with
       // "read the file rather than trusting this line" — and the first version pointed at
@@ -97,7 +142,7 @@ export function useBlockFailure() {
       // the failure permanently unreportable for the life of the page — the quietest possible
       // outcome for a mechanism whose entire purpose is to stop something being quiet.
       if (r && r.ok) {
-        sent.add(key);
+        markSent(key);
         return audience;
       }
       return null;
