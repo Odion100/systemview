@@ -38,7 +38,19 @@ export const NEEDS = ["registry", "none"];
  * right KIND rather than to a hole — the hole reads as "nothing here", which is the lie this
  * surface may not tell.
  */
+// THE ORDER IS THE PAGE'S OWN ORDER — head, owed, standing, reports, projects — because the
+// picker is read while looking at a page, and a list in a different order makes you hunt for
+// the row you are standing on. His catch: *"the header should be at the top, it should be in
+// the original order. I thought I was trying to switch a header for a header."* All three
+// candidates stack their sections in this order, so there is one answer and not three.
 const KINDS = {
+  head: {
+    label: "The counts",
+    hint: "what is waiting, expiring and outstanding, across everything",
+    needs: "registry",
+    fallback: "c",
+    variants: {},
+  },
   owed: {
     label: "What is owed",
     hint: "presses on one side, outstanding work on the other",
@@ -53,25 +65,18 @@ const KINDS = {
     fallback: "b",
     variants: {},
   },
-  projects: {
-    label: "Per project",
-    hint: "one block per project and what it holds",
-    needs: "registry",
-    fallback: "c",
-    variants: {},
-  },
-  head: {
-    label: "The counts",
-    hint: "what is waiting, expiring and outstanding, across everything",
-    needs: "registry",
-    fallback: "c",
-    variants: {},
-  },
   reports: {
     label: "The reports",
     hint: "what is retiring, and when",
     needs: "registry",
     fallback: "b",
+    variants: {},
+  },
+  projects: {
+    label: "Per project",
+    hint: "one block per project and what it holds",
+    needs: "registry",
+    fallback: "c",
     variants: {},
   },
 };

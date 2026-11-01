@@ -36,35 +36,67 @@ import "./tileStack.scss";
  * a tile may become another version of itself, when what he actually wants is to swap what is
  * in that slot for anything at all.
  */
-const Chooser = ({ onPick, onClose, where = "" }) => (
-  // NO `onMouseLeave`. The add menu never closed on leave and must not start: a menu that
-  // vanishes when the pointer crosses a gap on the way to the option you want is a menu you
-  // cannot use. It closes on a pick or on cancel, and on nothing else.
-  <div className={`tilestack__menu ${where}`}>
-    {tileKinds().map((k) => (
-      <div key={k.kind} className="tilestack__kind">
-        <b>{k.label}</b>
-        <i>{k.hint}</i>
-        <span>
-          {k.variants.length ? (
-            k.variants.map((v) => (
-              <button key={v.variant} type="button" onClick={() => onPick({ kind: k.kind, variant: v.variant })}>
-                {v.label}
-              </button>
-            ))
-          ) : (
-            // A KIND WITH NOTHING BUILT IS STILL LISTED. Hiding it is how a tile nobody built
-            // becomes a tile nobody remembers was planned.
-            <em>nothing built yet</em>
-          )}
-        </span>
-      </div>
-    ))}
-    <button type="button" className="tilestack__cancel" onClick={onClose}>
-      cancel
-    </button>
-  </div>
-);
+const Chooser = ({ onPick, onClose, where = "", current = null, dismissable = false }) => {
+  // CLICKING OFF A FLOATING MENU CLOSES IT. Only the floating one: the menu at the foot sits in
+  // the flow and is dismissed by cancel, the way it always was. `mousedown` rather than `click`
+  // so it closes before whatever you were reaching for fires.
+  const box = useRef(null);
+  useEffect(() => {
+    if (!dismissable) return undefined;
+    const off = (e) => {
+      if (box.current && !box.current.contains(e.target)) onClose();
+    };
+    const esc = (e) => e.key === "Escape" && onClose();
+    document.addEventListener("mousedown", off, true);
+    document.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("mousedown", off, true);
+      document.removeEventListener("keydown", esc);
+    };
+  }, [dismissable, onClose]);
+
+  return (
+    // NO `onMouseLeave`. The add menu never closed on leave and must not start: a menu that
+    // vanishes when the pointer crosses a gap on the way to the option you want is a menu you
+    // cannot use. It closes on a pick, on cancel, and — when it floats — on a click outside.
+    <div className={`tilestack__menu ${where}`} ref={box}>
+      {tileKinds().map((k) => (
+        <div key={k.kind} className={`tilestack__kind${current && current.kind === k.kind ? " is-here" : ""}`}>
+          <b>{k.label}</b>
+          <i>{k.hint}</i>
+          <span>
+            {k.variants.length ? (
+              k.variants.map((v) => {
+                // WHICH ONE YOU ARE ON. Opening a picker over a tile without saying what is
+                // already in that slot makes you guess, and the first guess is usually the row
+                // you were already looking at.
+                const here = current && current.kind === k.kind && current.variant === v.variant;
+                return (
+                  <button
+                    key={v.variant}
+                    type="button"
+                    className={here ? "is-here" : undefined}
+                    aria-current={here ? "true" : undefined}
+                    onClick={() => onPick({ kind: k.kind, variant: v.variant })}
+                  >
+                    {v.label}
+                  </button>
+                );
+              })
+            ) : (
+              // A KIND WITH NOTHING BUILT IS STILL LISTED. Hiding it is how a tile nobody built
+              // becomes a tile nobody remembers was planned.
+              <em>nothing built yet</em>
+            )}
+          </span>
+        </div>
+      ))}
+      <button type="button" className="tilestack__cancel" onClick={onClose}>
+        cancel
+      </button>
+    </div>
+  );
+};
 
 /** The corner: a grip, whose version this is, and a way to take it off. */
 const Corner = ({ t, open, setOpen, onRemove, onGrab, onLetGo }) => (
@@ -258,6 +290,8 @@ const Stack = ({ page, onChange }) => {
                   {swap === i ? (
                     <Chooser
                       where="tilestack__menu--over"
+                      dismissable
+                      current={entry}
                       onClose={() => setSwap(-1)}
                       // SWAPPING REPLACES THE SLOT, not just the variant — the chooser offers
                       // every kind, so what comes back may be a different thing entirely.

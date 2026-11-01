@@ -233,3 +233,57 @@ it("the add menu stays open until you pick or cancel", () => {
   fireEvent.click(screen.getByText("cancel"));
   expect(container.querySelector(".tilestack__menu")).toBeNull();
 });
+
+describe("the floating picker", () => {
+  const openOver = () => {
+    const r = mount();
+    fireEvent.click(within(tabs(r.container)[5]).getByText("C · rebuilt"));
+    fireEvent.click(r.container.querySelectorAll(".tile__which")[0]);
+    return r;
+  };
+
+  // THE ORDER IS THE PAGE'S ORDER. *"The header should be at the top… I thought I was trying to
+  // switch a header for a header."* A picker in a different order than the page makes you hunt
+  // for the row you are standing on.
+  it("lists the kinds in the order a page stacks them", () => {
+    const { container } = openOver();
+    const rows = [...container.querySelectorAll(".tilestack__menu--over .tilestack__kind b")].map((b) => b.textContent);
+    expect(rows).toEqual(["The counts", "What is owed", "Where everything stands", "The reports", "Per project"]);
+  });
+
+  it("says which one is already in the slot", () => {
+    const { container } = openOver();
+    const here = [...container.querySelectorAll(".tilestack__menu--over button.is-here")];
+    expect(here).toHaveLength(1);
+    expect(here[0].textContent).toBe("C · the shelves");
+    // and the row it sits on is marked too, so the eye lands before it reads a label
+    expect(here[0].closest(".tilestack__kind").querySelector("b").textContent).toBe("The counts");
+  });
+
+  it("closes on a click outside it, and on escape", () => {
+    const { container } = openOver();
+    fireEvent.mouseDown(document.body);
+    expect(container.querySelector(".tilestack__menu--over")).toBeNull();
+
+    fireEvent.click(container.querySelectorAll(".tile__which")[0]);
+    expect(container.querySelector(".tilestack__menu--over")).toBeTruthy();
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(container.querySelector(".tilestack__menu--over")).toBeNull();
+  });
+
+  it("a click inside it does not close it", () => {
+    const { container } = openOver();
+    const menu = container.querySelector(".tilestack__menu--over");
+    fireEvent.mouseDown(menu.querySelector("b"));
+    expect(container.querySelector(".tilestack__menu--over")).toBeTruthy();
+  });
+
+  // The one at the foot is NOT dismissable that way — it is in the flow and always was.
+  it("the add menu is not dismissed by a click elsewhere", () => {
+    const { container } = mount();
+    fireEvent.click(screen.getByLabelText("Add a page"));
+    fireEvent.click(screen.getByText("+ add a tile"));
+    fireEvent.mouseDown(document.body);
+    expect(container.querySelector(".tilestack__menu")).toBeTruthy();
+  });
+});

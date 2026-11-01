@@ -168,9 +168,14 @@
   left: 24px;
   right: 24px;
   margin: 0;
-  z-index: 12;
-  background: var(--sv-surface);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
+  // ABOVE EVERYTHING A TILE CAN CONTAIN. The two to clear are real and measured: B's stack face
+  // sits at 50 so it can rise over its own fanned cards, and A's hover card at 20. A floating
+  // menu that a report pile's open-button paints through is a menu you cannot press.
+  z-index: 60;
+  // SAME FILL AS THE ONE AT THE FOOT. It is the same menu; the only thing that may differ is
+  // that this one floats, which is what the shadow says. A second background made it read as a
+  // different control.
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.26);
 }
 .tilestack__kind {
   display: grid;
@@ -191,7 +196,17 @@
     color: var(--sv-text);
     cursor: pointer;
     &:hover { border-color: var(--sv-blue); color: var(--sv-blue); }
+    // WHAT IS ALREADY IN THIS SLOT. Opening a picker over a tile and not saying which row you
+    // are standing on makes you guess, and the guess is usually the one you were looking at.
+    &.is-here {
+      border-color: var(--sv-blue);
+      background: var(--sv-blue);
+      color: #fff;
+      font-weight: 600;
+    }
   }
+  // The row itself, so the eye lands on the right line before it reads a single label.
+  &.is-here > b { color: var(--sv-blue); }
 }
 .tilestack__cancel {
   align-self: flex-start;
