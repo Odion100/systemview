@@ -25,7 +25,7 @@ import { claimsOf } from "../../atoms/Markdown/claims";
 import arcRows, { arcLine } from "../AgentChat/arcRows";
 import gapRows, { gapLine } from "../AgentChat/gapRows";
 import rfcRows, { rfcLine } from "../AgentChat/rfcRows";
-import { isFixture, leafLine, owedFrom, skippedLine } from "../AgentChat/owed";
+import { isFixture, leafLine, owedFrom, skippedLine, docKey } from "../AgentChat/owed";
 
 // ─── THE KINDS ─────────────────────────────────────────────────────────────────────────────────
 // The hues are HowWeWork's, deliberately: that page teaches what a kind IS, and two surfaces in
@@ -130,7 +130,8 @@ export function progressFor({ row, text } = {}, now = Date.now()) {
  */
 export function beadFor({ row, text }, owedByDoc = {}, now = Date.now()) {
   const p = progressFor({ row, text }, now);
-  const mine = owedByDoc[row.id] || [];
+  // KEYED BY PROJECT AND ID — on a page that spans every project, the id alone is not an address.
+  const mine = owedByDoc[docKey(row)] || [];
   const press = mine.filter((o) => o.group === "press");
   const work = mine.filter((o) => o.group === "work");
   const first = press[0] || work[0] || null;
@@ -383,7 +384,7 @@ export function floorFrom({ docs = [], projects = {}, now = Date.now() } = {}) {
   const owed = owedFrom({ docs: all, now });
   const owedByDoc = {};
   [...(owed.press || []), ...(owed.work || [])].forEach((o) => {
-    (owedByDoc[o.id] = owedByDoc[o.id] || []).push(o);
+    (owedByDoc[docKey(o)] = owedByDoc[docKey(o)] || []).push(o);
   });
 
   const beads = real.map((d) => beadFor(d, owedByDoc, now));

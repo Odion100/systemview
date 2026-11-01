@@ -24,7 +24,7 @@
 // anything a second time.
 import { arcLine, arcRows } from "../AgentChat/arcRows";
 import { gapLine, gapRows } from "../AgentChat/gapRows";
-import { isFixture, owedFrom, owedHead, skippedLine } from "../AgentChat/owed";
+import { isFixture, owedFrom, owedHead, skippedLine, docKey } from "../AgentChat/owed";
 import { rfcLine, rfcRows } from "../AgentChat/rfcRows";
 import { stateOf, GROUP_OF, TRAILS } from "../../atoms/Markdown/blocks/lifecycleState";
 import { parseRetain, retainLine } from "../../atoms/Markdown/blocks/retention";
@@ -46,9 +46,10 @@ const titleFromPath = (path) =>
     .trim();
 
 /**
- * THE JOIN: obligation → document. `owedFrom` returns a flat list of what is owed, keyed by
- * document id, and the shelves need it the other way round — so a card can carry the mark without
- * the page counting anything twice. One entry per document, never per obligation.
+ * THE JOIN: obligation → document. `owedFrom` returns a flat list of what is owed, and the shelves
+ * need it the other way round — so a card can carry the mark without the page counting anything
+ * twice. One entry per document, never per obligation, addressed by `docKey`: this page spans
+ * every project at once, which is exactly where a bare document id stops being an address.
  *
  * `says` keeps the obligations' own sentences in their own order, because that is the only text on
  * this page that names a SPECIFIC thing to do; a card that said "2 things owed" would be the
@@ -57,7 +58,8 @@ const titleFromPath = (path) =>
 export function owedIndex(owed = {}) {
   const out = {};
   const add = (group) => (x) => {
-    const at = (out[x.id] = out[x.id] || { press: 0, work: 0, says: [], lines: [] });
+    const k = docKey(x);
+    const at = (out[k] = out[k] || { press: 0, work: 0, says: [], lines: [] });
     at[group] += group === "press" ? x.n || 1 : 1;
     at.says.push(x.says);
     at.lines.push(x.line || 1);
@@ -183,7 +185,8 @@ function reportCards(docs, now) {
  * of quietly being wrong.
  */
 function cardOf({ row, text }, { now, owedBy = {}, extra = {}, line }) {
-  const o = owedBy[row.id];
+  // KEYED BY PROJECT AND ID, the same key owedIndex built — the id alone spans projects.
+  const o = owedBy[docKey(row)];
   return {
     key: `${row.project || ""}:${row.id}`,
     id: row.id,

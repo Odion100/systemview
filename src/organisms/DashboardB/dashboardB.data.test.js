@@ -12,6 +12,8 @@ import {
   tideOf,
   trackFor,
 } from "./dashboardB.data";
+// THE MAP IS ADDRESSED BY PROJECT AND ID, so the fixtures build their keys the way the page does.
+import { docKey } from "../AgentChat/owed";
 
 // THE FLOOR — and what is worth testing about a dashboard is not that it renders. It is that every
 // number on it means what the module that owns that number means, and that the page cannot say
@@ -130,11 +132,11 @@ describe("a bead", () => {
   // ⚑ IS "A DECISION IS WAITING ON YOU" AND ⧗ IS A DEADLINE — the band's rule, which exists
   // because sharing one mark made it unreadable. One mark per bead: two marks is no mark.
   it("carries the mark of the loudest thing it owes, and only one", () => {
-    const o = { "RFC-004": [{ group: "press", why: "approval", says: "Approve it?", line: 9, id: "RFC-004" }] };
+    const o = { [docKey({ project: "p", id: "RFC-004" })]: [{ group: "press", why: "approval", says: "Approve it?", line: 9, id: "RFC-004", project: "p" }] };
     const b = beadFor(RFC("RFC-004"), o, NOW);
     expect(b.mark).toBe("⚑");
     expect(b.line).toBe(9); // the press is one scroll away, not a file hunt
-    const c = beadFor(RFC("RFC-005"), { "RFC-005": [{ group: "press", why: "clock", says: "retiring", line: 2, id: "RFC-005" }, { group: "press", why: "approval", says: "x", line: 4, id: "RFC-005" }] }, NOW);
+    const c = beadFor(RFC("RFC-005"), { [docKey({ project: "p", id: "RFC-005" })]: [{ group: "press", why: "clock", says: "retiring", line: 2, id: "RFC-005", project: "p" }, { group: "press", why: "approval", says: "x", line: 4, id: "RFC-005", project: "p" }] }, NOW);
     expect(c.mark).toBe("⧗");
   });
 
@@ -187,7 +189,7 @@ describe("the report stacks", () => {
     const beads = [
       beadFor(REPORT("a", { project: "quiet" }), {}, NOW),
       beadFor(REPORT("b", { project: "quiet" }), {}, NOW),
-      beadFor(REPORT("c", { project: "urgent", openedAt: NOW - 13.9 * DAY }), { c: [{ group: "press", why: "clock", says: "retires in an hour", line: 1, id: "c" }] }, NOW),
+      beadFor(REPORT("c", { project: "urgent", openedAt: NOW - 13.9 * DAY }), { [docKey({ project: "urgent", id: "c" })]: [{ group: "press", why: "clock", says: "retires in an hour", line: 1, id: "c", project: "urgent" }] }, NOW),
     ];
     const stacks = reportStacks(beads);
     expect(stacks.map((s) => s.project)).toEqual(["urgent", "quiet"]);
@@ -242,7 +244,7 @@ describe("every project the hub knows is on the page", () => {
 
   it("puts the project that needs him first, whatever its size", () => {
     const big = [1, 2, 3].map((n) => beadFor(RFC(`RFC-10${n}`), {}, NOW));
-    const needy = beadFor(doc({ id: "RFC-200", kind: "rfc", path: "a.md", project: "needy", state: { verdict: "approved" } }, "::rfc{id=RFC-200}\n"), { "RFC-200": [{ group: "press", why: "approval", says: "x", line: 1, id: "RFC-200" }] }, NOW);
+    const needy = beadFor(doc({ id: "RFC-200", kind: "rfc", path: "a.md", project: "needy", state: { verdict: "approved" } }, "::rfc{id=RFC-200}\n"), { [docKey({ project: "needy", id: "RFC-200" })]: [{ group: "press", why: "approval", says: "x", line: 1, id: "RFC-200", project: "needy" }] }, NOW);
     const lines = projectLines({ p: "", needy: "" }, [...big, needy], NOW);
     expect(lines[0].code).toBe("needy");
   });

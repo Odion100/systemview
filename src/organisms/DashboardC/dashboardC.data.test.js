@@ -7,6 +7,7 @@ import {
   owedIndex,
   shelvesFrom,
 } from "./dashboardC.data";
+import { docKey } from "../AgentChat/owed";
 
 // THE SHELVES, HELD TO THEIR ANSWERS. Every number on this page comes out of a module somebody
 // else wrote and proved; what is tested here is the JOIN — that the page passes those modules the
@@ -161,16 +162,18 @@ describe("a gap gets no bar, because it has no middle", () => {
 describe("the join from an obligation back to its document", () => {
   it("is one entry per document however many obligations it carries, and keeps their own sentences", () => {
     const i = owedIndex({
-      press: [{ id: "RFC-001", why: "approval", says: "does this read right?", n: 2, line: 12 }],
+      press: [{ id: "RFC-001", project: "alpha", why: "approval", says: "does this read right?", n: 2, line: 12 }],
       work: [
-        { id: "RFC-001", why: "claims", says: "1 claim unmet", line: 40 },
-        { id: "ARC-9", why: "blocked", says: "blocked — the hub cannot answer", line: 7 },
+        { id: "RFC-001", project: "alpha", why: "claims", says: "1 claim unmet", line: 40 },
+        { id: "ARC-9", project: "alpha", why: "blocked", says: "blocked — the hub cannot answer", line: 7 },
       ],
     });
-    expect(Object.keys(i).sort()).toEqual(["ARC-9", "RFC-001"]);
+    // ADDRESSED BY PROJECT AND ID: an id is unique inside a project and nowhere else, and this page
+    // spans every project at once.
+    expect(Object.keys(i).sort()).toEqual([docKey({ project: "alpha", id: "ARC-9" }), docKey({ project: "alpha", id: "RFC-001" })].sort());
     // AN APPROVAL ROW COUNTS BLOCKS, NOT ROWS — the same rule owedHead follows, so the mark on a
     // card and the number in the head cannot disagree.
-    expect(i["RFC-001"]).toEqual({ press: 2, work: 1, says: ["does this read right?", "1 claim unmet"], lines: [12, 40] });
+    expect(i[docKey({ project: "alpha", id: "RFC-001" })]).toEqual({ press: 2, work: 1, says: ["does this read right?", "1 claim unmet"], lines: [12, 40] });
   });
 });
 

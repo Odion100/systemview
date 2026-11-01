@@ -29,7 +29,7 @@
 // thing — is the SHARED AXIS (`phaseOf`): a per-kind table mapping each kind's own station onto one
 // of five columns, so four different trails can be read down one page. It maps words; it decides
 // nothing.
-import { owedFrom, owedHead, isFixture } from "../AgentChat/owed";
+import { owedFrom, owedHead, isFixture, docKey } from "../AgentChat/owed";
 import arcRows, { arcLine } from "../AgentChat/arcRows";
 import rfcRows, { rfcLine } from "../AgentChat/rfcRows";
 import gapRows, { gapLine } from "../AgentChat/gapRows";
@@ -176,7 +176,9 @@ const lineFor = (kind, krow) =>
  */
 function markFor({ row, text }, krow, owesById) {
   const station = stateOf(row.kind, row);
-  const owes = owesById[row.id] || [];
+  // KEYED BY PROJECT AND ID. `owesById[row.id]` merged two projects' RFC-001 into one entry, so
+  // a document wore another repo's obligations — wrong by construction on a cross-project page.
+  const owes = owesById[docKey(row)] || [];
   return {
     key: `${row.kind}:${row.id}:${row.path}`,
     id: row.id,
@@ -276,7 +278,7 @@ export function dashboard({ docs = [], roots = {}, now = Date.now(), fixtures = 
   const owesById = {};
   [...owed.press.map((x) => ({ ...x, group: "press" })), ...owed.work.map((x) => ({ ...x, group: "work" }))].forEach(
     (x) => {
-      (owesById[x.id] = owesById[x.id] || []).push(x);
+      (owesById[docKey(x)] = owesById[docKey(x)] || []).push(x);
     },
   );
 

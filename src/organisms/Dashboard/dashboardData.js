@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useMemo, useRef, useState 
 import ServiceContext from "../../ServiceContext";
 import { hostFiles } from "../../utils/hostFiles";
 import { openAddress } from "../../atoms/Markdown/openRef";
-import { owedFrom, owedHead } from "../AgentChat/owed";
+import { owedFrom, owedHead, docKey } from "../AgentChat/owed";
 
 // ONE READ, ONE DERIVATION, FOR EVERY TILE ON THE SURFACE.
 //
@@ -160,8 +160,8 @@ export function DashboardDataProvider({ children, every }) {
     const keep = (list) => (list || []).filter((o) => wanted.has(o.key));
     const press = wanted ? keep(unfiltered.press) : unfiltered.press;
     const work = wanted ? keep(unfiltered.work) : unfiltered.work;
-    const onDoc = wanted ? new Set([...press, ...work].map((o) => `${o.project || ""}\u0000${o.id}`)) : null;
-    const docs = onDoc ? allDocs.filter((d) => onDoc.has(`${d.row.project || ""}\u0000${d.row.id}`)) : allDocs;
+    const onDoc = wanted ? new Set([...press, ...work].map(docKey)) : null;
+    const docs = onDoc ? allDocs.filter((d) => onDoc.has(docKey(d.row))) : allDocs;
     return {
       read,
       error,

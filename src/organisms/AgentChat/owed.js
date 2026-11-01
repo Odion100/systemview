@@ -83,8 +83,22 @@ const clipped = (s, n = 64) => {
   return t.length > n ? `${t.slice(0, n - 1)}…` : t;
 };
 
+/**
+ * WHICH DOCUMENT THIS IS, as one string. A document id is unique inside a project and nowhere else:
+ * two projects each holding an RFC-001 are two documents, and keying on the id alone merges them
+ * into one row that opens the wrong file. Every join from an obligation back to its document goes
+ * through here.
+ *
+ * It takes either shape — an obligation (`{project, id}`) or a registry row — because both sides of
+ * that join exist and a key built one way on one side is not a key.
+ *
+ * NUL is the separator because it cannot occur in either half, so no project/id pair can be spelled
+ * two ways and no two pairs can collide on one spelling.
+ */
+export const docKey = (x) => `${(x && x.project) || ""}\u0000${(x && x.id) || ""}`;
+
 const item = (row, group, why, says, extra = {}) => ({
-  key: `${row.id}:${why}`,
+  key: `${docKey(row)}:${why}`,
   group,
   why,
   id: row.id,
@@ -172,14 +186,14 @@ function obligationsIn({ row, text }, rows, now) {
       if (o.state === "blocked")
         out.push(
           item(row, "work", "blocked", `blocked — ${o.because || "no reason given on the block"}${named}`, {
-            key: `${row.id}:blocked:${o.id}`,
+            key: `${docKey(row)}:blocked:${o.id}`,
             line: o.line,
             tail: addr,
           }),
         );
       else if (o.owner === "you" && o.state !== "done")
         out.push(
-          item(row, "work", "mine", `yours, and ${o.state}${named}`, { key: `${row.id}:mine:${o.id}`, line: o.line, tail: addr }),
+          item(row, "work", "mine", `yours, and ${o.state}${named}`, { key: `${docKey(row)}:mine:${o.id}`, line: o.line, tail: addr }),
         );
     });
 
@@ -418,9 +432,7 @@ export function owedHead(owed = {}) {
  * and `line`. Re-sorting here would quietly promote a document because it had MORE obligations,
  * which is not the same as having a worse one.
  *
- * THE KEY CARRIES THE PROJECT. A document id is unique inside a project and nowhere else — two
- * projects each with an RFC-001 are two documents, and keying on the id alone merges them into
- * one row that opens the wrong file.
+ * The key is `docKey` — one spelling of "which document", shared with every other join.
  *
  * Returns the same shape a single obligation has, plus `items` (all of them, including the one in
  * the headline) and `n`. A row with `n === 1` is an ordinary row and must render as one: a fold
@@ -431,7 +443,7 @@ export function groupOwed(items = []) {
   const out = [];
   for (const o of items || []) {
     if (!o) continue;
-    const k = `${o.project || ""}\u0000${o.id}`;
+    const k = docKey(o);
     let g = byDoc.get(k);
     if (!g) {
       g = { ...o, key: k, items: [], n: 0 };
