@@ -98,6 +98,11 @@ const SystemViewPage = ({ params = null }) => {
       // Which side of the index you opened from (the version-control lens) — in the URL like
       // everything else, so a refresh keeps showing what you asked for.
       side: p.get("fside") || undefined,
+      // AT WHICH COMMIT. A file opened from a commit RECORD is not the file as it is now — it is
+      // the file as it stood when that commit landed, with that commit's changes down the gutter.
+      // Without this the record's rows would open today's working copy under a header naming a
+      // commit from last month, which is the surface testifying.
+      sha: p.get("fsha") || undefined,
     };
   }, [location.search]);
 
@@ -105,7 +110,7 @@ const SystemViewPage = ({ params = null }) => {
     const p = new URLSearchParams(window.location.search);
     // Closing restores the center tab you were on before the file forced Code (ftab, set on open).
     const ftab = p.get("ftab");
-    ["file", "fproj", "fsvc", "flang", "flines", "fnav", "ftab", "fside", "fmachine"].forEach((k) => p.delete(k));
+    ["file", "fproj", "fsvc", "flang", "flines", "fnav", "ftab", "fside", "fsha", "fmachine"].forEach((k) => p.delete(k));
     if (ftab) p.set("tab", ftab);
     history.push({ pathname: window.location.pathname, search: p.toString() });
   }, [history]);
@@ -147,6 +152,10 @@ const SystemViewPage = ({ params = null }) => {
       else if (p.get("file") !== detail.path) p.delete("flines"); // a DIFFERENT file drops the range
       if (detail.side) p.set("fside", detail.side);
       else p.delete("fside"); // opened from the tree, not from a side of the index
+      // ALWAYS SET OR ALWAYS CLEAR, the rule `flang` was fixed under: a record's file leaving its
+      // sha behind would pin the NEXT file you open to a commit it has nothing to do with.
+      if (detail.sha) p.set("fsha", detail.sha);
+      else p.delete("fsha");
       // …same file, no lines given: leave whatever range is already there alone.
       history.push({ pathname: window.location.pathname, search: p.toString() });
     },
@@ -163,7 +172,8 @@ const SystemViewPage = ({ params = null }) => {
         cur &&
         cur.path === fileFromUrl.path &&
         String(cur.lines) === String(fileFromUrl.lines) &&
-        cur.side === fileFromUrl.side
+        cur.side === fileFromUrl.side &&
+        cur.sha === fileFromUrl.sha
           ? cur
           : fileFromUrl,
       );
@@ -173,7 +183,7 @@ const SystemViewPage = ({ params = null }) => {
       if (prev) setNavTab(prev);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fileFromUrl && fileFromUrl.path, fileFromUrl && String(fileFromUrl.lines), fileFromUrl && fileFromUrl.side, location.search]);
+  }, [fileFromUrl && fileFromUrl.path, fileFromUrl && String(fileFromUrl.lines), fileFromUrl && fileFromUrl.side, fileFromUrl && fileFromUrl.sha, location.search]);
 
   // A story pane's file link, or a ⌘-click on a `:file[…]` chip, OPENS a file here.
   useEffect(() => {

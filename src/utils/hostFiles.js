@@ -181,6 +181,17 @@ export const hostFiles = (projectCode, root) => {
     // answer is not two owners.
     // ONE COMMIT, IN FULL — fetched only when a log row is opened, never with the 40-row log.
     showCommit: async (sha) => hub().showCommit(projectCode, { sha, root }),
+    // THE RECORD OF A COMMIT THAT HAPPENED — `::record{sha=…}`. Separate from `showCommit` because
+    // it reads with `--no-renames`: a record's files all have to OPEN, and a rename pathspec
+    // (`{old => new}`) is a display string that no tree will answer to.
+    commitRecord: async (sha) => hub().commitRecord(projectCode, { sha, root }),
+    // UNDO — a SOFT reset to the commit's parent, so every change comes back staged and nothing
+    // can be lost. Answers how many commits it took (a commit below the tip takes everything above
+    // it) so the caller can say that before the press, not after.
+    undoCommit: async (sha) => hub().undoCommit(projectCode, { sha, root }),
+    // One file as it stood at that commit, with the commit's own changes as gutter marks. Never a
+    // diff — the file itself, with the markers down the side.
+    fileAtCommit: async (sha, path) => hub().fileAtCommit(projectCode, { sha, path, root }),
     gitState: async () => {
       const st = await hub().gitState(projectCode, { root });
       if (st && st.ok === false) throw new Error(st.error || "git did not run");
