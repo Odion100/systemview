@@ -147,8 +147,12 @@ describe("a page he builds himself", () => {
     // THE CORNER OPENS THE SAME CHOOSER THE + DOES — every kind, not just this one's siblings —
     // so a slot can be swapped for a different thing entirely, not only a different version.
     fireEvent.click(container.querySelector(".tile__which"));
-    const pop = container.querySelector(".tilestack__menu--corner");
+    const pop = container.querySelector(".tilestack__menu--over");
     expect(within(pop).getByText("The reports")).toBeVisible();
+    // IT DOES NOT VANISH WHEN THE POINTER LEAVES IT. The add menu never did, and a menu that
+    // closes on the way to the option you want is a menu you cannot use.
+    fireEvent.mouseLeave(pop);
+    expect(container.querySelector(".tilestack__menu--over")).toBeTruthy();
     fireEvent.click(within(within(pop).getByText("What is owed").closest(".tilestack__kind")).getByText("C · the shelves"));
     expect(container.querySelector(".tile__which").textContent).toBe("c");
 
@@ -176,7 +180,7 @@ describe("a page he builds himself", () => {
     fireEvent.click(screen.getByText("+ add a tile"));
     fireEvent.click(within(screen.getByText("The reports").closest(".tilestack__kind")).getByText("B · the floor"));
     fireEvent.click(container.querySelector(".tile__which"));
-    const pop = container.querySelector(".tilestack__menu--corner");
+    const pop = container.querySelector(".tilestack__menu--over");
     expect(within(pop).getByText("Where everything stands")).toBeVisible();
     fireEvent.click(within(within(pop).getByText("Per project").closest(".tilestack__kind")).getByText("C · the shelves"));
     // the slot is now a different KIND entirely
@@ -211,4 +215,21 @@ describe("a page he builds himself", () => {
     expect(container.querySelector(".tile__missing")).toBeTruthy();
     expect(screen.getByText("terminal")).toBeVisible();
   });
+});
+
+// THE ADD MENU WAS NEVER SUPPOSED TO CHANGE. It is in the flow, full width, and it stays open
+// until you pick or cancel — a `mouseLeave` close got added to it by accident when the two menus
+// became one, and it shut every time the pointer crossed a gap.
+it("the add menu stays open until you pick or cancel", () => {
+  const { container } = mount();
+  fireEvent.click(screen.getByLabelText("Add a page"));
+  fireEvent.click(screen.getByText("+ add a tile"));
+  const menu = container.querySelector(".tilestack__menu");
+  expect(menu).toBeTruthy();
+  // in the flow, not floating over the page
+  expect(menu.className).not.toContain("tilestack__menu--over");
+  fireEvent.mouseLeave(menu);
+  expect(container.querySelector(".tilestack__menu")).toBeTruthy();
+  fireEvent.click(screen.getByText("cancel"));
+  expect(container.querySelector(".tilestack__menu")).toBeNull();
 });

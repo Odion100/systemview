@@ -158,15 +158,16 @@
   border-radius: 6px;
   background: var(--sv-inset);
 }
-// FROM A CORNER it floats, right-aligned to the control that opened it, and it must clear the
-// tile below — hence the shadow and the surface fill, which the in-flow version does not need.
-.tilestack__menu--corner {
+// OVER A TILE it is the SAME menu at the SAME width — the length of the page, his words — and
+// the only difference is that it floats instead of pushing the page down. Anchored to the tile
+// rather than to the corner control, because the corner is a 20px box and a menu hung off it
+// could only ever be a narrow popup.
+.tilestack__menu--over {
   position: absolute;
-  top: 100%;
-  right: 0;
-  margin: 3px 0 0;
-  min-width: 440px;
-  max-width: min(620px, 86vw);
+  top: 8px;
+  left: 24px;
+  right: 24px;
+  margin: 0;
   z-index: 12;
   background: var(--sv-surface);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);

@@ -37,7 +37,10 @@ import "./tileStack.scss";
  * in that slot for anything at all.
  */
 const Chooser = ({ onPick, onClose, where = "" }) => (
-  <div className={`tilestack__menu ${where}`} onMouseLeave={onClose}>
+  // NO `onMouseLeave`. The add menu never closed on leave and must not start: a menu that
+  // vanishes when the pointer crosses a gap on the way to the option you want is a menu you
+  // cannot use. It closes on a pick or on cancel, and on nothing else.
+  <div className={`tilestack__menu ${where}`}>
     {tileKinds().map((k) => (
       <div key={k.kind} className="tilestack__kind">
         <b>{k.label}</b>
@@ -64,56 +67,36 @@ const Chooser = ({ onPick, onClose, where = "" }) => (
 );
 
 /** The corner: a grip, whose version this is, and a way to take it off. */
-const Corner = ({ t, onSwap, onRemove, onGrab, onLetGo }) => {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className={`tile__corner${open ? " is-open" : ""}`}>
-      {/* THE GRIP IS WHAT YOU DRAG, not the tile. A draggable block swallows text selection,
-          and these blocks are made of sentences he reads. */}
-      <span
-        className="tile__grip"
-        title="Drag to reorder"
-        draggable
-        onDragStart={onGrab}
-        onDragEnd={onLetGo}
-        aria-hidden="true"
-      >
-        ⠿
-      </span>
-      <button
-        type="button"
-        // A LAYOUT OUTLIVES THE CODE IT NAMES. When the version he placed is gone the fallback
-        // stood in, and the corner says so rather than quietly serving something he did not
-        // choose — a substitution nobody is told about is the same failure as a stale count.
-        className={`tile__which${t.substituted ? " is-swapped" : ""}`}
-        title={
-          t.substituted
-            ? `${t.kindLabel} — ${t.asked} is gone, showing ${t.label}. Press to put something else here.`
-            : `${t.kindLabel} — ${t.label}. Press to put something else here.`
-        }
-        aria-label={`${t.kindLabel}: ${t.label}`}
-        aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
-      >
-        {t.variant}
-        {t.substituted ? <em aria-hidden="true">!</em> : null}
-      </button>
-      {open ? (
-        <Chooser
-          where="tilestack__menu--corner"
-          onClose={() => setOpen(false)}
-          onPick={(next) => {
-            setOpen(false);
-            onSwap(next);
-          }}
-        />
-      ) : null}
-      <button type="button" className="tile__off" title={`Take ${t.kindLabel} off the page`} aria-label={`Remove ${t.kindLabel}`} onClick={onRemove}>
-        ×
-      </button>
-    </div>
-  );
-};
+const Corner = ({ t, open, setOpen, onRemove, onGrab, onLetGo }) => (
+  <div className={`tile__corner${open ? " is-open" : ""}`}>
+    {/* THE GRIP IS WHAT YOU DRAG, not the tile. A draggable block swallows text selection, and
+        these blocks are made of sentences he reads. */}
+    <span className="tile__grip" title="Drag to reorder" draggable onDragStart={onGrab} onDragEnd={onLetGo} aria-hidden="true">
+      ⠿
+    </span>
+    <button
+      type="button"
+      // A LAYOUT OUTLIVES THE CODE IT NAMES. When the version he placed is gone the fallback
+      // stood in, and the corner says so rather than quietly serving something he did not
+      // choose — a substitution nobody is told about is the same failure as a stale count.
+      className={`tile__which${t.substituted ? " is-swapped" : ""}`}
+      title={
+        t.substituted
+          ? `${t.kindLabel} — ${t.asked} is gone, showing ${t.label}. Press to put something else here.`
+          : `${t.kindLabel} — ${t.label}. Press to put something else here.`
+      }
+      aria-label={`${t.kindLabel}: ${t.label}`}
+      aria-expanded={open}
+      onClick={() => setOpen(!open)}
+    >
+      {t.variant}
+      {t.substituted ? <em aria-hidden="true">!</em> : null}
+    </button>
+    <button type="button" className="tile__off" title={`Take ${t.kindLabel} off the page`} aria-label={`Remove ${t.kindLabel}`} onClick={onRemove}>
+      ×
+    </button>
+  </div>
+);
 
 /** The + at the foot of the page: the same chooser, opened from a different place. */
 const AddTile = ({ onAdd }) => {
@@ -152,6 +135,9 @@ const Narrowed = ({ data }) => {
 const Stack = ({ page, onChange }) => {
   const data = useDashboardData();
   const [drag, setDrag] = useState(-1);
+  // WHICH TILE HAS THE CHOOSER OPEN, by index — one at a time, and held here rather than in each
+  // corner so opening one closes the last.
+  const [swap, setSwap] = useState(-1);
   // WHERE THE LINE IS: the index the carried tile would land at. Null while nothing is being
   // dragged, which is also what hides the line.
   const [at, setAt] = useState(null);
@@ -250,6 +236,8 @@ const Stack = ({ page, onChange }) => {
                 <>
                   <Corner
                     t={t}
+                    open={swap === i}
+                    setOpen={(on) => setSwap(on ? i : -1)}
                     onGrab={(e) => {
                       scroller.current = findScroller(e.currentTarget);
                       setDrag(i);
@@ -261,11 +249,24 @@ const Stack = ({ page, onChange }) => {
                       setDrag(-1);
                       setAt(null);
                     }}
-                    // SWAPPING REPLACES THE SLOT, not just the variant — the chooser offers every
-                    // kind, so what comes back may be a different thing entirely.
-                    onSwap={(next) => write(tiles.map((x, j) => (j === i ? next : x)))}
                     onRemove={() => write(tiles.filter((_, j) => j !== i))}
                   />
+                  {/* RENDERED BY THE TILE, not inside the corner's little box — the corner is a
+                      20px-wide absolute element and a menu anchored to it could only ever be a
+                      narrow popup. His instruction: it shows the same way as the add menu, the
+                      length of the page. */}
+                  {swap === i ? (
+                    <Chooser
+                      where="tilestack__menu--over"
+                      onClose={() => setSwap(-1)}
+                      // SWAPPING REPLACES THE SLOT, not just the variant — the chooser offers
+                      // every kind, so what comes back may be a different thing entirely.
+                      onPick={(next) => {
+                        setSwap(-1);
+                        write(tiles.map((x, j) => (j === i ? next : x)));
+                      }}
+                    />
+                  ) : null}
                   <t.Component data={data} />
                 </>
               ) : (
