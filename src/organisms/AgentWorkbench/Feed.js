@@ -332,7 +332,7 @@ const LandedDocRow = ({ row }) => {
     );
   };
   return (
-    <div className={`${CLASSNAME}__row ${CLASSNAME}__row--hook`}>
+    <div className={`${CLASSNAME}__row ${CLASSNAME}__row--hook${row.fault ? ` ${CLASSNAME}__row--hookfault` : ""}`}>
       <div
         role="button"
         tabIndex={0}
