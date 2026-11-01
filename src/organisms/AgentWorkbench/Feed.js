@@ -1,4 +1,5 @@
 import React, { useState, useRef, useLayoutEffect, useEffect, useContext, Suspense } from "react";
+import { pctStyle } from "../../atoms/meterWidth";
 import { visStyle } from "./visitorColor";
 import { receiptTone } from "./cmdReceipt";
 import { parseMcpResult } from "./feedRows";
@@ -949,7 +950,7 @@ const Feed = ({ rows, answered = {}, onAnswer = null, renderText = null }) =>
                             ? ` ${CLASSNAME}__cmdret-bar-fill--warn`
                             : ""
                         }`}
-                        style={{ width: `${pct}%` }}
+                        style={pctStyle(pct)}
                       />
                     </span>
                   )}

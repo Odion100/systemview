@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { pctStyle } from "../../meterWidth";
 import { useDocMembers } from "../context";
 import { getAgent } from "../../../utils/hub";
 import { parseArc, plansByObjective } from "../objectives";
@@ -116,7 +117,7 @@ const Progress = ({ attrs = {} }) => {
           <span className="md-progress__pct">{plan.totals.pct}%</span>
         </div>
         <div className="md-progress__bar" aria-hidden="true">
-          <i style={{ width: `${plan.totals.pct}%` }} />
+          <i style={pctStyle(plan.totals.pct)} />
         </div>
         {/* WHO HAS WHAT — only in the short form. The ledger carries an owner on every row, which
             is the same answer with the objectives still attached to it, so printing the roll-up

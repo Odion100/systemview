@@ -32,6 +32,14 @@ const WIRED = [
   "organisms/DashboardA/DashboardA.js",
   "organisms/DashboardB/DashboardB.js",
   "atoms/Markdown/blocks/Claims.js",
+  "organisms/AgentChat/AgentChat.js",
+  "organisms/CallStats/CallStats.js",
+  "organisms/ContextManager/ContextManager.js",
+  "organisms/AgentProfile/AgentProfile.js",
+  "organisms/AgentWorkbench/Feed.js",
+  "pages/Reports/Reports.js",
+  "atoms/Markdown/blocks/Progress.js",
+  "atoms/PlanLedger/PlanLedger.js",
 ];
 
 describe("the segment floor is actually wired", () => {
@@ -41,18 +49,23 @@ describe("the segment floor is actually wired", () => {
   });
 
   // THE ANTI-PATTERN, named exactly: an inline template width built from a percentage. That is
-  // what every one of the five sites looked like, and what a sixth would look like.
+  // what every one of these sites looked like, and what the next one would look like.
   //
-  // SCOPED TO THE DASHBOARD TREE AND THE CLAIMS BAR, which is where his complaint was and the only
-  // place I actually read every meter. There are ~11 more inline percentage widths in AgentChat,
-  // CallStats, Reports, AgentProfile and ContextManager; some are ratios with no count behind them
-  // and legitimately cannot use this. Listing them here as "allowed" without having read them would
-  // be the test asserting something nobody checked, so they are a board card instead.
-  it("no meter in the dashboards or the claims bar builds its own width percentage", () => {
-    const GOVERNED = [path.join(SRC, "organisms", "Dashboard"), path.join(SRC, "organisms", "DashboardA"), path.join(SRC, "organisms", "DashboardB"), path.join(SRC, "organisms", "DashboardC"), path.join(SRC, "atoms", "Markdown", "blocks", "Claims.js")];
-    const files = GOVERNED.flatMap((p) => (fs.existsSync(p) ? (fs.statSync(p).isDirectory() ? walk(p) : [p]) : []));
+  // IT COVERS THE WHOLE OF src/ NOW. It was scoped to the dashboards and the claims bar, with a
+  // note that eleven more lived in AgentChat, CallStats, Reports, AgentProfile and ContextManager
+  // and had not been read — because a test asserting something nobody checked is worse than no
+  // test. They have been read: each was a COUNT against a total (done of items, calls against the
+  // busiest, a note's reads against the most-read, tokens against the heaviest row), so each takes
+  // `fillStyle` with its raw numbers. Four of them had invented their own floors —
+  // `Math.max(1, …)`, `Math.max(2, …)`, `Math.max(3, …)`, `Math.max(pct, 1.5)` — all in percent,
+  // all different, which is the drift one definition exists to end.
+  //
+  // `meterWidth.js` itself is exempt: it is the one place allowed to write the percentage, because
+  // it is the thing every other site now asks.
+  it("nothing in src builds its own width percentage — meterWidth is the only writer", () => {
     const offenders = [];
-    for (const file of files) {
+    for (const file of walk(SRC)) {
+      if (file.endsWith(path.join("atoms", "meterWidth.js"))) continue;
       fs.readFileSync(file, "utf8").split("\n").forEach((line, i) => {
         if (/width:\s*`\$\{[^`]*\}%`/.test(line)) offenders.push(`${path.relative(SRC, file)}:${i + 1}`);
       });

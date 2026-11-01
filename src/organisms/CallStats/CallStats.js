@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { fillStyle } from "../../atoms/meterWidth";
 import "./styles.scss";
 import { callStats } from "../../utils/hostAgents";
 
@@ -148,7 +149,7 @@ const CallStats = ({ projectCode, agentId }) => {
                   <td className="callstats__name">{c.name}</td>
                   <td className="callstats__num">
                     <span className="callstats__bar">
-                      <span className="callstats__fill" style={{ width: `${Math.round((c.calls / top) * 100)}%` }} />
+                      <span className="callstats__fill" style={fillStyle(c.calls, top)} />
                     </span>
                     {c.calls}
                   </td>

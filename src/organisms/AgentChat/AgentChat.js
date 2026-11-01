@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useContext, useMemo, useCallback } from "react";
+import { fillStyle, pctStyle } from "../../atoms/meterWidth";
 import ErrorBoundary from "../../atoms/ErrorBoundary/ErrorBoundary";
 import { createPortal } from "react-dom";
 import moment from "moment";
@@ -1033,7 +1034,7 @@ function JobRun({ items, source, projectCode, runId, onClear, onLanes, laneChild
         )}
         <span className={`${CLASSNAME}__worklist-count`}>{done}/{total}</span>
         <span className={`${CLASSNAME}__worklist-bar${complete ? ` ${CLASSNAME}__worklist-bar--done` : ""}`}>
-          <span className={`${CLASSNAME}__worklist-fill`} style={{ width: `${Math.round((done / total) * 100)}%` }} />
+          <span className={`${CLASSNAME}__worklist-fill`} style={fillStyle(done, total)} />
         </span>
         {eta != null ? (
           <span
@@ -1272,7 +1273,7 @@ function WorkList({ items, onClear, source = "", projectCode = "", runKey = "", 
         >
           <span
             className={`${CLASSNAME}__worklist-fill`}
-            style={{ width: `${items.length ? Math.round((done / items.length) * 100) : 0}%` }}
+            style={fillStyle(done, items.length)}
           />
         </span>
         {/* the run's source — a skill's list is visibly the skill's, not the agent's own plan.
@@ -2062,7 +2063,7 @@ function LaneRow({ source, items, projectCode, repo, delegated, onDelete, brief 
               <span className={`${CLASSNAME}__lane-repo`} title={`this lane's branch lives in ${repo}`}>{repo}</span>
             )}
             <span className={`${CLASSNAME}__lane-bar`}>
-              <span className={`${CLASSNAME}__lane-fill`} style={{ width: `${items.length ? Math.round((done / items.length) * 100) : 0}%` }} />
+              <span className={`${CLASSNAME}__lane-fill`} style={fillStyle(done, items.length)} />
             </span>
             {/* THE NUMBERS BELONG TO THE BAR, so they travel with it. Bringing the wrapper's items
                 down and leaving this behind put the fraction at the front of the header, inside
@@ -6977,7 +6978,7 @@ const countdown = (str, now = Date.now()) => {
                             </span>
                           </div>
                           <div className={`${CLASSNAME}__usage-meter`} role="meter" aria-valuenow={bar.pct} aria-valuemin={0} aria-valuemax={100} aria-label={bar.label}>
-                            <div className={`${CLASSNAME}__usage-fill`} style={{ width: `${Math.max(bar.pct, 1.5)}%` }} />
+                            <div className={`${CLASSNAME}__usage-fill`} style={pctStyle(bar.pct)} />
                           </div>
                           {bar.resets && <div className={`${CLASSNAME}__usage-resets`} title={`resets ${bar.resets}`}>resets {resetFace(bar.resets, /^session/i.test(bar.label) ? "session" : "week")}</div>}
                         </div>
@@ -7567,7 +7568,7 @@ const countdown = (str, now = Date.now()) => {
                     ? ` ${CLASSNAME}__meter-fill--mark`
                     : ""
                 }`}
-                style={{ width: `${Math.min(100, (work.state.ctx / work.state.ctxWindow) * 100)}%` }}
+                style={fillStyle(work.state.ctx, work.state.ctxWindow)}
               />
               {/* A CLAIM THIS LOUD SHOWS ITS WORKING. He has told me three times the bar goes red
                   when he presses stop, and three times I could not reproduce it — so the honest fix
@@ -7605,7 +7606,7 @@ const countdown = (str, now = Date.now()) => {
                     ? ` ${CLASSNAME}__meter-fill--warn`
                     : ""
                 }`}
-                style={{ width: `${Math.min(100, (p.records / COMPACT_MARK) * 100)}%` }}
+                style={fillStyle(p.records, COMPACT_MARK)}
               />
               {p.records >= COMPACT_MARK * 0.8 && (
                 <span className={`${CLASSNAME}__meter-why`}>
@@ -7642,7 +7643,7 @@ const countdown = (str, now = Date.now()) => {
                           ? ` ${CLASSNAME}__usage-fill--warn`
                           : ""
                       }`}
-                      style={{ width: `${b.pct}%` }}
+                      style={pctStyle(b.pct)}
                     />
                   </span>
                   <span className={`${CLASSNAME}__usage-pct`}>{b.pct}%</span>
@@ -8624,7 +8625,7 @@ const countdown = (str, now = Date.now()) => {
                       (his: "it has a separate color already… I want it to do its own thing").
                       It stays its blue through 60% (his: "shouldn't it still be blue at 39%?"),
                       then warms — violet, magenta, red at full — never crossing green or yellow. */}
-                  <span className={`${CLASSNAME}__usageline-fill`} style={{ width: `${pct}%`, background: `hsl(${Math.round(232 + (128 * Math.max(0, Math.min(100, pct) - 60)) / 40)} 58% 60%)` }} />
+                  <span className={`${CLASSNAME}__usageline-fill`} style={{ ...pctStyle(pct), background: `hsl(${Math.round(232 + (128 * Math.max(0, Math.min(100, pct) - 60)) / 40)} 58% 60%)` }} />
                 </span>
                 <span className={`${CLASSNAME}__usageline-text`}>
                   {(() => {

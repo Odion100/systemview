@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { fillStyle } from "../../atoms/meterWidth";
 import "./styles.scss";
 import {
   hasAgents,
@@ -1449,7 +1450,7 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
                       <span className="agent-profile__weight-bar">
                         <span
                           className="agent-profile__weight-fill"
-                          style={{ width: `${Math.max(2, Math.round((r.tokens / Math.max(1, weight.rows[0].tokens || 1)) * 100))}%` }}
+                          style={fillStyle(r.tokens, weight.rows[0].tokens || 1)}
                         />
                       </span>
                       <span className="agent-profile__weight-tok">{r.tokens.toLocaleString()}</span>

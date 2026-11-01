@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { pctStyle } from "../meterWidth";
 import "./styles.scss";
 
 // THE PLAN LEDGER — where this plan is, and what is stopping it.
@@ -184,7 +185,7 @@ const PlanLedger = ({ className = "", plan, stoppers = [], marks = {}, onRun, on
           ) : null}
         </div>
         <div className="pl__bar" aria-hidden="true">
-          <i style={{ width: `${totals.pct}%` }} />
+          <i style={pctStyle(totals.pct)} />
         </div>
         {/* SETTLED IS THE WORD. A bare `1/7 · 5/16` says two fractions and leaves the reader to
             guess what the numerator counts. Settled is what the system already calls a finished

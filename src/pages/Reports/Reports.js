@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useContext, useMemo, useCallback, useRef } from "react";
+import { pctStyle } from "../../atoms/meterWidth";
 import { useHistory, useParams, useLocation } from "react-router-dom";
 import { Client } from "../../systemClient";
 import ServiceContext from "../../ServiceContext";
@@ -64,7 +65,7 @@ function LoadBar({ label, share, value, sub, status }) {
         <span className="report-loadbar__value">{value}</span>
       </div>
       <div className="report-loadbar__track">
-        <div className={`report-loadbar__fill report-loadbar__fill--${status || "ok"}`} style={{ width: `${Math.max(1, share * 100)}%` }} />
+        <div className={`report-loadbar__fill report-loadbar__fill--${status || "ok"}`} style={pctStyle(share * 100, { nonZero: share > 0 })} />
       </div>
       {sub && <div className="report-loadbar__sub">{sub}</div>}
     </div>
@@ -942,7 +943,7 @@ export default function Reports({ projectCode: pcProp = null, serviceId: svcProp
                     {c.serviceId} <span className="report-section__hint">— {c.testedCount}/{c.total} methods tested ({fmtPct(c.coverageRatio)}), {c.usedCount} used</span>
                   </h3>
                   <div className="report-cov-bar">
-                    <div className="report-cov-bar__fill" style={{ width: `${Math.round(c.coverageRatio * 100)}%` }} />
+                    <div className="report-cov-bar__fill" style={pctStyle(c.coverageRatio * 100, { nonZero: c.coverageRatio > 0 })} />
                   </div>
 
                   {c.untestedHot.length > 0 && (

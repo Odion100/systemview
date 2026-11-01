@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { fillStyle } from "../../atoms/meterWidth";
 import "./styles.scss";
 import { hasHostDictation, startHostRecording } from "../../utils/hostDictation";
 import {
@@ -102,7 +103,7 @@ const StoreStats = ({ stats }) => {
           <div className="ctx-mgr__reader" key={who}>
             <span className="ctx-mgr__reader-name">{who}</span>
             <span className="ctx-mgr__reader-bar">
-              <span className="ctx-mgr__reader-fill" style={{ width: `${Math.max(3, Math.round((n / mostReads) * 100))}%` }} />
+              <span className="ctx-mgr__reader-fill" style={fillStyle(n, mostReads)} />
             </span>
             <span className="ctx-mgr__reader-n">{n}</span>
           </div>
@@ -143,7 +144,7 @@ const StoreStats = ({ stats }) => {
                 </td>
                 <td className="ctx-mgr__stat-num">
                   <span className="ctx-mgr__stat-bar">
-                    <span className="ctx-mgr__stat-fill" style={{ width: `${Math.round(((n.hits || 0) / top) * 100)}%` }} />
+                    <span className="ctx-mgr__stat-fill" style={fillStyle(n.hits || 0, top)} />
                   </span>
                   {n.hits || 0}
                 </td>
