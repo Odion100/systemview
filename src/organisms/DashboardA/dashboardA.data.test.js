@@ -224,9 +224,12 @@ describe("the report stack", () => {
 describe("what needs him is owed.js's answer, not a second one", () => {
   it("hangs each document's obligations on its own mark, grouped press and work", () => {
     const d = run();
-    expect(d.head.segs.map((s) => s.text)).toEqual(
-      expect.arrayContaining([expect.stringContaining("approval"), expect.stringContaining("outstanding")]),
-    );
+    // BOTH HALVES OF THE HEAD, by key rather than by wording: the outstanding side is broken out
+    // by what the work IS ("1 blocked", "4 with no plan") rather than lumped as one "outstanding",
+    // because a segment is a filter now and a lump filters to everything-that-is-not-a-decision.
+    const keys = d.head.segs.map((s) => s.key);
+    expect(keys).toEqual(expect.arrayContaining(["approval"]));
+    expect(keys.some((k) => ["mine", "blocked", "unplanned", "undecidable", "claims", "work"].includes(k))).toBe(true);
     expect(mark(d, "RFC-071").owes.map((o) => o.why)).toEqual(expect.arrayContaining(["approval", "claims"]));
     expect(mark(d, "RFC-071").press).toBe(1);
     expect(mark(d, "RFC-072").owes.map((o) => o.why)).toContain("undecidable");
