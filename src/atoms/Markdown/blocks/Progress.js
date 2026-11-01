@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useDocMembers } from "../context";
 import { getAgent } from "../../../utils/hub";
-import { parseArc } from "../objectives";
+import { parseArc, plansByObjective } from "../objectives";
 import { planOf, stoppersOf } from "../arcPlan";
 import { openAddress } from "../openRef";
 import { useInDocument } from "../context";
@@ -44,13 +44,14 @@ function useAttachedPlans(arcId, projectCode) {
         Promise.resolve(agent.documentsRegistry({ projectCode: projectCode || undefined, kind: "arc" })).catch(() => []),
       ]).then(([rfcs, arcs]) => {
         if (dead) return;
-        const byObj = new Map();
-        (rfcs || []).forEach((r) => {
-          const addr = String(r.arc || "");
-          if (!addr.startsWith(`${arcId}-`)) return;
-          const obj = addr.slice(arcId.length + 1);
-          byObj.set(obj, [...(byObj.get(obj) || []), r]);
-        });
+        // ONE ANSWER TO "WHICH PLAN SERVES THIS OBJECTIVE", and it is `objectives.js`'s. This had
+        // its own, `addr.startsWith(arcId + "-")`, and the two disagreed in both directions.
+        // It accepted anything after the arc id — `ARC-001-notanobjective` counted — and, worse,
+        // it MISSED every cross-repo plan: an address is `autobot/ARC-001-O2` when the plan lives
+        // in another repo, which does not start with the arc id at all. So an arc whose work was
+        // split across repos quietly reported progress for only the half kept at home, which is
+        // the exact case the address format exists to carry.
+        const byObj = new Map(Object.entries(plansByObjective(rfcs || [], arcId)));
         const arcRow = (arcs || []).find((r) => r.id === arcId) || null;
         setPlans({ byObj, arcRow });
       });

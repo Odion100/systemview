@@ -1,6 +1,6 @@
 import {
   STATES, normalizeState, nextState, addressOf, parseAddress,
-  parseObjectives, parseArc, resolveNeed, resolveNeeds, isBlockedByNeeds, arcProgress,
+  parseObjectives, parseArc, resolveNeed, resolveNeeds, isBlockedByNeeds, arcProgress, plansByObjective,
 } from "./objectives";
 
 // RFC-072's own example, verbatim from the document — if the shape the RFC shows does not parse,
@@ -421,5 +421,46 @@ describe("a blocked objective carries its reason", () => {
     const [o] = parseObjectives(':::objective{id=O7 state=blocked needs=ARC-001-O1 blocked="waiting on a press"}\n:::');
     expect(o.needs).toEqual(["ARC-001-O1"]);
     expect(o.because).toBe("waiting on a press");
+  });
+});
+
+// TWO ANSWERS TO ONE QUESTION, now one. `Progress.js` carried its own version of this —
+// `addr.startsWith(arcId + "-")` — and it disagreed in both directions: it accepted anything after
+// the arc id, and it missed every cross-repo plan, because `autobot/ARC-001-O2` does not start
+// with `ARC-001-`. An arc split across repos reported progress for only the half kept at home.
+describe("plansByObjective is the one answer to which plan serves which objective", () => {
+  const rows = [
+    { id: "RFC-1", arc: "ARC-001-O1" },
+    { id: "RFC-2", arc: "ARC-001-O2" },
+    { id: "RFC-3", arc: "autobot/ARC-001-O2" },
+    { id: "RFC-4", arc: "ARC-002-O1" },
+    { id: "RFC-5", arc: "ARC-001-notanobjective" },
+    { id: "RFC-6", arc: "ARC-001" },
+    { id: "RFC-7" },
+  ];
+
+  it("groups this arc's plans by objective", () => {
+    const by = plansByObjective(rows, "ARC-001");
+    expect(Object.keys(by).sort()).toEqual(["O1", "O2"]);
+    expect(by.O1.map((r) => r.id)).toEqual(["RFC-1"]);
+  });
+
+  // THE ONE THE OLD COPY LOST. Cross-repo work is expected, and the address carries the project
+  // precisely so a plan held elsewhere still counts toward the objective it serves.
+  it("counts a plan held in ANOTHER repo toward the objective it serves", () => {
+    expect(plansByObjective(rows, "ARC-001").O2.map((r) => r.id)).toEqual(["RFC-2", "RFC-3"]);
+  });
+
+  it("ignores another arc's plans, a malformed address, a bare arc id, and no address at all", () => {
+    const ids = Object.values(plansByObjective(rows, "ARC-001")).flat().map((r) => r.id);
+    expect(ids).not.toContain("RFC-4");
+    expect(ids).not.toContain("RFC-5");
+    expect(ids).not.toContain("RFC-6");
+    expect(ids).not.toContain("RFC-7");
+  });
+
+  it("answers an empty map for an arc nothing serves", () => {
+    expect(plansByObjective(rows, "ARC-999")).toEqual({});
+    expect(plansByObjective(null, "ARC-001")).toEqual({});
   });
 });
