@@ -9,8 +9,9 @@
 // inherits dark-on-dark — so the only new values are the four KIND accents and the four meter
 // hues, declared locally with a `:root.sv-dark` step, the way HowWeWork/styles.scss does.
 //
-// THE KIND HUES ARE HOW-WE-WORK'S OWN, deliberately: rfc #5a77e5, arc #9a4fe0, gap #c07a16,
-// report #0d8065. A colour must mean the same thing on both pages or the window is lying twice.
+// THE KIND HUES COME FROM THE THEME — `--sv-kind-rfc/arc/gap/report`. A colour must mean the same
+// thing on every page or the window is lying twice, and that is a property of having one source,
+// not of six files agreeing today.
 
 // ── THE PAGE'S OWN BOX. Nothing in here is inherited by anything; it is the pane. ──────────────
 .dbc {
@@ -53,10 +54,10 @@
   font-size: 13px;
   line-height: 1.6;
 
-  --dbc-rfc: #5a77e5;
-  --dbc-arc: #9a4fe0;
-  --dbc-gap: #c07a16;
-  --dbc-report: #0d8065;
+  --dbc-rfc: var(--sv-kind-rfc);
+  --dbc-arc: var(--sv-kind-arc);
+  --dbc-gap: var(--sv-kind-gap);
+  --dbc-report: var(--sv-kind-report);
   // THE METER FAMILY, and the two that matter are `unproved` and `blocked`. `done`/`met` is the
   // only thing allowed to read as finished; `unproved` is the DEBT — the width between said and
   // shown — so it is the same green with the fill taken away and a hatch put through it, which is
@@ -102,10 +103,6 @@
 :root.sv-dark .dbc { background: var(--sv-bg); }
 :root.sv-dark .dbc,
 :root.sv-dark .dbc-ctx {
-  --dbc-rfc: #8ba4ef;
-  --dbc-arc: #c68cf5;
-  --dbc-gap: #e0a34f;
-  --dbc-report: #3fb795;
   --dbc-done: #4bbf8c;
   --dbc-debt: #dca04f;
   --dbc-stop: #e0756a;

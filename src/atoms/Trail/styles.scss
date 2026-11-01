@@ -3,10 +3,10 @@
 .sv-trail {
   --accent: var(--sv-blue);
   // the kind accents — one hue per registered kind, the same hue everywhere a kind is drawn
-  --trail-rfc: #5a77e5;
-  --trail-arc: #9a4fe0;
-  --trail-gap: #c07a16;
-  --trail-report: #0d8065;
+  --trail-rfc: var(--sv-kind-rfc);
+  --trail-arc: var(--sv-kind-arc);
+  --trail-gap: var(--sv-kind-gap);
+  --trail-report: var(--sv-kind-report);
 
   display: flex;
   align-items: flex-start;
@@ -110,9 +110,3 @@
   .sv-trail__st.is-at .sv-trail__name { color: var(--sv-text-strong); font-weight: 600; }
 }
 
-:root.sv-dark .sv-trail {
-  --trail-rfc: #8ba4ef;
-  --trail-arc: #c68cf5;
-  --trail-gap: #e0a34f;
-  --trail-report: #3fb795;
-}

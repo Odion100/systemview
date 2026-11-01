@@ -26,6 +26,16 @@
   --sv-blue-deep: #46608f;
   --sv-indigo: #3f51b5;
 
+  // THE FOUR KIND COLOURS — RFC blue, ARC purple, GAP amber, REPORT green. One source, because
+  // they were SIX: the trail, the how-we-work page, three dashboards and the tile legend each
+  // declared the same four hexes, and nothing compared them. The drift had already started — five
+  // of the six carried dark-mode values and the legend did not, so in dark mode the page's own
+  // legend disagreed with every chip it was labelling.
+  --sv-kind-rfc: #5a77e5;
+  --sv-kind-arc: #9a4fe0;
+  --sv-kind-gap: #c07a16;
+  --sv-kind-report: #0d8065;
+
   // text
   --sv-text: #46506a;
   --sv-text-strong: #3b4460;
@@ -61,6 +71,11 @@
   --sv-blue-hover: #8ea8da; // hover LIGHTENS on dark
   --sv-blue-deep: #9ab3e2;
   --sv-indigo: #99a1ee;
+
+  --sv-kind-rfc: #8ba4ef;
+  --sv-kind-arc: #c68cf5;
+  --sv-kind-gap: #e0a34f;
+  --sv-kind-report: #3fb795;
 
   --sv-text: #b8bfd3;
   --sv-text-strong: #d7dce9;

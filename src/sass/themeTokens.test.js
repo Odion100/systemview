@@ -77,3 +77,45 @@ describe("every --sv- token a stylesheet asks for", () => {
     }
   });
 });
+
+// THE FOUR KIND COLOURS HAVE ONE SOURCE, and this is what keeps it that way.
+//
+// They were declared in SIX files with identical hexes — the trail, the how-we-work page, three
+// dashboards and the tile legend — and nothing compared them. The drift had already started and
+// nobody had seen it: five carried dark-mode values and the legend did not, so in dark mode the
+// page's own legend disagreed with every chip it was labelling.
+describe("the four kind colours", () => {
+  const KINDS = ["rfc", "arc", "gap", "report"];
+  const theme = fs.readFileSync(path.join(SRC, "sass", "theme.scss"), "utf8");
+
+  it("are defined in the theme, for both modes", () => {
+    for (const k of KINDS) {
+      expect(theme.match(new RegExp(`--sv-kind-${k}:\\s*#[0-9a-f]{6}`, "gi"))).toHaveLength(2);
+    }
+  });
+
+  // THE ASSERTION WITH TEETH: a hex anywhere else means a seventh copy was born.
+  it("appear as a literal colour NOWHERE else — a local name may only alias the theme's", () => {
+    const strays = [];
+    for (const file of scss) {
+      if (file.endsWith(path.join("sass", "theme.scss"))) continue;
+      const text = fs.readFileSync(file, "utf8");
+      for (const m of text.matchAll(/--[a-z]+-(rfc|arc|gap|report):\s*(#[0-9a-fA-F]{3,8})/g)) {
+        strays.push(`${path.relative(SRC, file)}: ${m[0]}`);
+      }
+    }
+    expect(strays).toEqual([]);
+  });
+
+  it("and every local kind token aliases the theme rather than inventing a value", () => {
+    const bad = [];
+    for (const file of scss) {
+      const text = fs.readFileSync(file, "utf8");
+      for (const m of text.matchAll(/--([a-z]+)-(rfc|arc|gap|report):\s*([^;]+);/g)) {
+        if (m[1] === "sv" && m[2]) continue;
+        if (!/var\(--sv-kind-/.test(m[3])) bad.push(`${path.relative(SRC, file)}: ${m[0]}`);
+      }
+    }
+    expect(bad).toEqual([]);
+  });
+});

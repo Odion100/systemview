@@ -55,10 +55,10 @@
 
   // the kind accents — one hue per registered kind, used by the leaf cards, the trail tabs and the
   // trails themselves, so a colour means the same thing everywhere on the page
-  --hww-rfc: #5a77e5;
-  --hww-arc: #9a4fe0;
-  --hww-gap: #c07a16;
-  --hww-report: #0d8065;
+  --hww-rfc: var(--sv-kind-rfc);
+  --hww-arc: var(--sv-kind-arc);
+  --hww-gap: var(--sv-kind-gap);
+  --hww-report: var(--sv-kind-report);
   --hww-you: #5a77e5;
   --hww-agent: #9a4fe0;
   --hww-derived: #0d8065;
@@ -79,10 +79,6 @@
 :root.sv-dark .hww {
   // The dark canvas was never the problem; take the app's own back.
   background: var(--sv-bg);
-  --hww-rfc: #8ba4ef;
-  --hww-arc: #c68cf5;
-  --hww-gap: #e0a34f;
-  --hww-report: #3fb795;
   --hww-you: #8ba4ef;
   --hww-agent: #c68cf5;
   --hww-derived: #3fb795;

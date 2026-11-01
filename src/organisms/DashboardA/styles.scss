@@ -50,10 +50,10 @@
 
   // the kind accents — How-we-work's four, unchanged, plus a dim step for each so a ring can draw
   // the HONEST MIDDLE (marked-but-unproved, declared-blocked) without inventing a fifth hue
-  --dba-rfc: #5a77e5;
-  --dba-arc: #9a4fe0;
-  --dba-gap: #c07a16;
-  --dba-report: #0d8065;
+  --dba-rfc: var(--sv-kind-rfc);
+  --dba-arc: var(--sv-kind-arc);
+  --dba-gap: var(--sv-kind-gap);
+  --dba-report: var(--sv-kind-report);
   --dba-rfc-dim: #b9c5f3;
   --dba-arc-dim: #d9bdf3;
   --dba-gap-dim: #e5cda2;
@@ -90,10 +90,6 @@
 :root.sv-dark .dba { background: var(--sv-bg); }
 :root.sv-dark .dba,
 :root.sv-dark .dba-ctx {
-  --dba-rfc: #8ba4ef;
-  --dba-arc: #c68cf5;
-  --dba-gap: #e0a34f;
-  --dba-report: #3fb795;
   --dba-rfc-dim: #41518a;
   --dba-arc-dim: #6a4590;
   --dba-gap-dim: #7f5d26;

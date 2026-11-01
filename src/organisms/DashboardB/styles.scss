@@ -7,8 +7,10 @@
 // inherits dark-on-dark — so the accents this page needs beyond those are declared locally WITH a
 // dark step, the way HowWeWork/styles.scss does.
 //
-// THE KIND HUES ARE HOWWEWORK'S, VALUE FOR VALUE. That page teaches what a kind IS; two surfaces in
-// one window disagreeing about what purple means is a cost paid by the reader.
+// THE KIND HUES COME FROM THE THEME — `--sv-kind-rfc/arc/gap/report`, one source for the whole
+// window. They were declared here with their own hexes, as they were in five other files; two
+// surfaces disagreeing about what purple means is a cost paid by the reader, and six copies made
+// that a matter of time rather than a risk.
 //
 // ─── TWO RULES, NOT ONE — THE PAGE AND THE CONTEXT ─────────────────────────────────────────────
 //
@@ -51,10 +53,10 @@
   line-height: 1.6;
 
   // the four kinds — HowWeWork's values, so a colour means the same thing on both pages
-  --dbb-rfc: #5a77e5;
-  --dbb-arc: #9a4fe0;
-  --dbb-gap: #c07a16;
-  --dbb-report: #0d8065;
+  --dbb-rfc: var(--sv-kind-rfc);
+  --dbb-arc: var(--sv-kind-arc);
+  --dbb-gap: var(--sv-kind-gap);
+  --dbb-report: var(--sv-kind-report);
   // the four POSTURES toward him — the tide's bands, and the only cross-kind axis there is
   --dbb-press: #c0392b; // waiting on your signature
   --dbb-work: #c07a16; // outstanding, nobody can press it away
@@ -99,10 +101,6 @@
 }
 :root.sv-dark .dbb,
 :root.sv-dark .dbb-ctx {
-  --dbb-rfc: #8ba4ef;
-  --dbb-arc: #c68cf5;
-  --dbb-gap: #e0a34f;
-  --dbb-report: #3fb795;
   --dbb-press: #e8796a;
   --dbb-work: #e0a34f;
   --dbb-clear: #3fb795;
