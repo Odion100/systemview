@@ -64,16 +64,35 @@ export function subscribeTabs(pc, fn) {
 
 // OPEN OR FOCUS — his rule, and the dedupe he called out: "existing navigation calls need to open
 // tabs or navigate to the tab if it's already open." One entry point, so no caller can duplicate.
-export function openTab(pc, tab) {
+/**
+ * Open a tab, or refresh one that is already there.
+ *
+ * `opts.beside` — put a NEW tab directly after that key instead of at the end. A reference you
+ * followed belongs next to the thing you followed it from, not at the far end of a strip you
+ * then have to go and find it in.
+ *
+ * `opts.focus: false` — leave the active tab where it is. The tab appears; you do not move.
+ * This is what *"just add the tab next door"* means, and it is only honoured when something is
+ * already open: with an empty strip there is nothing to stay on, and a tab nobody is looking at
+ * over an empty centre is just a hidden file.
+ */
+export function openTab(pc, tab, opts = {}) {
   const s = storeOf(pc).state;
   const pane = s.panes[0];
   const found = pane.tabs.find((t) => t.key === tab.key);
-  const tabs = found
-    ? // Same document, possibly a fresher address (new line range, a side) — the tab updates in
-      // place rather than pretending the old address is still what you asked for.
-      pane.tabs.map((t) => (t.key === tab.key ? { ...t, ...tab } : t))
-    : [...pane.tabs, tab];
-  write(pc, { panes: [{ tabs, active: tab.key }] });
+  let tabs;
+  if (found) {
+    // Same document, possibly a fresher address (new line range, a side) — the tab updates in
+    // place rather than pretending the old address is still what you asked for.
+    tabs = pane.tabs.map((t) => (t.key === tab.key ? { ...t, ...tab } : t));
+  } else if (opts.beside) {
+    const at = pane.tabs.findIndex((t) => t.key === opts.beside);
+    tabs = at < 0 ? [...pane.tabs, tab] : [...pane.tabs.slice(0, at + 1), tab, ...pane.tabs.slice(at + 1)];
+  } else {
+    tabs = [...pane.tabs, tab];
+  }
+  const stay = opts.focus === false && pane.tabs.length > 0 && pane.active;
+  write(pc, { panes: [{ tabs, active: stay || tab.key }] });
 }
 
 export function focusTab(pc, key) {

@@ -118,3 +118,54 @@ describe("bulk close", () => {
     expect(getTabs(PC).panes[0].tabs).toHaveLength(4);
   });
 });
+
+// A REFERENCE YOU FOLLOWED BELONGS NEXT TO THE THING YOU FOLLOWED IT FROM — his ruling: *"stop
+// taking you to the new page and just add a tab right next door to the dashboard tab."*
+describe("opening a tab beside the one you are on", () => {
+  const pcN = () => `beside-${Math.random().toString(36).slice(2)}`;
+  const tab = (k) => ({ key: k, kind: "file", file: { projectCode: "", path: `${k}.js` } });
+
+  it("inserts after the named tab rather than at the end", () => {
+    const pc = pcN();
+    openTab(pc, tab("one"));
+    openTab(pc, tab("two"));
+    openTab(pc, tab("three"));
+    openTab(pc, tab("new"), { beside: "one" });
+    expect(getTabs(pc).panes[0].tabs.map((t) => t.key)).toEqual(["one", "new", "two", "three"]);
+  });
+
+  it("leaves you where you are when told not to focus", () => {
+    const pc = pcN();
+    openTab(pc, tab("one"));
+    openTab(pc, tab("two"));
+    openTab(pc, tab("new"), { beside: "two", focus: false });
+    expect(getTabs(pc).panes[0].active).toBe("two");
+    expect(getTabs(pc).panes[0].tabs.map((t) => t.key)).toEqual(["one", "two", "new"]);
+  });
+
+  // WITH AN EMPTY STRIP THERE IS NOTHING TO STAY ON, and a tab nobody is looking at over an
+  // empty centre is just a hidden file.
+  it("focuses anyway when nothing was open", () => {
+    const pc = pcN();
+    openTab(pc, tab("first"), { focus: false });
+    expect(getTabs(pc).panes[0].active).toBe("first");
+  });
+
+  it("a tab that is already open is refreshed in place, never duplicated or moved", () => {
+    const pc = pcN();
+    openTab(pc, tab("one"));
+    openTab(pc, tab("two"));
+    openTab(pc, { ...tab("one"), file: { projectCode: "", path: "one.js", lines: [4, 4] } }, { beside: "two", focus: false });
+    const { tabs, active } = getTabs(pc).panes[0];
+    expect(tabs.map((t) => t.key)).toEqual(["one", "two"]);
+    expect(tabs[0].file.lines).toEqual([4, 4]);
+    expect(active).toBe("two");
+  });
+
+  it("falls back to the end when the tab it should sit beside is gone", () => {
+    const pc = pcN();
+    openTab(pc, tab("one"));
+    openTab(pc, tab("new"), { beside: "vanished" });
+    expect(getTabs(pc).panes[0].tabs.map((t) => t.key)).toEqual(["one", "new"]);
+  });
+});

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import ErrorBoundary from "../../atoms/ErrorBoundary/ErrorBoundary";
 import { useParams, useHistory, useLocation } from "react-router-dom";
+import { getTabs, openTab, fileKey } from "./tabsStore";
 import SystemNavigator from "../../organisms/SystemNavigator/SystemNavigator";
 import Documentation from "../../organisms/Documentation/Documentation";
 import TestPanel from "../../organisms/TestPanel/TestPanel";
@@ -185,12 +186,46 @@ const SystemViewPage = ({ params = null }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fileFromUrl && fileFromUrl.path, fileFromUrl && String(fileFromUrl.lines), fileFromUrl && fileFromUrl.side, fileFromUrl && fileFromUrl.sha, location.search]);
 
-  // A story pane's file link, or a ⌘-click on a `:file[…]` chip, OPENS a file here.
+  // A REFERENCE OPENS BESIDE YOU — it does not take you off the page you are reading.
+  //
+  // His ruling, and he generalised it himself: *"stop taking you to the new page and just add a
+  // tab right next door to the dashboard tab… and that's in general. The progress display in the
+  // arcs or anything like that — you shouldn't navigate away, you should just open up the tab
+  // next to you."* Following a reference off the dashboard used to throw the centre over to the
+  // file and take the dashboard off screen, so reading a list of twelve owed documents meant
+  // twelve round trips back.
+  //
+  // The tab lands directly after the one you are on and nothing else moves. It is a real tab:
+  // pressing it routes to the file exactly as before, because `clickTab` already does that.
+  //
+  // THE EXCEPTION IS AN EMPTY STRIP. With nothing open there is nowhere to stay, and a tab
+  // nobody is looking at over an empty centre is a hidden file — so that case navigates, which
+  // `openTab`'s own `focus` rule already decides.
+  //
+  // `navigate: true` on the detail still takes you there, for a door whose whole purpose is to
+  // move you. Nothing passes it yet; it exists so that door does not have to invent a second
+  // dispatch when it arrives.
   useEffect(() => {
-    const onOpen = (e) => openFile(e.detail);
+    const onOpen = (e) => {
+      const d = e.detail || {};
+      const pane = (getTabs(projectCode).panes || [])[0] || { tabs: [], active: "" };
+      if (d.navigate || !pane.tabs.length) return openFile(d);
+      const file = {
+        projectCode: d.machine ? "" : d.projectCode || "",
+        path: d.path,
+        ...(d.machine ? { machine: true } : {}),
+        ...(d.serviceId ? { serviceId: d.serviceId } : {}),
+        ...(d.language ? { language: d.language } : {}),
+        ...(d.lines ? { lines: d.lines } : {}),
+        ...(d.side ? { side: d.side } : {}),
+        ...(d.sha ? { sha: d.sha } : {}),
+      };
+      if (!file.path) return undefined;
+      return openTab(projectCode, { key: fileKey(file), kind: "file", file }, { beside: pane.active, focus: false });
+    };
     window.addEventListener("sv:openFileInNav", onOpen);
     return () => window.removeEventListener("sv:openFileInNav", onOpen);
-  }, [openFile]);
+  }, [openFile, projectCode]);
 
   // RFC-029 `act` — a watchable run needs the scratchpad VISIBLE; the executor asks for it.
   useEffect(() => {
