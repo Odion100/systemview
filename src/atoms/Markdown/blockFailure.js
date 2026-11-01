@@ -1,0 +1,91 @@
+import { useCallback, useRef } from "react";
+import { useMarkdownScope, useDocMembers } from "./context";
+import { sendUpdateTo } from "./docSend";
+
+// A BLOCK THAT CANNOT RESOLVE WHAT IT POINTS AT TELLS THE AGENT THAT WROTE IT.
+//
+// WHAT WAS WRONG. A resolving block renders its failure on screen and tells NOBODY. A `::commit`
+// carrying a sha from another repo reads "no such commit" in the chat, and the agent that wrote it
+// never hears — so it stays wrong until he catches it by eye and says so. The block knows it has
+// failed the moment it fails; the only thing missing was delivery.
+//
+// AND THE ROUTE ALREADY EXISTED, which is the part I got wrong first. `documents.sendUpdate` looks
+// document-shaped, but its MEMBERS are supplied by the caller and win over anything read off a
+// file — the host says so in as many words: "the window supplies the members itself, so the file is
+// only needed for what it can add". So an arbitrary audience is already addressable from here. The
+// path is required as a string and does not have to resolve; an unresolvable one costs the arc id
+// and nothing else.
+//
+// WHO HEARS IT. In a document, its members — they are who can fix it, and the author is among
+// them. In the chat, the one agent whose reply this is, which the scope already carries: a chat is
+// per-project and an agent is addressed by its project code. Nobody else is told, because a broken
+// block is a note to its writer, not news.
+
+/** The one line the agent receives. Pure, so the wording is checkable without a host. */
+export function failureSummary({ kind, ref, reason, where = "" } = {}) {
+  const k = String(kind || "block").trim();
+  const r = String(ref || "").trim();
+  const why = String(reason || "could not be resolved").trim();
+  const at = where ? ` in ${where}` : "";
+  // The REF comes first: the agent's next act is to find the exact value it wrote and change it.
+  return r
+    ? `a ::${k} you wrote${at} points at "${r}" and it does not resolve — ${why}`
+    : `a ::${k} you wrote${at} does not resolve — ${why}`;
+}
+
+/** Stable key for one failure, so a re-render cannot re-send it. */
+export const failureKey = ({ kind, ref, reason, audience = [] } = {}) =>
+  [kind, ref, reason, [...audience].sort().join(",")].join(" ");
+
+// ONE SEND PER FAILURE, FOR THE LIFE OF THE PAGE. A block re-renders constantly — a scroll, a
+// sibling's state change, a poll — and each render would otherwise be another message. Module
+// scope rather than a ref, because the same broken block can be mounted twice (the chat and a
+// pinned copy of the same reply) and that is still one failure.
+const sent = new Set();
+
+/** Test seam — the set is module state, and a suite has to start from nothing. */
+export const _resetSentFailures = () => sent.clear();
+
+/**
+ * `report({kind, ref, reason})` — tells whoever should hear about this block, once.
+ * Answers the audience it told, or `null` when there was nobody to tell. Nobody is a legitimate
+ * answer: a block rendered where no agent stands behind it has no writer to inform.
+ */
+export function useBlockFailure() {
+  const scope = useMarkdownScope() || {};
+  const doc = useDocMembers() || {};
+  const inFlight = useRef(new Set());
+
+  return useCallback(
+    async ({ kind, ref, reason }) => {
+      const members = Array.isArray(doc.members) && doc.members.length ? doc.members : [];
+      const audience = members.length
+        ? members
+        : [String(scope.projectCode || "").trim()].filter(Boolean);
+      if (!audience.length) return null;
+      const key = failureKey({ kind, ref, reason, audience });
+      if (sent.has(key) || inFlight.current.has(key)) return null;
+      inFlight.current.add(key);
+      const r = await sendUpdateTo({
+        // A real address where there is one. In the chat there is no document, and the path is
+        // payload the host reads only for enrichment — so it names the room rather than inventing
+        // a document that does not exist.
+        path: doc.docPath || `.systemview/chats/${scope.projectCode || "unknown"}`,
+        project: doc.projectCode || scope.projectCode || "",
+        members: audience,
+        summary: failureSummary({ kind, ref, reason, where: doc.docPath ? "" : "this chat" }),
+        by: "the window",
+      });
+      inFlight.current.delete(key);
+      // ONLY A DELIVERED MESSAGE IS REMEMBERED. A refused send that marked itself sent would make
+      // the failure permanently unreportable for the life of the page — the quietest possible
+      // outcome for a mechanism whose entire purpose is to stop something being quiet.
+      if (r && r.ok) {
+        sent.add(key);
+        return audience;
+      }
+      return null;
+    },
+    [doc.members, doc.docPath, doc.projectCode, scope.projectCode],
+  );
+}

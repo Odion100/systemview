@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useCapability, useCapabilityState } from "../capabilities";
 import { useMarkdownScope, useMarkdownWrite, useDocMembers } from "../context";
 import { sendUpdateTo } from "../docSend";
+import { useBlockFailure } from "../blockFailure";
 import { gitNotice } from "./gitNotice";
 
 // RFC-033 — `::commit{message="…"}`. A commit message in a report is a line to copy into a
@@ -105,6 +106,7 @@ const CommitBlock = ({ label, attrs = {}, line }) => {
   // older one is how a block stays usable in a window nobody has reloaded.
   const [record, setRecord] = useState(null);
   const [recErr, setRecErr] = useState("");
+  const report = useBlockFailure();
   // WHICH LOG ROW THIS RECORD IS. Set by pressing the sha; the row scrolls itself into view and
   // wears a mark until he presses something else, because a jump that lands you in a list without
   // saying where is a jump you have to re-do by eye.
@@ -140,6 +142,14 @@ const CommitBlock = ({ label, attrs = {}, line }) => {
     setRecord(null);
     setRecErr("");
     if (!sha || !host || !git) return undefined;
+    // A FAILURE IS RENDERED *AND* REPORTED. Showing it on screen only tells whoever is looking;
+    // the agent that wrote the block is usually not, and the commonest cause is a sha from
+    // another repo — which this project cannot see and the writer could fix in one edit if it
+    // ever heard. `blockFailure.js` carries who hears it and why it is told once.
+    const fail = (why) => {
+      setRecErr(why);
+      report({ kind: "commit", ref: sha, reason: why }).catch(() => {});
+    };
     (async () => {
       try {
         const api = svc().Plugin;
@@ -153,14 +163,14 @@ const CommitBlock = ({ label, attrs = {}, line }) => {
         // tell a dead commit from a slow one. Rewriting history is not exotic here; stripping a
         // trailer off ten commits changed 96 shas in one command, and every record block in the
         // chat pointing at an old one landed on this branch at once.
-        if (r && r.ok === false) setRecErr(r.error || "no commit by that name in this repo");
+        if (r && r.ok === false) fail(r.error || "no commit by that name in this repo");
         // `depthKnown` SEPARATES "at the head" FROM "this hub cannot say". `behind` arrives only
         // from the newer door, and only once the hub process restarted carrying it — a missing
         // field read as 0 would print "at the head" over a commit six back.
         else if (r) setRecord({ ...r, depthKnown: typeof r.behind === "number" });
-        else setRecErr("the hub answered nothing");
+        else fail("the hub answered nothing");
       } catch (e) {
-        if (!dead) setRecErr((e && e.message) || "could not read that commit");
+        if (!dead) fail((e && e.message) || "could not read that commit");
       }
     })();
     return () => { dead = true; };
