@@ -1,9 +1,4 @@
 import React, { useState } from "react";
-// The component files directly: A ships an index.js and B and C do not, and importing a folder
-// that happens to have one is a difference that only shows up at build time.
-import DashboardA from "../DashboardA/DashboardA";
-import DashboardB from "../DashboardB/DashboardB";
-import DashboardC from "../DashboardC/DashboardC";
 import TileStack from "../Dashboard/TileStack";
 import { loadPages, savePages, loadPick, savePick, addPage, removePage, movePage } from "./pages";
 import "./styles.scss";
@@ -16,11 +11,11 @@ import "./styles.scss";
 // plus button up there."* So the pills are unchanged; each grows an `×`, and one `+` sits at the
 // end of the row — not on the tabs.
 //
-// THE THREE CANDIDATES ARE NOW PAGES, not a choice. *"Let's not delete this current dashboard, so
-// I can check them against each other piece by piece."* Each is a page holding one whole
-// dashboard, still running its own code — so an extracted tile gets compared against the real
-// thing rather than against a screenshot of it. They come off when he picks, and not before.
-const LEGACY = { a: DashboardA, b: DashboardB, c: DashboardC };
+// EVERY PAGE IS A STACK OF TILES — there is no second kind. For a while three pages rendered a
+// whole candidate dashboard apiece so the extracted tiles could be checked against the real thing
+// piece by piece; the candidates are retired and that comparison lives in `equivalence.test.js`,
+// which still mounts the original components and holds the tiles to them node for node. One
+// render path here, and the check it justified did not go with it.
 
 export default function DashboardSwitch() {
   const [pages, setPages] = useState(() => loadPages());
@@ -50,14 +45,13 @@ export default function DashboardSwitch() {
   };
 
   const page = pages.find((p) => p.id === pick) || pages[0];
-  const Legacy = page && page.legacy ? LEGACY[page.legacy] : null;
   const only = pages.length <= 1;
 
   return (
     <div className="dashswitch">
       <div className="dashswitch__bar">
         <span className="dashswitch__says">
-          {refused || "three candidates, same data — and a page of your own"}
+          {refused || "every page is yours — add, reorder, swap a block for another version of it"}
         </span>
         <span className="dashswitch__picks">
           {pages.map((p) => (
@@ -116,12 +110,7 @@ export default function DashboardSwitch() {
           props; letting React reconcile across them would let one page's open fold decide what
           the next draws. */}
       <div className="dashswitch__body" key={page ? page.id : "none"}>
-        {Legacy ? (
-          // A CANDIDATE PAGE IS THE WHOLE DASHBOARD, UNTOUCHED, still running its own code — so
-          // what an extracted tile gets compared against is the real thing and not a picture of
-          // it. These three come off when he picks, and not before.
-          <Legacy />
-        ) : page ? (
+        {page ? (
           <TileStack
             page={page}
             onChange={(next) => write(pages.map((p) => (p.id === next.id ? next : p)))}

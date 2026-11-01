@@ -24,24 +24,18 @@ beforeEach(() => {
 const tabs = (c) => [...c.querySelectorAll(".dashswitch__tab")];
 const labels = (c) => tabs(c).map((t) => t.querySelector(".dashswitch__pick").textContent);
 
-// THE CHECK IS A REPLICA OF EVERY PAGE — three candidates, then one rebuilt page each, in the
-// same order, so the fourth answers to the first without anybody counting.
-it("opens on the three candidates and a replica of each, in the same order", () => {
+// THE CANDIDATES ARE RETIRED. Three pages, each a stack of its own tiles, in the order the
+// candidates were in — the comparison that justified keeping them lives in `equivalence.test.js`,
+// which still mounts the original components and holds the tiles to them node for node.
+it("opens on three pages, in the order the candidates were in", () => {
   const { container } = mount();
-  expect(labels(container)).toEqual([
-    "A · one track",
-    "B · the floor",
-    "C · the shelves",
-    "A · rebuilt",
-    "B · rebuilt",
-    "C · rebuilt",
-  ]);
+  expect(labels(container)).toEqual(["A · one track", "B · the floor", "C · the shelves"]);
   expect(container.querySelector(".dashswitch__tab.is-on .dashswitch__pick").textContent).toBe("A · one track");
 });
 
-it("a rebuilt page is that page's own tiles, stacked flush with no chrome of their own", () => {
+it("a page is that page's own tiles, stacked flush with no chrome of their own", () => {
   const { container } = mount();
-  fireEvent.click(within(tabs(container)[5]).getByText("C · rebuilt"));
+  fireEvent.click(within(tabs(container)[2]).getByText("C · the shelves"));
   expect(container.querySelectorAll(".tile")).toHaveLength(4);
   // No card, no header: the blocks fit together to make a page.
   expect(container.querySelector(".tile__bar")).toBeNull();
@@ -57,8 +51,8 @@ it("the + is one control at the end of the row, not one per tab", () => {
 it("adding a page lands you on it, and it says it is empty rather than drawing a blank", () => {
   const { container } = mount();
   fireEvent.click(screen.getByLabelText("Add a page"));
-  expect(labels(container)).toHaveLength(7);
-  expect(container.querySelector(".dashswitch__tab.is-on .dashswitch__pick").textContent).toBe("Page 7");
+  expect(labels(container)).toHaveLength(4);
+  expect(container.querySelector(".dashswitch__tab.is-on .dashswitch__pick").textContent).toBe("Page 4");
   expect(screen.getByText(/Nothing on this page yet/)).toBeVisible();
 });
 
@@ -93,14 +87,28 @@ it("remembers the pages and which one you were on, across a remount", () => {
 
   const again = mount();
   expect(labels(again.container)).toEqual(before);
-  expect(again.container.querySelector(".dashswitch__tab.is-on .dashswitch__pick").textContent).toBe("Page 7");
+  expect(again.container.querySelector(".dashswitch__tab.is-on .dashswitch__pick").textContent).toBe("Page 4");
 });
 
-it("a saved layout that cannot be read falls back to the candidates, never to an empty strip", () => {
+it("a saved layout that cannot be read falls back to the three pages, never to an empty strip", () => {
   window.localStorage.setItem("sv.dash.pages", "{{{not json");
   const { container } = mount();
-  expect(labels(container).slice(0, 3)).toEqual(["A · one track", "B · the floor", "C · the shelves"]);
-  expect(labels(container)).toHaveLength(6);
+  expect(labels(container)).toEqual(["A · one track", "B · the floor", "C · the shelves"]);
+});
+
+// HIS SAVED LAYOUT STILL NAMES THE RETIRED CANDIDATES, and this is the only place that reads it —
+// so the retirement has to reach a window nobody cleared, rather than waiting for one.
+it("a layout saved before the retirement loses the candidates and keeps the rest", () => {
+  window.localStorage.setItem(
+    "sv.dash.pages",
+    JSON.stringify([
+      { id: "a", label: "A · one track", legacy: "a", tiles: [] },
+      { id: "b", label: "B · the floor", legacy: "b", tiles: [] },
+      { id: "rc", label: "C · the shelves", tiles: [{ kind: "head", variant: "c" }] },
+    ])
+  );
+  const { container } = mount();
+  expect(labels(container)).toEqual(["C · the shelves"]);
 });
 
 it("a page carries its own body — switching remounts rather than reusing the last one", () => {
@@ -237,7 +245,7 @@ it("the add menu stays open until you pick or cancel", () => {
 describe("the floating picker", () => {
   const openOver = () => {
     const r = mount();
-    fireEvent.click(within(tabs(r.container)[5]).getByText("C · rebuilt"));
+    fireEvent.click(within(tabs(r.container)[2]).getByText("C · the shelves"));
     fireEvent.click(r.container.querySelectorAll(".tile__which")[0]);
     return r;
   };

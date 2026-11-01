@@ -22,11 +22,14 @@ const theStore = () => (typeof window === "undefined" ? null : window.localStora
 const KEY = "sv.dash.pages";
 const PICK = "sv.dash.pick";
 
-// THE CHECK IS A REPLICA OF EVERY PAGE, his ruling: *"make a page for each one that exists from
-// the new components, before we know that we…"* and *"the check is to recreate every page."* So
-// each candidate ships beside a page built only from its own extracted tiles, in the order that
-// page stacks them. Put the two side by side and a difference is a bug, not an opinion — which
-// is the only reason the candidates are still here.
+// THREE PAGES, EACH BUILT ONLY FROM ITS OWN TILES, in the order that page stacks them.
+//
+// They began as replicas of three whole-dashboard candidates, kept side by side so a difference
+// was a bug rather than an opinion. The candidates are retired — *"you can retire the three
+// previous pages, those are not needed anymore"* — and the comparison survives where it belongs:
+// `equivalence.test.js` still mounts the original components over the same rows and holds the
+// tiles to them node for node. The check outlived the pages, which is the point of writing it
+// as a test rather than as something to look at.
 const REBUILT = {
   a: ["head", "owed", "standing"],
   b: ["head", "owed", "standing", "reports", "projects"],
@@ -38,32 +41,21 @@ const rebuilt = (variant, label) => ({
   tiles: REBUILT[variant].map((kind) => ({ kind, variant })),
 });
 
-/**
- * What a fresh window gets: the three candidates, then a replica of each, IN THE SAME ORDER.
- * His instruction — three new pages in the order the existing ones are in, so the fourth answers
- * to the first, the fifth to the second and the sixth to the third without anybody counting.
- */
-export const DEFAULT_PAGES = [
-  { id: "a", label: "A · one track", legacy: "a", tiles: [] },
-  { id: "b", label: "B · the floor", legacy: "b", tiles: [] },
-  { id: "c", label: "C · the shelves", legacy: "c", tiles: [] },
-  rebuilt("a", "A · rebuilt"),
-  rebuilt("b", "B · rebuilt"),
-  rebuilt("c", "C · rebuilt"),
-];
+/** What a fresh window gets: the three pages, in the order the candidates were in. */
+export const DEFAULT_PAGES = [rebuilt("a", "A · one track"), rebuilt("b", "B · the floor"), rebuilt("c", "C · the shelves")];
 
-const clean = (p) =>
-  p && typeof p === "object" && typeof p.id === "string" && p.id
-    ? {
-        id: p.id,
-        label: typeof p.label === "string" && p.label ? p.label : p.id,
-        // A LEGACY PAGE IS ONE WHOLE DASHBOARD, not a stack he composed. It is carried as its own
-        // field rather than as a tile kind so that removing the candidates later is deleting
-        // three pages, not unpicking three layouts.
-        legacy: typeof p.legacy === "string" ? p.legacy : undefined,
-        tiles: Array.isArray(p.tiles) ? p.tiles.filter((t) => t && typeof t.kind === "string") : [],
-      }
-    : null;
+const clean = (p) => {
+  if (!p || typeof p !== "object" || typeof p.id !== "string" || !p.id) return null;
+  const tiles = Array.isArray(p.tiles) ? p.tiles.filter((t) => t && typeof t.kind === "string") : [];
+  // A RETIRED CANDIDATE IS DROPPED, NOT EMPTIED. `legacy` meant "render that whole dashboard
+  // instead of a stack", so those pages carry no tiles — strip the field and what is left is a
+  // blank page, which is a worse answer than no page. His saved layout still holds all three,
+  // and this is the only place that reads it, so the retirement reaches a window nobody cleared.
+  // A legacy page WITH tiles never existed, but if one does it is kept: dropping something he
+  // arranged is the one mistake this cannot make.
+  if (p.legacy && !tiles.length) return null;
+  return { id: p.id, label: typeof p.label === "string" && p.label ? p.label : p.id, tiles };
+};
 
 /**
  * Read the saved layout.

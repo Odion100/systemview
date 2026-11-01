@@ -22,14 +22,31 @@ const broken = {
 };
 
 describe("reading a saved layout", () => {
-  it("a fresh window gets the three candidates, then a replica of each in the same order", () => {
-    expect(loadPages(store()).map((p) => p.id)).toEqual(["a", "b", "c", "ra", "rb", "rc"]);
-    expect(loadPages(store())[0].legacy).toBe("a");
-    // A REPLICA IS NOT A LEGACY PAGE: it is a stack of that page's own tiles, in its own order,
-    // which is the whole of the check.
-    const ra = loadPages(store())[3];
+  it("a fresh window gets three pages, each a stack of its own tiles", () => {
+    expect(loadPages(store()).map((p) => p.id)).toEqual(["ra", "rb", "rc"]);
+    const ra = loadPages(store())[0];
     expect(ra.legacy).toBeUndefined();
     expect(ra.tiles.map((t) => `${t.kind}/${t.variant}`)).toEqual(["head/a", "owed/a", "standing/a"]);
+  });
+
+  // THE CANDIDATES ARE RETIRED, and his saved layout still names all three. Stripping the field
+  // would leave three pages with no tiles on them, which is a worse answer than no page at all.
+  it("drops a saved candidate page instead of emptying it", () => {
+    const saved = JSON.stringify([
+      { id: "a", label: "A · one track", legacy: "a", tiles: [] },
+      { id: "rb", label: "B · the floor", tiles: [{ kind: "owed", variant: "b" }] },
+    ]);
+    const pages = loadPages(store({ "sv.dash.pages": saved }));
+    expect(pages.map((p) => p.id)).toEqual(["rb"]);
+  });
+
+  // …but never at the cost of something he arranged. A legacy page carrying tiles never existed;
+  // if one turns up it is kept as an ordinary page, because dropping his work is the one mistake
+  // this migration must not make.
+  it("keeps a legacy page that somehow has tiles on it", () => {
+    const saved = JSON.stringify([{ id: "a", label: "A", legacy: "a", tiles: [{ kind: "head", variant: "c" }] }]);
+    const pages = loadPages(store({ "sv.dash.pages": saved }));
+    expect(pages).toEqual([{ id: "a", label: "A", tiles: [{ kind: "head", variant: "c" }] }]);
   });
 
   // A LAYOUT THAT CANNOT BE PARSED IS NOT A LAYOUT. Every one of these means "I do not know what
@@ -58,9 +75,12 @@ describe("reading a saved layout", () => {
   });
 
   it("the remembered page has to still exist, or you land on the first", () => {
-    expect(loadPick(DEFAULT_PAGES, store({ "sv.dash.pick": "b" }))).toBe("b");
-    expect(loadPick(DEFAULT_PAGES, store({ "sv.dash.pick": "gone" }))).toBe("a");
-    expect(loadPick(DEFAULT_PAGES, broken)).toBe("a");
+    expect(loadPick(DEFAULT_PAGES, store({ "sv.dash.pick": "rb" }))).toBe("rb");
+    // A RETIRED CANDIDATE IS "gone" NOW — the remembered pick survives the retirement by failing
+    // this test and landing on the first page, rather than selecting a page that cannot render.
+    expect(loadPick(DEFAULT_PAGES, store({ "sv.dash.pick": "b" }))).toBe("ra");
+    expect(loadPick(DEFAULT_PAGES, store({ "sv.dash.pick": "gone" }))).toBe("ra");
+    expect(loadPick(DEFAULT_PAGES, broken)).toBe("ra");
   });
 });
 
@@ -77,7 +97,7 @@ describe("adding and closing", () => {
   it("never mints an id that is already taken", () => {
     let pages = addPage(addPage(DEFAULT_PAGES).pages).pages;
     const first = pages[DEFAULT_PAGES.length].id;
-    pages = removePage(pages, first, "a").pages;
+    pages = removePage(pages, first, "ra").pages;
     const next = addPage(pages).pages.map((p) => p.id);
     expect(new Set(next).size).toBe(next.length);
   });
@@ -94,30 +114,29 @@ describe("adding and closing", () => {
 
   it("closing the page you are on lands you on its neighbour, not back at the start", () => {
     expect(removePage(DEFAULT_PAGES, "rc", "rc").pick).toBe("rb");
-    expect(removePage(DEFAULT_PAGES, "b", "b").pick).toBe("a");
-    expect(removePage(DEFAULT_PAGES, "c", "c").pick).toBe("b");
+    expect(removePage(DEFAULT_PAGES, "rb", "rb").pick).toBe("ra");
     // leftmost has no left neighbour, so it falls to the new first
-    expect(removePage(DEFAULT_PAGES, "a", "a").pick).toBe("b");
+    expect(removePage(DEFAULT_PAGES, "ra", "ra").pick).toBe("rb");
   });
 
   it("closing a page you are not on leaves you where you are", () => {
-    expect(removePage(DEFAULT_PAGES, "a", "c").pick).toBe("c");
+    expect(removePage(DEFAULT_PAGES, "ra", "rc").pick).toBe("rc");
   });
 
   it("closing a page that is not there changes nothing", () => {
-    expect(removePage(DEFAULT_PAGES, "ghost", "a").pages).toEqual(DEFAULT_PAGES);
+    expect(removePage(DEFAULT_PAGES, "ghost", "ra").pages).toEqual(DEFAULT_PAGES);
   });
 });
 
 describe("reordering", () => {
   it("moves a page to sit where another one is", () => {
-    expect(movePage(DEFAULT_PAGES, "c", "a").map((p) => p.id).slice(0, 3)).toEqual(["c", "a", "b"]);
-    expect(movePage(DEFAULT_PAGES, "a", "c").map((p) => p.id).slice(0, 3)).toEqual(["b", "a", "c"]);
+    expect(movePage(DEFAULT_PAGES, "rc", "ra").map((p) => p.id)).toEqual(["rc", "ra", "rb"]);
+    expect(movePage(DEFAULT_PAGES, "ra", "rc").map((p) => p.id)).toEqual(["rb", "ra", "rc"]);
   });
 
   it("dropping past the end sends it last, and a no-op is a no-op", () => {
-    expect(movePage(DEFAULT_PAGES, "a", null).map((p) => p.id).pop()).toBe("a");
-    expect(movePage(DEFAULT_PAGES, "a", "a")).toEqual(DEFAULT_PAGES);
-    expect(movePage(DEFAULT_PAGES, "ghost", "a")).toEqual(DEFAULT_PAGES);
+    expect(movePage(DEFAULT_PAGES, "ra", null).map((p) => p.id).pop()).toBe("ra");
+    expect(movePage(DEFAULT_PAGES, "ra", "ra")).toEqual(DEFAULT_PAGES);
+    expect(movePage(DEFAULT_PAGES, "ghost", "ra")).toEqual(DEFAULT_PAGES);
   });
 });
