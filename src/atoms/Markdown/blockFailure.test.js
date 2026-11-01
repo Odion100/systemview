@@ -22,9 +22,9 @@ const Probe = ({ kind = "commit", ref: r = "4ce4444", reason = "no such commit" 
   return null;
 };
 
-const mount = ({ projectCode = "systemview-test", members = [], docPath = "" } = {}) =>
+const mount = ({ projectCode = "systemview-test", members = [], docPath = "", chat = "main" } = {}) =>
   render(
-    <MemoryRouter><MarkdownScopeProvider value={{ projectCode }}>
+    <MemoryRouter><MarkdownScopeProvider value={{ projectCode, chat }}>
       <MarkdownMembersProvider value={{ members, hasMembers: !!members.length, source: "", docPath, projectCode: docPath ? projectCode : "" }}>
         <Probe />
       </MarkdownMembersProvider>
@@ -64,6 +64,23 @@ describe("who hears it", () => {
     expect(sendUpdateTo.mock.calls[0][0].members).toEqual(["systemview-test"]);
   });
 
+  // THE NOTIFICATION ENDS WITH "read the file rather than trusting this line", so the path has to
+  // BE a file. The first version sent `.systemview/chats/<project>` — a folder prefix — and the
+  // one piece of advice in the message was a dead instruction, visibly, in his window.
+  it("points at the room's real transcript, not a folder prefix", async () => {
+    mount({ projectCode: "systemview-test", chat: "main" });
+    await waitFor(() => expect(sendUpdateTo).toHaveBeenCalledTimes(1));
+    expect(sendUpdateTo.mock.calls[0][0].path).toBe(".systemview/chats/systemview-test.main.jsonl");
+  });
+
+  // NO REAL ADDRESS, NO SEND. A message whose only instruction leads nowhere spends the reader's
+  // trust on a dead lead, which is worse than silence because it looks like one.
+  it("sends nothing when it has no file to name", async () => {
+    mount({ projectCode: "systemview-test", chat: "" });
+    await new Promise((r) => setTimeout(r, 10));
+    expect(sendUpdateTo).not.toHaveBeenCalled();
+  });
+
   it("tells a document's members when there is one, because they are who can fix it", async () => {
     mount({ projectCode: "systemview-test", members: ["autobot", "bu"], docPath: "RFCs/RFC-1.md" });
     await waitFor(() => expect(sendUpdateTo).toHaveBeenCalledTimes(1));
@@ -83,7 +100,7 @@ describe("once, and only once", () => {
   // the failure mode that would make this worse than silence.
   it("does not re-send the same failure when the block re-renders", async () => {
     const { rerender } = render(
-      <MemoryRouter><MarkdownScopeProvider value={{ projectCode: "systemview-test" }}>
+      <MemoryRouter><MarkdownScopeProvider value={{ projectCode: "systemview-test", chat: "main" }}>
         <MarkdownMembersProvider value={{ members: [], hasMembers: false, source: "", docPath: "", projectCode: "" }}>
           <Probe />
         </MarkdownMembersProvider>
@@ -92,7 +109,7 @@ describe("once, and only once", () => {
     await waitFor(() => expect(sendUpdateTo).toHaveBeenCalledTimes(1));
     for (let i = 0; i < 5; i += 1) {
       rerender(
-        <MemoryRouter><MarkdownScopeProvider value={{ projectCode: "systemview-test" }}>
+        <MemoryRouter><MarkdownScopeProvider value={{ projectCode: "systemview-test", chat: "main" }}>
           <MarkdownMembersProvider value={{ members: [], hasMembers: false, source: "", docPath: "", projectCode: "" }}>
             <Probe />
           </MarkdownMembersProvider>
@@ -109,7 +126,7 @@ describe("once, and only once", () => {
   it("retries after a refused send rather than remembering it as told", async () => {
     sendUpdateTo.mockImplementationOnce(async () => ({ ok: false, error: "the host door is not granted here" }));
     const { rerender, unmount } = render(
-      <MemoryRouter><MarkdownScopeProvider value={{ projectCode: "systemview-test" }}>
+      <MemoryRouter><MarkdownScopeProvider value={{ projectCode: "systemview-test", chat: "main" }}>
         <MarkdownMembersProvider value={{ members: [], hasMembers: false, source: "", docPath: "", projectCode: "" }}>
           <Probe />
         </MarkdownMembersProvider>
@@ -118,7 +135,7 @@ describe("once, and only once", () => {
     await waitFor(() => expect(sendUpdateTo).toHaveBeenCalledTimes(1));
     unmount();
     render(
-      <MemoryRouter><MarkdownScopeProvider value={{ projectCode: "systemview-test" }}>
+      <MemoryRouter><MarkdownScopeProvider value={{ projectCode: "systemview-test", chat: "main" }}>
         <MarkdownMembersProvider value={{ members: [], hasMembers: false, source: "", docPath: "", projectCode: "" }}>
           <Probe />
         </MarkdownMembersProvider>

@@ -16,7 +16,9 @@ export function MarkdownScopeProvider({ value, children }) {
   const stable = useMemo(
     () => value || null,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [value && value.projectCode, value && value.serviceId, value && value.moduleName, value && value.methodName]
+    // `chat` is in the deps because a block that reports a failure needs to name the file it
+    // lives in, and a memo that dropped it would hand every room the first room's name.
+    [value && value.projectCode, value && value.serviceId, value && value.moduleName, value && value.methodName, value && value.chat]
   );
   return <MarkdownScope.Provider value={stable}>{children}</MarkdownScope.Provider>;
 }

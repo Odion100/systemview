@@ -66,11 +66,23 @@ export function useBlockFailure() {
       const key = failureKey({ kind, ref, reason, audience });
       if (sent.has(key) || inFlight.current.has(key)) return null;
       inFlight.current.add(key);
+      // THE PATH HAS TO BE A FILE THAT EXISTS, because the message the agent receives ends with
+      // "read the file rather than trusting this line" — and the first version pointed at
+      // `.systemview/chats/<project>`, which is a folder prefix and not a file. So the one piece
+      // of advice in the notification was a dead instruction, visibly, in his window. A chat's
+      // real transcript is `<project>.<room>.jsonl` in that folder; the room comes down on the
+      // scope for exactly this.
+      const chatFile = scope.chat
+        ? `.systemview/chats/${scope.projectCode}.${scope.chat}.jsonl`
+        : "";
+      const where = doc.docPath || chatFile;
+      // NO REAL ADDRESS, NO SEND. The notification closes with "read the file rather than trusting
+      // this line", so a message carrying a path that leads nowhere spends the reader's trust on a
+      // dead instruction — worse than saying nothing, because it looks like a lead. Both cases
+      // have an address now; this is the fallback, and refusing is the honest shape of it.
+      if (!where) return null;
       const r = await sendUpdateTo({
-        // A real address where there is one. In the chat there is no document, and the path is
-        // payload the host reads only for enrichment — so it names the room rather than inventing
-        // a document that does not exist.
-        path: doc.docPath || `.systemview/chats/${scope.projectCode || "unknown"}`,
+        path: where,
         project: doc.projectCode || scope.projectCode || "",
         members: audience,
         summary: failureSummary({ kind, ref, reason, where: doc.docPath ? "" : "this chat" }),

@@ -7302,7 +7302,7 @@ const countdown = (str, now = Date.now()) => {
                 // And the chips are wrapped in the SAME scope the chat bubbles get: FileLink reads
                 // `useMarkdownScope()` for its project, so rendered outside a provider every chip
                 // in this panel resolved to no project and clicking one did nothing at all.
-                <MarkdownScopeProvider value={{ projectCode }}>
+                <MarkdownScopeProvider value={{ projectCode, chat }}>
                   {collected.map((e) => (
                     <div key={e.id} className={`${CLASSNAME}__links-item`}>
                       <span className={`${CLASSNAME}__links-chips`}>{linkChip(e)}</span>
@@ -7883,7 +7883,7 @@ const countdown = (str, now = Date.now()) => {
                             (autobot found that; the duplicate nesting here was my own script
                             matching its own output, which is its own small lesson about edits that
                             rewrite what they just wrote.) */}
-                        <MarkdownScopeProvider value={{ projectCode }}>
+                        <MarkdownScopeProvider value={{ projectCode, chat }}>
                           {renderChatMessage(String(m.text || ""))}
                         </MarkdownScopeProvider>
                       </div>
@@ -7929,7 +7929,7 @@ const countdown = (str, now = Date.now()) => {
                     service with file access — connect one, or name it with {project=…}"*. The chat
                     has always known whose chat it is; it simply never said so to the blocks inside
                     it. Same for ::file, ::diff and anything else that reads a repo. */}
-                <MarkdownScopeProvider value={{ projectCode }}>
+                <MarkdownScopeProvider value={{ projectCode, chat }}>
                   <MarkdownWriteProvider value={sessionWrite}>
                     <Feed rows={work.rows} answered={work.answered} onAnswer={work.answer} renderText={renderChatMessage} />
                   </MarkdownWriteProvider>
@@ -8930,7 +8930,7 @@ const countdown = (str, now = Date.now()) => {
                     preview is not the place for a file card. */}
                 {brief.say && (
                   <div className={`${CLASSNAME}__brief-say`}>
-                    <MarkdownScopeProvider value={{ projectCode }}>{renderChatMessage(brief.say)}</MarkdownScopeProvider>
+                    <MarkdownScopeProvider value={{ projectCode, chat }}>{renderChatMessage(brief.say)}</MarkdownScopeProvider>
                   </div>
                 )}
                 {/* THE DOTS BELONG TO THE SECOND ROW, and to ALL of them — his correction, twice
@@ -9054,7 +9054,7 @@ const countdown = (str, now = Date.now()) => {
                           them — so the same block that worked in the session panel drew its
                           empty-handed state in the room, which reads as "interactive markdown is
                           broken". It was not broken; it was unaddressed. (autobot found this.) */}
-                      <MarkdownScopeProvider value={{ projectCode }}>
+                      <MarkdownScopeProvider value={{ projectCode, chat }}>
                         {renderChatMessage(String(r.text || ""))}
                       </MarkdownScopeProvider>
                     </div>
@@ -9088,7 +9088,7 @@ const countdown = (str, now = Date.now()) => {
                           reads as "interactive markdown is broken". It was unaddressed, not broken.
                           This was the FOURTH surface; the comment on the other three said three of
                           four were fixed and this is the one that was left. */}
-                      <MarkdownScopeProvider value={{ projectCode }}>
+                      <MarkdownScopeProvider value={{ projectCode, chat }}>
                         {renderChatMessage(String(m.text || ""))}
                       </MarkdownScopeProvider>
                     </div>
