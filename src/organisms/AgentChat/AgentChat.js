@@ -6,6 +6,7 @@ import { useHistory, useLocation, useParams } from "react-router-dom";
 import ServiceContext from "../../ServiceContext";
 import BLOCKS from "../../atoms/Markdown/registry";
 import { fenceLangOf } from "./chatFence";
+import { fillBar } from "./usageFill";
 import { createInterimStore, InterimLine, MicText } from "./interimStore";
 import { createSticking } from "./sticking";
 import { laneVerdict, laneChip, laneReceipt, laneConfirm } from "./laneVerdict";
@@ -8599,9 +8600,9 @@ const countdown = (str, now = Date.now()) => {
           {attached && (usage || work.state.ctx > 0) && (() => {
             // WHICH METER THE FILL TRACKS is his pick — session, week, Fable, or (default) whichever
             // is highest, because that is the one about to bite.
-            const highest = usage ? usage.bars.reduce((a, b) => (b.pct > a.pct ? b : a), usage.bars[0]) : null;
-            const pickRe = { session: /^session/i, week: /all models/i, fable: /fable/i }[barPrefs.fill];
-            const top = (pickRe && usage && usage.bars.find((b) => pickRe.test(b.label))) || highest;
+            //
+            // EXCEPT AT 100 — `usageFill.js` holds the rule and what it costs to get wrong.
+            const top = usage ? fillBar(usage.bars, barPrefs.fill) : null;
             const pct = top ? top.pct : 0;
             const tone = pct >= 90 ? "due" : pct >= 75 ? "warn" : "";
             // Only what is about the WHOLE picture lives here: the plan meter and the context.
