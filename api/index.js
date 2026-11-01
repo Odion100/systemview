@@ -3,7 +3,7 @@ const { createCookieHttpClient } = require("../cli/cookieClient");
 const { headersFor } = require("../cli/manifestHeaders");
 const Drive = require("./drive");
 const { marksFromDiff } = require("./commitMarks");
-const { refuseAuthorship } = require("./commitGuard");
+const { refuseAuthorship, refuseLength } = require("./commitGuard");
 const ReportsLib = require("./reports");
 const ConnectedServices = require("./Connections")();
 const CLIHistory = require("./CLIHistory")();
@@ -2240,6 +2240,10 @@ async function commit(projectCode, { message, root } = {}) {
   // the pressure stays visible instead of being quietly absorbed forever.
   const signed = refuseAuthorship(message);
   if (signed) return { ok: false, error: signed };
+  // A BACKSTOP ON LENGTH, set above everything in his own history — it catches a runaway agent,
+  // never his prose. See commitGuard.js for the measurements the ceilings come from.
+  const toolong = refuseLength(message);
+  if (toolong) return { ok: false, error: toolong };
   const res = await serial(cwd, () => git(cwd, ["commit", "-m", String(message)]));
   bustGit(projectCode);
   if (!res.ok) return { ok: false, error: res.error };

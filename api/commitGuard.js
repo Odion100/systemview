@@ -91,4 +91,44 @@ function refuseAuthorship(message) {
   );
 }
 
-module.exports = { authorshipIn, refuseAuthorship, SIGNATURES };
+// ── HOW LONG A COMMIT MESSAGE MAY BE — COMMITIZEN'S WIDTHS ──────────────────────────────────
+//
+// His call: use the standard, not a number anybody here invents. Commitizen's conventional
+// preset caps a header at 100 characters and wraps body lines at 100, and those are the two
+// ceilings. They are written down below and read from nowhere — not from a config file, not from
+// an env var, not from a package. A ceiling that can be edited somewhere else is a ceiling that
+// means something different in each checkout, and the whole point of taking the standard was to
+// stop having a local opinion about it.
+//
+// MEASURED AGAINST THIS REPO'S HISTORY: 290 of 443 subjects are within 100 characters; 153 are
+// not. The long one-line subject this codebase grew used to will start being refused. That is a
+// real change in how commits read here, taken deliberately.
+//
+// AND IT STILL CANNOT HOLD JUDGMENT. The message that prompted all this had a 160-character
+// subject, so the ceiling would have caught it — by accident. What was actually wrong was four
+// paragraphs of reasoning that already lived in the code comments.
+const MAX_HEADER = 100;
+const MAX_LINE = 100;
+
+/**
+ * Is this message outside commitizen's widths. `null` when it is fine.
+ *
+ * Reports the measurement, the ceiling and WHICH line — a refusal you cannot act on costs another
+ * round trip to find out by how much and where.
+ */
+function refuseLength(message) {
+  const text = String(message || "");
+  const header = MAX_HEADER;
+  const width = MAX_LINE;
+  const [subject = "", ...rest] = text.split("\n");
+  if (subject.length > header)
+    return `the subject is ${subject.length} characters and commitizen's maxHeaderWidth is ${header} — say what changed, and put the why in the code where it is read at the point it matters`;
+  // THE BODY IS CHECKED PER LINE, not in total, because that is what `maxLineWidth` means: it is
+  // a WRAP width. A long body is fine; an unwrapped one is what breaks `git log` in a terminal.
+  const over = rest.findIndex((l) => l.length > width);
+  if (over >= 0)
+    return `body line ${over + 1} is ${rest[over].length} characters and commitizen's maxLineWidth is ${width} — wrap it`;
+  return null;
+}
+
+module.exports = { authorshipIn, refuseAuthorship, refuseLength, SIGNATURES, MAX_HEADER, MAX_LINE };

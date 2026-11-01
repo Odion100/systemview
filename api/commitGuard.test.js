@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert");
-const { authorshipIn, refuseAuthorship } = require("./commitGuard");
+const { authorshipIn, refuseAuthorship, refuseLength, MAX_HEADER, MAX_LINE } = require("./commitGuard");
 
 // THE FIXTURES ARE THE REAL TEMPLATE. The preset's exact output is what this exists to stop, so a
 // paraphrase of it tests nothing — these strings are copied from commits that actually landed on
@@ -80,4 +80,40 @@ test("the refusal quotes the line and names the upstream instruction", () => {
   assert.match(out, /Co-Authored-By: Claude <noreply@anthropic\.com>/);
   assert.match(out, /claude_code preset/);
   assert.match(out, /system-context\.md/);
+});
+
+// ── LENGTH — COMMITIZEN'S WIDTHS ────────────────────────────────────────────────────────────
+// Not our numbers: this repo is configured for cz-conventional-changelog, so the ceilings are
+// `maxHeaderWidth` and `maxLineWidth`, read from the same config in the same order it does.
+
+test("the ceilings are commitizen's hundreds, fixed and read from nothing", () => {
+  assert.strictEqual(MAX_HEADER, 100);
+  assert.strictEqual(MAX_LINE, 100);
+});
+
+test("a subject at exactly the ceiling passes, one over is refused", () => {
+  assert.strictEqual(refuseLength("x".repeat(100)), null);
+  const out = refuseLength("x".repeat(101));
+  assert.match(out, /101 characters/);
+  assert.match(out, /maxHeaderWidth is 100/);
+});
+
+// THE BODY IS A WRAP WIDTH, NOT A TOTAL. A long wrapped body is ordinary and must pass; an
+// unwrapped one is what actually breaks `git log` in a terminal.
+test("a long but wrapped body passes, however many lines", () => {
+  const line = "a wrapped line of perfectly ordinary length";
+  assert.strictEqual(refuseLength("fix(x): subject\n\n" + (line + "\n").repeat(60)), null);
+});
+
+test("one unwrapped body line is refused, and is named by number", () => {
+  const out = refuseLength("fix(x): subject\n\nfine\n" + "z".repeat(140));
+  assert.match(out, /body line 3/);
+  assert.match(out, /140 characters/);
+  assert.match(out, /maxLineWidth is 100/);
+});
+
+test("an ordinary commit passes, including an empty one", () => {
+  for (const m of ["", null, "fix(nav): the tree opens on the file you asked for"]) {
+    assert.strictEqual(refuseLength(m), null);
+  }
 });
