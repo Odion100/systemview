@@ -156,12 +156,15 @@ export function beadFor({ row, text }, owedByDoc = {}, now = Date.now()) {
     // without saying what set it. His: *"you should put what kind of report it is, it should be
     // visible."*
     subtype: String((row.state || {}).subtype || ""),
-    // HAS HE OPENED IT — and these are the same fact, which is why one field answers both. A
-    // report's clock does not start until first open (RFC-076 §4.6), so "counting" IS "seen". His:
-    // *"me having seen it or not should be easy to discern, because once I see it, it starts
-    // expiring."* A card that is not counting has a FULL ring for a reason nobody can read without
-    // this — it looks identical to a report with all its time left.
-    counting: !!p.counting,
+    // HAS HE OPENED IT. `openedAt` is the only field that answers this, and the near-miss is the
+    // reason to say so: `retainLine` reports `counting: false` for a PERMANENT report AND for one
+    // never opened, so reading "seen" off the clock calls every permanent report unopened forever.
+    // His catch: *"why do they say unopened when I know I've seen them? Because they're permanent
+    // — that's probably why you're saying they're unopened."* Exactly that.
+    //
+    // The clock still does not start until first open (RFC-076 §4.6); that is WHY an unopened
+    // report draws a full ring, and why the card has to say which kind of full it is.
+    seen: !!row.openedAt,
     // ⚑ MEANS "A DECISION IS WAITING ON YOU" and ⧗ MEANS A DEADLINE — the band's own rule, which
     // exists because sharing one mark made it unreadable ("I don't know what the other one is").
     // A bead carries the mark of the loudest thing it owes and nothing else; a bead with two marks
@@ -231,7 +234,7 @@ export function reportStacks(beads = []) {
       urgent: cards.filter((c) => c.mark === "⧗").length,
       // UNSEEN, counted on the face, because a closed stack shows no cards at all — the fact would
       // otherwise be one he can only reach by opening every pile.
-      unseen: cards.filter((c) => !c.counting && c.station !== "retired").length,
+      unseen: cards.filter((c) => !c.seen && c.station !== "retired").length,
       cards: cards.sort(
         (a, b) =>
           (b.mark === "⧗") - (a.mark === "⧗") ||

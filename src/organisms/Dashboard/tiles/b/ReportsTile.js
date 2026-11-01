@@ -74,7 +74,7 @@ export default function ReportsTile({ data }) {
                             the card says so. */}
                         <span className="dbb-rcard__meta">
                           {c.subtype ? <em className="dbb-rcard__as">{c.subtype}</em> : null}
-                          {!c.counting && c.station !== "retired" ? (
+                          {!c.seen && c.station !== "retired" ? (
                             <em className="dbb-rcard__unseen" title="you have not opened this — its clock has not started">
                               unopened
                             </em>

@@ -93,6 +93,9 @@ const DOCS = [
   GAP,
   REPORT("r-one", { openedAt: NOW - 12 * DAY, as: "account" }),
   REPORT("r-two", { project: "q", as: "planning" }),
+  // PERMANENT AND READ. It has no clock to run, so anything reading "seen" off the clock calls it
+  // unopened forever — which is exactly what it did, on reports he knew he had read.
+  REPORT("r-kept", { retain: "permanent", openedAt: NOW - 2 * DAY, as: "brief" }),
 ];
 const ROOTS = { p: "/p", q: "/q", quietone: "/z" };
 
@@ -219,10 +222,22 @@ describe("the reports tile matches the page except where it answers two question
 
   // THE CLOCK DOES NOT START UNTIL HE OPENS IT, so "not counting" IS "not seen" — one field
   // answers both, and without it a full ring is unreadable.
+  const cardsIn = (el) => [...el.querySelectorAll(".dbb-rcard")];
+  const marked = (el) => cardsIn(el).filter((c) => c.querySelector(".dbb-rcard__unseen")).map((c) => c.textContent);
+
   it("an unopened report says so, which is the only thing that explains its full ring", () => {
-    const unopened = [...mine().querySelectorAll(".dbb-rcard")].filter((c) => c.querySelector(".dbb-rcard__unseen"));
-    expect(unopened.length).toBeGreaterThan(0);
+    expect(marked(mine()).length).toBeGreaterThan(0);
     expect(pageSection(".dbb-stacks").querySelectorAll(".dbb-rcard__unseen")).toHaveLength(0);
+  });
+
+  // HIS CATCH, AS A CLAIM. `retainLine` answers `counting: false` for a permanent report and for
+  // one never opened alike, so reading "seen" off the clock marks every permanent report unopened
+  // for good — on documents he knows he has read. Only `openedAt` answers the question asked.
+  it("a PERMANENT report he has opened is not called unopened", () => {
+    const said = marked(mine()).join(" | ");
+    expect(said).not.toContain("r-kept");
+    // and the one that really has not been opened is still marked, so this did not just silence it
+    expect(said).toContain("r-two");
   });
 });
 
