@@ -20,6 +20,7 @@
 // file embed, never a copy, so what is spoken is what the page says at that moment. An element
 // gone by its turn is a silent skip: speaking a cached ghost is the lie the live read refuses.
 import { callCommand } from "./cueCall";
+import { resolveRef } from "./resolveRef";
 import { speak } from "./voice";
 import { readVoicePref, readVoiceSettings } from "./voicePref";
 import { spotlight, clearSpotlight } from "../spotlight";
@@ -126,9 +127,45 @@ export function performCue(cue = {}, { projectCode = "", onstart, onend, onposit
     // A REFUSAL IS SPOKEN, NEVER SWALLOWED. A cue that performs nothing lets the sequence carry
     // on as though it had, which is how a walk narrates thin air with full confidence.
     if (r.error) return say(cue.body || r.error);
-    window.dispatchEvent(
-      new CustomEvent("sv:driveCommand", { detail: { projectCode, cmd: r.cmd, args: r.args, label: r.label } }),
-    );
+    const drive = (args) =>
+      window.dispatchEvent(
+        new CustomEvent("sv:driveCommand", { detail: { projectCode, cmd: r.cmd, args, label: r.label } }),
+      );
+
+    // A FILE IS RESOLVED BY THE HUB BEFORE IT IS DRIVEN, and this was the one `nav` in the system
+    // that skipped it. Every other route in — the MCP verb, a chip, a reference — goes through
+    // `/sv-resolve` first, which is what expands a `~`, finds which project owns an absolute path,
+    // and marks a path outside every project as a MACHINE address. The cue built its args in the
+    // browser and dispatched them straight at the router, so none of that happened: `~/x` stayed
+    // literal and `machine` was never set, which made the chat ask THIS project's root for a file
+    // whose name began with a tilde. The pane found no host and opened a dead page.
+    //
+    // It is the shape of failure the cue vocabulary was written against — the sequence carries on
+    // narrating a page that never arrived — so an unresolvable file SPEAKS its reason instead of
+    // driving. And the answer is spread whole rather than transcribed field by field: a
+    // hand-copied resolution is how the machine flag got lost at four call sites in one day.
+    if (r.cmd === "nav" && r.args && r.args.file) {
+      let handle = null;
+      let stopped = false;
+      resolveRef(r.args.file, projectCode).then((hit) => {
+        if (stopped) return;
+        if (!hit || !hit.resolved) {
+          handle = say(cue.body || (hit && hit.reason) || `cannot open ${r.args.file}`);
+          return;
+        }
+        drive({ ...r.args, file: hit.path, machine: hit.machine, fileProject: hit.projectCode || undefined });
+        handle = say(cue.body || r.label);
+      });
+      return {
+        stop: () => {
+          stopped = true;
+          if (handle) handle.stop();
+          else finish();
+        },
+      };
+    }
+
+    drive(r.args);
     // THE VIEW ARRIVES BEFORE THE NEXT BEAT POINTS AT IT, and speaking is what buys that. The
     // queue starts the next cue when this one's `onend` fires, so a spoken sentence IS the hold —
     // a route change mounts a pane and renders a document in far less time than the voice takes to
