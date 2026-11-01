@@ -35,6 +35,14 @@ import { briefLine } from "./unseenSubagents";
  * sentence. Commits come second because they are what survives a restart — session memory holds
  * the brief and loses it, git does not.
  *
+ * A PLAN STEP IS NOT AN ANSWER AND IS NOT OFFERED AS ONE. It was the third fallback and it
+ * produced the line that killed this: a lane whose brief had aged out of session memory and which
+ * had committed nothing printed its own step one — *"Read CLAUDE.md, system-context, and…"* — which
+ * is the boilerplate every lane opens with. He read it and asked what it was referring to, a
+ * document, and why a lane would need one. Nothing was referring to anything: a step says WHERE
+ * the lane is, never what it is FOR, and dressing position up as purpose is worse than silence
+ * because silence cannot be believed.
+ *
  * AND IT ADMITS WHEN IT HAS NOTHING. An empty `text` with `from: ""` is the honest state of a lane
  * registered by an agent for its own work before anything is committed, and the row says so
  * instead of repeating the branch name in a second font.
@@ -46,10 +54,7 @@ export function laneWork({ brief = "", commits = [], items = [] } = {}) {
   // it did is the closest git can come to naming the work.
   const subject = (commits || []).map((c) => String((c && c.subject) || "").trim()).find(Boolean);
   if (subject) return { text: clip(subject), from: "commit", says: "the subject of its newest commit" };
-  const step = (items || []).find((t) => t && t.state === "active") || (items || [])[0];
-  const text = step && step.text ? clip(String(step.text)) : "";
-  if (text) return { text, from: "plan", says: "a step off its own plan — nobody said what this lane is for" };
-  return { text: "", from: "", says: "nothing says what this lane is for — no brief, no commit, no plan" };
+  return { text: "", from: "", says: "nothing here says what this lane is for — no brief held, nothing committed" };
 }
 
 const clip = (s, n = 72) => {
@@ -114,18 +119,44 @@ export function laneChanges({ files = null, commits = null, error = "" } = {}) {
 const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 /**
- * WHAT THE FOLD HOLDS, IN ORDER — and the order turns on whether the lane is still running,
- * because the two states are two different questions.
+ * THE ROW IS TWO THINGS AND THEY DO NOT BELONG IN ONE FOLD.
  *
- * Running, he opened it to WATCH: the log leads. Stopped, he opened it to REVIEW: the changes
- * lead. The same four sections either way — a fold whose contents move around is a fold you have
- * to search, and the sections are the same facts whichever question brought him.
+ * THE WHOLE BLOCK IS THE LANE, so neither section is called one. A lane is a BRANCH — what it is
+ * for, what it changed, what it left behind — and it is usually also a SUBAGENT, a conversation
+ * that is still going. Those are the two names, and "the lane" as a section inside the lane was
+ * the wrapper problem again, in words. His instruction: *"you got to separate
+ * the lanes and the chat, and make it so that they expand, so that I don't get cluttered with the
+ * lane information when I want to see the chat, or the chat information when I want to see the
+ * lane."* Two sections, each opening on its own, and neither one costs you the other.
  *
- * `live` is in the list even when there is no log, because `laneFollow` already has a sentence for
- * that case and a section that says why it is empty beats a section that silently is not there.
+ * BOTH START CLOSED, AND NO RULE DECIDES OTHERWISE. The first version opened one of them for him
+ * — the chat while the lane ran, the branch once it closed — on the reasoning that the state
+ * implies the question. It does not, and it slammed a section open under his hand every time he
+ * opened a lane: *"stop automatically expanding any part of the lane when you open it up — now
+ * they open up neatly."* Two closed sections is the whole offer.
+ *
+ * THE CHAT SECTION ONLY EXISTS WHEN THERE IS A CHAT. Not every lane has a subagent in it — a lane
+ * an agent cut for its own work never had one, and a finished subagent's events age out of session
+ * memory — so drawing the section regardless offers a door onto nothing on most rows. I argued the
+ * other way first, that an empty section saying why it is empty beats one that silently is not
+ * there; his answer is the one that holds: *"not all of them have a chat, so unless you're going to
+ * keep the chat record until it's deleted, why should it all say the chat?"* The log is session
+ * memory, not a record we keep — so the section is drawn from whether one is actually held.
+ *
+ * THE BRANCH SECTION IS ALWAYS THERE, because a lane always has one. That is what makes it a lane.
+ */
+export function laneFolds({ chat = false } = {}) {
+  const folds = [{ key: "branch", label: "the branch" }];
+  if (chat) folds.push({ key: "chat", label: "the chat" });
+  return folds;
+}
+
+/**
+ * WHAT THE BRANCH SECTION HOLDS, IN ORDER. The chat is the other section and is never interleaved
+ * with these, which is the whole point of the split.
  */
 export function laneFoldOrder({ finished = false } = {}) {
-  return finished ? ["changes", "live", "brief", "standing"] : ["live", "changes", "brief", "standing"];
+  return finished ? ["changes", "brief", "standing"] : ["brief", "changes", "standing"];
 }
 
 /**

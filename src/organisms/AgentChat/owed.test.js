@@ -413,6 +413,20 @@ describe("the head — and the mark belongs to the KIND, never to the position",
     expect(owedHead(owed([], 0, 11)).segs).toEqual([{ key: "clear", flag: "", text: "nothing owed" }]);
   });
 
+  // THE COLOUR RIDES `flag`, SO THIS IS THE CLAIM THAT PROTECTS IT. The head before this one put
+  // the whole segment inside the flag class — `⚑ 2 approval waiting` as one amber span — and left
+  // only the inventory counts muted; his correction was that colouring the glyph and greying the
+  // words is not that head. The render now paints any segment with a mark, glyph and words
+  // together, which is correct exactly while "has a mark" and "is a press" are the same set. If a
+  // press kind ever ships flagless, it goes grey and reads as inventory — so the set is pinned
+  // here rather than restated as a list of keys in the JSX.
+  it("every press segment carries a mark and every inventory segment does not", () => {
+    const press = owedHead(owed([row("approval"), row("proof"), row("clock"), row("brand-new")], 10)).segs;
+    expect(press.filter((s) => s.flag).map((s) => s.key)).toEqual(["approval", "proof", "clock", "press"]);
+    expect(press.filter((s) => !s.flag).map((s) => s.key)).toEqual(["work"]);
+    expect(owedHead(owed([], 0, 11)).segs.every((s) => !s.flag)).toBe(true);
+  });
+
   it("says nothing at all when it read nothing — a zero over no documents is not a zero", () => {
     expect(owedHead(owed([], 0, 0)).segs).toEqual([]);
     expect(owedHead({}).segs).toEqual([]);

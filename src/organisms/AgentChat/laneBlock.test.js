@@ -1,4 +1,4 @@
-import { laneWork, laneFollow, laneChanges, laneFoldOrder, laneLiveness } from "./laneBlock";
+import { laneWork, laneFollow, laneChanges, laneFolds, laneFoldOrder, laneLiveness } from "./laneBlock";
 
 // WHAT EACH SPEC IS DOING: holding the lane block's head to the thing he asked it for — *"know
 // what the branch is and know what the work is. Not have to guess."* The branch was never the
@@ -33,17 +33,19 @@ describe("laneWork — what the work is, and never a guess about it", () => {
     expect(w).toMatchObject({ text: "build the four things the lane row owes", from: "brief" });
   });
 
-  it("falls back to the plan's active step, and says that is what it is", () => {
+  // A PLAN STEP IS NOT AN ANSWER. This is the line that killed the old version: a lane whose brief
+  // had aged out and which had committed nothing printed its own step one, which on every lane is
+  // the same boilerplate. He read `PLAN Read CLAUDE.md, system-context, and…` on the row and asked
+  // what it was referring to — a document? — because it was referring to nothing.
+  it("will NOT print a plan step — a step says where the lane is, never what it is for", () => {
     const w = laneWork({
-      items: [{ state: "done", text: "read the band" }, { state: "active", text: "write the pure module" }],
+      items: [
+        { state: "active", text: "Read CLAUDE.md, system-context.md, and search the store" },
+        { state: "pending", text: "cut the branch" },
+      ],
     });
-    expect(w.text).toBe("write the pure module");
-    expect(w.from).toBe("plan");
-    expect(w.says).toMatch(/nobody said what this lane is for/);
-  });
-
-  it("takes the first step when nothing is active — a lane that has not started still has a plan", () => {
-    expect(laneWork({ items: [{ state: "pending", text: "cut the branch" }] }).text).toBe("cut the branch");
+    expect(w.text).toBe("");
+    expect(w.from).toBe("");
   });
 
   // AND IT ADMITS WHEN IT HAS NOTHING. Repeating the branch name in a second font would be the
@@ -52,7 +54,7 @@ describe("laneWork — what the work is, and never a guess about it", () => {
     const w = laneWork({});
     expect(w.text).toBe("");
     expect(w.from).toBe("");
-    expect(w.says).toMatch(/no brief, no commit, no plan/);
+    expect(w.says).toMatch(/no brief held, nothing committed/);
   });
 
   it("ignores a brief that is only whitespace, and a commit with an empty subject", () => {
@@ -111,12 +113,53 @@ describe("laneChanges — the changes as a count, because the diff is a thing he
   });
 });
 
-describe("laneFoldOrder — the fold answers the question that brought him", () => {
-  it("leads with the log while the lane is running — he came to watch", () => {
-    expect(laneFoldOrder({ finished: false })[0]).toBe("live");
+describe("the sections — branch information and chat information never clutter each other", () => {
+  // *"You got to separate the lanes and the chat, and make it so that they expand, so that I don't
+  // get cluttered with the lane information when I want to see the chat, or the chat information
+  // when I want to see the lane."*
+  it("is the branch and the chat, in that order, when there is a chat", () => {
+    expect(laneFolds({ chat: true }).map((f) => f.key)).toEqual(["branch", "chat"]);
+  });
+
+  // *"Not all of them have a chat, so unless you're going to keep the chat record until it's
+  // deleted, why should it all say the chat?"* The log is session memory, so a lane with none has
+  // no conversation to offer and the section would be a door onto nothing.
+  it("drops the chat entirely when the lane has none", () => {
+    expect(laneFolds().map((f) => f.key)).toEqual(["branch"]);
+    expect(laneFolds({ chat: false }).map((f) => f.key)).toEqual(["branch"]);
+  });
+
+  // THE BRANCH IS ALWAYS THERE — it is what makes a lane a lane.
+  it("always has the branch, whatever else is true", () => {
+    for (const chat of [true, false]) expect(laneFolds({ chat })[0].key).toBe("branch");
+  });
+
+  // *"Stop automatically expanding any part of the lane when you open it up."* A lane's state is
+  // not a question, and guessing it once slammed a section open under his hand on every open.
+  it("decides NOTHING about what is open — that is his hand, not the lane's state", () => {
+    for (const f of laneFolds({ chat: true })) expect(f.open).toBeUndefined();
+  });
+
+  // THE WHOLE BLOCK IS THE LANE — so the section is the BRANCH. A section called "the lane"
+  // sitting inside a lane is the wrapper problem restated in words.
+  it("names them for what they are, and neither is called the lane", () => {
+    expect(laneFolds({ chat: true }).map((f) => f.label)).toEqual(["the branch", "the chat"]);
+  });
+});
+
+describe("laneFoldOrder — what the BRANCH section holds", () => {
+  // The log is not in here any more. It is the other fold, which is the separation itself: a
+  // section list that still held "live" would put the conversation back inside the branch.
+  it("never holds the log — that is the chat, and the split is the point", () => {
+    for (const finished of [true, false]) {
+      expect(laneFoldOrder({ finished })).not.toContain("live");
+    }
   });
   it("leads with the changes once it has stopped — he came to review", () => {
     expect(laneFoldOrder({ finished: true })[0]).toBe("changes");
+  });
+  it("leads with what it is FOR while it runs — the changes are not final yet", () => {
+    expect(laneFoldOrder({ finished: false })[0]).toBe("brief");
   });
   // A fold whose contents come and go is a fold you have to search. Same sections, both states.
   it("holds the same sections either way", () => {
