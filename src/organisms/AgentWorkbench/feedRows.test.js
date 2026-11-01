@@ -1490,3 +1490,39 @@ describe("the context marks say three different things", () => {
     expect(at(0.95)).toBe("due");
   });
 });
+
+// A FAULT ROW IS NOT A DELIVERY ROW. Every receipt was labelled from the event kind, so an agent
+// reporting that its own markdown block was broken appeared in his log as "document updated" —
+// which is not what happened. His catch, and the sharp half of it: "I don't care about the
+// message it gives to you, I can see that when I expand it." The row is the part that gets read.
+describe("a landed receipt that is a fault", () => {
+  it("carries the fault off the event, so the row can say what it is", () => {
+    const [row] = foldEvents([
+      ev("message.landed", {
+        from: "the window",
+        preview: "Something you wrote is broken — in the systemview-test chat.",
+        doc: {
+          project: "systemview-test",
+          path: ".systemview/chats/systemview-test.main.jsonl",
+          summary: 'a ::commit you wrote points at "deadbee1" and it does not resolve',
+          text: "Something you wrote is broken — in the systemview-test chat.",
+          fault: true,
+        },
+      }),
+    ]);
+    expect(row.kind).toBe("landed-doc");
+    expect(row.fault).toBe(true);
+  });
+
+  it("an ordinary delivery is not a fault, so the label it always had is untouched", () => {
+    const [row] = foldEvents([
+      ev("message.landed", {
+        from: "you",
+        preview: "A document you are a member of was updated.",
+        doc: { project: "systemview-test", path: "RFCs/RFC-071.md", summary: "approved", text: "x" },
+      }),
+    ]);
+    expect(row.kind).toBe("landed-doc");
+    expect(row.fault).toBe(false);
+  });
+});

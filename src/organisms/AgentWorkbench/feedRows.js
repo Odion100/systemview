@@ -980,6 +980,11 @@ export function foldEvents(events) {
           // saying "landed" while the agent is still working would be the surface testifying to a
           // wake the disk cannot show. `held` says what is true: received, waiting for the boundary.
           held: !!(ev.held || ev.doc.held),
+          // A FAULT IS NOT A DELIVERY. Something broke where it was written; nothing arrived and
+          // there is no document to go and read. The row says so rather than borrowing "document
+          // updated" from the event kind, which is the sentence his log was showing for an agent
+          // reporting its own broken block.
+          fault: !!(ev.fault || ev.doc.fault),
           ts: ev.ts,
         });
         return;

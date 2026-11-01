@@ -349,18 +349,32 @@ const LandedDocRow = ({ row }) => {
             arrives mid-turn and pushes it at the turn's end, where it starts its own turn. Saying
             "landed" while the agent is still working would be this surface testifying to a wake
             the harness never made, so ⧖ says what is true: received, waiting for the boundary. */}
-        <span className={`${CLASSNAME}__hook-mark`}>{row.merged ? "⊕" : row.held ? "⧖" : "✉"}</span>
+        {/* A FAULT IS NOT A DELIVERY, AND THE ROW IS WHAT HE READS. Every receipt was labelled
+            "document updated" off the event kind, so an agent reporting that its own block was
+            broken showed up in his log as a document update — which is not what happened. His
+            catch, and the sharp half of it: *"I don't care about the message it gives to you, I
+            can see that when I expand it."* The BODY had already been fixed; the row had not, and
+            the row is the part read without expanding anything. ⚠ rather than ✉: nothing arrived,
+            something broke. */}
+        <span className={`${CLASSNAME}__hook-mark`}>
+          {row.fault ? "⚠" : row.merged ? "⊕" : row.held ? "⧖" : "✉"}
+        </span>
         <span className={`${CLASSNAME}__hook-name`}>
-          {row.merged
-            ? `${row.thread ? `thread ${row.thread}` : "this document"} folded into a delivery you had not read`
-            : row.held
-              ? `${row.thread ? `thread ${row.thread}` : "document"} update held — wakes when this turn ends`
-              : row.thread
-                ? `thread ${row.thread} moved`
-                : "document updated"}
+          {row.fault
+            ? "something written here is broken"
+            : row.merged
+              ? `${row.thread ? `thread ${row.thread}` : "this document"} folded into a delivery you had not read`
+              : row.held
+                ? `${row.thread ? `thread ${row.thread}` : "document"} update held — wakes when this turn ends`
+                : row.thread
+                  ? `thread ${row.thread} moved`
+                  : "document updated"}
         </span>
         <span className={`${CLASSNAME}__hook-on`}>
-          {file}
+          {/* NOT THE FILE, for a fault. The path on one of these is the room's command log, which
+              is not where the broken thing is and not worth opening — naming it sends him at the
+              wrong artifact, which is the same mistake the message body made first. */}
+          {row.fault ? (row.project ? `in the ${row.project} chat` : "in this chat") : file}
           {row.from ? ` · by ${row.from}` : ""}
         </span>
         <span className={`${CLASSNAME}__cmd-sign`}>{open ? "▾" : "▸"}</span>
