@@ -155,26 +155,65 @@
     color: var(--sv-text-muted);
   }
 }
+// A SEGMENT IS A LABEL UNTIL IT HAS SOMETHING BEHIND IT, and then it is a button — and the two
+// have to be the same shape. The only difference at rest is the cursor: `:where(button)` strips
+// the UA's font, padding, border and background back to nothing, and every rule here is a single
+// class that beats that reset on source order, so a seg that became a button keeps its own colour.
+//
+// THE MODIFIER IS THE POSTURE, NEVER THE OBLIGATION. `owedHead` now breaks the head out by what
+// the work IS — approvals, proofs, clocks, objectives of his, blocked ones, ones with no plan,
+// drafts nothing can decide, claim sets resting on nothing — and it will break out more. A rule
+// per key would mean a new kind of obligation arriving in a colour nobody chose; three postures
+// is the whole axis, and it is the same axis the tide below is drawn on.
+//
+// `--say` IS THE SEGMENT'S COLOUR, NAMED ONCE: the text colour at rest and the FILL when held. A
+// held segment has to keep its own colour, or the thing it is telling you — WHICH segment
+// narrowed the surface — is the thing it loses.
 .dbb-say {
   display: inline-flex;
   align-items: baseline;
   gap: 7px;
+  --say: var(--sv-text-strong);
+  color: var(--say);
   &__mark {
     font-weight: 400;
   }
   &--press {
-    color: var(--dbb-press);
+    --say: var(--dbb-press);
   }
   &--work {
-    color: var(--dbb-work);
+    --say: var(--dbb-work);
   }
   &--clear {
-    color: var(--dbb-clear);
+    --say: var(--dbb-clear);
   }
   // A ZERO WE DID NOT MEASURE IS NOT A ZERO, and it must not wear the colour of good news.
   &--unmeasured {
-    color: var(--sv-text-muted);
+    --say: var(--sv-text-muted);
     font-weight: 500;
+  }
+
+  // ── A FILTER YOU CANNOT SEE IS ON ────────────────────────────────────────────────────────────
+  // A surface-wide narrowing that does not announce itself means reading a part of the world as
+  // the whole of it — the exact failure this page exists to stop, wearing a different hat. So the
+  // held segment goes FILLED: not a tint, not an outline, a solid block of its own colour that
+  // cannot be mistaken for text.
+  //
+  // THE NEGATIVE MARGIN IS NOT DECORATION. Without it the pill's padding shoves every segment
+  // after it sideways on the press, and a head that reflows as you filter is a head you have to
+  // re-read. The padding is paid for out of the row's own 18px gap, so nothing moves.
+  &.is-able:hover:not(.is-on) {
+    background: var(--sv-hover);
+    border-radius: 999px;
+    padding: 2px 10px;
+    margin: -2px -10px;
+  }
+  &.is-on {
+    padding: 2px 10px;
+    margin: -2px -10px;
+    border-radius: 999px;
+    background: var(--say);
+    color: var(--sv-surface);
   }
 }
 
