@@ -170,3 +170,41 @@ describe("the + door", () => {
     expect(submit).toHaveBeenCalledWith("~/.autobot/presence.md");
   });
 });
+
+// THE TWO DOORS STAND OUTSIDE THE SCROLLER, and that is a structural claim rather than a
+// cosmetic one: inside it, a door can only pretend to hold still — it needs `position: sticky`,
+// a pin releases at its own scroll offset, and two doors pinned to one edge slide against each
+// other while the + paints through them. jsdom lays nothing out, so the only thing worth
+// asserting is the one thing that caused it: whose child each button is.
+describe("the doors onto centre tabs", () => {
+  it("are the strip's tail, not items in the scrolling row", () => {
+    const pc = freshPc();
+    seed(pc, ["src/a.js"]);
+    const { container } = mount(pc);
+    const doors = container.querySelector(".doc-tabs__doors");
+    expect(doors).not.toBeNull();
+    // A direct child of the strip — a sibling of the scroll area, never inside it.
+    expect(doors.parentElement.className).toContain("doc-tabs");
+    expect(doors.parentElement.className).not.toContain("doc-tabs__scroll");
+    expect(container.querySelectorAll(".doc-tabs__scroll .doc-tabs__how")).toHaveLength(0);
+    // Both of them, in the order they read: help first, then the dashboard.
+    const glyphs = [...doors.querySelectorAll(".doc-tabs__how")];
+    expect(glyphs).toHaveLength(2);
+    expect(glyphs[1].className).toContain("doc-tabs__dash");
+  });
+
+  it("each opens its own centre kind, offering it to the host first", () => {
+    const pc = freshPc();
+    const heard = [];
+    const listen = (e) => heard.push(e.detail.kind);
+    window.addEventListener("sv:openCenterKind", listen);
+    const onOpen = jest.fn();
+    mount(pc, { onOpen });
+    fireEvent.click(screen.getByTitle(/How we work/));
+    fireEvent.click(screen.getByTitle(/^Dashboard/));
+    window.removeEventListener("sv:openCenterKind", listen);
+    expect(heard).toEqual(["how", "dash"]);
+    // Nobody claimed it, so this strip's host opened both itself.
+    expect(onOpen.mock.calls.map((c) => c[0].kind)).toEqual(["how", "dash"]);
+  });
+});

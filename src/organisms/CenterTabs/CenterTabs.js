@@ -181,22 +181,30 @@ export default function CenterTabs({ tabsPc, tabs = [], isActive, onOpen, afterC
               +
             </button>
           )}
-          {/* HOW THIS WORKS — 🧭, IN THE STRIP, because the page it opens IS a tab. It began as the
-              empty-strip floor, so the only way to read it was to close every document: *"I'm not
-              going to close all my documents to have the tab strip empty to get to it."* My first
-              door put it above the chat, which is the wrong surface — a button that opens a centre
-              tab belongs on the centre tab strip, beside the one other door that opens one.
-              PROVISIONAL, and he said so: *"just put something there for now and we'll figure out
-              what to actually put there."* */}
+        </div>
+        {/* THE TWO DOORS ONTO CENTRE TABS — HELP AND THE DASHBOARD — OUTSIDE THE SCROLLER.
+            Both open a centre tab, so they belong on the centre tab strip; the only other way in
+            would be closing every document or typing a URL. *"I'm not going to close all my
+            documents to have the tab strip empty to get to it."*
+
+            THEY ARE REAL SIBLINGS OF THE SCROLL AREA, NOT ITEMS INSIDE IT. A door that lives among
+            the tabs can only fake standing still — `position: sticky` pins it to the scrollport
+            edge, and a pin releases at its own scroll offset, so two doors stuck to the same edge
+            slide against each other as the tabs move and a third (the +) paints straight through
+            them. Measured on his window: the + and the help door both ended at x=1672, one on top
+            of the other, while the dashboard sat 26px left of its own DOM order. Out here there is
+            nothing to pin: the group is the strip's tail, fixed beside the chat, and the tabs
+            scroll underneath where they belong.
+
+            SAME OFFER-FIRST CONTRACT ON BOTH. A page that hosts the kind itself claims the event
+            (the Agents page does); silence means this strip's own host has to open it. Opening
+            without the offer would navigate him off a page that could have shown it. */}
+        <div className="doc-tabs__doors">
           <button
             type="button"
             className="doc-tabs__how"
             title="How we work — the flow, every kind's lifecycle, and where to start"
             onClick={() => {
-              // OFFER FIRST, THEN OPEN IT HERE. A page that hosts the kind itself claims the event
-              // (the Agents page does); silence means this strip's own host has to open it, which
-              // is the Code page. Opening without the offer would navigate him off a page that
-              // could have shown it — the complaint that produced the offer/handled contract.
               const d = { kind: "how", projectCode: tabsPc };
               window.dispatchEvent(new CustomEvent("sv:openCenterKind", { detail: d }));
               if (d.handled) return;
@@ -205,18 +213,11 @@ export default function CenterTabs({ tabsPc, tabs = [], isActive, onOpen, afterC
               if (onOpen) onOpen(t);
             }}
           >
-            {/* ✸ — HOW-WE-WORK IS HELP, so it wears a help glyph rather than a compass. His
-                read, and it is right: this page explains how the system works; the compass says
-                "find your way around", which is what a dashboard does. The compass moved there.
-                The original 🧭 was provisional and he said so when it went in — *"just put
-                something there for now and we'll figure out what to actually put there."* */}
+            {/* ❈ — HOW-WE-WORK IS HELP, so it wears a help glyph rather than a compass. His read,
+                and it is right: this page explains how the system works; the compass says "find
+                your way around", which is what a dashboard does. */}
             {"\u2749"}
           </button>
-          {/* THE DASHBOARD — the compass, beside it, for the same reason the compass is here: the
-              page it opens IS a centre tab, and the only other way in would be closing everything
-              or typing a URL. Same offer-first contract — a host that draws the kind itself claims
-              the event, and silence means this strip's host opens it — so pressing it never
-              navigates him off a page that could have shown it. */}
           <button
             type="button"
             className="doc-tabs__how doc-tabs__dash"

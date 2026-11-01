@@ -448,22 +448,34 @@
 }
 
 // RFC-069 §4.4 — the open-by-path door on the strip. An ADDRESS, never a picker.
-// THE 🧭 DOOR, beside the +. Same shape as the + and deliberately NOT the same class: a suite
+// THE DOORS ONTO CENTRE TABS — THE STRIP'S TAIL, OUTSIDE THE SCROLLER. A direct child of
+// `.doc-tabs`, so it holds its place beside the chat whatever the tabs do; nothing here is sticky
+// because there is nothing to stick to. They are deliberately NOT `.doc-tabs__plus`: a suite
 // asserts the strip has no `.doc-tabs__plus` when the host supplies no + door, and sharing the
-// class made that test find this button instead. Two buttons, two names.
+// class made that test find these buttons instead.
+.doc-tabs__doors {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 2px 0 6px;
+  position: relative;
+  z-index: 2; // above the rail and above anything the scroller pins at its own edge
+}
+// BIG ENOUGH TO AIM AT — his instruction, and it is two glyphs doing the job of a toolbar. They
+// are larger than the + on purpose: the + is a modifier on the tab row, these are destinations.
 .doc-tabs__how {
   flex: none;
   border: none;
-  position: sticky;
-  right: 0;
-  background: var(--sv-bg, #fff);
+  background: transparent;
   color: var(--sv-text-faint);
-  font-size: 13px;
+  font-size: 17px;
   line-height: 1;
-  padding: 2px 6px;
+  padding: 2px 5px;
+  border-radius: 4px;
   cursor: pointer;
   opacity: .75;
-  &:hover { opacity: 1; }
+  &:hover { opacity: 1; background: var(--sv-hover, rgba(0, 0, 0, 0.05)); }
 }
 .doc-tabs__plus {
   flex: none;
@@ -579,6 +591,5 @@
     }
   }
 }
-// THE DASHBOARD DOOR sits beside the compass and wears its shape — two doors onto centre tabs,
-// side by side, rather than one door and one surprise somewhere else.
-.doc-tabs__dash { right: 26px; }
+// THE DASHBOARD DOOR sits beside help and wears its shape — two doors onto centre tabs, side by
+// side in DOM order, rather than one door and one surprise somewhere else.
