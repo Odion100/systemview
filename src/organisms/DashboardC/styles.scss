@@ -143,6 +143,21 @@
   color: var(--sv-text-strong);
 
   > b { font-weight: 700; font-size: 13px; }
+
+  // A SEGMENT WITH ITEMS BEHIND IT IS A BUTTON and has to look like one before it is pressed —
+  // these already READ as pressable, which is how he found them; what was missing was the
+  // behaviour, so the only new costume is the hover and the held state.
+  &:is(button) {
+    cursor: pointer;
+    font-family: inherit;
+    &:hover { filter: brightness(1.18); }
+  }
+  // HELD. The border thickens rather than the fill inverting: an inverted pill at this size loses
+  // the colour that says WHICH count it is, which is the only thing distinguishing them.
+  &.is-on {
+    box-shadow: inset 0 0 0 1px currentColor;
+    background: var(--sv-hover);
+  }
   &.is-approval,
   &.is-proof,
   &.is-press { border-color: var(--dbc-stop); color: var(--dbc-stop); background: transparent; }

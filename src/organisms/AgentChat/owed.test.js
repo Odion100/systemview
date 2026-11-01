@@ -364,16 +364,26 @@ describe("the head — and the mark belongs to the KIND, never to the position",
   // arc's blocked objective was given ⊘ instead because sharing one mark made the row unreadable.
   // The head then drew ⚑ on whichever press segment came first, which put the approval flag in
   // front of a report's clock. These claims pin the mark to the thing.
-  const row = (why, n) => ({ why, ...(n ? { n } : {}) });
-  const owed = (press, work = 0, counted = 5) => ({ press, work: new Array(work).fill({}), counted, skipped: {} });
+  // THE ROWS CARRY KEYS because the head now carries them back: a segment names the items it
+  // counted so a surface can show exactly those, and a fixture with no keys could not catch a
+  // segment that counted one set and listed another.
+  const row = (why, n, key) => ({ why, key: key || why, ...(n ? { n } : {}) });
+  const owed = (press, work = 0, counted = 5) => ({
+    press,
+    work: Array.from({ length: work }, (_, i) => ({ key: `w${i}` })),
+    counted,
+    skipped: {},
+  });
 
   it("an approval carries ⚑ and a clock carries ⧗, whichever comes first", () => {
-    expect(owedHead(owed([row("clock")])).segs).toEqual([{ key: "clock", flag: "⧗", text: "1 expiring" }]);
-    expect(owedHead(owed([row("approval")])).segs).toEqual([{ key: "approval", flag: "⚑", text: "1 approval waiting" }]);
+    expect(owedHead(owed([row("clock")])).segs).toEqual([{ key: "clock", flag: "⧗", text: "1 expiring", keys: ["clock"] }]);
+    expect(owedHead(owed([row("approval")])).segs).toEqual([
+      { key: "approval", flag: "⚑", text: "1 approval waiting", keys: ["approval"] },
+    ]);
     // together, and the flag does NOT ride position: the clock keeps ⧗ even standing second
     expect(owedHead(owed([row("clock"), row("approval", 5)])).segs).toEqual([
-      { key: "approval", flag: "⚑", text: "5 approvals waiting" },
-      { key: "clock", flag: "⧗", text: "1 expiring" },
+      { key: "approval", flag: "⚑", text: "5 approvals waiting", keys: ["approval"] },
+      { key: "clock", flag: "⧗", text: "1 expiring", keys: ["clock"] },
     ]);
   });
 
@@ -385,7 +395,7 @@ describe("the head — and the mark belongs to the KIND, never to the position",
   it("a gap's waiting proof is a decision too, so it carries ⚑", () => {
     // Its press IS a verdict — the fix is already evidenced in the file and `resolved` is one
     // press away. The band drew ⚑ on that row before the head ever existed.
-    expect(owedHead(owed([row("proof")])).segs).toEqual([{ key: "proof", flag: "⚑", text: "1 proof to sign" }]);
+    expect(owedHead(owed([row("proof")])).segs).toEqual([{ key: "proof", flag: "⚑", text: "1 proof to sign", keys: ["proof"] }]);
   });
 
   it("counts DECISIONS, not rows — two unsigned approvals in one document is two", () => {
@@ -394,13 +404,15 @@ describe("the head — and the mark belongs to the KIND, never to the position",
 
   it("the outstanding half keeps one word and carries no mark", () => {
     // A mark over work would be the band promising a control that does not exist.
-    expect(owedHead(owed([], 10)).segs).toEqual([{ key: "work", flag: "", text: "10 outstanding" }]);
+    expect(owedHead(owed([], 10)).segs).toEqual([
+      { key: "work", flag: "", text: "10 outstanding", keys: ["w0", "w1", "w2", "w3", "w4", "w5", "w6", "w7", "w8", "w9"] },
+    ]);
   });
 
   it("a press kind with no word still counts, under ⚑ — an undercount reads as RESOLVED", () => {
     expect(owedHead(owed([row("something-new"), row("approval")])).segs).toEqual([
-      { key: "approval", flag: "⚑", text: "1 approval waiting" },
-      { key: "press", flag: "⚑", text: "1 to press" },
+      { key: "approval", flag: "⚑", text: "1 approval waiting", keys: ["approval"] },
+      { key: "press", flag: "⚑", text: "1 to press", keys: ["something-new"] },
     ]);
     // and a `why` that collides with Object.prototype must not be CALLED as a word
     expect(() => owedHead(owed([row("constructor")]))).not.toThrow();
@@ -410,7 +422,7 @@ describe("the head — and the mark belongs to the KIND, never to the position",
   // THE ZERO IS THE ANSWER HE HAS NEVER BEEN ABLE TO GET, so it is said out loud. A blank head
   // would read as "not measured", which is the thing this surface exists to stop.
   it("says nothing owed out loud when it really read something", () => {
-    expect(owedHead(owed([], 0, 11)).segs).toEqual([{ key: "clear", flag: "", text: "nothing owed" }]);
+    expect(owedHead(owed([], 0, 11)).segs).toEqual([{ key: "clear", flag: "", text: "nothing owed", keys: [] }]);
   });
 
   // THE COLOUR RIDES `flag`, SO THIS IS THE CLAIM THAT PROTECTS IT. The head before this one put
@@ -501,5 +513,34 @@ describe("groupOwed — the document is the row", () => {
   it("survives nothing, and ignores holes in the list", () => {
     expect(groupOwed()).toEqual([]);
     expect(groupOwed([null, undefined])).toEqual([]);
+  });
+});
+
+// A COUNT HE CAN PRESS HAS TO SHOW THE THINGS IT COUNTED. *"Waiting, expiring, outstanding —
+// those look like you should be able to click them."* The segment carries its own items rather
+// than a surface re-deriving them from `why`, because two filters written in two places agree
+// until one of them is edited and then the number and the list quietly disagree forever.
+describe("a head segment names the items behind it", () => {
+  const press = [
+    { why: "approval", key: "RFC-1:approval", n: 2 },
+    { why: "approval", key: "RFC-2:approval" },
+    { why: "clock", key: "rep:clock" },
+  ];
+  const work = [{ key: "ARC-1:mine:O1" }, { key: "ARC-1:blocked:O2" }];
+
+  it("hands back exactly the keys its number was computed from", () => {
+    const { segs } = owedHead({ press, work, counted: 9, skipped: {} });
+    const by = Object.fromEntries(segs.map((s) => [s.key, s]));
+    // three decisions across two documents — the count is decisions, the keys are rows
+    expect(by.approval.text).toBe("3 approvals waiting");
+    expect(by.approval.keys).toEqual(["RFC-1:approval", "RFC-2:approval"]);
+    expect(by.clock.keys).toEqual(["rep:clock"]);
+    expect(by.work.keys).toEqual(["ARC-1:mine:O1", "ARC-1:blocked:O2"]);
+  });
+
+  it("every key a segment names is really in the list it came from", () => {
+    const { segs } = owedHead({ press, work, counted: 9, skipped: {} });
+    const all = new Set([...press, ...work].map((x) => x.key));
+    for (const s of segs) for (const k of s.keys) expect(all.has(k)).toBe(true);
   });
 });

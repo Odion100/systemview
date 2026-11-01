@@ -350,19 +350,26 @@ export function owedHead(owed = {}) {
   const work = (owed.work || []).length;
   const unread = (owed.skipped || {}).unreadable || 0;
   const segs = [];
+  // EVERY SEGMENT CARRIES THE ITEMS IT COUNTED. A surface that lets him press "4 approvals
+  // waiting" to see those four must show the same four the number came from — and the only way
+  // to guarantee that is for the number and the list to be the same array, rather than two
+  // filters written in two places that agree until one of them is edited.
   for (const why of PRESS_ORDER) {
     const mine = press.filter((p) => p.why === why);
-    if (mine.length) segs.push({ key: why, flag: PRESS[why].mark, text: PRESS[why].word(decisions(mine)) });
+    if (mine.length)
+      segs.push({ key: why, flag: PRESS[why].mark, text: PRESS[why].word(decisions(mine)), keys: mine.map((p) => p.key) });
   }
   // A PRESS KIND THIS FILE HAS NOT MET YET STILL COUNTS, under the old bucket word and under ⚑ —
   // it is in the press group, so it ends at something he does. A new `why` must not vanish out of
   // the head because nobody added a word for it: an undercount reads as RESOLVED, which is the one
   // thing this number may never say. Membership is tested against PRESS_ORDER rather than
   // `PRESS[why]`, or a `why` of "constructor" would find Object.prototype and be called.
-  const unnamed = decisions(press.filter((p) => !PRESS_ORDER.includes(p.why)));
-  if (unnamed) segs.push({ key: "press", flag: "⚑", text: `${unnamed} to press` });
-  if (work) segs.push({ key: "work", flag: "", text: `${work} outstanding` });
-  if (!segs.length && owed.counted) segs.push({ key: "clear", flag: "", text: "nothing owed" });
+  const rest = press.filter((p) => !PRESS_ORDER.includes(p.why));
+  const unnamed = decisions(rest);
+  if (unnamed) segs.push({ key: "press", flag: "⚑", text: `${unnamed} to press`, keys: rest.map((p) => p.key) });
+  if (work) segs.push({ key: "work", flag: "", text: `${work} outstanding`, keys: (owed.work || []).map((w) => w.key) });
+  // Nothing owed is not a filter — there is nothing behind it to show.
+  if (!segs.length && owed.counted) segs.push({ key: "clear", flag: "", text: "nothing owed", keys: [] });
   return { segs, unread };
 }
 

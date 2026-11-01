@@ -11,6 +11,23 @@ import ServiceContext from "../../ServiceContext";
 // REAL DATA FROM DAY ONE — there are no fixtures inside the component, which is exactly why the
 // service has to be handed in from out here for the test to have anything to show.
 
+// THE FILES ARE THE SHELL'S, so they are the one thing stubbed — `mock`-prefixed because
+// babel-plugin-jest-hoist lifts the factory above every declaration and refuses any other name.
+// Empty by default, which is the honest jsdom case: every readFile fails and the page says so.
+var mockFiles = null;
+jest.mock("../../utils/hostFiles", () => ({
+  hostFiles: () => ({
+    readFile: async ({ path }) => {
+      if (!mockFiles || !(path in mockFiles)) throw new Error("no hub in jsdom");
+      return { path, content: mockFiles[path] };
+    },
+  }),
+}));
+
+beforeEach(() => {
+  mockFiles = null;
+});
+
 const mount = (service) =>
   render(
     <ServiceContext.Provider value={{ SystemViewService: service }}>
@@ -83,14 +100,17 @@ describe("the dashboard over a registry it cannot read the files of", () => {
     window.removeEventListener("sv:openFileInNav", spy);
     expect(seen.length).toBe(1);
     expect(seen[0]).toMatchObject({ projectCode: "alpha", path: "RFCs/arcs/ARC-9-b.md", language: "markdown" });
-    // AND THE STRUCTURAL HALF OF THE SAME CLAIM: every button on this page is one of four things —
-    // a stack face, a card, a dot on the current, or an owed row. There is no fifth control, so
-    // there is nothing here that can sign, resolve, retire or divert anything.
+    // AND THE STRUCTURAL HALF OF THE SAME CLAIM: every button on this page either OPENS a
+    // document — a stack face, a card, a dot, an owed row — or changes what is SHOWN, which is
+    // the head's counts and nothing else. Both are safe; what the page may never grow is a
+    // control that signs, resolves, retires or diverts anything, because those live in the
+    // document where the facilitation ladder is.
     const strays = [...document.querySelectorAll(".dbc button")].filter(
       (b) =>
         !b.classList.contains("dbc-stack__face") &&
         !b.classList.contains("dbc-card") &&
         !b.classList.contains("dbc-dot") &&
+        !b.classList.contains("dbc-seg") &&
         !b.classList.contains("dbc-owed"),
     );
     expect(strays).toEqual([]);
@@ -133,5 +153,70 @@ describe("where everything stands — the section says what it means", () => {
     const empty = stations.filter((s) => s.querySelector(".dbc-stn__n").textContent === "0");
     expect(empty.length).toBeGreaterThan(0);
     for (const st of empty) expect(st.classList.contains("has-mass")).toBe(false);
+  });
+});
+
+
+// THE COUNTS ARE DOORS. *"Waiting, expiring, outstanding — those look like you should be able to
+// click them."* Pressing one must show exactly the rows its number was computed from, and
+// pressing it again must give everything back — a filter you cannot get out of is a trap.
+describe("pressing a count shows what it counted", () => {
+  const RFC = (id, ask) =>
+    [`# ${id}`, "", `::rfc{id=${id}}`, "", `:::approval{ask="${ask}"}`, "sign it", ":::"].join("\n");
+
+  const service = {
+    Agent: {
+      documentsRegistry: async () => [
+        ROW({ id: "RFC-001", path: "a.md", state: { verdict: "approved", parsed: 1 } }),
+        ROW({ id: "ARC-9", kind: "arc", path: "b.md", state: { verdict: "approved", parsed: 1 } }),
+      ],
+    },
+    SystemView: { projectRoots: async () => ({ alpha: "/a" }) },
+  };
+
+  const setFiles = () => {
+    mockFiles = {
+      "a.md": RFC("RFC-001", "ship the read path?"),
+      "b.md": [
+        "# ARC-9",
+        "",
+        "::arc{id=ARC-9}",
+        "",
+        ':::objective{id=O1 owner=you state=open}',
+        "mine to do",
+        ":::",
+        "",
+        ':::approval{ask="approve the arc?"}',
+        "sign it",
+        ":::",
+      ].join("\n"),
+    };
+  };
+
+  it("filters the owed lists to the segment's own items, and lets go when pressed again", async () => {
+    setFiles();
+    mount(service);
+    const waiting = await screen.findByRole("button", { name: /approvals waiting/ });
+    // Everything is on screen before anything is pressed: both presses and the outstanding row.
+    expect(screen.getByText("ship the read path?")).toBeVisible();
+    expect(screen.getByText(/yours, and open/)).toBeVisible();
+
+    fireEvent.click(waiting);
+    expect(waiting).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText("ship the read path?")).toBeVisible();
+    // The outstanding column is not merely empty — it says the filter is why.
+    expect(screen.queryByText(/yours, and open/)).not.toBeInTheDocument();
+    expect(screen.getByText(/none of these are in what you pressed/)).toBeVisible();
+
+    fireEvent.click(waiting);
+    expect(waiting).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByText(/yours, and open/)).toBeVisible();
+  });
+
+  it("a count with nothing behind it is a label, not a button that filters to nothing", async () => {
+    mount({ Agent: { documentsRegistry: async () => [] }, SystemView: { projectRoots: async () => ({ alpha: "/a" }) } });
+    await waitFor(() => expect(screen.getByText(/cold registry/)).toBeVisible());
+    const segs = [...document.querySelectorAll(".dbc-seg")];
+    for (const seg of segs) if (/nothing owed/.test(seg.textContent)) expect(seg.tagName).toBe("SPAN");
   });
 });

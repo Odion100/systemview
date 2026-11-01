@@ -311,11 +311,22 @@ export default function DashboardC() {
 
   const data = useMemo(() => shelvesFrom({ docs, roots, now: Date.now() }), [docs, roots, at]); // eslint-disable-line react-hooks/exhaustive-deps
   const tracks = useMemo(() => currentFrom(data.shelves), [data]);
-
   // WHICH STACKS ARE FANNED — the page's only state, and it is per project-and-kind so opening the
   // RFCs on one project leaves every other shelf exactly as it was. Nothing is open by default: a
   // page that opens every stack is the table this is not.
   const [fanned, setFanned] = useState({});
+  // WHICH COUNT HE PRESSED, or "" for everything. A view, not a fact — nothing here changes
+  // what is owed, so this is the one piece of page state that no document can disagree with.
+  const [only, setOnly] = useState("");
+
+  // THE FILTER IS MEMBERSHIP IN THE SEGMENT'S OWN LIST — never a second predicate. A `why ===`
+  // test written here would agree with the head today and drift the first time either side
+  // learns a new kind of obligation.
+  const chosen = data.head.segs.find((s) => s.key === only);
+  const keep = chosen ? new Set(chosen.keys) : null;
+  const shownPress = keep ? data.owed.press.filter((p) => keep.has(p.key)) : data.owed.press;
+  const shownWork = keep ? data.owed.work.filter((p) => keep.has(p.key)) : data.owed.work;
+
   const toggle = (key) => setFanned((f) => ({ ...f, [key]: !f[key] }));
 
   // THE ONE OPENER (openRef.js): *"every surface that opens a file address calls THIS, and nothing
@@ -349,13 +360,36 @@ export default function DashboardC() {
             {data.documents === 1 ? "document" : "documents"} · {data.counted} read
           </span>
         </div>
+        {/* THE COUNTS ARE DOORS. *"Waiting, expiring, outstanding — those look like you should be
+            able to click them."* They did not look pressable by accident: they were the only
+            numbers on the page with nothing behind them, so reading "4 approvals waiting" left
+            him to go and find which four.
+
+            THE SEGMENT CARRIES THE ITEMS IT COUNTED (`owedHead`), so pressing one shows exactly
+            the rows the number came from — the list cannot drift from the count, because they
+            are the same array. A segment with nothing behind it (nothing owed) stays a label:
+            a control that filters to the empty set is a control that lies about having one. */}
         <div className="dbc-head__segs">
-          {data.head.segs.map((s) => (
-            <span key={s.key} className={`dbc-seg is-${s.key}`}>
-              {s.flag ? <b>{s.flag}</b> : null}
-              {s.text}
-            </span>
-          ))}
+          {data.head.segs.map((s) =>
+            s.keys && s.keys.length ? (
+              <button
+                type="button"
+                key={s.key}
+                className={`dbc-seg is-${s.key}${only === s.key ? " is-on" : ""}`}
+                aria-pressed={only === s.key}
+                title={only === s.key ? "showing only these — press to show everything" : `show only ${s.text}`}
+                onClick={() => setOnly((o) => (o === s.key ? "" : s.key))}
+              >
+                {s.flag ? <b>{s.flag}</b> : null}
+                {s.text}
+              </button>
+            ) : (
+              <span key={s.key} className={`dbc-seg is-${s.key}`}>
+                {s.flag ? <b>{s.flag}</b> : null}
+                {s.text}
+              </span>
+            ),
+          )}
           {data.head.unread ? <span className="dbc-seg is-unread">{data.head.unread} unread</span> : null}
         </div>
         {/* A SURFACE THAT SILENTLY OMITS IS THE FAILURE THIS SYSTEM EXISTS TO STOP, so what was
@@ -372,18 +406,20 @@ export default function DashboardC() {
             <h2>
               <b>⚑</b> press — your signature finishes it
             </h2>
-            {data.owed.press.length ? (
-              data.owed.press.map((p) => <Owed key={p.key} item={p} open={open} />)
+            {shownPress.length ? (
+              shownPress.map((p) => <Owed key={p.key} item={p} open={open} />)
             ) : (
-              <p className="dbc-owes__none">nothing waiting on a verdict of yours</p>
+              <p className="dbc-owes__none">
+                {only ? "none of these are in what you pressed" : "nothing waiting on a verdict of yours"}
+              </p>
             )}
           </div>
           <div className="dbc-owes__col">
             <h2>outstanding — nobody can press it away</h2>
-            {data.owed.work.length ? (
-              data.owed.work.map((p) => <Owed key={p.key} item={p} open={open} />)
+            {shownWork.length ? (
+              shownWork.map((p) => <Owed key={p.key} item={p} open={open} />)
             ) : (
-              <p className="dbc-owes__none">nothing outstanding</p>
+              <p className="dbc-owes__none">{only ? "none of these are in what you pressed" : "nothing outstanding"}</p>
             )}
           </div>
         </section>
