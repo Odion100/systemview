@@ -719,3 +719,38 @@ $dbc-foot: 30px;
   color: var(--sv-text-faint);
   max-width: 86ch;
 }
+
+// ─── ONE CARD PER DOCUMENT, and the rest of its obligations under it ───────────────────────────
+// An arc with four obligations was four cards in a column of nine, so the column read as nine
+// places to go when it was four.
+.dbc-owed__n {
+  display: block;
+  margin-top: 4px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--sv-text-faint);
+}
+.dbc-owed__g.is-open > .dbc-owed { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.dbc-owed__items {
+  display: flex;
+  flex-direction: column;
+  margin: 0 0 8px 14px;
+  border-left: 2px solid var(--sv-border-soft);
+}
+.dbc-owed__item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+  width: 100%;
+  padding: 6px 10px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  &:hover { background: var(--sv-hover); }
+  > i { font-style: normal; font-size: 9.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--sv-text-faint); }
+  > span { font-size: 12px; color: var(--sv-text); }
+  > em { font-style: normal; font-size: 10.5px; color: var(--sv-text-faint); }
+}

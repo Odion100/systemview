@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
 import "./styles.scss";
 import ServiceContext from "../../ServiceContext";
 import RetainClock from "../AgentChat/RetainClock";
+import { groupOwed } from "../AgentChat/owed";
 import { openAddress } from "../../atoms/Markdown/openRef";
 import { hostFiles } from "../../utils/hostFiles";
 import { KINDS, KIND_PLURAL, KIND_WORD, currentFrom, shelvesFrom } from "./dashboardC.data";
@@ -202,18 +203,45 @@ const Track = ({ track, open }) => (
   </div>
 );
 
-/** One owed row — a sentence somebody wrote about a specific document, and a door to it. */
-const Owed = ({ item, open }) => (
-  <button type="button" className={`dbc-owed dbc-owed--${item.kind} is-${item.why}`} onClick={() => open(item)}>
-    <span className="dbc-owed__who">
-      {item.project ? <em>{item.project}</em> : null}
-      <b>{item.id}</b>
-      <i>{item.why}</i>
-    </span>
-    <span className="dbc-owed__says">{item.says}</span>
-    {item.tail ? <span className="dbc-owed__tail">{item.tail}</span> : null}
-  </button>
-);
+/**
+ * ONE OWED CARD PER DOCUMENT — a sentence somebody wrote about it, and a door to it.
+ *
+ * An arc with four obligations was four cards in a column of nine, so the column read as nine
+ * places to go when it was four. The card carries the strongest one and opens into the rest.
+ */
+const Owed = ({ item, open, shown, onToggle }) => {
+  const one = !item.n || item.n === 1;
+  return (
+    <div className={`dbc-owed__g${shown ? " is-open" : ""}`}>
+      <button
+        type="button"
+        className={`dbc-owed dbc-owed--${item.kind} is-${item.why}`}
+        aria-expanded={one ? undefined : shown}
+        onClick={() => (one ? open(item) : onToggle())}
+      >
+        <span className="dbc-owed__who">
+          {item.project ? <em>{item.project}</em> : null}
+          <b>{item.id}</b>
+          <i>{item.why}</i>
+        </span>
+        <span className="dbc-owed__says">{item.says}</span>
+        {item.tail ? <span className="dbc-owed__tail">{item.tail}</span> : null}
+        {one ? null : <span className="dbc-owed__n">and {item.n - 1} more on this document ⌄</span>}
+      </button>
+      {one || !shown ? null : (
+        <div className="dbc-owed__items">
+          {item.items.map((o) => (
+            <button type="button" key={o.key} className={`dbc-owed__item is-${o.why}`} onClick={() => open(o)}>
+              <i>{o.why}</i>
+              <span>{o.says}</span>
+              {o.tail ? <em>{o.tail}</em> : null}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 // ═══ THE WIRE ══════════════════════════════════════════════════════════════════════════════════
 
@@ -324,8 +352,10 @@ export default function DashboardC() {
   // learns a new kind of obligation.
   const chosen = data.head.segs.find((s) => s.key === only);
   const keep = chosen ? new Set(chosen.keys) : null;
-  const shownPress = keep ? data.owed.press.filter((p) => keep.has(p.key)) : data.owed.press;
-  const shownWork = keep ? data.owed.work.filter((p) => keep.has(p.key)) : data.owed.work;
+  // FOLDED AFTER FILTERING, not before — filter the obligations, then group what survived, or a
+  // document would keep a count of things the filter had already taken off the page.
+  const shownPress = groupOwed(keep ? data.owed.press.filter((p) => keep.has(p.key)) : data.owed.press);
+  const shownWork = groupOwed(keep ? data.owed.work.filter((p) => keep.has(p.key)) : data.owed.work);
 
   const toggle = (key) => setFanned((f) => ({ ...f, [key]: !f[key] }));
 
@@ -407,7 +437,7 @@ export default function DashboardC() {
               <b>⚑</b> press — your signature finishes it
             </h2>
             {shownPress.length ? (
-              shownPress.map((p) => <Owed key={p.key} item={p} open={open} />)
+              shownPress.map((p) => <Owed key={p.key} item={p} open={open} shown={!!fanned[p.key]} onToggle={() => toggle(p.key)} />)
             ) : (
               <p className="dbc-owes__none">
                 {only ? "none of these are in what you pressed" : "nothing waiting on a verdict of yours"}
@@ -417,7 +447,7 @@ export default function DashboardC() {
           <div className="dbc-owes__col">
             <h2>outstanding — nobody can press it away</h2>
             {shownWork.length ? (
-              shownWork.map((p) => <Owed key={p.key} item={p} open={open} />)
+              shownWork.map((p) => <Owed key={p.key} item={p} open={open} shown={!!fanned[p.key]} onToggle={() => toggle(p.key)} />)
             ) : (
               <p className="dbc-owes__none">{only ? "none of these are in what you pressed" : "nothing outstanding"}</p>
             )}

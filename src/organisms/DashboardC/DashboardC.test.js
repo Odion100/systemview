@@ -111,6 +111,7 @@ describe("the dashboard over a registry it cannot read the files of", () => {
         !b.classList.contains("dbc-card") &&
         !b.classList.contains("dbc-dot") &&
         !b.classList.contains("dbc-seg") &&
+        !b.classList.contains("dbc-owed__item") &&
         !b.classList.contains("dbc-owed"),
     );
     expect(strays).toEqual([]);
@@ -219,4 +220,37 @@ describe("pressing a count shows what it counted", () => {
     const segs = [...document.querySelectorAll(".dbc-seg")];
     for (const seg of segs) if (/nothing owed/.test(seg.textContent)) expect(seg.tagName).toBe("SPAN");
   });
+});
+
+// THE SAME FOLD AS A's. An arc with four obligations was four cards in a column of nine, so the
+// column read as nine places to go when it was four.
+it("gives a document one card however many obligations it carries, and opens into them", async () => {
+  mockFiles = {
+    "b.md": [
+      "# ARC-9",
+      "",
+      "::arc{id=ARC-9}",
+      "",
+      ':::objective{id=O1 owner=you state=open}',
+      "mine",
+      ":::",
+      ':::objective{id=O2 state=blocked blocked="waiting on the rewrite"}',
+      "stuck",
+      ":::",
+    ].join("\n"),
+  };
+  mount({
+    Agent: { documentsRegistry: async () => [ROW({ id: "ARC-9", kind: "arc", path: "b.md", state: { verdict: "approved", parsed: 1 } })] },
+    SystemView: { projectRoots: async () => ({ alpha: "/a" }) },
+  });
+  const face = await screen.findByRole("button", { name: /yours, and open/ });
+  expect(face).toHaveAttribute("aria-expanded", "false");
+  // THREE obligations — two objectives and the no-plan line — and exactly one card for them.
+  expect(screen.getByText(/and 2 more on this document/)).toBeVisible();
+  expect(document.querySelectorAll(".dbc-owes .dbc-owed")).toHaveLength(1);
+  expect(screen.queryByText(/waiting on the rewrite/)).not.toBeInTheDocument();
+
+  fireEvent.click(face);
+  expect(await screen.findByText(/waiting on the rewrite/)).toBeVisible();
+  expect(screen.getByText(/objectives with no plan attached/)).toBeVisible();
 });

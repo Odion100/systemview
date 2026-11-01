@@ -760,3 +760,27 @@
 .dbb-empty.is-bad {
   color: var(--dbb-press);
 }
+
+// ─── A DOCUMENT'S OTHER OBLIGATIONS, under its row ────────────────────────────────────────────
+// One row per document, never one per block: an arc with four obligations made a list of nine
+// read as nine places to go when it was four.
+.dbb-owed__sub {
+  list-style: none;
+  margin: 0 0 6px 22px;
+  padding: 0;
+  border-left: 2px solid var(--sv-border-soft);
+}
+.dbb-owed__subrow {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  padding: 4px 10px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  &:hover { background: var(--sv-hover); }
+}

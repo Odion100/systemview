@@ -1,5 +1,6 @@
 import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
 import "./styles.scss";
+import { groupOwed } from "../AgentChat/owed";
 import ServiceContext from "../../ServiceContext";
 import { hostFiles } from "../../utils/hostFiles";
 import { onCodePage, openAddress } from "../../atoms/Markdown/openRef";
@@ -124,6 +125,9 @@ export default function DashboardB() {
   const [fanned, setFanned] = useState("");
   const [openTrack, setOpenTrack] = useState("");
   const [showQuiet, setShowQuiet] = useState(false);
+  // WHICH DOCUMENTS ARE FANNED OPEN in the owed lists. Keyed by `groupOwed`'s key, which carries
+  // the project — so opening alpha's RFC-001 does not open beta's.
+  const [fold, setFold] = useState({});
 
   // THE GATE. The fingerprint is every row's identity, its last parse, when he first opened it and
   // whether the file has drifted past that parse — which is every input the obligations and the
@@ -307,8 +311,8 @@ export default function DashboardB() {
           because that is the shape of the question he asked. */}
       <section className="dbb-needs">
         {[
-          { key: "press", title: "waiting on your press", sub: "your signature finishes it", rows: owed.press },
-          { key: "work", title: "outstanding", sub: "nobody can press these away", rows: owed.work },
+          { key: "press", title: "waiting on your press", sub: "your signature finishes it", rows: groupOwed(owed.press) },
+          { key: "work", title: "outstanding", sub: "nobody can press these away", rows: groupOwed(owed.work) },
         ].map((col) => (
           <div key={col.key} className={`dbb-col dbb-col--${col.key}`}>
             <div className="dbb-col__head">
@@ -317,15 +321,36 @@ export default function DashboardB() {
             </div>
             {col.rows.length ? (
               <ul className="dbb-owed">
+                {/* ONE ROW PER DOCUMENT. An arc with four obligations was four rows, so a list
+                    of nine read as nine places to go when it was four. The row carries the
+                    strongest one; the fold carries the rest, each opening at its own block. */}
                 {col.rows.map((o) => (
                   <li key={o.key}>
-                    <button type="button" className="dbb-owed__row" style={{ "--hue": HUES[o.kind] }} onClick={() => openOwed(o)}>
+                    <button
+                      type="button"
+                      className="dbb-owed__row"
+                      style={{ "--hue": HUES[o.kind] }}
+                      aria-expanded={o.n > 1 ? !!fold[o.key] : undefined}
+                      onClick={() => (o.n > 1 ? setFold((f) => ({ ...f, [o.key]: !f[o.key] })) : openOwed(o))}
+                    >
                       <i className="dbb-owed__dot" />
                       <span className="dbb-owed__id">{o.id}</span>
                       <span className="dbb-owed__says">{o.says}</span>
-                      <span className="dbb-owed__tail">{o.tail}</span>
+                      <span className="dbb-owed__tail">{o.n > 1 ? `+${o.n - 1} more` : o.tail}</span>
                       <span className="dbb-owed__proj">{o.project}</span>
                     </button>
+                    {o.n > 1 && fold[o.key] ? (
+                      <ul className="dbb-owed__sub">
+                        {o.items.map((x) => (
+                          <li key={x.key}>
+                            <button type="button" className="dbb-owed__subrow" onClick={() => openOwed(x)}>
+                              <span className="dbb-owed__says">{x.says}</span>
+                              <span className="dbb-owed__tail">{x.tail}</span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
                   </li>
                 ))}
               </ul>
