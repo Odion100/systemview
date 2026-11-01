@@ -464,6 +464,26 @@
 }
 // BIG ENOUGH TO AIM AT — his instruction, and it is two glyphs doing the job of a toolbar. They
 // are larger than the + on purpose: the + is a modifier on the tab row, these are destinations.
+// A TAB THAT JUST ARRIVED FLASHES ONCE. Following a reference opens a tab beside you instead of
+// moving you, and the cost of nothing moving is that nothing tells you anything happened — so the
+// new tab says so itself. Two beats of the accent and out.
+//
+// `background-color` and `box-shadow` only: both composite, so a flash on the tab strip cannot
+// cost a layout pass while he is reading.
+@keyframes doc-tab-fresh {
+  0% { background: var(--sv-blue); box-shadow: inset 0 0 0 1px var(--sv-blue); }
+  45% { background: var(--sv-hover); box-shadow: inset 0 0 0 1px var(--sv-blue); }
+  100% { background: transparent; box-shadow: inset 0 0 0 1px transparent; }
+}
+.doc-tab--fresh {
+  animation: doc-tab-fresh 1.3s ease-out 1;
+  border-radius: 5px;
+}
+// Nothing moves for somebody who asked the window not to animate.
+@media (prefers-reduced-motion: reduce) {
+  .doc-tab--fresh { animation: none; box-shadow: inset 0 0 0 1px var(--sv-blue); }
+}
+
 // LAYOUT ONLY. The help door also carries `.help-icon` — the app's own ringed ? — and a border or
 // a radius here would be fighting it. So this decides where a door sits and the door's own class
 // decides what it looks like.

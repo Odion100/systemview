@@ -74,6 +74,31 @@ export default function CenterTabs({ tabsPc, tabs = [], isActive, onOpen, afterC
     [tabsPc, closeStripTab, afterBulkClose, extraMenuItems]
   );
 
+  // A TAB THAT ARRIVES BESIDE YOU HAS TO ANNOUNCE ITSELF. Following a reference no longer moves
+  // you, which is the point — and the cost of nothing moving is that nothing tells you anything
+  // happened. His catch: *"when a new tab comes up it has to do some type of animation so I
+  // could see some sort of a flash."*
+  //
+  // ONLY TABS THAT ARRIVE AFTER THE FIRST RENDER. The strip is restored from the store on mount,
+  // so flashing what is simply already open would make every page load a light show.
+  const seen = useRef(null);
+  const [fresh, setFresh] = useState(() => new Set());
+  useEffect(() => {
+    const keys = tabs.map((t) => t.key);
+    if (seen.current === null) {
+      seen.current = new Set(keys);
+      return undefined;
+    }
+    const born = keys.filter((k) => !seen.current.has(k));
+    seen.current = new Set(keys);
+    if (!born.length) return undefined;
+    setFresh((f) => new Set([...f, ...born]));
+    // Cleared on a timer rather than on `animationend`: a tab opened while the window is in a
+    // background tab never animates at all, and the class would stay on it forever.
+    const t = setTimeout(() => setFresh((f) => new Set([...f].filter((k) => !born.includes(k)))), 1400);
+    return () => clearTimeout(t);
+  }, [tabs]);
+
   return (
     <>
       <div className="doc-tabs">
@@ -111,7 +136,7 @@ export default function CenterTabs({ tabsPc, tabs = [], isActive, onOpen, afterC
                 // THE TAB YOU'RE ON IS ALWAYS IN VIEW — scrollIntoView(nearest) is a no-op when
                 // already visible, so this costs nothing except when it's needed.
                 ref={active ? (el) => { if (el) try { el.scrollIntoView({ block: "nearest", inline: "nearest" }); } catch {} } : null}
-                className={`doc-tab doc-tab--kind-${t.kind} ${active ? "doc-tab--active" : ""}`}
+                className={`doc-tab doc-tab--kind-${t.kind} ${active ? "doc-tab--active" : ""}${fresh.has(t.key) ? " doc-tab--fresh" : ""}`}
                 // DRAG TO REORDER — the tab is the handle, dropping on a tab puts you where IT
                 // sat, dropping past the row's end sends you last. The store owns the order.
                 draggable

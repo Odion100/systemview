@@ -213,3 +213,24 @@ describe("the doors onto centre tabs", () => {
     expect(onOpen.mock.calls.map((c) => c[0].kind)).toEqual(["how", "dash"]);
   });
 });
+
+// A TAB THAT ARRIVES BESIDE YOU HAS TO ANNOUNCE ITSELF. Following a reference no longer moves
+// you, and the cost of nothing moving is that nothing says anything happened.
+describe("a tab that just arrived", () => {
+  it("flashes the new one and nothing else, and not on first paint", () => {
+    const pc = freshPc();
+    seed(pc, ["src/a.js", "src/b.js"]);
+    const { container, rerender, props } = mount(pc);
+    // RESTORED TABS DO NOT FLASH — the strip comes back from the store on every mount, and
+    // flashing what is merely already open makes a page load a light show.
+    expect(container.querySelectorAll(".doc-tab--fresh")).toHaveLength(0);
+
+    openTab(pc, fileTab("src/c.js"));
+    rerender(
+      <CenterTabs {...props} tabs={getTabs(pc).panes[0].tabs} />,
+    );
+    const fresh = [...container.querySelectorAll(".doc-tab--fresh")];
+    expect(fresh).toHaveLength(1);
+    expect(fresh[0].textContent).toContain("c.js");
+  });
+});
