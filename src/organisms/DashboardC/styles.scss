@@ -12,6 +12,7 @@
 // THE KIND HUES ARE HOW-WE-WORK'S OWN, deliberately: rfc #5a77e5, arc #9a4fe0, gap #c07a16,
 // report #0d8065. A colour must mean the same thing on both pages or the window is lying twice.
 
+// ── THE PAGE'S OWN BOX. Nothing in here is inherited by anything; it is the pane. ──────────────
 .dbc {
   // IT FILLS THE PANE AND SCROLLS INSIDE ITSELF — same two mounts HowWeWork has to survive: a flex
   // column in the centre panel (where `flex` gives it its height) and the wall tab (where the
@@ -26,10 +27,31 @@
   overflow-y: auto;
   overflow-x: hidden;
   background: var(--sv-surface);
+  padding: 0 0 72px;
+}
+
+// ── THE CONTEXT EVERY SECTION STANDS IN, and the reason it is a second selector ────────────────
+//
+// The sections below are written FLAT (`.dbc-owes`, `.dbc-current`) so a section lifted out of
+// this page keeps its own rules — but it does not keep what it INHERITS, and almost everything
+// that makes it readable is inherited from here: the type, and the eight custom properties every
+// hue and meter resolves through. A `.dbc-track--rfc` outside this rule sets
+// `--dbc-hue: var(--dbc-rfc)` to nothing at all and the rails go colourless; an `h2` outside it
+// loses the uppercase letter-spaced heading every section is titled with.
+//
+// So the two jobs are split: `.dbc` is the BOX (above), `.dbc-ctx` is the CONTEXT. A tile renders
+// inside a `.dbc-ctx` wrapper and is then the same thing on a configurable surface that it is
+// here. ONE definition, written as a comma selector, so the page cannot drift from the tiles.
+//
+// AND THE WRAPPER HAS NO BOX: `display: contents`. A real div between `.dbc` and its sections
+// would make itself the head's containing block and the sticky header would stop sticking after
+// its own few pixels — the one layout thing an inert wrapper could still break.
+.dbc-ctx { display: contents; }
+.dbc,
+.dbc-ctx {
   color: var(--sv-text);
   font-size: 13px;
   line-height: 1.6;
-  padding: 0 0 72px;
 
   --dbc-rfc: #5a77e5;
   --dbc-arc: #9a4fe0;
@@ -77,8 +99,9 @@
     > i { font-style: normal; font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--sv-text-faint); }
   }
 }
-:root.sv-dark .dbc {
-  background: var(--sv-bg);
+:root.sv-dark .dbc { background: var(--sv-bg); }
+:root.sv-dark .dbc,
+:root.sv-dark .dbc-ctx {
   --dbc-rfc: #8ba4ef;
   --dbc-arc: #c68cf5;
   --dbc-gap: #e0a34f;
@@ -140,7 +163,16 @@
   background: var(--sv-inset);
   font-size: 12.5px;
   font-weight: 600;
-  color: var(--sv-text-strong);
+
+  // THE SEGMENT'S OWN COLOUR, NAMED ONCE. It used to be written straight into `color` and
+  // `border-color`, which meant the held state had no way to reach it — a filled pill needs the
+  // hue as a FILL, and `currentColor` is the text, which on a filled pill is no longer the hue.
+  --dbc-seg: var(--sv-text-strong);
+  // THE PAPER BEHIND IT — the head's own background, so a held pill's text and its cut-out ring
+  // are the surface it sits on rather than a guess at white. The head is `--sv-surface` in light
+  // and `--sv-bg` in dark, and this follows it.
+  --dbc-seg-paper: var(--sv-surface);
+  color: var(--dbc-seg);
 
   > b { font-weight: 700; font-size: 13px; }
 
@@ -152,34 +184,62 @@
     font-family: inherit;
     &:hover { filter: brightness(1.18); }
   }
-  // HELD. The border thickens rather than the fill inverting: an inverted pill at this size loses
-  // the colour that says WHICH count it is, which is the only thing distinguishing them.
-  &.is-on {
-    box-shadow: inset 0 0 0 1px currentColor;
-    background: var(--sv-hover);
-  }
   &.is-approval,
   &.is-proof,
-  &.is-press { border-color: var(--dbc-stop); color: var(--dbc-stop); background: transparent; }
+  &.is-press { --dbc-seg: var(--dbc-stop); border-color: var(--dbc-seg); background: transparent; }
   &.is-clock {
-    border-color: var(--dbc-debt);
-    color: var(--dbc-debt);
+    --dbc-seg: var(--dbc-debt);
+    border-color: var(--dbc-seg);
     background: transparent;
     // THE ONLY THING ON THE PAGE THAT PULSES, because it is the only thing that DESTROYS something
     // by being ignored. Opacity on one small pill — no transform, no filter, nothing the
     // compositor has to repaint a layer for.
     animation: dbc-pulse 2.4s ease-in-out infinite;
   }
-  &.is-work { color: var(--sv-text); font-weight: 500; }
-  &.is-clear { color: var(--dbc-done); border-color: var(--dbc-done); background: transparent; }
-  &.is-unread { color: var(--sv-text-faint); font-weight: 400; }
+  // THE OUTSTANDING FAMILY, and it is one quiet treatment for all of them on purpose. The head
+  // broke "10 outstanding" into what the work IS — mine, blocked, no plan, undecidable, claims
+  // resting on nothing — because a lump is a number he cannot act on and, as a filter, narrows to
+  // everything-that-is-not-a-decision. But they are still NOT decisions, and giving each one its
+  // own hue would flatten the one hierarchy this page is built on: press first and loudest.
+  // Which one is held is said by the pill's own words, which are right there in it.
+  &.is-work,
+  &.is-mine,
+  &.is-blocked,
+  &.is-unplanned,
+  &.is-undecidable,
+  &.is-claims { --dbc-seg: var(--sv-text); font-weight: 500; }
+  &.is-clear { --dbc-seg: var(--dbc-done); border-color: var(--dbc-seg); background: transparent; }
+  &.is-unread { --dbc-seg: var(--sv-text-faint); font-weight: 400; }
+
+  // HELD — AND IT HAS TO BE OBVIOUS ACROSS THE ROOM. *"Those filters need to do a better job in
+  // that they're selected if we do that."* This was an inset hairline and a hover background,
+  // which was defensible while a press narrowed the one list under it and is not now that it
+  // narrows EVERY tile on the surface: a filter you cannot tell is on means reading a narrowed
+  // dashboard as the whole world, which is the one lie this page exists to stop.
+  //
+  // So it fills rather than outlines — the segment's own hue as the fill, the page's own surface
+  // as the text, and a ring cut out of the header around it. Filled among outlined is legible at
+  // a glance and at any size, and keeping the hue is what still says WHICH of them is held.
+  //
+  // IT COMES LAST, and that is load-bearing: the variant rules above set `background:
+  // transparent`, so written any earlier the held fill was overridden by the colour rule and the
+  // state was invisible on exactly the three segments that had one.
+  &.is-on {
+    background: var(--dbc-seg);
+    border-color: var(--dbc-seg);
+    color: var(--dbc-seg-paper);
+    font-weight: 700;
+    box-shadow: 0 0 0 2px var(--dbc-seg-paper), 0 0 0 3px var(--dbc-seg);
+  }
 }
+:root.sv-dark .dbc-seg { --dbc-seg-paper: var(--sv-bg); }
 @keyframes dbc-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.52; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .dbc * { animation: none !important; transition: none !important; }
+  .dbc *,
+  .dbc-ctx * { animation: none !important; transition: none !important; }
 }
 
 .dbc-void {
