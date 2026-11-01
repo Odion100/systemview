@@ -22,11 +22,34 @@ const theStore = () => (typeof window === "undefined" ? null : window.localStora
 const KEY = "sv.dash.pages";
 const PICK = "sv.dash.pick";
 
-/** What a fresh window gets: the three candidates, each whole, on its own page. */
+// THE CHECK IS A REPLICA OF EVERY PAGE, his ruling: *"make a page for each one that exists from
+// the new components, before we know that we…"* and *"the check is to recreate every page."* So
+// each candidate ships beside a page built only from its own extracted tiles, in the order that
+// page stacks them. Put the two side by side and a difference is a bug, not an opinion — which
+// is the only reason the candidates are still here.
+const REBUILT = {
+  a: ["head", "owed", "standing"],
+  b: ["head", "owed", "standing", "reports", "projects"],
+  c: ["head", "owed", "standing", "projects"],
+};
+const rebuilt = (variant, label) => ({
+  id: `r${variant}`,
+  label,
+  tiles: REBUILT[variant].map((kind) => ({ kind, variant })),
+});
+
+/**
+ * What a fresh window gets: the three candidates, then a replica of each, IN THE SAME ORDER.
+ * His instruction — three new pages in the order the existing ones are in, so the fourth answers
+ * to the first, the fifth to the second and the sixth to the third without anybody counting.
+ */
 export const DEFAULT_PAGES = [
   { id: "a", label: "A · one track", legacy: "a", tiles: [] },
   { id: "b", label: "B · the floor", legacy: "b", tiles: [] },
   { id: "c", label: "C · the shelves", legacy: "c", tiles: [] },
+  rebuilt("a", "A · rebuilt"),
+  rebuilt("b", "B · rebuilt"),
+  rebuilt("c", "C · rebuilt"),
 ];
 
 const clean = (p) =>

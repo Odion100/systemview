@@ -22,9 +22,14 @@ const broken = {
 };
 
 describe("reading a saved layout", () => {
-  it("a fresh window gets the three candidates, each whole on its own page", () => {
-    expect(loadPages(store()).map((p) => p.id)).toEqual(["a", "b", "c"]);
+  it("a fresh window gets the three candidates, then a replica of each in the same order", () => {
+    expect(loadPages(store()).map((p) => p.id)).toEqual(["a", "b", "c", "ra", "rb", "rc"]);
     expect(loadPages(store())[0].legacy).toBe("a");
+    // A REPLICA IS NOT A LEGACY PAGE: it is a stack of that page's own tiles, in its own order,
+    // which is the whole of the check.
+    const ra = loadPages(store())[3];
+    expect(ra.legacy).toBeUndefined();
+    expect(ra.tiles.map((t) => `${t.kind}/${t.variant}`)).toEqual(["head/a", "owed/a", "standing/a"]);
   });
 
   // A LAYOUT THAT CANNOT BE PARSED IS NOT A LAYOUT. Every one of these means "I do not know what
@@ -62,19 +67,19 @@ describe("reading a saved layout", () => {
 describe("adding and closing", () => {
   it("adding lands you on the new page — finding it yourself is the same action twice", () => {
     const { pages, pick } = addPage(DEFAULT_PAGES);
-    expect(pages).toHaveLength(4);
-    expect(pick).toBe(pages[3].id);
-    expect(pages[3].tiles).toEqual([]);
+    expect(pages).toHaveLength(DEFAULT_PAGES.length + 1);
+    expect(pick).toBe(pages[pages.length - 1].id);
+    expect(pages[pages.length - 1].tiles).toEqual([]);
   });
 
   // THE ID IS DERIVED FROM WHAT IS TAKEN, not from the count — add, add, close the middle, add,
   // and a count-based id would mint one that already exists and two pages would be one page.
   it("never mints an id that is already taken", () => {
-    let pages = addPage(addPage(DEFAULT_PAGES).pages).pages; // p4, p5
-    pages = removePage(pages, "p4", "a").pages;
+    let pages = addPage(addPage(DEFAULT_PAGES).pages).pages;
+    const first = pages[DEFAULT_PAGES.length].id;
+    pages = removePage(pages, first, "a").pages;
     const next = addPage(pages).pages.map((p) => p.id);
     expect(new Set(next).size).toBe(next.length);
-    expect(next).toContain("p5");
   });
 
   // A SURFACE WITH NO PAGES HAS NOTHING TO DRAW AND NO WAY BACK, and the refusal lives here
@@ -88,8 +93,9 @@ describe("adding and closing", () => {
   });
 
   it("closing the page you are on lands you on its neighbour, not back at the start", () => {
-    expect(removePage(DEFAULT_PAGES, "c", "c").pick).toBe("b");
+    expect(removePage(DEFAULT_PAGES, "rc", "rc").pick).toBe("rb");
     expect(removePage(DEFAULT_PAGES, "b", "b").pick).toBe("a");
+    expect(removePage(DEFAULT_PAGES, "c", "c").pick).toBe("b");
     // leftmost has no left neighbour, so it falls to the new first
     expect(removePage(DEFAULT_PAGES, "a", "a").pick).toBe("b");
   });
@@ -105,12 +111,12 @@ describe("adding and closing", () => {
 
 describe("reordering", () => {
   it("moves a page to sit where another one is", () => {
-    expect(movePage(DEFAULT_PAGES, "c", "a").map((p) => p.id)).toEqual(["c", "a", "b"]);
-    expect(movePage(DEFAULT_PAGES, "a", "c").map((p) => p.id)).toEqual(["b", "a", "c"]);
+    expect(movePage(DEFAULT_PAGES, "c", "a").map((p) => p.id).slice(0, 3)).toEqual(["c", "a", "b"]);
+    expect(movePage(DEFAULT_PAGES, "a", "c").map((p) => p.id).slice(0, 3)).toEqual(["b", "a", "c"]);
   });
 
   it("dropping past the end sends it last, and a no-op is a no-op", () => {
-    expect(movePage(DEFAULT_PAGES, "a", null).map((p) => p.id)).toEqual(["b", "c", "a"]);
+    expect(movePage(DEFAULT_PAGES, "a", null).map((p) => p.id).pop()).toBe("a");
     expect(movePage(DEFAULT_PAGES, "a", "a")).toEqual(DEFAULT_PAGES);
     expect(movePage(DEFAULT_PAGES, "ghost", "a")).toEqual(DEFAULT_PAGES);
   });

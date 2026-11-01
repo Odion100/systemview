@@ -24,10 +24,28 @@ beforeEach(() => {
 const tabs = (c) => [...c.querySelectorAll(".dashswitch__tab")];
 const labels = (c) => tabs(c).map((t) => t.querySelector(".dashswitch__pick").textContent);
 
-it("opens on the three candidates, each its own page, none of them deleted", () => {
+// THE CHECK IS A REPLICA OF EVERY PAGE — three candidates, then one rebuilt page each, in the
+// same order, so the fourth answers to the first without anybody counting.
+it("opens on the three candidates and a replica of each, in the same order", () => {
   const { container } = mount();
-  expect(labels(container)).toEqual(["A · one track", "B · the floor", "C · the shelves"]);
+  expect(labels(container)).toEqual([
+    "A · one track",
+    "B · the floor",
+    "C · the shelves",
+    "A · rebuilt",
+    "B · rebuilt",
+    "C · rebuilt",
+  ]);
   expect(container.querySelector(".dashswitch__tab.is-on .dashswitch__pick").textContent).toBe("A · one track");
+});
+
+it("a rebuilt page is that page's own tiles, stacked flush with no chrome of their own", () => {
+  const { container } = mount();
+  fireEvent.click(within(tabs(container)[5]).getByText("C · rebuilt"));
+  expect(container.querySelectorAll(".tile")).toHaveLength(4);
+  // No card, no header: the blocks fit together to make a page.
+  expect(container.querySelector(".tile__bar")).toBeNull();
+  expect([...container.querySelectorAll(".tile__which")].map((e) => e.textContent)).toEqual(["c", "c", "c", "c"]);
 });
 
 it("the + is one control at the end of the row, not one per tab", () => {
@@ -39,15 +57,17 @@ it("the + is one control at the end of the row, not one per tab", () => {
 it("adding a page lands you on it, and it says it is empty rather than drawing a blank", () => {
   const { container } = mount();
   fireEvent.click(screen.getByLabelText("Add a page"));
-  expect(labels(container)).toHaveLength(4);
-  expect(container.querySelector(".dashswitch__tab.is-on .dashswitch__pick").textContent).toBe("Page 4");
+  expect(labels(container)).toHaveLength(7);
+  expect(container.querySelector(".dashswitch__tab.is-on .dashswitch__pick").textContent).toBe("Page 7");
   expect(screen.getByText(/Nothing on this page yet/)).toBeVisible();
 });
 
 it("every tab carries a close, and closing lands you on the neighbour", () => {
   const { container } = mount();
+  const before = labels(container).length;
   fireEvent.click(within(tabs(container)[2]).getByLabelText("Close C · the shelves"));
-  expect(labels(container)).toEqual(["A · one track", "B · the floor"]);
+  expect(labels(container)).toHaveLength(before - 1);
+  expect(labels(container)).not.toContain("C · the shelves");
 });
 
 // THE RULE THAT MATTERS. A strip that lets you close the last page leaves a surface with nothing
@@ -55,8 +75,9 @@ it("every tab carries a close, and closing lands you on the neighbour", () => {
 // `pages.js`, because a rule enforced only where it is painted is one refactor from being gone.
 it("hides the close when there is one page left, and will not close it anyway", () => {
   const { container } = mount();
-  fireEvent.click(within(tabs(container)[2]).getByLabelText("Close C · the shelves"));
-  fireEvent.click(within(tabs(container)[1]).getByLabelText("Close B · the floor"));
+  while (labels(container).length > 1) {
+    fireEvent.click(within(tabs(container)[tabs(container).length - 1]).getByLabelText(/^Close /));
+  }
   expect(labels(container)).toEqual(["A · one track"]);
   expect(container.querySelectorAll(".dashswitch__close")).toHaveLength(0);
   // and the + is still there, so one page is never a dead end
@@ -72,13 +93,14 @@ it("remembers the pages and which one you were on, across a remount", () => {
 
   const again = mount();
   expect(labels(again.container)).toEqual(before);
-  expect(again.container.querySelector(".dashswitch__tab.is-on .dashswitch__pick").textContent).toBe("Page 4");
+  expect(again.container.querySelector(".dashswitch__tab.is-on .dashswitch__pick").textContent).toBe("Page 7");
 });
 
 it("a saved layout that cannot be read falls back to the candidates, never to an empty strip", () => {
   window.localStorage.setItem("sv.dash.pages", "{{{not json");
   const { container } = mount();
-  expect(labels(container)).toEqual(["A · one track", "B · the floor", "C · the shelves"]);
+  expect(labels(container).slice(0, 3)).toEqual(["A · one track", "B · the floor", "C · the shelves"]);
+  expect(labels(container)).toHaveLength(6);
 });
 
 it("a page carries its own body — switching remounts rather than reusing the last one", () => {
@@ -117,14 +139,17 @@ describe("a page he builds himself", () => {
     const owed = screen.getByText("What is owed").closest(".tilestack__kind");
     fireEvent.click(within(owed).getByText("B · the floor"));
     expect(container.querySelectorAll(".tile")).toHaveLength(1);
-    expect(container.querySelector(".tile__kind").textContent).toBe("What is owed");
+    // NO HEADER ON A TILE. The blocks fit together to make a page; a bar over each one makes it
+    // a row of cards. The only chrome is a corner, and it is the kind's own label that names it.
+    expect(container.querySelector(".tile__bar")).toBeNull();
+    expect(container.querySelector(".tile__which").textContent).toBe("b");
 
-    // THE SWITCH IS ASKING WHOSE VERSION OF THIS — so the face names the page it came from.
-    fireEvent.click(container.querySelector(".tile__variant-face"));
+    // THE SWITCH IS ASKING WHOSE VERSION OF THIS, and it answers in one character in the corner.
+    fireEvent.click(container.querySelector(".tile__which"));
     // Scoped to the popup: the page tabs carry the same words, which is the point — the switch
     // names the page a version came from.
-    fireEvent.click(within(container.querySelector(".tile__variant-pop")).getByText("C · the shelves"));
-    expect(container.querySelector(".tile__variant-face").textContent).toContain("C · the shelves");
+    fireEvent.click(within(container.querySelector(".tile__pop")).getByText("C · the shelves"));
+    expect(container.querySelector(".tile__which").textContent).toBe("c");
 
     fireEvent.click(screen.getByLabelText("Remove What is owed"));
     expect(container.querySelectorAll(".tile")).toHaveLength(0);
@@ -140,7 +165,7 @@ describe("a page he builds himself", () => {
 
     const again = mount();
     expect(again.container.querySelectorAll(".tile")).toHaveLength(1);
-    expect(again.container.querySelector(".tile__kind").textContent).toBe("The reports");
+    expect(again.container.querySelector(".tile__which").textContent).toBe("b");
   });
 
   // A SWITCH OVER ONE OPTION IS FURNITURE. Reports exists in one version only.
@@ -148,8 +173,9 @@ describe("a page he builds himself", () => {
     const { container } = page();
     fireEvent.click(screen.getByText("+ add a tile"));
     fireEvent.click(within(screen.getByText("The reports").closest(".tilestack__kind")).getByText("B · the floor"));
-    expect(container.querySelector(".tile__variant--only")).toBeTruthy();
-    expect(container.querySelector(".tile__variant-face")).toBeNull();
+    expect(container.querySelector(".tile__which--only")).toBeTruthy();
+    // it is a label, not a button — there is nothing to switch to
+    expect(container.querySelector("button.tile__which")).toBeNull();
   });
 
   // A LAYOUT OUTLIVES THE CODE IT NAMES. A variant that is gone must degrade visibly, never to a
@@ -162,7 +188,11 @@ describe("a page he builds himself", () => {
     window.localStorage.setItem("sv.dash.pick", "mine");
     const { container } = mount();
     expect(container.querySelectorAll(".tile")).toHaveLength(1);
-    expect(screen.getByText(/z is gone/)).toBeVisible();
+    // Said in the corner, not in a banner: the letter he GETS, marked as not the one he asked
+    // for, and the sentence in the title.
+    const which = container.querySelector(".tile__which");
+    expect(which.className).toContain("is-swapped");
+    expect(which.getAttribute("title")).toMatch(/z is gone, showing/);
   });
 
   it("a saved tile of a kind that no longer exists says which it was, and offers to remove it", () => {

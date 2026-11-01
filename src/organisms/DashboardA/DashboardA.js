@@ -437,9 +437,26 @@ const DashboardA = () => {
   const { totals, head, owed } = d;
   const skipped = skippedLine(owed.skipped);
 
+  // THE AXIS STICKS BELOW THE MASTHEAD, so it has to know how tall the masthead actually is.
+  // It was a hardcoded 86px — true on the day it was written, false the moment the gauge wrapped
+  // to a second row. Observed rather than computed: the header's height depends on the window's
+  // width, the theme's font and how many segments are owed, and none of those is knowable here.
+  const top = useRef(null);
+  const root = useRef(null);
+  useEffect(() => {
+    const head = top.current;
+    const box = root.current;
+    if (!head || !box || typeof ResizeObserver === "undefined") return undefined;
+    const set = () => box.style.setProperty("--dba-head", `${Math.round(head.getBoundingClientRect().height)}px`);
+    set();
+    const ro = new ResizeObserver(set);
+    ro.observe(head);
+    return () => ro.disconnect();
+  }, []);
+
   return (
-    <div className="dba">
-      <header className="dba__top">
+    <div className="dba" ref={root}>
+      <header className="dba__top" ref={top}>
         <div className="dba__mast">
           <h1>What is going on, and what needs you</h1>
           {/* THE PAGE SAYS WHAT IT IS STANDING ON, always. An empty dashboard that read as "you

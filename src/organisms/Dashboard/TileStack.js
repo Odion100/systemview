@@ -1,36 +1,79 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { DashboardDataProvider, useDashboardData } from "./dashboardData";
 import { resolveTile, tileKinds, hasSiblings } from "./tileRegistry";
+import PageLegend from "./PageLegend";
 import "./tiles"; // registering the inventory is a side effect of importing it, once
 import "./tileStack.scss";
 
-// A PAGE IS A STACK — his ruling, emphatically: *"It's a fucking stack."* A vertical column of
-// full-width tiles you reorder by dragging. No grid, no per-tile width, no resize handles.
+// A PAGE IS A STACK, AND THE STACK IS INVISIBLE.
 //
-// THE CONTROLS LIVE ON THE TILE, not in a mode. A tile's bar carries what it is, whose version
-// of it, and a way to take it off; dragging is the tile itself. An edit mode would mean the
-// surface has two states and the one you are in decides whether a press moves something — which
-// is the sort of thing you discover by moving something you meant to read.
+// His correction, and the whole shape of this file: *"They're supposed to just look like the
+// blocks. They're supposed to configure together to look like the page exactly as the page was
+// before… they're indented into the page, they're not flat with the pages, they have padding
+// around them, they have border, radius. They're not components that fit together to make a
+// page. They don't need a header."*
+//
+// So there is NO tile chrome. No frame, no gap, no card. The sections sit flush, one after
+// another, and the same tiles in the same order reproduce the page they came from — which is
+// exactly the test, since the page they came from is still running one tab away.
+//
+// THE CONTROLS LIVE IN A CORNER OF THE TILE, subtle, and only while the pointer is on it:
+// *"on them themselves, somewhere in the right corner, there's going to be a subtle thing. Not
+// some extra header."* Three things in that corner and no more — pick it up, change whose
+// version this is, take it off.
+//
+// AND THE DROP IS A LINE. *"When you drag, a line would show. They'd be flush together anyway,
+// and then the line would show where it is dropped — not necessarily a silhouette."* Flush
+// blocks have no edges to read, so the line IS the feedback.
 
-/** The bar on top of a tile: what it is, whose version, and the two controls. */
-const TileBar = ({ t, onVariant, onRemove }) => {
+/** The corner: a grip, whose version this is, and a way to take it off. */
+const Corner = ({ t, onVariant, onRemove, onGrab, onLetGo }) => {
   const [open, setOpen] = useState(false);
   const siblings = hasSiblings(t.kind);
+  const kin = siblings ? tileKinds().find((k) => k.kind === t.kind) : null;
   return (
-    <div className="tile__bar">
-      <b className="tile__kind">{t.kindLabel}</b>
+    <div className={`tile__corner${open ? " is-open" : ""}`}>
+      {/* THE GRIP IS WHAT YOU DRAG, not the tile. A draggable block swallows text selection,
+          and these blocks are made of sentences he reads. */}
+      <span
+        className="tile__grip"
+        title="Drag to reorder"
+        draggable
+        onDragStart={onGrab}
+        onDragEnd={onLetGo}
+        aria-hidden="true"
+      >
+        ⠿
+      </span>
       {siblings ? (
-        <span className="tile__variant">
-          <button type="button" className="tile__variant-face" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
-            {t.label} <i aria-hidden="true">⌄</i>
+        <>
+          <button
+            type="button"
+            // A LAYOUT OUTLIVES THE CODE IT NAMES. When the version he placed is gone the
+            // fallback stood in, and the corner has to say so rather than quietly serving
+            // something he did not choose — a substitution nobody is told about is the same
+            // failure as a stale count, just slower to find.
+            className={`tile__which${t.substituted ? " is-swapped" : ""}`}
+            title={
+              t.substituted
+                ? `${t.kindLabel} — ${t.asked} is gone, showing ${t.label}. Press to pick another.`
+                : `${t.kindLabel} — ${t.label}. Press to use another version.`
+            }
+            aria-label={`${t.kindLabel}: ${t.label}`}
+            aria-expanded={open}
+            onClick={() => setOpen((o) => !o)}
+          >
+            {t.variant}
+            {t.substituted ? <em aria-hidden="true">!</em> : null}
           </button>
           {open ? (
-            <span className="tile__variant-pop" onMouseLeave={() => setOpen(false)}>
-              {(tileKinds().find((k) => k.kind === t.kind) || { variants: [] }).variants.map((v) => (
+            <span className="tile__pop" onMouseLeave={() => setOpen(false)}>
+              <i>{t.kindLabel}</i>
+              {kin.variants.map((v) => (
                 <button
                   key={v.variant}
                   type="button"
-                  className={`tile__variant-pick${v.variant === t.variant ? " is-on" : ""}`}
+                  className={`tile__pick${v.variant === t.variant ? " is-on" : ""}`}
                   onClick={() => {
                     setOpen(false);
                     onVariant(v.variant);
@@ -41,15 +84,13 @@ const TileBar = ({ t, onVariant, onRemove }) => {
               ))}
             </span>
           ) : null}
-        </span>
+        </>
       ) : (
-        // A SWITCH OVER ONE OPTION IS FURNITURE. It says what it is and stops.
-        <span className="tile__variant tile__variant--only">{t.label}</span>
+        <span className="tile__which tile__which--only" title={`${t.kindLabel} — ${t.label}, the only version`}>
+          {t.variant}
+        </span>
       )}
-      {/* A LAYOUT NAMING A VARIANT THAT IS GONE FELL BACK, and it says so rather than quietly
-          serving something he did not choose. */}
-      {t.substituted ? <em className="tile__swapped">{t.asked} is gone — showing {t.label}</em> : null}
-      <button type="button" className="tile__drop" title="Take this tile off the page" aria-label={`Remove ${t.kindLabel}`} onClick={onRemove}>
+      <button type="button" className="tile__off" title={`Take ${t.kindLabel} off the page`} aria-label={`Remove ${t.kindLabel}`} onClick={onRemove}>
         ×
       </button>
     </div>
@@ -106,7 +147,7 @@ const Narrowed = ({ data }) => {
   return (
     <div className="tilestack__narrowed">
       <b>showing only {(data.segment || {}).text || "a selection"}</b>
-      <span>every tile on this surface is narrowed to it</span>
+      <span>every tile on this page is narrowed to it</span>
       <button type="button" onClick={() => data.setOnly(data.only)}>
         show everything
       </button>
@@ -117,71 +158,141 @@ const Narrowed = ({ data }) => {
 const Stack = ({ page, onChange }) => {
   const data = useDashboardData();
   const [drag, setDrag] = useState(-1);
+  // WHERE THE LINE IS: the index the carried tile would land at. Null while nothing is being
+  // dragged, which is also what hides the line.
+  const [at, setAt] = useState(null);
   const tiles = page.tiles || [];
   const write = (next) => onChange({ ...page, tiles: next });
 
-  const move = (from, to) => {
-    if (from === to || from < 0 || to < 0) return;
+  const drop = (to) => {
+    const from = drag;
+    setDrag(-1);
+    setAt(null);
+    if (from < 0 || to === null) return;
     const next = tiles.slice();
     const [carried] = next.splice(from, 1);
-    next.splice(to, 0, carried);
+    // Landing after its own old position shifts by one once it is lifted out.
+    next.splice(to > from ? to - 1 : to, 0, carried);
     write(next);
   };
 
+  // THE LINE IS ITS OWN ELEMENT between blocks rather than a border on one of them: a border
+  // would move the block it is on by its own width, and the point of flush blocks is that
+  // nothing moves until the drop.
+  const line = (i) => (at === i && drag >= 0 ? <div className="tilestack__line" aria-hidden="true" /> : null);
+
+  // CARRYING A TILE PAST THE EDGE SCROLLS THE PAGE. His catch: *"drag doesn't scroll me up the
+  // page, so you can't drag something from the bottom and put it to the top."* A page of four
+  // full-height sections is several screens tall, so without this the only reachable drop is one
+  // already on screen — which on this surface is usually the one it is already next to.
+  //
+  // It runs off a timer rather than off `dragover`, because the browser stops firing dragover
+  // once the pointer stops moving — and holding still at the edge is exactly the gesture.
+  const scroller = useRef(null);
+  const speed = useRef(0);
+  useEffect(() => {
+    if (drag < 0) return undefined;
+    const box = scroller.current;
+    if (!box) return undefined;
+    const t = setInterval(() => {
+      if (speed.current) box.scrollTop += speed.current;
+    }, 16);
+    return () => {
+      clearInterval(t);
+      speed.current = 0;
+    };
+  }, [drag]);
+
+  // The scrollable ancestor is the switcher's body, not this element — find it once, on grab.
+  const findScroller = (el) => {
+    let n = el;
+    while (n && n !== document.body) {
+      if (n.scrollHeight > n.clientHeight + 4 && /auto|scroll/.test(getComputedStyle(n).overflowY)) return n;
+      n = n.parentElement;
+    }
+    return null;
+  };
+
+  const edge = (e) => {
+    const box = scroller.current;
+    if (!box) return;
+    const b = box.getBoundingClientRect();
+    const ZONE = 64; // a comfortable thumb's width of edge, not a hairline
+    const MAX = 18; // px per frame at the very edge
+    if (e.clientY < b.top + ZONE) speed.current = -Math.ceil(MAX * ((b.top + ZONE - e.clientY) / ZONE));
+    else if (e.clientY > b.bottom - ZONE) speed.current = Math.ceil(MAX * ((e.clientY - (b.bottom - ZONE)) / ZONE));
+    else speed.current = 0;
+  };
+
   return (
-    <div className="tilestack">
+    <div
+      className={`tilestack${drag >= 0 ? " is-dragging" : ""}`}
+      onDragOver={(e) => {
+        if (drag < 0) return;
+        e.preventDefault();
+        edge(e);
+      }}
+      onDrop={() => {
+        speed.current = 0;
+        drop(at);
+      }}
+    >
       <Narrowed data={data} />
       {tiles.map((entry, i) => {
         const t = resolveTile(entry.kind, entry.variant);
         return (
-          <div
-            key={`${entry.kind}:${i}`}
-            className={`tile${drag === i ? " is-dragging" : ""}`}
-            draggable
-            onDragStart={(e) => {
-              setDrag(i);
-              e.dataTransfer.effectAllowed = "move";
-              e.dataTransfer.setData("text/sv-tile", String(i));
-            }}
-            onDragEnd={() => setDrag(-1)}
-            onDragOver={(e) => {
-              if (e.dataTransfer.types.includes("text/sv-tile")) e.preventDefault();
-            }}
-            onDrop={(e) => {
-              const from = Number(e.dataTransfer.getData("text/sv-tile"));
-              if (Number.isNaN(from)) return;
-              e.preventDefault();
-              move(from, i);
-            }}
-          >
-            {t ? (
-              <>
-                <TileBar
-                  t={t}
-                  onVariant={(variant) => write(tiles.map((x, j) => (j === i ? { ...x, variant } : x)))}
-                  onRemove={() => write(tiles.filter((_, j) => j !== i))}
-                />
-                <div className="tile__body">
+          <React.Fragment key={`${entry.kind}:${entry.variant}:${i}`}>
+            {line(i)}
+            <div
+              className={`tile${drag === i ? " is-carried" : ""}`}
+              onDragOver={(e) => {
+                if (drag < 0) return;
+                e.preventDefault();
+                const b = e.currentTarget.getBoundingClientRect();
+                setAt(e.clientY < b.top + b.height / 2 ? i : i + 1);
+              }}
+            >
+              {t ? (
+                <>
+                  <Corner
+                    t={t}
+                    onGrab={(e) => {
+                      scroller.current = findScroller(e.currentTarget);
+                      setDrag(i);
+                      e.dataTransfer.effectAllowed = "move";
+                      e.dataTransfer.setData("text/sv-tile", String(i));
+                    }}
+                    onLetGo={() => {
+                      speed.current = 0;
+                      setDrag(-1);
+                      setAt(null);
+                    }}
+                    onVariant={(variant) => write(tiles.map((x, j) => (j === i ? { ...x, variant } : x)))}
+                    onRemove={() => write(tiles.filter((_, j) => j !== i))}
+                  />
                   <t.Component data={data} />
+                </>
+              ) : (
+                // THE KIND ITSELF IS GONE — the only case a layout cannot be honoured at all. It
+                // says which tile it was rather than leaving a hole, because a hole reads as
+                // "nothing here" and there was something here.
+                <div className="tile__missing">
+                  <b>{entry.kind}</b>
+                  <span>this kind of tile no longer exists — take it off, or put it back in the registry</span>
+                  <button type="button" onClick={() => write(tiles.filter((_, j) => j !== i))}>
+                    remove
+                  </button>
                 </div>
-              </>
-            ) : (
-              // THE KIND ITSELF IS GONE — the only case a layout cannot be honoured at all. It
-              // says which tile it was rather than leaving a hole, because a hole reads as
-              // "nothing here" and there was something here.
-              <div className="tile__missing">
-                <b>{entry.kind}</b>
-                <span>this kind of tile no longer exists — take it off, or put it back in the registry</span>
-                <button type="button" onClick={() => write(tiles.filter((_, j) => j !== i))}>
-                  remove
-                </button>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          </React.Fragment>
         );
       })}
+      {line(tiles.length)}
       {!tiles.length ? <p className="tilestack__none">Nothing on this page yet.</p> : null}
       <AddTile onAdd={(t) => write([...tiles, t])} />
+      {/* THE PAGE'S OWN FLOOR, on every page including an empty one. */}
+      <PageLegend />
     </div>
   );
 };

@@ -1,109 +1,154 @@
-// A PAGE IS A STACK — a vertical column of full-width tiles. Nothing here has an opinion about
-// what a tile looks like inside: the tiles carry their own page's costume (`.dba-ctx`,
-// `.dbb-ctx`, `.dbc-ctx`), and a frame with taste of its own would be judging them through it.
+// THE STACK IS INVISIBLE. His correction: the tiles *"are supposed to configure together to look
+// like the page exactly as the page was before"* — so this file adds no frame, no gap, no
+// padding and no card. Every pixel a tile occupies is the tile's own; the same tiles in the same
+// order reproduce the page they came from, which is the test, since that page is still running
+// one tab away.
+//
+// Anything here with a border or a background is CHROME THAT IS NOT PART OF THE PAGE — the
+// narrowing banner, the add control, the drop line, the corner. They are the only four.
 
+// THE STACK IS THE PAGE, so it carries the page's BOX. `.dba`/`.dbb`/`.dbc` each split in two
+// when the tiles came out: the inheritable half (colour, font, the kind hues, the resets) went
+// to `.dbX-ctx` and rides with every tile, and the CHROME half — the surface, the border, the
+// radius, the floor of padding — stayed behind on the page root. A stack of tiles got the first
+// half and none of the second, so it drew with no background at all. These are the same values,
+// one copy, and they are the only thing here that is not transparent.
 .tilestack {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 14px;
   min-height: 100%;
-}
-
-.tile {
+  margin-bottom: 14px;
   border: 1px solid var(--sv-border);
   border-radius: 6px;
   background: var(--sv-surface);
-  overflow: hidden;
-  &.is-dragging { opacity: 0.45; }
+  padding: 0 0 72px;
+  overflow: hidden; // the radius has to clip the first tile's own sticky header
 }
-// THE BAR IS QUIET AND SMALL. It is chrome around somebody else's design, so it gets the least
-// ink that still leaves the two controls findable.
-.tile__bar {
+
+// A TILE IS A POSITIONING CONTEXT AND NOTHING ELSE. No border, no radius, no background, no
+// padding, no margin — the section inside brings all of that, exactly as it does on its own page.
+.tile {
+  position: relative;
+  min-width: 0;
+  // `contents` would be truer still, but the corner has to position against something.
+  &.is-carried { opacity: 0.4; }
+}
+
+// WHERE IT WILL LAND. Flush blocks have no edges to read, so the line is the whole of the
+// feedback — and it is its own element rather than a border on a block, because a border moves
+// the block it is on by its own width and the point of flush blocks is that nothing moves until
+// the drop.
+.tilestack__line {
+  flex: none;
+  height: 2px;
+  margin: -1px 0;
+  background: var(--sv-blue);
+  box-shadow: 0 0 0 1px var(--sv-blue);
+  position: relative;
+  z-index: 8;
+}
+
+// ─── THE CORNER ───────────────────────────────────────────────────────────────────────────────
+// *"On them themselves, somewhere in the right corner, there's going to be a subtle thing. Not
+// some extra header."* Invisible until the pointer is on the tile, so a page he is reading is
+// a page and not a workbench.
+.tile__corner {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  z-index: 9;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 5px 8px 5px 10px;
-  border-bottom: 1px solid var(--sv-border-soft);
-  background: var(--sv-inset);
-  cursor: grab;
-  font-size: 11px;
+  gap: 1px;
+  padding: 1px;
+  border-radius: 5px;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+  background: color-mix(in srgb, var(--sv-surface) 82%, transparent);
+  .tile:hover &,
+  &.is-open { opacity: 1; }
+  // Keyboard reaches it even though the pointer is what reveals it.
+  &:focus-within { opacity: 1; }
 }
-.tile__kind { color: var(--sv-text-muted); font-weight: 600; }
-.tile__variant { position: relative; flex: 1 1 auto; color: var(--sv-text-faint); }
-.tile__variant--only { font-style: italic; }
-.tile__variant-face {
+.tile__grip,
+.tile__which,
+.tile__off {
   border: 0;
   background: none;
   padding: 1px 4px;
   font: inherit;
+  font-size: 10px;
+  line-height: 1.4;
   color: var(--sv-text-faint);
-  cursor: pointer;
   border-radius: 4px;
+  cursor: pointer;
   &:hover { background: var(--sv-hover); color: var(--sv-text); }
-  > i { font-style: normal; font-size: 9px; }
 }
-.tile__variant-pop {
+.tile__grip { cursor: grab; letter-spacing: -1px; }
+// WHICH VERSION, in one character. The kind's name is already legible in the block itself; what
+// the corner has to answer is "whose", and the page letters are what he calls them by.
+.tile__which { font-weight: 700; text-transform: uppercase; }
+// THE SUBSTITUTION IS VISIBLE WITHOUT BEING LOUD: the letter he gets, with a mark saying it is
+// not the letter he asked for. The title carries the sentence.
+.tile__which.is-swapped { color: var(--dba-press, #c0392b); > em { font-style: normal; } }
+.tile__which--only { cursor: default; opacity: 0.5; &:hover { background: none; color: var(--sv-text-faint); } }
+.tile__off { font-size: 12px; }
+.tile__pop {
   position: absolute;
   top: 100%;
-  left: 0;
-  z-index: 5;
+  right: 0;
+  margin-top: 3px;
   display: flex;
   flex-direction: column;
-  min-width: 160px;
-  padding: 3px;
+  min-width: 150px;
+  padding: 4px;
   border: 1px solid var(--sv-border);
   border-radius: 6px;
   background: var(--sv-surface);
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+  > i {
+    font-style: normal;
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--sv-text-faint);
+    padding: 2px 6px 4px;
+  }
 }
-.tile__variant-pick {
+.tile__pick {
   border: 0;
   background: none;
-  padding: 5px 8px;
+  padding: 5px 7px;
   text-align: left;
   font: inherit;
+  font-size: 11.5px;
   color: var(--sv-text);
   border-radius: 4px;
   cursor: pointer;
   &:hover { background: var(--sv-hover); }
   &.is-on { color: var(--sv-blue); font-weight: 600; }
 }
-.tile__swapped { font-style: normal; color: var(--dba-press, #c0392b); font-size: 10.5px; }
-.tile__drop {
-  flex: none;
-  border: 0;
-  background: none;
-  padding: 1px 5px;
-  font-size: 13px;
-  line-height: 1;
-  color: var(--sv-text-faint);
-  opacity: 0;
-  cursor: pointer;
-  .tile:hover & { opacity: 0.6; }
-  &:hover { opacity: 1; color: var(--sv-text); }
-}
-.tile__body { min-width: 0; }
+
 .tile__missing {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 14px;
+  padding: 14px 24px;
   font-size: 12px;
   color: var(--sv-text-faint);
   > b { color: var(--sv-text); font-family: monospace; }
 }
 
-// THE NARROWING IS SAID OUT LOUD BY THE SURFACE, once — not by whichever head happens to be on
+// ─── THE SURFACE'S OWN CHROME ─────────────────────────────────────────────────────────────────
+// The narrowing is said out loud by the surface, once — not by whichever head happens to be on
 // the page. A filter that narrows everything and announces itself nowhere means reading a
 // narrowed dashboard as the whole world.
 .tilestack__narrowed {
   display: flex;
   align-items: baseline;
   gap: 10px;
-  padding: 7px 12px;
-  border: 1px solid var(--sv-blue);
-  border-radius: 6px;
+  padding: 7px 24px;
+  border-bottom: 1px solid var(--sv-blue);
   background: var(--sv-hover);
   font-size: 11.5px;
   > b { color: var(--sv-text-strong); }
@@ -120,23 +165,26 @@
   }
 }
 
-.tilestack__none { margin: 0; color: var(--sv-text-faint); font-size: 12px; text-align: center; padding: 20px 0; }
+.tilestack__none { margin: 0; color: var(--sv-text-faint); font-size: 12px; text-align: center; padding: 28px 0 10px; }
 .tilestack__add {
   align-self: flex-start;
+  margin: 10px 0 24px 24px;
   border: 1px dashed var(--sv-border);
   background: none;
   border-radius: 6px;
-  padding: 6px 12px;
+  padding: 5px 11px;
   font: inherit;
-  font-size: 11.5px;
+  font-size: 11px;
   color: var(--sv-text-faint);
   cursor: pointer;
-  &:hover { border-color: var(--sv-blue); color: var(--sv-blue); border-style: solid; }
+  opacity: 0.6;
+  &:hover { border-color: var(--sv-blue); color: var(--sv-blue); border-style: solid; opacity: 1; }
 }
 .tilestack__menu {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  margin: 10px 24px 24px;
   padding: 12px;
   border: 1px solid var(--sv-border);
   border-radius: 6px;
@@ -174,3 +222,43 @@
   cursor: pointer;
   &:hover { color: var(--sv-text); }
 }
+
+
+// ─── THE PAGE'S FLOOR ─────────────────────────────────────────────────────────────────────────
+// Not a tile: it cannot be added, removed, reordered or switched. A page he just made is a page
+// with the vocabulary on it rather than a void.
+//
+// THE FOUR HUES ARE A SIXTH COPY and that is worth saying out loud: `--trail-*`, `--hww-*`,
+// `--dba-*`, `--dbb-*` and `--dbc-*` already each hold them, all identical. Folding them into
+// one source is real work and it is not this change; a card says so.
+.pagelegend {
+  --leg-rfc: #5a77e5;
+  --leg-arc: #9a4fe0;
+  --leg-gap: #c07a16;
+  --leg-report: #0d8065;
+  margin-top: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 18px;
+  padding: 14px 24px 0;
+  border-top: 1px solid var(--sv-border-soft);
+  font-size: 11px;
+  color: var(--sv-text-faint);
+}
+.pagelegend__item { display: inline-flex; align-items: center; gap: 7px; }
+.pagelegend__chip {
+  display: inline-block;
+  padding: 0 5px;
+  border-radius: 3px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  color: #fff;
+  white-space: nowrap;
+}
+.pagelegend__chip--rfc { background: var(--leg-rfc); }
+.pagelegend__chip--arc { background: var(--leg-arc); }
+.pagelegend__chip--gap { background: var(--leg-gap); }
+.pagelegend__chip--report { background: var(--leg-report); }
+.pagelegend__rule { flex: 1 1 100%; color: var(--sv-text-faint); opacity: 0.8; }

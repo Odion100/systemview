@@ -103,16 +103,22 @@
 }
 
 // ─── THE MASTHEAD ──────────────────────────────────────────────────────────────────────────────
+// THE GAUGE GETS ITS OWN ROW AT THE TOP. It used to share a row with the masthead — `"mast
+// gauge"` over one `auto` column — which was fine at two segments and collapsed the moment there
+// were eight: the `auto` column took what it needed, `minmax(0, 1fr)` gave way, and the title
+// rendered one word per line. His call, and it is the right one: *"that part doesn't need to be
+// in the same row. Pull it out and put it on a row at the top by itself rather than push
+// against."* A row of its own cannot squeeze anything, however many segments arrive.
 .dba__top {
   position: sticky;
   top: 0;
   z-index: 6;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-areas: "mast gauge" "fixtures gauge";
-  gap: 4px 20px;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "gauge" "mast" "fixtures";
+  gap: 10px 20px;
   align-items: start;
-  padding: 20px 24px 14px;
+  padding: 16px 24px 14px;
   background: var(--sv-surface);
   border-bottom: 1px solid var(--sv-border);
 }
@@ -138,12 +144,15 @@
   cursor: pointer;
   input { margin: 0; }
 }
+// LEFT, now that it is a row of its own: right-aligned made sense when it was the right-hand
+// column beside a title, and reads as an accident on a full-width band. These are filters you
+// press, so they start where reading starts.
 .dba__gauge {
   grid-area: gauge;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  justify-content: flex-end;
+  justify-content: flex-start;
 }
 .dba-tile {
   display: flex;
@@ -256,7 +265,14 @@ button.dba-tile.is-held {
   // EIGHT COLUMNS, ALWAYS — mark · chip · id · says · tail · count · project · fold. The last two
   // are empty on a row with one obligation rather than absent, or the project column slides left
   // on every single row and the one thing a column buys you (reading down it) is gone.
-  grid-template-columns: 14px auto 72px minmax(0, 1fr) auto auto auto 12px;
+  //
+  // EVERY TEXT COLUMN IS CAPPED, and that is what was missing. `auto` columns take what their
+  // content wants, so a report whose id is a sentence ("What is owed and where the plan is") and
+  // a project called `systemview-test` between them left the SAYS column about forty pixels wide
+  // — the obligation, the one thing the row exists to tell you, wrapping one word per line while
+  // an id overflowed across it. A column that can grow without limit is a column that eats the
+  // others.
+  grid-template-columns: 14px auto minmax(0, 92px) minmax(0, 1fr) minmax(0, auto) auto minmax(0, auto) 12px;
   align-items: baseline;
   gap: 8px;
   width: 100%;
@@ -271,10 +287,37 @@ button.dba-tile.is-held {
   &.is-work .dba-owed__mark { color: var(--sv-text-faint); }
 }
 .dba-owed__mark { font-size: 13px; }
-.dba-owed__id { color: var(--sv-text-strong); font-size: 11.5px; font-weight: 600; white-space: nowrap; }
-.dba-owed__says { color: var(--sv-text); font-size: 12px; }
-.dba-owed__tail { color: var(--sv-text-faint); font-size: 10.5px; font-style: normal; white-space: nowrap; }
-.dba-owed__where { color: var(--sv-text-faint); font-size: 10px; white-space: nowrap; }
+// `nowrap` WITHOUT `overflow` IS AN OVERFLOW, not a truncation: the text simply paints over its
+// neighbour. These three are single-line by design, so they clip and say so with an ellipsis.
+.dba-owed__id {
+  color: var(--sv-text-strong);
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+// The says column WRAPS rather than clipping — it is the sentence, and half a sentence with a
+// dot after it is worse than two lines.
+.dba-owed__says { color: var(--sv-text); font-size: 12px; min-width: 0; }
+.dba-owed__tail {
+  color: var(--sv-text-faint);
+  font-size: 10.5px;
+  font-style: normal;
+  white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dba-owed__where {
+  color: var(--sv-text-faint);
+  font-size: 10px;
+  white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .dba-owed__n {
   color: var(--dba-press);
   font-size: 10px;
@@ -348,7 +391,12 @@ $dba-grid: repeat(5, minmax(0, 1fr)) 210px;
 
 .dba-axis {
   position: sticky;
-  top: 86px;
+  // MEASURED, NOT GUESSED. This was `86px`, which was the masthead's height on the day it was
+  // written — and the masthead's height is not a constant: the gauge wraps, and it gained five
+  // segments the day the head became a filter. A hardcoded offset puts the axis either under the
+  // header or floating below it, and either way the column labels stop naming the dots they sit
+  // over. `--dba-head` is set from the real element; the fallback is only for the first frame.
+  top: var(--dba-head, 86px);
   z-index: 4;
   display: grid;
   grid-template-columns: $dba-grid;
