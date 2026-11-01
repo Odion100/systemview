@@ -25,6 +25,7 @@ import { namespaceOptions, testOptions, fileOptions, TEMPLATES } from "./menuOpt
 import ServiceContext from "../../ServiceContext";
 import BLOCKS from "./registry";
 import TaskItem from "./blocks/TaskItem";
+import { findTaskBox, stripTaskBox } from "./taskBox";
 
 import "./styles.scss";
 import { normalizeFences, wrapLines, wrapLinesInThread } from "./docEdit";
@@ -612,16 +613,16 @@ const Markdown = ({ children, dark = false, scope = null, onSourceChange = null,
       // `node.checked` does NOT exist. Read the state off that input child, and drop react-markdown's
       // rendered (disabled) input in favour of a live one. `node.position` survives the mdast→hast
       // conversion, which is what gives us the source line to write back to.
+      //
+      // WHERE the input sits depends on whether the list is tight or loose, and both halves used to
+      // assume tight — `taskBox.js` carries the shapes and what it cost.
       li({ node, children, className, ...props }) {
         const classes = ((node && node.properties && node.properties.className) || []).join(" ");
-        const box =
-          node && (node.children || []).find((c) => c.tagName === "input" && c.properties && c.properties.type === "checkbox");
+        const box = findTaskBox(node);
         if (classes.includes("task-list-item") || box) {
           const checked = !!(box && box.properties && box.properties.checked);
           const line = node.position && node.position.start && node.position.start.line;
-          const rest = React.Children.toArray(children).filter(
-            (c) => !(React.isValidElement(c) && c.type === "input")
-          );
+          const rest = stripTaskBox(children);
           // TaskItem rather than the markup inline, because ticking a task is a DECISION and has
           // to tell the document's members — and this file cannot do that itself: it is the
           // component that provides the member context, so it cannot consume it.
