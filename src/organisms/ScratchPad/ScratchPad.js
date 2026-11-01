@@ -1,4 +1,5 @@
 import React, { useContext, useEffect, useState } from "react";
+import useEffectiveProject from "../../utils/effectiveProject";
 import { useParams } from "react-router-dom";
 import AutoCompleteBox from "../../molecules/AutoCompleteBox/AutoCompleteBox";
 import Args, { Argument } from "../../molecules/Args/Args";
@@ -16,7 +17,12 @@ const ScratchPad = ({
 }) => {
   // The CURRENT PROJECT comes from the page URL — a test namespace never carries a projectCode, so
   // this is the only scope the step picker can trust.
-  const { projectCode } = useParams();
+  // THE SENTINEL IS NOT A PROJECT. With nothing selected the route segment is the literal
+  // `@none`, which is not empty — so the filter below stopped meaning "show everything" and
+  // started meaning "show services belonging to a project that exists nowhere", which is
+  // nothing at all.
+  const { projectCode: routeRaw } = useParams();
+  const projectCode = useEffectiveProject(routeRaw);
   const { serviceId, moduleName, methodName } = test.namespace;
   // An EVENT step is marked by methodName "on" — its empty state hints the listener shape.
   const isEvent = methodName === "on";

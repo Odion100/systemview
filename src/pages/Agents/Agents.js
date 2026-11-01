@@ -1,4 +1,5 @@
 import React from "react";
+import useEffectiveProject from "../../utils/effectiveProject";
 import { useParams } from "react-router-dom";
 import PageHeader from "../../organisms/PageHeader/PageHeader";
 import AgentProfile from "../../organisms/AgentProfile/AgentProfile";
@@ -8,7 +9,8 @@ import AgentChat from "../../organisms/AgentChat/AgentChat";
 // agent, see and change everything feeding it (the always-loaded doc, tools, skills, MCPs, the
 // knowledge), so agents get configured right from one place.
 const Agents = () => {
-  const { projectCode } = useParams();
+  const { projectCode: routeRaw } = useParams();
+  const projectCode = useEffectiveProject(routeRaw);
   return (
     <section className="system-viewer" data-sv="page">
       <PageHeader projectCode={projectCode} current="agents" />

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useContext, useMemo, useCallback } from "react";
+import useEffectiveProject from "../../utils/effectiveProject";
 import { fillStyle, pctStyle } from "../../atoms/meterWidth";
 import ErrorBoundary from "../../atoms/ErrorBoundary/ErrorBoundary";
 import { createPortal } from "react-dom";
@@ -2375,7 +2376,13 @@ export function BotHub() {
 function BotBubble({ projectCode, index }) {
   const location = useLocation();
   const history = useHistory();
-  const { serviceId, moduleName, methodName, projectCode: routeProject } = useParams();
+  const { serviceId, moduleName, methodName, projectCode: routeRaw } = useParams();
+  // NOT THE ROUTE SEGMENT ALONE. With nothing selected the tabs route writes the literal
+  // `@none` there, and the comparisons below are "is the human looking at MY project" — so
+  // `@none` made that false for every bot at once and every unaddressed point was dropped by
+  // all of them. A cue that performs nothing while the sequence carries on is the failure the
+  // whole cue vocabulary is written against.
+  const routeProject = useEffectiveProject(routeRaw);
   const { SystemViewService, connectedServices } = useContext(ServiceContext);
   const { SystemView } = SystemViewService;
   // OPEN SURVIVES THE SWAP. The self-updating tab reloads itself when a build lands, and the

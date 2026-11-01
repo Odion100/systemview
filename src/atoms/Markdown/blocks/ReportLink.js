@@ -1,4 +1,5 @@
 import React from "react";
+import { projectOf } from "../../../utils/effectiveProject";
 import { useHistory, useParams } from "react-router-dom";
 import { useMarkdownScope, useInDocument } from "../context";
 import { onCodePage, openReportInPanel } from "../openRef";
@@ -19,8 +20,10 @@ const ReportLink = ({ label, attrs = {} }) => {
   // The path names its own project (`report.<projectCode>.<slug>.md`) — that beats the reading
   // scope, so a chip can point across projects; an explicit attr beats everything.
   const fromPath = (path.match(/report\.([^.]+)\./) || [])[1];
+  // The route segment is the LAST resort and it can be the `@none` sentinel, which resolves to a
+  // project that exists nowhere — so the link would open against nothing and report an absence.
   const projectCode =
-    attrs.project || fromPath || (scope && scope.projectCode) || params.projectCode;
+    attrs.project || fromPath || (scope && scope.projectCode) || projectOf(params.projectCode, typeof window !== "undefined" ? window.location.search : "");
 
   // Display name: explicit title, else the filename slug de-slugged.
   const slug = (path.split("/").pop() || "").replace(/^report\.[^.]+\./, "").replace(/\.md$/, "");

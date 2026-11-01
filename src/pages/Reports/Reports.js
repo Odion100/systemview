@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useContext, useMemo, useCallback, useRef } from "react";
+import useEffectiveProject from "../../utils/effectiveProject";
 import { pctStyle } from "../../atoms/meterWidth";
 import { useHistory, useParams, useLocation } from "react-router-dom";
 import { Client } from "../../systemClient";
@@ -144,7 +145,11 @@ export default function Reports({ projectCode: pcProp = null, serviceId: svcProp
   // (/reports/:projectCode), the within-project selections in the query — so a refresh lands
   // you exactly where you were. There is no cross-project "all" view; that isn't a thing.
   const { projectCode: pcFromRoute } = useParams();
-  const projectCode = pcProp || pcFromRoute;
+  // Resolved, not trusted — the sentinel is not empty, so it would win over the query that
+  // actually says which project is in view. Resolved UNCONDITIONALLY: behind a `||` it is a hook
+  // called only when the prop is absent, which changes hook order between renders.
+  const fromRoute = useEffectiveProject(pcFromRoute);
+  const projectCode = pcProp || fromRoute;
 
   const query = new URLSearchParams(location.search);
   const [connectedProjects, setConnectedProjects] = useState({});

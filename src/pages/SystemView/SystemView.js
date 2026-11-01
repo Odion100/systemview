@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import useEffectiveProject from "../../utils/effectiveProject";
 import ErrorBoundary from "../../atoms/ErrorBoundary/ErrorBoundary";
 import { useParams, useHistory, useLocation } from "react-router-dom";
 import { getTabs, openTab, fileKey } from "./tabsStore";
@@ -28,7 +29,11 @@ const SystemViewPage = ({ params = null }) => {
   // (see KeptPane) and a route that does not match hands back nothing. `useParams()` is still the
   // answer when it does match, so nothing that renders this inside a plain Route changes.
   const matched = useParams();
-  const { projectCode, serviceId, moduleName, methodName } = params || matched;
+  const { projectCode: routeRaw, serviceId, moduleName, methodName } = params || matched;
+  // THE SENTINEL IS WRITTEN ON THIS ROUTE, so this is the first place that must not trust it:
+  // `@none` is not empty, so it passes every truthiness check a child writes and turns "no
+  // project selected" into "a project that exists nowhere" all the way down.
+  const projectCode = useEffectiveProject(routeRaw);
   // Both side panels de-expand into their corners so the middle (Stories/Docs) gets the space.
   // The open/collapsed state PERSISTS across refresh (localStorage) — you get the layout back exactly.
   // RFC-052 — the rail rises with the docked agent you click (see bringToFront in AgentChat).
