@@ -110,6 +110,46 @@ describe("splitLaneEvents — the edges of the lane split", () => {
     expect(lanes.get("t1").source).toBe("");
   });
 
+  // ── A LAUNCH ACK IS NOT AN END ──────────────────────────────────────────────────────────────
+  // Subagents run in the background by DEFAULT, and a backgrounded Agent call returns the instant
+  // it is spawned — "Async agent launched successfully. agentId: …". That receipt carries the
+  // spawning call's id like any real result, so every background subagent was marked finished at
+  // birth: measured in his window 2026-11-01, a subagent 95 events into its work wore the "closed"
+  // pill and the finished row's dimming while it was spending. The row exists to say whether
+  // something is still running, so this was not an edge — it inverted the one fact it carries.
+  it("a backgrounded spawn's launch receipt does not end the lane", () => {
+    const { lanes } = splitLaneEvents([
+      ev("tool.call", { id: "t1", name: "Agent", input: { prompt: "go read the band" } }),
+      ev("assistant.text", { text: "reading", parent: "t1" }),
+      ev("tool.result", { id: "t1", ok: true, detail: "Async agent launched successfully.\nagentId: abc123" }),
+    ]);
+    expect(lanes.get("t1").ended).toBeUndefined();
+  });
+
+  it("a real result still ends the lane, ok or failed", () => {
+    const run = (detail) =>
+      splitLaneEvents([
+        ev("tool.call", { id: "t1", name: "Agent", input: { prompt: "p" } }),
+        ev("assistant.text", { text: "x", parent: "t1" }),
+        ev("tool.result", { id: "t1", ok: detail !== "boom", ts: 7, detail }),
+      ]).lanes.get("t1");
+    expect(run("here is what I found")).toHaveProperty("ended", { ok: true, ts: 7 });
+    expect(run("boom").ended).toEqual({ ok: false, ts: 7 });
+  });
+
+  it("reads the ack out of whichever field the emitter used", () => {
+    const made = (res) =>
+      splitLaneEvents([
+        ev("tool.call", { id: "t1", name: "Agent", input: { prompt: "p" } }),
+        ev("assistant.text", { text: "x", parent: "t1" }),
+        ev("tool.result", { id: "t1", ok: true, ...res }),
+      ]).lanes.get("t1").ended;
+    expect(made({ output: "Async agent launched successfully." })).toBeUndefined();
+    expect(made({ content: "The agent is working in the background." })).toBeUndefined();
+    // and a non-string payload must not throw on the way past
+    expect(made({ output: { ok: true } })).toEqual({ ok: true, ts: 1 });
+  });
+
   it("caps the per-lane log at LANE_LOG_CAP, dropping the oldest and keeping the join", () => {
     const events = [ev("tool.call", { name: "mcp__worklist__set", input: { source: "lane:test/a" }, parent: "t1", ts: 0 })];
     for (let i = 1; i <= LANE_LOG_CAP + 4; i += 1) events.push(ev("assistant.text", { text: `e${i}`, parent: "t1", ts: i }));

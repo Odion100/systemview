@@ -61,7 +61,17 @@ export function unseenSubagents(laneMap, rowSources = []) {
       source,
       brief: briefLine(lane.brief),
       fullBrief: String(lane.brief || ""),
-      events: events.length,
+      // `events` IS THE LOG, NOT ITS SIZE — and it used to be `events.length`, which is the whole
+      // reason his question came back a second time: *"they don't even register their chat."* The
+      // row renders `<SubagentChat events={u.events}>`, `laneLiveness({ events })` and
+      // `(u.events || []).length`, and every one of those reads an ARRAY. Handed a number, all
+      // three failed the same silent way — `(95).length` is `undefined`, so a subagent with 95
+      // events held drew "no log held", a pill of nothing, and a chat fold that opened onto the
+      // empty state. Measured in his window on 2026-11-01: `u.events === 95`, `typeof "number"`.
+      // Everywhere else in this codebase `events` is the array (`lane.events`, `Feed rows`,
+      // `laneCook`), so the name was the lie; the count is `n` and says so.
+      events,
+      n: events.length,
       ts,
       // WHAT IT HAS BEEN DOING, for a row that has no name to show. A subagent with no brief and no
       // source would otherwise be an id and a number, which is visible without being legible.

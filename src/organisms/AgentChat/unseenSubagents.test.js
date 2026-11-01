@@ -91,7 +91,22 @@ describe("ordering and shapes it must survive", () => {
     expect(unseenSubagents(null, [])).toEqual([]);
     expect(unseenSubagents(undefined)).toEqual([]);
     expect(unseenSubagents(new Map([["a", null], [null, lane()]]), [])).toEqual([]);
-    expect(unseenSubagents(new Map([["a", lane({ events: null })]]), [])[0].events).toBe(0);
+    expect(unseenSubagents(new Map([["a", lane({ events: null })]]), [])[0].events).toEqual([]);
+    expect(unseenSubagents(new Map([["a", lane({ events: null })]]), [])[0].n).toBe(0);
+  });
+
+  // THE ROW'S CHAT COULD NOT BE REACHED, and this is why: `events` held the COUNT, while the row
+  // renders `<SubagentChat events={u.events}>`, calls `laneLiveness({ events })` and reads
+  // `(u.events || []).length`. All three want an array; handed a number they fail identically and
+  // silently — `(95).length` is `undefined` — so a subagent 95 events into its work drew "no log
+  // held" and a chat fold that opened onto the empty state. His report: *"they don't even register
+  // their chat."* Measured in his window 2026-11-01: `u.events === 95`, `typeof "number"`.
+  it("hands over the LOG, not its size, because the chat fold renders it", () => {
+    const evs = [ev({ ts: 1 }), ev({ ts: 2, summary: "Read" })];
+    const r = unseenSubagents(new Map([["a", lane({ events: evs })]]), [])[0];
+    expect(Array.isArray(r.events)).toBe(true);
+    expect(r.events).toEqual(evs);
+    expect(r.n).toBe(2);
   });
 
   it("ignores empty strings in the known-sources list rather than matching on them", () => {

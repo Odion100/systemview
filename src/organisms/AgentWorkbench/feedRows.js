@@ -70,6 +70,16 @@ const MCP_SERVERS = { context: true, discovery: true, systemlynx: true, worklist
 // from parent id to lane name is the lane's own sourced worklist call — the one event that
 // carries both.
 export const LANE_LOG_CAP = 300;
+// THE RECEIPT A BACKGROUNDED SPAWN HANDS BACK. Matched on the sentence because that is all the
+// event carries — the result has no flag saying "this one is only an acknowledgement", and the text
+// is the harness's own and stable. The field it lands in varies by emitter (`detail` here, `output`
+// or `content` elsewhere), so all three are read rather than guessed at.
+const LAUNCH_ACK = /\basync agent launched\b|\bagent is working in the background\b/i;
+const isLaunchAck = (ev) => {
+  const t = ev.detail != null ? ev.detail : ev.output != null ? ev.output : ev.content;
+  return typeof t === "string" && LAUNCH_ACK.test(t);
+};
+
 export function splitLaneEvents(events) {
   const main = [];
   const lanes = new Map(); // parentId -> { source, brief, events: [] }
@@ -104,7 +114,15 @@ export function splitLaneEvents(events) {
       // KEYED BY ID AND ATTACHED AFTER, the same shape the brief above uses and for the same reason
       // — the result may arrive in any order relative to the lane entry being created, and a lookup
       // at this moment would simply be empty.
-      if (ev && ev.kind === "tool.result" && ev.id) ends.set(String(ev.id), { ok: ev.ok !== false, ts: ev.ts || 0 });
+      //
+      // EXCEPT A LAUNCH ACK, WHICH IS A RECEIPT AND NOT AN END. A backgrounded Agent call returns
+      // the instant it is spawned — "Async agent launched successfully. agentId: …" — and that
+      // result carries the spawning call's id like any other, so every background subagent was
+      // marked finished AT BIRTH. Measured in his window on 2026-11-01: a subagent 95 events into
+      // its work wore the "closed" pill and the finished row's dimming while it was spending.
+      // Subagents default to background now, so this was not an edge — it was the common case, and
+      // it inverted the one fact the row exists to carry.
+      if (ev && ev.kind === "tool.result" && ev.id && !isLaunchAck(ev)) ends.set(String(ev.id), { ok: ev.ok !== false, ts: ev.ts || 0 });
       main.push(ev);
     }
   }

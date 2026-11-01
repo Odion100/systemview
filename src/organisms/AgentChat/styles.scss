@@ -5368,6 +5368,27 @@ $sv-board-states: (
   }
 }
 
+// ── WHERE ONE SECTION OF THE LANE TAB BEGINS ──────────────────────────────────────────────────
+// His ask: the lane tab reads as two sections, work with a branch and work without one. The mark
+// is the one the strip ALREADY uses to say a group has started — the same 1px rule the stacked
+// worklists wear, from his own complaint about not seeing where a list began — plus a small faint
+// word, in the costume `__unseen-kind` established for a caption in this strip. Nothing invented:
+// when two kinds share one band the ruling is a different colour of the type, not a new divider,
+// and a section is a weaker claim than that, so it borrows rather than adds.
+// IT NEVER DRAWS ALONE — the render only emits a caption when both sections have rows (see
+// AgentChat.js), because a division named over one list is a division that is not there.
+.agent-chat__bandsec {
+  padding: 5px 8px 2px;
+  border-top: 1px solid var(--sv-line, rgba(128, 128, 128, 0.18));
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--sv-text-faint);
+  // the first section's rule would double the band's own edge
+  &:first-child { border-top: none; padding-top: 2px; }
+}
+
 // ── NO SUBAGENT RUNS UNSEEN (his rule) ────────────────────────────────────────────────────────
 // A subagent that never registered a lane has no row anywhere — it runs, spends and writes with the
 // strip silent. These are those rows. DIM on purpose: it is not a kind of work, it is work that

@@ -63,12 +63,27 @@ const SUBTYPE_WORD = { planning: "plan" };
 // plural, and a word that reads wrong is a word he has to translate before he can use the tab.
 const INVARIANT = new Set(["owed"]);
 
+const plural = (word, n) => `${n} ${word}${n === 1 || INVARIANT.has(word) ? "" : "s"}`;
+
 // Plural the way the band head already speaks: "1 job", "3 lanes".
-export const bandLabel = (kind, n) => {
+//
+// THE LANE TAB CAN HOLD TWO KINDS, AND THEN IT NAMES BOTH. A subagent with no branch is not a lane
+// — it has no run record and nothing to diff — so a tab reading "3 lanes" over one lane and two
+// subagents is a claim the disk does not support. It says "1 lane · 2 subagents" instead: longer,
+// but every word of it is true, and the row already scrolls by design (reports fan out by subtype,
+// so its length was never bounded). With one kind present the phrase collapses to that kind alone,
+// which is why nothing changed for the case he has been looking at for weeks.
+export const bandLabel = (kind, n, parts = null) => {
   const sub = kind.startsWith("reports:") ? kind.slice(8) : "";
   const row = BAND_KINDS.find((k) => k.key === kind);
   const word = sub ? SUBTYPE_WORD[sub] || sub : row ? row.label : kind;
-  return `${n} ${word}${n === 1 || INVARIANT.has(word) ? "" : "s"}`;
+  if (parts && (parts.lanes || parts.subagents)) {
+    const said = [];
+    if (parts.lanes) said.push(plural(word, parts.lanes));
+    if (parts.subagents) said.push(plural("subagent", parts.subagents));
+    return said.join(" · ");
+  }
+  return plural(word, n);
 };
 
 /**
@@ -90,6 +105,24 @@ export const bandTabs = (counts = {}, stored = "") => {
   // reports keep the plain `report` tab.
   const tabs = BAND_KINDS.flatMap((k) => {
     const c = counts[k.key];
+    // THE LANE TAB'S COUNT FOLDS IN; REPORTS FAN OUT. Both arrive as an object and they mean
+    // opposite things on purpose, so it is said here rather than left to be inferred: a report
+    // subtype becomes its OWN tab, because a planning report and a notice wait on different
+    // things; a lane-less subagent becomes a SECTION inside the lane tab, because he asked for
+    // two sections and not two tabs.
+    //
+    // AND THE SUM IS WHAT DECIDES THE TAB EXISTS — this is the bug he hit. `lanes` was the count
+    // of REGISTERED lanes alone, so with no lanes registered and two lane-less subagents running,
+    // the count was 0, the rule below deleted the tab, and the render gate (`active === "lanes"`)
+    // could never be true: the rows existed, their chats existed, and nothing could reach them.
+    // His rule is that no subagent runs unseen, so a running subagent BUYS the tab. The number
+    // that decides the tab exists is therefore every row in the pane — and the LABEL is not that
+    // number said once (see `bandLabel`), because "3 lanes" over 1 lane and 2 subagents would
+    // trade an invisible row for a false one.
+    if (k.key === "lanes" && c && typeof c === "object") {
+      const parts = { lanes: Number(c.lanes) || 0, subagents: Number(c.subagents) || 0 };
+      return [{ ...k, n: parts.lanes + parts.subagents, parts }];
+    }
     if (k.key === "reports" && c && typeof c === "object") {
       const subs = Object.keys(c).filter((w) => w && c[w] > 0).sort();
       const out = [];

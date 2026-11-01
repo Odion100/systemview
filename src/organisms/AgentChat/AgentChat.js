@@ -6608,7 +6608,12 @@ const countdown = (str, now = Date.now()) => {
       owed: owedShown.length,
       jobs: bandJobs.length,
       lists: bandLists.length,
-      lanes: lanesShown.length,
+      // TWO SECTIONS, ONE TAB (his ask, 2026-11-01: *"they should show up the same way but without
+      // a branch… two sections just logically make sense"*). The lane tab holds work with a branch
+      // and work without one, so its count arrives in two parts: the sum buys the tab — a running
+      // subagent must be reachable even with no lane registered at all, which is the case that was
+      // broken — and the parts write the label, so the tab never counts a subagent as a lane.
+      lanes: { lanes: lanesShown.length, subagents: unseenShown.length },
       reports: reportsMeta.list.reduce((g, r) => {
         g[r.subtype || ""] = (g[r.subtype || ""] || 0) + 1;
         return g;
@@ -8054,7 +8059,7 @@ const countdown = (str, now = Date.now()) => {
               it controls. And the count rides the title while it is on: a surface that silently
               omits is a surface that lies, so "no runs" and "runs, hidden by me" must never look
               the same. */}
-          {attached && !hideWork && (owedShown.length > 0 || lanesShown.length > 0 || listsShown.length > 0 || reportsMeta.list.length > 0 || !!work.state.whiteboard) && (
+          {attached && !hideWork && (owedShown.length > 0 || lanesShown.length > 0 || unseenShown.length > 0 || listsShown.length > 0 || reportsMeta.list.length > 0 || !!work.state.whiteboard) && (
             <div className={`${CLASSNAME}__workband`} ref={stripRef} style={{ flex: `0 1 ${stripH}%` }}>
               <div
                 className="panel-divider panel-divider--h"
@@ -8100,7 +8105,7 @@ const countdown = (str, now = Date.now()) => {
                           {tb.key === "arcs" ? "⊘" : "⚑"}
                         </span>
                       ) : null}
-                      {bandLabel(tb.key, tb.n)}
+                      {bandLabel(tb.key, tb.n, tb.parts)}
                     </button>
                   ))}
                 </div>
@@ -8115,7 +8120,7 @@ const countdown = (str, now = Date.now()) => {
                   <NudgeCog />
                 </div>
               )}
-              {(owedShown.length > 0 || lanesShown.length > 0 || listsShown.length > 0 || reportsMeta.list.length > 0) && (
+              {(owedShown.length > 0 || lanesShown.length > 0 || unseenShown.length > 0 || listsShown.length > 0 || reportsMeta.list.length > 0) && (
               <div className={`${CLASSNAME}__strip`}>
           {/* THE OWED TAB — what is waiting on HIM, across every registered document at once.
               *"I need to be knowing what I need to do… you told me there's things that I need to
@@ -8366,14 +8371,40 @@ const countdown = (str, now = Date.now()) => {
                     exactly what the band always did — the toggle picks between them and nothing
                     else changes. A job card still nests the lanes it cut on the jobs tab: that
                     relation is the job's, not the lane tab's. */}
-                {attached && bandShown.active === "lanes" &&
-                  lanesShown.filter((l) => !claimed.has(laneOf(l))).map(renderLaneRow)}
-                {/* RUNNING, AND ACCOUNTED FOR BY NOTHING ELSE ON SCREEN. Dim, because it is not a
-                    lane — it is a subagent that never became one. The row carries the brief that
-                    scoped it and the last thing it did, because an id and an event count is visible
-                    without being legible. */}
-                {attached && bandShown.active === "lanes" &&
-                  unseenShown.map((u) => <SubagentRow key={`unseen-${u.parent}`} u={u} />)}
+                {/* THE LANE TAB IS TWO SECTIONS — his ask, 2026-11-01: *"they should show up the
+                    same way but without a branch… two sections just logically make sense."* Work
+                    with a branch, then work without one. Both halves are subagents and both get
+                    the same row, the same chevron and the same chat; the only difference is the
+                    branch, so the branch is what the sections are NAMED for.
+
+                    THE CAPTION IS THE HOUSE'S HAIRLINE, NOT A NEW DIVIDER. When two kinds share
+                    one band the ruling is *"a different colour of the type… you're overthinking
+                    it"* — no glyph, no separator. A SECTION is the case he asked for by name, so
+                    it gets the one mark the strip already uses to say where a group begins: the
+                    1px rule the stacked worklists wear, and a small faint word above it.
+
+                    AND IT ONLY DRAWS WHEN THERE ARE TWO. With one kind in the pane there is no
+                    division to name, and the tab's own label already says which kind it is ("1
+                    lane", or "2 subagents") — so a caption there would name a distinction that
+                    does not exist, which is the same fault as a tab that can only say "nothing
+                    here". */}
+                {attached && bandShown.active === "lanes" && (() => {
+                  const branchRows = lanesShown.filter((l) => !claimed.has(laneOf(l)));
+                  const both = branchRows.length > 0 && unseenShown.length > 0;
+                  const cap = (text) => <div className={`${CLASSNAME}__bandsec`}>{text}</div>;
+                  return (
+                    <>
+                      {both && cap("on a branch")}
+                      {branchRows.map(renderLaneRow)}
+                      {/* RUNNING, AND ACCOUNTED FOR BY NOTHING ELSE ON SCREEN. Dim, because it is
+                          not a lane — it is a subagent that never became one. The row carries the
+                          brief that scoped it and the last thing it did, because an id and an
+                          event count is visible without being legible. */}
+                      {both && cap("no branch")}
+                      {unseenShown.map((u) => <SubagentRow key={`unseen-${u.parent}`} u={u} />)}
+                    </>
+                  );
+                })()}
                 {attached &&
                   listsShown
                     .filter((l) => bandShown.active === (l.source.startsWith("job:") ? "jobs" : "lists"))
@@ -8424,7 +8455,7 @@ const countdown = (str, now = Date.now()) => {
           {/* THE WHOLE LABEL IS THE GRAB BAR — a 5px edge sliver was the only pull surface and it
               sat inside the chat guard's shadow; now any press on the row starts the pull, and a
               press that never moves is the click that opens. */}
-          {attached && hideWork && (owedShown.length > 0 || lanesShown.length > 0 || listsShown.length > 0 || reportsMeta.list.length > 0 || !!work.state.whiteboard) && (
+          {attached && hideWork && (owedShown.length > 0 || lanesShown.length > 0 || unseenShown.length > 0 || listsShown.length > 0 || reportsMeta.list.length > 0 || !!work.state.whiteboard) && (
             <div className={`${CLASSNAME}__workband-label`} ref={stripRef} onMouseDown={stripPull}>
               <WorkbandHead
                 open={false}
