@@ -12,6 +12,13 @@
 // nothing else: a page that can hold a hundred dots animating `box-shadow` or `width` is a page
 // that burns a core all day, and this window has a measured history of exactly that.
 
+// ─── THE PAGE CHROME ───────────────────────────────────────────────────────────────────────────
+//
+// THIS RULE IS THE BOX AND NOTHING ELSE: the scroll container, its border, its background, its
+// padding. Every section below it is a FLAT selector (`.dba__owed`, `.dba-tile`, `.dba-mark`), so a
+// section lifted out of this page onto the tile surface keeps all of its own rules — but it would
+// lose everything this rule used to INHERIT down, which was most of what makes it legible. So the
+// two halves are now separate rules and `.dba-ctx` carries the inheritable half (below).
 .dba {
   flex: 1 1 auto;
   min-height: 0;
@@ -26,10 +33,20 @@
   overflow-y: auto;
   overflow-x: hidden;
   background: var(--sv-surface);
+  padding: 0 0 72px;
+}
+
+// ─── THE CONTEXT — EVERYTHING A SECTION INHERITS OR LOOKS UP ───────────────────────────────────
+//
+// ONE DEFINITION, TWO SELECTORS, so the page keeps behaving exactly as it did while a tile
+// standing alone on the configurable surface gets the same ground to stand on. A `.dba-mark`
+// rendered outside this context paints `var(--dba-rfc)` as NOTHING — not a wrong colour, no colour
+// at all — which is precisely the class of silent failure this page was built against.
+.dba,
+.dba-ctx {
   color: var(--sv-text);
   font-size: 13px;
   line-height: 1.55;
-  padding: 0 0 72px;
 
   // the kind accents — How-we-work's four, unchanged, plus a dim step for each so a ring can draw
   // the HONEST MIDDLE (marked-but-unproved, declared-blocked) without inventing a fifth hue
@@ -61,8 +78,18 @@
   }
   button { font: inherit; color: inherit; }
 }
-:root.sv-dark .dba {
-  background: var(--sv-bg);
+
+// AND IF A SURFACE EVER PUTS TILES INSIDE `.dba` ITSELF, the wrapper must not be a box. Every tile
+// renders inside a `.dba-ctx` div so it can stand anywhere; dropped straight into this page's
+// scroll box that div would become `.dba__top`'s parent, and `position: sticky` sticks within its
+// PARENT — a wrapper the height of the masthead pins the masthead to itself and the whole header
+// scrolls away. `display: contents` removes the box and keeps the inheritance, so a section's
+// containing block stays `.dba` exactly as it is today.
+.dba > .dba-ctx { display: contents; }
+
+:root.sv-dark .dba { background: var(--sv-bg); }
+:root.sv-dark .dba,
+:root.sv-dark .dba-ctx {
   --dba-rfc: #8ba4ef;
   --dba-arc: #c68cf5;
   --dba-gap: #e0a34f;
