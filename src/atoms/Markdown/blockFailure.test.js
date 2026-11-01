@@ -152,3 +152,14 @@ describe("once, and only once", () => {
     expect(a).toBe(failureKey({ kind: "commit", ref: "aaa", reason: "no such commit", audience: ["x"] }));
   });
 });
+
+// IT HAS TO SAY WHAT IT IS. Without the flag the harness composes "a document you are a member of
+// was updated" and closes with "you are on it because the document says so" — wrong twice for a
+// block reporting itself from a chat, where there is no document and the recipient is the author.
+// His catch, on the first real one he saw: "why does this say document? It's not coming from the
+// document."
+it("flags the send as a FAULT, so the headline does not call it a document update", async () => {
+  mount({ projectCode: "systemview-test", chat: "main" });
+  await waitFor(() => expect(sendUpdateTo).toHaveBeenCalledTimes(1));
+  expect(sendUpdateTo.mock.calls[0][0].fault).toBe(true);
+});

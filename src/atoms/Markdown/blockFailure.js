@@ -87,6 +87,10 @@ export function useBlockFailure() {
         members: audience,
         summary: failureSummary({ kind, ref, reason, where: doc.docPath ? "" : "this chat" }),
         by: "the window",
+        // SAY WHAT THIS IS. Without it the harness composes "a document you are a member of was
+        // updated", which is wrong twice over: there is no document, and the recipient is the
+        // AUTHOR rather than a member. Flagged rather than inferred, the same way a decision is.
+        fault: true,
       });
       inFlight.current.delete(key);
       // ONLY A DELIVERED MESSAGE IS REMEMBERED. A refused send that marked itself sent would make

@@ -8,7 +8,7 @@
 // `decision` RIDES THE PAYLOAD rather than being inferred from the summary's wording. The host
 // picks the headline, and a host that had to pattern-match prose to know what kind of event this
 // was would be guessing at the one thing the sender already knows for certain.
-export const sendUpdateTo = async ({ path, project, members, summary, threads = 1, thread = "", by = "you", decision = false }) => {
+export const sendUpdateTo = async ({ path, project, members, summary, threads = 1, thread = "", by = "you", decision = false, fault = false }) => {
   const bridge = typeof window !== "undefined" && window.systemview && window.systemview.documents;
   if (!bridge || !bridge.sendUpdate)
     return { ok: false, error: "this window cannot announce a send — the host door is not granted here" };
@@ -22,6 +22,10 @@ export const sendUpdateTo = async ({ path, project, members, summary, threads = 
       threads,
       ...(thread ? { thread } : {}),
       ...(decision ? { decision: true } : {}),
+      // A FAULT is the third kind of thing this call carries, beside an edit and a decision: not
+      // "go and look", but "the thing you wrote is broken". The headline and the closing line both
+      // branch on it, so it has to travel rather than be guessed from the summary's wording.
+      ...(fault ? { fault: true } : {}),
     });
     if (!r || r.ok === false) return { ok: false, error: (r && r.error) || "the send was refused" };
     return { ok: true };
