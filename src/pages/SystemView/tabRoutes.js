@@ -25,6 +25,15 @@ export function buildRoute(t, pc, currentSearch) {
   // page, which meant the only way to read it was to close every document — *"I'm not going to
   // close all my documents to have the tab strip empty to get to it."* One per project, like the
   // board: it is a view of one thing, so a second tab would be the same page twice.
+  // THE DASHBOARD. Three of them are in the tree at once on purpose — three lanes each built a
+  // whole answer from the same brief and his own point of view, and the way to choose between
+  // designs is to flip between them on real data, not to read three descriptions. `?dash=a|b|c`
+  // rides the route so a choice survives a refresh and can be linked.
+  if (t.kind === "dash") {
+    p.set("tab", "dash");
+    p.delete("rdoc");
+    return { pathname: `/specs/${pc}`, search: `?${p.toString()}` };
+  }
   if (t.kind === "how") {
     p.set("tab", "how");
     p.delete("rdoc");
@@ -65,6 +74,7 @@ export function labelOfTab(t, pc) {
     const f = t.file || {};
     return f.path ? String(f.path).split("/").pop() : "file";
   }
+  if (t.kind === "dash") return "Dashboard";
   if (t.kind === "how") return "How we work";
   if (t.kind === "stats") return `Stats · ${pc}`;
   if (t.kind === "board") return `Board · ${pc}`;

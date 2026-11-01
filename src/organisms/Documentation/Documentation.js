@@ -18,6 +18,7 @@ import Board from "../Board/Board";
 import CenterTabs, { useOpenByPath } from "../CenterTabs/CenterTabs";
 import { buildRoute } from "../../pages/SystemView/tabRoutes";
 import HowWeWork from "../HowWeWork/HowWeWork";
+import DashboardSwitch from "../DashboardSwitch/DashboardSwitch";
 
 export default function Documentation({
   projectCode,
@@ -121,6 +122,10 @@ export default function Documentation({
       // chat). These tabs render a SLOT; the docked AgentChat portals the real panel into it —
       // one component, no second implementation, the same trick the nav dock itself uses.
       openTab(tabsPc, { key: `${urlTab}:${tabsPc}`, kind: urlTab });
+    else if (urlTab === "dash")
+      // ONE PER PROJECT, like the board and How-we-work — but the page itself is cross-project,
+      // so which project's tab you opened it from only decides where the tab lives.
+      openTab(tabsPc, { key: `dash:${tabsPc}`, kind: "dash" });
     else if (urlTab === "how" || onFloor)
       // ONE PER PROJECT, like the board — the page is the same page whatever is open behind it.
       // `onFloor` rides the same branch because the floor IS this tab: landing there must leave a
@@ -196,6 +201,7 @@ export default function Documentation({
         ((t.kind === "doc" && (tab === "docs" || (tab === "reports" && !reportPath)) && t.key === `doc:${sService || ""}.${sModule || ""}.${sMethod || ""}`) ||
           (t.kind === "stats" && tab === "stats") ||
           (t.kind === "how" && tab === "how") ||
+          (t.kind === "dash" && tab === "dash") ||
           (t.kind === "board" && tab === "board") ||
           ((t.kind === "links" || t.kind === "cmds") && tab === t.kind) ||
           (t.kind === "logs" && tab === "logs" && t.key === `logs:${sService || ""}.${sModule || ""}.${sMethod || ""}`) ||
@@ -466,6 +472,11 @@ export default function Documentation({
         )}
         {/* OPENED DELIBERATELY, not fallen into. Same page as the floor below — one component,
             so the two can never drift into two answers about how the system works. */}
+        {!helpOpen && tab === "dash" && (
+          <div className="documentation-view__data-table">
+            <DashboardSwitch projectCode={tabsPc} />
+          </div>
+        )}
         {!helpOpen && tab === "how" && (
           <div className="documentation-view__data-table">
             <HowWeWork />

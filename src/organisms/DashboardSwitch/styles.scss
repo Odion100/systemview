@@ -1,0 +1,31 @@
+// A TEMPORARY FRAME. It wears no opinion of its own — the three pages inside are being judged on
+// how they look, so a wrapper with its own styling would be judging them through it.
+.dashswitch {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+.dashswitch__bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--sv-border);
+  background: var(--sv-inset);
+}
+.dashswitch__says { flex: 1 1 auto; font-size: 11px; color: var(--sv-text-faint); }
+.dashswitch__picks { flex: none; display: flex; gap: 4px; }
+.dashswitch__pick {
+  border: 1px solid var(--sv-border);
+  background: none;
+  border-radius: 6px;
+  padding: 2px 10px;
+  font-size: 11px;
+  color: var(--sv-text-muted);
+  cursor: pointer;
+  &:hover { background: var(--sv-hover); color: var(--sv-text); }
+  &.is-on { background: var(--sv-blue); border-color: var(--sv-blue); color: #fff; }
+}
+.dashswitch__body { flex: 1 1 auto; min-height: 0; overflow: auto; }

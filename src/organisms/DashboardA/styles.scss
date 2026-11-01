@@ -1,0 +1,637 @@
+// THE DASHBOARD — a WEB PAGE, not another IDE panel. The rest of the window is 11px chrome; this
+// is a surface somebody READS across twelve projects, so the type is bigger and the air is real.
+// The visual bar is `HowWeWork/styles.scss` and the kind hues are literally its, so a colour means
+// the same thing on both pages.
+//
+// EVERY TOKEN HERE EXISTS (src/sass/theme.scss, 17 of them, all re-declared under :root.sv-dark).
+// An undefined var() resolves to NOTHING — the background vanishes and text inherits dark-on-dark —
+// so every accent beyond those 17 is declared locally below, WITH its dark step, exactly the way
+// How-we-work declares its four.
+//
+// AND THE MOTION IS COMPOSITOR-ONLY. Marks pulse by `transform`/`opacity` on a pseudo-element and
+// nothing else: a page that can hold a hundred dots animating `box-shadow` or `width` is a page
+// that burns a core all day, and this window has a measured history of exactly that.
+
+.dba {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  // The other mount has non-flex ancestors where `height: 100%` resolves to auto; without a cap
+  // the page grows past the window with nothing to scroll it. Same two-mount problem How-we-work
+  // solved with the same pair.
+  max-height: calc(100vh - 113px);
+  margin-bottom: 14px;
+  border: 1px solid var(--sv-border);
+  border-radius: 6px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--sv-surface);
+  color: var(--sv-text);
+  font-size: 13px;
+  line-height: 1.55;
+  padding: 0 0 72px;
+
+  // the kind accents — How-we-work's four, unchanged, plus a dim step for each so a ring can draw
+  // the HONEST MIDDLE (marked-but-unproved, declared-blocked) without inventing a fifth hue
+  --dba-rfc: #5a77e5;
+  --dba-arc: #9a4fe0;
+  --dba-gap: #c07a16;
+  --dba-report: #0d8065;
+  --dba-rfc-dim: #b9c5f3;
+  --dba-arc-dim: #d9bdf3;
+  --dba-gap-dim: #e5cda2;
+  --dba-report-dim: #a5d6c8;
+  // the two words the page is organised around. PRESS is the only alarm colour on the page and it
+  // is spent on one thing: something waiting on him. OUTSTANDING gets no alarm — a mark would
+  // promise a control that does not exist.
+  --dba-press: #c0392b;
+  --dba-press-soft: #fdeceb;
+  --dba-work: var(--sv-text-muted);
+
+  * { box-sizing: border-box; }
+  h1, h2, h3 { margin: 0; font-weight: 600; }
+  code {
+    font-family: monospace;
+    font-size: 0.88em;
+    background: var(--sv-inset);
+    border: 1px solid var(--sv-border-soft);
+    border-radius: 3px;
+    padding: 0 4px;
+    color: var(--sv-text-strong);
+  }
+  button { font: inherit; color: inherit; }
+}
+:root.sv-dark .dba {
+  background: var(--sv-bg);
+  --dba-rfc: #8ba4ef;
+  --dba-arc: #c68cf5;
+  --dba-gap: #e0a34f;
+  --dba-report: #3fb795;
+  --dba-rfc-dim: #41518a;
+  --dba-arc-dim: #6a4590;
+  --dba-gap-dim: #7f5d26;
+  --dba-report-dim: #26604f;
+  --dba-press: #e8705f;
+  --dba-press-soft: #3a1e1a;
+}
+
+// ─── THE MASTHEAD ──────────────────────────────────────────────────────────────────────────────
+.dba__top {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "mast gauge" "fixtures gauge";
+  gap: 4px 20px;
+  align-items: start;
+  padding: 20px 24px 14px;
+  background: var(--sv-surface);
+  border-bottom: 1px solid var(--sv-border);
+}
+:root.sv-dark .dba__top { background: var(--sv-bg); }
+.dba__mast { grid-area: mast; }
+.dba__mast h1 {
+  font-size: 20px;
+  letter-spacing: -0.2px;
+  color: var(--sv-text-strong);
+}
+.dba__reading {
+  margin: 3px 0 0;
+  font-size: 11.5px;
+  color: var(--sv-text-muted);
+}
+.dba__fixtures {
+  grid-area: fixtures;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--sv-text-faint);
+  cursor: pointer;
+  input { margin: 0; }
+}
+.dba__gauge {
+  grid-area: gauge;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.dba-tile {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  padding: 7px 13px;
+  border: 1px solid var(--sv-border);
+  border-radius: 5px;
+  background: var(--sv-inset);
+  font-size: 13px;
+  color: var(--sv-text-strong);
+  white-space: nowrap;
+  // THE PRESS SEGMENTS ARE THE LOUD ONES and the OUTSTANDING one deliberately is not: the split is
+  // what he asked for, so it has to be visible before the words are read.
+  &.is-approval,
+  &.is-proof,
+  &.is-clock,
+  &.is-press {
+    border-color: var(--dba-press);
+    background: var(--dba-press-soft);
+    color: var(--dba-press);
+  }
+  &.is-cold { color: var(--sv-text-faint); font-size: 11.5px; }
+}
+.dba-tile__flag { font-size: 14px; line-height: 1; }
+
+// ─── WHAT NEEDS HIM ────────────────────────────────────────────────────────────────────────────
+.dba__owed {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+  gap: 0 24px;
+  padding: 18px 24px 6px;
+}
+.dba__half h2 {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.9px;
+  color: var(--sv-text-strong);
+  padding-bottom: 7px;
+  border-bottom: 1px solid var(--sv-border-soft);
+  margin-bottom: 4px;
+  // THE HEADER IS THE LEGEND. His standing rule for this surface: "the reason I know it's an
+  // approval is because it says it above."
+  span {
+    font-size: 11px;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--sv-text-faint);
+    font-weight: 400;
+  }
+}
+.dba__clear,
+.dba__skipped {
+  margin: 8px 0 0;
+  font-size: 11.5px;
+  color: var(--sv-text-faint);
+}
+.dba__skipped { grid-column: 1 / -1; padding-top: 10px; font-style: italic; }
+
+.dba-owed {
+  display: grid;
+  grid-template-columns: 14px auto 72px minmax(0, 1fr) auto auto;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  padding: 6px 8px 6px 2px;
+  border: 0;
+  border-bottom: 1px solid var(--sv-border-soft);
+  background: none;
+  cursor: pointer;
+  &:hover { background: var(--sv-hover); }
+  &.is-press .dba-owed__mark { color: var(--dba-press); }
+  &.is-work .dba-owed__mark { color: var(--sv-text-faint); }
+}
+.dba-owed__mark { font-size: 13px; }
+.dba-owed__id { color: var(--sv-text-strong); font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+.dba-owed__says { color: var(--sv-text); font-size: 12px; }
+.dba-owed__tail { color: var(--sv-text-faint); font-size: 10.5px; font-style: normal; white-space: nowrap; }
+.dba-owed__where { color: var(--sv-text-faint); font-size: 10px; white-space: nowrap; }
+
+// ─── THE CHIP ──────────────────────────────────────────────────────────────────────────────────
+.dba-chip {
+  display: inline-block;
+  padding: 0 5px;
+  border-radius: 3px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: #fff;
+  white-space: nowrap;
+}
+.dba-chip--rfc { background: var(--dba-rfc); }
+.dba-chip--arc { background: var(--dba-arc); }
+.dba-chip--gap { background: var(--dba-gap); }
+.dba-chip--report { background: var(--dba-report); }
+
+// ─── THE FLOW ──────────────────────────────────────────────────────────────────────────────────
+.dba__flow { padding: 22px 24px 0; }
+.dba__h2 {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.9px;
+  color: var(--sv-text-strong);
+  span { font-size: 11px; text-transform: none; letter-spacing: 0; color: var(--sv-text-faint); font-weight: 400; }
+}
+
+// ONE GRID, SHARED BY THE AXIS AND EVERY TRACK — the column alignment IS the read. Scan straight
+// down "moving" across twelve lanes and you see what the system is actually doing today.
+$dba-grid: repeat(5, minmax(0, 1fr)) 210px;
+
+.dba-axis {
+  position: sticky;
+  top: 86px;
+  z-index: 4;
+  display: grid;
+  grid-template-columns: $dba-grid;
+  gap: 10px;
+  margin: 12px 0 6px;
+  padding: 8px 0;
+  background: var(--sv-surface);
+  border-bottom: 1px solid var(--sv-border);
+}
+:root.sv-dark .dba-axis { background: var(--sv-bg); }
+.dba-axis__col {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding-left: 9px;
+  border-left: 2px solid var(--sv-border-soft);
+  b { font-size: 11.5px; color: var(--sv-text-strong); letter-spacing: 0.2px; }
+  i { font-size: 10px; font-style: normal; color: var(--sv-text-faint); line-height: 1.35; }
+}
+.dba-axis__n { font-size: 10px; color: var(--sv-text-muted); }
+// THE DIRECTION OF TRAVEL, SHOWN. The left border warms up left to right, so the axis reads as a
+// journey rather than five buckets — and "set down" cools off again, because it is not the end of
+// the road, it is off it.
+.dba-axis__col--proposed { border-left-color: var(--sv-border); }
+.dba-axis__col--agreed { border-left-color: var(--sv-text-faint); }
+.dba-axis__col--moving { border-left-color: var(--sv-blue); }
+.dba-axis__col--landed { border-left-color: var(--dba-report); }
+.dba-axis__col--setdown { border-left-color: var(--sv-border-soft); }
+.dba-axis__col--stack { border-left-color: var(--dba-report-dim); }
+
+// ─── ONE LANE ──────────────────────────────────────────────────────────────────────────────────
+.dba-lane {
+  // POSITIONED SO THE HOVER CARD CAN WIN. The axis above is sticky with a z-index, which makes it
+  // a stacking context the card's own z-index cannot reach out of — a mark in the top lane opened
+  // its card UNDER the header. Raising the hovered lane is the one change that fixes it without
+  // giving every lane a layer of its own.
+  position: relative;
+  padding: 10px 0 12px;
+  border-bottom: 1px solid var(--sv-border-soft);
+  &:hover { z-index: 8; }
+  &.is-quiet { opacity: 0.72; }
+}
+.dba-lane__head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-bottom: 7px;
+}
+.dba-lane__code {
+  font-size: 13.5px;
+  color: var(--sv-text-strong);
+  letter-spacing: -0.1px;
+}
+.dba-lane__counts { display: flex; gap: 9px; flex-wrap: wrap; }
+.dba-count {
+  font-size: 10.5px;
+  color: var(--sv-text-muted);
+  padding-left: 9px;
+  position: relative;
+  &::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.45em;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+  }
+}
+.dba-count--rfc::before { background: var(--dba-rfc); }
+.dba-count--arc::before { background: var(--dba-arc); }
+.dba-count--gap::before { background: var(--dba-gap); }
+.dba-count--report::before { background: var(--dba-report); }
+
+.dba-lane__owes {
+  margin-left: auto;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  b,
+  i {
+    font-size: 11px;
+    font-style: normal;
+    font-weight: 500;
+    color: var(--sv-text-muted);
+  }
+  .is-press { color: var(--dba-press); font-weight: 600; }
+  .is-work { color: var(--sv-text-strong); }
+}
+.dba-lane__none {
+  margin: 2px 0 0;
+  font-size: 11.5px;
+  color: var(--sv-text-faint);
+  code { margin-left: 8px; font-size: 10px; }
+}
+.dba-lane__more {
+  margin-top: 8px;
+  padding: 2px 8px;
+  border: 1px solid var(--sv-border);
+  border-radius: 4px;
+  background: transparent;
+  font-size: 10.5px;
+  color: var(--sv-text-muted);
+  cursor: pointer;
+  &:hover { background: var(--sv-hover); color: var(--sv-text-strong); }
+}
+
+.dba-track {
+  display: grid;
+  grid-template-columns: $dba-grid;
+  gap: 10px;
+  align-items: start;
+}
+.dba-cell {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 7px;
+  min-height: 26px;
+  padding: 4px 0 4px 9px;
+  border-left: 1px solid var(--sv-border-soft);
+  // the hover card has to be able to leave the cell
+  overflow: visible;
+}
+.dba-track__stack { padding-left: 9px; border-left: 1px solid var(--sv-border-soft); }
+
+// ─── ONE MARK: KIND, PROGRESS AND OBLIGATION IN ONE CIRCLE ─────────────────────────────────────
+.dba-mark {
+  position: relative;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  --k: var(--sv-text-muted);
+  --k-dim: var(--sv-border);
+  --done: 0;
+  --extra: 0;
+}
+.dba-mark--rfc { --k: var(--dba-rfc); --k-dim: var(--dba-rfc-dim); }
+.dba-mark--arc { --k: var(--dba-arc); --k-dim: var(--dba-arc-dim); }
+.dba-mark--gap { --k: var(--dba-gap); --k-dim: var(--dba-gap-dim); }
+.dba-mark__dot {
+  display: block;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--k);
+  box-shadow: inset 0 0 0 1px var(--sv-surface);
+}
+// THE RING IS THE PROGRESS, AND THE DIM WEDGE IS THE HONEST MIDDLE — claims marked met with
+// nothing behind them, objectives somebody declared blocked. Neither is done and neither is
+// untouched, and a ring that folded them into either neighbour would be this page telling the
+// exact lie `claimsOf` and `arcRows` were written to stop.
+.dba-mark.has-ring .dba-mark__dot {
+  background: conic-gradient(
+    var(--k) 0 calc(var(--done) * 1%),
+    var(--k-dim) 0 calc(var(--extra) * 1%),
+    var(--sv-inset) 0
+  );
+  box-shadow: inset 0 0 0 1.5px var(--k);
+}
+// A PULSE MEANS SOMETHING IS WAITING — and the louder of the two rings is the one he can finish
+// with a signature. transform + opacity only: this page can hold a hundred of these.
+.dba-mark::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  border: 1.5px solid transparent;
+  pointer-events: none;
+}
+.dba-mark.is-press::after {
+  border-color: var(--dba-press);
+  animation: dba-pulse 2s ease-out infinite;
+}
+.dba-mark.is-work::after { border-color: var(--sv-text-faint); }
+// MOVEMENT, AND IT IS THE ONLY HONEST ONE ON THE PAGE: the registry row is a cache of the last
+// parse and `stale` is its lag (§1.4) — this document has changed since anything read it.
+.dba-mark.is-stale .dba-mark__dot {
+  box-shadow: inset 0 0 0 1.5px var(--k), -5px 0 0 -6px var(--k-dim), -9px 0 0 -7px var(--k-dim);
+}
+.dba-mark.is-gone .dba-mark__dot { background: var(--sv-inset); box-shadow: inset 0 0 0 1.5px var(--dba-press); }
+.dba-mark.is-fixture { opacity: 0.45; }
+@keyframes dba-pulse {
+  0% { transform: scale(0.8); opacity: 0.95; }
+  70% { transform: scale(1.5); opacity: 0; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dba-mark.is-press::after { animation: none; }
+}
+
+// THE HOVER CARD — the mark's three facts said in words, because a dot is a summary and a summary
+// that cannot be unfolded is a decoration.
+.dba-card {
+  position: absolute;
+  left: 50%;
+  bottom: 140%;
+  transform: translateX(-50%) translateY(4px);
+  z-index: 20;
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+  width: 290px;
+  padding: 10px 12px;
+  text-align: left;
+  border: 1px solid var(--sv-border);
+  border-radius: 5px;
+  background: var(--sv-surface);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.14);
+  pointer-events: none;
+}
+:root.sv-dark .dba-card { background: var(--sv-pane-header); box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5); }
+.dba-mark:hover .dba-card,
+.dba-mark:focus-visible .dba-card { display: flex; }
+.dba-card__id { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--sv-text-strong); }
+.dba-card__title { font-size: 12.5px; font-style: normal; color: var(--sv-text-strong); line-height: 1.35; }
+.dba-card__state { font-size: 10.5px; color: var(--sv-text-muted); }
+.dba-card__bar { display: flex; flex-direction: column; gap: 3px; em { font-size: 10px; font-style: normal; color: var(--sv-text-muted); } }
+.dba-card__owes {
+  font-size: 10.5px;
+  color: var(--sv-text);
+  padding-left: 7px;
+  border-left: 2px solid var(--sv-text-faint);
+  &.is-press { border-left-color: var(--dba-press); color: var(--dba-press); }
+}
+.dba-card__stale { font-size: 10px; color: var(--sv-text-faint); font-style: italic; }
+
+// ─── THE BAR: THREE SEGMENTS, NEVER TWO ────────────────────────────────────────────────────────
+.dba-bar {
+  display: flex;
+  height: 5px;
+  width: 100%;
+  border-radius: 3px;
+  background: var(--sv-inset);
+  overflow: hidden;
+  border: 1px solid var(--sv-border-soft);
+}
+.dba-bar__done { background: var(--dba-report); }
+.dba-bar__extra {
+  // THE MIDDLE SEGMENT IS HATCHED, not merely paler: "said and not shown" has to read as a
+  // DIFFERENT KIND of thing from "done", not as a lighter amount of it.
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--dba-press) 0 2px,
+    transparent 2px 4px
+  );
+  background-color: var(--dba-press-soft);
+}
+
+// ─── THE PER-PROJECT LIST, ON REQUEST ──────────────────────────────────────────────────────────
+.dba-list { list-style: none; margin: 8px 0 0; padding: 0; }
+.dba-row {
+  display: grid;
+  grid-template-columns: auto 74px minmax(0, 1fr) 180px auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  padding: 5px 8px 5px 2px;
+  border: 0;
+  border-bottom: 1px solid var(--sv-border-soft);
+  background: none;
+  cursor: pointer;
+  &:hover { background: var(--sv-hover); }
+}
+.dba-row__id { font-size: 11px; font-weight: 600; color: var(--sv-text-strong); white-space: nowrap; }
+.dba-row__title { font-size: 12px; color: var(--sv-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dba-row__bar { display: flex; flex-direction: column; gap: 2px; em { font-size: 9.5px; font-style: normal; color: var(--sv-text-faint); } }
+.dba-row__state { font-size: 10.5px; font-style: normal; color: var(--sv-text-muted); white-space: nowrap; }
+
+// ─── THE REPORT STACK ──────────────────────────────────────────────────────────────────────────
+//
+// HIS ONE VISUAL INSTRUCTION, LITERALLY: "reports looking like a stack with numbers, and then you
+// click them and they expand out horizontally." Closed, it is a pile with a number and the SOONEST
+// clock on its face — the one thing in the pile about to be destroyed. Open, the cards deal out
+// sideways across the lane's full width.
+.dba-pile {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-height: 42px;
+  padding: 7px 10px 7px 14px;
+  border: 1px solid var(--dba-report);
+  border-radius: 4px;
+  background: var(--sv-surface);
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.16s ease;
+  &:hover { transform: translateY(-1px); }
+  &.is-open { border-style: dashed; }
+}
+:root.sv-dark .dba-pile { background: var(--sv-pane-header); }
+// the sheets under it — the pile's depth, offset so it reads as paper and not as a box
+.dba-pile__sheet {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border: 1px solid var(--dba-report-dim);
+  border-radius: 4px;
+  background: var(--sv-surface);
+  transform: translate(calc(var(--i) * 3px), calc(var(--i) * 3px));
+}
+:root.sv-dark .dba-pile__sheet { background: var(--sv-inset); }
+.dba-pile__n {
+  display: block;
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.05;
+  color: var(--dba-report);
+}
+.dba-pile__lead {
+  display: block;
+  font-size: 10px;
+  color: var(--sv-text-muted);
+  &.is-soon { color: var(--dba-press); font-weight: 600; }
+}
+.dba-pile-none { font-size: 10.5px; color: var(--sv-text-faint); padding-top: 6px; }
+
+.dba-fan {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  padding-bottom: 2px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-height: 0;
+  opacity: 0;
+  transition: max-height 0.26s ease, opacity 0.18s ease;
+  &.is-open { max-height: 128px; opacity: 1; }
+}
+.dba-sheet {
+  flex: 0 0 216px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 9px 11px;
+  text-align: left;
+  border: 1px solid var(--sv-border);
+  border-left: 3px solid var(--dba-report);
+  border-radius: 4px;
+  background: var(--sv-surface);
+  cursor: pointer;
+  // THE DEAL — each card arrives a beat after the one before it, which is what makes the pile read
+  // as having been dealt rather than having popped. transform and opacity only.
+  transform: translateX(-14px);
+  opacity: 0;
+  transition: transform 0.24s ease, opacity 0.24s ease;
+  transition-delay: calc(var(--i) * 26ms);
+  .dba-fan.is-open & { transform: translateX(0); opacity: 1; }
+  &:hover { border-color: var(--dba-report); background: var(--sv-hover); }
+  &.is-soon { border-left-color: var(--dba-press); background: var(--dba-press-soft); }
+  &.is-retired { opacity: 0.6; border-left-color: var(--sv-border); }
+  &.is-fixture { border-left-style: dashed; }
+}
+:root.sv-dark .dba-sheet { background: var(--sv-pane-header); }
+.dba-sheet__sub { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--sv-text-faint); }
+.dba-sheet__title {
+  font-size: 12px;
+  color: var(--sv-text-strong);
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.dba-sheet__clock {
+  margin-top: auto;
+  font-size: 10px;
+  color: var(--sv-text-muted);
+  &.is-soon { color: var(--dba-press); font-weight: 600; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dba-sheet { transition: none; transition-delay: 0s; }
+}
+
+// ─── THE FOOT: THE LEGEND, BECAUSE A COLOUR WITHOUT A WORD IS DECORATION ───────────────────────
+.dba__foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+  margin: 22px 24px 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--sv-border);
+}
+.dba-legend {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 10.5px;
+  color: var(--sv-text-faint);
+}
+.dba-legend--rule { flex: 1 1 100%; display: block; line-height: 1.5; max-width: 70ch; }

@@ -1,0 +1,762 @@
+// THE FLOOR — the cross-project dashboard. A WEB PAGE, not another IDE panel: a reading measure,
+// real air, type you can read without leaning in. The rest of the window is 11px chrome; this is a
+// surface somebody looks AT, the same bar HowWeWork sets.
+//
+// EVERY TOKEN HERE IS ONE THAT EXISTS (src/sass/theme.scss defines exactly 17, and `:root.sv-dark`
+// overrides all 17). An undefined `var()` resolves to NOTHING — a background vanishes and text
+// inherits dark-on-dark — so the accents this page needs beyond those are declared locally WITH a
+// dark step, the way HowWeWork/styles.scss does.
+//
+// THE KIND HUES ARE HOWWEWORK'S, VALUE FOR VALUE. That page teaches what a kind IS; two surfaces in
+// one window disagreeing about what purple means is a cost paid by the reader.
+.dbb {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  max-height: calc(100vh - 113px);
+  margin-bottom: 14px;
+  border: 1px solid var(--sv-border);
+  border-radius: 6px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--sv-surface);
+  color: var(--sv-text);
+  font-size: 13px;
+  line-height: 1.6;
+  padding: 0 0 72px;
+
+  // the four kinds — HowWeWork's values, so a colour means the same thing on both pages
+  --dbb-rfc: #5a77e5;
+  --dbb-arc: #9a4fe0;
+  --dbb-gap: #c07a16;
+  --dbb-report: #0d8065;
+  // the four POSTURES toward him — the tide's bands, and the only cross-kind axis there is
+  --dbb-press: #c0392b; // waiting on your signature
+  --dbb-work: #c07a16; // outstanding, nobody can press it away
+  --dbb-clear: #0d8065; // clear
+  --dbb-parked: #9aa3b8; // out of active service
+  --dbb-sheet: #f7f9fd; // a report sheet in the pile — paler than a card, so a pile reads as paper
+
+  * {
+    box-sizing: border-box;
+  }
+  h1,
+  h2 {
+    margin: 0;
+    font-weight: 600;
+    color: var(--sv-text-strong);
+  }
+  p {
+    margin: 0;
+  }
+  // `:where()` CONTRIBUTES NO SPECIFICITY, and that is the whole reason it is here. Written as
+  // `.dbb button` this reset beat every single-class rule below it — a card's own border,
+  // background and padding all lost to it, so the report pile rendered as bare text with no paper
+  // under it and the stack face had no card at all. A reset has to be the floor, not the ceiling.
+  :where(button) {
+    font: inherit;
+    color: inherit;
+    background: none;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    text-align: left;
+  }
+}
+:root.sv-dark .dbb {
+  background: var(--sv-bg);
+  --dbb-rfc: #8ba4ef;
+  --dbb-arc: #c68cf5;
+  --dbb-gap: #e0a34f;
+  --dbb-report: #3fb795;
+  --dbb-press: #e8796a;
+  --dbb-work: #e0a34f;
+  --dbb-clear: #3fb795;
+  --dbb-parked: #6f7789;
+  --dbb-sheet: #2d323c;
+}
+
+.dbb-empty {
+  padding: 56px 28px;
+  color: var(--sv-text-faint);
+}
+.dbb-aside {
+  color: var(--sv-text-faint);
+  &--bad {
+    color: var(--dbb-press);
+  }
+}
+
+// ── THE HEAD ─────────────────────────────────────────────────────────────────────────────────────
+// ONE SENTENCE ABOUT HIM, then the shape of everything. Not a count of documents — inventory is
+// what this replaces.
+.dbb-head {
+  padding: 26px 28px 20px;
+  border-bottom: 1px solid var(--sv-border-soft);
+
+  &__title {
+    h1 {
+      font-size: 22px;
+      letter-spacing: -0.2px;
+    }
+    p {
+      margin-top: 3px;
+      color: var(--sv-text-muted);
+      font-size: 13px;
+    }
+  }
+
+  &__say {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 18px;
+    margin-top: 18px;
+    font-size: 19px;
+    font-weight: 600;
+    color: var(--sv-text-strong);
+  }
+  &__reach {
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--sv-text-muted);
+  }
+}
+.dbb-say {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  &__mark {
+    font-weight: 400;
+  }
+  &--press {
+    color: var(--dbb-press);
+  }
+  &--work {
+    color: var(--dbb-work);
+  }
+  &--clear {
+    color: var(--dbb-clear);
+  }
+  // A ZERO WE DID NOT MEASURE IS NOT A ZERO, and it must not wear the colour of good news.
+  &--unmeasured {
+    color: var(--sv-text-muted);
+    font-weight: 500;
+  }
+}
+
+// THE TIDE — one bar, every document, four postures. A segment with nothing in it takes no width
+// and draws nothing, which is right: the bar is the proportions, and the legend carries the counts.
+.dbb-tide__cap {
+  margin-top: 18px;
+  font-size: 11px;
+  color: var(--sv-text-faint);
+}
+.dbb-tide {
+  display: flex;
+  height: 10px;
+  margin-top: 6px;
+  border-radius: 5px;
+  overflow: hidden;
+  background: var(--sv-inset);
+  &__seg {
+    height: 100%;
+    &--press {
+      background: var(--dbb-press);
+    }
+    &--work {
+      background: var(--dbb-work);
+    }
+    &--clear {
+      background: var(--dbb-clear);
+    }
+    &--parked {
+      background: var(--dbb-parked);
+    }
+  }
+  &__legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+    margin-top: 9px;
+    font-size: 11.5px;
+    color: var(--sv-text-muted);
+  }
+  &__key {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    i {
+      width: 8px;
+      height: 8px;
+      border-radius: 2px;
+      background: var(--sv-border);
+    }
+    &--press i {
+      background: var(--dbb-press);
+    }
+    &--work i {
+      background: var(--dbb-work);
+    }
+    &--clear i {
+      background: var(--dbb-clear);
+    }
+    &--parked i {
+      background: var(--dbb-parked);
+    }
+  }
+}
+
+// ── WHAT NEEDS YOU ───────────────────────────────────────────────────────────────────────────────
+// TWO COLUMNS, AND THE SPLIT IS THE DESIGN: a press ends at your signature, an outstanding thing
+// cannot be pressed away. The header is the legend — his standing rule for this kind of row:
+// *"the reason I know it's an approval is because it says it above."*
+.dbb-needs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  border-bottom: 1px solid var(--sv-border-soft);
+  @media (max-width: 920px) {
+    grid-template-columns: 1fr;
+  }
+}
+.dbb-col {
+  padding: 20px 28px 24px;
+  min-width: 0;
+  & + & {
+    border-left: 1px solid var(--sv-border-soft);
+    @media (max-width: 920px) {
+      border-left: 0;
+      border-top: 1px solid var(--sv-border-soft);
+    }
+  }
+  &__head {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+    h2 {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    span {
+      font-size: 11.5px;
+      color: var(--sv-text-faint);
+    }
+  }
+  &--press &__head h2 {
+    color: var(--dbb-press);
+  }
+  &--work &__head h2 {
+    color: var(--dbb-work);
+  }
+  &__none {
+    color: var(--sv-text-faint);
+    font-size: 12px;
+  }
+}
+.dbb-owed {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  &__row {
+    display: grid;
+    grid-template-columns: 8px auto 1fr auto auto;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    padding: 6px 8px;
+    border-radius: 4px;
+    border: 1px solid transparent;
+    &:hover {
+      background: var(--sv-hover);
+      border-color: var(--sv-border-soft);
+    }
+  }
+  &__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--hue);
+  }
+  &__id {
+    font-family: monospace;
+    font-size: 11.5px;
+    color: var(--sv-text-strong);
+    white-space: nowrap;
+  }
+  &__says {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12.5px;
+  }
+  &__tail {
+    font-size: 11px;
+    color: var(--sv-text-faint);
+    white-space: nowrap;
+  }
+  &__proj {
+    font-size: 10.5px;
+    color: var(--sv-text-faint);
+    background: var(--sv-inset);
+    border: 1px solid var(--sv-border-soft);
+    border-radius: 9px;
+    padding: 0 7px;
+    white-space: nowrap;
+  }
+}
+
+// ── THE TRACKS ───────────────────────────────────────────────────────────────────────────────────
+.dbb-flow,
+.dbb-stacks,
+.dbb-projects {
+  padding: 22px 28px 26px;
+  border-bottom: 1px solid var(--sv-border-soft);
+}
+.dbb-flow__head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  span {
+    font-size: 11.5px;
+    color: var(--sv-text-faint);
+  }
+}
+.dbb-flow__none {
+  max-width: 62ch;
+  font-size: 12.5px;
+  color: var(--sv-text-muted);
+}
+
+.dbb-track {
+  display: grid;
+  grid-template-columns: 112px 1fr;
+  align-items: stretch;
+  gap: 12px;
+  padding: 10px 0;
+  & + & {
+    border-top: 1px dashed var(--sv-border-soft);
+  }
+  // DIMMED, NOT HIDDEN. Pressing a kind's name brings it forward; the others stay on the page
+  // because the comparison between tracks is most of what the picture is for.
+  opacity: 1;
+  transition: opacity 0.18s ease;
+  &.is-dimmed {
+    opacity: 0.38;
+  }
+
+  &__name {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    align-self: start;
+    padding: 5px 7px;
+    border-radius: 4px;
+    i {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--hue);
+      flex: 0 0 auto;
+    }
+    b {
+      color: var(--sv-text-strong);
+      font-size: 12.5px;
+    }
+    span {
+      margin-left: auto;
+      font-size: 11px;
+      color: var(--sv-text-faint);
+      font-variant-numeric: tabular-nums;
+    }
+    &:hover {
+      background: var(--sv-hover);
+    }
+  }
+
+  // THE RAIL. Stations are equal columns in trail order and the divider between them is the
+  // direction of travel — left to right is forward, which is the only thing the line has to say.
+  &__rail {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(96px, 1fr);
+    gap: 0;
+    overflow-x: auto;
+    min-width: 0;
+  }
+}
+.dbb-station {
+  padding: 0 10px 4px;
+  min-width: 0;
+  border-left: 1px solid var(--sv-border-soft);
+  &:first-child {
+    border-left: 0;
+    padding-left: 0;
+  }
+  // AN EMPTY STATION IS DRAWN, QUIETLY. The distance between a crowded `draft` and an empty
+  // `settled` is the sentence "nothing is finishing" — delete the empty column and the sentence
+  // goes with it.
+  &.is-empty {
+    opacity: 0.55;
+  }
+
+  &__cap {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    padding-bottom: 7px;
+    border-bottom: 2px solid var(--hue);
+    margin-bottom: 8px;
+  }
+  &__word {
+    font-size: 11px;
+    color: var(--sv-text-muted);
+    text-transform: lowercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  &__n {
+    margin-left: auto;
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    color: var(--sv-text-faint);
+  }
+  &__beads {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+}
+
+// ONE BEAD — a document standing at its station, wearing its own progress.
+.dbb-bead {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 3px 6px 3px 2px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  min-width: 0;
+  &:hover {
+    background: var(--sv-hover);
+    border-color: var(--sv-border-soft);
+  }
+  &__id {
+    font-family: monospace;
+    font-size: 10.5px;
+    color: var(--sv-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  // ⚑ IS "A DECISION IS WAITING ON YOU", ⧗ IS A DEADLINE — one mark per bead, the band's rule,
+  // because sharing one mark made that surface unreadable.
+  &__mark {
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--dbb-press);
+  }
+  &.is-press &__id {
+    color: var(--sv-text-strong);
+    font-weight: 600;
+  }
+  &.is-work:not(.is-press) &__mark {
+    color: var(--dbb-work);
+  }
+  // THE FILE HAS MOVED PAST ITS PARSE, so what this bead says is the last thing anybody read, not
+  // what the document says now. Visible rather than silent (RFC-073 §1.4 — the lag is a fact).
+  &.is-stale &__id {
+    border-bottom: 1px dotted var(--sv-text-faint);
+  }
+}
+
+// THE RING — stroked SVG, no animation. This page can hold a hundred of these and a hundred
+// animated rings is a hot GPU for no information gained.
+.dbb-ring {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  &__track {
+    fill: none;
+    stroke: var(--sv-border);
+    stroke-width: 2.5;
+    // NO RATIO AT ALL draws dashed — an RFC with no claims list has no progress, and a solid empty
+    // ring would read as 0% done, which is a failure nobody reported.
+    &.is-none {
+      stroke-dasharray: 2 2.5;
+    }
+  }
+  &__fill {
+    fill: none;
+    stroke-width: 2.5;
+    stroke-linecap: round;
+  }
+}
+
+// ── THE REPORT STACKS ────────────────────────────────────────────────────────────────────────────
+// His one visual cue: *"reports looking like a stack with numbers, and then you click them and they
+// expand out horizontally."* Closed, the cards overlap into a pile and only their edges show.
+// Open, the stack takes the full row and the cards relax out of each other.
+//
+// THE MOTION IS TRANSFORM AND MARGIN ONLY, and it happens once per press — not a loop. The
+// measured lesson on this machine is that continuous travel is what costs GPU; a one-shot ease is
+// free by comparison.
+.dbb-stacks__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+.dbb-stack {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  min-width: 0;
+  max-width: 100%;
+  &.is-open {
+    flex: 1 1 100%;
+  }
+
+  &__face {
+    position: relative;
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 132px;
+    padding: 12px 14px;
+    border: 1px solid var(--sv-border);
+    border-radius: 6px;
+    background: var(--sv-surface);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    &:hover {
+      border-color: var(--dbb-report);
+    }
+  }
+  &__n {
+    font-size: 28px;
+    font-weight: 600;
+    line-height: 1.05;
+    color: var(--dbb-report);
+    font-variant-numeric: tabular-nums;
+  }
+  &__proj {
+    font-size: 12px;
+    color: var(--sv-text-strong);
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  &__urgent {
+    margin-top: 2px;
+    font-size: 10.5px;
+    color: var(--sv-text-faint);
+  }
+  &.is-urgent &__urgent {
+    color: var(--dbb-press);
+  }
+  &.is-urgent &__face {
+    border-color: var(--dbb-press);
+  }
+
+  .dbb-fan {
+    display: flex;
+    min-width: 0;
+    padding-left: 10px;
+  }
+  // CLOSED: THE PILE SITS BEHIND THE FACE. The sheets slide left, under the numbered card, and
+  // only their edges show above and to the right of it — which is what a stack of paper with a
+  // number written on the top sheet actually looks like. Laying the pile out BESIDE the face
+  // instead put a 164px blank card next to the number and read as a broken card, not a stack.
+  &:not(.is-open) .dbb-fan {
+    flex-wrap: nowrap;
+    padding-left: 0;
+    margin-left: -120px;
+    transform: translateY(-5px);
+  }
+  // A CLOSED SHEET IS BLANK PAPER — its words are hidden, not shrunk. Hiding only the text left
+  // the card collapsing to the height of nothing, and a 22px sliver is not a stack of anything.
+  // The sheet keeps its size, its border and its edge, so five of them read as paper.
+  &:not(.is-open) .dbb-rcard {
+    margin-left: -156px; // an 8px edge of each sheet shows past the one in front
+    transform: translateY(calc(var(--i) * -2px)) rotate(calc(var(--i) * -0.5deg));
+    pointer-events: none;
+    &:first-child {
+      margin-left: 0;
+    }
+    // the pile shows five edges and stops — forty sheets is a block, not a pile
+    &:nth-child(n + 6) {
+      display: none;
+    }
+    > * {
+      opacity: 0;
+    }
+  }
+  &.is-open .dbb-fan {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}
+.dbb-rcard {
+  flex: 0 0 164px;
+  width: 164px;
+  min-height: 92px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 9px 11px;
+  border: 1px solid var(--sv-border);
+  border-radius: 6px;
+  background: var(--dbb-sheet);
+  transition:
+    margin 0.32s cubic-bezier(0.2, 0.8, 0.2, 1),
+    transform 0.32s cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 0.2s ease;
+  &:hover {
+    border-color: var(--dbb-report);
+  }
+  &.is-urgent {
+    border-color: var(--dbb-press);
+  }
+  &__top {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  &__mark {
+    font-size: 11px;
+    color: var(--dbb-press);
+    font-weight: 400;
+  }
+  &__id {
+    font-size: 12px;
+    color: var(--sv-text-strong);
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  &__says {
+    font-size: 10.5px;
+    color: var(--sv-text-muted);
+  }
+  &.is-urgent &__says {
+    color: var(--dbb-press);
+  }
+}
+
+// ── THE PROJECTS ─────────────────────────────────────────────────────────────────────────────────
+.dbb-projects__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 10px;
+}
+.dbb-proj {
+  padding: 11px 13px;
+  border: 1px solid var(--sv-border-soft);
+  border-radius: 6px;
+  background: var(--sv-surface);
+  min-width: 0;
+  &.is-press {
+    border-color: var(--dbb-press);
+  }
+  &__name {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    b {
+      font-size: 13px;
+      color: var(--sv-text-strong);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+  &__flag {
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--dbb-press);
+    white-space: nowrap;
+  }
+  &__pips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 10px;
+    margin: 8px 0 7px;
+  }
+  &__foot {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    font-size: 10.5px;
+    color: var(--sv-text-muted);
+  }
+  &__stale {
+    color: var(--dbb-work);
+  }
+}
+.dbb-pip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--sv-text);
+  i {
+    width: 7px;
+    height: 7px;
+    border-radius: 2px;
+    background: var(--hue);
+  }
+  // A KIND WITH NOTHING IN IT STAYS ON THE CARD, greyed. Four pips in the same order on every card
+  // is what makes two projects comparable at a glance; dropping the zeroes makes every card a
+  // different shape and the comparison has to be read instead of seen.
+  &.is-none {
+    color: var(--sv-text-faint);
+    i {
+      background: var(--sv-border);
+    }
+  }
+}
+.dbb-quiet {
+  margin-top: 14px;
+  font-size: 11.5px;
+  color: var(--sv-text-muted);
+  max-width: 86ch;
+  button {
+    color: var(--sv-blue);
+    text-decoration: underline;
+    text-decoration-style: dotted;
+  }
+  &__list {
+    font-family: monospace;
+    font-size: 11px;
+    color: var(--sv-text);
+  }
+}
+
+// REDUCED MOTION KILLS THE ONE TRANSITION ON THE PAGE, and the fan still lands in the right place
+// because its open and closed states are both static — the transition only describes the journey.
+@media (prefers-reduced-motion: reduce) {
+  .dbb-rcard,
+  .dbb-track {
+    transition: none !important;
+  }
+}
+
+.dbb-empty.is-bad {
+  color: var(--dbb-press);
+}

@@ -207,6 +207,26 @@ export default function CenterTabs({ tabsPc, tabs = [], isActive, onOpen, afterC
           >
             {"\u{1F9ED}"}
           </button>
+          {/* THE DASHBOARD — ▦, beside the compass, for the same reason the compass is here: the
+              page it opens IS a centre tab, and the only other way in would be closing everything
+              or typing a URL. Same offer-first contract — a host that draws the kind itself claims
+              the event, and silence means this strip's host opens it — so pressing it never
+              navigates him off a page that could have shown it. */}
+          <button
+            type="button"
+            className="doc-tabs__how doc-tabs__dash"
+            title="Dashboard — every arc, RFC, gap and report across every project, and what is waiting on you"
+            onClick={() => {
+              const d = { kind: "dash", projectCode: tabsPc };
+              window.dispatchEvent(new CustomEvent("sv:openCenterKind", { detail: d }));
+              if (d.handled) return;
+              const t = { key: `dash:${tabsPc}`, kind: "dash" };
+              openTab(tabsPc, t);
+              if (onOpen) onOpen(t);
+            }}
+          >
+            {"\u25A6"}
+          </button>
         </div>
         {onCollapse && (
           <button type="button" className="wall-collapse" title="Push off to the edge — tabs keep standing" onClick={onCollapse}>

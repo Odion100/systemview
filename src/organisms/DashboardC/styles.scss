@@ -1,0 +1,668 @@
+// THE SHELVES — the cross-project dashboard's look.
+//
+// It is a WEB PAGE, not another IDE panel: a reading measure, real air, motion that shows the thing
+// moving. The rest of the window is 11px chrome; this and How-we-work are the two surfaces a person
+// actually reads, so the type is bigger here and the stacks are physical objects.
+//
+// EVERY TOKEN HERE IS ONE THAT EXISTS (src/sass/theme.scss defines exactly 17, and `:root.sv-dark`
+// overrides all 17). An undefined `var()` resolves to NOTHING — a background vanishes and text
+// inherits dark-on-dark — so the only new values are the four KIND accents and the four meter
+// hues, declared locally with a `:root.sv-dark` step, the way HowWeWork/styles.scss does.
+//
+// THE KIND HUES ARE HOW-WE-WORK'S OWN, deliberately: rfc #5a77e5, arc #9a4fe0, gap #c07a16,
+// report #0d8065. A colour must mean the same thing on both pages or the window is lying twice.
+
+.dbc {
+  // IT FILLS THE PANE AND SCROLLS INSIDE ITSELF — same two mounts HowWeWork has to survive: a flex
+  // column in the centre panel (where `flex` gives it its height) and the wall tab (where the
+  // ancestors are not flex and `height: 100%` resolves to auto, so the cap is what scrolls it).
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  max-height: calc(100vh - 113px);
+  margin-bottom: 14px;
+  border: 1px solid var(--sv-border);
+  border-radius: 6px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--sv-surface);
+  color: var(--sv-text);
+  font-size: 13px;
+  line-height: 1.6;
+  padding: 0 0 72px;
+
+  --dbc-rfc: #5a77e5;
+  --dbc-arc: #9a4fe0;
+  --dbc-gap: #c07a16;
+  --dbc-report: #0d8065;
+  // THE METER FAMILY, and the two that matter are `unproved` and `blocked`. `done`/`met` is the
+  // only thing allowed to read as finished; `unproved` is the DEBT — the width between said and
+  // shown — so it is the same green with the fill taken away and a hatch put through it, which is
+  // the honest drawing of "somebody said so and showed nothing".
+  --dbc-done: #2f9e6e;
+  --dbc-debt: #b4701a;
+  --dbc-stop: #c0453a;
+  --dbc-idle: #c2c8d6;
+  --dbc-clock: #4b73c9;
+
+  code {
+    font-family: monospace;
+    font-size: 0.86em;
+    background: var(--sv-inset);
+    border: 1px solid var(--sv-border-soft);
+    border-radius: 3px;
+    padding: 0 4px;
+    color: var(--sv-text-muted);
+    white-space: nowrap;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: 21px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--sv-text-strong);
+  }
+  h2 {
+    display: flex;
+    align-items: baseline;
+    gap: 9px;
+    margin: 0 0 11px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--sv-text-muted);
+    > b { color: var(--dbc-stop); font-size: 13px; }
+    > i { font-style: normal; font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--sv-text-faint); }
+  }
+}
+:root.sv-dark .dbc {
+  background: var(--sv-bg);
+  --dbc-rfc: #8ba4ef;
+  --dbc-arc: #c68cf5;
+  --dbc-gap: #e0a34f;
+  --dbc-report: #3fb795;
+  --dbc-done: #4bbf8c;
+  --dbc-debt: #dca04f;
+  --dbc-stop: #e0756a;
+  --dbc-idle: #454b5a;
+  --dbc-clock: #7d9ddd;
+}
+
+// ── THE HEAD: what needs him, before anything about how much exists ────────────────────────────
+.dbc-head {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  padding: 18px 22px 13px;
+  background: var(--sv-surface);
+  border-bottom: 1px solid var(--sv-border-soft);
+
+  &__top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  &__counts {
+    font-size: 11.5px;
+    color: var(--sv-text-faint);
+  }
+  &__segs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  &__skipped,
+  &__error {
+    margin-top: 8px;
+    font-size: 11.5px;
+    color: var(--sv-text-faint);
+  }
+  &__error {
+    color: var(--dbc-stop);
+  }
+}
+:root.sv-dark .dbc-head { background: var(--sv-bg); }
+
+// THE HEAD'S SEGMENTS ARE THE LEGEND — every mark carries its word beside it, which is the rule
+// `owed.js` wrote: *"the reason I know it's an approval is because it says it above."*
+.dbc-seg {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--sv-border);
+  background: var(--sv-inset);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--sv-text-strong);
+
+  > b { font-weight: 700; font-size: 13px; }
+  &.is-approval,
+  &.is-proof,
+  &.is-press { border-color: var(--dbc-stop); color: var(--dbc-stop); background: transparent; }
+  &.is-clock {
+    border-color: var(--dbc-debt);
+    color: var(--dbc-debt);
+    background: transparent;
+    // THE ONLY THING ON THE PAGE THAT PULSES, because it is the only thing that DESTROYS something
+    // by being ignored. Opacity on one small pill — no transform, no filter, nothing the
+    // compositor has to repaint a layer for.
+    animation: dbc-pulse 2.4s ease-in-out infinite;
+  }
+  &.is-work { color: var(--sv-text); font-weight: 500; }
+  &.is-clear { color: var(--dbc-done); border-color: var(--dbc-done); background: transparent; }
+  &.is-unread { color: var(--sv-text-faint); font-weight: 400; }
+}
+@keyframes dbc-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.52; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dbc * { animation: none !important; transition: none !important; }
+}
+
+.dbc-void {
+  margin: 18px 22px;
+  padding: 16px 18px;
+  border: 1px dashed var(--sv-border);
+  border-radius: 6px;
+  background: var(--sv-inset);
+  color: var(--sv-text-muted);
+  font-size: 12.5px;
+  max-width: 68ch;
+}
+
+// ── THE OWED BAND: two columns, the split that IS the design (owed.js) ─────────────────────────
+.dbc-owes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 22px;
+  padding: 20px 22px 4px;
+
+  @media (max-width: 860px) {
+    grid-template-columns: 1fr;
+  }
+
+  &__none {
+    margin: 0;
+    font-size: 12px;
+    color: var(--dbc-done);
+  }
+}
+
+.dbc-owed {
+  display: block;
+  width: 100%;
+  text-align: left;
+  margin: 0 0 6px;
+  padding: 8px 11px;
+  border: 1px solid var(--sv-border-soft);
+  border-left: 3px solid var(--sv-border);
+  border-radius: 5px;
+  background: var(--sv-surface);
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  transition: background 0.12s ease, border-color 0.12s ease;
+
+  &:hover { background: var(--sv-hover); border-left-color: var(--sv-blue); }
+  &.is-clock { border-left-color: var(--dbc-debt); }
+  &.is-approval,
+  &.is-proof { border-left-color: var(--dbc-stop); }
+  &.is-mine,
+  &.is-blocked { border-left-color: var(--dbc-arc); }
+
+  &--rfc .dbc-owed__who b { color: var(--dbc-rfc); }
+  &--arc .dbc-owed__who b { color: var(--dbc-arc); }
+  &--gap .dbc-owed__who b { color: var(--dbc-gap); }
+  &--report .dbc-owed__who b { color: var(--dbc-report); }
+
+  &__who {
+    display: flex;
+    align-items: baseline;
+    gap: 7px;
+    font-size: 11px;
+
+    > em { font-style: normal; color: var(--sv-text-faint); }
+    > b { font-size: 12px; font-weight: 700; }
+    > i {
+      font-style: normal;
+      margin-left: auto;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 9.5px;
+      color: var(--sv-text-faint);
+    }
+  }
+  // THE SENTENCE IS THE ROW. It is the only text on this page that names a specific thing to do, so
+  // it gets the weight and the id above it gets the caption.
+  &__says {
+    display: block;
+    margin-top: 2px;
+    font-size: 13px;
+    color: var(--sv-text-strong);
+  }
+  &__tail {
+    display: block;
+    margin-top: 1px;
+    font-size: 11px;
+    color: var(--sv-text-faint);
+  }
+}
+
+// ── THE CURRENT: four lifecycles, every document a dot at its station ──────────────────────────
+.dbc-current {
+  padding: 24px 22px 6px;
+}
+
+.dbc-track {
+  margin-bottom: 16px;
+
+  &__name {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--sv-text-faint);
+    margin-bottom: 4px;
+    > b { color: var(--sv-text-strong); }
+    > i { font-style: normal; text-transform: none; letter-spacing: 0; }
+  }
+  // THE RAIL IS THE TRAIL. Stations in order, equal width, with the line drawn behind them — so a
+  // kind's whole lifecycle is one shape and the eye reads WHERE THE MASS IS without a number.
+  &__rail {
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    padding: 6px 0 0;
+
+    &::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 26px;
+      height: 1px;
+      background: var(--sv-border-soft);
+    }
+  }
+
+  &--rfc { --dbc-hue: var(--dbc-rfc); }
+  &--arc { --dbc-hue: var(--dbc-arc); }
+  &--gap { --dbc-hue: var(--dbc-gap); }
+  &--report { --dbc-hue: var(--dbc-report); }
+}
+
+.dbc-stn {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+
+  &__dots {
+    display: flex;
+    flex-wrap: wrap-reverse;
+    justify-content: center;
+    align-content: flex-end;
+    gap: 3px;
+    min-height: 16px;
+    padding-bottom: 7px;
+  }
+  &__more {
+    font-size: 9.5px;
+    color: var(--sv-text-faint);
+    align-self: flex-end;
+  }
+  &__name {
+    width: 100%;
+    text-align: center;
+    font-size: 10px;
+    padding-top: 7px;
+    color: var(--sv-text-faint);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  &__n {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--sv-text-muted);
+    min-height: 14px;
+  }
+  // A STATION WITH NOTHING IN IT STAYS ON THE TRACK — it is where things are GOING. It just does
+  // not get a tick.
+  &.has-mass .dbc-stn__name { color: var(--sv-text); }
+  &.has-mass::after {
+    content: "";
+    position: absolute;
+    bottom: 26px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--sv-surface);
+    border: 1px solid var(--dbc-hue);
+  }
+}
+
+.dbc-dot {
+  width: 9px;
+  height: 9px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid transparent;
+  background: var(--dbc-hue);
+  opacity: 0.6;
+  cursor: pointer;
+  transition: transform 0.12s ease, opacity 0.12s ease;
+
+  &:hover { transform: scale(1.5); opacity: 1; }
+  // A DOT THAT NEEDS HIM IS SOLID AND RINGED; one that is merely outstanding keeps its hue and
+  // loses its fill. The ring is the same ⚑/⧗ distinction the band head draws, in geometry.
+  &.is-work { opacity: 1; }
+  &.is-press {
+    opacity: 1;
+    box-shadow: 0 0 0 2px var(--sv-surface), 0 0 0 3px var(--dbc-stop);
+  }
+  &.is-urgent {
+    box-shadow: 0 0 0 2px var(--sv-surface), 0 0 0 3px var(--dbc-debt);
+    animation: dbc-pulse 2.4s ease-in-out infinite;
+  }
+}
+
+// ── THE SHELVES: one per project, four stacks, press one and it fans ───────────────────────────
+.dbc-shelves {
+  padding: 24px 22px 0;
+}
+
+.dbc-shelf {
+  margin-bottom: 20px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--sv-border-soft);
+  &:last-child { border-bottom: 0; }
+
+  &__name {
+    display: flex;
+    align-items: baseline;
+    gap: 11px;
+    flex-wrap: wrap;
+    margin-bottom: 9px;
+
+    > b { font-size: 14px; color: var(--sv-text-strong); }
+    > code { font-size: 10.5px; margin-left: auto; }
+  }
+  &__owed {
+    display: inline-flex;
+    gap: 9px;
+    font-size: 11px;
+
+    > em {
+      font-style: normal;
+      &.is-press { color: var(--dbc-stop); font-weight: 700; }
+      &.is-work { color: var(--sv-text-muted); }
+      &.is-clear { color: var(--dbc-done); }
+      &.is-blind { color: var(--sv-text-faint); }
+    }
+  }
+  // FOUR STACKS SIDE BY SIDE, and a fanned one takes the width it needs — `flex-wrap` plus a
+  // `100%` basis on the open stack is what makes the fan a full-width shelf of its own rather than
+  // a scroller squeezed into a quarter.
+  &__stacks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: flex-start;
+  }
+}
+
+.dbc-stack {
+  flex: 0 0 auto;
+  min-width: 132px;
+
+  &--rfc { --dbc-hue: var(--dbc-rfc); }
+  &--arc { --dbc-hue: var(--dbc-arc); }
+  &--gap { --dbc-hue: var(--dbc-gap); }
+  &--report { --dbc-hue: var(--dbc-report); }
+
+  &.is-fanned { flex: 1 1 100%; }
+
+  // THE CLOSED FACE IS A PHYSICAL STACK — his cue: *"reports looking like a stack with numbers."*
+  // The leaves behind it are the depth; the number is on the face.
+  &__face {
+    position: relative;
+    display: block;
+    width: 100%;
+    min-width: 132px;
+    text-align: left;
+    padding: 11px 13px 10px;
+    border: 1px solid var(--sv-border);
+    border-top: 3px solid var(--dbc-hue);
+    border-radius: 5px;
+    background: var(--sv-surface);
+    cursor: pointer;
+    font: inherit;
+    color: inherit;
+    transition: transform 0.14s ease, box-shadow 0.14s ease;
+
+    &:hover { transform: translateY(-2px); box-shadow: 0 3px 10px rgb(0 0 0 / 9%); }
+  }
+  &__leaves {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    > i {
+      position: absolute;
+      inset: 0;
+      border: 1px solid var(--sv-border-soft);
+      border-top: 3px solid var(--dbc-hue);
+      border-radius: 5px;
+      background: var(--sv-surface);
+      opacity: 0.55;
+    }
+  }
+  &__count {
+    display: block;
+    font-size: 25px;
+    font-weight: 300;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    color: var(--dbc-hue);
+  }
+  &__kind {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--sv-text-muted);
+  }
+  &__owed {
+    display: flex;
+    gap: 8px;
+    margin-top: 5px;
+    font-size: 11px;
+
+    > b {
+      color: var(--dbc-stop);
+      &.is-urgent { color: var(--dbc-debt); animation: dbc-pulse 2.4s ease-in-out infinite; }
+    }
+    > i {
+      font-style: normal;
+      color: var(--sv-text-faint);
+      &.is-clear { color: var(--dbc-done); }
+    }
+  }
+
+  &.is-empty {
+    padding: 11px 13px;
+    border: 1px dashed var(--sv-border-soft);
+    border-radius: 5px;
+    opacity: 0.6;
+    .dbc-stack__count { color: var(--sv-text-faint); }
+  }
+}
+
+// IT EXPANDS OUT HORIZONTALLY — a scroller, so thirty RFCs riffle sideways instead of pushing
+// every other project off the bottom of the page.
+.dbc-fan {
+  display: flex;
+  gap: 9px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0;
+  max-height: 0;
+  transition: max-height 0.26s ease, padding 0.26s ease;
+
+  .is-fanned > & {
+    max-height: 420px;
+    padding: 11px 2px 12px;
+  }
+
+  &__slot {
+    flex: 0 0 auto;
+    animation: dbc-slide 0.3s cubic-bezier(0.2, 0.8, 0.3, 1) backwards;
+  }
+}
+@keyframes dbc-slide {
+  from { transform: translateX(-22px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+// ── A CARD: one document's face ────────────────────────────────────────────────────────────────
+.dbc-card {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 218px;
+  text-align: left;
+  padding: 9px 11px 10px;
+  border: 1px solid var(--sv-border-soft);
+  border-left: 3px solid var(--dbc-hue, var(--sv-border));
+  border-radius: 5px;
+  background: var(--sv-surface);
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  transition: box-shadow 0.12s ease, border-color 0.12s ease;
+
+  &--rfc { --dbc-hue: var(--dbc-rfc); }
+  &--arc { --dbc-hue: var(--dbc-arc); }
+  &--gap { --dbc-hue: var(--dbc-gap); }
+  &--report { --dbc-hue: var(--dbc-report); }
+
+  &:hover { box-shadow: 0 2px 9px rgb(0 0 0 / 9%); }
+  &.is-press { border-color: var(--dbc-stop); }
+  &.is-blind { border-style: dashed; opacity: 0.74; }
+  &.is-fixture { opacity: 0.55; }
+
+  &__top {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+  &__id {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--dbc-hue);
+  }
+  &__station {
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--sv-text-faint);
+    &.is-none { font-style: italic; text-transform: none; letter-spacing: 0; }
+  }
+  &__mark {
+    margin-left: auto;
+    color: var(--dbc-stop);
+    font-size: 12px;
+    &.is-urgent { color: var(--dbc-debt); animation: dbc-pulse 2.4s ease-in-out infinite; }
+  }
+  &__title {
+    font-size: 12.5px;
+    color: var(--sv-text-strong);
+    line-height: 1.35;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  &__line,
+  &__clock {
+    font-size: 11px;
+    color: var(--sv-text-muted);
+    &.is-urgent { color: var(--dbc-debt); font-weight: 600; }
+  }
+  // THE OBLIGATION'S OWN SENTENCE, on the card that owes it. One of them, never a count: 44
+  // unproved claims is one thing to do, and the row that said "44 things" is the inventory this
+  // page replaced.
+  &__says {
+    font-size: 11px;
+    color: var(--dbc-stop);
+    line-height: 1.35;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  &__stale {
+    font-size: 10px;
+    color: var(--sv-text-faint);
+    font-style: italic;
+  }
+}
+
+// ── THE METERS: progress in each kind's own terms ───────────────────────────────────────────────
+.dbc-meter {
+  display: flex;
+  gap: 1px;
+  height: 6px;
+  margin: 3px 0 1px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--sv-inset);
+
+  &__seg {
+    flex: 1 1 0;
+    min-width: 2px;
+
+    &.is-met,
+    &.is-done { background: var(--dbc-done); }
+    // THE DEBT SEGMENT. Marked met, proving nothing — so it is drawn as a HOLE in the green: the
+    // hue is there, the fill is not. This is the one visual decision on the page that exists to
+    // stop a bar reading as finished when the evidence is missing.
+    &.is-unproved {
+      background: repeating-linear-gradient(
+        -45deg,
+        var(--dbc-debt) 0 2px,
+        transparent 2px 4px
+      );
+      box-shadow: inset 0 0 0 1px var(--dbc-debt);
+    }
+    &.is-unmet,
+    &.is-blocked { background: var(--dbc-stop); }
+    &.is-unchecked,
+    &.is-open { background: var(--dbc-idle); }
+    // A CLOCK DRAINS: what is spent is gone (quiet), what is left is the blue that is still yours.
+    &.is-spent { background: var(--sv-border-soft); }
+    &.is-left { background: var(--dbc-clock); }
+  }
+
+  &--report { height: 5px; }
+}
+
+.dbc-foot {
+  margin: 26px 22px 0;
+  padding-top: 13px;
+  border-top: 1px solid var(--sv-border-soft);
+  font-size: 11px;
+  color: var(--sv-text-faint);
+  max-width: 86ch;
+}

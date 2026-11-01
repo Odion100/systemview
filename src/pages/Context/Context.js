@@ -20,6 +20,7 @@ import rehydrateDoc from "./rehydrateDoc";
 import useOpenedFile from "../../organisms/DocPanel/useOpenedFile";
 import Board from "../../organisms/Board/Board";
 import HowWeWork from "../../organisms/HowWeWork/HowWeWork";
+import DashboardSwitch from "../../organisms/DashboardSwitch/DashboardSwitch";
 import useWallPanel from "../../organisms/WallPanel/useWallPanel";
 import WallTab from "../../organisms/WallPanel/WallTab";
 import "./styles.scss";
@@ -172,7 +173,7 @@ const Context = ({ params = null }) => {
       // navigated this page away to /specs — which is exactly the complaint that produced the
       // offer-first contract in the first place. Both kinds are one-per-project and both render
       // in this page's document display, so both are hosted.
-      if ((d.kind !== "board" && d.kind !== "how") || (d.projectCode && d.projectCode !== projectCode)) return;
+      if ((d.kind !== "board" && d.kind !== "how" && d.kind !== "dash") || (d.projectCode && d.projectCode !== projectCode)) return;
       d.handled = true;
       openTab(tabsPc, { key: `${d.kind}:${tabsPc}`, kind: d.kind });
       // AND BRING IT TO FRONT — opening a tab you then have to go find is adding, not opening
@@ -394,7 +395,7 @@ const Context = ({ params = null }) => {
                 // board joined the renderable kinds with the 14-lane land, but this list wasn't
                 // told — so clicking a board tab navigated to the Code page while the render
                 // branch below sat unreachable (his catch). One list, kept beside the branches.
-                if (t.kind === "file" || t.kind === "agentdoc" || t.kind === "board" || t.kind === "how") {
+                if (t.kind === "file" || t.kind === "agentdoc" || t.kind === "board" || t.kind === "how" || t.kind === "dash") {
                   focusTab(tabsPc, t.key);
                   setActiveKey(t.key);
                   return;
@@ -426,6 +427,15 @@ const Context = ({ params = null }) => {
                 this document's content lives behind its save door — reopen it from the profile on the left
               </div>
             ))}
+            {/* CLAIMING A KIND MEANS DRAWING IT. This page tells `sv:openCenterKind` it has
+                handled `dash`, so if it did not render one the press would open a tab here that
+                shows nothing — worse than not claiming it, because the door would look broken
+                rather than absent. */}
+            {activeTab && activeTab.kind === "dash" && (
+              <div className="context-page__howpane">
+                <DashboardSwitch />
+              </div>
+            )}
             {activeTab && activeTab.kind === "how" && (
               <div className="context-page__howpane">
                 <HowWeWork />
