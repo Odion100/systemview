@@ -1,4 +1,4 @@
-::report{id=drawer-and-clock as=planning retain=4h}
+::report{id=drawer-and-clock as=planning retain=4h retired=2026-11-01 retiredAs=expired}
 
 # The drawer, the lane row, and the clock that stopped
 
