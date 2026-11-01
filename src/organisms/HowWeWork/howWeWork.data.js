@@ -73,13 +73,15 @@ export const STAGES = [
     label: "The build",
     hand: "agents",
     kicker: "slice by slice",
-    artifact: "commits in your tree",
-    leaf: "::branch[lane/…]",
+    artifact: "commits, each tied to the document that asked for it",
+    leaf: "::commit{sha=921e8c8}",
     body:
-      "Most work lands directly in your tree, unstaged, where you review everything else. Work an " +
-      "agent delegates or runs unattended goes to a LANE instead — its own branch and worktree, a " +
+      "Agents commit their own work, slice by slice, in your tree. A commit does not float: it is " +
+      "ATTACHED to the document that commissioned it — an RFC, a gap, or a report spec — as a " +
+      "record stamped with its sha, so \u201cwhat built this\u201d is answerable from the plan. Work an " +
+      "agent delegates or runs unattended goes to a LANE instead \u2014 its own branch and worktree, a " +
       "row you can watch and a record you can throw away.",
-    note: "The commit is yours. An agent never commits for you.",
+    note: "A commit with nothing attached is work nobody can trace back to a decision.",
   },
   {
     id: "settle",
