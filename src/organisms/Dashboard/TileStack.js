@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { DashboardDataProvider, useDashboardData } from "./dashboardData";
-import { resolveTile, tileKinds, hasSiblings } from "./tileRegistry";
+import { resolveTile, tileKinds } from "./tileRegistry";
 import PageLegend from "./PageLegend";
 import "./tiles"; // registering the inventory is a side effect of importing it, once
 import "./tileStack.scss";
@@ -26,11 +26,46 @@ import "./tileStack.scss";
 // and then the line would show where it is dropped — not necessarily a silhouette."* Flush
 // blocks have no edges to read, so the line IS the feedback.
 
+/**
+ * THE CHOOSER — one menu, used for both adding a tile and swapping one.
+ *
+ * His call: *"Instead of sibling components, we could literally just take the same block we use
+ * when adding a component and use that for switching which component you want. So you could
+ * choose from anyone."* Two menus answering one question is two things to keep in step, and the
+ * narrower one was answering the wrong question anyway: a corner that only offers SIBLINGS says
+ * a tile may become another version of itself, when what he actually wants is to swap what is
+ * in that slot for anything at all.
+ */
+const Chooser = ({ onPick, onClose, where = "" }) => (
+  <div className={`tilestack__menu ${where}`} onMouseLeave={onClose}>
+    {tileKinds().map((k) => (
+      <div key={k.kind} className="tilestack__kind">
+        <b>{k.label}</b>
+        <i>{k.hint}</i>
+        <span>
+          {k.variants.length ? (
+            k.variants.map((v) => (
+              <button key={v.variant} type="button" onClick={() => onPick({ kind: k.kind, variant: v.variant })}>
+                {v.label}
+              </button>
+            ))
+          ) : (
+            // A KIND WITH NOTHING BUILT IS STILL LISTED. Hiding it is how a tile nobody built
+            // becomes a tile nobody remembers was planned.
+            <em>nothing built yet</em>
+          )}
+        </span>
+      </div>
+    ))}
+    <button type="button" className="tilestack__cancel" onClick={onClose}>
+      cancel
+    </button>
+  </div>
+);
+
 /** The corner: a grip, whose version this is, and a way to take it off. */
-const Corner = ({ t, onVariant, onRemove, onGrab, onLetGo }) => {
+const Corner = ({ t, onSwap, onRemove, onGrab, onLetGo }) => {
   const [open, setOpen] = useState(false);
-  const siblings = hasSiblings(t.kind);
-  const kin = siblings ? tileKinds().find((k) => k.kind === t.kind) : null;
   return (
     <div className={`tile__corner${open ? " is-open" : ""}`}>
       {/* THE GRIP IS WHAT YOU DRAG, not the tile. A draggable block swallows text selection,
@@ -45,51 +80,34 @@ const Corner = ({ t, onVariant, onRemove, onGrab, onLetGo }) => {
       >
         ⠿
       </span>
-      {siblings ? (
-        <>
-          <button
-            type="button"
-            // A LAYOUT OUTLIVES THE CODE IT NAMES. When the version he placed is gone the
-            // fallback stood in, and the corner has to say so rather than quietly serving
-            // something he did not choose — a substitution nobody is told about is the same
-            // failure as a stale count, just slower to find.
-            className={`tile__which${t.substituted ? " is-swapped" : ""}`}
-            title={
-              t.substituted
-                ? `${t.kindLabel} — ${t.asked} is gone, showing ${t.label}. Press to pick another.`
-                : `${t.kindLabel} — ${t.label}. Press to use another version.`
-            }
-            aria-label={`${t.kindLabel}: ${t.label}`}
-            aria-expanded={open}
-            onClick={() => setOpen((o) => !o)}
-          >
-            {t.variant}
-            {t.substituted ? <em aria-hidden="true">!</em> : null}
-          </button>
-          {open ? (
-            <span className="tile__pop" onMouseLeave={() => setOpen(false)}>
-              <i>{t.kindLabel}</i>
-              {kin.variants.map((v) => (
-                <button
-                  key={v.variant}
-                  type="button"
-                  className={`tile__pick${v.variant === t.variant ? " is-on" : ""}`}
-                  onClick={() => {
-                    setOpen(false);
-                    onVariant(v.variant);
-                  }}
-                >
-                  {v.label}
-                </button>
-              ))}
-            </span>
-          ) : null}
-        </>
-      ) : (
-        <span className="tile__which tile__which--only" title={`${t.kindLabel} — ${t.label}, the only version`}>
-          {t.variant}
-        </span>
-      )}
+      <button
+        type="button"
+        // A LAYOUT OUTLIVES THE CODE IT NAMES. When the version he placed is gone the fallback
+        // stood in, and the corner says so rather than quietly serving something he did not
+        // choose — a substitution nobody is told about is the same failure as a stale count.
+        className={`tile__which${t.substituted ? " is-swapped" : ""}`}
+        title={
+          t.substituted
+            ? `${t.kindLabel} — ${t.asked} is gone, showing ${t.label}. Press to put something else here.`
+            : `${t.kindLabel} — ${t.label}. Press to put something else here.`
+        }
+        aria-label={`${t.kindLabel}: ${t.label}`}
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+      >
+        {t.variant}
+        {t.substituted ? <em aria-hidden="true">!</em> : null}
+      </button>
+      {open ? (
+        <Chooser
+          where="tilestack__menu--corner"
+          onClose={() => setOpen(false)}
+          onPick={(next) => {
+            setOpen(false);
+            onSwap(next);
+          }}
+        />
+      ) : null}
       <button type="button" className="tile__off" title={`Take ${t.kindLabel} off the page`} aria-label={`Remove ${t.kindLabel}`} onClick={onRemove}>
         ×
       </button>
@@ -97,7 +115,7 @@ const Corner = ({ t, onVariant, onRemove, onGrab, onLetGo }) => {
   );
 };
 
-/** The menu of what can go on a page — every kind, every version of it. */
+/** The + at the foot of the page: the same chooser, opened from a different place. */
 const AddTile = ({ onAdd }) => {
   const [open, setOpen] = useState(false);
   if (!open)
@@ -107,37 +125,13 @@ const AddTile = ({ onAdd }) => {
       </button>
     );
   return (
-    <div className="tilestack__menu">
-      {tileKinds().map((k) => (
-        <div key={k.kind} className="tilestack__kind">
-          <b>{k.label}</b>
-          <i>{k.hint}</i>
-          <span>
-            {k.variants.length ? (
-              k.variants.map((v) => (
-                <button
-                  key={v.variant}
-                  type="button"
-                  onClick={() => {
-                    setOpen(false);
-                    onAdd({ kind: k.kind, variant: v.variant });
-                  }}
-                >
-                  {v.label}
-                </button>
-              ))
-            ) : (
-              // A KIND WITH NOTHING BUILT IS STILL LISTED. Hiding it is how a tile nobody built
-              // becomes a tile nobody remembers was planned.
-              <em>nothing built yet</em>
-            )}
-          </span>
-        </div>
-      ))}
-      <button type="button" className="tilestack__cancel" onClick={() => setOpen(false)}>
-        cancel
-      </button>
-    </div>
+    <Chooser
+      onClose={() => setOpen(false)}
+      onPick={(t) => {
+        setOpen(false);
+        onAdd(t);
+      }}
+    />
   );
 };
 
@@ -267,7 +261,9 @@ const Stack = ({ page, onChange }) => {
                       setDrag(-1);
                       setAt(null);
                     }}
-                    onVariant={(variant) => write(tiles.map((x, j) => (j === i ? { ...x, variant } : x)))}
+                    // SWAPPING REPLACES THE SLOT, not just the variant — the chooser offers every
+                    // kind, so what comes back may be a different thing entirely.
+                    onSwap={(next) => write(tiles.map((x, j) => (j === i ? next : x)))}
                     onRemove={() => write(tiles.filter((_, j) => j !== i))}
                   />
                   <t.Component data={data} />

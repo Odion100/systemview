@@ -144,11 +144,12 @@ describe("a page he builds himself", () => {
     expect(container.querySelector(".tile__bar")).toBeNull();
     expect(container.querySelector(".tile__which").textContent).toBe("b");
 
-    // THE SWITCH IS ASKING WHOSE VERSION OF THIS, and it answers in one character in the corner.
+    // THE CORNER OPENS THE SAME CHOOSER THE + DOES — every kind, not just this one's siblings —
+    // so a slot can be swapped for a different thing entirely, not only a different version.
     fireEvent.click(container.querySelector(".tile__which"));
-    // Scoped to the popup: the page tabs carry the same words, which is the point — the switch
-    // names the page a version came from.
-    fireEvent.click(within(container.querySelector(".tile__pop")).getByText("C · the shelves"));
+    const pop = container.querySelector(".tilestack__menu--corner");
+    expect(within(pop).getByText("The reports")).toBeVisible();
+    fireEvent.click(within(within(pop).getByText("What is owed").closest(".tilestack__kind")).getByText("C · the shelves"));
     expect(container.querySelector(".tile__which").textContent).toBe("c");
 
     fireEvent.click(screen.getByLabelText("Remove What is owed"));
@@ -168,14 +169,19 @@ describe("a page he builds himself", () => {
     expect(again.container.querySelector(".tile__which").textContent).toBe("b");
   });
 
-  // A SWITCH OVER ONE OPTION IS FURNITURE. Reports exists in one version only.
-  it("a kind with one version says what it is instead of offering a choice", () => {
+  // EVEN A KIND WITH ONE VERSION OPENS THE CHOOSER, because the chooser is no longer about
+  // versions — it is about what goes in this slot, and the answer may be another kind.
+  it("a kind with one version still opens the full chooser", () => {
     const { container } = page();
     fireEvent.click(screen.getByText("+ add a tile"));
     fireEvent.click(within(screen.getByText("The reports").closest(".tilestack__kind")).getByText("B · the floor"));
-    expect(container.querySelector(".tile__which--only")).toBeTruthy();
-    // it is a label, not a button — there is nothing to switch to
-    expect(container.querySelector("button.tile__which")).toBeNull();
+    fireEvent.click(container.querySelector(".tile__which"));
+    const pop = container.querySelector(".tilestack__menu--corner");
+    expect(within(pop).getByText("Where everything stands")).toBeVisible();
+    fireEvent.click(within(within(pop).getByText("Per project").closest(".tilestack__kind")).getByText("C · the shelves"));
+    // the slot is now a different KIND entirely
+    expect(container.querySelectorAll(".tile")).toHaveLength(1);
+    expect(container.querySelector(".tile__off").getAttribute("aria-label")).toBe("Remove Per project");
   });
 
   // A LAYOUT OUTLIVES THE CODE IT NAMES. A variant that is gone must degrade visibly, never to a
