@@ -1,0 +1,77 @@
+import React, { useState } from "react";
+import Ring from "./Ring";
+import { Ctx, HUES, Reading, floorOf, openBead } from "./floor";
+
+// ─── THE REPORT STACKS ─────────────────────────────────────────────────────────────────────────
+//
+// His one visual cue, verbatim: *"reports looking like a stack with numbers, and then you click
+// them and they expand out horizontally."* It lands on reports and not on the other kinds because
+// it is TRUE of reports: a report does not progress, it AGES. Their trail is `filed → retired` and
+// the second station is their death, so they get no track — they arrive in a pile and the pile
+// drains. One stack per project, because "all the projects going on at the same time" is the other
+// half of the ask and a single global pile would bury the project that is actually producing.
+export default function ReportsTile({ data }) {
+  const [fanned, setFanned] = useState("");
+  const floor = floorOf(data);
+  if (!floor) return <Reading />;
+  const { stacks } = floor;
+  const open = (card) => openBead(card, data && data.open);
+  return (
+    <Ctx>
+      <section className="dbb-stacks">
+        <div className="dbb-flow__head">
+          <h2>the reports</h2>
+          <span>
+            a report does not progress, it ages — the ring is what is LEFT of its retention, and the clock does not
+            start until you first open it
+          </span>
+        </div>
+        {stacks.length ? (
+          <div className="dbb-stacks__row">
+            {stacks.map((s) => {
+              const isOpen = fanned === s.project;
+              return (
+                <div key={s.project} className={`dbb-stack${isOpen ? " is-open" : ""}${s.urgent ? " is-urgent" : ""}`}>
+                  <button
+                    type="button"
+                    className="dbb-stack__face"
+                    onClick={() => setFanned(isOpen ? "" : s.project)}
+                    aria-expanded={isOpen}
+                  >
+                    <span className="dbb-stack__n">{s.n}</span>
+                    <span className="dbb-stack__proj">{s.project}</span>
+                    <span className="dbb-stack__urgent">
+                      {s.urgent ? `${s.urgent} about to go` : isOpen ? "press to close" : "press to open out"}
+                    </span>
+                  </button>
+                  <div className="dbb-fan">
+                    {s.cards.map((c, i) => (
+                      <button
+                        key={c.key}
+                        type="button"
+                        className={`dbb-rcard${c.mark === "⧗" ? " is-urgent" : ""}`}
+                        style={{ "--i": i, zIndex: s.cards.length - i }}
+                        onClick={() => open(c)}
+                        tabIndex={isOpen ? 0 : -1}
+                        title={`${c.id}${c.title ? ` — ${c.title}` : ""}\n${c.says}`}
+                      >
+                        <span className="dbb-rcard__top">
+                          <Ring ratio={c.ratio} hue={HUES.report} drains />
+                          {c.mark ? <b className="dbb-rcard__mark">{c.mark}</b> : null}
+                        </span>
+                        <span className="dbb-rcard__id">{c.title || c.id}</span>
+                        <span className="dbb-rcard__says">{c.says}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="dbb-flow__none">no reports are registered in any project.</p>
+        )}
+      </section>
+    </Ctx>
+  );
+}

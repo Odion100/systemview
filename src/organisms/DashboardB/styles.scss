@@ -9,6 +9,26 @@
 //
 // THE KIND HUES ARE HOWWEWORK'S, VALUE FOR VALUE. That page teaches what a kind IS; two surfaces in
 // one window disagreeing about what purple means is a cost paid by the reader.
+//
+// ─── TWO RULES, NOT ONE — THE PAGE AND THE CONTEXT ─────────────────────────────────────────────
+//
+// Every other selector in this file is FLAT (`.dbb-needs`, `.dbb-flow`, …) so a section lifted out
+// of the page keeps its own rules. The root rule was the exception, and it was doing two unlike
+// jobs at once: being the BOX the page is, and being the ENVIRONMENT every descendant reads from.
+// Lift `.dbb-flow` onto another surface and it loses the second one — not its own styling, but the
+// colour it inherits, the type it sits on, and every `--dbb-*` custom property it paints with. A
+// tile outside `.dbb` painted with `var(--dbb-rfc)` resolving to nothing: no hue at all.
+//
+// So the rule is split down that line, mechanically and with no change in value:
+//
+//   `.dbb`      THE PAGE CHROME — flex, height, margin, border, radius, overflow, background,
+//               padding. Nothing a section needs; everything the page is.
+//   `.dbb-ctx`  THE CONTEXT — colour, type, the kind hues and posture colours, and the resets.
+//               Everything a section INHERITS or reads a `var()` from, in one class it can carry
+//               with it onto any surface.
+//
+// They are written as ONE comma selector so there is one definition and the page keeps behaving
+// exactly as it did: `.dbb` still carries the context itself, so nothing on this page moved.
 .dbb {
   flex: 1 1 auto;
   min-height: 0;
@@ -20,10 +40,15 @@
   overflow-y: auto;
   overflow-x: hidden;
   background: var(--sv-surface);
+  padding: 0 0 72px;
+}
+
+// THE CONTEXT. `.dbb` is in the list so the page is unchanged; `.dbb-ctx` is what a tile wears.
+.dbb,
+.dbb-ctx {
   color: var(--sv-text);
   font-size: 13px;
   line-height: 1.6;
-  padding: 0 0 72px;
 
   // the four kinds — HowWeWork's values, so a colour means the same thing on both pages
   --dbb-rfc: #5a77e5;
@@ -53,6 +78,11 @@
   // `.dbb button` this reset beat every single-class rule below it — a card's own border,
   // background and padding all lost to it, so the report pile rendered as bare text with no paper
   // under it and the stack face had no card at all. A reset has to be the floor, not the ceiling.
+  //
+  // IT SURVIVED THE SPLIT UNCHANGED, which is the point: `.dbb-ctx :where(button)` is still one
+  // class and nothing else — the same (0,1,0) the component rules below carry, and it loses to
+  // every one of them on source order, exactly as it did before. Give the context class any more
+  // weight than this and B's cards lose their borders again.
   :where(button) {
     font: inherit;
     color: inherit;
@@ -63,8 +93,12 @@
     text-align: left;
   }
 }
+// The dark step splits the same way: the background is the page's, the hues are the context's.
 :root.sv-dark .dbb {
   background: var(--sv-bg);
+}
+:root.sv-dark .dbb,
+:root.sv-dark .dbb-ctx {
   --dbb-rfc: #8ba4ef;
   --dbb-arc: #c68cf5;
   --dbb-gap: #e0a34f;
@@ -121,26 +155,65 @@
     color: var(--sv-text-muted);
   }
 }
+// A SEGMENT IS A LABEL UNTIL IT HAS SOMETHING BEHIND IT, and then it is a button — and the two
+// have to be the same shape. The only difference at rest is the cursor: `:where(button)` strips
+// the UA's font, padding, border and background back to nothing, and every rule here is a single
+// class that beats that reset on source order, so a seg that became a button keeps its own colour.
+//
+// THE MODIFIER IS THE POSTURE, NEVER THE OBLIGATION. `owedHead` now breaks the head out by what
+// the work IS — approvals, proofs, clocks, objectives of his, blocked ones, ones with no plan,
+// drafts nothing can decide, claim sets resting on nothing — and it will break out more. A rule
+// per key would mean a new kind of obligation arriving in a colour nobody chose; three postures
+// is the whole axis, and it is the same axis the tide below is drawn on.
+//
+// `--say` IS THE SEGMENT'S COLOUR, NAMED ONCE: the text colour at rest and the FILL when held. A
+// held segment has to keep its own colour, or the thing it is telling you — WHICH segment
+// narrowed the surface — is the thing it loses.
 .dbb-say {
   display: inline-flex;
   align-items: baseline;
   gap: 7px;
+  --say: var(--sv-text-strong);
+  color: var(--say);
   &__mark {
     font-weight: 400;
   }
   &--press {
-    color: var(--dbb-press);
+    --say: var(--dbb-press);
   }
   &--work {
-    color: var(--dbb-work);
+    --say: var(--dbb-work);
   }
   &--clear {
-    color: var(--dbb-clear);
+    --say: var(--dbb-clear);
   }
   // A ZERO WE DID NOT MEASURE IS NOT A ZERO, and it must not wear the colour of good news.
   &--unmeasured {
-    color: var(--sv-text-muted);
+    --say: var(--sv-text-muted);
     font-weight: 500;
+  }
+
+  // ── A FILTER YOU CANNOT SEE IS ON ────────────────────────────────────────────────────────────
+  // A surface-wide narrowing that does not announce itself means reading a part of the world as
+  // the whole of it — the exact failure this page exists to stop, wearing a different hat. So the
+  // held segment goes FILLED: not a tint, not an outline, a solid block of its own colour that
+  // cannot be mistaken for text.
+  //
+  // THE NEGATIVE MARGIN IS NOT DECORATION. Without it the pill's padding shoves every segment
+  // after it sideways on the press, and a head that reflows as you filter is a head you have to
+  // re-read. The padding is paid for out of the row's own 18px gap, so nothing moves.
+  &.is-able:hover:not(.is-on) {
+    background: var(--sv-hover);
+    border-radius: 999px;
+    padding: 2px 10px;
+    margin: -2px -10px;
+  }
+  &.is-on {
+    padding: 2px 10px;
+    margin: -2px -10px;
+    border-radius: 999px;
+    background: var(--say);
+    color: var(--sv-surface);
   }
 }
 
