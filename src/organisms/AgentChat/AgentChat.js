@@ -42,6 +42,7 @@ import useAgentSession from "../AgentWorkbench/useAgentSession";
 import { CTX_MARK, CTX_WARN, CTX_DUE, tokensShort, parseUsageLines, foldEvents, laneLog } from "../AgentWorkbench/feedRows";
 import laneCook from "./laneCook";
 import { laneWork, laneFollow, laneLiveness, laneFolds, laneFoldOrder, laneChanges } from "./laneBlock";
+import { headingLevel, listItem, nestList, startsNewList } from "./chatBlocks";
 import RetainClock from "./RetainClock";
 import { visStyle } from "../AgentWorkbench/visitorColor";
 import { formatReceipt } from "../AgentWorkbench/cmdReceipt";
@@ -262,10 +263,33 @@ function renderInline(text, kp) {
   return out;
 }
 
-const H_RE = /^(#{1,6})\s+(.*)$/;
-const UL_RE = /^\s*[-*+]\s+(.*)$/;
-const OL_RE = /^\s*(\d+)[.)]\s+(.*)$/;
+// HEADINGS AND LIST ITEMS ARE CLASSIFIED IN `chatBlocks.js`, not by a regex here. The level of a
+// heading and the depth of a list item are the two facts this parser used to throw away, and both
+// are worth asserting — which a 9,000-line component cannot be.
 const QUOTE_RE = /^\s*>\s?(.*)$/;
+
+// A LIST, AT ANY DEPTH, DRAWN BY ONE FUNCTION. It recurses, so a sub-list is the same code as the
+// outer one and cannot drift from it — and a sub-list may be a different KIND from its parent,
+// which is the common "- a point / 1. its steps" shape.
+function ChatList({ node, kp = "l", ...rest }) {
+  const Tag = node.ordered ? "ol" : "ul";
+  return (
+    <Tag
+      className="chat-md__list"
+      // `start` ONLY ON AN ORDERED LIST — it is not a valid attribute on `ul`, and a list that
+      // genuinely begins at 3 was being renumbered to 1 before this.
+      start={node.ordered && node.start && node.start !== 1 ? node.start : undefined}
+      {...rest}
+    >
+      {node.items.map((it, i) => (
+        <li key={i}>
+          {renderInline(it.text, `${kp}i${i}-`)}
+          {it.children ? <ChatList node={it.children} kp={`${kp}i${i}c`} /> : null}
+        </li>
+      ))}
+    </Tag>
+  );
+}
 
 // TABLES (his call: "I do not think tables are too hard to do in these bubbles, just render it
 // the right format for this section"). A table is only a table when a separator row PROVES it —
@@ -366,14 +390,8 @@ export function renderChatMessage(text, base = 0) {
   };
   const flushList = () => {
     if (!list) return;
-    const Tag = list.ordered ? "ol" : "ul";
-    out.push(
-      <Tag key={`l${k++}`} className="chat-md__list" {...span(list.from, list.to)}>
-        {list.items.map((it, i) => (
-          <li key={i}>{renderInline(it, `l${k}i${i}-`)}</li>
-        ))}
-      </Tag>,
-    );
+    const tree = nestList(list.rows);
+    if (tree) out.push(<ChatList key={`l${k++}`} node={tree} kp={`l${k}`} {...span(list.from, list.to)} />);
     list = null;
   };
   const flushAll = () => {
@@ -475,25 +493,34 @@ export function renderChatMessage(text, base = 0) {
       );
       continue;
     }
-    const h = line.match(H_RE);
-    const ul = line.match(UL_RE);
-    const ol = line.match(OL_RE);
+    const h = headingLevel(line);
+    const row = listItem(line);
     const q = line.match(QUOTE_RE);
-    if (ul || ol) {
+    if (row) {
       flushPara();
-      const ordered = !!ol;
-      if (list && list.ordered !== ordered) flushList();
-      if (!list) list = { ordered, items: [], from: at(i), to: at(i) };
+      // NESTING IS NOT A NEW LIST. Only a kind change at the TOP level starts one; an indented
+      // item of either kind belongs to the list already open, which is what used to cut one list
+      // into three.
+      if (startsNewList(list, row)) flushList();
+      if (!list) list = { ordered: row.ordered, rows: [], from: at(i), to: at(i) };
       list.to = at(i);
-      list.items.push(ul ? ul[1] : ol[2]);
+      list.rows.push(row);
       continue;
     }
     flushList();
     if (h) {
       flushPara();
       out.push(
-        <span key={`h${k++}`} className="chat-md__h" {...span(at(i), at(i))}>
-          {renderInline(h[2], `h${k}-`)}
+        // THE LEVEL RIDES THE ELEMENT. It used to be parsed and dropped, so six levels rendered as
+        // one bold body-size line and no stylesheet could tell them apart. `data-lvl` is for
+        // anything reading the DOM; the modifier class is what the type scale hangs on.
+        <span
+          key={`h${k++}`}
+          className={`chat-md__h chat-md__h--${h.level}`}
+          data-lvl={h.level}
+          {...span(at(i), at(i))}
+        >
+          {renderInline(h.text, `h${k}-`)}
         </span>,
       );
     } else if (q) {

@@ -165,25 +165,73 @@
     user-select: none;
     pointer-events: none;
   }
+  // A HEADING HAS A LEVEL AGAIN, AND SIX OF THEM READ DIFFERENTLY.
+  //
+  // His call: *"look at the document's version of the markdown, look at everything."* Every level
+  // used to render as one bold body-size line — the old ruling was "headings as bold lines, an h1
+  // inside a bubble is absurd." The premise is right and the conclusion was too strong: the fix is
+  // a COMPRESSED scale, not no scale. The document pane runs 28/24/18/16/14/14 over a 15px body;
+  // 1.87em of a bubble is 23px and would be the absurd thing, so the ratios come in and the ORDER
+  // survives, which is the part a reader actually uses.
+  //
+  // SIZE, WEIGHT AND OPACITY ONLY — never a colour. The same markdown lands on the feed, on an
+  // agent bubble, on his purple and in a code-comment reply, so a heading colour that reads on one
+  // is wrong on another by construction. Relative units for the same reason: the chat's body is
+  // 12.5px and the workbench's is smaller, and the scale should follow whatever it is dropped into.
   .chat-md__h {
     display: block;
     font-weight: 700;
-    margin: 4px 0 2px;
+    margin: 9px 0 3px;
+    line-height: 1.3;
+    &:first-child { margin-top: 0; }
+  }
+  .chat-md__h--1 { font-size: 1.35em; margin-top: 12px; }
+  // THE h2 RULE IS THE DOCUMENT'S, borrowed on purpose — it is the one piece of heading furniture
+  // the document pane has, and the chat reading like a smaller version of a document is the point.
+  .chat-md__h--2 {
+    font-size: 1.2em;
+    margin-top: 12px;
+    padding-bottom: 2px;
+    border-bottom: 1px solid var(--md-line-soft);
+  }
+  .chat-md__h--3 { font-size: 1.08em; }
+  // h4 IS WHERE THE OLD BEHAVIOUR WAS RIGHT: body size, bold. It is now one level of six rather
+  // than all of them.
+  .chat-md__h--4 { font-size: 1em; }
+  .chat-md__h--5 { font-size: 0.95em; opacity: 0.82; }
+  .chat-md__h--6 {
+    font-size: 0.9em;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    opacity: 0.66;
   }
   .chat-md__list {
     display: block;
-    margin: 3px 0;
+    margin: 5px 0;
     padding-left: 18px;
     li {
-      margin: 1px 0;
+      margin: 2px 0;
     }
+    // NESTING IS DRAWN, BECAUSE NESTING NOW SURVIVES THE PARSE. The indentation used to be eaten
+    // by the bullet pattern, so a sub-point rendered as its peer and there was nothing here to
+    // style. A tighter indent than the root and a changed marker, so a depth is visible without
+    // the row wandering across the bubble.
+    .chat-md__list {
+      margin: 2px 0 2px;
+      padding-left: 15px;
+    }
+    ul ul { list-style-type: circle; }
+    ul ul ul { list-style-type: square; }
   }
+  // A QUOTE READS AS SOMEBODY ELSE'S WORDS — the document's own treatment, which is a heavier rule
+  // and smaller, quieter type. Opacity rather than the document's grey, because the canvas varies.
   .chat-md__quote {
     display: block;
-    margin: 3px 0;
-    padding-left: 7px;
-    border-left: 2px solid var(--md-line);
-    opacity: 0.85;
+    margin: 5px 0;
+    padding-left: 9px;
+    font-size: 0.95em;
+    border-left: 3px solid var(--md-line);
+    opacity: 0.78;
   }
   .chat-md__rule {
     display: block;
