@@ -253,9 +253,14 @@ A close where only the conductor wrote anything is a meeting that produced one a
 ## What an arc looks like
 
 The planning document is where a shape is argued. The **arc** is what comes out of it: the epic that
-holds the objectives, at `RFCs/arcs/ARC-<nnn>-<kebab-subject>.md`, in the repo that will build it.
-Every project that has work gets its own — projects are separate repos, and an arc written somewhere
-central is one its builder does not have, cannot commit and will not find.
+holds the objectives. Every project that has work gets its own — projects are separate repos, and an
+arc written somewhere central is one its builder does not have, cannot commit and will not find.
+
+Write it at `RFCs/arcs/ARC-<nnn>-<kebab-subject>.md`, and **find it by asking, never by that path**
+— `registry({kind: "arc"})`, or `registry({kind: "arc", member: "<your project code>"})` for the
+ones you are on, across every project. The arc registers off its leaf when the file is saved, so
+the folder is tidiness; the id is the address. A reader who globs the folder instead gets silence
+when an arc moves, and silence reads exactly like an arc that does not exist.
 
 **The arc document IS the state.** No run record holds how far along it is, nothing mirrors it on a
 board. That is what makes an arc trackable rather than a plan somebody has to go and ask about — and

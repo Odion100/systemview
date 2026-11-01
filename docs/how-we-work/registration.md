@@ -74,3 +74,49 @@ delivers again; a fire nobody was running for is delivered by the next session's
 
 Result blocks (`::commit`, `:::cmd`, `::run`, `::test`, `::branch`) write nothing into the
 document — `subscribe=` on them routes the completion event the chat already shows.
+
+## A commit says what it served, and the document says it back
+
+Agents commit their own work. The thing that makes that safe to allow is not review and not a
+branch somebody can inspect — it is that **every commit is traceable to the decision it came
+from, by a machine, without asking the agent that wrote it.**
+
+So a commit carries a git trailer naming what it served, on its own line at the end of the
+message:
+
+```
+Serves: ARC-004-O2
+```
+
+The value is a **registration id** — the id off the document's own leaf. An objective
+(`ARC-004-O2`), a plan (`RFC-073`), a gap (`G-12`), a report (its title). Never a path: a
+registration id is globally unique and survives the rename that breaks every path to a document.
+
+**One id per line, and repeat the trailer** for work that served several. The value is the whole
+line because a report's id is its TITLE, so it carries spaces and commas — a parser splitting on
+either would shred exactly the ids this reaches for.
+
+**Only the final trailer block counts**, which is git's own rule and worth following exactly. A
+parser scanning the whole message would read `Serves:` out of a commit *quoting* the convention
+and attribute work to a document nobody touched.
+
+**The document says it back** with a `::commit{sha=…}` block. That is the other direction, and
+both are needed: the trailer answers *what did this commit serve*, the block answers *what built
+this*. Either alone is a claim nobody can check.
+
+**`commitLinks({projectCode})` checks the two against each other** and reports only disagreement,
+in four kinds because each needs a different fix:
+
+| | |
+|---|---|
+| `oneWay` | the commit names the document, the document does not carry the sha — add the `::commit` block |
+| `dangling` | it serves an id nothing registered — a typo, or a document that never registered |
+| `unclaimed` | the document names a sha whose commit points elsewhere — the wrong sha was pasted |
+| `unlinked` | the commit served nothing. Honest for a typo fix; a hole for a slice |
+
+Only the first three break agreement. **Run it on your own work before reporting it done** — a
+run that says it finished and leaves the record one-way has handed over something nobody else can
+verify.
+
+A commit older than the window being read is never a finding: absence of evidence is not a broken
+link, and reporting it as one would make every audit noisier the further back a document reaches.
