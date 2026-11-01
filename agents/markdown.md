@@ -518,17 +518,30 @@ turn ends*) and it starts its own turn the moment the agent yields. Several send
 document merge while held: one wake, carrying everything. See autobot's `hooks.md` — the event
 exists for hooks to match on, but membership is the subscription on its own.
 
-## `::commit{message=…}` — a commit you press
-
-A commit message written at the end of a report is a line someone has to copy into a terminal. This
-makes it a button.
+## `::commit` — two forms: a commit you press, and a commit that happened
 
 ```markdown
-::commit{message="feat(git): line-level staging"}
+::commit{message="feat(git): line-level staging"}   the OFFER — he presses it
+::commit{sha=a4f81c2}                               the RECORD — it already happened
+::commit{sha=2f6df6d project=autobot}               a record from ANOTHER repo
 ```
 
-**The agent writes it. Only the human presses it.** There is no `systemview commit` and no
-`systemview push` — that absence is deliberate, and it is what keeps the decision his.
+**THE RECORD IS THE NORMAL ONE NOW.** Agents commit their own work, so the usual shape is an
+account of a commit that already landed, not an offer. A record is how a document says *what built
+this* — the other half of the `Serves:` trailer on the commit itself
+(`context("how does a commit point back at the document it served")`).
+
+**`project=` IS REQUIRED FOR ANOTHER REPO'S SHA**, and leaving it off is the commonest way to write
+a dead block: the sha resolves against the document's own project, finds nothing, and renders *"no
+such commit"* — a line that reads like a broken commit rather than a mis-addressed block.
+
+**A record does not wake anybody.** `::commit` is deliberately absent from the firing map: writing
+down a commit that already happened decides nothing, and fifteen records added to one report woke
+every member of it fifteen times before that was fixed. What announces that work landed is the
+objective reaching `done`, or a claim being marked.
+
+**The offer is still the agent's to write and HIS to press.** There is no `systemview commit` and
+no `systemview push` — that absence is deliberate, and it is what keeps that decision his.
 
 **Offer it standalone, not buried mid-prose.** Twice a block embedded after a long paragraph did not
 render, and a clean re-offer of just the block worked immediately. Put it in its own message, or

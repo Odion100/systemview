@@ -100,6 +100,17 @@ either would shred exactly the ids this reaches for.
 parser scanning the whole message would read `Serves:` out of a commit *quoting* the convention
 and attribute work to a document nobody touched.
 
+**IT NAMES WHAT THE WORK SERVES, NOT THE RUN YOU ARE INSIDE.** This is the one that is easy to get
+wrong and invisible when you do, because the two are the same thing often enough to stop feeling
+like a choice. Measured on the convention's first real evening: eight commits doing board work
+carried `Serves:` naming the open assignment's report instead, because that was the document in
+hand when each was written. Every trailer was present, every one parsed, and both ends disagreed —
+which the checker found and no reader would have.
+
+Ask what the work was FOR, not what you were doing when you did it. An assignment, a lane, a chore
+round are all containers; the thing served is the objective, the plan, the gap, or the report the
+work actually answers.
+
 **The document says it back** with a `::commit{sha=…}` block. That is the other direction, and
 both are needed: the trailer answers *what did this commit serve*, the block answers *what built
 this*. Either alone is a claim nobody can check.
