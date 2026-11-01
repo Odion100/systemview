@@ -366,4 +366,45 @@ export function owedHead(owed = {}) {
   return { segs, unread };
 }
 
+/**
+ * FOLD A LIST OF OBLIGATIONS INTO ONE ROW PER DOCUMENT.
+ *
+ * His complaint, and it is the same complaint that produced the never-per-claim rule one level
+ * up: *"it has multiple of the same RFC or arc with multiple things outstanding — outstanding
+ * should be expandable, it should be bringing those things together. Just gonna flood every
+ * little block on a fucking document to you? No."* An arc with five blocked objectives is one
+ * document he has to go and work on, not five lines he has to read past to find the next
+ * document. So the DOCUMENT is the row, and its obligations are what the row opens into.
+ *
+ * THE INPUT ORDER IS THE OUTPUT ORDER, and that is load-bearing: `owedFrom` has already sorted
+ * by rank, so first-seen means strongest, and the group inherits the first item's `why`, `says`
+ * and `line`. Re-sorting here would quietly promote a document because it had MORE obligations,
+ * which is not the same as having a worse one.
+ *
+ * THE KEY CARRIES THE PROJECT. A document id is unique inside a project and nowhere else — two
+ * projects each with an RFC-001 are two documents, and keying on the id alone merges them into
+ * one row that opens the wrong file.
+ *
+ * Returns the same shape a single obligation has, plus `items` (all of them, including the one in
+ * the headline) and `n`. A row with `n === 1` is an ordinary row and must render as one: a fold
+ * that opens to reveal the line already on its face is furniture.
+ */
+export function groupOwed(items = []) {
+  const byDoc = new Map();
+  const out = [];
+  for (const o of items || []) {
+    if (!o) continue;
+    const k = `${o.project || ""}\u0000${o.id}`;
+    let g = byDoc.get(k);
+    if (!g) {
+      g = { ...o, key: k, items: [], n: 0 };
+      byDoc.set(k, g);
+      out.push(g);
+    }
+    g.items.push(o);
+    g.n = g.items.length;
+  }
+  return out;
+}
+
 export default owedFrom;

@@ -4,7 +4,7 @@ import ServiceContext from "../../ServiceContext";
 import { hostFiles } from "../../utils/hostFiles";
 import { openAddress } from "../../atoms/Markdown/openRef";
 import { tickFor } from "../../atoms/Markdown/blocks/retention";
-import { skippedLine } from "../AgentChat/owed";
+import { skippedLine, groupOwed } from "../AgentChat/owed";
 import dashboard, { PHASES, readingLine } from "./dashboardA.data";
 
 // ─── THE DASHBOARD — EVERY PROJECT, EVERY KIND, AND WHAT NEEDS HIM ─────────────────────────────
@@ -261,16 +261,60 @@ const StackFan = ({ reports, open: fanned }) =>
   );
 
 /** One obligation, in `owed.js`'s own words. The chevron is the only affordance: it opens. */
-const OwedRow = ({ o }) => (
-  <button type="button" className={`dba-owed is-${o.group} is-${o.why}`} onClick={() => open({ project: o.project, path: o.path, line: o.line })}>
-    <span className="dba-owed__mark">{o.group === "press" ? (o.why === "clock" ? "⧗" : "⚑") : "·"}</span>
-    <Chip kind={o.kind} />
-    <b className="dba-owed__id">{o.id}</b>
-    <span className="dba-owed__says">{o.says}</span>
-    <i className="dba-owed__tail">{o.tail}</i>
-    <span className="dba-owed__where">{o.project}</span>
-  </button>
-);
+/**
+ * ONE DOCUMENT, ONE ROW — and its obligations are what the row opens into.
+ *
+ * *"It has multiple of the same RFC or arc with multiple things outstanding — outstanding should
+ * be expandable, it should be bringing those things together."* An arc with five blocked
+ * objectives is one place to go and work, so it gets one line; the five are behind a fold.
+ *
+ * THE FACE CARRIES THE STRONGEST ONE, never a summary. `groupOwed` inherits the first item's
+ * words because the list arrived ranked — so the row says the worst thing about the document and
+ * the count says how much else is in there. "3 outstanding" on its own would make him open every
+ * row to find out whether any of it mattered.
+ *
+ * A ROW OF ONE IS AN ORDINARY ROW: no fold, no count, and the press opens the document. A fold
+ * that opens to reveal the sentence already on its face is furniture.
+ */
+const OwedGroup = ({ g, open: shown, onToggle }) => {
+  const one = g.n === 1;
+  return (
+    <div className={`dba-owed__g${shown ? " is-open" : ""}`}>
+      <button
+        type="button"
+        className={`dba-owed is-${g.group} is-${g.why}${one ? "" : " is-many"}`}
+        aria-expanded={one ? undefined : shown}
+        onClick={() => (one ? open({ project: g.project, path: g.path, line: g.line }) : onToggle())}
+      >
+        <span className="dba-owed__mark">{g.group === "press" ? (g.why === "clock" ? "⧗" : "⚑") : "·"}</span>
+        <Chip kind={g.kind} />
+        <b className="dba-owed__id">{g.id}</b>
+        <span className="dba-owed__says">{g.says}</span>
+        <i className="dba-owed__tail">{g.tail}</i>
+        {/* RENDERED EVEN WHEN EMPTY: the row is a grid, and a missing cell slides the
+            project column left on every single-obligation row. */}
+        <em className="dba-owed__n">{one ? "" : `+${g.n - 1} more`}</em>
+        <span className="dba-owed__where">{g.project}</span>
+        <span className="dba-owed__fold" aria-hidden="true">{one ? "" : shown ? "⌃" : "⌄"}</span>
+      </button>
+      {one || !shown ? null : (
+        <div className="dba-owed__items">
+          {g.items.map((o) => (
+            <button
+              key={o.key}
+              type="button"
+              className={`dba-owed__item is-${o.why}`}
+              onClick={() => open({ project: o.project, path: o.path, line: o.line })}
+            >
+              <span className="dba-owed__says">{o.says}</span>
+              <i className="dba-owed__tail">{o.tail}</i>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 /** One project: who it is, what it owes, the track, the stack, and the numbers on request. */
 const Lane = ({ p, fanned, onFan, shown, onShow }) => (
@@ -367,6 +411,10 @@ const DashboardA = () => {
   const [fixtures, setFixtures] = useState(false);
   const [fanned, setFanned] = useState("");
   const [shown, setShown] = useState({});
+  // WHICH DOCUMENTS ARE FANNED OPEN in the owed lists. Keyed by `groupOwed`'s key, which carries
+  // the project — so opening alpha's RFC-001 does not open beta's.
+  const [openOwed, setOpenOwed] = useState({});
+  const toggleOwed = (k) => setOpenOwed((o) => ({ ...o, [k]: !o[k] }));
 
   // THE CLOCKS COUNT. One beat for the page, at the cadence the WORDS have (`tickFor` — the same
   // rule the drawer's clock and the leaf's own face follow), and none at all when nothing is
@@ -432,7 +480,9 @@ const DashboardA = () => {
             Press <span>your signature finishes it</span>
           </h2>
           {owed.press.length ? (
-            owed.press.map((o) => <OwedRow key={o.key} o={o} />)
+            groupOwed(owed.press).map((g) => (
+              <OwedGroup key={g.key} g={g} open={!!openOwed[g.key]} onToggle={() => toggleOwed(g.key)} />
+            ))
           ) : (
             <p className="dba__clear">{read && totals.read ? "nothing waiting on a verdict of yours" : "not measured"}</p>
           )}
@@ -442,7 +492,9 @@ const DashboardA = () => {
             Outstanding <span>nobody can press it away</span>
           </h2>
           {owed.work.length ? (
-            owed.work.map((o) => <OwedRow key={o.key} o={o} />)
+            groupOwed(owed.work).map((g) => (
+              <OwedGroup key={g.key} g={g} open={!!openOwed[g.key]} onToggle={() => toggleOwed(g.key)} />
+            ))
           ) : (
             <p className="dba__clear">{read && totals.read ? "nothing outstanding" : "not measured"}</p>
           )}

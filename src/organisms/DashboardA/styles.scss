@@ -181,7 +181,10 @@
 
 .dba-owed {
   display: grid;
-  grid-template-columns: 14px auto 72px minmax(0, 1fr) auto auto;
+  // EIGHT COLUMNS, ALWAYS — mark · chip · id · says · tail · count · project · fold. The last two
+  // are empty on a row with one obligation rather than absent, or the project column slides left
+  // on every single row and the one thing a column buys you (reading down it) is gone.
+  grid-template-columns: 14px auto 72px minmax(0, 1fr) auto auto auto 12px;
   align-items: baseline;
   gap: 8px;
   width: 100%;
@@ -200,6 +203,41 @@
 .dba-owed__says { color: var(--sv-text); font-size: 12px; }
 .dba-owed__tail { color: var(--sv-text-faint); font-size: 10.5px; font-style: normal; white-space: nowrap; }
 .dba-owed__where { color: var(--sv-text-faint); font-size: 10px; white-space: nowrap; }
+.dba-owed__n {
+  color: var(--dba-press);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.dba-owed__fold { color: var(--sv-text-faint); font-size: 9px; }
+
+// THE FOLD — a document's other obligations, under its own row and indented to say so.
+.dba-owed__g {
+  &.is-open > .dba-owed { background: var(--sv-hover); border-bottom-color: transparent; }
+}
+.dba-owed__items {
+  display: flex;
+  flex-direction: column;
+  border-bottom: 1px solid var(--sv-border-soft);
+  // THE RULE DOWN THE LEFT is what says these belong to the row above rather than being rows of
+  // their own — the indent alone reads as a smaller row at this density.
+  margin: 0 0 0 22px;
+  border-left: 2px solid var(--sv-border-soft);
+}
+.dba-owed__item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  padding: 4px 8px 4px 10px;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  &:hover { background: var(--sv-hover); }
+  .dba-owed__says { font-size: 11.5px; }
+}
 
 // ─── THE CHIP ──────────────────────────────────────────────────────────────────────────────────
 .dba-chip {

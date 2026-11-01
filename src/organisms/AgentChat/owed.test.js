@@ -1,4 +1,4 @@
-import { owedFrom, owedHead, skippedLine, isFixture, leafLine } from "./owed";
+import { owedFrom, owedHead, skippedLine, isFixture, leafLine, groupOwed } from "./owed";
 
 // WHAT IS OWED BY HIM — and the only thing that makes this surface worth more than the count it
 // replaces is that it does not lie. The count it replaces was wrong in BOTH directions at once:
@@ -449,5 +449,57 @@ describe("leafLine — where a row with nothing more specific to point at lands"
     expect(leafLine("# t\n\n```markdown\n::rfc{id=RFC-1}\n```\n")).toBe(1);
     expect(leafLine("")).toBe(1);
     expect(leafLine(undefined)).toBe(1);
+  });
+});
+
+// ─── THE FOLD — ONE ROW PER DOCUMENT ───────────────────────────────────────────────────────────
+// An arc with five blocked objectives is one document to go and work on. Five rows is how a
+// surface meant to focus him becomes the thing he scrolls past.
+describe("groupOwed — the document is the row", () => {
+  const ob = (over) => ({ group: "work", why: "mine", says: "yours", project: "alpha", kind: "arc", path: "a.md", line: 1, ...over });
+
+  it("folds every obligation of one document into a single row carrying all of them", () => {
+    const g = groupOwed([
+      ob({ id: "ARC-001", key: "ARC-001:blocked:o1", says: "o1 is blocked", line: 10 }),
+      ob({ id: "ARC-001", key: "ARC-001:blocked:o2", says: "o2 is blocked", line: 20 }),
+      ob({ id: "ARC-001", key: "ARC-001:mine:o3", says: "o3 is yours", line: 30 }),
+      ob({ id: "RFC-007", kind: "rfc", key: "RFC-007:claims", says: "claims rest on nothing" }),
+    ]);
+    expect(g).toHaveLength(2);
+    expect(g[0].id).toBe("ARC-001");
+    expect(g[0].n).toBe(3);
+    expect(g[0].items.map((i) => i.line)).toEqual([10, 20, 30]);
+    expect(g[1].n).toBe(1);
+  });
+
+  // THE HEADLINE IS THE STRONGEST OBLIGATION, not a summary and not the last one in. owedFrom
+  // sorted by rank before this ran, so first-seen IS strongest — and the group must not re-sort.
+  it("inherits the first item's words and line, and keeps the incoming order", () => {
+    const g = groupOwed([
+      ob({ id: "RFC-007", kind: "rfc", key: "a", says: "the worst thing", line: 4, why: "undecidable" }),
+      ob({ id: "ARC-001", key: "b", says: "something milder", line: 9 }),
+      ob({ id: "RFC-007", kind: "rfc", key: "c", says: "a lesser thing", line: 40 }),
+    ]);
+    expect(g.map((x) => x.id)).toEqual(["RFC-007", "ARC-001"]);
+    expect(g[0].says).toBe("the worst thing");
+    expect(g[0].line).toBe(4);
+    expect(g[0].why).toBe("undecidable");
+  });
+
+  // A document id is unique inside a project and NOWHERE ELSE. Keying on the id alone merges two
+  // real documents into one row that opens whichever file it met first — the bug is invisible
+  // until two projects happen to reach the same number, and then it is silent and wrong.
+  it("never merges the same id across two projects", () => {
+    const g = groupOwed([
+      ob({ id: "RFC-001", kind: "rfc", key: "a", project: "alpha", path: "alpha/RFC-001.md" }),
+      ob({ id: "RFC-001", kind: "rfc", key: "b", project: "beta", path: "beta/RFC-001.md" }),
+    ]);
+    expect(g).toHaveLength(2);
+    expect(g.map((x) => x.path)).toEqual(["alpha/RFC-001.md", "beta/RFC-001.md"]);
+  });
+
+  it("survives nothing, and ignores holes in the list", () => {
+    expect(groupOwed()).toEqual([]);
+    expect(groupOwed([null, undefined])).toEqual([]);
   });
 });
