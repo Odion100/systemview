@@ -25,6 +25,17 @@
   .doc-tabs {
     flex: none; // the strip's costume is CenterTabs' own — nothing page-local beyond layout
   }
+  // EVERY MOUNT IN HERE FILLS — stated as "not the strip" rather than as a list of the ones
+  // somebody remembered. Five things render in this area and the list only ever named two: the
+  // dashboard, the how-we-work page and the board each landed here afterwards and each arrived
+  // UNBOUNDED, because an auto-height flex item is what a child's `height: 100%` resolves
+  // against — so the child's own `overflow: auto` never engages and the wheel does nothing at all
+  // (his catch: the dashboard could not be scrolled on the Agents page). A list would be wrong
+  // again the next time a kind is added here; the exclusion cannot be.
+  > :not(.doc-tabs) {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
   > .ctx-docarea__body,
   > .doc-panel {
     flex: 1 1 auto !important;
