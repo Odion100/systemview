@@ -608,7 +608,13 @@
     flex-direction: column;
     justify-content: center;
     flex: 0 0 auto;
-    width: 132px;
+    // THE TOP SHEET IS A SHEET. His: *"the stack — the button on top is supposed to look like the
+    // card, and it's not showing the right size to the cards behind it."* The face was 132px
+    // against a 164px sheet, so the pile overhung the card it fronted by 44px and read as two
+    // different things rather than one pile of the same card. Same width, same floor height, so
+    // the number is simply written on the top sheet.
+    width: 164px;
+    min-height: 92px;
     padding: 12px 14px;
     border: 1px solid var(--sv-border);
     border-radius: 6px;
@@ -652,10 +658,13 @@
   // only their edges show above and to the right of it — which is what a stack of paper with a
   // number written on the top sheet actually looks like. Laying the pile out BESIDE the face
   // instead put a 164px blank card next to the number and read as a broken card, not a stack.
+  // Tuned to the face's width: pull the pile back so the first sheet starts 8px right of the
+  // face's own left edge, which is the same 8px edge each later sheet shows. One number governs
+  // the whole pile — `164 - 8`.
   &:not(.is-open) .dbb-fan {
     flex-wrap: nowrap;
     padding-left: 0;
-    margin-left: -120px;
+    margin-left: -156px;
     transform: translateY(-5px);
   }
   // A CLOSED SHEET IS BLANK PAPER — its words are hidden, not shrunk. Hiding only the text left
