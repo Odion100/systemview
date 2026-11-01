@@ -4720,30 +4720,26 @@
   &:disabled { cursor: default; opacity: 0.75; }
   &:not(:disabled):hover code { text-decoration: underline; }
 }
-// A MINIMIZED RECORD — the head, and one thin line under it. Several sit in one chat, so the
-// default for a record is closed: what distinguishes them in a column is where each one sits and
-// which commit it is, never the subject, which is long and wraps and stacks into a wall.
-.md-commit__mini {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  padding: 3px 10px 5px;
-  font-size: 11px;
-}
-.md-commit__minisha { flex: none; font-family: ui-monospace, Menlo, monospace; color: var(--sv-text-muted); }
-.md-commit__minisubj {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--sv-text-faint);
-}
-// The badge is the toggle on a record, so it must not inherit a button's chrome.
-.md-commit__kind--press {
-  border: 1px solid var(--sv-border);
+// THE FOLD, IN THE CORNER. Closed is this block with its body hidden — no separate costume and
+// no second set of colours, because a closed record that looks unlike an open one reads as a
+// different kind of thing rather than the same thing shut.
+.md-commit__fold {
+  flex: none;
+  margin-left: auto;
+  border: none;
   background: none;
+  padding: 0 4px;
+  font-size: 10px;
+  color: var(--sv-text-faint);
   cursor: pointer;
-  &:hover { color: var(--sv-text); border-color: var(--sv-text-muted); }
+  &:hover { color: var(--sv-text); }
 }
-.md-commit__minichev { font-size: 8px; margin-left: 2px; }
+// MINIMIZED STILL SHOWS THE MESSAGE — it is the top section, and keeping the top section IS what
+// minimizing means here. Clamped, not hidden: his subjects run long and several at full height is
+// the wall this avoids, but one line throws away the thing that tells records apart.
+.md-commit__message--clamp {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}

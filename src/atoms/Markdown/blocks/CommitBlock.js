@@ -441,14 +441,9 @@ const CommitBlock = ({ label, attrs = {}, line }) => {
             pane headers wear, so "which project" reads the same everywhere. */}
         <span className="md-commit__scope">{host ? host.projectCode : projectCode || ""}</span>
         {sha && (
-          <button
-            type="button"
-            className="md-commit__kind md-commit__kind--press"
-            title={mini ? "open this record" : "minimize it"}
-            onClick={() => setMini((v) => !v)}
-          >
-            record <span className="md-commit__minichev">{mini ? "▸" : "▾"}</span>
-          </button>
+          <span className="md-commit__kind" title="a commit that already happened — nothing here changes the tree">
+            record
+          </span>
         )}
         {/* THE BRANCH AND ITS DISTANCE FROM ORIGIN, on both postures. These are facts about the
             branch RIGHT NOW, never about the commit — and for one build they were removed from
@@ -466,7 +461,7 @@ const CommitBlock = ({ label, attrs = {}, line }) => {
             {state.behind > 0 && <span className="md-commit__behind" title={`${state.behind} commits on the remote are not here`}>↓{state.behind}</span>}
           </span>
         )}
-        <span className="md-commit__tabs">
+        {!mini && <span className="md-commit__tabs">
           <button
             type="button"
             className={`md-commit__tab${tab === "changes" ? " is-on" : ""}`}
@@ -481,7 +476,7 @@ const CommitBlock = ({ label, attrs = {}, line }) => {
           >
             log
           </button>
-        </span>
+        </span>}
         {/* HAND IT TO THE PANEL. The block can run the commit itself, but sometimes the panel is
             where you want to finish it — stage a few more things, read the log, then commit there.
             This carries the message over and opens the box; it never commits anything. */}
@@ -502,28 +497,25 @@ const CommitBlock = ({ label, attrs = {}, line }) => {
             to the panel ⇢
           </button>
         )}
+        {/* THE CHEVRON IS ITS OWN CONTROL, IN THE CORNER. It was briefly folded into the `record`
+            label, which made one word carry two jobs — naming what this is, and being the button
+            — and made a closed record read as a different kind of block rather than this one with
+            its body hidden. Last in the head, so it is the same corner every fold here opens from. */}
+        {sha && (
+          <button
+            type="button"
+            className="md-commit__fold"
+            aria-expanded={!mini}
+            title={mini ? "open it" : "minimize it"}
+            onClick={() => setMini((v) => !v)}
+          >
+            {mini ? "▸" : "▾"}
+          </button>
+        )}
       </div>
-
-      {/* MINIMIZED: ONE THIN LINE, and it carries the two facts that tell records apart in a
-          column of them — where this one sits, and which commit it is. Not the subject: subjects
-          are long, they wrap, and four of them stacked is the wall this exists to avoid. The sha
-          is still the door into the log. */}
-      {mini && (
-        <div className="md-commit__mini">
-          {record && record.depthKnown && (
-            <span className={`md-commit__depth${record.behind === 0 ? " md-commit__depth--head" : ""}`}>
-              {record.behind === 0 ? "at the head" : `${record.behind} back`}
-            </span>
-          )}
-          <code className="md-commit__minisha">{sha}</code>
-          <span className="md-commit__minisubj">{record ? record.subject : recErr || "reading…"}</span>
-        </div>
-      )}
 
       {/* THE MESSAGE ROW — the button sits WITH the message, not on a row of its own underneath.
           A long message WRAPS here (a textarea that grows, not an input that scrolls sideways). */}
-      {!mini && (
-        <>
       <div className="md-commit__msgrow">
         {typing && !sha ? (
           <textarea
@@ -544,7 +536,7 @@ const CommitBlock = ({ label, attrs = {}, line }) => {
           />
         ) : (
           <div
-            className={`md-commit__message${message || (record && record.subject) ? "" : " md-commit__message--empty"}${recErr ? " md-commit__message--gone" : ""}`}
+            className={`md-commit__message${message || (record && record.subject) ? "" : " md-commit__message--empty"}${recErr ? " md-commit__message--gone" : ""}${mini ? " md-commit__message--clamp" : ""}`}
             role={sha ? undefined : "button"}
             title={sha ? "" : "Click to edit — it's your commit message"}
             onClick={() => !sha && setTyping(true)}
@@ -638,6 +630,12 @@ const CommitBlock = ({ label, attrs = {}, line }) => {
       {error && <div className="md-commit__error">{error}</div>}
 
       {edge(-1, "top")}
+      {/* CLOSED IS THIS BLOCK WITH ITS BODY HIDDEN — nothing above this line changes. Minimize
+          means keep the top section: *"you literally just keep the top section showing, that's
+          all. That's what minimize means."* The head and the message row carry the subject, the
+          depth and the sha, which is everything that tells one record from another in a column. */}
+      {!mini && (
+        <>
       {tab === "changes" ? (
         <div className="md-commit__body" ref={bodyRef} style={{ height }}>
           {sha ? (

@@ -205,9 +205,14 @@ export default function CenterTabs({ tabsPc, tabs = [], isActive, onOpen, afterC
               if (onOpen) onOpen(t);
             }}
           >
-            {"\u{1F9ED}"}
+            {/* ✸ — HOW-WE-WORK IS HELP, so it wears a help glyph rather than a compass. His
+                read, and it is right: this page explains how the system works; the compass says
+                "find your way around", which is what a dashboard does. The compass moved there.
+                The original 🧭 was provisional and he said so when it went in — *"just put
+                something there for now and we'll figure out what to actually put there."* */}
+            {"\u2749"}
           </button>
-          {/* THE DASHBOARD — ▦, beside the compass, for the same reason the compass is here: the
+          {/* THE DASHBOARD — the compass, beside it, for the same reason the compass is here: the
               page it opens IS a centre tab, and the only other way in would be closing everything
               or typing a URL. Same offer-first contract — a host that draws the kind itself claims
               the event, and silence means this strip's host opens it — so pressing it never
@@ -225,7 +230,7 @@ export default function CenterTabs({ tabsPc, tabs = [], isActive, onOpen, afterC
               if (onOpen) onOpen(t);
             }}
           >
-            {"\u25A6"}
+            {"\u{1F9ED}"}
           </button>
         </div>
         {onCollapse && (
