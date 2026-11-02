@@ -583,15 +583,25 @@ const CommitBlock = ({ label, attrs = {}, line }) => {
                   logs… that one's on top. What about this one? Go into logs."* Pressing it flips
                   to the log and brings that commit's row into view, marked, which is the whole
                   gesture he described.
-                  IT SAYS WHEN IT CANNOT. The log is the last forty commits; a record older than
-                  that is not in it, and jumping to a tab where the row is absent would read as
-                  the press doing nothing. */}
+                  IT OPENS THE BLOCK FIRST, because a record arrives minimized: setting the tab
+                  under a hidden body was a press with nothing on screen to show for it, which is
+                  indistinguishable from a dead control. The sha is the second way in, and it does
+                  what the chevron does plus the jump.
+                  IT SAYS WHEN IT CANNOT JUMP — the log is the last forty commits, and a record
+                  older than that has no row to land on. That is a reason to skip the JUMP, never
+                  a reason to refuse the press: the block still opens, which is what was asked
+                  for, and the title says why the log is not where it took you. */}
               <button
                 type="button"
                 className="md-commit__stampsha"
-                title={inLog ? "show it in the log" : "older than the last 40 commits — not in this log"}
-                onClick={() => { if (inLog) { setTab("log"); setFocusSha(sha); } }}
-                disabled={!inLog}
+                title={inLog ? "open it, and show it in the log" : "open it — this one is older than the last 40 commits, so the log has no row for it"}
+                onClick={() => {
+                  setMini(false);
+                  if (inLog) {
+                    setTab("log");
+                    setFocusSha(sha);
+                  }
+                }}
               >
                 <code>{sha}</code>
               </button>

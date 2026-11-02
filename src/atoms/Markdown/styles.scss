@@ -4737,8 +4737,7 @@
   font: inherit;
   color: inherit;
   cursor: pointer;
-  &:disabled { cursor: default; opacity: 0.75; }
-  &:not(:disabled):hover code { text-decoration: underline; }
+  &:hover code { text-decoration: underline; }
 }
 // THE FOLD, IN THE CORNER. Closed is this block with its body hidden — no separate costume and
 // no second set of colours, because a closed record that looks unlike an open one reads as a
