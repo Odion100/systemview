@@ -7,7 +7,7 @@ import { parseRetain, retainLine, tickFor } from "./retention";
 
 // The subtype vocabulary is OPEN (RFC-076 §2: `as=` picks what done means, from a vocabulary, not
 // an enum) — these are the words already in use, and the picker's free field is the openness.
-const SUBTYPES = ["planning", "notice", "audit", "account", "brief", "spec"];
+const SUBTYPES = ["planning", "account", "audit", "brief", "spec"];
 const WINDOWS = ["1h", "6h", "12h", "1d", "2d", "3d", "7d", "14d", "30d", "90d", "permanent"];
 
 // RFC-073 §1.2 — `::report{id=subscribe-and-registration}` at the top of a document.

@@ -153,8 +153,7 @@ describe("the card's report declaration", () => {
     expect(parseBoard(odd)[0].report).toBe("postmortem");
     expect(serializeBoard(parseBoard(odd), "")).toBe(odd);
   });
-  it("offers the reports chapter's kinds, and never the one that was cut", () => {
+  it("offers the reports chapter's five kinds — the pills and the chapter cannot drift apart", () => {
     expect(REPORT_KINDS).toEqual(["planning", "account", "audit", "brief", "spec"]);
-    expect(REPORT_KINDS).not.toContain("notice");
   });
 });

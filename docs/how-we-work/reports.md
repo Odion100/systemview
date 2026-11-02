@@ -59,10 +59,10 @@ rather than an enum). A scenario that is genuinely none of these takes a new wor
 why in its own first screen. What the openness is not is licence to invent a synonym for a row that
 already exists.
 
-**`notice` was cut, and the reason is the one that matters here.** A brief sits ABOVE a notice and
-captures it: anything a notice could carry, a brief carries with the context that makes it
-actionable. A flag with nothing to act on is a chat line or a board card, and both are cheaper than
-a file somebody then has to retire.
+**A flag with nothing to act on is not a report.** If all it does is tell him something happened, it
+is a line in the chat or a card on the board — both reach him sooner and neither has to be retired
+afterwards. What makes a file worth writing is that it carries enough to ACT on, and that is a
+`brief`.
 
 ## Why each window is the length it is
 

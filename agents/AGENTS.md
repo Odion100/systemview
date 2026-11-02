@@ -399,7 +399,7 @@ window, and expiring is what it is for.
 
 ```js
 // 1. write the file, with ONE leaf of its own:
-//      ::report{id="<Title>" as=notice retain=2d}   // as= and retain= are REQUIRED — table below
+//      ::report{id="<Title>" as=account retain=24h}  // as= and retain= are REQUIRED — see below
 // 2. then pull it up — nav never takes his screen:
 mcp__systemview__nav({ projectCode, report: ".systemview/report.<pc>.<Title>.md" })
 mcp__systemview__nav({ projectCode, file: "src/thing.js" })   // any repo file, #L10-20 works
@@ -421,16 +421,21 @@ report never expires — and a report that turns out to matter gets the **divert
 restarts the clock from now. A short window is therefore never a loss: it is reversible by one
 press, and the longer window is the irreversible choice.
 
-| `as=` | reach for | because |
-|---|---|---|
-| `notice` | **2d** | done the moment he reads it, and the clock starts at that read — the window after it is grace for a second look |
-| `audit` | **3d** | a count against a tree at one moment, stale as soon as the tree moves — and it carries the command that regenerates it, so losing it costs a re-run |
-| `brief` | **3d** | context handed to another agent; it outlives the handover by nothing |
-| `planning` | **7d** | long enough to argue in, and its conclusions LEAVE it — once the RFC or arc exists, the table is furniture |
-| `spec` | **7d** | a one-off "here is what it actually does, press it yourself". `permanent` only when it lives in `RFCs/`, where it is a project artifact and not a report |
-| `account` | **14d** | the one record here with a claim to a longer life, and still days — anything that must outlive them belongs in a note, a handbook or an RFC |
+| `as=` | reach for |
+|---|---|
+| `planning` | **24h** |
+| `account` | **24h**, or **6–12h** for an abandoned run |
+| `audit` | **7d** |
+| `brief` | **6h** |
+| `spec` | **30d**, `permanent` where it is a project artifact |
 
-`90d` is in the picker for him to press, not for you to write. If you are reaching past `14d`,
+**WHY each window is that length lives in ONE place and it is not here** —
+`context("which report do I file and how long should it last")`. The reasons are what let somebody
+who was not in the conversation pick correctly, and a second copy of them is a second thing to keep
+true. This table is the decision, so you can act without looking anything up; the chapter is the
+argument.
+
+`90d` is in the picker for him to press, not for you to write. If you are reaching past these,
 what you have is not a report — write it where durable things live and link to it.
 
 **A report is a document** (RFC-040). `show` with `text` files it at
