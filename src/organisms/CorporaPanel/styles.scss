@@ -179,6 +179,41 @@
 
     &--working { color: #d9a441; border-color: #d9a441; }
   }
+  // WHO CARRIES IT. Quiet by default and emphatic for `everyone`, because everyone is the loud
+  // case — it is the one that puts a corpus into every other agent's unscoped search, and it
+  // should be the one that catches the eye when he scans the column.
+  &__aud-chip {
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 999px;
+    border: 1px solid var(--sv-border);
+    color: var(--sv-text-muted);
+    white-space: nowrap;
+    &--all { color: var(--sv-text-strong); border-color: var(--sv-text-muted); font-weight: 600; }
+    &--none { opacity: 0.55; }
+  }
+  &__formrow--audience { flex-direction: column; align-items: flex-start; gap: 4px; }
+  &__audience {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    font-size: 12px;
+  }
+  &__audience-what { font-weight: 600; color: var(--sv-text-strong); }
+  &__aud { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+  &__slots { display: inline-flex; flex-wrap: wrap; gap: 8px; }
+  &__slot {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    cursor: pointer;
+    padding: 1px 6px;
+    border-radius: 999px;
+    border: 1px solid var(--sv-border);
+    &.is-on { border-color: var(--sv-text-muted); color: var(--sv-text-strong); font-weight: 600; }
+  }
+  &__audience-note { font-size: 11px; color: var(--sv-text-muted); max-width: 70ch; }
   // Staleness is the number worth seeing from across the room: a corpus whose files have moved on
   // is still answering, and nothing about the answer looks old.
   &__stale { color: #d64c4c; font-weight: 600; }

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { docsList, docsPlan, docsIndex, docsDrop, docsSearch, saveCorpus, pickPath, docsPreview, hasDocs } from "../../utils/hostAgents";
+import { docsList, docsPlan, docsIndex, docsDrop, docsSearch, saveCorpus, pickPath, docsPreview, hasDocs, listDefs } from "../../utils/hostAgents";
 import "./styles.scss";
 
 // RFC-058 §8 — THE CORPORA SURFACE. His index, on his screen.
@@ -18,7 +18,14 @@ const fmtWhen = (iso) => {
   return isNaN(d.getTime()) ? String(iso) : d.toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 };
 
-const BLANK = { name: "", kind: "permanent", root: "", glob: "**/*.md", exclude: "" };
+const BLANK = { name: "", kind: "permanent", root: "", glob: "**/*.md", exclude: "", agents: "everyone" };
+
+// WHO CARRIES IT, as a word. `kind` says how long a corpus lives; `agents` says whose unscoped
+// search reads it, and they were one field until a question about report subtypes came back
+// carrying a bookkeeping corpus above this system's own chapters. "everyone" is a string, a named
+// audience is a list, and the panel speaks both so the row can be read at a glance.
+const audienceLabel = (a) =>
+  a === "everyone" || a === undefined || a === null ? "everyone" : (Array.isArray(a) ? a : [a]).join(", ") || "named only";
 
 // The name is a suggestion, not a demand — a folder called `SystemLynx` becomes `systemlynx`.
 const nameFrom = (p) => String(p || "").split("/").filter(Boolean).pop().replace(/\.(md|markdown)$/i, "").toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "");
@@ -155,6 +162,19 @@ export default function CorporaPanel() {
     refresh();
   };
 
+  // EVERY AGENT THAT EXISTS, so the audience is a set of CHECKBOXES rather than a name he has to
+  // spell. A slot typed by hand is a corpus published to nobody, and it would look identical to
+  // one published correctly.
+  const [slots, setSlots] = useState([]);
+  useEffect(() => {
+    let dead = false;
+    (async () => {
+      const defs = await listDefs();
+      if (!dead) setSlots((defs || []).map((d) => d.id || d.slot || d.projectCode).filter(Boolean).sort());
+    })();
+    return () => { dead = true; };
+  }, []);
+
   const save = async () => {
     const d = editing;
     if (!d.name.trim() || !d.root.trim()) return setSay("a corpus needs a name and a root");
@@ -169,6 +189,7 @@ export default function CorporaPanel() {
       root: d.root.trim(),
       glob: d.glob.trim() || "**/*.md",
       exclude: [...new Set([...dropped, ...typed])],
+      agents: d.agents,
     });
     setBusy("");
     if (r.error) return setSay(r.error);
@@ -297,11 +318,66 @@ export default function CorporaPanel() {
             <label>call it<input value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} placeholder="systemview-docs" /></label>
             <label>kind
               <select value={editing.kind} onChange={(e) => setEditing({ ...editing, kind: e.target.value })}>
-                <option value="permanent">permanent — yours, agents read it</option>
+                <option value="permanent">permanent — it outlives the task that made it</option>
                 <option value="working">working — an agent's scratch, droppable</option>
               </select>
             </label>
           </div>
+
+          {/* WHO CARRIES IT — a separate question from how long it lives, and the one that was
+              missing. A search that names no corpus reads only the ones its agent carries, so
+              this decides whether a bookkeeping corpus can answer a question about reports.
+              It is never a wall: anyone naming the corpus reads it regardless, and a search that
+              holds one back says so. Only shown for a permanent corpus, because a working one is
+              invisible unless somebody names it whatever this says. */}
+          {editing.kind === "permanent" && (
+            <div className="corpora__formrow corpora__formrow--audience">
+              <div className="corpora__audience">
+                <span className="corpora__audience-what">carried by</span>
+                <label className="corpora__aud">
+                  <input
+                    type="radio"
+                    checked={editing.agents === "everyone"}
+                    onChange={() => setEditing({ ...editing, agents: "everyone" })}
+                  />
+                  every agent
+                </label>
+                <label className="corpora__aud">
+                  <input
+                    type="radio"
+                    checked={editing.agents !== "everyone"}
+                    onChange={() => setEditing({ ...editing, agents: Array.isArray(editing.agents) ? editing.agents : [] })}
+                  />
+                  only these
+                </label>
+                {editing.agents !== "everyone" && (
+                  <span className="corpora__slots">
+                    {slots.length === 0 && <i>no agents found</i>}
+                    {slots.map((slot) => {
+                      const on = (Array.isArray(editing.agents) ? editing.agents : []).includes(slot);
+                      return (
+                        <label key={slot} className={`corpora__slot${on ? " is-on" : ""}`}>
+                          <input
+                            type="checkbox"
+                            checked={on}
+                            onChange={() => {
+                              const cur = Array.isArray(editing.agents) ? editing.agents : [];
+                              setEditing({ ...editing, agents: on ? cur.filter((x) => x !== slot) : [...cur, slot] });
+                            }}
+                          />
+                          {slot}
+                        </label>
+                      );
+                    })}
+                  </span>
+                )}
+              </div>
+              <div className="corpora__audience-note">
+                Naming a corpus reads it whatever this says — the scope is a default, not a wall,
+                and a search that holds one back names it so you can go and look.
+              </div>
+            </div>
+          )}
 
           <div className="corpora__formacts">
             <button onClick={save} disabled={busy === "save" || !editing.root}>{busy === "save" ? "saving…" : "save"}</button>
@@ -312,7 +388,7 @@ export default function CorporaPanel() {
 
       <table className="corpora__table">
         <thead>
-          <tr><th>corpus</th><th>kind</th><th>files</th><th>chunks</th><th>stale</th><th>last indexed</th><th /></tr>
+          <tr><th>corpus</th><th>kind</th><th>carried by</th><th>files</th><th>chunks</th><th>stale</th><th>last indexed</th><th /></tr>
         </thead>
         <tbody>
           {(rows || []).map((c) => (
@@ -322,6 +398,18 @@ export default function CorporaPanel() {
                 <div className="corpora__root">{c.root}<span className="corpora__glob">{c.glob}</span></div>
               </td>
               <td><span className={`corpora__kind corpora__kind--${c.kind}`}>{c.kind}</span></td>
+              {/* A WORKING CORPUS HAS NO AUDIENCE TO SHOW — it is invisible unless somebody names
+                  it, whatever its field says, and printing a carrier list beside it would
+                  describe a reach it does not have. */}
+              <td>
+                {c.kind === "permanent" ? (
+                  <span className={`corpora__aud-chip${c.agents === "everyone" ? " corpora__aud-chip--all" : ""}`}>
+                    {audienceLabel(c.agents)}
+                  </span>
+                ) : (
+                  <span className="corpora__aud-chip corpora__aud-chip--none">named only</span>
+                )}
+              </td>
               {/* MATCHED vs INDEXED. Showing only what is embedded made a corpus he had just
                   defined read as 0 files — which says "nothing there" and means "not indexed yet". */}
               <td>
@@ -343,7 +431,7 @@ export default function CorporaPanel() {
                 <div className="corpora__acts">
                 <button onClick={() => readCuts(c.name)} disabled={busy === `plan:${c.name}`}>{busy === `plan:${c.name}` ? "…" : "read the cuts"}</button>
                 <button onClick={() => runIndex(c.name)} disabled={busy === `index:${c.name}`}>{busy === `index:${c.name}` ? "indexing…" : c.chunks ? "re-index" : "index"}</button>
-                <button className="corpora__ghost" onClick={() => setEditing({ name: c.name, kind: c.kind, root: c.root, glob: c.glob, exclude: "" })}>edit</button>
+                <button className="corpora__ghost" onClick={() => setEditing({ name: c.name, kind: c.kind, root: c.root, glob: c.glob, exclude: "", agents: c.agents === undefined ? "everyone" : c.agents })}>edit</button>
                 {/* ALWAYS OFFERED, unlike the old `drop` which hid itself once the chunks were gone —
                     leaving a corpus that could not be deleted from the row it was listed on. */}
                 <button className="corpora__danger" onClick={() => runDelete(c.name, c.chunks)} disabled={busy === `drop:${c.name}`}>delete</button>
