@@ -585,14 +585,14 @@ RFC — how do I write a claim"*): three of four hits came back under the breadc
 approved design committed to"* and *"Nothing is a claim before the verdict."* The agent that says
 "there is no RFC" is told by the most authoritative chunk that what it has is not a claim.
 
-**AND THE FIX IS NOT A WIDER DEFINITION — IT IS A SHORTER ONE.** The first attempt was *"you can
-only claim about something that exists"*, which says nothing as an opening and needs a paragraph to
-rescue. What the old rule was really protecting: a claim is checked against something that has
-STOPPED MOVING, because if the thing can still change, a failed check cannot tell a regression from
-a revision. That has real work on an RFC — a design before its verdict is still moving — and NO work
-on a receipt, where the work is finished before the claim is written. So it is an RFC timing
-constraint, it stays on the RFC page, and the general definition carries nothing about existence at
-all.
+**AND THE FIX IS A SCOPING FIX, FULL STOP — THE DEFINITION SAYS WHAT A CLAIM IS AND NOTHING ABOUT
+WHEN ONE IS WRITTEN.** The procedures answer when: `rfc-authoring` and `rfc-execution` make sure an
+RFC's claims exist, the report-writing skill makes sure a report's do. Any rule in the definition
+phrased as a MOMENT is both misplaced and wrong on the facts — nothing freezes, because specs and
+software adapt to each other on the owner's decision. The RFC's own "nothing before the verdict" is
+a step in the RFC procedure, never a property of claims.
+
+**OPEN, and his:** whether claims can live on ANY report or only on a spec. Not settled.
 
 **7 · SO: NO `claim-authoring` SKILL.** His conclusion and mine, reached from opposite directions.
 The doctrine comes OUT of `rfcs.md` into its own chapter with the widened definition; `rfcs.md`
@@ -617,13 +617,13 @@ place and a pointer — the fix `AGENTS.md` already took.
 
 **9 · A RECEIPT'S CLAIMS ARE A DIFFERENT PROCEDURE, AND HERE IS THE MECHANISM.** His: *"the way
 RFC explains claims is for RFCs… when writing a spec report they need to write claims their way,
-because it's different"* and *"there was never a planning section."* That last clause is the whole
-reason. **An RFC claim is protected by TIME** — extracted from the verdict BEFORE the work exists,
-so the claim gets to judge the work. A receipt has no planning phase, so the same agent writes the
-claim afterwards while looking at what it built, and the claim CAN be fitted to whatever happened
-to pass. That is the one real weakness of the form, and every requirement below exists to answer it.
+because it's different"* and *"there was never a planning section."* An RFC's claims come out of a
+two-phase structure — argue, then build — and a receipt has no first phase, so the requirements are
+not the same ones. One practical consequence worth naming, because a step answers it: the same agent
+writes the work and then its claims, so the list can be fitted to whatever already passes. Step 5 is
+what answers that.
 
-The spine, derived rather than borrowed:
+The spine:
 
 1. **Say what the work was FOR** — the one line no RFC existed to say, and nothing else records.
 2. **Claim from the DIFF, not from memory** — memory selects for what worked.
