@@ -36,6 +36,15 @@ const languageOf = (p) => EXT_LANG[(String(p).split(".").pop() || "").toLowerCas
 // machine file has: read, write, delete. No changedFiles, no getDiff, no stageHunk, no
 // fileHistory, no search — git is a property of a repo, and CodePane renders those absent rather
 // than broken (it already guards every one).
+// WHICH DOOR AN ADDRESS NEEDS, in one place. An absolute or `~` path has no project to resolve
+// against, so the machine door is the only one that can open it — and this rule was written out
+// twice (once in the embed, once nowhere at all): the chat's reader asked the project door for
+// everything, which made a voiced machine path render perfectly and read silence.
+export const isMachineAddress = (p) => {
+  const s = String(p || "");
+  return s.startsWith("/") || s.startsWith("~");
+};
+
 export const machineFiles = () => {
   const hub = () => {
     const h = getHub();

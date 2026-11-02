@@ -13,7 +13,7 @@ import { changeMarksOf, hunksOf, stagedContentFor, fileGitState } from "../../Co
 import { useCodeComments } from "../../CodeView/codeComments";
 import { useEditorDark } from "../../CodeView/editorTheme";
 import { canGit, hasPlugin, pickHost } from "../../../utils/pluginHost";
-import { machineFiles } from "../../../utils/hostFiles";
+import { machineFiles, isMachineAddress } from "../../../utils/hostFiles";
 import Markdown from "../Markdown";
 import { passageKey } from "../../../utils/readAloud";
 import { subscribe as speechSubscribe, view as speechView } from "../../../molecules/SpeakReply/speechQueue";
@@ -68,7 +68,10 @@ const Embed = ({ label, attrs = {}, opens }) => {
   const inDoc = useInDocument();
   const rawSpec = label || attrs.path || "";
   const specPath = rawSpec ? parseFileSpec(rawSpec).path : "";
-  const isMachinePath = specPath.startsWith("/") || specPath.startsWith("~");
+  const isMachinePath = isMachineAddress(specPath);
+  // Both spellings, because both fire the reader (`readAloud.findVoicedFiles`) and a mark that
+  // only knew one of them would call a voiced chip silent.
+  const voiced = attrs.voice !== undefined || attrs.read !== undefined;
   const projectCode = attrs.project || scope.projectCode;
   const host = useFileHost(attrs, scope, isMachinePath);
   const [editorDark] = useEditorDark("docs");
@@ -362,6 +365,16 @@ const Embed = ({ label, attrs = {}, opens }) => {
           {path}
           {range}
         </button>
+        {/* VOICED, AND IT SAYS SO. The chip is the instruction to read this passage aloud, and a
+            silent one is indistinguishable from an agent that never asked for a reading — which
+            is exactly the ambiguity he hit: nothing was spoken and the document gave him no way
+            to tell a missed parameter from a failed read. The mark is on the chip because the
+            chip is what carries the instruction. */}
+        {voiced && (
+          <span className="md-embed__voiced" title="This passage is read aloud when the reply arrives, and again when its Listen is pressed">
+            🔊 voiced
+          </span>
+        )}
         {/* The nav's changed dot, on the embed: this file differs from HEAD, and the menu says how. */}
         {changed && <span className="md-embed__dot" title={`This file is${state.label.replace(" · ", " ")}`} />}
         <span className="md-embed__scope">{host ? host.projectCode : ""}</span>

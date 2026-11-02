@@ -3,7 +3,7 @@ import "./styles.scss";
 import { AIMED_AT_YOU, spokenPositions, spokenPassageMap, spokenChunks } from "../../utils/spokenForm";
 import { recitalSegments } from "../../utils/readAloud";
 import { performCue } from "../../utils/cuePerform";
-import { hostFiles } from "../../utils/hostFiles";
+import { hostFiles, machineFiles, isMachineAddress } from "../../utils/hostFiles";
 import { available, ready as engineReady, speak, voices } from "../../utils/voice";
 import { readVoicePref, readVoiceSettings } from "../../utils/voicePref";
 import { takeIfNew } from "./autoSpeak";
@@ -236,11 +236,31 @@ const SpeakReply = ({ text, className = "", rowKey = "", ts = 0 }) => {
             }
             if (seg.kind === "file") {
               (async () => {
+                // THE DOOR IS CHOSEN BY THE ADDRESS, the same rule the embed itself follows: an
+                // absolute or `~` path is a MACHINE file and the project door cannot open it. The
+                // reader used to ask the project for everything, so a voiced chip pointed at
+                // `~/.autobot/system-context.md` rendered fine, read nothing, and was
+                // indistinguishable from an agent that forgot the parameter.
+                const machine = isMachineAddress(seg.path);
+                const door = machine ? machineFiles() : hostFiles(projectCode);
+                // AND A PASSAGE THAT CANNOT BE READ IS SAID OUT LOUD. Skipping silently is the
+                // failure that cannot be told from success — the listener hears nothing either
+                // way. One short sentence costs a second and names the file.
+                const refuse = (why) => {
+                  if (seq.current !== token) return;
+                  const h = speak(`I could not read ${seg.path} — ${why}.`, {
+                    preferId: readVoicePref(projectCode),
+                    rate: chat.speed,
+                    onend: () => playFrom(i + 1),
+                  });
+                  if (h) handle.current = h;
+                  else playFrom(i + 1);
+                };
                 try {
-                  const res = await hostFiles(projectCode).readFile({ path: seg.path });
+                  const res = await door.readFile({ path: seg.path });
                   if (seq.current !== token) return;
                   const pm = spokenPassageMap(res && res.content, seg.lines, seg.path);
-                  if (!pm.text) return playFrom(i + 1);
+                  if (!pm.text) return refuse(seg.lines ? "those lines are empty" : "it has nothing to read");
                   handle.current = speak(pm.text, {
                     preferId: readVoicePref(projectCode),
                     rate: chat.speed,
@@ -257,8 +277,9 @@ const SpeakReply = ({ text, className = "", rowKey = "", ts = 0 }) => {
                     },
                     onend: (err) => (err ? finish(err) : playFrom(i + 1)),
                   });
-                } catch {
-                  playFrom(i + 1); // an unreadable file is a skipped passage, never a dead reply
+                } catch (e) {
+                  // Never a dead reply — but never a silent one either.
+                  refuse((e && e.message) || "the file could not be opened");
                 }
               })();
               return;

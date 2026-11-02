@@ -1,4 +1,4 @@
-import { hostFiles } from "./hostFiles";
+import { hostFiles, isMachineAddress } from "./hostFiles";
 import { setHub } from "./hub";
 
 // THE SHAPE IS THE CONTRACT, AND FOUR TIMES TODAY IT WAS WRONG IN A WAY THAT LOOKED LIKE AN ANSWER.
@@ -276,5 +276,27 @@ describe("a hub that does not know `shallow` still yields a tree", () => {
     });
     const res = await hostFiles("p").listFiles({ dir: "src", shallow: true });
     expect(res.entries.map((e) => e.path)).toEqual(["src/deep", "src/a.js"]);
+  });
+});
+
+// WHICH DOOR AN ADDRESS NEEDS. A voiced `::file` chip pointed at `~/.autobot/system-context.md`
+// rendered perfectly and read NOTHING, because the chat's reader asked the project door for a path
+// no project can resolve and then swallowed the failure. The rule lives here now so the embed and
+// the reader cannot disagree about it.
+describe("isMachineAddress — the rule the embed and the reader must share", () => {
+  it("calls an absolute or ~ path a machine address", () => {
+    expect(isMachineAddress("/Users/x/.autobot/system-context.md")).toBe(true);
+    expect(isMachineAddress("~/.autobot/presence.md")).toBe(true);
+  });
+
+  it("leaves a repo-relative path to the project door", () => {
+    expect(isMachineAddress("docs/how-we-work/reports.md")).toBe(false);
+    expect(isMachineAddress("src/utils/hostFiles.js")).toBe(false);
+  });
+
+  it("is an empty answer on nothing, rather than a throw", () => {
+    expect(isMachineAddress("")).toBe(false);
+    expect(isMachineAddress(undefined)).toBe(false);
+    expect(isMachineAddress(null)).toBe(false);
   });
 });

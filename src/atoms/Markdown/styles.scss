@@ -806,6 +806,20 @@
       background: #eef1f6;
       color: #7c85a0;
     }
+    // VOICED — the chip says it will be read aloud. Quiet, because it is a statement of fact and
+    // not a control: nothing here is pressable, and a reader who does not care about the audio
+    // should be able to look straight past it.
+    &__voiced {
+      flex: none;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      color: var(--sv-text-muted);
+      border: 1px solid var(--sv-border-soft);
+      border-radius: 999px;
+      padding: 0 6px;
+      white-space: nowrap;
+    }
     // The nav's changed dot, same amber: this file differs from HEAD.
     &__dot {
       width: 7px;
