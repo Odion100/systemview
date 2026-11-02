@@ -812,12 +812,14 @@
     &__voiced {
       flex: none;
       font-size: 10px;
-      font-weight: 600;
-      letter-spacing: 0.02em;
-      color: var(--sv-text-muted);
-      border: 1px solid var(--sv-border-soft);
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      color: #fff;
+      background: var(--sv-blue);
+      border: 1px solid var(--sv-blue-deep);
       border-radius: 999px;
-      padding: 0 6px;
+      padding: 1px 7px;
       white-space: nowrap;
     }
     // The nav's changed dot, same amber: this file differs from HEAD.
