@@ -115,6 +115,12 @@ work actually answers.
 both are needed: the trailer answers *what did this commit serve*, the block answers *what built
 this*. Either alone is a claim nobody can check.
 
+**A commit in ANOTHER REPO needs `project=` on the block** — `::commit{sha=506c727 project=autobot}`,
+the project CODE as `projects.json` keeps it. A record with no project resolves against the chat's or
+document's own repo, finds nothing, and renders *no such commit* — which reads as a lie about work
+that really happened rather than as a missing attribute. Work here is routinely two repos, so this is
+the common case and not the exotic one.
+
 **`commitLinks({projectCode})` checks the two against each other** and reports only disagreement,
 in four kinds because each needs a different fix:
 

@@ -399,7 +399,7 @@ window, and expiring is what it is for.
 
 ```js
 // 1. write the file, with ONE leaf of its own:
-//      ::report{id="<Title>" as=account retain=24h}  // as= and retain= are REQUIRED — see below
+//      ::report{id="<Title>" as=account retain=30d}  // as= and retain= are REQUIRED — see below
 // 2. then pull it up — nav never takes his screen:
 mcp__systemview__nav({ projectCode, report: ".systemview/report.<pc>.<Title>.md" })
 mcp__systemview__nav({ projectCode, file: "src/thing.js" })   // any repo file, #L10-20 works
@@ -416,18 +416,22 @@ nothing suggested a number either, so the number came out of nowhere — and his
 *"most reports die soon. I don't know why you'd be thinking that shit got to last as long as you'd
 be thinking it needed to last."*
 
-**So reach for the SHORT window.** The clock starts at his FIRST OPEN, not at filing — an unread
-report never expires — and a report that turns out to matter gets the **divert** press, which
-restarts the clock from now. A short window is therefore never a loss: it is reversible by one
-press, and the longer window is the irreversible choice.
+**THE WINDOW ANSWERS HOW LONG THIS COULD BE EVIDENCE, not how long it is worth reading.** Most
+reports are never read — the system runs unattended and nobody can read all of it. A report is there
+for when something goes wrong: you open it, its `::commit` records take you into the diff, the
+commit's `Serves:` trailer takes you back. So ask how long somebody could need this as evidence.
 
-| `as=` | reach for |
-|---|---|
-| `planning` | **24h** |
-| `account` | **24h**, or **6–12h** for an abandoned run |
-| `audit` | **7d** |
-| `brief` | **6h** |
-| `spec` | **30d**, `permanent` where it is a project artifact |
+**Short is still the default for everything whose successor is durable** — his ruling stands, and the
+clock starts at his FIRST OPEN, not at filing, with **divert** to restart it from now. What the
+evidence question changes is the two kinds that are the ONLY record of why something happened.
+
+| `as=` | reach for | because |
+|---|---|---|
+| `planning` | **24h** | its conclusions graduate into an arc or a plan, which nobody retires |
+| `account` | **30d**, or **6–12h** for an abandoned run | 30d: the only record of WHY a landing happened. An abandoned run landed nothing, so there is no commit to investigate |
+| `audit` | **7d** | it carries the command that regenerates it — a stale count is one re-run, not lost evidence |
+| `brief` | **7d** | superseded by the account of the work it commissioned; the number is a backstop for a lane that never came back |
+| `spec` | **30d**, `permanent` where it is a project artifact | the receipt for work nobody scheduled — nothing else records why it happened at all |
 
 **WHY each window is that length lives in ONE place and it is not here** —
 `context("which report kind should I file, and why is its window that length")`. The reasons are what let somebody

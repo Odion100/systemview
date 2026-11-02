@@ -21,11 +21,28 @@ That is a step, not a hope: the audit's findings become gaps or board cards, the
 conclusions become an arc or a plan, the lesson becomes a note. What is left in the report is the
 account of the moment, which is what expires harmlessly.
 
-## The clock measures his attention, not wall time
+## The window answers how long this could be EVIDENCE
 
-**It does not start until he first opens the report.** An unread report has spent none of its
-window, so a job that finishes at 3am is still waiting whole at nine. The window answers *how long
-is this interesting after it has been read*, never *how long does he have to get to it*.
+**Not how long it is worth reading.** That distinction decides every number below, and it exists
+because most reports are never read: the system runs unattended, nobody can read all of it, and a
+report's real job is to be there when something goes wrong. Then you open the report, it points at
+the commit, the commit points back at the report, and you know exactly what was being done.
+
+So a report is the forensic partner of a commit. **The diff survives forever; the reasoning survives
+nowhere else** — a commit message says WHAT changed, and what else was tried, what was ruled out and
+what went unverified exists only in the account. Ask *how long could somebody need this as evidence*
+and the number falls out of the work. Ask *how long is this interesting* and you will pick something
+too short, because prose stops being interesting long before it stops being evidence.
+
+**This does not soften the rule above it.** A report still goes away, and a report that must live
+forever is still another kind of document wearing a report's leaf — evidence has a finite useful
+life, and a trace nobody maintains is not a commitment. Findings still have to leave for gaps and
+cards, conclusions still have to land in an arc or a plan. What stays behind is the account, and it
+expires harmlessly a month later rather than a day later.
+
+**The clock still measures his attention, not wall time.** It does not start until he first opens the
+report, so an unread one has spent none of its window and a job that finishes at 3am is still waiting
+whole at nine.
 
 Two consequences worth knowing before picking a number:
 
@@ -48,11 +65,11 @@ sitting's account on the drawer for three months.
 | when you are writing one | `as=` | what it carries beyond the basics | `retain=` |
 |---|---|---|---|
 | a design conversation, before there is a plan | `planning` | the argument, the choice made, what is most worth rejecting | `24h` |
-| an unattended job's sitting | `account` | what landed, what it could not verify | `24h` |
+| an unattended job's sitting | `account` | what landed, what it could not verify, and a `::commit` record per commit | `30d` |
 | a run that was **abandoned** | `account` | why it stopped, and what the next person picks up from | `6–12h` |
 | a code or architecture audit | `audit` | the count, the method, the tree state it counted against | `7d` |
-| work handed to another agent | `brief` | the problem, the constraints, the measured facts — no sketch | `6h` |
-| a spec with living proofs | `spec` | the claims, and evidence that still runs | `30d`–`permanent` |
+| work handed to another agent | `brief` | the problem, the constraints, the measured facts — no sketch | `7d` |
+| a spec with living proofs | `spec` | the claims, the evidence that still runs, and a `::commit` record per commit | `30d`–`permanent` |
 
 **The vocabulary is OPEN** (RFC-076 §2 — the picker carries a free field, so `as=` is a vocabulary
 rather than an enum). A scenario that is genuinely none of these takes a new word and the report says
@@ -67,8 +84,8 @@ afterwards. What makes a file worth writing is that it carries enough to ACT on,
 ## Which kind to choose — why each window is the length it is
 
 **The best way to know which kind to file is to consider why each window is the length it is.** Ask
-how long what you just did will still be worth reading, and the kind falls out of the answer — a
-question about the WORK, which you can weigh. Asking "what is this" instead invites the label that
+how long what you just did could still be needed as EVIDENCE, and the kind falls out of the answer —
+a question about the WORK, which you can weigh. Asking "what is this" instead invites the label that
 sounds like what you wrote.
 
 The numbers are his. The reasoning is what makes them pickable by somebody who was not in the
@@ -83,20 +100,37 @@ while the planning is live, restart the clock; when the conclusions land somewhe
 go. The thing this rules out is widening the window because the discussion is taking longer than
 expected.
 
-### Why a sitting's account is 24h
+**And it is the one kind the evidence question does not lengthen**, because its successor is
+permanent: the argument, the choice and what was most worth rejecting all move into the RFC or the
+arc, which nobody retires. There is nothing left to investigate here later — the investigation would
+read the plan. A planning report is the only kind whose conclusions GRADUATE, and that is exactly
+why it keeps the shortest serious window.
 
-**Its durable facts are already elsewhere, which is all `24h` has to outlast.** The objective
-carries its own state on its own block, each commit carries the `Serves:` trailer naming what it
-served, and the links can be re-derived at any time. A day later the report is a second copy of
-facts the documents hold better — and a job firing nightly on a longer window grows a folder nobody
-reads.
+### Why a sitting's account is 30d
+
+**It is the only record of WHY, and `30d` is how long a landing can still be the suspect.** The
+account's facts are not already elsewhere, which is the thing that looks true and is not: the
+objective carries its state, each commit carries `Serves:` and its diff — and none of them carries
+what else was tried, what was ruled out, or what the run could not verify. When something goes bad
+three weeks later, that is exactly what you need, and the walk is report → commit → report.
+
+So the arbitration this settles: a nightly job's account is NOT the same category as a chat summary.
+`30d` rather than `24h` because a day is shorter than the time it takes for a bad landing to show
+itself, and NOT `permanent` because after a month the code has moved and the account is describing a
+tree that no longer exists. If the folder growing worries you, that is the janitor's job and not the
+window's.
 
 ### Why an abandoned run's account is SHORTER, not longer
 
-This reads backwards until you ask what the account is FOR. `6–12h`, against the sitting's `24h`:
-it is a live blocker, urgent today and worthless by Friday, because by then somebody picked the work up or the ground moved under it. A week-old
-*"stopped, waiting on his press"* is noise on a surface whose whole value is that everything on it
-is outstanding.
+This reads backwards until you ask what the account is FOR. `6–12h`, against the sitting's `30d`:
+it is a live blocker, urgent today and worthless by Friday, because by then somebody picked the work
+up or the ground moved under it. A week-old *"stopped, waiting on his press"* is noise on a surface
+whose whole value is that everything on it is outstanding.
+
+**And the evidence argument does not reach it**, which is what keeps `6–12h` honest next to a
+sitting's `30d`: an abandoned run landed nothing, so there is no commit anybody will ever
+investigate and nothing to walk back from. It is a request, not a trace. The moment it DID land
+something, it is a sitting's account and takes that window instead.
 
 ### Why an audit is 7d, and what it owes inside that
 
@@ -105,11 +139,24 @@ number and it is not the point: the point is that the FINDINGS have to leave ins
 An audit whose findings exist only inside the audit is a run of work that expires. So an audit's
 own procedure owes a step that empties it — into gaps, cards, or an RFC.
 
-### Why a brief is 6h
+**The evidence question leaves `7d` where it is, and this is the one case where letting go is
+cheap:** an audit carries the command that REGENERATES it. A stale count is not lost evidence, it is
+one re-run — so there is nothing to preserve that the tree will not answer again on demand. Compare
+an account, where the reasoning exists nowhere but the file.
 
-**It exists for work in flight, and `6h` is how long that is.** Work handed over either starts
-within the hour or the brief was wrong about what mattered. It is also the window with the most legitimate
-DIVERT: while the lane stands, the brief is live.
+### Why a brief is 7d
+
+**It is superseded by the account of the work it commissioned, and `7d` is a backstop for the lane
+that never came back.** As a reading document it outlives the handover by nothing — work handed over
+either starts within the hour or the brief was wrong about what mattered. As EVIDENCE it has one job
+the account cannot do: it is the only record of what an agent was ASKED for, which is what explains
+a lane that built the wrong thing.
+
+That makes it the clearest case in this chapter where the clock is standing in for a state the system
+could derive — a brief is finished when its lane's account exists. Until that pointer exists, `7d`:
+long enough for a lane to come back and be compared against what it was told, short enough that a
+brief for work nobody ever started does not sit for a month. DIVERT is still the answer while the
+lane stands.
 
 ### Why a spec outlives everything else
 
@@ -119,10 +166,37 @@ run the specs."* That is why it outlives the sitting that produced it, and why i
 where `permanent` is not automatically a smell: the proofs still run, so the document is still
 doing work rather than describing a moment that has passed.
 
+**And it is the most load-bearing of the five on the evidence question**, which is worth saying
+plainly because it is not obvious: a spec report is a receipt for work NOBODY SCHEDULED. There is no
+design, no objective and no gap behind it — so unlike every other kind, nothing else in the system
+records why that work happened at all. Lose it and the only trace is a commit, which says what
+changed and never why.
+
 **Reach for `30d` anyway, and keep `permanent` for the spec that is a project artifact** — one that
 lives in `RFCs/` and is pressed by people who were not there. A spec written for one piece of work
 is still a report, and a report that never expires is furniture with a proof attached. The short
 window costs nothing: the clock starts at the first open, and DIVERT restarts it from now.
+
+## What each kind attaches — the records that let somebody trace the work back
+
+**A report that names no commit cannot be walked back to, which is most of what a report is for.**
+The two-pointer convention is not this chapter's — a commit carries a `Serves:` trailer, the document
+says it back with a `::commit{sha=}` block, and `commitLinks` checks the two against each other:
+`context("how does a commit say what it served, and how does the document say it back")`. What is
+this chapter's is WHICH report owes which attachment.
+
+| `as=` | what it attaches |
+|---|---|
+| `planning` | the arc or RFC its conclusions became — the report is finished when that pointer exists |
+| `account` | a `::commit` record per commit, plus `::file` chips for what was touched and what could not be verified |
+| `audit` | the `:::cmd` that regenerates the count, and the gaps or cards its findings left for |
+| `brief` | the lane's branch (`::branch`), so the brief and the work it commissioned are one press apart |
+| `spec` | a `::commit` record per commit, and the proof on each claim — a `::test` chip or a `:::run` block |
+
+**The skipped half is always the same one.** The trailer gets written because it rides the commit you
+are already making; the record in the report gets forgotten because by then the work feels done. Say
+it as the walk it enables: *something breaks weeks later, you open the report, follow its commit
+records into the diff.* A report with prose and no shas makes a reader start over in `git log`.
 
 ## What every report carries, whatever kind it is
 
@@ -169,16 +243,22 @@ with nothing pointing at it reads as work with no account.
 person who is there; an unattended job at 3am writes the file and leaves it, because taking his
 screen for a report nobody asked to see is the one thing unattended work must never do.
 
-## Nobody re-describes this
+## Nobody re-describes this — and the two moves that replace it
 
 A report is almost never the thing anybody set out to do — it is the TAIL of something else: a job's
-handover, an audit's output, a planning session's conclusion, an abandoned run's account. So the
-skills and jobs that produce reports **point here**, carrying only the decision they have already
-made (*"it is an `account` at `24h`"*) so the agent acts correctly without looking anything up, plus
-the query so the depth is one call away. **The query is
-`context("which report kind should I file, and why is its window that length")`** — one phrasing,
-everywhere, because it was chosen by measuring: it returns the choosing section at 0.78 where the
-phrasings that read just as well return the table, or the pointer that points here.
+handover, an audit's output, a planning session's conclusion, a receipt for work nobody scheduled. So
+a producing skill or job does not carry its own account of how to write one. Its closing step is two
+moves, in this order:
 
-What they must not do is restate the table. Two copies of a lifecycle drift, and the copy in the
-document nobody runs is the one that goes wrong quietly.
+1. **CHOOSE the kind, from here.** `context("which report kind should I file, and why is its window
+   that length")` — one phrasing, everywhere, chosen by measuring: it returns the choosing section at
+   0.78 where phrasings that read just as well return the table, or the pointer that points here. A
+   producer may carry the decision it has already made inline (*"it is an `account` at `30d`"*) so the
+   agent acts correctly without looking anything up.
+2. **Then WRITE it** — the report-writing skill, which owns the order and the irreversible bits
+   (attach before the write that closes the run) and branches on the kind you just chose.
+
+**Corpus first, because the kind decides what the writing owes.** An agent that reaches for the
+procedure before the decision has to be told the per-kind facts twice, and a table that lives in a
+skill as well as here is two copies drifting — the copy in the document nobody runs is the one that
+goes wrong quietly. So the division is fixed: **the facts are here, the order is in the skill.**
