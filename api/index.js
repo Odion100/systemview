@@ -857,11 +857,12 @@ function projectRoots() {
 // offices stay separate there: retired documents go because somebody retired them, dead pointers go
 // because they name a file that is not there. This is only when.
 //
-// ONCE AT BOOT, THEN HOURLY. It used to be daily, which was the right cadence for a 30-day clock
-// and the wrong one now: retiring is a press, and a press whose effect appears tomorrow reads as a
-// press that did nothing. His measured case — a report declaring `retain=1h`, retired, sitting on
-// the drawer eleven hours later. Hourly is close enough that the surface agrees with the decision
-// within a reading, and cheap enough to run forever: it stats a folder and reads 2KB per report.
+// ONCE AT BOOT, THEN EVERY SIX HOURS — his number, and the reason is not cost. Daily was the right
+// cadence for a 30-day clock and far too slow for a decision; hourly was my overcorrection. He
+// wants the LAG: *"I don't mind seeing that some things are retired before they get deleted."* A
+// document that goes the moment it is retired never shows its retired state to anybody, and that
+// state is worth reading — so the sweep is slow enough to leave it standing for a while and fast
+// enough that the drawer is not a graveyard.
 const { collectRetired, sweepDeadPointers } = require("./janitor");
 function sweepReports() {
   try {
@@ -879,7 +880,7 @@ function sweepReports() {
   } catch { /* a janitor must never take the hub down */ }
 }
 setTimeout(sweepReports, 15 * 1000); // after boot settles, not during it
-setInterval(sweepReports, 60 * 60 * 1000);
+setInterval(sweepReports, 6 * 60 * 60 * 1000);
 
 // FILES, SERVED BY THE HUB — the same owner as git, which is the entire point. His question, and it
 // was the right one to ask: *"is it better for you to use the hub?"* Yes, for one reason that has

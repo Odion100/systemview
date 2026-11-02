@@ -14,6 +14,10 @@
 // ruling: *"no need for a fucking 30-day floor for nothing, the documents have their life cycle"*).
 // The window on a leaf is the reader's face; `retired=` is the fact.
 //
+// AND `retain=permanent` DOES NOT PROTECT A DOCUMENT FROM BEING RETIRED. Permanent means no clock
+// will ever take this one; it does not mean nobody may decide it is over. A leaf carrying both
+// `retain=permanent` and `retired=` is collected, because the retirement is the later fact.
+//
 // AND THE FILE SET COMES FROM THE REGISTRY, NEVER A GLOB. This used to scan `report.*.md` in
 // `.systemview/`, which bakes in both wrong assumptions at once: that a document is a report, and
 // that a document is findable by its filename. A document's identity is the leaf it declares and

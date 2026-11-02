@@ -92,8 +92,9 @@ describe("office 1 — retired documents, and it was never about reports", () =>
     assert.strictEqual(fs.existsSync(path.join(root, old)), true);
   });
 
-  // Retiring is a decision; `permanent` is a declaration about expected lifetime. The decision wins.
-  test("permanent is not a veto", () => {
+  // `permanent` means no clock will ever take this document. It does not mean nobody may decide the
+  // document is over, and `retired=` is exactly that decision — later, and more specific.
+  test("retiring a permanent document still deletes it", () => {
     const rel = doc(".systemview/report.pc.spec.md", '::report{id="d" as=spec retain=permanent retired=2026-11-02}');
     register([{ id: "d", kind: "report", path: rel, project: "pc" }]);
     assert.deepStrictEqual(collect().deleted, [rel]);
