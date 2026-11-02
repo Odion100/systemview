@@ -1,9 +1,18 @@
 # Interactive markdown — the full vocabulary (for agents)
 
-Every markdown surface in SystemView renders through ONE renderer: the Documentation tab, the Report
-tab, story markdown panes, `.md` file panes, notes on tests, help topics, the codebase preview. A
-block written in any of them works in all of them. Raw HTML is disabled — directives are the only
-extension point, and `src/atoms/Markdown/registry.js` is the complete list of what exists.
+Every markdown surface in SystemView renders BLOCKS through ONE renderer: the Documentation tab,
+the Report tab, story markdown panes, `.md` file panes, notes on tests, help topics, the codebase
+preview — and the chat, which dispatches to the same registry rather than growing its own copy of a
+commit block. A block written in any of them works in all of them. Raw HTML is disabled —
+directives are the only extension point, and `src/atoms/Markdown/registry.js` is the complete list
+of what exists.
+
+**THE CHAT'S PROSE IS ITS OWN, AND THAT IS THE ONE EXCEPTION WORTH KNOWING.** Headings, lists,
+quotes, rules, tables and code spans in a chat reply go through a line parser inside
+`src/organisms/AgentChat/AgentChat.js` (with its classifier in `chatBlocks.js` and its type scale in
+`src/atoms/Markdown/chat-md.scss`), because a bubble wants its own typography — not the document's
+28px h1. So fixing how a chat heading or a nested list renders means editing THERE; editing
+`src/atoms/Markdown` changes every document and leaves the chat exactly as it was.
 
 Live worked examples you can open in the UI: `docs/interactive-markdown.md` (the playground, every
 block rendered) and `systemview-test.md` (the dogfood project doc). Siblings: [AGENTS.md](AGENTS.md),

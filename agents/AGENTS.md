@@ -210,9 +210,11 @@ you find `systemview story …` anywhere, do not use it; write a report.
 
 **This is the important part**, and the summary below is deliberately partial — the complete
 reference (every attribute, the write-back rules, thread storage, the right-click menu, nesting) is
-**[markdown.md](markdown.md)**. Every markdown surface in SystemView renders through one renderer:
-the Documentation tab, reports, `.md` file panes, notes on tests, help topics.
-A block written in any of them works in all of them.
+**[markdown.md](markdown.md)**. Every markdown surface in SystemView renders BLOCKS through one
+renderer: the Documentation tab, reports, `.md` file panes, notes on tests, help topics — and the
+chat, which dispatches to the same registry. A block written in any of them works in all of them.
+**The chat's PROSE is the exception** — its headings, lists, quotes and tables are a line parser in
+`AgentChat.js` with its own type scale, because a bubble is not a page; see markdown.md.
 
 The syntax is **directives**, not HTML (raw HTML is disabled):
 
