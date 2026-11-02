@@ -212,7 +212,7 @@ Attributes carry what the machine addresses — `id`, `owner`, `state`, `needs`.
 what a person reads — the what, the **why**, the **requirements**. Exact spelling is settled when the block
 is built; what matters is the split.
 
-::::thread{id=t3}
+::::thread{id=t3 sent=systemview-test:13w84a5}
 **`why` is the fourth part because an objective travels alone.** It reaches an agent hours or days
 later, usually with nobody to ask, and the ground will often have moved — the code shifted, a
 dependency landed differently, the surface it named got rewritten. An objective that says only WHAT

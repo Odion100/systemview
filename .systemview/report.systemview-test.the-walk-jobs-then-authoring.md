@@ -527,7 +527,7 @@ was never about frequency, it was about the NOUN. What is owed is a report, with
 receipt's way.
 ::::
 
-::::thread{id=t5}
+::::thread{id=t5 sent=systemview-test:uhi93d}
 **2026-11-02 — RETENTION IS AN EVIDENCE QUESTION, AND CLAIMS ARE NOT RFC FURNITURE.** Argued to a
 landing across one conversation; t4's rail table was corrected in place by it. This thread is the
 work order.
@@ -563,7 +563,9 @@ belongs to something that SERVES something else; a report serves nothing, it IS 
 also what saves the clock: an unmarked claim is honest and never a gate, so a report waiting on a
 press to retire would sit forever.
 
-**4 · `retain=` IS DOING TWO JOBS, which is why longer windows feel like they would bury him.** It
+**4 · `retain=` IS DOING TWO JOBS, which is why longer windows feel like they would bury him. HIS
+TO SETTLE AT THE WINDOW, IN REAL TIME, WITH REPORTS IN FRONT OF HIM — not an item anybody builds
+from this document.** It
 says how long a report EXISTS *and* how much it wants his eyes — one dial. His problem, in his
 words: *"I need reports to really stand out for me to have to look at."* Longer retention without
 splitting those makes the window worse, not better. The system already holds half the answer: the
@@ -721,14 +723,15 @@ nothing below them should be written while the words they cite are still wrong.
    `doc-maintenance`, `assignment`, the audits, and the jobs that file accounts. **`rfc-execution`
    is NOT one of them** (§10): its report is the chat reply and its durable record is the RFC.
 
-6. **The two-axis split** (§4) — `retain=` says both how long a report EXISTS and how much it wants
-   his eyes, which is why longer windows feel like they would bury him. A report that is archive by
-   design must not be counted as owed attention. `openedAt` is already stamped, so half the
-   mechanism exists. Needs a design decision before any code.
-
-7. **The consumed-by pointer** (§5, §12) — one mechanism serving three needs: the forensic
+6. **The consumed-by pointer** (§5, §12) — one mechanism serving three needs: the forensic
    walk-back, the derived retirement trigger, and the archive that needs no drawer row. Its own RFC,
-   and the largest piece. `Serves:` on commits is the shape that already works.
+   and the largest piece — though §12 makes it cheaper than it looked: `commitLinks` already READS
+   both directions, so a good part of this is writing the step that produces the record, not
+   building a mechanism.
+
+**NOT ON THIS LIST, DELIBERATELY: the two-axis split (§4).** `retain=` conflating how long a report
+exists with how much it wants his eyes is his to settle at the window, in real time, looking at real
+reports. Nobody should design it from in here.
 
 **ALREADY LANDED, so not on the list:** `notice` removed from the one surface that still taught it
 (the How-we-work page data, three test fixtures, two comments) — `afe4dbb7`, suite green, bundle

@@ -1,4 +1,4 @@
-::report{id=landing-page-evolves as=planning retain=permanent}
+::report{id=landing-page-evolves as=planning retain=permanent retired=2026-11-02 retiredAs=out-of-service}
 
 # The landing page becomes the dashboard, component by component
 
