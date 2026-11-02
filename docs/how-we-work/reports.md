@@ -36,7 +36,7 @@ Two consequences worth knowing before picking a number:
   A planning report under active discussion gets diverted for days and still says `24h`, which is
   true: it is a backstop, not a lifetime.
 
-## Which kind, and how long it lasts
+## The five kinds, and the window each one takes
 
 `as=` and `retain=` are **one decision**. The kind of account this is already implies how long it
 stays interesting, and picking them apart is how a report ends up `as=account retain=90d` — one
@@ -64,7 +64,12 @@ is a line in the chat or a card on the board — both reach him sooner and neith
 afterwards. What makes a file worth writing is that it carries enough to ACT on, and that is a
 `brief`.
 
-## Why each window is the length it is
+## Which kind to choose — why each window is the length it is
+
+**The best way to know which kind to file is to consider why each window is the length it is.** Ask
+how long what you just did will still be worth reading, and the kind falls out of the answer — a
+question about the WORK, which you can weigh. Asking "what is this" instead invites the label that
+sounds like what you wrote.
 
 The numbers are his. The reasoning is what makes them pickable by somebody who was not in the
 conversation — and each one is written to **arbitrate**, because a reason that cannot choose between
