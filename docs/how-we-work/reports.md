@@ -85,7 +85,7 @@ expected.
 
 ### Why a sitting's account is 24h
 
-**Its durable facts are already elsewhere.** The objective
+**Its durable facts are already elsewhere, which is all `24h` has to outlast.** The objective
 carries its own state on its own block, each commit carries the `Serves:` trailer naming what it
 served, and the links can be re-derived at any time. A day later the report is a second copy of
 facts the documents hold better — and a job firing nightly on a longer window grows a folder nobody
@@ -93,8 +93,8 @@ reads.
 
 ### Why an abandoned run's account is SHORTER, not longer
 
-This reads backwards until you ask what the account is FOR. It is a live blocker: urgent today, worthless
-by Friday, because by then somebody picked the work up or the ground moved under it. A week-old
+This reads backwards until you ask what the account is FOR. `6–12h`, against the sitting's `24h`:
+it is a live blocker, urgent today and worthless by Friday, because by then somebody picked the work up or the ground moved under it. A week-old
 *"stopped, waiting on his press"* is noise on a surface whose whole value is that everything on it
 is outstanding.
 
@@ -107,8 +107,8 @@ own procedure owes a step that empties it — into gaps, cards, or an RFC.
 
 ### Why a brief is 6h
 
-**It exists for work in flight.** Work handed over either starts within the
-hour or the brief was wrong about what mattered. It is also the window with the most legitimate
+**It exists for work in flight, and `6h` is how long that is.** Work handed over either starts
+within the hour or the brief was wrong about what mattered. It is also the window with the most legitimate
 DIVERT: while the lane stands, the brief is live.
 
 ### Why a spec outlives everything else
