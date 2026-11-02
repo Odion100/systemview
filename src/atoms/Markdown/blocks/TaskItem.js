@@ -1,32 +1,24 @@
 import React from "react";
-import { useDocMembers } from "../context";
-import useDecisionTell from "../useDecisionTell";
-import { taskLabelOf } from "../decisions";
 
-// A TICKED TASK IS A DECISION, and this component exists so it can say so.
+// A TICKED TASK IS NOT A DECISION, AND THIS COMPONENT IS WHERE THAT WAS DECIDED.
 //
-// WHY IT IS A COMPONENT AT ALL. The checkbox used to be an inline `<li>` in `Markdown.js`'s
-// component map, and the telling cannot live there: `Markdown` is the component that PROVIDES the
-// member context, so it cannot consume its own provider. Everything rendered by the map is inside
-// that provider, which makes this the first place that can both see the members and know which
-// line was toggled.
+// It used to announce every tick to the document's members. It does not any more: ticking a box is
+// keeping your place in a list, and the reasoning lives next to the registry it came out of
+// (`decisions.js`, `DECIDING`). The write still happens — the box ticks, the document saves — and
+// nobody is woken for it.
+//
+// WHY IT IS STILL A COMPONENT. It was extracted so the telling could see the document's members —
+// `Markdown` provides that context and cannot consume its own provider — and with the telling gone
+// that reason is gone with it. What keeps it here is the rule below: it is a stable module-scope
+// type rather than an arrow rebuilt inside a render, and the markup is a box, a state class and a
+// label, which reads better out here than inlined in a component map.
 //
 // ITS IDENTITY HAS TO BE STABLE. React treats a new function as a new component TYPE, so a
 // renderer rebuilt per keystroke unmounts and remounts the whole subtree mid-edit — the exact
 // reason `Markdown` keeps its callbacks behind a ref. Declaring this at module scope is what keeps
 // that true now that there is a component here instead of an inline arrow.
 const TaskItem = ({ line, checked, editable, onToggle, children }) => {
-  const { source = "" } = useDocMembers() || {};
-  const tell = useDecisionTell();
-
-  const press = () => {
-    // THE WRITE FIRST. `onToggle` rewrites the document; the announcement is bookkeeping and must
-    // never be able to cost the tick — same ordering as a verdict press.
-    onToggle(line);
-    // The label is read BEFORE the toggle lands in state but from the source as it stands, which
-    // is the version being changed — the sentence describes what was ticked, not what it became.
-    tell("task", { label: taskLabelOf(source, line) }, !checked);
-  };
+  const press = () => onToggle(line);
 
   return (
     <li className={`md-task${checked ? " md-task--done" : ""}${editable ? " md-task--live" : ""}`}>

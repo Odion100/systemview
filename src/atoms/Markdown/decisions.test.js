@@ -26,13 +26,6 @@ describe("what a press SAYS", () => {
       .toBe("odion answered kokoro to: Which engine?");
   });
 
-  it("says a task was ticked, and that unticking is not the same event", () => {
-    expect(decisionSummary({ kind: "task", attrs: { label: "rebuild the bundle" }, value: true, by: "odion" }))
-      .toBe("odion ticked a task: rebuild the bundle");
-    expect(decisionSummary({ kind: "task", attrs: { label: "rebuild the bundle" }, value: false, by: "odion" }))
-      .toBe("odion unticked a task: rebuild the bundle");
-  });
-
   it("truncates a long question rather than pushing a wall of text into somebody's session", () => {
     const long = "x".repeat(300);
     const out = decisionSummary({ kind: "approval", attrs: { ask: long }, value: "approved", by: "o" });
@@ -59,10 +52,13 @@ describe("what a press SAYS", () => {
 describe("which writes are decisions at all", () => {
   // Not every setAttr is news. A slider being dragged is a value being explored, and announcing it
   // is the keystroke flood the quiet period exists to prevent.
-  it("knows the three that are", () => {
+  it("knows the two that are", () => {
     expect(isDecision("approval", "verdict")).toBe(true);
     expect(isDecision("question", "answer")).toBe(true);
-    expect(isDecision("task", "checked")).toBe(true);
+    // A TICKED BOX IS NOT ONE. He ticked one item off a review checklist and it woke a member:
+    // *"why would you get an update just because I click the check?"* Same ruling as the commit
+    // record — keeping your place in a list decides nothing.
+    expect(isDecision("task", "checked")).toBe(false);
   });
 
   it("refuses a different attribute on a deciding block", () => {
@@ -78,57 +74,6 @@ describe("which writes are decisions at all", () => {
   });
 
   it("is a short explicit list rather than anything that writes back", () => {
-    expect(Object.keys(DECIDING).sort()).toEqual(["approval", "question", "task"]);
-  });
-});
-
-describe("the words a ticked task is about", () => {
-  const { taskLabelOf } = require("./decisions");
-  const doc = [
-    "# a plan",
-    "",
-    "- [ ] rebuild the bundle",
-    "- [x] press the **commit**",
-    "   - [ ] a nested one",
-    "1. [ ] an ordered task",
-    "- [ ] read `api/reports.js` and the [RFC](RFCs/RFC-072.md)",
-    "- [ ]",
-    "just a paragraph",
-    "",
-  ].join("\n");
-
-  it("reads the task's own words", () => {
-    expect(taskLabelOf(doc, 3)).toBe("rebuild the bundle");
-  });
-
-  it("reads a ticked one as well as an unticked one", () => {
-    expect(taskLabelOf(doc, 4)).toBe("press the commit");
-  });
-
-  it("handles a nested task and an ordered one — the same shape toggleTaskLine matches", () => {
-    expect(taskLabelOf(doc, 5)).toBe("a nested one");
-    expect(taskLabelOf(doc, 6)).toBe("an ordered task");
-  });
-
-  // This ends up inside a sentence pushed into somebody's session; brackets and asterisks are noise.
-  it("strips markdown rather than pushing syntax into somebody's session", () => {
-    expect(taskLabelOf(doc, 7)).toBe("read api/reports.js and the RFC");
-  });
-
-  it("answers empty for a task with no words, rather than inventing some", () => {
-    expect(taskLabelOf(doc, 8)).toBe("");
-  });
-
-  // A label that disagreed with what was toggled would quote the wrong task.
-  it("says nothing for a line that is not a task", () => {
-    expect(taskLabelOf(doc, 9)).toBe("");
-    expect(taskLabelOf(doc, 1)).toBe("");
-  });
-
-  it("survives a line number that is not in the document", () => {
-    expect(taskLabelOf(doc, 0)).toBe("");
-    expect(taskLabelOf(doc, 999)).toBe("");
-    expect(taskLabelOf("", 1)).toBe("");
-    expect(taskLabelOf(undefined, undefined)).toBe("");
+    expect(Object.keys(DECIDING).sort()).toEqual(["approval", "question"]);
   });
 });
