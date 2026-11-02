@@ -1,6 +1,6 @@
 # The walk — jobs first, then the authoring skills they drive
 
-::report{id="The walk — jobs, then authoring" as=planning retain=4d}
+::report{id="The walk — jobs, then authoring" as=planning retain=permanent}
 
 **Eleven documents, not twenty-six.** Three jobs and twenty-three skills exist; most of them have
 nothing to do with automation and org execution, so walking all of them would spend your attention
@@ -268,12 +268,20 @@ to run the specs."* That is why it outlives the sitting that produced it.
 
 ---
 
-**`report-authoring` RETIRES INTO A CORPUS CHAPTER — his order.** A report is almost never the thing
-anybody set out to do; it is the TAIL of something else — a job's handover, an audit's output, a
-planning session's conclusion, an abandoned run's account. A skill models *"I set out to do X"*; a
-corpus models *"I am doing X and need to know how to do part of it."* Worse, invoking a skill opens
-a nested run at the exact moment an agent is trying to close another one, and what it needs there is
-a lookup, not a procedure.
+**THE SPLIT: THE CHAPTER HOLDS THE DECISION, A SKILL HOLDS THE PROCEDURE.** Which kind to file and
+why its window is that length is a LOOKUP — an agent mid-close needs a fact, not a procedure — so it
+lives in the chapter and every producer points at it carrying the decision inline. But writing the
+report is a PROCEDURE and it grew: attach the commits, attach what the kind owes, declare the
+window, carry the pointer back. Ordered steps with a durable outcome, which is the test a lookup
+fails.
+
+**AND THE ARGUMENT THAT ONCE RETIRED IT WAS WRONG ON THE MECHANICS.** It was retired partly because
+invoking a skill "opens a nested run at the moment an agent is trying to close one" — and
+`skill-authoring` §8 says the opposite in plain words: *"A skill's run never collides with
+anything… firing a skill mid-skill destroys nothing; the outer run's list stays exactly where it
+stopped."* What survives is weaker and real: whether an agent mid-close will REACH for it. That is
+a trigger problem, and the answer is that the producers name it in their own closing step rather
+than hoping it fires.
 
 So: a reports chapter in `how-we-work`, and every skill and job that produces one points at it —
 carrying the DECISION inline (*"it is an `account` at `24h`"*) plus the retrieval query, so nobody
@@ -372,14 +380,14 @@ been in use returned the table (0.71) or my own pointer paragraph in AGENTS.md (
 phrasing now stands in all nine skills, jobs and docs, plus the MCP tool's description.
 ::::
 
-- [ ] **`spec-authoring`** :file[~/.claude/skills/spec-authoring/SKILL.md] — written tonight, and the one we may yet remove
+- [x] **`spec-authoring`** :file[~/.claude/skills/spec-authoring/SKILL.md] — written tonight, and RETIRED by t5: a spec report is a report, so its claims are a branch of the report-writing skill
 
   **The question:** should it be a skill at all, or doctrine pointed at — and what does that
   doctrine actually say about cmds, wrappers and what counts as a spec?
 
 ::::thread{id=t4}
-**THE ARGUMENT, 2026-11-02 — where it landed and what is still open.** `spec-authoring` exists and
-was written tonight; the skill may yet be removed. These are the things settled on the way.
+**THE ARGUMENT, 2026-11-02 — where it landed.** `spec-authoring` was written tonight and t5 retires
+it. These are the things settled on the way.
 
 **1 · A cmd counts as PROOF, never as a SPEC — and the line is WHO RUNS IT.** The code already
 draws it: `PROOF_KINDS.spec` is `["test","run","cmd"]` and satisfies a claim; `SPECS` is
@@ -446,15 +454,27 @@ outlive the receipt, it MOVES OUT into the suite — that is a side-door before 
 state, because the document was never the home for a permanent test. It was the home for *"this
 was true when I handed it to you."*
 
-**THE RAIL, and the event that drives it is not the one every other report uses.** Every other
-report is consumed by being READ, which is why first-open starts its clock. A spec report is
-consumed by being RUN; the read tells you nothing.
+**THERE IS NO RAIL, AND THAT IS WHAT MAKES IT A REPORT.** The one state a report reaches is
+**retired**. A spec report carries claims, and the claims carry their own states — `met`, `unmet`,
+`unchecked` — but they do not elevate the document that holds them: it is a RECORD, kept so the
+work can be followed back, and it only ever gets old.
 
-| state | the arrival |
-|---|---|
-| **filed** | the work is done and the blocks are in — pointing at a saved test, or carrying the run block |
-| **settled** | somebody RAN it green who is not the author. The author running their own proof is a statement, not a confirmation — the same category as an agent marking its own claim met. The runner already records who ran what, so this is DERIVED, never typed |
-| **retired** | confirmed, so the receipt's job is over and it goes — after the check graduates to the suite, if it needed to |
+The reason is what every other kind has and this one does not: a rail belongs to something that
+SERVES something else. An objective serves an arc, a plan serves an objective, a gap serves a fix —
+each settles when the thing it serves is satisfied. A report serves nothing. It *is* the record. So
+claims inside one make it a better record and nothing more, and the question "has this settled" has
+no referent to answer from.
+
+**AND THAT IS WHY RETENTION STAYS A CLOCK.** A derived rail would have cost the one self-cleaning
+mechanism in the system: an unmarked claim is honest and never a gate, so a report waiting on a
+press to retire is a report that sits forever. The clock asks nobody for anything. Two things stay live and
+neither is a rail: what QUESTION the number answers (how long could this be evidence, not how long
+is it worth reading), and whether a consumed-by pointer could fire the retirement instead of the
+clock.
+
+The blocks still differ from every other report's, and that part holds: every other report is
+consumed by being READ, which is why first-open starts its clock. A spec report's evidence is
+consumed by being RUN, and the read tells you nothing about it.
 
 **WHAT I HAD WRONG, and it is the generalisable part:** I kept looking for a spec's state INSIDE
 the document — does it run, is it green, is it on the loop — when every state in this system is
@@ -467,7 +487,8 @@ the runner executes them, so "can it be re-run" is a property of having a leaf.
 clock standing in for a state the system could derive: an audit is settled when its findings LEFT
 (gaps, cards), a brief when its lane came back, a planning report when its conclusions landed in an
 arc or an RFC, an account when it was read. His point, and he had to make it three times: each
-subtype could have its own rail — *"having a special case just proves you have a system."* What
+subtype could derive its own RETIREMENT — never a rail, which a report cannot have, but the
+TRIGGER: *"having a special case just proves you have a system."* What
 stops four of the five today is one missing mechanism, not five: **a pointer from the thing that
 CONSUMED a report back to the report.** A gap does not say which audit found it; an RFC does not
 say which planning report produced it. Commits solved exactly this with the `Serves:` trailer.
@@ -488,17 +509,222 @@ say which planning report produced it. Commits solved exactly this with the `Ser
    is who runs it, a door is transcription, logic goes in Plugin, `Test.*` means no door existed.
    After 1–3, because doctrine describing a convention that is not built yet is the recurring way
    this goes wrong.
-5. **Settle the spec lifecycle (7).** Needs a decision, not a build.
-6. **Leave `spec-authoring`'s fate standing** until the count answers it — did somebody SET OUT to
-   write a spec, or was one OWED.
+5. **The retirement TRIGGER — whether a consumed-by pointer can fire it instead of the clock.**
+   The lifecycle itself needs nothing: a report reaches `retired` and nothing else, claims or no
+   claims. What is left is one mechanism, and it is shared with the forensic argument.
+6. **`spec-authoring` RETIRES, and not for the tail-shape reason.** A spec report IS a report, so
+   writing one is the report skill's job; the only thing peculiar to it is what its CLAIMS owe,
+   which is a branch inside that skill and not a second skill. Its spec/evaluation mechanics were
+   never its to hold either — they are already in `systemview-docs` (`tests.md` probe-first and the
+   save rules, `hosted-services.md` §4, `AGENTS.md` §1.7), so it points.
 
-**STILL OPEN — the one this thread was started for:** should `spec-authoring` be a SKILL, or
-doctrine pointed at? A spec is primary work when you sit down to write one, which argues for a
-skill. But a spec is also the TAIL of other work — a claim needs proving, a card declared one, a
-run is closing and owes evidence — and that is the exact shape that sent `report-authoring` into a
-chapter, because invoking a skill opens a nested run at the moment an agent is trying to close one.
-Both of tonight's specs were the tail shape. **What would settle it is a count, not an argument:**
-over the next few real runs, did somebody SET OUT to write a spec, or was one OWED.
+**AND THE COUNT THIS THREAD ASKED FOR IS MOOT.** It proposed settling "skill or doctrine" by
+observing whether a spec gets SET OUT TO WRITE or OWED. A spec is only ever owed — so the question
+was never about frequency, it was about the NOUN. What is owed is a report, with claims written the
+receipt's way.
+::::
+
+::::thread{id=t5}
+**2026-11-02 — RETENTION IS AN EVIDENCE QUESTION, AND CLAIMS ARE NOT RFC FURNITURE.** Argued to a
+landing across one conversation; t4's rail table was corrected in place by it. This thread is the
+work order.
+
+**1 · THE REFRAME, and it is his: a report's window answers "how long could this be EVIDENCE",
+never "how long is this worth reading."** The old numbers were set on the reading question, which
+assumed somebody reads every report — and that assumption is dead by design: *"if the system is
+gonna move and automate, then I can't just really look at all reports. The reports are there for
+when things go wrong, then we can look at the report, point them back to the commit, points back to
+the report, you know exactly what we were doing."* A report is the forensic partner of a commit.
+The diff survives forever; the REASONING survives nowhere else.
+
+So the reframe changes two things and the second is the one that makes agents better at this: the
+NUMBERS, and the REASONS under them. An agent choosing a window can weigh *"how long could this be
+evidence"* against the work in front of it. It cannot weigh *"how long is this interesting."*
+
+**2 · THE NUMBERS, proposed, each with the reason that justifies its own number.** The inversion
+worth noticing: the report whose conclusions GRADUATE into a durable document can expire fast; the
+report that is the only record of why something happened must last.
+
+| subtype | now | proposed | why that number |
+|---|---|---|---|
+| `planning` | `24h` | `24h` | unchanged, and for the reason the chapter already gives: its conclusions leave it for an RFC or an arc, and those are permanent. Its successor carries it, so the table is furniture within a day |
+| `account` | `24h` | `30d` | WRONG TODAY. Set on the reasoning that its durable facts are already in the commit — but a commit carries WHAT changed, and the account is the only artifact carrying WHY, what else was tried, and what went unverified. 30d is "long enough that a thing which goes bad can still be traced back through it" |
+| `brief` | `3d` | `14d` | it outlives the handover by nothing as a READING document, but it is the only record of why that agent was told that shape. Shorter than an account because no diff hangs off it |
+| `audit` | `7d` | `7d` | unchanged, and it is the one case where letting go is cheap: it carries the command that REGENERATES it. A stale count re-runs; it does not need keeping |
+| `spec` | `30d`–`permanent` | unchanged | already right, and the most load-bearing of the five — nothing else records why unscheduled work happened at all |
+
+**3 · A REPORT HAS NO RAIL — see t4, corrected.** It reaches `retired` and nothing else, claims or
+no claims. His words: *"that's why it's a report. So it can't have that life cycle. It can only go
+to a retired. So even if it has its claims, it's just a record so we could follow it back."* A rail
+belongs to something that SERVES something else; a report serves nothing, it IS the record. This is
+also what saves the clock: an unmarked claim is honest and never a gate, so a report waiting on a
+press to retire would sit forever.
+
+**4 · `retain=` IS DOING TWO JOBS, which is why longer windows feel like they would bury him.** It
+says how long a report EXISTS *and* how much it wants his eyes — one dial. His problem, in his
+words: *"I need reports to really stand out for me to have to look at."* Longer retention without
+splitting those makes the window worse, not better. The system already holds half the answer: the
+hub stamps `openedAt` (first open), so it already knows what he has never looked at.
+
+**5 · THE CONSUMED-BY POINTER IS ONE MECHANISM SERVING THREE NEEDS.** The forensic walk-back
+(commit names report, report names commit), the derived retirement trigger (an audit is over when
+its findings LEFT), and the archive that needs no drawer row: *if the commit points at the report,
+the report does not need to be FOUND by browsing* — reachable by address is enough. That dissolves
+the filter problem: window long, visibility low, found by pointer. `Serves:` on commits is the
+shape that already works.
+
+**6 · CLAIMS — THE DEFINITION IS SCOPED WRONG, AND IT IS MEASURED, NOT ASSERTED.** Asked the store
+the exact question an agent with no RFC would ask (*"I did work nobody scheduled and there is no
+RFC — how do I write a claim"*): three of four hits came back under the breadcrumb `rfcs.md › RFCs
+— a design you can check later`, and the top chunk opens *"A claim is one statement of something an
+approved design committed to"* and *"Nothing is a claim before the verdict."* The agent that says
+"there is no RFC" is told by the most authoritative chunk that what it has is not a claim.
+
+**AND THE FIX IS NOT A WIDER DEFINITION — IT IS A SHORTER ONE.** The first attempt was *"you can
+only claim about something that exists"*, which says nothing as an opening and needs a paragraph to
+rescue. What the old rule was really protecting: a claim is checked against something that has
+STOPPED MOVING, because if the thing can still change, a failed check cannot tell a regression from
+a revision. That has real work on an RFC — a design before its verdict is still moving — and NO work
+on a receipt, where the work is finished before the claim is written. So it is an RFC timing
+constraint, it stays on the RFC page, and the general definition carries nothing about existence at
+all.
+
+**7 · SO: NO `claim-authoring` SKILL.** His conclusion and mine, reached from opposite directions.
+The doctrine comes OUT of `rfcs.md` into its own chapter with the widened definition; `rfcs.md`
+keeps only what is genuinely RFC-specific — nothing before the verdict, the completeness press, the
+claims list under the verdict, `STATUS`; and `rfc-authoring` §5 + `rfc-execution` point at the new
+chapter with a query instead of carrying copies. Three places hold claim doctrine today, which is
+the drift this system keeps paying for.
+
+**And `spec-authoring` retires into the report-writing skill, not into doctrine** — a spec report
+IS a report, so writing one is that skill's job, and the only thing peculiar to it is what its
+claims owe (§9). The tail-shape argument that would once have sent it to a chapter does not hold:
+`skill-authoring` §8 says a run never collides with another, so the objection is about TRIGGERING,
+which the producers solve by naming the skill in their closing step.
+
+**8 · AND A DRIFT FOUND WHILE CHECKING THE NUMBERS.** `notice` is alive in four places in
+`src/organisms/HowWeWork/howWeWork.data.js` — the lifecycle card list, the subtype line, a
+`retired` paragraph, and a full `retain: "2d"` row — after being cut from the chapter, `Report.js`
+and `AGENTS.md`. *"Shouldn't exist anywhere then."* The same file carries a SECOND copy of the
+retention table, already stale against the chapter: planning `7d`, account `14d`, audit `3d`, spec
+`7d`. Whatever the numbers become, that is two places to write them, which is the argument for one
+place and a pointer — the fix `AGENTS.md` already took.
+
+**9 · A RECEIPT'S CLAIMS ARE A DIFFERENT PROCEDURE, AND HERE IS THE MECHANISM.** His: *"the way
+RFC explains claims is for RFCs… when writing a spec report they need to write claims their way,
+because it's different"* and *"there was never a planning section."* That last clause is the whole
+reason. **An RFC claim is protected by TIME** — extracted from the verdict BEFORE the work exists,
+so the claim gets to judge the work. A receipt has no planning phase, so the same agent writes the
+claim afterwards while looking at what it built, and the claim CAN be fitted to whatever happened
+to pass. That is the one real weakness of the form, and every requirement below exists to answer it.
+
+The spine, derived rather than borrowed:
+
+1. **Say what the work was FOR** — the one line no RFC existed to say, and nothing else records.
+2. **Claim from the DIFF, not from memory** — memory selects for what worked.
+3. **The forensic test, per claim:** if this breaks in 30 days, does this sentence tell somebody
+   what it was SUPPOSED to do?
+4. **Runnable evidence on every claim** — the reader cannot ask you and will not press anything, so
+   an `experiential` claim here is near worthless unless it ships the screenshot with it.
+5. **The anti-fitting move, already built and with no caller here:** a blind pass handed the diff
+   ALONE and asked *what should this be claiming* — so the list is not quietly shrunk to what
+   passes. `second-opinion.md` names this exact case.
+6. **No approval and no completeness press.** There is no contract, so the document must not wear
+   one: an RFC's completeness press exists because a missing claim is a behaviour we AGREED not to
+   check, and a receipt completes no agreement. Its honesty comes from the proof.
+
+**AND THE CONSEQUENCE OF NOBODY PRESSING IT:** on an RFC the MARK is the product — met/unmet is what
+the document is for. On a receipt the mark may never come, so **the claim has to be useful
+unmarked**: the value lives in the sentence plus something runnable, never in a state anybody sets.
+Which is the same fact as "a spec report is consumed by being RUN".
+
+**10 · A REPORT IS FOR WORK WITH NO DURABLE DOCUMENT BEHIND IT — which is most of why the other
+kinds feel thin.** RFC execution has the RFC: `rfc-execution` §4 says *"Then the report, **in the
+chat**"* — the reply, not a filed document — and the durable record is the STATUS heading, the
+marked claims, and each slice's commit carrying `Serves:` back to it. Arc work has the arc; a gap
+has the gap. None of them needs a receipt, and filing one would be a second copy of a record that
+already exists. **Proactive and board-sized work has NOTHING** — no design, no objective, no gap,
+only a commit, and a commit says what changed and never why. That is the whole reason the spec
+report exists, and why forensics is the right frame for it and not for the others.
+
+**11 · THE SEQUENCE, HIS — THE PRODUCER CHOOSES THE KIND, THE SKILL WRITES THE REPORT.** A producing
+skill or job does not decide how to write a report; its closing step is two moves in order: (a)
+CHOOSE the kind from corpus knowledge — `context("which report kind should I file, and why is its
+window that length")`, which is a lookup and already measured — then (b) invoke the report-writing
+skill to actually write it. Corpus first because the kind decides what the writing owes.
+
+**AND THE SEAM THAT KEEPS IT FROM ROTTING:** the SKILL owns the ORDER and the irreversible bits —
+attach before the write that closes the run, because `attach` is refused on a closed one — and says
+*"attach what your kind owes"* with the query. The CORPUS owns the per-kind facts, beside the window
+and the reason already living there. A table of what-attaches-what inside the skill would be a
+second copy of something the chapter wants, which is tonight's `notice` and double-retention-table
+lesson for the third time.
+
+**12 · AND THE DIRECTION HIS WHOLE FORENSIC ARGUMENT NEEDS IS WRITTEN NOWHERE.** Measured: `::commit`
+is named in five skills and a job, and the reports chapter never mentions it once — its only
+commit-adjacent line is the `Serves:` trailer, which is the COMMIT pointing back at the document.
+So commit→report exists and report→commit, the direction a person actually walks when something
+breaks at 30 days, is in no document anywhere. Half the chain, and the missing half is the one he
+would use.
+
+**THE FRAME FOR THE SKILL, HIS: *report writing is about forensics.*** Not which kind to choose
+and not what-I-did — you are writing for an INVESTIGATOR, not a reader. Every requirement argued
+tonight derives from that one line instead of carrying its own reason: attach the commits (the
+walk-back), say plainly what you could NOT verify (an investigator needs to know where the evidence
+stops), set the window by evidentiary life, state what the work was FOR (motive), and prefer
+something runnable to prose (a transcript is not evidence). It is also why "here's what I did"
+reports always read as worthless: that is a narrative, and forensics does not want one.
+
+### THE WORK ORDER — what to put on assignment
+
+Ordered by dependency, not by size. Items 1–2 are doctrine the rest points at, so they land first;
+nothing below them should be written while the words they cite are still wrong.
+
+1. **The reports chapter rewritten on the EVIDENCE question** (§1, §2, and the forensics frame
+   above). Every reason states its own number, because a chunk retrieves alone. `account` 24h→30d,
+   `brief` 3d→14d, `planning` stays 24h (its conclusions graduate), `audit` stays 7d (it carries
+   its regenerating command), `spec` stays 30d–permanent. And the chapter gains what it has never
+   had: **what each kind ATTACHES** — the per-kind facts the skill will point at (§11), including
+   the `::commit` records it never mentions at all (§12).
+
+2. **The claims chapter — a re-home plus three pointers, two things written new.** `rfcs.md`'s
+   craft and proof doctrine move in INTACT (they work; do not re-explain them); the new prose is
+   the definition — *a sentence that makes something checkable by somebody who WASN'T THERE*, every
+   property derived from that, nothing about existence — and the receipt case. Pointers, never
+   copies, to `second-opinion.md` for the separation and `systemview-docs` (`tests.md` probe-first
+   and the save rules, `hosted-services.md` §4, `AGENTS.md` §1.7) for spec mechanics. Then read
+   `rfcs.md` and find what it still needs, predicted to be two things and a page: a verdict must
+   exist first, and the list is frozen by a completeness press. Verified the way the reports chapter
+   was — blind subagent retrieval on the no-RFC question.
+
+3. **The receipt-claims procedure** (§9) — in the reports chapter's spec section, stating its own
+   six requirements and pointing at the claims chapter only for the craft of phrasing a checkable
+   sentence. The anti-fitting blind pass gets its caller here, which is the one thing `second-
+   opinion.md` is missing: a named moment that invokes it.
+
+4. **The report-writing SKILL** (§11, and the frame above). Forensics is its opening. It owns the
+   ORDER and the irreversible bits; the per-kind facts stay in the corpus. A branch per kind, and
+   the `as=spec` branch is §9. **`spec-authoring` is retired by this**, not by doctrine.
+
+5. **Every producer's closing step becomes two moves in order** (§11) — choose the kind from the
+   corpus query, then invoke the skill. `proactive-development`, `codebase-refinement`,
+   `doc-maintenance`, `assignment`, the audits, and the jobs that file accounts. **`rfc-execution`
+   is NOT one of them** (§10): its report is the chat reply and its durable record is the RFC.
+
+6. **The two-axis split** (§4) — `retain=` says both how long a report EXISTS and how much it wants
+   his eyes, which is why longer windows feel like they would bury him. A report that is archive by
+   design must not be counted as owed attention. `openedAt` is already stamped, so half the
+   mechanism exists. Needs a design decision before any code.
+
+7. **The consumed-by pointer** (§5, §12) — one mechanism serving three needs: the forensic
+   walk-back, the derived retirement trigger, and the archive that needs no drawer row. Its own RFC,
+   and the largest piece. `Serves:` on commits is the shape that already works.
+
+**ALREADY LANDED, so not on the list:** `notice` removed from the one surface that still taught it
+(the How-we-work page data, three test fixtures, two comments) — `afe4dbb7`, suite green, bundle
+rebuilt. That also removed the second, stale copy of the retention table's `notice` row; the rest of
+that table is item 1's to replace.
+
 ::::
 
 - [ ] **`gap-authoring`** :file[~/.claude/skills/gap-authoring/SKILL.md] · 94 lines
@@ -607,6 +833,12 @@ through at the end.
 *(more as the walk turns them up)*
 
 ## What has landed against this report
+
+**2026-11-02, the reports layer's second night** — `notice` removed from the How-we-work page data,
+three test fixtures and two comments (`afe4dbb7`); the registry loop closed so a document deleted by
+the janitor loses its row (autobot `506c727`, `reapMissing` had no caller); corpus audience
+re-verified live after his restart — withheld corpora are NAMED, `corpus:"<name>"` still reads any
+of them, all sixteen audiences intact. **t5 is this night's argument and its work order.**
 
 The other half of the link. Each of these commits carries `Serves: The walk — jobs, then
 authoring` in its trailer, and each is named back here — which is the whole convention, doing its
