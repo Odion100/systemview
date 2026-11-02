@@ -44,7 +44,7 @@ export const DONE = ["resolved"];
 //
 // THE FIELD IS OPEN AND THESE ARE THE PILLS. `api/board.js` takes any word (an agent may declare a
 // kind nobody has drawn a pill for yet); this list is what the panel offers for a press, and it is
-// the reports chapter's five — `context("which report do I file and how long should it last")`.
+// the reports chapter's five — `context("which report kind should I file, and why is its window that length")`.
 // An absent `report=` is the honest "nobody has decided yet", which is what the board pass sweeps
 // for — so clearing a card back to undeclared has to stay one press away.
 export const REPORT_KINDS = ["planning", "account", "audit", "brief", "spec"];

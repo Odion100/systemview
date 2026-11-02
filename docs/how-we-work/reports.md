@@ -119,6 +119,11 @@ run the specs."* That is why it outlives the sitting that produced it, and why i
 where `permanent` is not automatically a smell: the proofs still run, so the document is still
 doing work rather than describing a moment that has passed.
 
+**Reach for `30d` anyway, and keep `permanent` for the spec that is a project artifact** — one that
+lives in `RFCs/` and is pressed by people who were not there. A spec written for one piece of work
+is still a report, and a report that never expires is furniture with a proof attached. The short
+window costs nothing: the clock starts at the first open, and DIVERT restarts it from now.
+
 ## What every report carries, whatever kind it is
 
 - **The answer first.** The finding, the outcome, the number — in the first screen. Method and
@@ -159,7 +164,10 @@ A report is almost never the thing anybody set out to do — it is the TAIL of s
 handover, an audit's output, a planning session's conclusion, an abandoned run's account. So the
 skills and jobs that produce reports **point here**, carrying only the decision they have already
 made (*"it is an `account` at `24h`"*) so the agent acts correctly without looking anything up, plus
-the query so the depth is one call away.
+the query so the depth is one call away. **The query is
+`context("which report kind should I file, and why is its window that length")`** — one phrasing,
+everywhere, because it was chosen by measuring: it returns the choosing section at 0.78 where the
+phrasings that read just as well return the table, or the pointer that points here.
 
 What they must not do is restate the table. Two copies of a lifecycle drift, and the copy in the
 document nobody runs is the one that goes wrong quietly.

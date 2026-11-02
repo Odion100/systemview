@@ -430,7 +430,7 @@ press, and the longer window is the irreversible choice.
 | `spec` | **30d**, `permanent` where it is a project artifact |
 
 **WHY each window is that length lives in ONE place and it is not here** —
-`context("which report do I file and how long should it last")`. The reasons are what let somebody
+`context("which report kind should I file, and why is its window that length")`. The reasons are what let somebody
 who was not in the conversation pick correctly, and a second copy of them is a second thing to keep
 true. This table is the decision, so you can act without looking anything up; the chapter is the
 argument.
