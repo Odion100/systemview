@@ -40,7 +40,7 @@ and in this harness the agent slot IS the project code.
 Last-toucher ownership needed no new state — `writeRun` already re-stamps `session` on every write,
 so the session that picks a run up claims it by working it.
 
-::commit{sha=af0a05a project=autobot}
+::commit{sha=af0a05a project=autobot height=147}
 
 ## The proofs
 

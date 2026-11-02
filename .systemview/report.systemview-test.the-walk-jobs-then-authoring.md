@@ -1,6 +1,6 @@
 # The walk — jobs first, then the authoring skills they drive
 
-::report{id="The walk — jobs, then authoring" as=planning retain=1d}
+::report{id="The walk — jobs, then authoring" as=planning retain=4d}
 
 **Eleven documents, not twenty-six.** Three jobs and twenty-three skills exist; most of them have
 nothing to do with automation and org execution, so walking all of them would spend your attention
@@ -370,6 +370,135 @@ it has never heard of. The sixteen existing corpora are backfilled: `how-we-work
 why is its window that length` returns the choosing section at **0.78**; the two phrasings that had
 been in use returned the table (0.71) or my own pointer paragraph in AGENTS.md (0.68). That one
 phrasing now stands in all nine skills, jobs and docs, plus the MCP tool's description.
+::::
+
+- [ ] **`spec-authoring`** :file[~/.claude/skills/spec-authoring/SKILL.md] — written tonight, and the one we may yet remove
+
+  **The question:** should it be a skill at all, or doctrine pointed at — and what does that
+  doctrine actually say about cmds, wrappers and what counts as a spec?
+
+::::thread{id=t4}
+**THE ARGUMENT, 2026-11-02 — where it landed and what is still open.** `spec-authoring` exists and
+was written tonight; the skill may yet be removed. These are the things settled on the way.
+
+**1 · A cmd counts as PROOF, never as a SPEC — and the line is WHO RUNS IT.** The code already
+draws it: `PROOF_KINDS.spec` is `["test","run","cmd"]` and satisfies a claim; `SPECS` is
+`["test","run"]` and is what the headless collector re-runs, because collecting a cmd would execute
+shell nobody pressed and report it as a pass. I argued a cmd "expires" and he killed that: **a
+command line can run the SystemLynx spec**, so a cmd is a POINTER to a check and its durability is
+whatever it points at. Nothing else about the block decides anything.
+
+**2 · A cmd going RED is the point.** His, pressing the seven on the runs report: they failed, and
+that is a test surface doing its job — revealing bad testing or something genuinely broken. A block
+that cannot go red is the one to distrust.
+
+**3 · The wrapper service is called `Test`, and the first one needs correcting.** A spec resolves
+`Service.Module.method`, so code with no service has no door. SystemLynx wraps anything cheaply —
+so wrap it, and **name it so the pile can be counted**: `Test.<Module>.<method>` means *no door
+existed, so I made one*, and the number of them is the measure of how much of the system has no
+front door. `Test` rather than `Spec` because `spec` is already the artifact on the CALLING side —
+a claim owes a living spec — and a `Specs.*` namespace makes the spec call the spec.
+
+The existing wrapper is **`SystemViewCore`** (`systemview-test/service.json`), eight modules, six of
+them from one commit — `9492667f`, the lifecycle work: `Claims`, `Runs`, `Retrieval`, `LiveWindow`,
+`Proofs`, `Window`. The name reads like product, which is the lie: `Claims.js` and `Runs.js` say in
+their own first lines that they are DOORS with **no assertions** — *"it may count items and read
+states — that is transcription. It may not decide whether there are enough runs… the moment it
+does, the evidence stops being readable from the document that asked."* So the discipline is
+already written; only the name is missing. Cost of the rename, measured: 51 files, 41 markdown
+mentions, 33 spec files — and the markdown ones are `::test{SystemViewCore.X.y}` chips inside
+claims on approved RFCs, a change of FORM not of contract.
+
+**4 · `Plugin` is a MODULE, not a service — and I had this wrong.** `systemview-plugin` is a
+REQUIREMENT, the thing that connects a service to SystemView at all; this whole project began as
+only that plugin. The module is PASSED IN as a plugin so it is clearly separate from the service's
+real work, which is exactly the separation wanted here: on a `Test` service, test-side LOGIC —
+setup, fixtures, seeding — is `Test.Plugin.*`, and the doors stay transcription. buAPI does it
+neatly: `Profiles.Plugin.createMockUsers` builds ten real users, then the spec calls the REAL
+`Profiles.Users.signIn` for everything it asserts.
+
+**And buAPI is neat for a reason that is a verdict on us:** its specs barely need doors because its
+product IS services. We needed eight because half the logic is unreachable. A door that finds
+itself wanting to DO something — seed, build a fixture, run a sequence — has found work that
+belongs in a Plugin module on a real service, and the absence of that service is the finding.
+
+**5 · The hub is already SystemLynx**, so it can be tested directly. Which is the shape of the
+answer generally: *"I don't know how you could build it and not build on SystemLynx when it's made
+for SystemLynx."* The architecture push is NOT a question for this thread — it arrives as an arc
+out of code review, and it will facilitate this rather than block it.
+
+**6 · Enforcement, unbuilt:** `as=spec` with no proof block in the document should derive
+`invalid — no spec`, the way a missing `retain=` already does. The registry row already carries the
+per-document spec inventory, so the rule reads a number that exists.
+
+**7 · WHAT A SPEC REPORT IS, AND ITS RAIL — the longest argument of the night, settled.**
+
+**It is a RECEIPT for work nobody scheduled.** His framing: you are not always in an arc or an RFC.
+Most work is either planned there, or it is small and goes on the board — *"oh shit, the colour is
+not showing right, I'm busy, throw it on the board."* Most of that needs no spec at all. The spec
+report exists for the subset where *"I fixed this"* or *"I added this"* deserves to be CHECKABLE
+rather than taken on the word of the agent that did it.
+
+Its blocks are one of two things, and both are legitimate: a `::test` chip pointing at an EXISTING
+saved test (possibly one this work modified — that test lives in the suite and outlives the
+document), or a `:::run` block where **the check exists only in the document**. If a check must
+outlive the receipt, it MOVES OUT into the suite — that is a side-door before retirement, never a
+state, because the document was never the home for a permanent test. It was the home for *"this
+was true when I handed it to you."*
+
+**THE RAIL, and the event that drives it is not the one every other report uses.** Every other
+report is consumed by being READ, which is why first-open starts its clock. A spec report is
+consumed by being RUN; the read tells you nothing.
+
+| state | the arrival |
+|---|---|
+| **filed** | the work is done and the blocks are in — pointing at a saved test, or carrying the run block |
+| **settled** | somebody RAN it green who is not the author. The author running their own proof is a statement, not a confirmation — the same category as an agent marking its own claim met. The runner already records who ran what, so this is DERIVED, never typed |
+| **retired** | confirmed, so the receipt's job is over and it goes — after the check graduates to the suite, if it needed to |
+
+**WHAT I HAD WRONG, and it is the generalisable part:** I kept looking for a spec's state INSIDE
+the document — does it run, is it green, is it on the loop — when every state in this system is
+derived from a RELATIONSHIP. An objective's state comes from its plans, a claim's from its proof, a
+gap's from its fix. The spec's comes from who ran it and whether anything is bound to it. Running
+is not a state at all: `specsOf` collects `test`/`run` blocks out of ANY registered document and
+the runner executes them, so "can it be re-run" is a property of having a leaf.
+
+**AND THE WINDOWS WERE ALWAYS PROXIES FOR RAILS.** Every retention number argued tonight is a
+clock standing in for a state the system could derive: an audit is settled when its findings LEFT
+(gaps, cards), a brief when its lane came back, a planning report when its conclusions landed in an
+arc or an RFC, an account when it was read. His point, and he had to make it three times: each
+subtype could have its own rail — *"having a special case just proves you have a system."* What
+stops four of the five today is one missing mechanism, not five: **a pointer from the thing that
+CONSUMED a report back to the report.** A gap does not say which audit found it; an RFC does not
+say which planning report produced it. Commits solved exactly this with the `Serves:` trailer.
+
+## THE PLAN, in order — written down before any of it moves
+
+1. **Rename `SystemViewCore` → `Test`.** Mechanical: 51 files, 33 spec files, 41 markdown mentions
+   (`::test{SystemViewCore.X.y}` chips inside claims on approved RFCs — a change of FORM, not of
+   contract). FIRST, because every later door wants to join it and each one landing under the old
+   name is another thing to migrate.
+2. **Give the `Test` service its `Plugin` module**, passed in through `systemview-plugin` the way
+   `Profiles` does. Nothing moves into it yet — it exists so the next door that wants to DO
+   something has an honest home, and the doors stay transcription.
+3. **`as=spec` with no proof block derives `invalid — no spec`**, the way a missing `retain=`
+   already does. The enforcement he asked for, and the thing that stops another spec report that
+   is only cmds.
+4. **Then the doctrine into the `how-we-work` chapter** — cmd is proof and never a spec, the line
+   is who runs it, a door is transcription, logic goes in Plugin, `Test.*` means no door existed.
+   After 1–3, because doctrine describing a convention that is not built yet is the recurring way
+   this goes wrong.
+5. **Settle the spec lifecycle (7).** Needs a decision, not a build.
+6. **Leave `spec-authoring`'s fate standing** until the count answers it — did somebody SET OUT to
+   write a spec, or was one OWED.
+
+**STILL OPEN — the one this thread was started for:** should `spec-authoring` be a SKILL, or
+doctrine pointed at? A spec is primary work when you sit down to write one, which argues for a
+skill. But a spec is also the TAIL of other work — a claim needs proving, a card declared one, a
+run is closing and owes evidence — and that is the exact shape that sent `report-authoring` into a
+chapter, because invoking a skill opens a nested run at the moment an agent is trying to close one.
+Both of tonight's specs were the tail shape. **What would settle it is a count, not an argument:**
+over the next few real runs, did somebody SET OUT to write a spec, or was one OWED.
 ::::
 
 - [ ] **`gap-authoring`** :file[~/.claude/skills/gap-authoring/SKILL.md] · 94 lines
