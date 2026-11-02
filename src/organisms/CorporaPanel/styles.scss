@@ -192,28 +192,53 @@
     &--all { color: var(--sv-text-strong); border-color: var(--sv-text-muted); font-weight: 600; }
     &--none { opacity: 0.55; }
   }
-  &__formrow--audience { flex-direction: column; align-items: flex-start; gap: 4px; }
+  // THE AUDIENCE IS A ROW OF PILLS. Not checkboxes: a checkbox is a control for a question you
+  // submit, and this is a state you toggle and read at a glance — the same shape that says what a
+  // card owes on the board. The real boxes also inherited this form's `label { display: block }`
+  // and stacked every name under its own box, turning eight agents into a second form.
+  &__formrow--audience {
+    display: block;
+    margin-top: 2px;
+  }
   &__audience {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: 10px;
-    font-size: 12px;
+    gap: 5px;
   }
-  &__audience-what { font-weight: 600; color: var(--sv-text-strong); }
-  &__aud { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
-  &__slots { display: inline-flex; flex-wrap: wrap; gap: 8px; }
+  &__audience-what {
+    font-size: 11px;
+    color: var(--sv-text-faint);
+    margin-right: 2px;
+    font-style: normal;
+  }
   &__slot {
-    display: inline-flex;
-    align-items: center;
-    gap: 3px;
-    cursor: pointer;
-    padding: 1px 6px;
+    font: inherit;
+    font-size: 10.5px;
+    line-height: 1.7;
+    padding: 0 8px;
     border-radius: 999px;
     border: 1px solid var(--sv-border);
-    &.is-on { border-color: var(--sv-text-muted); color: var(--sv-text-strong); font-weight: 600; }
+    background: none;
+    color: var(--sv-text-muted);
+    cursor: pointer;
+    white-space: nowrap;
+    &:hover { color: var(--sv-text); border-color: var(--sv-text-faint); }
+    // LIT IS SOLID, the same neutral inversion the voiced mark uses — no hue, because a colour
+    // here would read as a state somebody defined and nobody did.
+    &.is-on {
+      background: var(--sv-text-strong);
+      border-color: var(--sv-text-strong);
+      color: var(--sv-surface);
+      font-weight: 600;
+    }
   }
-  &__audience-note { font-size: 11px; color: var(--sv-text-muted); max-width: 70ch; }
+  &__audience-note {
+    font-size: 10.5px;
+    color: var(--sv-text-faint);
+    max-width: 78ch;
+    margin-top: 4px;
+  }
   // Staleness is the number worth seeing from across the room: a corpus whose files have moved on
   // is still answering, and nothing about the answer looks old.
   &__stale { color: #d64c4c; font-weight: 600; }

@@ -334,43 +334,35 @@ export default function CorporaPanel() {
             <div className="corpora__formrow corpora__formrow--audience">
               <div className="corpora__audience">
                 <span className="corpora__audience-what">carried by</span>
-                <label className="corpora__aud">
-                  <input
-                    type="radio"
-                    checked={editing.agents === "everyone"}
-                    onChange={() => setEditing({ ...editing, agents: "everyone" })}
-                  />
+                {/* PILLS, NOT CHECKBOXES. A checkbox is a form control for a question with an
+                    answer you submit; this is a state you toggle and read at a glance, and the
+                    same shape already says "what this card owes" on the board. Eight real boxes
+                    also stacked their labels and turned one line into a second form. */}
+                <button
+                  type="button"
+                  className={`corpora__slot${editing.agents === "everyone" ? " is-on" : ""}`}
+                  onClick={() => setEditing({ ...editing, agents: "everyone" })}
+                >
                   every agent
-                </label>
-                <label className="corpora__aud">
-                  <input
-                    type="radio"
-                    checked={editing.agents !== "everyone"}
-                    onChange={() => setEditing({ ...editing, agents: Array.isArray(editing.agents) ? editing.agents : [] })}
-                  />
-                  only these
-                </label>
-                {editing.agents !== "everyone" && (
-                  <span className="corpora__slots">
-                    {slots.length === 0 && <i>no agents found</i>}
-                    {slots.map((slot) => {
-                      const on = (Array.isArray(editing.agents) ? editing.agents : []).includes(slot);
-                      return (
-                        <label key={slot} className={`corpora__slot${on ? " is-on" : ""}`}>
-                          <input
-                            type="checkbox"
-                            checked={on}
-                            onChange={() => {
-                              const cur = Array.isArray(editing.agents) ? editing.agents : [];
-                              setEditing({ ...editing, agents: on ? cur.filter((x) => x !== slot) : [...cur, slot] });
-                            }}
-                          />
-                          {slot}
-                        </label>
-                      );
-                    })}
-                  </span>
-                )}
+                </button>
+                {slots.length === 0 && <i className="corpora__audience-what">no agents found</i>}
+                {slots.map((slot) => {
+                  const on = editing.agents !== "everyone" && (Array.isArray(editing.agents) ? editing.agents : []).includes(slot);
+                  return (
+                    <button
+                      key={slot}
+                      type="button"
+                      className={`corpora__slot${on ? " is-on" : ""}`}
+                      title={on ? `${slot} carries this — press to take it off` : `give ${slot} this corpus`}
+                      onClick={() => {
+                        const cur = editing.agents === "everyone" || !Array.isArray(editing.agents) ? [] : editing.agents;
+                        setEditing({ ...editing, agents: on ? cur.filter((x) => x !== slot) : [...cur, slot] });
+                      }}
+                    >
+                      {slot}
+                    </button>
+                  );
+                })}
               </div>
               <div className="corpora__audience-note">
                 Naming a corpus reads it whatever this says — the scope is a default, not a wall,
