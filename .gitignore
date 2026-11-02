@@ -131,7 +131,17 @@ api/hosted.json
 api/cli-history.json
 api/cli-settings.json
 api/comments.json
-.systemview/
+# REPORTS ARE COMMITTED, the rest of this folder is not. A report is a document like any other
+# and it belongs in the repo its work happened in — it does not need protecting from git, because
+# it deletes ITSELF: the janitor sweeps any registered document whose leaf says `retired=`, so the
+# folder cannot grow without bound and a retired report leaves a deletion to commit like any other
+# change. Everything else here is machine state — chats, history, manifests, comment sidecars, and
+# his board, which is his.
+#
+# The star matters: `.systemview/` excludes the directory, and git will not descend into an
+# excluded directory to re-include anything inside it.
+.systemview/*
+!.systemview/report.*.md
 vectorStore
 CLAUDE.md
 .claude/

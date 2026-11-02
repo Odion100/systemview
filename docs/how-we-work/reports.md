@@ -146,6 +146,17 @@ it, and the registry finds it by that leaf wherever it lives — beside the work
 .systemview/report.<projectCode>.<slug>.md
 ```
 
+**AND IT IS COMMITTED, like any other document in the repo.** Reports used to be kept out of git on
+the reasoning that a thing which expires should not be in history — which had it backwards: a
+report is the account of work that happened in that repo, and the repo is where somebody looks for
+it. What made keeping them out feel necessary was the fear of a folder growing forever, and that
+fear is answered by the janitor rather than by `.gitignore`: it sweeps any registered document
+whose leaf says `retired=`, so a report deletes ITSELF and the deletion is a change to commit like
+any other.
+
+So the ignore rule is narrow — the reports are in, the machine state around them (chats, history,
+manifests, comment sidecars, and his board, which is his) stays out.
+
 ```markdown
 ::report{id="<Title>" as=<subtype> retain=<window|permanent>}
 ```
