@@ -17,13 +17,13 @@ describe("the report leaf", () => {
   });
 
   it("rendering IS the reading — the mount stamps the first open, and the countdown counts from it (c44)", async () => {
-    mount(<Report attrs={{ id: "r-x", as: "notice", retain: "14d" }} line={1} />);
+    mount(<Report attrs={{ id: "r-x", as: "account", retain: "14d" }} line={1} />);
     await waitFor(() => expect(opened).toHaveBeenCalledWith({ id: "r-x" }));
     await screen.findByText("retires in 14 days");
   });
 
   it("divert restarts the clock from now (c38)", async () => {
-    mount(<Report attrs={{ id: "r-x", as: "notice", retain: "14d" }} line={1} />);
+    mount(<Report attrs={{ id: "r-x", as: "account", retain: "14d" }} line={1} />);
     fireEvent.click(await screen.findByTitle("restart the clock from now"));
     await waitFor(() => expect(opened).toHaveBeenCalledWith({ id: "r-x", restart: true }));
   });
@@ -32,7 +32,7 @@ describe("the report leaf", () => {
     const setAttr = jest.fn();
     mount(
       <MarkdownWriteProvider value={{ editable: true, setAttr }}>
-        <Report attrs={{ id: "r-x", as: "notice", retain: "14d" }} line={7} />
+        <Report attrs={{ id: "r-x", as: "account", retain: "14d" }} line={7} />
       </MarkdownWriteProvider>
     );
     // The clock is a picker now — press the chip, pick the word (his direction, 2026-10-29).
@@ -45,7 +45,7 @@ describe("the report leaf", () => {
     const setAttr = jest.fn();
     mount(
       <MarkdownWriteProvider value={{ editable: true, setAttr }}>
-        <Report attrs={{ id: "r-x", as: "notice", retain: "14d" }} line={7} />
+        <Report attrs={{ id: "r-x", as: "account", retain: "14d" }} line={7} />
       </MarkdownWriteProvider>
     );
     fireEvent.click(await screen.findByTitle("what kind of report this is — as= picks what done means"));
@@ -57,7 +57,7 @@ describe("the report leaf", () => {
     const setAttr = jest.fn();
     mount(
       <MarkdownWriteProvider value={{ editable: true, setAttr }}>
-        <Report attrs={{ id: "r-x", as: "notice", retain: "14d" }} line={7} />
+        <Report attrs={{ id: "r-x", as: "account", retain: "14d" }} line={7} />
       </MarkdownWriteProvider>
     );
     fireEvent.click(await screen.findByTitle("when this report leaves — a window from first read, or the explicit forever"));
@@ -85,12 +85,12 @@ describe("the report leaf", () => {
   it("un-retiring fires the clock restart in the same press (c39)", async () => {
     const setAttr = jest.fn();
     const registry = jest.fn(async () => [
-      { id: "r-back", kind: "report", state: { retired: true, retiredAs: "shelf", retain: "3d", subtype: "notice" } },
+      { id: "r-back", kind: "report", state: { retired: true, retiredAs: "shelf", retain: "3d", subtype: "account" } },
     ]);
     setHub({ SystemView: {}, Agent: { documentOpened: opened, documentsRegistry: registry } });
     mount(
       <MarkdownWriteProvider value={{ editable: true, setAttr }}>
-        <Report attrs={{ id: "r-back", as: "notice", retain: "3d", retired: "2026-10-28", retiredAs: "shelf" }} line={3} />
+        <Report attrs={{ id: "r-back", as: "account", retain: "3d", retired: "2026-10-28", retiredAs: "shelf" }} line={3} />
       </MarkdownWriteProvider>
     );
     await waitFor(() => expect(registry).toHaveBeenCalled());
@@ -101,7 +101,7 @@ describe("the report leaf", () => {
   });
 
   it("a retired report has no clock and stamps nothing — its clock already spoke", () => {
-    mount(<Report attrs={{ id: "r-done", as: "notice", retain: "14d", retired: "2026-10-28" }} line={1} />);
+    mount(<Report attrs={{ id: "r-done", as: "account", retain: "14d", retired: "2026-10-28" }} line={1} />);
     expect(screen.queryByText(/retires/)).toBeNull();
     expect(opened).not.toHaveBeenCalled();
   });

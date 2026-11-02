@@ -139,10 +139,9 @@ export const LEAVES = [
   {
     kind: "report",
     leaf: "::report{id=lifecycle-kinds as=planning}",
-    one: "a view \u2014 planning, notice, audit, account, brief, spec",
+    one: "a view \u2014 planning, audit, account, brief, spec",
     life: [
       { st: "planning", is: "a plan, being worked out \u2014 whatever it's for" },
-      { st: "notice", is: "a flag for your eyes \u2014 a short report, not long-lived" },
       { st: "audit", is: "a count against the tree at one moment \u2014 re-run or out of date" },
       { st: "account", is: "what an automated job, a subagent, or a run actually did" },
       { st: "brief", is: "context handed to another agent" },
@@ -332,7 +331,7 @@ export const LIFECYCLES = [
     sub: "a view — it is never done, it only gets old",
     lede:
       "Two states is the whole trail, and the subtype does not add a third. What `as=` changes is " +
-      "WHICH FACT `retired` is allowed to read — so a planning report and a notice behave nothing " +
+      "WHICH FACT `retired` is allowed to read — so a planning report and an audit behave nothing " +
       "alike while sharing one parse and one control.",
     stations: [
       {
@@ -388,7 +387,6 @@ export const REASONS = [
 // same table for the agents that file reports — one rule, said in both places it is needed.
 export const SUBTYPES = [
   { as: "planning", what: "a table to argue with — members, threads, replies", done: "its conclusions LEFT it: it became an RFC, an arc or a spec, and it carries the pointer to what it produced", retain: "7d", clock: "long enough to argue in — once the RFC or the arc exists, the table is furniture" },
-  { as: "notice", what: "here is what happened, here is what I found", done: "you read it", retain: "2d", clock: "the natural home for the read-triggered clock: done the moment you read it, and the window after that read is grace for a second look" },
   { as: "audit", what: "a count against a tree at one moment — \"67 RFCs, five with a verdict\"", done: "never. It is re-run or out of date, so it carries the command that regenerates it", retain: "3d", clock: "stale as soon as the tree moves — and it carries the command that regenerates it, so letting it go costs a re-run" },
   { as: "account", what: "what a job, a lane or a run actually did", done: "filed. Never edited, only superseded — amending a record is lying about history", retain: "14d", clock: "the one record here with a claim to a longer life, and still days — anything that must outlive them belongs in a note, a handbook or an RFC" },
   { as: "brief", what: "context handed to another agent", done: "the recipient acted — the one report whose state is per-member rather than per-document", retain: "3d", clock: "it outlives the handover by nothing" },

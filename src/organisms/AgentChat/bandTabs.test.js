@@ -42,7 +42,7 @@ describe("the work band is tabs — one per type of work", () => {
     // a subtype tab says the word ALONE — repeating "report" across the bar is what the fan-out
     // exists to remove — and it says the short word: a planning report's tab reads "plan"
     expect(bandLabel("reports:spec", 2)).toBe("2 specs");
-    expect(bandLabel("reports:notice", 1)).toBe("1 notice");
+    expect(bandLabel("reports:audit", 1)).toBe("1 audit");
     expect(bandLabel("reports:planning", 2)).toBe("2 plans");
     expect(bandLabel("reports", 9)).toBe("9 reports");
   });
@@ -195,10 +195,10 @@ describe("a tab says which family it belongs to", () => {
 
 describe("the reports kind expands into one tab per subtype present", () => {
   it("untyped reports keep the plain tab; each subtype with rows gets its own", () => {
-    const { tabs } = bandTabs({ reports: { "": 3, spec: 2, notice: 1 } }, "");
+    const { tabs } = bandTabs({ reports: { "": 3, spec: 2, account: 1 } }, "");
     expect(tabs.map((t) => [t.key, t.label, t.n])).toEqual([
       ["reports", "report", 3],
-      ["reports:notice", "notice", 1],
+      ["reports:account", "account", 1],
       ["reports:spec", "spec", 2],
     ]);
     tabs.forEach((t) => expect(t.family).toBe("document"));

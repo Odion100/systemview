@@ -98,8 +98,8 @@ export const bandTabs = (counts = {}, stored = "") => {
   // REPORTS FAN OUT BY SUBTYPE, AT THE TOP (his call, settled 2026-10-28 after trying the nested
   // strip: *"it makes sense logically, but I don't want to search for shit"*). A tab inside a tab
   // is a thing you have to find; what was really waiting for you belongs where the eye already is.
-  // Each subtype waits on a DIFFERENT thing — a planning report waits to become an RFC, a notice
-  // waits to be read, a spec is current-or-drifted — and the vocabulary is OPEN, so the tabs come
+  // Each subtype waits on a DIFFERENT thing — a planning report waits to become an RFC, an account
+  // waits to be read once, a spec is current-or-drifted — and the vocabulary is OPEN, so the tabs come
   // from whatever words the documents carry: a subtype nobody has used costs nothing, the first
   // document to use one buys the tab, and the row scrolls when the words outgrow it. Untyped
   // reports keep the plain `report` tab.
@@ -107,7 +107,7 @@ export const bandTabs = (counts = {}, stored = "") => {
     const c = counts[k.key];
     // THE LANE TAB'S COUNT FOLDS IN; REPORTS FAN OUT. Both arrive as an object and they mean
     // opposite things on purpose, so it is said here rather than left to be inferred: a report
-    // subtype becomes its OWN tab, because a planning report and a notice wait on different
+    // subtype becomes its OWN tab, because a planning report and an account wait on different
     // things; a lane-less subagent becomes a SECTION inside the lane tab, because he asked for
     // two sections and not two tabs.
     //

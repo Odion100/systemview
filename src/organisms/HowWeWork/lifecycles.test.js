@@ -54,7 +54,7 @@ describe("the page's content has the shape the page renders", () => {
   // what the design says. Contains, never equals.
   it("the report subtypes each answer what done means, and the vocabulary stays open", () => {
     expect(SUBTYPES.map((s) => s.as)).toEqual(
-      expect.arrayContaining(["planning", "notice", "audit", "account", "brief", "spec"])
+      expect.arrayContaining(["planning", "audit", "account", "brief", "spec"])
     );
     SUBTYPES.forEach((s) => expect(s.done.length).toBeGreaterThan(10));
   });
@@ -89,7 +89,6 @@ describe("the page's content has the shape the page renders", () => {
   // all — so the windows are pinned to the exact set, here, where a change to either shows up.
   it("the windows are the ones the agent guide tells agents to reach for", () => {
     expect(SUBTYPES.reduce((m, s) => ({ ...m, [s.as]: s.retain }), {})).toEqual({
-      notice: "2d",
       audit: "3d",
       brief: "3d",
       planning: "7d",
