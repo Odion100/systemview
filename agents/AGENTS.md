@@ -423,7 +423,7 @@ press, and the longer window is the irreversible choice.
 
 | `as=` | reach for |
 |---|---|
-| `planning` | **1d**–**7d** — a week only when it is the plan being worked off |
+| `planning` | **24h** |
 | `account` | **24h**, or **6–12h** for an abandoned run |
 | `audit` | **7d** |
 | `brief` | **6h** |

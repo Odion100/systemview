@@ -33,8 +33,8 @@ Two consequences worth knowing before picking a number:
   before anyone sees it.
 - **DIVERT is the answer to "it is still live", not a bigger number.** Restarting the clock from now
   is one press and it is honest; widening the window declares the report more durable than it is.
-  A planning report under active discussion gets diverted and still says the number it was born
-  with, which is true: the window is a backstop, not a lifetime.
+  A planning report under active discussion gets diverted for days and still says `24h`, which is
+  true: it is a backstop, not a lifetime.
 
 ## The five kinds, and the window each one takes
 
@@ -47,7 +47,7 @@ sitting's account on the drawer for three months.
 
 | when you are writing one | `as=` | what it carries beyond the basics | `retain=` |
 |---|---|---|---|
-| a design conversation, before there is a plan | `planning` | the argument, the choice made, what is most worth rejecting | `1d`–`7d` |
+| a design conversation, before there is a plan | `planning` | the argument, the choice made, what is most worth rejecting | `24h` |
 | an unattended job's sitting | `account` | what landed, what it could not verify | `24h` |
 | a run that was **abandoned** | `account` | why it stopped, and what the next person picks up from | `6–12h` |
 | a code or architecture audit | `audit` | the count, the method, the tree state it counted against | `7d` |
@@ -75,21 +75,13 @@ The numbers are his. The reasoning is what makes them pickable by somebody who w
 conversation — and each one is written to **arbitrate**, because a reason that cannot choose between
 two defensible actions is decoration.
 
-### Why a planning report is 1 to 7 days
+### Why a planning report is 24h
 
-**It dies when its conclusions LEAVE it** — when the argument became an arc, an RFC or a spec, not
-when it is well written. That is the end it is waiting for, and the range exists because the wait
-is genuinely different lengths.
-
-**Pick from the bottom.** `1d` when the conclusions are about to leave: the RFC is being written
-now, and the report is a day from being furniture. Reach up toward `7d` only when the report is
-the thing being WORKED OFF — several agents reading it, items being ticked in it, a plan nobody
-has moved into a document yet. That one earns a week, because deleting it would delete the plan.
-
-DIVERT is still the instrument for "it is still live" — a report in active use restarts its clock
-and the number underneath it never has to grow. What the range rules out is the opposite error:
-a `24h` backstop on a document that is openly the week's plan, where the clock becomes something
-somebody has to keep pressing to protect work everyone can see is still running.
+**It dies when its conclusions LEAVE it.** It is finished when it became an arc, a
+plan or a spec — not when it is well written. So `24h` is a backstop and DIVERT is the instrument:
+while the planning is live, restart the clock; when the conclusions land somewhere durable, let it
+go. The thing this rules out is widening the window because the discussion is taking longer than
+expected.
 
 ### Why a sitting's account is 24h
 
