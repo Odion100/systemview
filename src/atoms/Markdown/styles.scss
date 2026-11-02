@@ -809,15 +809,19 @@
     // VOICED — the chip says it will be read aloud. Quiet, because it is a statement of fact and
     // not a control: nothing here is pressable, and a reader who does not care about the audio
     // should be able to look straight past it.
+    // NO HUE. It sits in a bar of greys beside a grey badge, and a colour introduced here reads as
+    // a state nobody defined — the same discipline the chat's markdown follows. It stands out by
+    // INVERTING: the header's own text colour as the fill, the surface as the letters, so it is
+    // the darkest thing on the bar in light and the lightest in dark, and it never argues with the
+    // kind badge, the changed dot or anything a future block puts up there.
     &__voiced {
       flex: none;
       font-size: 10px;
       font-weight: 700;
-      letter-spacing: 0.03em;
+      letter-spacing: 0.06em;
       text-transform: uppercase;
-      color: #fff;
-      background: var(--sv-blue);
-      border: 1px solid var(--sv-blue-deep);
+      color: var(--sv-surface);
+      background: var(--sv-text-strong);
       border-radius: 999px;
       padding: 1px 7px;
       white-space: nowrap;
