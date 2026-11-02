@@ -13,7 +13,7 @@ import { renderChatMessage } from "../AgentChat/AgentChat";
 // The board's styles still live in the chat's sheet under `.agent-chat__board-*` — MOVED here they
 // would be a rename of ~60 selectors for zero behaviour; imported here so the tab can stand alone.
 import "../AgentChat/styles.scss";
-import { parseBoard, parseTitle, serializeBoard, DONE, stateOf } from "./boardFormat";
+import { parseBoard, parseTitle, serializeBoard, DONE, stateOf, REPORT_KINDS } from "./boardFormat";
 
 const CLASSNAME = "agent-chat";
 
@@ -170,6 +170,24 @@ export default function Board({ projectCode, headerDrag, onClose, onHandToChat, 
       ),
     );
   };
+  // WHAT THE WORK ON THIS CARD OWES — one press, because the field can never be required at
+  // writing time: his cards arrive off a voice recorder with nothing on them, and a card refused
+  // for want of a declaration is a thought lost. So it is declared here, after the fact and before
+  // the work, by whoever reads the card.
+  //
+  // PRESSING THE LIVE PILL CLEARS IT. Undeclared is a real state — it is what the board pass
+  // sweeps for — so there has to be a way back to it that is as cheap as getting out of it.
+  const declare = (ts, kind) =>
+    saveBoard(
+      (board || []).map((x) => {
+        if (x.ts !== ts) return x;
+        if (!kind || x.report === kind) {
+          const { report, ...rest } = x;
+          return rest;
+        }
+        return { ...x, report: kind };
+      }),
+    );
   const addCard = () => {
     const text = (boardDraft || "").trim();
     if (!text) return;
@@ -1017,6 +1035,45 @@ export default function Board({ projectCode, headerDrag, onClose, onHandToChat, 
                               ↩ reply
                             </button>
                           )}
+                          {/* WHAT THIS CARD OWES, AS PILLS. The declaration used to be typed —
+                              through the hub door, by an agent, in a word he would have to
+                              remember — which means the cards most likely to need one (his, raw
+                              off the recorder) were the least likely to get one. Pressing the
+                              live pill again leaves it undeclared, visibly: a row with nothing
+                              lit is the card the board pass comes looking for. */}
+                          <div className={`${CLASSNAME}__board-report`}>
+                            <span className={`${CLASSNAME}__board-report-label`}>owes</span>
+                            {REPORT_KINDS.map((k) => (
+                              <button
+                                key={k}
+                                type="button"
+                                className={`${CLASSNAME}__board-report-pill${
+                                  c.report === k ? ` ${CLASSNAME}__board-report-pill--on` : ""
+                                }`}
+                                title={
+                                  c.report === k
+                                    ? `this card owes a ${k} report — press again to leave it undeclared`
+                                    : `declare that the work on this card owes a ${k} report`
+                                }
+                                onClick={() => declare(c.ts, k)}
+                              >
+                                {k}
+                              </button>
+                            ))}
+                            {/* A WORD NO PILL DRAWS. The field is open — an agent may declare a
+                                kind this list has never heard of — and a declaration the panel
+                                cannot show is one he would clear by accident. */}
+                            {!!c.report && !REPORT_KINDS.includes(c.report) && (
+                              <button
+                                type="button"
+                                className={`${CLASSNAME}__board-report-pill ${CLASSNAME}__board-report-pill--on`}
+                                title={`this card owes a ${c.report} report — press again to leave it undeclared`}
+                                onClick={() => declare(c.ts, c.report)}
+                              >
+                                {c.report}
+                              </button>
+                            )}
+                          </div>
                         </>
                       );
                     })()}

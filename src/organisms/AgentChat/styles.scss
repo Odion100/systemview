@@ -1056,6 +1056,57 @@ $sv-board-states: (
     min-width: 0;
     .chat-md__p { display: inline; }
   }
+  // WHAT THE CARD OWES — a row of pills at the FOOT of the card (his call), drawn on EVERY card
+  // whether one is declared or not. Hiding it until hover would make the undeclared cards the
+  // invisible ones, which is backwards: those are the ones somebody has to come back to. Lit is a
+  // solid pill; the rest are outlines, quiet enough that a scan down the board still reads the
+  // state chip first — the account is what he scans, the declaration is what he presses.
+  &__board-report {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin: 5px 0 0;
+    padding-top: 5px;
+    border-top: 1px solid var(--sv-border-soft);
+  }
+  &__board-report-label {
+    font-size: 8.5px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--sv-text-faint);
+    opacity: 0.7;
+    margin-right: 1px;
+  }
+  // ROUND, like a pill — the square-cornered version read as another row of chips beside the state
+  // chip, which is the one thing on a card that must stay unmistakable.
+  &__board-report-pill {
+    font-family: inherit;
+    font-size: 8.5px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    line-height: 1.5;
+    padding: 1px 8px;
+    border-radius: 999px;
+    cursor: pointer;
+    color: var(--sv-text-faint);
+    background: none;
+    border: 1px solid var(--sv-border);
+    opacity: 0.6;
+    &:hover { opacity: 1; color: var(--sv-text); }
+    // LIT, IN THE REPORT KIND'S OWN COLOUR — the same green every report chip in the app wears,
+    // off the one token, because a declaration that something owes a REPORT and the report it
+    // eventually becomes should read as the same thing.
+    &--on {
+      opacity: 1;
+      color: #fff;
+      border-color: transparent;
+      background: var(--sv-kind-report);
+      &:hover { color: #fff; }
+    }
+  }
   &__board-x {
     margin-left: auto;
     border: none;

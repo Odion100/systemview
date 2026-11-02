@@ -38,6 +38,17 @@
 // the two ever disagree.
 export const STATES = ["resolved", "reviewed", "partial", "blocked"];
 export const DONE = ["resolved"];
+// WHAT THE WORK ON THIS CARD OWES, DECLARED BEFORE ANYBODY DOES IT — because the agent that
+// finishes its own work is the party with an interest, and asked at the end whether the work needed
+// proving it will say no. The card answers from before the work started.
+//
+// THE FIELD IS OPEN AND THESE ARE THE PILLS. `api/board.js` takes any word (an agent may declare a
+// kind nobody has drawn a pill for yet); this list is what the panel offers for a press, and it is
+// the reports chapter's five — `context("which report do I file and how long should it last")`.
+// `notice` is not among them: a brief sits above a notice and captures it.
+// An absent `report=` is the honest "nobody has decided yet", which is what the board pass sweeps
+// for — so clearing a card back to undeclared has to stay one press away.
+export const REPORT_KINDS = ["planning", "account", "audit", "brief", "spec"];
 export // A HYPHEN IS NOT A SEPARATOR HERE: `implemented-ish, sort of` is not the word `implemented`,
 // and reading it as one would file a hedge as finished. A spaced ` - ` still splits on the space.
 const stateOf = (text) => {
@@ -58,6 +69,10 @@ export const parseBoard = (text) => {
       const unquote = (v) => String(v || "").replace(/^"|"$/g, "");
       const by = unquote((attrs0.match(/\bby=("[^"]*"|[^\s]+)/) || [])[1] || "");
       const cardTitle = unquote((attrs0.match(/\btitle=("[^"]*"|[^\s]+)/) || [])[1] || "");
+      // The declaration (see REPORT_KINDS). Parsed here because a field this copy cannot read is a
+      // field it deletes on the next save — and this one is written by agents and by the hub door,
+      // so the panel would be erasing somebody else's decision on his next keystroke.
+      const cardReport = unquote((attrs0.match(/\breport=("[^"]*"|[^\s]+)/) || [])[1] || "");
       // THE SPLIT REMEMBERS WHICH COMMENT IT CUT AT, so a status is never mistaken for a reply
       // and a reply is never mistaken for the account. Same regex as api/board.js — and
       // boardFormat.test.js is what keeps the two honest (this panel re-serializes the WHOLE
@@ -83,6 +98,7 @@ export const parseBoard = (text) => {
         ts: Number(part),
         by,
         ...(cardTitle ? { title: cardTitle } : {}),
+        ...(cardReport ? { report: cardReport } : {}),
         text: bits[0].trim(),
         replies,
         ...(status ? { status } : {}),
@@ -102,7 +118,7 @@ export const serializeBoard = (cards, title) =>
   `${title ? `# ${title}\n\n` : ""}${cards
     .map(
       (c) =>
-        `<!--card ${c.ts}${c.by ? ` by=${c.by}` : ""}${c.title ? ` title="${String(c.title).replace(/"/g, "'")}"` : ""}-->\n${c.text}\n` +
+        `<!--card ${c.ts}${c.by ? ` by=${c.by}` : ""}${c.title ? ` title="${String(c.title).replace(/"/g, "'")}"` : ""}${c.report ? ` report=${c.report}` : ""}-->\n${c.text}\n` +
         (c.status && c.status.text
           ? `<!--status${c.status.by ? ` by=${c.status.by}` : ""}${c.status.ts ? ` ts=${c.status.ts}` : ""}-->\n${c.status.text}\n`
           : "") +
