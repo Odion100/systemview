@@ -224,30 +224,30 @@ document cannot say whether it was built. Migration step, or do the pre-block RF
   required and that "everything else should carry a window" — and then gives **no numbers for any
   subtype**. So I picked `30d` for a planning report, which you called stupid and moved to `6h`.
   That is not me being careless about one number; it is the document declining to answer the only
-  hard question it raises. A notice is hours. An account outlives its run. A planning report lives
-  as long as the planning does. None of that is written down anywhere.
+  hard question it raises. An account outlives its run. A planning report lives as long as the
+  planning does. None of that is written down anywhere.
 
 ::::thread{id=t3 sent=systemview-test:heor47}
-**SETTLED IN DISCUSSION, 2026-11-02.** The windows are his; the reasoning is what makes them
-pickable by somebody who was not in the conversation.
+**THE WINDOWS ARGUED HERE WERE LATER REFRAMED — t5 §2 HOLDS THEM AND THE REASONS.** This thread
+settled that each window needs a REASON a stranger can act on, and that stands. What it got wrong is
+the question the number answers: it asked how long a report is worth READING, and a report is
+evidence, not reading. One table, in t5 §2, so nothing here can drift from it.
 
 **THE FOUNDING RULE, AND EVERY ROW ANSWERS TO IT: a report is a document that GOES AWAY.** That is
 what makes it free to write — *"we need to be able to plan, we need to be able to do this, but
 those documents need to go away."* So a report that needs to live forever is a smell, not a
 feature: if it has to persist, it was another kind of document wearing a report's leaf.
 
-| when you are writing one | `as=` | what it carries beyond the basics | `retain=` |
-|---|---|---|---|
-| a design conversation, before there is a plan | `planning` | the argument, the choice made, what is most worth rejecting | `24h` |
-| an unattended job's sitting | `account` | what landed, what it could not verify | `24h` |
-| a run that was **abandoned** | `account` | why it stopped, what the next person picks up from | `6–12h` |
-| a code or architecture audit | `audit` | the count, the method, the tree state it counted against | `7d` |
-| work handed to another agent | `brief` | the problem, the constraints, the measured facts — no sketch | `6h` |
-| a spec with living proofs | `spec` | the claims, and evidence that still runs | `30d → permanent` |
+| when you are writing one | `as=` | what it carries beyond the basics |
+|---|---|---|
+| a design conversation, before there is a plan | `planning` | the argument, the choice made, what is most worth rejecting |
+| an unattended job's sitting | `account` | what landed, what it could not verify, and the `::commit` records |
+| a run that was **abandoned** | `account` | why it stopped, what the next person picks up from |
+| a code or architecture audit | `audit` | the count, the method, the tree state it counted against, the command that regenerates it |
+| work handed to another agent | `brief` | the problem, the constraints, the measured facts — no sketch |
+| a spec with living proofs | `spec` | the claims written the receipt's way (t5 §9), and evidence that still runs |
 
-**`notice` is CUT.** Not for lack of use — we are mid-build and nothing is used. On the vocabulary
-alone a brief is more of a report than a notice is, and **a brief sits above a notice and captures
-it**: anything a notice could carry, a brief carries with the context that makes it actionable.
+**The windows are in t5 §2 and only there.**
 
 **A PLANNING REPORT DIES WHEN ITS CONCLUSIONS LEAVE IT** — when it became an arc, a plan or a spec.
 `24h` is a backstop, not a lifetime, and while the planning is live the move is to DIVERT the clock
@@ -305,15 +305,13 @@ preferring, and possibly only taking, cards whose spec requirement is settled.
 
 **The work that falls out:**
 
-- [x] the reports chapter in the `how-we-work` corpus, and `report-authoring` retired into it — :file[docs/how-we-work/reports.md], 13 chunks, indexed and retrieved back
+- [x] the reports chapter in the `how-we-work` corpus — :file[docs/how-we-work/reports.md], 13 chunks, indexed and retrieved back. It holds the DECISION (which kind, why that window); the PROCEDURE is a skill again, t5 §11
 - [x] every skill and job that files a report repointed — the decision inline, then the query
 - [x] `spec-authoring`, with the three-way choice as its spine — :file[~/.claude/skills/spec-authoring/SKILL.md]
 - [x] the card's spec field, all four halves: the hub door and `api/board.js` · the MCP tool's `report=` · the panel's pills at the foot of the card · `context-maintenance`'s sweep and `proactive-development` reading it
 
 **A BRIEF CARRIES ENOUGH TO ACT ON** — a flag with nothing to act on is a chat line or a board
-card. `6h`: a brief exists for work in flight, and work in flight either started within the hour or
-the brief was wrong about what mattered. Arbitrary at the edges, like every window here — the
-number is a backstop, DIVERT is what handles the case that is still live.
+card. Its window is t5 §2's, and DIVERT is what handles the case that is still live.
 
 ---
 
@@ -348,6 +346,10 @@ the chapter, never the query — and asked what it would write on the leaf:
 | 41 convention violations counted | `audit` `7d` | ✅ |
 | a slice handed to another agent's lane | `brief` `6h` | ✅ |
 | a document whose proofs still run | `spec` `permanent` | ✅ at the edge |
+
+These answered against the windows **as they stood at the measurement** — the retrieval is what
+was being tested, not the numbers, and t5 §2 has since changed two of them. What the pass proves is
+that the chapter is FINDABLE and its reasons are usable by somebody who was not in the room.
 
 **NONE OF THEM USED THE POINTER QUERY** — they asked in their own words (*"unattended job report —
 what subtype does a job sitting file"*) and landed on the chapter anyway, which is the stronger
@@ -439,7 +441,8 @@ out of code review, and it will facilitate this rather than block it.
 `invalid — no spec`, the way a missing `retain=` already does. The registry row already carries the
 per-document spec inventory, so the rule reads a number that exists.
 
-**7 · WHAT A SPEC REPORT IS, AND ITS RAIL — the longest argument of the night, settled.**
+**7 · WHAT A SPEC REPORT IS — the longest argument of the night. Its RAIL was argued here and
+REVERSED in t5: a report reaches `retired` and nothing else.**
 
 **It is a RECEIPT for work nobody scheduled.** His framing: you are not always in an arc or an RFC.
 Most work is either planned there, or it is small and goes on the board — *"oh shit, the colour is
@@ -549,7 +552,7 @@ report that is the only record of why something happened must last.
 |---|---|---|---|
 | `planning` | `24h` | `24h` | unchanged, and for the reason the chapter already gives: its conclusions leave it for an RFC or an arc, and those are permanent. Its successor carries it, so the table is furniture within a day |
 | `account` | `24h` | `30d` | WRONG TODAY. Set on the reasoning that its durable facts are already in the commit — but a commit carries WHAT changed, and the account is the only artifact carrying WHY, what else was tried, and what went unverified. 30d is "long enough that a thing which goes bad can still be traced back through it" |
-| `brief` | `3d` | `14d` | it outlives the handover by nothing as a READING document, but it is the only record of why that agent was told that shape. Shorter than an account because no diff hangs off it |
+| `brief` | `6h` | `7d` | `6h` was read off the handover being live, and `3d` in the page data was already a second answer. Forensically a brief is the only record of why an agent was told THAT shape — which is what explains a lane that built the wrong thing. But it is superseded as evidence the moment the lane's own account exists, so it is the clearest case for a DERIVED retirement (§5) and the number is only a backstop for a lane that never came back |
 | `audit` | `7d` | `7d` | unchanged, and it is the one case where letting go is cheap: it carries the command that REGENERATES it. A stale count re-runs; it does not need keeping |
 | `spec` | `30d`–`permanent` | unchanged | already right, and the most load-bearing of the five — nothing else records why unscheduled work happened at all |
 
@@ -660,12 +663,19 @@ and the reason already living there. A table of what-attaches-what inside the sk
 second copy of something the chapter wants, which is tonight's `notice` and double-retention-table
 lesson for the third time.
 
-**12 · AND THE DIRECTION HIS WHOLE FORENSIC ARGUMENT NEEDS IS WRITTEN NOWHERE.** Measured: `::commit`
-is named in five skills and a job, and the reports chapter never mentions it once — its only
-commit-adjacent line is the `Serves:` trailer, which is the COMMIT pointing back at the document.
-So commit→report exists and report→commit, the direction a person actually walks when something
-breaks at 30 days, is in no document anywhere. Half the chain, and the missing half is the one he
-would use.
+**12 · THE READER IS BUILT AND NOBODY WAS EVER TOLD TO WRITE THE RECORD.** `commitLinks` already
+reads BOTH directions and reports only disagreement (claim 3 below, proven on 200 real commits), so
+the mechanism is not missing. The INSTRUCTION is: `::commit` is named in five skills and a job, and
+the reports chapter never mentions it once — its only commit-adjacent line is the `Serves:` trailer,
+which is the commit pointing at the document. So the half a person actually walks when something
+breaks at 30 days — open the report, follow it to the commit — depends on records nothing tells
+anybody to write, read by a tool that has been waiting for them. That is why it belongs in the
+chapter's per-kind table (item 1) and in the skill's steps (item 4), not in a new mechanism.
+
+**AND THE MISS IS MINE, TWICE OVER.** Tonight's commits carry no `Serves:` trailer either —
+`506c727`, `afe4dbb7`, `bf062a61` on top of the five already named below. Adding one to a commit
+that exists is a history rewrite and his, so the honest fix is forward-only: every commit from here
+carries it.
 
 **THE FRAME FOR THE SKILL, HIS: *report writing is about forensics.*** Not which kind to choose
 and not what-I-did — you are writing for an INVESTIGATOR, not a reader. Every requirement argued
@@ -913,13 +923,13 @@ where you write one, the registry is how anybody finds it.
   a HUB restart. Both are harness-managed and neither is mine to do. Everything is tested and
   committed; none of it has been exercised through the MCP door it will eventually be called
   through — the proofs above went through the modules directly.
-- **TONIGHT'S FIVE COMMITS CARRY NO `Serves:` TRAILER.** I named them above and did not write the
-  trailer when I made them, so `commitLinks` will read this document as linking one way until
-  somebody fixes it — the convention's first real miss, and it is mine.
-- **The MCP's `report=` is not callable in a live session yet.** It is in
-  `autobot/electron/agents/systemview.cjs` and its tests are green, but Node holds the old file:
-  it arms on a SHELL restart, which is not mine to do. The PANEL's pills work now — they write the
-  same field through the hub.
+- **EIGHT COMMITS NOW CARRY NO `Serves:` TRAILER** — the five named above plus `506c727`,
+  `afe4dbb7` and `bf062a61`. `commitLinks` reads this document as linking one way, which is the
+  convention's first real miss and it is mine, compounding. Fixing a commit that exists is a history
+  rewrite and his; the forward rule is that every commit from here carries the trailer.
+- **The MCP's `report=` is live and proven end to end.** After his restart, a board `add` carrying
+  `report=planning` came back with `"report": "planning"` from the hub — the parameter survives the
+  MCP, the hub door and the file. The panel's pills write the same field.
 - **The rewritten jobs have not been RUN.** They are read-and-reasoned, not executed. The first
   real `arc-development` run against the registry is the thing that will find what I got wrong.
 - **`tests/worklist.js` in autobot hangs** — checked against a clean checkout, it hangs there too,

@@ -1,6 +1,6 @@
 # The read-queue RFC that wasn't
 
-::report{id=read-queue-rfc-abandoned as=account retain=permanent}
+::report{id=read-queue-rfc-abandoned as=account retain=permanent retired=2026-11-02 retiredAs=out-of-service}
 
 An `skill:rfc-authoring` run opened on 2026-10-28 to write the RFC for the read-queue / narration
 design (what became `::cue`). He stopped it at step one, explicitly: **"I don't want no fucking

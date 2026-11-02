@@ -1,6 +1,6 @@
 # The tour's shakedown run
 
-::report{id=tour-shakedown as=account retain=permanent}
+::report{id=tour-shakedown as=account retain=permanent retired=2026-11-02 retiredAs=out-of-service}
 
 The first sourced run of `skill:how-we-work-tour` (2026-10-28, late) was never going to be the
 tour — it was the shakedown, and it did a shakedown's job. Closed at 3/7 deliberately: the

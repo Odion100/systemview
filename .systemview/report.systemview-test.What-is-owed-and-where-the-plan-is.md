@@ -1,4 +1,4 @@
-::report{id="What is owed and where the plan is" as=planning retain=3d}
+::report{id="What is owed and where the plan is" as=planning retain=3d retired=2026-11-02 retiredAs=expired}
 
 # What is owed and where the plan is
 
