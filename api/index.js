@@ -853,20 +853,33 @@ function projectRoots() {
   return out;
 }
 
-// THE REPORTS BACKSTOP — ./reportJanitor.js holds the rule (old AND unpointed, both halves of the
-// delete); this is only the cadence: once at boot, then daily, over every root the hub knows.
-// Relevance sweeps by agents are the real exit for reports; this clock is the floor behind them.
-const { collectReports } = require("./reportJanitor");
+// THE JANITOR'S CADENCE. `./janitor.js` holds the rules — one abstraction, two offices, and the
+// offices stay separate there: retired documents go because somebody retired them, dead pointers go
+// because they name a file that is not there. This is only when.
+//
+// ONCE AT BOOT, THEN HOURLY. It used to be daily, which was the right cadence for a 30-day clock
+// and the wrong one now: retiring is a press, and a press whose effect appears tomorrow reads as a
+// press that did nothing. His measured case — a report declaring `retain=1h`, retired, sitting on
+// the drawer eleven hours later. Hourly is close enough that the surface agrees with the decision
+// within a reading, and cheap enough to run forever: it stats a folder and reads 2KB per report.
+const { collectRetired, sweepDeadPointers } = require("./janitor");
 function sweepReports() {
   try {
-    Object.entries(projectRoots()).forEach(([pc, root]) => {
-      const res = collectReports(root);
-      if (res.deleted.length) console.log(`[reports backstop] ${pc}: collected ${res.deleted.length} past the clock — ${res.deleted.join(", ")}`);
+    const roots = projectRoots();
+    Object.entries(roots).forEach(([pc, root]) => {
+      const res = collectRetired(root, { projectCode: pc });
+      if (res.deleted.length) console.log(`[janitor] ${pc}: collected ${res.deleted.length} retired — ${res.deleted.join(", ")}`);
     });
+    // THE SECOND OFFICE, ON ITS OWN RULE — a pointer naming a file that is not there, whatever
+    // happened to the file. It runs whether or not office 1 deleted anything, which is the whole
+    // point of it not being a side-effect of the delete.
+    const rootOf = (rel) => Object.values(roots).find((r) => fsGit.existsSync(path.join(r, rel))) || null;
+    const ptr = sweepDeadPointers({ rootOf });
+    if (ptr.cleared.length) console.log(`[janitor] cleared ${ptr.cleared.length} dead run pointer(s) — ${ptr.cleared.join(", ")}`);
   } catch { /* a janitor must never take the hub down */ }
 }
 setTimeout(sweepReports, 15 * 1000); // after boot settles, not during it
-setInterval(sweepReports, 24 * 60 * 60 * 1000);
+setInterval(sweepReports, 60 * 60 * 1000);
 
 // FILES, SERVED BY THE HUB — the same owner as git, which is the entire point. His question, and it
 // was the right one to ask: *"is it better for you to use the hub?"* Yes, for one reason that has
@@ -3426,8 +3439,8 @@ module.exports = function launchSystemView(port = 3000) {
       //
       // The emit rides HERE rather than in api/board.js because this is where the socket is, the
       // same split the chat verbs use; board.js stays a pure capability over a file layer.
-      board: async function boardVerb({ projectCode, name, add, replyText, remove, removeSettled, status, state, title, at, as } = {}) {
-        const r = await Board({ projectCode, name, add, reply: replyText, remove, removeSettled, status, state, title, at, as: as || null });
+      board: async function boardVerb({ projectCode, name, add, replyText, remove, removeSettled, status, state, title, at, as, report } = {}) {
+        const r = await Board({ projectCode, name, add, reply: replyText, remove, removeSettled, status, state, title, at, as: as || null, report });
         // Only a WRITE announces itself — a read that emitted would make every agent's poll look
         // like a change and send every open panel back to the disk for nothing.
         if (r && r.ok) {

@@ -356,3 +356,35 @@ test("`open` is an absence and `reviewed` is a claim — a title alone changes n
   assert.deepEqual((await api({ projectCode: "p", state: "reviewed" })).cards.map((c) => c.ts), [1000]);
   assert.deepEqual((await api({ projectCode: "p", state: "open" })).cards.map((c) => c.ts), [2000]);
 });
+
+// WHAT THE WORK ON A CARD OWES, DECLARED BEFORE ANYBODY DOES IT.
+//
+// His design, 2026-11-02. An agent asked at the END whether its own work needed proving is the
+// party with an interest and will say no — the same self-interest `rfc-authoring` handles by
+// forcing `kind=experiential` to be declared at authoring time. So the declaration lives on the
+// card, from before the work started, and `proactive-development` READS it instead of deciding.
+test("report= rides the card's stamp and survives a round trip", () => {
+  const src = `<!--card 1 by=odion title="the status picker" report=spec-->\nsomething to build\n`;
+  const { cards } = parseBoard(src);
+  assert.strictEqual(cards[0].report, "spec");
+  // The round trip is the claim that matters: a field that parses and does not serialize is a
+  // field that silently disappears the next time anybody writes the board.
+  assert.strictEqual(serializeBoard({ title: "", cards }), src);
+});
+
+test("a card with no report= is not given one — undeclared has to stay expressible", () => {
+  const { cards } = parseBoard(`<!--card 1 by=odion-->\nraw from the recorder\n`);
+  assert.strictEqual("report" in cards[0], false);
+  // THE REASON IT IS NOT REQUIRED: his own cards arrive from a voice recorder with nothing on
+  // them, so a required field would refuse every one. Absent means nobody has decided, which is
+  // exactly what context-maintenance's board pass sweeps for.
+  assert.strictEqual(serializeBoard({ title: "", cards }).includes("report="), false);
+});
+
+test("title and report both ride the same stamp without eating each other", () => {
+  const src = `<!--card 7 by=a title="two words here" report=account-->\nbody\n`;
+  const { cards } = parseBoard(src);
+  assert.strictEqual(cards[0].title, "two words here");
+  assert.strictEqual(cards[0].report, "account");
+  assert.strictEqual(serializeBoard({ title: "", cards }), src);
+});

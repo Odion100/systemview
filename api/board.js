@@ -62,6 +62,16 @@ function parseBoard(text) {
     const attrs0 = String(arr[i + 1] || "");
     const who0 = (attrs0.match(/\bby=("[^"]*"|[^\s]+)/) || [])[1] || "";
     const title0 = (attrs0.match(/\btitle=("[^"]*"|[^\s]+)/) || [])[1] || "";
+    // WHAT THE WORK ON THIS CARD OWES, DECLARED BEFORE ANYBODY DOES IT. His design, 2026-11-02:
+    // the agent that finishes its own work is the party with an interest, and asked at the end
+    // whether its work needed proving it will say no. So the card carries the answer from before
+    // the work started — the same move `rfc-authoring` makes by forcing `kind=experiential` to be
+    // declared at authoring, "while nobody yet knows which proof is inconvenient".
+    //
+    // NOT REQUIRED, deliberately: his own cards arrive raw from a voice recorder with nothing on
+    // them, and a required field would refuse every one of them. An absent `report=` is the honest
+    // "nobody has decided yet", and `context-maintenance`'s board pass is what sweeps for those.
+    const report0 = (attrs0.match(/\breport=("[^"]*"|[^\s]+)/) || [])[1] || "";
     const unquote = (v) => String(v || "").replace(/^"|"$/g, "");
     const chunk = String(arr[i + 2] || "");
     // ONE SPLIT THAT REMEMBERS WHICH COMMENT IT CUT AT. Splitting on `reply|status` without
@@ -93,6 +103,7 @@ function parseBoard(text) {
       ts: Number(part),
       by: unquote(who0),
       ...(title0 ? { title: unquote(title0) } : {}),
+      ...(report0 ? { report: unquote(report0) } : {}),
       text: bits[0].trim(),
       replies,
       ...(status ? { status } : {}),
@@ -107,7 +118,7 @@ function serializeBoard({ title, cards }) {
       (c) =>
         // A title with a space in it has to survive the round trip, so it is quoted; `by` never
         // has one and stays bare, which keeps every card already on disk byte-identical.
-        `<!--card ${c.ts}${c.by ? ` by=${c.by}` : ""}${c.title ? ` title="${String(c.title).replace(/"/g, "'")}"` : ""}-->\n${c.text}\n` +
+        `<!--card ${c.ts}${c.by ? ` by=${c.by}` : ""}${c.title ? ` title="${String(c.title).replace(/"/g, "'")}"` : ""}${c.report ? ` report=${c.report}` : ""}-->\n${c.text}\n` +
         // The status rides directly under the card's own words, above the conversation — it is the
         // card's account, and reading the file top-down should hand it over before the thread.
         (c.status && c.status.text
@@ -159,7 +170,7 @@ function boardOn({ readFile, writeFile }) {
     return res && res.ok !== false ? parseBoard(res.content) : { title: "", cards: [] };
   }
 
-  return async function board({ projectCode, name, add, reply, remove, removeSettled, status, state, title, at, as } = {}) {
+  return async function board({ projectCode, name, add, reply, remove, removeSettled, status, state, title, at, as, report } = {}) {
     if (!projectCode) return { error: "projectCode required" };
     // AN UNKNOWN PROJECT IS NOT AN EMPTY BOARD. Reading straight through answered `cards: []` for a
     // project the hub has never heard of — the same silent shrug as "no tests to run" standing in
@@ -180,10 +191,30 @@ function boardOn({ readFile, writeFile }) {
     if (add != null) {
       const text = String(add).trim();
       if (!text) return { ...where, error: "a note needs something to say" };
-      board.cards = [{ ts: Date.now(), by: as, ...(title ? { title: String(title).trim() } : {}), text }, ...board.cards];
+      board.cards = [
+        { ts: Date.now(), by: as, ...(title ? { title: String(title).trim() } : {}), ...(report ? { report: String(report).trim() } : {}), text },
+        ...board.cards,
+      ];
       const w = await writeFile(projectCode, { path: boardPath(name), content: serializeBoard(board) });
       if (!w || w.ok === false) return { ...where, error: (w && w.error) || "could not write the board" };
-      return { ...where, ok: true, added: board.cards[0].ts, ...(title ? { title: board.cards[0].title } : {}), by: as };
+      return { ...where, ok: true, added: board.cards[0].ts, ...(title ? { title: board.cards[0].title } : {}), ...(report ? { report: board.cards[0].report } : {}), by: as };
+    }
+
+    // DECLARING WHAT A CARD OWES, ON ONE THAT ALREADY EXISTS — which is most of them, because his
+    // arrive with nothing on them. An empty string takes the declaration back OFF, the same shape
+    // as clearing a title or a status: "nobody has decided" has to stay expressible, or a wrong
+    // declaration can only be replaced by another wrong one.
+    if (report != null && add == null) {
+      const found = addressCard(board.cards, at);
+      if (found.error) return { ...where, ...found };
+      const card = found.card;
+      const was = card.report || "";
+      const next = String(report).trim();
+      if (next) card.report = next;
+      else delete card.report;
+      const w = await writeFile(projectCode, { path: boardPath(name), content: serializeBoard(board) });
+      if (!w || w.ok === false) return { ...where, error: (w && w.error) || "could not write the board" };
+      return { ...where, ok: true, card: card.ts, report: card.report || "", was };
     }
 
     // NAMING A CARD THAT ALREADY EXISTS. `title` with `add` names a new card; `title` with `at`
