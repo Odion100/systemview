@@ -59,16 +59,20 @@ describe("the page's content has the shape the page renders", () => {
     SUBTYPES.forEach((s) => expect(s.done.length).toBeGreaterThan(10));
   });
 
-  // MOST REPORTS DIE SOON — his ruling, 2026-10-31: *"I don't know why you'd be thinking that shit
-  // got to last as long as you'd be thinking it needed to last."* There is no default `retain=` in
-  // the system (a leaf without one registers `invalid — no retention`), so this column is the only
-  // statement anywhere of what a USEFUL window is, and it is checked rather than admired: every
-  // entry must be a window the PARSER can actually read, and none of them may reach past 14 days.
+  // A WINDOW IS BOUNDED, AND THE BOUND IS WHAT STOPS A REPORT BECOMING FURNITURE. There is no
+  // default `retain=` in the system (a leaf without one registers `invalid — no retention`), so
+  // this column is the only statement anywhere of what a useful window is, and it is checked rather
+  // than admired: every entry must be a window the PARSER can read, and none may reach past 30 days.
+  //
+  // THE CEILING IS 30 DAYS BECAUSE THE WINDOW ANSWERS HOW LONG SOMETHING COULD BE EVIDENCE — a
+  // month is where the tree has moved far enough that an account is describing code that no longer
+  // exists. Shorter is still right for everything whose successor is durable; what the bound
+  // protects against is the other direction, a subtype quietly claiming the life of a document.
   //
   // `permanent` is deliberately not allowed here. It parses — and it is exactly the answer this
   // table exists to stop a subtype from supplying.
-  it("every subtype names a short window the parser can read, and nothing reaches past 14 days", () => {
-    const CEILING = 14 * 86400000;
+  it("every subtype names a bounded window the parser can read, and nothing reaches past 30 days", () => {
+    const CEILING = 30 * 86400000;
     SUBTYPES.forEach((s) => {
       const ms = parseRetain(s.retain);
       expect(typeof ms).toBe("number"); // not undefined (undeclared) and not null (permanent)
@@ -89,11 +93,11 @@ describe("the page's content has the shape the page renders", () => {
   // all — so the windows are pinned to the exact set, here, where a change to either shows up.
   it("the windows are the ones the agent guide tells agents to reach for", () => {
     expect(SUBTYPES.reduce((m, s) => ({ ...m, [s.as]: s.retain }), {})).toEqual({
-      audit: "3d",
-      brief: "3d",
+      audit: "7d",
+      brief: "7d",
       planning: "7d",
-      spec: "7d",
-      account: "14d",
+      spec: "30d",
+      account: "30d",
     });
   });
 

@@ -50,7 +50,7 @@ Two consequences worth knowing before picking a number:
   before anyone sees it.
 - **DIVERT is the answer to "it is still live", not a bigger number.** Restarting the clock from now
   is one press and it is honest; widening the window declares the report more durable than it is.
-  A planning report under active discussion gets diverted for days and still says `24h`, which is
+  A planning report whose argument is still running gets diverted and still says `7d`, which is
   true: it is a backstop, not a lifetime.
 
 ## The five kinds, and the window each one takes
@@ -64,7 +64,7 @@ sitting's account on the drawer for three months.
 
 | when you are writing one | `as=` | what it carries beyond the basics | `retain=` |
 |---|---|---|---|
-| a design conversation, before there is a plan | `planning` | the argument, the choice made, what is most worth rejecting | `24h` |
+| a design conversation, before there is a plan | `planning` | the argument, the choice made, what is most worth rejecting | `7d` |
 | an unattended job's sitting | `account` | what landed, what it could not verify, and a `::commit` record per commit | `30d` |
 | a run that was **abandoned** | `account` | why it stopped, and what the next person picks up from | `6–12h` |
 | a code or architecture audit | `audit` | the count, the method, the tree state it counted against | `7d` |
@@ -92,19 +92,25 @@ The numbers are his. The reasoning is what makes them pickable by somebody who w
 conversation — and each one is written to **arbitrate**, because a reason that cannot choose between
 two defensible actions is decoration.
 
-### Why a planning report is 24h
+### Why a planning report is 7d — the one window that is not about evidence
 
-**It dies when its conclusions LEAVE it.** It is finished when it became an arc, a
-plan or a spec — not when it is well written. So `24h` is a backstop and DIVERT is the instrument:
-while the planning is live, restart the clock; when the conclusions land somewhere durable, let it
-go. The thing this rules out is widening the window because the discussion is taking longer than
-expected.
+**It is the only kind whose DISPOSITION is still open, and the window measures how long the people
+in it have to decide what becomes of it.** Planning is potential: it has not become anything yet,
+and the legitimate endings are several — promote it to `permanent` and link it to what it produced,
+extend it because the argument is still running, or let it go because the conclusions landed in an
+arc or a plan. `7d` is room for that decision.
 
-**And it is the one kind the evidence question does not lengthen**, because its successor is
-permanent: the argument, the choice and what was most worth rejecting all move into the RFC or the
-arc, which nobody retires. There is nothing left to investigate here later — the investigation would
-read the plan. A planning report is the only kind whose conclusions GRADUATE, and that is exactly
-why it keeps the shortest serious window.
+**So this is a third question, and the other four do not ask it.** An account and a spec are kept
+because somebody may need them as EVIDENCE. An audit is let go because it regenerates. A planning
+report is kept because **nobody has decided yet** — and a day is not a decision window, it is a
+chore: it forces a divert press on every argument still running, which teaches people that divert is
+maintenance rather than an instrument.
+
+**It is still finished when its conclusions LEAVE it** — when it became an arc, a plan or a spec and
+carries the pointer to what it produced. That is the condition; `7d` is the backstop under it, and
+DIVERT is what handles the case where the deciding is taking longer than a week. What this rules out
+is a planning report sitting for a month because nobody looked at it: the decision is the work, and
+a window that never pressures it never gets one.
 
 ### Why a sitting's account is 30d
 

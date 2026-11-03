@@ -427,7 +427,7 @@ evidence question changes is the two kinds that are the ONLY record of why somet
 
 | `as=` | reach for | because |
 |---|---|---|
-| `planning` | **24h** | its conclusions graduate into an arc or a plan, which nobody retires |
+| `planning` | **7d** | the only kind whose disposition is still OPEN — the window is room for the people in it to decide: promote it to permanent and link it to what it produced, extend it, or let it go |
 | `account` | **30d**, or **6–12h** for an abandoned run | 30d: the only record of WHY a landing happened. An abandoned run landed nothing, so there is no commit to investigate |
 | `audit` | **7d** | it carries the command that regenerates it — a stale count is one re-run, not lost evidence |
 | `brief` | **7d** | superseded by the account of the work it commissioned; the number is a backstop for a lane that never came back |
