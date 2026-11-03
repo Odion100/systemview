@@ -698,56 +698,96 @@ stops), set the window by evidentiary life, state what the work was FOR (motive)
 something runnable to prose (a transcript is not evidence). It is also why "here's what I did"
 reports always read as worthless: that is a narrative, and forensics does not want one.
 
-### THE WORK ORDER — what to put on assignment
+### THE WORK ORDER — EXECUTED 2026-11-02/03
 
-Ordered by dependency, not by size. Items 1–2 are doctrine the rest points at, so they land first;
-nothing below them should be written while the words they cite are still wrong.
+Ordered by dependency: items 1–2 are the doctrine the rest points at, which is why they landed
+first. **Every item carries what it produced**, so this section is both the plan and the index to
+it — nothing about this work lives only in a chat that scrolls.
 
-1. **The reports chapter rewritten on the EVIDENCE question** (§1, §2, and the forensics frame
-   above). Every reason states its own number, because a chunk retrieves alone. `account` 24h→30d,
-   `brief` 3d→14d, `planning` stays 24h (its conclusions graduate), `audit` stays 7d (it carries
-   its regenerating command), `spec` stays 30d–permanent. And the chapter gains what it has never
-   had: **what each kind ATTACHES** — the per-kind facts the skill will point at (§11), including
-   the `::commit` records it never mentions at all (§12).
+**1 · The reports chapter, rewritten on the EVIDENCE question.** `187e232a` · `d7d663f0`
+:file[docs/how-we-work/reports.md] · :file[agents/AGENTS.md]
 
-2. **The claims chapter — a re-home plus three pointers, two things written new.** `rfcs.md`'s
-   craft and proof doctrine move in INTACT (they work; do not re-explain them); the new prose is
-   the definition — *a sentence that makes something checkable by somebody who WASN'T THERE*, every
-   property derived from that, nothing about existence — and the receipt case. Pointers, never
-   copies, to `second-opinion.md` for the separation and `systemview-docs` (`tests.md` probe-first
-   and the save rules, `hosted-services.md` §4, `AGENTS.md` §1.7) for spec mechanics. Then read
-   `rfcs.md` and find what it still needs, predicted to be two things and a page: a verdict must
-   exist first, and the list is frozen by a completeness press. Verified the way the reports chapter
-   was — blind subagent retrieval on the no-RFC question.
+Every reason states its own number, because a chunk retrieves alone. `account` 24h→**30d** (the only
+record of WHY a landing happened), `brief` 6h→**7d** (superseded by the account of the work it
+commissioned), `audit` stays **7d** (it carries the command that regenerates it), `spec` stays
+**30d–permanent**. `planning` is **7d** and it is the one window that is NOT about evidence: its
+disposition is the thing still open, and the window is room for the people in it to decide —
+promote it to permanent and link it to what it produced, extend it, or let it go. A day was a chore,
+not a decision window. The chapter also gained what it never had: **what each kind ATTACHES**,
+including the `::commit` records it never mentioned once.
 
-3. **The receipt-claims procedure** (§9) — in the reports chapter's spec section, stating its own
-   six requirements and pointing at the claims chapter only for the craft of phrasing a checkable
-   sentence. The anti-fitting blind pass gets its caller here, which is the one thing `second-
-   opinion.md` is missing: a named moment that invokes it.
+**2 · The claims chapter — written, not lifted.** `ac3bbad4`
+:file[docs/how-we-work/claims.md] *(new)* · :file[docs/how-we-work/rfcs.md] *(558 → 164 lines)*
 
-4. **The report-writing SKILL** (§11, and the frame above). Forensics is its opening. It owns the
-   ORDER and the irreversible bits; the per-kind facts stay in the corpus. A branch per kind, and
-   the `as=spec` branch is §9. **`spec-authoring` is retired by this**, not by doctrine.
+The definition is new — *a sentence that makes something checkable by somebody who WASN'T THERE*,
+every property derived from that, nothing about when. The craft and the whole proof doctrine MOVED
+INTACT and then got de-scoped at six seams where they still assumed an RFC. `rfcs.md` keeps the two
+things that are an RFC's alone. Three pointers out, no copies.
 
-5. **Every producer's closing step becomes two moves in order** (§11) — choose the kind from the
-   corpus query, then invoke the skill. `proactive-development`, `codebase-refinement`,
-   `doc-maintenance`, `assignment`, the audits, and the jobs that file accounts. **`rfc-execution`
-   is NOT one of them** (§10): its report is the chat reply and its durable record is the RFC.
+**3 · The receipt's own claim procedure.** `64c21549`
+:file[docs/how-we-work/reports.md] *(§ Writing a spec report's claims)* ·
+:file[docs/how-we-work/second-opinion.md]
 
-6. **The consumed-by pointer** (§5, §12) — one mechanism serving three needs: the forensic
-   walk-back, the derived retirement trigger, and the archive that needs no drawer row. Its own RFC,
-   and the largest piece — though §12 makes it cheaper than it looked: `commitLinks` already READS
-   both directions, so a good part of this is writing the step that produces the record, not
-   building a mechanism.
+Five requirements answering one problem: the same agent wrote the work and now writes its claims, so
+the list can be fitted to whatever already passes. The fifth is a blind pass handed the DIFF ALONE.
+`second-opinion.md` listed a report as never owed one, for two reasons false in exactly this case —
+the exemption was narrowed and the caller added, both sides in one pass.
 
-**NOT ON THIS LIST, DELIBERATELY: the two-axis split (§4).** `retain=` conflating how long a report
-exists with how much it wants his eyes is his to settle at the window, in real time, looking at real
-reports. Nobody should design it from in here.
+**4 · The skill.** `53b58789`
+:file[~/.claude/skills/report-authoring/SKILL.md] *(new, 155 lines)* · :file[agents/tests.md]
 
-**ALREADY LANDED, so not on the list:** `notice` removed from the one surface that still taught it
-(the How-we-work page data, three test fixtures, two comments) — `afe4dbb7`, suite green, bundle
-rebuilt. That also removed the second, stale copy of the retention table's `notice` row; the rest of
-that table is item 1's to replace.
+Forensics is its opening. It owns the ORDER and the irreversible bits; the per-kind facts stay in the
+corpus. Trigger eval: 3 passes, 20 queries, 100%/100%, eight negatives going to the right neighbour.
+**No behaviour eval.** `spec-authoring` is retired into its `as=spec` branch — and two facts that
+existed ONLY in that skill were rescued into `tests.md` first, because retiring it would have
+destroyed them: a `:::run` block's grammar parses only `=`, `~`, `>=`, `<=`, and a hang has no
+per-test deadline.
+
+**5 · Nine producers wired to choose-then-invoke.** *(no commits — see the bound below)*
+:file[~/.claude/skills/code-audit/SKILL.md] · :file[~/.claude/skills/system-audit/SKILL.md] ·
+:file[~/.claude/skills/context-maintenance/SKILL.md] ·
+:file[~/.claude/skills/codebase-refinement/SKILL.md] · :file[~/.claude/skills/assignment/SKILL.md] ·
+:file[~/.claude/skills/doc-maintenance/SKILL.md] · :file[~/.autobot/jobs/arc-development/job.md] ·
+:file[~/.autobot/jobs/proactive-development/job.md] ·
+:file[~/.claude/skills/rfc-execution/SKILL.md] *(the EXEMPT one)*
+
+Choose the kind from the corpus, then invoke the skill. `rfc-execution` is explicitly exempt and
+says so where somebody would otherwise reach: an RFC execution has the RFC, and its account is the
+chat reply.
+
+**6 · The consumed-by pointer — WRITTEN AND AWAITING HIS PRESS.** `a09158cf`
+:file[RFCs/RFC-077-a-document-says-which-report-it-came-out-of.md]
+
+One attribute, `from=<source id>`, mirroring the relation `arc=` already is. The piece most worth
+rejecting is §3.3 — whether consumption should affect retirement at all, or whether `from=` stays a
+pure pointer. Claims come only after the verdict.
+
+**ALSO TOUCHED, because one fact gets one home:** :file[docs/how-we-work/registration.md] — the
+cross-repo `::commit{project=}` rule, filed beside the commit doctrine rather than in the reports
+chapter.
+
+#### What is NOT in the list, and what the list could not do
+
+**The two-axis split (§4) is HIS**, deliberately off it: `retain=` conflating how long a report
+exists with how much it wants his eyes is to be settled at the window, with real reports in front of
+him. Nobody should design it from in here.
+
+**HALF OF THIS HAS NO HISTORY.** Neither `~/.claude/skills` nor `~/.autobot` is a git repo, so item
+4's skill, item 5's nine files, and `spec-authoring`'s retirement sit on disk with nothing to revert
+to. That is also why `spec-authoring` was not deleted: its description says RETIRED so it cannot
+steal a turn, and removing it is a press through the system.
+
+**THE MEASUREMENT WORTH CARRYING FORWARD.** A `context()` search shows only the first **~450
+characters** of a chunk, and the cap does not move with `limit`, `source=` or rephrasing. Three blind
+subagents hit it on three different TABLES and all three answered correctly BY INFERENCE — which is
+what makes it dangerous, because the eval reads as a pass. Three sections were rewritten to answer in
+their opening prose.
+
+**AND ONE ITEM WAS MARKED DONE WHEN IT WAS NOT.** The How-we-work page carries a second copy of the
+retention table, and a test pinned it as *"the windows the agent guide tells agents to reach for"* —
+so the page said planning 7d, account 14d, audit 3d, brief 3d, spec 7d while the guide said something
+else, and the suite asserted the stale set. Closed in `d7d663f0`, and the 14-day ceiling that test
+enforced moved to 30 with the reason it exists written down.
 
 ::::
 
