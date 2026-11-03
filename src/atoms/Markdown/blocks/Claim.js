@@ -56,6 +56,12 @@ const Claim = ({ attrs = {}, kind, label, line, children }) => {
   const claimKind = normalizeKind(attrs.kind);
   const parsed = claimAt(source, line);
   const owesSpec = claimKind === "behavioral" && !!mark.state && !(parsed && parsed.hasSpec);
+  // MARKED IS NOT MET, AND THE CLAIM HAS TO SAY SO ON ITSELF. `metClaims` counts only claims that
+  // are marked met AND carry their proof, so one marked met with nothing embedded does not count —
+  // it lands in the row's `unproved` and the document looked identical to a claim that was held.
+  // Worst where it was most invisible: an EXPERIENTIAL claim marked met with nothing shown drew only
+  // `by eye` and read as finished, while `kind=` exempts the SPEC and never the PROOF.
+  const unproved = mark.state === "met" && !!parsed && !parsed.proved;
   // RFC-075 round two — A CLAIM KNOWS ITS REVIEWERS (his: "the badges show up because the claim
   // knows who the reviewer is. And you check it off"). `reviewers=` declares who owes this claim a
   // look; each renders as a HOLLOW badge until their signature lands in `by=`. The human is the one
@@ -226,9 +232,28 @@ const Claim = ({ attrs = {}, kind, label, line, children }) => {
         {claimKind === "experiential" ? (
           <span
             className="md-claim__kind"
-            title="experiential — concluded by your own eye; no spec can be written for it, and none is owed"
+            title="experiential — concluded by your own eye; no spec can be written for it, and none is owed. It still owes a PROOF: something shown."
           >
             by eye
+          </span>
+        ) : (
+          <span
+            className="md-claim__kind md-claim__kind--behavioral"
+            title={
+              attrs.kind
+                ? "behavioural, declared — it owes a living spec: a ::test or :::run in its fold that the change loop re-runs"
+                : "behavioural by default — nothing declared, and silence reads behavioural, so it owes a living spec all the same"
+            }
+          >
+            {attrs.kind ? "behavioural" : "behavioural?"}
+          </span>
+        )}
+        {unproved ? (
+          <span
+            className="md-claim__unproved"
+            title="marked met with no proof embedded — it does NOT count as met; the row reports it as unproved. The mark is a statement, the proof is what pays it."
+          >
+            unproved
           </span>
         ) : null}
         {owesSpec ? (

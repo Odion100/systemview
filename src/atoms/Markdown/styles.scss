@@ -4248,7 +4248,23 @@
     white-space: nowrap;
   }
   &__kind { color: var(--sv-text-muted); border: 1px dashed var(--sv-border); }
+  // The obligation is a FIELD and it shows either way, so the DECLARED one has to be quieter than
+  // the diagnostics beside it — it is the normal state of a claim, not a finding. The undeclared
+  // form wears the question mark its own title explains.
+  &__kind--behavioral { opacity: 0.72; }
   &__owed { color: #b8860b; border: 1px solid currentColor; }
+  // UNPROVED IS A COUNT, NOT A SUGGESTION — this claim says met and does not count as met, which is
+  // the one state that used to be invisible on the document while the row reported it. Solid, and
+  // the same family as `no spec` rather than a louder colour: it is a debt, not a failure.
+  &__unproved {
+    font-size: 10px;
+    padding: 0 5px;
+    border-radius: 999px;
+    white-space: nowrap;
+    color: #b8860b;
+    border: 1px solid currentColor;
+    font-weight: 600;
+  }
 }
 
 .md-claims {

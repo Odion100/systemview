@@ -336,6 +336,9 @@ describe("what the claim owes — spec'd, owed, or by eye", () => {
     "::file[RFCs/proofs/badge.png]",                                         // 7
     ":::",                                                                   // 8
     "::claim[nobody looked yet]{id=c4}",                                     // 9
+    ":::claim[his eye decides, nothing shown]{id=c5 kind=experiential state=met by=you at=1}", // 10
+    ":::",                                                                   // 11
+    "::claim[declared behavioural, held]{id=c6 kind=behavioral}",            // 12
   ].join("\n");
 
   const at = (line, attrs, kind = "leaf") => {
@@ -368,6 +371,50 @@ describe("what the claim owes — spec'd, owed, or by eye", () => {
     at(9, { id: "c4" });
     expect(screen.queryByText("no spec")).toBeNull();
     expect(screen.queryByText("by eye")).toBeNull();
+  });
+
+  // THE OBLIGATION IS A FIELD, so the claim says which one it is under either way. Before this, only
+  // `experiential` drew anything — so a behavioural claim was indistinguishable from one nobody had
+  // configured, and the declaration could only be seen when it was VIOLATED (`no spec`).
+  it("names the obligation on a behavioural claim, declared or not", () => {
+    at(12, { id: "c6", kind: "behavioral" });
+    expect(screen.getByText("behavioural")).toBeTruthy();
+  });
+
+  it("wears a question mark when nothing was declared — silence READS behavioural, visibly", () => {
+    at(9, { id: "c4" });
+    expect(screen.getByText("behavioural?")).toBeTruthy();
+    expect(screen.queryByText("behavioural")).toBeNull();
+  });
+
+  // MARKED IS NOT MET, ON THE DOCUMENT. `metClaims` counts only marked-AND-proved, so a claim
+  // marked met with nothing embedded lands in the row's `unproved` — and the document used to look
+  // exactly like one that was held. This is the gap closing.
+  it("says `unproved` on a claim marked met with no proof embedded", () => {
+    at(2, { id: "c1", state: "met", by: "sv", at: "1" });
+    expect(screen.getByText("unproved")).toBeTruthy();
+  });
+
+  it("and the worst case it was invisible in: experiential, marked met, nothing shown", () => {
+    at(10, { id: "c5", kind: "experiential", state: "met", by: "you", at: "1" }, "container");
+    expect(screen.getByText("by eye")).toBeTruthy();
+    expect(screen.queryByText("no spec")).toBeNull(); // right — no spec is owed
+    expect(screen.getByText("unproved")).toBeTruthy(); // but a PROOF was, and nothing was shown
+  });
+
+  it("stays silent on a claim that really is held — a fold with a spec", () => {
+    at(3, { id: "c2", state: "met", by: "sv", at: "1" }, "container");
+    expect(screen.queryByText("unproved")).toBeNull();
+  });
+
+  it("and on an experiential claim that shows something — the file IS its proof", () => {
+    at(6, { id: "c3", kind: "experiential", state: "met", by: "you", at: "1" }, "container");
+    expect(screen.queryByText("unproved")).toBeNull();
+  });
+
+  it("never says unproved about a claim nobody marked — there is no claim of met to fail", () => {
+    at(9, { id: "c4" });
+    expect(screen.queryByText("unproved")).toBeNull();
   });
 });
 
