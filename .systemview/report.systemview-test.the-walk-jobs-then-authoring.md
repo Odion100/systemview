@@ -218,7 +218,18 @@ document cannot say whether it was built. Migration step, or do the pre-block RF
 
   **The question:** it is the newest of the three and the only one that has never run end to end.
 
-- [x] **`report-authoring`** :file[~/.claude/skills/report-authoring/SKILL.md] · 99 lines
+- [ ] **`report-authoring`** :file[~/.claude/skills/report-authoring/SKILL.md] · 155 lines · *the
+  report that work leaves behind* — **REWRITTEN FROM NOTHING 2026-11-02, so it has never been
+  walked.** Not the 99-line document retired earlier: that one described a report's shape, which is
+  the chapter's job. This one opens on *report writing is about FORENSICS — you are writing for an
+  investigator, not a reader* and carries only the ORDER and the irreversible bits, with a branch
+  per kind and `as=spec` holding the receipt's claim procedure. Trigger eval: 3 passes, 20 queries,
+  100%/100%, eight negatives going to the right neighbour. **No behaviour eval** — whether the body
+  makes a report better than no skill at all is unmeasured, which is the first question to ask of it.
+
+  **The question for the walk:** nine producers now point at it (§t5 item 5). Does any of them still
+  describe a report's shape itself, and does the skill's §3 duplicate anything the claims chapter
+  now owns?
 
   **The question is the one you just demonstrated.** The skill says both leaf attributes are
   required and that "everything else should carry a window" — and then gives **no numbers for any
@@ -527,7 +538,7 @@ was never about frequency, it was about the NOUN. What is owed is a report, with
 receipt's way.
 ::::
 
-::::thread{id=t5 sent=systemview-test:uhi93d}
+::::thread{id=t5 sent=systemview-test:1waxp17}
 **2026-11-02 — RETENTION IS AN EVIDENCE QUESTION, AND CLAIMS ARE NOT RFC FURNITURE.** Argued to a
 landing across one conversation; t4's rail table was corrected in place by it. This thread is the
 work order.
@@ -769,7 +780,7 @@ different cut from the walk order above. The walk is an agenda; this is what we 
 | **Document authoring** — the documents work is tracked in | `arc-planning` | 418 | ✓ |
 | | `rfc-authoring` | 307 | ✓ |
 | | `rfc-execution` | 193 | ✓ |
-| | `report-authoring` | 99 | ✓ |
+| | `report-authoring` | 155 | ✓ (rewritten 11-02, unwalked) |
 | | `gap-authoring` | 94 | ✓ |
 | **System authoring** — the system writing itself | `skill-authoring` | 345 | ✓ |
 | | `job-authoring` | 237 | ✓ |
