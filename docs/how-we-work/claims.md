@@ -37,9 +37,17 @@ of statement, different checker — and when a claim later gets discharged by a 
 the claim moved into code**, which is why a claim naming no test is not a weaker thing than a test.
 It is the same statement standing one level up, where a person can read it.
 
-## Where claims live — and the two that differ
+## Where claims live — an RFC, a report, or a gap
 
-A claim is not an RFC's furniture. Three places carry them, and only the middle column changes:
+**A claim is not an RFC's furniture. An RFC carries claims, a REPORT carries claims — usually
+`as=spec`, the receipt for work nobody scheduled, which is where work off a board card ends up — and
+a GAP carries one as the statement its fix is checked against.** Everything on this page is the same
+in all three. Only two things differ anywhere, and both belong to the RFC: you may not claim before
+the verdict, and the completeness press freezes the SET.
+
+So if you have just done unscheduled work and there is no design document, you have claims. They go
+in a spec report, and the procedure for writing them is a report's rather than a plan's:
+`context("how do I write the claims for a spec report")`.
 
 | where | what is peculiar to it | its procedure |
 |---|---|---|
@@ -154,9 +162,11 @@ silence is still never a pass, and no runner or scheduler re-runs proofs: they r
 
 ## The proof doctrine — two obligations, never a menu
 
-**A claim carries two different obligations, and they are not interchangeable.** Proof kinds are
-not a menu to pick the best item from — they serve different purposes, and **a fold owes both.**
-They answer different questions and neither one answers the other's:
+**A claim carries two different obligations and a fold owes BOTH — the CONFIRMING HALF and the
+LIVING SPEC.** The confirming half lets a reviewer conclude right now without re-deriving anything:
+a screenshot, a link, a `:::cmd`, a document to open. The living spec is the check that keeps
+answering later: `::test` or `:::run`, and nothing else counts as one. Proof kinds are not a menu to
+pick the best item from — they answer different questions and neither answers the other's:
 
 | | answers | for whom | when |
 |---|---|---|---|
@@ -426,8 +436,11 @@ the pointer dies in days. Copy it into the repo beside the document that claims 
 
 **A failing proof on a met claim is a finding, not an unmark.** It says the world moved under a mark
 that was true when made — exactly the staleness the `::claims` recount cannot see, surfaced for the
-cost of a press. For a **living** spec (see the lifecycle) that moment demands one of three answers:
-update the spec, supersede it (`superseded=RFC-nnn` on the leaf), or retire it.
+cost of a press. For a **living** spec that moment demands one of exactly three answers — **update
+it, supersede it, or retire it** — and the one thing it never means is unmarking the claim. Updating
+means the spec was right and the world moved; superseding means another document owns this now
+(`superseded=RFC-nnn` on the leaf); retiring means nobody needs this check any more. Leaving it red
+is not a fourth answer.
 
 **A claim can declare its reviewers** — `reviewers=buapi` on the claim line. Each declared name
 renders as a hollow badge until its signature lands in `by=`, the human's badge is always offered

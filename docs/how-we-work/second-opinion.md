@@ -33,9 +33,12 @@ naming the RIGHT question is most of the value:
 | a refinement you chose and built | refinement or preference — and what landed that nobody asked for |
 | filing a gap on another repo | their defect, or this caller's misuse of a door that works |
 | a delegated lane, before bring-in | does the diff do what the brief said, and what else did it do |
+| a spec report's claim list, handed the DIFF alone | what should this be claiming — so the list is not quietly fitted to whatever already passes |
 
-**And where it is NOT owed, so the move does not become ceremony:** a report (the human reads the
-account directly and nothing in it reduces the agent's work), a documentation pass (the edits are
+**And where it is NOT owed, so the move does not become ceremony:** a report's PROSE (he reads an
+account directly and nothing in it reduces the agent's work — but NOT a spec report's claim list,
+which is the row above: nobody reads most reports, and a shorter list is straightforwardly less
+work, so both halves of this exemption fail on exactly that case), a documentation pass (the edits are
 verifiable and `docsPlan` is the check), a store-curation pass (its whole output is reported for
 exactly this reason), a chore round (an "unworkable" line is reported per line and the board does
 not tick, so the system catches it), the authoring skills' evals (a measurement against a baseline

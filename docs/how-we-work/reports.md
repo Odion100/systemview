@@ -179,7 +179,11 @@ window costs nothing: the clock starts at the first open, and DIVERT restarts it
 
 ## What each kind attaches — the records that let somebody trace the work back
 
-**A report that names no commit cannot be walked back to, which is most of what a report is for.**
+**EVERY REPORT OVER WORK THAT LANDED ATTACHES ITS COMMITS — a `::commit{sha=}` record each** (an
+`account` and a `spec` always; a `planning` report attaches the arc or RFC its conclusions became, an
+`audit` the command that regenerates its count, a `brief` its lane's branch). A report that names no
+commit cannot be walked back to, which is most of what a report is for.
+
 The two-pointer convention is not this chapter's — a commit carries a `Serves:` trailer, the document
 says it back with a `::commit{sha=}` block, and `commitLinks` checks the two against each other:
 `context("how does a commit say what it served, and how does the document say it back")`. What is
@@ -197,6 +201,42 @@ this chapter's is WHICH report owes which attachment.
 are already making; the record in the report gets forgotten because by then the work feels done. Say
 it as the walk it enables: *something breaks weeks later, you open the report, follow its commit
 records into the diff.* A report with prose and no shas makes a reader start over in `git log`.
+
+## Writing a spec report's claims — the receipt's way, not the plan's
+
+**A spec report carries claims, and they are not written the way a plan's are.** The craft is shared
+and lives in one place — `context("what is a claim and what does its proof owe")` — but a plan's
+claims come out of a two-phase structure, argue then build, and a receipt has no first phase. The
+work already happened. Which produces one practical problem and five requirements that answer it.
+
+**THE PROBLEM: the same agent wrote the work and now writes its claims, looking at what it built.**
+So the list can be fitted to whatever already passes — not by dishonesty, just by writing down the
+parts you happen to have checked. Nothing about the form prevents it, so a step has to.
+
+1. **Say what the work was FOR, in one line.** No design and no objective exists to say it, and the
+   commit says what changed and never why. If the report says nothing else useful, it says this.
+2. **Claim from the DIFF, not from memory.** Read what you actually changed and state what it should
+   now do. Memory selects for what worked.
+3. **Per claim, the forensic test:** *if this breaks in thirty days, does this sentence tell somebody
+   what it was supposed to do?* That is the question the whole document exists to answer, and a claim
+   that fails it is a claim about your afternoon rather than about the system.
+4. **Runnable evidence on every claim.** The reader cannot ask you and will not press anything, so
+   `kind=experiential` is close to worthless here unless it ships the screenshot with it — on a plan,
+   experiential works because the human was in the conversation and will look.
+5. **One blind pass, handed the DIFF alone**, asked *what should this be claiming?* — then reconcile
+   against your own list, visibly. This is the step that answers the problem above, and it is the
+   case `second-opinion.md` already names: a judgment where one of the answers serves the agent
+   making it. `context("when is a second opinion owed and how do I ask for one blind")`.
+
+**NO APPROVAL AND NO COMPLETENESS PRESS.** An RFC's completeness press exists because a missing claim
+is a behaviour both parties AGREED not to check; a receipt completes no agreement, so a press there
+would be theatre. Its honesty comes from the proof.
+
+**AND THE CLAIM HAS TO BE USEFUL UNMARKED.** On a plan the mark is the product — met or not met is
+what the document is for. On a receipt the mark may never come, because nobody reads most reports. So
+the value sits in the sentence plus something runnable, never in a state somebody sets. Which is the
+same fact as: a spec report is consumed by being RUN, where every other kind is consumed by being
+read.
 
 ## What every report carries, whatever kind it is
 
