@@ -92,7 +92,7 @@ The numbers are his. The reasoning is what makes them pickable by somebody who w
 conversation — and each one is written to **arbitrate**, because a reason that cannot choose between
 two defensible actions is decoration.
 
-### Why a planning report is 7d — the one window that is not about evidence
+### Why a planning report is 7d — the window is the DECIDING
 
 **It is the only kind whose DISPOSITION is still open, and the window measures how long the people
 in it have to decide what becomes of it.** Planning is potential: it has not become anything yet,
@@ -100,11 +100,16 @@ and the legitimate endings are several — promote it to `permanent` and link it
 extend it because the argument is still running, or let it go because the conclusions landed in an
 arc or a plan. `7d` is room for that decision.
 
-**So this is a third question, and the other four do not ask it.** An account and a spec are kept
-because somebody may need them as EVIDENCE. An audit is let go because it regenerates. A planning
-report is kept because **nobody has decided yet** — and a day is not a decision window, it is a
-chore: it forces a divert press on every argument still running, which teaches people that divert is
-maintenance rather than an instrument.
+A day is not a decision window, it is a chore: it forces a press on every live argument, which
+teaches people that divert is maintenance rather than an instrument.
+
+**It is evidence too, and that is not what sets the number.** A planning report holds the argument —
+what else was considered, what was rejected, why the shape is the shape — and the plan it became
+holds only the conclusion. So when a design turns out wrong months later, *"what did we look at and
+turn down"* is answerable here and nowhere else. That makes the window a genuine question rather
+than a formality, and it is still not the thing the number measures: for the other four, how long
+something could be EVIDENCE is what sets the window. Here, what sets it is how long the deciding
+takes.
 
 **It is still finished when its conclusions LEAVE it** — when it became an arc, a plan or a spec and
 carries the pointer to what it produced. That is the condition; `7d` is the backstop under it, and
