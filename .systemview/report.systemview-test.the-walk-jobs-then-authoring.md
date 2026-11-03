@@ -393,14 +393,14 @@ been in use returned the table (0.71) or my own pointer paragraph in AGENTS.md (
 phrasing now stands in all nine skills, jobs and docs, plus the MCP tool's description.
 ::::
 
-- [x] **`spec-authoring`** :file[~/.claude/skills/spec-authoring/SKILL.md] — written tonight, and RETIRED by t5: a spec report is a report, so its claims are a branch of the report-writing skill
+- [x] **`spec-authoring`** :file[~/.claude/skills/spec-authoring/SKILL.md] · 150 lines — written, briefly retired, and REWRITTEN on his ruling: it stays, because a spec is a runnable artifact and a report is the document that requires one. Its spine is now HOW to think — contract by shape, wrap it and name it `Test`, no gatekeeping on what counts
 
   **The question:** should it be a skill at all, or doctrine pointed at — and what does that
   doctrine actually say about cmds, wrappers and what counts as a spec?
 
 ::::thread{id=t4}
-**THE ARGUMENT, 2026-11-02 — where it landed.** `spec-authoring` was written tonight and t5 retires
-it. These are the things settled on the way.
+**THE ARGUMENT, 2026-11-02 — where it landed.** `spec-authoring` was written tonight; item 6 below
+is where its fate was settled, and it STAYS. These are the things settled on the way.
 
 **1 · A cmd counts as PROOF, never as a SPEC — and the line is WHO RUNS IT.** The code already
 draws it: `PROOF_KINDS.spec` is `["test","run","cmd"]` and satisfies a claim; `SPECS` is
@@ -420,14 +420,14 @@ existed, so I made one*, and the number of them is the measure of how much of th
 front door. `Test` rather than `Spec` because `spec` is already the artifact on the CALLING side —
 a claim owes a living spec — and a `Specs.*` namespace makes the spec call the spec.
 
-The existing wrapper is **`SystemViewCore`** (`systemview-test/service.json`), eight modules, six of
+The existing wrapper is **`Test`** (`systemview-test/service.json`), eight modules, six of
 them from one commit — `9492667f`, the lifecycle work: `Claims`, `Runs`, `Retrieval`, `LiveWindow`,
 `Proofs`, `Window`. The name reads like product, which is the lie: `Claims.js` and `Runs.js` say in
 their own first lines that they are DOORS with **no assertions** — *"it may count items and read
 states — that is transcription. It may not decide whether there are enough runs… the moment it
 does, the evidence stops being readable from the document that asked."* So the discipline is
 already written; only the name is missing. Cost of the rename, measured: 51 files, 41 markdown
-mentions, 33 spec files — and the markdown ones are `::test{SystemViewCore.X.y}` chips inside
+mentions, 33 spec files — and the markdown ones are `::test{Test.X.y}` chips inside
 claims on approved RFCs, a change of FORM not of contract.
 
 **4 · `Plugin` is a MODULE, not a service — and I had this wrong.** `systemview-plugin` is a
@@ -509,8 +509,8 @@ say which planning report produced it. Commits solved exactly this with the `Ser
 
 ## THE PLAN, in order — written down before any of it moves
 
-1. **Rename `SystemViewCore` → `Test`.** Mechanical: 51 files, 33 spec files, 41 markdown mentions
-   (`::test{SystemViewCore.X.y}` chips inside claims on approved RFCs — a change of FORM, not of
+1. **Rename `Test` → `Test`.** Mechanical: 51 files, 33 spec files, 41 markdown mentions
+   (`::test{Test.X.y}` chips inside claims on approved RFCs — a change of FORM, not of
    contract). FIRST, because every later door wants to join it and each one landing under the old
    name is another thing to migrate.
 2. **Give the `Test` service its `Plugin` module**, passed in through `systemview-plugin` the way
@@ -526,16 +526,31 @@ say which planning report produced it. Commits solved exactly this with the `Ser
 5. **The retirement TRIGGER — whether a consumed-by pointer can fire it instead of the clock.**
    The lifecycle itself needs nothing: a report reaches `retired` and nothing else, claims or no
    claims. What is left is one mechanism, and it is shared with the forensic argument.
-6. **`spec-authoring` RETIRES, and not for the tail-shape reason.** A spec report IS a report, so
-   writing one is the report skill's job; the only thing peculiar to it is what its CLAIMS owe,
-   which is a branch inside that skill and not a second skill. Its spec/evaluation mechanics were
-   never its to hold either — they are already in `systemview-docs` (`tests.md` probe-first and the
-   save rules, `hosted-services.md` §4, `AGENTS.md` §1.7), so it points.
+6. **`spec-authoring` STAYS, and a report skill can never replace it.** His ruling, and it rests on
+   a distinction worth keeping: **a spec is a runnable ARTIFACT** — a `::test` chip or a `:::run`
+   block — and **a report is a DOCUMENT that requires one.** A report skill can demand a spec, name
+   which shape to reach for, and refuse prose in its place; it cannot teach anybody to write the
+   thing, because probing the method, asserting against the real shape, staying inside the operator
+   grammar and checking it would FAIL on a regression are its own procedure with its own ways of
+   being wrong. *"There's no way, in my mind, that a report writing skill can replace a spec
+   writing skill."*
 
-**AND THE COUNT THIS THREAD ASKED FOR IS MOOT.** It proposed settling "skill or doctrine" by
-observing whether a spec gets SET OUT TO WRITE or OWED. A spec is only ever owed — so the question
-was never about frequency, it was about the NOUN. What is owed is a report, with claims written the
-receipt's way.
+   **AND THE SKILL'S JOB IS HOW TO THINK, NOT WHAT COUNTS.** *"They need help in thinking about how
+   to write. I'm not talking about when to write it… you're over here saying things like command
+   line is not this and that. Who cares? I don't want them to hesitate."* The failure is not a
+   loose vocabulary, it is NO SPEC — an agent deciding the thing was hard to check and writing a
+   paragraph. Specs are expected to grow toward cmds and UI queries later, so a skill that polices
+   the words today is a skill that teaches hesitation.
+
+   **The model is buAPI, and it is neat because the assertion is cheap:** a path into the real
+   response and the type it owes (`results.Tournaments[0] → object`). No assertion code, no mocks —
+   `Before` builds the world with REAL calls, `Main` calls the method under test, `After` clears up.
+   Test-side logic lives in a `Plugin` module via `systemview-plugin`, never in a door.
+
+**AND THE COUNT THIS THREAD ASKED FOR IS MOOT, for a different reason than it looked.** It proposed
+settling "skill or doctrine" by observing whether a spec gets SET OUT TO WRITE or OWED. A spec is
+only ever owed — but what is owed is the ARTIFACT, and the skill that writes it is not the skill
+that writes the document around it.
 ::::
 
 ::::thread{id=t5 sent=systemview-test:1waxp17}
@@ -612,11 +627,10 @@ claims list under the verdict, `STATUS`; and `rfc-authoring` §5 + `rfc-executio
 chapter with a query instead of carrying copies. Three places hold claim doctrine today, which is
 the drift this system keeps paying for.
 
-**And `spec-authoring` retires into the report-writing skill, not into doctrine** — a spec report
-IS a report, so writing one is that skill's job, and the only thing peculiar to it is what its
-claims owe (§9). The tail-shape argument that would once have sent it to a chapter does not hold:
-`skill-authoring` §8 says a run never collides with another, so the objection is about TRIGGERING,
-which the producers solve by naming the skill in their closing step.
+**And `spec-authoring` STAYS** — see t4's plan, item 6, which was overturned where it stood. A
+spec is a runnable artifact and a report is the document that requires one, so `report-authoring`
+REQUIRES a spec and points at `spec-authoring` to write it, the same way it points at the chapter
+for which kind to file. Two artifacts, two procedures, one pointer between them.
 
 **8 · AND A DRIFT FOUND WHILE CHECKING THE NUMBERS.** `notice` is alive in four places in
 `src/organisms/HowWeWork/howWeWork.data.js` — the lifecycle card list, the subtype line, a
@@ -738,10 +752,10 @@ the exemption was narrowed and the caller added, both sides in one pass.
 
 Forensics is its opening. It owns the ORDER and the irreversible bits; the per-kind facts stay in the
 corpus. Trigger eval: 3 passes, 20 queries, 100%/100%, eight negatives going to the right neighbour.
-**No behaviour eval.** `spec-authoring` is retired into its `as=spec` branch — and two facts that
-existed ONLY in that skill were rescued into `tests.md` first, because retiring it would have
-destroyed them: a `:::run` block's grammar parses only `=`, `~`, `>=`, `<=`, and a hang has no
-per-test deadline.
+**No behaviour eval.** `report-authoring` REQUIRES a spec and points at `spec-authoring` to write
+it. Two facts that existed ONLY in that skill were moved into `tests.md` while it was briefly being
+retired, and they belong there regardless: a `:::run` block's grammar parses only `=`, `~`, `>=`,
+`<=`, and a hang has no per-test deadline.
 
 **5 · Nine producers wired to choose-then-invoke.** *(no commits — see the bound below)*
 :file[~/.claude/skills/code-audit/SKILL.md] · :file[~/.claude/skills/system-audit/SKILL.md] ·
@@ -773,9 +787,9 @@ exists with how much it wants his eyes is to be settled at the window, with real
 him. Nobody should design it from in here.
 
 **HALF OF THIS HAS NO HISTORY.** Neither `~/.claude/skills` nor `~/.autobot` is a git repo, so item
-4's skill, item 5's nine files, and `spec-authoring`'s retirement sit on disk with nothing to revert
-to. That is also why `spec-authoring` was not deleted: its description says RETIRED so it cannot
-steal a turn, and removing it is a press through the system.
+4's skill and item 5's nine files sit on disk with nothing to revert to — which is also why
+`spec-authoring` was never deleted during the hour it was considered retired, and that turned out to
+matter: it was un-retired, and a deletion would have been unrecoverable.
 
 **THE MEASUREMENT WORTH CARRYING FORWARD.** A `context()` search shows only the first **~450
 characters** of a chunk, and the cap does not move with `limit`, `source=` or rephrasing. Three blind
