@@ -2,7 +2,7 @@
   {
     "title": "The speaking door: unknowns are refused, a known project that speaks has entered",
     "namespace": {
-      "serviceId": "SystemViewCore",
+      "serviceId": "Test",
       "moduleName": "Api",
       "methodName": "chatSpeakingGate"
     },
@@ -11,7 +11,7 @@
       {
         "title": "unknown identities are refused; a known project speaking is delivered and recorded as entered",
         "namespace": {
-          "serviceId": "SystemViewCore",
+          "serviceId": "Test",
           "moduleName": "Api",
           "methodName": "chatSpeakingGate"
         },

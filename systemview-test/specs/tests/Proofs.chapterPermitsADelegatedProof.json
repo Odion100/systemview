@@ -2,7 +2,7 @@
  {
   "title": "The chapter permits a delegated proof and fixes the brief — never tools alone",
   "namespace": {
-   "serviceId": "SystemViewCore",
+   "serviceId": "Test",
    "moduleName": "Proofs",
    "methodName": "chapterPermitsADelegatedProof"
   },
@@ -11,7 +11,7 @@
    {
     "title": "read the chapter and look for the delegation paragraph itself, not a word in a heading",
     "namespace": {
-     "serviceId": "SystemViewCore",
+     "serviceId": "Test",
      "moduleName": "Proofs",
      "methodName": "chapterPermitsADelegatedProof"
     },

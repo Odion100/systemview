@@ -2,7 +2,7 @@
  {
   "title": "The shell's own door answers about the live window — and the self-update hold is observable, not inferred",
   "namespace": {
-   "serviceId": "SystemViewCore",
+   "serviceId": "Test",
    "moduleName": "LiveWindow",
    "methodName": "shellDoorAnswers"
   },
@@ -11,7 +11,7 @@
    {
     "title": "ask the shell service about itself — its tabs, the bundle it is holding, and whether the corpora answer",
     "namespace": {
-     "serviceId": "SystemViewCore",
+     "serviceId": "Test",
      "moduleName": "LiveWindow",
      "methodName": "shellDoorAnswers"
     },

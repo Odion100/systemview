@@ -2,7 +2,7 @@
  {
   "title": "The proof IS the live block — it runs in the fold, keeps its exit across a collapse, and writes nothing",
   "namespace": {
-   "serviceId": "SystemViewCore",
+   "serviceId": "Test",
    "moduleName": "Window",
    "methodName": "liveCmdInTheFold"
   },
@@ -11,7 +11,7 @@
    {
     "title": "run the proof-in-a-fold suite headlessly and read the named cases out of its result",
     "namespace": {
-     "serviceId": "SystemViewCore",
+     "serviceId": "Test",
      "moduleName": "Window",
      "methodName": "liveCmdInTheFold"
     },

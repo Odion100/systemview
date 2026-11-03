@@ -2,7 +2,7 @@
  {
   "title": "RFC-075 owes no spec — every marked behavioural claim carries a living defence that resolves",
   "namespace": {
-   "serviceId": "SystemViewCore",
+   "serviceId": "Test",
    "moduleName": "Proofs",
    "methodName": "rfc075OwesNothing"
   },
@@ -11,7 +11,7 @@
    {
     "title": "count this document's own claims, and resolve every spec namespace it names to a file on disk",
     "namespace": {
-     "serviceId": "SystemViewCore",
+     "serviceId": "Test",
      "moduleName": "Proofs",
      "methodName": "rfc075OwesNothing"
     },

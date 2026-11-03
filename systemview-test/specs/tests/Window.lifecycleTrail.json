@@ -2,7 +2,7 @@
  {
   "title": "The lifecycle trail lights the station off the registry row, and says nothing when there is no row",
   "namespace": {
-   "serviceId": "SystemViewCore",
+   "serviceId": "Test",
    "moduleName": "Window",
    "methodName": "lifecycleTrail"
   },
@@ -11,7 +11,7 @@
    {
     "title": "run the lifecycle-strip suite headlessly and read the named cases out of its result",
     "namespace": {
-     "serviceId": "SystemViewCore",
+     "serviceId": "Test",
      "moduleName": "Window",
      "methodName": "lifecycleTrail"
     },

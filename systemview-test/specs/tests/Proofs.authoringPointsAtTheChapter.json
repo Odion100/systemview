@@ -2,7 +2,7 @@
  {
   "title": "rfc-authoring points at the chapter rather than restating it",
   "namespace": {
-   "serviceId": "SystemViewCore",
+   "serviceId": "Test",
    "moduleName": "Proofs",
    "methodName": "authoringPointsAtTheChapter"
   },
@@ -11,7 +11,7 @@
    {
     "title": "read the rfc-authoring skill off disk and look for the proof line, the pointer at the chapter, and any second copy of the shapes",
     "namespace": {
-     "serviceId": "SystemViewCore",
+     "serviceId": "Test",
      "moduleName": "Proofs",
      "methodName": "authoringPointsAtTheChapter"
     },

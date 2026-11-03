@@ -1,12 +1,12 @@
 [
   {
     "title": "The hub answers about itself",
-    "namespace": { "serviceId": "SystemViewCore", "moduleName": "Api", "methodName": "getProjects" },
+    "namespace": { "serviceId": "Test", "moduleName": "Api", "methodName": "getProjects" },
     "Before": [],
     "Main": [
       {
         "title": "getProjects through the hub's own door",
-        "namespace": { "serviceId": "SystemViewCore", "moduleName": "Api", "methodName": "getProjects" },
+        "namespace": { "serviceId": "Test", "moduleName": "Api", "methodName": "getProjects" },
         "args": [],
         "savedEvaluations": [
           {

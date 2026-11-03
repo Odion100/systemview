@@ -2,7 +2,7 @@
  {
   "title": "Nothing runs a proof but a press — no scheduler, no watcher, no poll",
   "namespace": {
-   "serviceId": "SystemViewCore",
+   "serviceId": "Test",
    "moduleName": "Proofs",
    "methodName": "noProofRunner"
   },
@@ -11,7 +11,7 @@
    {
     "title": "scan every module of the document machinery for the seven spellings of something that runs on its own",
     "namespace": {
-     "serviceId": "SystemViewCore",
+     "serviceId": "Test",
      "moduleName": "Proofs",
      "methodName": "noProofRunner"
     },

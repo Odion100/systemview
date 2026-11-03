@@ -2,7 +2,7 @@
  {
   "title": "The lifecycle trail has a real row behind it — this document is in the registry and the station derives",
   "namespace": {
-   "serviceId": "SystemViewCore",
+   "serviceId": "Test",
    "moduleName": "Proofs",
    "methodName": "registryLightsThisDocument"
   },
@@ -11,7 +11,7 @@
    {
     "title": "ask the live registry for this document's own row and read the stage it derives",
     "namespace": {
-     "serviceId": "SystemViewCore",
+     "serviceId": "Test",
      "moduleName": "Proofs",
      "methodName": "registryLightsThisDocument"
     },

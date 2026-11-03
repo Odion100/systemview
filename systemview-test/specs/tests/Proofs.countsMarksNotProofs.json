@@ -2,7 +2,7 @@
  {
   "title": "::claims counts marks, not proofs",
   "namespace": {
-   "serviceId": "SystemViewCore",
+   "serviceId": "Test",
    "moduleName": "Proofs",
    "methodName": "countsMarksNotProofs"
   },
@@ -11,7 +11,7 @@
    {
     "title": "count two documents identical but for a proof, and compare the totals they come back with",
     "namespace": {
-     "serviceId": "SystemViewCore",
+     "serviceId": "Test",
      "moduleName": "Proofs",
      "methodName": "countsMarksNotProofs"
     },

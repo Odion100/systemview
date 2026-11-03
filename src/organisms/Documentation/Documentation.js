@@ -250,7 +250,7 @@ export default function Documentation({
 
   // Which service's plugin serves this doc. BUG THIS FIXES: at project level we used to take the
   // FIRST service in the project — but a project can contain services with NO plugin (a codebase
-  // entry, or a service that registers without the SystemView module, e.g. SystemViewCore). Picking
+  // entry, or a service that registers without the SystemView module, e.g. Test). Picking
   // one of those left `Plugin` undefined, so getDoc never ran and the project doc rendered as "No
   // documentation yet" — the doc looked DELETED purely because of connection order.
   const hasPlugin = (s) =>

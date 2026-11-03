@@ -31,7 +31,7 @@ function refreshConnections(connections) {
         // A kept-dead row earns its place ONLY when it's the sole row for its service — if a
         // live row for the same (project, service) came through the probe, the dead one is a
         // superseded ghost (old port from a previous boot), not an offline service. Found as a
-        // duplicate dead SystemViewCore row shadowing its live replacement and failing the suite.
+        // duplicate dead Test row shadowing its live replacement and failing the suite.
         const key = (r) => `${r.projectCode}|${r.serviceId}`;
         const groups = {};
         newConnections.forEach((r) => { (groups[key(r)] = groups[key(r)] || []).push(r); });
@@ -58,7 +58,7 @@ function refreshConnections(connections) {
           // getConnection doesn't know store-side flags — carry `hosted` over, or a hosted row
           // reads hosted:false after one refresh and its dead ghost is then KEPT (as a plain
           // offline row) instead of dropped on the next boot. Found as a duplicate dead
-          // SystemViewCore row failing the suite.
+          // Test row failing the suite.
           newConnections.push({ ...fresh, hosted: connections[i].hosted || fresh.hosted });
         } else if (!connections[i].hosted) newConnections.push({ ...connections[i], __keptDead: true });
         recursiveCheckConnection(i + 1);

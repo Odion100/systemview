@@ -1,4 +1,4 @@
-// systemview-test/methods/Cli.js — the `Cli` module of SystemViewCore.
+// systemview-test/methods/Cli.js — the `Cli` module of Test.
 // RFC-021 DEPICTED these namespaces as a project:// ghost; RFC-027 made them real: every method
 // actually spawns the systemview CLI and returns what came back, so saved tests here exercise
 // SystemView's own command surface end to end.

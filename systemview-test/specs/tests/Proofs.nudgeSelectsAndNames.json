@@ -2,7 +2,7 @@
  {
   "title": "An idle agent is nudged back to its open run, named — and movement resets the count",
   "namespace": {
-   "serviceId": "SystemViewCore",
+   "serviceId": "Test",
    "moduleName": "Proofs",
    "methodName": "nudgeSelectsAndNames"
   },
@@ -11,7 +11,7 @@
    {
     "title": "give the picker a quiet session with a half-finished procedure and read the message it builds",
     "namespace": {
-     "serviceId": "SystemViewCore",
+     "serviceId": "Test",
      "moduleName": "Proofs",
      "methodName": "nudgeSelectsAndNames"
     },

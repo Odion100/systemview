@@ -324,7 +324,7 @@ the file's own parse, and the window you are reading this in.
 Add a claim to this document and this block goes red until you up the number. That is a living spec
 sitting in the thing it describes — you are already editing the file.
 :::run{title="A proof must never break out and become a claim of its own: 26 claims in the file, 26 rows on screen, 25 proofs and every one of them inside a claim"}
-- SystemViewCore.Claims.bar({ "path": "RFCs/RFC-075-a-claim-carries-its-proof.md" }){title="the file's own parse — 26 claims, 25 of them holding a proof"}
+- Test.Claims.bar({ "path": "RFCs/RFC-075-a-claim-carries-its-proof.md" }){title="the file's own parse — 26 claims, 25 of them holding a proof"}
   - results.total = 26
   - results.specd = 25
 - AutobotShell.Window.count({ "selector": ".md-claim > .md-claim__row" }){title="claim rows the window drew — one per claim, so 26. More than that and a proof has escaped"}
@@ -354,7 +354,7 @@ fixture I wrote to pass, while those files carry real nesting, threads and spaci
 
 **If it stopped holding,** plain claims in documents nobody has open would be quietly disappearing
 from their own bars, and the first person to notice would be whoever opened one months later.
-::test[SystemViewCore.Proofs.leavesInTheOtherRfcsStillParse]{project=systemview-test}
+::test[Test.Proofs.leavesInTheOtherRfcsStillParse]{project=systemview-test}
 ::::
 
 ::::claim[Open a claim's proof and press the command inside it → it runs there, and its exit code and output stay inside the fold. It is the live thing, not a picture of one.]{id=c2 state=met by=systemview-test|you at=1793037767715 note="met and spec'd — and the first version of this spec was two true facts with the claim sitting between them. Claim.test put a plain div in a fold; CmdBlock.test ran a block standing alone; neither asserted the COMPOSITION. blocks/claimProof.test.js now renders a real CmdBlock as a claim's proof and does the whole gesture: folded and unrun, expand, press, exit and output land INSIDE the fold, collapse keeps them, and a run still in flight survives a collapse and delivers its exit into a closed fold. That last case is the defect he found. The claim used to send you to c14's fold to try the gesture; it holds its own command now, because a claim that borrows another claim's evidence is not carrying its own." told=systemview-test}
@@ -369,7 +369,7 @@ press it, exit and output land inside the fold, close it and they survive; and a
 flight delivers its exit into a fold that has since been closed. **If it stopped holding,** a
 proof would show you a result it never ran — which is the one failure that makes every green
 meaningless.
-::test[SystemViewCore.Window.liveCmdInTheFold]{project=systemview-test}
+::test[Test.Window.liveCmdInTheFold]{project=systemview-test}
 ::::
 
 
@@ -386,7 +386,7 @@ place and does the announcement go out — through the host's own parse-and-anno
 copy of it. Also that an unchecked claim announces nothing, and that *not met* announces as not
 met. **If it stopped holding,** marking a claim with a proof would either write to the wrong line
 or tell nobody, so the people on the document would learn about decisions by re-reading the file.
-::test[SystemViewCore.Proofs.claimFiresOffItsOpeningLine]{project=systemview-test}
+::test[Test.Proofs.claimFiresOffItsOpeningLine]{project=systemview-test}
 ::::
 
 ::::claim[Right-click a claim that has no proof and choose *add a proof* → it is rewritten in place to make room for one, and its statement and its mark come through untouched.]{id=c4 state=met by=systemview-test|you at=1793017353142 note="met and spec'd for the transform: Proofs.growProof — statement and mark verbatim, the fence under an empty body, what followed still there, and a container, a non-claim and a line off the end each a no-op. NOT spec'd, and said plainly: the right-click affordance and its gating (offered on a leaf, withheld on a container) live inline in Markdown.js, which no suite can mount because react-markdown is ESM. That is a missing observable, which the doctrine calls a finding — it is on the board, not hidden here." told=systemview-test}
@@ -409,7 +409,7 @@ still following. And that it refuses the three things it should: a claim that al
 a line that is not a claim at all, and a line past the end of the file.
 **If it stopped holding,** the gesture would silently eat a statement or a signature — and nobody
 would notice until a claim came back wearing somebody else's mark.
-::test[SystemViewCore.Proofs.growProof]{project=systemview-test}
+::test[Test.Proofs.growProof]{project=systemview-test}
 ::::
 
 ::::claim[Open a document the system knows about → the coloured lifecycle strip at its top lights the stage the system actually believes it is at, read from the record rather than typed by an author. You cannot fake it by writing a word.]{id=c5 state=met by=systemview-test|you at=1793017353142 note="met and spec'd in two halves: Window.lifecycleTrail pins the render law (station lit off the row, no row means no trail at all, no hub means nothing rather than an error, rejected shows draft -> rejected) and Proofs.registryLightsThisDocument asserts the LIVE row behind it — kind rfc, path matching this file, state derived by the shell's parse, station 'built' present in the kind's own list. The suite MOCKS the registry, so only the second half would notice the row going missing." told=systemview-test}
@@ -432,13 +432,13 @@ has just changed it.
 light that stage — and when there is no record at all, does it draw nothing rather than guess?
 It hands the renderer the record itself, so it is a drawing law and nothing more.
 **If it stopped holding,** a rejected design would light up as a draft and somebody would build it.
-::test[SystemViewCore.Window.lifecycleTrail]{project=systemview-test}
+::test[Test.Window.lifecycleTrail]{project=systemview-test}
 
 **What the second one asks:** is there a real record behind the strip at the top of THIS document —
 the right kind, the right path, and a stage the system derives rather than reads off the page.
 This is the one that touches the live registry; the one above is handed its record.
 **If it stopped holding,** the strip would keep drawing confidently from nothing.
-::test[SystemViewCore.Proofs.registryLightsThisDocument]{project=systemview-test}
+::test[Test.Proofs.registryLightsThisDocument]{project=systemview-test}
 ::::
 
 **The guards — what a proof can never do** (§1.2, §5)
@@ -456,7 +456,7 @@ written, and a check on one is blind to the other.
 announced to a document's audience? It is not, and the list has claims in it, so the absence is a
 decision rather than an empty table. **If it stopped holding,** pressing a command would notify
 everybody on a document that something had been decided.
-::test[SystemViewCore.Proofs.resultBlocksNeverAnnounce]{project=systemview-test}
+::test[Test.Proofs.resultBlocksNeverAnnounce]{project=systemview-test}
 
 **The writing half — and this is the one that actually defends the claim.** What it asks: run a
 proof all the way to its exit code, passing and failing, with the document's write door open, and
@@ -466,7 +466,7 @@ toward *built* would be decided by a shell exit instead of by a person.
 :::cmd
 CI=true npx react-scripts test --watchAll=false --testPathPattern "blocks/CmdBlock.test" 2>&1 | tail -4
 :::
-::test[SystemViewCore.Window.liveCmdInTheFold]{project=systemview-test}
+::test[Test.Window.liveCmdInTheFold]{project=systemview-test}
 ::::
 
 :::claim[Where two people have signed a claim, both signatures stay — a second reviewer adds a name and moves nothing else, one person stepping off leaves the other's standing, and changing your answer stashes the old one rather than erasing it.]{id=c6b state=met by=systemview-test|you at=1793017353142 note="met and spec'd: three named cases in Window.claimRow — countersigning adds a name and moves nothing else, one signer stepping off leaves the other's signature standing, and changing an answer stashes the old one. Split out of c6 on a blind review's recommendation: c6 is about a MACHINE never marking, this is about two PEOPLE both being recorded, and one spec was carrying both." told=systemview-test}
@@ -477,7 +477,7 @@ the other's signature standing; changing your answer stashes the old one rather 
 **If it stopped holding,** the second reviewer would overwrite the first, and a document would show
 one signature where two people had looked — which is the worst possible failure for a record whose
 whole job is saying who agreed.
-::test[SystemViewCore.Window.claimRow]{project=systemview-test}
+::test[Test.Window.claimRow]{project=systemview-test}
 :::
 
 ::::claim[Search the document machinery for anything that could run a proof on its own — a timer, a watcher, a scheduler, a poll → there is nothing. A proof runs when a person presses it, and at no other moment.]{id=c7 state=met by=systemview-test|you at=1793017353142 note="met and spec'd, after the claim's own words were narrowed to what is defended. The spec scans every module in the host's document machinery plus documentUpdate.cjs for setInterval, setTimeout, fs.watch, fs.watchFile, a bare watch(, chokidar and cron — seven spellings, where the first version looked for two. The claim used to say 'the shell and the hub': run that grep where it pointed and it does NOT come back none (api/index.js and hostProject.js schedule and watch for their own reasons, CmdBlock polls a run), none of it a proof runner. A spec that redefines its claim's surface is worse than a narrower claim, so the claim is narrower now." told=systemview-test}
@@ -492,7 +492,7 @@ and the document-update path for seven spellings of "something runs by itself" �
 negative is only as strong as what it hunted, so the hunt is written here rather than left in the
 method's name. **If it stopped holding,** proofs would start running unattended, and a document's
 greens would stop meaning anybody had checked anything.
-::test[SystemViewCore.Proofs.noProofRunner]{project=systemview-test}
+::test[Test.Proofs.noProofRunner]{project=systemview-test}
 ::::
 
 ::::claim[Running a proof must never move a document's met count — only a person's press may do that. So the counter reads signatures and ignores proofs entirely: a claim with a proof and a claim without one count exactly the same.]{id=c8 state=met by=systemview-test|you at=1793017353142 note="met and spec'd: Proofs.countsMarksNotProofs — a proofed and an unproofed claim give identical met and total counts. A third field asserting 'no proof column' was DELETED in reconciliation: it checked for a key nobody ever used while the object right there carries specd and owed, so it asserted the opposite of what the code contains and passed anyway. The reading is narrower since the amendment, which is why c8 stands rather than being retracted." told=systemview-test}
@@ -511,7 +511,7 @@ same met and total. **If it stopped holding** — if the counter ever took proof
 pressing a command would quietly advance a document toward *built*, which is the lifecycle moving
 because a shell exited zero rather than because anybody agreed. That is the risk this claim exists
 to rule out; the arithmetic is just how it is ruled out.
-::test[SystemViewCore.Proofs.countsMarksNotProofs]{project=systemview-test}
+::test[Test.Proofs.countsMarksNotProofs]{project=systemview-test}
 ::::
 
 **The proving ground** (slice 3)
@@ -527,7 +527,7 @@ each one still holds a real runnable block rather than an empty fold. Named rath
 because counting only the ones that grew a fold lets the question answer itself.
 **If it stopped holding,** RFC-073 would look proofed from its bar while its folds had gone hollow,
 which is the exact condition this whole design exists to make impossible.
-::test[SystemViewCore.Proofs.rfc073ProofsStand]{project=systemview-test}
+::test[Test.Proofs.rfc073ProofsStand]{project=systemview-test}
 ::::
 
 **The context** (slice 4, commitments 7–8)
@@ -544,7 +544,7 @@ cd ~/autobot && node -e 'const{createClient}=require("systemlynx");createClient(
 the proof section and the approach section by heading, the sequence said in order, and all three
 approach items. **If it stopped holding,** `context()` would keep answering and the answer would
 have gone hollow.
-::test[SystemViewCore.Proofs.chapterAnswersTheProofQuestion]{project=systemview-test}
+::test[Test.Proofs.chapterAnswersTheProofQuestion]{project=systemview-test}
 
 **What the second spec asks, and it is new because the old note was wrong twice.** It said *"context
 has no door a saved spec can call"* — but retrieval has a structural precondition that needs no
@@ -554,7 +554,7 @@ names it, inside a corpus root that covers the file. All three are computable fr
 corpus — words nothing indexes answer nobody — then that the proof subject is one whole chunk with
 the sequence in it. **If it stopped holding,** an edit would split the subject across two chunks and
 the question would start returning half an answer, with nothing going red.
-::test[SystemViewCore.Retrieval.chunkByHeading]{project=systemview-test}
+::test[Test.Retrieval.chunkByHeading]{project=systemview-test}
 ::::
 
 ::::claim[The skill that writes RFCs mentions the proof briefly and points at the chapter for the rest — so there is one description of how to write a proof, not a copy in the skill drifting from the copy in the handbook.]{id=c11 state=met by=systemview-test|you at=1793017353142 note="met and spec'd — and the previous note claimed an assertion about the WRONG FILE (it cited a check on rfc-execution). Proofs.authoringPointsAtTheChapter asserts rfc-authoring itself: the proof line present, a pointer at the chapter, and no second copy of the shapes or the approach in the skill. Two corrections the review earned: the claim's 'ONE line' is really a four-line paragraph, and the shapes TABLE is in this RFC's own 1.4 rather than in the chapter — the chapter carries the shapes in prose, which is what the spec asserts." told=systemview-test}
@@ -567,7 +567,7 @@ grep -n "leave the PROOF" ~/.claude/skills/rfc-authoring/SKILL.md
 points at the chapter, and it does *not* carry a second copy of the shapes or the approach.
 **If it stopped holding,** there would be two descriptions of how to write a proof in two places
 that nothing compares, which is how six copies of a dead CLI once taught six agents the wrong thing.
-::test[SystemViewCore.Proofs.authoringPointsAtTheChapter]{project=systemview-test}
+::test[Test.Proofs.authoringPointsAtTheChapter]{project=systemview-test}
 ::::
 
 ::::claim[The chapter says you may hand proof-writing to another agent, and says what that agent has to be given — the chapter itself, plus the claim's mark and note. It grants permission; it does not prescribe how.]{id=c12 state=met by=systemview-test|you at=1793017353142 note="met and spec'd — and the first version was a single word that matched a HEADING: the entire permission paragraph could have been deleted with the spec still green. Proofs.chapterPermitsADelegatedProof now asserts the three things the claim says: 'Proof-writing may be delegated; verification may not', the brief (the claim, its mark, its note, this section), and 'never tools alone' — plus permitted-never-required, which is what makes it permission rather than procedure." told=systemview-test}
@@ -580,7 +580,7 @@ grep -n "delegated" docs/how-we-work/rfcs.md
 allowed, and the brief it requires — rather than a word that happens to appear in a heading.
 **If it stopped holding,** an agent would hand a proof to a subagent with tools and no doctrine,
 which produces a green it cannot account for.
-::test[SystemViewCore.Proofs.chapterPermitsADelegatedProof]{project=systemview-test}
+::test[Test.Proofs.chapterPermitsADelegatedProof]{project=systemview-test}
 ::::
 
 ::::claim[There is a skill for building an approved RFC, and its steps are the ones this design commits to — read the verdict first, land the slices in the RFC's own order, walk every claim and mark it, and finish by writing the dated status line.]{id=c13 state=met by=systemview-test|you at=1793017353142 note="met and spec'd: Proofs.executionSkillWalksAnRfc asserts the procedure by heading — the verdict gate, the slices in the RFC's order, the claims walk with marks, closing with STATUS. Four headings the first version never checked while asserting only that the file was non-empty, which is the defect a blind review found. Split from the tracked-run half on the same review's recommendation: a document on disk and a run record are different things and one spec was carrying both." told=systemview-test}
@@ -593,7 +593,7 @@ sed -n 1,3p ~/.claude/skills/rfc-execution/SKILL.md
 file exists and is long, which is what the first version of this spec checked while reading green.
 **If it stopped holding,** the skill would still fire and still look followed, and an RFC would get
 built in whatever order the agent felt like, with the claims walk quietly dropped.
-::test[SystemViewCore.Proofs.executionSkillWalksAnRfc]{project=systemview-test}
+::test[Test.Proofs.executionSkillWalksAnRfc]{project=systemview-test}
 ::::
 
 ::::claim[Run that skill → it opens one tracked run under its own name, so afterwards there is a record on disk saying the procedure was followed rather than just chosen. This document's own claims walk is one of those records.]{id=c13b state=met by=systemview-test|you at=1793017353142 note="met. Checked by looking before opening one: zero runs sourced skill:rfc-execution existed on disk while this claim already read met — which is exactly the hole the whole doctrine is about. This document's walk is now one of them. The Skill tool proves a skill was chosen; only the sourced run proves it was followed." told=systemview-test}
@@ -601,7 +601,7 @@ The records themselves. Press this and it reads the real worklists directory —
 are reading this while I am still walking the document, the run doing it, stopped on whichever item
 it is on:
 :::run{title="The skill leaves a record on disk: at least one run sourced skill:rfc-execution, at least one of them driven all the way to done"}
-- SystemViewCore.Runs.sourced({ "source": "skill:rfc-execution" }){title="every run record carrying this skill's own name, with how far each got and where it stopped"}
+- Test.Runs.sourced({ "source": "skill:rfc-execution" }){title="every run record carrying this skill's own name, with how far each got and where it stopped"}
   - results.count >= 1
   - results.closedCount >= 1
 :::
@@ -625,7 +625,7 @@ cd ~/autobot && node tests/nudge.js | tail -2
 procedure — and does the message it builds name the procedure, the step left open, and the progress?
 **If it stopped holding,** a procedure would die half-done in silence, which is the one failure the
 whole run record exists to make impossible.
-::test[SystemViewCore.Proofs.nudgeSelectsAndNames]{project=systemview-test}
+::test[Test.Proofs.nudgeSelectsAndNames]{project=systemview-test}
 ::::
 
 ::::claim[The waking was supposed to stop after a set number of tries. It does not — and that is the answer: nothing stops it but finishing the work, or saying out loud that it is abandoned and leaving an account of why.]{id=c14b state=met by=you at=1793096923194 note="NOT MET, and the valuable outcome — now with a living spec of what happens INSTEAD. Proofs.nudgeNeverGivesUp asserts the law that replaced it: the first nudge is 1 of 3, the third is the FINAL NOTICE, past the cap the position WRAPS, an ordinary nudge never mentions the exit, and neither the declared word alone nor the attached report alone excuses a run. A blind review caught that all of this was arithmetic on cycleOf, which structurally cannot see a stop — so the selector is asserted too: pickNudge with a count of 9 still returns the run, which is the field that would go red if the give-up were ever put back. The knob at zero is the one real stop, and it is now written down. Kept rather than rewritten because the mark it carried was TRUE when made; a claim that went false while nobody was asking is this document's own argument for 1.5." told=systemview-test unmetBy=systemview-test}
@@ -639,7 +639,7 @@ going; and check that neither saying "abandoned" nor filing a report is enough o
 it. **If it stopped holding** — if the cap came back — an agent could outlast the system by waiting,
 and the cheapest way to finish a procedure would be to ignore it. This is the one claim in this
 document marked **not met**, and the spec defends what happens *instead* of what was promised.
-::test[SystemViewCore.Proofs.nudgeNeverGivesUp]{project=systemview-test}
+::test[Test.Proofs.nudgeNeverGivesUp]{project=systemview-test}
 ::::
 
 ::::claim[The settings cog beside the worklist opens real controls for the waking — how long quiet counts as idle, and whether it is on at all — instead of the placeholder that used to say there was no door yet.]{id=c15 state=met by=systemview-test|you at=1793017346091 note="met and spec'd in two halves, because a registered IPC channel is not a rendered cog and the first version only had the channel. Proofs.nudgeSettingsDoor asserts the knobs' contract (defaults with no file at all, every knob defaulted, garbage falling back, a round-trip through a SCRATCH file so the spec never edits the settings his own sessions are nudged by) and the shell's door answering with nudgePicks. Window.nudgeCog wires the fourteen-case suite that renders the knobs — which was addressed by NOTHING until the review found it — including the line the claim was written against: it says plainly when there is no door rather than inventing a state." told=systemview-test}
@@ -651,13 +651,13 @@ grep -n "nudge:settings" ~/autobot/electron/apps/files-host.cjs
 **What the first one asks:** do the controls actually save and come back — written and re-read
 through a scratch file, never your real settings, so running the proof cannot change your window.
 **If it stopped holding,** the knobs would look live and change nothing.
-::test[SystemViewCore.Proofs.nudgeSettingsDoor]{project=systemview-test}
+::test[Test.Proofs.nudgeSettingsDoor]{project=systemview-test}
 
 **What the second one asks, and it is a different thing:** does the cog RENDER the controls? A
 working door behind the scenes is not a control on screen. Fourteen cases cover the knobs drawing,
 and the line shown when there genuinely is no door.
 **If it stopped holding,** the door would work and nobody could reach it.
-::test[SystemViewCore.Window.nudgeCog]{project=systemview-test}
+::test[Test.Window.nudgeCog]{project=systemview-test}
 ::::
 
 **The amendment's claims** (§1.5, added 2026-10-26 — the declaration and what it derives)
@@ -675,7 +675,7 @@ that should not — including a typo of the magic word, which must NOT excuse it
 saying nothing comes back as behaviour every time.
 **If it stopped holding,** the exemption would widen by accident, and an agent facing a check it
 would rather not write would discover the claim had always been one somebody just looks at.
-::test[SystemViewCore.Proofs.claimKind]{project=systemview-test}
+::test[Test.Proofs.claimKind]{project=systemview-test}
 ::::
 
 ::::claim[A claim counts as defended when its fold holds a real saved test or a run — not when it holds a shell command, and not when it merely quotes one inside a code example. Showing what a test looks like is not having one.]{id=c17 state=met by=systemview-test|you at=1793063000000 note="met and spec'd: Proofs.specDetection — ::test and :::run count, a cmd and prose do not, a leaf carries none by construction, a FENCED example cannot fake one, and the body walk still finds a spec past a longer inner fence. The exclusion of :::cmd stays deliberate: a cmd running the suite and a cmd running grep are indistinguishable at parse level, and a heuristic behind a lifecycle gate is worse than an honest absence." told=systemview-test}
@@ -694,7 +694,7 @@ cd ~/Systemly/systemview && node -e 'const C=require("./systemview-test/methods/
 defended — a saved test counts, a run counts, a shell command does not, and a code example that
 merely shows a test does not. **If it stopped holding,** a document could reach "fully defended" by
 quoting examples of tests, and the bar would be counting prose.
-::test[SystemViewCore.Proofs.specDetection]{project=systemview-test}
+::test[Test.Proofs.specDetection]{project=systemview-test}
 ::::
 
 :::claim[The bar at the top of a document says how many claims are defended out of the ones that OWE a defence — never out of all of them, because a claim a person concludes by eye is not a shortfall — and it says how many are owed. None of that moves the met count.]{id=c18 state=met by=systemview-test|you at=1793063000000 note="met and spec'd three ways: Proofs.barAxes pins the arithmetic on a fixture (spec'd over the BEHAVIOURAL count and never the total, met untouched, owed only where marked, behavioural and unspec'd), Window.claimRow now pins what a reader SEES — 1/2 spec'd and 1 owed drawn on a mixed document, no owed tag at all when nothing is owed, reviewed still beside them — which nothing asserted before the review asked, and Proofs.rfc075OwesNothing asserts THIS document owes nothing AND that every namespace it names resolves to a spec on disk, because hasSpec is structural and 21/21 was otherwise reachable with 21 fabricated names. The bar read 0/15 the night the amendment landed." told=systemview-test}
@@ -704,13 +704,13 @@ quoting examples of tests, and the bar would be counting prose.
 over all of them, that owed is counted and reported, and that none of it touches the met count.
 **If it stopped holding,** a document full of by-eye claims would read as badly defended, and the
 honest answer would start looking like a failure.
-::test[SystemViewCore.Proofs.barAxes]{project=systemview-test}
+::test[Test.Proofs.barAxes]{project=systemview-test}
 
 **What the second one asks, about THIS document:** that nothing here is owed — every claim that
 promises behaviour and carries a mark also carries a defence, and the namespaces it points at are
 real files on disk. **If it stopped holding,** this document would be making the exact argument it
 fails to live up to, and the failure would name the claim.
-::test[SystemViewCore.Proofs.rfc075OwesNothing]{project=systemview-test}
+::test[Test.Proofs.rfc075OwesNothing]{project=systemview-test}
 :::
 
 ::::claim[Mark a claim that promises behaviour and has nothing durable behind it → its own row says so, out loud, where you read it. A claim a person concludes by eye says that instead and is never asked for more. And a claim nobody has marked yet is asked for nothing.]{id=c19 state=met by=systemview-test|you at=1793063000000 note="met and spec'd: Window.claimRow pins all four rows by name — 'no spec' on an undefended behavioural claim, silence when the fold carries one, 'by eye' on an experiential claim, and nothing asked of an unmarked claim — plus the clause that was half-covered until the review named it: 'by eye' rides the KIND ALONE, so an experiential claim nobody has marked still says it. Three of the five are absence checks, which is worth knowing: delete the badge feature and they would go green; the two positive ones are what catch that." told=systemview-test}
@@ -731,7 +731,7 @@ five cases are absence checks, so the two positive ones and the window read abov
 catch the tag being deleted.
 **If it stopped holding,** the shortfall would live only in the bar's total, and you would have to
 count to find out which claim was undefended.
-::test[SystemViewCore.Window.claimRow]{project=systemview-test}
+::test[Test.Window.claimRow]{project=systemview-test}
 ::::
 
 ::::claim[Ask the store about the proof doctrine → the chapter answers with both obligations, who writes the durable half, which block to reach for and why it matters, and how to get a real door onto the thing being claimed.]{id=c20 state=met by=systemview-test|you at=1793063000000 note="met and spec'd: Proofs.doctrineReachesBothReaders asserts the four doctrine sections by heading, the change-loop consequence, 'living spec' said out loud, the route to a live door, the second-opinion chapter with disagreement-is-the-product, and the corpus covering the file — words nothing indexes answer nobody. Split from the no-duplication half on a blind review's recommendation; that half is now c20b and carries its own assertions." told=systemview-test}
@@ -746,13 +746,13 @@ reason one block beats the other is stated rather than implied, that the route t
 written down, and that the file sits inside an indexed corpus.
 **If it stopped holding,** `context()` would keep answering the question and the answer would have
 gone hollow — the worst failure a handbook has, because retrieval still succeeds.
-::test[SystemViewCore.Proofs.doctrineReachesBothReaders]{project=systemview-test}
+::test[Test.Proofs.doctrineReachesBothReaders]{project=systemview-test}
 ::::
 
 ::::claim[There is ONE description of how to write a proof. The building skill carries the paragraph that decides which block to reach for and no copy of the rest — so the handbook and the skill cannot drift apart, because there is nothing to drift.]{id=c20b state=met by=systemview-test|you at=1793063000000 note="met and spec'd by the run below, which calls the same method as c20 and asserts only the two fields this claim owns: the skill carries the deciding paragraph, and it points rather than restating — no routes heading of its own, no second copy of the shapes. Asserted rather than trusted because a copy pasted into the skill reads perfectly well; nothing about a duplicate looks wrong on the page." told=systemview-test}
 Press it. The same method c20 calls, asked only the two questions this claim is about:
 :::run{title="One definition, not two: the skill carries the deciding paragraph, and carries no copy of the rest"}
-- SystemViewCore.Proofs.doctrineReachesBothReaders(){title="read the chapter and the building skill side by side, and report what each one carries"}
+- Test.Proofs.doctrineReachesBothReaders(){title="read the chapter and the building skill side by side, and report what each one carries"}
   - results.executionCarriesTheDecidingParagraph = true
   - results.theSkillPointsRatherThanRestates = true
 :::
@@ -866,7 +866,7 @@ offered as this amendment's own best evidence.
 stand here said this document *could not honestly reach `settled`*: twenty-one behavioural claims,
 fourteen `:::cmd`s, **none carrying a spec**, which under its own §1.5 meant no defence the change
 loop runs. That is repaired. The bar reads **25/25 spec'd, 0 owed**, and the specs are real: 25
-namespaces named from this file, every one resolving to a saved SystemLynx spec on `SystemViewCore`
+namespaces named from this file, every one resolving to a saved SystemLynx spec on `Test`
 (`Proofs.*`, `Window.*`, `Retrieval.*`), addressable as
 `runTests({projectCode: "systemview-test", namespace: "Proofs"})` from any chat, by any agent,
 without opening this file — plus four claims defended by a `:::run` that lives in the document and

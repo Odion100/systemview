@@ -2,7 +2,7 @@
  {
   "title": "A claim declares its kind — silence reads behavioural, and only the written word exempts",
   "namespace": {
-   "serviceId": "SystemViewCore",
+   "serviceId": "Test",
    "moduleName": "Proofs",
    "methodName": "claimKind"
   },
@@ -11,7 +11,7 @@
    {
     "title": "hand the real kind-reader every spelling that should excuse a claim and every one that should not, including a typo of the magic word",
     "namespace": {
-     "serviceId": "SystemViewCore",
+     "serviceId": "Test",
      "moduleName": "Proofs",
      "methodName": "claimKind"
     },

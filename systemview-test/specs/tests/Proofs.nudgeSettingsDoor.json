@@ -2,7 +2,7 @@
  {
   "title": "The cog's knobs have a contract and the shell has the door",
   "namespace": {
-   "serviceId": "SystemViewCore",
+   "serviceId": "Test",
    "moduleName": "Proofs",
    "methodName": "nudgeSettingsDoor"
   },
@@ -11,7 +11,7 @@
    {
     "title": "write the settings through the door and read them back — through a scratch file, never his own",
     "namespace": {
-     "serviceId": "SystemViewCore",
+     "serviceId": "Test",
      "moduleName": "Proofs",
      "methodName": "nudgeSettingsDoor"
     },

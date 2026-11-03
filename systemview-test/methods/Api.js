@@ -1,4 +1,4 @@
-// systemview-test/methods/Api.js — the `Api` module of SystemViewCore: real calls against the
+// systemview-test/methods/Api.js — the `Api` module of Test: real calls against the
 // hub's own service API, through the same door the UI and the CLI use.
 const { createClient } = require("systemlynx");
 const { required, chatService } = require("../support/fixtures");

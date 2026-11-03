@@ -2,7 +2,7 @@
  {
   "title": "The worklist cog shows the nudge knobs, and says so plainly when there is no door",
   "namespace": {
-   "serviceId": "SystemViewCore",
+   "serviceId": "Test",
    "moduleName": "Window",
    "methodName": "nudgeCog"
   },
@@ -11,7 +11,7 @@
    {
     "title": "run the settings-cog suite headlessly and read the named cases out of its result",
     "namespace": {
-     "serviceId": "SystemViewCore",
+     "serviceId": "Test",
      "moduleName": "Window",
      "methodName": "nudgeCog"
     },

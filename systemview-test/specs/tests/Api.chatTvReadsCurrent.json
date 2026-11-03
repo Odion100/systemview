@@ -2,7 +2,7 @@
   {
     "title": "The TV reads back the CURRENT show, never a stale one",
     "namespace": {
-      "serviceId": "SystemViewCore",
+      "serviceId": "Test",
       "moduleName": "Api",
       "methodName": "chatTvReadsCurrent"
     },
@@ -11,7 +11,7 @@
       {
         "title": "pushed show wins \u00b7 his clicks win on that show \u00b7 a re-push wins over his stale answers, and says so",
         "namespace": {
-          "serviceId": "SystemViewCore",
+          "serviceId": "Test",
           "moduleName": "Api",
           "methodName": "chatTvReadsCurrent"
         },

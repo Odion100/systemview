@@ -2,7 +2,7 @@
  {
   "title": "The claim row: one line, what it marks, what it says it owes, and what the bar reports",
   "namespace": {
-   "serviceId": "SystemViewCore",
+   "serviceId": "Test",
    "moduleName": "Window",
    "methodName": "claimRow"
   },
@@ -11,7 +11,7 @@
    {
     "title": "run the window's claim-row suite headlessly and read the named cases out of its result",
     "namespace": {
-     "serviceId": "SystemViewCore",
+     "serviceId": "Test",
      "moduleName": "Window",
      "methodName": "claimRow"
     },

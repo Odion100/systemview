@@ -2,7 +2,7 @@
  {
   "title": "The bar's third axis: spec'd is a fraction of the BEHAVIOURAL claims, and met is untouched",
   "namespace": {
-   "serviceId": "SystemViewCore",
+   "serviceId": "Test",
    "moduleName": "Proofs",
    "methodName": "barAxes"
   },
@@ -11,7 +11,7 @@
    {
     "title": "hand the real counter a document of mixed claims and read every number the bar reports back",
     "namespace": {
-     "serviceId": "SystemViewCore",
+     "serviceId": "Test",
      "moduleName": "Proofs",
      "methodName": "barAxes"
     },

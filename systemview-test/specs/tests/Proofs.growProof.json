@@ -2,7 +2,7 @@
  {
   "title": "A leaf grows its container form in place — statement and mark survive verbatim",
   "namespace": {
-   "serviceId": "SystemViewCore",
+   "serviceId": "Test",
    "moduleName": "Proofs",
    "methodName": "growProof"
   },
@@ -11,7 +11,7 @@
    {
     "title": "hand the real rewriter a plain claim and take back the document it produced, then try it on the three things it should refuse",
     "namespace": {
-     "serviceId": "SystemViewCore",
+     "serviceId": "Test",
      "moduleName": "Proofs",
      "methodName": "growProof"
     },

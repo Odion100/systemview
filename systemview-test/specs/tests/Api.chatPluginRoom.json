@@ -2,7 +2,7 @@
  {
   "title": "The project serves its own chat room — found by who answers, not by who claims",
   "namespace": {
-   "serviceId": "SystemViewCore",
+   "serviceId": "Test",
    "moduleName": "Api",
    "methodName": "chatPluginRoom"
   },
@@ -11,7 +11,7 @@
    {
     "title": "check the fixtures are up, then write to the fixture room through the plugin and read it back in order",
     "namespace": {
-     "serviceId": "SystemViewCore",
+     "serviceId": "Test",
      "moduleName": "Api",
      "methodName": "chatPluginRoom"
     },

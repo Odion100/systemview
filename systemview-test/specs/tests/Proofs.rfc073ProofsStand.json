@@ -2,7 +2,7 @@
  {
   "title": "RFC-073's eight load-bearing claims each still hold a real result block",
   "namespace": {
-   "serviceId": "SystemViewCore",
+   "serviceId": "Test",
    "moduleName": "Proofs",
    "methodName": "rfc073ProofsStand"
   },
@@ -11,7 +11,7 @@
    {
     "title": "open RFC-073 and check each of the eight load-bearing claims by name still holds a runnable block",
     "namespace": {
-     "serviceId": "SystemViewCore",
+     "serviceId": "Test",
      "moduleName": "Proofs",
      "methodName": "rfc073ProofsStand"
     },

@@ -2,7 +2,7 @@
  {
   "title": "rfc-execution exists and walks an approved RFC: gate, slices in order, claims, STATUS",
   "namespace": {
-   "serviceId": "SystemViewCore",
+   "serviceId": "Test",
    "moduleName": "Proofs",
    "methodName": "executionSkillWalksAnRfc"
   },
@@ -11,7 +11,7 @@
    {
     "title": "read the rfc-execution skill off disk and check its steps are the ones the claim lists, in order",
     "namespace": {
-     "serviceId": "SystemViewCore",
+     "serviceId": "Test",
      "moduleName": "Proofs",
      "methodName": "executionSkillWalksAnRfc"
     },

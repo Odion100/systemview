@@ -2,7 +2,7 @@
  {
   "title": "Every proofless claim in RFC-073 and RFC-074 still parses as a claim \u2014 61 of them, not one broken",
   "namespace": {
-   "serviceId": "SystemViewCore",
+   "serviceId": "Test",
    "moduleName": "Proofs",
    "methodName": "leavesInTheOtherRfcsStillParse"
   },
@@ -11,7 +11,7 @@
    {
     "title": "run every leaf claim in both documents through the real parser, and hand back what it found",
     "namespace": {
-     "serviceId": "SystemViewCore",
+     "serviceId": "Test",
      "moduleName": "Proofs",
      "methodName": "leavesInTheOtherRfcsStillParse"
     },

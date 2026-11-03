@@ -252,7 +252,7 @@ function connect({ system, projectCode, serviceId, specList, credentials, dynami
   //
   // It is not an edge case: every hub restart re-hosts each hosted project on a FRESH ephemeral
   // port (`getFreePort`), so one restart is one duplicate per hosted service. Measured 2026-10-27:
-  // `SystemViewCore` twice and `BUApp.Test` THREE times, and the cost is not cosmetic — the test
+  // `Test` twice and `BUApp.Test` THREE times, and the cost is not cosmetic — the test
   // runner collects specs from every registration, so it dialled the dead rows and 33 specs failed
   // on 3-second timeouts with every assertion reading `undefined`. The hub's own `projects` surface
   // already called it out (`⚠ registered twice`), which is the tell that the store disagreed with
@@ -476,7 +476,7 @@ function getSelection(projectCode) {
 function projectPlugin(projectCode) {
   const services = ConnectedServices.findProject(projectCode) || [];
   // A project can contain services with NO plugin — a codebase entry, or a service that registers
-  // without the SystemView module (SystemViewCore). Taking the FIRST service returns a client with no
+  // without the SystemView module (Test). Taking the FIRST service returns a client with no
   // `.Plugin`, so every story/view op fails with "no connected service for project" purely on
   // connection ORDER. Prefer a service that actually exposes the Plugin module.
   const exposesPlugin = (s) =>

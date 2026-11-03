@@ -2,7 +2,7 @@
   {
     "title": "Stranded records cross to the project — and the directory that IS the hub's buffer is refused",
     "namespace": {
-      "serviceId": "SystemViewCore",
+      "serviceId": "Test",
       "moduleName": "Api",
       "methodName": "chatOutboxFlush"
     },
@@ -11,7 +11,7 @@
       {
         "title": "half one crosses, half two refuses the shared directory",
         "namespace": {
-          "serviceId": "SystemViewCore",
+          "serviceId": "Test",
           "moduleName": "Api",
           "methodName": "chatOutboxFlush"
         },

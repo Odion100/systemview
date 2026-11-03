@@ -2,7 +2,7 @@
  {
   "title": "A container claim marks and announces exactly like a leaf — one path, the opening line",
   "namespace": {
-   "serviceId": "SystemViewCore",
+   "serviceId": "Test",
    "moduleName": "Proofs",
    "methodName": "claimFiresOffItsOpeningLine"
   },
@@ -11,7 +11,7 @@
    {
     "title": "drive the host's own parse-and-announce chain over a claim that has a proof, and read what it wrote and who it told",
     "namespace": {
-     "serviceId": "SystemViewCore",
+     "serviceId": "Test",
      "moduleName": "Proofs",
      "methodName": "claimFiresOffItsOpeningLine"
     },

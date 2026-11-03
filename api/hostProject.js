@@ -228,7 +228,7 @@ module.exports = function createHostProject(hubPort = 3000) {
 
   // Serialized per folder — the boot replay (rehostAll) and the CLI's own boot hosting run
   // CONCURRENTLY, and the naive check-then-act double-hosted the same folder (two live apps,
-  // one orphaned but listening — seen as duplicate SystemViewCore rows). One in-flight host per
+  // one orphaned but listening — seen as duplicate Test rows). One in-flight host per
   // key; latecomers await the same promise and get the idempotent answer.
   const inflight = new Map();
   function hostProject(args = {}) {

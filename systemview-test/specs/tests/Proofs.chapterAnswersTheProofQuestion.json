@@ -2,7 +2,7 @@
  {
   "title": "The chapter answers how to leave a proof — the sequence and the approach, indexed",
   "namespace": {
-   "serviceId": "SystemViewCore",
+   "serviceId": "Test",
    "moduleName": "Proofs",
    "methodName": "chapterAnswersTheProofQuestion"
   },
@@ -11,7 +11,7 @@
    {
     "title": "read the chapter off disk and look for each part the claim promises — the two sections by heading, the sequence, the three approach items",
     "namespace": {
-     "serviceId": "SystemViewCore",
+     "serviceId": "Test",
      "moduleName": "Proofs",
      "methodName": "chapterAnswersTheProofQuestion"
     },

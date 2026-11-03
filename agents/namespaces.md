@@ -106,7 +106,7 @@ hosts an actual service from a committed folder named by the project code:
 Write a function, save the file, and the method is live in the nav — probe-able, testable,
 documented, no framework in the repo. The methods call the system however it really talks (HTTP, a
 spawned process, a DB client) and return a result object for the engine to evaluate. The dogfood
-example is this repo's own `systemview-test/` folder (SystemViewCore: `Cli` spawns the real CLI,
+example is this repo's own `systemview-test/` folder (Test: `Cli` spawns the real CLI,
 `Api` calls the hub's own API).
 
 Author a `dynamic:true` manifest (the guide above) only when nobody will host the namespaces — a

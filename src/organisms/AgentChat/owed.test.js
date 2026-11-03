@@ -260,7 +260,7 @@ describe("claims resting on nothing", () => {
   it("a document whose every claim is met and proved owes nothing for them", () => {
     const o = owedFrom({
       docs: [doc({ id: "RFC-8", kind: "rfc", path: "a.md", state: { verdict: "approved" } },
-        ":::claim[one]{id=c1 state=met by=you}\n::test{SystemViewCore.Owed.oneRowPerObligation}\n:::\n:::approval{verdict=approved}\n:::\n")],
+        ":::claim[one]{id=c1 state=met by=you}\n::test{Test.Owed.oneRowPerObligation}\n:::\n:::approval{verdict=approved}\n:::\n")],
       now: NOW,
     });
     expect(o.work).toEqual([]);

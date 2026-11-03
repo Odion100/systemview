@@ -2,7 +2,7 @@
  {
   "title": "The doctrine reaches the corpus and the skill, and neither restates the other",
   "namespace": {
-   "serviceId": "SystemViewCore",
+   "serviceId": "Test",
    "moduleName": "Proofs",
    "methodName": "doctrineReachesBothReaders"
   },
@@ -11,7 +11,7 @@
    {
     "title": "read the chapter and the execution skill, looking for all four doctrine sections in one and the deciding paragraph in the other with no copy of the rest",
     "namespace": {
-     "serviceId": "SystemViewCore",
+     "serviceId": "Test",
      "moduleName": "Proofs",
      "methodName": "doctrineReachesBothReaders"
     },

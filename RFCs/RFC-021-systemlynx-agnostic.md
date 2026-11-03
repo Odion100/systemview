@@ -144,7 +144,7 @@ existing projects' codebases), **this section wins**.
 - **Project-defined/dynamic services no longer hang under existing SystemLynx projects.** The services
   section of a codebase card KEEPS its look, placement, and title treatment — its members become the
   project's REAL services; synthesized namespaces belong to a testing project only, presented with that
-  same mini-tree style in the testing project's own card. (The SystemViewCore dogfood migrates there.)
+  same mini-tree style in the testing project's own card. (The Test dogfood migrates there.)
 - Zero-SystemLynx flow: create the testing project → agent studies the codebase → files namespaces,
   tests, stories. With SystemLynx: it's an optional EXTRA standalone project alongside the real ones.
 - **UI-buildable (2026-08-06):** the defining UX difference from a real service — you can BUILD the

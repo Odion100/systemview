@@ -2,7 +2,7 @@
  {
   "title": "Carrying a spec is ::test or :::run in the fold — a cmd is not one, a fenced example cannot fake one",
   "namespace": {
-   "serviceId": "SystemViewCore",
+   "serviceId": "Test",
    "moduleName": "Proofs",
    "methodName": "specDetection"
   },
@@ -11,7 +11,7 @@
    {
     "title": "put each kind of block in a claim's fold and ask the real reader whether the claim counts as defended",
     "namespace": {
-     "serviceId": "SystemViewCore",
+     "serviceId": "Test",
      "moduleName": "Proofs",
      "methodName": "specDetection"
     },

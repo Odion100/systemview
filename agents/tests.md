@@ -35,7 +35,7 @@ An evaluation is an assertion about a **real response**, so read the real one be
 runner will see.
 
 ```
-mcp__systemview__probe({ namespace: "SystemViewCore.Proofs.claimKind", projectCode: "systemview-test" })
+mcp__systemview__probe({ namespace: "Test.Proofs.claimKind", projectCode: "systemview-test" })
 systemview probe <ServiceId>.<Module>.<method> --json          # the same door from a terminal
 ```
 

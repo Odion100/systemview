@@ -2,7 +2,7 @@
  {
   "title": "The proof chapter is RETRIEVABLE — it owns one chunk, under a heading that names it, inside an indexed corpus",
   "namespace": {
-   "serviceId": "SystemViewCore",
+   "serviceId": "Test",
    "moduleName": "Retrieval",
    "methodName": "chunkByHeading"
   },
@@ -10,7 +10,7 @@
    {
     "title": "first: words nothing indexes answer nobody — is the chapter inside an indexed corpus root?",
     "namespace": {
-     "serviceId": "SystemViewCore",
+     "serviceId": "Test",
      "moduleName": "Retrieval",
      "methodName": "corporaCovering"
     },
@@ -66,7 +66,7 @@
    {
     "title": "then: the REAL chunker puts the proof subject in ONE chunk, whole, with the sequence in it",
     "namespace": {
-     "serviceId": "SystemViewCore",
+     "serviceId": "Test",
      "moduleName": "Retrieval",
      "methodName": "chunkByHeading"
     },

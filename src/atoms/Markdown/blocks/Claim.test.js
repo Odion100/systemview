@@ -199,7 +199,7 @@ describe("::claims — all met is a moment, never a silent jump (RFC-075 round t
   const ALL_MET = [
     "::claims",
     ":::claim[a]{id=c1 state=met by=you at=1}",
-    "::test[SystemViewCore.Proofs.claimKind]",
+    "::test[Test.Proofs.claimKind]",
     ":::",
     '::::claim[b]{id=c2 state=met by=sv at=1 note="n"}',
     ":::cmd",
@@ -378,7 +378,7 @@ describe("::claims — the bar reports spec'd and owed, beside met and reviewed"
   const MIXED = [
     "::claims",
     ':::claim[spec\'d]{id=c1 state=met by=you at=1}',
-    "::test[SystemViewCore.Proofs.claimKind]",
+    "::test[Test.Proofs.claimKind]",
     ":::",
     '::claim[marked, nothing behind it]{id=c2 state=met by=you at=1}',
     '::claim[his eye]{id=c3 kind=experiential state=met by=you at=1}',

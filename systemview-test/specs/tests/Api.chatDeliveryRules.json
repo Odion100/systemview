@@ -2,7 +2,7 @@
  {
   "title": "RFC-031 delivery rules hold at the hub's door — in the FIXTURE's room, where no session is listening",
   "namespace": {
-   "serviceId": "SystemViewCore",
+   "serviceId": "Test",
    "moduleName": "Api",
    "methodName": "chatDeliveryRules"
   },
@@ -11,7 +11,7 @@
    {
     "title": "check the fixture services are up, then relay a line into the fixture room as a throwaway visitor and watch who gets woken",
     "namespace": {
-     "serviceId": "SystemViewCore",
+     "serviceId": "Test",
      "moduleName": "Api",
      "methodName": "chatDeliveryRules"
     },

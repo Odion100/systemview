@@ -2,7 +2,7 @@
  {
   "title": "The count never stops the nudging — the selector still picks past the cap, and only a report AND the word excuse a run",
   "namespace": {
-   "serviceId": "SystemViewCore",
+   "serviceId": "Test",
    "moduleName": "Proofs",
    "methodName": "nudgeNeverGivesUp"
   },
@@ -11,7 +11,7 @@
    {
     "title": "push a run past the old give-up cap and watch what the cycle does instead",
     "namespace": {
-     "serviceId": "SystemViewCore",
+     "serviceId": "Test",
      "moduleName": "Proofs",
      "methodName": "nudgeNeverGivesUp"
     },

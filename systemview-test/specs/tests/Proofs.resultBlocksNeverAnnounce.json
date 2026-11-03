@@ -2,7 +2,7 @@
  {
   "title": "A proof announces nothing — no result block appears in the FIRING table",
   "namespace": {
-   "serviceId": "SystemViewCore",
+   "serviceId": "Test",
    "moduleName": "Proofs",
    "methodName": "resultBlocksNeverAnnounce"
   },
@@ -11,7 +11,7 @@
    {
     "title": "read the table that decides what gets announced, and look for any proof result in it",
     "namespace": {
-     "serviceId": "SystemViewCore",
+     "serviceId": "Test",
      "moduleName": "Proofs",
      "methodName": "resultBlocksNeverAnnounce"
     },

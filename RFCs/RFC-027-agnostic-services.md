@@ -3,11 +3,11 @@
 **Status: BUILT 2026-08-08** (approved same day — verdict set in the Stage report "Agnostic
 services — the CLI-hosted testing service", the authoritative design record including the full
 discussion). All five build-order steps landed and verified: init→test green in a scratch repo,
-live re-host watcher, hostedOp module operations, SystemViewCore converted from `project://`
+live re-host watcher, hostedOp module operations, Test converted from `project://`
 ghost to a real hosted service (fixture suite 58 tests / 57 green, the 1 red is the intentional
 Math.subtract demo). Uncommitted, unpublished.
 
-What SystemViewCore *depicts* — the plum project-defined service — becomes real: for codebases
+What Test *depicts* — the plum project-defined service — becomes real: for codebases
 with **no services**, the CLI hosts one, built from configuration, pointed at a committed folder
 of module files. No SystemLynx in the target repo.
 
@@ -56,7 +56,7 @@ of module files. No SystemLynx in the target repo.
 - UI: module add/delete/rename affordances + visible config paths on the card; rows already render
   project-defined services (`CodebaseNav`).
 - Engine: zero changes.
-- Cleanup: retire hand-written `project://` manifests; SystemViewCore converts to a hosted service.
+- Cleanup: retire hand-written `project://` manifests; Test converts to a hosted service.
 
 ## Build order
 

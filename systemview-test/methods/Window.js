@@ -7,7 +7,7 @@
 //
 // THE ANSWER IS AN ADAPTER, not a new block. A method is a door, so the suite becomes one: this
 // module runs the real jest suites and asserts the NAMED cases that pin each claim. That buys the
-// two things a living spec is for — the claim is addressable (`::test{SystemViewCore.Window.…}`,
+// two things a living spec is for — the claim is addressable (`::test{Test.Window.…}`,
 // run from the document, from the CLI, from an agent) and it rides the change loop, because the
 // same suite the window's own tests run is what answers.
 //

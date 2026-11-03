@@ -1,4 +1,4 @@
-# SystemViewCore — SystemView testing itself
+# Test — SystemView testing itself
 
 RFC-021 used to *depict* this service as a `project://` ghost — namespaces with nothing behind
 them. RFC-027 made it real: the hub hosts it from the committed `systemview-test/` folder, the

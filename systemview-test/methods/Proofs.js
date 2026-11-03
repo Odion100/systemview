@@ -149,15 +149,15 @@ module.exports = {
     const { parseClaims } = claimsModule();
     const one = (...body) => parseClaims(doc(":::claim[s]{id=c1}", ...body, ":::"))[0] || {};
     const fencedExample = parseClaims(
-      doc(":::claim[s]{id=c1}", "```markdown", "::test{SystemViewCore.Proofs.claimKind}", "```", ":::"),
+      doc(":::claim[s]{id=c1}", "```markdown", "::test{Test.Proofs.claimKind}", "```", ":::"),
     )[0] || {};
     // The nesting case: a claim holding a `::::`-fenced child still finds its own close, because
     // normalizeFences guarantees the outer fence is longer than every inner one.
     const nested = parseClaims(
-      doc("::::claim[s]{id=c1}", ":::cmd", "echo hi", ":::", "::test{SystemViewCore.Proofs.claimKind}", "::::"),
+      doc("::::claim[s]{id=c1}", ":::cmd", "echo hi", ":::", "::test{Test.Proofs.claimKind}", "::::"),
     )[0] || {};
     return {
-      testCountsAsSpec: one("::test{SystemViewCore.Proofs.claimKind}").hasSpec === true,
+      testCountsAsSpec: one("::test{Test.Proofs.claimKind}").hasSpec === true,
       runCountsAsSpec: one(":::run", "steps", ":::").hasSpec === true,
       cmdDoesNot: one(":::cmd", "yarn test", ":::").hasSpec === false,
       proseDoesNot: one("Look at the bar at the top of this document.").hasSpec === false,
@@ -174,7 +174,7 @@ module.exports = {
     const { claimsOf } = claimsModule();
     const d = doc(
       ":::claim[spec'd and met]{id=c1 state=met by=you note=x}",
-      "::test{SystemViewCore.Proofs.claimKind}",
+      "::test{Test.Proofs.claimKind}",
       ":::",
       "::claim[met, nothing behind it]{id=c2 state=met by=you note=x}",
       "::claim[by eye]{id=c3 kind=experiential state=met by=you note=x}",
