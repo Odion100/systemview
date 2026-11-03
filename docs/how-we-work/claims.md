@@ -394,9 +394,35 @@ file it saves to; `context("the ::test block")` for the label grammar that point
   fixture. (Write real glue only where the thing is not an object you can hold — the CLI needed a
   child process because its own state had to stay isolated: `test/service/CLI/index.js`, "change
   CLI code, re-run the test.")
-- **Another language** — no route yet, and SAY so rather than faking one. The vision is SystemLynx
-  counterparts per language, connecting to SystemView and capturing the callable methods; until
-  then that claim's altitude has no live door, and the honest proof is the reviewer half.
+- **Another language, or anything that is not an object you can hold** — WRAP IT, and the wrapper
+  is a legitimate artifact rather than a workaround. A JavaScript wrapper that calls out — to a
+  CLI, to a library, to Python — is a route available today: the wrapper is the object SystemLynx
+  hosts, and what it shells out to is its business. The longer-term vision is SystemLynx
+  counterparts per language capturing callable methods directly; not having that yet is not the
+  same as having no door.
+
+### Name every wrapper `Test`, and keep the door dumb
+
+Three conventions, one idea — **a wrapper should be COUNTABLE and should not THINK: name every
+wrapper `Test`, keep the door to transcription, and put test-side logic in a `Plugin` module.**
+
+- **`Test.<Module>.<method>` means NO DOOR EXISTED, SO I MADE ONE.** Every wrapper in every project
+  takes the same service name, which is what makes the pile countable — the number of them measures
+  how much of a system has no front door. `Test` and not `Spec`, because `spec` is already the
+  artifact on the calling side and a `Specs.*` namespace makes the spec call the spec. It is not a
+  SystemView convention: buAPI carries `BUApp.Test` already.
+- **A DOOR IS TRANSCRIPTION.** It may call, read, count and hand back what it saw. It may not decide
+  whether the answer is good — the moment it does, the evidence stops being readable from the
+  document that asked, because the judgment has moved inside the thing being judged. A door that
+  returns `{ ok: true }` has made the claim instead of serving it.
+- **TEST-SIDE LOGIC GOES IN A `Plugin` MODULE, never in a door.** Mock builders, fixtures, teardown:
+  `<Service>.Plugin.<fn>`. buAPI's pattern — `systemview-plugin` mounted with `module: helpers`,
+  giving `Plugin.createMockUsers`, `Plugin.clearMockGames` — and the spec's `Before` steps call
+  `Plugin.*` to build the world with real calls while `Main` calls the method under test. The name
+  is the labelling: `Plugin` says test-side wherever it appears, so it can never be mistaken for
+  product contract.
+
+The procedure for actually writing one is `spec-authoring`'s; this is the argument behind it.
 
 ## Writing a proof — the approach
 
