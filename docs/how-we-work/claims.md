@@ -18,8 +18,10 @@ meant, and arrives after the thing was built — so:
 - **They have to GO somewhere to check**, so a claim implies a place to stand — the window, a
   document, the chat, the files, the host with no window. That is also why a list of claims is
   grouped by place and not by section of the design.
-- **They arrive LATER than you**, so a claim carries a state, and `unchecked` is a real answer.
-  Silence is not a pass — and it is not a failure either.
+- **They arrive LATER than you**, so a claim carries a state — and `unchecked` is honest without
+  being finished: nobody has looked. Silence is not a pass and it is not a failure; it is
+  outstanding. A claim somebody marked met but never proved is a different state again, and the
+  document says so by name rather than counting it as met.
 - **Their trust in a mark is worth exactly what the mark rests on**, so a mark carries a statement
   of what was seen, and the evidence rides in the claim's own body. A claim with no evidence can
   never read `met`.
@@ -130,7 +132,21 @@ that need eyes. Both read off the same document, so opening it shows which claim
 whom, and on what. An unmarked claim reads **unchecked**, visibly — **silence is not a pass.**
 
 
-## A claim can carry its proof
+## A claim CARRIES its proof — the claim is a contract, and the proof is what pays it
+
+**A proof is not a feature a claim may use — but the obligation is precise, and the two halves of it
+get conflated.** What the code enforces: `met` counts only claims that are marked met AND carry
+their proof (`metClaims` = `isMarkedMet && claimProved`), so a claim marked met with nothing embedded
+is not counted as met — it lands in `unproved`, and the row reports that gap by name. Measured the
+day it shipped: 24 of 41 claims on RFC-076 marked met, 21 of them with nothing embedded, while a
+green suite that proved most of them ran on every change.
+
+**So you are not required to prove every claim. You are required to be unable to hide that you
+didn't.** Where to spend the effort is a judgment (see below — a proof is EARNED, and proofs on every
+claim grow ceremonial ones); what is not a judgment is whether the document tells the truth about it.
+A claim you chose not to prove reads `unproved` for as long as it stands, which is the debt stated
+rather than the debt denied — and `kind=experiential` changes WHICH evidence counts, the human's own
+eye instead of a runnable spec, never whether evidence is what closes the gap.
 
 **A proof is a claim's check made pressable** (RFC-075). A mark's `note=` is a sentence about work
 that evaporated the moment it was done — to believe it next month somebody re-derives the check. The
