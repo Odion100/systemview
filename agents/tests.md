@@ -198,6 +198,17 @@ Validation names by type:
 | array | `includes`, `lengthEquals`, `maxLength`, `minLength` |
 | date | `dateEquals`, `maxDate`, `minDate` |
 
+**MOST OF THAT TABLE CANNOT BE WRITTEN IN A DOCUMENT.** A `:::run` block's step grammar parses `=`,
+`~`, `>=` and `<=` and nothing else — so `lengthEquals`, `isOneOf` and `includes` are available to a
+SAVED spec only. Anything that needs one has to be a saved spec rather than a block, and reaching for
+a block and then faking the operator with a `~` is how an assertion ends up passing for the wrong
+reason: it is green, it is in the document, and it is not checking what the sentence above it claims.
+
+**AND THERE IS NO PER-TEST DEADLINE.** A method that genuinely hangs hangs the whole run with no
+message and no failing line — so never write a step that can block forever (an unbounded wait, a
+poll with no ceiling, a door that may never answer). A spec that times out is debuggable; a run that
+hangs looks like a runner that is broken.
+
 ## Shared actions — purpose, and the procedure
 
 Shared actions exist for **efficiency across the suite**: the repeated multi-step setup blocks that
