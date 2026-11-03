@@ -100,7 +100,7 @@ KEPT at the end rather than filed as the oldest thing that ever happened, and th
 **after** the merge so it means "the newest N in the project" instead of "N per service, whichever
 survive". `cli/logs.js` and `api/index.js` both call it. 8 claims in `api/logMerge.test.js`.
 
-**Not verified live.** This project has three services and only `SystemViewCore` is up, so a
+**Not verified live.** This project has three services and only `Test` is up, so a
 multi-service read here returns one batch and the symptom cannot be reproduced on this machine. It
 bites where it was filed — buAPI, five services. The claims carry the arithmetic; a buAPI `logs`
 read after this lands is what retires this file.

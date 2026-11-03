@@ -1,7 +1,7 @@
 # The chat suite asserts a retired gate — and its probes land in live conversations
 
 **Found by use, 2026-10-18, during a proactive run's live sweep** (`systemview test
-systemview-test`): 4/6 SystemViewCore.Api chat tests fail, and while they ran, `[buAPI]: driveby
+systemview-test`): 4/6 Test.Api chat tests fail, and while they ran, `[buAPI]: driveby
 <ts>` messages landed in systemview's own live chat and mirror pings labeled
 `[systemview-test] … human <ts>` landed in buAPI's session (their agent confirmed by message,
 timestamps matching the sweep runs exactly).
@@ -23,7 +23,7 @@ delivered. The only refusal left is unknown identities ("not a connected project
 - `chatPluginRoom`, `chatOutboxFlush` — **NOT world-moved: they fail on CONNECTION.** Run alone,
   chatPluginRoom's results are axios AggregateErrors from `loadService(svc.serviceUrl)` — the
   systemview-test project's own services are down or the hub's registry holds their stale URLs
-  (the sweep's summary shows ONLY SystemViewCore ran: the demo services never connected). The
+  (the sweep's summary shows ONLY Test ran: the demo services never connected). The
   undefined cursor/room fields are the early-return/throw shape of a dead wire, not a dead design.
 - `chatDeliveryRules` — mixed until the services are up: its sends go through the live hub (those
   deliveries are real — they are half the spray), but its reads may cross the same dead wire.
