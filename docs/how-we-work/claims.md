@@ -39,11 +39,13 @@ It is the same statement standing one level up, where a person can read it.
 
 ## Where claims live — an RFC, a report, or a gap
 
-**A claim is not an RFC's furniture. An RFC carries claims, a REPORT carries claims — usually
-`as=spec`, the receipt for work nobody scheduled, which is where work off a board card ends up — and
-a GAP carries one as the statement its fix is checked against.** Everything on this page is the same
-in all three. Only two things differ anywhere, and both belong to the RFC: you may not claim before
-the verdict, and the completeness press freezes the SET.
+**Claims are not an RFC's furniture.** An RFC carries them, a REPORT carries them (usually
+`as=spec`, the receipt for unscheduled work), and a GAP carries one as the statement its fix is
+checked against. **Only two things differ anywhere and both are the RFC's: nothing is a claim before
+the verdict, and the completeness press freezes the SET.** Everything else on this page applies in
+all three.
+
+A report is where work off a board card ends up, so unscheduled work has claims like anything else.
 
 So if you have just done unscheduled work and there is no design document, you have claims. They go
 in a spec report, and the procedure for writing them is a report's rather than a plan's:
