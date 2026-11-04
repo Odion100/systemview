@@ -127,7 +127,52 @@ const stepStatus = (source) => ({
   appendStatus: true,
 });
 
-function stepReviews(claims, leaf, today) {
+// EVERY BEHAVIOURAL CLAIM CARRYING NO SPEC, NAMED — the ladder's one silence, and the thing it
+// could never say while it walked a document to settled. Measured on RFC-076: 45 claims, every
+// approval signed, every review signable in one press, and 42 of those claims carrying `no spec`
+// with nothing anywhere in this column mentioning it.
+//
+// NOT A BUTTON, for the arc's reason one step down: a spec is a test somebody writes, and offering
+// to press one into existence is offering to lie about the contract. `::test` or `:::run` in the
+// claim's own fold is the only thing that crosses this off — a `:::cmd` does NOT, because it is
+// evidence nothing re-runs, which is exactly why a cmd proves `met` and never buys the held edge.
+//
+// AND IT NAMES RATHER THAN COUNTS, up to a point. A count was the defect the arc's column fixed
+// (*"the row said 2/4 planned and nothing anywhere said WHICH two"*), but 42 ids in one label is
+// unreadable — and unlike an arc's objectives, which live in other files, these claims are in the
+// document you are looking at and each one already says `no spec` on its own card. So: the first
+// few by name, then the rest by count with the place to find them. Never a bare number.
+function stepSpecs(claims) {
+  const owing = claims.filter((c) => c.kind === "behavioral" && !c.hasSpec);
+  const named = owing.slice(0, 6).map((c) => c.id || `#${c.n}`);
+  const rest = owing.length - named.length;
+  return {
+    label: owing.length
+      ? `write the spec for ${named.join(" · ")}${rest ? ` and ${rest} more` : ""}`
+      : "every behavioural claim carries a spec the change loop re-runs",
+    done: !owing.length,
+    owing: owing.length,
+    note: owing.length
+      ? `a spec is a ::test or :::run in the claim's own fold — a :::cmd is evidence nothing re-runs, so it does not cross this off${rest ? `. Each of the ${owing.length} says \`no spec\` on its own card` : ""}`
+      : "",
+  };
+}
+
+// SETTLED IS NOT HIS TO PRESS, AND THAT IS THE ONE PLACE THIS LADDER REFUSES HIM (his, tonight:
+// *"it's not about me… the system speaks for itself. I can't speak for the system"*).
+//
+// The distinction is exact and it is worth keeping straight, because the two look alike from here.
+// A claim's MARK is his — he looked, his press is its own evidence, and marking forty-five at once
+// is convenience and not a defect. `settled` is a statement about the DOCUMENT: that nothing is
+// left to modify, which cannot be true while a behavioural claim has nothing that re-runs. No
+// signature makes a missing spec exist, so offering the press would be offering to overrule a fact
+// nobody is entitled to overrule. The step says what is missing and hands over no button.
+//
+// WHAT THIS DOES NOT CLOSE: the leaf is still a line in a file, and writing `settled=` into it by
+// hand still reaches the state — the host derives it from the date plus one claim
+// (`autobot electron/markdown/blocks.cjs`, and §2's full condition was never sliced). This gates
+// the door he actually uses; it is not a guarantee, and saying otherwise would be the same lie.
+function stepReviews(claims, leaf, today, specsOwed = 0) {
   const marked = claims.filter((c) => !!c.state);
   const unsigned = marked.filter((c) => !names(c.by).includes("you"));
   const waiting = [...new Set(marked.flatMap((c) => names(c.reviewers)).filter((r) => r !== "you"))].filter((r) =>
@@ -139,6 +184,12 @@ function stepReviews(claims, leaf, today) {
       done: false,
       writes: unsigned.map((c) => ({ line: c.line, pairs: { by: [...names(c.by), "you"].join("|") } })),
       note: waiting.length ? `waiting on: ${waiting.join(", ")} — their co-signatures are not offered here` : "",
+    };
+  if (specsOwed)
+    return {
+      label: `settled is not available — ${plural(specsOwed, "behavioural claim")} still owe a spec`,
+      done: false,
+      note: "no button here on purpose: a claim nothing re-runs is not defended, and a signature cannot make a missing spec exist",
     };
   return {
     label: waiting.length ? `declare it settled — waiting on: ${waiting.join(", ")}` : "declare it settled",
@@ -322,7 +373,14 @@ function facilitateRfc(kind, station, current, source, now = 0, leaf = {}, today
     if (to >= 1 && from < 1 && approvals.length) steps.push(stepApprovals(approvals, now));
     if (to >= 2 && claims.length) steps.push(stepMarks(claims, now));
     if (to >= 2 && steps.length) steps.push(stepStatus(source));
-    if (to >= 3 && claims.length) steps.push(stepReviews(claims, leaf, today || undefined));
+    // THE SPEC DEBT BEFORE THE DECLARATION, AND IT GATES IT. `settled` means nothing is left to
+    // modify, which cannot be true of a claim nothing re-runs — and unlike a claim's mark, that is
+    // not a thing a human is entitled to say. So the debt is named here and the declaration below
+    // hands over no button while any of it stands.
+    const specs = claims.length ? stepSpecs(claims) : null;
+    if (to >= 3 && specs) steps.push(specs);
+    if (to >= 3 && claims.length)
+      steps.push(stepReviews(claims, leaf, today || undefined, specs && !specs.done ? specs.owing : 0));
     const open = steps.filter((s) => !s.done);
     if (!open.length) return null; // nothing between — the press itself is the answer
     return { title: `to reach ${station}`, steps };

@@ -79,14 +79,71 @@ describe("facilitation — the ladder", () => {
     expect(reviews.note).toMatch(/waiting on: buapi/);
   });
 
+  // THE FIXTURE CARRIES SPECS, because the declaration is only reachable with them. It used to be
+  // three bare behavioural claims, which is the case the spec step now refuses — so the document
+  // here is one that has actually paid its contract, and the subject under test is unchanged: the
+  // declaration names the reviewer it would be declaring over.
   it("settled with your half signed: the declaration names who it would be declaring over", () => {
-    const signed = `${APPROVED.replace("{id=c1}", '{id=c1 state=met by=you note="n"}')
-      .replace("{id=c2 reviewers=buapi}", '{id=c2 reviewers=buapi state=met by=you note="n"}')
-      .replace('state=met by=agent note="seen"', 'state=met by=agent|you note="seen"')}\n## STATUS — built 2026-10-29\n`;
+    const held = (id, extra = "") =>
+      `:::claim[a thing]{id=${id} state=met by=${extra || "you"} note="n"}\n::test[Math.chainUse]\n:::`;
+    const signed = `${APPROVED.replace("::claim[a thing works]{id=c1}", held("c1"))
+      .replace("::claim[another thing works]{id=c2 reviewers=buapi}", `:::claim[another]{id=c2 reviewers=buapi state=met by=you note="n"}\n::test[Math.chainUse]\n:::`)
+      .replace('::claim[a third, already marked]{id=c3 state=met by=agent note="seen"}', held("c3", "agent|you"))}\n## STATUS — built 2026-10-29\n`;
     const p = facilitate("rfc", "settled", "built", signed, 7, {}, "2026-10-29");
     const declare = p.steps.find((s) => s.leafPairs);
     expect(declare.label).toMatch(/waiting on: buapi/);
     expect(declare.leafPairs).toEqual({ settled: "2026-10-29" });
+  });
+
+  // THE LADDER'S ONE SILENCE, CLOSED. A document could walk to settled with every approval signed
+  // and every review signable in one press while nothing in it re-ran — measured on RFC-076, 42 of
+  // its 45 claims carrying `no spec` and this column saying nothing about any of them.
+  const SPEC_DOC = `${APPROVED.replace("{id=c1}", '{id=c1 state=met by=you note="n"}')
+    .replace("{id=c2 reviewers=buapi}", '{id=c2 state=met by=you note="n"}')
+    .replace('::claim[a third, already marked]{id=c3 state=met by=agent note="seen"}', '::claim[a third]{id=c3 state=met by=you note="seen"}')}\n## STATUS — built 2026-10-29\n`;
+
+  it("names the behavioural claims owing a spec, and hands over no button for it", () => {
+    const p = facilitate("rfc", "settled", "built", SPEC_DOC, 7, {}, "2026-10-29");
+    const specs = p.steps.find((x) => /write the spec/.test(x.label));
+    expect(specs.label).toMatch(/c1 · c2 · c3/);
+    expect(specs.done).toBe(false);
+    expect(specs.writes).toBeUndefined(); // a spec is a test somebody writes
+    expect(specs.note).toMatch(/:::cmd is evidence nothing re-runs/);
+  });
+
+  // SETTLED IS NOT HIS TO PRESS — the one refusal in this ladder. A claim's MARK is his (he looked),
+  // but "nothing is left to modify" is a statement about the document, and no signature makes a
+  // missing spec exist. His: *"the system speaks for itself. I can't speak for the system."*
+  it("takes the settled button away entirely while any spec is owed, and says why", () => {
+    const p = facilitate("rfc", "settled", "built", SPEC_DOC, 7, {}, "2026-10-29");
+    const declare = p.steps[p.steps.length - 1];
+    expect(declare.label).toMatch(/settled is not available — 3 behavioural claims still owe a spec/);
+    expect(declare.leafPairs).toBeUndefined();
+    expect(declare.note).toMatch(/a signature cannot make a missing spec exist/);
+  });
+
+  it("and gives the button back the moment every behavioural claim carries a spec", () => {
+    const spec = ":::claim[$1]{id=$2 state=met by=you note=\"n\"}\n::test[Math.chainUse]\n:::";
+    const held = SPEC_DOC.replace('::claim[a thing works]{id=c1 state=met by=you note="n"}', spec.replace("$1", "a thing works").replace("$2", "c1"))
+      .replace('::claim[another thing works]{id=c2 state=met by=you note="n"}', spec.replace("$1", "another thing works").replace("$2", "c2"))
+      .replace('::claim[a third]{id=c3 state=met by=you note="seen"}', spec.replace("$1", "a third").replace("$2", "c3"));
+    const p = facilitate("rfc", "settled", "built", held, 7, {}, "2026-10-29");
+    const specs = p.steps.find((x) => /carries a spec/.test(x.label));
+    expect(specs.done).toBe(true);
+    const declare = p.steps[p.steps.length - 1];
+    expect(declare.label).toMatch(/declare it settled/);
+    expect(declare.leafPairs).toEqual({ settled: "2026-10-29" });
+  });
+
+  // A :::cmd PROVES met and never buys this off — the same line the card's held edge draws.
+  it("a cmd in the fold does not cross the spec step off", () => {
+    const withCmd = SPEC_DOC.replace(
+      '::claim[a thing works]{id=c1 state=met by=you note="n"}',
+      ':::claim[a thing works]{id=c1 state=met by=you note="n"}\n::cmd[yarn test]\n:::',
+    );
+    const p = facilitate("rfc", "settled", "built", withCmd, 7, {}, "2026-10-29");
+    const specs = p.steps.find((x) => /write the spec/.test(x.label));
+    expect(specs.label).toMatch(/c1/);
   });
 
   it("draft backward: one button clears every verdict and the marks stay", () => {
