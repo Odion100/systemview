@@ -69,11 +69,26 @@ And the assertions are **paths and types**, not assertion code — a real respon
 
 ::test[Profiles.Tournaments.add]{project=buAPI}
 
-### 2.2 · `TestService.Math.chainUse` — the pure local wrap
+### 2.2 · `TestService.Math.chainUse` — NOT the pure case, and that correction is the doctrine
 
-The Math object turned into a service. Completely local, nothing to stand up, and it is where the
-chaining mechanism is demonstrated rather than described: `Before` adds 1+1, `Main` reaches back
-into it by address.
+I put this up as *"the pure local wrap"* and it is neither. `test/service/Math/index.js` is a
+**hand-written module** — `add`, `subtract`, `combine`, `describe`, `chainUse`, each calling
+`this.log` — and `.module("Math", Math)` mounts that file, not JavaScript's global `Math`, which the
+variable name shadows. Its own comments say what it is for: *"so the Stories test view can show
+multi-arg rendering"*, *"so the Stories test view can prove it renders ANY argument type"*. Those
+methods exist to exercise the renderer.
+
+**The pure case is passing the object IN** — `.module("Name", theThing)` with the real thing, zero
+translation — and we have no example of it in the tree, which is exactly why rung two was easy to
+mistake for rung one. What the purity ladder costs is written into `spec-authoring` §1 now: the
+purity of the door bounds what a red result can mean, and a harness is a second thing that can be
+broken standing between the reader and the evidence.
+
+**And this spec's real job is the second half of the lesson.** Its subject is not arithmetic, it is
+the ENGINE — that references resolve across saved actions. `Before` adds 1+1, `Main` reaches back
+into it by address, three different earlier steps at once. The payload is deliberately dull because
+every interesting thing a method does is one more explanation for a red result. Treating the random
+subject as the lesson is the mistake; it needed something, and something is all it needed.
 
 ```json
 "Main": [{ "args": [{ "input": {
@@ -118,6 +133,11 @@ back into `spec-authoring` is a transcription and not a reconstruction.
 
 | what | where it goes |
 |---|---|
+| **The purity LADDER, and that purity bounds what a red result can mean.** Pass the object in (zero translation, a failure is the subject's) → a door that is pure transcription, one line per method (a failure is the subject's *or* your transcription's) → a harness with real logic (rule out the harness first, every time). Stay on the lowest rung the subject allows; when you climb, say why in the spec | `spec-authoring` §1 — landed |
+| **When the subject under test is the PLATFORM, the payload must be boring.** `add({a,b}) → {sum}` is the correct example, not a weak one: arithmetic cannot be the reason it failed. And do not treat the random subject as the lesson — such a spec is about neither the arithmetic nor the domain | `spec-authoring` §1 — landed |
+| **A method's contract is finite; a sequence's is not.** You can enumerate inputs and failures — one `CLI.probe` file carries 13 cases. You cannot enumerate orders, so sequences are assembled where the question is asked, and `use: <saved action>` is the tell: a run block composes pieces that already carry contracts | `spec-authoring` §4.5 — landed |
+| **Who defends it is the choice.** A saved spec at a namespace is defended by the change loop with nobody remembering. A run block is defended by a reader pressing it. A sequence anybody will ask about twice has become a contract — save it | `spec-authoring` §4.5 — landed |
+| **A gap gets BOTH.** The run block in the gap reproduces the break; the saved spec carries the contract the fix established | `spec-authoring` §4.5 — landed |
 
 ---
 
@@ -129,7 +149,13 @@ block is the open half: *"a run block is for scenarios where… maybe it is an e
 there's an existing test, and even when there's a gap you update the test — you throw the updated
 test in the gap in most cases."*
 
-Open. Discussing in the chat; what lands comes back here.
+**SETTLED.** The axis is not scope, it is **who defends it** — and the reason is arithmetic rather
+than taste: a method's contract is finite and enumerable, a sequence's is not. So contracts are
+SAVED at a namespace, where the change loop finds them unasked; sequences are ASSEMBLED where the
+question gets asked, and `use: <saved action>` is the mechanism that makes a run block a composition
+of already-contracted pieces rather than a cheap test of untested ones. His gap case takes both: the
+run block reproduces the break, the saved spec carries the contract the fix establishes. In
+`spec-authoring` §4.5.
 ::::
 
 ::::thread{id=t2}
@@ -137,7 +163,12 @@ Open. Discussing in the chat; what lands comes back here.
 What is not yet written down is what IMPURITY looks like in a spec — the thing an agent would write
 without knowing better.
 
-Open.
+**PART SETTLED** — the ladder is in `spec-authoring` §1, and with it the consequence that makes it
+matter: purity bounds what a red result can MEAN. What is still open is the Plugin's half. The skill
+says test-side logic goes in `Plugin` and never in a door, and that a door may call, read, count and
+hand back but may not decide whether the answer is good. What it does not yet carry is a worked
+example of a door that quietly decided — the shape an agent writes while believing it is being
+helpful.
 ::::
 
 ::::thread{id=t3}
