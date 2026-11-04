@@ -827,10 +827,20 @@ enforced moved to 30 with the reason it exists written down.
   rather than readings, and its outputs mostly SUBTRACT: a claim whose spec is dead has its mark
   taken off with `mark(state=unmet)`, which is the valuable outcome and not the embarrassing one.
 
+  **Trigger eval, 6 passes, 20 queries: 97% positives · 100% negatives.** All nine near-miss
+  negatives went to the right neighbour by name — `spec-authoring` twice, `rfc-execution`,
+  `gap-authoring`, `context-maintenance` twice, `skill-maintenance`, `rfc-authoring`,
+  `doc-maintenance` — which is the half of this instrument that stays meaningful whatever the
+  positives do. One positive came in weak at 4/6 (*"this claim on rfc-073 says met and i'm not
+  convinced anything behind it still runs"*), and **the description was left alone deliberately**:
+  4/6 is inside the ±15pp noise floor, the shipping bar is no positive missing on EVERY pass and no
+  negative firing at all, and that query names ONE claim — a job small enough that a session reading
+  it directly instead of opening a whole maintenance pass is defensible rather than wrong. Editing
+  always-loaded characters to chase a number that cannot move is the trap §6 exists to name.
+
   **The questions:** its hardest step — *does the spec still test what the CLAIM says* — has no
   instrument and never will; it is a reader's judgment, which is the whole reason this is a
-  procedure. It has a trigger eval and **no behaviour eval**, so nothing yet says it makes an output
-  better. And the near-settled queue it is built to drain does not exist as a surface: a document
+  procedure. It has **no behaviour eval**, so nothing yet says it makes an output better. And the near-settled queue it is built to drain does not exist as a surface: a document
   can say what state it is in and not how FAR it is from the next one, which is the piece of his
   idea with no mechanism behind it.
 
