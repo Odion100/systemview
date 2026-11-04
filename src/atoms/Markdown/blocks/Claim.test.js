@@ -416,6 +416,39 @@ describe("what the claim owes — spec'd, owed, or by eye", () => {
     at(9, { id: "c4" });
     expect(screen.queryByText("unproved")).toBeNull();
   });
+
+  // THE EDGE IS WHAT READS FROM ACROSS THE CARD, and the chip was 10px of text beside a full green
+  // border. His: *"the border can't be green, but the mark can be checked in green"* — so the card
+  // itself carries `unproved`, which is what takes the held colour off the edge while the mark the
+  // signature wrote stays exactly as green as it was.
+  it("puts `unproved` on the CARD, so the edge stops wearing the held colour", () => {
+    at(2, { id: "c1", state: "met", by: "sv", at: "1" });
+    const card = document.querySelector(".md-claim");
+    expect(card.className).toContain("md-claim--met");
+    expect(card.className).toContain("md-claim--unproved");
+  });
+
+  it("and leaves the edge green on a claim that really is held", () => {
+    at(3, { id: "c2", state: "met", by: "sv", at: "1" }, "container");
+    const card = document.querySelector(".md-claim");
+    expect(card.className).toContain("md-claim--met");
+    expect(card.className).not.toContain("md-claim--unproved");
+  });
+
+  // THE TWO KINDS MUST BE TOLD APART AT A SWIPE (his), which a shared class and an opacity could
+  // never do: `by eye` carried no modifier at all, so the only difference in the markup was the
+  // word. Each kind now names itself, which is what lets the two wear different hues.
+  it("gives each kind its own class — the distinction cannot collapse into one look", () => {
+    at(6, { id: "c3", kind: "experiential", state: "met", by: "you", at: "1" }, "container");
+    expect(document.querySelector(".md-claim__kind--experiential")).toBeTruthy();
+    expect(document.querySelector(".md-claim__kind--behavioral")).toBeNull();
+  });
+
+  it("and the behavioural one names itself too, declared or not", () => {
+    at(12, { id: "c6", kind: "behavioral" });
+    expect(document.querySelector(".md-claim__kind--behavioral")).toBeTruthy();
+    expect(document.querySelector(".md-claim__kind--experiential")).toBeNull();
+  });
 });
 
 // RFC-075 c18, the half that was asserted nowhere — the BAR REPORTS the third axis. The arithmetic

@@ -117,7 +117,13 @@ const Claim = ({ attrs = {}, kind, label, line, children }) => {
   // On an UNMET claim the badges wear the ✗ (his): a signature there signs "not met, and I
   // checked" — the glyph says what is being signed, the fill says it was.
   const glyph = mark.state === "unmet" ? "✗" : "✓";
-  const cls = `md-claim${mark.state ? ` md-claim--${mark.state}` : " md-claim--unchecked"}`;
+  // THE EDGE SAYS HELD, THE MARK SAYS SOMEBODY SAID SO (his: *"the border can't be green, but the
+  // mark can be checked in green"*). `unproved` rides the CARD as well as the chip, because the
+  // green left edge is what reads from across the document — a claim marked met with nothing
+  // embedded wore the full held colour while the row counted it unproved.
+  const cls = `md-claim${mark.state ? ` md-claim--${mark.state}` : " md-claim--unchecked"}${
+    unproved ? " md-claim--unproved" : ""
+  }`;
   const word = mark.state === "met" ? "met" : mark.state === "unmet" ? "not met" : "unchecked";
   const ro = !editable ? "Read-only here — this surface has nothing to save to" : "";
   // One derivation, shared with everything else that reports on a claim.
@@ -231,7 +237,7 @@ const Claim = ({ attrs = {}, kind, label, line, children }) => {
         )}
         {claimKind === "experiential" ? (
           <span
-            className="md-claim__kind"
+            className="md-claim__kind md-claim__kind--experiential"
             title="experiential — concluded by your own eye; no spec can be written for it, and none is owed. It still owes a PROOF: something shown."
           >
             by eye

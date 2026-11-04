@@ -4106,6 +4106,12 @@
   line-height: 1.5;
   &--met { border-left-color: #3f9e6a; }
   &--unmet { border-left-color: #e05757; }
+  // MARKED MET IS NOT HELD, AND THE EDGE IS WHAT SAYS HELD (his). A claim marked met with no proof
+  // embedded kept the full green edge and read, from across the card, exactly like one that was
+  // defended — while `metClaims` counted it unproved. The MARK stays green, because the mark is
+  // real and somebody signed it; the EDGE goes amber, the colour this file already gives a debt,
+  // because nothing has paid for it yet.
+  &--met.md-claim--unproved { border-left-color: #b8860b; }
 
   &__row {
     display: flex;
@@ -4247,11 +4253,20 @@
     border-radius: 999px;
     white-space: nowrap;
   }
-  &__kind { color: var(--sv-text-muted); border: 1px dashed var(--sv-border); }
-  // The obligation is a FIELD and it shows either way, so the DECLARED one has to be quieter than
-  // the diagnostics beside it — it is the normal state of a claim, not a finding. The undeclared
-  // form wears the question mark its own title explains.
-  &__kind--behavioral { opacity: 0.72; }
+  // THE TWO KINDS HAVE TO BE TOLD APART AT A SWIPE — *"I could swipe by and say, oh, there's one
+  // that's experiential"* — so each wears its own hue and the fade is GONE. Fading `behavioural`
+  // was the wrong instrument: `by eye` was already written to read as quiet as a date, so both
+  // kinds ended up quiet and the only thing carrying the distinction was 10px of text you had to
+  // stop and read. Dashed is spent too — it is the signer badges' INVITATION grammar, and a
+  // classification is not an invitation.
+  &__kind { border: 1px solid currentColor; font-weight: 600; }
+  // EXPERIENTIAL IS THE RARE ONE AND THE ONE HE SCANS FOR, so it is FILLED: his own eye is the
+  // instrument, which is a different kind of guarantee from a spec and must not look like one.
+  &__kind--experiential { background: #6a74c4; border-color: #6a74c4; color: #fff; }
+  // BEHAVIOURAL IS THE MAJORITY, so it is outlined rather than filled — a document of claims must
+  // not become a wall of colour. Slate, which is neither the amber of a shortfall beside it nor
+  // the violet of the other kind. The undeclared form wears the question mark its title explains.
+  &__kind--behavioral { color: #5c7f9a; }
   &__owed { color: #b8860b; border: 1px solid currentColor; }
   // UNPROVED IS A COUNT, NOT A SUGGESTION — this claim says met and does not count as met, which is
   // the one state that used to be invisible on the document while the row reported it. Solid, and
