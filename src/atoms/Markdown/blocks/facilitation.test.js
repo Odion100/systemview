@@ -102,6 +102,22 @@ describe("facilitation — the ladder", () => {
     .replace("{id=c2 reviewers=buapi}", '{id=c2 state=met by=you note="n"}')
     .replace('::claim[a third, already marked]{id=c3 state=met by=agent note="seen"}', '::claim[a third]{id=c3 state=met by=you note="seen"}')}\n## STATUS — built 2026-10-29\n`;
 
+  // THE REGRESSION THAT SHIPPED FOR ONE BUILD, and the reason the order is load-bearing.
+  // `lifecycle.js` gives a button only to the FIRST step that is not done, so the spec step —
+  // open, and deliberately pressless — took the floor when it sat ahead of the reviews and
+  // withdrew his "check off all 45 reviews" button. His reviews were never the thing gated.
+  it("leaves the review button FIRST and pressable while specs are owed", () => {
+    const unsigned = `${APPROVED.replace("{id=c1}", '{id=c1 state=met by=agent note="n"}').replace(
+      "{id=c2 reviewers=buapi}",
+      '{id=c2 state=met by=agent note="n"}',
+    )}\n## STATUS — built 2026-10-29\n`;
+    const p = facilitate("rfc", "settled", "built", unsigned, 7, {}, "2026-10-29");
+    const first = p.steps.find((x) => !x.done);
+    expect(first.label).toMatch(/check off all \d+ reviews of yours/);
+    expect(first.writes.length).toBeGreaterThan(0); // pressable, which is what makes it a button
+    expect(p.steps.some((x) => /write the spec/.test(x.label))).toBe(true); // the debt is still named
+  });
+
   it("names the behavioural claims owing a spec, and hands over no button for it", () => {
     const p = facilitate("rfc", "settled", "built", SPEC_DOC, 7, {}, "2026-10-29");
     const specs = p.steps.find((x) => /write the spec/.test(x.label));
@@ -116,7 +132,7 @@ describe("facilitation — the ladder", () => {
   // missing spec exist. His: *"the system speaks for itself. I can't speak for the system."*
   it("takes the settled button away entirely while any spec is owed, and says why", () => {
     const p = facilitate("rfc", "settled", "built", SPEC_DOC, 7, {}, "2026-10-29");
-    const declare = p.steps[p.steps.length - 1];
+    const declare = p.steps.find((x) => /settled/.test(x.label));
     expect(declare.label).toMatch(/settled is not available — 3 behavioural claims still owe a spec/);
     expect(declare.leafPairs).toBeUndefined();
     expect(declare.note).toMatch(/a signature cannot make a missing spec exist/);
@@ -130,7 +146,7 @@ describe("facilitation — the ladder", () => {
     const p = facilitate("rfc", "settled", "built", held, 7, {}, "2026-10-29");
     const specs = p.steps.find((x) => /carries a spec/.test(x.label));
     expect(specs.done).toBe(true);
-    const declare = p.steps[p.steps.length - 1];
+    const declare = p.steps.find((x) => /settled/.test(x.label));
     expect(declare.label).toMatch(/declare it settled/);
     expect(declare.leafPairs).toEqual({ settled: "2026-10-29" });
   });

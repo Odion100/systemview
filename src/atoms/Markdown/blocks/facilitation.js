@@ -373,14 +373,19 @@ function facilitateRfc(kind, station, current, source, now = 0, leaf = {}, today
     if (to >= 1 && from < 1 && approvals.length) steps.push(stepApprovals(approvals, now));
     if (to >= 2 && claims.length) steps.push(stepMarks(claims, now));
     if (to >= 2 && steps.length) steps.push(stepStatus(source));
-    // THE SPEC DEBT BEFORE THE DECLARATION, AND IT GATES IT. `settled` means nothing is left to
-    // modify, which cannot be true of a claim nothing re-runs — and unlike a claim's mark, that is
-    // not a thing a human is entitled to say. So the debt is named here and the declaration below
-    // hands over no button while any of it stands.
+    // THE SPEC DEBT GATES THE DECLARATION AND NOTHING ELSE — it goes AFTER the review step, and
+    // the order is load-bearing, not taste. `lifecycle.js` gives a button to the FIRST step that
+    // is not done (`nextStep`), so an open step carrying no `writes` placed ahead of a pressable
+    // one renders as plain text and takes the whole ladder down with it: putting the specs first
+    // withdrew his "check off all 45 reviews" button, which was never the thing being gated.
+    //
+    // His reviews are HIS — he looked, and signing forty-five at once is convenience. Only
+    // `settled` is refused, and `stepReviews` refuses it from inside, on its own declaration
+    // branch, so the button that disappears is the only one that should.
     const specs = claims.length ? stepSpecs(claims) : null;
-    if (to >= 3 && specs) steps.push(specs);
     if (to >= 3 && claims.length)
       steps.push(stepReviews(claims, leaf, today || undefined, specs && !specs.done ? specs.owing : 0));
+    if (to >= 3 && specs) steps.push(specs);
     const open = steps.filter((s) => !s.done);
     if (!open.length) return null; // nothing between — the press itself is the answer
     return { title: `to reach ${station}`, steps };
