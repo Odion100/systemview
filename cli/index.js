@@ -11,7 +11,6 @@ const launchApp = require("./launchApp");
 const runTests = require("./runTests");
 const listTests = require("./listTests");
 const appIsRunning = require("./appIsRunning");
-const openBrowser = require("./openBrowser");
 const connectService = require("./connectService");
 const initProject = require("./initProject");
 const hostConfiguredProjects = require("./hostProjects");
@@ -29,7 +28,9 @@ const Client = createClient(cookieHttpClient);
 const { setCaseSensitive } = require("./utils/matchNamespace");
 const toggle = require("./toggle");
 
-const DEFAULT_PORT = 3000;
+// SAME EXPRESSION THE HUB USES. A CLI pinned to 3000 while the hub honours SV_PORT is how the
+// probe misses a running hub — see cli/launchApp.js.
+const DEFAULT_PORT = Number(process.env.SV_PORT) || 3000;
 const VERSION = require("../package.json").version;
 const UI_URL = `http://localhost:${DEFAULT_PORT}`;
 
@@ -119,7 +120,7 @@ async function startTest() {
   const namespace = input[2];
   completionGuard.arm(); // from here, only flushAndExit may end this process at 0
   try {
-    await launchApp(DEFAULT_PORT);
+    if (!(await launchApp(DEFAULT_PORT))) flushAndExit(1);
     await bootServices();
     const exitCode = await runTests(UI_URL, project_code, namespace, {
       json: flags.json,
@@ -142,9 +143,7 @@ async function list() {
   const project_code = input[1];
   const namespace = input[2];
   const api = `${UI_URL}/systemview/api`;
-  if (!(await appIsRunning(api))) {
-    await launchApp(DEFAULT_PORT);
-  }
+  if (!(await appIsRunning(api)) && !(await launchApp(DEFAULT_PORT))) flushAndExit(1);
   await listTests(UI_URL, project_code, namespace, {
     connectedUrls,
     verbose: flags.verbose,
@@ -153,24 +152,28 @@ async function list() {
   flushAndExit(0);
 }
 
+// `open` DRIVES THE WINDOW HE IS IN — it no longer spawns a browser.
+//
+// It used to `exec("open <url>")` and hand him a system browser pointed at localhost. That was the
+// CLI's whole purpose once, and it is the second way he ended up looking at something that was not
+// his IDE: a plain browser tab rendering the same app, with none of the shell around it and no way
+// to tell from inside which one he was in.
+//
+// `nav` is the door that already exists for this and it goes through the hub, so the thing that
+// moves is the window he actually has open. And it cannot land nowhere: the IDE hosts the hub, so
+// if `launchApp` found a hub there is a window to drive — which is exactly what made the browser
+// spawn redundant rather than merely old.
+//
+// A bare `open <project>` with no namespace reaches nav's own named refusal (it lists what it will
+// take) instead of opening a project page in a browser. That is a real behaviour change and the
+// honest one while the CLI's purpose is being redefined.
 async function open() {
   const project_code = input[1];
   const namespace = input[2];
-  const api = `${UI_URL}/systemview/api`;
-  if (!(await appIsRunning(api))) {
-    await launchApp(DEFAULT_PORT);
-  }
-
-  let connectedServices = [];
-  if (namespace && project_code) {
-    try {
-      const { SystemView } = await Client.loadService(api);
-      connectedServices = (await SystemView.getServices(project_code)) || [];
-    } catch {}
-  }
-
-  openBrowser(UI_URL, project_code, namespace, connectedServices);
-  flushAndExit(0);
+  if (!(await launchApp(DEFAULT_PORT))) flushAndExit(1);
+  const chatCmd = require("./chat");
+  const exitCode = await chatCmd.nav(project_code, namespace, undefined, { uiUrl: UI_URL, Client });
+  flushAndExit(exitCode || 0);
 }
 
 async function quitApp() {
@@ -202,7 +205,7 @@ async function loadCaseSetting() {
   const NS_CMDS = ["test", "list", "logs", "log", "open"];
   if (!NS_CMDS.includes(input[0])) return;
   try {
-    await launchApp(DEFAULT_PORT); // idempotent — ensure the UI is up so the setting reads
+    if (!(await launchApp(DEFAULT_PORT))) return; // no hub, no setting to read — the command refuses below
     const { CLI } = await Client.loadService(`${UI_URL}/systemview/api`);
     const settings = await CLI.getSettings();
     setCaseSensitive(settings.caseSensitive);
@@ -239,7 +242,7 @@ async function loadCaseSetting() {
   } else if (["join", "leave", "kick", "message-agent", "read", "visitors", "reply", "thread", "inbox", "nav", "refresh", "act", "highlight", "show", "tv"].includes(command) || (command === "status" && input[1])) {
     // RFC-028 — the chat front door; RFC-029 — agent control rides the same door (a command is a
     // chat record the open UI executes). All one-shots. All need the hub up.
-    await launchApp(DEFAULT_PORT);
+    if (!(await launchApp(DEFAULT_PORT))) flushAndExit(1);
     const chatCmd = require("./chat");
     const opts = {
       uiUrl: UI_URL, Client, chat: flags.chat, agent: flags.as, once: flags.once,
