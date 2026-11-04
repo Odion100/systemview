@@ -397,7 +397,7 @@ window, and expiring is what it is for.
 // 1. write the file, with ONE leaf of its own:
 //      ::report{id="<Title>" as=account retain=30d}  // as= and retain= are REQUIRED — see below
 // 2. then pull it up — nav never takes his screen:
-mcp__systemview__nav({ projectCode, report: ".systemview/report.<pc>.<Title>.md" })
+mcp__systemview__nav({ projectCode, file: ".systemview/report.<pc>.<Title>.md" })
 mcp__systemview__nav({ projectCode, file: "src/thing.js" })   // any repo file, #L10-20 works
 mcp__systemview__reply({ projectCode, report, threadId, text })
 mcp__systemview__comments({ projectCode, path, at, replyText })
@@ -454,7 +454,7 @@ wrong with something he was looking at. A note holds a conversation — replies 
 ### Driving the window
 
 ```js
-mcp__systemview__nav({ projectCode, namespace | file | report | stats | agents })
+mcp__systemview__nav({ projectCode, namespace | file | stats | agents })  // a document is a file
 mcp__systemview__act({ projectCode, ..., say })
 mcp__systemview__refresh({ projectCode, scope })
 mcp__systemview__connect({ ... })  /  mcp__systemview__disconnect({ ... })

@@ -145,7 +145,7 @@ a project artifact like an RFC, not a disposable view like a report.
 and he is navigated to it — nothing is copied and nothing is snapshotted:
 
 ```
-nav({projectCode, report: "meetings/2026-10-19-a-subject.md"})
+nav({projectCode, file: "meetings/2026-10-19-a-subject.md"})
 ```
 
 **And you reply to that same PATH.** `Reports.read` takes any argument ending in `.md` verbatim,

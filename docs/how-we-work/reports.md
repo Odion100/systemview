@@ -290,7 +290,7 @@ manifests, comment sidecars, and his board, which is his) stays out.
 name>"})`, by address and never a path, before the write that closes the run. A document on disk
 with nothing pointing at it reads as work with no account.
 
-**Navigating to it is separate and optional.** `nav({projectCode, report})` puts it in front of a
+**Navigating to it is separate and optional.** `nav({projectCode, file})` puts it in front of a
 person who is there; an unattended job at 3am writes the file and leaves it, because taking his
 screen for a report nobody asked to see is the one thing unattended work must never do.
 

@@ -63,7 +63,7 @@ Notes that matter:
 - **Link the thing you're talking about.** "The report is ready" without a `:report` chip is a
   missed click. A report about a file opens with a `:file` chip.
 - **Long content and choices go in a DOCUMENT**, with one short line and a `:report` chip in the
-  chat. Write the file with its own leaf, then `mcp__systemview__nav({ projectCode, report })` —
+  chat. Write the file with its own leaf, then `mcp__systemview__nav({ projectCode, file })` —
   nothing an agent calls may take his screen.
 - **Never tell him to reload.** Tabs update themselves.
 
@@ -89,14 +89,14 @@ moved it.
 
 ```js
 mcp__systemview__nav({ projectCode, namespace: "Math.add" })        // NAVIGATE (real selection)
-mcp__systemview__nav({ projectCode, report: ".systemview/report.<pc>.<Name>.md" })
+mcp__systemview__nav({ projectCode, file: ".systemview/report.<pc>.<Name>.md" })
 mcp__systemview__nav({ projectCode, file: "cli/index.js#L40-80" })  // open a file in the Code tab
 mcp__systemview__nav({ projectCode, file: "~/.autobot/jobs/x/job.md" }) // a MACHINE file — any
                                                                     // absolute path opens (RFC-069)
 mcp__systemview__nav({ projectCode, stats: "load" })                // the Stats page
 mcp__systemview__refresh({ projectCode, scope: "docs" })            // panes re-read — never a reload
 mcp__systemview__act({ projectCode, test: "Math.add", say: "…" })   // run where the human is LOOKING
-mcp__systemview__nav({ projectCode, report: ".systemview/report.<pc>.<Name>.md" })  // pull it up
+mcp__systemview__nav({ projectCode, file: ".systemview/report.<pc>.<Name>.md" })  // pull it up
 ```
 
 `nav` is **kind-explicit** — exactly one of `namespace`, `file`, `report`, `stats`, `agents` — and
