@@ -4106,12 +4106,15 @@
   line-height: 1.5;
   &--met { border-left-color: #3f9e6a; }
   &--unmet { border-left-color: #e05757; }
-  // MARKED MET IS NOT HELD, AND THE EDGE IS WHAT SAYS HELD (his). A claim marked met with no proof
-  // embedded kept the full green edge and read, from across the card, exactly like one that was
-  // defended — while `metClaims` counted it unproved. The MARK stays green, because the mark is
-  // real and somebody signed it; the EDGE goes amber, the colour this file already gives a debt,
-  // because nothing has paid for it yet.
-  &--met.md-claim--unproved { border-left-color: #b8860b; }
+  // MARKED MET IS NOT HELD, AND THE EDGE IS WHAT SAYS HELD (his). A claim marked met kept the full
+  // green edge whatever was behind it, so one with a `no spec` chip on it read, from across the
+  // card, exactly like one the change loop defends. GREEN NOW NEEDS A SPEC — `::test` or `:::run`,
+  // never a `:::cmd`, which is pressable evidence nothing re-runs: *"as soon as there's a spec, a
+  // spec, not a CMD, then it can go green"*. The MARK keeps its green, because a signature is real
+  // and somebody made it; the EDGE takes the amber `no spec` and `unproved` already wear, because
+  // it is the same debt said in the one place you can see without reading.
+  // Scoped to `met` on purpose: an UNMET claim's edge stays red, which is the stronger statement.
+  &--met.md-claim--unheld { border-left-color: #b8860b; }
 
   &__row {
     display: flex;

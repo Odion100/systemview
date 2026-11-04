@@ -118,11 +118,18 @@ const Claim = ({ attrs = {}, kind, label, line, children }) => {
   // checked" — the glyph says what is being signed, the fill says it was.
   const glyph = mark.state === "unmet" ? "✗" : "✓";
   // THE EDGE SAYS HELD, THE MARK SAYS SOMEBODY SAID SO (his: *"the border can't be green, but the
-  // mark can be checked in green"*). `unproved` rides the CARD as well as the chip, because the
-  // green left edge is what reads from across the document — a claim marked met with nothing
-  // embedded wore the full held colour while the row counted it unproved.
+  // mark can be checked in green"*). The green left edge is what reads from across the document,
+  // and it used to come on for any mark at all.
+  //
+  // HELD IS A HIGHER BAR THAN PROVED, AND THAT IS THE WHOLE RULE (his: *"as soon as there's a spec,
+  // a spec, not a CMD, then it can go green"*). `proved` counts a `:::cmd` — pressable evidence,
+  // which is why the claim can read met — but a cmd is defended by whoever remembers to press it,
+  // so a claim carrying only one is not HELD. Green needs the spec the change loop runs on its own.
+  // Measured when this landed: 42 of RFC-076's claims are exactly that shape, every one of them
+  // wearing a full green edge over a `no spec` chip.
+  const held = mark.state === "met" && !unproved && !owesSpec;
   const cls = `md-claim${mark.state ? ` md-claim--${mark.state}` : " md-claim--unchecked"}${
-    unproved ? " md-claim--unproved" : ""
+    mark.state === "met" && !held ? " md-claim--unheld" : ""
   }`;
   const word = mark.state === "met" ? "met" : mark.state === "unmet" ? "not met" : "unchecked";
   const ro = !editable ? "Read-only here — this surface has nothing to save to" : "";

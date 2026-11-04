@@ -339,6 +339,9 @@ describe("what the claim owes — spec'd, owed, or by eye", () => {
     ":::claim[his eye decides, nothing shown]{id=c5 kind=experiential state=met by=you at=1}", // 10
     ":::",                                                                   // 11
     "::claim[declared behavioural, held]{id=c6 kind=behavioral}",            // 12
+    ":::claim[a cmd somebody has to remember to press]{id=c7 state=met by=sv at=1}", // 13
+    "::cmd[yarn test]",                                                      // 14
+    ":::",                                                                   // 15
   ].join("\n");
 
   const at = (line, attrs, kind = "leaf") => {
@@ -421,18 +424,38 @@ describe("what the claim owes — spec'd, owed, or by eye", () => {
   // border. His: *"the border can't be green, but the mark can be checked in green"* — so the card
   // itself carries `unproved`, which is what takes the held colour off the edge while the mark the
   // signature wrote stays exactly as green as it was.
-  it("puts `unproved` on the CARD, so the edge stops wearing the held colour", () => {
+  it("marks the CARD unheld when nothing is embedded, so the edge stops saying held", () => {
     at(2, { id: "c1", state: "met", by: "sv", at: "1" });
     const card = document.querySelector(".md-claim");
     expect(card.className).toContain("md-claim--met");
-    expect(card.className).toContain("md-claim--unproved");
+    expect(card.className).toContain("md-claim--unheld");
   });
 
-  it("and leaves the edge green on a claim that really is held", () => {
+  it("and leaves the edge green on a claim the change loop really defends", () => {
     at(3, { id: "c2", state: "met", by: "sv", at: "1" }, "container");
     const card = document.querySelector(".md-claim");
     expect(card.className).toContain("md-claim--met");
-    expect(card.className).not.toContain("md-claim--unproved");
+    expect(card.className).not.toContain("md-claim--unheld");
+  });
+
+  // HELD IS A HIGHER BAR THAN PROVED, and this is the case that forced it. A `:::cmd` counts as
+  // PROOF — so the claim is legitimately met and `unproved` never fires — but nothing re-runs it,
+  // so the claim is not DEFENDED. It wore a full green edge directly above its own `no spec` chip,
+  // on 42 of RFC-076's claims. His: *"as soon as there's a spec, a spec, not a CMD"*.
+  it("takes the green off a cmd-proved claim — met, not unproved, and still not held", () => {
+    at(13, { id: "c7", state: "met", by: "sv", at: "1" }, "container");
+    expect(screen.getByText("no spec")).toBeTruthy();
+    expect(screen.queryByText("unproved")).toBeNull(); // a cmd IS proof — this claim is met
+    const card = document.querySelector(".md-claim");
+    expect(card.className).toContain("md-claim--unheld"); // and it is still not defended
+  });
+
+  // An UNMET claim's edge stays red. Amber would downgrade the stronger statement to a debt.
+  it("never recolours an unmet claim, however little is behind it", () => {
+    at(2, { id: "c1", state: "unmet", by: "sv", at: "1" });
+    const card = document.querySelector(".md-claim");
+    expect(card.className).toContain("md-claim--unmet");
+    expect(card.className).not.toContain("md-claim--unheld");
   });
 
   // THE TWO KINDS MUST BE TOLD APART AT A SWIPE (his), which a shared class and an opacity could
