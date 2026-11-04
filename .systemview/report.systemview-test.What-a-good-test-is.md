@@ -67,6 +67,16 @@ And the assertions are **paths and types**, not assertion code — a real respon
 | `results.coordinates[1]` | number | |
 | `results.created_date` | date | |
 
+:::callout{type=warn}
+**THIS SPEC IS HUB-ONLY, and pressing the chip below on the CLI path shows RED.** It carries three
+`mockFile(...)` references and `mockFile` does not resolve outside the hub — buAPI measured it as one
+of 13 failures in a full `systemview test buAPI` sweep, green in the window, red on the command the
+doctrine tells you to run. So it stays here for its ASSERTION TABLE, which is the thing it teaches,
+and it is the wrong spec to hand somebody as *"run this to see what good looks like"*. For that,
+`Profiles.Teams.acceptDraft` or `Basketball.Seasons.*` — same Before/Main/After shape, same quality,
+no upload.
+:::
+
 ::test[Profiles.Tournaments.add]{project=buAPI}
 
 ### 2.2 · `TestService.Math.chainUse` — NOT the pure case, and that correction is the doctrine
@@ -138,6 +148,16 @@ back into `spec-authoring` is a transcription and not a reconstruction.
 | **A method's contract is finite; a sequence's is not.** You can enumerate inputs and failures — one `CLI.probe` file carries 13 cases. You cannot enumerate orders, so sequences are assembled where the question is asked, and `use: <saved action>` is the tell: a run block composes pieces that already carry contracts | `spec-authoring` §4.5 — landed |
 | **Who defends it is the choice.** A saved spec at a namespace is defended by the change loop with nobody remembering. A run block is defended by a reader pressing it. A sequence anybody will ask about twice has become a contract — save it | `spec-authoring` §4.5 — landed |
 | **A gap gets BOTH.** The run block in the gap reproduces the break; the saved spec carries the contract the fix established | `spec-authoring` §4.5 — landed |
+| **THE TITLE IS THE SPEC** — what is proven, with the consequence attached, so a reader who never opens the file knows what the system guarantees. A failure line prints the step title, so the title decides whether a red tells anybody anything. `"create a mock user"` is the floor, not the standard | `spec-authoring` §3 — landed |
+| **A declaration is an obligation; silence is not a prohibition.** `report=spec` means you owe one. No card means nobody decided, and that absence may never EXCUSE a missing spec — most good specs here were written by an agent that built something and knew it needed proving | `spec-authoring` §0 — landed, and it was a real defect: as written, §0 would have blocked the five specs buAPI wrote today |
+| **Prove the spec can FAIL, and it is a procedure not a judgment:** delete the guard, run it, watch THAT step go red, restore, re-run green. Ninety seconds, and it never needs the old behaviour because you create it. **Green on the first run is a smell** | `spec-authoring` §3.5 — landed |
+| **`After` is required, because a spec without one passes exactly once** — it counts its own history (a real case asserting 1 forum finds 8), and window-bounded clears cannot reach the residue once it ages out, so the spec goes permanently red with no cleanup that fixes it | `spec-authoring` §3 — landed |
+| **Nothing is STUBBED — which is narrower than "no mocks".** The Plugin writes real documents; "mock" in `createMockUsers` means disposable fixture data, not a fake. Banning the word contradicted §1's own instruction to put logic in the Plugin | `spec-authoring` §3 — landed |
+| **Find the first failing step before believing any red.** A `Before` that failed produces a wall of reds about a subject that was never called — one real case prints 24 assertion lines, none about the method under test. A red that misdirects is worse than a red | `spec-authoring` §5 — landed |
+| **A fourth thing a red can mean: the harness you did not write.** Same code passing in one caller and failing in another, three wrong diagnoses deep, cause a cached service client with a frozen method map. The tell is the DIVERGENCE; report it as a fact rather than theorising from your side of it | `spec-authoring` §1 — landed |
+| **Which method is the SUBJECT?** Name one → it goes at that namespace however many steps it takes; length is not the test, ownership is. Name three → it is a sequence. And a run block has no address, so **one in a document nobody reopens is unowned** | `spec-authoring` §4.5 — landed, replacing "focused on anything at all", which was not a criterion |
+| **Before / Plugin / Mocks, by who could do it:** Before is what a user would really do, through the front door, even five steps, because those steps ARE the usage documentation · Plugin is what a user cannot do · Mocks seeds a running system for clicking, never a suite | `spec-authoring` §3 — landed |
+| **The reference facts went to the GUIDE, not the procedure** — validator frequencies, `error.message` not `results.status`, anchor the `isLike`, the substring namespace filter, `Action<N>` renumbering silently, `mockFile` is hub-only, **and `date()` is not a macro at all** — which the guide was teaching as one | :file[agents/tests.md] — landed |
 
 ---
 
@@ -163,17 +183,32 @@ run block reproduces the break, the saved spec carries the contract the fix esta
 What is not yet written down is what IMPURITY looks like in a spec — the thing an agent would write
 without knowing better.
 
-**PART SETTLED** — the ladder is in `spec-authoring` §1, and with it the consequence that makes it
-matter: purity bounds what a red result can MEAN. What is still open is the Plugin's half. The skill
-says test-side logic goes in `Plugin` and never in a door, and that a door may call, read, count and
-hand back but may not decide whether the answer is good. What it does not yet carry is a worked
-example of a door that quietly decided — the shape an agent writes while believing it is being
-helpful.
+**SETTLED, and the worked example came from buAPI rather than from me.** The ladder is in
+`spec-authoring` §1 with the consequence that makes it matter — purity bounds what a red can MEAN.
+And the Plugin turned out to be a **loophole in the rule**: a door may not decide whether the answer
+is good, the Plugin is exempted as "test-side logic", so the Plugin can hold exactly the judgment the
+door is forbidden, one inch away. A real one does: it measures a payload against a 256KB cap and
+hands back `{ cap, under, over }` for the spec to assert, written that way because the alternative was
+committing a 256KB fixture into the repo forever. That was the right trade.
+
+So the rule is not *"logic goes in the Plugin."* It is: **if your Plugin decides anything, you must be
+able to say in one sentence what a red there is ambiguous between** — *"the cap, or my facilitator."*
+A door that cannot write that sentence should not be deciding. That is a door that decided WHILE BEING
+RIGHT TO, which is a better teaching example than the quiet one I was looking for.
 ::::
 
 ::::thread{id=t3}
 **What `spec-authoring` is missing.** It gets *assert the contract* right. The gap is readability as
 a REQUIREMENT rather than a nicety, and the unit-test case that still exists alongside all of this.
 
-Open.
+**THE READABILITY HALF IS SETTLED and it was the biggest hole in the skill.** The title is the
+artifact — what is proven plus the consequence — and the reason it is a requirement rather than a
+nicety is mechanical: a failure line prints the step title, so the title decides whether a red is
+usable. The old examples (`"create a mock user"`) taught the floor while calling it the standard.
+`spec-authoring` §3 now carries the strong ones.
+
+**STILL OPEN: the unit-test case.** Nothing above says when a jest-style unit test is the right
+artifact instead of a spec. The window's own suite is 2,267 of them and they are not going anywhere,
+so the skill currently has nothing to say about the thing most agents working in `src/` will reach
+for first.
 ::::

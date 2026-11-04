@@ -128,6 +128,12 @@ both; if you hand-author, so must you — the runner resolves from `targetValues
 1. the reference string at its spot in `input`, and
 2. a matching entry in `targetValues`:
 
+**AND THE `Action<N>` / `before[N]` INDEX IS POSITIONAL, which is the most error-prone thing in this
+format.** `beforeTest.Action3.results._id` names the third Before step by its PLACE, so **inserting a
+Before step silently renumbers every reference after it** — the spec stays valid JSON, resolves to the
+wrong step, and fails somewhere that has nothing to do with what you changed. Adding a setup step
+means re-reading every reference below it.
+
 ```json
 {
   "name": "argument:",
@@ -167,7 +173,14 @@ string as `target_namespace` with the token's `source_index`).
 `random(6)` anywhere inside a string arg → 6 fresh random alphanumerics **on every run**
 (`"user_random(6)@test.com"`), for unique emails/usernames in reusable actions. Register it like an
 embedded reference: a `targetValues` entry whose `target_namespace` is the whole string, `source_index`
-0. Also usable via `date(...)` / `mockFile(name.ext)` as whole-string functions.
+0. **`mockFile(name.ext)` is the same shape and resolves ONLY ON THE HUB** — it does not resolve on the
+CLI path, so any suite with an upload in it can never go green under `systemview test` and will sit in
+a sweep's failure list forever. Measured in buAPI: `Tournaments.add`, `Teams.edit`, `Storage.save`,
+`Storage.list`, `Storage.delete`, `Posts.get` and `Chats.send` are all hub-only for this reason.
+
+**`date(...)` IS NOT A MACRO. Nothing resolves it.** The literal string reaches the database driver
+and fails to cast, so a spec using it is permanently red. It appears in exactly one spec across 227
+cases, which is how you can tell: a macro nobody else uses is not a macro.
 
 ## Evaluations — `savedEvaluations`
 
@@ -181,6 +194,19 @@ Assertions on a step's response. Each targets one path of the response:
   "save": true
 }
 ```
+
+**THE VALIDATORS YOU WILL ACTUALLY REACH FOR, by how often they are used across 227 real cases:**
+`strEquals` (485) · `numEquals` (376) · `lengthEquals` (333) · `minLength` (37) · `isLike` (31) ·
+`boolEquals` (30) · `dateEquals`. Those seven cover nearly everything; reach past them only when the
+shape genuinely needs it.
+
+**ERRORS ASSERT ON `error.status` AND `error.message` — never `results.status`.** A thrown failure
+does not arrive as a result, so a spec asserting on `results.*` for an error case is asserting about
+a response that was never produced.
+
+**AND ANCHOR AN `isLike` REGEX.** `"^unsupported source url protocol 'file:'"` passes only on that
+message; without the `^` it also passes on a longer, different, wrong one — which is an assertion
+that goes green for the wrong reason, the single failure mode this whole file exists to prevent.
 
 - `namespace` — path into the response: `results.<path>` (use `results` even for errors).
 - `expected_type` — `string | number | boolean | object | array | date | null` (type-checked first).
@@ -275,9 +301,14 @@ unique across the project.
 
 ```bash
 systemview test <projectCode>                 # everything
-systemview test <projectCode> Math.chainUse   # substring namespace filter
+systemview test <projectCode> Math.chainUse   # SUBSTRING filter — see the warning below
 systemview test <projectCode> --json          # structured output for agents/CI — exit 0/1
 ```
+
+**THE NAMESPACE FILTER IS A SUBSTRING, AND THAT MEANS "I RAN JUST THAT ONE" IS OFTEN FALSE.**
+`Games.add` also runs `Games.addPlay`. Any method whose name is a prefix of a sibling drags the
+sibling in and **can never be run alone** — so a count of what you exercised, and any claim about
+which spec went red, has to be read off the output rather than inferred from the filter you typed.
 
 Hand-written spec files are picked up as-is — the UI lists them under the method (and its module/
 service pages), and `systemview test` runs them. Full command flags: [cli.md](cli.md).
