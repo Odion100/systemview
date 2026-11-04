@@ -68,15 +68,16 @@ And the assertions are **paths and types**, not assertion code — a real respon
 | `results.created_date` | date | |
 
 :::callout
-**IT RUNS GREEN ON THE CLI — I checked, because I was told it did not.** `node cli/index.js test buAPI
-"Tournaments.add" --json` → 4 tests, 4 passed, and the uploads resolved to real storage URLs
-(`.../profile_image/-GTqFjbBw.png`), not merely to a green line. There is ONE resolver: the CLI and
-the hub both load `testing-utilities/`, and `test-helpers.js` wires `createMockFile` in for both. The
-"hub-only" belief dates from a real bug that was already fixed — `createMockFile` used to return a
-Buffer the client could not upload, and used to write into the current directory — and the belief
-outlived the fix. So this IS a safe exemplar, and the lesson it accidentally teaches is the better
-one: **a peer's measured fact can be a stale memory of a fixed bug, and the only way to tell is to
-run it.**
+**TWO AGENTS MEASURED THIS SPEC AND GOT OPPOSITE ANSWERS. BOTH WERE RIGHT.** I ran
+`node cli/index.js test buAPI "Tournaments.add" --json` → 4/4, uploads landing as real storage URLs.
+buAPI ran `npx systemview test buAPI Tournaments.add` → `banner_image expected string, received
+undefined`. The difference is not the resolver and not a stale memory: **the repo is 2.40.0 and the
+published CLI is 2.39.0**, and 2.39.0's `createMockFile` still returns a Buffer that
+`convertToReadStream()` throws on. Neither of us misremembered; we were running different code.
+
+So this is a safe exemplar **from the repo** and a broken one from the installed CLI, and the lesson
+is sharper than the one I first wrote down: **when two callers of the same code disagree, check their
+versions before their logic.** The divergence was the tell and we both read it as a logic problem.
 :::
 
 ::test[Profiles.Tournaments.add]{project=buAPI}
@@ -160,7 +161,9 @@ back into `spec-authoring` is a transcription and not a reconstruction.
 | **Which method is the SUBJECT?** Name one → it goes at that namespace however many steps it takes; length is not the test, ownership is. Name three → it is a sequence. And a run block has no address, so **one in a document nobody reopens is unowned** | `spec-authoring` §4.5 — landed, replacing "focused on anything at all", which was not a criterion |
 | **Before / Plugin / Mocks, by who could do it:** Before is what a user would really do, through the front door, even five steps, because those steps ARE the usage documentation · Plugin is what a user cannot do · Mocks seeds a running system for clicking, never a suite | `spec-authoring` §3 — landed |
 | **The reference facts went to the GUIDE, not the procedure** — validator frequencies, `error.message` not `results.status`, anchor the `isLike`, the substring namespace filter, `Action<N>` renumbering silently | :file[agents/tests.md] — landed |
-| **A PEER'S MEASURED FACT CAN BE A STALE MEMORY OF A FIXED BUG.** Two of the ten findings were given as measured and were wrong: `mockFile` is NOT hub-only (reproduced green on the CLI with real storage URLs — one resolver serves both faces, and the belief dates from a Buffer-vs-ReadStream bug already fixed), and `date()` IS a macro — `moment(<arg>).toJSON()` — whose trap is the missing ARGUMENT, since bare `date()` resolves to `null`. Both had already been written into the guide as authoritative before being checked | corrected in :file[agents/tests.md]; the lesson is the row |
+| **WHEN TWO CALLERS OF THE SAME CODE DISAGREE, CHECK THEIR VERSIONS BEFORE THEIR LOGIC.** Two agents measured one spec and got opposite answers — repo 2.40.0 vs published 2.39.0, whose `createMockFile` still returns a Buffer `convertToReadStream()` throws on. Both measurements were correct. The divergence was the tell and we both read it as a logic problem | :file[agents/tests.md] and `spec-authoring` §1 — landed |
+| **`date()` IS a macro** — `moment(<arg>).toJSON()` — and the trap is the missing ARGUMENT: bare `date()` passes an empty string, moment calls it invalid, `null` reaches the database. The inference that produced the wrong claim — *used once in 227 cases, therefore not a macro* — is a good heuristic that pointed the wrong way | :file[agents/tests.md] — landed |
+| **A TITLE THAT LIES MISDIRECTS A READER WHO HAS EVERY OTHER FACT.** Demonstrated live, within the hour, on the agent who told me to rewrite the title section: two steps titled *"should clear all mock users"* and *"clear mock tournaments"* were the SUBJECT, not teardown — so they wrote the trailing section off as cleanup and diagnosed the wrong cause in their own spec. Teardown-sounding titles on load-bearing steps are the worst case, because the `After`-is-cleanup convention is what makes the lie credible | `spec-authoring` §3 — landed |
 
 ---
 

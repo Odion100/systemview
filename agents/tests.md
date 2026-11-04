@@ -173,12 +173,26 @@ string as `target_namespace` with the token's `source_index`).
 `random(6)` anywhere inside a string arg → 6 fresh random alphanumerics **on every run**
 (`"user_random(6)@test.com"`), for unique emails/usernames in reusable actions. Register it like an
 embedded reference: a `targetValues` entry whose `target_namespace` is the whole string, `source_index`
-0. **`mockFile(name.ext)` and `date(...)` are the same shape and BOTH FACES RESOLVE THEM.** The CLI and
-the hub load the same `testing-utilities/` — `cli/runTests.js` and `api/runTests.js` each take
-`transformTests` and `FullTestController`, and `test-helpers.js` wires `createMockFile` in for both —
-so there is one resolver, not a browser one and a Node one. `mockFile` writes into the OS temp folder
-and comes back as a read stream with a `.path`, which is what the client's `convertToReadStream()`
-wants; verified end to end on the CLI path, uploads landing as real storage URLs.
+0. **`mockFile(name.ext)` and `date(...)` are the same shape, and ONE resolver serves both faces** —
+`cli/runTests.js` and `api/runTests.js` each take `transformTests` and `FullTestController` from
+`testing-utilities/`, and `test-helpers.js` wires `createMockFile` in for both. There is no browser
+copy and no Node copy.
+
+**BUT WHICH BINARY YOU RAN DECIDES WHETHER THAT IS TRUE FOR YOU, AND THAT IS THE REAL TRAP HERE.**
+`node cli/index.js` runs the repo. `systemview` and `npx systemview` run whatever is installed
+globally for the active node version — and the installed copy can be months behind. Measured
+2026-11-04: the repo is **2.40.0**, npm's latest is **2.39.0**, and three global installs exist
+(`2.39.0` under node 20 and 22, **`1.20.1`** under node 14), so `nvm use` silently changes which CLI
+you are testing with.
+
+In 2.39.0 `createMockFile` still returns a **Buffer** — which `convertToReadStream()` throws on, so
+an upload arrives as a stripped argument — and still writes the mock **into the current directory**,
+leaving untracked `test.png`-style litter in whatever repo root you ran from. Two agents measured the
+same spec and got opposite answers for exactly this reason.
+
+**So when two callers of the same code disagree, CHECK THEIR VERSIONS BEFORE THEIR LOGIC.**
+`node -e 'console.log(require("systemview/package.json").version)'` and `npm view systemview version`
+cost two seconds; the alternative cost a day across two sessions.
 
 **`date(...)` TAKES AN ARGUMENT, and a bare `date()` is the trap.** It resolves as
 `moment(<arg>).toJSON()`, so:
