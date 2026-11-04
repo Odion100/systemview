@@ -393,7 +393,7 @@ been in use returned the table (0.71) or my own pointer paragraph in AGENTS.md (
 phrasing now stands in all nine skills, jobs and docs, plus the MCP tool's description.
 ::::
 
-- [x] **`spec-authoring`** :file[~/.claude/skills/spec-authoring/SKILL.md] · 150 lines — written, briefly retired, and REWRITTEN on his ruling: it stays, because a spec is a runnable artifact and a report is the document that requires one. Its spine is now HOW to think — contract by shape, wrap it and name it `Test`, no gatekeeping on what counts
+- [ ] **`spec-authoring`** :file[~/.claude/skills/spec-authoring/SKILL.md] · 150 lines — written, briefly retired, and REWRITTEN on his ruling: it stays, because a spec is a runnable artifact and a report is the document that requires one. Its spine is now HOW to think — contract by shape, wrap it and name it `Test`, no gatekeeping on what counts
 
   **The question:** should it be a skill at all, or doctrine pointed at — and what does that
   doctrine actually say about cmds, wrappers and what counts as a spec?
@@ -816,6 +816,23 @@ enforced moved to 30 with the reason it exists written down.
   pointer and a retrieval query?
 - [ ] **`skill-maintenance`** :file[~/.claude/skills/skill-maintenance/SKILL.md] · 176 lines — the pass that finds the bad step. It reads the run
   records, so it cannot be judged until the jobs above are producing honest ones.
+- [ ] **`spec-maintenance`** :file[~/.claude/skills/spec-maintenance/SKILL.md] · 173 lines — **WRITTEN TONIGHT, so it is in this walk as a new
+  document rather than a reviewed one.** The pass over the permanent specs at all three grains — an
+  arc's objective against the claims its plans produced, a claim against the behaviour it names, a
+  fold against the method it points at. Its spine is the AUTHORITY CALL: the pass does not update
+  documents to match code, it decides per finding whether the design *moved by decision* (the spec
+  and its prose adapt) or the code *moved by drift* (the claim is authoritative and the finding is a
+  gap against the code), and the test that separates them is whether anybody ever agreed to the
+  change. It is the only pass here that RUNS things — `runProofs` — so its findings arrive as results
+  rather than readings, and its outputs mostly SUBTRACT: a claim whose spec is dead has its mark
+  taken off with `mark(state=unmet)`, which is the valuable outcome and not the embarrassing one.
+
+  **The questions:** its hardest step — *does the spec still test what the CLAIM says* — has no
+  instrument and never will; it is a reader's judgment, which is the whole reason this is a
+  procedure. It has a trigger eval and **no behaviour eval**, so nothing yet says it makes an output
+  better. And the near-settled queue it is built to drain does not exist as a surface: a document
+  can say what state it is in and not how FAR it is from the next one, which is the piece of his
+  idea with no mechanism behind it.
 
 ---
 
@@ -951,6 +968,28 @@ Also landed, in the autobot repo, so outside this document's own git window: `58
 and objective owners on the registry row), `bba4b9a` (`rfc` and `gap` as attachment kinds),
 `74dbce9` (a report registers wherever it is written), `2f6df6d` (the watcher says when it did not
 start). Hub side: `0bfc583e` (the registry's member filter).
+
+**2026-11-04, the claim card and the ladder stop reading held** — the two surfaces that could say a
+claim was defended when nothing defended it, plus the spec pass that finds the same disease in
+documents nobody is looking at. Every commit carries `Serves: The walk — jobs, then authoring`.
+
+::commit{sha=b277cb5e project=systemview-test}
+::commit{sha=7e250584 project=systemview-test}
+::commit{sha=e0fce8ea project=systemview-test}
+::commit{sha=249ff06c project=systemview-test}
+
+What those four changed, in order: the claim card's two kinds became distinct by hue instead of by a
+fade that made both of them quiet; the card's green left edge now needs a real spec, because a
+`:::cmd` proves `met` and never buys HELD — measured at 42 of RFC-076's 45 claims wearing a full
+green edge directly above their own `no spec` chip; the RFC facilitation ladder names its spec debt
+on the settled step and hands over no button while any of it stands, which is the one refusal in
+that ladder and rests on a distinction worth keeping — **a claim's mark is his, and `settled` is not
+his to press**, because no signature makes a missing spec exist; and the fourth undoes a
+consolidation nobody asked for.
+
+**`spec-maintenance` IS NOT IN ANY COMMIT**, and that is not an oversight: `~/.claude/skills` is not
+a git repository, so every skill in this system lives outside version control and a skill edit has
+no diff anywhere. The file is the only copy.
 
 ## What the assignment landed
 
