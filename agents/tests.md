@@ -173,14 +173,23 @@ string as `target_namespace` with the token's `source_index`).
 `random(6)` anywhere inside a string arg → 6 fresh random alphanumerics **on every run**
 (`"user_random(6)@test.com"`), for unique emails/usernames in reusable actions. Register it like an
 embedded reference: a `targetValues` entry whose `target_namespace` is the whole string, `source_index`
-0. **`mockFile(name.ext)` is the same shape and resolves ONLY ON THE HUB** — it does not resolve on the
-CLI path, so any suite with an upload in it can never go green under `systemview test` and will sit in
-a sweep's failure list forever. Measured in buAPI: `Tournaments.add`, `Teams.edit`, `Storage.save`,
-`Storage.list`, `Storage.delete`, `Posts.get` and `Chats.send` are all hub-only for this reason.
+0. **`mockFile(name.ext)` and `date(...)` are the same shape and BOTH FACES RESOLVE THEM.** The CLI and
+the hub load the same `testing-utilities/` — `cli/runTests.js` and `api/runTests.js` each take
+`transformTests` and `FullTestController`, and `test-helpers.js` wires `createMockFile` in for both —
+so there is one resolver, not a browser one and a Node one. `mockFile` writes into the OS temp folder
+and comes back as a read stream with a `.path`, which is what the client's `convertToReadStream()`
+wants; verified end to end on the CLI path, uploads landing as real storage URLs.
 
-**`date(...)` IS NOT A MACRO. Nothing resolves it.** The literal string reaches the database driver
-and fails to cast, so a spec using it is permanently red. It appears in exactly one spec across 227
-cases, which is how you can tell: a macro nobody else uses is not a macro.
+**`date(...)` TAKES AN ARGUMENT, and a bare `date()` is the trap.** It resolves as
+`moment(<arg>).toJSON()`, so:
+
+| written | resolves to |
+|---|---|
+| `date()` | **`null`** — an empty argument is an invalid moment, and `null` then fails to cast on a required date field |
+| `date(2026-01-01)` | `"2026-01-01T05:00:00.000Z"` |
+
+So a spec that is permanently red on a date field is almost always missing the argument rather than
+meeting a macro that does not exist. Give it one.
 
 ## Evaluations — `savedEvaluations`
 

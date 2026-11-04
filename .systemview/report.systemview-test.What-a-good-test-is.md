@@ -67,14 +67,16 @@ And the assertions are **paths and types**, not assertion code — a real respon
 | `results.coordinates[1]` | number | |
 | `results.created_date` | date | |
 
-:::callout{type=warn}
-**THIS SPEC IS HUB-ONLY, and pressing the chip below on the CLI path shows RED.** It carries three
-`mockFile(...)` references and `mockFile` does not resolve outside the hub — buAPI measured it as one
-of 13 failures in a full `systemview test buAPI` sweep, green in the window, red on the command the
-doctrine tells you to run. So it stays here for its ASSERTION TABLE, which is the thing it teaches,
-and it is the wrong spec to hand somebody as *"run this to see what good looks like"*. For that,
-`Profiles.Teams.acceptDraft` or `Basketball.Seasons.*` — same Before/Main/After shape, same quality,
-no upload.
+:::callout
+**IT RUNS GREEN ON THE CLI — I checked, because I was told it did not.** `node cli/index.js test buAPI
+"Tournaments.add" --json` → 4 tests, 4 passed, and the uploads resolved to real storage URLs
+(`.../profile_image/-GTqFjbBw.png`), not merely to a green line. There is ONE resolver: the CLI and
+the hub both load `testing-utilities/`, and `test-helpers.js` wires `createMockFile` in for both. The
+"hub-only" belief dates from a real bug that was already fixed — `createMockFile` used to return a
+Buffer the client could not upload, and used to write into the current directory — and the belief
+outlived the fix. So this IS a safe exemplar, and the lesson it accidentally teaches is the better
+one: **a peer's measured fact can be a stale memory of a fixed bug, and the only way to tell is to
+run it.**
 :::
 
 ::test[Profiles.Tournaments.add]{project=buAPI}
@@ -157,7 +159,8 @@ back into `spec-authoring` is a transcription and not a reconstruction.
 | **A fourth thing a red can mean: the harness you did not write.** Same code passing in one caller and failing in another, three wrong diagnoses deep, cause a cached service client with a frozen method map. The tell is the DIVERGENCE; report it as a fact rather than theorising from your side of it | `spec-authoring` §1 — landed |
 | **Which method is the SUBJECT?** Name one → it goes at that namespace however many steps it takes; length is not the test, ownership is. Name three → it is a sequence. And a run block has no address, so **one in a document nobody reopens is unowned** | `spec-authoring` §4.5 — landed, replacing "focused on anything at all", which was not a criterion |
 | **Before / Plugin / Mocks, by who could do it:** Before is what a user would really do, through the front door, even five steps, because those steps ARE the usage documentation · Plugin is what a user cannot do · Mocks seeds a running system for clicking, never a suite | `spec-authoring` §3 — landed |
-| **The reference facts went to the GUIDE, not the procedure** — validator frequencies, `error.message` not `results.status`, anchor the `isLike`, the substring namespace filter, `Action<N>` renumbering silently, `mockFile` is hub-only, **and `date()` is not a macro at all** — which the guide was teaching as one | :file[agents/tests.md] — landed |
+| **The reference facts went to the GUIDE, not the procedure** — validator frequencies, `error.message` not `results.status`, anchor the `isLike`, the substring namespace filter, `Action<N>` renumbering silently | :file[agents/tests.md] — landed |
+| **A PEER'S MEASURED FACT CAN BE A STALE MEMORY OF A FIXED BUG.** Two of the ten findings were given as measured and were wrong: `mockFile` is NOT hub-only (reproduced green on the CLI with real storage URLs — one resolver serves both faces, and the belief dates from a Buffer-vs-ReadStream bug already fixed), and `date()` IS a macro — `moment(<arg>).toJSON()` — whose trap is the missing ARGUMENT, since bare `date()` resolves to `null`. Both had already been written into the guide as authoritative before being checked | corrected in :file[agents/tests.md]; the lesson is the row |
 
 ---
 
