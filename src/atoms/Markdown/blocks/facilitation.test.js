@@ -115,38 +115,37 @@ describe("facilitation — the ladder", () => {
     const first = p.steps.find((x) => !x.done);
     expect(first.label).toMatch(/check off all \d+ reviews of yours/);
     expect(first.writes.length).toBeGreaterThan(0); // pressable, which is what makes it a button
-    expect(p.steps.some((x) => /write the spec/.test(x.label))).toBe(false); // and nothing ahead of it
+    expect(p.steps.some((x) => /write the spec/.test(x.label))).toBe(true); // the debt is still named
   });
 
-  // SETTLED IS NOT HIS TO PRESS — the one refusal in this ladder, and it rides the settled step
-  // itself rather than a row of its own. A claim's MARK is his (he looked), but "nothing is left
-  // to modify" is a statement about the document, and no signature makes a missing spec exist.
-  // His: *"the system speaks for itself. I can't speak for the system."*
-  it("names the claims owing a spec ON the settled step, and hands over no button", () => {
+  it("names the behavioural claims owing a spec, and hands over no button for it", () => {
+    const p = facilitate("rfc", "settled", "built", SPEC_DOC, 7, {}, "2026-10-29");
+    const specs = p.steps.find((x) => /write the spec/.test(x.label));
+    expect(specs.label).toMatch(/c1 · c2 · c3/);
+    expect(specs.done).toBe(false);
+    expect(specs.writes).toBeUndefined(); // a spec is a test somebody writes
+    expect(specs.note).toMatch(/:::cmd is evidence nothing re-runs/);
+  });
+
+  // SETTLED IS NOT HIS TO PRESS — the one refusal in this ladder. A claim's MARK is his (he looked),
+  // but "nothing is left to modify" is a statement about the document, and no signature makes a
+  // missing spec exist. His: *"the system speaks for itself. I can't speak for the system."*
+  it("takes the settled button away entirely while any spec is owed, and says why", () => {
     const p = facilitate("rfc", "settled", "built", SPEC_DOC, 7, {}, "2026-10-29");
     const declare = p.steps.find((x) => /settled/.test(x.label));
-    expect(declare.label).toMatch(/settled is not available — write the spec for c1 · c2 · c3/);
-    expect(declare.done).toBe(false);
-    expect(declare.leafPairs).toBeUndefined(); // the one button that goes away
-    expect(declare.writes).toBeUndefined();
+    expect(declare.label).toMatch(/settled is not available — 3 behavioural claims still owe a spec/);
+    expect(declare.leafPairs).toBeUndefined();
     expect(declare.note).toMatch(/a signature cannot make a missing spec exist/);
-    expect(declare.note).toMatch(/a :::cmd does not count/);
   });
 
-  // ONE STEP, NEVER TWO. A row of its own was a worse reading AND a bug: lifecycle.js buttons only
-  // the first step that is not done, so an open pressless row ahead of the reviews withdrew his
-  // review button outright.
-  it("adds no row of its own — the debt is a condition on settled, not a step", () => {
-    const p = facilitate("rfc", "settled", "built", SPEC_DOC, 7, {}, "2026-10-29");
-    expect(p.steps.filter((x) => /spec/.test(x.label))).toHaveLength(1);
-  });
-
-  it("gives the button back the moment every behavioural claim carries a spec", () => {
+  it("and gives the button back the moment every behavioural claim carries a spec", () => {
     const spec = ":::claim[$1]{id=$2 state=met by=you note=\"n\"}\n::test[Math.chainUse]\n:::";
     const held = SPEC_DOC.replace('::claim[a thing works]{id=c1 state=met by=you note="n"}', spec.replace("$1", "a thing works").replace("$2", "c1"))
       .replace('::claim[another thing works]{id=c2 state=met by=you note="n"}', spec.replace("$1", "another thing works").replace("$2", "c2"))
       .replace('::claim[a third]{id=c3 state=met by=you note="seen"}', spec.replace("$1", "a third").replace("$2", "c3"));
     const p = facilitate("rfc", "settled", "built", held, 7, {}, "2026-10-29");
+    const specs = p.steps.find((x) => /carries a spec/.test(x.label));
+    expect(specs.done).toBe(true);
     const declare = p.steps.find((x) => /settled/.test(x.label));
     expect(declare.label).toMatch(/declare it settled/);
     expect(declare.leafPairs).toEqual({ settled: "2026-10-29" });
