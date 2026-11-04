@@ -667,7 +667,7 @@ block, the same deliberate absence that sits behind `::commit`.
 
 ---
 
-## Which surface — TV, chat, or the document
+## Which surface — the chat, a thread, or the document
 
 The blocks are the same everywhere. *Where you put them* is the part that is learned the hard way,
 so it is written down here rather than in nine separate agents' memories.
@@ -675,9 +675,9 @@ so it is written down here rather than in nine separate agents' memories.
 | You are writing | Put it | Because |
 |---|---|---|
 | a short answer, an interrupt, one ask | **the chat**, one line | when he is in the chat your reply *is* the message — it renders directly, no tool needed |
-| anything long, or anything with a choice | **the TV** (`show`), with a `::question` | the chat line stays short and points; the document holds the content |
+| anything long, or anything with a choice | **a document**, with a `::question` in it, then `nav` to it | the chat line stays short and points; the document holds the content, and a choice pressed in a document writes the answer into the file |
 | an answer to something he wrote in a thread | **that thread** (`reply`) | answering in the chat splits one conversation across two places |
-| a document worth returning to | **a report** — a real file in `.systemview/` | pushing a show grabs attention; a report is what survives it |
+| a document worth returning to | **a report** — a real file in `.systemview/` with its leaf | the file IS the report; a leaf registers it and a retention window decides how long it stands |
 
 **Name a report by its subject, never by its position.** "The next iteration" works exactly once.
 And a report *about* a file opens with a `:file` chip, so the artifact is one click away instead of

@@ -64,7 +64,7 @@ Notes that matter:
   missed click. A report about a file opens with a `:file` chip.
 - **Long content and choices go in a DOCUMENT**, with one short line and a `:report` chip in the
   chat. Write the file with its own leaf, then `mcp__systemview__nav({ projectCode, report })` —
-  there is no TV, and nothing an agent calls may take his screen.
+  nothing an agent calls may take his screen.
 - **Never tell him to reload.** Tabs update themselves.
 
 ## Reaching another agent

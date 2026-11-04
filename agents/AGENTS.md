@@ -183,7 +183,7 @@ mcp__systemlynx__call(...)                                        // call a meth
 
 The result comes back structured and renders as the run display in the chat — there is no `--json`
 to ask for, and no output to parse. Calling one method ad hoc is `mcp__systemview__probe`; it carries
-session headers itself, which is what retired the per-terminal cookie jar (not the verb).
+session headers itself, so there is no identity to pass.
 
 `systemview test` still exists for **CI**, where the exit code (`0` all passed, `1` any failure) is
 the contract. Sections, references, evaluations and the save format in depth: **[tests.md](tests.md)**.
@@ -201,8 +201,7 @@ Two surfaces, two different jobs. Pick deliberately:
 
 If you are reporting work, a **report** is right: it is a full document with every interactive
 block available (embedded files, diffs, runnable tests — see [markdown.md](markdown.md)), it is
-scoped to a namespace, and it does not pollute the project's docs. **Stories are retired** — if
-you find `systemview story …` anywhere, do not use it; write a report.
+scoped to a namespace, and it does not pollute the project's docs.
 
 ---
 
@@ -233,8 +232,8 @@ The syntax is **directives**, not HTML (raw HTML is disabled):
 ```
 
 **`:ns` and `:file` OPEN what they point at** — one behaviour, no modifier to learn (⌘-click does
-the same thing), and the tree expands and marks where you arrived. Reveal-only was retired: a
-reference you had to follow up by hand is a gesture, not a link.
+the same thing), and the tree expands and marks where you arrived. A reference you had to
+follow up by hand is a gesture, not a link.
 
 `:help` is the exception and works the other way — a click reveals the topic's row in the nav,
 ⌘-click opens it.
@@ -341,11 +340,9 @@ against a newer vocabulary degrades honestly.
 - **Reference, don't repeat.** Point at where a value lives rather than restating it in two places.
 - **Say what's unproven.** A block you couldn't run, a claim you couldn't verify — mark it.
 - **The codebase surface is HUB-served** — files, git, staging, diffs, images, by project code,
-  working with your services down. ☠ [RETIRED-2026-08-26] "no branch name / `Plugin.stageFiles is not a
-  function` → restart your service" — plugin-serves-git is retired and a stale plugin can no longer
-  cause those symptoms. A plugin version still matters for what the plugin actually DOES: your
-  documentation, tests, and your room's chat module — restart your service after upgrading for
-  those. (An `init`-hosted project has no process of its own; the hub refresh covers it.)
+  working with your services down. A plugin version still matters for what the plugin
+  actually DOES: your documentation, tests, and your room's chat module — restart your service
+  after upgrading for those. (An `init`-hosted project has no process of its own; the hub refresh covers it.)
 
 ## 5.5 · The worklist — your plan, on his screen
 
@@ -393,8 +390,7 @@ schemas. Use `probe` to call a method; use `call` when you want the schema-backe
 
 ### Writing where he reads
 
-There is no TV. Something long to read is a DOCUMENT: write the file, give it one leaf, and
-navigate to it. A report is fleeting by construction — its leaf carries a subtype and a retention
+Something long to read is a DOCUMENT: write the file, give it one leaf, and navigate to it. A report is fleeting by construction — its leaf carries a subtype and a retention
 window, and expiring is what it is for.
 
 ```js
@@ -403,7 +399,6 @@ window, and expiring is what it is for.
 // 2. then pull it up — nav never takes his screen:
 mcp__systemview__nav({ projectCode, report: ".systemview/report.<pc>.<Title>.md" })
 mcp__systemview__nav({ projectCode, file: "src/thing.js" })   // any repo file, #L10-20 works
-mcp__systemview__tv({ projectCode, show })              // read a document back, including his answers
 mcp__systemview__reply({ projectCode, report, threadId, text })
 mcp__systemview__comments({ projectCode, path, at, replyText })
 mcp__systemview__board({ projectCode, name, add, at, replyText })
@@ -442,14 +437,15 @@ argument.
 `90d` is in the picker for him to press, not for you to write. If you are reaching past these,
 what you have is not a report — write it where durable things live and link to it.
 
-**A report is a document** (RFC-040). `show` with `text` files it at
-`.systemview/report.<project>.<slug>.md` and the chat only points at it; re-showing the same title
-saves over it, and his answers — `::question` choices, `:::approval` verdicts, `:::thread` replies —
-live in the file. Read them back with `tv({ show: "<title>" })`.
+**THE FILE IS THE REPORT — there is no filing verb.** Write it at
+`.systemview/report.<project>.<slug>.md` with its leaf, and the leaf registers it wherever it lands.
+His answers are written into that same file — `::question` choices, `:::approval` verdicts,
+`:::thread` replies — so reading them back is reading the document, and there is nowhere else they
+could be.
 
-**`show` files a copy.** For a file that already lives somewhere permanent — an RFC, a doc, a skill
-— do not `show` it: link it with a `:file[path]{project=<code>}` chip. Otherwise you create a second
-copy that never updates while he reads it.
+**NEVER COPY A FILE THAT ALREADY LIVES SOMEWHERE PERMANENT.** An RFC, a doc, a skill: link it with a
+`:file[path]{project=<code>}` chip. A second copy never updates while he reads it, which makes the
+copy a lie with his attention on it.
 
 **His board** is what he leaves you between sessions: reminders, things to hand you later, what was
 wrong with something he was looking at. A note holds a conversation — replies accumulate under it.
@@ -473,18 +469,6 @@ worth keeping goes in your reply or in a document.
 **POINTING IS A CUE, NOT A TOOL.** To put a box round something on screen without moving him, write
 `::cue[your words]{highlight=".sel"}` in your reply — the cue vocabulary owns that word, and it
 draws the box, speaks, and leaves a replayable row. There is no pointing verb on the MCP.
-
-### What is gone, and why
-
-| retired | instead |
-|---|---|
-| `--as`, the cookie jar, `checkIdentity` | the session is the identity |
-| `join` / `leave` / `kick` / `visitors` | attachment is the harness's; a browser agent *is* in its room |
-| `message-agent` / `read` / `inbox` | harness session-to-session messaging; messages arrive pushed, not polled |
-| `status` | the cooking line is driven by your session events |
-| `story` / `stories` | write a report |
-| `skill` (for agents here) | tool descriptions and these docs |
-| plugin-served files and git | the hub serves them, by project code, with your services down |
 
 ### Server-side logging
 
