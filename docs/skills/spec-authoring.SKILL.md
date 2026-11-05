@@ -22,24 +22,16 @@ setup file. **The confidence comes from calling the live method and saying what 
 
 ## What you are actually calling — and why that is cheap
 
-**SystemLynx takes a plain JavaScript object and makes its methods callable as
-`Service.Module.method`.** That one fact is the floor under everything below. A module is an object;
-its methods become addresses; a spec is a list of real calls to those addresses. That is why there is
-no mocking framework here and no setup file — the thing you are testing is already reachable, and a
-spec is you reaching it.
+**SystemLynx hosts a plain JavaScript object and makes its methods callable as
+`Service.Module.method`.** That one fact is the floor under everything below: a module is an object,
+its methods become addresses, and a spec is a list of real calls to those addresses — which is why
+there is no mocking framework here and no setup file. The mechanism, with its code, is documented:
+`context("Service.module — hosting an object as a SystemLynx module")`.
 
-It is also why wrapping something is cheap rather than a project. *"I just turned the Math object into
-a service"* is the whole move: `.module("Math", Math)` and arithmetic is now specced over HTTP. When
-§1 tells you to write a door, it is describing three lines, not a harness.
-
-**IF the subject is already a SystemLynx service, call it and you are done thinking about doors.**
-You call the method the client calls, at its own namespace, with the arguments a caller would send,
-and you assert paths in the real response. Nothing wrapped, nothing translated, nothing stubbed.
-Whether that describes most of your work or none of it depends entirely on the codebase you are in —
-a repo that is already all services has every spec on this route and not one wrapper; a repo of
-plain modules, a CLI, or something not even written in JavaScript has none of them, and that is not
-a worse position to be in. §1 is the hierarchy, and **every rung of it is a straightforward route,
-not a consolation.**
+Two consequences you need before §1. **If the subject is already a service, call it and stop
+thinking about doors** — the method the client calls is the method you call. **And if it is not,
+wrapping it is three lines rather than a project**, which is why every rung of §1's hierarchy is a
+straightforward route and not a consolation.
 
 **So do not hesitate, and do not stall on vocabulary.** The common failure is not a bad spec, it is
 NO spec — an agent deciding the thing was hard to check and writing a paragraph instead. If you are
@@ -65,11 +57,16 @@ every item on it is done — nothing else marks it complete.
    somebody else can check off never reaches done, so the procedure could never complete.
 4. **Attach what the run produced BEFORE the write that finishes it** — `attach({kind, ref})`, by
    address, never a path. The write that marks the last item done CLOSES the run, and `attach` is
-   refused on a closed one, so attach late and the run is a finished procedure pointing at nothing.
+   refused on a closed one, so the order is not style: attach late and the run is a finished
+   procedure pointing at nothing.
 5. **A run ends exactly two ways.** Every item done — or `attach` the account and then
-   `status("abandoned — <why>")`. A status of "blocked" does not stop the nudging.
-6. **If you stop early, leave the list where it stopped.** Do not tidy it. Where a procedure dies is
-   the single most useful thing it can tell anyone.
+   `status("abandoned — <why>")`. There is no third. A status of "blocked" does not stop the
+   nudging, and neither does stopping quietly: an open run is nudged until it closes or is
+   declared. If the work is genuinely waiting on him, that IS the abandoned path — say what it
+   waits on and from whom, and reopen it later by writing the list again under the same source.
+6. **If you stop early, leave the list where it stopped.** Do not tidy it, and never mark an item
+   done to quiet a nudge. Where a procedure dies is the single most useful thing it can tell
+   anyone — declare it (5) rather than dressing it.
 
 ## 0 · WHETHER a spec is owed is not your question
 
@@ -97,9 +94,6 @@ one anyway — and that is still a spec confirming a contract, not a workaround.
 subject.** That matters for one reason and it is not aesthetics — **purity bounds what a RED result
 can MEAN.** Every rung is legitimate. Take the highest one the subject allows, and when you cannot,
 say in the spec why.
-
-(This is DOOR purity. Step purity in §3 is a different axis — what each step *does* rather than what
-sits between you and the subject. You want both, and they are independent.)
 
 | | the route | what it is | what a RED can mean |
 |---|---|---|---|
@@ -136,42 +130,28 @@ callers — output shape, error behaviour, exit code — and nothing else. That 
 them has stopped being a spec. **What you must not do inside the wrapper is start unit testing**: it
 calls and transcribes; the assertions live in the spec, where the reader can see them.
 
-One more reason to mirror rather than slice, which argues for it better than purity does: a door
-built from the published surface is REUSABLE. Wrap only what today's spec needs and you have built a
-test-shaped sliver nobody else can call.
+**AND A FOURTH THING A RED CAN MEAN, off the hierarchy entirely: the harness you did NOT write.**
+The tell is a **DIVERGENCE between two callers of the same code** — and when you see one, **check
+their VERSIONS before their logic**, then report the divergence as a fact — *this caller passes,
+that one fails, same commit, these two versions* — rather than theorising from your side of it, and
+let whoever owns the runner look. One measured cause is worth knowing before you start:
+`context("a cached service client freezes its method map")`.
 
-**AND THERE IS ONE MORE THING A RED CAN MEAN, off the hierarchy entirely: the harness you did
-NOT write.** A method passed in the browser and failed through the hub, same code — three wrong
-diagnoses, two of them reported to another team as fact, before the cause turned out to be a cached
-service client that had frozen its method map at construction. **The tell is a DIVERGENCE between two
-callers of the same code** — and when you see one, **check their VERSIONS before their logic.** Two
-sessions measured one spec and got opposite answers because one ran the repo and the other ran a
-globally installed CLI a release behind; both were right, and neither thought to ask which build they
-were holding. Then report the divergence as a fact — *this caller passes, that one fails, same
-commit, these two versions* — rather than theorising from your own side of it. Let whoever owns the
-runner look.
+A harness is a second thing that can be broken, standing between the reader and the evidence — so
+take the highest rung the subject allows, and when you cannot, say in the spec why. A mounted object
+needs no defence. Just do not write a wrapper for something you could have mounted.
 
-**Take the highest rung the subject allows, and when you cannot, say in the spec why.** A mounted
-object needs no defence. A harness is a second thing that can be broken, standing between
-the reader and the evidence, and a reader who cannot tell your bug from the subject's has no evidence
-at all.
+**Three conventions, and the argument behind them is already written — this is the short form.**
+Name every wrapper `Test`, so `Test.<Module>.<method>` reads as *no door existed, so I made one* and
+the pile stays countable. **A door is TRANSCRIPTION** — it may call, read, count and hand back what
+it saw, and may not decide whether the answer is good, because the moment it does the judgment has
+moved inside the thing being judged. **Test-side logic goes in a `Plugin` module**, never in a door.
+Why each one, and the shapes: `context("name every wrapper Test and keep the door dumb")`.
 
-SystemLynx wraps anything cheaply, so rungs 2, 3 and 4 are legitimate artifacts — it is how a CLI,
-a plain module, another library, even a call out to Python becomes something a spec can reach. Write
-the wrapper when you need it. Just do not write one for something you could have mounted.
-
-**Name it `Test`.** `Test.<Module>.<method>` says *no door existed, so I made one*, and because they
-all share that name the pile is countable: the number of them measures how much of the system has no
-front door. `Test` rather than `Spec`, because `spec` is already the artifact on the CALLING side,
-and a `Specs.*` namespace makes the spec call the spec.
-
-**In a repo that is already all services you will never write one.** One reference codebase carries
-227 saved cases and not a single `Test.*` serviceId, because every subject already had a front door. The wrapper exists
-for code that is not a service yet, which is why the hardest example of it is a CLI.
-
-**A door is TRANSCRIPTION.** It may call, read, count and hand back what it saw. It may not decide
-whether the answer is good — the moment it does, the evidence stops being readable from the document
-that asked, because the judgment has moved inside the thing being judged.
+**In a repo that is already all services you will never write a wrapper at all.** One reference
+codebase carries 227 saved cases and not a single `Test.*` serviceId, because every subject already
+had a front door. The wrapper exists for code that is not a service yet, which is why the hardest
+example of it is a CLI.
 
 **AND WHEN THE SUBJECT UNDER TEST IS THE PLATFORM, THE PAYLOAD MUST BE BORING.** A spec whose job is
 *the engine works* — references resolve, multi-arg renders, a throw comes back as a status — wants the
@@ -181,15 +161,10 @@ arithmetic cannot be the reason it failed. The corollary is a mistake worth nami
 as diligence: **do not treat the random subject as the lesson.** Such a spec is not about arithmetic,
 and it is not about the domain either. It needed something, and something is all it needed.
 
-**Test-side LOGIC goes in a `Plugin` module, never in a door.** The pattern to copy: the
-`systemview-plugin` package is mounted with `module: helpers`, and those functions become
-`<Service>.Plugin.<fn>` — `Plugin.createMockUsers`, `Plugin.clearMockGames`, `Plugin.mockGame`. Mock
-builders, fixtures, teardown. The spec calls `Plugin.*` to build the world and the REAL method to
-check it.
-
-**AND THE PLUGIN IS A LOOPHOLE IN THE RULE ABOVE — so it gets its own rule.** A door may not decide
-whether the answer is good; the Plugin is exempted as "test-side logic", which means it can hold
-exactly the judgment the door is forbidden, one inch away. Sometimes that is right: a real Plugin
+**AND THE PLUGIN IS A LOOPHOLE IN THE TRANSCRIPTION RULE — so it gets its own rule, and this one is
+not written anywhere else.** A door may not decide whether the answer is good; the Plugin is
+exempted as "test-side logic", which means it can hold exactly the judgment the door is forbidden,
+one inch away. Sometimes that is right: a real Plugin
 function measures a payload against a 256KB cap and hands back `{ cap, under, over }` for the spec to
 assert, because the alternative was committing a 256KB fixture into the repo forever. That is a
 facilitator that thinks, and it was the correct trade.
@@ -301,9 +276,11 @@ diagnosed the wrong cause of a failure in a spec they had written. **Teardown-so
 load-bearing steps are the worst case**, because the convention that `After` is cleanup is exactly
 what makes the lie credible.
 
-One file per method — `specs/tests/<Module>.<method>.json`, an array, one entry per saved test.
-**`specs/actions/` is for the Before you have now written three times**, not a default: in the model
-repo exactly one service uses it and two of the directories are empty.
+One file per method, an array, one entry per saved test — and the `specs/` folder sits **beside the
+service it belongs to**, never at the repo root. The shapes and the save rules are the agent guide's:
+`context("how do I write a spec and an evaluation for a service method")`.
+**`specs/actions/` is for the Before you have now written three times**, not a default: measured
+across one reference repo's five services, two use it at all and one directory is empty.
 
 ## 3.5 · Prove the spec can FAIL — delete the guard, ninety seconds
 
@@ -377,10 +354,6 @@ so the change loop finds it whether or not anybody remembers. A run block is onl
 somebody reading the document it lives in — so **a run block in a document nobody will reopen is
 unowned**. Put one where the reading will happen, or save it.
 
-**The test of a new spec is whether it would FAIL if the work regressed.** One that passes before the
-work and after it is a file maintained forever that proves nothing. Do not wonder whether it would —
-§3.5 is the ninety-second procedure that makes it happen in front of you.
-
 ## 5 · Run it, and report what the number covers
 
 Run it — `systemview test <projectCode> <Module>.<method>` for a saved spec, the block's own press
@@ -400,8 +373,8 @@ Two environment facts that each cost an hour if you meet them cold:
 - **Every field coming back `undefined` means the method never ran** — a missing fixture, not twenty
   broken assertions. Return the precondition as a field (`{ fixturesRunning: false, why: "…" }`) and
   assert on it, so a red says which fixture and what to run.
-- **There is no per-test deadline.** A method that hangs hangs the whole run with no failing line, so
-  never write a step that can block forever.
+- **Never write a step that can block forever** — there is no per-test deadline, so a method that
+  hangs hangs the whole run with no failing line.
 
 ## Done when
 
