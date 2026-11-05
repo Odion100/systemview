@@ -163,7 +163,7 @@ back into `spec-authoring` is a transcription and not a reconstruction.
 | **The reference facts went to the GUIDE, not the procedure** — validator frequencies, `error.message` not `results.status`, anchor the `isLike`, the substring namespace filter, `Action<N>` renumbering silently | :file[agents/tests.md] — landed |
 | **WHEN TWO CALLERS OF THE SAME CODE DISAGREE, CHECK THEIR VERSIONS BEFORE THEIR LOGIC.** Two agents measured one spec and got opposite answers — repo 2.40.0 vs published 2.39.0, whose `createMockFile` still returns a Buffer `convertToReadStream()` throws on. Both measurements were correct. The divergence was the tell and we both read it as a logic problem | :file[agents/tests.md] and `spec-authoring` §1 — landed |
 | **`date()` IS a macro** — `moment(<arg>).toJSON()` — and the trap is the missing ARGUMENT: bare `date()` passes an empty string, moment calls it invalid, `null` reaches the database. The inference that produced the wrong claim — *used once in 227 cases, therefore not a macro* — is a good heuristic that pointed the wrong way | :file[agents/tests.md] — landed |
-| **WHEN IS A UNIT TEST THE RIGHT ARTIFACT? Ask whether anything outside the code calls it.** A caller → the spec goes at that boundary and a unit test under it is redundant. No caller → the unit test is honest and a spec is ceremony, because wrapping a pure helper buys a door that exists only for the test. The trap: never unit test something that HAS a boundary because the unit is easier to reach. Tiebreak — what risk are you managing? A unit test cannot tell you the parts agree. **AND the window is outside the question: `::test` addresses `Service.Module.method`, so nothing in `src/` has a namespace to point one at — jest there is the only artifact that reaches the boundary, not a fallback** | `spec-authoring` — t3, buAPI's criterion plus the `src/` clause |
+| **WHEN IS A UNIT TEST THE RIGHT ARTIFACT? Two parts, and the first is mechanical: is there a NAMESPACE to point a `::test` at?** No namespace (anything in `src/`, any module with no door) → the question does not arise; test at the surface with the tool that reaches it, and in the window that is jest. Only then part 2: does anything outside the code call it?** A caller → the spec goes at that boundary and a unit test under it is redundant. No caller → the unit test is honest and a spec is ceremony, because wrapping a pure helper buys a door that exists only for the test. The trap: never unit test something that HAS a boundary because the unit is easier to reach. Tiebreak — what risk are you managing? A unit test cannot tell you the parts agree. **AND the window is outside the question: `::test` addresses `Service.Module.method`, so nothing in `src/` has a namespace to point one at — jest there is the only artifact that reaches the boundary, not a fallback** | `spec-authoring` — t3, buAPI's criterion plus the `src/` clause |
 | **A TITLE THAT LIES MISDIRECTS A READER WHO HAS EVERY OTHER FACT.** Demonstrated live, within the hour, on the agent who told me to rewrite the title section: two steps titled *"should clear all mock users"* and *"clear mock tournaments"* were the SUBJECT, not teardown — so they wrote the trailing section off as cleanup and diagnosed the wrong cause in their own spec. Teardown-sounding titles on load-bearing steps are the worst case, because the `After`-is-cleanup convention is what makes the lie credible | `spec-authoring` §3 — landed |
 
 ---
@@ -214,8 +214,17 @@ nicety is mechanical: a failure line prints the step title, so the title decides
 usable. The old examples (`"create a mock user"`) taught the floor while calling it the standard.
 `spec-authoring` §3 now carries the strong ones.
 
-**SETTLED, and the criterion is buAPI's.** One question decides it: **does anything outside this
-code call it?**
+**SETTLED. The rule is two-part, and the FIRST part is mechanical rather than a judgment.**
+
+**1 · Is there a namespace to point a `::test` at?** A chip resolves `Service.Module.method` against
+the registry, so this asks whether the code is reachable through a SystemLynx service at all. **If
+no — anything in `src/`, any pure module with no door — the spec-versus-unit-test question does not
+arise.** You test at the surface a user meets, with the tool that can reach it, which in the window
+is jest/react-testing-library. Not a fallback: the only artifact available. A rule that skipped this
+gate would send an agent working in `src/` hunting a door that cannot exist, which is a worse failure
+than the one part 2 prevents.
+
+**2 · Then, and only then, buAPI's question: does anything outside this code call it?**
 
 - **Yes** → the spec goes at that boundary, and a unit test underneath is mostly redundant: you
   would be testing the inside of something whose outside you can already assert.
@@ -235,13 +244,9 @@ cannot tell you the parts agree. If the risk is integration — in a five-servic
 always is — a thorough unit test is irrelevant no matter how good it is. Pick the artifact that can
 fail for the reason you are actually afraid of.
 
-**ONE CLAUSE TO ADD, because buAPI could not see it from a repo of services.** Their closing
-observation is that this repo has no unit tests *not* by doctrine but because everything in it has a
-caller. That is true of services and false of the window, and the difference is not a judgment call —
-it is mechanical. **A `::test` chip addresses `Service.Module.method`; the window is not a service,
-so there is no namespace to point one at.** For anything in `src/` the boundary is the rendered
-surface and jest/react-testing-library is not a fallback, it is the only artifact that can reach it.
-The criterion still does the work there — it says test at the surface a user meets, not at a
-component's internals — but "write a spec instead" is not an option on the table, and a skill that
-implies it is would send every agent working in `src/` looking for a door that does not exist.
+**WHY PART 1 HAD TO BE SPLIT OUT, because it is the mistake a repo of services cannot see.** Part 2
+alone assumes that "yes, something calls it" always routes to a namespace. In `src/` it does not, and
+the observation that led here — *this repo has no unit tests not by doctrine but because everything in
+it has a caller* — is true of services and false of the window. Both parties agreed the split once it
+was named, which is the tell that it is mechanical and not a matter of taste.
 ::::
