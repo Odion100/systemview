@@ -197,14 +197,16 @@ distinction is the entire reason green means anything, so keep it straight rathe
 test, `After` clears up. Six real calls to set up one assertion is normal and it is the point: the
 spec exercises the system the way a caller does.
 
-**Before, Plugin, Mocks — three homes, and the line is who could do it:**
+**Before or Plugin — two homes, and the line is whether a user could do it:**
 
 - **`Before`** — real domain calls a user would actually make, through the front door. If a user does
   it, it belongs here even when it takes five steps, because those five steps ARE the usage
   documentation somebody reads to learn the method.
 - **`Plugin`** — what a user *cannot* do, or what should not sit in a file: bulk seeding, clearing a
   collection, measuring something a fixture cannot carry.
-- **`Mocks`** — seeding a RUNNING system so a human can click around. Never a suite.
+
+Nothing a spec touches may be a thing you cannot depend on being up. Both of these are mounted on
+the service under test and come up with it, which is what makes them safe to build a world out of.
 
 **`After` IS REQUIRED, and the reason is that a spec without one passes exactly once.** It creates its
 fixtures every run and then counts them, so its own history becomes its answer — a real case asserting
