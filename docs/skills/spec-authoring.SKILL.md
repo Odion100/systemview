@@ -311,18 +311,11 @@ compiles into the same evaluation shape a saved spec's JSON carries, and any val
 picker offers can be named in a block directly (`✓ results.tags includes "forum"`,
 `✓ results.items lengthEquals 3`). Which assertions you need does not bear on the choice.
 
-**A NEW SCENARIO IS NOT A NEW SPEC.** Assuming it is, is the commonest way a suite grows without
-covering more. Nearly always you are doing one thing — editing the method's file — and the only
-question is what that edit is: a case that is now wrong, a case that is missing, or a case already
-there. Open the file before you decide; only the last row leaves it.
-
-| what the file already has | the edit | because |
+| the work | the shape | because |
 |---|---|---|
-| an entry that asserted the OLD behaviour | **change that entry** — its expectations are now wrong | the spec is not a log of what the method used to do; leaving the stale one and adding a fresh one beside it gives the file two answers and no way to tell which is the contract |
-| the entries are right, your scenario is not among them | **add one entry to that method's file** — same array, one more case | a second file for one more assertion is the drifting-copy failure in miniature, and the method's file IS the enumeration of its contract |
-| an entry that already covers it | **nothing — run it and say so in the account** | a spec that would have caught this is evidence the work is already defended; writing a near-duplicate buys nothing and costs a maintainer the job of telling them apart |
-| the method has no file at all | **a new saved spec** | it would otherwise go unwatched, which is what pays for the suite growing |
-| you are asserting a SEQUENCE — this, then this, and now this is true | **a `:::run` block** in the document where the question was asked | a sequence has no namespace to live at, and §4.5 is the whole reason |
+| changed what an existing method does | **edit its spec** — change the entry that is now wrong, or add one entry to that method's file under `<Service>/specs/tests/` | the file covering that method is where its new case belongs; a second file for one more assertion is the drifting-copy failure in miniature |
+| added something nothing watches | **a new saved spec** | it would otherwise go unwatched, which is what pays for the suite growing |
+| asserted a SEQUENCE — this, then this, and now this is true | **a `:::run` block** in the document where the question was asked | a sequence has no namespace to live at, and §4.5 is the whole reason |
 
 ## 4.5 · A method's contract is finite; a sequence's is not
 
