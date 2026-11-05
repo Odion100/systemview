@@ -29,6 +29,13 @@
     font-size: 16px;
     line-height: 1;
     padding: 0 2px;
+    // THE BOX IS CENTRED; THE GLYPH IS NOT IN THE MIDDLE OF IT. Measured on the live header: every
+    // item in this row centres its box at the same pixel, but `‹` has a NEGATIVE descent — its ink
+    // stops above the baseline instead of resting on it — so its ink centred 0.77px below the
+    // crumb text beside it. Flex can only centre boxes; this puts the ink where the eye looks.
+    // The badge next to it needs no such nudge because a filled chip IS its box.
+    position: relative;
+    top: -0.77px;
     &:hover { color: var(--sv-on-header); }
   }
   &__kind {
