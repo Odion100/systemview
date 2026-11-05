@@ -41,6 +41,12 @@
     border-radius: 3px;
     padding: 1px 5px;
     flex: none;
+    // THE ROW CENTRES BOXES; THIS MAKES THE BOX THE INK. Without a line-height the badge carried
+    // ~1.2 line-heights of mostly-empty box around 9px of all-caps text that has no descenders, so
+    // flex centred a box whose ink sat in its upper two thirds — and it read high next to a 12px
+    // mono crumb that fills its own box. Tight to the text, and centring the box centres what you
+    // see.
+    line-height: 1;
   }
   // A REGISTERED DOCUMENT WEARS ITS KIND'S COLOUR, and it is the SAME token the dashboard legend
   // and the trail use — `--sv-kind-*` in theme.scss, light and dark. One source: the legend teaches
