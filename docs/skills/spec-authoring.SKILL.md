@@ -309,7 +309,7 @@ Cheapest to the system first, and **say in the account which one you chose and w
 | changed what an existing method does | **edit its spec** — one more entry in `specs/tests/<Module>.<method>.json` | the file covering that method is where its new case belongs; a second file for one more assertion is the drifting-copy failure in miniature |
 | added something nothing watches | **a new saved spec** | it would otherwise go unwatched, which is what pays for the suite growing |
 | asserted a SEQUENCE — this, then this, and now this is true | **a `:::run` block** in the document where the question was asked | a sequence has no namespace to live at, and §4.5 is the whole reason |
-| needs `lengthEquals`, `isOneOf` or `includes` | **a saved spec, never a block** | a run block's grammar is `=`, `~`, `>=`, `<=` only — faking an unsupported operator is how an assertion passes for the wrong reason |
+| needs `lengthEquals`, `isOneOf` or `includes` | **a saved spec, for now** | not a design — the ENGINE is the same one and knows all sixteen validators, but the block's text grammar has only been given five spellings (`=` `~` `>=` `<=`), so the rest are silently dropped and counted. Never fake an unsupported operator with `~`: that is how an assertion passes for the wrong reason. This is a gap, so check whether it is still true before routing around it |
 
 ## 4.5 · A method's contract is finite; a sequence's is not
 

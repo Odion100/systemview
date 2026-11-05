@@ -255,11 +255,18 @@ do exist for that type — but the commonest version of the mistake is a name th
 DIFFERENT type, which reads correct and is the one to check first when a step passes and you do not
 believe it.
 
-**MOST OF THAT TABLE CANNOT BE WRITTEN IN A DOCUMENT.** A `:::run` block's step grammar parses `=`,
-`~`, `>=` and `<=` and nothing else — so `lengthEquals`, `isOneOf` and `includes` are available to a
-SAVED spec only. Anything that needs one has to be a saved spec rather than a block, and reaching for
-a block and then faking the operator with a `~` is how an assertion ends up passing for the wrong
-reason: it is green, it is in the document, and it is not checking what the sentence above it claims.
+**MOST OF THAT TABLE CANNOT YET BE WRITTEN IN A DOCUMENT — AND THAT IS A GAP, NOT A DESIGN.** A
+`:::run` block and a saved spec run on the SAME engine, through the translation you would expect:
+`toEvaluations` in `RunBlock.js` compiles an assertion line into the same
+`{namespace, expected_type, validations, save}` shape, assigns it to the same `savedEvaluations`
+field, and hands it to the same validators. The engine knows all sixteen names. The TRANSLATOR has
+only been given five spellings — `=`, `~`, `>=`, `<=` — so anything else is dropped (counted, and
+reported as "N assertions couldn't be read"). `>` and `<` are the one deliberate absence: faking them
+with `value±1` is wrong for anything non-integer.
+
+So for now `lengthEquals`, `isOneOf` and `includes` reach only a saved spec. Never fake one with a
+`~`: it is green, it is in the document, and it is not checking what the sentence above it claims.
+Check whether the grammar has grown before you route around it.
 
 **AND THERE IS NO PER-TEST DEADLINE.** A method that genuinely hangs hangs the whole run with no
 message and no failing line — so never write a step that can block forever (an unbounded wait, a
