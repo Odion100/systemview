@@ -14,11 +14,12 @@ A test is an **ordered list of named sections**. `before / main / events / after
 of the built-ins. The engine loops the order; each section is an array of **steps** (method calls with
 args and evaluations).
 
-- Saved tests live in the service repo at **`specs/tests/<Module>.<method>.json`** — one file per
-  method, an **array** with one entry per saved test. A test's **slot** is its index in that array
+- Saved tests live **beside the service they belong to** —
+  **`<Service>/specs/tests/<Module>.<method>.json`** — one file per method, an **array** with one
+  entry per saved test. A repo hosting five services has five `specs/` folders, not one at the root. A test's **slot** is its index in that array
   (save-over and delete address slots; the UI computes them correctly even in aggregated
   module/service views).
-- Shared actions live one-per-file at **`specs/actions/<name>.json`**.
+- Shared actions live one-per-file at **`<Service>/specs/actions/<name>.json`**.
 - The top-level `namespace` is what the test is *of* — it decides the file. Main steps may call any
   connected method, but **at least one Main step must match the top-level namespace**.
 - **The entry's `title` and `namespace` are not optional, and losing them fails silently.** A step
@@ -255,7 +256,7 @@ do exist for that type — but the commonest version of the mistake is a name th
 DIFFERENT type, which reads correct and is the one to check first when a step passes and you do not
 believe it.
 
-**EVERY NAME IN THAT TABLE CAN BE WRITTEN IN A DOCUMENT — name the validator outright.** A `:::run`
+**ANY NAME IN THAT TABLE WORKS IN A DOCUMENT — name the validator outright.** A `:::run`
 block and a saved spec are one engine: `toEvaluations` in `RunBlock.js` compiles an assertion line
 into the same `{namespace, expected_type, validations, save}` shape, assigns it to the same
 `savedEvaluations` field, and hands it to the same validators. Two forms, and the symbols are only a
@@ -371,5 +372,3 @@ rather than dropping it — a `::test` chip pointing at another project's namesp
 "no saved test matching …", which is a finding and not a silent pass. And it **never collects a
 `:::cmd`**: that is a command for a human to press, not a spec, so anything a cmd does that needs
 defending has to be wrapped in a run block.
-
-So nothing in a document needs a human to press it in order to be checked.

@@ -153,8 +153,9 @@ A test is an **ordered list of named sections**. Built-ins: `before`, `main`, `e
 **shared action** dropped in becomes its own named section, stored as a `{ use }` reference, so
 editing the action updates every test using it.
 
-Saved tests are JSON in the repo at `specs/tests/<Module>.<method>.json`; shared actions at
-`specs/actions/<name>.json`. The UI and the CLI run the same files.
+Saved tests are JSON beside the service that owns them, at
+`<Service>/specs/tests/<Module>.<method>.json`; shared actions at `<Service>/specs/actions/<name>.json`.
+The UI and the CLI run the same files.
 
 **References (`tv(…)`)** — reach an earlier step's data from anywhere in an argument or an expected
 value. The root is a **section name**, and the leading `test.` is optional in documents:

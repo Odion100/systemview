@@ -158,19 +158,14 @@ function toNamespace(ns, scope) {
 // faked with value±1, which would be wrong for everything that is not an integer.
 const BOUNDS = { ">=": "min", "<=": "max" };
 
-// THE NAMED FORM — `✓ results.items lengthEquals 3`, and the reason it exists is that its absence
-// was never a design.
+// TWO FORMS, ONE ENGINE. A run block and a saved spec are the same machinery: everything below
+// compiles into the `{namespace, expected_type, validations, save}` shape a saved spec's JSON
+// carries, lands in the same `savedEvaluations` field, and is validated by the same validators.
 //
-// A run block and a saved spec are ONE engine: everything below compiles into the same
-// `{namespace, expected_type, validations, save}` shape a saved spec's JSON carries, lands in the
-// same `savedEvaluations` field, and is validated by the same validators. The engine has always
-// known fourteen validator names. The TEXT grammar had been given five spellings, so the other nine
-// were unreachable from a document and two of our own guides wrote that up as a property of the
-// system — routing work to saved specs for years because of a missing branch in one regex.
-//
-// So: any validator the authoring picker offers can now be named directly. No new punctuation — the
-// names are the ones already in the agent guide, and the symbol form is untouched because `= 5` is
-// the right way to say that.
+// So any validator the authoring picker offers can be named directly — `✓ results.items lengthEquals
+// 3` — while the symbols stay a shorthand for the common ones, because `= 5` is the right way to say
+// that. The names are the ones already in the agent guide, so the named form adds no vocabulary to
+// learn and no punctuation to remember.
 //
 // THE TABLE IS DERIVED FROM THE PICKER, never listed here. `ValidationOptions` is what the window
 // offers a human choosing a validation, so deriving from it means this grammar can never accept a

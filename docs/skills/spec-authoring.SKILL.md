@@ -304,15 +304,14 @@ told you nothing yet. It is not finished; it is unproven.
 
 Cheapest to the system first, and **say in the account which one you chose and why**.
 
-**What is NOT an input to this choice: which assertions you need.** A run block and a saved spec are
-one engine — the block's text compiles into the same evaluation shape a saved spec's JSON carries —
-and every validator the authoring picker offers can be named in a block directly
-(`✓ results.tags includes "forum"`, `✓ results.items lengthEquals 3`). Choose the shape by OWNERSHIP,
-which is §4.5, and never because an operator seemed unavailable.
+**Choose by OWNERSHIP — §4.5 — and nothing else.** Both artifacts are one engine: a block's text
+compiles into the same evaluation shape a saved spec's JSON carries, and any validator the authoring
+picker offers can be named in a block directly (`✓ results.tags includes "forum"`,
+`✓ results.items lengthEquals 3`). Which assertions you need does not bear on the choice.
 
 | the work | the shape | because |
 |---|---|---|
-| changed what an existing method does | **edit its spec** — one more entry in `specs/tests/<Module>.<method>.json` | the file covering that method is where its new case belongs; a second file for one more assertion is the drifting-copy failure in miniature |
+| changed what an existing method does | **edit its spec** — one more entry in that method's file under `<Service>/specs/tests/` | the file covering that method is where its new case belongs; a second file for one more assertion is the drifting-copy failure in miniature |
 | added something nothing watches | **a new saved spec** | it would otherwise go unwatched, which is what pays for the suite growing |
 | asserted a SEQUENCE — this, then this, and now this is true | **a `:::run` block** in the document where the question was asked | a sequence has no namespace to live at, and §4.5 is the whole reason |
 
@@ -359,9 +358,6 @@ are yours:
   same shape `runTests` gives. Scope it with `document`, `objective`, `arc`, or none for the whole
   project; `dryRun` lists what WOULD run, and it names any spec it could not build rather than
   dropping it. A `:::cmd` is never collected — it is a command for a human, not a spec.
-
-So "a run block is only run when somebody presses it" is false twice over: it is not the difference
-between the artifacts (§4.5), and it is not even true about the running.
 
 Then put the result in the account **with its scope**. A green suite is evidence only about what it
 covers, and the sentence that makes a report believable is the one saying what it does not: *"the
