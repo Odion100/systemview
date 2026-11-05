@@ -247,6 +247,14 @@ Validation names by type:
 | array | `includes`, `lengthEquals`, `maxLength`, `minLength` |
 | date | `dateEquals`, `maxDate`, `minDate` |
 
+**THE ROWS ARE A GATE, NOT A MENU — a name from the wrong row does not fail, it does NOTHING.**
+Every validator is a reduce that ignores names it does not match, so `includes` on a string or
+`lengthEquals` on a number is an assertion that never ran, and the step goes green having asserted
+nothing. That is reported now — as `unknownValidation`, naming the typo and offering the names that
+do exist for that type — but the commonest version of the mistake is a name that is real for a
+DIFFERENT type, which reads correct and is the one to check first when a step passes and you do not
+believe it.
+
 **MOST OF THAT TABLE CANNOT BE WRITTEN IN A DOCUMENT.** A `:::run` block's step grammar parses `=`,
 `~`, `>=` and `<=` and nothing else — so `lengthEquals`, `isOneOf` and `includes` are available to a
 SAVED spec only. Anything that needs one has to be a saved spec rather than a block, and reaching for
