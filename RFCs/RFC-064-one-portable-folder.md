@@ -1,5 +1,7 @@
 # RFC-064 — One portable folder: the harness owns its own configuration
 
+::rfc{id=RFC-064}
+
 **Status:** design, for Odion's review — 2026-09-19. **Design only — nothing here is built.**
 **Owner:** autobot. Everything lands in one function, `sdkOptionsOf()` in `electron/agents/sessions.cjs:242`.
 **Depends on:** nothing new. Three doors in `@anthropic-ai/claude-agent-sdk` that we already have and do not use.
