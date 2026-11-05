@@ -359,3 +359,17 @@ which spec went red, has to be read off the output rather than inferred from the
 
 Hand-written spec files are picked up as-is — the UI lists them under the method (and its module/
 service pages), and `systemview test` runs them. Full command flags: [cli.md](cli.md).
+
+**AND A DOCUMENT'S SPECS RUN WITHOUT THE WINDOW — `runProofs`.** `systemview test` reaches saved
+specs; the `:::run` blocks and `::test` chips living inside an RFC, arc, plan, gap or report are
+collected and run by `runProofs({projectCode, document})`, results in the same shape `runTests`
+gives. Scope it with `document`, `objective` (`ARC-004-O2`), `arc`, or none of them for every
+document in the project; `bail` stops at the first failure and `dryRun` lists what WOULD run.
+
+Two things it does that matter when you read the output. It **names any spec it could not build**
+rather than dropping it — a `::test` chip pointing at another project's namespace comes back as
+"no saved test matching …", which is a finding and not a silent pass. And it **never collects a
+`:::cmd`**: that is a command for a human to press, not a spec, so anything a cmd does that needs
+defending has to be wrapped in a run block.
+
+So nothing in a document needs a human to press it in order to be checked.

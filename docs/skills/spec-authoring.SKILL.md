@@ -348,20 +348,27 @@ two users in and out is still about `getShelf`. **Length is not the test; owners
 yourself naming three and it is a sequence, and it belongs in the document making the claim. That is
 why gaps reach for run blocks: a gap is not about one method, it is about whatever broke.
 
-**And a run block has no ADDRESS, which is its real constraint.** A saved spec is filed by namespace,
-so the change loop finds it whether or not anybody remembers. A run block is only ever found by
-somebody reading the document it lives in — so **a run block in a document nobody will reopen is
-unowned**. Put one where the reading will happen, or save it.
-
 ## 5 · Run it, and report what the number covers
 
-Run it — `systemview test <projectCode> <Module>.<method>` for a saved spec, the block's own press
-for a run block — and put the result in the account **with its scope**. A green suite is evidence
-only about what it covers, and the sentence that makes a report believable is the one saying what it
-does not: *"the suite passed and that number says nothing about this change, because no suite renders
-this component."*
+**YOU RUN IT. A SPEC YOU LEFT FOR SOMEBODY ELSE TO PRESS IS NOT EVIDENCE YET.** Two doors, and both
+are yours:
 
-Two environment facts that each cost an hour if you meet them cold:
+- a saved spec — `runTests`, or `systemview test <projectCode> <Module>.<method>` from a terminal.
+- **a document's specs — `runProofs({projectCode, document})`**, which collects the `:::run` blocks
+  AND the `::test` chips living in an RFC, arc, plan, gap or report and runs them, results in the
+  same shape `runTests` gives. Scope it with `document`, `objective`, `arc`, or none for the whole
+  project; `dryRun` lists what WOULD run, and it names any spec it could not build rather than
+  dropping it. A `:::cmd` is never collected — it is a command for a human, not a spec.
+
+So "a run block is only run when somebody presses it" is false twice over: it is not the difference
+between the artifacts (§4.5), and it is not even true about the running.
+
+Then put the result in the account **with its scope**. A green suite is evidence only about what it
+covers, and the sentence that makes a report believable is the one saying what it does not: *"the
+suite passed and that number says nothing about this change, because no suite renders this
+component."*
+
+Three environment facts that each cost an hour if you meet them cold:
 
 - **FIND THE FIRST FAILING STEP BEFORE YOU BELIEVE ANY RED.** The commonest bad half-hour is a wall
   of failures about the subject that are all downstream of a `Before` that quietly failed, so the
@@ -388,4 +395,6 @@ Two environment facts that each cost an hour if you meet them cold:
 - The shape is chosen from §4 and its reason is in the account
 - **It has been SEEN to fail** — §3.5's delete-the-guard pass was run and the specific step went red.
   Green on the first run is not done, it is unproven
-- It RAN, and the result is reported with what the result does not cover
+- **YOU ran it** — a saved spec through `runTests`, a document's blocks through
+  `runProofs({projectCode, document})` — and the result is reported with what it does not cover.
+  Leaving a block for the human to press is not a result
