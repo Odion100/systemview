@@ -42,6 +42,13 @@
     padding: 1px 5px;
     flex: none;
   }
+  // A REGISTERED DOCUMENT WEARS ITS KIND'S COLOUR, and it is the SAME token the dashboard legend
+  // and the trail use — `--sv-kind-*` in theme.scss, light and dark. One source: the legend teaches
+  // the badge, the document wears it, and they cannot drift to two blues.
+  &__kind--rfc { background: var(--sv-kind-rfc); }
+  &__kind--arc { background: var(--sv-kind-arc); }
+  &__kind--gap { background: var(--sv-kind-gap); }
+  &__kind--report { background: var(--sv-kind-report); }
   &__crumb {
     font-family: "SF Mono", Menlo, monospace;
     font-size: 12px;

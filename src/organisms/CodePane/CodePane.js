@@ -10,6 +10,7 @@ import OwnerCrumb from "../../atoms/OwnerCrumb/OwnerCrumb";
 import DiffView from "../../atoms/DiffView/DiffView";
 import { useEditorDark, EditorThemeToggle } from "../../atoms/CodeView/editorTheme";
 import Markdown from "../../atoms/Markdown/Markdown";
+import { kindBadge } from "../../atoms/Markdown/registrationLeaf";
 import { MarkdownScopeProvider } from "../../atoms/Markdown/context";
 import { MarkdownCapabilitiesProvider } from "../../atoms/Markdown/capabilities";
 import { systemviewCapabilities } from "../../markdownCapabilities";
@@ -99,6 +100,12 @@ const CodePane = ({ file, onClose }) => {
   // for lacking one; everything a project enriches (git, comments, history) renders ABSENT below,
   // never broken.
   const isMachine = !!file.machine;
+  // Only a markdown file can carry a leaf, and only the saved text is the document — an unsaved
+  // half-typed leaf must not retitle the pane mid-keystroke.
+  const badge = useMemo(
+    () => kindBadge({ path: file.path, text: savedContent, machine: isMachine }),
+    [file.path, savedContent, isMachine]
+  );
   const host = isMachine ? { machine: true } : file.projectCode ? { projectCode: file.projectCode } : null;
   // The open file's codebase disconnected/was deleted → close the pane instead of sitting on a dead
   // error. Guarded on connectedServices being loaded (empty at boot ≠ gone).
@@ -816,7 +823,21 @@ const CodePane = ({ file, onClose }) => {
             ‹
           </button>
         )}
-        <span className={`${CLASSNAME}__kind`}>{isMachine ? "machine" : "code"}</span>
+        {/* THE BADGE SAYS WHAT THE DOCUMENT IS, and only falls back to where it sits.
+            `code` / `machine` answers "where does this file live", which is the least interesting
+            thing about a registered document — and it read as a contradiction one line under the
+            dashboard legend, which teaches an RFC badge and then hands you a document labelled
+            `code`. A file that declares a leaf now wears that leaf's kind, in the kind's own colour
+            (`--sv-kind-*`, the same token the legend and the trail use — one source, not a copy).
+            Everything else is unchanged: plain markdown and source files still say `code`, and a
+            file outside every project still says `machine`, because for those it is the true and
+            useful answer. */}
+        <span
+          className={`${CLASSNAME}__kind${badge.kind ? ` ${CLASSNAME}__kind--${badge.kind}` : ""}`}
+          title={badge.id ? `${badge.kind.toUpperCase()} ${badge.id}` : undefined}
+        >
+          {badge.label}
+        </span>
         {/* THE ONE QUIET LINE a machine file gets instead of dead git controls (RFC-069 §4.3):
             outside every project, so nothing project-shaped exists here — said once, in the
             header, never as a broken button. */}

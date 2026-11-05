@@ -17,6 +17,43 @@ export const LEAF_KINDS = [
 
 const LEAF_LINE = /^\s*::(arc|rfc|report|gap)\{/;
 
+// WHAT THE DOCUMENT DECLARES ITSELF TO BE — the same leaf, read rather than written.
+//
+// `leafLineNo` answers "is there one, and where" for the register menu. A surface that wants to
+// SAY the kind needs the kind and the id, and that question had no answer in the window: the code
+// pane's header badge said `code` over an RFC — true about where the file sits, useless about what
+// it is, one line under a legend that had just taught the four kinds. It lives here, beside the
+// regex it shares, because two readers of one syntax is two syntaxes the first time a leaf grows
+// an attribute.
+//
+// `{` is required by LEAF_LINE and that is deliberate: a leaf owns its own line AND carries
+// attributes, so prose that mentions `::rfc` in a sentence is prose. Matching it would let a
+// document ABOUT RFCs badge itself as one.
+const LEAF_ID = /\bid\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s}]+))/;
+
+export const registrationOf = (src) => {
+  const line = String(src || "")
+    .split("\n")
+    .find((l) => LEAF_LINE.test(l));
+  if (!line) return null;
+  const kind = LEAF_LINE.exec(line)[1];
+  const id = LEAF_ID.exec(line);
+  return { kind, id: (id && (id[1] ?? id[2] ?? id[3])) || "" };
+};
+
+// THE HEADER BADGE'S WHOLE DECISION, in one place that can be claimed. The pane cannot be rendered
+// in jest without dragging the editor in behind it, so the choice lives here as a function instead
+// of as three conditions inside a span — the component stays a consumer and the rule stays testable.
+//
+// Order matters and is the argument: what a document DECLARES outranks where its file sits. Only
+// markdown can carry a leaf; everything else falls back to the location answer, which is the true
+// and useful one for a source file.
+export const kindBadge = ({ path = "", text = "", machine = false } = {}) => {
+  const reg = /\.mdx?$/i.test(path) ? registrationOf(text) : null;
+  if (reg) return { label: reg.kind, kind: reg.kind, id: reg.id };
+  return { label: machine ? "machine" : "code", kind: null, id: "" };
+};
+
 // The line an existing registration leaf sits on (1-based), 0 when the document has none.
 // First one wins — a document is ONE thing, so the menu's register door closes once a leaf exists.
 export const leafLineNo = (src) => {
