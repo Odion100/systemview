@@ -5,6 +5,7 @@ import { SavedTestItem } from "../../../organisms/SavedTests/SavedTests";
 import { useMarkdownScope, useDocMembers } from "../context";
 import { routeResult } from "../docSend";
 import { resolveNamespace } from "../nsResolve";
+import validationOptions from "../../../molecules/ValidationInput/ValidationOptions";
 
 // RFC-025 §4.2 — `::run`, in two forms, and the difference matters:
 //
@@ -156,10 +157,80 @@ function toNamespace(ns, scope) {
 // bounds, so `>=` and `<=` map straight onto them; `>` and `<` are deliberately absent rather than
 // faked with value±1, which would be wrong for everything that is not an integer.
 const BOUNDS = { ">=": "min", "<=": "max" };
+
+// THE NAMED FORM — `✓ results.items lengthEquals 3`, and the reason it exists is that its absence
+// was never a design.
+//
+// A run block and a saved spec are ONE engine: everything below compiles into the same
+// `{namespace, expected_type, validations, save}` shape a saved spec's JSON carries, lands in the
+// same `savedEvaluations` field, and is validated by the same validators. The engine has always
+// known fourteen validator names. The TEXT grammar had been given five spellings, so the other nine
+// were unreachable from a document and two of our own guides wrote that up as a property of the
+// system — routing work to saved specs for years because of a missing branch in one regex.
+//
+// So: any validator the authoring picker offers can now be named directly. No new punctuation — the
+// names are the ones already in the agent guide, and the symbol form is untouched because `= 5` is
+// the right way to say that.
+//
+// THE TABLE IS DERIVED FROM THE PICKER, never listed here. `ValidationOptions` is what the window
+// offers a human choosing a validation, so deriving from it means this grammar can never accept a
+// name the picker does not know, and a validator added there reaches documents for free.
+const NAME_TYPES = (() => {
+  const byName = {};
+  ["string", "number", "array", "date", "boolean"].forEach((type) =>
+    ((validationOptions[type] || {}).values || []).forEach((name) => {
+      (byName[name] = byName[name] || []).push(type);
+    })
+  );
+  return byName;
+})();
+
+// FOUR NAMES ARE LEGAL ON TWO TYPES, so the name alone cannot settle `expected_type` — and it has to
+// be settled, because `mixed` skips the type check entirely: a missing field would then assert
+// nothing and the step would go green, which is the vacuous pass this engine has been bitten by
+// twice. Guessing is not available either; a wrong `expected_type` is a typeError about a shape
+// nobody asserted.
+//
+// So the three LENGTH validators are not guessed, they are TRANSLATED. `path minLength 2` on a
+// string means exactly `min 2` on `path.length`, and the path parser resolves `.length` for strings
+// AND arrays (measured) — so rewriting to the numeric form is the same assertion with the ambiguity
+// removed, and it reds correctly on a missing field because `undefined` is not a number.
+const LENGTH_TO_NUMERIC = { lengthEquals: "numEquals", minLength: "min", maxLength: "max" };
+
+// `isOneOf` is the one genuine read-off-the-values case: the validator splits a comma list either
+// way, so the values themselves say whether this is the number or the string variant.
+const NUMERIC_VALUES = ["min", "max", "numEquals"];
+function typeForName(name, rhs) {
+  const types = NAME_TYPES[name];
+  if (!types) return null;
+  if (types.length === 1) return types[0];
+  const parts = String(rhs).split(",").map((v) => v.trim()).filter(Boolean);
+  return parts.length && parts.every((v) => Number.isFinite(Number(v))) ? "number" : "string";
+}
+
 export function toEvaluations(checks = []) {
   return checks
     .map((raw) => {
-      const m = normalizeRefs(raw).match(/^(\S+)\s*(>=|<=|==|=|~)\s*(.+)$/);
+      const line = normalizeRefs(raw);
+      const named = line.match(/^(\S+)\s+([A-Za-z][A-Za-z0-9]*)\s+(.+)$/);
+      if (named && NAME_TYPES[named[2]]) {
+        const [, path, written, rawValue] = named;
+        // A length assertion becomes a numeric one about `path.length` — same claim, no ambiguity.
+        const name = LENGTH_TO_NUMERIC[written] || written;
+        const ns = LENGTH_TO_NUMERIC[written] ? `${path}.length` : path;
+        const expected_type = typeForName(name, rawValue);
+        let value = rawValue.trim().replace(/^["']|["']$/g, "");
+        if (NUMERIC_VALUES.includes(name)) {
+          const num = Number(value);
+          if (!Number.isFinite(num)) return null;
+          value = num;
+        } else if (name === "boolEquals") {
+          if (value !== "true" && value !== "false") return null;
+          value = value === "true";
+        }
+        return { namespace: ns, expected_type, validations: [{ name, value }], save: true };
+      }
+      const m = line.match(/^(\S+)\s*(>=|<=|==|=|~)\s*(.+)$/);
       if (!m) return null;
       const [, ns, op, rhs] = m;
       let value = rhs.trim();
@@ -297,7 +368,7 @@ const RunBlock = ({ kind, label, attrs = {}, src, storyRef }) => {
         const st = toStep(p, scope, services);
         if (st) {
           if (st.dropped > 0)
-            bad.push(`${st.dropped} assertion${st.dropped > 1 ? "s" : ""} under "${p.ns}" couldn't be read — write path = value or path ~ text`);
+            bad.push(`${st.dropped} assertion${st.dropped > 1 ? "s" : ""} under "${p.ns}" couldn't be read — write path = value, path ~ text, path >= n, or name the validator: path lengthEquals 3`);
           if (p.hasResult) st.recordedResponse = p.result;
           mainSteps.push(st);
         }

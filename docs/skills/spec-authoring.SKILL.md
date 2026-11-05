@@ -304,12 +304,17 @@ told you nothing yet. It is not finished; it is unproven.
 
 Cheapest to the system first, and **say in the account which one you chose and why**.
 
+**What is NOT an input to this choice: which assertions you need.** A run block and a saved spec are
+one engine — the block's text compiles into the same evaluation shape a saved spec's JSON carries —
+and every validator the authoring picker offers can be named in a block directly
+(`✓ results.tags includes "forum"`, `✓ results.items lengthEquals 3`). Choose the shape by OWNERSHIP,
+which is §4.5, and never because an operator seemed unavailable.
+
 | the work | the shape | because |
 |---|---|---|
 | changed what an existing method does | **edit its spec** — one more entry in `specs/tests/<Module>.<method>.json` | the file covering that method is where its new case belongs; a second file for one more assertion is the drifting-copy failure in miniature |
 | added something nothing watches | **a new saved spec** | it would otherwise go unwatched, which is what pays for the suite growing |
 | asserted a SEQUENCE — this, then this, and now this is true | **a `:::run` block** in the document where the question was asked | a sequence has no namespace to live at, and §4.5 is the whole reason |
-| needs `lengthEquals`, `isOneOf` or `includes` | **a saved spec, for now** | not a design — the ENGINE is the same one and knows all sixteen validators, but the block's text grammar has only been given five spellings (`=` `~` `>=` `<=`), so the rest are silently dropped and counted. Never fake an unsupported operator with `~`: that is how an assertion passes for the wrong reason. This is a gap, so check whether it is still true before routing around it |
 
 ## 4.5 · A method's contract is finite; a sequence's is not
 
@@ -336,12 +341,6 @@ tested things rather than a cheaper test of untested ones.
 | this method, across its inputs and its failures | a **saved spec at its namespace** — bound to the thing it is about, so the change loop finds it by address |
 | this, whatever it is — an order of calls, a mix of services, something with no single owner | a **`:::run` block where the claim is written**, because there is no namespace to file it under |
 | this order broke, and here is the proof it is fixed | **both** — the run block in the gap reproduces the break; the saved spec carries the contract the fix established |
-
-**AND "IT IS ONLY RUN WHEN SOMEBODY PRESSES IT" IS NOT THE DIFFERENCE — do not reason from it.**
-Runnables get automated: a whole arc can be run from the top, a job can run them, an agent can be
-told to. Treating a block as the lesser artifact because a human has to click it is an assumption
-about the harness that is wrong, and it leads to saving things at namespaces where they do not
-belong just to get them into a suite.
 
 **The difference is the SUBJECT, and the question that settles it is: WHICH METHOD IS THE SUBJECT?**
 Name one and the spec goes at that namespace however many steps it takes — a 14-step spec that signs

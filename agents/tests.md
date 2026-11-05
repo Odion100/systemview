@@ -255,18 +255,27 @@ do exist for that type — but the commonest version of the mistake is a name th
 DIFFERENT type, which reads correct and is the one to check first when a step passes and you do not
 believe it.
 
-**MOST OF THAT TABLE CANNOT YET BE WRITTEN IN A DOCUMENT — AND THAT IS A GAP, NOT A DESIGN.** A
-`:::run` block and a saved spec run on the SAME engine, through the translation you would expect:
-`toEvaluations` in `RunBlock.js` compiles an assertion line into the same
-`{namespace, expected_type, validations, save}` shape, assigns it to the same `savedEvaluations`
-field, and hands it to the same validators. The engine knows all sixteen names. The TRANSLATOR has
-only been given five spellings — `=`, `~`, `>=`, `<=` — so anything else is dropped (counted, and
-reported as "N assertions couldn't be read"). `>` and `<` are the one deliberate absence: faking them
-with `value±1` is wrong for anything non-integer.
+**EVERY NAME IN THAT TABLE CAN BE WRITTEN IN A DOCUMENT — name the validator outright.** A `:::run`
+block and a saved spec are one engine: `toEvaluations` in `RunBlock.js` compiles an assertion line
+into the same `{namespace, expected_type, validations, save}` shape, assigns it to the same
+`savedEvaluations` field, and hands it to the same validators. Two forms, and the symbols are only a
+shorthand for the common ones:
 
-So for now `lengthEquals`, `isOneOf` and `includes` reach only a saved spec. Never fake one with a
-`~`: it is green, it is in the document, and it is not checking what the sentence above it claims.
-Check whether the grammar has grown before you route around it.
+```
+✓ results.total = 5                  ✓ results.tags includes "forum"
+✓ results.count >= 1                 ✓ results.role isOneOf admin,owner
+✓ results.name ~ ser_                ✓ results.items lengthEquals 3
+```
+
+The named form takes any validator the authoring picker offers, and the table is DERIVED from that
+picker — so a validator added there reaches documents with no change here. A name nothing implements
+is dropped, counted, and reported as "N assertions couldn't be read"; it never becomes a passing
+assertion.
+
+Two things to know. **The three length validators are translated, not typed**: they are legal on
+strings and arrays, so `minLength 2` becomes `min 2` on `path.length` — the same claim with the
+ambiguity removed, and `.length` resolves for both. **And `>` / `<` are deliberately absent**, in
+both forms: faking them with `value±1` is wrong for anything non-integer.
 
 **AND THERE IS NO PER-TEST DEADLINE.** A method that genuinely hangs hangs the whole run with no
 message and no failing line — so never write a step that can block forever (an unbounded wait, a

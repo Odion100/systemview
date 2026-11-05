@@ -96,3 +96,63 @@ describe("toEvaluations — bounds, and what is deliberately not one", () => {
     expect(toEvaluations(["results.name ~ ser_"])[0].validations[0]).toEqual({ name: "isLike", value: "ser_" });
   });
 });
+
+// THE NAMED FORM. A run block and a saved spec were never two engines — `toEvaluations` compiles
+// into the same `{namespace, expected_type, validations, save}` shape a saved spec's JSON carries
+// and hands it to the same validators. But the TEXT grammar had five spellings for fourteen
+// validator names, so nine were unreachable from a document, and two of our own guides wrote that
+// up as a property of the system rather than a missing branch in one regex.
+describe("toEvaluations — naming a validator outright", () => {
+  it("accepts any validator the authoring picker offers, so `includes` reaches a document", () => {
+    expect(toEvaluations(['results.tags includes "forum"'])).toEqual([
+      { namespace: "results.tags", expected_type: "array", validations: [{ name: "includes", value: "forum" }], save: true },
+    ]);
+  });
+
+  // `isOneOf` is legal on a string AND a number and the validator splits a comma list either way,
+  // so the VALUES decide which variant this is. Nothing else in the grammar needs this.
+  it("reads isOneOf's variant off its own values", () => {
+    expect(toEvaluations(["results.role isOneOf admin,owner"])[0].expected_type).toBe("string");
+    expect(toEvaluations(["results.seed isOneOf 1,2,3"])[0].expected_type).toBe("number");
+  });
+
+  // THE LENGTH VALIDATORS ARE TRANSLATED, NOT GUESSED, and this is the claim worth protecting.
+  // They are legal on strings and arrays, so the name alone cannot settle `expected_type` — and it
+  // has to be settled: `mixed` skips the type check, so a MISSING field would assert nothing and go
+  // green, which is the vacuous pass. `minLength 2` on a string means exactly `min 2` on
+  // `path.length`, and the path parser resolves `.length` for both types.
+  it("rewrites a length assertion as a numeric one about path.length", () => {
+    expect(toEvaluations(["results.items lengthEquals 3"])).toEqual([
+      { namespace: "results.items.length", expected_type: "number", validations: [{ name: "numEquals", value: 3 }], save: true },
+    ]);
+    expect(toEvaluations(["results.name minLength 2"])).toEqual([
+      { namespace: "results.name.length", expected_type: "number", validations: [{ name: "min", value: 2 }], save: true },
+    ]);
+    expect(toEvaluations(["results.tags maxLength 5"])[0].namespace).toBe("results.tags.length");
+  });
+
+  it("coerces the value by what the validator actually takes", () => {
+    expect(toEvaluations(["results.ok boolEquals true"])).toEqual([
+      { namespace: "results.ok", expected_type: "boolean", validations: [{ name: "boolEquals", value: true }], save: true },
+    ]);
+  });
+
+  // A NAME NOBODY IMPLEMENTS MUST NOT BECOME A PASSING ASSERTION. Dropped is counted, and the block
+  // reports "N assertions couldn't be read" — the one thing it may never do is accept the line and
+  // assert nothing, which is how a green step lies.
+  it("drops a name no validator implements, rather than inventing one", () => {
+    expect(toEvaluations(["results.items notAValidator 3"])).toEqual([]);
+  });
+  it("drops a length or numeric assertion whose value is not a number", () => {
+    expect(toEvaluations(["results.items lengthEquals plenty"])).toEqual([]);
+    expect(toEvaluations(["results.ok boolEquals yes"])).toEqual([]);
+  });
+
+  // The symbol form is untouched: `= 5` is the right way to say that, and a prose right-hand side
+  // must not be mistaken for a validator name.
+  it("leaves the symbol form alone, including a multi-word string", () => {
+    expect(toEvaluations(["results.label = some words here"])).toEqual([
+      { namespace: "results.label", expected_type: "string", validations: [{ name: "strEquals", value: "some words here" }], save: true },
+    ]);
+  });
+});
