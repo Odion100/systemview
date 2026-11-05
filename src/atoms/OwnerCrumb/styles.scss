@@ -24,4 +24,16 @@
   &--light &__seg {
     color: #8e5aa8;
   }
+
+  // THE ADDRESS TAKES THE COLOUR OF THE DOCUMENT IT ADDRESSES. One rule per kind serves both
+  // themes, because `--sv-kind-*` already has a light and a dark value — the same token the
+  // header badge, the dashboard legend and the trail read, so the whole header is one colour
+  // saying one thing rather than two purples that happen to be near each other.
+  //
+  // AFTER `--light` on purpose: both are two classes, so source order is what decides, and a kind
+  // must win in either theme.
+  &--rfc &__seg { color: var(--sv-kind-rfc); }
+  &--arc &__seg { color: var(--sv-kind-arc); }
+  &--gap &__seg { color: var(--sv-kind-gap); }
+  &--report &__seg { color: var(--sv-kind-report); }
 }

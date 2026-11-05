@@ -72,12 +72,14 @@
   --sv-blue-deep: #9ab3e2;
   --sv-indigo: #99a1ee;
 
-  // SHARPER THAN THE REST OF THE BLUES ON PURPOSE. The generic badge a plain file wears is
-  // `--sv-blue-deep`, #9ab3e2 in dark — and the old #8ba4ef sat ΔE 16.6 from it, while arc, gap
-  // and report sit 43, 79 and 56 from the same badge. An RFC was three times harder to tell from
-  // "just a file" than any other kind, which is the one job a kind colour has. #2f7fff is ΔE 51
-  // from it and 35 from arc's purple, so it reads as its own thing against both.
-  --sv-kind-rfc: #2f7fff;
+  // SHARPER THAN THE REST OF THE BLUES ON PURPOSE, and his pick rather than the computed one.
+  // The generic badge a plain file wears is `--sv-blue-deep`, #9ab3e2 in dark, and the old #8ba4ef
+  // sat ΔE 16.6 from it while arc, gap and report sit 43, 79 and 56 away — an RFC was three times
+  // harder to tell from "just a file" than any other kind, which is the one job a kind colour has.
+  // #3570ce is ΔE 38.8 from it, 35.4 from arc's purple, and carries white text at 4.82 where every
+  // other badge in this palette manages 2.1-2.5. A more saturated blue scored further from the
+  // generic badge and worse on both of the others; this one is the balance.
+  --sv-kind-rfc: #3570ce;
   --sv-kind-arc: #c68cf5;
   --sv-kind-gap: #e0a34f;
   --sv-kind-report: #3fb795;

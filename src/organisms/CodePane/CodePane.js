@@ -850,7 +850,7 @@ const CodePane = ({ file, onClose }) => {
             file came through), then the path, its file name emphasized. His catch on a
             cross-project nav: a root-level index.js showed one bare segment — no project, no
             namespace, "where is it?". */}
-        <OwnerCrumb dark={editorDark} segments={[file.projectCode, file.serviceId]} trail />
+        <OwnerCrumb dark={editorDark} segments={[file.projectCode, file.serviceId]} trail kind={badge.kind} />
         <span className={`${CLASSNAME}__crumb`} title={file.path}>
           {segments.map((seg, i) => (
             <span key={i}>
