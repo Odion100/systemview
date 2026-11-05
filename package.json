@@ -1,7 +1,7 @@
 {
   "name": "systemview",
   "description": "An IDE for a codebase and the agents working in it, with live docs, tests and stats for SystemLynx services",
-  "version": "2.40.0",
+  "version": "2.40.1",
   "license": "UNLICENSED",
   "bin": {
     "systemview": "cli/index.js"
