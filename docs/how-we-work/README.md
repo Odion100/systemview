@@ -9,10 +9,13 @@ could not find it.
 work*. This one answers *how does work get done here* — and the answer must be one copy, because
 the alternative is a handbook per repo, drifting into a method per repo.
 
-**So it names no projects.** Which repos exist is whoever's system this is, and a method that
-enumerates them is a method that fits one installation — so a passage needing a project says
-`<projectCode>`. The exception is MECHANISM: where the method genuinely runs on a named thing, the
-name is the fact rather than an example.
+**So it does not ENUMERATE the system's repos.** Naming one is fine and often better — a convention
+shown on a real service, a measurement that says which documents it read, an example with a name
+instead of a placeholder. The infraction is the general statement that then closes the set: *every
+repo in this system*, followed by a list, reads as the definition of the system, and a method
+defined by one installation's repos fits one installation. Say it generally, or name one as the
+example it plainly is. A passage that needs a project code and has no example in mind says
+`<projectCode>`.
 
 It lives in the systemview repo because a folder needs a tracked home and that is the repo owning
 the context stack. It is not a SystemView document.
@@ -24,7 +27,7 @@ the context stack. It is not a SystemView document.
 | `rfcs.md` | An RFC — what makes one, the lifecycle, and the claims list that makes it checkable |
 
 Three more are nominated and unwritten: the report format, jobs and chores, and lanes/runs — which
-lives in a project handbook today and belongs here.
+lives in `autobot-docs` today and belongs here.
 
 ## When this disagrees with something else
 

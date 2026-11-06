@@ -119,9 +119,9 @@ Two more failures worth naming, because both are easy to write and hard to see:
 
 **2026-10-27, every agent definition on this machine.** `agent-authoring` says *"three parts"* three
 times — Role, Expertise, Responsibilities — and all three answer **what**. No agent doc contained a
-why. Four of them had each independently grown a section called **"What you care about"**,
-hand-invented, absent from the authoring procedure, and therefore inheritable by nobody; a fifth
-had two parts and no values at all. The mechanism had
+why. Four of them — `buapi`, `buapp`, `systemlynx`, `systemview-test` — had each independently grown
+a section called **"What you care about"**, hand-invented, absent from the authoring procedure, and
+therefore inheritable by nobody; `bustudio` had two parts and no values at all. The mechanism had
 been reinvented four times and spread zero times.
 
 **And the sharpest instance is not a doc, it is a hole in a system.** The same night, a cold audit
