@@ -1,5 +1,12 @@
 import React, { useEffect, useRef, useState } from "react";
 import { FIELDS, SOURCE_CHOICES, UNITS, patchFor, summaryOf, toggleSource, usable } from "./nudgeSettings";
+import {
+  FIELDS as COMPACTION_FIELDS,
+  UNITS as COMPACTION_UNITS,
+  patchFor as compactionPatchFor,
+  summaryOf as compactionSummaryOf,
+  usable as compactionUsable,
+} from "./compactionSettings";
 
 // THE COG AT THE RIGHT END OF THE TAB ROW. His placement: *"on the right side of the tabs all the
 // way at the end."*
@@ -55,6 +62,45 @@ const NudgeCog = () => {
       alive = false;
     };
   }, []);
+
+  // AUTO-COMPACTION rides the same cog — a second section, its own door, its own absence. A shell
+  // older than the valve has `nudge` and no `compaction`; each section states its own state rather
+  // than one hiding behind the other.
+  const [compactionCfg, setCompactionCfg] = useState(null);
+  const [compactionDoor, setCompactionDoor] = useState("asking");
+  const [compactionSaving, setCompactionSaving] = useState("");
+  useEffect(() => {
+    const api = typeof window !== "undefined" && window.systemview && window.systemview.compaction;
+    if (!api || typeof api.read !== "function") {
+      setCompactionDoor("absent");
+      return;
+    }
+    let alive = true;
+    Promise.resolve(api.read())
+      .then((r) => {
+        if (!alive) return;
+        const s = r && r.settings;
+        if (compactionUsable(s)) {
+          setCompactionCfg(s);
+          setCompactionDoor("present");
+        } else setCompactionDoor("absent");
+      })
+      .catch(() => alive && setCompactionDoor("absent"));
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const sendCompaction = (patch) => {
+    if (!patch) return;
+    const api = window.systemview.compaction;
+    setCompactionSaving(Object.keys(patch)[0] || "");
+    Promise.resolve(api.write(patch))
+      .then((r) => {
+        if (r && r.ok && compactionUsable(r.settings)) setCompactionCfg(r.settings);
+        setCompactionSaving("");
+      })
+      .catch(() => setCompactionSaving(""));
+  };
 
   // A WRITE GOES TO THE HARNESS AND THE ANSWER COMES BACK FROM IT. The panel never keeps its own
   // version: what it shows is what the harness said it stored, so a clamped or refused value is
@@ -134,6 +180,49 @@ const NudgeCog = () => {
                 </label>
               ))}
               <div className="agent-chat__bandcog-foot">{summaryOf(settings)}</div>
+            </>
+          )}
+          {/* AUTO-COMPACTION — the release valve's knobs, in the cog he already opens for the
+              nudge's. Its own head, its own absence line: a shell with the nudge door and not this
+              one says so here instead of pretending. */}
+          <div className="agent-chat__bandcog-head">auto-compaction</div>
+          {compactionDoor !== "present" ? (
+            <div className="agent-chat__bandcog-absent">
+              {compactionDoor === "asking"
+                ? "asking the shell…"
+                : "This shell has no auto-compaction door yet — restart it to arm the valve. Nothing here would be read."}
+            </div>
+          ) : (
+            <>
+              {COMPACTION_FIELDS.map((f) => (
+                <label
+                  className={`agent-chat__bandcog-row${compactionSaving === f.key ? " agent-chat__bandcog-row--saving" : ""}`}
+                  key={`compaction-${f.key}`}
+                >
+                  <span className="agent-chat__bandcog-label">{f.label}</span>
+                  {f.kind === "toggle" && (
+                    <input
+                      type="checkbox"
+                      checked={!!compactionCfg[f.key]}
+                      onChange={(e) => sendCompaction(compactionPatchFor(compactionCfg, f.key, e.target.checked))}
+                    />
+                  )}
+                  {COMPACTION_UNITS[f.kind] !== undefined && (
+                    <span className="agent-chat__bandcog-num">
+                      <input
+                        type="number"
+                        min={f.min}
+                        max={f.max}
+                        value={compactionCfg[f.key]}
+                        onChange={(e) => sendCompaction(compactionPatchFor(compactionCfg, f.key, e.target.value))}
+                      />
+                      <em>{COMPACTION_UNITS[f.kind]}</em>
+                    </span>
+                  )}
+                  <span className="agent-chat__bandcog-help">{f.help}</span>
+                </label>
+              ))}
+              <div className="agent-chat__bandcog-foot">{compactionSummaryOf(compactionCfg)}</div>
             </>
           )}
         </div>
