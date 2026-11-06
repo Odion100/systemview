@@ -1,125 +1,122 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useDocMembers, useMarkdownWrite } from "../context";
-import { everyoneBehind, hashOf, parseSent, pendingOf, serializeSent, summarize, threadSummary, lastReplyAuthorOf } from "../docMembers";
-import { sendUpdateTo } from "../docSend";
 import { readTucked, writeTucked } from "../pinTucked";
 import { revealBlock } from "../revealBlock";
 
-// RFC-071 — EVERY PENDING UPDATE IN THIS DOCUMENT, IN ONE PLACE THAT DOES NOT SCROLL AWAY.
+// EVERY HELD FIRE IN THIS DOCUMENT, IN ONE PLACE THAT DOES NOT SCROLL AWAY.
 //
 // His, 2026-10-19: *"I shouldn't have to scroll back up to where I added them as a member to send
 // them an update — they're supposed to be on the top right corner regardless"*, and then: *"I hope
 // updates that are thread level also go up there as well, and not just document level… it's
 // supposed to be for both."*
 //
-// So this row is the ONLY send in the surface. The `::members` block and a thread's row carry
-// membership and a settings gear; neither carries a send button, because a press you have to
+// WHAT "BEHIND" MEANS CHANGED UNDER THE GATE (his ruling, 2026-11-06). It used to be derived from
+// edits — a hash of the prose against a `sent=` stamp — and that whole channel is gone: *"general
+// text in the document should send no updates, period point blank."* Blocks are the only senders.
+// A decision lands, the engine fires it, and a PLAIN member's copy is HELD for the press this row
+// carries; an `auto=` member was already told the moment it fired. So the rows here are the held
+// lane, fetched from the one definition (the host's fires door) rather than re-derived — a second
+// copy of that rule in the window is exactly how the two drifted apart last time.
+//
+// This row is still the ONLY send in the surface. The `::members` block and a thread's row carry
+// membership and the auto toggle; neither carries a send button, because a press you have to
 // scroll to is a press that does not happen.
 //
-// IT DISAPPEARS WHEN THERE IS NOTHING TO SEND, which is also how a press is confirmed: tell buapi
-// and buapi's chip leaves the row. The row is state read off the document, never a notice.
+// IT DISAPPEARS WHEN THERE IS NOTHING HELD, which is also how a press is confirmed: release for
+// buapi and buapi's chip leaves the row. The row is state read off the document, never a notice.
 const MembersPin = () => {
-  const { block = null, threads = [], source = "", docPath = "", projectCode = "" } = useDocMembers() || {};
+  const { source = "", docPath = "", projectCode = "" } = useDocMembers() || {};
   const { editable, setAttr } = useMarkdownWrite();
-  // line → { member: hash } for sends made since the document was last re-read. Merged over the
-  // attribute rather than replacing it, so one scope's stamp never blanks another's.
-  const [stamped, setStamped] = useState({});
-  // TUCKED AWAY TO THE EDGE, THE WAY EVERY OTHER PANEL IN THIS WINDOW TUCKS, AND IT STAYS TUCKED.
-  // His correction, 2026-10-19: *"keep it in the same space… animate away to the right, the same
-  // [idiom] we use to tuck away into the side to the edge tabs. It's never supposed to be a
-  // one-at-a-time thing, so the × is the wrong thing."* And then the bug that followed: *"every
-  // time a document updates it reopens… if I refresh the page it doesn't keep the state."*
-  //
-  // So the state is REMEMBERED per document (localStorage, per reader) and nothing re-opens it but
-  // him. That is safe because the collapsed tab is still on screen carrying the count — the only
-  // state that hides anything is an empty corner, and an empty corner means nobody is behind.
+  const [fires, setFires] = useState([]);
   const [tucked, setTucked] = useState(() => readTucked(window.localStorage, docPath));
   const tuck = (on) => {
     setTucked(on);
     writeTucked(window.localStorage, docPath, on);
   };
-  const [sending, setSending] = useState(0);
+  const [sending, setSending] = useState("");
   const [refusal, setRefusal] = useState("");
 
-  const pending = pendingOf(block, threads, source, stamped);
-  if (!editable || (!pending.length && !refusal)) return null;
+  // FETCHED ON EVERY VERSION OF THE DOCUMENT — `source` changes on save, and a save is the only
+  // thing that can mint or clear a fire. The door is host-granted; a window without it (embeds,
+  // the chat) simply shows no pin, the same silence `editable` already enforces.
+  const bridge = typeof window !== "undefined" && window.systemview && window.systemview.documents;
+  useEffect(() => {
+    let dead = false;
+    if (!bridge || !bridge.fires || !docPath) return undefined;
+    Promise.resolve(bridge.fires({ path: docPath, project: projectCode }))
+      .then((r) => {
+        if (!dead) setFires(r && r.ok && Array.isArray(r.fires) ? r.fires : []);
+      })
+      .catch(() => {});
+    return () => {
+      dead = true;
+    };
+  }, [bridge, docPath, projectCode, source]);
 
-  // The line's stamps with any press made in this session merged over them — the same map
-  // `pendingOf` measures behind-ness against, so the row cannot say "behind" and the send say
-  // "never told".
-  const sentFor = (scope) => ({ ...parseSent(scope.sent), ...(stamped[scope.line] || {}) });
+  const refetch = async () => {
+    if (!bridge || !bridge.fires) return;
+    try {
+      const r = await bridge.fires({ path: docPath, project: projectCode });
+      setFires(r && r.ok && Array.isArray(r.fires) ? r.fires : []);
+    } catch {}
+  };
 
-  const tell = async (scope, targets) => {
-    setSending(scope.line);
-    const subject = scope.body == null ? source : scope.body;
-    const r = await sendUpdateTo({
-      path: docPath,
-      project: projectCode,
-      members: targets,
-      thread: scope.kind === "thread" ? scope.id : "",
-      // A thread member is in the conversation — the reply is the news. A document member is
-      // watching the file — the shape of the change is.
-      // WHETHER THIS IS NEWS OR A MOVE, and it has to be computed. Hardcoded `false`, every send
-      // from this row told the receiving agent "you have not been sent to before" — which is the
-      // instruction to read the whole document rather than look for what changed, handed out even
-      // to a member whose stamp was sitting on the line. The `::members` block's own send always
-      // computed it; this one is the only send most documents ever use.
-      summary:
-        scope.kind === "thread"
-          ? threadSummary(scope.id, scope.body)
-          : summarize(source, targets.every((m) => sentFor(scope)[m])),
-      threads: scope.kind === "thread" ? 1 : (String(source).match(/^\s*:{3,}\s*thread\b/gm) || []).length,
-      // WHO WROTE IT — this row is the only send in the surface, so if the author is not named
-      // here it is not named anywhere, and the harness goes back to guessing from the thread field.
-      by: (scope.kind === "thread" && lastReplyAuthorOf(scope.body)) || "you",
+  // ONE ROW PER SCOPE — the document's own fires in one, each thread's in its own — because that
+  // is how he reads the corner: which conversation moved, and who has not heard.
+  const scopes = [];
+  for (const f of fires) {
+    if (!f.held || !f.held.length) continue;
+    const key = f.thread || "";
+    let s = scopes.find((x) => x.id === key);
+    if (!s) {
+      s = { id: key, kind: key ? "thread" : "document", fires: [], behind: [] };
+      scopes.push(s);
+    }
+    s.fires.push(f);
+    f.held.forEach((m) => {
+      if (!s.behind.includes(m)) s.behind.push(m);
     });
-    setSending(0);
-    if (!r.ok) {
-      setRefusal(r.error);
+  }
+
+  if (!editable || (!scopes.length && !refusal)) return null;
+
+  // THE PRESS — `managed` means these waited for him, and this is the release. The host delivers
+  // the held lane and stamps `told=` for exactly who was reached; an unreached member's chip stays,
+  // and the next press retries, which is honest rather than annoying.
+  const tell = async (member) => {
+    if (!bridge || !bridge.releaseFires) {
+      setRefusal("this window cannot release — the host door is not granted here");
       return;
     }
-    setRefusal("");
-    stampTold(scope, targets);
+    setSending(member || "*");
+    try {
+      const r = await bridge.releaseFires({ path: docPath, project: projectCode, ...(member ? { member } : {}), by: "you" });
+      if (!r || r.ok === false) setRefusal((r && r.error) || "the release was refused");
+      else setRefusal("");
+    } catch (e) {
+      setRefusal((e && e.message) || "the release failed");
+    }
+    setSending("");
+    refetch();
   };
 
-  // CAUGHT UP WITHOUT BEING TOLD — the press that was missing. There was a way to SEND an update and
-  // no way to CLEAR one, and "behind" is derived rather than stored: `sent=` holds the hash each
-  // member last heard about, so every save makes everyone behind again. On a document a group is
-  // co-editing, the count then climbs on work they are all doing together and stops meaning
-  // anything — *"I'm not sending you guys every little update."*
-  //
-  // It stamps exactly what a send stamps and emits NOTHING. One press says they were told; this one
-  // says they were there. Same record, because the record is only ever "they know about this
-  // version" — which is why both go through `stampTold` rather than through two copies of it.
+  // CAUGHT UP WITHOUT BEING TOLD — the other answer to the same row. Somebody who was in the
+  // document when the decision landed does not need waking for it. It stamps what a delivery
+  // stamps — `told=` on each fire's own line, merged over what the line already says — and emits
+  // NOTHING. Same record, because the record is only ever "they know about this one".
   const square = (scope, targets) => {
     setRefusal("");
-    stampTold(scope, targets);
-  };
-
-  const stampTold = (scope, targets) => {
-    const subject = scope.body == null ? source : scope.body;
-    const stamp = hashOf(subject);
-    const next = sentFor(scope);
-    targets.forEach((m) => {
-      next[m] = stamp;
+    scope.fires.forEach((f) => {
+      const owed = targets.filter((m) => f.held.includes(m));
+      if (!owed.length) return;
+      const union = [...new Set([...(f.told || []), ...owed])];
+      setAttr(f.line, "told", union.join("|"));
     });
-    setStamped((cur) => ({ ...cur, [scope.line]: next }));
-    setAttr(scope.line, "sent", serializeSent(next) || null);
   };
 
-  const behindCount = pending.reduce((n, p) => n + p.behind.length, 0);
-  // THE PERSON IS THE UNIT, NOT THE ROW. Walking the rows one press at a time is what turned
-  // bringing one agent up to date into four separate wakes, each a whole turn landing cold in the
-  // middle of its unrelated work. Document membership now covers the threads, so this is usually a
-  // single scope — but when somebody is on one thread only, they still have a row of their own, and
-  // this is the press that does not make him hunt for it.
-  const people = everyoneBehind(pending);
-  const tellEveryone = async () => {
-    for (const scope of pending) await tell(scope, scope.behind);
-  };
-  const squareEveryone = () => {
-    pending.forEach((scope) => square(scope, scope.behind));
-  };
+  const behindCount = scopes.reduce((n, s) => n + s.behind.length, 0);
+  const people = [...new Set(scopes.flatMap((s) => s.behind))];
+  const squareEveryone = () => scopes.forEach((s) => square(s, s.behind));
 
   return (
     <div className={`md-members-pin${tucked ? " md-members-pin--tucked" : ""}`}>
@@ -130,122 +127,85 @@ const MembersPin = () => {
         <button
           type="button"
           className="md-members-pin__tab"
-          title={`${behindCount} waiting to be told — bring them back`}
+          title={`${behindCount} waiting on your press — bring them back`}
           onClick={() => tuck(false)}
         >
-          {/* JUST THE COUNT. Set vertically, "‹ 2 updates" is a tall strip down the right edge and
-              it landed on top of the arc's own title — *"the tab blocks part of the arc title."*
-              The sentence it used to spell out is in the `title` above, where it costs no pixels. */}
           ‹ {behindCount}
         </button>
       )}
       {!tucked && (
         <div className="md-members-pin__dock">
           <div className="md-members-pin__stack">
-            {pending.length > 1 && (
+            {people.length > 0 && (
               <button
                 type="button"
                 className="md-members-pin__all"
-                title="tell everyone everything they are behind on — one press, not one per row"
+                title="release everything held — one press, not one per chip"
                 disabled={!!sending}
-                onClick={tellEveryone}
+                onClick={() => tell("")}
               >
                 {sending ? "telling…" : `tell ${people.length === 1 ? people[0] : `all ${people.length}`}`}
               </button>
             )}
-            {/* THE OTHER ANSWER TO THE SAME ROW. Not every pile of pending updates wants sending —
-                a document several people are editing together makes everybody behind on every
-                save, and the honest resolution is often that they were in it. Quieter than the
-                tell, because telling is what the row is for. */}
+            {/* Not every held pile wants delivering — somebody who sat in the document while the
+                decisions landed was there for them. Quieter than the tell, because telling is what
+                the row is for. */}
             <button
               type="button"
               className="md-members-pin__square"
-              title="they are caught up — stamp this version and tell nobody"
+              title="they are caught up — stamp these told and wake nobody"
               disabled={!!sending}
               onClick={squareEveryone}
             >
               ✓ caught up
             </button>
-      {pending.map((scope) => {
-        // GO TO THE THREAD — IN THIS PANE ONLY (his catch, 2026-10-26: clicking the pill "moves
-        // the chat and scrolls the chat"). `revealBlock(document, …)` searched the whole PAGE for
-        // `data-md-start`, and the chat's karaoke stamps use the same attribute — so the first
-        // match was often a chat block and the wrong surface scrolled. The reveal now starts from
-        // the pin's own markdown root, which can only ever be this document.
-        const reveal = (e) => {
-          const root = e.currentTarget && e.currentTarget.closest ? e.currentTarget.closest(".markdown") : null;
-          revealBlock(root, scope.line);
-        };
-        // …AND ONLY A THREAD IS A DOOR. The document row is not a place you go — it is the send
-        // that reaches everyone, which is also why it stops saying "document" (his: "it shouldn't
-        // even say document… it just sends all threads really").
-        const isThread = scope.kind === "thread";
-        return (
-        <div
-          className={`md-members-pin__row md-members-pin__row--${scope.kind}`}
-          key={`${scope.kind}-${scope.line}`}
-          {...(isThread
-            ? {
-                role: "button",
-                tabIndex: 0,
-                title: `go to thread ${scope.id}`,
-                onClick: reveal,
-                onKeyDown: (e) => (e.key === "Enter" || e.key === " ") && reveal(e),
-              }
-            : {})}
-        >
-          <span className="md-members__kind">
-            {scope.kind === "document" ? "all threads" : `💬 ${scope.id}`}
-          </span>
-          {scope.behind.map((m) => (
-            <button
-              type="button"
-              key={m}
-              className="md-members__chip md-members-pin__chip"
-              disabled={!!sending}
-              title={
-                scope.kind === "thread"
-                  ? `tell ${m} about this version of thread ${scope.id}`
-                  : `tell ${m} about this version of the document`
-              }
-              onClick={(e) => {
-                e.stopPropagation(); // a send is not a navigation — the pill around it is the door
-                tell(scope, [m]);
-              }}
-            >
-              {m}
-              <span className="md-members__mark">•</span>
-            </button>
-          ))}
-          {scope.behind.length > 1 && (
-            <button
-              type="button"
-              className="md-members__send"
-              disabled={!!sending}
-              title={
-                scope.kind === "thread"
-                  ? `tell everybody behind on thread ${scope.id}`
-                  : "tell everybody behind on the document"
-              }
-              onClick={(e) => {
-                e.stopPropagation();
-                tell(scope, scope.behind);
-              }}
-            >
-              {sending === scope.line ? "sending…" : `all ${scope.behind.length}`}
-            </button>
-          )}
-        </div>
-        );
-      })}
+            {scopes.map((scope) => {
+              // GO TO THE THREAD — IN THIS PANE ONLY (his catch, 2026-10-26: the chat's karaoke
+              // stamps share `data-md-start`, so a page-wide reveal scrolled the wrong surface).
+              const reveal = (e) => {
+                const root = e.currentTarget && e.currentTarget.closest ? e.currentTarget.closest(".markdown") : null;
+                revealBlock(root, scope.fires[0] && scope.fires[0].line);
+              };
+              const isThread = scope.kind === "thread";
+              return (
+                <div
+                  className={`md-members-pin__row md-members-pin__row--${scope.kind}`}
+                  key={`${scope.kind}-${scope.id}`}
+                  {...(isThread
+                    ? {
+                        role: "button",
+                        tabIndex: 0,
+                        title: `go to thread ${scope.id}`,
+                        onClick: reveal,
+                        onKeyDown: (e) => (e.key === "Enter" || e.key === " ") && reveal(e),
+                      }
+                    : {})}
+                >
+                  <span className="md-members__kind">{isThread ? `💬 ${scope.id}` : "decisions"}</span>
+                  {scope.behind.map((m) => (
+                    <button
+                      type="button"
+                      key={m}
+                      className="md-members__chip md-members-pin__chip"
+                      disabled={!!sending}
+                      title={
+                        isThread
+                          ? `release what thread ${scope.id} is holding for ${m}`
+                          : `release the decisions held for ${m}`
+                      }
+                      onClick={(e) => {
+                        e.stopPropagation(); // a release is not a navigation — the pill around it is the door
+                        tell(m);
+                      }}
+                    >
+                      {m}
+                      <span className="md-members__mark">•</span>
+                    </button>
+                  ))}
+                </div>
+              );
+            })}
           </div>
-          {/* THE POINTER, AT THE RIGHT OF THE TOP ROW — his placement, and the right one: it sits on the
-              side the stack travels toward, so the press and the motion agree. A column container stacks whatever you
-              put in it, so the first version of this handle added a row and pushed the whole stack
-              down, which is the one thing he said it must never do: *"it was never supposed to push
-              down — whatever the padding space was, was enough space to fit something in there."*
-              So it lives in the row's own space, costs no height, and points the way the stack
-              travels. */}
           <button
             type="button"
             className="md-members-pin__tuck"
@@ -256,7 +216,7 @@ const MembersPin = () => {
           </button>
         </div>
       )}
-      {/* A REFUSAL IS SAID WHERE THE PRESS WAS, and it outlives the chips: a send that failed
+      {/* A REFUSAL IS SAID WHERE THE PRESS WAS, and it outlives the chips: a release that failed
           silently is a member who thinks they heard. */}
       {!!refusal && (
         <div className="md-members-pin__row">

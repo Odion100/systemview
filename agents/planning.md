@@ -99,50 +99,49 @@ first: that is a plan, and "we should improve X" is not.
 **Cite, do not summarise.** A file by `path` or `path:line`, a card by its title, an RFC by its
 number, a lane by its branch. A claim with no address is an opinion.
 
-## The two modes — `auto` and `managed`
+## `auto` and `managed` — the gate, per member
 
-**The difference is where the members go and who sends.**
-
-| | `auto` | `managed` |
-|---|---|---|
-| **document** | nobody | **everybody** |
-| **threads** | only who belongs there, each on `auto=` | everybody |
-| **who sends** | `auto` does, with nobody pressing | **he** does, by pressing the corner chip |
-
-`auto` is threads only, on auto — the whole mode, and the one a meeting runs in without him.
-`managed` is agents on every part of the document, and he sends the updates.
+**They are not two modes of the document — they are the two lanes of one gate, per member.** Blocks
+are the only senders: a decision block or a reply FIRES when its answer lands, general prose sends
+no updates ever, and the members line decides WHEN each member hears a fire. A member on `auto=` is
+told the moment it lands. A plain member's copy is HELD, and his press in the corner releases it.
+So `auto` and `managed` describe members, not meetings — one document can hold both at once.
 
 ### The markdown that places them
 
 Document level — one line, under the lead paragraph, before the first section heading:
 
 ```markdown
-::members{who=buapi|autobot}
+::members{who=buapi|autobot auto=buapi}
 ```
 
-A thread's own members live on its opening line, and `auto=` is the attribute that makes the mode:
+`who=` is the room; `auto=` names which of them hear fires without a press. A thread aims its own
+audience with ONE attribute — `subscribe=` — and anything it names is authored, so it is delivered
+the moment something lands in the thread, no press involved:
 
 ```markdown
-::::thread{id=plumbing members=buapi|autobot auto=buapi|autobot}
+::::thread{id=plumbing subscribe=buapi|autobot}
 <<the thread for this goal>>
 ::::
 ```
 
-Under `managed` the same opener carries no `auto=` — `::::thread{id=plumbing members=buapi|autobot}`
-— and the sends wait for him.
+A thread with no `subscribe=` inherits the document's members — and inherits the gate with them:
+its fires reach the `auto=` members at once and wait on his press for the rest.
 
-- **`who=` and `members=` are pipe-separated project codes.** Only a CONNECTED project is a member;
-  an unknown code renders fine and delivers to nobody, which is the worst failure available here.
-- **Never write `sent=` by hand.** The surface stamps it when a send happens — it is the record of
-  who heard which version, and writing it yourself tells the document somebody was told who wasn't.
-- **A thread's `members=` narrows, it does not inherit.** Only those people go behind when that
-  thread moves. Put the whole room on a thread only when the whole room is really in it.
+- **`who=` and `subscribe=` are pipe-separated project codes.** Only a CONNECTED project is a
+  member; an unknown code renders fine and delivers to nobody, which is the worst failure
+  available here. (A thread still carrying the older `members=` answers as `subscribe=`; the next
+  save rewrites it.)
+- **Never write `told=` by hand.** The engine stamps it when a delivery lands — it is the record of
+  who heard which fire, and writing it yourself tells the document somebody was told who wasn't.
+- **A thread's `subscribe=` narrows, it does not inherit.** Only those people hear what lands
+  there. Put the whole room on a thread only when the whole room is really in it.
 
-### `managed` goes quiet when he steps away, and that is not silence from the room
+### A managed member goes quiet when he steps away, and that is not silence from the room
 
-An agent cannot press; the send is a window control. Members sitting behind with nobody told is the
-normal resting state of a managed meeting. Keep writing your plan in its section — he sends when he
-reads.
+The press is a window control. Decisions held with nobody told is the normal resting state of a
+document whose members are plain. Keep writing your plan in its section — the corner shows him what
+is held, and he releases when he reads.
 
 ## Where it lives, and how it reaches his panel
 

@@ -1,19 +1,11 @@
-// RFC-071 — WHO IS DIRTY, AND WHAT A SEND SAYS. The decisions, pure, so they can be claimed
-// without a document, a host bridge or a window.
+// RFC-071 — MEMBERSHIP, PURE. Who is on a document, who is on a thread, and the two writes that
+// put somebody there — claimable without a document, a host bridge or a window.
 //
-// THE PROBLEM THIS SOLVES: a member was last told about this document at some point; has it
-// changed since? There is no mtime to lean on (the panel holds the text, not the file's stat) and
-// a timestamp would lie the moment anyone edits and undoes. So each member carries a short HASH of
-// the document as it stood when they were last sent to, written into the same `::members` line —
-// one store, versioned with the file, and self-evident in a diff.
-
-// WHAT COUNTS AS CHANGED is src/shared/docHash.js, required by the hub as well — the band's count
-// and this chip answer one question and used to answer it differently. Re-exported rather than
-// re-pointed at every call site, because `hashOf` is this module's own vocabulary to everything
-// that reads it.
-import { bodyOf, hashOf } from "../../shared/docHash";
-
-export { bodyOf, hashOf };
+// WHAT THIS MODULE NO LONGER HOLDS (his ruling, 2026-11-06): the edit channel. "Behind" used to be
+// a hash of the prose against a per-member `sent=` stamp, and that whole question is gone —
+// general text sends no updates, period. Blocks are the only senders, the ENGINE delivers their
+// fires under the members line's gate, and the pinned row reads the held lane off the host's
+// fires door rather than deriving a second copy of the rule here.
 
 // A MEMBER NAMES A ROOM — a project code — and the attribute is a list of them. Lives here rather
 // than on the block because three things parse it now (the block, a thread's row, the pinned
@@ -24,46 +16,6 @@ export const splitWho = (raw) =>
     .map((s) => s.trim())
     .filter(Boolean)
     .filter((s, i, arr) => arr.indexOf(s) === i);
-
-// `sent=buapi:1a2b3c|systemlynx:4d5e6f` — per member, because they were last told at different
-// moments and a single stamp would mark everyone clean when one person was sent to.
-export const parseSent = (raw) =>
-  String(raw || "")
-    .split(/[|,]/)
-    .map((pair) => pair.trim())
-    .filter(Boolean)
-    .reduce((acc, pair) => {
-      const i = pair.lastIndexOf(":");
-      if (i > 0) acc[pair.slice(0, i).trim()] = pair.slice(i + 1).trim();
-      return acc;
-    }, {});
-
-export const serializeSent = (map) =>
-  Object.entries(map || {})
-    .filter(([k, v]) => k && v)
-    .map(([k, v]) => `${k}:${v}`)
-    .join("|");
-
-// DIRTY IS "CHANGED SINCE YOUR LAST SEND", and a member who has never been sent to is dirty by
-// construction — they are on the document and have heard nothing about it, which is the loudest
-// case, not an exempt one.
-export const dirtyMembers = (who = [], sentMap = {}, src = "") => {
-  const now = hashOf(src);
-  return (who || []).filter((m) => sentMap[m] !== now);
-};
-
-// WHAT THE EVENT SAYS HAPPENED. Not a diff — the agent reads the file, which is always current and
-// costs nothing to be accurate. This is the one line that tells it whether the change is worth a
-// turn: how much moved, and whether the conversation moved with it.
-export const summarize = (src = "", prevHashKnown = false) => {
-  const threads = (String(src).match(/^\s*:{3,}\s*thread\b/gm) || []).length;
-  const replies = (String(src).match(/^\s*:{3,}\s*reply\b/gm) || []).length;
-  const lines = bodyOf(src).split("\n").length;
-  return (
-    `${lines} lines, ${threads} thread${threads === 1 ? "" : "s"}, ${replies} repl${replies === 1 ? "y" : "ies"}` +
-    (prevHashKnown ? " — changed since you were last sent to" : " — you have not been sent to before")
-  );
-};
 
 // ── ADDING A MEMBER, AS TWO PURE WRITES ───────────────────────────────────────────────────────
 // These lived inside the right-click handler, where nothing could test them — and the first thing
@@ -337,106 +289,4 @@ export const threadMembersAttr = (next = [], docWho = []) => {
   const list = splitWho(Array.isArray(next) ? next.join("|") : next);
   if (list.length) return list.join("|");
   return splitWho(Array.isArray(docWho) ? docWho.join("|") : docWho).length ? "" : null;
-};
-
-// WHO WROTE THE LAST REPLY — the field that decides whether a send is news to you or your own echo.
-//
-// Without it, `by` on a send is always the literal string "you" (docSend's default, overridden by
-// nobody), so the harness cannot tell "autobot answered" from "you answered" and `deliverToMembers`
-// had to guess with `!e.thread`: skip the owning project on document sends, never on thread ones.
-// That guess is wrong in both directions — it wakes an agent with its own reply, and it is the only
-// thing standing between hub-side auto and an unbounded A-replies-A-is-woken loop.
-//
-// Absent is "" rather than "you": a thread whose opening argument moved with no reply in it has no
-// author to name, and claiming one would skip a member who should have been told.
-export const lastReplyAuthorOf = (body) => {
-  const opens = String(body || "").match(/^\s*:{3,}\s*reply\b[^\n]*$/gm) || [];
-  if (!opens.length) return "";
-  const m = /\bauthor=("[^"]*"|[^\s}]*)/.exec(opens[opens.length - 1]);
-  return m ? m[1].replace(/^"|"$/g, "").trim() : "";
-};
-
-// WHAT A THREAD MEMBER IS BEING TOLD. The reply IS the news — a thread member is in the
-// conversation, so the words are the point, not a count of them.
-export const lastReplyOf = (body) => {
-  const parts = String(body || "").split(/^\s*:{3,}\s*reply\b[^\n]*\n/m);
-  const last = parts.length > 1 ? parts[parts.length - 1] : "";
-  return last
-    .split(/^\s*:{3,}\s*$/m)[0]
-    .trim()
-    .slice(0, 200);
-};
-
-// A CREATION IS NOT A MOVE, and a member can only tell the difference by spending a turn finding
-// out. Measured live 2026-10-20: the first send on this meeting's `bugs` thread produced
-// `reply in thread bugs: ` — a dangling colon, because `lastReplyOf` returns "" when nothing has
-// been said yet — and the member was summoned to read a thread that still held only its prompt.
-// autobot wrote it up from the receiving end: *"a summons to an empty thread is the one case that
-// rule exists to prevent."*
-//
-// The FIRST send on a thread is always this case, so it is the common one, not the edge. Both
-// senders in the surface share this so the two controls can never word it differently.
-export const threadSummary = (id, body) => {
-  const last = lastReplyOf(body);
-  return last ? `reply in thread ${id}: ${last}` : `added to thread ${id} — nothing said in it yet`;
-};
-
-// EVERYONE WHO IS BEHIND ON ANYTHING, counted once. His rhythm, 2026-10-20: *"I typically like to
-// make multiple threads and then send you an update"* — the unit is the PERSON, not the row. A head
-// that says "tell all 4 rows" is counting its own controls at him; "tell both of them" is counting
-// the thing he actually means.
-export const everyoneBehind = (pending = []) => [...new Set((pending || []).flatMap((p) => (p && p.behind) || []))];
-
-// EVERY PENDING UPDATE IN THE DOCUMENT, both levels, in one list — which is exactly what the pinned
-// row draws. The document first (it is the whole file), then the threads in the order they appear.
-// DOCUMENT MEMBERSHIP MEANS ALL THREADS. His rule, 2026-10-20: *"even if you add it on the document
-// level, that just means you add it to all threads."*
-//
-// THE FLOOD IT FIXES: this meeting had four rows and two members, so bringing one agent up to date
-// cost FOUR separate wakes — four whole turns pushed into its session, each landing cold in the
-// middle of unrelated work. Measured live the same day, from the receiving end.
-//
-// AND IT MUST NOT COST HIS OTHER RULE: *"I might have you subscribed on multiple levels, but only
-// want to send you the thread update."* Those two only look like a contradiction. The document's
-// hash is the WHOLE SOURCE — a reply in any thread already changes it — so a member stamped current
-// on the DOCUMENT has, by construction, been told about the file as it stands, threads included.
-// They are behind on nothing, and they appear on no row.
-//
-// A member who is BEHIND on the document still appears on the thread rows, which is exactly the
-// case his older rule protects: he can tell them about one thread and leave them behind on the
-// document. So one press on the document clears everything, a press on a thread stays surgical, and
-// neither rule is traded for the other.
-export const pendingOf = (block, threads = [], source = "", stamped = {}) => {
-  const out = [];
-  const behindOf = (who, sentRaw, body, line) => {
-    const map = { ...parseSent(sentRaw), ...(stamped[line] || {}) };
-    return dirtyMembers(who, map, body);
-  };
-  const onDocument = block && block.who ? splitWho(block.who) : [];
-  if (onDocument.length) {
-    const behind = behindOf(onDocument, block.sent, source, block.line);
-    if (behind.length) out.push({ kind: "document", id: "", line: block.line, body: null, sent: block.sent || "", behind });
-  }
-  // Current on the document = told about the whole file, threads and all.
-  const docMap = block ? { ...parseSent(block.sent), ...(stamped[block.line] || {}) } : {};
-  const whole = hashOf(source);
-  (threads || []).forEach((t) => {
-    // AN INHERITED THREAD GETS A ROW TOO — his reversal, 2026-10-26: *"per-thread should still be
-    // able to work."* The old rule ("inheritance never manufactures a row") existed against the
-    // flood of four rows for one edit, and the flood protection that actually matters is kept just
-    // below: anyone CURRENT ON THE DOCUMENT appears on no thread row, so one document press still
-    // clears everything and a thread row only stands while somebody is genuinely behind on that
-    // argument. What the reversal buys him: a surgical per-thread send on any thread, named
-    // audience or inherited.
-    //
-    // `members` is the presence-aware attribute; a row from an older shape still answers through
-    // its own list rather than silently telling nobody.
-    const { who } = threadMembers(t.members !== undefined ? t.members : t.who || null, onDocument);
-    if (!who.length) return;
-    const own = who.filter((m) => docMap[m] !== whole);
-    if (!own.length) return;
-    const behind = behindOf(own, t.sent, t.body, t.line);
-    if (behind.length) out.push({ kind: "thread", id: t.id, line: t.line, body: t.body, sent: t.sent || "", behind });
-  });
-  return out;
 };

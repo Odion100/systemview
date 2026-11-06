@@ -1,11 +1,10 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import { useCommentsContext, InThreadProvider, useMarkdownWrite, useDocMembers } from "../context";
 import { claimThread } from "../threadFocus";
 import MemberAdd from "./MemberAdd";
 import MemberSettings from "./MemberSettings";
 import useMembership from "../useMembership";
-import { AUTO_QUIET_MS } from "./Members";
-import { hashOf, threadMembers, threadMembersAttr } from "../docMembers";
+import { threadMembers, threadMembersAttr } from "../docMembers";
 import { readSeen, writeSeen, replyStamps, unseenCount, newestOf } from "../threadSeen";
 import useDictation from "../../../utils/useDictation";
 
@@ -70,40 +69,15 @@ const Thread = ({ attrs = {}, line, src, children }) => {
   // rather than from the right-click menu. A document with no membership at all says nothing about
   // it on its threads, and a read-only surface draws the list only when there is one.
   const showMembers = onThread.length > 0 || (editable && hasMembers);
-  // A THREAD IS ITS OWN SUBSCRIPTION — dirtiness measured over the thread's OWN body, so a reply
-  // here makes these people behind and leaves the document's membership alone. His: *"let's get
-  // dirty"* — a reply no longer tells anybody on the spot; it makes them behind, the auto ones are
-  // told when it settles, and the rest are a press in the pinned row at the top.
-  const { dirty, isAuto, setAuto, send } = useMembership({
-    // INHERITED OR NAMED, IT IS THE SAME MEMBERSHIP HERE: a reply makes these people behind on this
-    // thread, `auto=` may name any of them, and telling one stamps `sent=` on this thread's opener
-    // — a stamp for somebody the line need not list, which is right, because `sent=` records who
-    // was TOLD about this version and only `members=` says who is on it.
-    who: onThread,
-    sent: attrs.sent,
+  // A REPLY IS A FIRE. The engine hears it off the save and delivers by this thread's own
+  // `subscribe=` — authored, so immediate — or, inherited, by the members line's gate: `auto=`
+  // members at once, the rest held for his press in the pinned row. Nothing here sends, and there
+  // is no timer: a reply is an event, not a version somebody is behind on.
+  const { isAuto, setAuto } = useMembership({
     auto: attrs.auto,
     line,
-    body: src,
-    thread: attrs.id || "",
   });
   const [settings, setSettings] = useState(false);
-  // AUTO, PER THREAD. One timer per thread — the thread is rendered once, so there is exactly one
-  // of these however many other controls read the same membership.
-  const autoTimer = useRef(null);
-  const lastAutoHash = useRef("");
-  const autoDue = dirty.filter(isAuto);
-  useEffect(() => {
-    if (!editable || !autoDue.length) return undefined;
-    const now = hashOf(String(src || ""));
-    if (lastAutoHash.current === now) return undefined;
-    clearTimeout(autoTimer.current);
-    autoTimer.current = setTimeout(() => {
-      lastAutoHash.current = now;
-      send(autoDue);
-    }, AUTO_QUIET_MS);
-    return () => clearTimeout(autoTimer.current);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editable, src, autoDue.join(",")]);
   // An id makes the thread survive edits above it; without one, fall back to the source line so an
   // unnamed thread still works (it just re-anchors if the document shifts).
   const id = attrs.id || `line-${line || 0}`;
@@ -232,7 +206,6 @@ const Thread = ({ attrs = {}, line, src, children }) => {
           {editable && settings && (
             <MemberSettings
               who={onThread}
-              dirty={dirty}
               isAuto={isAuto}
               setAuto={setAuto}
               onClose={() => setSettings(false)}

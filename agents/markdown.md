@@ -435,7 +435,7 @@ levels**.
 ## `::members{who=…}` — who is on this document
 
 ```markdown
-::members{who=buapi|systemlynx sent=buapi:1evgm2o auto=buapi}
+::members{who=buapi|systemlynx auto=buapi}
 ```
 
 One line at the top of a document naming the **project codes** that are on it. A member is a room,
@@ -448,20 +448,19 @@ it travels with the file, and you see it change in a diff. There is no second st
 | attribute | what it is |
 |---|---|
 | `who` | the members, `\|` or `,` separated |
-| `sent` | `code:hash` per member — the version each was last told about. Written by the surface |
-| `auto` | the members told automatically once the document settles. A LIST, not a switch |
+| `auto` | the members told the moment a block FIRES. A LIST, not a switch — the rest wait for his press |
 
 **Two levels.** This block is the document's subscription and a thread can carry a narrower one.
 How they relate — and why you should almost never write the lower one — is its own section below.
 
-**Dirty means "has not heard about THIS version."** The document's hash deliberately ignores its own
-`::members` line: sending rewrites that line, so hashing the whole file would make every send
-instantly dirty again and the surface could never say anything else. A thread hashes **its own
-body**, so a reply in `t3` makes `t3`'s members behind and leaves the document's alone. A member
-with no hash has never been told, which is dirty by construction rather than exempt.
+**General prose sends no updates. Period** (his ruling, 2026-11-06). There is no version hash and
+no per-member `sent=` any more, because there is no "behind on the text" to measure — blocks are
+the only senders. A decision block or a reply FIRES when its answer lands; the engine delivers it
+by the subscribe ladder, and for members who arrive through this line's fallback, `auto=` decides
+now-or-held. The receipt is `told=` on the firing block's own line.
 
-**Never hand-write `sent=`**: it is the receipt of a send that happened, and inventing one silently
-marks somebody as told. Editing the body is how members become behind, and that is correct.
+**Never hand-write `told=`**: it is the receipt of a delivery that happened, and inventing one
+silently marks somebody as told.
 
 On a surface with nothing to save to (the chat's renderer, a help topic) the block renders the chips
 and says `read-only here` rather than pretending to save.
@@ -471,22 +470,21 @@ and says `read-only here` rather than pretending to save.
 **Putting somebody on the document puts them on every thread in it.** His rule, and the reason this
 is the default: *"even if you add it on the document level, that just means you add it to all
 threads."* A document member is on every conversation in the file for every purpose — behind when a
-reply lands, eligible for `auto=`, and stamped into the thread's own `sent=` when told.
+reply lands — hearing it at once when they are on `auto=`, on his press when they are plain.
 
-**A thread that writes `members=` NARROWS, and inherits nothing.** `::::thread{id=t3 members=buapi}`
-is for the case where one thread is genuinely a smaller room than the document. It then carries its
-own dirtiness and its own auto list.
+**A thread that writes `subscribe=` NARROWS, and inherits nothing.** `::::thread{id=t3
+subscribe=buapi}` is for the case where one thread is genuinely a smaller room than the document —
+and anything it names is AUTHORED, so it hears what lands there immediately, no press involved. A
+bare thread inherits the document's members and the gate with them. (A thread still carrying the
+older `members=` answers as `subscribe=`; the next save rewrites it.)
 
-**`members=""` means deliberately nobody** — present, naming no one. That is the difference between
-*I have not said* (the attribute is absent, so it inherits) and *I have said: nobody*. Without it,
-removing the last person from a narrowed thread would silently re-inherit the whole document.
-
-**So a thread can carry `sent=` while naming nobody**, and that is not a contradiction to tidy up:
-`members=` says who is ON the thread, `sent=` says who has been TOLD about this version of it, and
-only the first is inherited.
+**`subscribe=""` means deliberately nobody** — present, naming no one. That is the difference
+between *I have not said* (the attribute is absent, so it inherits) and *I have said: nobody*.
+Without it, removing the last person from a narrowed thread would silently re-inherit the whole
+document.
 
 **What this means for an agent writing one.** Add people to the document — write or extend `who=` on
-the `::members` block. Writing `members=` onto a thread is for narrowing, never for joining, and
+the `::members` block. Writing `subscribe=` onto a thread is for narrowing, never for joining, and
 doing it per thread is exactly the work inheritance exists to remove. His complaint that produced
 this: *"I have to individually attach you to each thread, even though you're a member on the entire
 document."*
@@ -494,30 +492,25 @@ document."*
 ## The pinned update row — the only send, and the door to what moved
 
 Nothing in the document sends. A pinned row sits at the **top-right of the document** whatever the
-scroll position, holding one pill per subscription that has somebody behind: `all threads` (the
-document level — it reaches everyone, which is why it stopped saying "document"), and
-`💬 <thread id>` for each thread. Separate pills on purpose — the audiences differ, and one row of
-mixed chips makes a press look like it tells everybody shown.
+scroll position, and what it rows is the engine's HELD LANE: decisions and replies whose plain
+members are waiting on his press. It is fetched from the host's fires door — one definition, the
+engine's — never re-derived in the window. One pill per scope: `decisions` for the document's own
+fires, `💬 <thread id>` for each thread's.
 
-- **A chip** tells that one member and stamps that subscription's own line; `all N` tells everyone
-  behind on that pill.
-- **One press for the whole document.** When more than one pill is pending, the row grows a single
-  `tell all N` — and **N counts PEOPLE, not rows.** His rhythm is the reason: *"I typically like to
-  make multiple threads and then send you an update."* A document with four pending rows and two
-  members says `tell all 2`, and the press is one wake per member rather than four. Counting rows
-  there was measured costing a single agent four separate interruptions to bring it up to date on
-  one document.
-- **Pressing the pill anywhere else** goes to what it is about — the thread, or the document's
-  members line — and flashes it.
-- **The row disappears when nobody is behind**, which is also how a press confirms itself: tell
-  `buapi` and `buapi`'s chip leaves.
+- **A chip** releases what is held for that one member; `tell all N` releases the document — and
+  **N counts PEOPLE, not rows.** The engine delivers and stamps `told=` for exactly who was
+  reached; a member whose session is not running stays on the row, and the next press retries.
+- **✓ caught up** stamps the held fires `told=` and wakes nobody — for the member who was in the
+  document when the decisions landed.
+- **The row disappears when nothing is held**, which is also how a press confirms itself: release
+  for `buapi` and `buapi`'s chip leaves.
 
-Beside the membership itself there is only a **⚙**: who is `auto` at that level. Two levels, two
-lists, because "every version of this plan" and "when this argument moves" are different
-subscriptions.
+Beside the membership itself there is only a **⚙**: who is `auto=` — told the moment a block
+fires, no press involved.
 
-**A reply does not announce itself.** It makes the thread's members behind; the `auto` ones are told
-once it settles, everyone else waits for a press.
+**A reply does not announce itself to plain members.** It is a fire like any other: the thread's
+own `subscribe=` hears it at once (authored), an inherited audience splits by `auto=`, and the
+rest are a chip on this row.
 
 **Delivery needs no hook.** The window observes the press and the HOST emits an ambient
 `document.updated`; every session whose project is named receives it as a turn, and the landing

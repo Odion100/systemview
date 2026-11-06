@@ -118,9 +118,9 @@ describe("sending an update", () => {
   // members."* Every pending update is pressed in the pinned row at the top of the document, which
   // is reachable from anywhere in the file — the payload, the refusal and the stamp are claimed
   // there, in MembersPin.test.js.
-  it("marks a member who has never been told, and offers no send of its own", () => {
+  it("draws plain membership and offers no send of its own — behind lives in the pin, off the held lane", () => {
     mountSend();
-    expect(screen.getByTitle("buapi has not been told about this version")).toBeTruthy();
+    expect(screen.getByTitle("buapi is on this document")).toBeTruthy();
     expect(screen.queryByText("send update")).toBeNull();
     expect(screen.queryByText(/^send to /)).toBeNull();
   });
@@ -156,27 +156,16 @@ describe("the auto toggle", () => {
     delete global.window.systemview;
   });
 
-  it("is OFF unless the document says so, and off means nothing is ever sent unpressed", () => {
-    const { bridge } = mountAuto({ auto: false });
-    jest.advanceTimersByTime(AUTO_QUIET_MS * 3);
-    expect(bridge).not.toHaveBeenCalled();
-  });
-
-  it("does not fire the instant the document changes — it waits for quiet", () => {
+  // THE WINDOW NEVER SENDS FOR AUTO (his ruling, 2026-11-06). auto= is a list the ENGINE reads:
+  // an auto member is told the moment a block fires, a plain member's copy is held for his press,
+  // and prose edits send nothing — so there is no timer here for any setting of the attribute.
+  it("auto on or off, nothing is ever sent from the window", () => {
     const { bridge } = mountAuto({ auto: true });
-    jest.advanceTimersByTime(AUTO_QUIET_MS - 1000);
+    jest.advanceTimersByTime(60000);
     expect(bridge).not.toHaveBeenCalled();
-  });
-
-  it("sends once the document has been still, to exactly the members who are behind", () => {
-    const { bridge } = mountAuto({ auto: true });
-    // `act` because the send sets state as it goes — without it the assertion races the render and
-    // the warning it prints is the test telling the truth about a real ordering.
-    act(() => {
-      jest.advanceTimersByTime(AUTO_QUIET_MS + 100);
-    });
-    expect(bridge).toHaveBeenCalledTimes(1);
-    expect(bridge.mock.calls[0][0].members).toEqual(["buapi"]);
+    const { bridge: off } = mountAuto({ auto: false });
+    jest.advanceTimersByTime(60000);
+    expect(off).not.toHaveBeenCalled();
   });
 
   // AUTO IS PER MEMBER — "I should be able to choose exactly who I want to be auto, not just

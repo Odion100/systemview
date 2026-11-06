@@ -1,7 +1,7 @@
-import React, { useContext, useEffect, useRef, useState } from "react";
+import React, { useContext, useState } from "react";
 import ServiceContext from "../../../ServiceContext";
 import { useMarkdownWrite, useDocMembers } from "../context";
-import { hashOf, splitWho } from "../docMembers";
+import { splitWho } from "../docMembers";
 import useMembership from "../useMembership";
 import MemberAdd from "./MemberAdd";
 import MemberSettings from "./MemberSettings";
@@ -34,17 +34,15 @@ const Members = ({ attrs = {}, line }) => {
   const { setAttr } = useMarkdownWrite();
   // The document it is on, and which file that is — both from scope, so no surface has to remember
   // to configure this block.
-  const { source = "" } = useDocMembers() || {};
   const { connectedServices = [] } = useContext(ServiceContext);
   const [local, setLocal] = useState(null);
   const [settings, setSettings] = useState(false); // the gear: who hears automatically
 
   const who = local != null ? local : splitWho(attrs.who);
-  // WHO IS BEHIND AND THE PRESS THAT TELLS THEM is shared with the pinned update row — one
-  // definition in useMembership, because two controls now write this same `sent=` map.
-  const { editable, dirty, isAuto, send, refusal, setRefusal, setAuto } = useMembership({
-    who,
-    sent: attrs.sent,
+  // MEMBERSHIP AND ITS AUTO LIST — the policy the ENGINE reads. Who is behind, and the press that
+  // tells them, both left this block: delivery belongs to the engine's gate, and the pinned row is
+  // the one release in the surface.
+  const { editable, isAuto, refusal, setRefusal, setAuto } = useMembership({
     auto: attrs.auto,
     line,
   });
@@ -59,32 +57,10 @@ const Members = ({ attrs = {}, line }) => {
     setAttr(line, "who", next.length ? next.join("|") : null);
   };
 
-  // AUTO — the opt-in, and the last thing built on purpose. A member marked auto is told without
-  // him pressing anything once the document settles, which is right for a plan being edited live in
-  // front of three agents and wrong as a default, because a change that interrupts costs somebody a
-  // turn they did not choose to spend.
-  //
-  // THE TIMER LIVES HERE, not in the hook: the block is rendered once per document, so there is
-  // exactly one of these however many other controls read the same membership. It waits well past
-  // typing speed — a send per keystroke is the expense this whole design exists to avoid.
-  const autoTimer = useRef(null);
-  const lastAutoHash = useRef("");
-  const autoDue = dirty.filter(isAuto);
-  useEffect(() => {
-    if (!editable || !autoDue.length) return undefined;
-    const now = hashOf(source);
-    if (lastAutoHash.current === now) return undefined; // this version already went out
-    clearTimeout(autoTimer.current);
-    autoTimer.current = setTimeout(() => {
-      lastAutoHash.current = now;
-      // ONLY THE AUTO ONES. A member who is behind and not auto stays behind until he presses —
-      // that is the whole point of making it per member.
-      send(autoDue);
-    }, AUTO_QUIET_MS);
-    return () => clearTimeout(autoTimer.current);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editable, source, autoDue.join(",")]);
-
+  // AUTO — the opt-in. A member marked auto is told the moment a block FIRES — the engine reads
+  // this list off the line and delivers; nothing in the window sends. There is no timer any more
+  // because there is nothing to settle: prose edits send no updates, period, so the only moments
+  // that reach anybody are decisions, and those are events, not versions.
   const add = (code) => {
     const name = String(code || "").trim();
     if (!name) return;
@@ -110,20 +86,15 @@ const Members = ({ attrs = {}, line }) => {
       </button>
       {who.map((m) => (
         <span
-          className={`md-members__chip${dirty.includes(m) ? " md-members__chip--dirty" : ""}`}
+          className="md-members__chip"
           key={m}
-          title={
-            dirty.includes(m)
-              ? `${m} has not been told about this version`
-              : `${m} is up to date with this document`
-          }
-          // A CHIP NEVER SENDS — the send lives in the pinned row at the top of the document, and
-          // it is the only one in the surface. A chip here opens the settings, which is what this
-          // membership is now FOR: who is on it, and who hears without being told to.
+          title={`${m} is on this document`}
+          // A CHIP NEVER SENDS — what is waiting on his press lives in the pinned row at the top
+          // of the document, read off the engine's held lane. A chip here opens the settings,
+          // which is what this membership is FOR: who is on it, and who hears without being told.
           onClick={() => editable && setSettings(true)}
         >
           {m}
-          {dirty.includes(m) && <span className="md-members__mark">•</span>}
           {isAuto(m) && (
             <span className="md-members__auto-mark" title={`${m} is told automatically`}>
               a
@@ -162,17 +133,11 @@ const Members = ({ attrs = {}, line }) => {
       {editable && settings && (
         <MemberSettings
           who={who}
-          dirty={dirty}
           isAuto={isAuto}
           setAuto={setAuto}
           onClose={() => setSettings(false)}
           title="who hears about this document automatically"
         />
-      )}
-      {editable && !!who.length && !dirty.length && (
-        <span className="md-members__none" title="everybody on this document has been told about this version">
-          all current
-        </span>
       )}
       {!editable && (
         <span className="md-members__ro" title="this surface has nothing to save to">

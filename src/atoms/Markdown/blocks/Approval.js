@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { useMarkdownWrite } from "../context";
-import useDecisionTell from "../useDecisionTell";
 
 // `:::approval{id=…}` — the story APPROVAL verdict, as a wrapper.
 //
@@ -17,7 +16,6 @@ const Approval = ({ attrs = {}, line, children }) => {
   const [local, setLocal] = useState(null);
   // A PRESS IS NEWS. Who hears it and where the stamp lands is one rule for every deciding
   // block, so it lives in the hook rather than here.
-  const tell = useDecisionTell();
   const verdict = local != null ? local : attrs.verdict || "";
   const label = attrs.ask || attrs.label || "Approval needed";
 
@@ -34,7 +32,9 @@ const Approval = ({ attrs = {}, line, children }) => {
     // A PRESS JUMPS THE QUIET PERIOD. Prose waits twenty seconds and then his send, because an
     // unfinished paragraph is not a decision — a press is complete the instant it happens and is
     // usually the thing the others were waiting on. His: "maybe it should notify you right away."
-    tell("approval", attrs, next);
+    // THE SAVE IS THE ANNOUNCEMENT. The engine parses this write, the block fires, and the
+    // members line's gate decides who hears it now and who waits for his press — a second send
+    // from the window was the same decision delivered twice (retired 2026-11-06).
   };
 
   return (

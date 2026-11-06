@@ -9,14 +9,13 @@ import React from "react";
 // that is ABOUT the membership: who hears automatically. Per member, and per level: the document's
 // auto list and a thread's auto list are different lists, because "tell me every version of the
 // plan" and "tell me when this argument moves" are different subscriptions.
-const MemberSettings = ({ who = [], dirty = [], isAuto, setAuto, onClose, title = "who hears automatically" }) => (
+const MemberSettings = ({ who = [], isAuto, setAuto, onClose, title = "who hears automatically" }) => (
   <div className="md-members__panel" onClick={(e) => e.stopPropagation()}>
     <div className="md-members__panel-head">{title}</div>
     {!who.length && <div className="md-members__row-state">nobody here yet</div>}
     {who.map((m) => (
       <label key={m} className="md-members__row">
         <span className="md-members__row-name">{m}</span>
-        <span className="md-members__row-state">{dirty.includes(m) ? "behind" : "current"}</span>
         <button
           type="button"
           className={`md-members__row-auto${isAuto(m) ? " md-members__row-auto--on" : ""}`}

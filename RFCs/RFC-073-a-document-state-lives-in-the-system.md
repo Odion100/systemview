@@ -207,13 +207,14 @@ same way, marked as inherited (quieter, *from the document*); adding or removing
 `subscribe=` and the thread becomes explicit. The fallback is a rule for the engine and a chip row
 for him — never an invisible default.
 
-**A THREAD HAS `subscribe=`, NOT `members=`.** Membership exists for the gated channel — the pin, the
-press, "behind" — and that channel exists for prose edits, the changes that do not fire. A thread has
-no such changes: everything that happens in one is a reply, and a reply fires. There is nothing in a
-thread for a gated channel to gate, so RFC-071's thread `members=` (and its `sent=`) retire in favour
-of one attribute: who hears what lands here. The document keeps both words because it is the one
-place with changes nobody is woken for. **Nothing already written breaks**: a thread still
-carrying `members=` is read as `subscribe=` with the same names, and the next write rewrites it.
+**A THREAD HAS `subscribe=`, NOT `members=`.** Membership exists for the gated channel — the pin and
+the press — and what that channel gates is a plain member's FIRES: a decision lands in the document
+either way, and delivery to a member not on `auto=` waits for the press. Prose edits are not the
+channel's other customer; general text sends no updates at all (his ruling, 2026-11-06 — the edit
+hash and `sent=` retired with it). A thread names its own audience with one attribute — who hears
+what lands here — so RFC-071's thread `members=` (and its `sent=`) retire in its favour. **Nothing
+already written breaks**: a thread still carrying `members=` is read as `subscribe=` with the same
+names, and the next write rewrites it.
 
 **It is an override, not a filter.** `subscribe=buapi` on a document with three members means buapi
 and nobody else, and it names a non-member just as happily. **The list is names; whether any of them
@@ -244,7 +245,6 @@ Read off the attribute each block already writes:
 | `::question` | `answer=` appears | `answered "the hub" — which door should dictation own?` |
 | `:::approval` | `verdict=` appears | `approved — Approve this arc?` |
 | `:::objective` | `state=done` | `O2 is done — <first line of what>` |
-| `::commit` | `sha=` appears | `committed 3c5fe32 — <message>` |
 | `:::reply` | the block exists and is untold — its audience is its **thread's**, never its own | `buapi replied in t1 — <first line>` |
 | `::gap` | `resolved=` appears | `gap resolved — <title>` |
 | `::claim` | `state=` appears (`met` / `unmet`) | `c34 met — <statement>` · `c9 not met — <note>` |
@@ -605,7 +605,7 @@ standing when you check it, and each slice in §5 names the ones it makes checka
 
 ::claim[Right-click in any document → *insert* lists every registration leaf — `::arc`, `::rfc`, `::report`, `::gap` — each with its fields (`id`, and `arc=` for an RFC); pick one → the leaf lands at the top of the document, filled; save → the registry has the row. No typing of a block by hand.]{id=c10 state=met by=systemview-test at=1792964285220 note="the right-click menu offers Register this document → four kinds with their fields; the plan lands the leaf at the top, id filled from the filename; 9 registrationLeaf tests green" told=systemview-test}
 
-::claim[Approve a `:::approval` with no `subscribe=` on a document with members `buapi|systemlynx` → both receive one `document.updated`; afterwards the block's line carries `told=buapi|systemlynx`.]{id=c11 state=met by=systemview-test at=1792964285220 note="tests/markdown-fires.js: no subscribe= → pending = both members; announce stamps told= for who was reached + the writer" told=systemview-test}
+::claim[Approve a `:::approval` with no `subscribe=` on a document with plain members `buapi|systemlynx` → NOBODY is woken and nothing is stamped: both copies are HELD for the press. Put `buapi` on `auto=` → buapi receives one `document.updated` the moment the verdict lands and systemlynx still waits. The press (`releaseDocumentFires`, the pin's row) delivers the held lane and stamps `told=` for exactly who was reached.]{id=c11 state=met by=systemview-test at=1793967188815 note="tests/markdown-fires.js: fallback with no auto= → pending [] held [both]; auto=buapi → pending [buapi] held [systemlynx]. tests/markdown-announce.js: managed doc emits nothing and stamps nothing; the release emits to the held lane; the writer stamps from either lane" told=systemview-test}
 
 ::claim[The same with `subscribe=buapi` → buapi receives it; systemlynx receives nothing.]{id=c12 state=met by=systemview-test at=1792964285220 note="tests/markdown-fires.js: subscribe=buapi → pending [buapi]; systemlynx not in the audience" told=systemview-test}
 

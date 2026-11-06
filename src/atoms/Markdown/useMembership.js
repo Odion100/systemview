@@ -1,101 +1,32 @@
 import { useState } from "react";
-import { useMarkdownWrite, useDocMembers } from "./context";
-import { dirtyMembers, hashOf, parseSent, serializeSent, splitWho, summarize, threadSummary, lastReplyAuthorOf } from "./docMembers";
-import { sendUpdateTo } from "./docSend";
+import { useMarkdownWrite } from "./context";
+import { splitWho } from "./docMembers";
 
-// RFC-071 — WHO IS BEHIND, AND THE PRESS THAT TELLS THEM. One definition, used by two controls:
-// the `::members` block in the document's head, and the pinned update row that stays in the
-// top-right corner however far you have scrolled (his, 2026-10-19: *"I shouldn't have to scroll
-// back up to where I added them as a member to send them an update."*).
+// WHO IS TOLD AUTOMATICALLY — the one thing membership still decides in the window.
 //
-// Two controls writing one attribute is exactly where a second copy of this logic would go wrong,
-// which is why there is none: both read the same `sent=` map, both compute dirty the same way, and
-// both stamp through the same `setAttr`.
-// `who` IS THE RESOLVED LIST, inherited people included (RFC-071, 2026-10-20): a thread with no
-// `members=` is about the document's people, and they are members here for every purpose — behind
-// when a reply lands, eligible for `auto=`, and stamped into `sent=` on the thread's own opener
-// when they are told. So a thread line can carry `sent=buapi:1a2b` while naming nobody. That is
-// not a contradiction to fix: `members=` says who is ON the thread, `sent=` says who has been TOLD
-// about this version of it, and only the first of those is inherited.
+// This hook used to be the window's own delivery machinery: a `sent=` hash map, a dirty
+// computation over the prose, and a send that announced document EDITS. That channel is gone (his
+// ruling, 2026-11-06): *"general text in the document should send no updates, period point
+// blank."* Blocks are the only senders, the ENGINE delivers their fires, and the members line
+// governs WHEN — `auto=` members the moment a block fires, plain members on his press through the
+// pinned row. So what remains here is exactly the part the engine reads and cannot write for him:
+// the per-member auto toggle.
 //
-// `body` is WHAT THIS SUBSCRIPTION IS ABOUT — the whole document for the `::members` block, a
-// thread's own slice for a thread. Dirtiness is measured against it, so a reply in t1 makes t1's
-// members behind and leaves the document's alone. `thread` rides on the event so the landing says
-// which conversation moved.
-export default function useMembership({ who = [], sent = "", auto = "", line = 0, body = null, thread = "" } = {}) {
+// AUTO IS PER MEMBER (his correction): the attribute is a list of who is told automatically, not
+// a switch on the document. The plain member is the only human-gated path.
+export default function useMembership({ auto = "", line = 0 } = {}) {
   const { editable, setAttr } = useMarkdownWrite();
-  const { source = "", docPath = "", projectCode = "" } = useDocMembers() || {};
-  const [localSent, setLocalSent] = useState(null);
   const [localAuto, setLocalAuto] = useState(null);
-  const [sending, setSending] = useState(false);
   const [refusal, setRefusal] = useState("");
-
-  // MERGED OVER THE ATTRIBUTE, never instead of it. The local map used to replace what the line
-  // said, which was safe while one control existed and is a lost stamp now that two do: press the
-  // pin for buapi, then the block for systemlynx, and a replacing map would show buapi behind
-  // again on a version it has already been told about.
-  const sentMap = { ...parseSent(sent), ...(localSent || {}) };
-  const subject = body == null ? source : body;
-  // WHO HAS NOT HEARD ABOUT THIS VERSION — a member with no hash has never been sent to, which is
-  // dirty by construction rather than exempt.
-  const dirty = dirtyMembers(who, sentMap, subject);
 
   const autoList = localAuto != null ? localAuto : splitWho(auto);
   const isAuto = (m) => autoList.includes(m);
 
-  // THE SEND. The window observes the press and the HOST emits the event — nothing here announces
-  // anything itself (see files-host.cjs). Afterwards the line records the hash each member was told
-  // about, so the next change is dirty for them and nothing else is.
-  const send = async (targets, override = null) => {
-    const to = (targets || []).filter(Boolean);
-    if (!to.length) return;
-    setSending(true);
-    const r = await sendUpdateTo({
-      path: docPath,
-      project: projectCode,
-      members: to,
-      thread,
-      // A THREAD MEMBER IS IN THE CONVERSATION, so the reply itself is the news. A document member
-      // is watching the file, so the shape of the change is.
-      // A DECISION SAYS WHAT IT WAS. Everything else describes the shape of the change, because
-      // that is all a diff can honestly say — but a press is one complete fact and the caller is
-      // holding it, so it hands the sentence down rather than making this guess at it.
-      summary: override
-        ? override.summary
-        : thread
-          ? threadSummary(thread, subject)
-          : summarize(source, to.every((m) => sentMap[m])),
-      ...(override && override.decision ? { decision: true } : {}),
-      threads: thread ? 1 : (String(source).match(/^\s*:{3,}\s*thread\b/gm) || []).length,
-      // WHO WROTE THE CHANGE, so the harness can keep the news away from its author. A thread send
-      // is about a reply and the reply says who wrote it; a document send is the file moving, which
-      // is his editing, so "you" stays right there. Without this the harness guessed from whether
-      // the send named a thread, and that guess woke agents with their own replies.
-      by: (thread && lastReplyAuthorOf(subject)) || "you",
-    });
-    setSending(false);
-    if (!r.ok) {
-      setRefusal(r.error);
-      return;
-    }
-    setRefusal("");
-    const stamp = hashOf(subject);
-    const next = { ...sentMap };
-    to.forEach((m) => {
-      next[m] = stamp;
-    });
-    setLocalSent(next);
-    if (line) setAttr(line, "sent", serializeSent(next) || null);
-  };
-
-  // AUTO IS PER MEMBER (his correction): the attribute is a list of who is told automatically, not
-  // a switch on the document. The TIMER lives on the block, not here — the pin must never start a
-  // second one, or a settled document would announce itself twice.
   const setAuto = (m) => {
     const next = isAuto(m) ? autoList.filter((x) => x !== m) : [...autoList, m];
     setLocalAuto(next);
     if (line) setAttr(line, "auto", next.length ? next.join("|") : null);
   };
 
-  return { editable, source: subject, sentMap, dirty, autoList, isAuto, send, sending, refusal, setRefusal, setAuto };
+  return { editable, autoList, isAuto, setAuto, refusal, setRefusal };
 }
