@@ -5462,9 +5462,15 @@ $sv-board-states: (
 .agent-chat__bandcog-row--saving { opacity: 0.55; }
 .agent-chat__bandcog-foot {
   margin-top: 7px;
-  padding-top: 6px;
+  padding: 6px 0;
   border-top: 1px solid var(--sv-border);
   color: var(--sv-text-muted);
+  // THE SUMMARY STAYS READABLE WHILE THE KNOBS SCROLL (his: "make it sticky at the bottom,
+  // obviously") — it is the one line that says what the whole tab amounts to, so it rides the
+  // bottom of the scrolling body. The background matters: without it the rows scroll through it.
+  position: sticky;
+  bottom: 0;
+  background: var(--sv-bg-raised, var(--sv-bg));
 }
 // ABSENCE STATED, never a panel of knobs that write nowhere.
 .agent-chat__bandcog-absent { color: var(--sv-text-faint); line-height: 1.4; }
