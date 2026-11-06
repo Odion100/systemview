@@ -44,8 +44,9 @@ It is the same statement standing one level up, where a person can read it.
 **Claims are not an RFC's furniture.** An RFC carries them, a REPORT carries them (usually
 `as=spec`, the receipt for unscheduled work), and a GAP carries one as the statement its fix is
 checked against. **Only two things differ anywhere and both are the RFC's: nothing is a claim before
-the verdict, and the completeness press freezes the SET.** Everything else on this page applies in
-all three.
+the verdict, and the completeness press fixes the SET as the contract — as agreed now, not as a
+lock, because the spec goes on living and a later design change edits the set in the open.**
+Everything else on this page applies in all three.
 
 A report is where work off a board card ends up, so unscheduled work has claims like anything else.
 
@@ -345,8 +346,9 @@ place.**
 Declare it while writing the list, because an
 agent facing a spec it would rather not write will discover the claim was experiential all along —
 at authoring nobody yet knows which proof is inconvenient, so the classification costs nothing to
-make truthfully, and the completeness press freezes it. A `kind=` added afterwards is a visible
-edit to an approved contract.
+make truthfully, and the completeness press fixes it as agreed. A `kind=` added afterwards is not
+forbidden — it is a visible edit to an approved contract, which is what the press is for: it makes
+the change show, it does not prevent it.
 
 **What a surface may say about it.** `claims.js` derives *carries a spec* from the fold holding a
 `::test` or `:::run` — never from a `:::cmd`, because a cmd running the suite and a cmd running

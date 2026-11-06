@@ -44,14 +44,14 @@ slice names it. Two RFCs for one design is two documents drifting.
 | 1 | **Discussion** — threads on a document, convergence turn by turn | agreement, nowhere durable yet |
 | 2 | **The file** — written into `RFCs/`, with implementation detail | a draft: no verdict |
 | 3 | **The verdict** — a press on its approval block | `verdict=approved`, and it is now binding work |
-| 4 | **The claims list** — extracted from the approved design, with its own press | the contract the build will be checked against |
+| 4 | **The claims** — drawn from the approved design, beside the parts they check, with their own completeness press | the contract the build will be checked against |
 | 5 | **The build** — slice by slice, each landing on its own | commits |
 | 6 | **The check** — walk the claims against what was built | claims marked met, or named as not |
 | 7 | **The status** — what is built, what is not, dated | an RFC that answers for itself |
 
 Steps 3 and 4 are **two separate presses on two separate days' worth of thinking**, and collapsing
-them is the commonest way this goes wrong: a claims list written before the design is settled is a
-list of proposals, and proposals cannot be checked.
+them is the commonest way this goes wrong: claims written before the design is settled are
+proposals, and proposals cannot be checked.
 
 **Built is landed AND still moving** — reviewed, amended, proofs pressed: a LIVING spec (RFC-075
 §1.5), kept true against a system that keeps changing under it. **Then it SETTLES** (his, round
@@ -75,18 +75,18 @@ verdict into the attribute:
 
 ```markdown
 :::approval{ask="Approve RFC-072 — arcs as trackable documents?" verdict=approved}
-Approving commits to: the arc document as the single state (§3), numbered objectives as a parsed
-format with one parser (§4), attachments replacing per-kind run fields (§5).
+Approving commits to the design above — enough to reduce it to claims and build from it.
 
 The piece most worth rejecting is §3. If progress should live in a run record instead, everything
 below it changes shape.
 :::
 ```
 
-Two things earn their place in that body. **What approving commits to**, listed — this is also the
-outline the claims list is extracted from, so a vague one costs twice. And **the piece most worth
-rejecting**, which is how an approval stops being a rubber stamp: name the load-bearing choice and
-what collapses if it is wrong.
+Two things earn their place in that body. **What approving commits to** — the DESIGN as argued, not
+a restated list the reader is asked to ratify line by line; the press is holistic, and it is a
+first-level commitment that gets the draft past draft, not a seal (the design goes on living). And
+**the piece most worth rejecting**, which is how an approval stops being a rubber stamp: name the
+load-bearing choice and what collapses if it is wrong.
 
 **No verdict means draft.** It is not weak approval and it does not authorize anything.
 
@@ -101,64 +101,33 @@ decision being relitigated by whoever read it last.
 
 **The definition, the craft and the whole proof doctrine are their own chapter** —
 `context("what is a claim and what does its proof owe")`. A claim is not an RFC's furniture; reports
-and gaps carry them too, and one copy of that doctrine is the point.
+and gaps carry them too, and one copy of that doctrine is the point. **How you lay them out in an
+RFC — where the bar sits, how you extract them, the markdown — is the author's procedure, not this
+chapter's:** `rfc-authoring`. This page is only what is TRUE of an RFC's claims, not how to write
+them, because a second copy of the procedure is a second thing to keep in sync, and it does not stay
+in sync.
 
-Two things are an RFC's alone:
+Three things are an RFC's alone:
 
 - **Nothing is a claim before the verdict.** Until then it is a proposal, and a proposal cannot be
-  checked against anything. So claims are extracted AFTER the design is approved, from the
-  commitments the verdict block named — each one becoming one or more claims, at the granularity
-  where somebody can go and check it. Four commitments producing twelve claims is normal.
-- **The SET is the contract**, and that is what the press under the list decides. A claim missing
-  from an approved list is a gap both parties accepted, not one that silently ate a feature.
+  checked against anything. Claims are drawn AFTER the design is approved — from the design itself,
+  because the design is what was approved.
+- **The claims are living specs, not a contract carved at approval.** When the design moves — and
+  it goes on moving — the claims move with it, by the same which-side-moves rule that governs
+  documentation, test and functionality everywhere: decided change → the claim adapts; drift → the
+  claim is authoritative. A claim is the best current checkable statement of the design, re-walked,
+  never a line sealed once.
+- **Completeness is pressed, and the set is the contract — as agreed now, not as a lock.** One
+  press decides one thing, and it is not quality: is this the complete set? A behaviour missing is
+  one both parties agreed not to check, not one that silently ate a feature — and a later design
+  change edits the set in the open rather than being forbidden by it. The press is worth its own
+  moment because completeness is cheap to judge at exactly one point: when the design is both
+  settled and still in someone's head. Everywhere else it costs a re-read of the whole argument.
 
-## The claims list, and the press under it
+## STATUS — what the heading has to be honest about
 
-The list is appended **after** the verdict block, under `## Claims`, **one `::claim` block per
-claim** with `::claims` on top, and its own approval block beneath it. A numbered line can be read
-and never marked; a block can be pressed, and the press writes who checked it, when, and what they
-saw into the line. The press under the list decides one thing and it is not quality: **is this list
-complete?** Once pressed, the list is the contract, and anything a reader later finds missing is a
-gap both parties accepted rather than one that disappeared.
-
-```markdown
-## Claims
-
-::claims
-
-**In the window** (where you stand to check these)
-
-::claim[Attach a report to a lane's run and to a card → both take it.]{id=c1}
-::claim[Detach it → the attachment stays on the record with a `detached` stamp rather than vanishing.]{id=c2}
-
-:::approval{ask="Is this the complete list of claims for RFC-072?"}
-Pressing this makes the list the contract. A behaviour missing from it is one we agreed not to
-check — so the thing to read for is what is NOT here.
-:::
-```
-
-The number a reader sees is the block's place in the document — never write one into the
-statement; `id=` is the stable address. Group the blocks by **where somebody stands** to check them
-(the window, a document, the chat, the host with no window, the files), because the reader walking
-the claims after a slice lands walks one place at a time.
-
-**Why the press is worth its own moment:** the cost this whole mechanism exists to remove is
-re-reading six hundred lines of argument to invent the test list yourself, at the worst moment, and
-missing some. Approving the list is the only point at which completeness is cheap to judge, because
-it is the only point at which the design is both settled and still in someone's head.
-
-
-## The STATUS section
-
-Once the claims have been walked, the RFC says what is true, dated, under `## STATUS` — and the
-count under it is **derived**, drawn by `::claims` off the marks above, never typed:
-
-```markdown
-## STATUS — built 2026-10-21
-
-::claims
-```
-
-One heading, one spelling, at the end of the file. Where a claim was not met, say which and what
-happens instead — an RFC that quietly reads "built" while a claim failed is the same lie the
-missing status sections were telling, with more confidence.
+When the claims have been walked the RFC says what is true, dated, under a `## STATUS` heading, and
+the count beside it is **derived off the marks, never typed** — the how is `rfc-authoring`'s. The
+doctrine is the honesty: where a claim was not met, STATUS says which and what happens instead. An
+RFC that quietly reads "built" over a failed claim is the same lie the missing status sections
+told, with more confidence.
