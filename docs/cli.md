@@ -351,7 +351,9 @@ systemview shutdown 4000
 
 ## Storage: the `.systemview/` folder
 
-SystemView keeps its runtime state in a `.systemview/` folder in the root of your SystemLynx service project. Add `.systemview/` to `.gitignore` — it's local, per-machine, and holds live session cookies.
+SystemView keeps its runtime state in a `.systemview/` folder in the root of your SystemLynx service project. Exclude it with `.systemview/*` and then re-include the documents with `!.systemview/report.*.md` — the folder is local, per-machine and holds live session cookies, but a registered document is a project artifact and its retirement should arrive as a deletion you commit like any other change.
+
+**The star matters.** `.systemview/` on its own excludes the *directory*, and git will not descend into an excluded directory to re-include anything inside it — so the bare form silently takes your documents with it.
 
 What lands there: per-service manifest files (below), the `headers`/`session` store, reports and namespace docs, saved views, recorded runs — and **`chats/`**, the project's own chat rooms (see [Where a chat is stored](#where-a-chat-is-stored)).
 
@@ -423,7 +425,7 @@ systemview probe buAPI:Media.Assets.list                                # differ
 
 A session **never** auto-crosses services otherwise. (An earlier build borrowed the first cookie in the store across origins — which could hand a request the wrong session, e.g. a `localhost` test cookie into a remote call; that borrow is gone.) `-g` scopes strictly to the recorded project origins, so a cookie can't leak into an unrelated deployment.
 
-The `.systemview/` folder is gitignored by default — it's local, per-machine, changes each time a service starts, and holds live session cookies.
+The `.systemview/` folder is gitignored — it's local, per-machine, changes each time a service starts, and holds live session cookies. Registered documents (`report.*.md`) are the one deliberate exception, re-included so they commit with the project.
 
 When multiple services in the same project start (e.g., buAPI's services), each plugin writes its **own** `.systemview/<serviceId>.manifest.json` — no shared file and no read-modify-write, so nothing clobbers even when they all start at once. The `headers`/`session` cookie store described above is the CLI's own `systemview.manifest.json` (a single-writer file), kept separate from those per-service registration files.
 

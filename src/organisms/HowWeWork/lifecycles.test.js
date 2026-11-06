@@ -119,31 +119,24 @@ describe("the page's content has the shape the page renders", () => {
 // ───────────────────────────────────────────────────────────────────────────────────────────────
 // THE DRIFT CHECK, and it is deliberately a FAILING-ON-PURPOSE tripwire rather than a loose match.
 //
-// `lifecycleState.js` is the code's one definition of the trails. This page follows tonight's
-// planning report (`meetings/2026-10-27-the-lifecycle-of-every-kind-we-register.md`), which is the
-// current definition and OUTRANKS the code — and the code has not landed two of its rulings yet:
-// an arc gaining the front half of the RFC trail (draft → approved → open → settled), and a gap
-// forking to `rejected`. Those two are pinned below with their reason.
+// `lifecycleState.js` is the code's one definition of the trails, and this page renders its own.
+// A settled ruling outranks the code until the code catches up, so where the two are ALLOWED to
+// differ the difference is pinned here with the reason it exists — and anything unpinned fails. A
+// test that merely tolerated any difference would quietly let the page rot instead.
 //
-// So when the code catches up, this test FAILS and tells whoever landed it which exception to
-// delete. A test that merely tolerated any difference would quietly let the page rot instead.
+// Every kind agrees right now, so every exception is empty. One goes in when a ruling lands on one
+// side before the other, and comes out when the other side catches up — which is the moment this
+// test FAILS and tells whoever landed it which exception to delete.
 const EXPECTED_DRIFT = {
   rfc: { pageOnly: [], codeOnly: [] },
-  // CLOSED 2026-10-28, by RFC-076 slice 5. The arc runs the approval flow and derives upward —
-  // draft → approved → inProgress → settled → retired, with `settled` folded from the plans
-  // attached to each objective. The page and the code agree, so the exception is deleted.
   arc: { pageOnly: [], codeOnly: [] },
-  // CLOSED 2026-10-28, by RFC-076 slice 3. The gap's fork landed: `rejected` is a station in
-  // `TRAILS.gap`, declared on the leaf with its reason, and `resolved` now needs a proof. The page
-  // and the code agree about this kind, so the exception is deleted rather than relaxed — which is
-  // what this tripwire exists to make somebody do.
   gap: { pageOnly: [], codeOnly: [] },
   report: { pageOnly: [], codeOnly: [] },
 };
 
 describe("the page against lifecycleState.js — one definition, and the gap is named", () => {
   LIFECYCLES.forEach((l) => {
-    it(`${l.kind}: the difference from the code is exactly the one tonight's report ruled`, () => {
+    it(`${l.kind}: the difference from the code is exactly the pinned exception`, () => {
       const page = l.stations.map((s) => s.id);
       const code = TRAILS[l.kind];
       expect(code).toBeDefined();

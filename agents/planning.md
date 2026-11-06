@@ -1,9 +1,8 @@
 # Planning — a document with people on it, and the arc it produces
 
-RFC-072 renamed this from `meetings.md`. The document and the people on it were never the point on
-their own: a planning document exists to produce an **arc**, and an arc is a document too. Keeping
-them in two references meant the dispatch pointed at one and the thing it dispatched lived in the
-other.
+The document and the people on it were never the point on their own: a planning document exists to
+produce an **arc**, and an arc is a document too. They are one reference because in two the dispatch
+pointed at one document and the thing it dispatched lived in the other.
 
 A meeting here is not an event, a room, or a call. It is a **markdown document with members**: the
 threads carry the conversation, and the pinned row in the document's top-right corner tells each
@@ -135,11 +134,17 @@ reads.
 
 ## A meeting is not a report — where it lives, and how it still reaches his panel
 
-**It lives in the repo: `meetings/<YYYY-MM-DD>-<kebab-subject>.md`.** A report lives in
-`.systemview/`, which is **gitignored** — a meeting there is never committed, so it exists on one
-machine and dies with it. And `api/reportJanitor.js` **deletes any report older than 30 days**
-unless a job run points at it. A meeting carries members, replies, verdicts and embedded arcs: it is
-a project artifact like an RFC, not a disposable view like a report.
+**It lives in the repo: `meetings/<YYYY-MM-DD>-<kebab-subject>.md`**, committed beside the code it
+plans. What separates it from a report is what it CARRIES: members, replies, verdicts and an
+embedded arc make it a surface people act on, where a report is an account somebody reads.
+
+**Residence decides nothing about how long it lasts — the leaf does.** `.systemview/` is excluded
+with one deliberate re-inclusion (`!.systemview/report.*.md`), so a registered document living
+there is committed like anything else and its retirement arrives as a deletion to commit. And
+`api/janitor.js` reads the **registry**, never a folder or a glob: it collects any registered
+document — report, RFC, gap or arc — whose leaf says `retired=`, on no clock and no mtime. Even
+`retain=permanent` does not protect one, because the retirement is the later fact. So nothing
+survives by sitting in the right directory, and nothing is swept for being old.
 
 **You still put it in front of him, because that is where he looks.** The file stays in the repo
 and he is navigated to it — nothing is copied and nothing is snapshotted:
