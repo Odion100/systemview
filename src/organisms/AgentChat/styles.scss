@@ -5361,9 +5361,16 @@ $sv-board-states: (
   color: var(--sv-text);
   // THE PANEL OPENS UPWARD FROM A COG AT THE BOTTOM OF THE WINDOW, so anything taller than the
   // space above it runs off the TOP — which is where the first section's knobs are (his: "I can't
-  // see the top of my settings"). Tabs keep it short; this bound + scroll is the safety when a
-  // short window makes even one section too tall.
-  max-height: min(60vh, 480px);
+  // see the top of my settings"). And because it is bottom-anchored, a height that CHANGES per tab
+  // moves the top edge — the tabs — up and down (his: the header "moves down… you shouldn't do
+  // that"). So the height is FIXED, the tabs are pinned, and only the body scrolls.
+  height: min(60vh, 420px);
+  display: flex;
+  flex-direction: column;
+}
+.agent-chat__bandcog-body {
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
 }
 // The two settings groups as tabs — one section at a time is what keeps the panel inside the window.

@@ -154,6 +154,10 @@ const NudgeCog = () => {
               auto-compaction
             </button>
           </div>
+          {/* THE BODY SCROLLS, THE PANEL DOES NOT MOVE (his: the header "moves down" between
+              sections). The panel is bottom-anchored, so a per-tab height difference moved its TOP
+              edge — the tabs — up and down. Fixed panel height, tabs pinned, body scrolls. */}
+          <div className="agent-chat__bandcog-body">
           {tab === "worklist" && (door === "absent" ? (
             // ABSENCE STATED, never a stale copy shown.
             <div className="agent-chat__bandcog-absent">
@@ -245,6 +249,7 @@ const NudgeCog = () => {
               <div className="agent-chat__bandcog-foot">{compactionSummaryOf(compactionCfg)}</div>
             </>
           ))}
+          </div>
         </div>
       )}
     </div>
