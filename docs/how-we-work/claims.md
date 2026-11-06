@@ -29,8 +29,8 @@ meant, and arrives after the thing was built — so:
 
 **Nothing in this definition says WHEN a claim is written.** The procedures answer that —
 `rfc-authoring` and `rfc-execution` for a plan's claims, the report-writing skill for a report's —
-and a rule phrased as a moment would be both misplaced and wrong, because nothing freezes: specs
-and software adapt to each other on the owner's decision.
+and a rule phrased as a moment would be both misplaced and wrong, because nothing freezes:
+documentation, test and functionality adapt to each other on the owner's decision.
 
 ## Why the word is the ordinary English one
 

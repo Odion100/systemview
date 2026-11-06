@@ -23,8 +23,8 @@ the context stack. It is not a SystemView document.
 |---|---|
 | `rfcs.md` | An RFC — what makes one, the lifecycle, and the claims list that makes it checkable |
 
-Three more are nominated and unwritten: the report format, jobs and chores, and lanes/runs (which
-exists today in `autobot-docs` and belongs here).
+Three more are nominated and unwritten: the report format, jobs and chores, and lanes/runs — which
+lives in a project handbook today and belongs here.
 
 ## When this disagrees with something else
 

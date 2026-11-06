@@ -158,14 +158,14 @@ survives by sitting in the right directory, and nothing is swept for being old.
 and he is navigated to it — nothing is copied and nothing is snapshotted:
 
 ```
-nav({projectCode, file: "meetings/2026-10-19-a-subject.md"})
+nav({projectCode, file: "<the path you wrote it to>"})
 ```
 
 **And you reply to that same PATH.** `Reports.read` takes any argument ending in `.md` verbatim,
 which is what makes the path land in the real document rather than in a title that names one:
 
 ```
-reply({projectCode, report: "meetings/2026-10-19-a-subject.md", threadId: "t1", text})
+reply({projectCode, report: "<that same path>", threadId: "t1", text})
 ```
 
 ## Inviting the room
