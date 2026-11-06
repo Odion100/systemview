@@ -5364,9 +5364,12 @@ $sv-board-states: (
   // see the top of my settings"). And because it is bottom-anchored, a height that CHANGES per tab
   // moves the top edge — the tabs — up and down (his: the header "moves down… you shouldn't do
   // that"). So the height is FIXED, the tabs are pinned, and only the body scrolls.
-  // USE THE SPACE (his correction — 420px read as a porthole): the panel climbs to just under the
-  // window's top chrome and stops; the cap only bites on very tall screens.
-  height: min(calc(100vh - 150px), 820px);
+  // ONE HEIGHT FOR BOTH TABS AND IT IS THE CONTENT'S — his three corrections in a row: the header
+  // must not jump between tabs, the panel must not be a porthole, and a fixed full height was an
+  // empty tower. The body stacks both sections in one grid cell (inactive invisible), so the panel
+  // is as tall as the taller section on every tab; this bound + scroll bite only when even that is
+  // too tall for the window.
+  max-height: calc(100vh - 150px);
   display: flex;
   flex-direction: column;
 }
@@ -5374,6 +5377,13 @@ $sv-board-states: (
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  // the stack: both sections occupy the same cell, so the tallest one sets the height on BOTH tabs
+  display: grid;
+  > * { grid-area: 1 / 1; }
+}
+.agent-chat__bandcog-sec--off {
+  visibility: hidden;
+  pointer-events: none;
 }
 // The two settings groups as tabs — one section at a time is what keeps the panel inside the window.
 .agent-chat__bandcog-tabs {

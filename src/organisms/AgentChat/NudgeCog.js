@@ -154,11 +154,15 @@ const NudgeCog = () => {
               auto-compaction
             </button>
           </div>
-          {/* THE BODY SCROLLS, THE PANEL DOES NOT MOVE (his: the header "moves down" between
-              sections). The panel is bottom-anchored, so a per-tab height difference moved its TOP
-              edge — the tabs — up and down. Fixed panel height, tabs pinned, body scrolls. */}
+          {/* ONE HEIGHT FOR BOTH TABS, AND IT IS THE CONTENT'S (his corrections, all three: the
+              header must not move between tabs, the panel must not be a porthole, and it must not
+              be an empty tower either). Both sections render stacked in one grid cell with the
+              inactive one invisible, so the panel is exactly as tall as the TALLER section on every
+              tab — content-driven, stable, and the viewport bound + scroll only bite when even
+              that is too tall. */}
           <div className="agent-chat__bandcog-body">
-          {tab === "worklist" && (door === "absent" ? (
+          <div className={`agent-chat__bandcog-sec${tab === "worklist" ? "" : " agent-chat__bandcog-sec--off"}`}>
+          {door === "absent" ? (
             // ABSENCE STATED, never a stale copy shown.
             <div className="agent-chat__bandcog-absent">
               This shell has no nudge door yet — the harness half of it has not landed. Nothing here
@@ -207,10 +211,12 @@ const NudgeCog = () => {
               ))}
               <div className="agent-chat__bandcog-foot">{summaryOf(settings)}</div>
             </>
-          ))}
+          )}
+          </div>
           {/* AUTO-COMPACTION — the release valve's knobs, its own tab, its own absence line: a
               shell with the nudge door and not this one says so instead of pretending. */}
-          {tab === "compaction" && (compactionDoor !== "present" ? (
+          <div className={`agent-chat__bandcog-sec${tab === "compaction" ? "" : " agent-chat__bandcog-sec--off"}`}>
+          {compactionDoor !== "present" ? (
             <div className="agent-chat__bandcog-absent">
               {compactionDoor === "asking"
                 ? "asking the shell…"
@@ -248,7 +254,8 @@ const NudgeCog = () => {
               ))}
               <div className="agent-chat__bandcog-foot">{compactionSummaryOf(compactionCfg)}</div>
             </>
-          ))}
+          )}
+          </div>
           </div>
         </div>
       )}
