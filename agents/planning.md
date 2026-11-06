@@ -1,8 +1,8 @@
 # Planning — a document with people on it, and the arc it produces
 
-The document and the people on it were never the point on their own: a planning document exists to
-produce an **arc**, and an arc is a document too. They are one reference because in two the dispatch
-pointed at one document and the thing it dispatched lived in the other.
+A planning document exists to produce an **arc**, and an arc is a document too — so both are
+described here, in one reference. Split across two, the dispatch was written in one and the thing
+it dispatched lived in the other.
 
 A meeting here is not an event, a room, or a call. It is a **markdown document with members**: the
 threads carry the conversation, and the pinned row in the document's top-right corner tells each
