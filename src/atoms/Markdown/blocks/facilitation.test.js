@@ -263,6 +263,20 @@ describe("facilitation — the gap's column", () => {
     expect(p.steps[0].done).toBe(true);
   });
 
+  // THE HOLE HE WALKED THROUGH TWICE (2026-11-06): the proof gate guarded only `open`, so a
+  // REJECTED gap resolved with no proof asked at all. The gate fires on the DESTINATION — and the
+  // reversal of a written decision is its own pressed step, carrying the same write reopen does.
+  it("resolved from REJECTED still demands the proof, and the reversal is its own step", () => {
+    const p = facilitate("gap", "resolved", "rejected", GAP, 0, {}, "", {
+      project: "buapi",
+      attrs: { rejected: "2026-10-21", why: "wontfix" },
+    });
+    expect(p.steps[0].label).toMatch(/reverse the rejection/);
+    expect(p.steps[0].leafPairs).toEqual({ rejected: null, why: null });
+    expect(p.steps[0].note).toMatch(/wontfix/);
+    expect(p.steps.some((s) => !s.done && /proof/.test(s.label))).toBe(true);
+  });
+
   it("reopening names who closed it and when — it undoes somebody else's work", () => {
     const p = facilitate("gap", "open", "resolved", GAP, 0, {}, "", {
       attrs: { resolved: "2026-10-20", by: "buapi" },

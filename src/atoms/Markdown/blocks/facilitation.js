@@ -312,10 +312,13 @@ function facilitateGap(station, current, source, ctx, now, leaf, today) {
       ],
     };
   }
-  if (station === "resolved" && current === "open") {
+  if (station === "resolved" && current !== "resolved") {
     // THE ONE REFUSAL THAT IS AN INSTRUCTION: a gap is resolved by evidence, not by saying so, and
     // the missing half is something you can add right here. The step APPENDS the skeleton; the
-    // press that follows completes by itself.
+    // press that follows completes by itself. The gate fires on the DESTINATION, whatever the
+    // starting station — it used to guard only `open`, so a REJECTED gap resolved with no proof
+    // asked at all (his catch: "I was able to go from rejected to resolved and I didn't even have
+    // to do any proofs").
     const hasProof = !!((leaf && leaf.hasProof) || attrs.hasProof);
     const steps = [
       {
@@ -324,6 +327,16 @@ function facilitateGap(station, current, source, ctx, now, leaf, today) {
         appendText: ":::cmd\n# what proves this gap is closed — press it\n:::",
       },
     ];
+    // Resolving a rejected gap REVERSES a decision somebody wrote down, so that reversal is its own
+    // pressed step — the same write and the same honesty the reopen path carries. Pressing it
+    // clears the rejection; the plan then re-derives from `open` with the proof step standing.
+    if (current === "rejected")
+      steps.unshift({
+        label: "reverse the rejection — remove rejected=",
+        done: false,
+        leafPairs: { rejected: null, why: null },
+        note: `rejected${attrs.rejected ? ` ${attrs.rejected}` : ""}${attrs.why ? ` — ${attrs.why}` : ""} — resolving undoes that decision`,
+      });
     if (project)
       steps.push({
         label: `write resolved= into ${project}'s copy`,
