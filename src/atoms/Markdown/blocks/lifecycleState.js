@@ -291,12 +291,14 @@ export function stepsFor(kind, current, row = null, leaf = null) {
   // An arc's approval can be rejected like any other — same fork, same drawing.
   if (kind === "arc") return { steps: current === "rejected" ? ["draft", "rejected"] : TRAILS.arc, alt: [] };
   if (kind === "gap") {
-    if (current === "resolved") return { steps: ["open", "resolved", "retired"], alt: [] };
-    if (current === "rejected") return { steps: ["open", "rejected", "retired"], alt: [] };
-    // A RETIRED GAP TOOK ONE SIDE OF THE FORK, and drawing both would mark both as PAST — the
-    // trail claiming the document walked through two mutually exclusive endings. So the retired
-    // case reads which ending is actually declared, and a gap retired straight from `open` draws
-    // open → retired with no middle at all, which is exactly what `cancelled` from open means.
+    // THE SHAPE NEVER CHANGES ON AN ENDING — the drawing is the kind's whole lifecycle, and the
+    // accent says which road was taken (his: "the bar is supposed to just light up on rejected —
+    // that's the direction it went"). Swapping to a shorter trail on resolve/reject made the
+    // document change shape under his press; unreached stations read grey now, not "still coming".
+    // A RETIRED GAP is the one redraw that stays: retirement after a fork ending is a road OUT of
+    // a dead end, which the fork drawing cannot say. The retired case reads which ending is
+    // declared, and a gap retired straight from `open` draws open → retired with no middle at
+    // all, which is exactly what `cancelled` from open means.
     if (current === "retired") {
       const st = { ...((row && row.state) || {}), ...(leaf || {}) };
       if (st.rejected) return { steps: ["open", "rejected", "retired"], alt: [] };

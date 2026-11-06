@@ -343,12 +343,15 @@ describe("a gap's two endings, under your finger", () => {
     expect(screen.queryByRole("group", { name: /why is this being declined/i })).toBeNull();
   });
 
-  // The trail stops drawing the road not taken — a resolved gap has no `rejected` station left.
-  it("once a gap resolved, the other ending is no longer drawn", async () => {
+  // THE SHAPE NEVER CHANGES ON AN ENDING (his ruling): the fork stays drawn after a resolve — the
+  // accent lights the road taken and the untaken ending reads grey, not gone. The press jump this
+  // kills: rejecting a gap used to swap the four-station drawing for a three-station one under his
+  // finger.
+  it("a resolved gap still draws the whole lifecycle — the other ending stays, unlit", async () => {
     withRegistry([{ id: "G-5", kind: "gap", state: { hasProof: true, done: true } }]);
     mountWritable("gap", "G-5", { setAttr: jest.fn() }, { id: "G-5", resolved: "2026-10-28" });
     expect(await screen.findByRole("button", { name: "resolved" })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "rejected" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "rejected" })).toBeTruthy();
   });
 });
 

@@ -411,9 +411,14 @@ describe("stepsFor — a trail never draws a station the document cannot reach",
     expect(steps).toEqual(["open", "resolved", "rejected", "retired"]);
     expect(alt).toEqual(["rejected"]);
   });
-  it("once it took one side, the other is gone — no fork drawn as history", () => {
-    expect(stepsFor("gap", "resolved").steps).toEqual(["open", "resolved", "retired"]);
-    expect(stepsFor("gap", "rejected").steps).toEqual(["open", "rejected", "retired"]);
+  // THE SHAPE NEVER CHANGES ON AN ENDING (his ruling): the drawing is the whole lifecycle, the
+  // accent lights the road taken, and the untaken fork reads grey — not gone. Swapping to a
+  // shorter trail made the document change shape under his press.
+  it("an ending lights the drawing, it does not reshape it — the fork stays", () => {
+    expect(stepsFor("gap", "resolved").steps).toEqual(["open", "resolved", "rejected", "retired"]);
+    expect(stepsFor("gap", "resolved").alt).toEqual(["rejected"]);
+    expect(stepsFor("gap", "rejected").steps).toEqual(["open", "resolved", "rejected", "retired"]);
+    expect(stepsFor("gap", "rejected").alt).toEqual(["rejected"]);
   });
   // THE ONE THAT WOULD HAVE BEEN A LIE. A retired gap drawn with both endings marks BOTH as past —
   // the trail claiming the document walked through two mutually exclusive states.
