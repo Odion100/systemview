@@ -115,9 +115,23 @@ export const MODES = ["off", "set", "all"];
 export const nextMode = (m) => MODES[(MODES.indexOf(m) + 1) % MODES.length] || "off";
 
 // `background` — when a reply lands and this agent is NOT on screen (its tab is not up, its chat
-// not hovering): false = line it up and wait for him; true = pop the chat out and read. Off by
-// default (his habit: he moves to another agent and does not want the first one talking at once).
+// not hovering): false = silence, the reply is never read and never lined up; true = pop the chat
+// out and read. Off by default (his habit: he moves to another agent and does not want the first
+// one talking at once).
 const DEFAULTS = { speed: 1, mode: "off", blocks: null, background: false };
+
+/**
+ * ELSEWHERE, DECIDED IN ONE PLACE. His rule: "either elsewhere pop out and read, or elsewhere,
+ * nothing." When a reply lands and the agent is on screen it joins the line as usual ("speak");
+ * elsewhere with `background` on, the chat pops out and reads ("pop"); elsewhere with it off, the
+ * reply is DROPPED — never enqueued ("drop"). There is no third elsewhere behaviour: speech he
+ * never asked for must not stack up while he is away and start reading later. The waiting lane in
+ * the speech queue is for ON-SCREEN turn-taking only.
+ */
+export function elsewhereAction(elsewhere, settings) {
+  if (!elsewhere) return "speak";
+  return settings && settings.background === true ? "pop" : "drop";
+}
 const clampSpeed = (v) => {
   const n = Number(v);
   if (!Number.isFinite(n)) return 1;
@@ -175,6 +189,7 @@ const voicePref = {
   writeVoicePref,
   readVoiceSettings,
   writeVoiceSettings,
+  elsewhereAction,
   KEY,
   SETTINGS_KEY,
 };

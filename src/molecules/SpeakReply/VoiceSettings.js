@@ -329,17 +329,18 @@ const VoiceSettings = ({ scope = "" }) => {
               ))}
             </span>
             {/* ELSEWHERE — what happens when a reply lands and this agent is not on screen (his
-                design): wait for him, or pop the chat out and read. A background reading is never
-                a background: if it speaks, it comes out where its controls are. */}
+                rule): pop the chat out and read, or nothing — the reply is dropped, never lined
+                up. A background reading is never a background: if it speaks, it comes out where
+                its controls are. */}
             {settings.mode !== "off" && (
               <button
                 type="button"
                 className={`${CN}__elsewhere${settings.background ? ` ${CN}__elsewhere--on` : ""}`}
-                title={settings.background ? "When you are on another agent: pops out and reads. Click to make it wait for you." : "When you are on another agent: lines the reply up and waits for you. Click to make it pop out and read."}
+                title={settings.background ? "When you are on another agent: pops out and reads. Click to make it stay silent." : "When you are on another agent: says nothing — the reply is not read and not lined up. Click to make it pop out and read."}
                 aria-pressed={!!settings.background}
                 onClick={() => save({ background: !settings.background })}
               >
-                {settings.background ? "elsewhere: pop out & read" : "elsewhere: wait"}
+                {settings.background ? "elsewhere: pop out & read" : "elsewhere: silence"}
               </button>
             )}
             {load === "loading" && <span className={`${CN}__loading`}>downloading the voice — {pct}%</span>}

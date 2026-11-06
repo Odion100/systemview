@@ -34,7 +34,7 @@ import SpeechLine from "../../molecules/SpeakReply/SpeechLine";
 import { spokenPositions, spokenPassageMap, AIMED_AT_YOU } from "../../utils/spokenForm";
 import { recitalSegments, passageKey, claimRead } from "../../utils/readAloud";
 import { speak, ready as engineReady, available as voiceAvailable } from "../../utils/voice";
-import { readVoicePref, readVoiceSettings } from "../../utils/voicePref";
+import { readVoicePref, readVoiceSettings, elsewhereAction } from "../../utils/voicePref";
 import { playFirst, enqueue as queueEnqueue, done as queueDone, setWarming as queueWarming, setPosition as queuePosition, view as speechView, subscribe as speechSubscribe } from "../../molecules/SpeakReply/speechQueue";
 import { announce, claim as claimSpeaker, nextSpeakerId } from "../../molecules/SpeakReply/speaker";
 import { takeIfNew } from "../../molecules/SpeakReply/autoSpeak";
@@ -2740,14 +2740,16 @@ function BotBubble({ projectCode, index }) {
       if (!segs.length) continue;
       const key = r.key;
       // ELSEWHERE — this agent is not on screen (docked in a tab that is not up, or in the rail).
-      // `background` on: pop the chat out and read, because a reading he cannot see or stop is not
-      // a background, it is a surprise. Off (the default): line it up HELD — the row says waiting
-      // and he starts it when he comes back.
-      const elsewhere = !onScreenRef.current;
-      const hold = elsewhere && !s.background;
+      // His rule: either elsewhere pop out and read, or elsewhere, NOTHING. `background` on: pop
+      // the chat out and read, because a reading he cannot see or stop is not a background, it is
+      // a surprise. Off (the default): the reply is dropped — never enqueued — because speech he
+      // never asked for must not stack up while he is away and start reading later. The waiting
+      // lane in the queue is for on-screen turn-taking only.
+      const action = elsewhereAction(!onScreenRef.current, s);
+      if (action === "drop") continue;
       // …and it comes out CLOSED — the bubble with the voice row under it, not the whole chat
       // (his: *"more polite if it doesn't come out with the chat open"*).
-      if (elsewhere && s.background && pullOutRef.current) {
+      if (action === "pop" && pullOutRef.current) {
         openRef.current = false;
         setOpen(false);
         pullOutRef.current();
@@ -2832,7 +2834,7 @@ function BotBubble({ projectCode, index }) {
               },
             });
           },
-        }, { hold: hold && si === 0 });
+        });
       });
     }
   }, [work.rows, projectCode]);

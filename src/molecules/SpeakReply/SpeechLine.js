@@ -118,7 +118,9 @@ const SpeechLine = ({ className = "", onGo = null, scope = "", compact = false }
         {more > 0 && <span className="speech-line__more">+{more}</span>}
         {/* THE SAME TRANSPORT AS THE FULL LINE — its pause, its skip, its stop. Not a second set of
             buttons (his catch): one transport, learned once, wherever the line is drawn. */}
-        {/* WAITING: lined up while he was elsewhere and this agent is set to wait — the play starts it */}
+        {/* WAITING: the line is standing still with items on it — on-screen turn-taking is the
+            only lane that waits (an elsewhere reply is read popped-out or dropped, never lined
+            up) — the play starts it */}
         {!q.playing && q.waiting.length > 0 && (
           <button type="button" className="speech-line__pause" title="Read it now" aria-label="Start reading" onClick={() => release()}>
             ▶

@@ -4,9 +4,11 @@ import {
   readVoiceSettings,
   writeVoiceSettings,
   nextMode,
+  elsewhereAction,
   KEY,
   SETTINGS_KEY,
 } from "./voicePref";
+import { enqueue, view, clear } from "../molecules/SpeakReply/speechQueue";
 
 describe("the saved voice", () => {
   beforeEach(() => window.localStorage.clear());
@@ -161,5 +163,43 @@ describe("the mode", () => {
     const raw = JSON.parse(window.localStorage.getItem(SETTINGS_KEY + ".gamma"));
     expect(raw.auto).toBe(undefined);
     expect(raw.mode).toBe("all");
+  });
+});
+
+// HIS RULE, verbatim intent: "either elsewhere pop out and read, or elsewhere, nothing." There is
+// no third elsewhere behaviour — no lining a reply up to start reading when he comes back. This is
+// the one decision AgentChat asks before it enqueues anything, extracted here so it can be claimed.
+describe("elsewhere: pop out and read, or nothing", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    clear();
+  });
+
+  it("speaks as usual when the agent is on screen, whatever background says", () => {
+    expect(elsewhereAction(false, { background: false })).toBe("speak");
+    expect(elsewhereAction(false, { background: true })).toBe("speak");
+  });
+
+  it("pops out and reads when elsewhere with background on", () => {
+    expect(elsewhereAction(true, { background: true })).toBe("pop");
+  });
+
+  it("drops the reply when elsewhere with background off — never a wait", () => {
+    expect(elsewhereAction(true, { background: false })).toBe("drop");
+    expect(elsewhereAction(true, readVoiceSettings("fresh-chat"))).toBe("drop"); // the default
+    expect(elsewhereAction(true, undefined)).toBe("drop"); // nothing read is still silence
+  });
+
+  // The caller's contract: a drop verdict means the queue is never fed — nothing playing, nothing
+  // waiting, queue length unmoved. The waiting lane exists for ON-SCREEN turn-taking only.
+  it("a dropped reply enqueues NOTHING — the queue does not move", () => {
+    const before = view();
+    expect(before.playing).toBe(null);
+    expect(before.waiting.length).toBe(0);
+    const item = { key: "elsewhere-reply", label: "a reply he never asked to hear", start: () => ({ stop: () => {} }) };
+    if (elsewhereAction(true, { background: false }) !== "drop") enqueue(item);
+    const after = view();
+    expect(after.playing).toBe(null);
+    expect(after.waiting.length).toBe(0);
   });
 });

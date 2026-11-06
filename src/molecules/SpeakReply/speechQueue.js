@@ -81,9 +81,10 @@ export function enqueue(item, { hold = false } = {}) {
   if (!item || !item.key || typeof item.start !== "function") return false;
   if (playing && playing.key === item.key) return false;
   if (waiting.some((w) => w.key === item.key)) return false;
-  // HELD: lined up but not started — a reply that landed while he was not looking at this agent and
-  // the agent is set to wait for him. It sits at the head of the line until `release()` or until
-  // something else finishes and the line moves on its own.
+  // HELD: lined up but not started. It sits at the head of the line until `release()` or until
+  // something else finishes and the line moves on its own. No elsewhere path feeds this — an
+  // elsewhere reply is read popped-out or dropped, never lined up; the line is on-screen
+  // turn-taking only.
   if (!playing && !hold) begin(item);
   else {
     waiting.push(item);
