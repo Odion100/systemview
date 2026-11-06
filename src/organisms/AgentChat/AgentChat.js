@@ -8785,6 +8785,35 @@ const countdown = (str, now = Date.now()) => {
             </div>
           )}
           {dropping && <div className={`${CLASSNAME}__drophint`}>drop the image to attach it</div>}
+          {/* AUTO-COMPACTION — the release valve, sliding up from the bottom. Horizontal text that
+              counts down and a stop button in the right corner (his design). Stop is the human's
+              press; the agent can stop its own through the same host door. At the hard ceiling there
+              is no stop — the chip reads "forced", because the valve is the valve. */}
+          {work.compactionPending && (
+            <div
+              className={`${CLASSNAME}__compaction${work.compactionPending.hard ? ` ${CLASSNAME}__compaction--hard` : ""}`}
+              role="status"
+            >
+              <span className={`${CLASSNAME}__compaction-text`}>
+                {work.compactionPending.hard ? "context full — compacting" : "compacting"} in{" "}
+                {work.compactionPending.secondsLeft}s…
+              </span>
+              {work.compactionPending.cancellable ? (
+                <button
+                  type="button"
+                  className={`${CLASSNAME}__compaction-stop`}
+                  onClick={() => work.stopCompaction()}
+                  title="stop — hold this compaction and defer it"
+                >
+                  stop
+                </button>
+              ) : (
+                <span className={`${CLASSNAME}__compaction-forced`} title="the hard ceiling — this cannot be stopped">
+                  forced
+                </span>
+              )}
+            </div>
+          )}
           <div className={`${CLASSNAME}__inputrow`}>
             {/* A textarea that WRAPS and GROWS (to ~6 lines, then scrolls). Enter sends,
                 Shift+Enter breaks a line — chat conventions. */}

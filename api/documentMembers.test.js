@@ -241,11 +241,14 @@ test("PARITY: neither side treats a thread's opening line as part of its body", 
   );
 });
 
-test("PARITY: both sides read ONE definition of what counts as a change", () => {
-  // Adding somebody, recording that somebody was told, or re-addressing a thread must not make
-  // everyone ELSE behind — and that rule now has one home instead of two agreeing copies.
-  assert.match(WINDOW, /from "\.\.\/\.\.\/shared\/docHash"/, "the window stopped importing the shared hash");
-  assert.match(THREAD_SRC, /require\("\.\.\/src\/shared\/docHash"\)/, "the hub stopped requiring it");
+test("ONE definition of what counts as a change — and the window carries NONE", () => {
+  // The gate ruling (2026-11-06): general text in the document sends no updates — blocks are the
+  // only senders, the ENGINE delivers their fires, and the window's whole edit channel is gone. So
+  // the parity this test used to claim is now asymmetric on purpose: the HUB still reads the one
+  // shared hash for its folder-level scan, and the WINDOW carries no hash at all — not the shared
+  // import, and not a private copy grown back.
+  assert.equal(/docHash/.test(WINDOW), false, "the window rejoined the edit channel");
+  assert.match(THREAD_SRC, /require\("\.\.\/src\/shared\/docHash"\)/, "the hub stopped requiring the shared module");
   assert.equal(/0x811c9dc5/.test(WINDOW), false, "the window has grown its own hash again");
   assert.equal(/0x811c9dc5/.test(THREAD_SRC), false, "the hub has grown its own hash again");
 });

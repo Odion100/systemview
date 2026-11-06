@@ -334,12 +334,14 @@ describe("stampSent — a reply tells its own author", () => {
   // THE COPY ABOVE IS A LIABILITY THE MOMENT THE WINDOW MOVES. This is the cheapest honest guard:
   // the three things the hash depends on, read off the real file. If one of them is gone, the
   // transcription is stale and the equality claims are agreeing with a ghost.
-  test("the window reads the SAME module, rather than a copy that agrees with it", () => {
-    // The structural claim, which is the one that survives a rewrite: if the window ever grows its
-    // own hash again, every stamp it writes becomes a value the hub can never match — a member
-    // marked permanently behind, which is the symptom this whole arrangement exists to remove.
+  test("the window carries NO hash of its own — the gate took it out of the edit channel", () => {
+    // The structural claim, updated for the gate ruling (2026-11-06): general text sends no
+    // updates, so the window no longer stamps or compares `sent=` hashes AT ALL — the engine
+    // delivers block fires and the window fetches the held lane. What this guards now: the window
+    // must never grow a hash back (a stamp the hub cannot match marks a member permanently behind),
+    // while the HUB's folder scan still reads the one shared module below.
     const src = fs.readFileSync(path.join(__dirname, "..", "src", "atoms", "Markdown", "docMembers.js"), "utf8");
-    assert.match(src, /from "\.\.\/\.\.\/shared\/docHash"/, "the window no longer imports the shared hash");
+    assert.equal(/docHash/.test(src), false, "the window rejoined the edit channel");
     assert.equal(/0x811c9dc5/.test(src), false, "the window has grown its own FNV again");
     const shared = fs.readFileSync(path.join(__dirname, "..", "src", "shared", "docHash.js"), "utf8");
     assert.ok(shared.includes("0x811c9dc5") && shared.includes("0x01000193"), "FNV-1a constants moved");

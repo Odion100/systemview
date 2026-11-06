@@ -1121,6 +1121,60 @@ $sv-board-states: (
   // what you are typing. The row it hangs from has to be positioned for that.
   &__inputrow { position: relative; }
 
+  // AUTO-COMPACTION — the release-valve chip. Slides up from the bottom, just above the composer:
+  // horizontal text that counts down, a stop button in the right corner. A variant of the cooking
+  // line's register, not a new vocabulary. The hard ceiling turns it amber and drops the stop.
+  &__compaction {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin: 0 0 0.4rem;
+    padding: 0.3rem 0.4rem 0.3rem 0.6rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--sv-border);
+    background: var(--sv-hover);
+    font-size: 0.8rem;
+    animation: agent-chat-compaction-up 0.18s ease-out;
+
+    &--hard {
+      border-color: var(--sv-amber, #d89a2b);
+      background: color-mix(in srgb, var(--sv-amber, #d89a2b) 14%, transparent);
+    }
+  }
+
+  &__compaction-text {
+    color: var(--sv-text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__compaction-stop {
+    flex: none;
+    cursor: pointer;
+    padding: 0.1rem 0.6rem;
+    border-radius: 0.4rem;
+    border: 1px solid var(--sv-border);
+    background: var(--sv-surface);
+    color: var(--sv-text);
+    font-size: 0.78rem;
+
+    &:hover { border-color: var(--sv-text-muted); }
+  }
+
+  &__compaction-forced {
+    flex: none;
+    color: var(--sv-amber, #d89a2b);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.68rem;
+    letter-spacing: 0.04em;
+  }
+
+  @keyframes agent-chat-compaction-up {
+    from { opacity: 0; transform: translateY(0.5rem); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
   // PINNED TO THE BOX, OUT OF THE FLOW. In the flow it was a passenger — the cooking line
   // appearing shrinks the list and shoved this up the screen mid-conversation. Anchored to the
   // input row it cannot move, whatever appears or disappears above it, and the z-index lets the

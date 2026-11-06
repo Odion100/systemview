@@ -12,6 +12,9 @@ import { foldEvents, foldState, splitLaneEvents } from "./feedRows";
 // `enabled` is how a closed panel costs nothing: no host call at all until something is watching.
 export default function useAgentSession({ projectCode, sessionId = "agent", gated = false, enabled = true, resume = null, cwd = null } = {}) {
   const [events, setEvents] = useState([]);
+  // AUTO-COMPACTION — the live countdown chip state ({secondsLeft, hard, cancellable}), or null when
+  // nothing is counting down. Driven by the host's `compaction.pending`/`cancelled`/`fired`.
+  const [compactionPending, setCompactionPending] = useState(null);
   const [err, setErr] = useState("");
   const [answered, setAnswered] = useState({});
   const transportRef = useRef(null);
@@ -31,7 +34,32 @@ export default function useAgentSession({ projectCode, sessionId = "agent", gate
         }
         transportRef.current = s.transport;
         setEvents(s.history);
-        off = s.transport.onEvent((ev) => setEvents((cur) => [...cur, ev]));
+        // AUTO-COMPACTION is a TRANSIENT control signal, not a feed row. `compaction.pending` fires
+        // once a second while the countdown runs — appended, it would stack fifteen rows. So it
+        // drives the chip's state instead, and `cancelled`/`fired` clear it (the host's own status
+        // takes over from `fired` — the /compact it pushed narrates itself).
+        off = s.transport.onEvent((ev) => {
+          if (ev.kind === "compaction.pending") {
+            setCompactionPending({ secondsLeft: ev.secondsLeft, hard: !!ev.hard, cancellable: ev.cancellable !== false });
+            return;
+          }
+          if (ev.kind === "compaction.cancelled" || ev.kind === "compaction.fired") {
+            setCompactionPending(null);
+            return;
+          }
+          setEvents((cur) => [...cur, ev]);
+        });
+        // A VIEW ATTACHING MID-COUNTDOWN must draw the chip already in flight — the engine owns the
+        // clock, so the state is there to be asked for.
+        if (s.transport.compactionState) {
+          s.transport
+            .compactionState()
+            .then((r) => {
+              if (!dead && r && r.ok && r.pending)
+                setCompactionPending({ ...r.pending, cancellable: r.pending.cancellable !== false });
+            })
+            .catch(() => {});
+        }
       } catch (e) {
         setErr((e && e.message) || "could not open a session");
       }
@@ -234,6 +262,17 @@ export default function useAgentSession({ projectCode, sessionId = "agent", gate
     return true;
   }, []);
 
+  // STOP THE COUNTDOWN — the human's press on the chip. Optimistically clears the chip; the host's
+  // `compaction.cancelled` confirms and carries the snooze. Refused by the host on a hard ceiling,
+  // where the chip shows no stop to press in the first place.
+  const stopCompaction = useCallback(() => {
+    const t = transportRef.current;
+    if (!t || !t.stopCompaction) return false;
+    t.stopCompaction("you");
+    setCompactionPending(null);
+    return true;
+  }, []);
+
   return {
     hosted,
     live: !!transportRef.current,
@@ -257,5 +296,7 @@ export default function useAgentSession({ projectCode, sessionId = "agent", gate
     deleteLaneRun,
     compact,
     showSaid,
+    compactionPending,
+    stopCompaction,
   };
 }
