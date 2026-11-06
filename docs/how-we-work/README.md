@@ -9,14 +9,6 @@ could not find it.
 work*. This one answers *how does work get done here* — and the answer must be one copy, because
 the alternative is a handbook per repo, drifting into a method per repo.
 
-**So it does not ENUMERATE the system's repos.** Naming one is fine and often better — a convention
-shown on a real service, a measurement that says which documents it read, an example with a name
-instead of a placeholder. The infraction is the general statement that then closes the set: *every
-repo in this system*, followed by a list, reads as the definition of the system, and a method
-defined by one installation's repos fits one installation. Say it generally, or name one as the
-example it plainly is. A passage that needs a project code and has no example in mind says
-`<projectCode>`.
-
 It lives in the systemview repo because a folder needs a tracked home and that is the repo owning
 the context stack. It is not a SystemView document.
 
