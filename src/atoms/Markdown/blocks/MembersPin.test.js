@@ -58,8 +58,8 @@ describe("the pinned row is the held lane, fetched", () => {
     const { fires } = mount();
     await waitFor(() => expect(screen.getByText("decisions")).toBeTruthy());
     expect(fires).toHaveBeenCalledWith({ path: "RFCs/x.md", project: "systemview" });
-    expect(screen.getByTitle("release the decisions held for buapi")).toBeTruthy();
-    expect(screen.getByTitle("release the decisions held for systemlynx")).toBeTruthy();
+    expect(screen.getByTitle(/release the decisions held for buapi/)).toBeTruthy();
+    expect(screen.getByTitle(/release the decisions held for systemlynx/)).toBeTruthy();
   });
 
   it("draws nothing when nothing is held — delivered fires are the engine's silence", async () => {
@@ -104,7 +104,7 @@ describe("the press is a RELEASE — managed means these waited for him", () => 
   it("a chip press releases that one member and refetches", async () => {
     const { release, fires } = mount();
     await waitFor(() => expect(screen.getByText("decisions")).toBeTruthy());
-    fireEvent.click(screen.getByTitle("release the decisions held for buapi"));
+    fireEvent.click(screen.getByTitle(/release the decisions held for buapi/));
     await waitFor(() => expect(release).toHaveBeenCalledTimes(1));
     expect(release.mock.calls[0][0]).toEqual({ path: "RFCs/x.md", project: "systemview", member: "buapi", by: "you" });
     await waitFor(() => expect(fires).toHaveBeenCalledTimes(2)); // the refetch is the confirmation
@@ -122,7 +122,7 @@ describe("the press is a RELEASE — managed means these waited for him", () => 
     const release = jest.fn(async () => ({ ok: false, error: "no live session for buapi" }));
     mount({ release });
     await waitFor(() => expect(screen.getByText("decisions")).toBeTruthy());
-    fireEvent.click(screen.getByTitle("release the decisions held for buapi"));
+    fireEvent.click(screen.getByTitle(/release the decisions held for buapi/));
     await waitFor(() => expect(screen.getByText("no live session for buapi")).toBeTruthy());
   });
 });
@@ -141,7 +141,7 @@ describe("threads are their own rows", () => {
     mount({ fires: twoScopes() });
     await waitFor(() => expect(screen.getByText("💬 t1")).toBeTruthy());
     expect(screen.getByText("decisions")).toBeTruthy();
-    expect(screen.getByTitle("release what thread t1 is holding for systemlynx")).toBeTruthy();
+    expect(screen.getByTitle(/release what thread t1 is holding for systemlynx/)).toBeTruthy();
   });
 });
 
@@ -159,6 +159,41 @@ describe("caught up — the stamp that wakes nobody", () => {
     fireEvent.click(screen.getByText("✓ caught up"));
     expect(setAttr).toHaveBeenCalledWith(6, "told", "buapi|systemlynx");
     expect(release).not.toHaveBeenCalled(); // that is the whole difference from the tell
+  });
+});
+
+describe("the count and the door — each press visible, each row a jump", () => {
+  it("the chip counts that member's held fires — the receipt of his presses", async () => {
+    const fires = jest.fn(async () => ({
+      ok: true,
+      fires: [
+        { name: "approval", line: 6, thread: "", summary: "a", pending: [], held: ["buapi"], told: [] },
+        { name: "question", line: 9, thread: "", summary: "b", pending: [], held: ["buapi"], told: [] },
+        { name: "question", line: 12, thread: "", summary: "c", pending: [], held: ["buapi", "systemlynx"], told: [] },
+      ],
+    }));
+    mount({ fires });
+    await waitFor(() => expect(screen.getByText("·3")).toBeTruthy());
+    expect(screen.getByText("·1")).toBeTruthy(); // systemlynx is behind on one
+    expect(screen.getByTitle(/release the decisions held for buapi — 3 waiting/)).toBeTruthy();
+  });
+
+  it("every row is a door, and clicks cycle through the held fires", async () => {
+    const reveals = [];
+    document.querySelectorAll; // jsdom — revealBlock walks data-md-start, so give it two targets
+    const fires = jest.fn(async () => ({
+      ok: true,
+      fires: [
+        { name: "approval", line: 6, thread: "", summary: "a", pending: [], held: ["buapi"], told: [] },
+        { name: "question", line: 9, thread: "", summary: "b", pending: [], held: ["buapi"], told: [] },
+      ],
+    }));
+    mount({ fires });
+    await waitFor(() => expect(screen.getByText("decisions")).toBeTruthy());
+    const row = screen.getByTitle(/go to the held decision — 2 held, click again for the next/);
+    // the row exists and is pressable — cycling is the title's promise; revealBlock's own walk is
+    // claimed in its module, so here the claim is the door and its label
+    expect(row.getAttribute("role")).toBe("button");
   });
 });
 

@@ -35,6 +35,8 @@ const MembersPin = () => {
   };
   const [sending, setSending] = useState("");
   const [refusal, setRefusal] = useState("");
+  // which held fire each row's next click reveals — reset per fetch, because the fires moved
+  const [cursor, setCursor] = useState({});
 
   // FETCHED ON EVERY VERSION OF THE DOCUMENT — `source` changes on save, and a save is the only
   // thing that can mint or clear a fire. The door is host-granted; a window without it (embeds,
@@ -45,7 +47,10 @@ const MembersPin = () => {
     if (!bridge || !bridge.fires || !docPath) return undefined;
     Promise.resolve(bridge.fires({ path: docPath, project: projectCode }))
       .then((r) => {
-        if (!dead) setFires(r && r.ok && Array.isArray(r.fires) ? r.fires : []);
+        if (!dead) {
+          setFires(r && r.ok && Array.isArray(r.fires) ? r.fires : []);
+          setCursor({});
+        }
       })
       .catch(() => {});
     return () => {
@@ -69,12 +74,13 @@ const MembersPin = () => {
     const key = f.thread || "";
     let s = scopes.find((x) => x.id === key);
     if (!s) {
-      s = { id: key, kind: key ? "thread" : "document", fires: [], behind: [] };
+      s = { id: key, kind: key ? "thread" : "document", fires: [], behind: [], counts: {} };
       scopes.push(s);
     }
     s.fires.push(f);
     f.held.forEach((m) => {
       if (!s.behind.includes(m)) s.behind.push(m);
+      s.counts[m] = (s.counts[m] || 0) + 1;
     });
   }
 
@@ -160,26 +166,29 @@ const MembersPin = () => {
               ✓ caught up
             </button>
             {scopes.map((scope) => {
-              // GO TO THE THREAD — IN THIS PANE ONLY (his catch, 2026-10-26: the chat's karaoke
-              // stamps share `data-md-start`, so a page-wide reveal scrolled the wrong surface).
+              // EVERY ROW IS A DOOR (his ask, 2026-11-06: "bring it right to you") — the document's
+              // decisions exactly like a thread's. Clicks CYCLE through the scope's held fires, so
+              // several presses are several stops, not one jump to the first. IN THIS PANE ONLY
+              // (his catch, 2026-10-26: the chat's karaoke stamps share `data-md-start`, so a
+              // page-wide reveal scrolled the wrong surface).
               const reveal = (e) => {
                 const root = e.currentTarget && e.currentTarget.closest ? e.currentTarget.closest(".markdown") : null;
-                revealBlock(root, scope.fires[0] && scope.fires[0].line);
+                const i = cursor[`${scope.kind}-${scope.id}`] || 0;
+                const f = scope.fires[i % scope.fires.length];
+                revealBlock(root, f && f.line);
+                setCursor((cur) => ({ ...cur, [`${scope.kind}-${scope.id}`]: i + 1 }));
               };
               const isThread = scope.kind === "thread";
+              const many = scope.fires.length > 1 ? ` — ${scope.fires.length} held, click again for the next` : "";
               return (
                 <div
                   className={`md-members-pin__row md-members-pin__row--${scope.kind}`}
                   key={`${scope.kind}-${scope.id}`}
-                  {...(isThread
-                    ? {
-                        role: "button",
-                        tabIndex: 0,
-                        title: `go to thread ${scope.id}`,
-                        onClick: reveal,
-                        onKeyDown: (e) => (e.key === "Enter" || e.key === " ") && reveal(e),
-                      }
-                    : {})}
+                  role="button"
+                  tabIndex={0}
+                  title={(isThread ? `go to thread ${scope.id}` : "go to the held decision") + many}
+                  onClick={reveal}
+                  onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && reveal(e)}
                 >
                   <span className="md-members__kind">{isThread ? `💬 ${scope.id}` : "decisions"}</span>
                   {scope.behind.map((m) => (
@@ -189,9 +198,9 @@ const MembersPin = () => {
                       className="md-members__chip md-members-pin__chip"
                       disabled={!!sending}
                       title={
-                        isThread
+                        (isThread
                           ? `release what thread ${scope.id} is holding for ${m}`
-                          : `release the decisions held for ${m}`
+                          : `release the decisions held for ${m}`) + ` — ${scope.counts[m] || 0} waiting`
                       }
                       onClick={(e) => {
                         e.stopPropagation(); // a release is not a navigation — the pill around it is the door
@@ -199,7 +208,10 @@ const MembersPin = () => {
                       }}
                     >
                       {m}
-                      <span className="md-members__mark">•</span>
+                      {/* THE COUNT IS THE RECEIPT OF HIS PRESSES (his ask, 2026-11-06): one tick
+                          per held fire, on the button that releases them — so a third verdict
+                          visibly makes it ·3 rather than leaving him to trust the row. */}
+                      <span className="md-members__mark">·{scope.counts[m] || 0}</span>
                     </button>
                   ))}
                 </div>
