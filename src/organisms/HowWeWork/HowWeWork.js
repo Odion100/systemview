@@ -836,7 +836,7 @@ const PAGES = [
     label: "The flow",
     // "the shape of the work" / SystemView — the kicker he liked stays; the title names the thing.
     kicker: "the shape of the work",
-    title: "SystemView",
+    title: "Arc Development",
     lede: "You direct a team of agents. The work moves as documents — plans, decisions, claims, proofs — the agents build from them, and everything they run shows up here as it happens. And none of it asks for your trust: every document is pressable, and every state is read off a fact in one, so what the system says is what the disk says.",
     // THE FIRST PAGE'S BUTTON IS THE FULL-TOUR DOOR (his call, 2026-10-29: "I don't want
     // click-every-page to be the only option") — same "teach me" face as every other header, but

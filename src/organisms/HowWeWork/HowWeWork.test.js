@@ -12,7 +12,7 @@ describe("HowWeWork", () => {
 
   it("renders the flow page in a bare jsdom, and ONLY the flow page's body", () => {
     render(<HowWeWork />);
-    expect(screen.getByText("SystemView")).toBeVisible();
+    expect(screen.getByText("Arc Development")).toBeVisible();
     // the other pages' bodies are not mounted — the body switches, it does not stack
     // (a body-only string: every page's HEADER is mounted, so lede words cannot prove absence)
     expect(screen.queryByText(/registering the document lands it here/)).toBeNull();
@@ -68,7 +68,7 @@ describe("HowWeWork", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Lifecycles" }));
     expect(screen.getByText("Nothing is marked done by hand")).toBeVisible();
     // the flow header is mid-push — still painted, but no longer the page's header
-    expect(screen.getByText("SystemView").closest(".hww-hero")).toHaveAttribute(
+    expect(screen.getByText("Arc Development").closest(".hww-hero")).toHaveAttribute(
       "aria-hidden",
       "true"
     );
