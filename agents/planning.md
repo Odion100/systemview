@@ -50,10 +50,17 @@ every piece and dispatches the work. Nobody else picks it up if they stop.
 
 ## Opening one
 
-1. **Name the file.** `meetings/<YYYY-MM-DD>-<kebab-subject>.md`, in the repo whose agent is
-   opening it. One copy, never mirrored into other repos — that is why the frame carries the
-   absolute path, so members elsewhere can read it. The date and the subject are the identity;
-   there is no meeting number to look up. **Not in `.systemview/` where reports go** — see below.
+1. **Give it its leaf.** `::report{id="<Subject>" as=planning retain=permanent}` at the top, with
+   `::members` beside it. The leaf is what makes the document exist to the system — it registers on
+   save, and from that moment the registry finds it, the band lists it, and anything can point at
+   it. **A planning document with no leaf is not merely unlisted, it is invisible**, and then the
+   only way anybody finds it is remembering where you put it.
+
+   **Which is why the folder is not a decision.** Put the file where it belongs to a reader —
+   beside the code it plans, in the repo whose agent is opening it — and name it for its date and
+   subject so a human can read the path. One copy, never mirrored into other repos; the frame
+   carries the absolute path so members elsewhere can read it. `retain=permanent` is what keeps it,
+   not its directory.
 2. **Choose the members, and say why in the chat.** They are project codes, and only a CONNECTED
    project is one — an unknown code renders fine and delivers to nobody, which is the worst
    failure available here. The membership is a proposal like anything else: he can cut it.
@@ -132,11 +139,12 @@ An agent cannot press; the send is a window control. Members sitting behind with
 normal resting state of a managed meeting. Keep writing your plan in its section — he sends when he
 reads.
 
-## A meeting is not a report — where it lives, and how it still reaches his panel
+## A planning document is a report that is ACTED on — and how it reaches his panel
 
-**It lives in the repo: `meetings/<YYYY-MM-DD>-<kebab-subject>.md`**, committed beside the code it
-plans. What separates it from a report is what it CARRIES: members, replies, verdicts and an
-embedded arc make it a surface people act on, where a report is an account somebody reads.
+**A planning document IS a report — `as=planning` — and that is how it registers.** What makes it
+different from the accounts work leaves behind is not its kind or its folder but what it CARRIES:
+members, replies, verdicts and an embedded arc make it a surface people ACT on, where most reports
+are an account somebody reads. It is committed beside the code it plans, like any other document.
 
 **Residence decides nothing about how long it lasts — the leaf does.** `.systemview/` is excluded
 with one deliberate re-inclusion (`!.systemview/report.*.md`), so a registered document living
