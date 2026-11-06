@@ -36,6 +36,11 @@
       height: 1px;
       background: var(--sv-border);
     }
+    // THE WALKED PATH WEARS THE ACCENT — the segments behind the current station are the road the
+    // document actually took; everything ahead stays border-grey (roads not yet travelled).
+    &--walked:not(:last-child)::after {
+      background: color-mix(in srgb, var(--accent) 55%, transparent);
+    }
   }
   // THE FORK IS DRAWN AS A FORK. A fork station is a second ENDING, not a step — it shares a
   // column with the state it diverges from: the line runs through the one on it, and the fork's
@@ -51,6 +56,9 @@
   &__st--fork {
     // The stroke is a box whose corner-to-corner diagonal is the line (the gradient's 50% hard
     // stop passes through the corners, per spec), so it holds at any column width.
+    // GREY UNLESS THE DOCUMENT ENDED HERE — a fork is a road not taken until it is the ending, and
+    // colouring it by default pointed the drawing's one accent at the road the document avoided.
+    // When it IS the ending, `--dead.is-at` has already overridden --accent to the dead colour.
     &::before {
       content: "";
       position: absolute;
@@ -59,6 +67,15 @@
       top: -54px;
       height: 68px;
       pointer-events: none;
+      background: linear-gradient(
+        to top right,
+        transparent calc(50% - 0.75px),
+        var(--sv-border) calc(50% - 0.75px),
+        var(--sv-border) calc(50% + 0.75px),
+        transparent calc(50% + 0.75px)
+      );
+    }
+    &.is-at::before {
       background: linear-gradient(
         to top right,
         transparent calc(50% - 0.75px),

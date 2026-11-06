@@ -21,12 +21,19 @@ const Trail = ({ kind = "", stations = [], at, onPress, className = "" }) => {
     else acc.push([s]);
     return acc;
   }, []);
+  // THE ACCENT TRACES THE PATH ACTUALLY TAKEN (his call: "the orange line should be showing the
+  // path that it went down"). Segments up to the current station wear the kind's accent; roads not
+  // taken — the segments ahead, and a fork nothing died at — stay border-grey. The column holding
+  // `at` is the last walked one, so its outgoing segment is already untraveled.
+  const atCol = cols.findIndex((col) => col.some((s) => s.id === at));
   return (
     <ol className={`sv-trail${kind ? ` sv-trail--${kind}` : ""}${className ? ` ${className}` : ""}`}>
-      {cols.map((col) => (
+      {cols.map((col, i) => (
         <li
           key={col[0].id}
-          className={`sv-trail__col${col.length > 1 ? " sv-trail__col--split" : ""}`}
+          className={`sv-trail__col${col.length > 1 ? " sv-trail__col--split" : ""}${
+            atCol > -1 && i < atCol ? " sv-trail__col--walked" : ""
+          }`}
         >
           {col.map((s) => {
             const body = (
