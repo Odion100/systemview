@@ -6,7 +6,7 @@ import { EditorThemeToggle, useEditorDark } from "../../atoms/CodeView/editorThe
 import Markdown from "../../atoms/Markdown/Markdown";
 import { InDocumentProvider } from "../../atoms/Markdown/context";
 import CodePane from "../CodePane/CodePane";
-import { getTabs, subscribeTabs, openTab, focusTab, closeTab, fileKey } from "../../pages/SystemView/tabsStore";
+import { getTabs, subscribeTabs, openTab, focusTab, closeTab, fileKey, fileOpenPlan } from "../../pages/SystemView/tabsStore";
 import ServiceContext from "../../ServiceContext";
 import { Client } from "../../systemClient";
 import InlineLogs from "../InlineLogs/InlineLogs";
@@ -104,11 +104,33 @@ export default function Documentation({
   const onFloor =
     !helpOpen && !fileLens && (pane.tabs.length === 0 || !sService) && (tab === "docs" || (tab === "reports" && !reportPath));
   // URL → store. A file in the URL opens/focuses its tab; otherwise the tab param names the kind.
+  // `lastFileKey` is the last file this effect opened a tab for — the one fact that tells a genuine
+  // navigation apart from a stale URL left behind by a close (see fileOpenPlan).
+  const lastFileKey = useRef(null);
   useEffect(() => {
     if (codeFile && codeFile.path) {
-      openTab(tabsPc, { key: fileKey(codeFile), kind: "file", file: codeFile });
+      const key = fileKey(codeFile);
+      const pane0 = getTabs(tabsPc).panes[0];
+      const present = pane0.tabs.some((t) => t.key === key);
+      // AN EXPLICIT CLOSE STAYS CLOSED (his bug: *"sometimes you close the document and it just
+      // pops up at the end of the tabs"*). The URL is the slower writer: a close removes the tab
+      // from the store, but this effect re-runs on its OTHER deps (scope, the floor, a report) and
+      // would read a `?file=` a close left behind and re-open the tab — at the END, since it is no
+      // longer in the set. A file GONE from the set that is the SAME one we last opened was closed
+      // on purpose: don't resurrect it — clear the stale address so the view agrees with the strip.
+      if (fileOpenPlan(present, key, lastFileKey.current) === "skip") {
+        lastFileKey.current = null;
+        onCloseFile();
+        return;
+      }
+      lastFileKey.current = key;
+      // NAVIGATING TO A FILE PUTS IT RIGHT OF WHERE YOU ARE — new or already open, it moves to sit
+      // immediately after the tab you are leaving (his rule, files specifically). The anchor is read
+      // fresh from the store so it is the tab you are leaving, not a render-old copy.
+      openTab(tabsPc, { key, kind: "file", file: codeFile }, { beside: pane0.active, move: true });
       return;
     }
+    lastFileKey.current = null;
     if (urlTab === "logs")
       // LOGS ACCUMULATE PER SCOPE — his correction: "logs here and logs there" are two different
       // things you're watching, and one tab silently switching between them is the old model

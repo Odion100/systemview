@@ -23,6 +23,18 @@ const KEY = (pc) => `sv.tabs.${pc}`;
 
 export const fileKey = (file) => `file:${file.projectCode || ""}:${file.path}`;
 
+// WHAT TO DO WITH A FILE THE URL NAMES — his rule "close stays closed." The URL is a slower writer
+// than this store: closing a file tab removes it here, but a consumer effect that reads the URL
+// re-runs on its own other triggers, and a `?file=` a close left behind would send it back through
+// openTab — landing at the END of the strip, since the tab is no longer in the set. So: a file that
+// is PRESENT opens (refresh/move in place); a file that is GONE but is the SAME key the consumer
+// last opened was closed on purpose, so it is SKIPPED; anything else is a real navigation and opens.
+export function fileOpenPlan(present, key, lastKey) {
+  if (present) return "open";
+  if (key && key === lastKey) return "skip";
+  return "open";
+}
+
 // VERSIONED — the shape changed once mid-day (reports went from one tab to tab-per-document) and
 // the stale cache produced exactly the bug he replicated: a leftover "Stage" tab written under the
 // old meaning, wearing the new code's clothes. A cache that outlives its shape lies; on mismatch we
@@ -71,6 +83,12 @@ export function subscribeTabs(pc, fn) {
  * followed belongs next to the thing you followed it from, not at the far end of a strip you
  * then have to go and find it in.
  *
+ * `opts.move` — with `beside`, a tab that is ALREADY open does not merely refresh in place, it
+ * MOVES to sit directly after `beside`. His rule for navigating files: *"whenever you navigate
+ * from one file to another, that file should pop up right next to the tab you're on — I don't
+ * care if it's already open, that means move it over."* Without `move`, an already-open tab holds
+ * its place (the reference-follow case, which must never shuffle the strip under you).
+ *
  * `opts.focus: false` — leave the active tab where it is. The tab appears; you do not move.
  * This is what *"just add the tab next door"* means, and it is only honoured when something is
  * already open: with an empty strip there is nothing to stay on, and a tab nobody is looking at
@@ -84,7 +102,17 @@ export function openTab(pc, tab, opts = {}) {
   if (found) {
     // Same document, possibly a fresher address (new line range, a side) — the tab updates in
     // place rather than pretending the old address is still what you asked for.
-    tabs = pane.tabs.map((t) => (t.key === tab.key ? { ...t, ...tab } : t));
+    const updated = pane.tabs.map((t) => (t.key === tab.key ? { ...t, ...tab } : t));
+    if (opts.move && opts.beside && opts.beside !== tab.key) {
+      // NAVIGATED TO AN ALREADY-OPEN FILE — carry it over to sit right of where you are, rather
+      // than leaving it wherever it happened to land the first time it was opened.
+      const moving = updated.find((t) => t.key === tab.key);
+      const without = updated.filter((t) => t.key !== tab.key);
+      const at = without.findIndex((t) => t.key === opts.beside);
+      tabs = at < 0 ? [...without, moving] : [...without.slice(0, at + 1), moving, ...without.slice(at + 1)];
+    } else {
+      tabs = updated;
+    }
   } else if (opts.beside) {
     const at = pane.tabs.findIndex((t) => t.key === opts.beside);
     tabs = at < 0 ? [...pane.tabs, tab] : [...pane.tabs.slice(0, at + 1), tab, ...pane.tabs.slice(at + 1)];

@@ -1,4 +1,4 @@
-import { getTabs, openTab, focusTab, closeTab, activeTab, moveTab, fileKey, closeRight, closeOthers, closeAll, countRight } from "./tabsStore";
+import { getTabs, openTab, focusTab, closeTab, activeTab, moveTab, fileKey, closeRight, closeOthers, closeAll, countRight, fileOpenPlan } from "./tabsStore";
 
 // RFC-054 — the open set. The rules under test are the ones his asks named: multiple files open at
 // once; open-or-focus (never duplicate); closing the active tab lands on a neighbor, never nowhere;
@@ -167,5 +167,78 @@ describe("opening a tab beside the one you are on", () => {
     openTab(pc, tab("one"));
     openTab(pc, tab("new"), { beside: "vanished" });
     expect(getTabs(pc).panes[0].tabs.map((t) => t.key)).toEqual(["one", "new"]);
+  });
+});
+
+// NAVIGATING FROM ONE FILE TO ANOTHER DROPS IT RIGHT OF WHERE YOU ARE — his rule: *"whenever you
+// navigate from one file to another, that file should pop up right next to the tab you're on. I
+// don't care if the file is already open — that means move it over."* `beside` + `move`.
+describe("navigating to a file lands it right of the active tab, moving it if already open", () => {
+  const pcN = () => `move-${Math.random().toString(36).slice(2)}`;
+  const tab = (k) => ({ key: k, kind: "file", file: { projectCode: "", path: `${k}.js` } });
+
+  it("a NEW file opens directly right of where you are, not at the end", () => {
+    const pc = pcN();
+    openTab(pc, tab("a"));
+    openTab(pc, tab("b"));
+    openTab(pc, tab("c")); // a b c
+    // you are on b; navigate to a new file d
+    openTab(pc, tab("d"), { beside: "b", move: true });
+    expect(getTabs(pc).panes[0].tabs.map((t) => t.key)).toEqual(["a", "b", "d", "c"]);
+    expect(getTabs(pc).panes[0].active).toBe("d");
+  });
+
+  it("an ALREADY-OPEN file MOVES over to sit right of where you are", () => {
+    const pc = pcN();
+    openTab(pc, tab("a"));
+    openTab(pc, tab("b"));
+    openTab(pc, tab("c")); // a b c
+    // you are on a; navigate to c, already open at the far end — it moves next to a
+    openTab(pc, tab("c"), { beside: "a", move: true });
+    expect(getTabs(pc).panes[0].tabs.map((t) => t.key)).toEqual(["a", "c", "b"]);
+    expect(getTabs(pc).panes[0].active).toBe("c");
+  });
+
+  it("navigating to the tab you are already on moves nothing — it refreshes in place", () => {
+    const pc = pcN();
+    openTab(pc, tab("a"));
+    openTab(pc, tab("b")); // a b, active b
+    openTab(pc, { ...tab("b"), file: { projectCode: "", path: "b.js", lines: [2, 2] } }, { beside: "b", move: true });
+    expect(getTabs(pc).panes[0].tabs.map((t) => t.key)).toEqual(["a", "b"]);
+    expect(getTabs(pc).panes[0].tabs[1].file.lines).toEqual([2, 2]);
+    expect(getTabs(pc).panes[0].active).toBe("b");
+  });
+});
+
+// A CLOSED FILE STAYS CLOSED — his bug: *"sometimes you close the document and it just pops up at
+// the end of the tabs."* The URL outlives the close by a beat; the reopen effect reading it must
+// not resurrect the tab. fileOpenPlan is the one decision, so it can be checked on its own.
+describe("a closed file stays closed — fileOpenPlan", () => {
+  const pcN = () => `closed-${Math.random().toString(36).slice(2)}`;
+  const tab = (k) => ({ key: k, kind: "file", file: { projectCode: "", path: `${k}.js` } });
+
+  it("opens a file that is present — a refresh or move in place", () => {
+    expect(fileOpenPlan(true, "file::x.js", "file::x.js")).toBe("open");
+  });
+  it("SKIPS a file gone from the set that is the same one last opened — a close left the URL behind", () => {
+    expect(fileOpenPlan(false, "file::x.js", "file::x.js")).toBe("skip");
+  });
+  it("opens a genuine navigation — gone from the set, but a different file than last time", () => {
+    expect(fileOpenPlan(false, "file::y.js", "file::x.js")).toBe("open");
+  });
+  it("opens the very first file — nothing was opened before", () => {
+    expect(fileOpenPlan(false, "file::x.js", null)).toBe("open");
+  });
+
+  it("a close followed by the stale URL being read again does NOT re-add the tab at the end", () => {
+    const pc = pcN();
+    openTab(pc, tab("a"));
+    openTab(pc, tab("b")); // a b — 'b' is the file the URL names, and the one last opened
+    const lastKey = "b";
+    closeTab(pc, "b"); // his ×
+    const present = getTabs(pc).panes[0].tabs.some((t) => t.key === "b");
+    // the reopen effect fires again on a URL that still says file=b:
+    expect(fileOpenPlan(present, "b", lastKey)).toBe("skip"); // so it is NOT re-added at the tail
+    expect(getTabs(pc).panes[0].tabs.map((t) => t.key)).toEqual(["a"]);
   });
 });

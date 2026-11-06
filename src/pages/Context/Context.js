@@ -194,7 +194,9 @@ const Context = ({ params = null }) => {
       lines: f.lines || null,
     };
     const k = fileKey(file);
-    openTab(tabsPc, { key: k, kind: "file", file });
+    // NAVIGATING TO A FILE PUTS IT RIGHT OF WHERE YOU ARE — new or already open, it moves to sit
+    // immediately after the tab you are leaving (his rule, the same one the Code page follows).
+    openTab(tabsPc, { key: k, kind: "file", file }, { beside: getTabs(tabsPc).panes[0].active, move: true });
     focusTab(tabsPc, k);
     setActiveKey(k);
     setDocOpen(true); // a clicked file is asking for the panel
@@ -311,7 +313,8 @@ const Context = ({ params = null }) => {
                   const file = { machine: true, projectCode: "", path: filePath, language: langOfPath(filePath) };
                   const k = fileKey(file);
                   if (k === activeKey) return closeKey(k); // SAME CHIP STILL TOGGLES (his call)
-                  openTab(tabsPc, { key: k, kind: "file", file });
+                  // right of where you are, moving it over if it was already open (his rule)
+                  openTab(tabsPc, { key: k, kind: "file", file }, { beside: getTabs(tabsPc).panes[0].active, move: true });
                   focusTab(tabsPc, k);
                   setActiveKey(k);
                   setDocOpen(true); // opening a document is asking for the panel
