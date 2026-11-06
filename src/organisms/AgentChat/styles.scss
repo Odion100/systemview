@@ -5364,7 +5364,9 @@ $sv-board-states: (
   // see the top of my settings"). And because it is bottom-anchored, a height that CHANGES per tab
   // moves the top edge — the tabs — up and down (his: the header "moves down… you shouldn't do
   // that"). So the height is FIXED, the tabs are pinned, and only the body scrolls.
-  height: min(60vh, 420px);
+  // USE THE SPACE (his correction — 420px read as a porthole): the panel climbs to just under the
+  // window's top chrome and stops; the cap only bites on very tall screens.
+  height: min(calc(100vh - 150px), 820px);
   display: flex;
   flex-direction: column;
 }
