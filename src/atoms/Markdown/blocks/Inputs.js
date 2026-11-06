@@ -34,7 +34,9 @@ export const Question = ({ label, attrs = {}, line }) => {
     if (!editable) return;
     const next = answer === opt ? "" : opt;
     setLocal(next);
-    setAttr(line, "answer", next || null);
+    // The press clears the receipt — a changed answer is new news, and a stale told= reads as
+    // "fully delivered" forever (same rule as the approval's verdict).
+    setAttr(line, { answer: next || null, told: null });
     // ANSWERING IS DECIDING, and it reaches the document's members the same way a verdict does —
     // his frame exactly: "it's not just approval… you got to think about them following the same
     // system." The write happens first; the telling cannot cost the answer.

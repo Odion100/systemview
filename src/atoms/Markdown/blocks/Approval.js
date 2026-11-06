@@ -27,7 +27,11 @@ const Approval = ({ attrs = {}, line, children }) => {
     if (!editable) return;
     const next = verdict === value ? "" : value;
     setLocal(next);
-    setAttr(line, "verdict", next || null);
+    // ONE WRITE, AND IT CLEARS THE RECEIPT. told= is per-decision, not per-block: the members who
+    // heard the OLD verdict have not heard this one, and a stale stamp reads as "fully delivered"
+    // forever — measured live 2026-11-06: after one release, no press on this block could ever
+    // reach anybody again, auto or not.
+    setAttr(line, { verdict: next || null, told: null });
 
     // A PRESS JUMPS THE QUIET PERIOD. Prose waits twenty seconds and then his send, because an
     // unfinished paragraph is not a decision — a press is complete the instant it happens and is
