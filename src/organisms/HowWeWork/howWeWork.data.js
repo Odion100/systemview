@@ -501,7 +501,7 @@ export const AGENTS = [
     name: "sub-agents",
     one: "disposable workers, briefed and reviewed",
     body:
-      "The owner stays the owner — delegation is explicit. A sub-agent gets a scoped brief and its own lane: a branch, a worktree, a row you can watch. Nothing it builds lands without the owner reviewing it, which is why one owner with disposable workers does not drift the way two owners do.",
+      "The owner stays the owner — delegation is explicit. A sub-agent gets a scoped brief, and when its work needs isolation, a lane: a branch, a worktree, a row you can watch. Nothing it builds lands without the owner reviewing it, which is why one owner with disposable workers does not drift the way two owners do.",
   },
   {
     name: "the room",
