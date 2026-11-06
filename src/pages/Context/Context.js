@@ -12,7 +12,6 @@ import { getTabs, subscribeTabs, openTab, focusTab, closeTab, fileKey } from "..
 import { buildRoute } from "../SystemView/tabRoutes";
 import { fileForDoc } from "./openAs";
 import { langOfPath } from "../SystemView/SystemView";
-import AgentChat from "../../organisms/AgentChat/AgentChat";
 import { saveDoc, saveSkill, saveDef, saveHelp, getDef, listSkills, listDocs, listHelp } from "../../utils/hostAgents";
 import { saveJob, getJob } from "../../utils/hostJobs";
 import { skillDoc } from "../../organisms/AgentProfile/skillSources";
@@ -455,7 +454,6 @@ const Context = ({ params = null }) => {
           </div>
         )}
       </div>
-      <AgentChat />
     </section>
   );
 };

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import ErrorBoundary from "./atoms/ErrorBoundary/ErrorBoundary";
+import AgentChat from "./organisms/AgentChat/AgentChat";
 import SystemView from "./pages/SystemView/SystemView";
 import Reports from "./pages/Reports/Reports";
 import Context from "./pages/Context/Context";
@@ -139,6 +140,16 @@ function App({ SystemViewService }) {
       <BannerStack />
       <Router>
         <DebugRouter>
+          {/* THE LEFT WALL LIVES ABOVE THE SWITCH, AND THAT IS THE WHOLE POINT. Every page used to
+              render its own <AgentChat />, so moving between Code and Agents unmounted nine
+              thousand lines of codebase card, conversation and git panel and built a fresh one —
+              taking a half-typed message with it. One instance, outside the Switch, survives the
+              route change. Inside <Router> because it links and reads the location; it takes its
+              project from the PATH rather than from a Route match it is no longer inside. Its root
+              is position:fixed, so it occupies no page's layout and no page makes room for it. */}
+          <ErrorBoundary label="The agent chat">
+            <AgentChat />
+          </ErrorBoundary>
           <Switch>
             <Route path="/reports/:projectCode?" exact>
               <ErrorBoundary label="The reports page">

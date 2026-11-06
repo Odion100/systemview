@@ -5,7 +5,6 @@ import { useHistory, useParams, useLocation } from "react-router-dom";
 import { Client } from "../../systemClient";
 import ServiceContext from "../../ServiceContext";
 import PageHeader from "../../organisms/PageHeader/PageHeader";
-import AgentChat from "../../organisms/AgentChat/AgentChat";
 import AgentNav from "../../organisms/AgentNav/AgentNav";
 import DocPanel from "../../organisms/DocPanel/DocPanel";
 import useOpenedFile from "../../organisms/DocPanel/useOpenedFile";
@@ -1023,7 +1022,6 @@ export default function Reports({ projectCode: pcProp = null, serviceId: svcProp
       )}
       {/* RFC-032 — the bots ride the Stats PAGE. Inside a tab the chat is already on screen; a
           second dock is a second chat. */}
-      {!embedded && <AgentChat />}
     </section>
   );
 }

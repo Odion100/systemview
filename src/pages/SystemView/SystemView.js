@@ -7,7 +7,6 @@ import SystemNavigator from "../../organisms/SystemNavigator/SystemNavigator";
 import Documentation from "../../organisms/Documentation/Documentation";
 import TestPanel from "../../organisms/TestPanel/TestPanel";
 import PageHeader from "../../organisms/PageHeader/PageHeader";
-import AgentChat from "../../organisms/AgentChat/AgentChat";
 import NavRail from "../../organisms/AgentNav/NavRail";
 import useWallPanel from "../../organisms/WallPanel/useWallPanel";
 import WallTab from "../../organisms/WallPanel/WallTab";
@@ -429,9 +428,6 @@ const SystemViewPage = ({ params = null }) => {
       {/* THE CHAT IS THE ONE HE CANNOT AFFORD TO LOSE — it holds the conversation. Both crashes
           on 2026-10-19 started in a panel INSIDE it (a board card with no account), so it carries
           its own boundary as well as the per-panel ones in the band. */}
-      <ErrorBoundary label="The agent chat">
-        <AgentChat />
-      </ErrorBoundary>
     </section>
   );
 };

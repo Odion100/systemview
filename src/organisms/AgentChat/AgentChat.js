@@ -4,7 +4,8 @@ import { fillStyle, pctStyle } from "../../atoms/meterWidth";
 import ErrorBoundary from "../../atoms/ErrorBoundary/ErrorBoundary";
 import { createPortal } from "react-dom";
 import moment from "moment";
-import { useHistory, useLocation, useParams } from "react-router-dom";
+import { useHistory, useLocation } from "react-router-dom";
+import { paramsOf } from "../../utils/routeParams";
 import ServiceContext from "../../ServiceContext";
 import BLOCKS from "../../atoms/Markdown/registry";
 import { fenceLangOf } from "./chatFence";
@@ -2366,7 +2367,10 @@ export function BotHub() {
 function BotBubble({ projectCode, index }) {
   const location = useLocation();
   const history = useHistory();
-  const { serviceId, moduleName, methodName, projectCode: routeRaw } = useParams();
+  // NOT the route-match hook. The wall renders above the <Switch> so that switching Code/Agents
+  // stops unmounting it — which puts it in the Router and in no Route, where that hook answers an
+  // empty object. Same four values, read off the path by the patterns App.js routes on.
+  const { serviceId, moduleName, methodName, projectCode: routeRaw } = paramsOf(location.pathname);
   // NOT THE ROUTE SEGMENT ALONE. With nothing selected the tabs route writes the literal
   // `@none` there, and the comparisons below are "is the human looking at MY project" — so
   // `@none` made that false for every bot at once and every unaddressed point was dropped by
