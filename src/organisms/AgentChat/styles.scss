@@ -5406,9 +5406,11 @@ $sv-board-states: (
   color: var(--sv-text-muted);
 
   &--on {
-    color: var(--sv-text);
-    border-color: var(--sv-border);
-    background: var(--sv-hover);
+    // SOLID BLUE SELECTION ON WHITE (his spec). Text stays literal white on an accent fill —
+    // the theme's own rule (theme.scss NOTE).
+    color: #fff;
+    border-color: var(--sv-blue);
+    background: var(--sv-blue);
   }
 }
 .agent-chat__bandcog-head {
