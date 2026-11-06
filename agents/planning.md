@@ -4,9 +4,14 @@ A planning document exists to produce an **arc**, and an arc is a document too �
 described here, in one reference. Split across two, the dispatch was written in one and the thing
 it dispatched lived in the other.
 
-A meeting here is not an event, a room, or a call. It is a **markdown document with members**: the
-threads carry the conversation, and the pinned row in the document's top-right corner tells each
-member when something they are on has moved. Nobody has to be present at the same time.
+**It is a report — `::report{as=planning}` — carrying members.** That is the kind, and it is how the
+document registers and how anything finds it. A meeting here is not an event, a room, or a call:
+the threads carry the conversation, and the pinned row in the document's top-right corner tells
+each member when something they are on has moved. Nobody has to be present at the same time.
+
+What separates it from the accounts work leaves behind is not its kind but what it CARRIES —
+members, replies, verdicts and an embedded arc make it a surface people ACT on, where most reports
+are read.
 
 **Who is who.** *He* is the human who owns the project — the meeting is his, the goals are his
 words, and the sends are his presses. *The opener* is the agent that creates the document and does
@@ -139,12 +144,10 @@ An agent cannot press; the send is a window control. Members sitting behind with
 normal resting state of a managed meeting. Keep writing your plan in its section — he sends when he
 reads.
 
-## A planning document is a report that is ACTED on — and how it reaches his panel
+## Where it lives, and how it reaches his panel
 
-**A planning document IS a report — `as=planning` — and that is how it registers.** What makes it
-different from the accounts work leaves behind is not its kind or its folder but what it CARRIES:
-members, replies, verdicts and an embedded arc make it a surface people ACT on, where most reports
-are an account somebody reads. It is committed beside the code it plans, like any other document.
+**It is committed in the repo, beside the code it plans** — like any other document, and the
+directory is a readability choice rather than a convention.
 
 **Residence decides nothing about how long it lasts — the leaf does.** `.systemview/` is excluded
 with one deliberate re-inclusion (`!.systemview/report.*.md`), so a registered document living
