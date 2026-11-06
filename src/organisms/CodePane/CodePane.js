@@ -11,6 +11,7 @@ import DiffView from "../../atoms/DiffView/DiffView";
 import { useEditorDark, EditorThemeToggle } from "../../atoms/CodeView/editorTheme";
 import Markdown from "../../atoms/Markdown/Markdown";
 import { kindBadge } from "../../atoms/Markdown/registrationLeaf";
+import { getAgent } from "../../utils/hub";
 import { MarkdownScopeProvider } from "../../atoms/Markdown/context";
 import { MarkdownCapabilitiesProvider } from "../../atoms/Markdown/capabilities";
 import { systemviewCapabilities } from "../../markdownCapabilities";
@@ -100,12 +101,28 @@ const CodePane = ({ file, onClose }) => {
   // for lacking one; everything a project enriches (git, comments, history) renders ABSENT below,
   // never broken.
   const isMachine = !!file.machine;
-  // Only a markdown file can carry a leaf, and only the saved text is the document — an unsaved
-  // half-typed leaf must not retitle the pane mid-keystroke.
-  const badge = useMemo(
-    () => kindBadge({ path: file.path, text: savedContent, machine: isMachine }),
-    [file.path, savedContent, isMachine]
-  );
+  // THE BADGE SAYS WHAT THE REGISTRY SAYS. The row is fetched, never derived from the text — a
+  // document that merely CONTAINS a leaf (a skill showing one as an example) is not that kind, and
+  // the registry is the one place that knows the difference. Re-asked when the saved content
+  // changes, because a save is what registers a fresh leaf — a beat late is fine, wrong is not.
+  const [registered, setRegistered] = useState(null);
+  useEffect(() => {
+    let dead = false;
+    setRegistered(null);
+    const agent = getAgent();
+    if (isMachine || !agent || !agent.documentsRegistry || !/\.mdx?$/i.test(file.path || "")) return undefined;
+    Promise.resolve(agent.documentsRegistry({ projectCode: file.projectCode || undefined }))
+      .then((rows) => {
+        if (dead) return;
+        const row = (rows || []).find((r) => r && r.path === file.path) || null;
+        setRegistered(row ? { kind: row.kind, id: row.id } : null);
+      })
+      .catch(() => {});
+    return () => {
+      dead = true;
+    };
+  }, [file.path, file.projectCode, isMachine, savedContent]);
+  const badge = useMemo(() => kindBadge({ registered, machine: isMachine }), [registered, isMachine]);
   const host = isMachine ? { machine: true } : file.projectCode ? { projectCode: file.projectCode } : null;
   // The open file's codebase disconnected/was deleted → close the pane instead of sitting on a dead
   // error. Guarded on connectedServices being loaded (empty at boot ≠ gone).

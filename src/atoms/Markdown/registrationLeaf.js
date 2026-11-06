@@ -45,12 +45,15 @@ export const registrationOf = (src) => {
 // in jest without dragging the editor in behind it, so the choice lives here as a function instead
 // of as three conditions inside a span — the component stays a consumer and the rule stays testable.
 //
-// Order matters and is the argument: what a document DECLARES outranks where its file sits. Only
-// markdown can carry a leaf; everything else falls back to the location answer, which is the true
-// and useful one for a source file.
-export const kindBadge = ({ path = "", text = "", machine = false } = {}) => {
-  const reg = /\.mdx?$/i.test(path) ? registrationOf(text) : null;
-  if (reg) return { label: reg.kind, kind: reg.kind, id: reg.id };
+// THE KIND COMES FROM THE REGISTRY, NEVER FROM THE TEXT (his correction, 2026-11-06). This used to
+// parse the saved source for a leaf, and a document ABOUT the leaves badged itself: the
+// arc-planning skill carries `::arc{id=ARC-004 …}` inside a code fence as an example, and the
+// pane's corner called the skill an ARC. A surface reads state — the registry is what the system
+// actually knows this file to be, examples and all — so the caller hands the row in and the text
+// is never consulted. No row → the location answer, which is the true one for a source file and
+// for a document the system has not registered.
+export const kindBadge = ({ registered = null, machine = false } = {}) => {
+  if (registered && registered.kind) return { label: registered.kind, kind: registered.kind, id: registered.id || "" };
   return { label: machine ? "machine" : "code", kind: null, id: "" };
 };
 

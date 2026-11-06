@@ -107,26 +107,28 @@ describe("registrationOf — what a document says it is", () => {
 });
 
 // THE BADGE DECISION. Order is the argument: what a document DECLARES outranks where its file sits.
-describe("kindBadge — what the pane header says", () => {
-  it("a registered document wears its kind, not its location", () => {
-    expect(kindBadge({ path: "RFCs/RFC-064-x.md", text: "::rfc{id=RFC-064}" })).toEqual({
+describe("kindBadge — what the pane header says, read off the REGISTRY row", () => {
+  // THE TEXT IS NEVER CONSULTED (his correction, 2026-11-06). The arc-planning skill carries
+  // `::arc{id=ARC-004 …}` in a code fence as an example, and the text-parsing badge called the
+  // skill an ARC. The registry is what the system knows the file to be; the caller hands the row in.
+  it("a registered document wears its registry kind, not its location", () => {
+    expect(kindBadge({ registered: { kind: "rfc", id: "RFC-064" } })).toEqual({
       label: "rfc", kind: "rfc", id: "RFC-064",
     });
   });
-  it("plain markdown is still code — a leaf is a declaration, not an assumption about .md", () => {
-    expect(kindBadge({ path: "README.md", text: "# hello" })).toEqual({ label: "code", kind: null, id: "" });
-  });
-  it("a source file is never read for a leaf, whatever its comments say", () => {
-    expect(kindBadge({ path: "src/x.js", text: "// ::rfc{id=RFC-1}" })).toEqual({
-      label: "code", kind: null, id: "",
-    });
+  it("a document that merely CONTAINS a leaf is not that kind — no row, no badge", () => {
+    // the skill-shows-an-example case: the text says ::arc, the registry says nothing
+    expect(kindBadge({ registered: null })).toEqual({ label: "code", kind: null, id: "" });
   });
   it("outside every project it still says machine", () => {
-    expect(kindBadge({ path: "/tmp/notes.txt", machine: true }).label).toBe("machine");
+    expect(kindBadge({ machine: true }).label).toBe("machine");
   });
-  // A registered document outside every project is still that document — the declaration wins.
-  it("a declaration outranks machine too", () => {
-    expect(kindBadge({ path: "/tmp/g.md", text: "::gap{id=G-9}", machine: true }).label).toBe("gap");
+  // A registered document outside every project is still that document — the registry wins.
+  it("a registry row outranks machine too", () => {
+    expect(kindBadge({ registered: { kind: "gap", id: "G-9" }, machine: true }).label).toBe("gap");
+  });
+  it("a row with no kind is no registration", () => {
+    expect(kindBadge({ registered: { id: "x" } }).label).toBe("code");
   });
   it("no arguments at all does not throw", () => {
     expect(kindBadge().label).toBe("code");
