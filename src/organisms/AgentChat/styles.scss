@@ -5406,11 +5406,19 @@ $sv-board-states: (
   color: var(--sv-text-muted);
 
   &--on {
-    // SOLID BLUE SELECTION ON WHITE (his spec). Text stays literal white on an accent fill —
-    // the theme's own rule (theme.scss NOTE).
+    // SOLID SELECTION FILL in light mode (his spec — --sv-blue read sky; --sv-indigo is the
+    // theme's own selection accent). Dark mode keeps the ORIGINAL quiet style — his call: the
+    // subtle fill was fine there, and the indigo family flips light on dark where a solid fill
+    // stops reading as one.
     color: #fff;
-    border-color: var(--sv-blue);
-    background: var(--sv-blue);
+    border-color: var(--sv-indigo);
+    background: var(--sv-indigo);
+
+    :root.sv-dark & {
+      color: var(--sv-text);
+      border-color: var(--sv-border);
+      background: var(--sv-hover);
+    }
   }
 }
 .agent-chat__bandcog-head {
