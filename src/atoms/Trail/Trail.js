@@ -26,13 +26,19 @@ const Trail = ({ kind = "", stations = [], at, onPress, className = "" }) => {
   // taken — the segments ahead, and a fork nothing died at — stay border-grey. The column holding
   // `at` is the last walked one, so its outgoing segment is already untraveled.
   const atCol = cols.findIndex((col) => col.some((s) => s.id === at));
+  // A FORK ENDING IS REACHED BY THE DIAGONAL ALONE — the stroke leaves the PREVIOUS node and dives
+  // to the ring, so the horizontal beside it is the OTHER road (his catch: rejecting lit the line
+  // toward resolved too, and the drawing claimed both directions). The incoming horizontal into a
+  // fork ending stays grey; only the diagonal lights.
+  const atIsFork = !!(cols[atCol] || []).find((s) => s.id === at && s.fork);
+  const lastWalked = atIsFork ? atCol - 1 : atCol;
   return (
     <ol className={`sv-trail${kind ? ` sv-trail--${kind}` : ""}${className ? ` ${className}` : ""}`}>
       {cols.map((col, i) => (
         <li
           key={col[0].id}
           className={`sv-trail__col${col.length > 1 ? " sv-trail__col--split" : ""}${
-            atCol > -1 && i < atCol ? " sv-trail__col--walked" : ""
+            atCol > -1 && i < lastWalked ? " sv-trail__col--walked" : ""
           }`}
         >
           {col.map((s) => {
