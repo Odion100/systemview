@@ -1,17 +1,15 @@
 # Planning — a document with people on it, and the arc it produces
 
-A planning document exists to produce an **arc**, and an arc is a document too — so both are
-described here, in one reference. Split across two, the dispatch was written in one and the thing
-it dispatched lived in the other.
+**A planning document is a report — `::report{as=planning}` — carrying members.** That is the kind,
+and it is how the document registers and how anything finds it. It exists to produce an **arc**,
+and an arc is a document too, so both are described here in one reference: split across two, the
+dispatch was written in one and the thing it dispatched lived in the other.
 
-**It is a report — `::report{as=planning}` — carrying members.** That is the kind, and it is how the
-document registers and how anything finds it. A meeting here is not an event, a room, or a call:
-the threads carry the conversation, and the pinned row in the document's top-right corner tells
-each member when something they are on has moved. Nobody has to be present at the same time.
-
-What separates it from the accounts work leaves behind is not its kind but what it CARRIES —
-members, replies, verdicts and an embedded arc make it a surface people ACT on, where most reports
-are read.
+**Called a *meeting* throughout, and that is a term of art** — not an event, a room, or a call.
+The threads carry the conversation, and the pinned row in the document's top-right corner tells
+each member when something they are on has moved; nobody has to be present at the same time. What separates a planning document from the
+accounts work leaves behind is not its kind but what it CARRIES: members, replies, verdicts and an
+embedded arc make it a surface people ACT on, where most reports are read.
 
 **Who is who.** *He* is the human who owns the project — the meeting is his, the goals are his
 words, and the sends are his presses. *The opener* is the agent that creates the document and does
@@ -31,11 +29,13 @@ meeting waits for him to announce it. Plan around that: it is the current shape,
 meeting is ready because it is his repo and the document is open in his window — so when a meeting
 needs him, say so in the chat, not by expecting a notification to reach him.
 
-**What an arc is.** The deliverable. An arc is an **RFC** — `RFCs/RFC-<nnn>-<slug>.md` in the
-project that owns the work, written after the room agrees a piece, carrying the ownable breakdown
-(objectives, each with an owner, its requirements, and what to read first) and an `:::approval` block for his
-verdict. The meeting embeds it back with `::file[…]` so it reads inline — **relative when the arc
-is in this repo, absolute when it is in another**, which is the common case for a cross-repo goal.
+**What an arc is.** The deliverable, and it is its OWN kind of document — not an RFC. It carries an
+`::arc` leaf, and inside it one `::objective` block per ownable piece, each with an owner, its
+requirements and what the work is for. An RFC comes later and one level down: the plan an
+objective's owner writes to serve it. The shape is in "What an arc looks like" below.
+
+The meeting embeds the arc back with `::file[…]` so it reads inline — **relative when the arc is in
+this repo, absolute when it is in another**, which is the common case for a cross-repo goal.
 
 ## Why you would open one
 
@@ -208,16 +208,17 @@ somebody's summary is the weakest evidence here.
 - **The landscape is rewritten as things settle**, by whoever opened it, so somebody arriving late
   reads the section instead of the whole thread. Every rewrite makes the members *behind* (their
   corner lights up), which is how anyone knows to come back.
-- **An objective that becomes definitive is written down the moment it is definitive** — one line:
-  what, its owner, its requirements. Never planned in advance, never a list of what the meeting ought to
-  decide.
+- **An objective that becomes definitive is written down the moment it is definitive** — as an
+  `::objective` block carrying what, its owner, its requirements and what it is for. A line could
+  only be read by eye; a block carries an ADDRESS, which is what lets the work point back at it.
+  Never planned in advance, never a list of what the meeting ought to decide.
 - **Nothing about the mapping is rigid.** An objective can cover two goals; a goal can need three;
   a goal can need none.
 
 ## Closing one
 
 A meeting is over when every piece has become one of three things, and the document says which on
-the section's first line — `ARC → RFC-nnn`, `CARRIED → <where>`, or `PARKED → <why>` — so the
+the section's first line — `ARC → ARC-nnn`, `CARRIED → <where>`, or `PARKED → <why>` — so the
 document can be read for what landed without reading every thread. Nothing is deleted.
 
 **Each owner writes its own arc**, in its own repo. The conductor conducts the close; it does not
@@ -256,8 +257,9 @@ A board card belongs to the project whose board it is; an RFC belongs to the rep
 it. So the close ends by asking **every owner** the same four questions, and their answers land in
 their own threads — which is what makes the dispatch auditable.
 
-1. **Does your arc exist, in your repo?** `RFCs/` — an RFC is implementation detail; a plan without
-   it is a report. Embedded back here with `::file`.
+1. **Does your arc exist, in your repo?** Its own document with an `::arc` leaf, holding one
+   `::objective` block per piece you own — embedded back here with `::file`. The RFCs that serve
+   those objectives come after, and an RFC is implementation detail; a plan without it is a report.
 2. **How does this arc change your board?** `board({projectCode, add, title})`, titled, one line per
    piece too small to be an arc.
 3. **Do you owe a gap to another project?** A gap goes in the **other** project's repo, never your
@@ -338,11 +340,11 @@ arc can be driven unattended, by a hook pointed at that arc, with the run record
 A skill has no such door: its description is injected into every session, so the work could only
 ever be CHOSEN, never given.
 
-## Writing the skill from one
+## Amending the skill from one
 
-Write a meeting skill from a meeting you **ran**, never from this page. The `procedure` thread in
-each meeting is where the real steps are recorded as they happen; those are the skill's steps. This
-page is the shape, not the evidence.
+The procedure lives in `arc-planning`, and it is amended from a meeting somebody **ran** — never
+from this page. The `procedure` thread in each meeting records the real steps as they happen, and
+those are what the skill is corrected against. This page is the shape; the thread is the evidence.
 
 ## The frame to copy
 
@@ -406,7 +408,7 @@ parts in this order and no others: where the project is, the proposal, the plans
 ```markdown
 ### <<the goal, verbatim — or the name of the thing, when a piece cuts across goals>>
 
-<<When this piece lands, its first line says so: ARC → RFC-nnn · CARRIED → where · PARKED → why.>>
+<<When this piece lands, its first line says so: ARC → ARC-nnn · CARRIED → where · PARKED → why.>>
 
 <<Where the project is on this goal: what exists and how it actually works, cited.>>
 
