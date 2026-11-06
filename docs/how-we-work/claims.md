@@ -382,20 +382,16 @@ Two blocks, and their natural definitions already point at the durable one:
   carries it. If you find yourself writing a run another claim could use, it was a test wanting a
   file.
 
-**The distinction that decides it: a test is ADDRESSABLE; a run exists only where it is written.**
-A saved test can be asked for from anywhere, any time — say "run buAPI's tests" in a chat and
-`runTests({projectCode, namespace})` answers; another document can point at it; an agent who never
-opens the document still gets its verdict. A `:::run` can only ever be pressed in the fold it sits
-in.
-
-**And addressable means it is actually ASKED — a test rides the change loop.** Every code change
-runs the tests; that is the standing rule, not a habit. So a claim proved by a test is defended
-continuously: break its contract next month and the suite goes red in front of whoever broke it.
-A claim proved only by a run is defended by nobody until somebody opens that document and presses
-— so it can read `met`, green mark and note intact, while the thing it claims has been false for
-weeks. **The real cost of choosing a run for a durable contract is not that asking is less
-convenient; it is that nobody will ask.** One definition, or it drifts: never a library spec
-copy-pasted into a fold, never a real contract buried where the suite cannot reach it.
+**The distinction that decides it: WHERE THE CONTRACT BELONGS.** A saved test lives at a namespace
+— asked for from anywhere (`runTests({projectCode, namespace})` answers in any chat), pointed at by
+five claims in three documents, one definition every pointer shares. A `:::run` is document-local —
+a sequence whose subject is the sequence itself, with no namespace to file it under, carried by the
+document it verifies. Both are machine-runnable: the suite runs the tests, and
+`runProofs({projectCode, document})` collects a document's `:::run` blocks and `::test` chips and
+runs them headless, scoped by document, objective, arc, or project. So the choice is never about
+protection — it is about locality: does this check have a namespace to live at, or is the sequence
+the subject? One definition, or it drifts: never a library spec copy-pasted into a fold, never a
+contract with a rightful namespace buried in one document's fold.
 
 ## Getting a live door — the routes, by where you stand
 
