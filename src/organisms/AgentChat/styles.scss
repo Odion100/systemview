@@ -5359,6 +5359,38 @@ $sv-board-states: (
   box-shadow: 0 6px 22px rgba(0, 0, 0, 0.18);
   font-size: 11px;
   color: var(--sv-text);
+  // THE PANEL OPENS UPWARD FROM A COG AT THE BOTTOM OF THE WINDOW, so anything taller than the
+  // space above it runs off the TOP — which is where the first section's knobs are (his: "I can't
+  // see the top of my settings"). Tabs keep it short; this bound + scroll is the safety when a
+  // short window makes even one section too tall.
+  max-height: min(60vh, 480px);
+  overflow-y: auto;
+}
+// The two settings groups as tabs — one section at a time is what keeps the panel inside the window.
+.agent-chat__bandcog-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 7px;
+  border-bottom: 1px solid var(--sv-border);
+  padding-bottom: 5px;
+}
+.agent-chat__bandcog-tab {
+  cursor: pointer;
+  padding: 2px 8px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: none;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--sv-text-muted);
+
+  &--on {
+    color: var(--sv-text);
+    border-color: var(--sv-border);
+    background: var(--sv-hover);
+  }
 }
 .agent-chat__bandcog-head {
   font-size: 10px;

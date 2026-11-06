@@ -28,6 +28,11 @@ const NudgeCog = () => {
   const [open, setOpen] = useState(false);
   const [door, setDoor] = useState("asking"); // asking | present | absent
   const [saving, setSaving] = useState("");
+  // ONE SECTION AT A TIME (his: "create tabs or scrolls or both — I can't see the top of my
+  // settings"). The panel opens UPWARD from a cog at the bottom of the window, so two stacked
+  // sections ran off the top — and the top is where the first section's knobs live. Tabs halve the
+  // height; the panel's max-height + scroll (styles.scss) is the safety under short windows.
+  const [tab, setTab] = useState("worklist"); // worklist | compaction
   // CLICKING AWAY CLOSES IT (his: "I have to click the cog to close this menu instead of just
   // clicking outside of it"). Same rule every menu here follows — pointerdown so it closes before
   // whatever was clicked starts handling.
@@ -131,8 +136,25 @@ const NudgeCog = () => {
       </button>
       {open && (
         <div className="agent-chat__bandcog-panel">
-          <div className="agent-chat__bandcog-head">worklist settings</div>
-          {door === "absent" ? (
+          {/* THE TABS — the two heads, made pressable. One section at a time is what keeps the
+              upward-opening panel inside the window. */}
+          <div className="agent-chat__bandcog-tabs">
+            <button
+              type="button"
+              className={`agent-chat__bandcog-tab${tab === "worklist" ? " agent-chat__bandcog-tab--on" : ""}`}
+              onClick={() => setTab("worklist")}
+            >
+              worklist settings
+            </button>
+            <button
+              type="button"
+              className={`agent-chat__bandcog-tab${tab === "compaction" ? " agent-chat__bandcog-tab--on" : ""}`}
+              onClick={() => setTab("compaction")}
+            >
+              auto-compaction
+            </button>
+          </div>
+          {tab === "worklist" && (door === "absent" ? (
             // ABSENCE STATED, never a stale copy shown.
             <div className="agent-chat__bandcog-absent">
               This shell has no nudge door yet — the harness half of it has not landed. Nothing here
@@ -181,12 +203,10 @@ const NudgeCog = () => {
               ))}
               <div className="agent-chat__bandcog-foot">{summaryOf(settings)}</div>
             </>
-          )}
-          {/* AUTO-COMPACTION — the release valve's knobs, in the cog he already opens for the
-              nudge's. Its own head, its own absence line: a shell with the nudge door and not this
-              one says so here instead of pretending. */}
-          <div className="agent-chat__bandcog-head">auto-compaction</div>
-          {compactionDoor !== "present" ? (
+          ))}
+          {/* AUTO-COMPACTION — the release valve's knobs, its own tab, its own absence line: a
+              shell with the nudge door and not this one says so instead of pretending. */}
+          {tab === "compaction" && (compactionDoor !== "present" ? (
             <div className="agent-chat__bandcog-absent">
               {compactionDoor === "asking"
                 ? "asking the shell…"
@@ -224,7 +244,7 @@ const NudgeCog = () => {
               ))}
               <div className="agent-chat__bandcog-foot">{compactionSummaryOf(compactionCfg)}</div>
             </>
-          )}
+          ))}
         </div>
       )}
     </div>
