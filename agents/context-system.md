@@ -40,6 +40,14 @@ file becomes its own corpus with its own bookkeeping.
 context, and carries the real question ("has this failed before, and how?"). History as a `working`
 corpus is append-only, so staleness never applies.
 
+**And a project's DECISIONS are a corpus fed by the registry** — `<project>-doc-registry`: the
+registered documents, each row's kind its subscope, carried by nobody so it answers only when
+named. `corpus: "systemview-doc-registry"` is everything registered, `:rfcs|arcs|gaps` exactly
+those kinds, and a list of names crosses projects or mixes families in one ask. It is the answer to
+"has this been decided somewhere?" before designing — decisions are worded as conclusions, asks as
+problems, and grep never bridges that. Subject only: a document's current state is its registry row
+and the file, never the embedding.
+
 ## Writing — `remember`, one concept per note
 
 `remember(text)` is one motion: near-duplicate check, markdown write, embed. One concept per note,
