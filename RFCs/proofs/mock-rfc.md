@@ -30,7 +30,8 @@ finished walk wants it): strip the leaf, the row follows, the document is a spec
 node RFCs/proofs/mock.js rfc off
 :::
 
-::rfc{id=MOCK-RFC title="MOCK — an RFC you can push around" retired=2026-10-30 retiredAs=shelf arc=MOCK-ARC-O1 settled=2026-10-30}
+<!-- mock off — bring it back with: node RFCs/proofs/mock.js rfc on -->
+<!-- mock-leaf: ::rfc{id=MOCK-RFC title="MOCK — an RFC you can push around" retired=2026-10-30 retiredAs=shelf arc=MOCK-ARC-O1 settled=2026-10-30} -->
 
 ## Walk it — one press per state, in the table's order
 

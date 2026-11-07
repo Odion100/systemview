@@ -136,6 +136,21 @@ describe("office 1 — retired documents, and it was never about reports", () =>
     assert.strictEqual(isRetired(path.join(root, "nothing-here.md")), false);
   });
 
+  // THE TEARDOWN IS THE FIXTURE'S PROTECTION, and it is the design's own answer rather than a new
+  // rule: `mock.js <kind> off` turns the leaf into an HTML comment, the registry row follows on the
+  // next parse, and a document with no leaf is not in the file set at all. The regex is anchored at
+  // line start for exactly this reason — a commented leaf is not a leaf.
+  test("a leaf commented out is not a leaf — a torn-down fixture is not collectable", () => {
+    const rel = doc(
+      "RFCs/proofs/mock-x.md",
+      '<!-- mock-leaf: ::rfc{id=MOCK-X retired=2026-11-02 retiredAs=shelf} -->'
+    );
+    register([{ id: "MOCK-X", kind: "rfc", path: rel, project: "pc" }]);
+    assert.strictEqual(isRetired(path.join(root, rel)), false);
+    assert.deepStrictEqual(collect().deleted, []);
+    assert.strictEqual(fs.existsSync(path.join(root, rel)), true);
+  });
+
   test("an unreadable registry is an empty answer, not a throw", () => {
     fs.writeFileSync(regFile, "{not json");
     assert.deepStrictEqual(collect(), { deleted: [], kept: 0, dangling: [] });
@@ -191,5 +206,35 @@ describe("office 2 — pointers that lead nowhere, on their own rule", () => {
 
   test("no jobs folder is an empty answer", () => {
     assert.deepStrictEqual(sweepDeadPointers({ runsDir: path.join(tmp, "nowhere") }).cleared, []);
+  });
+});
+
+// THIS PROJECT'S OWN FIXTURES, READ OFF THE DISK — the one claim here that is not synthetic, and the
+// only kind that could have caught what happened.
+//
+// MEASURED 2026-11-07: `RFCs/proofs/mock-rfc.md` was committed with its rfc leaf LIVE and carrying
+// `retired=2026-10-30 retiredAs=shelf`. Every rule above then worked perfectly and deleted it — so
+// restoring the file from git restored a document the next hourly janitor pass would eat again,
+// which is exactly what happened twice in one day (restored 06:04, collected 11:05, one log line
+// each time). The fixtures are walked INTO the retired state on purpose, so the rest state they are
+// committed in is the thing that has to be safe.
+describe("the repo's own fixtures do not rest in a collectable state", () => {
+  const PROOFS = path.join(__dirname, "..", "RFCs", "proofs");
+
+  test("no mock-*.md rests with a live retired= leaf", () => {
+    const files = fs
+      .readdirSync(PROOFS)
+      .filter((f) => /^mock-.*\.md$/.test(f))
+      .map((f) => path.join(PROOFS, f));
+
+    assert.ok(files.length >= 8, `expected the fixture family, found ${files.length}`);
+
+    const collectable = files.filter((f) => isRetired(f)).map((f) => path.basename(f));
+    assert.deepStrictEqual(
+      collectable,
+      [],
+      `these fixtures would be deleted by the janitor's next pass: ${collectable.join(", ")} — ` +
+        `finish the walk with \`node RFCs/proofs/mock.js <kind> off\` before committing`
+    );
   });
 });
