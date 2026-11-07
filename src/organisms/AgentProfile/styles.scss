@@ -827,11 +827,22 @@
   font-size: 10.5px;
   color: #63b98a;
 }
+// THE BADGES FOLLOW THE HOOK, THE VERBS STAY AT THE EDGE. Badges and buttons share this group, and
+// the group used to be pinned to the right — so the two facts about a hook (its rate, whose it is)
+// sat across a gulf of whitespace, aligned with `delete` instead of with the hook they describe
+// (his catch, 2026-11-07: *"it should be aside, following"*). The group now takes the rest of the
+// row, which puts the badges beside the name, and `margin-left: auto` on the first verb is what
+// holds the buttons where they were.
 .agent-profile__hook-tags {
   display: flex;
   align-items: center;
   gap: 6px;
-  flex: none;
+  flex: 1 1 auto;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+.agent-profile__hook-tags .agent-profile__hook-btn:first-of-type {
+  margin-left: auto;
 }
 .agent-profile__hook-scope,
 .agent-profile__hook-guard {
