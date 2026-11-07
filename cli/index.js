@@ -109,7 +109,9 @@ async function bootServices() {
 async function startApp() {
   const port = isNaN(input[1]) ? DEFAULT_PORT : Number(input[1]);
   try {
-    await launchApp(port, { interactive: true, connectedUrls, onReady: bootServices });
+    // `start` IS THE HOST — the only call site that passes it, because it is the only command that
+    // stays alive for as long as the hub does. Everything else attaches or refuses.
+    await launchApp(port, { interactive: true, host: true, connectedUrls, onReady: bootServices });
   } catch (error) {
     log.error("Launch failed: " + error.message);
   }
