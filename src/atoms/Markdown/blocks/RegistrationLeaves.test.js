@@ -6,6 +6,7 @@ import Rfc from "./Rfc";
 import Report from "./Report";
 import Gap from "./Gap";
 import { setHub } from "../../../utils/hub";
+import { InDocumentProvider } from "../context";
 
 afterEach(() => setHub(null));
 
@@ -15,32 +16,39 @@ afterEach(() => setHub(null));
 // reading the file.
 const registrySource = fs.readFileSync(path.join(__dirname, "..", "registry.js"), "utf8");
 
+// EVERY LEAF HERE IS MOUNTED AS A LEAF IN A DOCUMENT, which is the only place one means anything.
+// `useInDocument` defaults to false — the chat, a help topic, a preview — and outside a document a
+// registration leaf now refuses by name instead of rendering identity it cannot have (his
+// complaint, 2026-11-07: a `::report` in a chat message wearing an "invalid" badge). That refusal
+// has its own claims in Report.test.js; these are about the registration.
+const mount = (ui) => render(<InDocumentProvider>{ui}</InDocumentProvider>);
+
 // RFC-073 §1.2 — THE LEAVES THAT MAKE A DOCUMENT A KIND. What this pins: they render as identity and
 // nothing else — no press, no state — and they are in the registry, because a block that renders
 // but is not registered is a block the renderer shows as "unknown block".
 describe("::rfc", () => {
   it("names the RFC and the arc it serves", () => {
-    render(<Rfc attrs={{ id: "RFC-073", arc: "ARC-004" }} />);
+    mount(<Rfc attrs={{ id: "RFC-073", arc: "ARC-004" }} />);
     expect(screen.getByText("RFC-073")).toBeInTheDocument();
     expect(screen.getByText("for ARC-004")).toBeInTheDocument();
     expect(screen.getByTitle("this RFC serves ARC-004")).toBeInTheDocument();
   });
 
   it("an RFC that serves no arc says only what it is", () => {
-    render(<Rfc attrs={{ id: "RFC-012" }} />);
+    mount(<Rfc attrs={{ id: "RFC-012" }} />);
     expect(screen.getByText("RFC-012")).toBeInTheDocument();
     expect(screen.queryByText(/^for /)).not.toBeInTheDocument();
   });
 
   it("has nothing to press — identity is not edited by accident", () => {
-    const { container } = render(<Rfc attrs={{ id: "RFC-073", arc: "ARC-004" }} />);
+    const { container } = mount(<Rfc attrs={{ id: "RFC-073", arc: "ARC-004" }} />);
     expect(container.querySelector("button")).toBeNull();
   });
 });
 
 describe("::report", () => {
   it("names the report", () => {
-    render(<Report attrs={{ id: "subscribe-and-registration", title: "Two ideas" }} />);
+    mount(<Report attrs={{ id: "subscribe-and-registration", title: "Two ideas" }} />);
     expect(screen.getByText("subscribe-and-registration")).toBeInTheDocument();
     expect(screen.getByText("Two ideas")).toBeInTheDocument();
   });
@@ -48,7 +56,7 @@ describe("::report", () => {
 
 describe("::gap", () => {
   it("names the gap and says nothing else while it is open", () => {
-    render(<Gap attrs={{ id: "G-12" }} />);
+    mount(<Gap attrs={{ id: "G-12" }} />);
     expect(screen.getByText("G-12")).toBeInTheDocument();
     expect(screen.queryByText("resolved")).not.toBeInTheDocument();
   });
@@ -58,13 +66,13 @@ describe("::gap", () => {
   it("a resolved gap says so — the trail lights resolved", async () => {
     // resolved = declared on the leaf AND proved in the document; the row answers the proof half
     setHub({ Agent: { documentsRegistry: async () => [{ id: "G-12", state: { hasProof: true } }] }, SystemView: {} });
-    render(<Gap attrs={{ id: "G-12", resolved: "2026-10-25" }} />);
+    mount(<Gap attrs={{ id: "G-12", resolved: "2026-10-25" }} />);
     const resolved = await screen.findByText("resolved");
     expect(resolved.closest(".sv-trail__st").className).toContain("is-at");
   });
 
   it("has nothing to press", () => {
-    const { container } = render(<Gap attrs={{ id: "G-12" }} />);
+    const { container } = mount(<Gap attrs={{ id: "G-12" }} />);
     expect(container.querySelector("button")).toBeNull();
   });
 });

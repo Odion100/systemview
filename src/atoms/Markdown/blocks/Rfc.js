@@ -1,5 +1,7 @@
 import React from "react";
 import LifecycleTrail from "./lifecycle";
+import LeafElsewhere from "./LeafElsewhere";
+import { useInDocument } from "../context";
 
 // RFC-073 §1.2 — `::rfc{id=RFC-073 arc=ARC-004}` at the top of a document.
 //
@@ -15,7 +17,7 @@ import LifecycleTrail from "./lifecycle";
 // edited by accident: the number is what every attachment, hook and registry row points at.
 // THE LEAF IS THE TRAIL (2026-10-28): the lifecycle drawing, floating on the document with no
 // chrome of its own, and the identity at its periphery — kind, id, and the one relation.
-const Rfc = ({ attrs = {}, line }) => (
+const RfcLeaf = ({ attrs = {}, line }) => (
   <div className="md-arc md-rfc">
     <span className="md-arc__who">
       <span className="md-arc__kind">RFC</span>
@@ -30,5 +32,7 @@ const Rfc = ({ attrs = {}, line }) => (
     <LifecycleTrail kind="rfc" id={attrs.id} line={line} attrs={attrs} />
   </div>
 );
+
+const Rfc = (props) => (useInDocument() ? <RfcLeaf {...props} /> : <LeafElsewhere kind="rfc" />);
 
 export default Rfc;

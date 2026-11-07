@@ -4796,3 +4796,24 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+// A REGISTRATION LEAF READ OUTSIDE A DOCUMENT — the refusal, not the registration. Quiet on
+// purpose: it is a note to the author about the block they reached for, never a finding about the
+// document (there is no document). See blocks/LeafElsewhere.js for why it refuses rather than
+// guessing at a chip.
+.md-leaf-elsewhere {
+  display: block;
+  margin: 0.35rem 0;
+  padding: 0.4rem 0.6rem;
+  border-left: 2px solid var(--sv-dead);
+  background: var(--sv-inset);
+  color: var(--sv-text-faint);
+  font-size: 0.85rem;
+  line-height: 1.45;
+
+  code {
+    color: var(--sv-text);
+    background: none;
+    padding: 0;
+  }
+}

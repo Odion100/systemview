@@ -2,12 +2,18 @@ import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import Report from "./Report";
-import { MarkdownWriteProvider } from "../context";
+import Rfc from "./Rfc";
+import Arc from "./Arc";
+import Gap from "./Gap";
+import { MarkdownWriteProvider, InDocumentProvider } from "../context";
 import { setHub } from "../../../utils/hub";
 
 // RFC-076 §4.6 at the leaf — the clock's face (c44), the two presses (c38's divert, c45's
 // permanent), the invalid wear (c42/c43's document half), and the stamp riding the render.
-const mount = (ui) => render(<MemoryRouter>{ui}</MemoryRouter>);
+// A LEAF UNDER TEST IS A LEAF IN A DOCUMENT — which is what every claim below already assumed.
+// `useInDocument` defaults to false (the chat, a help topic, a preview), so saying it here is the
+// difference between testing the registration and testing the refusal that replaced it elsewhere.
+const mount = (ui) => render(<MemoryRouter><InDocumentProvider>{ui}</InDocumentProvider></MemoryRouter>);
 
 describe("the report leaf", () => {
   let opened;
@@ -104,5 +110,52 @@ describe("the report leaf", () => {
     mount(<Report attrs={{ id: "r-done", as: "account", retain: "14d", retired: "2026-10-28" }} line={1} />);
     expect(screen.queryByText(/retires/)).toBeNull();
     expect(opened).not.toHaveBeenCalled();
+  });
+});
+
+// THE REFUSAL — his complaint, 2026-11-07: a `::report` leaf written in a CHAT MESSAGE rendered the
+// whole registration UI badged "invalid", in a place where registering is impossible.
+describe("a registration leaf read outside a document", () => {
+  const bare = (ui) => render(<MemoryRouter>{ui}</MemoryRouter>);
+
+  // Its own stub: this describe is a sibling, so the hub the other one set is not in scope here.
+  let stamped;
+  beforeEach(() => {
+    stamped = jest.fn(async () => ({ ok: true, openedAt: Date.now() }));
+    setHub({ SystemView: {}, Agent: { documentOpened: stamped } });
+  });
+
+  it("refuses by name instead of wearing an invalid badge", () => {
+    bare(<Report attrs={{ id: "A title" }} line={1} />);
+    expect(screen.getByText(/this is not a document/i)).toBeInTheDocument();
+    expect(screen.getByText("::report")).toBeInTheDocument();
+    // The lie that was being told: a validity verdict about a document that does not exist.
+    expect(screen.queryByText(/invalid/i)).toBeNull();
+    expect(screen.queryByText(/retires in/i)).toBeNull();
+    expect(screen.queryByText(/SUBTYPE/i)).toBeNull();
+  });
+
+  it("names the block that WOULD have worked, because the leaf has no path to become a chip from", () => {
+    bare(<Report attrs={{ id: "A title" }} line={1} />);
+    expect(screen.getByText(":file[path]")).toBeInTheDocument();
+  });
+
+  it("does not stamp the clock — rendering is only reading when there is something to read", async () => {
+    bare(<Report attrs={{ id: "r-y", as: "account", retain: "14d" }} line={1} />);
+    await new Promise((r) => setTimeout(r, 0));
+    // A report's clock starts when the leaf is RENDERED. If a mention in a message could start it,
+    // a 24h account could be half spent by the time he opened the file.
+    expect(stamped).not.toHaveBeenCalled();
+  });
+
+  it("the other three leaves refuse the same way, from one definition", () => {
+    const { unmount } = bare(<Rfc attrs={{ id: "RFC-1" }} line={1} />);
+    expect(screen.getByText("::rfc")).toBeInTheDocument();
+    unmount();
+    const a = bare(<Arc attrs={{ id: "ARC-1" }} line={1} />);
+    expect(screen.getByText("::arc")).toBeInTheDocument();
+    a.unmount();
+    bare(<Gap attrs={{ id: "G-1" }} line={1} />);
+    expect(screen.getByText("::gap")).toBeInTheDocument();
   });
 });

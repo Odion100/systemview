@@ -1,6 +1,7 @@
 import React from "react";
 import { arcProgress } from "../objectives";
-import { useDocMembers } from "../context";
+import { useDocMembers, useInDocument } from "../context";
+import LeafElsewhere from "./LeafElsewhere";
 import LifecycleTrail from "./lifecycle";
 
 // RFC-072 §4 — `::arc{id=ARC-004 owner=systemview-test title=…}` at the top of a document.
@@ -13,7 +14,7 @@ import LifecycleTrail from "./lifecycle";
 // here, because the question a milestone is reached for — *where are we* — is already answered by
 // how many objectives are done, and the ordering it usually stands in for is a property of an
 // objective (`needs`) rather than a box drawn around a group of them.
-const Arc = ({ attrs = {}, line }) => {
+const ArcLeaf = ({ attrs = {}, line }) => {
   // Counted from the WHOLE document — a leaf block has no slice of its own to count, and the
   // objectives it is counting sit below it rather than inside it.
   const { source = "" } = useDocMembers() || {};
@@ -39,5 +40,7 @@ const Arc = ({ attrs = {}, line }) => {
     </div>
   );
 };
+
+const Arc = (props) => (useInDocument() ? <ArcLeaf {...props} /> : <LeafElsewhere kind="arc" />);
 
 export default Arc;
