@@ -5554,6 +5554,16 @@ $sv-board-states: (
 // and a section is a weaker claim than that, so it borrows rather than adds.
 // IT NEVER DRAWS ALONE — the render only emits a caption when both sections have rows (see
 // AgentChat.js), because a division named over one list is a division that is not there.
+// A PANE THAT HAS NOTHING SAYS SO. The three work tabs are a fixed row (his ruling, 2026-11-07:
+// "jobs, worklists, empty while they're still showing"), so an empty pane is somewhere he can
+// actually be standing — and blank space there cannot be told from a surface that broke.
+.agent-chat__bandnone {
+  padding: 10px 8px;
+  font-size: 11px;
+  font-style: italic;
+  color: var(--sv-text-muted);
+}
+
 .agent-chat__bandsec {
   padding: 5px 8px 2px;
   border-top: 1px solid var(--sv-line, rgba(128, 128, 128, 0.18));

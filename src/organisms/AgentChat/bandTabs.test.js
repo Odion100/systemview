@@ -1,28 +1,39 @@
 import { bandTabs, bandLabel, bandHead, withDefaultList, DEFAULT_LIST_KEY, readBandTab, writeBand, TAB_KEY } from "./bandTabs";
 
-// The band's rule is about EMPTINESS, which is the only thing a tabbed surface can get wrong in a
-// way the user feels: a tab bar that says there is work beside a pane that shows none.
+// THE BAND'S THREE TABS ARE A FIXED ROW. His ruling, 2026-11-07, said once and then repeated per
+// kind because I shipped only the first of them: *"the list should exist down there empty instead
+// of disappearing"* → *"default list always"* → *"jobs, worklists, empty while they're still
+// showing"* → *"lanes."*
+//
+// So the emptiness rule MOVED rather than died: it governs the rows inside a pane, each of which
+// says what it has none of, instead of the existence of the pane. What a tabbed surface can still
+// get wrong in a way he feels is the other direction — a tab bar that says there is work beside a
+// pane that shows none — and the counts are what these claims hold to that.
 describe("the work band is tabs — one per type of work", () => {
-  it("gives a tab only to a kind that has rows — except the list, which is the floor", () => {
+  it("draws all three, whatever has rows, and carries each kind's real count", () => {
     const { tabs } = bandTabs({ jobs: 2, lanes: 0, lists: 0 });
-    expect(tabs.map((t) => t.key)).toEqual(["jobs", "lists"]);
+    expect(tabs.map((t) => [t.key, t.n])).toEqual([["jobs", 2], ["lanes", 0], ["lists", 0]]);
   });
 
   it("keeps the stored choice while it still has rows", () => {
     expect(bandTabs({ jobs: 1, lanes: 3 }, "lanes").active).toBe("lanes");
   });
 
-  it("moves off a tab whose rows are gone, instead of showing an empty pane", () => {
-    expect(bandTabs({ jobs: 1, lanes: 0 }, "lanes").active).toBe("jobs");
+  // THE OPPOSITE OF WHAT THIS CLAIM USED TO SAY, and the reversal is the ruling. It read "moves
+  // off a tab whose rows are gone, instead of showing an empty pane" — which is exactly the
+  // disappearing he rejected: the tab he was standing on jumped out from under him the moment a
+  // run finished. An empty pane he chose is better than a pane he did not.
+  it("STAYS on the tab he chose when its rows run out, and shows it empty", () => {
+    expect(bandTabs({ jobs: 1, lanes: 0 }, "lanes").active).toBe("lanes");
   });
 
   // HIS RULING, 2026-11-07: *"the list should exist down there empty instead of disappearing…
   // default list always."* The band used to render nothing at all when nothing stood, which is a
   // surface you cannot put the first thing on.
-  it("still draws the list when nothing stands at all, and stands on it", () => {
-    const { tabs, active } = bandTabs({}, "lanes");
-    expect(tabs.map((t) => [t.key, t.n])).toEqual([["lists", 0]]);
-    expect(active).toBe("lists");
+  it("draws all three with nothing standing at all — a surface you can put the first thing on", () => {
+    const { tabs, active } = bandTabs({});
+    expect(tabs.map((t) => [t.key, t.n])).toEqual([["jobs", 0], ["lanes", 0], ["lists", 0]]);
+    expect(active).toBe("jobs");
   });
 
   it("orders them the way the head reads them — jobs, lanes, lists", () => {
@@ -37,9 +48,9 @@ describe("the work band is tabs — one per type of work", () => {
   // counts still ARRIVE (one object from one caller), so this is the claim that matters: a kind
   // BAND_KINDS does not name can never draw a tab, however many rows it reports.
   it("gives no tab to a kind that moved to the dashboard, however many rows it has", () => {
-    const { tabs, active } = bandTabs({ owed: 3, reports: 9, rfcs: 4, arcs: 2, gaps: 7 });
-    expect(tabs.map((t) => t.key)).toEqual(["lists"]);
-    expect(active).toBe("lists");
+    const { tabs } = bandTabs({ owed: 3, reports: 9, rfcs: 4, arcs: 2, gaps: 7 });
+    expect(tabs.map((t) => t.key)).toEqual(["jobs", "lanes", "lists"]);
+    expect(tabs.every((t) => t.n === 0)).toBe(true);
   });
 
   it("and a stored key from the document era falls through to the work that is running", () => {
@@ -63,40 +74,44 @@ describe("the work band is tabs — one per type of work", () => {
   // and nothing on screen could reach them — the exact opposite of "no subagent runs unseen".
   it("gives the lane tab to a running subagent even with no lane registered at all", () => {
     const { tabs, active } = bandTabs({ lanes: { lanes: 0, subagents: 2 } }, "");
-    expect(tabs.map((t) => t.key)).toEqual(["lanes", "lists"]);
-    expect(active).toBe("lanes");
-    expect(tabs[0].n).toBe(2);
+    // The tab exists either way now; what this still holds is the COUNT — the one that was 0 and
+    // deleted the tab, leaving two running subagents nothing on screen could reach.
+    expect(tabs.find((t) => t.key === "lanes").n).toBe(2);
+    expect(active).toBe("jobs");
   });
 
-  it("still has no lane tab when neither kind stands", () => {
+  it("has a lane tab reading zero when neither kind stands, and keeps him on it", () => {
     const { tabs, active } = bandTabs({ lanes: { lanes: 0, subagents: 0 } }, "lanes");
-    expect(tabs.map((t) => t.key)).toEqual(["lists"]);
-    expect(active).toBe("lists");
+    expect(tabs.find((t) => t.key === "lanes").n).toBe(0);
+    expect(active).toBe("lanes");
   });
 
   it("counts every row in the pane, so the number cannot disagree with what opening it shows", () => {
-    expect(bandTabs({ lanes: { lanes: 1, subagents: 2 } }).tabs[0].n).toBe(3);
+    expect(bandTabs({ lanes: { lanes: 1, subagents: 2 } }).tabs.find((t) => t.key === "lanes").n).toBe(3);
   });
 
   // THE COUNT THAT BUYS THE TAB AND THE WORDS ON IT ARE NOT THE SAME CLAIM. A subagent with no
   // branch has no run record and nothing to diff, so "3 lanes" over one lane and two subagents
   // would trade an invisible row for a false one. The label names both instead.
   it("names both kinds rather than counting a subagent as a lane", () => {
-    const t = bandTabs({ lanes: { lanes: 1, subagents: 2 } }).tabs[0];
+    const t = bandTabs({ lanes: { lanes: 1, subagents: 2 } }).tabs.find((x) => x.key === "lanes");
     expect(bandLabel(t.key, t.n, t.parts)).toBe("1 lane · 2 subagents");
   });
 
   it("collapses to one kind's words when only one kind stands", () => {
-    const only = bandTabs({ lanes: { lanes: 0, subagents: 2 } }).tabs[0];
+    const lane = (c) => bandTabs({ lanes: c }).tabs.find((t) => t.key === "lanes");
+    const only = lane({ lanes: 0, subagents: 2 });
     expect(bandLabel(only.key, only.n, only.parts)).toBe("2 subagents");
-    const lanesOnly = bandTabs({ lanes: { lanes: 3, subagents: 0 } }).tabs[0];
+    const lanesOnly = lane({ lanes: 3, subagents: 0 });
     expect(bandLabel(lanesOnly.key, lanesOnly.n, lanesOnly.parts)).toBe("3 lanes");
     expect(bandLabel("lanes", 1, { lanes: 1, subagents: 0 })).toBe("1 lane");
+    // With no parts at all the tab is the zero one, and it says so rather than naming a section.
+    expect(bandLabel("lanes", 0)).toBe("0 lanes");
   });
 
   // A plain number still works — every other kind passes one, and the lane tab did until today.
   it("takes the lane count as a plain number too", () => {
-    expect(bandTabs({ lanes: 2 }).tabs[0].n).toBe(2);
+    expect(bandTabs({ lanes: 2 }).tabs.find((t) => t.key === "lanes").n).toBe(2);
     expect(bandLabel("lanes", 2)).toBe("2 lanes");
   });
 
@@ -107,9 +122,10 @@ describe("the work band is tabs — one per type of work", () => {
   // inside the lane tab. Only the second one is left, so it is worth claiming on its own.
   it("still folds the lane tab's two parts into one tab, ignoring a document count beside it", () => {
     const { tabs } = bandTabs({ lanes: { lanes: 1, subagents: 1 }, reports: { "": 1, spec: 2 } });
-    expect(tabs.map((t) => t.key)).toEqual(["lanes", "lists"]);
-    expect(tabs[0].n).toBe(2);
-    expect(tabs[0].parts).toEqual({ lanes: 1, subagents: 1 });
+    expect(tabs.map((t) => t.key)).toEqual(["jobs", "lanes", "lists"]);
+    const lane = tabs.find((t) => t.key === "lanes");
+    expect(lane.n).toBe(2);
+    expect(lane.parts).toEqual({ lanes: 1, subagents: 1 });
   });
 
   it("survives a storage that refuses to answer — private mode is not an error", () => {
@@ -131,7 +147,7 @@ describe("a tab says which family it belongs to", () => {
   it("has one family left, because one kind of thing is left", () => {
     const { tabs } = bandTabs({ jobs: 1, lanes: 1, lists: 1 });
     expect(tabs.every((t) => t.family === "work")).toBe(true);
-    expect(bandTabs({ reports: 1, rfcs: 1, arcs: 1, gaps: 1, owed: 1 }).tabs.map((t) => t.key)).toEqual(["lists"]);
+    expect(bandTabs({ reports: 1, rfcs: 1, arcs: 1, gaps: 1, owed: 1 }).tabs.every((t) => t.family === "work")).toBe(true);
   });
 
   it("carries the family through alongside the count, so the render needs no second lookup", () => {

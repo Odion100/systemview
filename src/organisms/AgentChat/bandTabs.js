@@ -16,15 +16,20 @@
 // two surfaces owning one answer, so the kinds that remain are the ones that are RUNNING: a job's
 // list, a lane on a branch (or a subagent without one), a procedure's own run. The documents were
 // not lost — they moved house.
+// AND NONE OF THE THREE COMES AND GOES. His ruling, 2026-11-07, stated once and then repeated for
+// each kind because I shipped only the first: *"the list should exist down there empty instead of
+// disappearing"* → *"default list always"* → *"jobs, worklists, empty while they're still
+// showing"* → *"lanes."*
+//
+// THE EMPTINESS RULE IS NOT GONE — IT MOVED. "A tab that can only ever say nothing here is
+// furniture" was written when the band held INVENTORIES, where an empty tab said nothing a reader
+// could act on. These three are not inventories: they are the shape of work in flight, and a band
+// whose tabs appear and vanish as runs come and go is a surface you cannot learn, cannot aim at,
+// and cannot put the first thing on. The emptiness rule now governs the ROWS inside a pane — each
+// one says what it has none of — rather than the existence of the pane.
 export const BAND_KINDS = [
-  { key: "jobs", label: "job", family: "work" },
-  { key: "lanes", label: "lane", family: "work" },
-  // THE LIST IS THE DRAWER'S FLOOR AND DOES NOT COME AND GO. His ruling, 2026-11-07: *"the list
-  // should exist down there empty instead of disappearing"*, and then what it is: *"default list
-  // always."* Every other kind still lives by the emptiness rule — a tab that can only say
-  // "nothing here" is furniture — but the session's own plan is not an inventory that happens to
-  // be empty, it is the thing the drawer is FOR, and a surface that vanishes when there is nothing
-  // on it is a surface you cannot put the first thing on.
+  { key: "jobs", label: "job", family: "work", always: true },
+  { key: "lanes", label: "lane", family: "work", always: true },
   { key: "lists", label: "list", family: "work", always: true },
 ];
 
@@ -53,8 +58,9 @@ export const bandLabel = (kind, n, parts = null) => {
 /**
  * Which tabs to draw, and which is active.
  *
- * - A kind with no rows gets NO TAB — a tab that can only ever say "nothing here" is furniture.
- *   EXCEPT a kind marked `always`, which is the list: see BAND_KINDS.
+ * - Every kind is marked `always`, so the three tabs are a fixed row: see BAND_KINDS for why the
+ *   emptiness rule moved from the tab to the rows inside it. The filter stays because the mark is
+ *   per-kind and a future kind may well earn the old rule.
  * - The stored choice wins while it still has rows; otherwise the first tab that has any does,
  *   because the alternative is an empty pane beside a tab bar that says there is work.
  *   THE SAME RULE IS THE MIGRATION: a stored key from the band's document era ("rfcs", "owed",

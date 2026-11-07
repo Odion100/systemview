@@ -7682,7 +7682,11 @@ const countdown = (str, now = Date.now()) => {
               it controls. And the count rides the title while it is on: a surface that silently
               omits is a surface that lies, so "no runs" and "runs, hidden by me" must never look
               the same. */}
-          {attached && !hideWork && (lanesShown.length > 0 || unseenShown.length > 0 || listsShown.length > 0 || !!work.state.whiteboard) && (
+          {/* THE BAND IS ALWAYS THERE WHEN THE CHAT IS. The three work tabs are a fixed row now
+              (bandTabs.js), so the old gate — render only if some kind has rows — could only ever
+              be true, and keeping it would leave a condition that reads as if the band could still
+              vanish. It cannot: that is the ruling. */}
+          {attached && !hideWork && (
             <div className={`${CLASSNAME}__workband`} ref={stripRef} style={{ flex: `0 1 ${stripH}%` }}>
               <div
                 className="panel-divider panel-divider--h"
@@ -7724,7 +7728,7 @@ const countdown = (str, now = Date.now()) => {
                   <NudgeCog />
                 </div>
               )}
-              {(lanesShown.length > 0 || unseenShown.length > 0 || listsShown.length > 0) && (
+
               <div className={`${CLASSNAME}__strip`}>
           {/* ONE RENDERER FOR A LANE ROW, flat or nested — the row, its in-place panel, its
               delete. Defined here (not a component) so it closes over every handler the flat strip
@@ -7788,6 +7792,9 @@ const countdown = (str, now = Date.now()) => {
                   const cap = (text) => <div className={`${CLASSNAME}__bandsec`}>{text}</div>;
                   return (
                     <>
+                      {!branchRows.length && !unseenShown.length && (
+                        <div className={`${CLASSNAME}__bandnone`}>no lane out, no subagent running</div>
+                      )}
                       {both && cap("on a branch")}
                       {branchRows.map(renderLaneRow)}
                       {/* RUNNING, AND ACCOUNTED FOR BY NOTHING ELSE ON SCREEN. Dim, because it is
@@ -7833,6 +7840,16 @@ const countdown = (str, now = Date.now()) => {
                     </>
                   );
                 })()}
+                {/* EMPTY WHILE IT IS STILL SHOWING (his ruling, 2026-11-07). The tabs are a
+                    fixed row now, so a pane with no rows is reachable — and a reachable pane that
+                    renders nothing is the same lie as a tab that vanished: it leaves him looking
+                    at blank space with no way to tell "none" from "broken". So each pane says
+                    what it has none of. */}
+                {attached &&
+                  bandShown.active === "jobs" &&
+                  !listsShown.some((l) => l.source.startsWith("job:")) && (
+                    <div className={`${CLASSNAME}__bandnone`}>no job running</div>
+                  )}
                 {attached &&
                   listsShown
                     .filter((l) => bandShown.active === (l.source.startsWith("job:") ? "jobs" : "lists"))
@@ -7871,7 +7888,6 @@ const countdown = (str, now = Date.now()) => {
             );
           })()}
             </div>
-              )}
               {/* The whiteboard sits UNDER the list — tried on top, he wants to feel this order
                   again. Same area, different job: the list tracks the work, the board holds the
                   conversation. The wipe is the host's, so an erase clears it for both of us. */}
@@ -7883,7 +7899,7 @@ const countdown = (str, now = Date.now()) => {
           {/* THE WHOLE LABEL IS THE GRAB BAR — a 5px edge sliver was the only pull surface and it
               sat inside the chat guard's shadow; now any press on the row starts the pull, and a
               press that never moves is the click that opens. */}
-          {attached && hideWork && (lanesShown.length > 0 || unseenShown.length > 0 || listsShown.length > 0 || !!work.state.whiteboard) && (
+          {attached && hideWork && (
             <div className={`${CLASSNAME}__workband-label`} ref={stripRef} onMouseDown={stripPull}>
               <WorkbandHead
                 open={false}
