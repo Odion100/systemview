@@ -166,3 +166,67 @@ describe("the four kind colours", () => {
     expect(bad).toEqual([]);
   });
 });
+
+// ── THE DOCUMENT SCOPE'S OWN COPY OF THE TOKENS ────────────────────────────────────────────────
+//
+// A document is explicitly light or explicitly dark, independent of the app, so `.markdown`
+// re-declares the tokens an embedded component reads — that is how a chart inside a light document
+// stays light while the app is dark. The whole mechanism depends on the SET being complete: a
+// mode-dependent token left out is not a missing style, it is a value that silently reaches past
+// the document and takes the APP's, and only when the two modes disagree.
+//
+// MEASURED 2026-11-07: of the twelve mode-dependent tokens this stylesheet reads, four were not
+// redeclared — `--sv-inset`, `--sv-hover`, `--sv-blue`, `--sv-blue-deep`. The card that found it
+// named one. Nothing compared the two lists, which is why it had sat since August.
+describe("the markdown scope redeclares every mode-dependent token it reads", () => {
+  const read = (f) => fs.readFileSync(f, "utf8");
+  const theme = read(path.join(SRC, "sass", "theme.scss"));
+  const md = read(path.join(SRC, "atoms", "Markdown", "styles.scss"));
+
+  // The brace-matched body of a rule, so a nested block cannot end the scan early.
+  const body = (src, open) => {
+    const i = src.indexOf("{", src.indexOf(open));
+    let depth = 0;
+    for (let j = i; j < src.length; j += 1) {
+      if (src[j] === "{") depth += 1;
+      else if (src[j] === "}") {
+        depth -= 1;
+        if (depth === 0) return src.slice(i + 1, j);
+      }
+    }
+    return "";
+  };
+  const declared = (src) => {
+    const out = {};
+    for (const m of src.matchAll(/(--sv-[\w-]+)\s*:\s*([^;]+);/g)) out[m[1]] = m[2].split("//")[0].trim();
+    return out;
+  };
+
+  const light = declared(body(theme, ":root {"));
+  const dark = declared(body(theme, ":root.sv-dark {"));
+  const modeDependent = Object.keys(light).filter((k) => k in dark && light[k] !== dark[k]);
+
+  // The redeclaration is the `.markdown` rule that sets --sv-surface, not the typography rule that
+  // shares the class name.
+  const scope = body(md, md.slice(0, md.indexOf("--sv-surface: #fff;")).lastIndexOf(".markdown {") >= 0
+    ? md.slice(md.slice(0, md.indexOf("--sv-surface: #fff;")).lastIndexOf(".markdown {"))
+    : ".markdown {");
+
+  it("there are mode-dependent tokens to protect, and the document scope redeclares the ones it reads", () => {
+    expect(modeDependent.length).toBeGreaterThan(10);
+    const usedHere = new Set([...md.matchAll(/var\((--sv-[\w-]+)/g)].map((m) => m[1]));
+    // THE LIGHT HALF SPECIFICALLY. Scanning the whole scope would count a token that exists only in
+    // the dark block as covered — and that asymmetry is its own bug, which the next claim owns.
+    const lightHalf = scope.replace(body(scope, "&--dark {"), "");
+    const inScope = new Set([...lightHalf.matchAll(/(--sv-[\w-]+)\s*:/g)].map((m) => m[1]));
+    const missing = modeDependent.filter((k) => usedHere.has(k) && !inScope.has(k));
+    expect(missing).toEqual([]);
+  });
+
+  it("and the dark half redeclares exactly what the light half does — an asymmetry IS the bug", () => {
+    const darkHalf = body(scope, "&--dark {");
+    const lightNames = [...scope.replace(darkHalf, "").matchAll(/(--sv-[\w-]+)\s*:/g)].map((m) => m[1]).sort();
+    const darkNames = [...darkHalf.matchAll(/(--sv-[\w-]+)\s*:/g)].map((m) => m[1]).sort();
+    expect(darkNames).toEqual(lightNames);
+  });
+});

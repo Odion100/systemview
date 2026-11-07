@@ -628,6 +628,16 @@
   --sv-text-strong: #3b4460;
   --sv-text-muted: #8b93a7;
   --sv-text-faint: #42a942;
+  // FOUR MORE THAT WERE MISSING, and the omission is invisible until a document's mode differs from
+  // the app's — then every `var()` below reaches past this scope and takes the APP's value, which is
+  // the one thing this block exists to prevent. Measured 2026-11-07 by comparing the theme's two
+  // :root blocks against every token read in this file: of the twelve mode-dependent tokens read
+  // here, eight were redeclared and these four were not. `themeTokens.test.js` now holds that
+  // comparison as a claim, so the next one cannot be added silently.
+  --sv-inset: #eef1f7;
+  --sv-hover: #f1f3fa;
+  --sv-blue: #6886ba;
+  --sv-blue-deep: #46608f;
 
   &--dark {
     --sv-surface: #21252b;
@@ -641,6 +651,10 @@
     --sv-text-strong: #eef1f7;
     --sv-text-muted: #98a0b5;
     --sv-text-faint: #42a942;
+    --sv-inset: #21252b;
+    --sv-hover: #313640;
+    --sv-blue: #7d99cc;
+    --sv-blue-deep: #9ab3e2;
   }
 
   // (the .md-chip block moved to TOP LEVEL — chips render outside .markdown too, e.g. chat)
@@ -4807,7 +4821,11 @@
   padding: 0.4rem 0.6rem;
   border-left: 2px solid var(--sv-dead);
   background: var(--sv-inset);
-  color: var(--sv-text-faint);
+  // NOT `--sv-text-faint`: inside a rendered document that token resolves GREEN (#42a942, the
+  // owner-chip's colour, redeclared in the scope above) — so a refusal written in faint text came
+  // out green in the one place this block is also legitimately rendered. Four other rules in this
+  // file carry the same warning.
+  color: var(--sv-text-muted);
   font-size: 0.85rem;
   line-height: 1.45;
 
