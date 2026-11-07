@@ -8,12 +8,19 @@ import { Ctx, HUES, Reading, floorOf } from "./floor";
 // ones carrying documents. A project with nothing registered is a FACT, not an absence; folding
 // them into one honest line beats eleven empty cards and beats hiding them.
 //
-// NOTHING IS OPENED FROM HERE. A project is not a document and B has no door for one, so these
-// cards say what is there and stop — the only control is the fold on the quiet list.
-export default function ProjectsTile({ data }) {
+// NOTHING IS OPENED FROM HERE. A project is not a document and B has no door for one.
+//
+// A CARD IS A SELECTION, AND THIS IS THE TILE THE SELECTION WAS ALWAYS FOR — his ruling,
+// 2026-11-07: *"the projects you should be able to click to filter, and it needs to show it
+// selected properly."* Pressing one publishes `project` to the stack, so every tile BELOW this one
+// is that project and nothing else; pressing it again lets go. The fill is the whole point of
+// asking for it: a narrowed page that does not say which selection narrowed it reads as the world.
+export default function ProjectsTile({ data, filter }) {
   const [showQuiet, setShowQuiet] = useState(false);
   const floor = floorOf(data);
   if (!floor) return <Reading />;
+  const held = (filter && (filter.mine || {}).project) || "";
+  const pick = filter ? (code) => filter.set("project", code) : null;
   const live = floor.projects.filter((p) => !p.quiet);
   const quiet = floor.projects.filter((p) => p.quiet);
   return (
@@ -24,8 +31,26 @@ export default function ProjectsTile({ data }) {
           <span>ordered by what they want from you · the time is when the shell last PARSED something there</span>
         </div>
         <div className="dbb-projects__grid">
-          {live.map((p) => (
-            <div key={p.code} className={`dbb-proj${p.press ? " is-press" : ""}`}>
+          {live.map((p) => {
+            const on = held === p.code;
+            // A BUTTON, not a div with a role: nothing inside a project card is interactive, so the
+            // whole card can be the press without nesting one control in another.
+            const Card = pick ? "button" : "div";
+            return (
+            <Card
+              key={p.code}
+              {...(pick
+                ? {
+                    type: "button",
+                    onClick: () => pick(p.code),
+                    "aria-pressed": on,
+                    title: on
+                      ? `showing only ${p.code} below — press to show every project again`
+                      : `press to show only ${p.code} below this tile`,
+                  }
+                : {})}
+              className={`dbb-proj${p.press ? " is-press" : ""}${on ? " is-on" : ""}`}
+            >
               <div className="dbb-proj__name">
                 <b>{p.code}</b>
                 {p.press ? <span className="dbb-proj__flag">⚑ {p.press}</span> : null}
@@ -45,8 +70,9 @@ export default function ProjectsTile({ data }) {
                 {p.lastWords ? <span className="dbb-aside">parsed {p.lastWords}</span> : null}
                 {p.stale ? <span className="dbb-proj__stale">{p.stale} drifted past their parse</span> : null}
               </div>
-            </div>
-          ))}
+            </Card>
+            );
+          })}
         </div>
         {quiet.length ? (
           <p className="dbb-quiet">

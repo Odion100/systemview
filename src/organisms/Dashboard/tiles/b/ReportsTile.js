@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import Ring from "./Ring";
-import { docKey } from "../../../AgentChat/owed";
 import { Ctx, HUES, Reading, floorOf, openBead } from "./floor";
 
 // ─── THE REPORT STACKS ─────────────────────────────────────────────────────────────────────────
@@ -12,20 +11,17 @@ import { Ctx, HUES, Reading, floorOf, openBead } from "./floor";
 // drains. One stack per project, because "all the projects going on at the same time" is the other
 // half of the ask and a single global pile would bury the project that is actually producing.
 //
-// A CARD IS A SELECTION NOW, NOT A DOOR. His ruling, 2026-11-06: *"the selection can't change
-// anything about it now, but you need to be able to click it and show a selection — might have to
-// be just a fill."* So a press on a card publishes `reportWindow` to the stack (the tiles below
-// narrow to that report — mostly to nothing else today, which is the honest size of it) and wears
-// the fill; the ARROW is what travels, because *"nothing should actually be clicked to travel,
-// except an explicit symbol."*
-export default function ReportsTile({ data, filter }) {
+// A CARD IS READING, AND THE ARROW IS THE DOOR. There is no selection here: a selection has to have
+// something under it, and a report holds nothing — his ruling, 2026-11-07: *"What the fuck could a
+// report filter? What is a report sitting on top of?"* The fill he asked for belongs to the
+// projects, where a press means every tile below is that project. Travel is the arrow, because
+// *"nothing should actually be clicked to travel, except an explicit symbol."*
+export default function ReportsTile({ data }) {
   const [fanned, setFanned] = useState("");
   const floor = floorOf(data);
   if (!floor) return <Reading />;
   const { stacks } = floor;
   const open = (card) => openBead(card, data && data.open);
-  const held = (filter && (filter.mine || {}).reportWindow) || "";
-  const pick = filter ? (card) => filter.set("reportWindow", docKey(card)) : null;
   return (
     <Ctx>
       <section className="dbb-stacks">
@@ -63,18 +59,12 @@ export default function ReportsTile({ data, filter }) {
                   </button>
                   <div className="dbb-fan">
                     {s.cards.map((c, i) => (
-                      // A DIV WITH A ROLE, not a button, because the arrow inside it is a button
-                      // and a button may not hold one. Plain press = the selection (the fill);
-                      // the arrow = the travel.
-                      // eslint-disable-next-line jsx-a11y/click-events-have-key-events
+                      // A PLAIN DIV: nothing here is pressed but the arrow. It carried a role and a
+                      // press while the press published a filter, and the filter was the mistake.
                       <div
                         key={c.key}
-                        role="button"
-                        className={`dbb-rcard${c.mark === "⧗" ? " is-urgent" : ""}${held && held === docKey(c) ? " is-on" : ""}`}
+                        className={`dbb-rcard${c.mark === "⧗" ? " is-urgent" : ""}`}
                         style={{ "--i": i, zIndex: s.cards.length - i }}
-                        onClick={pick ? () => pick(c) : undefined}
-                        aria-pressed={pick ? !!held && held === docKey(c) : undefined}
-                        tabIndex={isOpen ? 0 : -1}
                         title={`${c.id}${c.title ? ` — ${c.title}` : ""}\n${c.says}`}
                       >
                         <span className="dbb-rcard__top">

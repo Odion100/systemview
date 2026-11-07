@@ -818,8 +818,22 @@
   border-radius: 6px;
   background: var(--sv-surface);
   min-width: 0;
+  // As a BUTTON it must read as the card it already was: the element changed, the face must not.
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
   &.is-press {
     border-color: var(--dbb-press);
+  }
+  // THE HELD PROJECT WEARS A FILL — the same statement the held arc bead makes, because a narrowed
+  // page that does not say which selection narrowed it reads as the whole world.
+  &.is-on {
+    border-color: var(--sv-blue);
+    box-shadow: inset 0 0 0 1px var(--sv-blue);
+    background: var(--sv-inset);
+    .dbb-proj__name b { color: var(--sv-text-strong); font-weight: 600; }
   }
   &__name {
     display: flex;
@@ -976,14 +990,9 @@ button.dbb-bead__body { cursor: pointer; }
   .dbb-bead__id { color: var(--sv-text-strong); font-weight: 600; }
 }
 
-// A report card: plain press is the selection ("might have to be just a fill" — it is), the
-// arrow is the door.
-.dbb-rcard { cursor: pointer; }
-.dbb-rcard.is-on {
-  border-color: var(--dbb-report);
-  box-shadow: inset 0 0 0 1px var(--dbb-report);
-  background: var(--sv-inset);
-}
+// A report card is READING — the arrow is the only door on it, so the card must not wear a pointer
+// cursor or a selection fill. It had both while a press published a filter, and a report has
+// nothing under it to filter.
 .dbb-rcard__go {
   margin-left: auto;
   padding: 0 3px;

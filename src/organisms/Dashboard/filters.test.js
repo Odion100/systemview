@@ -121,9 +121,14 @@ describe("narrowData — what each dimension keeps", () => {
     [...out.owed.press, ...out.owed.work].forEach((o) => expect(["ARC-9", "RFC-001"]).toContain(o.id));
   });
 
-  it("reportWindow keeps the one report it names", () => {
+  // A REPORT IS NOT A DIMENSION — his ruling, 2026-11-07: *"What the fuck could a report filter?
+  // What is a report sitting on top of?"* A selection has to have something under it, and a report
+  // holds nothing. The dimension existed and narrowed the page to one document.
+  it("a report is not a dimension — nothing hangs off one, so nothing can be filtered by one", () => {
+    expect(DIMENSIONS).toEqual(["kind", "project", "arc"]);
     const out = narrowData(value(), { reportWindow: docKey({ project: "alpha", id: "r-one" }) });
-    expect(ids(out.docs)).toEqual(["r-one"]);
+    expect(ids(out.docs)).toEqual(ids(value().docs));
+    expect(out.filtering).toBe(false);
   });
 
   it("dimensions AND together — a project held above an arc cuts both ways", () => {

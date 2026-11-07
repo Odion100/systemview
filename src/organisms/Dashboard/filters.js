@@ -23,14 +23,17 @@
 //                 click on arcs and it should filter all the RFCs for that arc."* It keeps the
 //                 arc itself and every document whose own leaf addresses that arc (`arc=ARC-001-O6`
 //                 — the same address `plansByObjective` resolves plans by).
-//   reportWindow  one report, as a docKey string, from the reports tile. Today it mostly narrows
-//                 to the report itself — his own words: *"the selection can't change anything
-//                 about it now, but you need to be able to click it and show a selection"* — but
-//                 it rides the same mechanism so the day it means more, nothing moves.
+//
+// A REPORT IS NOT A DIMENSION, and the reason is the whole test for whether something belongs here:
+// a selection has to have something UNDER it. An arc holds RFCs, a project holds everything in it —
+// a report holds nothing, so narrowing the page to one left every tile below showing that single
+// document and answering no question anybody had. His ruling, 2026-11-07: *"What the fuck could a
+// report filter? What is a report sitting on top of?"* The selection-with-a-fill he asked for was
+// always meant for the PROJECTS, which is where it lives now.
 import { docKey } from "../AgentChat/owed";
 import { parseAddress } from "../../atoms/Markdown/objectives";
 
-export const DIMENSIONS = ["kind", "project", "arc", "reportWindow"];
+export const DIMENSIONS = ["kind", "project", "arc"];
 
 /** One selection value for a document-shaped thing: project + id, one spelling (docKey's own). */
 export const holdOf = (x) => docKey(x);
@@ -79,7 +82,6 @@ const docPredicates = (filters) => {
       return !!a && a.arc === arcId;
     });
   }
-  if (filters.reportWindow) preds.push((d) => docKey(d.row) === filters.reportWindow);
   return preds;
 };
 

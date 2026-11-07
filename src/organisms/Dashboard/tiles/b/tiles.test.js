@@ -323,13 +323,16 @@ describe("the report stacks", () => {
     expect([...stacks].map((s) => s.querySelector(".dbb-stack__proj").textContent).sort()).toEqual(["p", "q"]);
   });
 
-  it("a stack fans out when pressed and the cards become reachable", () => {
+  // THE CARD ITSELF IS NOT FOCUSABLE — it is reading. What the fold gates is its ARROW: a closed
+  // stack's doors must stay out of the tab order, or tabbing walks through piles he cannot see.
+  it("a stack fans out when pressed, and only then is its arrow reachable", () => {
     const { container } = render(<ReportsTile data={mk()} />);
     const face = container.querySelector(".dbb-stack__face");
-    expect(container.querySelector(".dbb-rcard")).toHaveAttribute("tabindex", "-1");
+    expect(container.querySelector(".dbb-rcard")).not.toHaveAttribute("tabindex");
+    expect(container.querySelector(".dbb-rcard__go")).toHaveAttribute("tabindex", "-1");
     fireEvent.click(face);
     expect(face).toHaveAttribute("aria-expanded", "true");
-    expect(container.querySelector(".dbb-rcard")).toHaveAttribute("tabindex", "0");
+    expect(container.querySelector(".dbb-rcard__go")).toHaveAttribute("tabindex", "0");
   });
 
   it("says plainly when no project has filed one", () => {
@@ -337,35 +340,21 @@ describe("the report stacks", () => {
     expect(screen.getByText("no reports are registered in any project.")).toBeInTheDocument();
   });
 
-  // HIS RULING, 2026-11-06: *"the selection can't change anything about it now, but you need to
-  // be able to click it and show a selection — might have to be just a fill."* A card's plain
-  // press is the selection; the arrow is the door; the body never travels.
-  it("a card's plain press selects (a fill, published to the stack); only the arrow opens", () => {
+  // HIS RULING, 2026-11-07: *"What the fuck could a report filter? What is a report sitting on top
+  // of?"* A selection needs something underneath it, and a report holds nothing — so the card is
+  // reading and the arrow is the only door on it. The fill it briefly wore belongs to the projects.
+  it("a report card presses nothing — the arrow is the only door, and there is no selection to publish", () => {
     const set = jest.fn();
     const data = mk();
     const { container } = render(<ReportsTile data={data} filter={{ above: {}, mine: {}, set }} />);
     const card = container.querySelector(".dbb-rcard");
     fireEvent.click(card);
-    expect(set).toHaveBeenCalledWith("reportWindow", expect.stringContaining("r-"));
+    expect(set).not.toHaveBeenCalled();
     expect(data.open).not.toHaveBeenCalled();
+    expect(card).not.toHaveAttribute("role");
+    expect(card).not.toHaveAttribute("aria-pressed");
     fireEvent.click(card.querySelector(".dbb-rcard__go"));
     expect(data.open).toHaveBeenCalledWith(expect.objectContaining({ path: expect.stringContaining("report") }));
-  });
-
-  it("the held card wears the fill, and says so to a screen reader", () => {
-    const data = mk();
-    const first = render(<ReportsTile data={data} filter={{ above: {}, mine: {}, set: jest.fn() }} />).container;
-    expect(first.querySelector(".dbb-rcard.is-on")).toBe(null);
-    forgetFloor();
-    const heldKey = docKey({ project: "q", id: "r-two" });
-    const { container } = render(
-      <ReportsTile data={mk()} filter={{ above: {}, mine: { reportWindow: heldKey }, set: jest.fn() }} />,
-    );
-    const on = container.querySelector(".dbb-rcard.is-on");
-    expect(on).toBeTruthy();
-    expect(on.textContent).toContain("r-two");
-    expect(on).toHaveAttribute("aria-pressed", "true");
-    expect(container.querySelectorAll(".dbb-rcard.is-on")).toHaveLength(1);
   });
 });
 
@@ -390,6 +379,37 @@ describe("the projects, all of them", () => {
     container.querySelectorAll(".dbb-proj").forEach((card) => {
       expect(card.querySelectorAll(".dbb-pip")).toHaveLength(4);
     });
+  });
+
+  // THE SELECTION LIVES HERE — his ruling, 2026-11-07: *"the projects you should be able to click
+  // to filter, and it needs to show it selected properly."* A press publishes `project`, so every
+  // tile below is that project; pressing the same one again lets go.
+  it("a card is a press that publishes its project to the stack", () => {
+    const set = jest.fn();
+    const { container } = render(<ProjectsTile data={mk()} filter={{ above: {}, mine: {}, set }} />);
+    const card = container.querySelector(".dbb-proj");
+    expect(card.tagName).toBe("BUTTON");
+    fireEvent.click(card);
+    expect(set).toHaveBeenCalledWith("project", card.querySelector(".dbb-proj__name b").textContent);
+  });
+
+  it("the held project wears the fill and says so to a screen reader", () => {
+    const { container } = render(
+      <ProjectsTile data={mk()} filter={{ above: {}, mine: { project: "q" }, set: jest.fn() }} />
+    );
+    const on = container.querySelectorAll(".dbb-proj.is-on");
+    expect(on).toHaveLength(1);
+    expect(on[0].querySelector(".dbb-proj__name b").textContent).toBe("q");
+    expect(on[0]).toHaveAttribute("aria-pressed", "true");
+    expect(on[0].getAttribute("title")).toContain("press to show every project again");
+  });
+
+  // WITH NO STACK AROUND IT the tile is still a tile: the chooser previews it, and a preview with
+  // no filter wiring must render rather than throw.
+  it("without a filter it is cards and nothing more — no press, no fill", () => {
+    const { container } = render(<ProjectsTile data={mk()} />);
+    expect(container.querySelector(".dbb-proj").tagName).toBe("DIV");
+    expect(container.querySelector(".dbb-proj.is-on")).toBe(null);
   });
 });
 
