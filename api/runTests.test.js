@@ -172,3 +172,39 @@ test("a module the registry names but nothing declares is skipped, not invented"
   assert.deepEqual(Object.keys(svc), []);
   assert.deepEqual(Object.keys(degradedService({}, new Error("x"))), []);
 });
+
+// THE DEGRADE'S OWN REGRESSION, FOUND BY USE AND NOT BY READING. 2026-11-07, the first real
+// `runProofs` after the hub restart that armed the degrade:
+//
+//   runProofs({projectCode: "systemview-test", document: "RFC-075"})
+//   → this.connection[serviceId].setHeaders is not a function
+//
+// The whole verb, worse than the failure the degrade exists to prevent — and invisible until the
+// hub ran the new code, because the dry run never builds a client. The cause is one line of the
+// engine: `getConnection` calls `createService(connectionData)` and then `.setHeaders({ Origin })`
+// on the very next statement, so a stand-in carrying only the declared modules is not a drop-in.
+test("a degraded service answers setHeaders, because the engine calls it on the next line", () => {
+  const svc = degradedService(CD, new Error("mismatch"));
+  assert.equal(typeof svc.setHeaders, "function");
+  // Chainable, like the real client's — a caller that writes `createService(cd).setHeaders(h)` and
+  // keeps the result must not end up holding undefined.
+  assert.equal(svc.setHeaders({ Origin: "http://localhost:3000" }), svc);
+  // Accepted and discarded: headers are for a socket this stand-in does not have, and every method
+  // already rejects with the mismatch, so swallowing them changes nothing the caller is told.
+  assert.equal(typeof svc.Plugin.getTests, "function");
+});
+
+test("...and the ENGINE survives one — getConnection builds it and does not throw", () => {
+  const Test = require("../testing-utilities/Test.class");
+  const err = new Error("the registry says this service publishes Plugin.fixturesRunning, but the service does not");
+  err.registryMismatch = ["Plugin.fixturesRunning"];
+
+  const t = new Test({
+    namespace: { serviceId: "T", moduleName: "Plugin", methodName: "getTests" },
+    // The injected client is the seam the engine already has — no socket, no registry, no hub.
+    client: { createService: () => degradedService(CD, err) },
+  });
+
+  assert.doesNotThrow(() => t.getConnection([{ serviceId: "T", system: { connectionData: CD } }]));
+  assert.equal(typeof t.connection.T.Plugin.getTests, "function", "and the surface is indexed as usual");
+});

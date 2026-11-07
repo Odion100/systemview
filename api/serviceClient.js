@@ -96,6 +96,21 @@ function degradedService(connectionData, err) {
     out[module] = out[module] || {};
     for (const fn of methods) out[module][fn] = () => Promise.reject(err);
   }
+  // A DEGRADED SERVICE HAS TO SATISFY THE CLIENT'S SHAPE, NOT ONLY THE REGISTRY'S. The engine does
+  // not just index modules off this object — `Test.class.js` getConnection() calls
+  // `createService(...).setHeaders({ Origin: … })` on the very next line, so a stand-in carrying
+  // only the declared modules throws `setHeaders is not a function` and takes the WHOLE run down.
+  // That is strictly worse than the failure this degrade exists to prevent: measured 2026-11-07,
+  // `runProofs` over RFC-075 answered that one sentence and ran nothing, where before the degrade
+  // it at least named the mismatch.
+  //
+  // It accepts and discards, deliberately: headers are for a socket this stand-in does not have,
+  // and every method already rejects with the registry mismatch — so swallowing them changes
+  // nothing about what the caller is told.
+  // NON-ENUMERABLE, like the engine's own `connection` bag and for the same reason: the KEYS of this
+  // object are the registry's modules, and a claim that reads them should not have to know about
+  // client plumbing. `Object.keys(degradedService({}))` stays `[]`.
+  Object.defineProperty(out, "setHeaders", { value: () => out, enumerable: false });
   return out;
 }
 
