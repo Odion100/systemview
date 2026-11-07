@@ -172,6 +172,9 @@ const ContextManager = ({ projectCode, agentId, focus = null }) => {
   const [q, setQ] = useState("");
   const [hits, setHits] = useState(null); // null = not searched; [] = searched, empty
   const [searchErr, setSearchErr] = useState("");
+  // A FAILED ACTION IS NOT A FAILED SEARCH — its own slot, because `searchErr` also gates the
+  // results table and a refused delete must not blank the rows it was fired from.
+  const [actionErr, setActionErr] = useState("");
   const [recording, setRecording] = useState(false);
   const [editing, setEditing] = useState(null); // {id, title, body, pointer}
   const [openHits, setOpenHits] = useState(() => new Set());
@@ -324,8 +327,18 @@ const ContextManager = ({ projectCode, agentId, focus = null }) => {
     setEditing(null);
     refresh();
   };
+  // A DELETE THAT MISSED USED TO LOOK EXACTLY LIKE ONE THAT WORKED, on this surface too. The store
+  // now REFUSES an id it cannot resolve instead of reporting success for a no-op, so the rejection
+  // has to be SAID — uncaught, it left the row sitting there with nothing on screen, which is the
+  // same silence one layer up.
   const doDelete = async (id) => {
-    await removeNote(scopeArg(scope), id);
+    try {
+      await removeNote(scopeArg(scope), id);
+    } catch (e) {
+      setActionErr(String((e && e.message) || e) || "the store refused the delete");
+      return;
+    }
+    setActionErr("");
     setEditing(null);
     refresh();
   };
@@ -428,6 +441,7 @@ const ContextManager = ({ projectCode, agentId, focus = null }) => {
       </div>
 
       {searchErr && <div className="ctx-mgr__err">{searchErr}</div>}
+      {actionErr && <div className="ctx-mgr__err">{actionErr}</div>}
 
       {/* RESULTS — a table, the same shape the chat shows: store results are data you scan, not text
           you read (his rule, across the board). Match / note / from, and a row expands its body. */}
