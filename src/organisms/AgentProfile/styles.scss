@@ -767,15 +767,19 @@
 // needs no state: the boundary is the first not-carried row standing after a carried one, which is
 // exactly what the adjacent selector says.
 .agent-profile__hook--on + .agent-profile__hook--off {
-  margin-top: 11px;
+  margin-top: 20px;
   position: relative;
+  // VISIBLE, NOT TASTEFUL. At 1px of `--sv-border` inset from the edges it was the same weight as
+  // every card outline on the page and read as another one — "barely noticeable". A boundary has to
+  // be heavier than the things it separates, so: full bleed, 2px, and the muted ink rather than the
+  // border tint, with room either side so the gap is part of the signal.
   &::before {
     content: "";
     position: absolute;
-    left: 10px;
-    right: 10px;
-    top: -9px;
-    border-top: 1px solid var(--sv-border);
+    left: 0;
+    right: 0;
+    top: -11px;
+    border-top: 2px solid var(--sv-text-faint);
   }
 }
 // THE BLINK WHERE A FLIPPED HOOK LANDS — one beat, then the row is just a row again.
