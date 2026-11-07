@@ -37,3 +37,99 @@ test("a string error without message field still reads as what it says", () => {
   // must not crash the classifier or silently classify
   assert.equal(isDeadWire([{ phase: "run", step: null }], DEAD), false);
 });
+
+// ── THE PER-TEST DEADLINE ───────────────────────────────────────────────────────────────────
+// A method that HANGS used to hang the whole run with nothing said, and the row it eventually
+// produced was worse than silence: nothing answered, so every evaluation read `undefined` and the
+// failures printed as "expected boolean, got undefined" — a broken-assertion face on a fixture
+// that never came up. Measured on Api.chatDeliveryRules / Api.chatPluginRoom.
+const { withDeadline, limitFor, timeoutFailure, DEADLINE, DEFAULT_TIMEOUT_MS, executeSpecs } = require("./runTests");
+
+const hangs = () => new Promise(() => {});
+// A SPEC IN ITS ON-DISK SHAPE: `namespace` is the three parts, not a dotted string — which is what
+// `nsOf` joins, and what makes a failing row name something a reader can open.
+const spec = (methodName, extra = {}) => ({
+  namespace: { serviceId: "T", moduleName: "M", methodName },
+  title: `T.M.${methodName}`,
+  Main: [{ title: "the step", method: `T.M.${methodName}`, arguments: {}, evaluations: [] }],
+  ...extra,
+});
+
+test("a promise that never settles comes back as the deadline, not as a value", async () => {
+  assert.equal(await withDeadline(hangs(), 20), DEADLINE);
+});
+
+test("a promise that answers in time wins, and its value is untouched", async () => {
+  assert.equal(await withDeadline(Promise.resolve("answered"), 50), "answered");
+});
+
+// A TEST THAT THROWS IS A DIFFERENT FAILURE FROM ONE THAT HANGS. The race must not convert the
+// first into the second — the thrown message is the evidence.
+test("a rejection still rejects", async () => {
+  await assert.rejects(() => withDeadline(Promise.reject(new Error("boom")), 50), /boom/);
+});
+
+test("the deadline is per spec: its own timeoutMs wins, anything unusable falls back", () => {
+  assert.equal(limitFor({ timeoutMs: 1500 }), 1500);
+  assert.equal(limitFor({ timeoutMs: 0 }), DEFAULT_TIMEOUT_MS);
+  assert.equal(limitFor({ timeoutMs: -5 }), DEFAULT_TIMEOUT_MS);
+  assert.equal(limitFor({ timeoutMs: "soon" }), DEFAULT_TIMEOUT_MS);
+  assert.equal(limitFor({}), DEFAULT_TIMEOUT_MS);
+  assert.equal(limitFor({ timeoutMs: 1500 }, 200), 1500);
+  assert.equal(limitFor({}, 200), 200);
+});
+
+test("the timeout says the cause and names the step, in the unit a reader thinks in", () => {
+  const f = timeoutFailure(60000, "the step");
+  assert.match(f.message, /^timed out after 60s — the method never answered/);
+  assert.equal(f.step, "the step");
+  assert.equal(f.timedOut, true);
+  assert.match(timeoutFailure(250).message, /after 250ms/);
+  assert.equal(timeoutFailure(250).step, null);
+});
+
+// THE WIRING, which is the half that matters: the row has to SAY it timed out, carry the timeout
+// as its only failure, claim no assertions, and — the whole point — the run has to keep going.
+test("a hung spec fails with the timeout, asserts nothing, and the run continues past it", async () => {
+  let ran = 0;
+  const out = await executeSpecs([spec("hangs"), spec("answers")], {
+    services: [],
+    client: {},
+    timeoutMs: 25,
+    runOne: () => (ran++ === 0 ? hangs() : Promise.resolve()),
+  });
+  assert.equal(out.rows.length, 2, "both rows exist — the hang did not end the run");
+  const [hung, next] = out.rows;
+  assert.equal(hung.timedOut, true);
+  assert.equal(hung.passed, false);
+  assert.equal(hung.assertions, 0, "nothing answered, so nothing was asserted");
+  assert.equal(hung.failures.length, 1, "the timeout is the ONLY failure — no undefined comparisons");
+  assert.match(hung.failures[0].message, /timed out after 25ms/);
+  assert.equal(hung.namespace, "T.M.hangs", "and the row still names what hung");
+  assert.ok(!next.timedOut, "the second spec ran on its own terms");
+});
+
+test("a spec's own timeoutMs beats the run's", async () => {
+  const out = await executeSpecs([spec("slow", { timeoutMs: 20 })], {
+    services: [],
+    client: {},
+    timeoutMs: 60000,
+    runOne: hangs,
+  });
+  assert.match(out.rows[0].failures[0].message, /timed out after 20ms/);
+});
+
+// A RUN WHERE THREE METHODS NEVER ANSWERED IS A DIFFERENT MORNING from one with three wrong
+// assertions, and the summary used to read identically.
+test("bail stops at a timeout, because a hang is a failure", async () => {
+  const out = await executeSpecs([spec("a"), spec("b")], {
+    services: [],
+    client: {},
+    timeoutMs: 20,
+    bail: true,
+    runOne: hangs,
+  });
+  assert.equal(out.rows.length, 1);
+  assert.equal(out.ran, 1);
+  assert.equal(out.total, 2);
+});

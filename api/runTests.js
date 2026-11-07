@@ -156,6 +156,67 @@ function failuresOf(sections, order) {
   return out;
 }
 
+// ── THE PER-TEST DEADLINE ───────────────────────────────────────────────────────────────────
+//
+// A method that HANGS used to hang the whole run with nothing said, and the row it eventually
+// produced was worse than silence: with nothing returned, every evaluation reads `undefined` and
+// the failures print as "expected boolean, got undefined" — which reads like a broken assertion
+// instead of "the fixture never answered" (measured on Api.chatDeliveryRules and
+// Api.chatPluginRoom, whose fixture services were not up). The runner already distinguishes "did
+// not answer" for SERVICES through `unreachable`; this is the same honesty for one step.
+//
+// THE RACE IS ALL THERE IS, and its limit is worth stating: a promise cannot be cancelled, so the
+// hung call is still out there after its row is written. What the deadline buys is that the RUN
+// continues and SAYS what happened — the orphan dies when its socket does.
+const DEADLINE = Symbol("deadline");
+
+// A minute, because a real integration step against a live service can be slow and a deadline that
+// fires on a working test is worse than no deadline at all. `SV_TEST_TIMEOUT_MS` moves it for a
+// whole run; a spec's own `timeoutMs` moves it for one test.
+const DEFAULT_TIMEOUT_MS = Number(process.env.SV_TEST_TIMEOUT_MS) > 0 ? Number(process.env.SV_TEST_TIMEOUT_MS) : 60000;
+
+function withDeadline(work, ms) {
+  let timer = null;
+  const done = Promise.resolve(work).then(
+    (v) => { clearTimeout(timer); return v; },
+    (e) => { clearTimeout(timer); throw e; },
+  );
+  // A REJECTION STILL REJECTS: a test that THROWS is a different failure from one that hangs, and
+  // this must not convert the first into the second.
+  return Promise.race([
+    done,
+    // NOT UNREF'D, and that is the whole correctness of it: an unref'd timer lets the loop empty
+    // before the deadline fires, so the race never resolves and the caller waits forever on the
+    // thing meant to rescue it — measured the first time these claims ran, 8 of 14 cancelled with
+    // "promise resolution is still pending but the event loop has already resolved". Cleared on
+    // settle, so it holds the loop for at most one deadline.
+    new Promise((resolve) => {
+      timer = setTimeout(() => resolve(DEADLINE), ms);
+    }),
+  ]);
+}
+
+/** The deadline for one spec: its own `timeoutMs` when it names a usable one, the run's otherwise. */
+const limitFor = (spec, fallback = DEFAULT_TIMEOUT_MS) => {
+  const n = Number(spec && spec.timeoutMs);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+};
+
+const saysMs = (ms) => (ms >= 1000 && ms % 1000 === 0 ? `${ms / 1000}s` : `${ms}ms`);
+
+/**
+ * THE ONLY FAILURE A TIMED-OUT ROW CARRIES. The evaluations are deliberately NOT reported: nothing
+ * answered, so every comparison on the step is against `undefined`, and printing them is what made
+ * a hang look like a broken assertion. One sentence that names the real cause beats twelve that
+ * name a symptom of it.
+ */
+const timeoutFailure = (ms, step) => ({
+  phase: "run",
+  step: step || null,
+  timedOut: true,
+  message: `timed out after ${saysMs(ms)} — the method never answered, so nothing it would have returned was asserted`,
+});
+
 /**
  * RUN A LIST OF SAVED-TEST-SHAPED SPECS. The one execution path, extracted so that the thing which
  * EXECUTES is independent of where the specs came from: `runTests` collects them from each service's
@@ -166,7 +227,21 @@ function failuresOf(sections, order) {
  * `specs` are on-disk shape (`{ namespace, title, Before, Main, …, sections, run }`); each comes back
  * as a row with its namespace, pass/fail, duration and — only when it failed — the comparisons.
  */
-async function executeSpecs(specs, { services, client, actionMap = {}, headers = {}, bail = false, unreachable = [] } = {}) {
+async function executeSpecs(
+  specs,
+  {
+    services,
+    client,
+    actionMap = {},
+    headers = {},
+    bail = false,
+    unreachable = [],
+    timeoutMs = DEFAULT_TIMEOUT_MS,
+    // THE RUNNER, INJECTABLE FOR ONE REASON: a deadline can only be asserted against something that
+    // does not answer, and there is no way to make a real service hang on command.
+    runOne = runFullTest,
+  } = {},
+) {
   const initialized = initializeSavedTests(
     specs,
     services,
@@ -187,8 +262,9 @@ async function executeSpecs(specs, { services, client, actionMap = {}, headers =
     // on every row — visible, but only if you look. The spec it came from is still right here, in order.
     const spec = specs[i] || {};
     const at = Date.now();
-    await runFullTest({ sections, order });
-    const failures = failuresOf(sections, order);
+    const limit = limitFor(spec, timeoutMs);
+    const timedOut = (await withDeadline(runOne({ sections, order }), limit)) === DEADLINE;
+    const failures = timedOut ? [timeoutFailure(limit, title || spec.title)] : failuresOf(sections, order);
     // CLASSIFIED WHERE THE ROW IS BUILT, so a document's run block gets the dead-wire rule for free
     // rather than only the saved-test face. The row keeps its failures either way — classification
     // changes the COUNT, never the evidence.
@@ -210,7 +286,10 @@ async function executeSpecs(specs, { services, client, actionMap = {}, headers =
       title: title || spec.title || "",
       passed: !failures.length,
       ...(deadWire ? { deadWire: true } : {}),
-      assertions: asserted,
+      ...(timedOut ? { timedOut: true } : {}),
+      // NOTHING RAN, SO NOTHING WAS ASSERTED. Reporting the step's assertion count after a timeout
+      // would claim coverage the run never got.
+      assertions: timedOut ? 0 : asserted,
       ms: Date.now() - at,
       // WHERE THE SPEC CAME FROM, when the collector attached one — a document's run block has no
       // file in `specs/tests/`, so without this a failing proof row names nothing a reader can open.
@@ -225,7 +304,7 @@ async function executeSpecs(specs, { services, client, actionMap = {}, headers =
 }
 
 async function runTests(
-  { projectCode, namespace, headers = {}, bail = false, dryRun = false, skip = [] } = {},
+  { projectCode, namespace, headers = {}, bail = false, dryRun = false, skip = [], timeoutMs } = {},
   connections = [],
 ) {
   if (!projectCode) return { error: "projectCode required" };
@@ -275,13 +354,25 @@ async function runTests(
     };
 
   const actionMap = await actionMapFor(services, lists, client);
-  const { rows, ms, total } = await executeSpecs(selected, { services, client, actionMap, headers, bail, unreachable });
+  const { rows, ms, total } = await executeSpecs(selected, {
+    services,
+    client,
+    actionMap,
+    headers,
+    bail,
+    unreachable,
+    timeoutMs: limitFor({ timeoutMs }),
+  });
 
   return {
     ...where,
     ms,
     passed: rows.filter((r) => r.passed).length,
     failed: rows.filter((r) => !r.passed && !r.deadWire).length,
+    // HOW MANY HUNG, as its own number. A timeout is a failure — it is counted in `failed` — but a
+    // run where three methods never answered is a different morning from one with three wrong
+    // assertions, and the summary used to read identically.
+    ...(rows.some((r) => r.timedOut) ? { timedOut: rows.filter((r) => r.timedOut).length } : {}),
     // the honest third number: tests that never really ran because a named service was down.
     // `unreachable` (in `where`, above) says who; this says how much it cost.
     ...(rows.some((r) => r.deadWire)
@@ -305,6 +396,11 @@ async function runTests(
 
 module.exports = {
   runTests,
+  withDeadline,
+  limitFor,
+  timeoutFailure,
+  DEADLINE,
+  DEFAULT_TIMEOUT_MS,
   collectTests,
   actionMapFor,
   countErrors,
