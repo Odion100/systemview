@@ -2118,7 +2118,14 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
                       {h.do && <span className="agent-profile__hook-do">→ {h.do}</span>}
                     </div>
                     <div className="agent-profile__hook-tags">
-                      {(h.rate || h.guard) && <span className="agent-profile__hook-guard">{h.rate || h.guard}</span>}
+                      {/* THE CADENCE IS A FACT ABOUT THE HOOK, not a footnote on it — it wore the
+                          same grey as "parked" and "off for everyone", which are states, so the one
+                          thing you check a hook for read as the quietest thing on the row. */}
+                      {(h.rate || h.guard) && (
+                        <span className="agent-profile__hook-rate" title={`fire rate — ${saysRate(h.rate || h.guard)}`}>
+                          {h.rate || h.guard}
+                        </span>
+                      )}
                       {/* A WORK HOOK ACTS; A CONTEXT HOOK WHISPERS. Same wiring up to the branch,
                           different trust past it — so the loud one is labelled loudly. */}
                       {h.kind === "work" && <span className="agent-profile__hook-work">work</span>}

@@ -823,6 +823,24 @@
   color: var(--sv-text-faint);
   background: var(--sv-hover);
 }
+// THE FIRE RATE IS THE BADGE YOU LOOK FOR. It is the answer to "how often does this thing go off",
+// which is the question a hook row exists to answer — and it was in the same grey as `parked`, a
+// state, so the fact and the aside were indistinguishable. Teal because every other colour on this
+// row is taken and means something: indigo is the row's identity, green is the pointer and the
+// carried fill, amber is `work`.
+.agent-profile__hook-rate {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  color: #effafc;
+  background: #1f7f94;
+  :root.sv-dark & {
+    color: #0b1f25;
+    background: #4fb6ce; // on the dark card the light ink inverts — same badge, same weight
+  }
+}
 // a work hook ACTS — it never wears the same clothes as one that only whispers
 .agent-profile__hook-work {
   font-size: 10px;
