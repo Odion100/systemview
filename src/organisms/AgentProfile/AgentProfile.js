@@ -24,6 +24,7 @@ import {
 } from "../../utils/hostAgents";
 import { collections as loadCollections, records as loadRecords } from "../../utils/hostContext";
 import { groupSkillsBySource, sourceCountLabel, skillDoc } from "./skillSources";
+import { NAMED as NAMED_RATES, UNITS as RATE_UNITS, readRate, saysRate, writeRate } from "./hookRate";
 import { listJobs, jobRuns, rateJobRun, hasHostJobs, saveJob } from "../../utils/hostJobs";
 import SvSelect from "../../atoms/SvSelect/SvSelect";
 import { raiseKeyed, clearKeyed } from "../../atoms/Banner/bannerStore";
@@ -909,6 +910,8 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
     const id = d.slice(4);
     return (jobs || []).find((j) => j.id === id) || { id, name: id, requires: [] };
   })();
+  // The rate as TWO controls — kind, and the duration when the kind is a cooldown.
+  const rateParts = readRate(hookDraft && hookDraft.rate);
   const hookForm = !hookDraft ? null : (
                 <div className="agent-profile__hookform">
                   <div className="agent-profile__hookform-row">
@@ -1072,33 +1075,55 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
 
                   <div className="agent-profile__hookform-row">
                     <label className="agent-profile__hookform-label">fire rate</label>
+                    {/* A COOLDOWN IS WRITTEN, NOT PICKED. This was eleven hand-chosen cooldowns in
+                        one dropdown, which meant a rate nobody had thought to list could not be
+                        set at all — his catch, 2026-11-07: *"I can pick once per session, at most
+                        every five minutes — what if I want four times an hour?"* Four times an hour
+                        is `cooldown:15m`; 15m was not on the list, and the harness had always taken
+                        it. So the KIND is chosen and the DURATION is his to write. ONCE PER CROSSING
+                        (2026-10-12) keeps its place beside once-per-session: a usage hook at
+                        once-per-session fires at the first crossing of 60% and never again, even
+                        though a compaction drops the window and it climbs straight back — the fall
+                        is what re-arms this one. */}
                     <SvSelect
-                      value={hookDraft.rate}
-                      onChange={(v) => setHd({ rate: v })}
+                      value={rateParts.kind}
+                      onChange={(v) =>
+                        setHd({ rate: writeRate({ ...rateParts, kind: v, n: v === "cooldown" && !rateParts.n && !rateParts.raw ? "15" : rateParts.n }) })
+                      }
                       options={[
-                        { value: "once-per-session", label: "once per session" },
-                        // ONCE PER CROSSING (2026-10-12). Beside once-per-session because they are
-                        // the two session-scoped rates, and because this is the one you almost
-                        // always want instead of it on a THRESHOLD hook. His report:
-                        // *"two times in a row context maintenance did not fire."* It had not: a
-                        // usage hook at once-per-session fires at the first crossing of 60% and
-                        // then never again for that session's life, even though a compaction drops
-                        // the window and it climbs straight back. The fall is what re-arms this one.
-                        { value: "once-per-rise", label: "once per crossing (re-arms when it drops)" },
-                        { value: "cooldown:5m", label: "at most every 5 min" },
-                        { value: "cooldown:1h", label: "at most every hour" },
-                        { value: "cooldown:2h", label: "at most every 2 hours" },
-                        { value: "cooldown:4h", label: "at most every 4 hours" },
-                        { value: "cooldown:8h", label: "at most every 8 hours" },
-                        { value: "cooldown:12h", label: "at most every 12 hours" },
-                        { value: "once-per-day", label: "once a day" },
-                        { value: "cooldown:3d", label: "at most every 3 days" },
-                        { value: "once-per-week", label: "once a week" },
-                        { value: "cooldown:2w", label: "at most every 2 weeks" },
-                        { value: "once-per-month", label: "once a month" },
-                        { value: "", label: "no rate — every match" },
+                        NAMED_RATES[0],
+                        NAMED_RATES[1],
+                        { value: "cooldown", label: "at most every…" },
+                        ...NAMED_RATES.slice(2),
                       ]}
                     />
+                    {rateParts.kind === "cooldown" &&
+                      (rateParts.raw ? (
+                        // A COMPOUND DURATION (`3d12h`, `90s`) cannot be held by a number and a
+                        // unit, so it stays text rather than being silently rounded to one of them.
+                        <input
+                          className="agent-profile__hookform-input agent-profile__hookform-input--dur"
+                          value={rateParts.raw}
+                          placeholder="3d12h"
+                          onChange={(e) => setHd({ rate: writeRate({ ...rateParts, raw: e.target.value }) })}
+                        />
+                      ) : (
+                        <>
+                          <input
+                            className="agent-profile__hookform-input agent-profile__hookform-input--num"
+                            value={rateParts.n}
+                            inputMode="numeric"
+                            placeholder="15"
+                            aria-label="how long"
+                            onChange={(e) => setHd({ rate: writeRate({ ...rateParts, n: e.target.value.replace(/[^0-9]/g, "") }) })}
+                          />
+                          <SvSelect
+                            value={rateParts.unit}
+                            onChange={(v) => setHd({ rate: writeRate({ ...rateParts, unit: v }) })}
+                            options={RATE_UNITS}
+                          />
+                        </>
+                      ))}
                     <span className="agent-profile__hookform-note">
                       {hookDraft.rate === "once-per-rise" ? (
                         Object.keys(rowsToWhen(hookDraft.rows || [])).length ? (
@@ -1116,6 +1141,9 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
                         )
                       ) : (
                         <>
+                          {/* THE ARITHMETIC ON THE SURFACE, not in his head: "15 minutes" and "four
+                              times an hour" are the same sentence and he said it the second way. */}
+                          {rateParts.kind === "cooldown" ? <b>{saysRate(hookDraft.rate)}. </b> : null}
                           a hook with no rate is a context leak that fires forever. "once a
                           day/week/month" is calendar-anchored — it resets at the boundary; a
                           cooldown slides from the last fire. For a hook on a THRESHOLD — past 60%,

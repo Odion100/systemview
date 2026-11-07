@@ -942,6 +942,10 @@
   min-width: 0;
   flex: 1;
   &:focus { outline: none; border-color: #6a74c4; }
+  // THE DURATION FIELDS SIT BESIDE THEIR UNIT, so they take their own width instead of the row's:
+  // a number box stretched across a row reads as a sentence box and invites a sentence.
+  &--num { flex: 0 0 56px; text-align: right; }
+  &--dur { flex: 0 0 96px; }
 }
 .agent-profile__hookform-area {
   font-family: inherit;
