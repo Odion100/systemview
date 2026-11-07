@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from "react";
 import LifecycleTrail from "./lifecycle";
 import LeafPick from "./LeafPick";
-import LeafElsewhere from "./LeafElsewhere";
-import { useMarkdownWrite, useInDocument } from "../context";
+import { useMarkdownWrite } from "../context";
 import { getAgent } from "../../../utils/hub";
 import { parseRetain, retainLine, tickFor } from "./retention";
 
@@ -28,7 +27,7 @@ const WINDOWS = ["1h", "6h", "12h", "1d", "2d", "3d", "7d", "14d", "30d", "90d",
 // (restart the clock from now) and PERMANENT (writes retain=permanent into the leaf — the explicit
 // forever) beside it. A leaf that declares no subtype or no retention wears what is missing —
 // surfaced at the document the same way the drawer surfaces it on the row.
-const ReportLeaf = ({ attrs = {}, line }) => {
+const Report = ({ attrs = {}, line }) => {
   const { editable, setAttr } = useMarkdownWrite() || {};
   const [openedAt, setOpenedAt] = useState(null);
   const retired = !!attrs.retired;
@@ -141,10 +140,5 @@ const ReportLeaf = ({ attrs = {}, line }) => {
     </div>
   );
 };
-
-// THE GUARD IS A WRAPPER, NOT AN EARLY RETURN. `ReportLeaf` holds hooks — the open stamp, the
-// clock's beat — and an early return above them would make every one of them a conditional call.
-// Choosing WHICH component to mount is the legal form of the same decision.
-const Report = (props) => (useInDocument() ? <ReportLeaf {...props} /> : <LeafElsewhere kind="report" />);
 
 export default Report;

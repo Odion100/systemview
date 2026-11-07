@@ -1,7 +1,5 @@
 import React from "react";
 import LifecycleTrail from "./lifecycle";
-import LeafElsewhere from "./LeafElsewhere";
-import { useInDocument } from "../context";
 
 // RFC-073 §1.2 — `::gap{id=G-12}` at the top of a document.
 //
@@ -14,7 +12,7 @@ import { useInDocument } from "../context";
 // this leaf shows, because a reader opening a gap needs exactly one answer: is this still open.
 // THE LEAF IS THE TRAIL (2026-10-28) — identity at the periphery, the lifecycle as the body.
 // The resolved chip is gone: the trail's lit state IS that answer now.
-const GapLeaf = ({ attrs = {}, line }) => (
+const Gap = ({ attrs = {}, line }) => (
   <div className="md-arc md-gap">
     <span className="md-arc__who">
       <span className="md-arc__kind">gap</span>
@@ -24,7 +22,5 @@ const GapLeaf = ({ attrs = {}, line }) => (
     <LifecycleTrail kind="gap" id={attrs.id} line={line} attrs={attrs} />
   </div>
 );
-
-const Gap = (props) => (useInDocument() ? <GapLeaf {...props} /> : <LeafElsewhere kind="gap" />);
 
 export default Gap;

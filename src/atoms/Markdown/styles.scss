@@ -4810,28 +4810,3 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-
-// A REGISTRATION LEAF READ OUTSIDE A DOCUMENT — the refusal, not the registration. Quiet on
-// purpose: it is a note to the author about the block they reached for, never a finding about the
-// document (there is no document). See blocks/LeafElsewhere.js for why it refuses rather than
-// guessing at a chip.
-.md-leaf-elsewhere {
-  display: block;
-  margin: 0.35rem 0;
-  padding: 0.4rem 0.6rem;
-  border-left: 2px solid var(--sv-dead);
-  background: var(--sv-inset);
-  // NOT `--sv-text-faint`: inside a rendered document that token resolves GREEN (#42a942, the
-  // owner-chip's colour, redeclared in the scope above) — so a refusal written in faint text came
-  // out green in the one place this block is also legitimately rendered. Four other rules in this
-  // file carry the same warning.
-  color: var(--sv-text-muted);
-  font-size: 0.85rem;
-  line-height: 1.45;
-
-  code {
-    color: var(--sv-text);
-    background: none;
-    padding: 0;
-  }
-}
