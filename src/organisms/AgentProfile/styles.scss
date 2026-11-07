@@ -746,9 +746,10 @@
   // TWO COLUMNS, NOT A WRAPPING ROW (his ruling, 2026-11-07). The hook's own group is one column
   // that wraps INSIDE itself, the verbs are a column at the end that never drops below it — so a
   // long name pushes nothing around and the buttons are always in the same place, whatever the row
-  // is carrying. `flex-start` is what keeps them level with the first line when the left column
-  // runs to two.
-  align-items: flex-start;
+  // is carrying. CENTRED, because when the left column runs to two lines the verbs belong in the
+  // middle of the taller row rather than hanging off its first line — his call, and on a one-line
+  // row the two are indistinguishable.
+  align-items: center;
   gap: 12px;
   padding: 8px 10px;
   border: 1px solid var(--sv-border);
@@ -811,7 +812,14 @@
   align-items: baseline;
   flex-wrap: wrap;
   gap: 8px;
-  flex: 1 1 auto;
+  // A ZERO BASE IS WHAT MAKES THIS A COLUMN, and `1 1 auto` is why two attempts failed: a wrapping
+  // flex row decides its LINE BREAKS from each item's base size, before anything shrinks. With an
+  // auto base this column measured its full max-content — 856px of name, event, condition, pointer
+  // and badges — which with the 245px verb block could not fit 860, so the line broke and the
+  // verbs dropped underneath. Shrinking never got a chance: it happens inside a line, after the
+  // break. At zero it always shares the line, then grows into what is left and folds its own
+  // contents, which is the behaviour the two columns were supposed to have all along.
+  flex: 1 1 0%;
   min-width: 0;
 }
 .agent-profile__hook-name {
