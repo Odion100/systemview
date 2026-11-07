@@ -743,8 +743,12 @@
   // BESIDE the buttons, sharing their row, which is not an editor, it is a squeeze. `wrap` plus a
   // full-basis on the form keeps the header a row and puts the form underneath it.
   flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
+  // TWO COLUMNS, NOT A WRAPPING ROW (his ruling, 2026-11-07). The hook's own group is one column
+  // that wraps INSIDE itself, the verbs are a column at the end that never drops below it — so a
+  // long name pushes nothing around and the buttons are always in the same place, whatever the row
+  // is carrying. `flex-start` is what keeps them level with the first line when the left column
+  // runs to two.
+  align-items: flex-start;
   gap: 12px;
   padding: 8px 10px;
   border: 1px solid var(--sv-border);
@@ -799,11 +803,15 @@
   }
 }
 .agent-profile__hook-btn--open { color: var(--sv-text); border-color: var(--sv-text-muted); }
+// THE COLUMN THAT WRAPS. It takes the row's spare width and folds its own contents — name, event,
+// condition, pointer, badges — onto as many lines as they need, which is what lets the verbs hold
+// one position instead of being shoved to a line of their own by a long name.
 .agent-profile__hook-main {
   display: flex;
   align-items: baseline;
   flex-wrap: wrap;
   gap: 8px;
+  flex: 1 1 auto;
   min-width: 0;
 }
 .agent-profile__hook-name {
@@ -850,6 +858,9 @@
   gap: 6px;
   flex: 0 0 auto;
   margin-left: auto;
+  // NEVER WRAPS AND NEVER SHRINKS: the four verbs are one block at the end of the row, and the
+  // left column gives up width before they do.
+  flex-wrap: nowrap;
 }
 .agent-profile__hook-scope,
 .agent-profile__hook-guard {
