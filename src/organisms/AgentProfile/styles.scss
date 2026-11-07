@@ -837,11 +837,20 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   min-width: 0;
   flex-wrap: wrap;
 }
-.agent-profile__hook-tags .agent-profile__hook-btn:first-of-type {
+// THE VERBS WRAP AS A BLOCK, AND NOTHING ELSE WRAPS WITH THEM. `margin-left: auto` is what holds
+// them at the edge on the row's first line; when the row runs out of width they drop to a line of
+// their own — still right-aligned — and the badges stay where they belong, at the end of the hook
+// they describe. A single group could not do this: the badges were tied to whichever line the
+// buttons landed on.
+.agent-profile__hook-acts {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
   margin-left: auto;
 }
 .agent-profile__hook-scope,

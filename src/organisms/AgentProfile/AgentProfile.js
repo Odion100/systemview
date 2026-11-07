@@ -2139,6 +2139,13 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
                         </span>
                       )}
                       {!h.enabled && <span className="agent-profile__hook-guard">off for everyone</span>}
+                    </div>
+                    {/* THE VERBS ARE THEIR OWN GROUP, so they can WRAP WITHOUT TAKING THE BADGES
+                        WITH THEM (his catch, 2026-11-07: *"if it was wrapping properly the badges
+                        would stay at the top and the buttons would have been the only thing that
+                        wrapped"*). As one group the badges were tied to whichever line the buttons
+                        landed on, which on a long row put a hook's rate underneath it. */}
+                    <div className="agent-profile__hook-acts">
                       {/* THE SWITCH SITS WITH THE OTHER TWO VERBS — his call. A hook exists for
                           everybody the moment it is written; this is where THIS agent opts in, and
                           it belongs beside edit and delete because they are the same kind of act:
