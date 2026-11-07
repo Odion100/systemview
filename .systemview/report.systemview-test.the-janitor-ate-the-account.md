@@ -79,13 +79,41 @@ it, with both false halves withheld — the same shape as `crossed`, for the sam
 Restored out of `feff2869`, and nothing is faked by doing it: its 24h clock never started, because
 the ledger has no open for it. It reads today exactly as it was filed.
 
+## A third finding, and this one he had already filed
+
+::commit{sha=9c1f02ea}
+
+::commit{sha=4d7acd3 project=autobot}
+
+The card, in his words from 2026-11-04: *"I don't see any list down here… I refresh the page and
+there it is."* A run opened under `skill:skill-authoring` and the drawer did not draw it until a
+reload — and a run nobody can see is held is the one thing runs exist to prevent.
+
+**Two causes, in two processes, and the card had guessed at a third.** It suspected the strip reads
+on mount; it does not. It reads when it is TOLD, and it was told too early:
+
+| where | what was wrong |
+|---|---|
+| `sessions.cjs:2493` | `run.started` was emitted thirty lines **before** `writeRun` — so the window read the files and the record did not exist yet |
+| `useAgentSession.js` | the `todo.updated` arriving AFTER the write was filtered to `lane:` sources only, so a `skill:` or `job:` run was never read a second time |
+
+Either fix alone closes it. Both are done deliberately, because they land in processes that restart
+on different hands — the window has the fix now, the host has it on your next shell restart.
+
+The predicate also moved out of the hook into `laneTick.js`, where it can be claimed. Its rule is
+one sentence: **`source` is what opens a run, so a sourced write has touched a record the strip
+reads** — and a write with no source is the session's own plan, which has no record, so re-reading
+disk for it asks a question the disk cannot answer.
+
 ## Where the tests stand
 
 | what ran | where | result |
 |---|---|---|
 | `node --test api/janitor.test.js` | the hub's suite | 22 pass — **4 new** |
 | `node --test api/commitLinks.test.js` | the hub's suite | 20 pass — **4 new** |
-| `yarn verify` | window + hub + cli + build | 2314 · **355** · 12 · green |
+| `laneTick.test.js` | the window suite | 6 pass — **new**, mutation-verified |
+| `smoke:worklist` · `run-slots` · `nudge` | autobot | 73 · 7 · 24 green |
+| `yarn verify` | window + hub + cli + build | **159 suites / 2320** · 355 · 12 · green |
 
 **Mutation-verified twice, because one pass was not enough.** Restoring the any-leaf test kills two
 claims. Pinning the id lookup to `null` — so the first-leaf fallback answers everything — killed
