@@ -39,12 +39,29 @@ const os = require("os");
 const REGISTRY = () => process.env.AUTOBOT_DOCUMENTS || path.join(os.homedir(), ".autobot", "documents.json");
 const RUNS_DIR = () => path.join(os.homedir(), ".autobot", "jobs");
 
-// A REGISTRATION LEAF CARRYING `retired=`. Any kind — `::report`, `::rfc`, `::gap`, `::arc` — so the
-// rule reads the word that matters and not the name of one kind that happens to use it today.
-const RETIRED_RE = /^\s*::(?:report|rfc|gap|arc)\{[^}]*\bretired=/m;
+// EVERY REGISTRATION LEAF IN THE HEAD, in order — any kind, because the rule reads the word that
+// matters (`retired=`) and not the name of one kind that happens to use it today.
+const LEAF_RE = /^[ \t]*::(?:report|rfc|gap|arc)\{([^}]*)\}/gm;
 
-/** Does this file's own leaf say it is retired? Unreadable fails toward KEEPING it. */
-function isRetired(file) {
+/**
+ * Does this document's OWN leaf say it is retired? Unreadable fails toward KEEPING it.
+ *
+ * `id` is the registry row's id, and passing it is what makes this a question about the document
+ * rather than about its text. THE COST OF NOT PASSING IT, measured 2026-11-07: this tested the
+ * head for ANY line matching a retired leaf, so a document that QUOTED one got collected. The
+ * account explaining that very bug was deleted two hours after it was filed — 137 lines, leaf
+ * `as=account retain=24h` and no `retired=` on it, eaten because line 36 quoted the fixture's
+ * `::rfc{… retired=2026-10-30 …}` as its example. It was never opened, so the retention sweep
+ * provably never stamped it; the hub's log says `collected 1 retired` and names it.
+ *
+ * THE LESSON WAS ALREADY WRITTEN ONE FILE OVER. autobot's `retention.cjs` stamps "the first
+ * `::report{…}` whose attrs carry the row's id — so an example leaf later in a document is never
+ * the one that gets stamped." The sweep learned it; this never did, and nothing compared them.
+ *
+ * With no id (an older caller), the document's FIRST leaf decides — which is what a leaf IS under
+ * RFC-073 — and never a later line.
+ */
+function isRetired(file, id = "") {
   try {
     // The leaf is the first block of the document, so the head is enough — documents can be long
     // and this runs over every registered one, hourly.
@@ -52,7 +69,14 @@ function isRetired(file) {
     const buf = Buffer.alloc(2048);
     const n = fs.readSync(fd, buf, 0, 2048, 0);
     fs.closeSync(fd);
-    return RETIRED_RE.test(buf.slice(0, n).toString("utf8"));
+    const head = buf.slice(0, n).toString("utf8");
+    const leaves = [...head.matchAll(LEAF_RE)].map((m) => m[1]);
+    if (!leaves.length) return false;
+    const want = String(id || "").trim();
+    // An id is quoted in a leaf as often as it is bare, so the match is on the attrs TEXT — the
+    // same test the sweep makes — and the first leaf carrying it is the document's own.
+    const mine = want ? leaves.find((a) => a.includes(want)) : null;
+    return /\bretired=/.test(mine != null ? mine : leaves[0]);
   } catch {
     return false;
   }
@@ -84,7 +108,7 @@ function collectRetired(root, { projectCode, registryFile } = {}) {
   for (const row of rows) {
     const abs = path.isAbsolute(row.path) ? row.path : path.join(root, row.path);
     if (!fs.existsSync(abs)) continue; // already gone — office 2's business, not a deletion
-    if (!isRetired(abs)) {
+    if (!isRetired(abs, row.id)) {
       kept += 1;
       continue;
     }

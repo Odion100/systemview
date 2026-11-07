@@ -92,6 +92,101 @@ describe("office 1 — retired documents, and it was never about reports", () =>
     assert.strictEqual(fs.existsSync(path.join(root, old)), true);
   });
 
+  // ── A DOCUMENT THAT QUOTES A RETIRED LEAF IS NOT A RETIRED DOCUMENT ─────────────────────────
+  // MEASURED 2026-11-07, and it cost a filed account. `isRetired` tested the head for ANY line
+  // matching a retired leaf, so a report EXPLAINING a retirement — quoting the leaf as its
+  // example — was collected two hours after it was written. 137 lines, `as=account retain=24h`,
+  // never opened, so the retention sweep provably never stamped it; the hub's log just said
+  // `collected 1 retired` and named it.
+  //
+  // The shape below is the real one: the document's own leaf is clean, and a leaf belonging to
+  // ANOTHER document sits in the body as the thing being discussed.
+  test("a document that QUOTES another document's retired leaf is KEPT", () => {
+    const rel = ".systemview/report.pc.explains.md";
+    const abs = path.join(root, rel);
+    fs.mkdirSync(path.dirname(abs), { recursive: true });
+    fs.writeFileSync(
+      abs,
+      [
+        '::report{id="why the fixture died" as=account retain=24h}',
+        "",
+        "The fixture was committed carrying this leaf, which is the whole bug:",
+        "",
+        "::rfc{id=MOCK-RFC title=\"MOCK\" retired=2026-10-30 retiredAs=shelf}",
+        "",
+        "...so every janitor rule worked perfectly and deleted it.",
+      ].join("\n"),
+    );
+    register([{ id: "why the fixture died", kind: "report", path: rel, project: "pc" }]);
+
+    assert.deepStrictEqual(collect().deleted, []);
+    assert.strictEqual(fs.existsSync(abs), true);
+    assert.strictEqual(isRetired(abs, "why the fixture died"), false);
+  });
+
+  // AND THE RULE IS INTACT — the document's own leaf still decides, which is the half that must
+  // not break while fixing the half that did.
+  test("...while the same document with retired= on its OWN leaf is still collected", () => {
+    const rel = ".systemview/report.pc.over.md";
+    const abs = path.join(root, rel);
+    fs.mkdirSync(path.dirname(abs), { recursive: true });
+    fs.writeFileSync(
+      abs,
+      [
+        '::report{id="this one is over" as=account retain=24h retired=2026-11-07 retiredAs=expired}',
+        "",
+        "::rfc{id=MOCK-RFC title=\"MOCK\" retired=2026-10-30 retiredAs=shelf}",
+      ].join("\n"),
+    );
+    register([{ id: "this one is over", kind: "report", path: rel, project: "pc" }]);
+    assert.deepStrictEqual(collect().deleted, [rel]);
+  });
+
+  // THE ID IS NOT DECORATION — it picks the leaf even when another one comes FIRST. Without this
+  // the fallback would answer every case and the id path would be dead code that reads as a rule:
+  // measured by mutation, pinning `mine = null` left every other claim here green.
+  test("the row's own leaf decides even when a quoted leaf comes before it", () => {
+    const rel = ".systemview/report.pc.quotefirst.md";
+    const abs = path.join(root, rel);
+    fs.mkdirSync(path.dirname(abs), { recursive: true });
+    const body = (mineRetired) =>
+      [
+        "# What a retired leaf looks like",
+        "",
+        "::rfc{id=MOCK-RFC title=\"MOCK\" retired=2026-10-30 retiredAs=shelf}",
+        "",
+        `::report{id="the one that explains it" as=account retain=24h${mineRetired ? " retired=2026-11-07" : ""}}`,
+      ].join("\n");
+
+    fs.writeFileSync(abs, body(false));
+    assert.strictEqual(isRetired(abs, "the one that explains it"), false, "the quote above it decides nothing");
+    // …and the FIRST-leaf fallback would get this one wrong, which is why the id is passed.
+    assert.strictEqual(isRetired(abs), true);
+
+    fs.writeFileSync(abs, body(true));
+    assert.strictEqual(isRetired(abs, "the one that explains it"), true, "its own leaf still decides");
+  });
+
+  // THE FALLBACK, for a caller with no id and for an id that matches no leaf: the document's FIRST
+  // leaf is what a leaf IS (RFC-073), and never a later line.
+  test("with no id to go on, the FIRST leaf decides and a quoted one below it does not", () => {
+    const rel = ".systemview/report.pc.firstleaf.md";
+    const abs = path.join(root, rel);
+    fs.mkdirSync(path.dirname(abs), { recursive: true });
+    fs.writeFileSync(
+      abs,
+      ['::report{id="first" as=account retain=24h}', "", "::gap{id=G-1 retired=2026-10-01}"].join("\n"),
+    );
+    assert.strictEqual(isRetired(abs), false);
+    assert.strictEqual(isRetired(abs, "an id this document has never heard of"), false);
+
+    fs.writeFileSync(
+      abs,
+      ['::report{id="first" as=account retain=24h retired=2026-11-07}', "", "::gap{id=G-1}"].join("\n"),
+    );
+    assert.strictEqual(isRetired(abs), true);
+  });
+
   // `permanent` means no clock will ever take this document. It does not mean nobody may decide the
   // document is over, and `retired=` is exactly that decision — later, and more specific.
   test("retiring a permanent document still deletes it", () => {
