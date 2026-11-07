@@ -23,13 +23,19 @@ const APPROVED = DOC.replace(/ask="first half\?"/, 'ask="first half?" verdict=ap
 );
 
 describe("rfcCurrent — where the document stands, off the source", () => {
-  it("reads draft, approved, built, settled and rejected from the text and the leaf", () => {
+  it("reads draft, approved, built, settled and retired from the text and the leaf", () => {
     expect(rfcCurrent(DOC)).toBe("draft");
     expect(rfcCurrent(APPROVED)).toBe("approved");
     expect(rfcCurrent(`${APPROVED}\n## STATUS — built 2026-10-29\n`)).toBe("built");
     expect(rfcCurrent(APPROVED, { settled: true })).toBe("settled");
-    expect(rfcCurrent(APPROVED.replace("verdict=approved by=you", "verdict=rejected by=you"))).toBe("rejected");
     expect(rfcCurrent(APPROVED, { retired: true })).toBe("retired");
+  });
+
+  // A DECLINED APPROVAL IS A DRAFT — his ruling, 2026-11-07. The verdict and its reason stay on the
+  // block the reviewer pressed; the plan is simply not approved, which is where every unapproved
+  // plan already stands. An rfc has no rejected station to stand in.
+  it("a declined verdict leaves it in draft, with one unanswered block enough on its own", () => {
+    expect(rfcCurrent(APPROVED.replace("verdict=approved by=you", "verdict=rejected by=you"))).toBe("draft");
   });
 });
 

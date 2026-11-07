@@ -48,7 +48,9 @@ export const titleOf = (text = "", path = "") => {
 // WHAT IS WAITING ON HIM STILL LEADS — that is what the tab is for — but it is the FLAG that
 // decides it now, not a state word pretending to be one. Within a group the highest number leads,
 // because an RFC's number is its age and the recent one is the one in play.
-const RANK = { draft: 1, approved: 2, built: 3, settled: 4, rejected: 5, retired: 6, "": 7 };
+// NO `rejected` IN THE ORDER, because an rfc cannot be in it: a declined approval leaves the plan
+// in draft (his ruling, 2026-11-07), which is where it sorts.
+const RANK = { draft: 1, approved: 2, built: 3, settled: 4, retired: 5, "": 6 };
 
 /** The first run of digits in an id, or 0 — an id is not required to carry a number at all. */
 const numberIn = (id) => parseInt((/\d+/.exec(String(id || "")) || [])[0], 10) || 0;
@@ -112,14 +114,12 @@ export function rfcRows(docs = []) {
  */
 export const rfcLine = (r) => {
   const state =
-    r.state === "rejected"
-      ? "rejected — closed"
-      : // A ROW STILL HERE AFTER BEING RETIRED OWES AN EXPLANATION. A pause says its word, because
+    // A ROW STILL HERE AFTER BEING RETIRED OWES AN EXPLANATION. A pause says its word, because
         // that word is the whole reason it is still readable. And a reason nobody recognises says
         // SO — not "retired" alone, which would read as a filed decision, and not the raw word
         // either, which would read as a group that exists. §4.2: nothing branches on `as=` for the
-        // state, so the honest surface is one that admits it cannot place it.
-        r.state === "retired" && r.retiredAs
+    // state, so the honest surface is one that admits it cannot place it.
+    r.state === "retired" && r.retiredAs
         ? `retired — ${(reasonOf(r.retiredAs) || {}).label || `${r.retiredAs}, which is not a reason anything can read`}`
         : r.state || "";
   if (!r.waiting) return state;

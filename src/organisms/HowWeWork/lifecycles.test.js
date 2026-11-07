@@ -32,9 +32,13 @@ describe("the page's content has the shape the page renders", () => {
   // EVERY KIND THAT CAN BE DECLINED FORKS, and the fork is always `rejected` — drawn as a real
   // destination rather than a failure to reach the road beside it. A report is the one kind that
   // cannot: it is a view, so it only ages.
-  it("the three decidable kinds fork, and the fork is always rejected", () => {
+  // ONLY A GAP FORKS. His ruling, 2026-11-07: *"why does an RFC go to rejected? I will never reject
+  // an RFC — I would just delete it or leave it where it is."* A plan nobody approves is a plan
+  // still in draft, which the lifecycle already says; a gap is genuinely declined on purpose and
+  // that decision carries its reason, so it keeps the second ending.
+  it("a gap is the only kind that forks, and its fork is rejected", () => {
     const forks = LIFECYCLES.flatMap((l) => l.stations.filter((s) => s.fork).map((s) => `${l.kind}:${s.id}`));
-    expect(forks).toEqual(["arc:rejected", "rfc:rejected", "gap:rejected"]);
+    expect(forks).toEqual(["gap:rejected"]);
   });
 
   it("a retirement reason is an ending or a pause, and the list is closed", () => {

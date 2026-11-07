@@ -27,7 +27,8 @@ describe("stateOf — the registry's derivation in the kind's vocabulary", () =>
     expect(stateOf("rfc", { state: { verdict: "approved", built: true } })).toBe("built");
     expect(stateOf("rfc", { state: { verdict: "approved", built: true, settled: true  } })).toBe("settled");
     expect(stateOf("rfc", { state: { verdict: "approved", built: true, retired: true  } })).toBe("retired");
-    expect(stateOf("rfc", { state: { verdict: "rejected" } })).toBe("rejected");
+    // AND A DECLINED VERDICT IS NOT A SIXTH WORD — it leaves the plan in draft (his ruling).
+    expect(stateOf("rfc", { state: { verdict: "rejected" } })).toBe("draft");
   });
   it("arc, gap and report each speak their own", () => {
     // The arc runs the approval flow and derives UPWARD (RFC-076 §2) — the hand-ticked done flag
@@ -67,15 +68,18 @@ describe("the trail — read, never invented", () => {
 
   // A REJECTED RFC KEEPS ITS SHAPE and marks the ending it took — the drawing used to swap to two
   // stations, so the whole lifecycle vanished under the press that rejected it.
-  it("a rejected RFC marks the dead end and keeps the rest of its lifecycle drawn", async () => {
+  // HIS RULING, 2026-11-07: *"why does an RFC go to rejected? I will never reject an RFC — I would
+  // just delete it or leave it where it is."* So a declined approval draws no station of its own:
+  // the plan stands in draft with its whole lifecycle ahead of it, and the verdict and its reason
+  // live on the approval block where the reviewer wrote them. A gap keeps its fork — a gap really
+  // is declined on purpose.
+  it("a declined RFC draws no rejected station — it stands in draft", async () => {
     withRegistry([{ id: "RFC-050", state: { verdict: "rejected" } }]);
     mount("rfc", "RFC-050");
-    const dead = await screen.findByText("rejected");
-    expect(dead.closest(".sv-trail__st").className).toContain("sv-trail__st--dead");
-    // the fork shares the column it leaves, which is what draws the dive
-    expect(dead.closest(".sv-trail__col").className).toContain("sv-trail__col--split");
-    expect(screen.getByText("approved")).toBeTruthy();
-    expect(screen.getByText("settled")).toBeTruthy();
+    expect(await screen.findByText("draft")).toBeTruthy();
+    expect(screen.queryByText("rejected")).toBeNull();
+    expect(screen.queryByText("approved")).toBeTruthy();
+    expect(document.querySelector(".sv-trail__col--split")).toBeNull();
   });
 });
 
@@ -340,11 +344,13 @@ describe("a gap's two endings, under your finger", () => {
 
   // An RFC's rejection is its approval block's verdict, so the control must NOT offer a reason
   // field there — that would be an affordance for a write that cannot land.
-  it("a rejected RFC's station does not open a reason field", async () => {
+  // A REASON FIELD IS A GAP'S. An rfc has no rejected station at all now, so there is nothing to
+  // press and nothing to ask — which is the stronger version of what this claim used to guard.
+  it("an rfc offers no rejected station to press", async () => {
     withRegistry([{ id: "RFC-90", kind: "rfc", state: { verdict: "rejected" } }]);
     mountWritable("rfc", "RFC-90", { setAttr: jest.fn() }, { id: "RFC-90" });
-    fireEvent.click(await screen.findByRole("button", { name: "rejected" }));
-    expect(screen.queryByRole("group", { name: /why is this being declined/i })).toBeNull();
+    expect(await screen.findByRole("button", { name: "draft" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "rejected" })).toBeNull();
   });
 
   // THE SHAPE NEVER CHANGES ON AN ENDING (his ruling): the fork stays drawn after a resolve — the

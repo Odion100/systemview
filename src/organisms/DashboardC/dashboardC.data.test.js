@@ -257,14 +257,16 @@ describe("the current", () => {
     expect(tracks.map((t) => t.kind)).toEqual(["rfc", "gap"]);
   });
 
-  it("does not draw a station nothing ever reached unless the trail promised it", () => {
+  // A DECLINED RFC IS A DRAFT (his ruling, 2026-11-07), so the shelf no longer has to draw a
+  // station the trail never promised in order to keep the document visible.
+  it("a declined RFC stands on draft, and no off-trail station is drawn for it", () => {
     const { shelves } = shelvesFrom({
       docs: [{ row: row({ id: "RFC-004", path: "RFCs/RFC-004-d.md", project: "alpha", state: { verdict: "rejected" } }), text: RFC }],
       roots: { alpha: "/a" },
     });
     const [rfc] = currentFrom(shelves);
-    expect(rfc.stations.map((s) => s.station)).toContain("rejected");
-    expect(rfc.stations.find((s) => s.station === "rejected").cards.length).toBe(1);
+    expect(rfc.stations.map((s) => s.station)).not.toContain("rejected");
+    expect(rfc.stations.find((s) => s.station === "draft").cards.length).toBe(1);
   });
 
   it("counts documents the registry has no state for as unparsed, beside the track and not on it", () => {

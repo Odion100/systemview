@@ -36,7 +36,8 @@ describe("the state is the LIFECYCLE state — one definition, the trail's own",
     expect(rfcRows([doc("RFC-075", { state: { verdict: "approved", built: true, settled: true  } })])[0].state).toBe("settled");
     expect(rfcRows([doc("RFC-073", { state: { verdict: "approved" } })])[0].state).toBe("approved");
     expect(rfcRows([doc("RFC-053", { state: {} })])[0].state).toBe("draft");
-    expect(rfcRows([doc("RFC-040", { state: { verdict: "rejected" } })])[0].state).toBe("rejected");
+    // A DECLINED APPROVAL IS NOT A SIXTH WORD — the plan is still a draft (his ruling).
+    expect(rfcRows([doc("RFC-040", { state: { verdict: "rejected" } })])[0].state).toBe("draft");
   });
   // Absence stated beats a state invented — the same rule the trail follows when there is no row.
   it("says nothing about a document the shell has not parsed", () => {
@@ -58,9 +59,11 @@ describe("the approval count is a FLAG, not the state", () => {
     const [r] = rfcRows([doc("RFC-073", { state: { verdict: "approved", built: true, approvals: 0 } })]);
     expect(rfcLine(r)).toBe("built");
   });
-  it("a rejected RFC stays in the list and says it is closed", () => {
+  // A DECLINED RFC READS AS A DRAFT and keeps its place in the list — his ruling, 2026-11-07: an
+  // RFC he does not approve is deleted or left where it is, so there is no "closed" word for one.
+  it("a declined RFC reads as the draft it still is", () => {
     const [r] = rfcRows([doc("RFC-040", { state: { verdict: "rejected" } })]);
-    expect(rfcLine(r)).toBe("rejected — closed");
+    expect(rfcLine(r)).toBe("draft");
   });
   it("a draft with two waiting says both halves", () => {
     const [r] = rfcRows([doc("RFC-060", { state: { approvals: 2 } })]);

@@ -172,12 +172,15 @@ describe("the tracks are the trails that already exist", () => {
     expect(t.stations.find((s) => s.station === "settled").beads).toHaveLength(0);
   });
 
-  // A rejected RFC is not on the rfc trail, and it must not vanish — it is the one state somebody
-  // is most likely to reopen by accident, so it should be visible saying what it is.
-  it("draws a station the trail does not list rather than losing the document", () => {
-    const rejected = doc({ id: "RFC-008", kind: "rfc", path: "a.md", state: { verdict: "rejected" } }, "::rfc{id=RFC-008}\n");
-    const t = trackFor("rfc", [beadFor(rejected, {}, NOW)]);
-    expect(t.stations.map((s) => s.station)).toContain("rejected");
+  // A DECLINED RFC STANDS ON DRAFT — his ruling, 2026-11-07 ("I will never reject an RFC; I would
+  // delete it or leave it where it is"). It used to read `rejected`, which is not on the rfc trail
+  // at all, so this track had to draw a station the trail never listed to avoid losing the
+  // document. That case is gone rather than supported: an unapproved plan is a draft.
+  it("a declined RFC lands on draft instead of a station the trail never listed", () => {
+    const declined = doc({ id: "RFC-008", kind: "rfc", path: "a.md", state: { verdict: "rejected" } }, "::rfc{id=RFC-008}\n");
+    const t = trackFor("rfc", [beadFor(declined, {}, NOW)]);
+    expect(t.stations.map((s) => s.station)).not.toContain("rejected");
+    expect(t.stations.find((s) => s.station === "draft").beads).toHaveLength(1);
     expect(t.total).toBe(1);
   });
 });

@@ -183,19 +183,6 @@ export const LIFECYCLES = [
         means: "The decision is made and the subplans are not all written. This is where an arc sits for most of its life.",
       },
       {
-        id: "rejected",
-        fork: true,
-        reads: "`verdict=rejected` on an approval block",
-        moves: "rejected when a reviewer declines the arc, with the reason in the verdict — nothing derives a rejection",
-        press:
-          "Not from here. The verdict belongs to the reviewer and lives on the approval block, so the trail " +
-          "draws where the arc went and the block is where it went there.",
-        pressable: false,
-        means:
-          "A direction argued and turned down. An arc that cannot be declined would make every approval " +
-          "on it a formality, and the objectives under it would read as agreed because nobody could say no.",
-      },
-      {
         id: "inProgress",
         reads: "every objective has at least one plan, and at least one plan is not settled",
         moves: "inProgress when the last unplanned objective gets its first plan",
@@ -253,20 +240,6 @@ export const LIFECYCLES = [
         means:
           "The one state that is expensive to get back to. You must break built and settled while " +
           "KEEPING the verdicts, so the cheap move is unavailable.",
-      },
-      {
-        id: "rejected",
-        fork: true,
-        reads: "`verdict=rejected` on an approval block",
-        moves: "rejected when a reviewer declines the design, with the reason in the verdict — nothing derives a rejection",
-        press:
-          "Not from here. A verdict is a signature and it lives on the block the reviewer pressed, so this " +
-          "station draws where the document went rather than offering to take it there.",
-        pressable: false,
-        means:
-          "A design argued out and turned down, which is the verdict doing its job — an approval that was " +
-          "never in doubt decides nothing. The document stays: the argument and the reason it lost are " +
-          "the record, and the next plan on the subject is written knowing them.",
       },
       {
         id: "built",

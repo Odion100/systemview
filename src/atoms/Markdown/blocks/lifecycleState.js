@@ -84,15 +84,6 @@ export const TRAILS = {
   report: ["filed", "retired"],
 };
 
-// A FORK SITS IMMEDIATELY AFTER THE STATION IT LEAVES, because the renderer shares a column with the
-// station before — that shared column is what draws the dive into a dead end. `rejected` is never in
-// TRAILS itself: `pressTo` clears everything PAST its target off that order, and a station sitting
-// between `approved` and `built` there would make approving an RFC unwrite its own STATUS heading.
-const forkedAtApproval = (trail) => {
-  const i = trail.indexOf("approved");
-  return i < 0 ? trail : [...trail.slice(0, i + 1), "rejected", ...trail.slice(i + 1)];
-};
-
 // ─── RETIREMENT CARRIES A REASON (RFC-076 §4.2) ──────────────────────────────────────────────
 //
 // Retirement used to be a gate: you could only retire something finished. That gate is gone and
@@ -239,7 +230,11 @@ export function stateOf(kind, row, leaf = null) {
   if (st.retired) return "retired";
   if (kind === "rfc") {
     const v = String(st.verdict || "").toLowerCase();
-    if (v === "rejected") return "rejected";
+    // A REJECTED VERDICT LEAVES IT IN DRAFT. His ruling (2026-11-07): an RFC he does not approve is
+    // deleted or left where it is, so "rejected" is a fact about the APPROVAL — recorded in the
+    // block, with its reason — and never a station of the plan's own. Every state above draft needs
+    // an approval that was GRANTED, and a declined one has not granted it.
+    if (v === "rejected") return "draft";
     // EVERY STATE ABOVE DRAFT NEEDS THE VERDICT, and this used to read `settled`/`built` before it
     // ever looked (RFC-076 §2's RFC table: every condition above draft contains
     // `verdicts approved = true`). So a document with a `## STATUS` heading and no verdict read
@@ -261,7 +256,8 @@ export function stateOf(kind, row, leaf = null) {
     // them with the verdict underneath. `has objectives` is the floor: an empty arc satisfies
     // every universal for free, and the floor is what stops it taking the whole trail.
     const v = String(st.verdict || "").toLowerCase();
-    if (v === "rejected") return "rejected";
+    // Same ruling as the rfc above: a declined approval is not an arc state.
+    if (v === "rejected") return "draft";
     if (!v) return "draft";
     const o = st.objectives || {};
     const total = Number(o.total) || 0;
@@ -298,16 +294,14 @@ export function stateOf(kind, row, leaf = null) {
  *   the one before rather than steps after it — the renderer draws those with a different mark.
  */
 export function stepsFor(kind, current, row = null, leaf = null) {
-  // A VERDICT FORKS AT THE APPROVAL STATION — an rfc and an arc run the same flow, so they draw the
-  // same dead end, and the trail behind it is the kind's whole lifecycle standing where it was.
-  // Retired after a rejected verdict draws the road out: the full trail would wear `built` and
-  // `settled` as walked on a design nobody ever built.
-  if (kind === "rfc" || kind === "arc") {
-    const st = { ...((row && row.state) || {}), ...(leaf || {}) };
-    const rejected = String(st.verdict || "").toLowerCase() === "rejected" || current === "rejected";
-    if (current === "retired" && rejected) return { steps: ["draft", "rejected", "retired"], alt: [] };
-    return { steps: forkedAtApproval(TRAILS[kind]), alt: ["rejected"] };
-  }
+  // AN RFC AND AN ARC HAVE NO REJECTED STATION, and that is his ruling rather than an omission
+  // (2026-11-07): *"why does an RFC go to rejected? I will never reject an RFC — I would just
+  // delete it or leave it where it is."* A plan that does not get approved is a plan still sitting
+  // in draft, which is what the lifecycle already says; drawing a dead end he would never walk to —
+  // and one that offered nothing pressable when he got there — put a station on his document that
+  // existed only to be looked at. A GAP keeps its fork, because a gap really is declined on
+  // purpose and that decision is worth a record. See `stateOf`: a rejected verdict leaves these
+  // two in draft.
   if (kind === "gap") {
     // THE SHAPE NEVER CHANGES ON AN ENDING — the drawing is the kind's whole lifecycle, and the
     // accent says which road was taken (his: "the bar is supposed to just light up on rejected —

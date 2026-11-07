@@ -78,8 +78,10 @@ export function rfcCurrent(source, leaf = {}) {
   if (leaf.retired) return "retired";
   const approvals = parseApprovals(source);
   const verdicts = approvals.map((a) => String(a.verdict || "").toLowerCase());
-  if (verdicts.some((v) => v === "rejected")) return "rejected";
-  if (!approvals.length || verdicts.some((v) => !v)) return "draft";
+  // A DECLINED APPROVAL IS A DRAFT, not a station of its own — his ruling, 2026-11-07. The verdict
+  // and its reason stay in the approval block where somebody wrote them; the plan is simply not
+  // approved, which is where every unapproved plan already stands.
+  if (!approvals.length || verdicts.some((v) => !v || v === "rejected")) return "draft";
   if (leaf.settled) return "settled";
   if (/^##\s*STATUS\b/m.test(String(source || ""))) return "built";
   return "approved";
