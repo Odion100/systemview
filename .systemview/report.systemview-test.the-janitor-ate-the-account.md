@@ -53,6 +53,25 @@ abstraction, several offices — and a rule one office earned did not reach the 
 caller — the document's FIRST leaf decides, which is what a leaf IS under RFC-073, and never a
 later line.
 
+## And the same use-pass found a second one, in the door itself
+
+::commit{sha=c1802091}
+
+The report's own restoration made `commitLinks` say something false. It reported the two commits
+that served it as **UNCLAIMED** — *"that commit does not serve it"* — about a message whose second
+line reads `Serves: The fixture that could not survive a hub boot now rests torn down`.
+
+The trailer was at **character 82 of 1343**: on the line after the subject rather than in the block
+at the end. `servesOf` reads the END block and has to — a sentence mentioning the word in prose must
+never become a link — so it saw nothing, and the door then answered wrongly in both directions at
+once: the commit read UNLINKED, the document read UNCLAIMED. **A reader following that advice edits
+a document that was already right**, which is worse than silence.
+
+A misplaced line is now its own finding, carrying the id it meant to serve and the move that fixes
+it, with both false halves withheld — the same shape as `crossed`, for the same reason.
+
+::commit{sha=240149d project=autobot}
+
 ## The eaten account is back
 
 ::file[.systemview/report.systemview-test.the-fixture-that-could-not-survive-a-hub-boot.md]
@@ -65,7 +84,8 @@ the ledger has no open for it. It reads today exactly as it was filed.
 | what ran | where | result |
 |---|---|---|
 | `node --test api/janitor.test.js` | the hub's suite | 22 pass — **4 new** |
-| `yarn verify` | window + hub + cli + build | 2314 · **351** · 12 · green |
+| `node --test api/commitLinks.test.js` | the hub's suite | 20 pass — **4 new** |
+| `yarn verify` | window + hub + cli + build | 2314 · **355** · 12 · green |
 
 **Mutation-verified twice, because one pass was not enough.** Restoring the any-leaf test kills two
 claims. Pinning the id lookup to `null` — so the first-leaf fallback answers everything — killed
