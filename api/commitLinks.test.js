@@ -187,3 +187,58 @@ test("a commit serving two documents, one of which carries its sha, is one-way a
   assert.equal(r.oneWay.length, 1);
   assert.equal(r.oneWay[0].id, "ARC-004-O2");
 });
+
+// ── A `Serves:` LINE IN THE WRONG PLACE IS ONE FINDING, NOT TWO FALSE ONES ────────────────────
+// MEASURED 2026-11-07. A commit put its trailer on the line after the subject — character 82 of a
+// 1343-character message — so `servesOf`, which reads the block at the END and must (a sentence
+// mentioning "Serves:" in prose cannot be allowed to become a link), saw nothing at all. The door
+// then reported the commit as UNLINKED and the document carrying its sha as UNCLAIMED, with "that
+// commit does not serve it" — a sentence the message plainly contradicts. A reader following that
+// advice edits a document that was already right.
+test("a trailer outside the block is reported as misplaced, and nothing else", () => {
+  const message = [
+    "fix(proofs): the fixture rests torn down",
+    "",
+    "Serves: A report id",
+    "",
+    "A long body explaining the change, which is what pushed the line up here.",
+  ].join("\n");
+
+  const out = audit({
+    commits: [{ sha: "e5a7760f00", subject: "fix(proofs): the fixture rests torn down", message }],
+    documents: [{ id: "A report id", path: "r.md", text: "::commit{sha=e5a7760f}" }],
+  });
+
+  assert.deepStrictEqual(out.misplaced, [
+    { sha: "e5a7760f00", subject: "fix(proofs): the fixture rests torn down", ids: ["A report id"] },
+  ]);
+  // BOTH FALSE HALVES WITHDRAWN — the count of findings is the count of mistakes.
+  assert.deepStrictEqual(out.unlinked, []);
+  assert.deepStrictEqual(out.unclaimed, []);
+  assert.deepStrictEqual(out.oneWay, []);
+  assert.strictEqual(out.agreed, false);
+});
+
+test("a trailer in the block is still the only thing that LINKS — the convention keeps its teeth", () => {
+  const proper = ["fix: x", "", "A body.", "", "Serves: A report id"].join("\n");
+  const out = audit({
+    commits: [{ sha: "aaaa1111", subject: "fix: x", message: proper }],
+    documents: [{ id: "A report id", path: "r.md", text: "::commit{sha=aaaa1111}" }],
+  });
+  assert.deepStrictEqual(out.misplaced, []);
+  assert.strictEqual(out.agreed, true);
+});
+
+test("the word in prose is not a trailer, misplaced or otherwise", () => {
+  const prose = ["fix: x", "", "This commit serves nothing; the Serves: convention is discussed below.", "", "Nothing."].join("\n");
+  const out = audit({ commits: [{ sha: "bbbb2222", subject: "fix: x", message: prose }], documents: [] });
+  assert.deepStrictEqual(out.misplaced, []);
+  assert.deepStrictEqual(out.unlinked, [{ sha: "bbbb2222", subject: "fix: x" }]);
+});
+
+test("a misplaced line naming an id nothing registered is still misplaced, not dangling", () => {
+  const message = ["fix: x", "", "Serves: nothing registered under this", "", "body"].join("\n");
+  const out = audit({ commits: [{ sha: "cccc3333", subject: "fix: x", message }], documents: [] });
+  assert.strictEqual(out.misplaced.length, 1);
+  assert.deepStrictEqual(out.dangling, []);
+});

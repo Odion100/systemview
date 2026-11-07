@@ -67,6 +67,25 @@ function servesOf(message) {
   return out;
 }
 
+/**
+ * The ids a message MEANT to serve with a `Serves:` line that is not in the trailer block.
+ *
+ * Deliberately narrow: only lines whose whole content is the trailer, so a sentence mentioning the
+ * word in prose cannot become a link. `servesOf` stays strict about the block — that is what makes
+ * the convention mean something — and this says what a near-miss was trying to say.
+ */
+function strayServes(message) {
+  const inBlock = new Set(servesOf(message));
+  const out = [];
+  for (const line of String(message == null ? "" : message).replace(/\r/g, "").split("\n")) {
+    const m = line.match(TRAILER_LINE);
+    if (!m) continue;
+    const id = m[1].trim();
+    if (id && !inBlock.has(id) && !out.includes(id)) out.push(id);
+  }
+  return out;
+}
+
 /** The shas a DOCUMENT claims, off its `::commit{sha=…}` blocks — the other direction. */
 function shasIn(text) {
   const out = [];
@@ -113,11 +132,25 @@ function audit({ commits = [], documents = [] } = {}) {
   const unlinked = [];
   const dangling = [];
   const oneWay = [];
+  // A `Serves:` LINE THAT IS NOT IN THE TRAILER BLOCK, which this door used to answer about
+  // wrongly in both directions. Measured 2026-11-07: a commit put its trailer on the line after
+  // the subject (character 82 of 1343), so `servesOf` — which reads the block at the END, and must,
+  // or a prose mention of "Serves:" would become a link — saw nothing. The commit then read as
+  // UNLINKED and the document carrying its sha read as UNCLAIMED with "that commit does not serve
+  // it", which is a sentence the message plainly contradicts. A reader following that advice edits
+  // a document that was already right.
+  //
+  // So the intent is reported instead of being guessed at or denied: the id it MEANT to serve, and
+  // the one move that fixes it. Both false halves are withdrawn below, the same way a cross is —
+  // one mistake, one finding.
+  const misplaced = [];
 
   for (const c of commits) {
     const serves = servesOf(c.message);
     if (!serves.length) {
-      unlinked.push({ sha: c.sha, subject: c.subject || "" });
+      const stray = strayServes(c.message);
+      if (stray.length) misplaced.push({ sha: c.sha, subject: c.subject || "", ids: stray });
+      else unlinked.push({ sha: c.sha, subject: c.subject || "" });
       continue;
     }
     for (const id of serves) {
@@ -138,6 +171,10 @@ function audit({ commits = [], documents = [] } = {}) {
     for (const sha of shas) {
       const c = commits.find((x) => sameSha(x.sha, sha));
       if (!c) continue; // not in the window we were handed — absence here is not evidence
+      // A MISPLACED TRAILER IS NOT A MISSING ONE. If the commit meant to serve this document and
+      // put the line in the wrong place, that is reported once as `misplaced`; saying "does not
+      // serve it" here as well would be the second false half of one mistake.
+      if (strayServes(c.message).includes(String(doc.id))) continue;
       if (!servesOf(c.message).includes(String(doc.id))) {
         unclaimed.push({ sha, id: doc.id, path: doc.path || "" });
       }
@@ -180,9 +217,10 @@ function audit({ commits = [], documents = [] } = {}) {
     dangling,
     oneWay,
     unclaimed,
+    misplaced,
     crossed,
-    agreed: !dangling.length && !oneWay.length && !unclaimed.length && !crossed.length,
+    agreed: !dangling.length && !oneWay.length && !unclaimed.length && !crossed.length && !misplaced.length,
   };
 }
 
-module.exports = { TRAILER, servesOf, shasIn, sameSha, audit };
+module.exports = { TRAILER, servesOf, strayServes, shasIn, sameSha, audit };
