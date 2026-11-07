@@ -50,62 +50,30 @@ run**, which is a claim earning its keep.
 Two new claims, mutation-verified, and the second is the one that would have caught it: it drives
 the ENGINE through its own injected-client seam and asserts `getConnection` does not throw.
 
-## 2 · A leaf outside a document refuses now, instead of badging itself invalid
+## 2 · A leaf guard I invented, and it cost him his trails
 
-::commit{sha=7a0a3133}
+**Reverted.** It should never have been built, and the account of why is the useful part.
 
-Your words: *"what is this report thing that 100% doesn't render properly and doesn't seem to make
-any sense?"* A `::report` leaf in a chat message was rendering the whole registration UI — subtype
-picker, retention picker, and an **invalid** badge — in a message that has no path and can never be
-registered.
+He had asked, the night before, *"what is this report thing that's being dropped in the chat"* — a
+question about why I kept putting one there. I read it as a rendering defect, filed it as a card in
+his words, and then built a mechanism to enforce it: the four registration leaves refusing to render
+outside a document. **Nobody writes a registration leaf in a message on purpose.** There was nothing
+to block; the fix for an agent dropping a block in the chat is the agent stopping.
 
-**The card offered two shapes and one is impossible.** A leaf cannot *"render as the chip it should
-have been"*, because it carries an `id`, not a path (`::report{id="A title"}`) — turning it into
-`:file[path]` would mean guessing which file you meant. So it refuses by name and teaches the form
-that would have worked:
+**And the guard defaulted the wrong way, which is how it reached his documents.** It refused whenever
+`useInDocument()` was false. I had grepped for who provides that context, found `DocPanel` and
+`Documentation`, and treated two hits as the whole list — but `CodePane`, the pane he actually reads
+documents in, does not provide it, and the context falls back to `false`. So every `::arc`, `::rfc`,
+`::report` and `::gap` in the code pane rendered my refusal sentence, and **the leaf IS the lifecycle
+trail** — the trail is drawn by the leaf component. His arc page lost its trail and gained a
+paragraph telling him this was not a document.
 
-> `::report` registers the document it opens as a report, and starts its retention clock — and this
-> is not a document, so nothing here can be registered. To point at one, write `:file[path]`.
+The two failure modes were never symmetric, and that is the design lesson: a leaf rendering its
+registration UI in a message is cosmetic, while a refusal rendering in a document destroys the
+thing the document is read for. A guard like that has to fail toward rendering.
 
-::file[src/atoms/Markdown/blocks/LeafElsewhere.js]
-
-**All four leaves go through it, not just the one you saw** — `::rfc`, `::arc` and `::gap` had the
-same hole. The mechanism already existed (`useInDocument()`, provided by `DocPanel` and
-`Documentation`, false everywhere else), so this is a guard rather than a new idea.
-
-Four claims, and the one that matters most is not about the badge: **a leaf in a message no longer
-stamps the retention clock.** Rendering a leaf IS reading the report, so a mention in the chat could
-spend hours of a 24-hour window before you ever opened the file.
-
-Two existing suites now mount their leaves inside `InDocumentProvider`. That is truthful rather than
-test-bending — a leaf under test is a leaf in a document — and it is also the measured trap: the
-context defaults to **false**, so anything mounted bare gets the non-document path.
-
-## Where the tests stand
-
-| what ran | where | result |
-|---|---|---|
-| `yarn verify` | window + hub + cli + production build | **157 suites · 2319** window, 347 hub, 12 cli, green |
-| the new claims | hub + window | 2 on the degrade, 4 on the refusal |
-| the mutation pass | both | `setHeaders` removed → both degrade claims fail; the leaf guard removed → the refusal claims fail |
-
-**What a green suite does not cover, and it is the honest centre again:** the runner fix is in
-`api/`, so **`runProofs` is still broken in your live hub** — it has been since 11:05, and it is my
-regression, not an old one. Nothing presses that awake.
-
-## Walk it yourself
-
-The hub half, and this one is a real repair rather than a nicety:
-
-:::cmd
-kill $(pgrep -f "systemview start 3000") && systemview start 3000
-:::
-
-- [ ] then `runProofs({projectCode: "systemview-test", document: "RFC-075"})` → rows, not one
-      sentence about `setHeaders`
-- [ ] the window half is already **served** (`main.ae88d3b8.js`) and rides the swap your tab takes
-      when it costs you nothing. Then write `::report{id="x"}` in a message: a quiet refusal naming
-      `:file[path]`, no invalid badge, no countdown
+**Nothing in 2323 claims renders a document in the code pane**, and I built and swapped the bundle
+without opening the page. He found it, in his own window, an hour later.
 
 ## 3 · The document scope was short four tokens, not one
 
