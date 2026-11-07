@@ -14,9 +14,38 @@ export default function ValidationMessage({
   received,
 }) {
   const PRETEXT = error ? "Expected" : "Expecting";
+  const say = ErrorMessages[name];
+  // A NAME WITH NO FORMATTER MUST NOT TAKE THE SURFACE DOWN. `ErrorMessages[name](…)` on a name
+  // this table has never heard of is a TypeError inside render, so one unrecognised error blanks the
+  // whole summary rather than reporting itself. Two of the engine's own error names arrive here
+  // today and are absent from the table — `assertedNothing` (a step that declared evaluations and
+  // saved none) and `unknownValidation` (a name no validator runs) — and both are MESSAGES rather
+  // than comparisons: they already carry their whole meaning in `expected` and `received`.
+  //
+  // buAPI met this from the other side: of 1316 assertions they audited, ten used the name `equals`,
+  // which no type implements and nothing formats — and that is what crashed their run.
+  //
+  // So the fallback renders the error's own words. It is not a placeholder: for an error whose
+  // prose IS the report, it is the correct rendering, and for a genuinely new comparison it names
+  // the name instead of dying.
+  if (typeof say !== "function")
+    return (
+      <div className={`${className}`}>
+        <div className={`${className}__message`}>
+          {PRETEXT} <span className={`${className}__namespace`}>{namespace}</span>
+          {expected ? (
+            <>
+              {" "}
+              to be <span className={`${className}__expected`}>{String(expected)}</span>
+            </>
+          ) : null}
+          {error && received ? <span> — {String(received)}</span> : null}
+        </div>
+      </div>
+    );
   return (
     <div className={`${className}`}>
-      {ErrorMessages[name](namespace, expected, PRETEXT, error && received)}
+      {say(namespace, expected, PRETEXT, error && received)}
     </div>
   );
 }
