@@ -38,9 +38,56 @@ for (const file of scss) {
 // assertion below is what makes a new one impossible to add by accident.
 const KNOWN_PHANTOM = [
   "--sv-accent", "--sv-amber", "--sv-bg-raised", "--sv-border-faint", "--sv-buffered",
-  "--sv-danger", "--sv-dim", "--sv-hover-strong", "--sv-line", "--sv-mono", "--sv-panel",
-  "--sv-red", "--sv-row-hover", "--sv-surface-soft", "--sv-text-soft", "--sv-tree-max",
+  "--sv-dim", "--sv-hover-strong", "--sv-line", "--sv-mono", "--sv-panel",
+  "--sv-row-hover", "--sv-surface-soft", "--sv-text-soft", "--sv-tree-max",
 ];
+
+// ── THE REDS, WHICH WERE THE WORST OF THE DEBT ─────────────────────────────────────────────────
+//
+// His card: *"there is no danger colour in the theme, so three places invent one."* By 2026-11-07 it
+// was four: `--sv-danger` and `--sv-red` sat on the list above, each reference carrying its own
+// hardcoded fallback — which is the only reason nothing broke — and `#a2503f` was written out TEN
+// times across three files because there was nothing to reach for.
+//
+// THREE TOKENS, NOT ONE, because they say three different things: a destructive verb, a failure that
+// happened, and a thing that cannot go anywhere. Each landed at the value its fallback already used,
+// so naming them moved nothing on screen.
+//
+// A HEX LITERAL IS A LITERAL, which is what makes a grep a SOUND check here — unlike a cascade
+// collision, which needs compiled selectors before anything can be called a fight.
+const REDS = { "--sv-danger": "#c0504d", "--sv-red": "#e5534b", "--sv-dead": "#a2503f" };
+
+describe("the theme owns every red", () => {
+  const theme = fs.readFileSync(path.join(SRC, "sass", "theme.scss"), "utf8");
+  const others = scss.filter((f) => !f.endsWith(path.join("sass", "theme.scss")));
+
+  it("defines all three, so no reference depends on a fallback", () => {
+    Object.entries(REDS).forEach(([token, hex]) => expect(theme).toContain(`${token}: ${hex};`));
+    expect(defined.has("--sv-danger")).toBe(true);
+    expect(defined.has("--sv-red")).toBe(true);
+    expect(defined.has("--sv-dead")).toBe(true);
+  });
+
+  it("and nothing else writes one of those hexes, or carries a fallback that re-states it", () => {
+    const offenders = others
+      .map((f) => [path.relative(SRC, f), [...fs.readFileSync(f, "utf8").matchAll(/#(c0504d|e5534b|a2503f)/gi)].length])
+      .filter(([, n]) => n > 0);
+    expect(offenders).toEqual([]);
+  });
+
+  // THE TOKEN TRAP THIS SHARES A FAMILY WITH: the markdown stylesheet redefines theme tokens inside
+  // its own scope, so `--sv-text-faint` is grey in the theme and GREEN in the markdown dark block —
+  // a name that looks shared and is not. These three may be redefined by nobody.
+  it("and nobody redefines one, so the name means one colour everywhere", () => {
+    const redefined = others
+      .map((f) => [
+        path.relative(SRC, f),
+        Object.keys(REDS).filter((t) => new RegExp(`${t}\\s*:`).test(fs.readFileSync(f, "utf8"))),
+      ])
+      .filter(([, hits]) => hits.length > 0);
+    expect(redefined).toEqual([]);
+  });
+});
 
 describe("every --sv- token a stylesheet asks for", () => {
   const phantom = [...used.keys()].filter((t) => !defined.has(t)).sort();

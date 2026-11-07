@@ -36,6 +36,20 @@
   --sv-kind-gap: #c07a16;
   --sv-kind-report: #0d8065;
 
+  // THE THREE REDS, NAMED — and they are three because they say three different things, which is
+  // why one token would have been the wrong fix. Before this they were: `--sv-danger` and
+  // `--sv-red` REFERENCED in two stylesheets and defined nowhere (each reference carrying its own
+  // fallback, which is the only reason nothing broke), and `#a2503f` written out ten times across
+  // three files because there was nothing to reach for. Four places inventing one colour, and the
+  // next thing keyed to a red would have invented a fifth.
+  //
+  // THE VALUES ARE THE FALLBACKS THEY REPLACE, exactly: naming a colour is not the moment to change
+  // one, so nothing on screen moves.
+  --sv-danger: #c0504d; // a destructive VERB — delete, clear, remove. It is about what a press does
+  --sv-red: #e5534b;    // a FAILURE that happened — an error row, a refused call
+  --sv-dead: #a2503f;   // a thing that cannot go anywhere: a dead end on a trail, a block whose
+                        // address does not resolve, an utterance that could not be spoken
+
   // text
   --sv-text: #46506a;
   --sv-text-strong: #3b4460;

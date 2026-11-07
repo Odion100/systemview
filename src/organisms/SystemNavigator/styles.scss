@@ -484,7 +484,7 @@
   cursor: pointer;
   &:hover { background: var(--sv-hover, rgba(0, 0, 0, 0.06)); color: var(--sv-text); }
 }
-.system-nav__newproject-input--err::placeholder { color: #c0504d; }
+.system-nav__newproject-input--err::placeholder { color: var(--sv-danger); }
 
 // THE TAB WEARS THE COOKING — the live dot breathes while that agent is working, so you can tell
 // from any tab who is busy. Idle, it is the still green dot it always was.

@@ -4966,7 +4966,7 @@ $sv-board-states: (
     font: inherit;
     font-size: 10px;
     cursor: pointer;
-    &:hover { border-color: var(--sv-danger, #c0504d); color: var(--sv-danger, #c0504d); }
+    &:hover { border-color: var(--sv-danger); color: var(--sv-danger); }
   }
 
   // THE LIST SCROLLS, THE TRANSPORT DOES NOT. His, watching it fill: *"it should be scrollable, so
@@ -5013,7 +5013,7 @@ $sv-board-states: (
     font: inherit;
     line-height: 1;
     cursor: pointer;
-    &:hover { color: var(--sv-danger, #c0504d); }
+    &:hover { color: var(--sv-danger); }
   }
 }
 
@@ -5287,9 +5287,9 @@ $sv-board-states: (
   flex: none;
   font-size: 10px;
   padding: 0 6px;
-  border: 1px solid color-mix(in srgb, var(--sv-red, #e5534b) 45%, var(--sv-border));
+  border: 1px solid color-mix(in srgb, var(--sv-red) 45%, var(--sv-border));
   border-radius: 999px;
-  color: color-mix(in srgb, var(--sv-red, #e5534b) 70%, var(--sv-text-muted));
+  color: color-mix(in srgb, var(--sv-red) 70%, var(--sv-text-muted));
   white-space: nowrap;
 
   &--bare {

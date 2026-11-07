@@ -48,7 +48,7 @@
   // dead-chip red already in use rather than inventing a token for one control.
   &--failed {
     opacity: 1;
-    color: #a2503f;
+    color: var(--sv-dead);
   }
 
   &__wave {
@@ -388,7 +388,7 @@
   }
 
   &__failed {
-    color: #a2503f;
+    color: var(--sv-dead);
   }
 
   // UNDERLINED TABS, NOT FOLDERS. The folder-tab look needs a border to sit on and we just took

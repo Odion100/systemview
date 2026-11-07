@@ -118,7 +118,7 @@
   &__name { font-size: 12px; font-family: monospace; }
 
   // "this will not continue" wears the vocabulary's dead colour, same as an unresolvable reference
-  .sv-trail__st--dead.is-at { --accent: #a2503f; }
+  .sv-trail__st--dead.is-at { --accent: var(--sv-dead); }
   .sv-trail__st.is-at .sv-trail__ring {
     border-color: var(--accent);
     color: var(--accent);

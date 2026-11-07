@@ -89,7 +89,7 @@
 
   // A reference that doesn't resolve says so instead of lying (RFC-025 §4.1).
   &--dead {
-    color: #a2503f;
+    color: var(--sv-dead);
     background: #fbf0ee;
     border-color: #e6c4bd;
     border-style: dashed;
@@ -882,7 +882,7 @@
       padding: 1px 5px;
     }
     &--dead {
-      color: #a2503f;
+      color: var(--sv-dead);
       background: #fbf0ee;
       border-color: #e6c4bd;
       border-style: dashed;
@@ -1387,7 +1387,7 @@
   .md-embed__problems {
     margin-top: 7px;
     font-size: 11.5px;
-    color: #a2503f;
+    color: var(--sv-dead);
   }
   &--dark .md-embed__problems {
     color: #d08b7c;
@@ -2383,7 +2383,7 @@
       font-size: 11.5px;
       color: var(--sv-text-muted);
       &--bad {
-        color: #a2503f;
+        color: var(--sv-dead);
       }
     }
   }
@@ -3802,7 +3802,7 @@
     // and one concept wearing two appearances is how a vocabulary stops being one. The theme has
     // no danger token at all — inventing one here would have been a third spelling.
     &--unresolved {
-      color: #a2503f;
+      color: var(--sv-dead);
       background: #fbf0ee;
       border-color: #e6c4bd;
       border-style: dashed;
@@ -3885,7 +3885,7 @@
     &--done  { border-left-color: var(--sv-blue-deep); opacity: 0.75; }
     // A cycle is a visible problem, never an absence — the same dashed vocabulary the rest of this
     // file uses for "this does not resolve".
-    &--cycle { border-left-style: dashed; border-left-color: #a2503f; }
+    &--cycle { border-left-style: dashed; border-left-color: var(--sv-dead); }
   }
 
   &__n { color: var(--sv-text-faint); min-width: 14px; }
@@ -3899,7 +3899,7 @@
     border-radius: 4px;
     border: 1px solid #e6c4bd;
     background: #fbf0ee;
-    color: #a2503f;
+    color: var(--sv-dead);
     font-size: 10px;
     font-weight: 600;
 
@@ -4043,7 +4043,7 @@
   // Unexplained reads as a defect, because it is one.
   &.is-unsaid {
     font-style: italic;
-    color: var(--sv-danger, #c0504d);
+    color: var(--sv-danger);
   }
 }
 
