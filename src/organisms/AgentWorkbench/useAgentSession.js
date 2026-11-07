@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { openAgent, hasAgentHost, listModels, setModel as hostSetModel, setThinking as hostSetThinking, canSetThinking } from "../../utils/hostAgent";
 import { foldEvents, foldState, splitLaneEvents } from "./feedRows";
+import { laneTicksIn } from "./laneTick";
 
 // RFC-046 — ONE SESSION, SUBSCRIBED FROM WHEREVER IT IS BEING WATCHED. A hook rather than a
 // component because the chat and the pane need the same stream and must not open two.
@@ -135,18 +136,10 @@ export default function useAgentSession({ projectCode, sessionId = "agent", gate
   // mcp__systemview__lanes — left a ghost row sitting on a strip whose whole claim is that it reads
   // state rather than being told. The host announces it to every session in the project now, the
   // same way wipeWhiteboard announces an erase, so every watcher drops the row together.
-  const laneTicks = events.reduce(
-    (n, e) =>
-      n +
-      // `run.updated` is a status or attachment landing on a run file — the strip reads those
-      // files, so the write has to tick a re-read or a declared "abandoned" wears yesterday's
-      // face (his catch, 2026-10-26: the run he watched get declared showed nothing).
-      (e.kind === "run.started" || e.kind === "run.finished" || e.kind === "lane.removed" || e.kind === "run.updated" ||
-      (e.kind === "todo.updated" && String(e.source || "").startsWith("lane:"))
-        ? 1
-        : 0),
-    0
-  );
+  // WHICH EVENTS MEAN RE-READ — one list, in `laneTick.js`, where it can be claimed. It was an
+  // inline reduce here and it filtered a `todo.updated` down to lane sources only, which is how a
+  // skill's run stayed invisible until he reloaded the page.
+  const laneTicks = laneTicksIn(events);
   useEffect(() => {
     refreshLanes();
   }, [events.length > 0, laneTicks, refreshLanes]);
