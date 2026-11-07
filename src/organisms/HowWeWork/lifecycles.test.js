@@ -1,4 +1,4 @@
-import { TRAILS } from "../../atoms/Markdown/blocks/lifecycleState";
+import { TRAILS, stepsFor } from "../../atoms/Markdown/blocks/lifecycleState";
 import { parseRetain } from "../../atoms/Markdown/blocks/retention";
 import { CHAIN, LAYERS, LEAVES, LIFECYCLES, REASONS, STAGES, SUBTYPES } from "./howWeWork.data";
 
@@ -29,11 +29,12 @@ describe("the page's content has the shape the page renders", () => {
     LIFECYCLES.forEach((l) => expect(l.stations[l.stations.length - 1].id).toBe("retired"));
   });
 
-  // The gap is the only kind with TWO endings, and the page has to draw `rejected` as a real
-  // destination rather than a failure to reach `resolved`.
-  it("only the gap forks, and the fork is rejected", () => {
+  // EVERY KIND THAT CAN BE DECLINED FORKS, and the fork is always `rejected` — drawn as a real
+  // destination rather than a failure to reach the road beside it. A report is the one kind that
+  // cannot: it is a view, so it only ages.
+  it("the three decidable kinds fork, and the fork is always rejected", () => {
     const forks = LIFECYCLES.flatMap((l) => l.stations.filter((s) => s.fork).map((s) => `${l.kind}:${s.id}`));
-    expect(forks).toEqual(["gap:rejected"]);
+    expect(forks).toEqual(["arc:rejected", "rfc:rejected", "gap:rejected"]);
   });
 
   it("a retirement reason is an ending or a pause, and the list is closed", () => {
@@ -134,12 +135,16 @@ const EXPECTED_DRIFT = {
   report: { pageOnly: [], codeOnly: [] },
 };
 
+// AGAINST WHAT THE CODE DRAWS, not against the pressable order. `stepsFor` is the drawing — forks
+// included — and the page is a teaching copy of that picture. `TRAILS` is the order `pressTo` clears
+// against and it deliberately holds no fork, so comparing the page to it reports a drift that is the
+// design.
 describe("the page against lifecycleState.js — one definition, and the gap is named", () => {
   LIFECYCLES.forEach((l) => {
     it(`${l.kind}: the difference from the code is exactly the pinned exception`, () => {
       const page = l.stations.map((s) => s.id);
-      const code = TRAILS[l.kind];
-      expect(code).toBeDefined();
+      const code = stepsFor(l.kind, l.stations[0].id).steps;
+      expect(code.length).toBeGreaterThan(1);
       expect({
         pageOnly: page.filter((s) => !code.includes(s)),
         codeOnly: code.filter((s) => !page.includes(s)),
@@ -149,8 +154,16 @@ describe("the page against lifecycleState.js — one definition, and the gap is 
 
   it("where they agree, they agree on the ORDER too", () => {
     LIFECYCLES.forEach((l) => {
-      const shared = l.stations.map((s) => s.id).filter((s) => TRAILS[l.kind].includes(s));
-      expect(shared).toEqual(TRAILS[l.kind].filter((s) => shared.includes(s)));
+      const code = stepsFor(l.kind, l.stations[0].id).steps;
+      const shared = l.stations.map((s) => s.id).filter((s) => code.includes(s));
+      expect(shared).toEqual(code.filter((s) => shared.includes(s)));
     });
+  });
+
+  // The fork is a drawing and never a step: a station between `approved` and `built` in the order
+  // `pressTo` clears against would make approving an RFC unwrite the STATUS heading that means built.
+  it("the pressable order carries no fork", () => {
+    expect(TRAILS.rfc).not.toContain("rejected");
+    expect(TRAILS.arc).not.toContain("rejected");
   });
 });

@@ -161,7 +161,8 @@ export const LIFECYCLES = [
     sub: "a body of work — its state is read off its plans",
     lede:
       "Five states, and three of them read facts that live in OTHER documents — an arc says where " +
-      "the work stands without anyone writing it on the arc.",
+      "the work stands without anyone writing it on the arc. It runs the same approval flow as an " +
+      "RFC, so it forks the same way: a direction can be DECLINED.",
     stations: [
       {
         id: "draft",
@@ -180,6 +181,19 @@ export const LIFECYCLES = [
         press: "Nothing to press forward — a plan is a document somebody has to write. The step list IS the unplanned objectives, each one a jump into writing it.",
         pressable: false,
         means: "The decision is made and the subplans are not all written. This is where an arc sits for most of its life.",
+      },
+      {
+        id: "rejected",
+        fork: true,
+        reads: "`verdict=rejected` on an approval block",
+        moves: "rejected when a reviewer declines the arc, with the reason in the verdict — nothing derives a rejection",
+        press:
+          "Not from here. The verdict belongs to the reviewer and lives on the approval block, so the trail " +
+          "draws where the arc went and the block is where it went there.",
+        pressable: false,
+        means:
+          "A direction argued and turned down. An arc that cannot be declined would make every approval " +
+          "on it a formality, and the objectives under it would read as agreed because nobody could say no.",
       },
       {
         id: "inProgress",
@@ -216,8 +230,9 @@ export const LIFECYCLES = [
     title: "RFC",
     sub: "a decision about how something gets built",
     lede:
-      "Five states, and written as conditions they are mutually exclusive — exactly one holds at a " +
-      "time, so there is no precedence rule, no if-chain, no \"which wins\".",
+      "Five states and a FORK, and written as conditions they are mutually exclusive — exactly one " +
+      "holds at a time, so there is no precedence rule, no if-chain, no \"which wins\". The fork is " +
+      "the half of the method nobody rehearses: a design can be DECLINED.",
     stations: [
       {
         id: "draft",
@@ -238,6 +253,20 @@ export const LIFECYCLES = [
         means:
           "The one state that is expensive to get back to. You must break built and settled while " +
           "KEEPING the verdicts, so the cheap move is unavailable.",
+      },
+      {
+        id: "rejected",
+        fork: true,
+        reads: "`verdict=rejected` on an approval block",
+        moves: "rejected when a reviewer declines the design, with the reason in the verdict — nothing derives a rejection",
+        press:
+          "Not from here. A verdict is a signature and it lives on the block the reviewer pressed, so this " +
+          "station draws where the document went rather than offering to take it there.",
+        pressable: false,
+        means:
+          "A design argued out and turned down, which is the verdict doing its job — an approval that was " +
+          "never in doubt decides nothing. The document stays: the argument and the reason it lost are " +
+          "the record, and the next plan on the subject is written knowing them.",
       },
       {
         id: "built",
