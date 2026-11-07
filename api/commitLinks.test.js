@@ -128,3 +128,62 @@ test("one commit serving several documents is checked against each", () => {
   assert.strictEqual(r.oneWay.length, 1);
   assert.strictEqual(r.oneWay[0].id, "ARC-004-O2");
 });
+
+// ── THE CROSS — one mistake that used to be reported as two ─────────────────────────────────────
+// Found by USING this door on my own night's work, 2026-11-07: three build commits in a row carried
+// `Serves:` naming the PREVIOUS sitting's report. The cause is structural — a trailer is written at
+// COMMIT time while a report's id is decided at the END of a sitting, so the title already in hand
+// is last sitting's — and the reason it took three repeats to notice is this file: each cross read
+// as an unrelated `oneWay` in one section plus an unrelated `unclaimed` in another.
+test("a commit serving A whose sha is carried by B is ONE finding, not two", () => {
+  const r = audit({
+    commits: [{ sha: "aaaa1111", subject: "the menu's gating", message: "x\n\nServes: REPORT-A" }],
+    documents: [
+      { id: "REPORT-A", path: "a.md", text: "no shas here" },
+      { id: "REPORT-B", path: "b.md", text: "::commit{sha=aaaa1111}" },
+    ],
+  });
+  assert.deepEqual(r.crossed, [
+    { sha: "aaaa1111", subject: "the menu's gating", says: "REPORT-A", carriedBy: "REPORT-B", path: "b.md" },
+  ]);
+  // BOTH HALVES ARE WITHDRAWN: the count of findings should be the count of mistakes.
+  assert.deepEqual(r.oneWay, []);
+  assert.deepEqual(r.unclaimed, []);
+  assert.equal(r.agreed, false, "and it still counts as a disagreement");
+});
+
+test("a genuine one-way is not swallowed by the cross — nobody carries that sha", () => {
+  const r = audit({
+    commits: [{ sha: "bbbb2222", subject: "lonely", message: "x\n\nServes: REPORT-A" }],
+    documents: [{ id: "REPORT-A", path: "a.md", text: "no shas" }],
+  });
+  assert.deepEqual(r.crossed, []);
+  assert.equal(r.oneWay.length, 1);
+  assert.equal(r.oneWay[0].sha, "bbbb2222");
+});
+
+test("and a document naming a sha whose commit serves NOTHING stays unclaimed, not crossed", () => {
+  const r = audit({
+    commits: [{ sha: "cccc3333", subject: "no trailer", message: "just a subject" }],
+    documents: [{ id: "REPORT-A", path: "a.md", text: "::commit{sha=cccc3333}" }],
+  });
+  assert.deepEqual(r.crossed, [], "there is no second document to cross with");
+  assert.equal(r.unclaimed.length, 1);
+  assert.equal(r.unlinked.length, 1, "the commit itself is the unlinked one");
+});
+
+// A MULTI-SERVE IS NOT A CROSS — and the claim above for that case is what caught this while the
+// cross was being added. One commit may serve two documents; when only one carries the record, the
+// trailer is RIGHT and a record is missing, which is a plain one-way on the other document.
+test("a commit serving two documents, one of which carries its sha, is one-way and NOT crossed", () => {
+  const r = audit({
+    commits: [{ sha: "aaa1111", subject: "feat", message: "feat\n\nServes: RFC-073\nServes: ARC-004-O2" }],
+    documents: [
+      { id: "RFC-073", kind: "rfc", path: "r.md", text: "::commit{sha=aaa1111}" },
+      { id: "ARC-004-O2", kind: "arc", path: "a.md", text: "" },
+    ],
+  });
+  assert.deepEqual(r.crossed, []);
+  assert.equal(r.oneWay.length, 1);
+  assert.equal(r.oneWay[0].id, "ARC-004-O2");
+});

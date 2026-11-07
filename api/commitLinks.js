@@ -98,6 +98,14 @@ const sameSha = (a, b) => {
  *               one that makes a document unable to show what built it.
  *   unclaimed — a document carries a sha whose commit does not point back. Either the commit
  *               predates the convention or somebody pasted the wrong sha.
+ *   crossed   — ONE mistake that used to be reported as two: the commit's trailer names document A
+ *               while document B carries its sha. Found by using this door on my own night's work,
+ *               2026-11-07: three commits in a row named the PREVIOUS sitting's report, because a
+ *               trailer is written at COMMIT time and a report's id is decided at the END of a
+ *               sitting — so the title already in hand is last sitting's. Each read as an unrelated
+ *               `oneWay` plus an unrelated `unclaimed` in two different sections, which is why it
+ *               took three repeats to see. A crossed pair is therefore reported once and withheld
+ *               from both halves: the count of findings should be the count of mistakes.
  */
 function audit({ commits = [], documents = [] } = {}) {
   const byId = new Map(documents.map((d) => [String(d.id), d]));
@@ -136,6 +144,34 @@ function audit({ commits = [], documents = [] } = {}) {
     }
   }
 
+  // THE CROSS. A commit serving A whose sha is carried by B is not two problems — it is one wrong
+  // label, and naming it as one is what makes it recognisable. Both halves are withdrawn so nothing
+  // is counted twice; `says` is what the trailer claims and `carriedBy` is the document that
+  // actually accounts for the work, which is the pair a reader needs side by side.
+  const crossed = [];
+  for (const o of [...oneWay]) {
+    // A MULTI-SERVE IS NOT A CROSS, and the claim for that case is what caught this: one commit may
+    // legitimately serve two documents, and when only one of them carries the record the finding is
+    // a plain `oneWay` on the other — the trailer is right and a record is missing. So the document
+    // holding the sha only makes this a cross when the commit does NOT also name it.
+    const c = commits.find((x) => sameSha(x.sha, o.sha));
+    const mine = c ? servesOf(c.message).map(String) : [];
+    const other = docShas.find(
+      ({ doc, shas }) => String(doc.id) !== o.id && !mine.includes(String(doc.id)) && shas.some((x) => sameSha(x, o.sha)),
+    );
+    if (!other) continue;
+    crossed.push({
+      sha: o.sha,
+      subject: o.subject,
+      says: o.id,
+      carriedBy: String(other.doc.id),
+      path: other.doc.path || "",
+    });
+    oneWay.splice(oneWay.indexOf(o), 1);
+    const half = unclaimed.findIndex((u) => sameSha(u.sha, o.sha) && u.id === String(other.doc.id));
+    if (half > -1) unclaimed.splice(half, 1);
+  }
+
   return {
     checked: commits.length,
     documents: documents.length,
@@ -144,7 +180,8 @@ function audit({ commits = [], documents = [] } = {}) {
     dangling,
     oneWay,
     unclaimed,
-    agreed: !dangling.length && !oneWay.length && !unclaimed.length,
+    crossed,
+    agreed: !dangling.length && !oneWay.length && !unclaimed.length && !crossed.length,
   };
 }
 
