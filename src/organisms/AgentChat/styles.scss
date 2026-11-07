@@ -4044,6 +4044,11 @@ $sv-board-states: (
   // instruction is that the two are one family (*"the inline ones will take on the same style as
   // the bigger blocks"*), so the size comes from the mixin's `0.9em` — the same declaration inline
   // code uses — and the two land identically. The height cap is what this scope is actually for.
+  // THE CHAT'S OWN CAP, and it BEATS the mixin's 180px rather than coexisting with it: this
+  // selector carries the same specificity the mixin's rule has at each include site and is
+  // declared after it. Deliberate — a fence in this column is read beside the next sentence — and
+  // written down because the mixin says 180 three files away, so whichever file you open first
+  // tells you the wrong number. Source order is the only thing deciding it.
   .chat-md__fence {
     max-height: 200px;
     overflow: auto;

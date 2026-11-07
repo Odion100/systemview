@@ -140,6 +140,14 @@
     // THE CAP STAYS. Measured on his window, every fence in the live scrollback was 36–95px tall,
     // so this is not what "not styled nicely" was about — and a long paste growing unbounded in a
     // column the next sentence is sitting in is the worse failure. It only ever bites a stack trace.
+    //
+    // 180 IS NOT WHAT THE CHAT SHOWS, and the number here cannot decide that on its own: the chat
+    // declares `.agent-chat .chat-md__fence { max-height: 200px }`, which has the SAME specificity
+    // as this rule carries at every include site and is declared after it, so 200 wins there. This
+    // value is what every other consumer gets — CodeView, the workbench — and the difference is
+    // real rather than an oversight: a fence in the chat sits in a narrower column than one in a
+    // pane. Said here because a cap documented at one number and rendering at another is how a
+    // reader loses an afternoon.
     max-height: 180px;
     position: relative;
     // Room for the tag to sit in, so the first line of code is never under it — but only when there
