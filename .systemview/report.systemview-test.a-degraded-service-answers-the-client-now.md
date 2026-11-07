@@ -107,6 +107,71 @@ kill $(pgrep -f "systemview start 3000") && systemview start 3000
       when it costs you nothing. Then write `::report{id="x"}` in a message: a quiet refusal naming
       `:file[path]`, no invalid badge, no countdown
 
+## 3 · The document scope was short four tokens, not one
+
+::commit{sha=a5689969}
+
+A document is explicitly light or dark **independent of the app**, so `.markdown` redeclares the
+tokens an embedded component reads — that is the whole mechanism keeping a chart inside a light
+document light while the app is dark. It depends on the SET being complete: a mode-dependent token
+left out is not a missing style, it is a value that reaches past the document and takes the APP's,
+and only when the two modes disagree.
+
+The card named `--sv-inset`. Comparing the theme's two `:root` blocks against every token the
+stylesheet reads: **twelve are mode-dependent, eight were redeclared, four were not** — `--sv-inset`,
+`--sv-hover`, `--sv-blue`, `--sv-blue-deep`. Nothing had ever compared the two lists, which is why it
+sat since August.
+
+Two claims hold the comparison now, and they are deliberately split: coverage against the **light
+half specifically** (scanning the whole scope would count a token that exists only in the dark block
+as covered) and *dark redeclares exactly what light does*, because the asymmetry is its own bug.
+
+**And it had stopped being latent an hour earlier.** `LeafElsewhere` — section 2 above — reads
+`var(--sv-inset)` inside a document, which is precisely the case the omission breaks. It was also
+reading `--sv-text-faint`, which that same scope redeclares as the owner-chip's **green**, so a
+refusal written in faint text came out green. Four other rules in that file carry the same warning.
+
+## 4 · I contradicted a card, then measured and the card was right
+
+::commit{sha=dbd4e4e3}
+
+::commit{sha=f228950b}
+
+The card said `ValidationMessages.js` was dead code and should be deleted before the picker was
+pinned. One grep showed `TestSummary/index.js` importing it, so I said the card was wrong and built a
+fix instead — the formatter table has 16 keys against an engine that also emits `assertedNothing` and
+`unknownValidation`, so `ErrorMessages[name](…)` was a TypeError inside render that blanked the whole
+summary.
+
+**Nothing imports TestSummary either.** Both orphaned since 2026-07-31, and neither appears in the
+production bundle at all. The crash was real and could never fire. buAPI met the same hole from the
+other side with the name `equals` and it crashed *their* run, which is what made it look live here.
+
+So the subtree went — 574 lines — and the measurement that proves it is better than any grep: **the
+JS bundle's content hash did not move.** `main.ae88d3b8.js` before the deletion, `main.ae88d3b8.js`
+after it. Deleting it changed the served application by nothing.
+
+What survives is the pin the card actually asked for: the **picker** is now pinned per type to the
+gate's `VALIDATION_NAMES`. The gate was pinned to `validators.js` by parsing the source; nothing
+pinned `ValidationOptions`, so a drift there either offers a name that asserts nothing or hides one
+that works, and the author never learns which.
+
+## The trailer mistake, for the third time in one night
+
+**Every commit in sections 3 and 4 names THIS report in its `Serves:` trailer, and they were written
+in the sitting after the one this report was filed for.** The habit is the one measured earlier
+tonight: a trailer is written at commit time, a report's id is chosen at the end, so the title
+already in hand is the previous sitting's.
+
+It cannot be repaired — moving a trailer rewrites history, which is yours — so the honest resolution
+is the one on this page: **the account carries the work its commits say it carries.** Hence sections 3
+and 4 in a document whose title names section 1. The alternative was a second report and three
+permanently broken links.
+
+**The practice that actually fixes it, and I am changing to it now:** write the report file with its
+leaf and title BEFORE the first commit, so the id exists in the tree rather than in my head. The
+board card asking for a commit-time nudge now carries this as its third data point.
+
 ## What is on the board for you
 
 - **should a leaf be able to say its retirement is a test artifact?** — from the last sitting, still
