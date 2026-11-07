@@ -1,61 +1,72 @@
-import { durOk, readRate, saysRate, writeRate } from "./hookRate";
+import { CATEGORIES, durOk, isCrossing, readRate, saysRate, writeRate } from "./hookRate";
 
-// HIS ASK, 2026-11-07: *"I can pick once per session, at most every five minutes — what the fuck if
-// I want four times an hour? I'll put it idle five minutes but only four times an hour. That is
-// what we set up, but I cannot select it — I select from a dropdown."* Four times an hour is
-// `cooldown:15m`, and 15m was not one of the eleven the dropdown offered.
-describe("a cooldown is written, not chosen from a list", () => {
-  it("composes any duration the harness accepts, including the one nobody listed", () => {
-    expect(writeRate({ kind: "cooldown", n: "15", unit: "m" })).toBe("cooldown:15m");
-    expect(writeRate({ kind: "cooldown", n: "7", unit: "m" })).toBe("cooldown:7m");
-    expect(writeRate({ kind: "cooldown", n: "36", unit: "h" })).toBe("cooldown:36h");
-    expect(writeRate({ kind: "once-per-rise" })).toBe("once-per-rise");
-    expect(writeRate({ kind: "" })).toBe("");
+// HIS DESIGN, 2026-11-07: *"a number per a… and a selector for a time category — session, crossing,
+// whatever. What if I said twice per day? And you can pick every match, which is a completely
+// separate selector."* Fourteen hand-written sentences in one dropdown hid that there are only two
+// choices to make, and welded the count to one.
+describe("a rate is a count and a category", () => {
+  it("composes the sentence he said — and twice per day had no spelling before", () => {
+    expect(writeRate({ mode: "budget", n: "2", cat: "day" })).toBe("2-per-day");
+    expect(writeRate({ mode: "budget", n: "4", cat: "hour" })).toBe("4-per-hour");
+    expect(writeRate({ mode: "budget", n: "3", cat: "week" })).toBe("3-per-week");
+    expect(writeRate({ mode: "budget", n: "2", cat: "session" })).toBe("2-per-session");
   });
 
-  it("reads a saved rate back into the two controls", () => {
-    expect(readRate("cooldown:15m")).toEqual({ kind: "cooldown", n: "15", unit: "m", raw: "" });
-    expect(readRate("once-per-session")).toEqual({ kind: "once-per-session", n: "", unit: "m", raw: "" });
-    expect(readRate("")).toEqual({ kind: "", n: "", unit: "m", raw: "" });
-    expect(readRate(undefined)).toEqual({ kind: "", n: "", unit: "m", raw: "" });
+  // n=1 keeps the spelling every hook, skill and document already uses — the harness reads the two
+  // as one rate, so the only question is which one a reader meets.
+  it("one is written `once-per-X`, not `1-per-X`", () => {
+    expect(writeRate({ mode: "budget", n: "1", cat: "day" })).toBe("once-per-day");
+    expect(writeRate({ mode: "budget", n: "1", cat: "session" })).toBe("once-per-session");
   });
 
-  // A COMPOUND RATE MAY NOT BE QUIETLY REWRITTEN. `cooldown:3d12h` is legal to the harness and
-  // cannot be held by one number and one unit, so it survives as raw text instead of becoming 3d.
-  it("a duration the pair cannot hold survives as itself", () => {
-    expect(readRate("cooldown:3d12h")).toEqual({ kind: "cooldown", n: "", unit: "m", raw: "3d12h" });
+  it("reads every family back into the controls", () => {
+    expect(readRate("2-per-day")).toMatchObject({ mode: "budget", n: "2", cat: "day" });
+    expect(readRate("once-per-session")).toMatchObject({ mode: "budget", n: "1", cat: "session" });
+    expect(readRate("once-per-rise")).toMatchObject({ mode: "budget", n: "1", cat: "rise" });
+    expect(readRate("cooldown:15m")).toMatchObject({ mode: "gap", durN: "15", durUnit: "m" });
+    expect(readRate("")).toMatchObject({ mode: "every" });
+    expect(readRate(undefined)).toMatchObject({ mode: "every" });
+  });
+
+  // THE CATEGORIES ARE NOT ALL CLOCK (his correction): the two that are not go first, because they
+  // are the two a threshold hook actually wants.
+  it("session and crossing stand in the category list, ahead of the clock", () => {
+    expect(CATEGORIES.map((c) => c.value)).toEqual(["session", "compaction", "hour", "day", "week", "month"]);
+    expect(isCrossing("compaction")).toBe(true);
+    expect(isCrossing("rise")).toBe(true);
+    expect(isCrossing("day")).toBe(false);
+  });
+
+  // "EVERY MATCH" IS ITS OWN SELECTOR — it is not a count, so it cannot live in the number.
+  it("every match is a mode, never a value inside the pair", () => {
+    expect(writeRate({ mode: "every", n: "2", cat: "day" })).toBe("");
+    expect(saysRate("")).toBe("no limit — it fires on every match");
+  });
+
+  it("a sliding gap stays reachable, and a compound one is not rounded", () => {
+    expect(writeRate({ mode: "gap", durN: "15", durUnit: "m" })).toBe("cooldown:15m");
     expect(writeRate(readRate("cooldown:3d12h"))).toBe("cooldown:3d12h");
-    expect(readRate("cooldown:90s").raw).toBe("90s");
-    expect(writeRate(readRate("cooldown:90s"))).toBe("cooldown:90s");
-    // the legacy bare-seconds form the harness still honours
     expect(writeRate(readRate("cooldown:120"))).toBe("cooldown:120");
+    ["15m", "3d12h", "2w", "120"].forEach((d) => expect(durOk(d)).toBe(true));
+    ["", "15 m", "1.5h", "quarter hour"].forEach((d) => expect(durOk(d)).toBe(false));
   });
 
-  // CLEARING THE BOX MAY NOT CHANGE THE KIND. "no rate — every match" is the one rate a hook must
-  // never acquire by accident, and it is what the control snapped to if an empty duration collapsed
-  // the whole string. `cooldown:` holds the kind and is refused by the harness at the save.
-  it("an empty duration keeps the kind and is refused later, rather than becoming no rate", () => {
-    expect(writeRate({ kind: "cooldown", n: "", unit: "m" })).toBe("cooldown:");
-    expect(readRate("cooldown:")).toEqual({ kind: "cooldown", n: "", unit: "m", raw: "" });
-    expect(saysRate("cooldown:")).toBe("name a duration — 15m is four times an hour");
+  // A RATE NOBODY CAN READ IS A HOOK THAT NEVER FIRES. Showing it as itself is how it gets fixed;
+  // replacing it with a default hides it.
+  it("an unreadable rate already on disk survives as itself and says so", () => {
+    expect(readRate("once-per-fortnight")).toMatchObject({ mode: "other", text: "once-per-fortnight" });
+    expect(writeRate(readRate("once-per-fortnight"))).toBe("once-per-fortnight");
+    expect(saysRate("once-per-fortnight")).toBe('"once-per-fortnight" is not a rate the harness can read');
   });
 
-  // The same grammar `parseDur` enforces, checked while he types — a malformed rate used to save
-  // and then mean "no limit": a hook firing forever wearing a limit it never had.
-  it("says which durations the harness can read", () => {
-    ["15m", "1h", "3d12h", "2w", "500ms", "120"].forEach((d) => expect(durOk(d)).toBe(true));
-    ["", "15 m", "quarter hour", "m15", "1.5h", "fifteen"].forEach((d) => expect(durOk(d)).toBe(false));
-  });
-
-  // The arithmetic he said out loud, done on the surface instead of in his head.
-  it("says what the rate means, in times-per-window where that is a whole number", () => {
-    expect(saysRate("cooldown:15m")).toBe("at most once every 15 minutes — 4 times an hour");
-    expect(saysRate("cooldown:30m")).toBe("at most once every 30 minutes — 2 times an hour");
-    expect(saysRate("cooldown:1m")).toBe("at most once every 1 minute — 60 times an hour");
-    expect(saysRate("cooldown:7m")).toBe("at most once every 7 minutes");
-    expect(saysRate("cooldown:6h")).toBe("at most once every 6 hours — 4 times a day");
-    expect(saysRate("cooldown:3d12h")).toBe("at most once every 3d12h");
+  it("says the sentence back, in his words", () => {
+    expect(saysRate("once-per-day")).toBe("once per day");
+    expect(saysRate("2-per-day")).toBe("twice per day");
+    expect(saysRate("4-per-hour")).toBe("4 times per hour");
+    expect(saysRate("once-per-compaction")).toBe("once per crossing");
+    expect(saysRate("2-per-rise")).toBe("twice per crossing");
+    expect(saysRate("cooldown:15m")).toBe("no sooner than 15m after the last fire");
+    expect(saysRate("cooldown:")).toBe("name a gap");
     expect(saysRate("cooldown:nope")).toBe('"nope" is not a duration the harness can read');
-    expect(saysRate("once-per-day")).toBe("");
   });
 });

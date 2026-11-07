@@ -1,81 +1,112 @@
-// THE FIRE RATE, DECOMPOSED — out of the render so what the control can SAY is provable.
+// THE FIRE RATE, DECOMPOSED — his design, 2026-11-07: *"you can hear the components: a number per
+// a… and a selector for a time category — session, crossing, whatever. What if I said twice per
+// day? And you can pick every match, which is a completely separate selector."*
 //
-// The rule underneath is wide: the harness accepts `cooldown:<duration>` for any duration it can
-// parse — `15m`, `7m`, `3d12h`. The control was eleven hand-picked ones in a dropdown, so a rate
-// nobody had thought to list could not be set at all (his catch, 2026-11-07: *"I can pick once per
-// session, at most every five minutes — what if I want four times an hour?"* — four times an hour
-// is `cooldown:15m`, and 15m was not on the list).
+// It was one dropdown of fourteen hand-written sentences, and the shape of the thing was invisible
+// in it: the COUNT was welded into the word `once`, so "twice per day" had no option and no
+// spelling, while fourteen rows hid that there are only ever two choices to make.
 //
-// So the rate is TWO controls: a KIND, and — when the kind is a cooldown — a duration he writes.
+// THE CATEGORIES ARE NOT ALL CLOCK (his correction, same evening) — `session` and `crossing` sit in
+// the same list and are different mechanisms underneath: a session budget is counted in the
+// session, a crossing budget is re-armed when the condition goes false, and hour/day/week/month
+// reset on the calendar. One control, because to him they are one question: per WHAT.
+//
+// A sliding GAP is kept as its own mode because the harness has it and hooks on disk carry it, and
+// it is a different promise from a budget: `cooldown:12h` forbids 9am and 10am, which twice-per-day
+// allows.
 
-/** The named rates. Everything else a hook can carry is a cooldown with a duration on it. */
-export const NAMED = [
-  { value: "once-per-session", label: "once per session" },
-  { value: "once-per-rise", label: "once per crossing (re-arms when it drops)" },
-  { value: "once-per-day", label: "once a day" },
-  { value: "once-per-week", label: "once a week" },
-  { value: "once-per-month", label: "once a month" },
-  { value: "", label: "no rate — every match" },
+/** Per WHAT — in the order he said them: the two that are not clock, then the clock. */
+export const CATEGORIES = [
+  { value: "session", label: "session" },
+  { value: "compaction", label: "crossing (re-arms when it drops)" },
+  { value: "hour", label: "hour" },
+  { value: "day", label: "day" },
+  { value: "week", label: "week" },
+  { value: "month", label: "month" },
 ];
 
-export const UNITS = [
+/** How many. A selection, not a free box — "one, two, three", plus the few larger ones worth having. */
+export const COUNTS = [1, 2, 3, 4, 5, 6, 8, 10, 12, 24].map((n) => ({ value: String(n), label: String(n) }));
+
+export const GAP_UNITS = [
   { value: "m", label: "minutes" },
   { value: "h", label: "hours" },
   { value: "d", label: "days" },
   { value: "w", label: "weeks" },
 ];
 
-const SIMPLE = /^(\d+)(m|h|d|w)$/;
+export const MODES = [
+  { value: "budget", label: "at most…" },
+  { value: "gap", label: "no sooner than…" },
+  { value: "every", label: "every match — no limit" },
+];
+
+const PER = /^(once|[1-9]\d*)-per-(session|rise|compaction|hour|day|week|month)$/;
+const SIMPLE_DUR = /^(\d+)(m|h|d|w)$/;
+const EDGE = new Set(["rise", "compaction"]);
+
+/** Is this category a crossing — the one the harness refuses without a `when` to cross. */
+export const isCrossing = (cat) => EDGE.has(String(cat || ""));
 
 /**
- * READ A SAVED RATE INTO THE TWO CONTROLS.
+ * READ A SAVED RATE INTO THE CONTROLS. `mode` is budget | gap | every | other.
  *
- * `kind` is a named rate or "cooldown". A cooldown whose duration is one number and one unit fills
- * `n` and `unit`; anything compound (`3d12h`) or in seconds (`90s`, or the legacy bare `120`) comes
- * back as `raw` instead, because a number-and-unit pair cannot hold it and SILENTLY REWRITING a
- * saved rate while he edits the row above it is the failure this split exists to avoid.
+ * `other` exists so an unreadable rate already on disk is shown as itself and can be corrected,
+ * rather than being silently replaced by whatever the controls happen to default to. A rate nobody
+ * can read is a hook that never fires, and overwriting it hides that instead of fixing it.
  */
 export function readRate(rate) {
   const s = String(rate == null ? "" : rate).trim();
-  if (!s.startsWith("cooldown:")) return { kind: s, n: "", unit: "m", raw: "" };
-  const dur = s.slice("cooldown:".length).trim();
-  const m = SIMPLE.exec(dur);
-  if (m) return { kind: "cooldown", n: m[1], unit: m[2], raw: "" };
-  return { kind: "cooldown", n: "", unit: "m", raw: dur };
+  const base = { mode: "every", n: "1", cat: "day", durN: "", durUnit: "m", raw: "", text: s };
+  if (!s) return base;
+  const per = PER.exec(s);
+  if (per) return { ...base, mode: "budget", n: per[1] === "once" ? "1" : per[1], cat: per[2] };
+  if (s.startsWith("cooldown:")) {
+    const dur = s.slice("cooldown:".length).trim();
+    const m = SIMPLE_DUR.exec(dur);
+    // A compound duration (`3d12h`, `90s`) cannot be held by a number and a unit, so it stays text.
+    return m ? { ...base, mode: "gap", durN: m[1], durUnit: m[2] } : { ...base, mode: "gap", raw: dur };
+  }
+  return { ...base, mode: "other" };
 }
 
 /**
- * Write the two controls back to one rate string.
+ * Write the controls back to one rate string.
  *
- * A cooldown with no duration yet stays `cooldown:` — the kind has to SURVIVE an empty box, or
- * clearing the number to type a new one silently snaps the control back to "no rate", which is the
- * one rate a hook must never acquire by accident. The harness refuses `cooldown:` by name at the
- * save, which is the honest place for it.
+ * n=1 is written as `once-per-X`, which is the same rate — the harness reads them identically —
+ * in the spelling every hook, document and skill already uses.
  */
-export function writeRate({ kind, n, unit, raw } = {}) {
-  if (kind !== "cooldown") return String(kind || "");
-  const typed = String(raw || "").trim();
-  const num = String(n == null ? "" : n).trim();
-  return `cooldown:${typed || (num ? `${num}${unit || "m"}` : "")}`;
+export function writeRate(p = {}) {
+  const { mode, n, cat, durN, durUnit, raw, text } = p;
+  if (mode === "every") return "";
+  if (mode === "other") return String(text || "");
+  if (mode === "gap") {
+    const typed = String(raw || "").trim();
+    const num = String(durN == null ? "" : durN).trim();
+    return `cooldown:${typed || (num ? `${num}${durUnit || "m"}` : "")}`;
+  }
+  const count = String(n || "1").trim() || "1";
+  return `${count === "1" ? "once" : count}-per-${cat || "day"}`;
 }
 
-/**
- * IS THIS DURATION ONE THE HARNESS WILL TAKE — the same grammar `parseDur` enforces, checked while
- * he types rather than refused at the save. A malformed rate used to save and then mean "no limit",
- * which is a hook that fires forever wearing a limit it never had.
- */
-export const durOk = (dur) => /^(\d+(ms|s|m|h|d|w))+$/.test(String(dur || "").trim().toLowerCase()) || /^\d+$/.test(String(dur || "").trim());
+/** The same grammar the harness enforces, so a gap is checked while he types, not at the save. */
+export const durOk = (d) => {
+  const t = String(d || "").trim().toLowerCase();
+  return /^(\d+(ms|s|m|h|d|w))+$/.test(t) || /^\d+$/.test(t);
+};
 
-/** What the rate says in words, for the note under the control — his arithmetic, done for him. */
+/** What the rate says, in words — the sentence he would have said. */
 export function saysRate(rate) {
-  const { kind, n, unit, raw } = readRate(rate);
-  if (kind !== "cooldown") return "";
-  if (raw) return durOk(raw) ? `at most once every ${raw}` : `"${raw}" is not a duration the harness can read`;
-  const num = Number(n);
-  if (!num) return "name a duration — 15m is four times an hour";
-  const per = { m: 60, h: 24, d: 7, w: 0 }[unit];
-  const word = { m: "minutes", h: "hours", d: "days", w: "weeks" }[unit];
-  const each = { m: "an hour", h: "a day", d: "a week", w: "" }[unit];
-  const times = per && num <= per && per % num === 0 ? ` — ${per / num} times ${each}` : "";
-  return `at most once every ${num} ${num === 1 ? word.slice(0, -1) : word}${times}`;
+  const p = readRate(rate);
+  if (p.mode === "every") return "no limit — it fires on every match";
+  if (p.mode === "other") return `"${p.text}" is not a rate the harness can read`;
+  if (p.mode === "gap") {
+    const dur = p.raw || (p.durN ? `${p.durN}${p.durUnit}` : "");
+    if (!dur) return "name a gap";
+    return durOk(dur) ? `no sooner than ${dur} after the last fire` : `"${dur}" is not a duration the harness can read`;
+  }
+  const n = Number(p.n) || 1;
+  const cat = isCrossing(p.cat) ? "crossing" : p.cat;
+  const times = n === 1 ? "once" : n === 2 ? "twice" : `${n} times`;
+  return `${times} per ${cat}`;
 }

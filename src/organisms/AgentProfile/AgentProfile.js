@@ -24,7 +24,7 @@ import {
 } from "../../utils/hostAgents";
 import { collections as loadCollections, records as loadRecords } from "../../utils/hostContext";
 import { groupSkillsBySource, sourceCountLabel, skillDoc } from "./skillSources";
-import { NAMED as NAMED_RATES, UNITS as RATE_UNITS, readRate, saysRate, writeRate } from "./hookRate";
+import { CATEGORIES, COUNTS, GAP_UNITS, MODES, isCrossing, readRate, saysRate, writeRate } from "./hookRate";
 import { listJobs, jobRuns, rateJobRun, hasHostJobs, saveJob } from "../../utils/hostJobs";
 import SvSelect from "../../atoms/SvSelect/SvSelect";
 import { raiseKeyed, clearKeyed } from "../../atoms/Banner/bannerStore";
@@ -1075,32 +1075,38 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
 
                   <div className="agent-profile__hookform-row">
                     <label className="agent-profile__hookform-label">fire rate</label>
-                    {/* A COOLDOWN IS WRITTEN, NOT PICKED. This was eleven hand-chosen cooldowns in
-                        one dropdown, which meant a rate nobody had thought to list could not be
-                        set at all — his catch, 2026-11-07: *"I can pick once per session, at most
-                        every five minutes — what if I want four times an hour?"* Four times an hour
-                        is `cooldown:15m`; 15m was not on the list, and the harness had always taken
-                        it. So the KIND is chosen and the DURATION is his to write. ONCE PER CROSSING
-                        (2026-10-12) keeps its place beside once-per-session: a usage hook at
-                        once-per-session fires at the first crossing of 60% and never again, even
-                        though a compaction drops the window and it climbs straight back — the fall
-                        is what re-arms this one. */}
+                    {/* TWO CHOICES, NOT FOURTEEN SENTENCES — his decomposition, 2026-11-07: *"a
+                        number per a… and a selector for a time category: session, crossing,
+                        whatever. What if I said twice per day?"* It was one dropdown of fourteen
+                        written-out rates, which welded the COUNT to one — "twice per day" had no
+                        option and, until the harness learned it, no spelling either. "Every match"
+                        is its own selector because it is not a count. */}
                     <SvSelect
-                      value={rateParts.kind}
-                      onChange={(v) =>
-                        setHd({ rate: writeRate({ ...rateParts, kind: v, n: v === "cooldown" && !rateParts.n && !rateParts.raw ? "15" : rateParts.n }) })
-                      }
-                      options={[
-                        NAMED_RATES[0],
-                        NAMED_RATES[1],
-                        { value: "cooldown", label: "at most every…" },
-                        ...NAMED_RATES.slice(2),
-                      ]}
+                      value={rateParts.mode}
+                      onChange={(v) => setHd({ rate: writeRate({ ...rateParts, mode: v }) })}
+                      options={rateParts.mode === "other" ? [...MODES, { value: "other", label: "as written (unreadable)" }] : MODES}
                     />
-                    {rateParts.kind === "cooldown" &&
+                    {rateParts.mode === "budget" && (
+                      <>
+                        <SvSelect
+                          value={rateParts.n}
+                          onChange={(v) => setHd({ rate: writeRate({ ...rateParts, n: v }) })}
+                          options={COUNTS}
+                        />
+                        <span className="agent-profile__hookform-per">per</span>
+                        <SvSelect
+                          value={rateParts.cat}
+                          onChange={(v) => setHd({ rate: writeRate({ ...rateParts, cat: v }) })}
+                          /* `rise` is the older spelling of `crossing` and the harness reads both —
+                             a hook carrying it keeps it rather than being rewritten on open. */
+                          options={rateParts.cat === "rise" ? [...CATEGORIES, { value: "rise", label: "crossing (rise)" }] : CATEGORIES}
+                        />
+                      </>
+                    )}
+                    {rateParts.mode === "gap" &&
                       (rateParts.raw ? (
-                        // A COMPOUND DURATION (`3d12h`, `90s`) cannot be held by a number and a
-                        // unit, so it stays text rather than being silently rounded to one of them.
+                        // A compound duration (`3d12h`, `90s`) cannot be held by a number and a
+                        // unit, so it stays text instead of being rounded to one of them.
                         <input
                           className="agent-profile__hookform-input agent-profile__hookform-input--dur"
                           value={rateParts.raw}
@@ -1111,44 +1117,53 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
                         <>
                           <input
                             className="agent-profile__hookform-input agent-profile__hookform-input--num"
-                            value={rateParts.n}
+                            value={rateParts.durN}
                             inputMode="numeric"
                             placeholder="15"
                             aria-label="how long"
-                            onChange={(e) => setHd({ rate: writeRate({ ...rateParts, n: e.target.value.replace(/[^0-9]/g, "") }) })}
+                            onChange={(e) => setHd({ rate: writeRate({ ...rateParts, durN: e.target.value.replace(/[^0-9]/g, "") }) })}
                           />
                           <SvSelect
-                            value={rateParts.unit}
-                            onChange={(v) => setHd({ rate: writeRate({ ...rateParts, unit: v }) })}
-                            options={RATE_UNITS}
+                            value={rateParts.durUnit}
+                            onChange={(v) => setHd({ rate: writeRate({ ...rateParts, durUnit: v }) })}
+                            options={GAP_UNITS}
                           />
                         </>
                       ))}
+                    {rateParts.mode === "other" && (
+                      <input
+                        className="agent-profile__hookform-input"
+                        value={rateParts.text}
+                        onChange={(e) => setHd({ rate: e.target.value })}
+                      />
+                    )}
                     <span className="agent-profile__hookform-note">
-                      {hookDraft.rate === "once-per-rise" ? (
+                      {/* THE RATE SAID BACK IN WORDS. The controls spell it in a grammar
+                          (`2-per-day`); "twice per day" is the sentence he actually said. */}
+                      <b>{saysRate(hookDraft.rate)}. </b>
+                      {rateParts.mode === "budget" && isCrossing(rateParts.cat) ? (
                         Object.keys(rowsToWhen(hookDraft.rows || [])).length ? (
                           <>
-                            fires when the condition above becomes true, stays quiet while it holds,
-                            and re-arms the moment it goes false — so a threshold fires once per
-                            crossing instead of once per session.
+                            it fires when the condition above becomes true, stays quiet while it holds,
+                            and the whole allowance comes back the moment it goes false — so a
+                            threshold fires per crossing instead of once for the session's life.
                           </>
                         ) : (
                           <b>
-                            once per crossing needs a condition to cross — add a “when” row above,
-                            or this will be refused, because with nothing to go false it would just
-                            mean once per session.
+                            per crossing needs a condition to cross — add a “when” row above, or this
+                            will be refused: with nothing to go false it could never re-arm, and would
+                            mean per session.
                           </b>
                         )
                       ) : (
                         <>
-                          {/* THE ARITHMETIC ON THE SURFACE, not in his head: "15 minutes" and "four
-                              times an hour" are the same sentence and he said it the second way. */}
-                          {rateParts.kind === "cooldown" ? <b>{saysRate(hookDraft.rate)}. </b> : null}
-                          a hook with no rate is a context leak that fires forever. "once a
-                          day/week/month" is calendar-anchored — it resets at the boundary; a
-                          cooldown slides from the last fire. For a hook on a THRESHOLD — past 60%,
-                          over N minutes idle — "once per crossing" is almost always the one you
-                          want: once per session fires on the first crossing and never again.
+                          a hook with no rate is a context leak that fires forever. The clock
+                          categories are CALENDAR-anchored — the allowance comes back at the boundary,
+                          however the fires fell inside it — while “no sooner than” slides from the
+                          last fire and forbids two in quick succession. For a hook on a THRESHOLD —
+                          past 60%, over N minutes idle — per CROSSING is almost always the one you
+                          want: per session spends its allowance on the first crossings and stays
+                          silent for everything after, even across a compaction.
                         </>
                       )}
                     </span>
