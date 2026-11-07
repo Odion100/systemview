@@ -86,3 +86,7 @@ kill $(pgrep -f "systemview start 3000") && systemview start 3000
 - [ ] then `runProofs({projectCode: "systemview-test", document: "RFC-075"})` → rows instead of one
       error string, with a `mismatched` line naming `Plugin.fixturesRunning`
 - [ ] the specs touching that service fail with the registry sentence; the rest report normally
+
+## This account's own commit
+
+::commit{sha=9d242390}
