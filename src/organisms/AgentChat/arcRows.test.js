@@ -126,9 +126,9 @@ describe("the row's own line", () => {
     expect(arcLine({ done: 2, total: 2, blocked: 0, complete: true })).toBe("2 of 2 · done");
   });
 });
-// THE ARC NO LONGER HAS A BAND TAB — his ruling, 2026-11-07: the band is work in flight, and a
-// folder of documents is an inventory the dashboard already draws. These rows are what the three
-// dashboards derive from, which is why the derivation stayed when the tab went.
+// THE ARC HAS NO BAND TAB ANY MORE — his ruling, 2026-11-06: *"all these documents being shown
+// here are irrelevant… I would make it all about the worklist. Work in flight."* These rows are
+// what the three dashboards derive from, which is why the derivation stayed when the tab went.
 describe("the band", () => {
   it("has no arcs kind — the rows feed the dashboards now", () => {
     expect(BAND_KINDS.some((k) => k.key === "arcs")).toBe(false);

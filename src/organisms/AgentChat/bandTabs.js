@@ -7,33 +7,16 @@
 // render: a band whose rows all vanished must not keep showing an empty pane while work sits on
 // another tab, and that rule is the whole reason this is a function and not an inline ternary.
 //
-// THE BAND IS WORK IN FLIGHT, AND ONLY THAT. His ruling: *"I would make it all about the worklist.
-// Work in flight. Not about dashboard shit, which I already have on an amazing dashboard."* So the
-// four DOCUMENT tabs are gone — reports, RFCs, arcs and gaps were a folder, a filename pattern and
-// a row per file, which is an inventory, and the dashboard is where an inventory belongs. What is
-// left is work that is RUNNING: a job, a lane, a procedure's own list.
-//
-// `owed` STAYS, and the distinction is the reason: an obligation is not a folder of anything — it
-// is one line across every kind at once, the answer to *"help me resolve what's open"*, which is
-// what he said the drawer was for. It is first for the same reason.
-//
-// The `family` field survives with one value because the band's colour rule is keyed on it, and a
-// second family may well come back; what it must not become again is a cupboard.
-// AND A THIRD KIND OF THING, FIRST IN THE ROW: WHAT IS OWED BY HIM. His ask, 2026-10-30 —
-// *"can get rid of the regular things like list and report counts, and just make that whole top
-// header of the bar about things like approvals waiting… in general, I just need the drawer to help
-// me resolve what's open."* The inventory counts came out of the head, and what replaced them needs
-// somewhere to land: not a fourth document tab (an obligation is not a FOLDER of anything — it is
-// one line across every kind at once) and not a section above the tabs (the band is tabs, full
-// stop). So it is a tab, and it is first, because being first is what "help me resolve what's
-// open" means when the band comes up.
-//
-// IT LEADS WITHOUT STEALING. `bandTabs` keeps the stored choice while that choice has rows, so
-// being first only decides the band's tab for somebody who has not picked one — or whose pick has
-// emptied out. A tab that hijacked the pane every time an approval landed would be the opposite of
-// useful.
+// THE BAND IS WORK IN FLIGHT, AND NOTHING ELSE. His ruling, 2026-11-06, once the dashboard
+// existed: *"all these documents being shown here are irrelevant. This was originally all about
+// the worklists — some agents and worklists — and it could be that again… I would make it all
+// about the worklist. Work in flight."* The document tabs this band grew through 2026-10 — owed,
+// reports (and the subtype fan-out), RFCs, arcs, gaps — were each asked for in their day, and the
+// dashboard is where every one of those facts lives now. A drawer that repeats the dashboard is
+// two surfaces owning one answer, so the kinds that remain are the ones that are RUNNING: a job's
+// list, a lane on a branch (or a subagent without one), a procedure's own run. The documents were
+// not lost — they moved house.
 export const BAND_KINDS = [
-  { key: "owed", label: "owed", family: "owed" },
   { key: "jobs", label: "job", family: "work" },
   { key: "lanes", label: "lane", family: "work" },
   { key: "lists", label: "list", family: "work" },
@@ -41,20 +24,14 @@ export const BAND_KINDS = [
 
 export const TAB_KEY = "sv.chat.bandTab";
 
-// NOT EVERY WORD TAKES AN S. "3 oweds" is not English — `owed` is already what it is in the
-// plural, and a word that reads wrong is a word he has to translate before he can use the tab.
-const INVARIANT = new Set(["owed"]);
-
-const plural = (word, n) => `${n} ${word}${n === 1 || INVARIANT.has(word) ? "" : "s"}`;
+const plural = (word, n) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 // Plural the way the band head already speaks: "1 job", "3 lanes".
 //
 // THE LANE TAB CAN HOLD TWO KINDS, AND THEN IT NAMES BOTH. A subagent with no branch is not a lane
 // — it has no run record and nothing to diff — so a tab reading "3 lanes" over one lane and two
 // subagents is a claim the disk does not support. It says "1 lane · 2 subagents" instead: longer,
-// but every word of it is true, and the row already scrolls by design (reports fan out by subtype,
-// so its length was never bounded). With one kind present the phrase collapses to that kind alone,
-// which is why nothing changed for the case he has been looking at for weeks.
+// but every word of it is true. With one kind present the phrase collapses to that kind alone.
 export const bandLabel = (kind, n, parts = null) => {
   const row = BAND_KINDS.find((k) => k.key === kind);
   const word = row ? row.label : kind;
@@ -73,30 +50,22 @@ export const bandLabel = (kind, n, parts = null) => {
  * - A kind with no rows gets NO TAB — a tab that can only ever say "nothing here" is furniture.
  * - The stored choice wins while it still has rows; otherwise the first tab that has any does,
  *   because the alternative is an empty pane beside a tab bar that says there is work.
+ *   THE SAME RULE IS THE MIGRATION: a stored key from the band's document era ("rfcs", "owed",
+ *   "reports:spec") names a tab that no longer exists, matches nothing, and falls through to the
+ *   first tab with rows — no special case, no empty pane.
  * - Everything empty → no tabs and `active: ""`, and the band renders nothing at all.
  */
 export const bandTabs = (counts = {}, stored = "") => {
-  // A COUNT FOR A KIND THE BAND NO LONGER DRAWS IS IGNORED, not an error. The callers that still
-  // know about documents hand them over in the same object, and a tab exists only if BAND_KINDS
-  // names it — so dropping a kind here is the whole removal, and a stored choice pointing at one
-  // falls through to the first tab with rows (below), which is what already happens to any tab
-  // whose work finishes.
   const tabs = BAND_KINDS.flatMap((k) => {
     const c = counts[k.key];
-    // THE LANE TAB'S COUNT FOLDS IN; REPORTS FAN OUT. Both arrive as an object and they mean
-    // opposite things on purpose, so it is said here rather than left to be inferred: a report
-    // subtype becomes its OWN tab, because a planning report and an account wait on different
-    // things; a lane-less subagent becomes a SECTION inside the lane tab, because he asked for
-    // two sections and not two tabs.
-    //
-    // AND THE SUM IS WHAT DECIDES THE TAB EXISTS — this is the bug he hit. `lanes` was the count
-    // of REGISTERED lanes alone, so with no lanes registered and two lane-less subagents running,
-    // the count was 0, the rule below deleted the tab, and the render gate (`active === "lanes"`)
-    // could never be true: the rows existed, their chats existed, and nothing could reach them.
-    // His rule is that no subagent runs unseen, so a running subagent BUYS the tab. The number
-    // that decides the tab exists is therefore every row in the pane — and the LABEL is not that
-    // number said once (see `bandLabel`), because "3 lanes" over 1 lane and 2 subagents would
-    // trade an invisible row for a false one.
+    // THE LANE TAB'S COUNT FOLDS IN. It can arrive as an object because the tab holds two kinds —
+    // registered lanes and lane-less subagents — and the SUM is what decides the tab exists: with
+    // no lanes registered and two subagents running, a count of registered lanes alone would be 0,
+    // the rule below would delete the tab, and the render gate (`active === "lanes"`) could never
+    // be true — rows and chats existing with nothing on screen able to reach them. His rule is
+    // that no subagent runs unseen, so a running subagent BUYS the tab. The LABEL is not that sum
+    // said once (see `bandLabel`): "3 lanes" over 1 lane and 2 subagents would trade an invisible
+    // row for a false one.
     if (k.key === "lanes" && c && typeof c === "object") {
       const parts = { lanes: Number(c.lanes) || 0, subagents: Number(c.subagents) || 0 };
       return [{ ...k, n: parts.lanes + parts.subagents, parts }];
@@ -106,6 +75,29 @@ export const bandTabs = (counts = {}, stored = "") => {
   if (!tabs.length) return { tabs, active: "" };
   const kept = tabs.find((t) => t.key === stored);
   return { tabs, active: (kept || tabs[0]).key };
+};
+
+// THE HEAD LINE SPEAKS WORK-STATE — what is in flight, and nothing about documents. Same ruling
+// as the kinds above: approvals, retention clocks and blocked objectives are the dashboard's
+// story; the drawer's one closed-state line answers "is anything running right now?".
+//
+// EVERY WORD OF IT IS DERIVED, NOT INVENTED. The counts come from the same rows the tabs count —
+// a job run whose list is still moving, a lane standing on its branch, a subagent mid-run, a
+// sourced run with steps left — and each segment is a DOOR into its own tab, the way the head's
+// segments have always worked ("once it's open it just closes it").
+//
+// "nothing in flight" IS A MEASURED ZERO, said only when the rows were counted and none are
+// moving — which can happen while the band still renders (finished runs he has not cleared, or a
+// whiteboard with no work beside it). It is text, not a door: a button that opens a tab that does
+// not exist is a press that answers nothing.
+export const bandHead = ({ jobs = 0, lanes = 0, subagents = 0, runs = 0 } = {}) => {
+  const segs = [];
+  if (jobs) segs.push({ key: "jobs", tab: "jobs", text: `${plural("job", jobs)} running` });
+  if (lanes) segs.push({ key: "lanes", tab: "lanes", text: `${plural("lane", lanes)} out` });
+  if (subagents) segs.push({ key: "subagents", tab: "lanes", text: `${plural("subagent", subagents)} running` });
+  if (runs) segs.push({ key: "runs", tab: "lists", text: `${plural("run", runs)} open` });
+  if (!segs.length) return [{ key: "clear", tab: "", text: "nothing in flight" }];
+  return segs;
 };
 
 export const readBandTab = (store) => {

@@ -16,7 +16,7 @@ import { laneVerdict, laneChip, laneReceipt, laneConfirm } from "./laneVerdict";
 import { MarkdownWriteProvider, MarkdownScopeProvider } from "../../atoms/Markdown/context";
 import ReportLink from "../../atoms/Markdown/blocks/ReportLink";
 import useWallPanel from "../WallPanel/useWallPanel";
-import { onCodePage, openReportInPanel, openAddress } from "../../atoms/Markdown/openRef";
+import { onCodePage, openReportInPanel } from "../../atoms/Markdown/openRef";
 import NsLink from "../../atoms/Markdown/blocks/NsLink";
 import FileLink from "../../atoms/Markdown/blocks/FileLink";
 import BranchBlock from "../../atoms/Markdown/blocks/BranchBlock";
@@ -44,7 +44,6 @@ import { CTX_MARK, CTX_WARN, CTX_DUE, tokensShort, parseUsageLines, foldEvents, 
 import laneCook from "./laneCook";
 import { laneWork, laneFollow, laneLiveness, laneFolds, laneFoldOrder, laneChanges } from "./laneBlock";
 import { headingLevel, listItem, nestList, startsNewList } from "./chatBlocks";
-import RetainClock from "./RetainClock";
 import { visStyle } from "../AgentWorkbench/visitorColor";
 import { formatReceipt } from "../AgentWorkbench/cmdReceipt";
 import { readImagesFrom, readImageFile, hasImages } from "../../utils/imageAttach";
@@ -56,10 +55,8 @@ import { hostFiles, hasHostFiles } from "../../utils/hostFiles";
 // eslint-disable-next-line import/no-cycle
 import Board from "../Board/Board";
 import { hasHostJobs, jobRuns, rateJobRun, markJobState, jobStates, hasJobState } from "../../utils/hostJobs";
-import { bandTabs, bandLabel, readBandTab, writeBand, TAB_KEY } from "./bandTabs";
+import { bandTabs, bandLabel, bandHead, readBandTab, writeBand, TAB_KEY } from "./bandTabs";
 import NudgeCog from "./NudgeCog";
-import { flagsFrom } from "./approvalWaiting";
-import { owedFrom, owedHead, skippedLine } from "./owed";
 import { unseenSubagents } from "./unseenSubagents";
 import { chipFor, menuFor } from "./jobState";
 import { deleteReport as deleteReportFile, reportIndexSets, listReports } from "../../utils/reportOps";
@@ -1395,36 +1392,24 @@ function WorkList({ items, onClear, source = "", projectCode = "", runKey = "", 
 // THE BAND'S HEADER — one definition, worn in BOTH states, pinned RIGHT in both (his calls: "it
 // evolved to what it is — it's a header"; "keep it on the right side").
 //
-// THE INVENTORY IS OUT OF IT. It used to count jobs · lists · lanes · reports, and he rejected
-// that with heat, 2026-10-30: *"why have you still got inventory up there? why do you think I'm
-// attached to inventory and it being a tab I can get through from up there?"* — and the ask that
-// replaced it: *"can get rid of the regular things like list and report counts, and just make that
-// whole top header of the bar about things like approvals waiting. That way I can resolve anything
-// that's open and move on with our lives. In general, I just need the drawer to help me resolve
-// what's open."* So the head says WHAT IS OWED BY HIM and nothing else. Nothing was lost by
-// removing the counts except the ability to open the band straight onto one inventory tab, and the
-// tab row below already is that switch the moment the band is up — which is his own earlier ruling
-// about this row: *"once it's open it just closes it. You already got the tabs once it's open."*
+// IT SPEAKS WORK-STATE. The head spent a week saying what was OWED — approvals waiting, clocks
+// expiring, objectives blocked — and his ruling once the dashboard existed (2026-11-06) ended
+// that: *"all these documents being shown here are irrelevant… I would make it all about the
+// worklist. Work in flight. Not about dashboard shit, which I already have on an amazing
+// dashboard."* So the line says what is RUNNING — jobs, lanes, subagents, open runs — and nothing
+// about documents. The segments come from `bandHead(…)` in bandTabs.js, where they are testable,
+// and every count in them is a row the tabs below already draw.
 //
-// THE HEADER IS STILL THE LEGEND. A mark on a tab or a row only reads because the words up here say
-// what it means — his: *"the reason I know it's an approval is because it says it above. How do I
-// know it's blocked?"* So `to press` legends the ⚑ and `blocked` legends the ⊘, and a new kind of
-// attention has to earn a word here before it earns a glyph down there.
-//
-// `owed` is `owedHead(…)` — `{ segs, unread }`, derived in owed.js where it is testable.
-function WorkbandHead({ open, owed = null, blocked = 0, onToggle, onPick }) {
-  const segs = (owed && owed.segs) || [];
-  const unread = (owed && owed.unread) || 0;
-  // A SEGMENT IS A DOOR ONLY WHERE THERE IS SOMEWHERE TO GO. "nothing owed" names an empty list, so
-  // it is text — a button that opens a tab that does not exist is a press that answers nothing.
-  // Every other key is a kind of obligation (`approval`, `clock`, `proof`, `work`, or `press` for
-  // a kind the head has no word for yet) and every one of them opens the same list.
-  const door = (s) => s.key !== "clear";
+// A SEGMENT IS A DOOR into its own tab — his flow since the first head: the line says "2 lanes
+// out", you press it, you are looking at the lanes. "nothing in flight" names an empty set, so it
+// is text: a button that opens a tab that does not exist is a press that answers nothing.
+function WorkbandHead({ open, segs = [], onToggle, onPick }) {
+  const door = (s) => !!s.tab;
   return (
     // THE HEAD IS WHAT IT WAS, with doors in it. His correction: *"you weren't supposed to change
     // the style of the headers. You're just supposed to make them clickable."* It reads exactly as
     // before — right-aligned muted text with the chevron at the end — and the only structural
-    // change is that it is no longer a single <button>, because a button cannot contain buttons.
+    // reason it is not a single <button> is that a button cannot contain buttons.
     <div className="agent-chat__workband-head" onClick={onToggle} role="presentation">
       <span className="agent-chat__workband-head-text">
         {segs.map((s, i) => (
@@ -1433,30 +1418,16 @@ function WorkbandHead({ open, owed = null, blocked = 0, onToggle, onPick }) {
             {door(s) ? (
               <button
                 type="button"
-                // A MARKED SEGMENT IS COLOURED WHOLE — glyph AND words. The head he had before
-                // this put the entire segment inside `__reports-flag` (`⚑ 2 approval waiting` as
-                // one amber span) and left only the inventory counts muted, which is the whole of
-                // his correction: *"the fucking shit was colored — the only thing that wasn't
-                // colored was inventory shit."* Colouring the glyph alone and calling it fixed is
-                // what it looked like when the words went grey. The ⊘ segment below never stopped
-                // doing this, so one head was painting two rules.
-                //
-                // AND IT RIDES `s.flag`, not a list of keys. A segment carries a mark exactly when
-                // a decision or a deadline is behind it; `work outstanding` and `nothing owed`
-                // carry none, which IS the inventory half. So a new press kind is coloured the day
-                // it earns a glyph, with nothing here to remember to update.
-                className={`agent-chat__workband-seg${s.flag ? " agent-chat__reports-flag" : ""}`}
-                title={open ? "Put the work band down" : "Open what is owed"}
+                className="agent-chat__workband-seg"
+                title={open ? "Put the work band down" : `Open the ${s.tab} tab`}
                 // A COUNT IS A WAY IN, NOT A SWITCH. His correction, 2026-10-19: *"clicking opens
-                // it and closes it — once it's open it just closes it."* Both words are doors into
-                // the SAME tab, because they are two groups of one list and not two lists.
+                // it and closes it — once it's open it just closes it."*
                 onClick={(e) => {
                   e.stopPropagation();
                   if (open) onToggle();
-                  else if (onPick) onPick("owed");
+                  else if (onPick) onPick(s.tab);
                 }}
               >
-                {s.flag ? `${s.flag} ` : null}
                 {s.text}
               </button>
             ) : (
@@ -1464,45 +1435,17 @@ function WorkbandHead({ open, owed = null, blocked = 0, onToggle, onPick }) {
             )}
           </React.Fragment>
         ))}
-        {/* A ZERO OVER DOCUMENTS NOBODY COULD OPEN IS NOT A ZERO, so what could not be read rides
-            the head rather than being quietly dropped out of the count. */}
-        {unread ? (
-          <>
-            <span className="agent-chat__workband-sep"> · </span>
-            <span title="the count could not include these">{unread} unread</span>
-          </>
-        ) : null}
       </span>
-      {/* ⊘ KEEPS ITS OWN WORD, because it is the one glyph the band draws that the two groups
-          above do not explain — his: *"the reason I know it's an approval is because it says it
-          above. How do I know it's blocked?"* It NAMES some of what is already outstanding rather
-          than adding to it: a blocked objective is an owed row too, and the row says the word and
-          the reason out loud. So it is a third door into the same list, not a fourth count. */}
-      {blocked ? (
-        <button
-          type="button"
-          className="agent-chat__workband-seg agent-chat__reports-flag"
-          title={open ? "Put the work band down" : "Open what is owed"}
-          onClick={(e) => {
-            e.stopPropagation();
-            if (open) onToggle();
-            else if (onPick) onPick("owed");
-          }}
-        >
-          ⊘ {blocked} blocked
-        </button>
-      ) : null}
       <span className={`agent-chat__swap-chev${open ? "" : " agent-chat__swap-chev--up"}`}>›</span>
     </div>
   );
 }
 
 function Whiteboard({ text, onWipe, shown = null, onShow = null }) {
-  // THE TOGGLE LIVES AT THE END OF THE BAND'S TAB ROW, and two toggles for one fold is how a
-  // surface starts disagreeing with itself — so when `shown` is supplied this is controlled and the
-  // head stops being a button. (This comment used to attribute the button to him in quotes; he read
-  // it back here and said he never asked for it, so the quote is gone rather than left to mislead
-  // the next reader.)
+  // THE TOGGLE CAN LIVE SOMEWHERE ELSE. It now has a button at the end of the band's tab row, which
+  // is where he asked for it — *"put a button at the end of the tabs for the whiteboard, whiteboard
+  // icon, so show and hide it"* — and two toggles for one fold is how a surface starts disagreeing
+  // with itself. When `shown` is supplied this is controlled and the head stops being a button.
   const controlled = typeof shown === "boolean";
   // CLOSED UNTIL HE OPENS IT — a write never takes the fold. His ruling: *"I'm showing the
   // whiteboard when you edit it automatically. I don't need to see the whiteboard. It can stay
@@ -5321,9 +5264,6 @@ const countdown = (str, now = Date.now()) => {
   // the file and the index entry go, then the show record hides; text-only: the record hides.
   // Deleting what's ON the TV puts the TV away.
   const [tvArmed, setTvArmed] = useState("");
-  // The band's reports tab arms its own row — same two-step every deletable row in this app has,
-  // kept separate from the TV picker's so arming one never lights the other.
-  const [repArmed, setRepArmed] = useState("");
   const deleteShow = async (s) => {
     const a = s.args || {};
     const path = a.path || (a.report && reportPathFor(a.report));
@@ -6109,91 +6049,6 @@ const countdown = (str, now = Date.now()) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stripOpen]);
 
-
-
-
-  // WHAT IS OWED BY HIM — one read over the WHOLE registry, every kind at once, because an
-  // obligation is not a property of a folder. The tabs above each ask one kind what it has; this
-  // asks every registered document what it still wants from him, and the derivation is `owed.js`
-  // (no React in it, so all of it is provable in Jest). The problem it answers, in his words:
-  // *"I need to be knowing what I need to do… you told me there's things that I need to do — you
-  // pointed out RFCs. You said those things to me, they go by in the chat."*
-  //
-  // THE REGISTRY IS THE LIST AND A LEAF IS WHAT MAKES A DOCUMENT REAL (RFC-073). So this never
-  // walks a folder — and that is not a shortcut: `docs/interactive-markdown.md` and
-  // `systemview-test.md` both hold a live, unverdicted `:::approval` as a PLAYGROUND for the reader
-  // to press, and a folder scan would put both on his list forever. Neither carries a registration
-  // leaf, which is exactly the doctrine saying they are not in the system. The honest limit sits the
-  // other way: a document that DOES carry a leaf and never got registered is invisible here, and
-  // nothing in the window can see it either.
-  const [owedMeta, setOwedMeta] = useState({ press: [], work: [], skipped: {}, counted: 0 });
-  // THE GATE — the same justified shape as the reports poll one screen up, and for the same reason
-  // ("isn't polling inefficient? …you have to justify it"). The fingerprint is every row's identity,
-  // its last parse, when he first opened it, and whether the file has drifted past that parse —
-  // which is every input the obligations turn on. Unchanged → the tick costs one registry read and
-  // no file reads at all; the texts already in hand are re-derived anyway, because a retention clock
-  // crosses into urgent by the passage of time and nothing else.
-  const owedPrint = useRef("");
-  const owedDocs = useRef([]);
-  useEffect(() => {
-    let dead = false;
-    const pull = async () => {
-      try {
-        const files = hostFiles(projectCode);
-        const svc = SystemViewService && SystemViewService.Agent;
-        if (!files || !files.readFile || !svc || !svc.documentsRegistry) return; // an older hub — the tab simply has no rows
-        const rows = (await svc.documentsRegistry({ projectCode })) || [];
-        const all = (Array.isArray(rows) ? rows : []).filter((x) => x && x.id && x.path);
-        const print = all
-          .map((r) => `${r.id}@${r.path}@${(r.state || {}).parsed || 0}@${r.openedAt || 0}@${r.stale ? 1 : 0}@${r.missing ? 1 : 0}`)
-          .sort()
-          .join("|");
-        if (print !== owedPrint.current) {
-          owedPrint.current = print;
-          // A ROW WHOSE FILE IS GONE AND A RETIRED ONE OWE NOTHING, so neither is read — but both
-          // are handed to the derivation, which counts the gone ones out loud. `text: undefined`
-          // is what "could not be read" means there, and it is carried rather than swallowed.
-          owedDocs.current = await Promise.all(
-            all.map(async (row) => {
-              if (row.missing || (row.state || {}).retired) return { row };
-              try {
-                const f = await files.readFile({ path: row.path });
-                return { row, text: f && f.ok !== false ? f.content || "" : undefined };
-              } catch {
-                return { row };
-              }
-            }),
-          );
-        }
-        if (!dead) setOwedMeta(owedFrom({ docs: owedDocs.current, now: Date.now() }));
-      } catch {
-        // AN EMPTY ANSWER, NOT A STALE ONE. `counted: 0` is what makes the head say nothing at all
-        // rather than "nothing owed" — a zero we did not measure must never read as a zero.
-        if (!dead) setOwedMeta({ press: [], work: [], skipped: {}, counted: 0 });
-      }
-    };
-    pull();
-    const t = setInterval(pull, 30000);
-    return () => { dead = true; clearInterval(t); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectCode]);
-
-  const openBandReport = (path) => {
-    if (!onCodePage() && openReportInPanel({ projectCode, path })) return;
-    // A BAND ROW OPENS ITS OWN TAB — it never takes over the document you are reading. On the code
-    // page this used to push `?rdoc=`, which swaps the CENTRE: press an arc while reading an RFC
-    // and the RFC is gone, with no tab to go back to. `?file=` is the door that becomes a tab
-    // (Documentation opens one per `fileKey`), and an arc or an RFC is a markdown file like any
-    // other — the reports view was the only reason this went the other way.
-    if (onCodePage()) {
-      openAddress({ projectCode, path, language: "markdown" });
-      return;
-    }
-    const q = new URLSearchParams(window.location.search);
-    q.set("tab", "reports");
-    q.set("rdoc", path);
-    history.push({ pathname: `/specs/${projectCode}`, search: `?${q.toString()}` });
-  };
   // A DELETED LANE IS DELETED, AND IT HAS TO SURVIVE A REFRESH — which `clearedLists` could not,
   // being useState({}). His cleanup removed the worktree, the branch and the run file, and then a
   // reload replayed the session's own events and drew the row again from the transcript, which is
@@ -6351,29 +6206,8 @@ const countdown = (str, now = Date.now()) => {
   // bandTabs.js), so the head's highlight and the pane below can never disagree.
   const bandJobs = listsShown.filter((l) => l.source.startsWith("job:"));
   const bandLists = listsShown.filter((l) => !l.source.startsWith("job:"));
-  // WHAT EACH TAB WANTS FROM HIM, so the flag can sit ON the tab rather than only inside it. His:
-  // *"you can't see from the tab — before you even open it, put the symbol by the tab as well."*
-  // A band whose rows carry a mark the tab bar hides makes him open every tab to find the one
-  // thing waiting, which is the opposite of what a tab bar is for.
-  // WHAT IS OWED, AS ONE LIST — press first, always, because the groups are an order and not a
-  // filter: a signature finishes a press row, and nothing finishes an outstanding one.
-  const owedShown = [...(owedMeta.press || []), ...(owedMeta.work || [])];
-  const owedSays = owedHead(owedMeta);
-  const owedSkipped = skippedLine(owedMeta.skipped);
-  // THE ⊘'s OWN NUMBER, AND IT COMES FROM THE OWED LIST. The head used to read it off `arcsMeta`,
-  // which counts ARC DOCUMENTS holding a blocked objective and does so including the fixtures —
-  // measured in his live window on 2026-10-30, `⊘ 2 objectives blocked` where there is exactly one
-  // declared blocked objective in the system and the other was MOCK-ARC's. The head is now one
-  // surface with one source, so it cannot disagree with the rows it legends.
-  const owedBlocked = (owedMeta.work || []).filter((x) => x.why === "blocked").length;
-  const bandWants = {
-    // The owed tab's mark counts the PRESSES only. Its other group is work, and a flag over work
-    // would be the band promising a control that does not exist.
-    owed: (owedMeta.press || []).length,
-  };
   const bandShown = bandTabs(
     {
-      owed: owedShown.length,
       jobs: bandJobs.length,
       lists: bandLists.length,
       // TWO SECTIONS, ONE TAB (his ask, 2026-11-01: *"they should show up the same way but without
@@ -6385,6 +6219,24 @@ const countdown = (str, now = Date.now()) => {
     },
     bandTab,
   );
+  // THE HEAD'S ONE LINE — what is IN FLIGHT, derived from the same rows the tabs count (his
+  // ruling, 2026-11-06: the drawer is work in flight; what is owed lives on the dashboard). A run
+  // or a job is in flight while its list still has an undone step and it has not been declared
+  // abandoned; a lane is OUT while its branch stands, finished or not, because the branch standing
+  // is the fact; a subagent counts while it is running. Rows that exist but are not moving still
+  // have their tabs — the head just does not call them work.
+  const inFlight = (rows) =>
+    rows.filter(
+      (l) =>
+        (l.items || []).some((x) => x.state !== "done") &&
+        !(l.status && /abandon/i.test(String(l.status.text || ""))),
+    ).length;
+  const headSegs = bandHead({
+    jobs: inFlight(bandJobs),
+    lanes: lanesShown.length,
+    subagents: unseenShown.filter((u) => u.state === "running").length,
+    runs: inFlight(bandLists),
+  });
   const todoShown = listsShown.length ? listsShown[listsShown.length - 1].items : null;
   // THE PLAN'S HEADER RIDES THE MINIMISED VIEW ONLY — his correction after I put it on the open
   // panel's cooking line too: *"the worklist is already showing inside the chat."* Open, the list
@@ -7820,7 +7672,7 @@ const countdown = (str, now = Date.now()) => {
               it controls. And the count rides the title while it is on: a surface that silently
               omits is a surface that lies, so "no runs" and "runs, hidden by me" must never look
               the same. */}
-          {attached && !hideWork && (owedShown.length > 0 || lanesShown.length > 0 || unseenShown.length > 0 || listsShown.length > 0 || !!work.state.whiteboard) && (
+          {attached && !hideWork && (lanesShown.length > 0 || unseenShown.length > 0 || listsShown.length > 0 || !!work.state.whiteboard) && (
             <div className={`${CLASSNAME}__workband`} ref={stripRef} style={{ flex: `0 1 ${stripH}%` }}>
               <div
                 className="panel-divider panel-divider--h"
@@ -7830,8 +7682,7 @@ const countdown = (str, now = Date.now()) => {
               />
               <WorkbandHead
                 open
-                owed={owedSays}
-                blocked={owedBlocked}
+                segs={headSegs}
                 onPick={pickBandTab}
                 onToggle={() => setStripOpen(false)}
               />
@@ -7848,24 +7699,6 @@ const countdown = (str, now = Date.now()) => {
                       className={`${CLASSNAME}__bandtab ${CLASSNAME}__bandtab--${tb.family || "work"}${bandShown.active === tb.key ? ` ${CLASSNAME}__bandtab--on` : ""}`}
                       onClick={() => pickBandTab(tb.key)}
                     >
-                      {bandWants[tb.key] ? (
-                        <span
-                          className={`${CLASSNAME}__bandtab-flag`}
-                          // THE WORDS HAVE TO BE TRUE OF THE TAB THEY SIT ON. "waiting for your
-                          // approval" was the only phrase here, and it is wrong about owed — a
-                          // retention clock and a gap carrying its proof are presses and not
-                          // verdicts, so the owed tab says what its own group says in the head.
-                          title={
-                            tb.key === "owed"
-                              ? `${bandWants[tb.key]} to press`
-                              : tb.key === "arcs"
-                                ? `${bandWants[tb.key]} objective blocked`
-                                : `${bandWants[tb.key]} waiting for your approval`
-                          }
-                        >
-                          {tb.key === "arcs" ? "⊘" : "⚑"}
-                        </span>
-                      ) : null}
                       {bandLabel(tb.key, tb.n, tb.parts)}
                     </button>
                   ))}
@@ -7881,64 +7714,8 @@ const countdown = (str, now = Date.now()) => {
                   <NudgeCog />
                 </div>
               )}
-              {(owedShown.length > 0 || lanesShown.length > 0 || unseenShown.length > 0 || listsShown.length > 0) && (
+              {(lanesShown.length > 0 || unseenShown.length > 0 || listsShown.length > 0) && (
               <div className={`${CLASSNAME}__strip`}>
-          {/* THE OWED TAB — what is waiting on HIM, across every registered document at once.
-              *"I need to be knowing what I need to do… you told me there's things that I need to
-              do — you pointed out RFCs. You said those things to me, they go by in the chat.
-              Approvals aren't everything."*
-
-              PRESS FIRST, THEN OUTSTANDING, and the ⚑ is the only thing that tells them apart —
-              the head above is the legend, which is his rule for this row: *"the reason I know
-              it's an approval is because it says it above."* A press row ends at a control
-              somebody has already built; an outstanding row ends at work.
-
-              AND THE PRESS IS NOT HERE. Every row opens its DOCUMENT, because that is where the
-              control is — the facilitation ladder for an approval, the clock's keep-or-let-go on a
-              report's leaf, the objective's own block. A second way to sign was built and reverted
-              the same day: *"the press on the station IS the signature."*
-
-              THE LINE RIDES THE TITLE, not the row. Which block an obligation is on is how you
-              find it once the document is open, and a line number on a row he is reading down is
-              noise — there is no cross-document reveal to carry it to yet, and inventing one to
-              put a number on screen would be the wrong way round. */}
-          {attached && bandShown.active === "owed" && (
-            <>
-              {owedShown.map((r) => (
-                <div key={r.key} className={`${CLASSNAME}__reports-row`}>
-                  <button
-                    type="button"
-                    className={`${CLASSNAME}__reports-open`}
-                    title={`${r.says}\n${r.path}:${r.line}`}
-                    onClick={() => openBandReport(r.path)}
-                  >
-                    {r.group === "press" ? (
-                      <span className={`${CLASSNAME}__reports-flag`} title="your press finishes this one">
-                        ⚑
-                      </span>
-                    ) : null}
-                    <span className={`${CLASSNAME}__reports-name`}>
-                      {r.id} — {r.says}
-                    </span>
-                    {r.tail ? <span className={`${CLASSNAME}__reports-when`}>{r.tail}</span> : null}
-                  </button>
-                </div>
-              ))}
-              {/* WHAT WAS LEFT OUT, SAID OUT LOUD. A count that silently omits is the exact
-                  failure this list replaces — the band's ⚑ 8 counted three MOCK fixtures as
-                  decisions he owed and nobody could tell from the number. */}
-              {owedSkipped ? <div className={`${CLASSNAME}__reports-more`}>{owedSkipped}</div> : null}
-            </>
-          )}
-          {/* THE REPORTS TAB — the mailbox's rows, in the strip with every other kind of work.
-              Same rows, same press (opens the report the way a :report chip does), same flag on an
-              approval that waits; what is gone is the fold, because the tab IS the fold now. */}
-          {/* RFC-072 §7 — THE ARC ROW SAYS ITS OWN STATE, read out of the document every time.
-              What it carries is the pair that decides what he does next: how far along, and how
-              many objectives are BLOCKED. 2 of 7 moving and 2 of 7 waiting are the same progress
-              and not the same situation, which is why the second number is on the row rather
-              than inside. Pressing opens the arc where it is written — the document is the
-              record, so there is nowhere else to go. */}
           {/* ONE RENDERER FOR A LANE ROW, flat or nested — the row, its in-place panel, its
               delete. Defined here (not a component) so it closes over every handler the flat strip
               already wired. */}
@@ -8096,12 +7873,11 @@ const countdown = (str, now = Date.now()) => {
           {/* THE WHOLE LABEL IS THE GRAB BAR — a 5px edge sliver was the only pull surface and it
               sat inside the chat guard's shadow; now any press on the row starts the pull, and a
               press that never moves is the click that opens. */}
-          {attached && hideWork && (owedShown.length > 0 || lanesShown.length > 0 || unseenShown.length > 0 || listsShown.length > 0 || !!work.state.whiteboard) && (
+          {attached && hideWork && (lanesShown.length > 0 || unseenShown.length > 0 || listsShown.length > 0 || !!work.state.whiteboard) && (
             <div className={`${CLASSNAME}__workband-label`} ref={stripRef} onMouseDown={stripPull}>
               <WorkbandHead
                 open={false}
-                owed={owedSays}
-                blocked={owedBlocked}
+                segs={headSegs}
                 onPick={pickBandTab}
                 onToggle={() => setStripOpen(true)}
               />
