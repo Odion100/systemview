@@ -20,31 +20,35 @@ describe("the work band is tabs — one per type of work", () => {
     expect(bandTabs({}, "lanes")).toEqual({ tabs: [], active: "" });
   });
 
-  it("orders them the way the head reads them — jobs, lanes, lists, reports", () => {
-    const { tabs } = bandTabs({ jobs: 1, lanes: 1, lists: 1, reports: 1 });
-    expect(tabs.map((t) => t.key)).toEqual(["jobs", "lanes", "lists", "reports"]);
+  it("orders them the way the head reads them — owed, jobs, lanes, lists", () => {
+    const { tabs } = bandTabs({ owed: 1, jobs: 1, lanes: 1, lists: 1 });
+    expect(tabs.map((t) => t.key)).toEqual(["owed", "jobs", "lanes", "lists"]);
   });
 
-  // Reports used to be a fold under the band rather than a kind in it, so this is the claim that
-  // the band can now stand on reports ALONE — a room whose only work is filed reports.
-  it("gives reports a tab of their own, and shows it when nothing else stands", () => {
-    expect(bandTabs({ jobs: 0, lanes: 0, lists: 0, reports: 4 })).toEqual({
-      tabs: [{ key: "reports", label: "report", n: 4, family: "document" }],
-      active: "reports",
-    });
+  // THE BAND IS WORK IN FLIGHT, AND ONLY THAT — his ruling: *"I would make it all about the
+  // worklist. Work in flight. Not about dashboard shit, which I already have on an amazing
+  // dashboard."* A folder of documents is an inventory, and the dashboard is where an inventory
+  // belongs. The counts still ARRIVE (callers hand over one object), which is why this is a claim:
+  // a kind BAND_KINDS does not name can never draw a tab, however many rows it reports.
+  it("gives no tab to a document kind, however many rows it has", () => {
+    const { tabs, active } = bandTabs({ reports: 9, rfcs: 4, arcs: 2, gaps: 7 });
+    expect(tabs).toEqual([]);
+    expect(active).toBe("");
+  });
+
+  it("and a stored document tab falls through to the work that is actually running", () => {
+    expect(bandTabs({ jobs: 1, reports: 9 }, "reports").active).toBe("jobs");
+    expect(bandTabs({ jobs: 1, reports: 9 }, "reports:spec").active).toBe("jobs");
   });
 
   it("speaks the head's own words, singular and plural", () => {
     expect(bandLabel("job", 1)).toBe("1 job");
     expect(bandLabel("lanes", 3)).toBe("3 lanes");
     expect(bandLabel("lists", 1)).toBe("1 list");
-    expect(bandLabel("reports", 1)).toBe("1 report");
-    // a subtype tab says the word ALONE — repeating "report" across the bar is what the fan-out
-    // exists to remove — and it says the short word: a planning report's tab reads "plan"
-    expect(bandLabel("reports:spec", 2)).toBe("2 specs");
-    expect(bandLabel("reports:audit", 1)).toBe("1 audit");
-    expect(bandLabel("reports:planning", 2)).toBe("2 plans");
-    expect(bandLabel("reports", 9)).toBe("9 reports");
+    expect(bandLabel("owed", 3)).toBe("3 owed");
+    // A kind the band no longer draws has no word of its own — it falls back to the key, which is
+    // the honest answer for something that cannot appear.
+    expect(bandLabel("reports", 9)).toBe("9 reportss");
   });
 
   // ── THE LANE TAB HOLDS TWO KINDS ────────────────────────────────────────────────────────────
@@ -92,42 +96,21 @@ describe("the work band is tabs — one per type of work", () => {
 
   // Reports' object fans OUT into tabs; the lane tab's folds IN. Opposite meanings, same shape —
   // so this is the claim that widening one did not widen the other.
-  it("keeps reports fanning out into their own tabs", () => {
+  // THE LANE TAB'S OBJECT COUNT SURVIVED THE CUT, and the one that fanned out did not. Both kinds
+  // arrived as an object and they meant opposite things — a report subtype became its own tab, a
+  // lane-less subagent became a section inside the lane tab — so the surviving one is worth a claim
+  // of its own now that there is no sibling to tell it apart from.
+  it("still folds the lane tab's two parts into one tab, with a report count beside it ignored", () => {
     const { tabs } = bandTabs({ lanes: { lanes: 1, subagents: 1 }, reports: { "": 1, spec: 2 } });
-    expect(tabs.map((t) => t.key)).toEqual(["lanes", "reports", "reports:spec"]);
+    expect(tabs.map((t) => t.key)).toEqual(["lanes"]);
+    expect(tabs[0].n).toBe(2);
+    expect(tabs[0].parts).toEqual({ lanes: 1, subagents: 1 });
   });
 
   it("survives a storage that refuses to answer — private mode is not an error", () => {
     const hostile = { getItem: () => { throw new Error("denied"); }, setItem: () => { throw new Error("denied"); } };
     expect(readBandTab(hostile)).toBe("");
     expect(() => writeBand(TAB_KEY, "lanes", hostile)).not.toThrow();
-  });
-});
-
-// RFCs TOOK THE DOCUMENTS TAB'S PLACE. That tab counted "documents somebody has not been pinged
-// about", and the premise did not survive being played out: an agent reads a document when it
-// works, so it is never meaningfully behind on one. An RFC with an unpressed approval IS a thing
-// waiting on him, and nothing else in the band shows it.
-describe("RFCs take their turn in the band", () => {
-  it("has no tab when there are none — the rule every kind lives by", () => {
-    const { tabs } = bandTabs({ jobs: 1, rfcs: 0 });
-    expect(tabs.map((t) => t.key)).toEqual(["jobs"]);
-  });
-  it("appears when there are some, and speaks the band's plural", () => {
-    const { tabs } = bandTabs({ rfcs: 2 });
-    expect(tabs.map((t) => t.key)).toEqual(["rfcs"]);
-    expect(bandLabel("rfcs", 1)).toBe("1 RFC");
-    expect(bandLabel("rfcs", 2)).toBe("2 RFCs");
-  });
-  it("comes last, so a surface nobody has lived with yet cannot steal the opening tab", () => {
-    const { tabs, active } = bandTabs({ jobs: 1, rfcs: 3 });
-    expect(tabs.map((t) => t.key)).toEqual(["jobs", "rfcs"]);
-    expect(active).toBe("jobs");
-  });
-  // The tab it replaced must be gone from the vocabulary, not merely unrendered — a key nothing
-  // draws is how a count ends up over an empty pane, which is the bug this replaced.
-  it("no longer knows the word documents at all", () => {
-    expect(bandTabs({ documents: 5 }).tabs).toEqual([]);
   });
 });
 
@@ -172,51 +155,16 @@ describe("a tab says which family it belongs to", () => {
     expect(tabs.map((t) => t.family)).toEqual(["work", "work", "work"]);
   });
 
-  it("calls reports, RFCs and arcs documents — reports included", () => {
-    const { tabs } = bandTabs({ reports: 1, rfcs: 1, arcs: 1 });
-    expect(tabs.map((t) => [t.key, t.family])).toEqual([
-      ["reports", "document"],
-      ["rfcs", "document"],
-      ["arcs", "document"],
-    ]);
+  it("no longer calls anything a document — that half of the band went to the dashboard", () => {
+    expect(bandTabs({ reports: 1, rfcs: 1, arcs: 1, gaps: 1 }).tabs).toEqual([]);
+    // Nothing the band can draw carries the family any more, which is the removal stated as a
+    // property rather than as four absent tabs.
+    const { tabs } = bandTabs({ owed: 1, jobs: 1, lanes: 1, lists: 1 });
+    expect(tabs.every((t) => t.family !== "document")).toBe(true);
   });
 
   it("carries the family through alongside the count, so the render needs no second lookup", () => {
-    const [tab] = bandTabs({ arcs: 4 }).tabs;
-    expect(tab).toMatchObject({ key: "arcs", n: 4, family: "document" });
-  });
-});
-
-// ─── REPORTS FAN OUT BY SUBTYPE, AT THE TOP ─────────────────────────────────────────────────────
-//
-// Settled after trying the nested strip: *"it makes sense logically, but I don't want to search
-// for shit."* Each subtype waits on a different thing, and a tab inside a tab has to be found.
-// The vocabulary is OPEN, so the tabs come from whatever words the documents carry.
-
-describe("the reports kind expands into one tab per subtype present", () => {
-  it("untyped reports keep the plain tab; each subtype with rows gets its own", () => {
-    const { tabs } = bandTabs({ reports: { "": 3, spec: 2, account: 1 } }, "");
-    expect(tabs.map((t) => [t.key, t.label, t.n])).toEqual([
-      ["reports", "report", 3],
-      ["reports:account", "account", 1],
-      ["reports:spec", "spec", 2],
-    ]);
-    tabs.forEach((t) => expect(t.family).toBe("document"));
-  });
-  it("a subtype nobody has used costs nothing — no rows, no tab", () => {
-    const { tabs } = bandTabs({ reports: { "": 0, spec: 1, audit: 0 } }, "");
-    expect(tabs.map((t) => t.key)).toEqual(["reports:spec"]);
-  });
-  it("an unheard-of subtype gets a tab like any other — open means open", () => {
-    const { tabs } = bandTabs({ reports: { retro: 2 } }, "");
-    expect(tabs.map((t) => [t.key, t.label])).toEqual([["reports:retro", "retro"]]);
-  });
-  it("a stored subtype tab survives while it has rows, and falls back when they are gone", () => {
-    expect(bandTabs({ jobs: 1, reports: { "": 1, spec: 1 } }, "reports:spec").active).toBe("reports:spec");
-    expect(bandTabs({ jobs: 1, reports: { "": 1 } }, "reports:spec").active).toBe("jobs");
-  });
-  it("a plain number still works — an older caller is not wrong", () => {
-    const { tabs } = bandTabs({ reports: 4 }, "");
-    expect(tabs.map((t) => [t.key, t.n])).toEqual([["reports", 4]]);
+    const [tab] = bandTabs({ jobs: 4 }).tabs;
+    expect(tab).toMatchObject({ key: "jobs", n: 4, family: "work" });
   });
 });

@@ -126,19 +126,13 @@ describe("the row's own line", () => {
     expect(arcLine({ done: 2, total: 2, blocked: 0, complete: true })).toBe("2 of 2 · done");
   });
 });
-
+// THE ARC NO LONGER HAS A BAND TAB — his ruling, 2026-11-07: the band is work in flight, and a
+// folder of documents is an inventory the dashboard already draws. These rows are what the three
+// dashboards derive from, which is why the derivation stayed when the tab went.
 describe("the band", () => {
-  it("has an arcs kind", () => {
-    expect(BAND_KINDS.some((k) => k.key === "arcs")).toBe(true);
-  });
-
-  // The band's standing rule, unchanged: a tab that can only ever say "nothing here" is furniture.
-  it("gives a project with no arcs no tab", () => {
-    expect(bandTabs({ jobs: 2, arcs: 0 }).tabs.map((t) => t.key)).toEqual(["jobs"]);
-  });
-
-  it("draws the tab the moment there is one arc", () => {
-    expect(bandTabs({ arcs: 1 }).tabs.map((t) => t.key)).toEqual(["arcs"]);
+  it("has no arcs kind — the rows feed the dashboards now", () => {
+    expect(BAND_KINDS.some((k) => k.key === "arcs")).toBe(false);
+    expect(bandTabs({ arcs: 4 }).tabs).toEqual([]);
   });
 });
 

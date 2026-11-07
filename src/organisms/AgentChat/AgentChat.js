@@ -53,10 +53,6 @@ import CodebaseNav from "../CodebaseNav/CodebaseNav";
 import { useAppDark } from "../../atoms/appTheme";
 import loadServiceWithHeaders from "../../utils/loadService";
 import { hostFiles, hasHostFiles } from "../../utils/hostFiles";
-import arcRows, { arcLine } from "./arcRows";
-import ArcProofs from "./ArcProofs";
-import rfcRows, { rfcLine } from "./rfcRows";
-import gapRows, { gapLine } from "./gapRows";
 // eslint-disable-next-line import/no-cycle
 import Board from "../Board/Board";
 import { hasHostJobs, jobRuns, rateJobRun, markJobState, jobStates, hasJobState } from "../../utils/hostJobs";
@@ -1502,10 +1498,11 @@ function WorkbandHead({ open, owed = null, blocked = 0, onToggle, onPick }) {
 }
 
 function Whiteboard({ text, onWipe, shown = null, onShow = null }) {
-  // THE TOGGLE CAN LIVE SOMEWHERE ELSE. It now has a button at the end of the band's tab row, which
-  // is where he asked for it — *"put a button at the end of the tabs for the whiteboard, whiteboard
-  // icon, so show and hide it"* — and two toggles for one fold is how a surface starts disagreeing
-  // with itself. When `shown` is supplied this is controlled and the head stops being a button.
+  // THE TOGGLE LIVES AT THE END OF THE BAND'S TAB ROW, and two toggles for one fold is how a
+  // surface starts disagreeing with itself — so when `shown` is supplied this is controlled and the
+  // head stops being a button. (This comment used to attribute the button to him in quotes; he read
+  // it back here and said he never asked for it, so the quote is gone rather than left to mislead
+  // the next reader.)
   const controlled = typeof shown === "boolean";
   // CLOSED UNTIL HE OPENS IT — a write never takes the fold. His ruling: *"I'm showing the
   // whiteboard when you edit it automatically. I don't need to see the whiteboard. It can stay
@@ -5280,10 +5277,6 @@ const countdown = (str, now = Date.now()) => {
   const deleteReportRow = async (r) => {
     try { await deleteReportFile(projectCode, r.path); } catch {}
     setAllReports((cur) => (cur || []).filter((x) => x.path !== r.path));
-    // …and the BAND's list, which is a second poll of the same files. Without this the row he
-    // just deleted sat there until the next 30s tick — a surface disagreeing with the disk about
-    // something he did himself.
-    setReportsMeta((m) => ({ ...m, list: m.list.filter((x) => x.path !== r.path), flags: m.flags }));
     // …and every show RECORD carrying this report goes hidden with it — leaving them was the
     // zombie's other half: the restore found an unhidden record for a file that no longer existed.
     (fullHist || messages || []).forEach((m) => {
@@ -6116,223 +6109,8 @@ const countdown = (str, now = Date.now()) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stripOpen]);
 
-  // REPORTS IN THE BAND (his design, 2026-10-16): the one list (listReports — same list the nav
-  // fold and the TV picker read), plus the APPROVAL SCAN — a report carrying a :::approval with no
-  // verdict= is a flag up in the mailbox. Scanned over the newest 20 on a slow poll; the files are
-  // the truth, there is no second store to drift.
-  const [reportsMeta, setReportsMeta] = useState({ list: [], waiting: 0, flags: {} });
-  // THE GATE — his challenge, 2026-10-16: *"isn't polling inefficient? …you have to justify it."*
-  // The justified shape: one cheap listing per tick fingerprints every report file AND the index by
-  // (path, mtime). Unchanged fingerprint → the tick ends at that single call; nothing is re-read
-  // and the state already on screen stays. Changed → the real pull runs (the list, and a read of
-  // EVERY report — the old cap of 20 was silent and there are already 23). A verdict press bumps its file's mtime and a filing/delete changes the path set, so
-  // both arrive within a tick — the gate skips only the ticks where nothing happened, which is
-  // most of them.
-  const reportsPrint = useRef("");
-  useEffect(() => {
-    let dead = false;
-    const pull = async () => {
-      const files = hostFiles(projectCode);
-      try {
-        const res = await files.listFiles({ dir: ".systemview" }); // dir-scoped walk — glob was never a real option on this door
-        const print = ((res && (res.files || res)) || [])
-          .map((f) => ({ path: (f && f.path) || f, ts: (f && (f.mtime || f.ts)) || 0 }))
-          .filter((f) => f.path && (/\.systemview\/report\..+\.md$/i.test(f.path) || /reports\.index\.json$/.test(f.path)))
-          .map((f) => `${f.path}@${f.ts}`)
-          .sort()
-          .join("|");
-        if (print === reportsPrint.current) return; // a quiet tick costs exactly this one listing
-        reportsPrint.current = print;
-      } catch {
-        reportsPrint.current = ""; // an unreadable listing never gates — fall through to the pull
-      }
-      try {
-        const list = (await listReports(projectCode)).map((r) => ({
-          ...r,
-          // the band fans reports out by this word — the row carries it (state.subtype), and an
-          // older hub that does not send it leaves every report in the plain tab, which is right
-          subtype: (r.state && r.state.subtype) || "",
-        }));
-        // EVERY REPORT, NOT THE FIRST TWENTY. The cap was silent, and measured 2026-10-19 there were
-        // 23 — so three documents were never read and the band could say nothing was waiting while
-        // one waited in the 21st. A bound that drops work without naming it reads as "covered
-        // everything", which is the one thing a count must not do. The mtime gate above is what
-        // makes reading them all affordable: a quiet tick costs one listing and no reads at all.
-        let unread = 0;
-        const read = await Promise.all(
-          list.map(async (r) => {
-            try {
-              const res = await files.readFile({ path: r.path });
-              return { path: r.path, content: String((res && res.content) || "") };
-            } catch {
-              // COUNTED, NOT SWALLOWED — the surface can say "unreadable" instead of implying it
-              // looked at everything.
-              unread += 1;
-              return null;
-            }
-          })
-        );
-        // The predicate itself lives in approvalWaiting.js, where it is testable: nothing importing
-        // this file can be mounted under jest, and the fence-depth bug it fixes is exactly the kind
-        // that only a test catches.
-        const { flags, waiting } = flagsFrom(read.filter(Boolean), unread);
-        if (!dead) setReportsMeta({ list, waiting, flags, unread });
-      } catch {
-        if (!dead) setReportsMeta({ list: [], waiting: 0, flags: {}, unread: 0 });
-      }
-    };
-    pull();
-    const t = setInterval(pull, 30000);
-    return () => { dead = true; clearInterval(t); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectCode]);
-  // RFC-071 — DOCUMENTS WITH UNSENT UPDATES. The hub walks the folder (api/documentMembers.js),
-  // because "which documents have members" is a question about a project, not about the file that
-  // happens to be open. Only documents where somebody is BEHIND become rows: a document whose
-  // members are all current is not work waiting on him, and a row that can only say "nothing to do"
-  // is the furniture the band already refuses everywhere else.
-  // THE RFCs IN THE BAND — and the reason this is here instead of a `documents` tab. That tab
-  // counted "documents somebody has not been pinged about", which failed his test: an agent reads a
-  // document when it works, so it is never meaningfully behind on one. He named the replacement —
-  // *"you got arcs, you got RFCs… and RFCs have approvals."* An unpressed approval is a decision
-  // waiting on HIM, nothing else in the band shows it, and the derivation is `rfcRows.js`.
-  const [rfcsMeta, setRfcsMeta] = useState({ list: [], waiting: 0 });
-  useEffect(() => {
-    let dead = false;
-    const pull = async () => {
-      try {
-        const files = hostFiles(projectCode);
-        if (!files || !files.readFile) return;
-        // RFC-073 slice 2 — THE REGISTRY IS THE LIST. A document is an RFC because it says so
-        // (`::rfc` at its top), wherever it lives; the folder stopped meaning anything. His ruling
-        // on the cutover: a short honest list of registered documents beats a folder listing that
-        // cannot tell a design from a stray file. Retired rows and rows whose file is gone are not
-        // listed (§1.4).
-        const svc = SystemViewService && SystemViewService.Agent;
-        if (!svc || !svc.documentsRegistry) return; // an older hub — the tab stays as it was
-        const rows = (await svc.documentsRegistry({ projectCode, kind: "rfc" })) || [];
-        // THE ROW CARRIES THE STATE AND THIS USED TO THROW IT AWAY. It mapped straight to `.path`
-        // and then re-derived a state from the file's approval blocks — a second reader that had
-        // never heard of built, settled or retired, which is why the drawer said `approved` about a
-        // document whose own trail said built. The row comes through now; the text is still read,
-        // but only for the title it gives itself.
-        const live = (Array.isArray(rows) ? rows : []).filter(
-          (x) => x && x.path && !x.missing && !(x.state && x.state.retired),
-        );
-        if (!live.length) {
-          if (!dead) setRfcsMeta({ list: [], waiting: 0 });
-          return;
-        }
-        const docs = await Promise.all(
-          live.map(async (row) => {
-            try {
-              const f = await files.readFile({ path: row.path });
-              return f && f.ok !== false ? { path: row.path, text: f.content || "", row } : null;
-            } catch {
-              return null;
-            }
-          }),
-        );
-        const list = rfcRows(docs.filter(Boolean));
-        if (!dead) setRfcsMeta({ list, waiting: list.reduce((n, x) => n + (x.waiting || 0), 0) });
-      } catch {
-        if (!dead) setRfcsMeta({ list: [], waiting: 0 });
-      }
-    };
-    pull();
-    const t = setInterval(pull, 30000);
-    return () => { dead = true; clearInterval(t); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectCode]);
 
-  // GAPS IN THE BAND. Same registry read as the RFC tab, one kind over. A gap's row has to show
-  // which ending it took and, when it took none, whether a proof is already sitting in the file —
-  // because `open · proof ready` is one press from closed and `open` is not, and that difference
-  // is invisible everywhere else. The derivation is `gapRows.js` and is tested without a window.
-  const [gapsMeta, setGapsMeta] = useState({ list: [], waiting: 0 });
-  useEffect(() => {
-    let dead = false;
-    const pull = async () => {
-      try {
-        const files = hostFiles(projectCode);
-        if (!files || !files.readFile) return;
-        const svc = SystemViewService && SystemViewService.Agent;
-        if (!svc || !svc.documentsRegistry) return;
-        const rows = (await svc.documentsRegistry({ projectCode, kind: "gap" })) || [];
-        const live = (Array.isArray(rows) ? rows : []).filter((x) => x && x.path && !x.missing);
-        if (!live.length) {
-          if (!dead) setGapsMeta({ list: [], waiting: 0 });
-          return;
-        }
-        const docs = await Promise.all(
-          live.map(async (row) => {
-            try {
-              const f = await files.readFile({ path: row.path });
-              return f && f.ok !== false ? { path: row.path, text: f.content || "", row } : null;
-            } catch {
-              return null;
-            }
-          }),
-        );
-        const list = gapRows(docs.filter(Boolean));
-        // WHAT A GAP WANTS FROM HIM is a gap that is one press from closed — the fix landed and the
-        // evidence is in the file. Anything else is work, not a decision, so it does not flag.
-        if (!dead) setGapsMeta({ list, waiting: list.filter((g) => g.state === "open" && g.hasProof).length });
-      } catch {
-        if (!dead) setGapsMeta({ list: [], waiting: 0 });
-      }
-    };
-    pull();
-    const t = setInterval(pull, 30000);
-    return () => { dead = true; clearInterval(t); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectCode]);
 
-  // RFC-072 §7 — ARCS IN THE BAND. The arc document IS the state (§3), so this reads the folder
-  // and counts the `::objective` blocks every time rather than keeping a number anywhere. A stored
-  // count would be a second answer to "how far along is ARC-004", and it would be wrong the moment
-  // somebody ticked an objective by hand — which is the normal way an objective gets ticked.
-  //
-  // The derivation is `arcRows.js` and is tested without a window; this effect only fetches.
-  const [arcsMeta, setArcsMeta] = useState({ list: [] });
-  useEffect(() => {
-    let dead = false;
-    const pull = async () => {
-      try {
-        const files = hostFiles(projectCode);
-        if (!files || !files.readFile) return;
-        // RFC-073 slice 2 — same cutover as the RFC tab: an arc is a document carrying `::arc`,
-        // listed off the registry. No rows is not an error; a kind with no rows gets no tab.
-        const svc = SystemViewService && SystemViewService.Agent;
-        if (!svc || !svc.documentsRegistry) return;
-        const rows = (await svc.documentsRegistry({ projectCode, kind: "arc" })) || [];
-        const paths = (Array.isArray(rows) ? rows : [])
-          .filter((x) => x && x.path && !x.missing && !(x.state && x.state.retired))
-          .map((x) => x.path);
-        if (!paths.length) {
-          if (!dead) setArcsMeta({ list: [] });
-          return;
-        }
-        const docs = await Promise.all(
-          paths.map(async (pth) => {
-            try {
-              const f = await files.readFile({ path: pth });
-              return f && f.ok !== false ? { path: pth, text: f.content || "" } : null;
-            } catch {
-              return null;
-            }
-          }),
-        );
-        if (!dead) setArcsMeta({ list: arcRows(docs.filter(Boolean)) });
-      } catch {
-        if (!dead) setArcsMeta({ list: [] });
-      }
-    };
-    pull();
-    const t = setInterval(pull, 30000);
-    return () => { dead = true; clearInterval(t); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectCode]);
 
   // WHAT IS OWED BY HIM — one read over the WHOLE registry, every kind at once, because an
   // obligation is not a property of a folder. The tabs above each ask one kind what it has; this
@@ -6592,12 +6370,6 @@ const countdown = (str, now = Date.now()) => {
     // The owed tab's mark counts the PRESSES only. Its other group is work, and a flag over work
     // would be the band promising a control that does not exist.
     owed: (owedMeta.press || []).length,
-    reports: reportsMeta.waiting,
-    rfcs: rfcsMeta.waiting,
-    // An arc wants him when an objective is BLOCKED — a different thing from an approval, which is
-    // why it gets its own mark below rather than sharing one.
-    arcs: arcsMeta.list.filter((a) => a.blocked).length,
-    gaps: gapsMeta.waiting,
   };
   const bandShown = bandTabs(
     {
@@ -6610,13 +6382,6 @@ const countdown = (str, now = Date.now()) => {
       // subagent must be reachable even with no lane registered at all, which is the case that was
       // broken — and the parts write the label, so the tab never counts a subagent as a lane.
       lanes: { lanes: lanesShown.length, subagents: unseenShown.length },
-      reports: reportsMeta.list.reduce((g, r) => {
-        g[r.subtype || ""] = (g[r.subtype || ""] || 0) + 1;
-        return g;
-      }, {}),
-      rfcs: rfcsMeta.list.length,
-      arcs: arcsMeta.list.length,
-      gaps: gapsMeta.list.length,
     },
     bandTab,
   );
@@ -8055,7 +7820,7 @@ const countdown = (str, now = Date.now()) => {
               it controls. And the count rides the title while it is on: a surface that silently
               omits is a surface that lies, so "no runs" and "runs, hidden by me" must never look
               the same. */}
-          {attached && !hideWork && (owedShown.length > 0 || lanesShown.length > 0 || unseenShown.length > 0 || listsShown.length > 0 || reportsMeta.list.length > 0 || !!work.state.whiteboard) && (
+          {attached && !hideWork && (owedShown.length > 0 || lanesShown.length > 0 || unseenShown.length > 0 || listsShown.length > 0 || !!work.state.whiteboard) && (
             <div className={`${CLASSNAME}__workband`} ref={stripRef} style={{ flex: `0 1 ${stripH}%` }}>
               <div
                 className="panel-divider panel-divider--h"
@@ -8116,7 +7881,7 @@ const countdown = (str, now = Date.now()) => {
                   <NudgeCog />
                 </div>
               )}
-              {(owedShown.length > 0 || lanesShown.length > 0 || unseenShown.length > 0 || listsShown.length > 0 || reportsMeta.list.length > 0) && (
+              {(owedShown.length > 0 || lanesShown.length > 0 || unseenShown.length > 0 || listsShown.length > 0) && (
               <div className={`${CLASSNAME}__strip`}>
           {/* THE OWED TAB — what is waiting on HIM, across every registered document at once.
               *"I need to be knowing what I need to do… you told me there's things that I need to
@@ -8174,160 +7939,6 @@ const countdown = (str, now = Date.now()) => {
               and not the same situation, which is why the second number is on the row rather
               than inside. Pressing opens the arc where it is written — the document is the
               record, so there is nowhere else to go. */}
-          {attached && bandShown.active === "arcs" && (
-            <>
-              {arcsMeta.list.slice(0, 30).map((a) => (
-                <div key={a.key} className={`${CLASSNAME}__reports-row`}>
-                  <button
-                    type="button"
-                    className={`${CLASSNAME}__reports-open`}
-                    title={a.path}
-                    onClick={() => openBandReport(a.path)}
-                  >
-                    {/* ⊘, NOT ⚑. The flag means "a decision is waiting on you" on reports and
-                        RFCs; an arc with a blocked objective is a different situation and sharing
-                        one mark made the band unreadable — *"I don't know what the other one is."* */}
-                    {a.blocked ? (
-                      <span className={`${CLASSNAME}__reports-flag`} title={`${a.blocked} objective blocked`}>
-                        ⊘
-                      </span>
-                    ) : null}
-                    <span className={`${CLASSNAME}__reports-name`}>
-                      {a.id}
-                      {a.title ? ` — ${a.title}` : ""}
-                    </span>
-                    {a.owner ? <span className={`${CLASSNAME}__reports-who`}>{a.owner}</span> : null}
-                    <span className={`${CLASSNAME}__reports-when`}>{arcLine(a)}</span>
-                  </button>
-                  {/* RUN THE ARC'S SPECS FROM THE DRAWER (his ask: "give me the ability to run all
-                      tests from the arcs, from the drawer"). LIGHT PROGRESS, nothing crazy — one
-                      press, then passed/failed in words, because the place to watch a run is the
-                      Proofs tab and the place to read what went wrong is the document. The run is
-                      the bus's, so pressing here and looking there is the same run. */}
-                  <ArcProofs projectCode={projectCode} arcId={a.id} />
-                </div>
-              ))}
-            </>
-          )}
-          {attached && bandShown.active === "rfcs" && (
-            <>
-              {rfcsMeta.list.slice(0, 30).map((r) => (
-                <div key={r.key} className={`${CLASSNAME}__reports-row`}>
-                  <button
-                    type="button"
-                    className={`${CLASSNAME}__reports-open`}
-                    title={r.path}
-                    onClick={() => openBandReport(r.path)}
-                  >
-                    {/* The same flag the reports rows use for an approval waiting — one mark for one
-                        meaning, wherever a decision is sitting undone. */}
-                    {r.waiting > 0 ? (
-                      <span className={`${CLASSNAME}__reports-flag`} title={`${r.waiting} waiting for your approval`}>
-                        ⚑
-                      </span>
-                    ) : null}
-                    <span className={`${CLASSNAME}__reports-name`}>
-                      {r.id}
-                      {r.title ? ` — ${r.title}` : ""}
-                    </span>
-                    <span className={`${CLASSNAME}__reports-when`}>{rfcLine(r)}</span>
-                  </button>
-                </div>
-              ))}
-            </>
-          )}
-          {attached && bandShown.active === "gaps" && (
-            <>
-              {gapsMeta.list.slice(0, 30).map((g) => (
-                <div key={g.key} className={`${CLASSNAME}__reports-row`}>
-                  <button
-                    type="button"
-                    className={`${CLASSNAME}__reports-open`}
-                    title={g.path}
-                    onClick={() => openBandReport(g.path)}
-                  >
-                    {/* The same flag every other kind uses for "this is sitting undone" — here it
-                        means the fix landed and its evidence is in the file, so it is one press
-                        from closed. A gap nobody has fixed is work, not a decision, and no flag. */}
-                    {g.state === "open" && g.hasProof ? (
-                      <span className={`${CLASSNAME}__reports-flag`} title="a proof is in the file — one press from resolved">
-                        ⚑
-                      </span>
-                    ) : null}
-                    <span className={`${CLASSNAME}__reports-name`}>
-                      {g.id}
-                      {g.title ? ` — ${g.title}` : ""}
-                    </span>
-                    <span className={`${CLASSNAME}__reports-when`}>{gapLine(g)}</span>
-                  </button>
-                </div>
-              ))}
-            </>
-          )}
-          {attached && bandShown.active.startsWith("reports") && (
-            <>
-              {reportsMeta.list
-                .filter((r) => (bandShown.active === "reports" ? !r.subtype : r.subtype === bandShown.active.slice(8)))
-                .slice(0, 30)
-                .map((r) => (
-                <div
-                  key={r.path}
-                  className={`${CLASSNAME}__reports-row${repArmed === r.path ? " is-armed" : ""}`}
-                >
-                  {/* THE WHOLE ROW IS THE DOOR, FULL WIDTH. As a shrink-to-fit button the hit area
-                      and the hover both stopped at the end of the text — his catch: *"the line
-                      doesn't go flex all the way to the end, you gotta be over the fucking
-                      text."* */}
-                  <button
-                    type="button"
-                    className={`${CLASSNAME}__reports-open`}
-                    title={r.path}
-                    onClick={() => openBandReport(r.path)}
-                  >
-                    {reportsMeta.flags[r.path] ? <span className={`${CLASSNAME}__reports-flag`}>⚑</span> : null}
-                    <span className={`${CLASSNAME}__reports-name`}>{r.name}</span>
-                    {/* RFC-076 §2 — a leaf that declares no subtype or no ending wears what is
-                        missing on the row, the same words the document itself shows. And the
-                        countdown the leaf carries says it here too (c37), so the drawer answers
-                        without opening anything. */}
-                    {r.state && r.state.invalid ? (
-                      <span className="md-report__invalid">invalid — {r.state.invalid}</span>
-                    ) : null}
-                    <RetainClock state={r.state} openedAt={r.openedAt} />
-                    {/* WHO FILED IT — the file name carries the agent and the list never said so,
-                        which matters the moment two agents file into one room. */}
-                    {(() => {
-                      const who = String(r.path || "").match(/report\.([^.]+)\./);
-                      return who ? <span className={`${CLASSNAME}__reports-who`}>{who[1]}</span> : null;
-                    })()}
-                    {r.ts ? <span className={`${CLASSNAME}__reports-when`}>{moment(r.ts).format("D MMM h:mm a")}</span> : null}
-                  </button>
-                  {/* AND A REPORT CAN BE DELETED FROM HERE. The band had no delete at all, so the
-                      only way to clear a read report was the nav fold or the TV picker — this
-                      presses the SAME verb (file + index entry + any show record carrying it). */}
-                  <button
-                    type="button"
-                    className={`${CLASSNAME}__reports-del`}
-                    title={repArmed === r.path ? "Click again — deletes the report file too (kept in git history)" : "Delete this report"}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (repArmed === r.path) {
-                        setRepArmed("");
-                        deleteReportRow(r);
-                      } else setRepArmed(r.path);
-                    }}
-                  >
-                    {repArmed === r.path ? "sure?" : "×"}
-                  </button>
-                </div>
-              ))}
-              {reportsMeta.list.length > 30 && (
-                <div className={`${CLASSNAME}__reports-more`}>
-                  +{reportsMeta.list.length - 30} older — the Stage tab lists them all
-                </div>
-              )}
-            </>
-          )}
           {/* ONE RENDERER FOR A LANE ROW, flat or nested — the row, its in-place panel, its
               delete. Defined here (not a component) so it closes over every handler the flat strip
               already wired. */}
@@ -8485,7 +8096,7 @@ const countdown = (str, now = Date.now()) => {
           {/* THE WHOLE LABEL IS THE GRAB BAR — a 5px edge sliver was the only pull surface and it
               sat inside the chat guard's shadow; now any press on the row starts the pull, and a
               press that never moves is the click that opens. */}
-          {attached && hideWork && (owedShown.length > 0 || lanesShown.length > 0 || unseenShown.length > 0 || listsShown.length > 0 || reportsMeta.list.length > 0 || !!work.state.whiteboard) && (
+          {attached && hideWork && (owedShown.length > 0 || lanesShown.length > 0 || unseenShown.length > 0 || listsShown.length > 0 || !!work.state.whiteboard) && (
             <div className={`${CLASSNAME}__workband-label`} ref={stripRef} onMouseDown={stripPull}>
               <WorkbandHead
                 open={false}

@@ -7,22 +7,18 @@
 // render: a band whose rows all vanished must not keep showing an empty pane while work sits on
 // another tab, and that rule is the whole reason this is a function and not an inline ternary.
 //
-// REPORTS ARE A TAB (his call, 2026-10-19 — he reversed the earlier answer after living with the
-// folded mailbox: *"reports are supposed to be a tab in the drawer, the strip, whatever"*). So the
-// mailbox fold is gone and reports take their turn beside the other kinds, under the same rules:
-// no reports, no tab.
-// RFC-071 — DOCUMENTS ARE A TAB TOO, for the same reason reports became one: a document with
-// members and an unsent update is work waiting on him, and work waiting on him belongs where the
-// rest of it is. The row is the document; the press is its send.
-// TWO FAMILIES, AND THEY ARE DIFFERENT KINDS OF THING. `jobs`, `lists` and `lanes` are WORK that
-// is running — a procedure's own list, a branch somebody is building on. `reports`, `rfcs` and
-// `arcs` are DOCUMENTS on disk: a folder, a filename pattern, and a row per file. The second group
-// is the one that becomes configurable — reports is only in it by default because it lives in
-// `.systemview`, not because the word "report" means anything to the band.
+// THE BAND IS WORK IN FLIGHT, AND ONLY THAT. His ruling: *"I would make it all about the worklist.
+// Work in flight. Not about dashboard shit, which I already have on an amazing dashboard."* So the
+// four DOCUMENT tabs are gone — reports, RFCs, arcs and gaps were a folder, a filename pattern and
+// a row per file, which is an inventory, and the dashboard is where an inventory belongs. What is
+// left is work that is RUNNING: a job, a lane, a procedure's own list.
 //
-// The families are told apart by COLOUR and nothing else (his call: *"could be a different colour
-// of the type, like you're overthinking it"*). Not a glyph, not a separator, not a second row —
-// those all say "these are two lists" when the truth is one band holding two kinds of thing.
+// `owed` STAYS, and the distinction is the reason: an obligation is not a folder of anything — it
+// is one line across every kind at once, the answer to *"help me resolve what's open"*, which is
+// what he said the drawer was for. It is first for the same reason.
+//
+// The `family` field survives with one value because the band's colour rule is keyed on it, and a
+// second family may well come back; what it must not become again is a cupboard.
 // AND A THIRD KIND OF THING, FIRST IN THE ROW: WHAT IS OWED BY HIM. His ask, 2026-10-30 —
 // *"can get rid of the regular things like list and report counts, and just make that whole top
 // header of the bar about things like approvals waiting… in general, I just need the drawer to help
@@ -41,23 +37,9 @@ export const BAND_KINDS = [
   { key: "jobs", label: "job", family: "work" },
   { key: "lanes", label: "lane", family: "work" },
   { key: "lists", label: "list", family: "work" },
-  { key: "reports", label: "report", family: "document" },
-  { key: "rfcs", label: "RFC", family: "document" },
-  // RFC-072 §7 — AN ARC IS WORK THE PROJECT IS CARRYING, so it sits beside the rest of it rather
-  // than behind a path only an agent knows. Same rule as every other kind: no arcs, no tab.
-  { key: "arcs", label: "arc", family: "document" },
-  // THE FOURTH REGISTERED KIND, which had no surface anywhere. A gap is the one document an agent
-  // writes INTO SOMEBODY ELSE'S repo — so it is the kind that most needs to be findable by a person
-  // who did not file it, and it was the only kind you could not see at all.
-  { key: "gaps", label: "gap", family: "document" },
 ];
 
 export const TAB_KEY = "sv.chat.bandTab";
-
-// A SUBTYPE TAB SAYS THE WORD ALONE — "2 specs", never "2 reports:spec" (his point, 2026-10-28:
-// the whole reason the subtypes expanded into their own tabs is so the word "report" does not
-// repeat across the bar). And the word is the SHORT one: a planning report's tab says "plan".
-const SUBTYPE_WORD = { planning: "plan" };
 
 // NOT EVERY WORD TAKES AN S. "3 oweds" is not English — `owed` is already what it is in the
 // plural, and a word that reads wrong is a word he has to translate before he can use the tab.
@@ -74,9 +56,8 @@ const plural = (word, n) => `${n} ${word}${n === 1 || INVARIANT.has(word) ? "" :
 // so its length was never bounded). With one kind present the phrase collapses to that kind alone,
 // which is why nothing changed for the case he has been looking at for weeks.
 export const bandLabel = (kind, n, parts = null) => {
-  const sub = kind.startsWith("reports:") ? kind.slice(8) : "";
   const row = BAND_KINDS.find((k) => k.key === kind);
-  const word = sub ? SUBTYPE_WORD[sub] || sub : row ? row.label : kind;
+  const word = row ? row.label : kind;
   if (parts && (parts.lanes || parts.subagents)) {
     const said = [];
     if (parts.lanes) said.push(plural(word, parts.lanes));
@@ -95,14 +76,11 @@ export const bandLabel = (kind, n, parts = null) => {
  * - Everything empty → no tabs and `active: ""`, and the band renders nothing at all.
  */
 export const bandTabs = (counts = {}, stored = "") => {
-  // REPORTS FAN OUT BY SUBTYPE, AT THE TOP (his call, settled 2026-10-28 after trying the nested
-  // strip: *"it makes sense logically, but I don't want to search for shit"*). A tab inside a tab
-  // is a thing you have to find; what was really waiting for you belongs where the eye already is.
-  // Each subtype waits on a DIFFERENT thing — a planning report waits to become an RFC, an account
-  // waits to be read once, a spec is current-or-drifted — and the vocabulary is OPEN, so the tabs come
-  // from whatever words the documents carry: a subtype nobody has used costs nothing, the first
-  // document to use one buys the tab, and the row scrolls when the words outgrow it. Untyped
-  // reports keep the plain `report` tab.
+  // A COUNT FOR A KIND THE BAND NO LONGER DRAWS IS IGNORED, not an error. The callers that still
+  // know about documents hand them over in the same object, and a tab exists only if BAND_KINDS
+  // names it — so dropping a kind here is the whole removal, and a stored choice pointing at one
+  // falls through to the first tab with rows (below), which is what already happens to any tab
+  // whose work finishes.
   const tabs = BAND_KINDS.flatMap((k) => {
     const c = counts[k.key];
     // THE LANE TAB'S COUNT FOLDS IN; REPORTS FAN OUT. Both arrive as an object and they mean
@@ -122,15 +100,6 @@ export const bandTabs = (counts = {}, stored = "") => {
     if (k.key === "lanes" && c && typeof c === "object") {
       const parts = { lanes: Number(c.lanes) || 0, subagents: Number(c.subagents) || 0 };
       return [{ ...k, n: parts.lanes + parts.subagents, parts }];
-    }
-    if (k.key === "reports" && c && typeof c === "object") {
-      const subs = Object.keys(c).filter((w) => w && c[w] > 0).sort();
-      const out = [];
-      if (c[""] > 0) out.push({ ...k, n: c[""] });
-      subs.forEach((w) =>
-        out.push({ key: `reports:${w}`, label: SUBTYPE_WORD[w] || w, family: "document", n: c[w] })
-      );
-      return out;
     }
     return [{ ...k, n: Number(c) || 0 }];
   }).filter((t) => t.n > 0);
