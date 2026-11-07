@@ -237,7 +237,10 @@ async function runProofs({ projectCode, document, arc, objective, headers = {}, 
     }
   }
 
-  const client = verifiedClientFor([]);
+  // A STALE REGISTRATION DEGRADES ONE SERVICE, NEVER THE RUN (see verifiedClientFor). Measured here
+  // by using the door: 27 collectable proofs died on one stale method reference.
+  const mismatched = [];
+  const client = verifiedClientFor([], mismatched);
   const { lists } = await collectTests(services, client);
   const saved = lists.flat();
   for (const want of namespaces) {
@@ -250,7 +253,13 @@ async function runProofs({ projectCode, document, arc, objective, headers = {}, 
   }
 
   if (dryRun)
-    return { ...where, dryRun: true, ...(problems.length ? { problems } : {}), tests: specs.map((s) => ({ namespace: s.namespace, title: s.title, at: s.at || null })) };
+    return {
+      ...where,
+      dryRun: true,
+      ...(problems.length ? { problems } : {}),
+      ...(mismatched.length ? { mismatched } : {}),
+      tests: specs.map((s) => ({ namespace: s.namespace, title: s.title, at: s.at || null })),
+    };
 
   if (!specs.length)
     return {
@@ -273,6 +282,7 @@ async function runProofs({ projectCode, document, arc, objective, headers = {}, 
     // PROBLEMS SIT BESIDE THE RESULT, never instead of it. A run of four proofs where a fifth could
     // not be built is not a clean run of four — the reader has to be able to see the difference.
     ...(problems.length ? { problems } : {}),
+    ...(mismatched.length ? { mismatched } : {}),
     tests: rows,
   };
 }

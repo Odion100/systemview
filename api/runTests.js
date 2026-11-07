@@ -14,7 +14,7 @@
 const { createClient } = require("systemlynx");
 const { initializeSavedTests } = require("../testing-utilities/transformTests");
 const { claimsOf } = require("../testing-utilities/stepClaims");
-const { serviceClient } = require("./serviceClient");
+const { serviceClient, degradedService } = require("./serviceClient");
 
 const FullTestController = require("../testing-utilities/FullTestController");
 const { matchNamespace } = require("../cli/utils/matchNamespace");
@@ -31,17 +31,30 @@ const { runFullTest } = new FullTestController();
 // each test opens to execute.
 //
 // PER RUN, not per process, so what it repaired is reported with the run that repaired it.
-function verifiedClientFor(rebuilds) {
+function verifiedClientFor(rebuilds, mismatched = []) {
   const c = Object.create(Client);
-  c.createService = (cd) =>
-    serviceClient(Client, cd, {
-      onRebuild: ({ serviceUrl, was, now }) => {
-        // SAID OUT LOUD. A silent self-heal is how this hid for a week: the run would simply start
-        // passing, and nobody would learn the hub had been answering with a stale surface.
-        const recovered = was.filter((m) => !now.includes(m));
-        if (recovered.length) rebuilds.push({ serviceUrl, recovered });
-      },
-    });
+  c.createService = (cd) => {
+    try {
+      return serviceClient(Client, cd, {
+        onRebuild: ({ serviceUrl, was, now }) => {
+          // SAID OUT LOUD. A silent self-heal is how this hid for a week: the run would simply start
+          // passing, and nobody would learn the hub had been answering with a stale surface.
+          const recovered = was.filter((m) => !now.includes(m));
+          if (recovered.length) rebuilds.push({ serviceUrl, recovered });
+        },
+      });
+    } catch (e) {
+      // A REGISTRY MISMATCH DOES NOT END THE RUN — it ends the specs that touch that service, and
+      // says so on each of them. Measured by using the door: one stale method reference took 27
+      // unrelated proofs down with it and answered with a single error string. Anything else still
+      // throws: a mismatch is a FACT about the record, while an unreachable socket or a bad url is
+      // the caller's problem and the collector already names those.
+      if (!e || !e.registryMismatch) throw e;
+      if (!mismatched.some((m) => m.at === cd.serviceUrl))
+        mismatched.push({ serviceId: cd.serviceId || null, at: cd.serviceUrl, methods: e.registryMismatch });
+      return degradedService(cd, e);
+    }
+  };
   return c;
 }
 
@@ -312,7 +325,9 @@ async function runTests(
   if (!services.length) return { projectCode, error: `no connected services for ${projectCode}` };
 
   const rebuilds = [];
-  const client = verifiedClientFor(rebuilds);
+  // WHAT THE RUN HAD TO DEGRADE, collected as it goes — see verifiedClientFor.
+  const mismatched = [];
+  const client = verifiedClientFor(rebuilds, mismatched);
   const { lists, unreachable } = await collectTests(services, client);
   const skips = Array.isArray(skip) ? skip : [skip].filter(Boolean);
   const selected = lists
@@ -384,6 +399,10 @@ async function runTests(
     // WHAT THE RUN HAD TO REPAIR BEFORE IT COULD RUN. Reported, not swallowed: a run that silently
     // fixed a stale client is a run that hid the reason the previous one failed.
     ...(rebuilds.length ? { rebuilt: rebuilds } : {}),
+    // AND WHAT IT COULD NOT REPAIR. A service whose record disagrees with it answers every call
+    // with that disagreement, so the specs touching it fail saying why — and this names it once at
+    // the top rather than leaving a reader to infer it from identical failures.
+    ...(mismatched.length ? { mismatched } : {}),
     ...(bail && rows.some((r) => !r.passed && !r.deadWire) && rows.length < total
       ? {
           stoppedEarly: true,

@@ -74,4 +74,29 @@ function serviceClient(Client, connectionData, { onRebuild } = {}) {
   return service;
 }
 
-module.exports = { serviceClient, missingFrom, declaredSurface, createClient };
+/**
+ * THE SAME MISMATCH, AS A SERVICE THAT ANSWERS INSTEAD OF A CALL THAT NEVER HAPPENS.
+ *
+ * `serviceClient` throws, which is right for a PROBE: you asked for one method, the record is wrong,
+ * and the loudest possible answer is the useful one. It is wrong for a RUN. Measured 2026-11-07 by
+ * using the door: `runProofs` over 27 collectable specs died on a single stale method reference
+ * (`Plugin.fixturesRunning`, a record written from an older build), so twenty-seven proofs that had
+ * nothing to do with it never ran and the answer was one error string. This file's own neighbour
+ * states the doctrine it broke — *"A DEAD WIRE DOES NOT STOP THE RUN. Bailing on it would end a
+ * suite on a socket nobody was testing."*
+ *
+ * So a runner asks for a DEGRADED service: it carries exactly the surface the registry DECLARED, so
+ * the engine indexes it as it would any other, and every method on it rejects with the mismatch
+ * message. The specs that touch it fail, saying precisely why; every other spec runs.
+ */
+function degradedService(connectionData, err) {
+  const out = {};
+  for (const { module, methods } of declaredSurface(connectionData)) {
+    if (!module) continue;
+    out[module] = out[module] || {};
+    for (const fn of methods) out[module][fn] = () => Promise.reject(err);
+  }
+  return out;
+}
+
+module.exports = { serviceClient, degradedService, missingFrom, declaredSurface, createClient };

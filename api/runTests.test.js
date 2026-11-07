@@ -133,3 +133,42 @@ test("bail stops at a timeout, because a hang is a failure", async () => {
   assert.equal(out.ran, 1);
   assert.equal(out.total, 2);
 });
+
+// ── A STALE REGISTRATION DOES NOT END THE RUN ───────────────────────────────────────────────────
+// Found by USING the door, 2026-11-07: `runProofs` over 27 collectable specs died on one stale
+// method reference — a record written from an older build of the service — and answered with a
+// single error string. Twenty-seven proofs that had nothing to do with it never ran. This file's own
+// run loop states the doctrine that was broken: a dead wire does not stop the run.
+const { degradedService, declaredSurface } = require("./serviceClient");
+
+const CD = {
+  serviceId: "T",
+  serviceUrl: "http://localhost:4000/t/api",
+  modules: [{ name: "Plugin", methods: [{ fn: "getTests" }, { fn: "fixturesRunning" }] }],
+};
+
+test("a degraded service carries the surface the REGISTRY declared, so the engine indexes it normally", () => {
+  const err = new Error("the registry says this service publishes Plugin.fixturesRunning, but the service does not");
+  const svc = degradedService(CD, err);
+  // the shape is the record's, not the live service's — that is what makes it a drop-in
+  assert.deepEqual(declaredSurface(CD), [{ module: "Plugin", methods: ["getTests", "fixturesRunning"] }]);
+  assert.equal(typeof svc.Plugin.getTests, "function");
+  assert.equal(typeof svc.Plugin.fixturesRunning, "function");
+});
+
+test("...and every method on it answers with the disagreement itself", async () => {
+  const err = new Error("the registry says this service publishes Plugin.fixturesRunning, but the service does not");
+  err.registryMismatch = ["Plugin.fixturesRunning"];
+  const svc = degradedService(CD, err);
+  await assert.rejects(() => svc.Plugin.fixturesRunning(), /registry says this service publishes/);
+  // THE METHOD THAT IS FINE FAILS TOO, and that is correct rather than unfortunate: the record this
+  // service was built from cannot be trusted about any of its surface, so a spec leaning on it has
+  // to fail saying that — not pass against a shape nobody can vouch for.
+  await assert.rejects(() => svc.Plugin.getTests(), /registry says this service publishes/);
+});
+
+test("a module the registry names but nothing declares is skipped, not invented", () => {
+  const svc = degradedService({ modules: [{ name: "", methods: [{ fn: "x" }] }] }, new Error("x"));
+  assert.deepEqual(Object.keys(svc), []);
+  assert.deepEqual(Object.keys(degradedService({}, new Error("x"))), []);
+});
