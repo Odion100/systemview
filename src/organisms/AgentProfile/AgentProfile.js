@@ -2116,8 +2116,12 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
                         <span className="agent-profile__hook-when">when {Object.keys(h.when).join(", ")}</span>
                       )}
                       {h.do && <span className="agent-profile__hook-do">→ {h.do}</span>}
-                    </div>
-                    <div className="agent-profile__hook-tags">
+                      {/* THE BADGES ARE PART OF THIS GROUP, not a group of their own beside it.
+                          They are facts about the hook — its cadence, whose it is, whether it is
+                          off — so they flow with its name, event, condition and pointer, wrapping
+                          with them and never being pushed anywhere (his ruling, 2026-11-07, after
+                          two attempts that kept them separate: *"you're not taking it literally
+                          that the badges become part of the group with the name"*). */}
                       {/* THE CADENCE IS A FACT ABOUT THE HOOK, not a footnote on it — it wore the
                           same grey as "parked" and "off for everyone", which are states, so the one
                           thing you check a hook for read as the quietest thing on the row. */}
@@ -2140,11 +2144,9 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
                       )}
                       {!h.enabled && <span className="agent-profile__hook-guard">off for everyone</span>}
                     </div>
-                    {/* THE VERBS ARE THEIR OWN GROUP, so they can WRAP WITHOUT TAKING THE BADGES
-                        WITH THEM (his catch, 2026-11-07: *"if it was wrapping properly the badges
-                        would stay at the top and the buttons would have been the only thing that
-                        wrapped"*). As one group the badges were tied to whichever line the buttons
-                        landed on, which on a long row put a hook's rate underneath it. */}
+                    {/* THE VERBS ARE THE ONLY GROUP THAT IS PINNED — things you DO to a hook, held
+                        at the row's edge, dropping to a line of their own when the row runs out of
+                        width. Nothing else travels with them. */}
                     <div className="agent-profile__hook-acts">
                       {/* THE SWITCH SITS WITH THE OTHER TWO VERBS — his call. A hook exists for
                           everybody the moment it is written; this is where THIS agent opts in, and
