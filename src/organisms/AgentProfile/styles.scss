@@ -748,7 +748,10 @@
   gap: 12px;
   padding: 8px 10px;
   border: 1px solid var(--sv-border);
-  border-left: 3px solid #6a74c4;
+  // THE ROW'S IDENTITY, DECLARED ONCE. The rate badge inside it reads this same variable, so
+  // "the badge matches the left border" is structural rather than two hexes somebody kept in step.
+  --hook-edge: #6a74c4;
+  border-left: 3px solid var(--hook-edge);
   border-radius: 7px;
   background: var(--sv-inset);
   // the slight transition — the enabled colour eases in and out when the hook is flipped
@@ -841,21 +844,21 @@
 }
 // THE FIRE RATE IS THE BADGE YOU LOOK FOR. It is the answer to "how often does this thing go off",
 // which is the question a hook row exists to answer — and it was in the same grey as `parked`, a
-// state, so the fact and the aside were indistinguishable. Teal because every other colour on this
-// row is taken and means something: indigo is the row's identity, green is the pointer and the
-// carried fill, amber is `work`.
+// state, so the fact and the aside were indistinguishable.
+//
+// IT WEARS THE CARD'S OWN LEFT EDGE (his ruling, 2026-11-07: *"make the badges' background match
+// the border of the card — the left border"*). The same hex, not a near relative: the edge is the
+// row's identity, so the badge belongs to the row rather than announcing a second thing. One value
+// for both themes, because a colour that matches a border in one mode and nearly matches it in the
+// other is the drift this token exists to prevent.
 .agent-profile__hook-rate {
   font-family: ui-monospace, Menlo, monospace;
   font-size: 10px;
   font-weight: 700;
   padding: 1px 6px;
   border-radius: 4px;
-  color: #effafc;
-  background: #1f7f94;
-  :root.sv-dark & {
-    color: #0b1f25;
-    background: #4fb6ce; // on the dark card the light ink inverts — same badge, same weight
-  }
+  color: #f3f4fb;
+  background: var(--hook-edge);
 }
 // a work hook ACTS — it never wears the same clothes as one that only whispers
 .agent-profile__hook-work {
